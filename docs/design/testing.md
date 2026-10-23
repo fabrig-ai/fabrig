@@ -78,10 +78,11 @@ worlds need a minimal one:
 - a program that echoes its input, one that exits with a given status,
   and one that never exits.
 
-It lives with skein's tests, and stays that small. A service's fake
-machine is the service's.
+It stays that small. A service's fake machine is the service's, built
+on it or beside it.
 
-It is `skein-fake-machine`, in `testing/`. A world lays a
+It is `skein-fake-machine`, in `crates/`: a playground ships it in its
+world, as it ships the simulated world (world.md, 2). A world lays a
 root in it from a scenario's items (files, directories, symbolic links,
 each with its mode) and gives its handle to a process as the shell would
 a root opened at startup; after each submit, the world takes the
@@ -180,9 +181,10 @@ a piece of a request body, is counted in the sender's worst case (the
 protocol layer's), and the memory test checks the step that takes it
 against its bound plus that input's size.
 
-**The world harness** is `skein-world`, in `testing/` (examples.md, 6):
-one loop over the processes' `iterate`, generic over a scenario's
-processes, with the referee's expectations, the trace, the heap at every
+**The world harness** is `skein-world`, in `testing/` (examples.md, 6),
+built over the simulated world, `skein-sim-world` in `crates/`, whose
+steps it runs and whose items it re-exports (world.md): one loop over
+the processes' `iterate`, generic over a scenario's processes, with the referee's expectations, the trace, the heap at every
 iteration, and the settled world's invariants; and the same loop over the
 shell's shared ring, on the real clock. The examples are its first user and its
 second, which is why it is skein's (testing-strategy.md, 7).
@@ -191,8 +193,9 @@ second, which is why it is skein's (testing-strategy.md, 7).
   (shell.md, 12), and `skein-world` re-exports both, so a service's worlds
   host the same `Host` its `main` drives, and a shipped binary links no
   testing crate.
-- **It builds on Linux and macOS alike.** The simulated worlds need no
-  real machine; the real loop opens the host's backend on either, and
+- **It builds on Linux and macOS alike,** and its simulated half,
+  `skein-sim-world`, for `wasm32-unknown-unknown` too (section 10).
+  The simulated worlds need no real machine; the real loop opens the host's backend on either, and
   refuses one a test forces that the host lacks (the ring on macOS,
   shell.md, 7.1). Only the tree keeper's cgroup and walk are Linux's
   (examples.md, 6); its process group runs on both.
@@ -244,15 +247,16 @@ crates/skein-fake-llm-*         the scripted LLM peer: its domain and its byte p
 crates/skein-fake-forge-domain  the fake forge's domain (fake-forge.md, 2 and 3)
 crates/skein-fake-forge-protocol its Forgejo protocol layer (fake-forge.md, 4)
 crates/skein-fake-oauth         an independent rotating OAuth issuer (oauth.md, 5)
-crates/skein-fake-peers         the LLM, OAuth and forge peers hosted on loopback io, in a world or as an application's own process (fake-forge.md, 5); links testing/skein-fake-forge-github for GitHub's API/browser and blob faces
+crates/skein-fake-peers         the LLM, OAuth and forge peers hosted on loopback io, in a world or as an application's own process (fake-forge.md, 5); links skein-fake-forge-github for GitHub's API/browser and blob faces
 crates/skein-fake-checkout      files, scripted commands and local git for a service's domain worlds, and for a service's fake git as a program (fake-checkout.md)
+crates/skein-fake-forge-github  the fake forge's GitHub API/browser and signed-log blob layer (fake-forge.md, 10), which the peers link
+crates/skein-fake-machine       the minimal fake machine: files beneath a root, its programs, and its face behind the simulator (section 4)
+crates/skein-sim-world          the simulated world: processes hosted over the simulator and stepped, which the harness and a playground run (world.md)
 testing/skein-conformance       the conformance suite: the backend interface, the scenarios, the driver, the checks
 testing/skein-heap              the counting allocator, the meter that checks a step against its worst case, and the span a world meters its processes with
 testing/skein-scratch           a scratch directory beneath the system's temporary one, removed when dropped, for tests of files on the real kernel
-testing/skein-world             the world harness: processes' iterate over the simulator or the real ring, the referee, the trace, the heap
+testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
 testing/skein-echo-client       the fake echo client, a step machine
-testing/skein-fake-machine      the minimal fake machine: files beneath a root, its programs, and its face behind the simulator
-testing/skein-fake-forge-github the fake forge's GitHub API/browser and signed-log blob layer (fake-forge.md, 10)
 testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fake-forge.md, 6)
 testing/skein-fake-channel      a scripted framed peer for a service's protocol worlds (channel.md)
 testing/skein-codegen           the codec generator, run by a consumer's tests (codec.md)
@@ -344,7 +348,9 @@ formatting, the lints as errors, a build of `skein-lib`, `skein-codec`
 and `skein-http` alone for `wasm32-unknown-unknown` (lib.md, section 2),
 and clippy's lints as errors on that target for `skein-ui`,
 `skein-ui-web` and the UI example's view and browser shell, since the
-parts' platform halves compile only there (ui-web.md, section 14); then
+parts' platform halves compile only there (ui-web.md, section 14), and
+for the portable face of the shell and the simulated world (section
+10); then
 the focused suite and the fuzzy suite, with nextest (section 7), and
 nothing slower. `scripts/browser.sh` is the browser tier, outside the
 gate: the UI example's
@@ -416,3 +422,32 @@ and section 3).
   passing a box from one to the other, would need the hand-off counted.
 - The real loop in CI and sanitizers on the ring adapter are the shell's
   (shell.md, 10).
+
+## 10. The portable target
+
+A playground runs a service's simulated world in a browser
+(playground.md), so what that world links builds for
+`wasm32-unknown-unknown` as well as natively.
+
+- **What builds there:** lib, io, the simulator, the shell's portable
+  face (shell.md, 14), the simulated world and the fake machine, the
+  fakes a world hosts (the LLM's and the forge's domains and protocol
+  layers, the peers, GitHub's layer), the key-value store, HTTP, JSON,
+  the channel, the codec, TLS, and the playground's kit (playground.md).
+  The counting allocator, the harness's referee and real loop, the
+  browser kit, the conformance suite and the scratch directory do not:
+  they are tests', and native.
+- **Fenced by target:** what reads the system is under `cfg(unix)` where
+  it sits, never behind a feature (shell.md, 14).
+- **No entropy there.** A world draws every choice from its seed and runs
+  in plaintext; on this target `skein-tls` registers a source of
+  entropy that panics, naming itself (tls.md, 4), so a path that reaches
+  for the host's entropy fails at once rather than drawing from the
+  page.
+- **Checked in the gate** with clippy's lints as errors on this target,
+  over every crate of the list above: a native item reached from the
+  portable face fails the build, and a fence that leaves code dead warns.
+  Nothing runs there in the gate: the simulated world's behaviour is the
+  same code natively, which its tests run; a playground's browser tier
+  runs it in Chromium (playground.md, 8).
+

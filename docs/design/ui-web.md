@@ -1217,3 +1217,51 @@ step 8) holds the rule itself; a server holds 4.4's.
 | nothing inline under the strict policy (4.4) | A script that runs on the page runs as the person: it can send any exchange the application can. Admitting inline script admits any script injected into the page, and styles injected inline would read the page's text out (by attribute selectors, by a font's ligatures). The parts and the bundle need nothing inline, so any server can send the strict policy, whatever the application. | its JavaScript, from the origin (3.3, step 7); its stylesheets; a component (6.1) |
 | a navigation away to an origin path or an `https` address (section 10) | The tab leaves the application for the target, with the person's trust in the page: a plaintext address on the network can be read and rewritten on its way, and a `javascript:` or `data:` one runs on the page or as it. | a link the person presses (section 6); plaintext loopback in a test's build, with `loopback-navigation` (section 10) |
 | the closed list of a bundle's types (4.4) | With `nosniff`, a file is the type the server says; the list holds only the types a page loads, each weighed under the policy, and keeps off the origin what a browser would run or render (XML, a PDF, a plugin's), which `'self'` would admit. | any file of those types, in the digest directory's `files/`, or at a root path (3.3, step 5) |
+
+## 18. The worker's platform
+
+A platform for an application whose server runs in the same tab: its
+world in a Web Worker, a playground's (playground.md). The application's
+shell holds it where it holds the browser's, and the rest of its loop is
+unchanged.
+
+- **A `Platform` as the browser's is** (`platform::Worker<R>` beside
+  `platform::Browser<R>`): it carries the transport's exchanges and the
+  stream, and their abandons and read-ons, over the bridge to the
+  worker, and raises the worker's fetch reports in the inbox as fetch's
+  own (section 10). The duties fetch alone took (reading the stream on,
+  abandoning an exchange) are the platform's, so both platforms take
+  them alike.
+- **It starts the worker,** from the worker's module in the bundle's
+  digest directory, and ends it at a reset, a new story or a failure
+  (playground.md, 7).
+- **The small store is the page's memory,** not session storage: a
+  reload starts a new world, so nothing the client kept may outlive the
+  page. Writes succeed within the store's bound, refused past it.
+- **The world's clock is the platform's facts' clock:** the platform
+  gives `now` and the wall as the world's clock the bridge last brought.
+  While the world waits idle, it advances that at the current speed,
+  up to the world's next due instant, as the world's own clock will
+  move (playground.md, 3); while the world steps, it stays at the
+  world's last report; and it never goes back, a report behind it
+  waiting until the world passes it. So the client's times and
+  deadlines are the world's at any speed, a paused world's client
+  waits with it, and a world that lags holds its client's clock with
+  it.
+- **The timer in the world's time:** the application's deadline, a
+  world instant, is set as the browser instant at which the platform's
+  clock reaches it, again at each report of the world's and each change
+  of pace; none while paused or while the world steps.
+- **A hidden tab pauses the world** and the shown tab resumes it at the
+  speed it had, through the bridge's pace; the stream is kept, since the
+  world is the server and holds no connection of the browser's (section
+  10's hidden tab is the browser's platform's alone).
+- **No navigation away:** the platform holds no other origin. A
+  navigation to a path on the page's own origin shows it in the address
+  bar, and anything else is not followed, as section 10's rule refuses
+  a target outside it.
+- **Tested** by its pure half on the host: the clock's arithmetic over
+  speeds and pauses, the timer's conversion, the messages' encoding
+  (section 14); the page half runs in the application's browser tier
+  (playground.md, 8).
+

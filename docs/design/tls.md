@@ -380,6 +380,12 @@ independence.
   nothing of, read with plain `read` calls. getrandom's
   `linux_disable_fallback` feature would make that an error instead;
   skein does not set it.
+- **None on the portable target:** built for `wasm32-unknown-unknown`,
+  where a playground's world links skein-tls and makes no connection
+  (testing.md, 10), skein-tls registers getrandom's `custom` backend,
+  under that target alone, as a source that panics, naming itself. A
+  world draws only from its seed, so a draw there is a bug, found at
+  once.
 - **No clock:** rustls asks a time provider for the time it checks
   certificates against. Each connection's configuration carries one that
   answers the `env.wall` of the step that started its handshake, read

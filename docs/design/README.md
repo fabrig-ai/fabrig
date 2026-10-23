@@ -25,8 +25,9 @@ this design.
   its `worst_case`, and a service adds them up.
 - **Built when pulled.** A part is built when its first user needs it,
   and that user is its first test.
-- **Laid out by role** (testing.md, section 6): step crates in
-  `crates/`, shared test harnesses and fakes in `testing/`, worlds in
+- **Laid out by role** (testing.md, section 6): step crates, and the
+  fakes and the simulated world a playground ships, in
+  `crates/`; shared test harnesses and fakes in `testing/`, worlds in
   `tests/`, the example services in `examples/`.
 
 ## 2. The parts
@@ -42,7 +43,8 @@ this design.
 | the key-value store | `skein-kv` | ordered byte keys and values in memory, made durable by a commit log and snapshots on io's files | [kv.md](kv.md) |
 | the fake checkout | `skein-fake-checkout` | for tests: deterministic files, scripted commands and local git mechanics; worlds own policy and delivery | [fake-checkout.md](fake-checkout.md) |
 | the counting allocator | `skein-heap` | for tests: the heap counted, and each step checked against its worst case | [testing.md](testing.md) |
-| the world harness | `skein-world` | for tests: each process's `iterate` in one loop, over the simulator or the ring, with a referee | [examples.md](examples.md) |
+| the simulated world | `skein-sim-world`, `skein-fake-machine` | a service's processes hosted over the simulator and run a step at a time, as the harness and a playground run them; the minimal fake machine | [world.md](world.md) |
+| the world harness | `skein-world` | for tests: the simulated world's run with a referee and every world's checks, and the same processes over the ring | [examples.md](examples.md) |
 | HTTP | `skein-http` | HTTP/1.1 client and server, server-sent events | [http.md](http.md) |
 | JSON | `skein-json` | a bounded tokenizer, a sized writer | [json.md](json.md) |
 | framed channels | `skein-channel` | a framed channel between two peers over a stream: an opening that agrees a version, bounds, flow control | [channel.md](channel.md) |
@@ -61,6 +63,7 @@ this design.
 | the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui.md](ui.md) |
 | the text shell | `skein-ui-text` | the tree printed as lines, a typed line read as an act, for a terminal or a pipe | [ui-text.md](ui-text.md) |
 | the browser parts | `skein-ui-web`, `skein-ui-bundle` | parts an application's browser shell wires into its own loop, compiled to WebAssembly; the bundler | [ui-web.md](ui-web.md) |
+| a world in a browser | `skein-playground` | an application's simulated world in a Web Worker, stepped in slices paced by the browser; the visitor speaking HTTP to its listener; the bridge; the session log and its replay | [playground.md](playground.md) |
 | the fake person | `skein-fake-person`, `skein-fake-person-browser` | for tests: a person who finds nodes by role, name and text and acts on them, on the tree or in Chromium | [ui.md](ui.md), [ui-web.md](ui-web.md) |
 | the lab's browser | `skein-lab-browser` | for the lab: a headless Chromium on the browser kit answering calls on a closed network, in the capture's form and the hand's | [lab-browser.md](lab-browser.md) |
 
@@ -96,9 +99,12 @@ skein-ui-web   lib, ui; on wasm32, wasm-bindgen, js-sys, web-sys
 skein-ui-bundle nothing from skein (a tool), wasm-bindgen-cli-support
 skein-fake-person lib, ui
 skein-fake-person-browser lib, io, ui-web, fake-person, browser
-skein-shell    lib, io, io-uring, libc
+skein-shell    lib, io; natively, io-uring (Linux) and libc (shell.md, 14)
 skein-sim      lib, io
+skein-sim-world lib, io, sim, shell (its Host)
+skein-fake-machine lib, io, sim
 skein-kv       lib, io
+skein-playground lib, io, http, sim-world, ui-web; on wasm32, wasm-bindgen, js-sys, web-sys
 ```
 
 The crates from outside skein are few, and each is an exception the

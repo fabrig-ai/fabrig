@@ -27,7 +27,7 @@ The dialect is forge.md's; the parts under test are the kit's others.
 - **The conformance** (`tests/forge/conformance`, outside the suites) drives
   the throwaway and records each fact the dialect relies on as `holds`,
   `fails` or `unchecked`, with masked transcripts (section 7).
-- **GitHub's layer** (`testing/skein-fake-forge-github`) serves github.com's
+- **GitHub's layer** (`crates/skein-fake-forge-github`) serves github.com's
   API at the dialect's pin over the same domain: the App, its installations
   and tokens, the browser's pages as plain redirects, the merge queue,
   rulesets, the delivery log and the job log's blob host. Where it differs
@@ -702,7 +702,7 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
 
 ## 10. GitHub's layer
 
-`testing/skein-fake-forge-github` serves github.com's API, at the
+`crates/skein-fake-forge-github` serves github.com's API, at the
 dialect's pin (forge-github.md), over the same domain, beside the Forgejo
 layer and in its shape (section 4): a `Server` per connection, a
 `Service` that owns routing, the tally and the layer's own stores, a

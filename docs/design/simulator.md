@@ -60,14 +60,19 @@ runs against it in `tests/conformance/sim` (testing.md, 6).
   timeout), or to a given instant. A world that hosts services moves it
   to the earlier of what the simulator has due and the services' earliest
   deadline, once no process has work or deferred work, so an idle world
-  jumps straight there. The wall clock starts at a fixed date, so it
-  replays too.
+  jumps straight there. The wall clock starts at the date its
+  configuration names, a fixed one by default, so it replays too; a
+  playground names the browser's at its start and records it
+  (world.md, 4).
 - **The trace** holds each submission, each completion reaped and each
   fault drawn, under its process's pid, and the state digests the world
   harness writes beside them (lib.md, 5.1; testing.md, section 5): an entry
   `Event::Digest([u8; 32])`, under the process's pid, or under
   `Pid::MACHINE`, `Pid(u32::MAX)`, printed `machine`, for the machine's.
   `spawn_process` never gives that pid. A `None` digest writes no entry.
+  It is kept whole by default; the configuration may turn it off, for
+  a world that runs as long as a page does and replays from a log of
+  its inputs instead (world.md, 7).
 - **The machine seam.** File and process operations go to the embedder's
   fake machine, which answers the file operations and runs the programs.
   A spawned program may be another service, which the world then starts
