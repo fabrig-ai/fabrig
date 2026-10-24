@@ -30,6 +30,8 @@ skein-channel.workspace = true
 smith-agent-shell.workspace = true
 serde_json.workspace = true
 skein-fake-peers.workspace = true
+skein-fake-oauth.workspace = true
+skein-oauth.workspace = true
 skein-fake-forge-domain.workspace = true
 skein-fake-forge-protocol.workspace = true
 skein-http.workspace = true
@@ -47,6 +49,8 @@ skein-lib.workspace = true
 skein-shell.workspace = true
 
 [dev-dependencies]
+skein-ui.workspace = true
+skein-ui-text.workspace = true
 skein-forge-client.workspace = true
 temper-worker-domain-checkout.workspace = true
 

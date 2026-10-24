@@ -25,6 +25,9 @@ pub enum Act {
     Open,
     /// Type the last page's numbered control with this label, then the words.
     TypeOn { label: &'static [u8], words: &'static [u8] },
+    /// Type the kept redirect into the labelled secret field. Its value never
+    /// enters the act or a formatted diagnostic.
+    TypeKept { label: &'static [u8] },
     /// Read a page after the last command that holds `holds` and lacks `lacks`.
     See { holds: &'static [u8], lacks: Option<&'static [u8]> },
     /// Type `q` and wait for the terminal's exit.
@@ -237,7 +240,7 @@ impl Typist {
                 }
             }
             (Op::Close { .. }, Done::Nothing) => {}
-            (kind, done) => panic!("typist completion {kind:?}: {done:?}"),
+            _ => panic!("unexpected typist completion"),
         }
         if self.pending == 0 {
             assert!(self.read.exit.is_some(), "terminal ended before typist settled");
@@ -248,8 +251,8 @@ impl Typist {
         if !self.page.is_empty() {
             assert!(
                 self.page.len() < PAGE_BYTES,
-                "terminal page exceeds pipe's atomic write bound: {}",
-                String::from_utf8_lossy(&self.page)
+                "terminal page exceeds pipe's atomic write bound: {} bytes",
+                self.page.len()
             );
             self.read.pages.push(Page { bytes: std::mem::take(&mut self.page).into(), commands: self.commands });
         }
@@ -306,14 +309,22 @@ impl Typist {
     pub(crate) fn ready(&self, act: &Act, links: u32) -> bool {
         match act {
             Act::Open => !self.opening || self.live() || !self.active && links > self.link_count,
-            Act::TypeOn { .. } => !self.acted || !self.writing && self.fresh().next().is_some(),
+            Act::TypeOn { .. } | Act::TypeKept { .. } => !self.acted || !self.writing && self.fresh().next().is_some(),
             Act::See { holds, lacks } => self
                 .fresh()
                 .any(|page| contains(&page.bytes, holds) && lacks.is_none_or(|lacks| !contains(&page.bytes, lacks))),
             Act::Close => !self.acted || !self.active,
         }
     }
-    pub(crate) fn act(&mut self, act: &Act, scratch: &Path, root: Fd, links: u32, out: &mut Queue<Submit>) -> bool {
+    pub(crate) fn act(
+        &mut self,
+        act: &Act,
+        scratch: &Path,
+        root: Fd,
+        links: u32,
+        kept: Option<&skein_lib::Secret>,
+        out: &mut Queue<Submit>,
+    ) -> bool {
         match act {
             Act::Open => {
                 if !self.opening {
@@ -335,14 +346,19 @@ impl Typist {
                 }
                 false
             }
-            Act::TypeOn { label, words } => {
+            Act::TypeOn { label, .. } | Act::TypeKept { label } => {
                 if !self.acted {
+                    let words = if let Act::TypeOn { words, .. } = act {
+                        *words
+                    } else {
+                        kept.expect("kept redirect before TypeKept").expose()
+                    };
                     let page = self.read.pages.last().expect("last printed terminal page");
                     let number = control(&page.bytes, label).unwrap_or_else(|| {
                         panic!(
-                            "missing terminal control {} on page:\n{}",
+                            "missing terminal control {} on page of {} bytes",
                             String::from_utf8_lossy(label),
-                            String::from_utf8_lossy(&page.bytes)
+                            page.bytes.len()
                         )
                     });
                     let mut bytes = number.to_vec();
@@ -375,6 +391,22 @@ impl Typist {
                 }
             }
         }
+    }
+    /// The last printed external sign-in link, read from the person's transcript.
+    pub(crate) fn sign_in_address(&self) -> &[u8] {
+        self.read
+            .pages
+            .iter()
+            .rev()
+            .flat_map(|page| page.bytes.split(|byte| *byte == b'\n').rev())
+            .find_map(|line| {
+                let marker = b"Open the sign-in page <";
+                let start = line.windows(marker.len()).position(|part| part == marker)? + marker.len();
+                let rest = &line[start..];
+                let end = rest.iter().position(|byte| *byte == b'>')?;
+                Some(&rest[..end])
+            })
+            .expect("last printed sign-in address")
     }
     pub(crate) fn finish(&mut self, out: &mut Queue<Submit>) -> bool {
         if self.active && !self.unclosed {
@@ -416,6 +448,62 @@ fn control<'a>(page: &'a [u8], label: &[u8]) -> Option<&'a [u8]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn type_kept_inputs_a_secret_field_without_echoing_its_value() {
+        use skein_ui::{Binding, Builder, EntryKind, Owner, Role, Tree};
+        let (view, _) = limits::view(&limits::native()).expect("native view bounds");
+        let bounds = view.tree;
+        let label = b"Secret address";
+        let kept = skein_lib::Secret::new(b"synthetic-kept-value".as_slice().into());
+        let field = |value: &[u8]| {
+            let mut builder = Builder::new(&bounds);
+            builder.open(Role::Page);
+            builder.open(Role::TextField);
+            builder.name(label);
+            builder.entry(EntryKind::Secret);
+            builder.value(value, 1);
+            builder.bind(Binding { owner: Owner { number: 1 }, token: Token::new(1) });
+            builder.close();
+            builder.close();
+            let mut tree = builder.finish();
+            skein_ui::diff(
+                &Tree::new(bounds.nodes),
+                &mut tree,
+                &bounds,
+                &mut 0,
+                &mut Queue::with_capacity(bounds.patches),
+            );
+            tree
+        };
+        let tree = field(b"");
+        let mut print = skein_ui_text::Print::new(&bounds).expect("secret field print bounds");
+        skein_ui_text::render(&tree, b"Secret", None, &mut print);
+        let mut typist = Typist { stdin: Some(Fd::new(0)), active: true, pending: 1, ..Typist::default() };
+        typist.printed(print.text.as_slice());
+        let mut out = Queue::with_capacity(8);
+        let act = Act::TypeKept { label };
+        assert!(!typist.act(&act, Path::new("unused"), Fd::new(3), 0, Some(&kept), &mut out));
+        let submit = out.pop().expect("secret input command");
+        let Op::PipeWrite { bytes, .. } = submit.kind else { panic!("secret field pipe write") };
+        let command = skein_ui_text::command(
+            bytes.strip_suffix(b"\n").expect("whole command"),
+            Some(print.numbers.as_slice()),
+            &tree,
+            u32::try_from(PAGE_BYTES).expect("terminal line bound"),
+        );
+        let skein_ui_text::Command::Act { first: skein_ui::Act::Input { value }, .. } = command else {
+            panic!("TypeKept inputs the numbered secret field")
+        };
+        assert!(value.as_ref() == kept.expose(), "the whole kept value reaches the field");
+        skein_ui_text::render(&field(&value), b"Secret", None, &mut print);
+        typist.printed(print.text.as_slice());
+        assert!(contains(print.text.as_slice(), b"(hidden)"), "secret field is hidden");
+        assert!(
+            typist.read.pages.iter().all(|page| !contains(&page.bytes, kept.expose())),
+            "no kept value in the terminal's printed pages"
+        );
+    }
 
     #[test]
     fn controls_use_the_last_matching_label_and_ignore_disabled_numbers() {

@@ -4,6 +4,7 @@ mod browse;
 pub use browse::Browsed;
 use browse::Browser;
 const BROWSER: usize = usize::MAX - 1;
+const SIGN_IN_HTTP: usize = usize::MAX - 2;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
@@ -37,6 +38,11 @@ pub enum Step {
     Browse {
         call: usize,
     },
+    /// Approve the terminal's last sign-in address at the fake issuer, keeping
+    /// its Location unfollowed and secret in the world's memory.
+    Authorize,
+    /// GET the kept redirect on the real loopback listener; keep it for later acts.
+    Return,
     /// A person at the hosted terminal.
     Terminal(crate::terminal::Act),
     Advance,
@@ -287,6 +293,9 @@ pub(crate) struct Caller {
     pub(crate) github_app: Option<u64>,
     pub(crate) browsed: Vec<Browsed>,
     browser: Option<Browser>,
+    visit: Option<crate::issuer::Visit>,
+    kept: Option<skein_lib::Secret>,
+    pub(crate) returned: Vec<crate::issuer::Returned>,
     pub(crate) released: bool,
     pub(crate) advanced: Cell<bool>,
     pub(crate) hold_released: Cell<bool>,
@@ -320,6 +329,8 @@ impl Caller {
         self.steps.iter().filter_map(|step| match step {
             Step::Held { name } => Some(*name),
             Step::Browse { .. }
+            | Step::Authorize
+            | Step::Return
             | Step::FixtureReady
             | Step::ReleaseHold { .. }
             | Step::Terminal(_)
@@ -387,8 +398,10 @@ impl Caller {
     }
     pub(crate) fn new(steps: Vec<Step>, scratch: PathBuf, root: Fd) -> Self {
         let browsers = steps.iter().filter(|step| matches!(step, Step::Browse { .. })).count();
+        let visits = steps.iter().filter(|step| matches!(step, Step::Authorize | Step::Return)).count();
         let memory = u64::try_from((steps.len() + 1) * (OUTPUT * 4 + 4096)).expect("caller memory")
             + Browser::MEMORY * u64::try_from(browsers).expect("browser count")
+            + crate::issuer::Visit::MEMORY * u64::try_from(visits).expect("sign-in visits")
             + crate::terminal::Typist::worst_case()
             + Queue::<Complete>::worst_case(ROOM).expect("completions")
             + Queue::<Submit>::worst_case(ROOM).expect("submissions");
@@ -398,6 +411,9 @@ impl Caller {
             github_app: None,
             browsed: Vec::with_capacity(browsers),
             browser: None,
+            visit: None,
+            kept: None,
+            returned: Vec::with_capacity(visits),
             released: false,
             advanced: Cell::new(false),
             hold_released: Cell::new(false),
@@ -438,7 +454,7 @@ impl Caller {
     }
     fn submit(&mut self, call: usize, kind: Op) {
         self.serial += 1;
-        if call < BROWSER {
+        if call < SIGN_IN_HTTP {
             self.running[call].as_mut().expect("running command").pending += 1;
         }
         self.owners.insert(Token::new(self.serial), call);
@@ -458,6 +474,8 @@ impl Caller {
             }
             Step::Call { at, argv } | Step::Start { at, argv } | Step::Until { at, argv, .. } => (at, argv),
             Step::Browse { .. }
+            | Step::Authorize
+            | Step::Return
             | Step::FixtureReady
             | Step::ReleaseHold { .. }
             | Step::Terminal(_)
@@ -572,6 +590,12 @@ impl Caller {
             return;
         }
         let index = self.owners.remove(&complete.op).expect("operation owner");
+        if index == SIGN_IN_HTTP {
+            if let Some(op) = self.visit.as_mut().expect("sign-in GET").complete(complete) {
+                self.submit(SIGN_IN_HTTP, op);
+            }
+            return;
+        }
         if index == BROWSER {
             if let Some(op) = self.browser.as_mut().expect("browser step").complete(complete) {
                 self.submit(BROWSER, op);
@@ -729,6 +753,9 @@ impl Caller {
         true
     }
     fn interactive_act(&mut self) -> bool {
+        if matches!(self.steps[self.next], Step::Authorize | Step::Return) {
+            return self.sign_in_http();
+        }
         if let Step::Browse { call } = self.steps[self.next] {
             return self.browse_act(call);
         }
@@ -738,6 +765,7 @@ impl Caller {
             &self.scratch,
             self.root.expect("terminal launch root"),
             self.links.get(),
+            self.kept.as_ref(),
             &mut self.submissions,
         )
     }
@@ -749,6 +777,31 @@ impl Caller {
         }
         self.watching = None;
         self.watched = false;
+        true
+    }
+    fn sign_in_http(&mut self) -> bool {
+        let authorize = matches!(self.steps[self.next], Step::Authorize);
+        if self.visit.is_none() {
+            let url = if authorize {
+                self.terminal.sign_in_address()
+            } else {
+                self.kept.as_ref().expect("kept redirect before Return").expose()
+            };
+            let visit = crate::issuer::Visit::new(url, authorize);
+            let op = visit.start();
+            self.visit = Some(visit);
+            self.submit(SIGN_IN_HTTP, op);
+            return false;
+        }
+        if !self.visit.as_ref().expect("sign-in GET").done {
+            return false;
+        }
+        let visit = self.visit.take().expect("settled sign-in GET");
+        if authorize {
+            self.kept = Some(visit.redirect.expect("unfollowed issuer redirect"));
+        } else {
+            self.returned.push(visit.answer);
+        }
         true
     }
     fn browse_act(&mut self, call: usize) -> bool {
@@ -776,7 +829,7 @@ impl Caller {
             return;
         };
         match step {
-            Step::Browse { .. } | Step::Terminal(_) => {
+            Step::Browse { .. } | Step::Authorize | Step::Return | Step::Terminal(_) => {
                 if !self.interactive_act() {
                     return;
                 }
@@ -871,6 +924,7 @@ impl Caller {
     }
     fn can_advance(&self) -> bool {
         match self.steps.get(self.next) {
+            Some(Step::Authorize | Step::Return) => self.visit.as_ref().is_none_or(|visit| visit.done),
             Some(Step::Browse { .. }) => self.browser.as_ref().is_none_or(|browser| browser.done),
             Some(Step::Terminal(act)) => self.terminal.ready(act, self.links.get()),
             Some(Step::FixtureReady) => self.running.iter().all(Option::is_none),
@@ -929,6 +983,7 @@ impl Host for Caller {
             && self.probe.is_none()
             && self.owners.is_empty()
             && self.browser.is_none()
+            && self.visit.is_none()
             && self.terminal.is_empty()
     }
     fn worst_case(&self) -> u64 {

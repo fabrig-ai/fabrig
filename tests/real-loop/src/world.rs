@@ -12,6 +12,7 @@ use skein_world::{
 pub(crate) enum Proc {
     Llm(Box<Llm>),
     Forge(Box<skein_fake_peers::forge::Peer>),
+    Issuer(Box<skein_fake_peers::oauth::Peer>),
     Service(Box<ServiceHost>),
     Caller(Box<Caller>),
     Ctl(Box<crate::calls::Recorded>),
@@ -25,6 +26,7 @@ impl Proc {
         match self {
             Self::Llm(h) => &h.peer,
             Self::Forge(h) => h.as_ref(),
+            Self::Issuer(h) => h.as_ref(),
             Self::Service(h) => h.as_ref(),
             Self::Caller(h) => h.as_ref(),
             Self::Ctl(h) => h.as_ref(),
@@ -38,6 +40,7 @@ impl Proc {
         match self {
             Self::Llm(h) => &mut h.peer,
             Self::Forge(h) => h.as_mut(),
+            Self::Issuer(h) => h.as_mut(),
             Self::Service(h) => h.as_mut(),
             Self::Caller(h) => h.as_mut(),
             Self::Ctl(h) => h.as_mut(),
@@ -111,7 +114,13 @@ pub(crate) fn run(
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
     direct_key: bool,
+    sign_in: bool,
 ) -> CheckedOutcome<Proc> {
+    // As the browser tier does, reserve a kernel port before the immutable
+    // registration is made. Only this story pays for an issuer.
+    let reservation =
+        sign_in.then(|| std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("issuer port"));
+    let issuer = reservation.as_ref().map(|listener| listener.local_addr().expect("issuer address"));
     let mut world = World::new_controlled_checked(|controls| Judge {
         controls,
         workers: Vec::new(),
@@ -135,9 +144,17 @@ pub(crate) fn run(
             released: None,
         }))
     });
-    world
-        .spawn_signals(|signals| Proc::Service(Box::new(ServiceHost::new(scratch.path().into(), signals, direct_key))));
+    world.spawn_signals(|signals| {
+        Proc::Service(Box::new(match issuer {
+            Some(address) => ServiceHost::with_issuer(scratch.path().into(), signals, address),
+            None => ServiceHost::new(scratch.path().into(), signals, direct_key),
+        }))
+    });
     host(&mut world, scratch.path(), steps, direct_key, 1);
+    drop(reservation);
+    if let Some(address) = issuer {
+        world.spawn(|| Proc::Issuer(Box::new(crate::issuer::peer(address, &crate::issuer::registration(address)))));
+    }
     world.run(&skein_shell::Clock::new(), crate::PATIENCE)
 }
 type Rules = fn() -> Box<[Box<[skein_fake_llm_domain::api::Rule]>]>;
@@ -529,6 +546,11 @@ impl Referee<Proc> for Judge {
         }
         if service.is_empty() && !self.finished {
             peer.shutdown();
+            for proc in children.iter_mut() {
+                if let Proc::Issuer(issuer) = proc {
+                    issuer.shutdown();
+                }
+            }
             self.children.finish(children);
             self.finished = true;
         }

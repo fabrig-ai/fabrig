@@ -77,7 +77,10 @@ impl ServiceHost {
         fixture: Option<crate::forge::Fixture>,
         direct_key: bool,
     ) -> Self {
-        Self::with_shape(path, signals, fixture, direct_key, None, None)
+        Self::with_shape(path, signals, fixture, direct_key, None, None, None)
+    }
+    pub(crate) fn with_issuer(path: PathBuf, signals: Fd, issuer: SocketAddr) -> Self {
+        Self::with_shape(path, signals, None, false, None, None, Some(issuer))
     }
     fn with_shape(
         path: PathBuf,
@@ -86,6 +89,7 @@ impl ServiceHost {
         direct_key: bool,
         cluster: Option<crate::cluster::Shape>,
         github: Option<crate::github::Fixture>,
+        issuer: Option<SocketAddr>,
     ) -> Self {
         let clients = github.map(|_| {
             let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("reserved clients listener");
@@ -108,6 +112,9 @@ impl ServiceHost {
         }
         if let Some(shape) = &cluster {
             shape.write(path.parent().expect("cluster scratch"));
+        }
+        if let Some(address) = issuer {
+            fixtures::sign_in_documents(&path, address).expect("local issuer registration");
         }
         let roots = Self::directories(&path, cluster.is_some());
         let config = std::fs::read(roots.document()).expect("standalone document");
@@ -173,10 +180,10 @@ impl ServiceHost {
         shape: crate::cluster::Shape,
         fixture: Option<crate::forge::Fixture>,
     ) -> Self {
-        Self::with_shape(path.join("data"), signals, fixture, false, Some(shape), None)
+        Self::with_shape(path.join("data"), signals, fixture, false, Some(shape), None, None)
     }
     pub(crate) fn github(path: PathBuf, signals: Fd, fixture: crate::github::Fixture) -> Self {
-        Self::with_shape(path, signals, None, false, None, Some(fixture))
+        Self::with_shape(path, signals, None, false, None, Some(fixture), None)
     }
     pub(crate) fn make_github_app(&mut self, peer: &mut skein_fake_peers::forge::Peer) {
         if let Some(fixture) = self.github

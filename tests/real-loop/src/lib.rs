@@ -8,6 +8,7 @@ pub mod fixtures;
 pub mod forge;
 pub mod git;
 pub mod github;
+pub mod issuer;
 pub mod landing;
 pub mod llm;
 pub mod scripts;
@@ -68,6 +69,26 @@ impl Ran {
         let world::Proc::Caller(caller) = &self.outcome.procs[2] else { panic!("caller root") };
         &caller.terminal.read
     }
+    /// Answers to native GETs of the kept redirect, in story order.
+    #[must_use]
+    pub fn returned(&self) -> &[issuer::Returned] {
+        let world::Proc::Caller(caller) = &self.outcome.procs[2] else { panic!("caller root") };
+        &caller.returned
+    }
+    /// Count complete token POSTs; this fixture queues only a code grant.
+    #[must_use]
+    pub fn code_exchanges(&self) -> usize {
+        let peer = self
+            .outcome
+            .procs
+            .iter()
+            .find_map(|proc| if let world::Proc::Issuer(peer) = proc { Some(peer) } else { None })
+            .expect("story's issuer");
+        peer.observations()
+            .iter()
+            .filter(|event| matches!(event, skein_fake_peers::oauth::Observation::Post { .. }))
+            .count()
+    }
     /// The task number printed by this call's completed act.
     #[must_use]
     pub fn number(&self, call: usize) -> u64 {
@@ -117,7 +138,14 @@ pub fn run(
 }
 #[must_use]
 pub fn run_on(scratch: Scratch, recipe: impl FnOnce() -> llm::Recipe, steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
-    let outcome = world::run(&scratch, recipe, steps, false);
+    let outcome = world::run(&scratch, recipe, steps, false, false);
+    checked(Ran { outcome: Outcome::Checked(outcome), scratch })
+}
+/// Run a terminal sign-in with a synthetic issuer and no provisioned key.
+#[must_use]
+pub fn run_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
+    let scratch = Scratch::new("real-sign-in");
+    let outcome = world::run(&scratch, || llm::scripted(Box::new([])), steps, true, true);
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
 fn checked(ran: Ran) -> Ran {
@@ -160,7 +188,7 @@ pub fn run_key_on(
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Ran {
-    let outcome = world::run(&scratch, recipe, steps, true);
+    let outcome = world::run(&scratch, recipe, steps, true, false);
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
 

@@ -69,6 +69,17 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     (agent, value)
 }
 
+/// Offer the shipped sign-in way only to the stories hosting its fake issuer.
+pub(crate) fn sign_in_documents(directory: &Path, issuer: SocketAddr) -> std::io::Result<()> {
+    let path = directory.join("temper.json");
+    let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+    config["engine"]["llm"]["providers"] = serde_json::json!([{
+        "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "models":["fake"],
+        "sources":{"keys":true,"sign_in":crate::issuer::registration(issuer)}
+    }]);
+    private(&path, &serde_json::to_vec(&config)?)
+}
+
 /// Create the standalone tree; every private directory and file has its final mode.
 pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::Result<()> {
     for name in ["", "accounts", "secrets", "charters", "state", "clients"] {
