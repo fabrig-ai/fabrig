@@ -405,13 +405,13 @@ fn missing_registration_runtime_is_refused_before_start() {
 }
 #[test]
 fn overflowing_account_bounds_are_refused_before_start() {
-    const LAST_ACCOUNT_COUNT: u32 = 390_439_395;
+    const LAST_ACCOUNT_COUNT: u32 = 390_439_394;
     let (config, _) = registered();
     let mut overflow = config.limits.driver;
     overflow.accounts = u32::MAX;
     overflow.client.document.record_bytes = u32::MAX;
     // Under the record ceiling and 64 queue slots this is the final account count
-    // whose driver records, moves, tree nodes and queued payloads fit in u64.
+    // whose driver records, moves, finishes, tree nodes and queued payloads fit in u64.
     overflow.accounts = LAST_ACCOUNT_COUNT;
     assert!(worst_case(&overflow, 64, config.limits.store.secrets.page.rows).is_some());
     overflow.accounts = LAST_ACCOUNT_COUNT + 1;
@@ -632,4 +632,143 @@ fn adopt_moved_record(
     else {
         panic!("adoption consumes the carried file")
     };
+}
+
+#[test]
+fn a_finish_reads_the_held_address_and_hands_it_to_the_driver() {
+    for routed in [false, true] {
+        let mut service = fixtures::started();
+        fixtures::restart(&mut service);
+        let engine = service.engine.as_mut().expect("engine");
+        let (config, runtime) = registered();
+        let mut accounts = host(&config, runtime);
+        pump_accounts(&mut accounts, engine);
+        let carried = carry_llm_key(engine, b"http://127.0.0.1:7103/callback?state=fake&code=fake");
+        accounts.request(domain::Request::Signing(domain::Signing::Redirected { source: 71, carried }));
+        accounts.start(&mut engine.store, &mut engine.values);
+        let mut events = Queue::with_capacity(64);
+        if routed {
+            let Some(finishes::Next::Get { exchange, carried }) = accounts.finish_out.pop() else {
+                panic!("finish asks for the held value");
+            };
+            let answer = engine.store.secrets(
+                Token::new(FINISH_EXCHANGE | exchange.raw()),
+                store::Secrets::Get { owner: store::SecretOwner::Application, number: carried },
+            );
+            engine.store.sources.push(answer.expect("held value answer"));
+            accounts.answers(&mut engine.store, &mut events);
+        } else {
+            accounts.finish_steps(&mut events, &mut engine.store);
+        }
+        let Some(finishes::Next::Driver(request)) = accounts.finish_out.pop() else {
+            panic!("the held value makes a driver request");
+        };
+        let driver::Request::Redirected { account, .. } = &request else {
+            panic!("the driver receives a redirect");
+        };
+        assert_eq!(*account, 71);
+        accounts.finish_out.push(finishes::Next::Driver(request));
+        accounts.finish_steps(&mut events, &mut engine.store);
+        assert!(accounts.finish_out.is_empty());
+        // No sign-in is waiting for this source: the driver's refusal proves
+        // that the request went down, without inspecting or formatting its URI.
+        let mut events = pump_move_events(&mut accounts, engine);
+        let Some(root::Event::Account(domain::Event::FinishRefused {
+            source: 71,
+            why: domain::SignInRedirectWhy::NotWaiting,
+        })) = events.pop()
+        else {
+            panic!("a finish without a waiting sign-in is refused");
+        };
+        assert!(events.is_empty());
+        let Some(store::Event::Secret { value: Some(_), .. }) = engine
+            .store
+            .secrets(Token::new(123), store::Secrets::Get { owner: store::SecretOwner::Application, number: carried })
+        else {
+            panic!("only the clients component erases the held value");
+        };
+    }
+}
+
+#[test]
+fn a_finish_whose_held_address_is_gone_is_refused_not_waiting() {
+    let mut service = fixtures::started();
+    fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().expect("engine");
+    let (config, runtime) = registered();
+    let mut accounts = host(&config, runtime);
+    accounts.request(domain::Request::Signing(domain::Signing::Redirected { source: 71, carried: 9001 }));
+    let mut events = pump_move_events(&mut accounts, engine);
+    let Some(root::Event::Account(domain::Event::FinishRefused {
+        source: 71,
+        why: domain::SignInRedirectWhy::NotWaiting,
+    })) = events.pop()
+    else {
+        panic!("a finish whose held value is gone is refused");
+    };
+    assert!(events.is_empty());
+    assert!(!accounts.finishes.pending());
+    assert!(accounts.above.is_empty());
+}
+
+#[test]
+fn the_drivers_taken_and_refusals_reach_the_child() {
+    let mut service = fixtures::started();
+    fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().expect("engine");
+    let (config, runtime) = registered();
+    let mut accounts = host(&config, runtime);
+    pump_accounts(&mut accounts, engine);
+    accounts.above.push(driver::Event::Taken { account: 71 });
+    let mut events = pump_move_events(&mut accounts, engine);
+    let Some(root::Event::Account(domain::Event::Finishing { source: 71 })) = events.pop() else {
+        panic!("the driver's taken event reaches the accounts child");
+    };
+    assert!(events.is_empty());
+    for (why, expected) in [
+        (driver::Refusal::State, domain::SignInRedirectWhy::State),
+        (driver::Refusal::Redirect, domain::SignInRedirectWhy::Address),
+        (driver::Refusal::Full { bound: 3 }, domain::SignInRedirectWhy::TooMany),
+    ] {
+        accounts.above.push(driver::Event::Refused { account: 71, asked: driver::Asked::Redirected, why });
+        let mut events = pump_move_events(&mut accounts, engine);
+        let Some(root::Event::Account(domain::Event::FinishRefused { source, why })) = events.pop() else {
+            panic!("driver refusal reaches the accounts child");
+        };
+        assert_eq!(source, 71);
+        assert_eq!(why, expected);
+        assert!(events.is_empty());
+    }
+}
+
+#[test]
+fn aborting_drops_a_finish_in_flight() {
+    let mut service = fixtures::started();
+    fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().expect("engine");
+    let (config, runtime) = registered();
+    let mut accounts = host(&config, runtime);
+    pump_accounts(&mut accounts, engine);
+    let carried = carry_llm_key(engine, b"http://127.0.0.1:7103/callback?state=fake&code=fake");
+    accounts.request(domain::Request::Signing(domain::Signing::Redirected { source: 71, carried }));
+    accounts.start(&mut engine.store, &mut engine.values);
+    let Some(finishes::Next::Get { exchange, carried }) = accounts.finish_out.pop() else {
+        panic!("finish waits for its store read");
+    };
+    let answer = engine.store.secrets(
+        Token::new(FINISH_EXCHANGE | exchange.raw()),
+        store::Secrets::Get { owner: store::SecretOwner::Application, number: carried },
+    );
+    assert!(accounts.finishes.pending());
+    accounts.abort();
+    engine.store.sources.push(answer.expect("late store answer"));
+    let mut events = pump_move_events(&mut accounts, engine);
+    let Some(root::Event::Account(domain::Event::Component(domain::FromComponent::Closed))) = events.pop() else {
+        panic!("the aborted driver closes");
+    };
+    assert!(events.is_empty(), "the aborted finish has no answer from the driver or child");
+    assert!(!accounts.finishes.pending());
+    assert!(accounts.finish_out.is_empty());
+    assert!(accounts.io.is_empty());
+    assert!(accounts.is_empty());
 }
