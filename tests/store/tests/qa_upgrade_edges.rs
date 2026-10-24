@@ -19,8 +19,14 @@ const SAID: &[u8] = b"same visible text";
 const REPLAY: &[u8] = b"old replay bytes";
 // Fixture v6 body: version(2), window(1), task(8), attempt(8), turn(4),
 // spend(8), absent read(1), time(8), transcript length(4); framing adds 12.
-// See jig-test-patches-jig's public frames::body and protocol/store.md 8.6.
+// jig-test-patches-jig's public frames::body/wrap give 44 + 12 = 56.
+// The clarified direct-read contract charges this plus the transcript for
+// Window/Page reads, whether or not a machine is made.
 const FRAME_OVERHEAD: u64 = 56;
+
+fn direct_frame_bytes(transcript: &[u8]) -> u64 {
+    FRAME_OVERHEAD + u64::try_from(transcript.len()).expect("fixture transcript bytes")
+}
 
 fn committed(sets: PatchSets, bodies: &[&[u8]]) -> World {
     let mut world = World::unopened(SEED);
@@ -64,7 +70,7 @@ fn unread(events: &[Event], context: impl std::fmt::Debug) {
 #[test]
 fn native_pages_without_room_end_as_unread() {
     let mut world = committed(PatchSets::NONE, &[NATIVE]);
-    let bytes = u64::try_from(NATIVE.len()).expect("native fixture bytes");
+    let bytes = direct_frame_bytes(NATIVE);
     let rooms = [("zero rows", 0, bytes), ("zero bytes", ONE_ROW, 0), ("one byte short", ONE_ROW, bytes - 1)];
     for read in starts() {
         for (label, rows, bytes) in rooms {
@@ -76,7 +82,7 @@ fn native_pages_without_room_end_as_unread() {
 #[test]
 fn native_pages_accept_exactly_one_whole_turn() {
     let mut world = committed(PatchSets::NONE, &[NATIVE]);
-    let bytes = u64::try_from(NATIVE.len()).expect("native fixture bytes");
+    let bytes = direct_frame_bytes(NATIVE);
     for read in starts() {
         let events = page(&mut world, read, ONE_ROW, bytes);
         let [Event::Turns { owner, turns, next }] = events.as_slice() else {
@@ -91,7 +97,7 @@ fn native_pages_accept_exactly_one_whole_turn() {
 #[test]
 fn requested_rows_cannot_expand_the_store_page_limit() {
     let mut world = committed(PatchSets::NONE, &[NATIVE, NATIVE, NATIVE]);
-    let bytes = u64::try_from(NATIVE.len()).expect("native fixture bytes") * u64::from(THREE_ROWS);
+    let bytes = direct_frame_bytes(NATIVE) * u64::from(THREE_ROWS);
     let read = TranscriptRead::Page { task: TASK, backwards: false, after: None };
     let events = page(&mut world, read, THREE_ROWS, bytes);
     let [Event::Turns { turns, next: Some(offset), .. }] = events.as_slice() else {
@@ -108,7 +114,7 @@ fn requested_rows_cannot_expand_the_store_page_limit() {
 fn mixed_frames() -> (World, u64) {
     let old = patches::fixture_turn(1, SAID, REPLAY, 0);
     let current = patches::fixture_turn(2, SAID, &[], 0);
-    let charge = FRAME_OVERHEAD + u64::try_from(current.len()).expect("current fixture bytes");
+    let charge = direct_frame_bytes(&current);
     (committed(patches::FRESH_AFTER, &[&old, &current]), charge)
 }
 
