@@ -6,7 +6,7 @@ use super::{
 };
 use serde_json::{Value, json};
 use skein_io::kernel::Exit;
-use skein_lib::{Duration, Time};
+use skein_lib::{Duration, Secret, Time, Wall};
 use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
 use std::{
@@ -30,7 +30,6 @@ struct Inputs {
     app: u64,
     slug: String,
     pem: PathBuf,
-    person: Vec<u8>,
     git: PathBuf,
     run: String,
     prefix: String,
@@ -51,9 +50,6 @@ impl Inputs {
             .expect("owner installation")["id"]
             .as_u64()
             .expect("installation id");
-        let person =
-            fs::read(fixtures.join(format!("person-{owner}.token"))).expect("person token file").trim_ascii().to_vec();
-        assert!(!person.is_empty() && !person.iter().any(u8::is_ascii_whitespace), "one person token");
         let git = std::env::split_paths(&std::env::var_os("PATH").expect("PATH"))
             .map(|p| p.join("git"))
             .find(|p| p.is_file())
@@ -81,7 +77,6 @@ impl Inputs {
             app: app["id"].as_u64().expect("App id"),
             slug: app["slug"].as_str().expect("App slug").into(),
             pem: fixtures.join("app.pem"),
-            person,
             git,
             run,
             prefix,
@@ -90,9 +85,6 @@ impl Inputs {
     }
     fn manifest(&self, cleaned: bool) {
         write_private(&self.scratch.join("run.json"), &serde_json::to_vec(&json!({"run":self.run,"owner":self.owner,"repository":REPOSITORY,"prefix":self.prefix,"cleaned":cleaned})).expect("run metadata"));
-    }
-    fn authorization(&self) -> Vec<u8> {
-        [b"Bearer ".as_slice(), &self.person].concat()
     }
     fn base(&self) -> String {
         format!("/repos/{}/{}", self.owner, REPOSITORY)
@@ -202,6 +194,7 @@ struct Judge<'a> {
     members: cluster::Members,
     inputs: &'a Inputs,
     relay: &'a Relay,
+    jwt: &'a Secret,
     clients: SocketAddr,
     workers: SocketAddr,
     stage: Stage,
@@ -217,8 +210,10 @@ struct Judge<'a> {
 }
 fn story(inputs: &Inputs, relay: &Relay) {
     let clock = Clock::new();
+    // This read precedes product startup, so mint independently rather than wait for its token.
+    let (authorization, jwt) = mint_verifier(inputs, relay);
     // The first read: it shows the guard the probe's id, the one `/repositories/<id>` it allows.
-    let probe = ask(inputs, relay, &inputs.base());
+    let probe = ask(relay, &authorization, &inputs.base());
     assert_eq!(probe["full_name"], format!("{}/{}", inputs.owner, REPOSITORY), "the probe repository");
     let [clients, workers] = super::free_addresses(&[relay.api, relay.git]);
     let mut description = cluster::Cluster::github_relay(&inputs.scratch, relay.git);
@@ -232,6 +227,7 @@ fn story(inputs: &Inputs, relay: &Relay) {
         members,
         inputs,
         relay,
+        jwt: &jwt,
         clients,
         workers,
         stage: Stage::Llm,
@@ -252,8 +248,8 @@ fn story(inputs: &Inputs, relay: &Relay) {
     let outcome = world.run(&clock, WITHIN);
     assert!(outcome.procs.iter().all(Host::is_empty), "no process outlives the story");
     let seen = seen.borrow();
-    github_musts(inputs, relay, &seen);
-    scan(inputs, relay, &seen.outputs);
+    github_musts(inputs, relay, &authorization, &seen);
+    scan(inputs, relay, &jwt, &seen.outputs);
 }
 impl Judge<'_> {
     fn queue(&mut self, host: &mut cluster::Root, args: Vec<ctl::Call>) {
@@ -346,7 +342,7 @@ impl Judge<'_> {
             let expected = if index == 6 && matches!(self.stage, Stage::Before | Stage::After) { 2 } else { 0 };
             if ended.exit != Some(Exit::Code(expected)) {
                 // The failed call's words are shown once the secrecy scan has passed over them.
-                scan(self.inputs, self.relay, &[ended.stdout.clone(), ended.stderr.clone()]);
+                scan(self.inputs, self.relay, self.jwt, &[ended.stdout.clone(), ended.stderr.clone()]);
                 panic!(
                     "live ctl call {index} failed in {:?}: {:?}, stderr: {}",
                     self.stage,
@@ -689,27 +685,52 @@ impl Referee<cluster::Root> for Judge<'_> {
     }
 }
 
-fn ask(inputs: &Inputs, relay: &Relay, path: &str) -> Value {
-    let (status, body) = relay.ask("GET", path, &inputs.authorization(), b"").expect("person read through relay");
-    assert_eq!(status, 200, "person read {path}");
+fn mint_verifier(inputs: &Inputs, relay: &Relay) -> (Vec<u8>, Secret) {
+    use skein_forge::github::jwt;
+    use skein_lib::base64::{self, Alphabet};
+    let pem = fs::read(&inputs.pem).expect("App PEM");
+    let compact: String =
+        std::str::from_utf8(&pem).expect("PEM text").lines().filter(|line| !line.starts_with("-----")).collect();
+    let key = base64::decode(Alphabet::Standard, compact.as_bytes(), 4096).expect("App DER");
+    let wall = Clock::new().now().wall.as_nanos();
+    let issued = wall.saturating_sub(Duration::from_secs(60).as_nanos());
+    let expires = issued.checked_add(jwt::LIFE.as_nanos()).expect("JWT expiry");
+    let input =
+        jwt::signing_input(inputs.app, Wall::from_nanos(issued), Wall::from_nanos(expires)).expect("App JWT claims");
+    let signature = skein_tls::sign_rs256(&key, &input).expect("App key signs RS256");
+    let jwt = jwt::token(&input, &signature).expect("App JWT");
+    let auth = [b"Bearer ".as_slice(), jwt.expose()].concat();
+    let path = format!("/app/installations/{}/access_tokens", inputs.installation);
+    let (status, body) =
+        relay.ask("POST", &path, &auth, br#"{"repositories":["temper-probe"]}"#).expect("verifier mint through relay");
+    assert_eq!(status, 201, "verifier installation token minted");
+    let value: Value = serde_json::from_slice(&body).expect("installation token JSON");
+    let token = value["token"].as_str().expect("installation token").as_bytes();
+    assert!(!token.is_empty() && !token.iter().any(u8::is_ascii_whitespace), "one installation token");
+    // Relay records this mint before returning, for the scan and teardown even if the story panics.
+    ([b"Bearer ".as_slice(), token].concat(), jwt)
+}
+fn ask(relay: &Relay, authorization: &[u8], path: &str) -> Value {
+    let (status, body) = relay.ask("GET", path, authorization, b"").expect("verifier read through relay");
+    assert_eq!(status, 200, "verifier read {path}");
     serde_json::from_slice(&body).expect("GitHub JSON")
 }
-fn github_musts(inputs: &Inputs, relay: &Relay, seen: &Seen) {
+fn github_musts(inputs: &Inputs, relay: &Relay, authorization: &[u8], seen: &Seen) {
     let base = inputs.base();
     let result = &seen.landed.as_ref().expect("landed result")["value"]["change"];
     let number = result["part"]["key"]["number"].as_u64().expect("pull number");
-    let pull = ask(inputs, relay, &format!("{base}/pulls/{number}"));
+    let pull = ask(relay, authorization, &format!("{base}/pulls/{number}"));
     assert_eq!(pull["merged"], true);
     assert_eq!(pull["merge_commit_sha"], result["words"]["bytes"]);
     let head = pull["head"]["sha"].as_str().expect("pull head");
     // GitHub must agree with the exact head temper submitted for its change's merge.
     assert_eq!(relay.merge_heads(), [head], "pull head is the change head submitted by temper");
-    let file = ask(inputs, relay, &format!("{base}/contents/probe/{}.md?ref=main", inputs.run));
+    let file = ask(relay, authorization, &format!("{base}/contents/probe/{}.md?ref=main", inputs.run));
     let compact: Vec<u8> =
         file["content"].as_str().expect("file base64").bytes().filter(|b| !b.is_ascii_whitespace()).collect();
     let bytes = skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, &compact, 8192).expect("file bytes");
     assert_eq!(bytes.as_ref(), format!("temper live run {}\n", inputs.run).as_bytes());
-    let checks = ask(inputs, relay, &format!("{base}/commits/{head}/check-runs?per_page=100"));
+    let checks = ask(relay, authorization, &format!("{base}/commits/{head}/check-runs?per_page=100"));
     let ci = checks["check_runs"]
         .as_array()
         .expect("check runs")
@@ -733,14 +754,14 @@ fn github_musts(inputs: &Inputs, relay: &Relay, seen: &Seen) {
     }
     assert!(relay.refused().is_empty());
 }
-fn scan(inputs: &Inputs, relay: &Relay, outputs: &[Vec<u8>]) {
+fn scan(inputs: &Inputs, relay: &Relay, jwt: &Secret, outputs: &[Vec<u8>]) {
     let scan = github::Scan::new(&fs::read(&inputs.pem).expect("PEM read only for scan"));
-    let mut secrets = relay.tokens();
-    secrets.push(inputs.person.clone());
+    let secrets = relay.tokens();
     let clean = |bytes: &[u8]| {
         scan.clean(bytes);
+        assert!(skein_lib::bytes::find(bytes, jwt.expose()).is_none(), "no verifier JWT outside memory");
         for secret in &secrets {
-            assert!(skein_lib::bytes::find(bytes, secret).is_none(), "no minted or person token outside jig secrets");
+            assert!(skein_lib::bytes::find(bytes, secret).is_none(), "no minted token outside jig secrets");
         }
     };
     for bytes in outputs {
@@ -760,11 +781,10 @@ fn scan(inputs: &Inputs, relay: &Relay, outputs: &[Vec<u8>]) {
         }
     }
 }
-fn cleanup_refs(inputs: &Inputs, relay: &Relay) -> bool {
+fn cleanup_refs(inputs: &Inputs, relay: &Relay, auth: &[u8]) -> bool {
     let base = inputs.base();
-    let auth = inputs.authorization();
     let mut ok = true;
-    let list = relay.teardown("GET", &format!("{base}/git/matching-refs/heads/{}", inputs.prefix), &auth, b"");
+    let list = relay.teardown("GET", &format!("{base}/git/matching-refs/heads/{}", inputs.prefix), auth, b"");
     match list {
         Ok((200, body)) => {
             if let Ok(Value::Array(refs)) = serde_json::from_slice::<Value>(&body) {
@@ -772,7 +792,7 @@ fn cleanup_refs(inputs: &Inputs, relay: &Relay) -> bool {
                     let name = row["ref"].as_str().and_then(|r| r.strip_prefix("refs/heads/")).expect("branch ref");
                     assert!(name.starts_with(&inputs.prefix), "teardown confined to run");
                     let deleted = relay
-                        .teardown("DELETE", &format!("{base}/git/refs/heads/{name}"), &auth, b"")
+                        .teardown("DELETE", &format!("{base}/git/refs/heads/{name}"), auth, b"")
                         .is_ok_and(|(s, _)| s == 204 || s == 404);
                     if !deleted {
                         eprintln!("live github branch left={name}");
@@ -789,7 +809,7 @@ fn cleanup_refs(inputs: &Inputs, relay: &Relay) -> bool {
     match relay.teardown(
         "GET",
         &format!("{base}/pulls?state=open&head={}:{}1/c2&per_page=100", inputs.owner, inputs.prefix),
-        &auth,
+        auth,
         b"",
     ) {
         Ok((200, body)) => {
@@ -803,7 +823,7 @@ fn cleanup_refs(inputs: &Inputs, relay: &Relay) -> bool {
                     );
                     let n = pull["number"].as_u64().expect("pull number");
                     if !relay
-                        .teardown("PATCH", &format!("{base}/pulls/{n}"), &auth, br#"{"state":"closed"}"#)
+                        .teardown("PATCH", &format!("{base}/pulls/{n}"), auth, br#"{"state":"closed"}"#)
                         .is_ok_and(|(s, _)| s == 200)
                     {
                         ok = false;
@@ -818,9 +838,13 @@ fn cleanup_refs(inputs: &Inputs, relay: &Relay) -> bool {
     ok
 }
 fn teardown(inputs: &Inputs, relay: &Relay) {
-    let mut ok =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cleanup_refs(inputs, relay))).unwrap_or(false);
-    for token in relay.tokens() {
+    let tokens = relay.tokens();
+    // The verifier is minted first, before any product process can write or mint a token.
+    let mut ok = tokens.first().is_none_or(|token| {
+        let auth = [b"Bearer ".as_slice(), token].concat();
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cleanup_refs(inputs, relay, &auth))).unwrap_or(false)
+    });
+    for token in tokens {
         let auth = [b"Bearer ".as_slice(), &token].concat();
         if !relay.teardown("DELETE", "/installation/token", &auth, b"").is_ok_and(|(s, _)| s == 204 || s == 401) {
             ok = false;

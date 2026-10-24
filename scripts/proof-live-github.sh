@@ -9,6 +9,8 @@ fixtures=$(readlink -f "${2:-$HOME/src/rust/tmp/github-conformance}")
 [ -d "$fixtures" ] && [ "$(stat -c %a "$fixtures")" = 700 ] || {
     printf '%s\n' 'fixtures must be a directory with mode 0700' >&2; exit 2;
 }
+# The App key is the only credential; app.json supplies public App/installation ids.
+python3 -c 'from cryptography.hazmat.primitives.serialization import load_pem_private_key'
 export NEXTEST_DOUBLE_SPAWN=0
 heavy cargo nextest run -p temper --profile live --no-run
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github.XXXXXX")")
@@ -32,15 +34,20 @@ cleanup() {
         attempt=$((attempt + 1))
         sleep 0.1
     done
-    # Python only orchestrates curl and parses public metadata. The person's token
-    # enters curl's configuration on stdin, never its argv, a log, or a copied file.
+    # Python signs an App JWT as the managed harness does, then mints a cleanup token.
+    # Bearers enter curl's configuration on stdin, never argv, a log, or a copied file.
     python3 - "$scratch" "$fixtures" "$owner" <<'PY'
+import base64
 import json
 import pathlib
 import re
 import subprocess
 import sys
+import time
 import urllib.parse
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 scratch, fixtures, owner = map(pathlib.Path, sys.argv[1:])
 owner = str(owner)
 manifest = scratch / 'run.json'
@@ -49,7 +56,7 @@ if not manifest.exists():
 run = json.loads(manifest.read_text())
 if run.get('cleaned') is True:
     sys.exit(0)
-# Refuse tampered metadata before constructing any URL or reading a token.
+# Refuse tampered metadata before constructing any URL or reading the key.
 if (run.get('owner') != owner or run.get('repository') != 'temper-probe'
         or not re.fullmatch(r'\d{8}T\d{6}[0-9a-f]{4}', run.get('run', ''))
         or run.get('prefix') != 'temper/live-' + run['run'] + '/'):
@@ -61,20 +68,23 @@ except (OSError, ValueError):
     raise SystemExit('backstop: missing or invalid count; refusing uncounted cleanup')
 if not 0 <= count <= 400:
     raise SystemExit('backstop: count outside cap')
-token = (fixtures / ('person-' + owner + '.token')).read_text().strip()
-if not token or any(c.isspace() or c in '\\"' for c in token):
-    raise SystemExit('backstop: invalid token shape')
+token = None
 start = count
 base = '/repos/' + owner + '/temper-probe'
 prefix = run['prefix']
 
-def ask(method, path, body=None):
+def ask(method, path, body=None, authorization=None):
     global count
-    if count >= 400:
+    # Keep the final slot for revoking this backstop's own token, even after a cut.
+    limit = 400 if method == 'DELETE' and path == '/installation/token' else 399
+    if count >= limit:
         raise RuntimeError('backstop: request cap reached')
     count += 1
     count_file.write_text(str(count) + '\n')
-    config = 'header = "Authorization: Bearer ' + token + '"\n'
+    bearer = authorization if authorization is not None else token
+    if not bearer or any(c.isspace() or c in '\\"' for c in bearer):
+        raise RuntimeError('backstop: invalid bearer shape')
+    config = 'header = "Authorization: Bearer ' + bearer + '"\n'
     args = ['curl', '--silent', '--show-error', '--connect-timeout', '15', '--max-time', '30',
             '--max-filesize', '16777216', '-K', '-', '-X', method, '-H', 'User-Agent: temper-live-backstop',
             '-H', 'Accept: application/vnd.github+json', '-w', '\n%{http_code}',
@@ -88,6 +98,20 @@ def ask(method, path, body=None):
     return int(status), data
 
 try:
+    app = json.loads((fixtures / 'app.json').read_text())
+    installation = next(row['id'] for row in app['installations'] if row['account'] == owner)
+    key = load_pem_private_key((fixtures / 'app.pem').read_bytes(), password=None)
+    # Same RS256 construction and clock allowance as proof-live-github-managed.py.
+    encode = lambda data: base64.urlsafe_b64encode(data).rstrip(b'=')
+    now = int(time.time())
+    claims = json.dumps({'iat': now-30, 'exp': now+300, 'iss': str(app['id'])}, separators=(',', ':')).encode()
+    message = encode(b'{"alg":"RS256","typ":"JWT"}') + b'.' + encode(claims)
+    jwt = (message + b'.' + encode(key.sign(message, padding.PKCS1v15(), hashes.SHA256()))).decode()
+    status, data = ask('POST', '/app/installations/' + str(installation) + '/access_tokens',
+                       {'repositories': ['temper-probe']}, authorization=jwt)
+    if status != 201:
+        raise RuntimeError('backstop: cannot mint cleanup token')
+    token = json.loads(data)['token']
     query = urllib.parse.urlencode({'state': 'open', 'head': owner + ':' + prefix + '1/c2', 'per_page': 100})
     status, data = ask('GET', base + '/pulls?' + query)
     if status != 200:
@@ -113,9 +137,16 @@ try:
         status, _ = ask('DELETE', base + '/git/refs/heads/' + urllib.parse.quote(name, safe='/'))
         if status not in (204, 404):
             print('backstop: branch left=' + name, file=sys.stderr)
-except (RuntimeError, ValueError, KeyError, TypeError):
+except (RuntimeError, ValueError, KeyError, TypeError, OSError, StopIteration):
     print('backstop: cleanup incomplete; inspect private state=' + str(scratch), file=sys.stderr)
 finally:
+    if token is not None:
+        try:
+            status, _ = ask('DELETE', '/installation/token')
+            if status not in (204, 401):
+                raise RuntimeError('backstop: cleanup token revocation failed')
+        except (RuntimeError, ValueError, TypeError):
+            print('backstop: cleanup token revocation incomplete', file=sys.stderr)
     print('live github backstop requests=' + str(count-start) + ' total=' + str(count) + ' state=' + str(scratch))
 PY
 }

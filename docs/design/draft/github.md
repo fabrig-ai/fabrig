@@ -992,14 +992,29 @@ Each step lands working, and shows what it proved in the real loop
   owner's probe repositories, with administration, contents, pull
   requests and the App installation's repository access to write, and
   metadata to read. The user made them on 2026-10-20, beside the App's
-  key, as `person-freeekanayaka.token` and `person-fabrig-ai.token`;
-  each was checked to write its own repositories and be refused the
+  key; each was checked to write its own repositories and be refused the
   other's. The user's own classic token is never used.
 - **Its credentials expire,** the person's tokens on their dates and
   the App's key never: each run reads a token's expiry from GitHub's
   `github-authentication-token-expiration` header, and names a token
   that expires within the next month, so the user makes it again before
   a run fails on it.
+
+- **temper's live landing story** (`scripts/proof-live-github.sh`, R2-156)
+  uses only `app.pem` as a credential, with public App and installation
+  ids from `app.json`. Before starting the product, the harness signs an
+  RS256 App JWT with Skein's JWT builder and signer, then mints a token
+  for the owner's probe installation through the guarded relay, scoped
+  to `temper-probe`. This makes the first verifier read independent of
+  product startup. The relay keeps that token with the product's minted
+  tokens in memory for the secrets scan and revokes them at teardown;
+  the verifier JWT is scanned too. Reads need metadata, contents, pull
+  requests and checks read permissions; cleanup also needs contents and
+  pull requests write, already needed by the product's landing story.
+  The script's backstop signs and mints its own temporary cleanup token
+  from the same key and revokes it afterwards. It requires Python's
+  `cryptography` package. This run needs no person token; the separate
+  conformance's person actions above do not belong to it.
 
 ## 18. Later
 
