@@ -1156,7 +1156,7 @@
     return '<button class="button" data-later="Mockup: a new key, pasted; the old is erased once the new is kept.">Replace</button><button class="button" data-later="Mockup: the key is erased, and the account with it.">Remove</button>';
   }
 
-  function accountRow(a, open = false) {
+  function accountRow(a, open = false, signing = null) {
     const [tone, word] = SOURCE_STATES[accountState(a)];
     const waiting = (a.waiting || []).filter(k => T(k));
     const users = accountUsers(a).filter(k => !waiting.includes(k));
@@ -1165,7 +1165,7 @@
     const kv = (k, v) => `<div class="kv"><span>${k}</span><strong>${v}</strong></div>`;
     const links = ks => ks.map(k => `<a class="text-link" href="${href(k)}">${k}</a>`).join(', ');
     return `<details class="card forge-row account-row${fresh(a)}"${open ? ' open' : ''}><summary><div class="forge-name">${fact('jig: the account’s provider and display name, its provider and holder, in temper’s words', `${name}<small>${esc(holderWords(a))}</small>`)}</div><span class="tag ${tone}">${fact('jig: the deciding source’s state, in temper’s words', word)}</span><div class="forge-summary-line"><p class="muted tiny">${fact('jig: its models, its uses, and the tasks on it', esc(summary))}</p></div></summary><div class="card-pad">
-        ${stateNotice(a)}
+        ${signing ? signInCard(signing.state, false) : stateNotice(a)}
         <p class="muted tiny" style="margin:0 0 4px">Its sources in order: a run takes the first usable one.</p>
         ${a.sources.map((s, i) => sourceRow(a, s, i)).join('')}
         <div class="rule"></div>
@@ -1197,10 +1197,12 @@
   pages.accounts = () => {
     const own = ownAccounts();
     const play = demoRunning() ? world.accounts.find(a => a.provider === demo.provider) : null;
-    const rows = own.map(a => accountRow(a));
+    const signing = params.has('paste') ? { state: params.get('paste') } : world.modelSignIn;
+    const rows = own.map(a => accountRow(a, !!signing && a.name === 'ChatGPT', a.name === 'ChatGPT' ? signing : null));
+    const pending = signing && !own.some(a => a.name === 'ChatGPT') ? flowWrap(signInCard(signing.state, false)) : '';
     const windows = own.some(a => a.sources.some(s => s.kind === 'program' && s.usage));
     const key = { name: 'sam-key', kind: 'key', use: 'Idle' };
-    const variants = worldKey === 'first-run' ? `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the ChatGPT row in each state of client README 5.5’s table, and an API key’s and a Claude subscription’s rows, to compare.</p>${[
+    const variants = worldKey === 'first-run' ? `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the ChatGPT row in each state of client README 5.5’s table, and an API key’s and a Claude subscription’s rows, to compare.</p><h3 id="other-states-signing">A sign-in under way, in its account’s row</h3>${accountRow(chatgptLike({ source: { state: 'needs sign-in' } }), true, { state: 'waiting' })}${[
       ['Limited: temper reached the plan’s limit, with a key after it', chatgptLike({ source: { state: 'limited' }, more: [key], waiting: ['T1'] })],
       ['Limited, until the reset OpenAI gave', chatgptLike({ source: { state: 'limited', reset: 5 * 60 }, waiting: ['T1'] })],
       ['Refused: signed in without plan usage', chatgptLike({ source: { state: 'refused', why: 'declined' } })],
@@ -1215,27 +1217,73 @@
     const empty = `<div class="empty-state">No model of yours yet. <a class="button primary" href="${esc(u('connect-model.html'))}">Connect a model</a></div>`;
     const playground = play ? `<div class="section-heading"><h2>The playground</h2></div><details class="card forge-row forge-demo"><summary><span>${fact('temper: the demo’s model, the deployment’s account', 'Scripted model · the playground’s, until a model of yours connects · held by the deployment')}</span></summary><div class="card-pad"><p class="muted tiny" style="margin:0">It plays the playground’s scripts: it answers the suggested requests, and nothing else. It costs nothing, and nothing leaves this machine.</p></div></details>` : '';
     return listPage('accounts', [['Accounts']], `<div class="section-heading" style="margin-top:0"><div><h2>Your accounts <span class="subtle-count">${fact('jig: your LLM accounts, the demo’s excluded', esc(own.length))}</span></h2><p class="muted tiny">The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it.</p></div><a class="button" href="${esc(u('connect-model.html'))}">+ Connect a model</a></div>
-      <div class="stack">${rows.length ? rows.join('') : empty}</div>
+      <div class="stack">${pending}${rows.length ? rows.join('') : pending ? '' : empty}</div>
       ${windows ? `<p class="gap-note">${gap('6.3', 'plan usage')} A program’s windows, as the account’s facts. The mark on a week is its pace: where usage would be if the week were spent evenly.</p>` : ''}
       ${playground}${variants}`);
   };
 
-  // Connecting a model (client README, 5.5): Choose, then Signing in for
-  // ChatGPT or Details for a key, then Ready. Continue with ChatGPT opens
-  // ChatGPT's sign-in in the same tab, and the engine's listener sends the
-  // browser back. ChatGPT's sign-in is drawn whole; a key's form and
-  // Claude's subscription are sketched, for the context.
+  // The paste shares the built client's words and wrappers (2ec1c6574,
+  // accounts/words.rs and pages/accounts.rs). Values never enter a URL or store.
+  const PASTE_WORDS = {
+    elsewhere: "This browser isn't on temper's computer ›",
+    link: "Open ChatGPT's sign-in ›",
+    address: "Open this address in a browser on the engine's machine:",
+    open: 'Open the sign-in page',
+    disclosure: "Signed in, but the page couldn't be reached?",
+    history: 'Go forward to that page, or find it in your history, and copy its address.',
+    instructions: "When ChatGPT is done, its tab shows a page that can't be reached. Copy that page's whole address from the address bar, come back here, and paste it. If a page opens instead, such as another program's sign-in, close that program's sign-in and start again.",
+    field: "Address of the page that couldn't be reached",
+    finish: 'Finish connecting',
+    sending: 'Finishing…',
+    finishing: 'Finishing your sign-in…',
+    'too-long': "That's longer than a sign-in's address. Copy the address bar alone.",
+    'address-refused': "That isn't this sign-in's address. Copy the whole address of the page that couldn't be reached, from the address bar.",
+    state: "That address is from an earlier sign-in. Paste the one from this sign-in's tab, or start again.",
+    'too-many': "That's too many addresses from other sign-ins. Continue with ChatGPT to start again.",
+    ended: 'This sign-in has ended.',
+    again: "That address wasn't sent. Paste it again.",
+  };
+  const modelButton = (label, target, primary = false) => `<button type="button" class="button${primary ? ' primary' : ''}" data-model-go="${esc(u(target))}">${esc(label)}</button>`;
+  function pasteTarget(state, elsewhere = true) {
+    return `connect-model.html?way=chatgpt&paste=${state}${elsewhere ? '&elsewhere=1' : ''}`;
+  }
+  function signInPaste(state, folded) {
+    const restart = modelButton('Continue with ChatGPT', page === 'accounts' ? 'accounts.html?paste=waiting' : pasteTarget('waiting', false));
+    const finish = worldKey === 'first-run' && stepId === 'model-pasted'
+      ? `${page === 'accounts' ? 'accounts.html' : 'connect-model.html?way=chatgpt'}${page === 'accounts' ? '?' : '&'}step=5`
+      : page === 'accounts' ? 'accounts.html?paste=finishing' : pasteTarget('finishing');
+    let body;
+    if (state === 'finishing') body = `<p role="status">${PASTE_WORDS.finishing}</p>`;
+    else if (['not-waiting', 'expired'].includes(state)) body = `<p role="status">${PASTE_WORDS.ended}</p>${restart}`;
+    else if (state === 'too-many') body = `<p class="forge-failure" role="alert">${PASTE_WORDS['too-many']}</p>${restart}`;
+    else {
+      const refusal = { address: 'address-refused', state: 'state', 'too-long': 'too-long', lost: 'again', unsent: 'again' }[state];
+      // Written values are hidden, just as the built secret field is. The
+      // mockup draws only the fact of a paste, never a callback's code/state.
+      body = `<p>${esc(PASTE_WORDS.instructions)}</p>${refusal ? `<p class="forge-failure" role="alert">${esc(PASTE_WORDS[refusal])}</p>` : ''}
+        <div data-model-paste><label class="forge-field"><span>${esc(PASTE_WORDS.field)}</span><input type="password" autocomplete="off" spellcheck="false"${state === 'written' ? ' placeholder="••••••••"' : ''}${state === 'sending' ? ' disabled' : ''}></label>
+        <button type="button" class="button" data-model-finish="${esc(u(finish))}"${state === 'written' ? '' : ' disabled'}>${esc(state === 'sending' ? PASTE_WORDS.sending : PASTE_WORDS.finish)}</button></div>`;
+    }
+    return folded ? `<details><summary>${esc(PASTE_WORDS.disclosure)}</summary><p>${esc(PASTE_WORDS.history)}</p>${body}</details>` : body;
+  }
+  function signInCard(state = 'waiting', elsewhere = false) {
+    const ended = ['expired', 'not-waiting'].includes(state);
+    // A fake provider's start address: never a live sign-in.
+    const link = `<a class="text-link" href="https://issuer.example/visit" target="_blank" rel="noopener noreferrer">${esc(elsewhere ? PASTE_WORDS.link : PASTE_WORDS.open)}</a>`;
+    return `<h3>Signing in</h3>${ended ? '' : `${elsewhere ? '' : `<p>${esc(PASTE_WORDS.address)}</p>`}<p>${link}</p>`}${signInPaste(state, !elsewhere && !ended)}`;
+  }
   const wayLabel = w => conf('a way the configuration offers to connect a model', esc(w));
   function modelChoices(signIn, keyForm = 'connect-model.html?way=key') {
     const ways = world.config.ways || [];
     const chatgpt = ways.find(w => w.startsWith('Continue with'));
     const key = ways.find(w => w.startsWith('Use an') && w.endsWith('API key'));
-    return `<div class="forge-choices model-choices">${chatgpt ? `<section class="card card-pad"><h3>ChatGPT</h3><p>Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s agents use your plan’s included usage.</p><p class="muted tiny">In a browser on the engine’s machine · about a minute</p><a class="button primary" href="${esc(u(signIn))}">${wayLabel(chatgpt)}</a></section>` : ''}${key ? `<section class="card card-pad"><h3>An OpenAI API key</h3><p>A key from OpenAI’s platform. What temper’s agents use is billed to the key’s organization.</p><p class="muted tiny">Pasted here · at once</p><a class="button" href="${esc(u(keyForm))}">${wayLabel(key)}</a></section>` : ''}</div>${chatgpt ? `<p class="gap-note">${ahead('return', 'the engine’s listener answering ChatGPT’s return with a redirect to the page that started the sign-in: jig and skein’s oauth.md draw no answer')} Continue with ChatGPT opens ChatGPT’s sign-in in this tab; once you approve, temper sends the browser back here. Assumed, not detected: the browser is on the engine’s machine. Elsewhere, ChatGPT’s return to 127.0.0.1:1455 fails, and the sign-in waits out its deadline.</p>` : ''}`;
+    const elsewhere = worldKey === 'first-run' ? 'connect-model.html?way=chatgpt&step=model-elsewhere' : pasteTarget('waiting');
+    return `<div class="forge-choices model-choices">${chatgpt ? `<section class="card card-pad"><h3>ChatGPT</h3><p>Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s agents use your plan’s included usage.</p><p class="muted tiny">In a browser on the engine’s machine · about a minute</p><div class="button-row">${modelButton(chatgpt, signIn, true)}${modelButton(PASTE_WORDS.elsewhere, elsewhere)}</div></section>` : ''}${key ? `<section class="card card-pad"><h3>An OpenAI API key</h3><p>A key from OpenAI’s platform. What temper’s agents use is billed to the key’s organization.</p><p class="muted tiny">Pasted here · at once</p><a class="button" href="${esc(u(keyForm))}">${wayLabel(key)}</a></section>` : ''}</div>`;
   }
-  function chatgptReady(a, wasPlayground) {
+  function chatgptReady(a, wasPlayground, withoutDisplay = false) {
     const s = a.sources[0];
     const t = Object.keys(world.tasks).find(k => T(k).account === a.name && isLive(k) && isChat(T(k)));
-    return `<h3>${fact('jig: the sign-in’s subject, its display', esc(`Signed in to ChatGPT as ${s.name}`))} ${displayMark()}</h3>
+    return `<h3>${fact('jig: the sign-in’s end', esc(withoutDisplay ? 'Signed in to ChatGPT' : `Signed in to ChatGPT as ${s.name}`))}${withoutDisplay ? '' : ` ${displayMark()}`}</h3>
       <p>temper’s agents now run on your ChatGPT plan.</p>
       <div class="repo-lines">
         <div class="kv"><span>Account</span><strong>${fact('jig: the account, in temper’s words', esc(`${accountName(a)} · ${holderWords(a)}`))}</strong></div>
@@ -1262,6 +1310,24 @@
         <p class="muted tiny">Claude Code asks you to sign in. temper never reads its login.</p>
         <button class="button" data-later="Mockup: the login is declared; its row on Accounts says, for each host, whether Claude Code is signed in there.">Use your Claude subscription</button></div>`;
   }
+  function pasteGallery(wasPlayground) {
+    return `<h3 id="the-paste">The paste, as built</h3>${[
+      ['local', 'A sign-in under way on temper’s computer: paste folded', 'waiting', false],
+      ['waiting', 'Waiting, from another computer: paste unfolded', 'waiting', true],
+      ['written', 'The whole address pasted, hidden; ready to finish', 'written', true],
+      ['sending', 'The finish request is out', 'sending', true],
+      ['finishing', 'Finishing, until the accounts watch shows the end', 'finishing', true],
+      ['address', 'Refused: address', 'address', true],
+      ['state', 'Refused: state', 'state', true],
+      ['too-many', 'Refused: too many; start again', 'too-many', true],
+      ['too-long', 'Past the address bound; nothing sent', 'too-long', true],
+      ['not-waiting', 'Refused: not waiting; sign-in gone', 'not-waiting', true],
+      ['expired', 'Expired; start again', 'expired', true],
+      ['lost', 'Lost; paste again', 'lost', true],
+      ['unsent', 'Unsent; paste again', 'unsent', true],
+      ['done', 'Done; the watch shows Ready', 'done', true],
+    ].map(([id, heading, state, elsewhere]) => `<h3 id="paste-${id}"><a href="${esc(u(pasteTarget(state, elsewhere)))}">${esc(heading)}</a></h3>${modelSteps(state === 'done' ? 3 : 1, 'chatgpt')}${flowWrap(state === 'done' ? chatgptReady(chatgptLike({ source: {} }), wasPlayground, true) : signInCard(state, elsewhere))}`).join('')}`;
+  }
   const modelSteps = (current, way) => flowSteps(current, '', ['Choose', way !== 'chatgpt' ? 'Details' : 'Signing in', 'Ready']);
   const endingCard = (words, acts, mark = '', failed = true) => `<h3>Signing in to ChatGPT ${mark}</h3><p${failed ? ' class="forge-failure"' : ''}>${words}</p>${acts ? `<div class="button-row">${acts}</div>` : ''}`;
 
@@ -1269,17 +1335,21 @@
     const way = params.get('way');
     const a = ownAccounts().find(a => a.provider === 'OpenAI' && isPlan(a));
     const wasPlayground = demoRunning();
-    // Continue with ChatGPT leads to the step where the browser is back.
+    // The ordinary departure leads to the return; elsewhere stays here.
     const signIn = worldKey === 'first-run-real' ? 'connect-model.html?way=chatgpt&step=3' : 'connect-model.html?way=chatgpt&step=5';
     let current = 0;
     let body = modelChoices(signIn);
-    if (way === 'chatgpt' && a) { current = 3; body = flowWrap(chatgptReady(a, wasPlayground)); }
+    const signing = params.has('paste') ? { state: params.get('paste'), elsewhere: params.get('elsewhere') === '1' } : world.modelSignIn;
+    if (way === 'chatgpt' && signing && signing.state !== 'done') {
+      current = 1; body = flowWrap(signInCard(signing.state, signing.elsewhere));
+    }
+    else if (way === 'chatgpt' && (a || signing?.state === 'done')) { current = 3; body = flowWrap(chatgptReady(a || chatgptLike({ source: {} }), wasPlayground, signing?.state === 'done')); }
     else if (way === 'key') { current = 1; body = flowWrap(keyForm()); }
     else if (way === 'program') { current = 1; body = flowWrap(claudeSketch()); }
     const back = ['key', 'program'].includes(way) ? `<p><a class="text-link" href="${esc(u('connect-model.html'))}">‹ All ways</a></p>` : '';
     const again = '<button class="button primary" data-later="Mockup: a fresh sign-in, with a new address.">Continue with ChatGPT</button>';
     const key = '<button class="button" data-later="Mockup: the key’s form.">Use an API key</button>';
-    const variants = worldKey === 'first-run' ? `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: each other ending of ChatGPT’s sign-in, back in temper, and the other ways.</p>${[
+    const variants = worldKey === 'first-run' ? `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the paste, each other ending of ChatGPT’s sign-in, back in temper, and the other ways. The external sign-in links here use a fake provider.</p>${pasteGallery(wasPlayground)}${[
       ['The same account again', 1, endingCard(fact('jig: a sign-in to a subject the person already holds', esc(`That’s ${a ? a.sources[0].name : 'sam@example.com'} again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.`)), again, '', false), undefined, 'other-states-renewed'],
       ['Signed in without plan usage', 1, endingCard(fact('jig: the sign-in refused, plan usage declined', 'You signed in without plan usage.'), again + key), undefined, 'other-states-declined'],
       ['Not eligible', 1, endingCard(fact('jig: the sign-in refused, not eligible', 'This ChatGPT account can’t be used for plan usage in temper. Plan usage needs an eligible ChatGPT plan.'), `${key}<button class="button" data-later="Mockup: sign out of ChatGPT in your browser first; then a fresh sign-in.">Sign in to another account</button>`), undefined, 'other-states-not-eligible'],
@@ -1798,6 +1868,21 @@
     }
   };
 
+  function bindModel() {
+    document.querySelectorAll('[data-model-go]').forEach(button => button.addEventListener('click', () => {
+      location.href = button.dataset.modelGo;
+    }));
+    document.querySelectorAll('[data-model-paste]').forEach(form => {
+      const input = form.querySelector('input');
+      const button = form.querySelector('button');
+      // The gallery illustrates states; it never submits or keeps an address.
+      button.addEventListener('click', () => {
+        input.value = '';
+        location.href = button.dataset.modelFinish;
+      });
+    });
+  }
+
   // ---- Mount ----------------------------------------------------------
 
   const render = pages[page] || pages.index;
@@ -1809,6 +1894,7 @@
   bindLaterActs();
   bindGithub();
   bindPick();
+  bindModel();
 
   const notes = document.getElementById('notes');
   if (notes) {

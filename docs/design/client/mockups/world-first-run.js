@@ -201,8 +201,26 @@
       },
     },
     {
+      id: 'model-choose', label: '4a', hour: 10 / 60, act: 2, title: 'Connect a model, from another computer',
+      summary: "Sam’s browser is on another computer. Choose offers Continue with ChatGPT and the secondary button This browser isn't on temper's computer ›.",
+      look: [['connect-model.html', 'Choose: the two sign-in buttons']],
+      apply() {},
+    },
+    {
+      id: 'model-elsewhere', label: '4b', hour: 11 / 60, act: 2, title: 'Signing in, with the browser elsewhere',
+      summary: 'The secondary button keeps temper at Signing in. Sam opens the sign-in in another tab; ChatGPT’s return ends at a page that cannot be reached on Sam’s computer. The paste is unfolded in temper. The mockup’s external link is a fake provider’s.',
+      look: [['connect-model.html?way=chatgpt', 'Signing in: open the sign-in, then paste'], ['accounts.html', 'The same sign-in under way; the paste folded']],
+      apply(w) { w.modelSignIn = { state: 'waiting', elsewhere: true }; },
+    },
+    {
+      id: 'model-pasted', label: '4c', hour: 12 / 60, act: 2, title: 'The whole address pasted',
+      summary: 'Sam copies the whole address of the page that could not be reached, then pastes it into temper. The secret field shows only that it was written, and Finish connecting is enabled. Press it to see Ready at step 5; nothing is sent.',
+      look: [['connect-model.html?way=chatgpt', 'The paste written, hidden; Finish connecting'], ['accounts.html', 'The paste in the sign-in under way, folded']],
+      apply(w) { w.modelSignIn = { state: 'written', elsewhere: true }; },
+    },
+    {
       id: '5', label: '5', hour: 15 / 60, act: 2, title: 'A model connected',
-      summary: 'Sam follows the banner’s “Connect a model”, chooses ChatGPT, and signs in to ChatGPT in a browser on this machine as sam@example.com. Another provider’s account is usable, so the model’s half of the playground ends: the banner says a playground forge alone, the chats page is a chats page, and T1’s next run takes the first of its charter’s models with an account, gpt-6-luna on the ChatGPT plan (setup.md, 8.3). The scripted model steps aside: it is gone from Accounts.',
+      summary: 'Sam follows the banner’s “Connect a model”, chooses ChatGPT, and finishes the sign-in by pasting from the browser on another computer. Another provider’s account is usable, so the model’s half of the playground ends: the banner says a playground forge alone, the chats page is a chats page, and T1’s next run takes the first of its charter’s models with an account, gpt-6-luna on the ChatGPT plan (setup.md, 8.3). The scripted model steps aside: it is gone from Accounts.',
       look: [
         ['connect-model.html?way=chatgpt', 'Connect a model: signed in to ChatGPT'],
         ['accounts.html', 'Accounts: ChatGPT · sam@example.com, folded; the scripted model gone'],
@@ -216,6 +234,7 @@
         ['forges.html', 'Forges: still no forge of yours'],
       ],
       apply(w, id) {
+        delete w.modelSignIn;
         w.accounts = w.accounts.filter(a => a.provider !== w.demo.provider);
         w.accounts.unshift({ name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: 'Sam', models: ['gpt-6-luna'], at: id,
           sources: [{ name: 'sam@example.com', kind: 'sign-in', since: 14, use: 'Idle' }] });
@@ -271,7 +290,7 @@
 
   MOCKUPS.worlds['first-run'] = {
     name: 'First run',
-    about: 'the owner’s first run after temper box: the welcome, the playground chosen and its end once a forge connects, a suggested request landed on the playground forge by the scripted model’s script, a text-only one, then a ChatGPT plan signed in to, and a Forgejo set up here',
+    about: 'the owner’s first run after temper box: the welcome, the playground chosen and its end once a forge connects, a suggested request landed on the playground forge by the scripted model’s script, a text-only one, then a ChatGPT plan signed in to by pasting from another computer, and a Forgejo set up here',
     HOUR0: Date.UTC(2026, 9, 22, 21, 0),
     initial, steps, upcoming: [], acts: { 1: 'The playground', 2: 'Going real' },
   };
