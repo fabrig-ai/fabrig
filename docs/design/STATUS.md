@@ -2,7 +2,7 @@
 
 Updated 2026-10-24. How far smith's code is from its design, and the
 work that takes it there. Owners keep the rows their work changes
-(skein's owners.md, 4.4).
+(agents' `roles/owners.md`, 4.4).
 
 ## 1. Plans
 

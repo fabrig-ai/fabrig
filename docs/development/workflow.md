@@ -2,8 +2,7 @@
 
 How work reaches main. Work happens on branches; main moves only by
 landing a branch that passed every check below, or that changes only
-documentation, with `land` (skein's `docs/foundation/development.md`,
-section 9).
+documentation, with `land` (agents' `roles/owners.md`, 4.4).
 
 For the product, see [local-host settings and commands](local-host.md).
 The root package builds `src/main.rs`; its end-to-end and live targets live
