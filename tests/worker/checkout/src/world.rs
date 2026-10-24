@@ -859,18 +859,24 @@ impl World {
                     assert!(repo.writable, "only a writable repository is pushed");
                     let tree = self.forge.tree(translate::fake(*commit));
                     assert_eq!(&tree, left, "what landed is exactly the tree the client left");
+                    if let Some(attempt) = self.attempts.get(&(hold, repo.remote.clone())) {
+                        assert_eq!(attempt.commit, translate::fake(*commit), "what landed is what was pushed");
+                        match attempt.verified {
+                            Verified::Not => {}
+                            Verified::At(tip) => {
+                                assert_eq!(tip, attempt.commit, "a verified push landed");
+                                stats.verified += 1;
+                            }
+                            Verified::Failed => panic!("a push whose verification failed did not land"),
+                        }
+                    } else {
+                        // Nothing pushed: this hold's last push landed this
+                        // head, and nothing changed since.
+                        assert!(!saved, "a save lands only what it pushes");
+                        assert_eq!(left, &client.pushed[index], "landed again only with nothing new");
+                    }
                     if !saved {
                         client.pushed[index] = left.clone();
-                    }
-                    let attempt = self.attempts.get(&(hold, repo.remote.clone())).expect("what landed was pushed");
-                    assert_eq!(attempt.commit, translate::fake(*commit), "what landed is what was pushed");
-                    match attempt.verified {
-                        Verified::Not => {}
-                        Verified::At(tip) => {
-                            assert_eq!(tip, attempt.commit, "a verified push landed");
-                            stats.verified += 1;
-                        }
-                        Verified::Failed => panic!("a push whose verification failed did not land"),
                     }
                     stats.landed += 1;
                 }

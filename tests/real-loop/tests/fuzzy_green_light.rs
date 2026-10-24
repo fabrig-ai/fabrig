@@ -16,6 +16,7 @@ use temper_real_loop_world::{
 const CHAT: u64 = 1;
 const WORK: u64 = 2;
 const CHANGE: u64 = 3;
+const PRODUCER: u64 = 4;
 const QUESTION: u64 = 1;
 const REQUEST: &str = "@green_chat Add CSV export to widget";
 const WORK_SPEC: &str =
@@ -96,6 +97,9 @@ fn wait(words: &str) -> Turn {
         tokens: 20,
     }
 }
+fn change_fields() -> Value {
+    json!({"title":"Export widget's table as CSV","body":"Export the widget table with a CSV header and rows."})
+}
 fn report(words: &str) -> Turn {
     call(b"finish", &json!({"form":"report","text":words,"fields":{}}))
 }
@@ -151,11 +155,10 @@ fn scripts(forge: SocketAddr) -> Box<[Script]> {
             turns: Box::new([
                 call(b"read", &json!({"path":"src/main.rs"})),
                 call(b"edit", &json!({"path":"src/main.rs","edits":[{"old":SOURCE,"new":CSV_SOURCE}]})),
-                call(
-                    b"finish",
-                    &json!({"form":"change","fields":{
-                    "title":"Export widget's table as CSV","body":"Export the widget table with a CSV header and rows."}}),
-                ),
+                // A delivery mid-run, then a finish with nothing new: the finish
+                // delivers what the run delivered.
+                call(b"deliver", &json!({"fields":change_fields()})),
+                call(b"finish", &json!({"form":"change","fields":change_fields()})),
             ]),
         },
         Script {
@@ -181,6 +184,7 @@ const ACTIVITY: usize = 8;
 const ANSWERED: usize = 9;
 const INBOX_EMPTY: usize = 10;
 const WORK_ENDED: usize = 11;
+const PRODUCED: usize = 12;
 
 fn acts() -> Vec<calls::Step> {
     use calls::{call, join, sign_in, start};
@@ -214,6 +218,7 @@ fn acts() -> Vec<calls::Step> {
         join(CHAT_ENDED),
         call(D1, argv!["inbox", "--kind", "questions", "--json"]),
         call(D1, argv!["task", number(WORK), "--json"]),
+        call(D1, argv!["task", number(PRODUCER), "--json"]),
     ]
 }
 
@@ -330,6 +335,7 @@ fn a_green_light_in_the_inbox_lets_the_change_land() {
         ANSWERED,
         INBOX_EMPTY,
         WORK_ENDED,
+        PRODUCED,
     ];
     assert_eq!(ran.calls().len(), calls.len(), "all prescribed ctl calls ran");
     for position in calls {
@@ -344,6 +350,10 @@ fn a_green_light_in_the_inbox_lets_the_change_land() {
     assert_eq!(work["chip"]["task"], WORK, "T2's ended task number: {work}");
     assert_eq!(work["chip"]["phase"], "ended", "T2 ended");
     assert_eq!(work["result"]["value"]["report"]["bytes"], WORK_REPORT, "T2's report");
+    let producer = document(&ran, PRODUCED);
+    assert_eq!(producer["chip"]["task"], PRODUCER, "the producer's task number: {producer}");
+    let ending = &producer["chip"]["details"]["owner"]["details"]["ending"];
+    assert!(ending["done"]["change"].is_object(), "the producer that delivered, then finished, is done: {producer}");
     let chat = document(&ran, CHAT_ENDED);
     assert_eq!(chat["task"]["chip"]["task"], CHAT, "T1's ended task number");
     assert_eq!(chat["task"]["result"]["value"]["report"]["bytes"], CHAT_REPORT, "T1's report from the retained watch");

@@ -15,8 +15,11 @@
 //! the repository's push branch, as a fast-forward: a branch that moved since
 //! the workspace started is left where it is (`Moved`). A repository is
 //! pushed only if it has a commit the branch has not had from this hold
-//! since the start: otherwise it is `Unchanged`. A save does the same to the
-//! saved-work branch, for every repository changed since the start. Pushing
+//! since the start. Otherwise it is `Unchanged`, unless this hold's last push
+//! landed its head there: then it is that landing again, so that a delivery
+//! followed by a finish with nothing new is still a delivery. A save does the
+//! same to the saved-work branch, for every repository changed since the
+//! start, and is `Unchanged` without a change since the start. Pushing
 //! is not atomic: each repository is pushed on its own, whatever came of the
 //! one before. A push that failed in a way that may have landed all the same
 //! (it ran out of time, broke, or lost the forge on the way) is verified: the
@@ -877,7 +880,7 @@ fn pushed(
             Asked::Nothing => match committed(holding, repository, done) {
                 Ok(()) => match unpushed(holding, &push.to, repository) {
                     Some(commit) => return push_commit(holding, id, push, repository, commit, env, out),
-                    None => (repository, Landing::Unchanged),
+                    None => (repository, landed_before(holding, &push.to, repository)),
                 },
                 Err(failure) => (repository, failed_landing(failure)),
             },
@@ -937,6 +940,16 @@ fn unpushed(holding: &Holding, to: &To, repository: u32) -> Option<Commit> {
         To::Saved { .. } => tips.start,
     };
     if tips.head == base { None } else { Some(tips.head) }
+}
+
+/// A repository with nothing to push: the landing of this hold's last push to
+/// its push branch, if that push landed the head, or `Unchanged`.
+fn landed_before(holding: &Holding, to: &To, repository: u32) -> Landing {
+    let tips = tips(holding, repository);
+    match to {
+        To::Branches if tips.pushed != tips.start => Landing::Landed { commit: tips.pushed },
+        To::Branches | To::Saved { .. } => Landing::Unchanged,
+    }
 }
 
 /// Asks io to push `commit`, the head of the repository at `repository`, to

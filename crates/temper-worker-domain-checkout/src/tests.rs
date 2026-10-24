@@ -586,9 +586,10 @@ fn a_push_builds_on_what_the_last_one_landed() {
     let commit_op = io(h.one(Event::Push { hold, message: message() }), hold);
     let Op::Commit { parent, .. } = commit_op else { panic!("a commit: {commit_op:?}") };
     assert_eq!(parent, commit(11));
-    // With nothing new, there is nothing to push.
+    // With nothing new, nothing is pushed: the landing stands, as a delivery
+    // followed by a finish needs.
     let end = h.one(Event::Done { owner: hold, done: Done::Unchanged });
-    assert_eq!(&*landings(end), &[Landing::Unchanged]);
+    assert_eq!(&*landings(end), &[Landing::Landed { commit: commit(11) }]);
 }
 
 #[test]
@@ -765,7 +766,8 @@ fn a_push_that_may_have_landed_is_verified() {
         let end = h.one(Event::Done { owner: hold, done: found });
         assert_eq!(&*landings(end), &[landing]);
     }
-    // One that landed is the base of the next push.
+    // One that landed is the base of the next push, which with nothing new
+    // is that landing again.
     let mut h = Harness::new(LIMITS);
     let hold = h.ready(1, one(b"w"));
     h.one(Event::Push { hold, message: message() });
@@ -774,7 +776,7 @@ fn a_push_that_may_have_landed_is_verified() {
     h.one(Event::Done { owner: hold, done: Done::Fetched { commit: commit(11) } });
     h.one(Event::Push { hold, message: message() });
     let end = h.one(Event::Done { owner: hold, done: Done::Unchanged });
-    assert_eq!(&*landings(end), &[Landing::Unchanged]);
+    assert_eq!(&*landings(end), &[Landing::Landed { commit: commit(11) }]);
     // A push refused, or not a fast-forward, is not verified.
     for (ended, landing) in [(failed(Fault::Refused), explained(Fault::Refused)), (Done::Rejected, Landing::Moved)] {
         let mut h = Harness::new(LIMITS);

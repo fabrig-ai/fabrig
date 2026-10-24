@@ -234,7 +234,9 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         assert_eq!(world.forge.merge_parent(commit), Some(world.base));
         assert_eq!(world.forge.tree(commit), world.expected);
         assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(commit));
-        assert_eq!(&*world.push(false, false), &[Landing::Unchanged], "repeat creates no new commit or push");
+        let again = world.push(false, false);
+        assert_eq!(again, landed, "a repeat is the same landing");
+        assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(commit), "repeat creates no new commit or push");
     }
     let hold = world.hold.expect("held");
     assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));

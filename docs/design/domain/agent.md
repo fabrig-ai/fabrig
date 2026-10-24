@@ -304,7 +304,7 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 
 | The push | smith's delivery |
 |---|---|
-| landed in every repository with a change | delivered, naming each head |
+| landed in every repository with a change, or already landed by this hold's last push | delivered, naming each head |
 | nothing to push | nothing |
 | a branch moved, as a fast-forward cannot take it or its head is not the one expected | stale: the run ends, and the engine decides afresh |
 | a conflicted file still holds a marker | refused, naming the file |

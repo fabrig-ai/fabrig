@@ -323,7 +323,11 @@ runs as contained processes and whose output it parses.
 - **Each repository lands on its own.** Pushing several is not atomic:
   the run is told done only if every repository with a change landed it,
   moved if a branch cannot take the commit as a fast-forward, and nothing
-  to push if none had a change. A push the forge refused (permissions, a
+  to push if none had a change. A repository whose head this hold's last
+  push already landed is that landing again, not unchanged: a `finish`
+  after a mid-run delivery, with nothing new, delivers what the run
+  delivered (a retried run's new hold has no such push, and finds nothing
+  to push). A push the forge refused (permissions, a
   protected branch, a hook) is a landing of its own, which a retry will
   not change.
 - **Pushes are never cancelled.** A push in flight runs to its end, which
