@@ -2042,8 +2042,10 @@ The words for each offered source are:
   sign-in's tab, or start again."; a value past the bytes `me` states,
   before sending, "That's longer than a sign-in's address. Copy the
   address bar alone."; *not waiting* with the sign-in gone, "This
-  sign-in has ended." and "Continue with ChatGPT"; a sign-in that
-  refused too many ends as a misconfigured one does, in its words. Four have
+  sign-in has ended." and "Continue with ChatGPT"; *lost* or *unsent*,
+  the field empty, "That address wasn't sent. Paste it again."; a
+  sign-in that refused too many ends as a misconfigured one does, in
+  its words. Four have
   no fact of jig's yet, and are not drawn until jig gives one: the
   listener's port another program holds, "not eligible", plan usage
   declined at the provider rather than at its consent, and a missing
