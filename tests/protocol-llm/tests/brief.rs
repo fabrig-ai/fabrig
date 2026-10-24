@@ -374,7 +374,7 @@ fn wait_call() -> Part {
 }
 
 fn wait_result() -> Part {
-    Part::ToolOutput { id: ID.into(), output: BEGIN.into(), is_error: false }
+    Part::ToolOutput { id: ID.into(), output: b"Continue the saved conversation.".as_slice().into(), is_error: false }
 }
 
 fn part_bytes(part: &Part) -> usize {

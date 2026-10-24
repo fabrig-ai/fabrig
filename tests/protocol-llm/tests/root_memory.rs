@@ -753,7 +753,7 @@ fn assert_rewritten(history: &root::Transcript, prompt: &llm::Prompt) {
     let waking = prompt.messages.last().expect("actual waking User");
     assert_eq!(waking.role, llm::Role::User);
     let [llm::Block::Text { text, replay: None }] = waking.content.as_ref() else { panic!("waking text") };
-    assert_eq!(text.as_ref(), b"Begin the work your brief describes.");
+    assert_eq!(text.as_ref(), b"Continue the saved conversation.");
 }
 
 struct Counted {
@@ -1302,7 +1302,7 @@ fn assert_generated(history: &root::Transcript, messages: u32) {
     assert_eq!(large, 1);
 }
 
-fn cap(source: &Counted) -> u64 {
+fn cap(source: &Counted, waking: &[u8]) -> u64 {
     // Fixed SUMMARY and PREAMBLE texts in smith-domain-run/src/prompt.rs;
     // domain/run.md, section 3.3. The summary includes the 1,000-word limit.
     const SUMMARY_BYTES: u64 = 415;
@@ -1319,7 +1319,8 @@ fn cap(source: &Counted) -> u64 {
         + len(&first.system)
         + 2 * size::<session::llm::Descriptor>()
         + size::<session::llm::Block>()
-        + 2 * len(text)
+        + len(text)
+        + len(waking)
         + SUMMARY_BYTES
         + PREAMBLE_BYTES; // Retained summary instruction and preamble beside the task and history.
     let prefix = source
@@ -1372,7 +1373,11 @@ fn generate_prefix(counted: &mut Counted, configuration: &Configuration, message
     counted.prefix = Some(prefix);
     assert_generated(counted.prefix.as_ref().expect("actual selected history"), messages);
     counted.saved = counted.prefix.as_ref().map(copy_transcript);
-    let capped = cap(counted);
+    let first = counted.initial.as_ref().expect("observed fresh root prompt");
+    let [llm::Block::Text { text, replay: None }] = first.messages[0].content.as_ref() else {
+        panic!("actual fresh waking text")
+    };
+    let capped = cap(counted, text);
     let tight = Limits {
         session: session::Limits { history_bytes: capped, ..counted.env.limits.session },
         ..counted.env.limits
@@ -1429,6 +1434,24 @@ fn restore_overlap(counted: &mut Counted, configuration: &Configuration, message
 }
 
 fn restore_exact(counted: &mut Counted, configuration: &Configuration, messages: u32, cycles: u32, tight: &Limits) {
+    let prompt = counted.held_prompt.as_ref().expect("observed overlapping restore");
+    let waking = prompt.messages.last().expect("actual resumed waking message");
+    let [llm::Block::Text { text: waking, replay: None }] = waking.content.as_ref() else {
+        panic!("plain resumed waking text")
+    };
+    // Restore retains the original task, but opens with the shorter resumed
+    // wake. Fill that observed room in one saved text, preserving the LARGE
+    // message and every history envelope.
+    let padding = tight.session.history_bytes.checked_sub(cap(counted, waking)).expect("shorter resumed opening");
+    let history = counted.prefix.as_mut().expect("generated prefix");
+    let last = history.turns.last_mut().expect("generated turns").messages.last_mut().expect("saved assistant");
+    let [session::llm::Block::Text { text, replay: None }] = last.content.as_mut() else {
+        panic!("actual saved assistant text")
+    };
+    let mut padded = text.to_vec();
+    padded.resize(padded.len() + usize::try_from(padding).expect("bounded wake difference"), b'x');
+    *text = padded.into_boxed_slice();
+    assert_eq!(cap(counted, waking), tight.session.history_bytes, "history plus actual wake attains the payload cap");
     counted.replace_root(tight);
     counted.start(counted.prefix.as_ref().map(copy_transcript), true);
     counted.discover();
@@ -1498,6 +1521,8 @@ fn refuse_one_over(counted: &mut Counted, configuration: &Configuration, cycles:
                     | session::llm::Block::ToolResult { .. } => None,
                 })
                 .expect("literal generated large message");
+            // restore_exact filled the actual resumed wake's headroom in
+            // this prefix, so one more byte is exactly over receiving credit.
             *text = vec![b'x'; LARGE + 1].into_boxed_slice();
         }
         counted.start(Some(history), true);

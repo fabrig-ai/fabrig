@@ -533,30 +533,13 @@ fn a_wait_is_answered_with_its_message_in_one_request() {
     }
 }
 
-#[test]
-fn a_wait_withheld_through_a_park_is_supplied_on_resuming() {
-    use skein_lib::{Duration, ReplyTo};
-    let settings = Settings {
-        job: Job::Reporting,
-        waiting: Duration::from_secs(1),
-        network: Span::millis(0, 0),
-        ..Settings::calm(1194)
-    };
-    let scripts = Box::new([Script {
-        cue: b"@parked-wait".as_slice().into(),
-        turns: Box::new([calls(vec![call(b"wait", b"{}")], 1), calls(vec![call(b"finish", FINISH_INPUT)], 1)]),
-    }]);
-    let mut first = World::with_workspace_scripts_charter(
-        settings,
-        None,
-        None,
-        Checkout::new(),
-        scripts.clone(),
-        charter(&settings, "@parked-wait"),
-    );
+fn parked_wait(settings: &Settings, scripts: Box<[Script]>, charter: run::Charter) -> World {
+    let mut first = World::with_workspace_scripts_charter(*settings, None, None, Checkout::new(), scripts, charter);
     first.run(10_000);
-    assert!(matches!(first.answer(), run::Answer::Parked { turns: 1, .. }));
-    assert_eq!(first.prompts().len(), 1);
+    first
+}
+
+fn saved_wait(first: &World) -> (smith_domain::Transcript, Box<[u8]>) {
     let saved = smith_domain::Transcript {
         version: smith_domain::session::record::VERSION,
         endpoint: Some(llm::Endpoint(0)),
@@ -576,21 +559,24 @@ fn a_wait_withheld_through_a_park_is_supplied_on_resuming() {
             | llm::Block::ToolResult { .. } => None,
         })
         .expect("actual wait identity");
-    assert!(
-        !first.turns()[0]
-            .messages
-            .iter()
-            .flat_map(|message| &message.content)
-            .any(|block| matches!(block, llm::Block::ToolResult { id, .. } if *id == call))
-    );
-    let resumed = Settings { resume: true, ..settings };
+    (saved, call)
+}
+
+fn resume_on_message(
+    settings: &Settings,
+    scripts: Box<[Script]>,
+    charter: run::Charter,
+    saved: smith_domain::Transcript,
+    message: run::Message,
+) -> World {
+    use skein_lib::{Duration, ReplyTo};
     let start = smith_domain::Event::Start {
         reply_to: ReplyTo::new(Token::new(1)),
         host_run: Token::new(1),
         identity: None,
         activation: 2,
         window: smith_domain::Window { turns: u32::MAX, bytes: u64::MAX },
-        charter: charter(&resumed, "@parked-wait"),
+        charter,
         workspace: None,
         transcript: Some(saved),
         answered: Box::default(),
@@ -599,14 +585,48 @@ fn a_wait_withheld_through_a_park_is_supplied_on_resuming() {
             name: smith_domain::GrantName { account: 0, generation: 1 },
             valid: Duration::from_secs(7200),
         }]),
-        messages: Box::new([run::Message {
+        messages: Box::new([message]),
+    };
+    World::with_workspace_scripts_start(*settings, Checkout::new(), scripts, start)
+}
+
+#[test]
+fn a_wait_withheld_through_a_park_is_supplied_on_resuming() {
+    use skein_lib::Duration;
+    let settings = Settings {
+        job: Job::Reporting,
+        waiting: Duration::from_secs(1),
+        network: Span::millis(0, 0),
+        ..Settings::calm(1194)
+    };
+    let scripts = Box::new([Script {
+        cue: b"@parked-wait".as_slice().into(),
+        turns: Box::new([calls(vec![call(b"wait", b"{}")], 1), calls(vec![call(b"finish", FINISH_INPUT)], 1)]),
+    }]);
+    let first = parked_wait(&settings, scripts.clone(), charter(&settings, "@parked-wait"));
+    assert!(matches!(first.answer(), run::Answer::Parked { turns: 1, .. }));
+    assert_eq!(first.prompts().len(), 1);
+    let (saved, call) = saved_wait(&first);
+    assert!(
+        !first.turns()[0]
+            .messages
+            .iter()
+            .flat_map(|message| &message.content)
+            .any(|block| matches!(block, llm::Block::ToolResult { id, .. } if *id == call))
+    );
+    let resumed = Settings { resume: true, ..settings };
+    let mut next = resume_on_message(
+        &resumed,
+        scripts,
+        charter(&resumed, "@parked-wait"),
+        saved,
+        run::Message {
             finish_requested: false,
             name: Token::new(0),
             label: b"person".as_slice().into(),
             text: b"waking line".as_slice().into(),
-        }]),
-    };
-    let mut next = World::with_workspace_scripts_start(resumed, Checkout::new(), scripts, start);
+        },
+    );
     next.run(10_000);
     assert!(matches!(next.answer(), run::Answer::Accepted { turns: 1, .. }));
     assert_eq!(next.prompts().len(), 1);
@@ -623,5 +643,104 @@ fn a_wait_withheld_through_a_park_is_supplied_on_resuming() {
         referee.verdict(),
         skein_world::domain::Verdict::Passed,
         "actual restored wait output crosses the offered-person fence"
+    );
+}
+
+#[test]
+fn a_parked_open_run_resumes_on_the_delegate_result_without_a_new_begin() {
+    use skein_fake_llm_domain::api::{Message, Role};
+    use skein_lib::Duration;
+    const RESULT_MESSAGE: Token = Token::new(73);
+    const REPLY: &[u8] = b"Task 2 landed at 4acedd81.";
+    const REPLYING: &[u8] = b"## Replying\n\nEnd your turn with text to reply; a reply does not end the conversation. The run then waits as for `wait`, but with no call to answer: the next messages come as a user message, at once if any came while you worked. To wait without replying, call `wait` with no text.\n";
+    let settings = Settings {
+        job: Job::Reporting,
+        waiting: Duration::from_secs(1),
+        network: Span::millis(0, 0),
+        ..Settings::calm(1195)
+    };
+    let scripts = Box::new([Script {
+        cue: b"@parked-delegate-result".as_slice().into(),
+        turns: Box::new([calls(vec![call(b"wait", b"{}")], 1), says(REPLY, 1)]),
+    }]);
+    let mut opening = charter(&settings, "@parked-delegate-result");
+    opening.mode = run::Mode::Open;
+    let first = parked_wait(&settings, scripts.clone(), opening);
+    assert!(matches!(first.answer(), run::Answer::Parked { turns: 1, .. }));
+    assert_eq!(first.prompts().len(), 1);
+    assert!(matches!(first.prompts()[0].messages[0].parts.as_ref(),
+        [Part::Text { text }] if text.as_ref() == b"Begin the work your brief describes."));
+    let (saved, wait_id) = saved_wait(&first);
+    let saved_messages: Vec<_> = saved
+        .turns
+        .iter()
+        .flat_map(|turn| &turn.messages)
+        .map(|message| Message {
+            role: match message.role {
+                llm::Role::User => Role::User,
+                llm::Role::Assistant => Role::Assistant,
+            },
+            parts: message
+                .content
+                .iter()
+                .map(|block| match block {
+                    llm::Block::Text { text, .. } => Part::Text { text: text.clone() },
+                    llm::Block::ToolCall { id, name, input, .. } => {
+                        Part::ToolCall { id: id.clone(), name: name.clone(), arguments: input.clone() }
+                    }
+                    llm::Block::Opaque { .. } | llm::Block::Refusal { .. } | llm::Block::ToolResult { .. } => {
+                        panic!("the actual first turn contains only its opening and unanswered wait")
+                    }
+                })
+                .collect(),
+        })
+        .collect();
+    let resumed = Settings { resume: true, ..settings };
+    let mut opening = charter(&resumed, "@parked-delegate-result");
+    opening.mode = run::Mode::Open;
+    let mut next = resume_on_message(
+        &resumed,
+        scripts,
+        opening,
+        saved,
+        run::Message {
+            finish_requested: false,
+            name: RESULT_MESSAGE,
+            label: b"2".as_slice().into(),
+            text: b"Result from task 2:\n4acedd81".as_slice().into(),
+        },
+    );
+    next.run(10_000);
+    assert_eq!(next.prompts().len(), 1, "one new completion answers the waking result");
+    let request = &next.prompts()[0];
+    assert_eq!(
+        &request.messages[..saved_messages.len()],
+        saved_messages.as_slice(),
+        "saved messages remain an unchanged ordered prefix"
+    );
+    assert!(
+        matches!(&request.messages[saved_messages.len()..],
+        [Message { role: Role::User, parts }] if matches!(parts.as_ref(),
+            [Part::ToolOutput { id, output, is_error: false }]
+            if *id == wait_id && output.as_ref() == b"2: Result from task 2:\n4acedd81")),
+        "the only new payload is exactly the delegate result: {:?}",
+        &request.messages[saved_messages.len()..]
+    );
+    assert!(contains(&request.system, REPLYING));
+    assert!(request.tools.iter().any(|tool| tool.name.as_ref() == b"wait"));
+    assert!(matches!(next.answer(), run::Answer::Parked { turns: 1, .. }));
+    assert_eq!(next.turns().len(), 1);
+    assert_eq!(next.turns()[0].sequence, 2);
+    assert!(
+        next.turns()[0]
+            .messages
+            .iter()
+            .flat_map(|message| &message.content)
+            .any(|block| matches!(block, llm::Block::Text { text, .. } if text.as_ref() == REPLY))
+    );
+    assert_eq!(
+        next.turn_metadata().iter().map(|(_, read, _)| *read).collect::<Vec<_>>(),
+        [Some(RESULT_MESSAGE)],
+        "the actual told turn reads the result exactly once"
     );
 }

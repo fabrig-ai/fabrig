@@ -199,7 +199,7 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
         let mut third_prefix = second_prefix.clone();
         third_prefix.extend([
             message(Role::Assistant, vec![text(FIRST), tool(b"call_0000000000000002", b"wait", b"{}")]),
-            message(Role::User, vec![result(b"call_0000000000000002", BEGIN)]),
+            message(Role::User, vec![result(b"call_0000000000000002", b"Continue the saved conversation.")]),
         ]);
         accounting(&first, &[first_prefix, second_prefix], &[17, 11], 0, true, if index == 0 { Some(0) } else { None });
         no_workspace(&first, &settings);

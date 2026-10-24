@@ -214,13 +214,17 @@ to finish (5.3).
 A run opens its main session once it has prepared and has work: a brief
 that is not empty, or a message.
 
-- **The opening** is main's first user message: the instruction to begin
-  the work the brief describes, when the brief is not empty, then every
-  message queued, in arrival order, at most one offer's worth (section
-  6); the rest stay queued for main's next yield. The first turn told
-  names the last of them as read (section 6). A run that resumes puts
-  first, in its waking prompt, what its transcript does not hold
-  (section 6).
+- **The opening** of a fresh conversation is main's first user message:
+  the instruction to begin the work the brief describes, when the brief
+  is not empty, then every message queued, in arrival order, at most one
+  offer's worth (section 6); the rest stay queued for main's next yield.
+  When concrete history is selected for resume, the waking prompt contains
+  the offered messages without a new instruction to begin; without offered
+  messages it says “Continue the saved conversation.” It first includes
+  any host answers absent from the transcript (section 6). The session
+  supplies this prompt as the result of a withheld `wait`, or as user text
+  otherwise (section 6). The first turn told names the last offered message
+  as read (section 6).
 - **Awaiting.** A run with an empty brief, no message and `wait` granted
   opens nothing: no session, and no request to a provider. It tells its
   host it is waiting, and the first message opens main, as its opening.
@@ -505,9 +509,10 @@ host tool for it, as temper's `delegate` does.
   turn was never told, the agent having stopped between the two, or one
   the run withdrew and its host decided later), with their answers, so the
   LLM does not ask them again; and goes on with the messages that woke
-  it, which its start carries (3.2). A transcript it cannot use
-  (another version, malformed, unresolved, too large) fails the run as
-  transient, saying which (session.md, section 3), and the host decides
+  it, which its start carries (3.2). Its waking prompt follows section
+  3.4's resume form; it does not add a fresh begin instruction. A transcript
+  it cannot use (another version, malformed, unresolved, too large) fails
+  the run as transient, saying which (session.md, section 3), and the host decides
   what the next run starts from. A window that ran on another endpoint,
   dialect, account or backend is not refused: it is carried over
   (session.md, 8.2). A run that does not resume starts fresh from its

@@ -1,8 +1,9 @@
 //! Main receives literal host instructions, then ordered titled Brief sections;
 //! a child receives only its caller's raw task (domain/run.md, sections 3.1,
-//! 3.3, 5.3 and 9.2). Both then receive selected guides, run mechanics and
+//! 3.3, 3.4, 5.3 and 9.2). Both then receive selected guides, run mechanics and
 //! budget prose fixed at their actual opening.
-//! `opening` composes a main begin instruction and its bounded message offer.
+//! `opening` composes a fresh main begin instruction and its bounded message offer;
+//! with concrete history, it offers only messages or a saved-conversation continuation.
 //! No prompt state is retained here; title/text meaning and authority are never
 //! inferred. `system` and `child` consume only admitted immutable source data;
 //! session receiving bytes still decide whether the rendered opening fits.
@@ -82,7 +83,7 @@ fn render_fixed(text: &mut Text) {
     text.put(WAIT);
     render_finishing(text, &OutcomeSpec { change: None, verdicts: Box::new([]), failure: None, report: None }, false);
     render_answering(text);
-    text.put(&opening(false, None));
+    text.put(&opening(false, false, None));
     text.put(b"\n\n");
     render_fixed_budget(text);
     render_wind_down(
@@ -140,10 +141,10 @@ pub(crate) fn has_brief(charter: &Charter) -> bool {
     false
 }
 
-/// Compose the begin instruction, if needed, followed by one ordered offer.
-pub(crate) fn opening(brief: bool, messages: Option<Box<[u8]>>) -> Box<[u8]> {
+/// Begin a fresh main, or continue concrete history with one unchanged ordered offer.
+pub(crate) fn opening(brief: bool, resumed: bool, messages: Option<Box<[u8]>>) -> Box<[u8]> {
     match messages {
-        Some(messages) if !brief => messages,
+        Some(messages) if resumed || !brief => messages,
         Some(messages) => {
             let length =
                 BEGIN.len().checked_add(2).expect("fixed prefix").checked_add(messages.len()).expect("bounded offer");
@@ -153,6 +154,7 @@ pub(crate) fn opening(brief: bool, messages: Option<Box<[u8]>>) -> Box<[u8]> {
             writer.put(&messages).expect("measured offer");
             writer.finish()
         }
+        None if resumed => Box::from(b"Continue the saved conversation.".as_slice()),
         None if brief => Box::from(BEGIN),
         None => Box::from(b"Begin the work your instructions describe.".as_slice()),
     }

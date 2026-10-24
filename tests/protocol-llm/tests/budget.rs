@@ -619,7 +619,11 @@ fn wait_call() -> Part {
 }
 
 fn wait_feedback() -> Part {
-    Part::ToolOutput { id: b"call_0000000000000002".as_slice().into(), output: BEGIN.into(), is_error: false }
+    Part::ToolOutput {
+        id: b"call_0000000000000002".as_slice().into(),
+        output: b"Continue the saved conversation.".as_slice().into(),
+        is_error: false,
+    }
 }
 
 fn parked_prefix(child_result: Vec<u8>) -> Vec<Message> {

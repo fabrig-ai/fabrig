@@ -1853,7 +1853,7 @@ fn open(
         &env.limits,
     );
     let offered = run.inbox.offer(&env.limits);
-    opening.prompt = prompt::opening(prompt::has_brief(&run.charter), offered);
+    opening.prompt = prompt::opening(prompt::has_brief(&run.charter), run.resumed, offered);
     opening.transcript = run.transcript.take();
     out.push(Request::Open { conversation: main.token(), opening });
     State::Working { reply_to, main }
