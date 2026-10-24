@@ -11,11 +11,22 @@ pub(crate) struct Settle {
     since: Option<Wall>,
     job: bool,
     base: Option<Commit>,
+    read_base: Option<Commit>,
     open: Option<(Wall, Wall)>,
 }
 
 impl Settle {
-    pub(crate) const NEW: Settle = Settle { since: None, job: false, base: None, open: None };
+    pub(crate) const NEW: Settle = Settle { since: None, job: false, base: None, read_base: None, open: None };
+
+    /// The branch tip used for the last decision's base CI and comparison.
+    pub(crate) fn read_base(self) -> Option<Commit> {
+        self.read_base
+    }
+
+    /// The pull and branch can disagree while the forge settles.
+    pub(crate) fn uses_base(self, head: Commit) -> bool {
+        self.base == Some(head) || self.read_base == Some(head)
+    }
 
     /// First reads open no window: only a prior base read detects a move.
     pub(crate) fn fold(
@@ -76,6 +87,7 @@ pub(crate) fn observe(
     row: &ChangeRow,
     pull: Option<&skein_forge::api::Pull>,
     ci: change::Status,
+    base_tip: Commit,
 ) {
     let (moving, base) = match pull {
         Some(pull) => {
@@ -87,7 +99,7 @@ pub(crate) fn observe(
         change::Status::Pending | change::Status::Unknown => true,
         change::Status::Passed | change::Status::Failed => false,
     };
-    let settle = d.settling.get(&row.task).copied().unwrap_or(Settle::NEW).fold(
+    let mut settle = d.settling.get(&row.task).copied().unwrap_or(Settle::NEW).fold(
         env.wall,
         row.change.since,
         env.limits.client.settle,
@@ -95,6 +107,7 @@ pub(crate) fn observe(
         pending,
         base,
     );
+    settle.read_base = Some(base_tip);
     d.settling.insert(row.task, settle).expect("one settle row per change");
 }
 

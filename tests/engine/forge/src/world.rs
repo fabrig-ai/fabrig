@@ -100,6 +100,7 @@ pub struct World {
     writer_saves: u32,
     writes: u32,
     calls: u32,
+    call_ops: Vec<skein_forge::api::Op>,
     hints: Vec<skein_forge::api::Hint>,
     signatures: bool,
 }
@@ -235,6 +236,7 @@ impl World {
             writer_saves: 0,
             writes: 0,
             calls: 0,
+            call_ops: Vec::new(),
             hints: Vec::new(),
             signatures,
         };
@@ -369,6 +371,11 @@ impl World {
     pub fn calls(&self) -> u32 {
         self.calls
     }
+
+    /// Requests sent to the independent forge, in submission order.
+    pub fn take_calls(&mut self) -> Vec<skein_forge::api::Op> {
+        core::mem::take(&mut self.call_ops)
+    }
     #[must_use]
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
         &self.stored
@@ -408,6 +415,10 @@ impl World {
 
     pub fn produce(&mut self, branch: &[u8]) {
         self.produce_file(branch, b"file", b"change");
+    }
+    pub fn produce_on(&mut self, branch: &[u8], base: &[u8]) {
+        self.external(raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: self.branch(base) }), 2);
+        self.push_file(branch, b"file", b"change");
     }
     pub fn produce_file(&mut self, branch: &[u8], path: &[u8], content: &[u8]) {
         self.external(raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: 1 }), 2);
@@ -671,6 +682,7 @@ impl World {
         assert_eq!(repository.forge, REPO.forge);
         assert!(repository.repository == REPO.repository || repository.repository == 0);
         self.calls += 1;
+        self.call_ops.push(op.clone());
         if let skein_forge::api::Op::Write(_) = op {
             self.writes += 1;
         }

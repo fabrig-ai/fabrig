@@ -12,6 +12,8 @@ use crate::{
 };
 use crate::{adoption, brief, held, topics};
 
+mod hints;
+
 /// One comparison in flight for a branch's observed tip move.
 #[derive(Debug)]
 pub(crate) struct PendingLanding {
@@ -1297,9 +1299,20 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Unsubscribe { task, topic } => unsubscribe(d, task, topic, out),
         Event::Hint { hint } => {
             let changes = d.changes_for(hint.repository, env.limits.changes);
+            // An unrecognised resource (for example after a rename) cannot
+            // establish irrelevance: retain the repository-wide fallback.
+            let mut matched = false;
+            for task in &changes {
+                if hints::concerns(d, d.changes.get(task).expect("repository's change"), &hint) {
+                    matched = true;
+                    break;
+                }
+            }
             crate::settle::hinted(d, env, &hint, &changes);
             for task in changes {
-                d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+                if !matched || hints::concerns(d, d.changes.get(&task).expect("repository's change"), &hint) {
+                    d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+                }
             }
             ci_hint(d, env, &hint, out);
             child(d, env, skein_forge_client::Event::Hint { hint }, out);
@@ -2601,7 +2614,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
             }
         }
     }
-    crate::settle::observe(d, env, &row, pending.pull.as_ref(), pending.ci);
+    crate::settle::observe(d, env, &row, pending.pull.as_ref(), pending.ci, base_tip);
     let facts = change_facts(d, env, &row, pending, base_tip);
     let heard = change::Heard {
         effect: if row.pending.is_some() { change::EffectResult::Pending } else { row.effect },

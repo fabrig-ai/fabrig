@@ -569,6 +569,23 @@ part:
   reads on every hint it holds a resource for. temper, the owner, drops
   its own echoes, by key and by pusher: a creation's key for an item,
   the pusher for a push (skein's `forge-client.md`, section 4).
+- **Which change a hint wakes:** within its repository, a named branch
+  wakes changes with that head branch or landing base; a commit wakes
+  changes using it as their last head or observed base tip, including
+  facts already gathered by an unfinished fresh-read step. If the branch
+  and pull reads saw different base tips, both remain dependencies until
+  the next step reads them again. An item wakes its pull's change (including reviews on that pull), or a change naming
+  that issue or pull. Named resources and subscriptions also retain their
+  dependencies. Before a change knows its pull or commit dependencies,
+  it cannot exclude those hints. A resource matching no change, including
+  an unnamed push or a name no longer recognised after a rename, wakes
+  every change in the repository. The client still receives every hint:
+  filtering procedure wakes never filters its applicable keep reads.
+  A relevant wake during a fresh-read step still restarts that step before
+  deciding; an irrelevant hint adds no restart. Gate results, task
+  dependencies and queue changes keep their existing wake routes. Each
+  decision still uses the rules held then (8.7–8.9); hints do not replace
+  polling, settling or stall deadlines (8.3–8.4, 9).
 - **What Forgejo settles after it delivers** is read again sooner, by
   the change procedure, which reads its pull request afresh (5.3), not
   by the keep. Forgejo checks a pull request's mergeability after a push

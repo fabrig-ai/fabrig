@@ -1036,6 +1036,63 @@ pub struct Change {
     pub tracked: bool,
 }
 
+/// Two live procedures with distinct landing branches. The scripted root lets
+/// stories observe `WakeProcedure` before offering each fresh-read step.
+#[must_use]
+pub fn hint_world() -> forge_world::World {
+    use temper_engine_domain_forge_change as change;
+    let mut world = forge_world::World::new(71);
+    world.adopt();
+    world.produce(b"release");
+    for (task, branch, base) in [(51, b"temper/a".as_slice(), b"main".as_slice()), (52, b"temper/b", b"release")] {
+        world.produce_on(branch, base);
+        let pull = world.open_pull(branch, base);
+        let head = translate::commit(world.branch(branch));
+        let mut row = forge_world::changes::change_row();
+        row.task = task;
+        row.change.task = task;
+        row.branch = branch.into();
+        row.base = base.into();
+        row.pull = Some(pull);
+        row.change.last_head = Some(head);
+        row.change.since = world.wall();
+        row.change.state = change::State::Gating { head, asked: Box::new([9]) };
+        row.change.gates = Box::new([change::Gate {
+            number: 9,
+            kind: change::GateKind::Agent,
+            blocking: true,
+            freshness: change::Freshness::Exact,
+            eager: false,
+        }]);
+        world.event(forge_top::Event::Change { row });
+    }
+    world.run_for(3);
+    for task in [51, 52] {
+        hint_step(&mut world, task, task);
+    }
+    world.take_seen();
+    world.take_calls();
+    world
+}
+
+pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
+    use temper_engine_domain_forge_change as change;
+    world.event(forge_top::Event::StepChange {
+        task,
+        entry,
+        heard: change::Heard {
+            delegate: change::Status::Unknown,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
+        },
+        gates: Box::new([]),
+        queue_repair_active: false,
+        kept: true,
+    });
+    world.run_for(1);
+}
+
 pub fn add_reader(policy: &mut authority::Policy) {
     let mut reader = policy.roles[0].clone();
     reader.number = people::Role::Observer.number();
