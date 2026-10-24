@@ -1,4 +1,6 @@
 //! The shipped binary, on a scratch deployment, drained on a signal.
+#[path = "fake_backends/mod.rs"]
+mod fake_backends;
 pub mod support;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;

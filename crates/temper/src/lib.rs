@@ -26,6 +26,7 @@ pub mod box_command;
 pub mod bundle;
 pub mod ctl;
 pub mod fake;
+mod fake_backends;
 pub mod forge;
 mod forge_sign_in;
 mod google_runtime;
@@ -36,7 +37,7 @@ mod program_login;
 mod setup;
 mod worker_alone;
 pub use host::Host;
-pub const USAGE: &str = "usage: temper init [DIRECTORIES] | temper serve [DIRECTORIES] [--box] | temper agent AGENT.json | temper program-login [DIRECTORIES] NAME | temper open DIRECTORY LINK_OR_ADDRESS | temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge reconcile [DIRECTORIES] FORGE | temper forge sign-in [DIRECTORIES] FORGE | temper box [DIRECTORIES] | temper fake llm --document FILE [--ready PREFIX] [--seed N] | temper fake forge [DIRECTORIES] N [--ready PREFIX] [--seed N] [--observations FILE] | temper fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] | temper fake forge check [DIRECTORIES] N OBSERVATIONS STORE | temper fake git ARGS... | temper ctl DIRECTORY TOOL [ARGUMENT...] | temper ctl help [TOOL]";
+pub const USAGE: &str = "usage: temper init [DIRECTORIES] | temper serve [DIRECTORIES] [--box] | temper agent AGENT.json | temper program-login [DIRECTORIES] NAME | temper open DIRECTORY LINK_OR_ADDRESS | temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge reconcile [DIRECTORIES] FORGE | temper forge sign-in [DIRECTORIES] FORGE | temper box [DIRECTORIES] [--fake-backends [--bundle DIR]] | temper fake llm --document FILE [--ready PREFIX] [--seed N] | temper fake forge [DIRECTORIES] N [--ready PREFIX] [--seed N] [--observations FILE] | temper fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] | temper fake forge check [DIRECTORIES] N OBSERVATIONS STORE | temper fake git ARGS... | temper ctl DIRECTORY TOOL [ARGUMENT...] | temper ctl help [TOOL]";
 const CONFIG_BYTES: u32 = 1 << 20;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -44,6 +45,7 @@ pub enum Command {
     Init { directories: Directories },
     Serve { directories: Directories, boxed: bool },
     Box { directories: Directories },
+    BoxFakeBackends { directories: Directories, bundle: Option<PathBuf> },
     ProgramLogin { directories: Directories, name: OsString },
     Agent { configuration: PathBuf },
     Open { arguments: Vec<OsString> },
@@ -149,6 +151,11 @@ pub fn configure_with(
         b"init" if rest.is_empty() => Ok(Command::Init { directories }),
         b"serve" if rest.is_empty() || rest == ["--box"] => Ok(Command::Serve { directories, boxed: !rest.is_empty() }),
         b"box" if rest.is_empty() => Ok(Command::Box { directories }),
+        b"box" => {
+            let bundle =
+                fake_backends::configure(&rest, working).map_err(|why| format!("temper: {why}\n{}", usage()))?;
+            Ok(Command::BoxFakeBackends { directories, bundle })
+        }
         b"program-login" if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         b"forge" => {
             let verb = verb.expect("forge command word");
@@ -177,6 +184,9 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Init { directories } => return init::run(&directories).map_err(|why| prefixed("temper init", &why)),
         Command::Serve { directories, boxed } => {
             serve(&directories, boxed).map_err(|why| prefixed("temper serve", &why))?
+        }
+        Command::BoxFakeBackends { directories, bundle } => {
+            fake_backends::run(&directories, bundle.as_deref()).map_err(|why| prefixed("temper box", &why))?
         }
         Command::Box { directories } => box_command::run(&directories).map_err(|why| prefixed("temper box", &why))?,
         Command::Agent { configuration } => smith_agent_shell::run(&configuration, Box::new(std::io::stderr()))

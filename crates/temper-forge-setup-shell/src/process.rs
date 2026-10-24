@@ -27,6 +27,10 @@ pub fn lock(path: &Path) -> Result<Lock, Refused> {
         .mode(0o600)
         .open(path)
         .map_err(|why| Refused::Io(why.kind()))?;
+    lock_file(file)
+}
+/// Locks an already opened and validated file without reopening its path.
+pub fn lock_file(file: fs::File) -> Result<Lock, Refused> {
     file.try_lock().map_err(|why| match why {
         fs::TryLockError::WouldBlock => Refused::Held,
         fs::TryLockError::Error(why) => Refused::Io(why.kind()),

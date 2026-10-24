@@ -1280,14 +1280,16 @@ given the original deployment's data. Original configuration and records
 are never overwritten; no credential, account, worker secret or program
 login is imported.
 
-- **First preparation:** absent or empty C runs ordinary init in C'/D'/K,
-  keeping its listeners until their steps claim them. A nonempty C is
+- **First preparation:** absent or empty C runs ordinary init in
+  C'/D'/K', retaining init's listeners. Give --bundle DIR to name the
+  separately built loopback bundle; C stays untouched. A nonempty C is
   accepted only for the current init-shaped standalone configuration,
-  its public agent document and its two public charters. Unsupported
-  shapes are refused with the member named, before any child starts.
-  Fresh worker/deployment secrets are made in D'. Configuration paths
-  resolve against C before public assets are copied; init's data paths
-  are rebased to D', never followed into the source store.
+  its public agent document and two public charters. --bundle overrides
+  its application.clients.bundle; otherwise that configured directory is
+  used. Unsupported shapes are refused with the member named before any
+  child starts. Fresh worker/deployment resources are created in D'.
+  Source paths resolve against C before public assets are copied; data
+  paths are rebased to D', never followed into the source store.
 - **Lifetime:** the box holds an exclusive nonblocking file lock on
   E/lock. It publishes E/prepared last, after effective documents and
   resources pass the ordinary deployment and agent checks. The marker
@@ -1297,8 +1299,11 @@ login is imported.
 - **Restart:** effective configuration and data survive box shutdown.
   Reuse keeps edits to C' and the state in D', so an ordinary managed
   Forgejo configuration/restart uses the same mechanism as elsewhere.
-  The box prints these effective directories. Removing E resets this
-  scratch deployment; a normal start never reads it as the real one.
+  An explicit --bundle changes only the retained effective bundle selection,
+  after validating it; other effective edits and data remain. Without that
+  override, the retained bundle is authoritative. The box prints these
+  effective directories. Removing E resets this scratch deployment; a
+  normal start never reads it as the real one.
 - **Roots:** GitHub forge 2's API, web, git and transport name one
   plaintext loopback fake. Provider 1 keeps its shipped client, scopes,
   must-grant, resource and callback; its five sign-in origins name the
@@ -1306,12 +1311,15 @@ login is imported.
   the same plaintext fake model, with stale TLS members removed. The
   pure transformation is temper-fake's, with bounded bytes and explicit
   paths/sockets as inputs; files and listeners belong to temper's shell.
-- **Browser:** application.clients.bundle names a loopback-navigation
-  bundle (../client/browser.md, 2.6). The box materializes the separately
-  packaged bundle, or uses an explicitly configured provisioned bundle.
-  With neither available it refuses, explaining
-  scripts/bundle.sh --loopback and the configuration member. Startup
+- **Browser:** --bundle DIR, or source application.clients.bundle,
+  names a provisioned loopback-navigation bundle (../client/browser.md,
+  2.6). Build it once with scripts/bundle.sh --loopback DIR, then run
+  temper box --fake-backends --bundle DIR. Refuse before sandbox mutation
+  only when no bundle is known or its shape/types/size are invalid. The
+  refusal names that bundle command and --bundle; no hand-edited setting
+  is required. The ordinary embedded bundle cannot replace it. Startup
   neither builds a bundle nor accesses a remote service.
+
 
 Forgejo here keeps the ordinary owned steps and cache (setup.md, 6.6);
 an empty cache may need its ordinary one-time pinned download, while a
