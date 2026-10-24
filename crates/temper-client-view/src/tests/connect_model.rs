@@ -479,6 +479,28 @@ fn a_returned_source_draws_the_same_ending_words_as_an_own_sign_in() {
 }
 
 #[test]
+fn a_returned_source_still_signing_offers_the_paste_unfolded() {
+    let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
+    fixtures::root_event(
+        &mut root,
+        d::Event::Went {
+            place: d::Place::Address(d::Address::ConnectModel {
+                way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: Some(43) }),
+            }),
+        },
+    );
+    let mut doc = super::accounts::card_document(b"openai", b"", c::OwnerAccountKind::SignIn);
+    doc.signing.get_mut(0).unwrap().source = 43;
+    super::accounts::deliver(&mut root, watch, doc);
+    let shown = words(&root);
+    assert!(shown.contains("Go forward to that page, or find it in your history, and copy its address."));
+    let tree = fixtures::page_view(&root);
+    assert!(fixtures::find(tree.tree(), Role::TextField, b"Address of the page that couldn't be reached").is_some());
+    assert!(fixtures::find(tree.tree(), Role::Button, b"Finish connecting").is_some());
+    assert!(fixtures::find(tree.tree(), Role::Disclosure, b"Signed in, but the page couldn't be reached?").is_none());
+}
+
+#[test]
 fn a_retired_reload_offers_no_demo_key_or_card() {
     use temper_client_protocol_wire::v1 as w;
     for address in [d::Address::ConnectModel { way: None }, d::Address::Welcome { step: d::Step::Model { way: None } }]

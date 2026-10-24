@@ -580,6 +580,10 @@ pub(super) fn outcome(
         paste(b, root, w, bindings, form, !elsewhere);
     } else if form.paste_state(root.client()) == accounts::PasteState::Ended {
         paste(b, root, w, bindings, form, false);
+    } else if form.returned() && form.paste_state(root.client()) != accounts::PasteState::Closed {
+        // A departed sign-in's address come back to by hand while it still waits (client/README.md, 5.5).
+        text(b, w, Role::Paragraph, W::PasteHistory);
+        paste(b, root, w, bindings, form, false);
     }
 }
 fn is_owner(root: &Domain) -> bool {
