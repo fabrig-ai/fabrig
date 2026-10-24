@@ -3033,9 +3033,20 @@ fn plan_tool_results(observed: &Observed, agent: Agent, tool: &[u8]) -> Vec<(usi
     use skein_fake_llm_domain::api::{Part, Role};
     let mut seen = BTreeSet::new();
     let mut results = Vec::new();
+    let mut previous: &[skein_fake_llm_domain::api::Message] = &[];
+    let mut calls = BTreeMap::new();
     for (at, told) in observed.told.iter().enumerate().filter(|(_, told)| told.agent == agent) {
-        let mut calls = BTreeMap::new();
-        for message in &told.history {
+        // Reuse calls only when every message in the previous history agrees.
+        // A changed or truncated conversation gets its own lookup; seen ids
+        // continue to identify completed results across conversations.
+        // An empty lookup has no prefix state to reuse.
+        let offset = if !calls.is_empty() && told.history.starts_with(previous) {
+            previous.len()
+        } else {
+            calls.clear();
+            0
+        };
+        for message in &told.history[offset..] {
             for part in &message.parts {
                 match part {
                     Part::ToolCall { id, name, arguments }
@@ -3056,6 +3067,7 @@ fn plan_tool_results(observed: &Observed, agent: Agent, tool: &[u8]) -> Vec<(usi
                 }
             }
         }
+        previous = &told.history;
     }
     results
 }
@@ -3233,6 +3245,58 @@ mod plan_tests {
                 told(Agent::Subowner, &tool("refused", "delegate", &json!({"batch":[{}]}), SUBOWNER_REFUSAL)),
             ],
         }
+    }
+    #[test]
+    fn tool_results_follow_growing_histories_and_reset_changed_or_truncated_prefixes() {
+        let mut observed = met();
+        let pending = tool("pending", "note", &json!({"version":1}), "first");
+        let old = tool("changed", "note", &json!({"version":2}), "old");
+        let new = tool("changed", "note", &json!({"version":3}), "new");
+        let orphan = tool("orphan", "note", &json!({"version":4}), "orphan");
+        let last = tool("last", "note", &json!({"version":5}), "last");
+        observed.told = vec![
+            told(Agent::Planner, &pending[..1]),
+            told(Agent::Plan, &pending),
+            told(Agent::Planner, &pending),
+            told(Agent::Planner, &pending),
+            told(Agent::Planner, &[pending.to_vec(), old[..1].to_vec()].concat()),
+            told(Agent::Planner, &[pending.to_vec(), new.to_vec()].concat()),
+            told(Agent::Planner, &[new.to_vec(), orphan[..1].to_vec()].concat()),
+            told(Agent::Planner, &orphan[1..]),
+            told(Agent::Planner, &last),
+        ];
+        assert_eq!(
+            plan_tool_results(&observed, Agent::Planner, b"note"),
+            vec![
+                (2, json!({"version":1}), b"first".to_vec()),
+                (5, json!({"version":3}), b"new".to_vec()),
+                (8, json!({"version":5}), b"last".to_vec()),
+            ]
+        );
+
+        // A bad argument never consumes an id; the last matching call wins,
+        // even across a replay prefix. Roles and tool names remain significant.
+        let mut invalid = tool("same", "note", &json!({"version":0}), "invalid");
+        if let Part::ToolCall { arguments, .. } = &mut invalid[0].parts[0] {
+            *arguments = b"{".as_slice().into();
+        }
+        let valid = tool("same", "note", &json!({"version":6}), "valid");
+        let wrong_tool = tool("wrong", "other", &json!({}), "wrong");
+        let mut wrong_role = tool("role", "note", &json!({}), "wrong");
+        wrong_role[0].role = Role::User;
+        observed.told = vec![
+            told(Agent::Planner, &invalid),
+            told(Agent::Planner, &[invalid.to_vec(), valid[..1].to_vec()].concat()),
+            told(
+                Agent::Planner,
+                &[invalid.to_vec(), valid.to_vec(), wrong_tool.to_vec(), wrong_role.to_vec()].concat(),
+            ),
+            told(Agent::Planner, &valid),
+        ];
+        assert_eq!(
+            plan_tool_results(&observed, Agent::Planner, b"note"),
+            vec![(2, json!({"version":6}), b"valid".to_vec())]
+        );
     }
     #[test]
     fn answered_plan_meets_the_checkpoint_and_replayed_prefixes_are_one_delivery() {
