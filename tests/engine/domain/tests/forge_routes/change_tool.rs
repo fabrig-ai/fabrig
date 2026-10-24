@@ -113,6 +113,41 @@ fn change_expands_the_only_repository_field_by_field() {
     );
 }
 
+fn producer(words: &[u8]) -> (World, tasks::TaskRecord) {
+    let (mut world, chat) = chat_world(true);
+    let engine::CallAnswer::Delegated(_) = change(&mut world, &chat, 93, None, words) else { panic!("delegated") };
+    world.until(Until::SecondAssignment);
+    let row = live(&world, world.assigned[1].task).clone();
+    (world, row)
+}
+
+#[test]
+fn the_producer_hears_the_change_task_lands_what_it_delivers_when_its_bound_has_room() {
+    let (world, row) = producer(b"Small fix");
+    assert_eq!(
+        row.spec.words.as_ref(),
+        b"Small fix\n\nThe host pushes what you deliver; the change task opens the pull request, \
+waits for CI and merges it. Finish with your change once it is checked."
+            .as_slice(),
+        "the change's words, then the producer's scope"
+    );
+    // Words that leave no room for the scope beside the branches go alone.
+    let bound = usize::try_from(world.env.limits.tasks.spec_bytes).expect("bound fits");
+    let words = vec![b'x'; bound - b"main".len() - 64];
+    let (_, row) = producer(&words);
+    let branch = row
+        .spec
+        .parameters
+        .iter()
+        .find_map(|parameter| match parameter {
+            tasks::Parameter::Bytes { name: 3, value } => Some(value.len()),
+            _ => None,
+        })
+        .expect("the producer's branch");
+    assert!(branch <= 64, "the branch fits beside the words: {branch}");
+    assert_eq!(row.spec.words.as_ref(), words.as_slice(), "the words alone");
+}
+
 #[test]
 fn change_with_no_repository_is_refused_once() {
     let (mut world, chat) = chat_world(false);

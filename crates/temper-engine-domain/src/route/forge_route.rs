@@ -1883,7 +1883,7 @@ fn change_delegate(
     let (executor, words, contract) = match kind {
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: domain.config.forge_charter },
-            row.title.clone(),
+            produce_words(&row.title, &row.base, &row.branch, env.limits.tasks.spec_bytes),
             tasks::Contract::Change {
                 connector: domain.config.forge_connector,
                 kind: 2,
@@ -1965,6 +1965,26 @@ fn change_delegate(
         wake: tasks::WakePolicy::DEFAULT,
         llm: None,
     })
+}
+
+/// What the producer is not to do: the change task does the rest of the landing.
+const PRODUCE_SCOPE: &[u8] = b"The host pushes what you deliver; the change task opens the pull request, \
+waits for CI and merges it. Finish with your change once it is checked.";
+
+/// The producer's brief: the change's words, then its scope, if the spec's
+/// bound has room for both beside its branches; the words alone otherwise.
+fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u8]> {
+    let room = usize::try_from(bound).unwrap_or(usize::MAX).saturating_sub(base.len()).saturating_sub(branch.len());
+    let parts = [title, b"\n\n".as_slice(), PRODUCE_SCOPE];
+    let length = title.len().saturating_add(2).saturating_add(PRODUCE_SCOPE.len());
+    if length > room {
+        return title.into();
+    }
+    let mut writer = skein_lib::Writer::new(length);
+    for part in parts {
+        writer.put(part).expect("measured brief");
+    }
+    writer.finish()
 }
 
 fn gate_executor(domain: &Domain, kind: forge_change::GateKind) -> tasks::Executor {
