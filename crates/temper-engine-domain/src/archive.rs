@@ -254,6 +254,15 @@ pub(crate) fn transcript_failed(domain: &mut Domain, waiter: Token) {
     }
 }
 
+pub(crate) fn transcript_unread(domain: &mut Domain, waiter: Token) {
+    let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
+    domain.archive_reads.retire(Id::from_token(waiter));
+    // The core owns the closed/open window policy (jig's `domain/engine.md`, 7.2).
+    if domain.core.transcripts.contains_key(&task) {
+        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptUnread { task }));
+    }
+}
+
 pub(crate) fn transcript_loaded(
     domain: &mut Domain,
     waiter: Token,
@@ -350,4 +359,84 @@ pub(crate) fn transcript_loaded(
 pub(crate) fn take_read(domain: &mut Domain, waiter: Token) -> Option<Read> {
     let entry = domain.archive_reads.get_mut(Id::from_token(waiter))?;
     entry.take()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::resume_fixture::root;
+    use jig_domain_core as core;
+
+    const TASK: u64 = 1;
+    const PREVIOUS_ATTEMPT: u64 = 1;
+
+    fn transcript_read(domain: &mut Domain) -> Token {
+        domain.archive_reads.insert(Some(Read::Transcript { task: TASK })).expect("reserved transcript read").token()
+    }
+
+    #[test]
+    fn unread_retires_once_and_ignores_a_stale_preparation() {
+        let (mut domain, _) = root();
+        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT);
+        let waiter = transcript_read(&mut domain);
+        transcript_unread(&mut domain, waiter);
+        transcript_unread(&mut domain, waiter);
+        let Some(Work::Core(core::Event::TranscriptUnread { task })) = domain.work.pop() else {
+            panic!("one core unread terminal")
+        };
+        assert_eq!(task, TASK);
+        assert!(domain.work.is_empty());
+        domain.archive_reads.reclaim();
+        assert!(domain.archive_reads.is_empty());
+
+        let stale = transcript_read(&mut domain);
+        drop(domain.core.transcripts.remove(&TASK));
+        transcript_unread(&mut domain, stale);
+        assert!(domain.work.is_empty(), "no current preparation to fail");
+        domain.archive_reads.reclaim();
+        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT);
+        let current = transcript_read(&mut domain);
+        transcript_unread(&mut domain, stale);
+        assert!(domain.work.is_empty(), "a retired waiter cannot reach a later preparation");
+        assert!(waiting(&domain, current) == Some(Waiting::Transcript));
+        transcript_unread(&mut domain, current);
+        assert!(matches!(domain.work.pop(), Some(Work::Core(core::Event::TranscriptUnread { task: TASK }))));
+        assert!(domain.work.is_empty());
+    }
+
+    #[test]
+    fn an_unissued_transcript_load_remains_preparation_failure() {
+        let (mut domain, env) = root();
+        // Saturate the real IO table without adding a world hook.
+        let mut issued = Queue::with_capacity(1);
+        for number in 0..env.limits.loads.loads {
+            assert!(
+                loads::begin(
+                    &mut domain.loads,
+                    Token::new(u64::from(number)),
+                    Range::Core(crate::CoreRange::Tasks),
+                    None,
+                    1,
+                    &mut issued,
+                )
+                .is_some()
+            );
+            assert!(issued.pop().is_some());
+        }
+        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT);
+        let waiter = transcript_read(&mut domain);
+        let mut out = Queue::with_capacity(1);
+        request_load(
+            &mut domain,
+            waiter,
+            Range::Core(crate::CoreRange::TaskTranscript { task: TASK, from: (PREVIOUS_ATTEMPT, 1) }),
+            None,
+            &mut out,
+        );
+        assert!(out.is_empty(), "no store request issued");
+        assert!(matches!(domain.work.pop(), Some(Work::Core(core::Event::PreparationFailed { task: TASK }))));
+        assert!(domain.work.is_empty());
+        domain.archive_reads.reclaim();
+        assert!(domain.archive_reads.is_empty());
+    }
 }

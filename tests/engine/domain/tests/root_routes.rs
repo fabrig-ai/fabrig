@@ -4837,3 +4837,6 @@ mod open_chat;
 
 #[path = "root_routes/exceeded.rs"]
 mod exceeded;
+
+#[path = "root_routes/transcript_unread.rs"]
+mod transcript_unread;

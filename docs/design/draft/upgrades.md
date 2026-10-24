@@ -447,15 +447,21 @@ outcomes; the deployment's and installation's ids.
 
 ## 9. The engine alone
 
+- A pending patch marked fresh makes the upgrade a full one. Stop the
+  workers and end every live attempt before the switch, even when their
+  wires match. Only a mark beyond the store's applied level counts.
 - **The workers may stay** when the new engine speaks their channel's
   version (jig's `protocol/channel.md`, 4.1) and temper's payload version
   (`../protocol/README.md`, section 9), and hands out smith's charters
-  and turns in the versions their agents read. Patching keeps live
-  claims and attempts, since it keeps every record.
+  and turns in the versions their agents read, and there is no such
+  pending fresh mark. Patching keeps live claims and attempts, since it
+  keeps every record.
 - **The tool says so.** The store keeps the wire versions of the engine
   that last opened it, beside its format row; `temper upgrade --check`
   compares them with the new binary's and says whether the workers may
-  stay. `temper versions` prints a binary's levels and wires.
+  stay. It reports the full-upgrade requirement when a pending fresh
+  mark requires the workers to stop. `temper versions` prints a binary's
+  levels and wires.
 - **The window must fit the workers' grace:** the settled stop, the
   patching and the start, within the grace the workers' configuration
   sets (jig's `protocol/channel.md`, 10.1). The rehearsal (3.1) measures
