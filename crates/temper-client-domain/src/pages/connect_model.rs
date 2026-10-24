@@ -14,11 +14,14 @@ pub struct ConnectModel {
     pub request: Request,
     /// Whether the scripted model was serving when this connection was sent.
     pub playground: bool,
+    pub elsewhere: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
     Holder { holder: c::AccountHolder },
     SignIn { name: RequestKey, way: Way },
+    SignInElsewhere { name: RequestKey, way: Way },
+    Finish { name: RequestKey },
     ProgramName { value: Box<[u8]> },
     Submit { name: RequestKey },
     Cancel,
@@ -89,6 +92,29 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
     None
 }
 impl ConnectModel {
+    #[must_use]
+    pub const fn elsewhere(&self) -> bool {
+        self.elsewhere
+    }
+    pub(crate) fn changing_way(&mut self, current: &Address, next: &Address) {
+        if let Address::ConnectModel { way: Some(old) } | Address::Welcome { step: Step::Model { way: Some(old) } } =
+            current
+            && old.kind == WayKind::SignIn
+        {
+            let next = if let Address::ConnectModel { way } | Address::Welcome { step: Step::Model { way } } = next {
+                *way
+            } else {
+                None
+            };
+            if next != Some(*old) {
+                self.leave_way();
+            }
+        }
+    }
+    fn leave_way(&mut self) {
+        self.elsewhere = false;
+        self.request.clear_key();
+    }
     pub(crate) fn leave(&mut self) {
         self.request.clear_key();
         *self = Self::default();
@@ -122,6 +148,18 @@ impl ConnectModel {
         {
             return;
         }
+        if self.request.paste.out() {
+            return;
+        }
+        let elsewhere = match &act {
+            Act::SignInElsewhere { .. } => true,
+            Act::SignIn { .. }
+            | Act::Holder { .. }
+            | Act::ProgramName { .. }
+            | Act::Submit { .. }
+            | Act::Finish { .. }
+            | Act::Cancel => false,
+        };
         let Some(me) = accounts::current_me(client) else { return };
         match act {
             Act::Holder { holder } => {
@@ -141,13 +179,15 @@ impl ConnectModel {
                     }
                 }
             }
+            Act::Finish { name } => self.request.finish(client, name, serial, out),
             Act::Cancel => self.request.cancel(),
-            Act::SignIn { name, way } => {
+            Act::SignIn { name, way } | Act::SignInElsewhere { name, way } => {
                 if model_way(way).kind != WayKind::SignIn
                     || !accounts::ways(&me.providers, demo, self.holder).as_slice().contains(&way)
                 {
                     return;
                 }
+                self.elsewhere = elsewhere;
                 self.request.send(
                     name,
                     c::Ask::SignIn { holder: c::AccountHolder::Own, provider: way.provider() },
@@ -229,6 +269,12 @@ pub(crate) fn program_default(person: &[u8]) -> Box<[u8]> {
 
 impl Default for ConnectModel {
     fn default() -> Self {
-        Self { holder: c::AccountHolder::Own, program: None, request: Request::default(), playground: false }
+        Self {
+            holder: c::AccountHolder::Own,
+            program: None,
+            request: Request::default(),
+            playground: false,
+            elsewhere: false,
+        }
     }
 }

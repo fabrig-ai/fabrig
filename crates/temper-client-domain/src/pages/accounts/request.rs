@@ -1,5 +1,5 @@
 //! One page's account request and one-shot secret transport.
-use super::{Broken, KEY_BYTES, Pending, SignInState, document};
+use super::{Broken, KEY_BYTES, Paste, Pending, SignInState, document};
 use crate::{owner::Owner, pages::Request as Output};
 use alloc::boxed::Box;
 use jig_client::{Client, Key, Told, contract as c};
@@ -8,6 +8,7 @@ use skein_lib::{Queue, RequestKey, Secret};
 #[expect(clippy::partial_pub_fields, reason = "the one-shot value is never bound or persisted")]
 pub struct Request {
     pub pending: Option<Pending>,
+    pub paste: Paste,
     pub confirm: Option<(RequestKey, c::Ask)>,
     pub broken: Option<Broken>,
     value: Option<Secret>,
@@ -21,10 +22,14 @@ impl Request {
     }
     pub(crate) fn clear_key(&mut self) {
         self.value = None;
+        self.paste.clear();
         self.written = self.written.checked_add(1).expect("account field writes fit");
     }
     #[must_use]
     pub fn busy(&self, client: &Client) -> bool {
+        if self.paste.out() {
+            return true;
+        }
         if let Some(p) = &self.pending
             && p.outcome.is_none()
         {
@@ -157,6 +162,12 @@ impl Request {
         {
             return;
         }
+        if self.paste.out() {
+            return;
+        }
+        if let c::Ask::SignIn { .. } = ask {
+            self.paste = Paste::default();
+        }
         let value = self.value.take();
         self.clear_key();
         if carrying && value.is_none() {
@@ -182,6 +193,19 @@ impl Request {
                 let jig_client::Ask::Jig(ask) = request else {
                     return false;
                 };
+                if let c::Ask::AccountChange { change: c::AccountChange::FinishSignIn { .. }, .. } = ask.as_ref() {
+                    if self.paste.pending.is_none() {
+                        self.paste.pending = Some(Pending {
+                            key: *key,
+                            name: None,
+                            ask: *ask.clone(),
+                            outcome: None,
+                            signing: false,
+                            ended: false,
+                        });
+                    }
+                    return true;
+                }
                 if let c::Ask::SignIn { .. } | c::Ask::SignOut { .. } | c::Ask::AccountChange { .. } = ask.as_ref() {
                     if self.pending.is_none() {
                         self.pending = Some(Pending {
@@ -199,6 +223,12 @@ impl Request {
                 }
             }
             Told::Answered { key, outcome } => {
+                if let Some(pending) = &mut self.paste.pending
+                    && pending.key == *key
+                {
+                    pending.outcome = Some(outcome.clone());
+                    return true;
+                }
                 if let Some(pending) = &mut self.pending
                     && pending.key == *key
                 {
@@ -209,6 +239,7 @@ impl Request {
                     false
                 }
             }
+            Told::Pending { key } if self.paste.has_pending(*key) => true,
             Told::Pending { key } => match &self.pending {
                 Some(pending) => pending.key == *key,
                 None => false,
@@ -249,6 +280,14 @@ impl Request {
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for Request {
     fn default() -> Self {
-        Self { pending: None, confirm: None, broken: None, value: None, written: 0, returned: None }
+        Self {
+            pending: None,
+            paste: Paste::default(),
+            confirm: None,
+            broken: None,
+            value: None,
+            written: 0,
+            returned: None,
+        }
     }
 }

@@ -17,6 +17,7 @@ pub enum Event {
     Act { action: Action },
     Client { event: jig_client::Event },
     AccountKey { value: skein_lib::Secret },
+    SignInAddress { value: skein_lib::Secret },
     SignedOut,
 }
 /// Bounded routing and child facts for the shell to observe.

@@ -18,6 +18,7 @@ pub enum Operation {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    Finish { name: RequestKey },
     Submit { name: RequestKey, row: Row, operation: Operation },
     KeyFor { row: Row, source: Option<u32> },
     Confirm,
@@ -45,6 +46,7 @@ pub enum Broken {
 impl Accounts {
     pub(crate) fn act(&mut self, client: &Client, act: Act, serial: &mut u64, out: &mut Queue<Request>) {
         match act {
+            Act::Finish { name } => self.request.finish(client, name, serial, out),
             Act::KeyFor { row, source } => {
                 if self.request.busy(client) {
                     return;
@@ -72,7 +74,13 @@ impl Accounts {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        if self.request.busy(client) {
+        let restart = if let Operation::SignIn { .. } = operation {
+            self.request.paste_state(client) == super::PasteState::Ended
+                || self.request.paste_state(client) == super::PasteState::Refused { why: c::SignInRedirectWhy::TooMany }
+        } else {
+            false
+        };
+        if self.request.busy(client) && !restart {
             return;
         }
         let field = match operation {

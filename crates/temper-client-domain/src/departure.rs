@@ -24,6 +24,9 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
         return false;
     }
     let Some(page) = root.pages.connect_model() else { return false };
+    if page.elsewhere() {
+        return false;
+    }
     let Some(pending) = &page.request.pending else { return false };
     if pending.key != *key || pending.name.is_none() || pending.outcome.is_some() {
         return false;

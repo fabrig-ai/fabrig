@@ -129,6 +129,7 @@ pub enum Event {
     Started,
     Left,
     AccountKey { value: skein_lib::Secret },
+    SignInAddress { value: skein_lib::Secret },
     Went { address: Address },
     Act { act: Act },
     Told { told: Told },
@@ -306,6 +307,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     match event {
         Event::Started => started(pages, out),
         Event::Went { address } => went(pages, env, address, out),
+        Event::SignInAddress { value } => {
+            if let Some(me) = accounts::current_me(client) {
+                if let Some(page) = &mut pages.connect_model {
+                    page.request.paste_value(value, me.redirect_bytes);
+                } else if pages.accounts_open {
+                    pages.accounts.request.paste_value(value, me.redirect_bytes);
+                }
+            }
+        }
         Event::AccountKey { value } => {
             if let Some(page) = &mut pages.connect_model {
                 page.request.key(value);
@@ -532,6 +542,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         && pages.welcome.is_none())
         || pages.address != address
     {
+        if let Some(page) = &mut pages.connect_model {
+            page.changing_way(&pages.address, &address);
+        }
         pages.accounts.leave(out);
         pages.accounts_open = address == Address::Accounts;
         if connect_model::open(&address) {
@@ -634,6 +647,15 @@ fn open_result(pages: &mut Pages, task: u64, through: u64, out: &mut Queue<Reque
 
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Some(page) = &mut pages.connect_model {
+        if let Told::Kept { key, request: jig_client::Ask::Jig(ask) } = &told
+            && let jig_client::contract::Ask::AccountChange {
+                change: jig_client::contract::AccountChange::FinishSignIn { .. },
+                ..
+            } = ask.as_ref()
+            && !pages.accounts.request.paste.has_pending(*key)
+        {
+            return page.request.told(client, &told);
+        }
         let claim = match &told {
             Told::Kept { key, request: jig_client::Ask::Jig(ask) } => {
                 let row_request = match &pages.accounts.request.pending {
