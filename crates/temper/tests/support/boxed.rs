@@ -511,6 +511,7 @@ pub fn run_ctl_with_exits<T>(
 }
 /// An independent fake and a fixture hook after the box has written its files.
 pub struct CtlLlm {
+    pub expected_exits: Vec<(usize, u8)>,
     pub peer: super::llm::Listening,
     pub on_link: Box<dyn FnOnce()>,
 }
@@ -541,7 +542,7 @@ pub fn run_ctl_with_llm<T>(
         steps,
         deadline,
         check,
-        CtlPeers { expected_exits: Vec::new(), model: CtlModel::Llm(Box::new(llm)) },
+        CtlPeers { expected_exits: llm.expected_exits.clone(), model: CtlModel::Llm(Box::new(llm)) },
     )
     .0
 }

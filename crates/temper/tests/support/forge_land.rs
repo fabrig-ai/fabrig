@@ -556,6 +556,25 @@ pub fn assert_forgejo_setup(
     previous: Option<u64>,
     data: &std::path::Path,
 ) -> u64 {
+    let signed = &calls[0];
+    assert_eq!(
+        signed.exit,
+        Some(Exit::Code(0)),
+        "{run}: sign-in: {}; box: {stderr}",
+        String::from_utf8_lossy(&signed.stderr)
+    );
+    assert_forgejo_setup_after_sign_in(run, &calls[1..], stderr, previous, data)
+}
+
+/// The setup reads also serve a box whose signed-in person first tried the demo.
+#[must_use]
+pub fn assert_forgejo_setup_after_sign_in(
+    run: &str,
+    calls: &[super::Ended],
+    stderr: &str,
+    previous: Option<u64>,
+    data: &std::path::Path,
+) -> u64 {
     for call in calls {
         assert_eq!(
             call.exit,
@@ -565,14 +584,14 @@ pub fn assert_forgejo_setup(
             String::from_utf8_lossy(&call.stderr)
         );
     }
-    assert_eq!(calls.len(), if run == "first" { 7 } else { 4 }, "all setup calls ran: {stderr}");
+    assert_eq!(calls.len(), if run == "first" { 6 } else { 3 }, "all setup calls ran: {stderr}");
     if run == "first" {
         assert!(
-            String::from_utf8_lossy(&calls[1].stdout)
+            String::from_utf8_lossy(&calls[0].stdout)
                 .lines()
                 .any(|line| line == "forge 3 · Forgejo · owned · Not set up")
         );
-        let offered = super::ctl::json(&calls[2]);
+        let offered = super::ctl::json(&calls[1]);
         let forge = offered["forges"]
             .as_array()
             .expect("forge rows")
@@ -581,14 +600,14 @@ pub fn assert_forgejo_setup(
             .expect("forge 3 row");
         assert_eq!(forge["offer"], "offered");
         assert_eq!(forge["state"], "not_set_up");
-        assert!(calls[3].stdout.starts_with(b"setting up\n"));
-        let adoption = String::from_utf8_lossy(&calls[3].stdout);
+        assert!(calls[2].stdout.starts_with(b"setting up\n"));
+        let adoption = String::from_utf8_lossy(&calls[2].stdout);
         assert!(
             adoption.contains("Adopted work/hello on forge 3 as owned."),
             "ctl printed the first adoption: {adoption}"
         );
         eprintln!("{run} first repository adoption: {adoption}");
-        let made = super::ctl::json(&calls[5]);
+        let made = super::ctl::json(&calls[4]);
         let row =
             made["forges"].as_array().expect("forges rows").iter().find(|row| row["number"] == 3).expect("forge 3");
         eprintln!("{run} first repository read: {}", row["first"]);

@@ -1022,6 +1022,137 @@ fn an_imported_records_path_is_printed_as_file() {
     }
 }
 
+/// protocol/setup.md, 8.4 and 13.4: the demo ends on the owned forge's runtime connect.
+#[test]
+fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
+    use support::first_repository::{self, Task};
+
+    // The demo's chat is task 1 in project 1; hello gets the next project and task tree.
+    const HELLO: Task = Task { project: 2, chat: 2, change: 3, producer: 4 };
+    // Seven playground reads plus the reply wait; six setup reads; six end reads
+    // (including two refused starts); seven calls for hello's task and landed change.
+    const DEMO_CALLS: usize = 8;
+    const SETUP_END: usize = DEMO_CALLS + 6;
+    const END_READS_END: usize = SETUP_END + 6;
+    const ALL_CALLS: usize = END_READS_END + 7;
+    let scratch = support::Scratch::new("demo-then-forgejo");
+    let (paths, flags) = first_run_directories(&scratch);
+    let (cached, before) = cache_forgejo_binaries(&paths[2]);
+    let steps = demo_then_forgejo_steps(scratch.path(), HELLO);
+    let mut llm = first_repository::llm(&paths[0]);
+    llm.expected_exits = vec![(END_READS_END - 2, 2), (END_READS_END - 1, 2)];
+    let clock = skein_shell::Clock::new();
+    let began = clock.now().now;
+    let seen = support::boxed::run_ctl_with_llm(
+        scratch.path(),
+        flags,
+        scratch.path(),
+        steps,
+        Duration::from_secs(190),
+        || {
+            (
+                first_repository::live_for(&paths[0], &paths[1], scratch.path(), HELLO),
+                first_repository::turns(scratch.path(), "1"),
+            )
+        },
+        llm,
+    );
+    eprintln!("demo then Forgejo box: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
+    let stderr = String::from_utf8_lossy(&seen.stderr);
+    assert_eq!(seen.exit, Some(Exit::Code(0)), "{stderr}");
+    assert_eq!(seen.left, Some(Vec::new()), "no process outlived the box: {stderr}");
+    assert_eq!(seen.calls.len(), ALL_CALLS, "every story read ran: {stderr}");
+    for (index, call) in seen.calls.iter().enumerate() {
+        let code = if (END_READS_END - 2..END_READS_END).contains(&index) { 2 } else { 0 };
+        assert_eq!(
+            call.exit,
+            Some(Exit::Code(code)),
+            "call {index}: stdout {}; stderr {}; box {stderr}",
+            String::from_utf8_lossy(&call.stdout),
+            String::from_utf8_lossy(&call.stderr)
+        );
+        if code == 0 {
+            assert!(call.stderr.is_empty(), "call {index}: {}", String::from_utf8_lossy(&call.stderr));
+        }
+    }
+    assert_eq!(seen.calls[1].stdout, b"running\n");
+    for call in &seen.calls[2..4] {
+        assert_playground_end_forges(call, true);
+    }
+    assert_eq!(support::ctl::json(&seen.calls[5])["met"], true, "the demo chat replied");
+    let account = assert_playground_chat_and_account_open([&seen.calls[4], &seen.calls[6], &seen.calls[7]]);
+    let _bot = support::forge_land::assert_forgejo_setup_after_sign_in(
+        "first",
+        &seen.calls[DEMO_CALLS..SETUP_END],
+        &stderr,
+        None,
+        &paths[1],
+    );
+    assert_playground_end_forges(&seen.calls[SETUP_END - 2], false);
+    assert!(
+        !String::from_utf8_lossy(&seen.calls[SETUP_END - 1].stdout).lines().any(|line| line.starts_with("forge 1 ·")),
+        "the ended demo leaves the text list"
+    );
+    assert_playground_chat_and_account_ended("runtime", &seen.calls[SETUP_END..END_READS_END], Some(account));
+    assert_eq!(
+        stderr.lines().filter(|line| *line == "box: forge 1's group stopped").count(),
+        1,
+        "the runtime connect stops the demo exactly once: {stderr}"
+    );
+    assert!(!stderr.contains("demo end:"), "granted end has no refusal diagnostic: {stderr}");
+    let created = support::ctl::json(&seen.calls[END_READS_END + 2]);
+    assert_eq!(created["outcome"]["done"]["owner"]["created"]["first"], HELLO.chat, "{created}");
+    let (evidence, demo) = seen.checked.expect("live task and demo reads ran before stopping");
+    assert!(
+        demo.contains("I would give widget a dark theme that follows the system's preference"),
+        "the scripted demo model answered: {demo}"
+    );
+    let producer = support::ctl::json(&seen.calls[ALL_CALLS - 1]);
+    assert_eq!(producer["project"], HELLO.project, "hello's task belongs to the new project: {producer}");
+    eprintln!("work/hello's project: {}", producer["project"]);
+    first_repository::assert_task("first", &seen.calls[END_READS_END..], &stderr, &evidence);
+    assert_eq!(
+        evidence.version.expect("live Forgejo version")["version"].as_str().expect("version").split('+').next(),
+        Some(skein_forge::forgejo::pin::VERSION)
+    );
+    assert_eq!(support::boxed::status(evidence.address, "/api/v1/version"), None, "Forgejo stopped with its box");
+    for (path, fingerprint) in cached.iter().zip(&before) {
+        assert_eq!(&cached_binary_fingerprint(path), fingerprint, "cached binary unchanged");
+        assert!(
+            !path
+                .with_file_name(format!("{}.part", path.file_name().expect("binary name").to_str().expect("UTF-8")))
+                .exists(),
+            "no partial download"
+        );
+    }
+    assert_demo_then_forgejo_streams(&seen.stdout, &stderr);
+    scratch.remove();
+}
+
+fn demo_then_forgejo_steps(root: &std::path::Path, task: support::first_repository::Task) -> Vec<support::ctl::Step> {
+    use support::ctl::{Call, Step};
+    use support::first_repository;
+    let mut steps = playground_end_steps("first");
+    steps.insert(5, Step::Run(Call::new(&["wait", "task", "1", "--until", "replied", "--timeout", "30s", "--json"])));
+    // Keep the same signed-in client and box: skip the setup story's mark and sign-in.
+    steps.extend(forgejo_setup_steps("first").into_iter().skip(2));
+    steps.push(Step::Stderr(b"box: forge 1's group stopped\n"));
+    // The end is read at runtime, using the restart story's chat/account/refusal reads.
+    steps.extend(playground_end_steps("third").into_iter().skip(3));
+    steps.push(Step::Stderr(b" repo is work/hello "));
+    steps.extend(first_repository::task_steps_for(root, task));
+    steps
+}
+
+fn assert_demo_then_forgejo_streams(stdout: &[u8], stderr: &str) {
+    // The real forge adds its three step prefixes to the demo stream's checker.
+    let demo_streams: String = stderr
+        .split_inclusive('\n')
+        .filter(|line| !["prepare 3: ", "forgejo 3: ", "runner 3: "].iter().any(|prefix| line.starts_with(prefix)))
+        .collect();
+    assert_demo_streams(stdout, demo_streams.as_bytes());
+}
+
 /// domain/testing.md, 2.6: a plan-backed change on the first owned repository.
 #[test]
 fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart() {
@@ -1369,21 +1500,10 @@ fn a_second_forge_ends_the_playground_for_good_closing_its_chat_and_account() {
         }
         if first {
             assert_eq!(seen.calls[1].stdout, b"running\n");
-            let created = support::ctl::json(&seen.calls[4]);
-            assert_eq!(created["outcome"]["done"]["owner"]["created"]["first"], 1, "{created}");
-            let task = support::ctl::json(&seen.calls[5]);
-            assert_eq!(task["project"], 1, "the chat belongs to the demo project: {task}");
-            assert_ne!(task["chip"]["phase"], "ended", "the demo's chat is open: {task}");
-            let accounts = support::ctl::json(&seen.calls[6]);
-            let rows = accounts["accounts"]["deployment"].as_array().expect("deployment accounts");
-            assert_eq!(rows.len(), 1, "the demo model's deployment account: {accounts}");
-            assert_eq!(rows[0]["provider"], 3, "{accounts}");
-            assert_eq!(rows[0]["provider_name"]["bytes"], "demo", "{accounts}");
-            assert_eq!(rows[0]["holder"]["deployment"], true, "{accounts}");
-            account = Some(rows[0]["number"].as_u64().expect("demo account number"));
+            account = Some(assert_playground_chat_and_account_open([&seen.calls[4], &seen.calls[5], &seen.calls[6]]));
         }
         if third {
-            assert_playground_chat_and_account_ended(run, &seen, account);
+            assert_playground_chat_and_account_ended(run, &seen.calls[3..9], account);
         }
         for call in &seen.calls[if first { 2..4 } else { 1..3 }] {
             assert_playground_end_forges(call, first);
@@ -1450,26 +1570,39 @@ fn playground_end_steps(run: &str) -> Vec<support::ctl::Step> {
     steps
 }
 
-fn assert_playground_chat_and_account_ended(run: &str, seen: &support::boxed::CtlOutcome<()>, account: Option<u64>) {
-    let waited = support::ctl::json(&seen.calls[3]);
+fn assert_playground_chat_and_account_open(calls: [&support::Ended; 3]) -> u64 {
+    let [created, task, accounts] = calls.map(support::ctl::json);
+    assert_eq!(created["outcome"]["done"]["owner"]["created"]["first"], 1, "{created}");
+    assert_eq!(task["project"], 1, "the chat belongs to the demo project: {task}");
+    assert_ne!(task["chip"]["phase"], "ended", "the demo's chat is open: {task}");
+    let rows = accounts["accounts"]["deployment"].as_array().expect("deployment accounts");
+    assert_eq!(rows.len(), 1, "the demo model's deployment account: {accounts}");
+    assert_eq!(rows[0]["provider"], 3, "{accounts}");
+    assert_eq!(rows[0]["provider_name"]["bytes"], "demo", "{accounts}");
+    assert_eq!(rows[0]["holder"]["deployment"], true, "{accounts}");
+    rows[0]["number"].as_u64().expect("demo account number")
+}
+
+fn assert_playground_chat_and_account_ended(run: &str, calls: &[support::Ended], account: Option<u64>) {
+    let waited = support::ctl::json(&calls[0]);
     assert_eq!(waited["met"], true, "the chat ended: {waited}");
-    let task = support::ctl::json(&seen.calls[4]);
+    let task = support::ctl::json(&calls[1]);
     assert_eq!(task["chip"]["phase"], "ended", "{task}");
     let cancelled = &task["chip"]["details"]["owner"]["details"]["ending"]["cancelled"];
     assert_eq!(cancelled["reason"]["bytes"], "Ended with the playground", "{task}");
     assert_eq!(cancelled["by"]["deployment"]["project"], 1, "the deployment closed its chat: {task}");
-    let tasks = support::ctl::json(&seen.calls[5]);
+    let tasks = support::ctl::json(&calls[2]);
     let ended = tasks["ended"]["rows"]["rows"].as_array().expect("ended chats");
     assert_eq!(tasks["ended"]["rows"]["cut"], false, "{tasks}");
     assert!(tasks["ended"]["rows"]["after"].is_null(), "all ended chats: {tasks}");
-    assert_eq!(ended.len(), 1, "one ended chat across the restart: {tasks}");
+    assert_eq!(ended.len(), 1, "one ended demo chat: {tasks}");
     assert_eq!(ended[0]["chip"]["task"], 1, "the same chat ended once: {tasks}");
     assert_eq!(ended[0]["chip"]["phase"], "ended", "{tasks}");
-    let accounts = support::ctl::json(&seen.calls[6]);
+    let accounts = support::ctl::json(&calls[3]);
     let rows = accounts["accounts"]["deployment"].as_array().expect("deployment accounts");
     assert!(!rows.iter().any(|row| row["number"].as_u64() == account), "demo account removed: {accounts}");
     assert!(!rows.iter().any(|row| row["provider"] == 3), "demo provider has no account: {accounts}");
-    for start in &seen.calls[7..9] {
+    for start in &calls[4..] {
         assert!(start.stdout.is_empty(), "{run}: refused start prints no answer on stdout");
         assert!(
             String::from_utf8_lossy(&start.stderr).contains("not offered"),

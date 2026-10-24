@@ -15,6 +15,7 @@ pub fn llm(config: &Path) -> CtlLlm {
     let address = peer.address();
     CtlLlm {
         peer,
+        expected_exits: Vec::new(),
         on_link: Box::new(move || {
             // The box starts on empty directories. Only its generated agent's
             // endpoint moves, before any run: the template and demo stay shipped.
@@ -80,40 +81,61 @@ fn scripts() -> Box<[Script]> {
         },
     ])
 }
+/// The first repository has its own project; earlier demo tasks may precede its task tree.
+#[derive(Clone, Copy)]
+pub struct Task {
+    pub project: u64,
+    pub chat: u64,
+    pub change: u64,
+    pub producer: u64,
+}
+const FIRST: Task = Task { project: 2, chat: 1, change: 2, producer: 3 };
+
 #[must_use]
 pub fn task_steps(root: &Path) -> Vec<Step> {
+    task_steps_for(root, FIRST)
+}
+#[must_use]
+pub fn task_steps_for(root: &Path, task: Task) -> Vec<Step> {
+    let project = task.project.to_string();
+    let chat = task.chat.to_string();
     let key = root.join("llm-key");
     write_private(&key, jig_channel_world::fixtures::KEY);
     vec![
         Step::Run(Call::new(&["add-key", "1", key.to_str().expect("key path"), "--key", "first-repository-llm"])),
         Step::Run(Call::new(&["wait", "accounts", "--until", "usable", "--timeout", "10s"])),
-        // forge-setup's first repository goes into a project of its own, made after project 1
-        // (tools.md 5.5): work/hello is project 2's.
+        // forge-setup makes the repository a project of its own (tools.md 5.5).
         Step::Run(Call::new(&[
             "chat",
             "--project",
-            "2",
+            &project,
             "--key",
             "first-hello",
             "@first-repository Land a README change in work/hello",
             "--json",
         ])),
-        Step::Run(Call::new(&["wait", "task", "1", "--until", "replied", "--timeout", "120s", "--json"])),
+        Step::Run(Call::new(&["wait", "task", &chat, "--until", "replied", "--timeout", "120s", "--json"])),
         Step::Mark("first task's reply"),
     ]
     .into_iter()
-    .chain(found_steps())
+    .chain(found_steps_for(task))
     .collect()
 }
 
 /// The same task and run reads on either box, without giving a second task.
 #[must_use]
 pub fn found_steps() -> Vec<Step> {
+    found_steps_for(FIRST)
+}
+#[must_use]
+pub fn found_steps_for(task: Task) -> Vec<Step> {
+    let change = task.change.to_string();
+    let producer = task.producer.to_string();
     vec![
-        Step::Run(Call::new(&["wait", "task", "2", "--until", "ended", "--timeout", "120s", "--json"])),
+        Step::Run(Call::new(&["wait", "task", &change, "--until", "ended", "--timeout", "120s", "--json"])),
         Step::Mark("first change ended"),
-        Step::Run(Call::new(&["task", "2"])),
-        Step::Run(Call::new(&["task", "3", "--json"])),
+        Step::Run(Call::new(&["task", &change])),
+        Step::Run(Call::new(&["task", &producer, "--json"])),
     ]
 }
 
@@ -151,6 +173,7 @@ pub fn turns(client: &Path, task: &str) -> String {
 
 /// Evidence taken through temper, plus the existing anonymous version probe.
 pub struct Evidence {
+    pub change: u64,
     pub address: std::net::SocketAddr,
     pub version: std::io::Result<Value>,
     pub delegation: String,
@@ -159,6 +182,10 @@ pub struct Evidence {
 }
 #[must_use]
 pub fn live(config: &Path, data: &Path, client: &Path) -> Evidence {
+    live_for(config, data, client, FIRST)
+}
+#[must_use]
+pub fn live_for(config: &Path, data: &Path, client: &Path, task: Task) -> Evidence {
     use std::os::unix::fs::PermissionsExt;
     let document: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
@@ -174,22 +201,24 @@ pub fn live(config: &Path, data: &Path, client: &Path) -> Evidence {
     assert!(record.is_file(), "the box kept forge 3's started record");
     assert_eq!(record.permissions().mode() & 0o777, 0o600, "private started record");
     Evidence {
+        change: task.change,
         address,
         version: super::owned::answer(address.port(), "/api/v1/version", None),
-        delegation: turns(client, "1"),
-        producer: turns(client, "3"),
-        page: change_page(config, client),
+        delegation: turns(client, &task.chat.to_string()),
+        producer: turns(client, &task.producer.to_string()),
+        page: change_page(config, client, task.change),
     }
 }
 
 /// Read the change panel with the signed-in native client; the shell keeps
 /// its credential private, just as ctl does.
 #[must_use]
-pub fn change_page(config: &Path, client: &Path) -> String {
+pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
     use skein_shell::{Clock, Host};
     use skein_world::{Referee, real};
     use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
     struct Judge<'a> {
+        task: u64,
         opened: bool,
         closing: bool,
         page: &'a std::cell::Cell<String>,
@@ -199,8 +228,10 @@ pub fn change_page(config: &Path, client: &Path) -> String {
         fn act(&mut self, now: skein_lib::Time, clients: &mut [NativeClient]) {
             let client = &mut clients[0];
             if client.started() && !self.opened {
-                client
-                    .go(temper_client_domain::Address::Task { task: 2, filter: temper_client_domain::PlanFilter::All });
+                client.go(temper_client_domain::Address::Task {
+                    task: self.task,
+                    filter: temper_client_domain::PlanFilter::All,
+                });
                 self.opened = true;
             }
             if self.closing {
@@ -242,6 +273,7 @@ pub fn change_page(config: &Path, client: &Path) -> String {
     let clock = Clock::new();
     let page = std::cell::Cell::new(String::new());
     let mut world = real::World::new(Judge {
+        task,
         opened: false,
         closing: false,
         page: &page,
@@ -273,7 +305,10 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
     eprintln!("{run} producer's committed calls: {producer}");
     eprintln!("{run} change page: {page}");
     eprintln!("{run} first task's committed calls: {delegation}");
-    assert!(delegation.contains("Delegated tasks: 2"), "work/hello's change must be admitted: {delegation}");
+    assert!(
+        delegation.contains(&format!("Delegated tasks: {}", evidence.change)),
+        "work/hello's change must be admitted: {delegation}"
+    );
     for (index, call) in calls.iter().enumerate() {
         assert_eq!(
             call.exit,
