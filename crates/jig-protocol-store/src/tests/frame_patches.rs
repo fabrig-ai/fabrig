@@ -304,8 +304,12 @@ fn patched_frame_sizes_bound_resumes_turns_pages_and_tails() {
             let (mut disk, mut store) = scene(&raw, SETS);
             let events = disk.request(&mut store, request(kind, budget));
             let events = answer(&mut disk, &mut store, events, false);
-            let [Event::Turns { turns, .. }] = &*events else { panic!("turns: {events:?}") };
-            assert_eq!(!turns.is_empty(), accepted, "replay {}, kind {kind}, bound {budget}", replay.len());
+            if accepted {
+                let [Event::Turns { turns, .. }] = &*events else { panic!("turns: {events:?}") };
+                assert!(!turns.is_empty(), "replay {}, kind {kind}, bound {budget}", replay.len());
+            } else {
+                assert!(unread(&events), "replay {}, kind {kind}, bound {budget}: {events:?}", replay.len());
+            }
         }
     }
 }

@@ -306,10 +306,15 @@ fn patched_frame_charge_holds_at_bound_and_refuses_one_below() {
             rows: 1,
             bytes,
         });
-        let [Event::Turns { turns, .. }] = events.as_slice() else {
-            panic!("bounded read: {events:?}");
-        };
-        assert_eq!(turns.len(), expected, "patched frame charge {size}, budget {bytes}");
+        if expected == 0 {
+            assert!(matches!(events.as_slice(), [Event::Unread { owner }] if *owner == Token::new(719)),
+                "patched frame charge {size}, budget {bytes}: {events:?}");
+        } else {
+            let [Event::Turns { turns, .. }] = events.as_slice() else {
+                panic!("bounded read: {events:?}");
+            };
+            assert_eq!(turns.len(), expected, "patched frame charge {size}, budget {bytes}");
+        }
     }
 }
 
