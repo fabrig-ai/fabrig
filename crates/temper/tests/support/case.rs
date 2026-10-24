@@ -450,6 +450,11 @@ impl Judge {
                         .expect("before")
                         .into()
                 }
+                calls::Arg::InboxAfter(n) => {
+                    let v = ctl::json(&self.calls[*n]);
+                    let cursor = v.pointer("/needs/after/value").and_then(Value::as_str).expect("next needs page");
+                    format!("00{cursor}")
+                }
             })
             .collect()
     }
@@ -936,6 +941,7 @@ fn describe_argv(argv: &calls::Argv) -> String {
             calls::Arg::Delegate(call) => format!("delegate(call {call})"),
             calls::Arg::Digest(call) => format!("digest(call {call})"),
             calls::Arg::ActivityBefore(call) => format!("activity-before(call {call})"),
+            calls::Arg::InboxAfter(call) => format!("inbox-after(call {call})"),
         })
         .collect::<Vec<_>>()
         .join(" ")

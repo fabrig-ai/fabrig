@@ -188,6 +188,11 @@ fn cued(system: &[u8]) -> Option<Agent> {
         Agent::RedOwner,
         Agent::RedCoder,
         Agent::RedRepairCoder,
+        // Act 3, step 6.7 (domain/testing.md, 5.3)
+        Agent::CapDirector,
+        Agent::CapOwner,
+        Agent::CapSubowner,
+        Agent::CapImplementer,
     ] {
         for (at, word) in system.windows(agent.cue().len()).enumerate() {
             if word == agent.cue() {
@@ -5223,8 +5228,11 @@ fn batch_writing(observed: &Observed, read: Read, task: u64, ended: Read) -> boo
         })
 }
 fn batch_journal(observed: &Observed, read: Read, task: u64) -> bool {
-    let rows = check_activity(observed, read);
-    plan_attempts(observed, &[read], task, 1)
+    batch_journal_pages(observed, &[read], task)
+}
+fn batch_journal_pages(observed: &Observed, reads: &[Read], task: u64) -> bool {
+    let rows: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
+    plan_attempts(observed, reads, task, 1)
         && rows.last().is_some_and(|row| number(row, "/position") == Some(1))
         && rows.windows(2).all(|pair| {
             number(pair[0], "/position")
@@ -8718,6 +8726,904 @@ mod red_tests {
                 }
                 rejects(&bad, RED_ATTEMPTS);
             }
+        }
+    }
+}
+
+// Act 3, step 6.7 (domain/testing.md, 5.3)
+const CAP_OPENING: Promise = Promise::Must("a5 is admitted and A1's timer committed before M1's deadline");
+const CAP_ADMISSION: Promise = Promise::Must("the timer's wake holds A1 at admission without a committed turn");
+const CAP_ESCALATION: Promise = Promise::Must("A1's hold waits at A, then passes up to the director, told once each");
+const CAP_AMENDMENT: Promise = Promise::Must("the director amends A1's deadline and instructions at its next revision");
+const CAP_RELEASE: Promise = Promise::Must("the amendment precedes release and A1's next run and report");
+const CAP_RUNNING: Promise = Promise::Must("a5 writes across the cap in exactly one admitted attempt");
+const CAP_INBOX: Promise = Promise::Add("the director decides without asking the person");
+const CAP_ATTEMPTS: Promise = Promise::Add("every admitted attempt ends, none failed, with only unspent rechecks");
+const CAP_CHECKPOINT: Promise = Promise::Step("the fresh deployment's cast reports the milestone split");
+
+fn cap_tasks() -> [(Read, u64, u64, &'static str); 4] {
+    use super::{
+        CAP_A5, CAP_A5_REPORT, CAP_DIRECTOR, CAP_DIRECTOR_REPORT, CAP_OWNER, CAP_OWNER_REPORT, CAP_SUBOWNER,
+        CAP_SUBOWNER_REPORT,
+    };
+    [
+        (Read::CapDirectorEnded, CAP_DIRECTOR, 0, CAP_DIRECTOR_REPORT),
+        (Read::CapOwnerEnded, CAP_OWNER, CAP_DIRECTOR, CAP_OWNER_REPORT),
+        (Read::CapSubownerEnded, CAP_SUBOWNER, CAP_OWNER, CAP_SUBOWNER_REPORT),
+        (Read::CapA5Ended, CAP_A5, CAP_SUBOWNER, CAP_A5_REPORT),
+    ]
+}
+fn cap_position(row: &Value) -> Option<u64> {
+    number(row, "/position")
+}
+fn cap_before(left: Option<u64>, right: Option<u64>) -> bool {
+    left.zip(right).is_some_and(|(left, right)| left < right)
+}
+fn cap_timer(observed: &Observed) -> Option<&Value> {
+    check_activity(observed, Read::CapHeld).into_iter().find(|r| r.pointer("/line/heard/kind/timer").is_some())
+}
+fn cap_parked_run(observed: &Observed) -> Option<&Value> {
+    check_activity(observed, Read::CapHeld).into_iter().find(|r| text(r, "/line/run_ended/end") == "parked")
+}
+fn cap_parked_turn(observed: &Observed) -> Option<&Value> {
+    let attempt = number(cap_parked_run(observed)?, "/line/run_ended/attempt")?;
+    check_activity(observed, Read::CapHeld).into_iter().find(|r| number(r, "/line/turn/attempt") == Some(attempt))
+}
+// A consumed timer disappears from the live subscriptions. Its committed call
+// keeps the exact number and absolute at in the parked attempt's decoded journal.
+fn cap_committed_tools<'a>(observed: &'a Observed, tool: &str) -> Vec<&'a Value> {
+    let Some(parked) = cap_parked_run(observed) else { return Vec::new() };
+    let attempt = number(parked, "/line/run_ended/attempt");
+    let deadline = number(task_document(observed, Read::CapHeld), "/authority/authority/deadline");
+    document(observed, Read::CapHeld)
+        .pointer("/activity/rows")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|row| {
+            let source = &row["event"]["owner"]["source"];
+            number(source, "/line/turn/attempt").is_some_and(|a| Some(a) == attempt)
+                && number(source, "/task") == Some(super::CAP_SUBOWNER)
+                && cap_before(cap_position(source), cap_position(parked))
+                && cap_before(number(source, "/at"), deadline)
+                && row.pointer("/event/owner/decoded/turn/decoded/cut") == Some(&Value::Bool(false))
+        })
+        .filter_map(|row| row.pointer("/event/owner/decoded/turn/decoded/messages").and_then(Value::as_array))
+        .flatten()
+        .filter_map(|message| message["blocks"].as_array())
+        .flatten()
+        .filter_map(|block| block.get("call"))
+        .filter(|call| text(call, "/tool") == tool && call["failed"] == false)
+        .collect()
+}
+fn cap_call_part<'a>(call: &'a Value, part: &str) -> Option<&'a str> {
+    let part = call.get(part)?;
+    (part["from"] == 0 && part["bytes_left"] == 0).then(|| part["text"].as_str()).flatten()
+}
+fn cap_pages(read: Read) -> Vec<Read> {
+    let mut pages = vec![read];
+    if read == Read::CapSubownerEnded {
+        pages.push(Read::CapSubownerFirst);
+    } else if read == Read::CapDirectorEnded {
+        pages.push(Read::CapDirectorFirst);
+    }
+    pages
+}
+/// Script construction through both a5's admission and A1's committed timer.
+/// Wall arithmetic belongs here because the deadline itself is an absolute wall.
+#[must_use]
+pub fn cap_opening_nanos(observed: &Observed) -> Option<u64> {
+    let deadline = number(task_document(observed, Read::CapHeld), "/authority/authority/deadline")?;
+    let built = deadline.checked_sub(super::CAP_SPAN)?;
+    let admitted = check_activity(observed, Read::CapA5Writing)
+        .into_iter()
+        .find(|r| r.pointer("/line/run_began").is_some())
+        .and_then(|r| number(r, "/at"))?;
+    let timer = cap_parked_turn(observed).and_then(|r| number(r, "/at"))?;
+    admitted.max(timer).checked_sub(built)
+}
+
+#[must_use]
+pub fn step_6_7(observed: &Observed) -> Vec<Miss> {
+    use super::PROJECT;
+    let mut misses = Vec::new();
+    for (read, task, parent, report) in cap_tasks() {
+        let doc = task_document(observed, read);
+        step_check(
+            &mut misses,
+            "6.7",
+            number(doc, "/chip/task") == Some(task)
+                && number(doc, "/project") == Some(PROJECT)
+                && (parent == 0 || number(doc, "/requester/task") == Some(parent))
+                && text(doc, "/chip/phase") == "ended"
+                && doc.pointer("/result/ending/task/done").is_some_and(Value::is_object)
+                && text(doc, "/result/value/report/bytes") == report,
+            CAP_CHECKPOINT,
+            &format!("{read:?} must identify done task {task} under {parent} and its report"),
+        );
+        step_check(
+            &mut misses,
+            "6.7",
+            batch_journal_pages(observed, &cap_pages(read), task),
+            CAP_ATTEMPTS,
+            &format!(
+                "task {task}'s complete journal must end every attempt, with only zero-spend uncommitted rechecks: {}",
+                document(observed, read)
+            ),
+        );
+    }
+    cap_opening(observed, &mut misses);
+    cap_admission(observed, &mut misses);
+    cap_escalation(observed, &mut misses);
+    cap_amendment(observed, &mut misses);
+    cap_release(observed, &mut misses);
+    cap_running(observed, &mut misses);
+    for (read, after) in
+        [(Read::CapInboxHeld, Read::CapInboxHeldAfter), (Read::CapInboxEnded, Read::CapInboxEndedAfter)]
+    {
+        let inbox = document(observed, read);
+        let continuation = document(observed, after);
+        step_check(
+            &mut misses,
+            "6.7",
+            inbox["needs"]["cut"] == false
+                && inbox.pointer("/needs/rows").and_then(Value::as_array).is_some_and(Vec::is_empty)
+                && continuation["needs"]["cut"] == false
+                && continuation.pointer("/needs/after").is_some_and(Value::is_null)
+                && continuation.pointer("/needs/rows").and_then(Value::as_array).is_some_and(Vec::is_empty),
+            CAP_INBOX,
+            &format!("{read:?} and {after:?} must show the person's complete empty inbox: {inbox}; {continuation}"),
+        );
+    }
+    misses
+}
+
+fn cap_opening(observed: &Observed, misses: &mut Vec<Miss>) {
+    use super::{
+        A_DEADLINE, A1_DEADLINE, Agent, CAP_A5, CAP_OWNER, CAP_SPAN, CAP_SUBOWNER, CAP_TIMER, CAP_TIMER_MARGIN,
+    };
+    let held = task_document(observed, Read::CapHeld);
+    let waited = task_document(observed, Read::CapHeldWait);
+    let parked = cap_parked_run(observed);
+    let deadline = number(held, "/authority/authority/deadline");
+    let a5 = task_document(observed, Read::CapA5Writing);
+    let owner = task_document(observed, Read::CapOwnerEnded);
+    let delegates = plan_tool_results(observed, Agent::CapSubowner, b"delegate");
+    let timers = plan_tool_results(observed, Agent::CapSubowner, b"subscribe");
+    let elapsed = cap_opening_nanos(observed);
+    let committed_delegates = cap_committed_tools(observed, "delegate");
+    let committed_timers = cap_committed_tools(observed, "subscribe");
+    step_check(
+        misses,
+        "6.7",
+        deadline.is_some_and(|deadline| deadline < A1_DEADLINE)
+            && elapsed.is_some_and(|elapsed| elapsed < CAP_SPAN)
+            && number(waited, "/chip/task") == Some(CAP_SUBOWNER)
+            && text(waited, "/chip/phase") == "held"
+            && text(waited, "/hold/owner/reason") == "deadline"
+            && parked.is_some_and(|parked| {
+                number(parked, "/task") == Some(CAP_SUBOWNER)
+                    && cap_before(number(parked, "/at"), deadline)
+                    && cap_before(cap_parked_turn(observed).and_then(cap_position), cap_position(parked))
+            })
+            && number(a5, "/authority/authority/deadline") == deadline
+            && number(owner, "/authority/authority/deadline") == Some(A_DEADLINE)
+            && number(owner, "/goal") == Some(CAP_OWNER)
+            && delegates.len() == 1
+            && delegates.iter().all(|(_, args, out)| {
+                contains(out, &format!("Delegated tasks: {CAP_A5}"))
+                    && args["batch"].as_array().is_some_and(|batch| {
+                        batch.len() == 1
+                            && number(&batch[0], "/authority/budget/deadline") == deadline
+                            && number(&batch[0], "/authority/delegation/depth") == Some(0)
+                    })
+            })
+            && timers.len() == 1
+            && timers.iter().all(|(_, args, out)| {
+                args["kind"] == "timer"
+                    && number(args, "/at") == deadline.and_then(|d| d.checked_add(CAP_TIMER_MARGIN))
+                    && contains(out, &format!("Subscription {CAP_TIMER} added"))
+            })
+            && committed_delegates.len() == 1
+            && committed_delegates.iter().all(|call| {
+                cap_call_part(call, "input").and_then(|s| serde_json::from_str::<Value>(s).ok()).as_ref()
+                    == delegates.first().map(|(_, args, _)| args)
+                    && cap_call_part(call, "outcome") == Some(format!("Delegated tasks: {CAP_A5}").as_str())
+            })
+            && committed_timers.len() == 1
+            && committed_timers.iter().all(|call| {
+                cap_call_part(call, "input").and_then(|s| serde_json::from_str::<Value>(s).ok()).as_ref()
+                    == timers.first().map(|(_, args, _)| args)
+                    && cap_call_part(call, "outcome") == Some(format!("Subscription {CAP_TIMER} added").as_str())
+                    // A missing period is the one-shot timer; no recurring timer.
+                    && timers.first().is_some_and(|(_, args, _)| args["period"].is_null())
+            }),
+        CAP_OPENING,
+        &format!(
+            "SPAN too short for this run or invalid opening: SPAN={} ms, a5 admission/timer at {:?} ms from build ({:?} ms past deadline); committed delegate/timer calls: {}/{}; held journal: {}",
+            CAP_SPAN / 1_000_000,
+            elapsed.map(|n| n / 1_000_000),
+            elapsed.map(|n| i128::from(n).saturating_sub(i128::from(CAP_SPAN)) / 1_000_000),
+            committed_delegates.len(),
+            committed_timers.len(),
+            document(observed, Read::CapHeld)
+        ),
+    );
+}
+
+fn cap_admission(observed: &Observed, misses: &mut Vec<Miss>) {
+    use super::{CAP_HOLD_REVISION, CAP_SUBOWNER, CAP_TIMER};
+    let held = task_document(observed, Read::CapHeld);
+    let rows = check_activity(observed, Read::CapHeld);
+    let timer = cap_timer(observed);
+    let timer_at = timer.and_then(cap_position);
+    let parked = rows.iter().find(|r| text(r, "/line/run_ended/end") == "parked");
+    step_check(
+        misses,
+        "6.7",
+        number(held, "/chip/task") == Some(CAP_SUBOWNER)
+            && text(held, "/chip/phase") == "held"
+            && text(held, "/hold/owner/reason") == "deadline"
+            && number(held, "/hold/owner/revision") == Some(CAP_HOLD_REVISION)
+            && held["result"].is_null()
+            && timer.is_some_and(|r| {
+                number(r, "/line/heard/kind/timer/subscription") == Some(CAP_TIMER)
+                    && number(r, "/at").zip(number(held, "/authority/authority/deadline")).is_some_and(|(at, d)| at > d)
+            })
+            && cap_before(parked.and_then(|r| cap_position(r)), timer_at)
+            && rows.iter().filter(|r| r.pointer("/line/heard/kind/timer").is_some()).count() == 1
+            && rows.iter().all(|r| {
+                !cap_before(timer_at, cap_position(r))
+                    || (r.pointer("/line/turn").is_none()
+                        && r.pointer("/line/run_began").is_none()
+                        && r.pointer("/line/run_ended").is_none())
+            }),
+        CAP_ADMISSION,
+        "A1 must park, hear its exact timer past the deadline, and hold without admitting or ending another attempt",
+    );
+}
+
+fn cap_escalation(observed: &Observed, misses: &mut Vec<Miss>) {
+    use super::{Agent, CAP_DIRECTOR, CAP_HOLD_REVISION, CAP_OWNER, CAP_SUBOWNER};
+    let held = task_document(observed, Read::CapHeld);
+    let passed = task_document(observed, Read::CapPassed);
+    let decisions = plan_tool_results(observed, Agent::CapOwner, b"decide_escalation");
+    let a = blocker_delivery(observed, Agent::CapOwner, "Held task needs a decision");
+    let director = blocker_delivery(observed, Agent::CapDirector, "Held task needs a decision");
+    let told_once = [Agent::CapOwner, Agent::CapDirector]
+        .iter()
+        .all(|agent| plan_deliveries(observed, *agent, "Held task needs a decision") == 1);
+    step_check(
+        misses,
+        "6.7",
+        number(held, "/hold/owner/escalation/waiting/holder/task") == Some(CAP_OWNER)
+            && number(passed, "/hold/owner/escalation/waiting/holder/task") == Some(CAP_DIRECTOR)
+            && number(passed, "/hold/owner/revision") == Some(CAP_HOLD_REVISION)
+            && text(passed, "/hold/owner/reason") == "deadline"
+            && number(task_document(observed, Read::CapOwnerWaiting), "/chip/task") == Some(CAP_OWNER)
+            && told_once
+            && decisions.len() == 1
+            && decisions.iter().all(|(at, args, out)| {
+                args["task"] == CAP_SUBOWNER
+                    && args["revision"] == CAP_HOLD_REVISION
+                    && args["decision"] == "pass"
+                    && contains(
+                        out,
+                        &format!("Escalation for task {CAP_SUBOWNER} revision {CAP_HOLD_REVISION} decided"),
+                    )
+                    && a.is_some_and(|a| a < *at)
+            })
+            && a.zip(director).is_some_and(|(a, director)| a < director),
+        CAP_ESCALATION,
+        "the held A1 must wait at A, whose one pass reaches the director, each told once",
+    );
+}
+
+fn cap_amendment(observed: &Observed, misses: &mut Vec<Miss>) {
+    use super::{A1_DEADLINE, Agent, CAP_REASON, CAP_REVISION, CAP_SPLIT, CAP_SUBOWNER};
+    let held = task_document(observed, Read::CapHeld);
+    let released = task_document(observed, Read::CapReleased);
+    let ended = task_document(observed, Read::CapSubownerEnded);
+    let amendments = plan_tool_results(observed, Agent::CapDirector, b"amend");
+    step_check(
+        misses,
+        "6.7",
+        number(held, "/spec_revision/value") == Some(CAP_REVISION - 1)
+            && [released, ended].iter().all(|doc| {
+                number(doc, "/spec_revision/value") == Some(CAP_REVISION)
+                    && number(doc, "/authority/authority/deadline") == Some(A1_DEADLINE)
+                    && text(doc, "/instructions/bytes") == CAP_SPLIT
+                    && doc["instructions"]["cut"] == false
+            })
+            && amendments.len() == 1
+            && amendments.iter().all(|(_, args, out)| {
+                args["target"] == CAP_SUBOWNER
+                    && args["revision"] == CAP_REVISION - 1
+                    && args["amendment"]["instructions"] == CAP_SPLIT
+                    && args["amendment"]["reason"] == CAP_REASON
+                    && args["amendment"]["authority"]
+                        == serde_json::json!({"tools":33,"grants":[],"notes":0,
+                        "delegation":{"kinds":[{"kind":"agent","number":1}],"tasks":1,"depth":1},
+                        "budget":{"spend":22,"deadline":A1_DEADLINE}})
+                    && contains(out, &format!("Done: task {CAP_SUBOWNER} is at spec revision {CAP_REVISION}"))
+            }),
+        CAP_AMENDMENT,
+        "the director must restate A1's authority with a later deadline and replace its instructions at the next spec revision",
+    );
+}
+
+fn cap_release(observed: &Observed, misses: &mut Vec<Miss>) {
+    use super::{Agent, CAP_HOLD_REVISION, CAP_RELEASE_DECISION, CAP_REVISION, CAP_SPLIT, CAP_SUBOWNER};
+    let released = task_document(observed, Read::CapReleased);
+    let amendments = plan_tool_results(observed, Agent::CapDirector, b"amend");
+    let release_tools = plan_tool_results(observed, Agent::CapDirector, b"release");
+    let rows = check_activity(observed, Read::CapSubownerEnded);
+    let held_position = check_activity(observed, Read::CapPassed).first().and_then(|r| cap_position(r));
+    let mut decisions: Vec<_> = rows
+        .iter()
+        .filter(|r| {
+            matches!(number(r,"/line/decided/revision"),Some(rev) if rev==CAP_REVISION || rev==CAP_RELEASE_DECISION)
+                && cap_before(held_position, cap_position(r))
+        })
+        .filter_map(|r| cap_position(r))
+        .collect();
+    decisions.sort_unstable();
+    let next = rows.iter().rev().find(|r| {
+        r.pointer("/line/run_began").is_some()
+            && decisions.last().is_some_and(|release| cap_before(Some(*release), cap_position(r)))
+    });
+    let split_told = observed.told.iter().any(|t| t.agent == Agent::CapSubowner && contains(&t.system, CAP_SPLIT));
+    step_check(
+        misses,
+        "6.7",
+        released["hold"].is_null()
+            && number(released, "/chip/task") == Some(CAP_SUBOWNER)
+            && decisions.len() == 2
+            && decisions[0] < decisions[1]
+            && release_tools.len() == 1
+            && release_tools.iter().all(|(at, args, out)| {
+                args["target"] == CAP_SUBOWNER
+                    && args["revision"] == CAP_HOLD_REVISION
+                    && contains(out, &format!("Done: task {CAP_SUBOWNER} is at spec revision {CAP_REVISION}"))
+                    && amendments.first().is_some_and(|(amended, _, _)| amended < at)
+            })
+            && next.is_some()
+            && split_told
+            && decisions.last().is_some_and(|release| {
+                rows.iter().any(|r| {
+                    text(r, "/line/run_ended/end") == "finished" && cap_before(Some(*release), cap_position(r))
+                })
+            })
+            && cap_timer(observed).and_then(cap_position).is_some_and(|timer| {
+                rows.iter().all(|r| {
+                    !cap_before(Some(timer), cap_position(r))
+                        || !cap_before(cap_position(r), decisions.last().copied())
+                        || (r.pointer("/line/run_began").is_none() && r.pointer("/line/turn").is_none())
+                })
+            }),
+        CAP_RELEASE,
+        "amend then release must precede A1's next admitted run, split instructions and report, with no intervening turn",
+    );
+}
+
+fn cap_running(observed: &Observed, misses: &mut Vec<Miss>) {
+    use super::CAP_A5;
+    let writing = task_document(observed, Read::CapA5Writing);
+    let held = task_document(observed, Read::CapHeld);
+    let rows = check_activity(observed, Read::CapA5Ended);
+    let begins: Vec<_> = rows.iter().filter(|r| r.pointer("/line/run_began").is_some()).collect();
+    let ends: Vec<_> = rows.iter().filter(|r| r.pointer("/line/run_ended").is_some()).collect();
+    let attempt = number(writing, "/chip/details/owner/phase/active/running/attempt");
+    step_check(
+        misses,
+        "6.7",
+        batch_writing(observed, Read::CapA5Writing, CAP_A5, Read::CapA5Ended)
+            && begins.len() == 1
+            && ends.len() == 1
+            && attempt.is_some()
+            && number(begins[0], "/line/run_began/attempt") == attempt
+            && number(ends[0], "/line/run_ended/attempt") == attempt
+            && text(ends[0], "/line/run_ended/end") == "finished"
+            && number(begins[0], "/at")
+                .zip(number(held, "/authority/authority/deadline"))
+                .is_some_and(|(at, d)| at < d)
+            && number(ends[0], "/at").zip(number(held, "/authority/authority/deadline")).is_some_and(|(at, d)| at > d)
+            && number(task_document(observed, Read::CapA5Ended), "/authority/authority/deadline")
+                == number(held, "/authority/authority/deadline")
+            && writing["hold"].is_null()
+            && check_activity(observed, Read::CapA5Writing).iter().all(|r| r.pointer("/line/run_ended").is_none()),
+        CAP_RUNNING,
+        "a5 must still write while A1 is held, and finish the sole attempt admitted before the cap",
+    );
+}
+
+#[cfg(test)]
+mod cap_tests {
+    use super::batch_tests::{input, journal, told, tool};
+    use super::*;
+    use crate::case::*;
+    use serde_json::json;
+
+    const BUILT: u64 = 1_000_000_000;
+    fn deadline() -> u64 {
+        BUILT + CAP_SPAN
+    }
+    fn source(task: u64, lines: &[Value], walls: &[u64]) -> Value {
+        let mut value = journal(task, lines);
+        for row in value["rows"].as_array_mut().expect("rows") {
+            let source = &mut row["event"]["owner"]["source"];
+            let position = usize::try_from(source["position"].as_u64().expect("position")).expect("position fits");
+            source["at"] = json!(walls.get(position - 1).copied().unwrap_or(BUILT));
+        }
+        value
+    }
+    fn met() -> Observed {
+        let mut observed = Observed {
+            documents: BTreeMap::new(),
+            told: Vec::new(),
+            commands: Vec::new(),
+            kit: Kit { records: Vec::new(), main: BTreeMap::new(), merged_green: false, pulls: Vec::new() },
+        };
+        for (read, task, parent, report) in cap_tasks() {
+            observed.documents.insert(
+                read,
+                json!({"task":{
+                "chip":{"task":task,"phase":"ended"},"project":PROJECT,"requester":{"task":parent},
+                "goal":CAP_OWNER,"authority":{"authority":{"deadline":A_DEADLINE}},
+                "result":{"ending":{"task":{"done":{}}},"value":{"report":{"bytes":report}}}
+            },"activity":source(task,&[
+                json!({"run_began":{"attempt":1}}),json!({"turn":{"attempt":1}}),
+                json!({"run_ended":{"attempt":1,"end":"finished","spent":1}})
+            ],&[BUILT;3])}),
+            );
+        }
+        let held = opening_documents(&mut observed);
+        released_documents(&mut observed, held);
+        implementer_documents(&mut observed);
+        for (latest, first) in
+            [(Read::CapSubownerEnded, Read::CapSubownerFirst), (Read::CapDirectorEnded, Read::CapDirectorFirst)]
+        {
+            let page = &mut observed.documents.get_mut(&latest).expect("latest")["activity"];
+            let rows = page["rows"].as_array_mut().expect("rows");
+            let older = rows.split_off(rows.len() - 2);
+            page["before"] = json!({"value":"older"});
+            observed.documents.insert(first, json!({"rows":older,"cut":false,"before":null,"after":{"value":"newer"}}));
+        }
+        queries(&mut observed);
+        observed
+    }
+    fn opening_documents(observed: &mut Observed) -> Vec<Value> {
+        let opening = vec![
+            json!({"run_began":{"attempt":1}}),
+            json!({"turn":{"attempt":1}}),
+            json!({"turn":{"attempt":1}}),
+            json!({"run_ended":{"attempt":1,"end":"parked","spent":2}}),
+        ];
+        let mut held = opening.clone();
+        held.extend([
+            json!({"heard":{"number":1,"kind":{"timer":{"subscription":CAP_TIMER}}}}),
+            json!({"decided":{"revision":CAP_HOLD_REVISION}}),
+        ]);
+        let mut walls = vec![BUILT + 1_000_000; 4];
+        walls.extend([deadline() + CAP_TIMER_MARGIN; 2]);
+        let held_doc = json!({"task":{"chip":{"task":CAP_SUBOWNER,"phase":"held"},"project":PROJECT,
+            "spec_revision":{"value":CAP_REVISION-1},"authority":{"authority":{"deadline":deadline()}},
+            "hold":{"owner":{"reason":"deadline","revision":CAP_HOLD_REVISION,
+                "escalation":{"waiting":{"holder":{"task":CAP_OWNER}}}}},"result":null},
+            "activity":source(CAP_SUBOWNER,&held,&walls)});
+        observed.documents.insert(Read::CapHeld, held_doc.clone());
+        let mut passed = held_doc;
+        passed["task"]["hold"]["owner"]["escalation"]["waiting"]["holder"]["task"] = json!(CAP_DIRECTOR);
+        observed.documents.insert(Read::CapPassed, passed);
+        observed.documents.insert(Read::CapHeldWait, observed.documents[&Read::CapHeld].clone());
+        // Decode each committed opening turn as ctl's journal does.
+        let calls = [
+            (
+                "delegate",
+                json!({"batch":[{"authority":{"budget":{"deadline":deadline()},"delegation":{"depth":0}}}]}),
+                format!("Delegated tasks: {CAP_A5}"),
+            ),
+            (
+                "subscribe",
+                json!({"kind":"timer","at":deadline()+CAP_TIMER_MARGIN}),
+                format!("Subscription {CAP_TIMER} added"),
+            ),
+        ];
+        let rows =
+            observed.documents.get_mut(&Read::CapHeld).expect("held")["activity"]["rows"].as_array_mut().expect("rows");
+        for row in rows {
+            let source = &mut row["event"]["owner"]["source"];
+            source["task"] = json!(CAP_SUBOWNER);
+            let position = number(source, "/position").expect("position");
+            if let Some((name, args, out)) =
+                position.checked_sub(2).and_then(|n| usize::try_from(n).ok()).and_then(|n| calls.get(n))
+            {
+                row["event"]["owner"]["decoded"] = json!({"turn":{"decoded":{"cut":false,"messages":[
+                    {"blocks":[{"call":{"tool":name,"failed":false,
+                        "input":{"from":0,"bytes_left":0,"text":args.to_string()},
+                        "outcome":{"from":0,"bytes_left":0,"text":out}}}]}]}}});
+            }
+        }
+        held
+    }
+    fn released_documents(observed: &mut Observed, held: Vec<Value>) {
+        let mut released = held;
+        released.extend([
+            json!({"heard":{"kind":{"amendment":{"revision":CAP_REVISION}},"words":CAP_SPLIT}}),
+            json!({"decided":{"revision":CAP_REVISION}}),
+            json!({"decided":{"revision":CAP_RELEASE_DECISION}}),
+            json!({"run_began":{"attempt":2,"why":"released"}}),
+            json!({"turn":{"attempt":2}}),
+            json!({"run_ended":{"attempt":2,"end":"parked","spent":1}}),
+        ]);
+        observed.documents.insert(
+            Read::CapReleased,
+            json!({"task":{"chip":{"task":CAP_SUBOWNER,"phase":"idle"},
+            "spec_revision":{"value":CAP_REVISION},"authority":{"authority":{"deadline":A1_DEADLINE}},
+            "instructions":{"bytes":CAP_SPLIT,"cut":false},"hold":null},
+            "activity":source(CAP_SUBOWNER,&released,&[])}),
+        );
+        released.extend([
+            json!({"run_began":{"attempt":3}}),
+            json!({"turn":{"attempt":3}}),
+            json!({"run_ended":{"attempt":3,"end":"finished","spent":1}}),
+        ]);
+        let ended = observed.documents.get_mut(&Read::CapSubownerEnded).expect("A1");
+        ended["activity"] = source(CAP_SUBOWNER, &released, &[]);
+        ended["task"]["spec_revision"] = json!({"value":CAP_REVISION});
+        ended["task"]["authority"]["authority"]["deadline"] = json!(A1_DEADLINE);
+        ended["task"]["instructions"] = json!({"bytes":CAP_SPLIT,"cut":false});
+    }
+    fn implementer_documents(observed: &mut Observed) {
+        observed.documents.get_mut(&Read::CapA5Ended).expect("a5")["task"]["authority"]["authority"]["deadline"] =
+            json!(deadline());
+        let a5_lines = [
+            json!({"run_began":{"attempt":1}}),
+            json!({"turn":{"attempt":1}}),
+            json!({"run_ended":{"attempt":1,"end":"finished","spent":1}}),
+        ];
+        observed.documents.get_mut(&Read::CapA5Ended).expect("a5")["activity"] =
+            source(CAP_A5, &a5_lines, &[BUILT + 1_000_000, deadline() + 2_000_000, deadline() + 3_000_000]);
+        observed.documents.insert(Read::CapA5Writing,json!({"task":{"chip":{"task":CAP_A5,"phase":"running",
+            "details":{"owner":{"phase":{"active":{"running":{"attempt":1}}},"details":{"observation":{"work":"writing"}}}}},
+            "hold":null,"authority":{"authority":{"deadline":deadline()}}},
+            "activity":source(CAP_A5,&a5_lines[..1],&[BUILT+1_000_000])}));
+        observed.documents.insert(Read::CapOwnerWaiting, json!({"task":{"chip":{"task":CAP_OWNER}}}));
+        for (read, after) in
+            [(Read::CapInboxHeld, Read::CapInboxHeldAfter), (Read::CapInboxEnded, Read::CapInboxEndedAfter)]
+        {
+            observed.documents.insert(read, json!({"needs":{"cut":false,"after":{"value":"stored"},"rows":[]}}));
+            observed.documents.insert(after, json!({"needs":{"cut":false,"after":null,"rows":[]}}));
+        }
+    }
+    fn queries(observed: &mut Observed) {
+        let mut subowner = tool(
+            "delegate",
+            "delegate",
+            &json!({"batch":[{"authority":{"budget":{"deadline":deadline()},"delegation":{"depth":0}}}]}),
+            &format!("Delegated tasks: {CAP_A5}"),
+        )
+        .to_vec();
+        observed.told.push(told(Agent::CapSubowner, &subowner));
+        subowner.extend(tool(
+            "timer",
+            "subscribe",
+            &json!({"kind":"timer","at":deadline()+CAP_TIMER_MARGIN}),
+            &format!("Subscription {CAP_TIMER} added"),
+        ));
+        observed.told.push(told(Agent::CapSubowner, &subowner));
+        observed.told.push(told(Agent::CapOwner, &[input("Held task needs a decision")]));
+        observed.told.push(told(
+            Agent::CapOwner,
+            &tool(
+                "pass",
+                "decide_escalation",
+                &json!({"task":CAP_SUBOWNER,"revision":CAP_HOLD_REVISION,"decision":"pass"}),
+                &format!("Escalation for task {CAP_SUBOWNER} revision {CAP_HOLD_REVISION} decided"),
+            ),
+        ));
+        observed.told.push(told(Agent::CapDirector, &[input("Held task needs a decision")]));
+        let authority = json!({"tools":33,"grants":[],"notes":0,
+            "delegation":{"kinds":[{"kind":"agent","number":1}],"tasks":1,"depth":1},
+            "budget":{"spend":22,"deadline":A1_DEADLINE}});
+        let mut director = tool(
+            "amend",
+            "amend",
+            &json!({"target":CAP_SUBOWNER,"revision":CAP_REVISION-1,
+            "amendment":{"authority":authority,"instructions":CAP_SPLIT,"reason":CAP_REASON}}),
+            &format!("Done: task {CAP_SUBOWNER} is at spec revision {CAP_REVISION}"),
+        )
+        .to_vec();
+        observed.told.push(told(Agent::CapDirector, &director));
+        director.extend(tool(
+            "release",
+            "release",
+            &json!({"target":CAP_SUBOWNER,"revision":CAP_HOLD_REVISION}),
+            &format!("Done: task {CAP_SUBOWNER} is at spec revision {CAP_REVISION}"),
+        ));
+        observed.told.push(told(Agent::CapDirector, &director));
+        observed.told.push(
+            Told::new(
+                format!("{}\n{CAP_SPLIT}", String::from_utf8_lossy(Agent::CapSubowner.cue())).as_bytes(),
+                b"fake",
+                None,
+                &[input("Continue")],
+            )
+            .expect("A1"),
+        );
+    }
+    fn rejects(observed: &Observed, promise: Promise) {
+        let misses = step_6_7(observed);
+        assert!(
+            misses.iter().any(|m| m.step == "6.7" && m.promise == promise),
+            "mutation did not fail {promise:?}: {}",
+            misses.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")
+        );
+    }
+    fn field(passing: &mut Observed, read: Read, path: &str, promise: Promise) {
+        let value = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect(path);
+        let replacement = if value.is_null() { json!("unexpected") } else { Value::Null };
+        let saved = std::mem::replace(value, replacement);
+        rejects(passing, promise);
+        *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect(path) = saved;
+    }
+    #[test]
+    fn a_complete_observation_meets_the_step() {
+        assert_met(&step_6_7(&met()));
+    }
+    #[test]
+    fn opening_requires_both_commits_before_the_deadline_and_the_exact_timer() {
+        let mut passing = met();
+        for (read, path) in [
+            (Read::CapHeldWait, "/task/chip/phase"),
+            (Read::CapHeldWait, "/task/chip/task"),
+            (Read::CapHeldWait, "/task/hold/owner/reason"),
+            (Read::CapA5Writing, "/task/authority/authority/deadline"),
+            (Read::CapOwnerEnded, "/task/goal"),
+            (Read::CapOwnerEnded, "/task/authority/authority/deadline"),
+        ] {
+            field(&mut passing, read, path, CAP_OPENING);
+        }
+        for read in [Read::CapHeld, Read::CapA5Writing] {
+            let mut bad = met();
+            let rows = bad.documents.get_mut(&read).expect("doc")["activity"]["rows"].as_array_mut().expect("rows");
+            for row in rows {
+                row["event"]["owner"]["source"]["at"] = json!(deadline() + 1);
+            }
+            rejects(&bad, CAP_OPENING);
+        }
+    }
+    #[test]
+    fn opening_requires_the_parked_journals_complete_successful_tool_calls() {
+        let mut passing = met();
+        let rows = "/activity/rows";
+        for path in
+            [format!("{rows}/2/event/owner/source/line/run_ended/end"), format!("{rows}/2/event/owner/source/task")]
+        {
+            field(&mut passing, Read::CapHeld, &path, CAP_OPENING);
+        }
+        for row in [3, 4] {
+            for suffix in [
+                "source/task",
+                "source/line/turn/attempt",
+                "source/position",
+                "source/at",
+                "decoded/turn/decoded/cut",
+                "decoded/turn/decoded/messages/0/blocks/0/call/tool",
+                "decoded/turn/decoded/messages/0/blocks/0/call/failed",
+                "decoded/turn/decoded/messages/0/blocks/0/call/input/text",
+                "decoded/turn/decoded/messages/0/blocks/0/call/input/from",
+                "decoded/turn/decoded/messages/0/blocks/0/call/input/bytes_left",
+                "decoded/turn/decoded/messages/0/blocks/0/call/outcome/text",
+                "decoded/turn/decoded/messages/0/blocks/0/call/outcome/from",
+                "decoded/turn/decoded/messages/0/blocks/0/call/outcome/bytes_left",
+            ] {
+                field(&mut passing, Read::CapHeld, &format!("{rows}/{row}/event/owner/{suffix}"), CAP_OPENING);
+            }
+        }
+        for row in [2, 3, 4] {
+            let path = format!("{rows}/{row}/event/owner/source/at");
+            let at = passing.documents.get_mut(&Read::CapHeld).expect("held").pointer_mut(&path).expect("at");
+            let saved = std::mem::replace(at, json!(deadline()));
+            rejects(&passing, CAP_OPENING);
+            *passing.documents.get_mut(&Read::CapHeld).expect("held").pointer_mut(&path).expect("at") = saved;
+        }
+        for (part, replacement) in [
+            ("input", json!({"kind":"timer","at":deadline()+CAP_TIMER_MARGIN+1}).to_string()),
+            ("input", json!({"kind":"timer","at":deadline()+CAP_TIMER_MARGIN,"period":1}).to_string()),
+            ("outcome", format!("Subscription {} added", CAP_TIMER + 1)),
+        ] {
+            let path = format!("{rows}/3/event/owner/decoded/turn/decoded/messages/0/blocks/0/call/{part}/text");
+            let text = passing.documents.get_mut(&Read::CapHeld).expect("held").pointer_mut(&path).expect("part");
+            let saved = std::mem::replace(text, json!(replacement));
+            rejects(&passing, CAP_OPENING);
+            *passing.documents.get_mut(&Read::CapHeld).expect("held").pointer_mut(&path).expect("part") = saved;
+        }
+        assert_met(&step_6_7(&passing));
+    }
+    #[test]
+    fn the_deadline_hold_is_an_unadmitted_timer_wake() {
+        let mut passing = met();
+        for path in ["/task/chip/task", "/task/chip/phase", "/task/hold/owner/reason", "/task/hold/owner/revision"] {
+            field(&mut passing, Read::CapHeld, path, CAP_ADMISSION);
+        }
+        for line in [
+            json!({"run_began":{"attempt":2}}),
+            json!({"turn":{"attempt":2}}),
+            json!({"run_ended":{"attempt":2,"end":"failed"}}),
+        ] {
+            let mut bad = met();
+            bad.documents.get_mut(&Read::CapHeld).expect("held")["activity"]["rows"]
+                .as_array_mut()
+                .expect("rows")
+                .insert(0, json!({"event":{"owner":{"source":{"task":CAP_SUBOWNER,"position":7,"line":line}}}}));
+            rejects(&bad, CAP_ADMISSION);
+        }
+    }
+    #[test]
+    fn the_escalation_waits_at_each_holder_and_is_told_once() {
+        let mut passing = met();
+        for read in [Read::CapHeld, Read::CapPassed] {
+            field(&mut passing, read, "/task/hold/owner/escalation/waiting/holder/task", CAP_ESCALATION);
+        }
+        for agent in [Agent::CapOwner, Agent::CapDirector] {
+            let mut missing = met();
+            missing
+                .told
+                .retain(|t| !(t.agent == agent && user_words(t).any(|w| contains(w, "Held task needs a decision"))));
+            rejects(&missing, CAP_ESCALATION);
+            let mut duplicate = met();
+            duplicate.told.push(told(agent, &[input("Held task needs a decision")]));
+            rejects(&duplicate, CAP_ESCALATION);
+        }
+    }
+    #[test]
+    fn the_director_changes_the_next_revision_deadline_and_instructions() {
+        let mut passing = met();
+        for read in [Read::CapReleased, Read::CapSubownerEnded] {
+            for path in [
+                "/task/spec_revision/value",
+                "/task/authority/authority/deadline",
+                "/task/instructions/bytes",
+                "/task/instructions/cut",
+            ] {
+                field(&mut passing, read, path, CAP_AMENDMENT);
+            }
+        }
+        let mut bad = met();
+        bad.told.retain(|t| !(t.agent == Agent::CapDirector && contains(&t.words, "Done: task")));
+        rejects(&bad, CAP_AMENDMENT);
+    }
+    #[test]
+    fn release_precedes_the_next_run_and_report_and_carries_the_split() {
+        let mut held = met();
+        held.documents.get_mut(&Read::CapReleased).expect("release")["task"]["hold"] =
+            json!({"owner":{"reason":"deadline"}});
+        rejects(&held, CAP_RELEASE);
+        let mut before = met();
+        let rows = before.documents.get_mut(&Read::CapSubownerEnded).expect("A1")["activity"]["rows"]
+            .as_array_mut()
+            .expect("rows");
+        for row in rows {
+            let source = &mut row["event"]["owner"]["source"];
+            if source["line"].get("run_began").is_some() && source["line"]["run_began"]["attempt"] == 2 {
+                source["position"] = json!(8);
+            }
+        }
+        rejects(&before, CAP_RELEASE);
+        let mut no_split = met();
+        no_split.told.retain(|t| !(t.agent == Agent::CapSubowner && contains(&t.system, CAP_SPLIT)));
+        rejects(&no_split, CAP_RELEASE);
+    }
+    #[test]
+    fn a5_must_still_write_and_finish_exactly_its_one_attempt_across_the_cap() {
+        let mut passing = met();
+        field(&mut passing, Read::CapA5Ended, "/task/authority/authority/deadline", CAP_RUNNING);
+        for path in [
+            "/task/chip/task",
+            "/task/chip/details/owner/details/observation/work",
+            "/task/chip/details/owner/phase/active/running/attempt",
+        ] {
+            field(&mut passing, Read::CapA5Writing, path, CAP_RUNNING);
+        }
+        for (began, ended) in [(deadline() + 1, deadline() + 2), (BUILT, deadline() - 1)] {
+            let mut bad = met();
+            let rows =
+                bad.documents.get_mut(&Read::CapA5Ended).expect("a5")["activity"]["rows"].as_array_mut().expect("rows");
+            rows[0]["event"]["owner"]["source"]["at"] = json!(ended);
+            rows[2]["event"]["owner"]["source"]["at"] = json!(began);
+            rejects(&bad, CAP_RUNNING);
+        }
+        let mut second = met();
+        second.documents.get_mut(&Read::CapA5Ended).expect("a5")["activity"]["rows"]
+            .as_array_mut()
+            .expect("rows")
+            .insert(
+                0,
+                json!({"event":{"owner":{"source":{"task":CAP_A5,"position":4,"line":{"run_began":{"attempt":2}}}}}}),
+            );
+        rejects(&second, CAP_RUNNING);
+    }
+    #[test]
+    fn both_inbox_reads_are_complete_and_empty() {
+        let mut passing = met();
+        for read in [Read::CapInboxHeld, Read::CapInboxHeldAfter, Read::CapInboxEnded, Read::CapInboxEndedAfter] {
+            field(&mut passing, read, "/needs/cut", CAP_INBOX);
+            let mut bad = met();
+            bad.documents.get_mut(&read).expect("inbox")["needs"]["rows"] = json!([{"question":1}]);
+            rejects(&bad, CAP_INBOX);
+        }
+    }
+    #[test]
+    fn both_inbox_continuations_must_be_exhausted() {
+        let mut passing = met();
+        for read in [Read::CapInboxHeldAfter, Read::CapInboxEndedAfter] {
+            field(&mut passing, read, "/needs/after", CAP_INBOX);
+        }
+    }
+    #[test]
+    fn every_decision_requires_its_successful_tool_exchange() {
+        use skein_fake_llm_domain::api::Part;
+        for (agent, name, promise) in [
+            (Agent::CapSubowner, b"delegate".as_slice(), CAP_OPENING),
+            (Agent::CapSubowner, b"subscribe".as_slice(), CAP_OPENING),
+            (Agent::CapOwner, b"decide_escalation".as_slice(), CAP_ESCALATION),
+            (Agent::CapDirector, b"amend".as_slice(), CAP_AMENDMENT),
+            (Agent::CapDirector, b"release".as_slice(), CAP_RELEASE),
+        ] {
+            let mut bad = met();
+            for query in bad.told.iter_mut().filter(|q| q.agent == agent) {
+                let ids: BTreeSet<_> = query
+                    .history
+                    .iter()
+                    .flat_map(|m| &m.parts)
+                    .filter_map(|p| match p {
+                        Part::ToolCall { id, name: called, .. } if called.as_ref() == name => Some(id.clone()),
+                        Part::ToolCall { .. } | Part::ToolOutput { .. } | Part::Text { .. } | Part::Opaque { .. } => {
+                            None
+                        }
+                    })
+                    .collect();
+                for message in &mut query.history {
+                    message.parts = message
+                        .parts
+                        .iter()
+                        .filter(|p| {
+                            !matches!(p,
+                        Part::ToolOutput{id,..} if ids.contains(id))
+                        })
+                        .cloned()
+                        .collect();
+                }
+            }
+            rejects(&bad, promise);
+        }
+    }
+    #[test]
+    fn older_pages_must_be_complete_and_preserve_the_first_attempt() {
+        let mut passing = met();
+        for read in [Read::CapSubownerFirst, Read::CapDirectorFirst] {
+            field(&mut passing, read, "/cut", CAP_ATTEMPTS);
+            field(&mut passing, read, "/before", CAP_ATTEMPTS);
+            let mut bad = met();
+            bad.documents.get_mut(&read).expect("first")["rows"].as_array_mut().expect("rows").pop();
+            rejects(&bad, CAP_ATTEMPTS);
+        }
+    }
+    #[test]
+    fn every_cast_member_has_a_done_report_and_complete_attempt_history() {
+        let mut passing = met();
+        for (read, _, _, _) in cap_tasks() {
+            for path in
+                ["/task/chip/task", "/task/project", "/task/result/value/report/bytes", "/task/result/ending/task/done"]
+            {
+                field(&mut passing, read, path, CAP_CHECKPOINT);
+            }
+            field(&mut passing, read, "/activity/cut", CAP_ATTEMPTS);
+            let mut bad = met();
+            bad.documents.get_mut(&read).expect("task")["activity"]["rows"][0]["event"]["owner"]["source"]["line"]["run_ended"]
+                ["end"] = json!({"failed":{"class":"agent"}});
+            rejects(&bad, CAP_ATTEMPTS);
         }
     }
 }

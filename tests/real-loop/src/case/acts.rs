@@ -145,6 +145,24 @@ pub enum Read {
     RedRootsEnded,
     RedRootsPending,
     RedUpdatedReviewEnded,
+    // Act 3, step 6.7 (domain/testing.md, 5.3)
+    CapHeldWait,
+    CapHeld,
+    CapA5Writing,
+    CapOwnerWaiting,
+    CapInboxHeld,
+    CapInboxHeldAfter,
+    CapPassed,
+    CapReleased,
+    CapA5Ended,
+    CapSubownerEnded,
+    CapOwnerEnded,
+    CapDirectorEnded,
+    CapInboxEnded,
+    CapInboxEndedAfter,
+    CapSubownerFirst,
+    CapOwnerFirst,
+    CapDirectorFirst,
 }
 // Provisioning's key call does not count as a story act. The director's
 // ended wait starts first; its delegates' ended documents are read before
@@ -1119,5 +1137,82 @@ pub fn step_6_4() -> Vec<calls::Step> {
         steps.push(call(D1, argv!["task", number(task), "--activity", "32", "--json"]));
     }
     steps.push(call(D1, argv!["tasks", "--project", number(PROJECT), "--ended", "--json"]));
+    steps
+}
+
+// Act 3, step 6.7 (domain/testing.md, 5.3)
+pub const READS_6_7: &[(Read, usize)] = &[
+    (Read::CapHeldWait, 7),
+    (Read::CapHeld, 8),
+    (Read::CapA5Writing, 9),
+    (Read::CapOwnerWaiting, 10),
+    (Read::CapInboxHeld, 11),
+    (Read::CapInboxHeldAfter, 12),
+    (Read::CapPassed, 15),
+    (Read::CapReleased, 17),
+    (Read::CapA5Ended, 18),
+    (Read::CapSubownerEnded, 19),
+    (Read::CapOwnerEnded, 20),
+    (Read::CapDirectorEnded, 21),
+    (Read::CapInboxEnded, 22),
+    (Read::CapInboxEndedAfter, 23),
+    (Read::CapSubownerFirst, 24),
+    (Read::CapDirectorFirst, 25),
+];
+
+#[must_use]
+pub fn step_6_7() -> Vec<calls::Step> {
+    use super::{
+        Agent, CAP_A5, CAP_A5_HOLD, CAP_DIRECTOR, CAP_OWNER, CAP_PASS_HOLD, CAP_PERSON, CAP_SPLIT_HOLD, CAP_SUBOWNER,
+        PROJECT,
+    };
+    let mut steps = vec![
+        sign_in(D1),
+        call(D1, argv!["chat", "--project", number(PROJECT), "--key", "cap", CAP_PERSON]),
+        start(D1, argv!["wait", "task", number(CAP_DIRECTOR), "--until", "ended", "--json"]),
+        call(D1, argv!["wait", "task", number(CAP_DIRECTOR), "--until", "replied"]),
+        call(D1, argv!["wait", "task", number(CAP_OWNER), "--until", "replied"]),
+        calls::until(D1, argv!["task", number(CAP_SUBOWNER), "--json"], Agent::CapImplementer.cue(), b"\"task\""),
+        calls::until(D1, argv!["task", number(CAP_A5), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        // The deadline hold lasts until the director is explicitly released below.
+        call(D1, argv!["wait", "task", number(CAP_SUBOWNER), "--until", "held", "--json"]),
+        calls::until(
+            D1,
+            argv!["task", number(CAP_SUBOWNER), "--activity", "32", "--json"],
+            b"\"reason\":\"deadline\"",
+            b"\"task\"",
+        ),
+        call(D1, argv!["task", number(CAP_A5), "--activity", "32", "--json"]),
+        calls::until(
+            D1,
+            argv!["task", number(CAP_OWNER), "--activity", "32", "--json"],
+            b"\"work\":\"writing\"",
+            b"\"task\"",
+        ),
+        // The needs-group tag starts an unfiltered page, then its stored continuation.
+        call(D1, argv!["inbox", "--after", "00", "--json"]),
+        call(D1, argv!["inbox", "--after", calls::inbox_after(11), "--json"]),
+        calls::release_hold(CAP_PASS_HOLD),
+        // The director's document includes A's observation too. Once A parks
+        // after its pass, only the director can satisfy the writing checkpoint.
+        call(D1, argv!["wait", "task", number(CAP_OWNER), "--until", "phase:idle"]),
+        calls::until(D1, argv!["task", number(CAP_DIRECTOR), "--json"], b"\"work\":\"writing\"", b"\"task\""),
+        call(D1, argv!["task", number(CAP_SUBOWNER), "--activity", "32", "--json"]),
+        calls::release_hold(CAP_SPLIT_HOLD),
+        call(D1, argv!["wait", "task", number(CAP_SUBOWNER), "--until", "phase:idle"]),
+        call(D1, argv!["task", number(CAP_SUBOWNER), "--activity", "32", "--json"]),
+        calls::release_hold(CAP_A5_HOLD),
+        join(2),
+    ];
+    for task in [CAP_A5, CAP_SUBOWNER, CAP_OWNER, CAP_DIRECTOR] {
+        steps.push(call(D1, argv!["task", number(task), "--activity", "32", "--json"]));
+    }
+    steps.push(call(D1, argv!["inbox", "--after", "00", "--json"]));
+    steps.push(call(D1, argv!["inbox", "--after", calls::inbox_after(22), "--json"]));
+
+    // The latest activity windows omit the starts of A1 and the director.
+    for (task, latest) in [(CAP_SUBOWNER, 19), (CAP_DIRECTOR, 21)] {
+        steps.push(call(D1, argv!["activity", number(task), "--before", calls::activity_before(latest), "--json"]));
+    }
     steps
 }
