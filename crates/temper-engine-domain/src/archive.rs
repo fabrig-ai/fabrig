@@ -400,7 +400,10 @@ mod tests {
         assert!(domain.work.is_empty(), "a retired waiter cannot reach a later preparation");
         assert!(waiting(&domain, current) == Some(Waiting::Transcript));
         transcript_unread(&mut domain, current);
-        assert!(matches!(domain.work.pop(), Some(Work::Core(core::Event::TranscriptUnread { task: TASK }))));
+        let Some(Work::Core(core::Event::TranscriptUnread { task })) = domain.work.pop() else {
+            panic!("current preparation receives unread")
+        };
+        assert_eq!(task, TASK);
         assert!(domain.work.is_empty());
     }
 
@@ -434,7 +437,10 @@ mod tests {
             &mut out,
         );
         assert!(out.is_empty(), "no store request issued");
-        assert!(matches!(domain.work.pop(), Some(Work::Core(core::Event::PreparationFailed { task: TASK }))));
+        let Some(Work::Core(core::Event::PreparationFailed { task })) = domain.work.pop() else {
+            panic!("unissued load remains preparation failure")
+        };
+        assert_eq!(task, TASK);
         assert!(domain.work.is_empty());
         domain.archive_reads.reclaim();
         assert!(domain.archive_reads.is_empty());
