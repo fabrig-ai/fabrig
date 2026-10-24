@@ -22,8 +22,9 @@ pub fn steps(
     demo: Option<&Demo>,
     flags: &[Box<[u8]>],
     listeners: Box<[core::net::SocketAddr]>,
+    forgejo_listens: bool,
 ) -> Steps {
-    let given = temper_forge_setup::steps(setup, flags, listeners);
+    let given = temper_forge_setup::steps(setup, flags, listeners, forgejo_listens);
     let demo_forge = match demo {
         Some(demo) => Some(demo.forge()),
         None => None,

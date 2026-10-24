@@ -249,6 +249,40 @@ fn program_login_accepts_exactly_the_required_source_name() {
     );
 }
 
+#[test]
+fn forge_child_names_its_death_signal_or_prints_its_usage() {
+    use skein_io::kernel::Signal;
+    for (word, signal) in [("kill", Signal::Kill), ("terminate", Signal::Terminate)] {
+        assert_eq!(
+            configure_program_login(&[
+                "forge",
+                "child",
+                "--parent",
+                "7",
+                "--signal",
+                word,
+                "--",
+                "/bin/forgejo",
+                "web"
+            ]),
+            Ok(super::Command::ForgeChild {
+                parent: 7,
+                signal,
+                program: "/bin/forgejo".into(),
+                arguments: vec!["web".into()],
+            })
+        );
+    }
+    let usage = "temper forge child: usage: temper forge child --parent PID --signal kill|terminate -- PROGRAM ARGS…\n";
+    for arguments in [
+        vec!["forge", "child", "--parent", "7", "--", "/bin/forgejo"],
+        vec!["forge", "child", "--parent", "7", "--signal", "interrupt", "--", "/bin/forgejo"],
+        vec!["forge", "child", "--signal", "kill", "--parent", "7", "--", "/bin/forgejo"],
+    ] {
+        assert_eq!(configure_program_login(&arguments), Err(usage.into()), "{arguments:?}");
+    }
+}
+
 fn configure_program_login(arguments: &[&str]) -> Result<super::Command, String> {
     super::configure_with(
         &arguments.iter().map(|value| Box::from(value.as_bytes())).collect::<Vec<_>>(),

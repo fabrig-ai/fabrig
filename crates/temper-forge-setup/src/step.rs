@@ -130,7 +130,12 @@ fn forge(action: &[u8], flags: &[Box<[u8]>], number: u16, run: Option<&[u8]>) ->
 /// Commands in setup order: owned processes, legacy reconciles, then serve;
 /// an asked forge's processes apart, in a group placed in that order.
 #[must_use]
-pub fn steps(setup: &Setup, flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>) -> Steps {
+pub fn steps(
+    setup: &Setup,
+    flags: &[Box<[u8]>],
+    listeners: Box<[core::net::SocketAddr]>,
+    forgejo_listens: bool,
+) -> Steps {
     let count = u32::try_from(setup.entries.len()).expect("bounded entries");
     let mut out = List::with_capacity(
         count.checked_mul(5).expect("bounded step count").checked_add(1).expect("bounded step count"),
@@ -145,10 +150,12 @@ pub fn steps(setup: &Setup, flags: &[Box<[u8]>], listeners: Box<[core::net::Sock
                     group.push((Stage::Fetch, forge(b"fetch", flags, e.forge, None))).expect("fetch");
                 }
                 group.push((Stage::Prepare, forge(b"prepare", flags, e.forge, None))).expect("prepare");
-                // Forgejo's KillParent would stop the box (protocol/setup.md, 7.1).
-                group
-                    .push((Stage::Run, forge(b"run", flags, e.forge, Some(b"forgejo")).with_ready(o.listen)))
-                    .expect("forgejo");
+                // forge run absorbs Forgejo's KillParent (protocol/setup.md, 6.4, 7.1).
+                let mut step = forge(b"run", flags, e.forge, Some(b"forgejo")).with_ready(o.listen);
+                if forgejo_listens {
+                    step = step.listening(Box::new([o.listen]));
+                }
+                group.push((Stage::Run, step)).expect("forgejo");
                 if o.runner.is_some() {
                     group.push((Stage::Run, forge(b"run", flags, e.forge, Some(b"runner")))).expect("runner");
                 }

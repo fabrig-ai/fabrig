@@ -3,6 +3,7 @@ pub mod command;
 pub mod exchange;
 pub mod fetch;
 pub mod files;
+pub mod parent;
 pub mod prepare;
 pub mod process;
 pub mod reconcile;

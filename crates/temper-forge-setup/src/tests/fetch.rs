@@ -615,7 +615,12 @@ fn groups_fetch_before_preparation() {
         };
         let setup = Setup { entries: entries.into_boxed_slice() };
         assert_eq!(
-            crate::steps(&setup, &flags, Box::new([([127, 0, 0, 1], 8367).into(), ([127, 0, 0, 1], 8371).into()])),
+            crate::steps(
+                &setup,
+                &flags,
+                Box::new([([127, 0, 0, 1], 8367).into(), ([127, 0, 0, 1], 8371).into()]),
+                false
+            ),
             expected,
             "{forgejo} {runner} {asked}"
         );

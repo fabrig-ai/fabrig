@@ -25,7 +25,13 @@ pub fn run(directories: &super::Directories) -> Result<Exit, String> {
         if let Some(webhooks) = &named.webhooks {
             serve.push(super::address(&webhooks.listener)?);
         }
-        let steps = temper_fake::steps(&checked.setup, demo.as_ref(), &directories.flags(), serve.into_boxed_slice());
+        let steps = temper_fake::steps(
+            &checked.setup,
+            demo.as_ref(),
+            &directories.flags(),
+            serve.into_boxed_slice(),
+            cfg!(target_os = "linux"),
+        );
         let mut listeners = Vec::new();
         for step in
             steps.always.iter().chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))

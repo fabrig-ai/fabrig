@@ -74,3 +74,24 @@ pub fn sign_in_key(file: fs::File) -> Result<(), String> {
             },
         )
 }
+
+/// The hidden child command inherits its environment, directory and descriptors.
+/// Its caller names the death signal: forge run's Forgejo takes Kill, so none
+/// outlives a killed forge run to meet the next on its socket and database.
+#[must_use]
+pub fn child(
+    parent: u32,
+    signal: skein_io::kernel::Signal,
+    program: &std::ffi::OsStr,
+    arguments: &[std::ffi::OsString],
+) -> io::Error {
+    let mut command = Command::new(program);
+    command.args(arguments);
+    skein_shell::exec_dying_with_parent(command, parent, signal)
+}
+
+/// Names this parent for the child-side exec's race check.
+#[must_use]
+pub fn id() -> u32 {
+    std::process::id()
+}

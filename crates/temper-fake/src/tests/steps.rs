@@ -178,6 +178,6 @@ fn documents_give_the_box_its_whole_ordered_steps() {
         let setup = Setup::read(&d, at, &temper_forge_setup::limits::small(), &directories, &mut ps)
             .unwrap_or_else(|| panic!("{name}: {}", String::from_utf8_lossy(&problem::lines(&ps))));
         let demo = demo::read(&value).unwrap();
-        assert_eq!(steps(&setup, demo.as_ref(), &flags, Box::new(serve_listeners)), expected, "{name}");
+        assert_eq!(steps(&setup, demo.as_ref(), &flags, Box::new(serve_listeners), false), expected, "{name}");
     }
 }

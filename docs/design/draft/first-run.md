@@ -423,8 +423,8 @@ experience; good defaults for a person's real work are open (section 8).
    wording; and the first run's ports, each step's listener held by the
    box from its start and given to the step (3.3; setup.md, 7.1), which
    rests on skein holding, giving and adopting a listener (skein's
-   `io.md`, 3.2 and 6.3; `shell.md`, 6.6). Forgejo's own port is held
-   once forge run stays its parent (setup.md, 6.4 and 15).
+   `io.md`, 3.2 and 6.3; `shell.md`, 6.6), Forgejo's on Linux, where
+   forge run stays its parent (setup.md, 6.4).
 5. **The welcome and the demo's end** (2.3): adopted, closed here.
    The demo's state, the fakes asked, the seed's acts and the end in
    the engine, `stop` on the pipe (setup.md, 7.1, 7.2 and 8.4;

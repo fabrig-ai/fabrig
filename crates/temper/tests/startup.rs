@@ -1742,6 +1742,102 @@ printf 'inherited fd 3 after exec\n'
     scratch.remove();
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn forge_parent_listener_helper() {
+    if std::env::var_os("TEMPER_FORGE_PARENT_HELPER").is_some() {
+        support::forge_parent::serve();
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status() {
+    forge_parent_shutdown(false);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn killing_forge_run_alone_kills_its_forgejo_child() {
+    forge_parent_shutdown(true);
+}
+
+#[cfg(target_os = "linux")]
+fn forge_parent_shutdown(kill: bool) {
+    use support::parent::{Guard, live, signal, wait};
+    let scratch = support::Scratch::startup(&format!("forge-parent-{kill}"));
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("listener");
+    let address = listener.local_addr().expect("address");
+    let binary = scratch.path().join("forgejo");
+    let pid_file = scratch.path().join("fake.pid");
+    let test = std::env::current_exe().expect("startup binary");
+    fs::write(
+        &binary,
+        format!(
+            r#"#!/bin/sh
+if [ "$1" = --version ]; then
+    printf 'forgejo version {}\n'
+    exit 0
+fi
+test "$LISTEN_FDS" = 1 || exit 22
+test -S /proc/self/fd/3 || exit 23
+printf '%s' "$$" > '{}'
+export TEMPER_FORGE_PARENT_HELPER=1
+'{}' --exact forge_parent_listener_helper --nocapture &
+helper=$!
+trap 'kill -TERM "$helper"; wait "$helper"; exit 37' TERM
+kill -TERM "$PPID"
+wait "$helper"
+exit 38
+"#,
+            skein_forge::forgejo::pin::VERSION,
+            pid_file.display(),
+            test.display()
+        ),
+    )
+    .expect("fake Forgejo");
+    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).expect("executable");
+    support::owned::configuration(
+        scratch.path(),
+        &support::owned::Names { forgejo: &binary, runner: None, port: address.port(), bot: "temper", person: "ada" },
+    );
+    support::owned::finished(scratch.path());
+    let state_path = scratch.path().join("forge-1/state");
+    let mut state = temper_forge_setup::state::decode(&fs::read(&state_path).expect("state")).expect("prepared");
+    state.runner = None;
+    support::write_private(&state_path, temper_forge_setup::state::encode(&state).expose());
+    let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+    command.args(["forge", "run"]).args(support::configuration::flags(scratch.path())).args(["1", "forgejo"]);
+    let mut guard = Guard::new(command.spawn().expect("forge run"));
+    wait(|| pid_file.exists());
+    let fake = fs::read_to_string(&pid_file).expect("fake pid").parse().expect("pid");
+    guard.pids.push(fake);
+    wait(|| support::boxed::status(address, "/") == Some(200));
+    support::parent::descendants(fake, &mut guard.pids);
+    let parent = guard.child.as_mut().expect("parent");
+    assert!(parent.try_wait().expect("status").is_none(), "Forgejo's SIGTERM leaves forge run running");
+    signal(parent.id(), if kill { "KILL" } else { "TERM" });
+    wait(|| guard.child.as_mut().expect("parent").try_wait().expect("exit").is_some());
+    if kill {
+        // Kill reaches Forgejo's own process at once; the fake's helper is the
+        // script's child, which real Forgejo has none of, so the guard ends it.
+        wait(|| !live(fake));
+    } else {
+        wait(|| guard.pids.iter().all(|pid| !live(*pid)));
+    }
+    let ended = guard.child.take().expect("parent").wait_with_output().expect("reaped");
+    if kill {
+        use std::os::unix::process::ExitStatusExt;
+        assert_eq!(ended.status.signal(), Some(9));
+    } else {
+        assert_eq!(ended.status.code(), Some(37), "{}", String::from_utf8_lossy(&ended.stderr));
+        assert!(String::from_utf8_lossy(&ended.stdout).contains("fake connected"));
+        assert!(String::from_utf8_lossy(&ended.stderr).contains("fake ready on fd 3"));
+        guard.pids.clear();
+    }
+    scratch.remove();
+}
+
 #[test]
 fn forge_run_refuses_other_listener_counts_and_any_for_the_runner_before_opening_files() {
     for (which, count) in [("forgejo", "0"), ("forgejo", "2"), ("forgejo", "many"), ("runner", "1"), ("runner", "0")] {
@@ -1775,5 +1871,22 @@ fn listener_refusals_name_the_fd_before_serve_or_a_fake_opens_files() {
         assert_eq!(ended.status.code(), Some(1));
         let diagnostic = String::from_utf8(ended.stderr).expect("diagnostic");
         assert!(diagnostic.contains("fd 3 is not a socket"), "{diagnostic}");
+    }
+}
+
+#[test]
+fn forge_child_refuses_a_wrong_parent_or_missing_program_without_reading_a_document() {
+    for (parent, program) in [(0, "/bin/true"), (std::process::id(), "/no-such-forge-child-program")] {
+        let ended = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+            .args(["forge", "child", "--parent", &parent.to_string(), "--signal", "kill", "--", program])
+            .env_clear()
+            .output()
+            .expect("child refusal");
+        assert_eq!(ended.status.code(), Some(1));
+        assert!(ended.stdout.is_empty());
+        let why = String::from_utf8(ended.stderr).expect("diagnostic");
+        assert!(why.starts_with("temper forge child: "), "{why}");
+        assert_eq!(why.lines().count(), 1, "{why}");
+        assert!(!why.contains("document"), "{why}");
     }
 }

@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 fn names(setup: &Setup, expected: &[(&[u8], Kind)]) {
-    let steps = steps(setup, &flags(), Box::new([])).always;
+    let steps = steps(setup, &flags(), Box::new([]), false).always;
     assert_eq!(steps.len(), expected.len());
     for (step, (name, kind)) in steps.iter().zip(expected) {
         assert_eq!(step.name(), *name);
@@ -25,7 +25,7 @@ fn a_managed_and_an_owned_forge_run_the_design_tree() {
             (b"serve", Kind::Long),
         ],
     );
-    let commands = steps(&fixtures::setup(), &flags(), Box::new([])).always;
+    let commands = steps(&fixtures::setup(), &flags(), Box::new([]), false).always;
     let Mode::Owned(owned) = &fixtures::setup().entries[1].mode else { panic!("owned") };
     assert_eq!(commands[1].ready(), Some(owned.listen));
     assert!(commands[1].listeners().is_empty());
@@ -60,7 +60,7 @@ fn a_fake_forge_reconciles_in_serve_without_external_steps() {
             (b"serve", Kind::Long),
         ],
     );
-    assert!(steps(&fixtures::fake_setup(), &flags(), Box::new([])).asked.is_empty());
+    assert!(steps(&fixtures::fake_setup(), &flags(), Box::new([]), false).asked.is_empty());
 }
 #[test]
 fn an_owned_forge_without_a_runner_has_no_runner_step() {
@@ -93,7 +93,7 @@ fn serve_holds_only_fixed_document_ports_in_their_original_order() {
     for (document, held) in
         [(&[ephemeral][..], &[][..]), (&[ephemeral, clients, ephemeral, webhooks], &[clients, webhooks][..])]
     {
-        let commands = steps(&setup, &flags(), Box::from(document));
+        let commands = steps(&setup, &flags(), Box::from(document), false);
         assert_eq!(commands.always[0].listeners(), held);
     }
 }
@@ -118,7 +118,7 @@ fn asked_groups_keep_their_place_and_run_only_their_processes() {
             let Mode::Owned(owned) = &mut setup.entries[1].mode else { panic!("owned") };
             owned.runner = None;
         }
-        let commands = steps(&setup, &flags(), Box::new([]));
+        let commands = steps(&setup, &flags(), Box::new([]), false);
         assert_eq!(commands.always.len(), 2);
         for (step, name) in commands.always.iter().zip([b"reconcile 1".as_slice(), b"serve"]) {
             assert_eq!(step.name(), name);
@@ -146,5 +146,22 @@ fn asked_groups_keep_their_place_and_run_only_their_processes() {
     other.forge = 3;
     other.asked = true;
     setup.entries = Box::new([setup.entries[1].clone(), other]);
-    assert_eq!(steps(&setup, &flags(), Box::new([])).asked[0].before, 3);
+    assert_eq!(steps(&setup, &flags(), Box::new([]), false).asked[0].before, 3);
+}
+
+#[test]
+fn forgejo_takes_its_listener_only_when_the_shell_can_identify_signal_senders() {
+    let mut setup = fixtures::setup();
+    let Mode::Owned(owned) = &setup.entries[1].mode else { panic!("owned") };
+    let address = owned.listen;
+    for asked in [false, true] {
+        setup.entries[1].asked = asked;
+        for listens in [false, true] {
+            let commands = steps(&setup, &flags(), Box::new([]), listens);
+            let step = if asked { &commands.asked[0].steps[1].1 } else { &commands.always[1] };
+            assert_eq!(step.ready(), Some(address));
+            let held = [address];
+            assert_eq!(step.listeners(), if listens { &held[..] } else { &[] });
+        }
+    }
 }

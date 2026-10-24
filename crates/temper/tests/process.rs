@@ -1199,19 +1199,20 @@ fn a_first_run_answers_on_the_demo_and_a_second_finds_it_running() {
 }
 #[test]
 fn two_first_runs_one_after_the_other_choose_their_own_ports() {
-    fn ports(config: &std::path::Path) -> [u16; 4] {
+    fn ports(config: &std::path::Path) -> [u16; 5] {
         let document: serde_json::Value =
             serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("written configuration"))
                 .expect("configuration JSON");
         let application = &document["application"];
         let setup = application["setup"].as_array().expect("forge setup");
         let fake = setup.iter().find(|entry| entry["forge"] == 1).expect("fake forge 1");
-        // Forge 3's owned port can match: the box leaves it free for Forgejo to bind (M3a).
+        let owned = setup.iter().find(|entry| entry["forge"] == 3).expect("owned forge 3");
         [
             &application["clients"]["listener"]["socket"],
             &fake["mode"]["fake"]["listen"]["socket"],
             &application["demo"]["llm"]["listen"]["socket"],
             &application["webhooks"]["listener"]["socket"],
+            &owned["mode"]["owned"]["listen"]["socket"],
         ]
         .map(|value| {
             value.as_str().expect("listener socket").parse::<std::net::SocketAddr>().expect("socket address").port()
@@ -1250,8 +1251,10 @@ fn two_first_runs_one_after_the_other_choose_their_own_ports() {
                 || {
                     let a_ports = ports(&a_paths[0]);
                     let b_ports = ports(&b_paths[0]);
-                    for ((name, a), b) in
-                        ["clients", "fake forge", "fake LLM", "webhooks"].into_iter().zip(a_ports).zip(b_ports)
+                    for ((name, a), b) in ["clients", "fake forge", "fake LLM", "webhooks", "Forgejo"]
+                        .into_iter()
+                        .zip(a_ports)
+                        .zip(b_ports)
                     {
                         assert_ne!(a, b, "{name}: the second first run chooses its own port");
                     }
@@ -3094,4 +3097,71 @@ fn an_owned_forgejo_signs_its_member_in_through_temper() {
 fn a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart()
  {
     support::forgejo_elsewhere::restart();
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
+    use std::{
+        fs,
+        process::{Command, Stdio},
+    };
+    use support::parent::{Guard, descendants, live, wait};
+    const CHILD: &str = "TEMPER_BOX_PARENT_TEST";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = std::path::Path::new(&root);
+        let command = support::boxed::dying_with_test(skein_world::end_to_end::Command {
+            program: env!("CARGO_BIN_EXE_temper").into(),
+            arguments: std::iter::once("box".into()).chain(support::configuration::flags(root)).collect(),
+            directory: root.into(),
+            environment: Vec::new(),
+        });
+        // The same test thread spawns and waits: PR_SET_PDEATHSIG follows it.
+        let mut box_process = Command::new(command.program)
+            .args(command.arguments)
+            .current_dir(command.directory)
+            .env_clear()
+            .envs(command.environment)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("wrapped box");
+        fs::write(root.join("box.pid"), box_process.id().to_string()).expect("box pid");
+        let _ended = box_process.wait().expect("box wait");
+        return;
+    }
+    let scratch = support::Scratch::new("box-dies-with-test");
+    // Init before box.pid exists: a first run requires an empty configuration directory.
+    let output = Command::new(env!("CARGO_BIN_EXE_temper"))
+        .arg("init")
+        .args(support::configuration::flags(scratch.path()))
+        .output()
+        .expect("init");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let child = Command::new(std::env::current_exe().expect("test binary"))
+        .args(["--exact", "a_story_box_and_its_steps_die_when_the_test_process_is_killed", "--nocapture"])
+        .env(CHILD, scratch.path())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("child test");
+    let mut guard = Guard::new(child);
+    let pid_file = scratch.path().join("box.pid");
+    wait(|| pid_file.exists());
+    let box_pid = fs::read_to_string(pid_file).expect("box pid").parse().expect("pid number");
+    guard.pids.push(box_pid);
+    wait(|| {
+        let mut steps = Vec::new();
+        descendants(box_pid, &mut steps);
+        if steps.is_empty() {
+            return false;
+        }
+        guard.pids.extend(steps);
+        true
+    });
+    guard.child.as_mut().expect("child test").kill().expect("SIGKILL test alone");
+    guard.child.as_mut().expect("child test").wait().expect("reap test");
+    wait(|| guard.pids.iter().all(|pid| !live(*pid)));
+    guard.pids.clear();
+    scratch.remove();
 }

@@ -12,6 +12,7 @@ use std::{
     os::unix::{ffi::OsStrExt, fs::FileTypeExt},
     path::{Path, PathBuf},
 };
+use temper_forge_setup_shell::process as forge_exec;
 use temper_service::{
     self as service,
     settings::{Files, Seeds},
@@ -50,6 +51,7 @@ pub enum Command {
     Fake { arguments: fake::Arguments },
     FakeCheck { directories: Directories, check: fake::Check },
     FakeGit { arguments: Box<[Box<[u8]>]> },
+    ForgeChild { parent: u32, signal: skein_io::kernel::Signal, program: OsString, arguments: Vec<OsString> },
     Forge { directories: Directories, arguments: Vec<OsString>, ssl_cert_file: Option<PathBuf> },
 }
 #[must_use]
@@ -102,6 +104,34 @@ pub fn configure_with(
         }
         b"init" | b"serve" | b"box" | b"program-login" | b"forge" => {}
         _ => return Err(invalid()),
+    }
+    if command.as_ref() == b"forge" && arguments.first().is_some_and(|arg| arg.as_ref() == b"child") {
+        let bad = || {
+            "temper forge child: usage: temper forge child --parent PID --signal kill|terminate -- PROGRAM ARGS…\n"
+                .to_string()
+        };
+        let [_, flag, parent, signal_flag, signal, separator, program, rest @ ..] = arguments else {
+            return Err(bad());
+        };
+        if flag.as_ref() != b"--parent"
+            || signal_flag.as_ref() != b"--signal"
+            || separator.as_ref() != b"--"
+            || program.is_empty()
+        {
+            return Err(bad());
+        }
+        let parent = std::str::from_utf8(parent).ok().and_then(|pid| pid.parse::<u32>().ok()).ok_or_else(bad)?;
+        let signal = match signal.as_ref() {
+            b"kill" => skein_io::kernel::Signal::Kill,
+            b"terminate" => skein_io::kernel::Signal::Terminate,
+            _ => return Err(bad()),
+        };
+        return Ok(Command::ForgeChild {
+            parent,
+            signal,
+            program: std::ffi::OsStr::from_bytes(program).into(),
+            arguments: os(rest),
+        });
     }
     let (verb, arguments) = if command.as_ref() == b"forge" {
         let Some((verb, arguments)) = arguments.split_first() else { return Err(invalid()) };
@@ -158,6 +188,10 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
         Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments)),
+        Command::ForgeChild { parent, signal, program, arguments } => {
+            let why = forge_exec::child(parent, signal, &program, &arguments);
+            return Err(prefixed("temper forge child", &why.to_string()));
+        }
         Command::Forge { directories, arguments, ssl_cert_file } => {
             return Ok(forge::run(&directories, &arguments, ssl_cert_file));
         }

@@ -15,7 +15,7 @@ pub enum Failed {
     Version(command::Error),
     Exec(io::Error),
 }
-fn checked(limits: &skein_io::Limits, launch: &Launch) -> Result<process::Lock, Failed> {
+pub(crate) fn checked(limits: &skein_io::Limits, launch: &Launch) -> Result<process::Lock, Failed> {
     let lock = process::lock(crate::path(&launch.lock)).map_err(|why| match why {
         process::Refused::Held => Failed::Locked,
         process::Refused::Io(io::ErrorKind::NotFound) => Failed::Refused(Refusal::NotPrepared),

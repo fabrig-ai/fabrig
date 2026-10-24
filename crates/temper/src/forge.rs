@@ -232,7 +232,7 @@ pub(crate) fn start(
         Place { directory: directory.as_os_str().as_bytes().into(), user: super::login(user).map_err(refused)? };
     let limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io;
     if let Some(which) = which {
-        return Err(refused(run_process(owned, &place, which, listener, (number, directories), &limits)));
+        return run_process(owned, &place, which, listener, (number, directories), &limits).map_err(refused);
     }
     prepare::run(
         &limits,
@@ -249,7 +249,7 @@ pub(crate) fn start(
     .map_err(|why| refused(failure(why, &place)))?;
     Ok(0)
 }
-/// Admits fd 3 and runs the process, returning only why it did not start.
+/// Admits fd 3 and runs the process, returning its exit or why it did not start.
 fn run_process(
     owned: &temper_forge_setup::setup::Owned,
     place: &Place,
@@ -257,15 +257,19 @@ fn run_process(
     listener: Option<std::net::SocketAddr>,
     (number, directories): (u16, &super::Directories),
     limits: &skein_io::Limits,
-) -> String {
+) -> Result<u8, String> {
     if let Err(why) = run::admit_listener(owned, listener) {
-        return text(&why.words());
+        return Err(text(&why.words()));
     }
-    let Ok(mut launch) = run::launch(owned, place, which) else { return "the setup has no runner".into() };
+    let Ok(mut launch) = run::launch(owned, place, which) else { return Err("the setup has no runner".into()) };
     if listener.is_some() {
         launch.exec = temper_forge_setup::spec::listening(launch.exec);
     }
-    run_failure(host::run(limits, &launch), &launch, number, directories)
+    if let Some(address) = listener {
+        return temper_forge_setup_shell::parent::run(limits, &launch, address)
+            .map_err(|why| run_failure(why, &launch, number, directories));
+    }
+    Err(run_failure(host::run(limits, &launch), &launch, number, directories))
 }
 /// The fake shares only the private directory and token with an owned forge (protocol/setup.md, 8.4).
 fn prepare_fake(path: &std::path::Path) -> Result<(), String> {

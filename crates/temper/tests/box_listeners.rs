@@ -58,7 +58,7 @@ fn a_fresh_box_holds_serves_clients_port() {
     std::thread::sleep(Duration::from_millis(100));
     let running = child.try_wait().expect("box status").is_none();
     let held = address.map(|address| TcpListener::bind(address).is_err());
-    let unheld = owned.map(|address| TcpListener::bind(address).is_ok());
+    let owned_held = owned.map(|address| TcpListener::bind(address).is_err());
     let dormant = !root.join("data/forge-3").exists();
     if running {
         child.kill().expect("stop fixture box");
@@ -68,7 +68,7 @@ fn a_fresh_box_holds_serves_clients_port() {
     assert!(running, "box stays up");
     assert_eq!(held, Some(true), "the configured clients port stays reserved");
     assert!(dormant, "the owned forge has not been prepared");
-    assert_eq!(unheld, Some(true), "the dormant owned forge binds its own port when started");
+    assert_eq!(owned_held, Some(cfg!(target_os = "linux")), "Linux holds the dormant owned forge's port");
 }
 
 #[test]
