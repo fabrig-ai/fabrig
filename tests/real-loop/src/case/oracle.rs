@@ -1913,7 +1913,7 @@ mod rules_tests {
     }
     #[test]
     fn the_wait_and_both_hold_reads_are_checked() {
-        let passing = met();
+        let mut passing = met();
         for (read, path, promise, what) in [
             (Read::RulesWaiting, "/chip/task", RULES_CONTROL, "wait in its run"),
             (Read::RulesWaiting, "/chip/details/owner/details/observation/work", RULES_CONTROL, "wait in its run"),
@@ -1925,19 +1925,23 @@ mod rules_tests {
             (Read::RulesQuestionWaiting, "/task/chip/phase", RULES_INBOX, "still-held"),
             (Read::RulesQuestionWaiting, "/task/hold/owner/revision", RULES_INBOX, "same hold"),
         ] {
-            let mut observed = passing.clone();
-            *observed.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field") = Value::Null;
-            rejects(&observed, promise, what);
+            let saved = passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field").take();
+            rejects(&passing, promise, what);
+            *passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field") = saved;
         }
     }
     #[test]
     fn the_waiting_question_has_its_recipient_sender_number_and_words() {
-        let passing = met();
+        let mut passing = met();
         for path in ["/task", "/line/words/message", "/line/words/by/task", "/line/words/kind", "/line/words/words"] {
-            let mut observed = passing.clone();
-            *observed.documents.get_mut(&Read::RulesQuestionWaiting).expect("question")["activity"]["rows"][0]
-                ["event"]["owner"]["source"].pointer_mut(path).expect("question field") = Value::Null;
-            rejects(&observed, RULES_INBOX, "numbered question");
+            let saved = passing.documents.get_mut(&Read::RulesQuestionWaiting).expect("question")["activity"]["rows"]
+                [0]["event"]["owner"]["source"]
+                .pointer_mut(path)
+                .expect("question field")
+                .take();
+            rejects(&passing, RULES_INBOX, "numbered question");
+            *passing.documents.get_mut(&Read::RulesQuestionWaiting).expect("question")["activity"]["rows"][0]
+                ["event"]["owner"]["source"].pointer_mut(path).expect("question field") = saved;
         }
     }
     #[test]
@@ -2069,12 +2073,12 @@ mod rules_tests {
     }
     #[test]
     fn both_original_tasks_must_end_with_their_reports() {
-        let passing = met();
+        let mut passing = met();
         for read in [Read::RulesEnded, Read::ScopeEnded] {
             for path in ["/task/chip/task", "/task/chip/phase", "/task/result/value/report/bytes"] {
-                let mut observed = passing.clone();
-                *observed.documents.get_mut(&read).expect("ended").pointer_mut(path).expect("field") = Value::Null;
-                rejects(&observed, RULES_CONTROL, "original director and A");
+                let saved = passing.documents.get_mut(&read).expect("ended").pointer_mut(path).expect("field").take();
+                rejects(&passing, RULES_CONTROL, "original director and A");
+                *passing.documents.get_mut(&read).expect("ended").pointer_mut(path).expect("field") = saved;
             }
         }
     }
@@ -2701,7 +2705,7 @@ mod pause_tests {
 
     #[test]
     fn every_required_document_field_rejects_a_mutation() {
-        let passing = met();
+        let mut passing = met();
         let required = [
             (Read::BHeld, "/task/chip/task"),
             (Read::BHeld, "/task/project"),
@@ -2743,9 +2747,9 @@ mod pause_tests {
             (Read::PauseEnded, "/task/chip/task"),
         ];
         for (read, path) in required {
-            let mut observed = passing.clone();
-            *observed.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = Value::Null;
-            assert!(!step_5_2(&observed).is_empty(), "{read:?}{path}");
+            let saved = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field").take();
+            assert!(!step_5_2(&passing).is_empty(), "{read:?}{path}");
+            *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = saved;
         }
         for read in [Read::ImplementerRunning, Read::H1Running] {
             for path in [
@@ -2757,9 +2761,9 @@ mod pause_tests {
                 "/task/chip/details/owner/details/attempt",
                 "/task/chip/details/owner/details/observation/work",
             ] {
-                let mut observed = passing.clone();
-                *observed.documents.get_mut(&read).expect("running").pointer_mut(path).expect("field") = Value::Null;
-                assert!(!step_5_2(&observed).is_empty(), "{read:?}{path}");
+                let saved = passing.documents.get_mut(&read).expect("running").pointer_mut(path).expect("field").take();
+                assert!(!step_5_2(&passing).is_empty(), "{read:?}{path}");
+                *passing.documents.get_mut(&read).expect("running").pointer_mut(path).expect("field") = saved;
             }
             let mut observed = passing.clone();
             observed.documents.get_mut(&read).expect("running")["task"]["result"] = json!({"done":{}});
@@ -4732,7 +4736,7 @@ mod direction_tests {
     }
     #[test]
     fn identities_and_reports_reject_a_mutation() {
-        let passing = met();
+        let mut passing = met();
         for (read, _, _) in [
             (Read::X3Open, X3, STORY_OWNER),
             (Read::X3Ended, X3, STORY_OWNER),
@@ -4746,16 +4750,16 @@ mod direction_tests {
             (Read::DirectionNoteWritten, STORY_OWNER, DIRECTION),
         ] {
             for path in ["/task/chip/task", "/task/project", "/task/requester/task"] {
-                let mut observed = passing.clone();
-                *observed.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field") = Value::Null;
-                assert!(!step_5_4(&observed).is_empty(), "{read:?}{path}");
+                let saved = passing.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field").take();
+                assert!(!step_5_4(&passing).is_empty(), "{read:?}{path}");
+                *passing.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field") = saved;
             }
         }
         for read in [Read::StoryOwnerEnded, Read::DirectionBEnded, Read::DirectionEnded] {
             for path in ["/task/chip/task", "/task/project", "/task/chip/phase", "/task/result/value/report/bytes"] {
-                let mut observed = passing.clone();
-                *observed.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field") = Value::Null;
-                assert!(!step_5_4(&observed).is_empty(), "{read:?}{path}");
+                let saved = passing.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field").take();
+                assert!(!step_5_4(&passing).is_empty(), "{read:?}{path}");
+                *passing.documents.get_mut(&read).expect("read").pointer_mut(path).expect("field") = saved;
             }
         }
     }
@@ -4962,7 +4966,7 @@ mod direction_tests {
 
     #[test]
     fn fresh_message_numbers_senders_and_amendment_revision_are_checked() {
-        let passing = met();
+        let mut passing = met();
         for (read, paths) in [
             (
                 Read::StoryOwnerFirst,
@@ -4992,9 +4996,9 @@ mod direction_tests {
             ),
         ] {
             for path in paths {
-                let mut observed = passing.clone();
-                *observed.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = Value::Null;
-                assert!(!step_5_4(&observed).is_empty(), "{read:?}{path}");
+                let saved = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field").take();
+                assert!(!step_5_4(&passing).is_empty(), "{read:?}{path}");
+                *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = saved;
             }
         }
     }
@@ -5483,15 +5487,16 @@ mod batch_tests {
     }
     #[test]
     fn every_required_document_field_rejects_a_mutation() {
-        let passing = met();
+        let mut passing = met();
         for (read, task, _) in batch_tasks() {
             for path in ["/task/chip/task", "/task/project", "/task/requester/task", "/task/chip/phase"] {
                 if task == BATCH_DIRECTOR && path == "/task/requester/task" {
                     continue;
                 }
-                let mut changed = passing.clone();
-                *changed.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field") = Value::Null;
-                rejects(&changed, BATCH_DEPENDENCIES);
+                let saved =
+                    passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field").take();
+                rejects(&passing, BATCH_DEPENDENCIES);
+                *passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field") = saved;
             }
         }
         for (read, path) in [
@@ -5501,9 +5506,9 @@ mod batch_tests {
             (Read::BatchSubownerEnded, "/task/authority/authority/delegation/depth"),
             (Read::BatchStoryEnded, "/task/dependency_facts"),
         ] {
-            let mut changed = passing.clone();
-            *changed.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field") = Value::Null;
-            rejects(&changed, BATCH_DEPENDENCIES);
+            let saved = passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field").take();
+            rejects(&passing, BATCH_DEPENDENCIES);
+            *passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field") = saved;
         }
     }
     #[test]
@@ -5593,7 +5598,7 @@ mod batch_tests {
     }
     #[test]
     fn each_parallel_run_read_requires_its_held_attempt() {
-        let passing = met();
+        let mut passing = met();
         for read in [
             Read::BatchOneWriting,
             Read::BatchTwoWriting,
@@ -5607,15 +5612,15 @@ mod batch_tests {
                 "/task/chip/details/owner/phase/active/running/attempt",
                 "/task/chip/details/owner/details/observation/work",
             ] {
-                let mut changed = passing.clone();
-                *changed.documents.get_mut(&read).expect("run").pointer_mut(path).expect("field") = Value::Null;
-                rejects(&changed, BATCH_PARALLEL);
+                let saved = passing.documents.get_mut(&read).expect("run").pointer_mut(path).expect("field").take();
+                rejects(&passing, BATCH_PARALLEL);
+                *passing.documents.get_mut(&read).expect("run").pointer_mut(path).expect("field") = saved;
             }
         }
     }
     #[test]
     fn a4_cannot_start_while_either_dependency_is_pending() {
-        let passing = met();
+        let mut passing = met();
         for read in [Read::BatchStoryWaiting, Read::BatchStoryAfterOne] {
             for path in [
                 "/task/chip/task",
@@ -5623,9 +5628,9 @@ mod batch_tests {
                 "/task/chip/details/owner/phase/waiting/dependencies",
                 "/activity/cut",
             ] {
-                let mut changed = passing.clone();
-                *changed.documents.get_mut(&read).expect("waiting").pointer_mut(path).expect("field") = Value::Null;
-                rejects(&changed, BATCH_PARALLEL);
+                let saved = passing.documents.get_mut(&read).expect("waiting").pointer_mut(path).expect("field").take();
+                rejects(&passing, BATCH_PARALLEL);
+                *passing.documents.get_mut(&read).expect("waiting").pointer_mut(path).expect("field") = saved;
             }
             let mut changed = passing.clone();
             changed.documents.get_mut(&read).expect("waiting")["activity"] =
@@ -6331,7 +6336,7 @@ mod blocker_tests {
 
     #[test]
     fn each_task_identity_and_ending_is_required() {
-        let passing = met();
+        let mut passing = met();
         for (read, _, parent) in blocker_tasks() {
             for path in [
                 "/task/chip/task",
@@ -6343,9 +6348,9 @@ mod blocker_tests {
                 if parent == 0 && path == "/task/requester/task" {
                     continue;
                 }
-                let mut changed = passing.clone();
-                *changed.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = Value::Null;
-                rejects(&changed, BLOCKER_DEPENDENCY);
+                let saved = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field").take();
+                rejects(&passing, BLOCKER_DEPENDENCY);
+                *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = saved;
             }
         }
         for (read, path) in [
@@ -6356,9 +6361,9 @@ mod blocker_tests {
             (Read::BlockerSubownerEnded, "/task/authority/authority/delegation/depth"),
             (Read::BlockerA3Ended, "/task/authority/authority/delegation/depth"),
         ] {
-            let mut changed = passing.clone();
-            *changed.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = Value::Null;
-            rejects(&changed, BLOCKER_DEPENDENCY);
+            let saved = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field").take();
+            rejects(&passing, BLOCKER_DEPENDENCY);
+            *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = saved;
         }
     }
     fn mutate_tool(observed: &mut Observed, id: &[u8], field: Option<&str>) {
@@ -6452,7 +6457,7 @@ mod blocker_tests {
     }
     #[test]
     fn live_amendment_and_its_visible_dependency_are_required() {
-        let passing = met();
+        let mut passing = met();
         for field in [Some("target"), Some("revision"), Some("amendment"), None] {
             let mut changed = passing.clone();
             mutate_tool(&mut changed, b"amend", field);
@@ -6466,9 +6471,9 @@ mod blocker_tests {
                 "/task/dependency_facts/0/added/at",
                 "/task/spec_revision/value",
             ] {
-                let mut changed = passing.clone();
-                *changed.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = Value::Null;
-                rejects(&changed, BLOCKER_DEPENDENCY);
+                let saved = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field").take();
+                rejects(&passing, BLOCKER_DEPENDENCY);
+                *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = saved;
             }
             let mut extra = passing.clone();
             extra.documents.get_mut(&read).expect("doc")["task"]["dependency_facts"]
@@ -7356,7 +7361,7 @@ mod budget_tests {
 
     #[test]
     fn each_task_identity_parent_project_and_ending_is_required() {
-        let passing = met();
+        let mut passing = met();
         for (read, _, parent) in budget_tasks() {
             let mut paths =
                 vec!["/task/chip/task", "/task/project", "/task/chip/phase", "/task/result/ending/task/done"];
@@ -7364,9 +7369,9 @@ mod budget_tests {
                 paths.push("/task/requester/task");
             }
             for path in paths {
-                let mut observed = passing.clone();
-                *observed.documents.get_mut(&read).expect("task").pointer_mut(path).expect("field") = Value::Null;
-                rejects(&observed, BUDGET_CHECKPOINT);
+                let saved = passing.documents.get_mut(&read).expect("task").pointer_mut(path).expect("field").take();
+                rejects(&passing, BUDGET_CHECKPOINT);
+                *passing.documents.get_mut(&read).expect("task").pointer_mut(path).expect("field") = saved;
             }
         }
         for (read, path) in [
@@ -7375,9 +7380,9 @@ mod budget_tests {
             (Read::BudgetSubownerEnded, "/task/authority/authority/deadline"),
             (Read::BudgetSubownerEnded, "/task/authority/authority/delegation/depth"),
         ] {
-            let mut observed = passing.clone();
-            *observed.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = Value::Null;
-            rejects(&observed, BUDGET_CHECKPOINT);
+            let saved = passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field").take();
+            rejects(&passing, BUDGET_CHECKPOINT);
+            *passing.documents.get_mut(&read).expect("doc").pointer_mut(path).expect("field") = saved;
         }
     }
 
@@ -7493,14 +7498,14 @@ mod budget_tests {
 
     #[test]
     fn medium_high_and_the_successful_amendment_revision_are_required() {
-        let passing = met();
+        let mut passing = met();
         for read in [Read::BudgetMedium, Read::BudgetHigh, Read::BudgetA5Ended] {
             for path in
                 ["/task/chip/task", "/task/llm/main/model", "/task/llm/main/effort", "/task/spec_revision/value"]
             {
-                let mut observed = passing.clone();
-                *observed.documents.get_mut(&read).expect("a5").pointer_mut(path).expect("field") = Value::Null;
-                rejects(&observed, BUDGET_EFFORT);
+                let saved = passing.documents.get_mut(&read).expect("a5").pointer_mut(path).expect("field").take();
+                rejects(&passing, BUDGET_EFFORT);
+                *passing.documents.get_mut(&read).expect("a5").pointer_mut(path).expect("field") = saved;
             }
         }
         for path in
@@ -7517,7 +7522,7 @@ mod budget_tests {
 
     #[test]
     fn the_next_run_must_follow_the_amendment_and_hear_the_reason_once() {
-        let passing = met();
+        let mut passing = met();
         for path in [
             "/task/chip/phase",
             "/activity/rows/1/event/owner/source/line/decided/revision",
@@ -7528,9 +7533,10 @@ mod budget_tests {
             "/activity/rows/2/event/owner/source/line/heard/kind/amendment/revision",
             "/activity/rows/2/event/owner/source/line/heard/words",
         ] {
-            let mut observed = passing.clone();
-            *observed.documents.get_mut(&Read::BudgetHigh).expect("a5").pointer_mut(path).expect("field") = Value::Null;
-            rejects(&observed, BUDGET_EFFORT);
+            let saved =
+                passing.documents.get_mut(&Read::BudgetHigh).expect("a5").pointer_mut(path).expect("field").take();
+            rejects(&passing, BUDGET_EFFORT);
+            *passing.documents.get_mut(&Read::BudgetHigh).expect("a5").pointer_mut(path).expect("field") = saved;
         }
         let mut observed = passing.clone();
         observed.told.remove(10);
