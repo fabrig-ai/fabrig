@@ -1,14 +1,18 @@
 //! GitHub stories share one forge and its authenticated git route (domain/testing.md, 2.4).
-use crate::{fixtures, forge, landing};
+use crate::{
+    Exit, Ran, argv,
+    calls::{D1, Step, browse, call, file, github_app, number, sign_in},
+    fixtures, forge, landing,
+};
 use serde_json::{Value, json};
-use skein_fake_forge_domain::{self as domain, api};
+use skein_fake_forge_domain::{self as domain, Observation, api};
 use skein_fake_forge_github::{
     self as layer,
     installations::{Kind, Reach},
 };
 use skein_fake_peers::forge::{Forge, Peer};
 use skein_lib::{Duration, List, Secret, Wall};
-use std::{cell::RefCell, collections::BTreeMap, net::SocketAddr, path::Path, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, fmt::Write as _, net::SocketAddr, path::Path, rc::Rc};
 use temper_github_app::APP;
 
 pub const INSTALLATION: u64 = 1;
@@ -416,4 +420,150 @@ pub(crate) fn make_app(peer: &mut Peer, clients: SocketAddr, path: &Path, fixtur
         assert_eq!(id, INSTALLATION, "stray precedes the person's accepted installation");
     }
     app
+}
+
+// Call positions in connect_adopt_and_ask_for_a_change.
+const INSTALL: usize = 5;
+const CHANGE: usize = 10;
+const CHAT: usize = 9;
+const CHAT_TASK: u64 = 1;
+const CHANGE_TASK: u64 = 2;
+
+/// Connect the App, adopt acme/app and ask a chat to deliver a change.
+#[must_use]
+pub fn connect_adopt_and_ask_for_a_change() -> Vec<Step> {
+    vec![
+        sign_in(D1),
+        call(D1, argv!["add-key", "1", file("fixture.key"), "--deployment", "--key", "github-llm"]),
+        call(D1, argv!["wait", "accounts", "--until", "usable"]),
+        call(
+            D1,
+            argv!["forge-connect", "1", "github-app", github_app(), file("github-app.pem"), "--key", "github-app"],
+        ),
+        call(D1, argv!["wait", "forges", "--until", "connected:1"]),
+        call(D1, argv!["forge-install", "1", "--key", "github-install"]),
+        browse(INSTALL),
+        call(D1, argv!["wait", "forges", "--until", "settled"]),
+        call(
+            D1,
+            argv![
+                "adopt",
+                "--project",
+                "1",
+                "--forge",
+                "1",
+                "--owner",
+                "acme",
+                "--name",
+                "app",
+                "--landing",
+                "main",
+                "--key",
+                "adopt-app"
+            ],
+        ),
+        call(D1, argv!["chat", "--project", "1", "--key", "github-land", "@forge_chat Update README"]),
+        call(D1, argv!["wait", "task", number(CHAT_TASK), "--until", "ended", "--json"]),
+        call(D1, argv!["task", number(CHANGE_TASK), "--json"]),
+    ]
+}
+
+/// Every client call succeeds and the installation visit confirms setup.
+pub fn check_connection(ran: &Ran) {
+    for (index, result) in ran.calls().iter().enumerate() {
+        assert_eq!(result.exit, Some(Exit::Code(0)), "call {index}: {result:?}");
+    }
+    let [visit] = ran.browsed() else { panic!("one installation visit") };
+    assert_eq!(visit.call, INSTALL);
+    assert_eq!(visit.hops, [302, 200]);
+    assert!(
+        skein_lib::bytes::find(&visit.body, b"temper has the installation; you may close this tab.").is_some(),
+        "the setup page says so"
+    );
+}
+
+/// Check the single landing and return its merge commit as hex.
+#[must_use]
+pub fn check_landing(ran: &Ran) -> String {
+    let seen = ran.github();
+    let opened: Vec<_> =
+        seen.pulls.iter().filter(|row| matches!(row, Observation::Opened { kind: api::Kind::Pull, .. })).collect();
+    let merged: Vec<_> = seen.pulls.iter().filter(|row| matches!(row, Observation::Merged { .. })).collect();
+    let [Observation::Opened { repository, number: pull, by: author, .. }] = opened.as_slice() else {
+        panic!("one opened pull: {opened:?}")
+    };
+    let [Observation::Merged { repository: merged_repository, number, base, head, commit, by }] = merged.as_slice()
+    else {
+        panic!("one merge: {merged:?}")
+    };
+    assert_eq!(repository.as_ref(), b"acme/app");
+    assert_eq!(merged_repository, repository);
+    assert_eq!(number, pull);
+    assert_eq!(base.as_ref(), b"main");
+    assert_eq!(*by, temper_github_app::APP.bot);
+    assert_eq!(author, by);
+    let branches: Vec<_> = seen.branches.iter().filter(|(name, _)| name.as_slice() != b"main").collect();
+    let [(_, branch)] = branches.as_slice() else { panic!("one pushed branch: {branches:?}") };
+    assert_eq!(*head, branch.head, "merge at the coder's pushed head");
+    let main = seen.branches.get(b"main".as_slice()).expect("main moved by merge");
+    assert_eq!(main.head, *commit);
+    assert_eq!(main.tree.get(b"README.md".as_slice()).expect("README"), &[landing::README, landing::EDIT].concat());
+    let task: Value = serde_json::from_slice(&ran.calls()[CHANGE].stdout).expect("change document");
+    assert_eq!(task["chip"]["task"], 2);
+    assert_eq!(task["chip"]["phase"], "ended");
+    let result = &task["result"]["value"]["change"];
+    assert_eq!(result["kind"], 1, "landed change");
+    assert_eq!(result["part"]["key"]["number"], *pull);
+    let mut hex = String::new();
+    for byte in domain::object_bytes(*commit) {
+        write!(hex, "{byte:02x}").expect("commit hex");
+    }
+    assert_eq!(result["words"]["bytes"], hex, "result names the merge commit");
+    hex
+}
+
+/// The chat receives the landed change result before reporting to the person.
+pub fn check_chat_heard_the_landing(ran: &Ran, hex: &str) {
+    let chat: Value = serde_json::from_slice(&ran.calls()[CHAT].stdout).expect("chat document");
+    assert_eq!(chat["task"]["result"]["value"]["report"]["bytes"], "The change landed.");
+    let told = format!("Result from task 2:\n{hex}");
+    let chat_queries: Vec<_> = ran
+        .llm()
+        .iter()
+        .filter_map(|seen| {
+            let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { return None };
+            query.system.windows(b"@forge_chat".len()).any(|word| word == b"@forge_chat").then_some(query)
+        })
+        .collect();
+    let received: Vec<_> = chat_queries
+        .iter()
+        .map(|query| {
+            query
+                .messages
+                .iter()
+                .flat_map(|message| message.parts.iter())
+                .filter_map(|part| match part {
+                    skein_fake_llm_domain::api::Part::Text { text }
+                    | skein_fake_llm_domain::api::Part::ToolOutput { output: text, .. } => {
+                        Some(String::from_utf8_lossy(text).into_owned())
+                    }
+                    skein_fake_llm_domain::api::Part::Opaque { .. }
+                    | skein_fake_llm_domain::api::Part::ToolCall { .. } => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .collect();
+    assert!(received.iter().any(|words| words.contains(&told)), "chat heard the landing before replying: {received:?}");
+}
+
+/// Landing scripts that delegate the change by its GitHub repository name.
+#[must_use]
+pub fn scripts(at: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Script]> {
+    let mut scripts = landing::scripts(at, u64::from(REPOSITORY), landing::README);
+    scripts[0].turns[0].lines = Box::new([skein_fake_llm_domain::api::Line::Call {
+        name: b"change".as_slice().into(),
+        arguments: br#"{"words":"@coding Fix","repository":"acme/app"}"#.as_slice().into(),
+    }]);
+    scripts
 }
