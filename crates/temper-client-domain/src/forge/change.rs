@@ -263,10 +263,26 @@ impl<'a> Change<'a> {
         let address = self.panel.pull().as_ref()?.address();
         if address.is_empty() { None } else { Some(address) }
     }
+    /// A landed change's CI is not read again: unknown there is a restart's
+    /// forgetting (domain/forge.md, 8.8), not CI still to come.
     #[must_use]
     pub fn ci(self) -> W {
         match self.panel.ci() {
-            w::Ci::Unknown => W::NotYet,
+            w::Ci::Unknown => match self.panel.step() {
+                w::Step::Landed(_) => W::NotRead,
+                w::Step::Producing
+                | w::Step::Opening
+                | w::Step::Recreating
+                | w::Step::Reopening
+                | w::Step::Checking
+                | w::Step::Gating
+                | w::Step::Queued(_)
+                | w::Step::First
+                | w::Step::Updating
+                | w::Step::Resolving
+                | w::Step::Repairing(_)
+                | w::Step::Landing => W::NotYet,
+            },
             w::Ci::Pending => W::Running,
             w::Ci::Passed => W::Passed,
             w::Ci::Failed => W::Failed,

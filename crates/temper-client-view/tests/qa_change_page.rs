@@ -620,7 +620,8 @@ mod tests {
     }
 
     // client/README.md 5.10: CI at its head is "Not yet", "Running", "Passed",
-    // "Failed"; with none, a last row "No other gate.".
+    // "Failed", and "Not read since the restart" on a landed change whose CI
+    // is unknown; with none, a last row "No other gate.".
     #[test]
     fn ci_states_and_no_other_gate_are_whole_rows() {
         for (ci, verdict) in [
@@ -637,6 +638,12 @@ mod tests {
             assert_eq!(rows.first().expect("CI row"), &format!("CI at its head{verdict}"), "CI at exact head");
             assert_eq!(rows.last().expect("last row"), "No other gate.", "no invented landing rules");
         }
+        let mut parts =
+            panel_parts(w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()));
+        parts.ci = w::Ci::Unknown;
+        let (root, _) = show(parts);
+        let rows = gate_rows(&view(&root));
+        assert_eq!(rows.first().expect("CI row"), "CI at its headNot read since the restart", "a landed change's CI");
     }
 
     // client/README.md 5.10: each gate, "in the supplied order", names its

@@ -307,6 +307,15 @@ fn ci_gates_and_bounds_draw_the_supplied_words_in_order() {
         assert_eq!(f::node_text(&tree, rows[0]).as_ref(), joined(&[b"CI at its head", state.as_bytes()]).as_ref());
         assert_eq!(f::node_text(&tree, rows[1]).as_ref(), b"No other gate.");
     }
+    // A landed change's unknown CI is a restart's forgetting, not CI to come.
+    for (ci, state) in [(w::Ci::Unknown, "Not read since the restart"), (w::Ci::Passed, "Passed")] {
+        let mut parts =
+            parts(w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()));
+        parts.ci = ci;
+        let tree = draw(parts);
+        let rows = styled(&tree, look::GATE);
+        assert_eq!(f::node_text(&tree, rows[0]).as_ref(), joined(&[b"CI at its head", state.as_bytes()]).as_ref());
+    }
     let mut parts = parts(w::Step::Gating);
     parts.gates = List::with_capacity(24);
     let mut expected = List::with_capacity(24);

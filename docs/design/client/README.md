@@ -2676,7 +2676,9 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   11). Every procedure's task reads them, its panel shown or not.
 - **Gates at its head:** a region of rows, each a name and its state.
   First "CI at its head": "Not yet" while CI is unknown, "Running"
-  while pending, "Passed", "Failed". Then each gate, in the supplied
+  while pending, "Passed", "Failed". On a landed change, unknown CI is
+  "Not read since the restart": the panel forgets CI at a restart, and
+  a landed change's is not read again (`forge.md`, 8.8). Then each gate, in the supplied
   order: "Gate N · review", "· approval" or "· check", then "·
   blocking" or "· advisory", and its verdict: "Not yet" with none,
   "Waiting" pending, "Approved", "Changes asked". With no gate, a last

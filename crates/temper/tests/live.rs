@@ -28,6 +28,13 @@ fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
     scratch.remove();
 }
 
+/// CI on temper's change page: passed at the landing; after the restart, which
+/// forgets it, not read again on the landed change (domain/forge.md, 8.8).
+fn ci_shown(page: &str, first: bool) {
+    let ci = if first { "Passed" } else { "Not read since the restart" };
+    assert!(page.contains(&format!("CI at its head\n{ci}")), "CI on temper's change page: {page}");
+}
+
 /// domain/testing.md, 2.7: init's shipped chat chooses change on real Responses.
 #[test]
 #[ignore = "live: a person's sitting, run by scripts/proof-live.sh forge-land"]
@@ -95,8 +102,8 @@ fn a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge() {
             let identity = forge_land::landed_identity(&evidence.task, &evidence.page);
             assert!(identity.0.contains(&evidence.forge.merge), "temper reads the forge's merge hash");
             assert!(identity.1.starts_with(&format!("PR #{} ·", evidence.forge.number)), "temper reads the same pull");
+            ci_shown(&evidence.page, first);
             if first {
-                assert!(evidence.page.contains("CI at its head\nPassed"), "CI passed on temper's change page");
                 previous = Some(evidence);
             } else {
                 let before = previous.as_ref().expect("first landing");

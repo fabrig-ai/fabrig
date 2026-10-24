@@ -333,7 +333,7 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
     if run == "first" {
         assert!(page.contains("CI at its head\nPassed"), "{run}: starter CI must pass at the pull's head: {page}");
     } else {
-        // A restart forgets CI at the head until the change's next step (domain/forge.md, 8.8).
-        assert!(page.contains("CI at its head\nNot yet"), "{run}: a restart forgets CI: {page}");
+        // A restart forgets CI at the head, and a landed change's is not read again (domain/forge.md, 8.8).
+        assert!(page.contains("CI at its head\nNot read since the restart"), "{run}: a restart forgets CI: {page}");
     }
 }

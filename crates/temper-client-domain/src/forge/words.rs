@@ -586,6 +586,7 @@ pub enum ChangeWord {
     Gates,
     Ci,
     NotYet,
+    NotRead,
     Running,
     Passed,
     Failed,
@@ -605,7 +606,7 @@ pub enum ChangeWord {
     Separator,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 86] = [
+pub const CHANGES: [ChangeRow; 87] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -692,6 +693,7 @@ pub const CHANGES: [ChangeRow; 86] = [
     (ChangeWord::Resolutions, &[b"resolutions ", b" of ", b""], &[Number, Number]),
     (ChangeWord::Updates, &[b"updates ", b" of ", b""], &[Number, Number]),
     (ChangeWord::Separator, &[b" \xc2\xb7 "], &[]),
+    (ChangeWord::NotRead, &[b"Not read since the restart"], &[]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -793,6 +795,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::Gates
         | ChangeWord::Ci
         | ChangeWord::NotYet
+        | ChangeWord::NotRead
         | ChangeWord::Running
         | ChangeWord::Passed
         | ChangeWord::Failed
