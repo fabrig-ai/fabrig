@@ -73,10 +73,14 @@ document.querySelector('#authorize').href = url;
     let see = |name: &[u8]| {
         Step::Person(PersonStep::See { find: Find::exactly_named(Role::Heading { level: 1 }, name), within: WITHIN })
     };
+    // The heading precedes the startup facts. The welcome decision's link
+    // appears only after those facts arrive, including after Back reloads it.
+    let welcome =
+        || Step::Person(PersonStep::See { find: Find::exactly_named(Role::Link, b"Set up temper"), within: WITHIN });
     let mut person = Authorization {
         tier: &tier,
         before: Script::new(Box::new([
-            see(b"Welcome to temper"),
+            welcome(),
             Step::Visit { origin: 0, path: b"/".as_slice().into() },
             see(b"Test forge"),
         ])),
@@ -87,7 +91,7 @@ document.querySelector('#authorize').href = url;
             // out jig's 30 s close deadline (jig's profile/small.rs): without this
             // step the story takes 31 s rather than 1.5 s.
             Step::Back,
-            see(b"Welcome to temper"),
+            welcome(),
             Step::StopServer,
             Step::StartServer,
             // Exercise the strict cookie from the other site after the restart.
