@@ -1943,8 +1943,8 @@ section 2).
     are read (8.6), and a fresh mark closes the live windows (10.2,
     step 4). A pending fresh mark requires a full upgrade, with workers
     stopped and every live attempt ended before the switch even when
-    their wires match (temper's `draft/upgrades.md`, section 9). Its
-    stop implementation is still owed in upgrades mission 4, M2;
+    their wires match (temper's `draft/upgrades.md`, section 9). The
+    application's stop must enforce this before switching;
   - pieces held by a frame's turn (smith's `Found.hits`, `pieces Hit`)
     are copied, not opened, so a smith patch that changes `Hit` is
     refused `Pieces` until they open (skein's `codec.md`, 11.3 and
