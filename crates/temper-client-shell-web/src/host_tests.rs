@@ -475,7 +475,7 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
                 names: &[temper_client_view::look::NAMES],
                 pictures: &[],
                 components: &[],
-                elements: &[],
+                elements: temper_client_view::look::ELEMENTS,
                 draw: |_, _, _, _, _| false,
             },
             &host.bounds.tree,

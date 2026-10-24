@@ -115,7 +115,13 @@ fn built(sample: &Sample) -> (temper_client_view::View, temper_client_view::Limi
 pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     let (mut view, bounds, collected) = built(sample);
     let mut page = Page::new(
-        Look { names: &[temper_client_view::look::NAMES], pictures: &[], components: &[], elements: &[], draw },
+        Look {
+            names: &[temper_client_view::look::NAMES],
+            pictures: &[],
+            components: &[],
+            elements: temper_client_view::look::ELEMENTS,
+            draw,
+        },
         &bounds.tree,
         b"temper",
         Primary::Control,

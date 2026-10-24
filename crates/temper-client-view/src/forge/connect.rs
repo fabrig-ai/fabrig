@@ -36,7 +36,16 @@ pub(crate) fn text(b: &mut Builder, w: &Words, role: Role, word: Word) {
     crate::cards::text(b, role, &w.say(word, &[]));
 }
 pub(crate) fn link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address: Address) {
-    flow::control(b, Control::Link { name: &w.say(word, &[]), to: bindings.insert(Act::Go { address }) });
+    let name = w.say(word, &[]);
+    let to = bindings.insert(Act::Go { address });
+    let action = if word == Word::ConnectForge {
+        Control::PrimaryLink { name: &name, to }
+    } else if word == Word::AddForge || word == Word::ForgeConnectApp {
+        Control::SecondaryLink { name: &name, to }
+    } else {
+        Control::Link { name: &name, to }
+    };
+    flow::control(b, action);
 }
 pub(crate) fn name(w: &Words, row: &Row, root: &Domain) -> Box<[u8]> {
     w.say(
@@ -183,7 +192,7 @@ pub(crate) fn welcome(
 }
 fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, place: Place) {
     b.open(Role::Slot);
-    b.style(look::WELCOME_CHOICES);
+    b.style(look::FLOW_CHOICES);
     for choice in &connect::choices(root.forges(), root.forge().demo()) {
         if let Choice::Forge(number) = *choice
             && let Some(row) = connect::row(number, root.forges(), root.forge().demo())
@@ -221,13 +230,20 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
             }
         };
         if heading == Word::ForgeGitHub {
-            flow::card(b, &w.say(heading, &[]));
+            flow::choice_card(b, &w.say(heading, &[]));
             text(b, w, Role::Paragraph, words);
-            text(b, w, Role::Paragraph, note);
+            b.open(Role::Paragraph);
+            b.style(look::FLOW_MUTED);
+            b.name(&w.say(note, &[]));
+            w.text(b, note, &[]);
+            b.close();
+            b.open(Role::Slot);
+            b.style(look::FLOW_ACTIONS);
             if let Choice::Forge(number) = *choice {
                 app_control(b, root, w, forge, number, Word::ForgeConnectGitHub, Some(place.address(Some(*choice))));
             }
             link(b, w, bindings, Word::ForgeUseApp, place.address(Some(*choice)));
+            b.close();
             b.close();
             continue;
         }
@@ -236,7 +252,7 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
             &w.say(heading, &[]),
             &w.say(words, &[]),
             &w.say(note, &[]),
-            Control::Link {
+            Control::SecondaryLink {
                 name: &w.say(action, &[]),
                 to: bindings.insert(Act::Go { address: place.address(Some(*choice)) }),
             },
@@ -245,7 +261,7 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
     b.close();
 }
 fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
-    flow::card(b, &w.say(Word::ForgeAppTitle, &[]));
+    flow::details(b, &w.say(Word::ForgeAppTitle, &[]));
     text(b, w, Role::Paragraph, Word::ForgeAppDescription);
     crate::cards::text(b, Role::Paragraph, &w.say(Word::ForgeSetupUrl, &[Hole::Number(u64::from(row.number))]));
     if w.shell == crate::words::Shell::Terminal {
@@ -257,6 +273,7 @@ fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBinding
             (true, Word::ForgePrivateKey, Meaning::AppKey, !draft.has_key() && !draft.too_long),
         ] {
             b.open(Role::Slot);
+            b.style(look::FLOW_FIELD);
             b.open(Role::TextField);
             b.name(&w.say(word, &[]));
             b.bind(bindings.insert(meaning));
@@ -297,8 +314,8 @@ pub(crate) fn app_control(
     word: Word,
     back: Option<Address>,
 ) {
-    // Forges' install/maintenance controls stay secondary, as in its mockup.
-    let primary = back != Some(Address::Forges) && word != Word::ForgeInstallAnother;
+    // The first installation is primary on Forges too; another account is maintenance.
+    let primary = word != Word::ForgeInstallAnother;
     let pending = root.forge().app();
     let busy = match pending {
         Some(pending) => pending.answer.is_none(),
@@ -342,16 +359,14 @@ pub(crate) fn app_control(
             b.name(&name);
             b.text(Run::Plain, &name);
             b.external(address);
-            if primary {
-                b.style(look::FLOW_PRIMARY);
-            }
+            b.style(if primary { look::FLOW_PRIMARY } else { look::FLOW_SECONDARY });
             b.close();
         }
     }
 }
 fn here(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
     let terminal = row.offer == Offer::NotUnderTheBox;
-    flow::card(b, &w.say(if terminal { Word::ForgeTerminal } else { Word::ForgeHere }, &[]));
+    flow::details(b, &w.say(if terminal { Word::ForgeTerminal } else { Word::ForgeHere }, &[]));
     if terminal {
         text(b, w, Role::Paragraph, Word::ForgeTerminalDetails);
         let commands = forge::words::set_up_commands(row.number);
@@ -374,8 +389,12 @@ fn here(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings,
     } else {
         text(b, w, Role::Paragraph, Word::ForgeHereDetails);
         setup_fields(b, root, w, bindings, row.number);
-        text(b, w, Role::Paragraph, Word::ForgeIsolation);
-        text(b, w, Role::Paragraph, Word::ForgeStorage);
+        b.open(Role::List);
+        b.style(look::FLOW_FACTS);
+        for note in [Word::ForgeIsolation, Word::ForgeStorage] {
+            text(b, w, Role::Item, note);
+        }
+        b.close();
         setup_control(b, root, w, bindings, row.number, Word::ForgeSetUp);
     }
     b.close();
@@ -387,7 +406,7 @@ fn code(b: &mut Builder, words: &[u8]) {
     b.close();
 }
 fn elsewhere(b: &mut Builder, root: &Domain, w: &Words) {
-    flow::card(b, &w.say(Word::ForgeElsewhere, &[]));
+    flow::details(b, &w.say(Word::ForgeElsewhere, &[]));
     text(b, w, Role::Paragraph, Word::ForgeElsewhereDetails);
     let number = u64::from(connect::next_number(root.forges()));
     for (word, snippet) in [
@@ -579,7 +598,7 @@ pub(crate) fn setting_up(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
     }
     if row.kind == Kind::GitHub {
         if forge::forges::slug(row).is_some() {
-            flow::card(b, &w.say(Word::ForgeInstallTitle, &[]));
+            flow::details(b, &w.say(Word::ForgeInstallTitle, &[]));
             if row.app == Some(forge::forges::AppWay::Manifest) {
                 let slug = forge::forges::slug(row).expect("connected App slug");
                 crate::cards::text(
@@ -592,7 +611,7 @@ pub(crate) fn setting_up(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
             }
             app_control(b, root, w, bindings, row.number, Word::ForgeInstall, Some(root.pages().address().clone()));
         } else {
-            flow::card(b, &w.say(Word::ForgeConnecting, &[]));
+            flow::details(b, &w.say(Word::ForgeConnecting, &[]));
             text(b, w, Role::Paragraph, Word::ForgeLeave);
         }
         if let Some(line) = forge::words::last_connect(row) {
@@ -601,7 +620,7 @@ pub(crate) fn setting_up(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
         b.close();
         return;
     }
-    flow::card(b, &w.say(Word::ForgeSettingUpTitle, &[]));
+    flow::details(b, &w.say(Word::ForgeSettingUpTitle, &[]));
     first_line(b, root, w, row);
     progress_in(b, Some(root), w, row);
     if connect::failed(row) {
@@ -626,12 +645,8 @@ pub(crate) fn ready_card(
     if let Some(first) = &row.first {
         let repository = forge::words::full_name(&first.org, &first.repository);
         let project = project_name(root, w, &first.project);
-        flow::card(b, &w.say(Word::SetupReady, &[Hole::Name(repository)]));
-        crate::cards::text(
-            b,
-            Role::Paragraph,
-            &w.say(Word::SetupIn, &[Hole::Name(project.clone()), Hole::Name(name(w, row, root))]),
-        );
+        flow::details(b, &w.say(Word::SetupReady, &[Hole::Name(repository)]));
+        flow::subtitle(b, &w.say(Word::SetupIn, &[Hole::Name(project.clone()), Hole::Name(name(w, row, root))]));
         progress_in(b, Some(root), w, row);
         let pending = match root.forge().set_up() {
             Some(last) if last.forge == row.number => match &last.adoption {
@@ -678,7 +693,7 @@ pub(crate) fn ready_card(
             github_adopted(b, root, w, bindings, row);
         }
     } else {
-        flow::card(b, &w.say(Word::ForgeConnectedTitle, &[Hole::Name(name(w, row, root))]));
+        flow::details(b, &w.say(Word::ForgeConnectedTitle, &[Hole::Name(name(w, row, root))]));
         if let Connection::Connected { login, .. } = &row.connection {
             crate::cards::text(b, Role::Paragraph, &w.say(Word::ForgeConnectedAs, &[Hole::Name(copy_of(login))]));
         }
@@ -857,7 +872,10 @@ fn setup_fields(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeB
         setup_field(b, root, w, bindings, field, word, number);
     }
     b.close();
+    b.open(Role::Slot);
+    b.style(look::FLOW_PAIR);
     setup_field(b, root, w, bindings, SetupField::Project, Word::SetupNew, number);
+    b.close();
 }
 fn setup_field(
     b: &mut Builder,
@@ -876,6 +894,7 @@ fn setup_field(
         Some(_) | None => false,
     };
     b.open(Role::Slot);
+    b.style(look::FLOW_FIELD);
     b.open(Role::TextField);
     b.name(&w.say(word, &[]));
     b.value(draft.text(field), draft.written(field));
@@ -926,9 +945,8 @@ pub(crate) fn first_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
             Some(_) | None => return,
         },
     };
-    crate::cards::text(
+    flow::subtitle(
         b,
-        Role::Paragraph,
         &w.say(
             Word::SetupInto,
             &[Hole::Name(forge::words::full_name(org, repository)), Hole::Name(project_name(root, w, project))],
@@ -967,15 +985,29 @@ fn picker_control(
     act: forge::picker::Act,
     disabled: bool,
 ) {
+    let primary = match act {
+        forge::picker::Act::Adopt => true,
+        forge::picker::Act::Account(_)
+        | forge::picker::Act::Choose(_)
+        | forge::picker::Act::Page(_)
+        | forge::picker::Act::Write(_) => false,
+    };
     if disabled {
-        flow::control(b, Control::Disabled { name: label });
+        flow::control(
+            b,
+            if primary { Control::PrimaryDisabled { name: label } } else { Control::Disabled { name: label } },
+        );
     } else {
-        flow::control(b, Control::Button { name: label, to: forge.insert(Meaning::Picker { forge: number, act }) });
+        let to = forge.insert(Meaning::Picker { forge: number, act });
+        flow::control(
+            b,
+            if primary { Control::PrimaryButton { name: label, to } } else { Control::Button { name: label, to } },
+        );
     }
 }
 fn github_picker(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBindings, row: &Row) {
     use forge::picker::Act;
-    flow::card(b, &w.say(Word::GitHubPicker, &[]));
+    flow::details(b, &w.say(Word::GitHubPicker, &[]));
     let picker = root.forge().picker(row.number);
     let installation = match picker {
         Some(picker) => forge::picker::installation(&row.installations, Some(picker.installation)),
@@ -1048,7 +1080,7 @@ fn github_picker(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBin
     }
     let label = w.say(Word::GitHubNotListed, &[]);
     if disabled {
-        flow::control(b, Control::Disabled { name: &label });
+        flow::control(b, Control::QuietDisabled { name: &label });
     } else {
         flow::control(
             b,
@@ -1153,8 +1185,8 @@ fn github_adopted(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
     let Some(adopted) = row.repositories.first() else { return };
     let repository = forge::words::full_name(&adopted.owner, &adopted.name);
     let project = project_name(root, w, &SetUpProject::Existing(adopted.project));
-    flow::card(b, &w.say(Word::SetupReady, &[Hole::Name(repository)]));
-    crate::cards::text(b, Role::Paragraph, &w.say(Word::GitHubInProject, &[Hole::Name(project.clone())]));
+    flow::details(b, &w.say(Word::SetupReady, &[Hole::Name(repository)]));
+    flow::subtitle(b, &w.say(Word::GitHubInProject, &[Hole::Name(project.clone())]));
     if let Some(picker) = root.forge().picker(row.number)
         && let Some(adoption) = &picker.adoption
         && adoption.value.project == adopted.project
@@ -1189,7 +1221,7 @@ fn github_adopted(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
     }
     flow::control(
         b,
-        Control::Link {
+        Control::PrimaryLink {
             name: &w.say(Word::SetupOpen, &[Hole::Name(project)]),
             to: bindings.insert(Act::OpenProject { project: adopted.project }),
         },
@@ -1197,6 +1229,7 @@ fn github_adopted(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
     if let Some(web) = &row.web {
         let address = github_repository_address(web, &adopted.owner, &adopted.name);
         b.open(Role::Link);
+        b.style(look::FLOW_QUIET);
         b.name(&w.say(Word::GitHubOpen, &[]));
         b.external(&address);
         b.close();
@@ -1239,13 +1272,14 @@ fn github_repository_address(web: &[u8], owner: &[u8], name: &[u8]) -> Box<[u8]>
 }
 
 fn failure(b: &mut Builder, w: &Words, row: &Row) {
+    b.open(Role::Alert);
+    b.style(look::FLOW_FAILED);
     let word = match connect::failed_step(row) {
         Some(connect::FailedStep::Repository) => {
-            crate::cards::text(
-                b,
-                Role::Alert,
-                &forge::words::first_repository(row.first.as_ref().expect("failed first repository")),
-            );
+            let words = forge::words::first_repository(row.first.as_ref().expect("failed first repository"));
+            b.name(&words);
+            b.text(Run::Plain, &words);
+            b.close();
             return;
         }
         Some(connect::FailedStep::Fetch) => Word::ForgeFetchFailed,
@@ -1261,9 +1295,15 @@ fn failure(b: &mut Builder, w: &Words, row: &Row) {
         | Connection::SettingUp { .. }
         | Connection::Connecting
         | Connection::Connected { .. }
-        | Connection::Stopped { .. } => return,
+        | Connection::Stopped { .. } => {
+            b.close();
+            return;
+        }
     };
-    crate::cards::text(b, Role::Alert, &w.say(word, &[Hole::Name(why)]));
+    let words = w.say(word, &[Hole::Name(why)]);
+    b.name(&words);
+    b.text(Run::Plain, &words);
+    b.close();
 }
 
 fn admin_host(w: &Words, row: &Row) -> Box<[u8]> {
@@ -1308,7 +1348,14 @@ fn admin_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Forge
     } else if draft.checked && !draft.has_token() {
         text(b, w, Role::Alert, Word::SetupRequired);
     }
-    text(b, w, Role::Heading { level: 3 }, Word::AdminFirst);
+    b.open(Role::Region);
+    b.style(look::ADMIN_FIRST);
+    b.name(&w.say(Word::AdminFirst, &[]));
+    b.open(Role::Heading { level: 3 });
+    b.style(look::ADMIN_LEGEND);
+    b.name(&w.say(Word::AdminFirst, &[]));
+    w.text(b, Word::AdminFirst, &[]);
+    b.close();
     let named_bot = if let Some(pending) = root.forge().admin()
         && pending.forge == row.number
         && pending.answer
@@ -1341,6 +1388,7 @@ fn admin_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Forge
         }
     }
     text(b, w, Role::Paragraph, Word::AdminLabelHint);
+    b.close();
     flow::control(
         b,
         Control::PrimaryButton {

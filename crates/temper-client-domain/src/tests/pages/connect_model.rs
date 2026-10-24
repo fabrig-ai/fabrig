@@ -126,10 +126,9 @@ fn the_model_draft_is_kept_between_steps_and_dropped_on_leaving() {
     let (mut root, _, _) = root(way);
     act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });
     key(&mut root, b"private-draft");
-    for address in [
-        Address::ConnectModel { way: None },
-        Address::Welcome { step: Step::Model { way: Some(connect_model::model_way(way)) } },
-    ] {
+    for address in
+        [Address::ConnectModel { way: None }, Address::ConnectModel { way: Some(connect_model::model_way(way)) }]
+    {
         event(&mut root, Event::Went { place: crate::Place::Address(address) });
         let page = root.pages().connect_model().unwrap();
         assert!(page.request.has_key());
@@ -329,4 +328,18 @@ fn a_reloaded_retirement_excludes_the_demo_way_and_its_submit() {
     assert_eq!(connect_model::way(root.pages(), root.client()), None);
     key(&mut root, b"fake-demo-key");
     assert!(sends(act(&mut root, Act::Submit { name: NAME })).is_empty());
+}
+
+#[test]
+fn entering_welcome_discards_the_hidden_deployment_holder_and_key() {
+    let (mut root, _, _) = root(Way::Key { provider: PROVIDER });
+    act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });
+    key(&mut root, b"private-draft");
+    event(
+        &mut root,
+        Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
+    );
+    let page = root.pages().connect_model().unwrap();
+    assert_eq!(page.holder, c::AccountHolder::Own);
+    assert!(!page.request.has_key());
 }

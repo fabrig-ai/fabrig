@@ -54,10 +54,12 @@ fn only_primary_controls_carry_primary_style() {
     b.open(Role::Slot);
     flow::control(&mut b, Control::Disabled { name: b"Later" });
     flow::control(&mut b, Control::PrimaryDisabled { name: b"Connect" });
+    flow::control(&mut b, Control::QuietDisabled { name: b"All ways" });
     b.close();
     let tree = b.finish();
     let nodes: Vec<_> = tree.nodes().iter().filter(|node| node.role == Role::Button).collect();
-    assert!(!nodes[0].styles.as_slice().contains(&crate::look::FLOW_PRIMARY));
+    assert!(nodes[0].styles.as_slice().contains(&crate::look::FLOW_SECONDARY));
     assert!(nodes[1].styles.as_slice().contains(&crate::look::FLOW_PRIMARY));
+    assert!(nodes[2].styles.as_slice().contains(&crate::look::FLOW_QUIET));
     assert!(nodes.iter().all(|node| node.states.as_slice().contains(&State::Disabled)));
 }

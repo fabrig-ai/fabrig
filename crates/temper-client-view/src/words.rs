@@ -35,6 +35,15 @@ pub enum Word {
     GitHubReadNoAccess,
     GitHubReadNotFound,
     GitHubReadReload,
+    ModelKeyDescription,
+    ModelKeyField,
+    ModelAddKey,
+    ModelSigningIn,
+    ModelOnAccounts,
+    ModelProgramTitle,
+    ModelProgramDescription,
+    ModelProgramName,
+
     GitHubUnknown,
     GitHubPicker,
     GitHubInstalled,
@@ -635,9 +644,10 @@ pub enum Word {
 // Ready's refused read and exhausted busy rereads add three phrases.
 // A task document's reading line and seven lasting read ends (client/README.md, 3.5).
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
-const PHRASES: u32 = 1141;
-const SEGMENTS: u32 = 1998;
-const ALL: [Word; 573] = [
+// M1's Model details add eight phrases and sixteen segments.
+const PHRASES: u32 = 1149;
+const SEGMENTS: u32 = 2014;
+const ALL: [Word; 581] = [
     Word::NoProjectYet,
     Word::AdminTitle,
     Word::AdminDescription,
@@ -662,6 +672,14 @@ const ALL: [Word; 573] = [
     Word::GitHubReadNoAccess,
     Word::GitHubReadNotFound,
     Word::GitHubReadReload,
+    Word::ModelKeyDescription,
+    Word::ModelKeyField,
+    Word::ModelAddKey,
+    Word::ModelSigningIn,
+    Word::ModelOnAccounts,
+    Word::ModelProgramTitle,
+    Word::ModelProgramDescription,
+    Word::ModelProgramName,
     Word::GitHubUnknown,
     Word::GitHubPicker,
     Word::GitHubInstalled,
@@ -1217,6 +1235,15 @@ impl Word {
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
             Self::NoProjectYet => 1949,
+            Self::ModelKeyDescription => 2100,
+            Self::ModelKeyField => 2101,
+            Self::ModelAddKey => 2102,
+            Self::ModelSigningIn => 2105,
+            Self::ModelOnAccounts => 2106,
+            Self::ModelProgramTitle => 2107,
+            Self::ModelProgramDescription => 2108,
+            Self::ModelProgramName => 2109,
+
             Self::YourForgesTitle => 1819,
             Self::YourForges => 1800,
             Self::ForgesDescription => 1801,
@@ -2057,6 +2084,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
     use HoleKind::{Name, Number};
     match word {
         Word::NoProjectYet => (&[b"No project yet"], &[]),
+        Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
+        Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),
+        Word::ModelAddKey => (&[b"Add key"], &[]),
+        Word::ModelSigningIn => (&[b"Signing in to ", b""], &[Name]),
+        Word::ModelProgramTitle => (&[b"Your ", b" subscription"], &[Name]),
+        Word::ModelProgramDescription => (&[b"temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there:"], &[]),
+        Word::ModelProgramName => (&[b"Name"], &[]),
+        Word::ModelOnAccounts => (&[b"", b" is on the "], &[Name]),
+
         Word::YourForgesTitle => (&[b"Your forges"], &[]),
         Word::YourForges => (&[b"Your forges ", b""], &[Number]),
         Word::ForgesDescription => (&[b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper."], &[]),

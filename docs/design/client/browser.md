@@ -374,11 +374,35 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   9 px card corners; its opening introduction keeps its larger heading.
   Standalone connection cards use 5 px corners. The
   current step takes the accent. The view assigns `FLOW_PRIMARY` to
-  filled terracotta acts and `FLOW_PAIR` to the organization/repository
-  row, stacked below 600 px. Progress draws ✓, ●, ✕ and ○ for done,
+  filled terracotta acts, `FLOW_SECONDARY` to neutral small buttons and
+  `FLOW_QUIET` to quiet terracotta links. Forge choices use three equal
+  columns and model choices two, stacking below 760 px. Choice cards keep
+  small headings, ink body text, muted metadata and bottom-aligned acts;
+  details share their padding. `FLOW_PAIR` groups organization/repository
+  and the half-width project field, stacking below 760 px. Setup field
+  labels are small and muted, and setup notes are a muted bulleted list.
+  Setup and Ready repository subtitles are muted and tight beneath their
+  headings. Model key and program Details descriptions are muted. Model
+  Ready uses its own definition list: 11 px labels, right-aligned 600-weight
+  muted values, 6 px row padding and hairline separators. Its action row
+  wraps with an 8 px gap, retaining Continue with ChatGPT (README, 5.5).
+  Those list and action styles do not select Accounts or Forges rows.
+  The welcome's phone gutter is 16 px. Progress draws ✓, ●, ✕ and ○ for done,
   current, failed and pending; status words remain accessible in the DOM,
   visually hidden. Back, Later and the playground alternative are quiet
-  underlined text controls.
+  text controls without underlines; Back and Later stay together on the
+  left, with only the playground alternative at the right. Back and Later
+  are bold terracotta, and the playground alternative is plain ink. Each
+  keeps a focus ring.
+  The configured elsewhere admin's first-repository fields sit in an
+  outlined fieldset with "Your first repository" as its legend. The view's
+  named Region and heading map to fieldset and legend through `look::ELEMENTS`,
+  shared by the browser and gallery. Claude's program Details uses the same
+  small neutral act and its existing program-name input, labeled "Name".
+  The welcome's Model ways sit directly under its lead, without the
+  standalone page's holder choice or outer Choose card. Inside a way,
+  its single Back returns to Model Choose. The API key details keep the
+  full-width card with contents limited to 420 px; failure reasons in flow details are red.
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
   `temper.css`, whose variables and rules it builds on: what the task
   pages add to the look, as `task.html` draws it in the terminal
@@ -921,7 +945,23 @@ view draws, never changing a view to suit a sample.
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
 | `welcome-forge-choose` | the welcome's Forge choices, before any forge is connected |
 | `welcome-forge-details` | the welcome's Forgejo Details, with organization and repository paired |
+| `github-app-details` | GitHub's own-App form, with masked key input |
+| `github-install` | GitHub's connected App, installed nowhere yet |
+| `github-picker` | the installation's reached repositories, ready to adopt |
+| `github-adopted` | the adopted GitHub repository and its primary Open act |
 | `welcome-model-choose` | the welcome's Model choices, with ChatGPT sign-in and an API key |
+| `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
+| `welcome-model-signing-in` | signing in to ChatGPT inside the welcome |
+| `welcome-model-signin-ready` | ChatGPT Ready with the account's address and Accounts-page line |
+| `welcome-model-declined`, `welcome-model-renewed`, `welcome-model-refused` | the other sign-in endings inside the welcome |
+| `welcome-paste-waiting`, `welcome-paste-written` | the elsewhere entry, with an empty or supplied secret address |
+| `welcome-paste-too-long`, `welcome-paste-address`, `welcome-paste-state` | the length and address refusals, ready for a fresh paste |
+| `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
+| `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
+| `welcome-paste-lost`, `welcome-paste-unsent` | the address cleared after a lost or unsent finish request |
+| `forge-setup-failed` | the failed setup's reason and neutral retry act |
+| `forges-github-install` | GitHub's Forges row before installation, with its primary Install act |
+| `forge-admin-details` | the configured elsewhere admin, with its first-repository fieldset and legend |
 | `connect-forge-choose` | `ConnectForge`'s Choose: GitHub, Forgejo here and a Forgejo elsewhere |
 | `chats-setup-strip` | the chats with no demo, no usable account and no forge: the setup strip |
 | `adoption` | the adoption form, empty |

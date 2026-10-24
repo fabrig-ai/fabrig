@@ -1,4 +1,5 @@
 //! Mockup documents, answered through the same windows as the engine.
+mod github;
 use crate::driver::{answer, deliver, limits, step};
 use crate::samples::{Then, World};
 use World::{FirstRun, Reference, Solo};
@@ -28,6 +29,7 @@ fn project(w: World) -> &'static str {
         Reference => "factory",
         Solo => "tally",
         World::Bare => "gallery",
+        FirstRun { step: 22 } => "widget",
         FirstRun { .. } => "Default",
     }
 }
@@ -36,8 +38,8 @@ fn doc(s: &str) -> c::DocumentText {
 }
 fn matches_demo(w: World) -> bool {
     match w {
+        FirstRun { step: 20..=23 } | Reference | Solo | World::Bare => false,
         FirstRun { .. } => true,
-        Reference | Solo | World::Bare => false,
     }
 }
 fn model(w: World) -> c::LlmChoice {
@@ -130,7 +132,7 @@ fn providers(w: World) -> List<c::ProviderOffer> {
 fn needs(w: World) -> c::Needs {
     c::Needs { proposals: u32::from(w == Solo), questions: u32::from(w == Solo), escalations: 0, person_tasks: 0 }
 }
-pub(super) fn world(w: World, address: Address, then: Then) -> Domain {
+pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     let connecting = matches!(
         address,
         Address::ConnectModel { .. } | Address::Welcome { step: temper_client_domain::Step::Model { .. } }
@@ -147,6 +149,7 @@ pub(super) fn world(w: World, address: Address, then: Then) -> Domain {
         step(&mut root, Event::Client { event }, &mut out);
     }
     let mut forge_watch = None;
+    let mut accounts_watch = None;
     // Every response is to an actual open/read, including the demo family read.
     for _ in 0_u32..256 {
         let Some(request) = out.pop() else { break };
@@ -155,7 +158,10 @@ pub(super) fn world(w: World, address: Address, then: Then) -> Domain {
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
                         c::Subject::Me => Some(c::Delivery::Me(Box::new(frame(w, connecting)))),
-                        c::Subject::Accounts => Some(c::Delivery::OwnerAccounts(Box::new(accounts(w, then)))),
+                        c::Subject::Accounts => {
+                            accounts_watch = Some(watch);
+                            Some(c::Delivery::OwnerAccounts(Box::new(accounts(w, then))))
+                        }
                         c::Subject::Tasks { window, .. } => Some(c::Delivery::Tasks(Box::new(task_window(w, window)))),
                         c::Subject::Inbox { window } => {
                             Some(c::Delivery::OwnerInbox(Box::new(inbox_window(w, window))))
@@ -212,6 +218,9 @@ pub(super) fn world(w: World, address: Address, then: Then) -> Domain {
                         }
                     }
                 }
+                jig_client::Down::Send { attempt, .. } if w == (FirstRun { step: 21 }) => {
+                    github::answer_page(&mut root, attempt, &mut out);
+                }
                 jig_client::Down::Save { .. }
                 | jig_client::Down::Erase { .. }
                 | jig_client::Down::Send { .. }
@@ -222,13 +231,16 @@ pub(super) fn world(w: World, address: Address, then: Then) -> Domain {
         }
     }
     assert!(out.is_empty(), "world fixture settles");
+    first_run_ready(&mut root, w, forge_watch, &mut out);
+    (root, accounts_watch)
+}
+fn first_run_ready(root: &mut Domain, w: World, forge_watch: Option<Token>, out: &mut Queue<Request>) {
     if w == (FirstRun { step: 8 }) {
-        adopt_owned_sample(&mut root, forge_watch.expect("owned forge watch"), &mut out);
+        adopt_owned_sample(root, forge_watch.expect("owned forge watch"), out);
     }
     if matches!(w, FirstRun { step: 1..=4 }) {
         assert!(root.demo().expect("answered demo").1.model);
     }
-    root
 }
 fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire as wire;
@@ -242,6 +254,9 @@ fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue
 #[expect(clippy::too_many_lines, reason = "complete illustrative forge rows keep their additive fields together")]
 fn forges(world: World) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
+    if let FirstRun { step: 20..=22 } = world {
+        return github::forges(world);
+    }
     let limits = temper_client_domain::forge::wire_limits(&limits().forge).expect("wire limits");
     let mut rows = List::with_capacity(3);
     if matches_demo(world) {
@@ -316,6 +331,7 @@ fn forges(world: World) -> Box<[u8]> {
                 w::Connected::new(&limits, w::ConnectedParts { id: 2, login: b"temper".as_slice().into() })
                     .expect("connected"),
             ),
+            23 => w::Connection::NotConnected,
             _ => w::Connection::NotSetUp,
         };
         rows.push(
@@ -324,9 +340,9 @@ fn forges(world: World) -> Box<[u8]> {
                 w::ForgeRowParts {
                     number: 3,
                     kind: w::Kind::Forgejo,
-                    mode: w::Mode::Owned,
+                    mode: if step == 23 { w::Mode::Connected } else { w::Mode::Owned },
                     connection,
-                    offer: w::Offer::Offered,
+                    offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
                     first: if step == 6 || step == 7 || step == 9 {
                         Some(
                             w::FirstRepository::new(
@@ -356,10 +372,10 @@ fn forges(world: World) -> Box<[u8]> {
                     installations: List::with_capacity(0),
                     ended: None,
                     app: None,
-                    web: None,
+                    web: if step == 23 { Some(b"http://forgejo.test".as_slice().into()) } else { None },
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
+                    admin: step == 23,
                     ended_stop: None,
                 },
             )
@@ -1943,6 +1959,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
             | Then::Held
             | Then::Releasing
             | Then::SigningIn
+            | Then::Paste(_)
             | Then::AccountRefused
             | Then::KeyReady => None,
         },
@@ -2380,7 +2397,8 @@ fn deployment(w: World) -> c::OwnerDeployment {
 pub(super) fn now(w: World) -> Wall {
     let minutes = match w {
         FirstRun { step } => match step {
-            0 | 1 => 0,
+            // Synthetic connection frames have no relative timestamps on screen.
+            0 | 1 | 20..=23 => 0,
             2 => 2,
             3 => 4,
             4 => 6,

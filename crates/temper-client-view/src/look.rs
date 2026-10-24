@@ -261,6 +261,50 @@ pub const FLOW_PAIR: Style = Style { owner: owner(), token: 127 };
 pub const WELCOME_INTRO: Style = Style { owner: owner(), token: 128 };
 /// The navigation's project label when no project remains.
 pub const PROJECT_EMPTY: Style = Style { owner: owner(), token: 129 };
+/// A neutral small action.
+pub const FLOW_SECONDARY: Style = Style { owner: owner(), token: 130 };
+/// A quiet terracotta text link.
+pub const FLOW_QUIET: Style = Style { owner: owner(), token: 131 };
+/// The forge choices, three across on desktop.
+pub const FLOW_CHOICES: Style = Style { owner: owner(), token: 132 };
+/// A choice card with bottom-aligned actions.
+pub const FLOW_CHOICE: Style = Style { owner: owner(), token: 133 };
+/// A stacked choice action group.
+pub const FLOW_ACTIONS: Style = Style { owner: owner(), token: 134 };
+/// A small muted setup field label.
+pub const FLOW_FIELD: Style = Style { owner: owner(), token: 135 };
+/// The setup notes as muted bullet points.
+pub const FLOW_FACTS: Style = Style { owner: owner(), token: 136 };
+/// The model choices, two across on desktop.
+pub const MODEL_CHOICES: Style = Style { owner: owner(), token: 137 };
+/// A connection details card, separate from Model’s outer Choose card.
+pub const FLOW_DETAILS: Style = Style { owner: owner(), token: 138 };
+/// The API key card limits its contents to the reference's 420 px maximum.
+pub const MODEL_KEY: Style = Style { owner: owner(), token: 139 };
+/// The configured admin's first repository group.
+pub const ADMIN_FIRST: Style = Style { owner: owner(), token: 140 };
+/// The first repository group's legend.
+pub const ADMIN_LEGEND: Style = Style { owner: owner(), token: 141 };
+/// The Model ending’s definition list, scoped away from Accounts and Forges.
+pub const MODEL_FACTS: Style = Style { owner: owner(), token: 142 };
+/// The Model ending’s wrapping row of actions.
+pub const MODEL_ACTIONS: Style = Style { owner: owner(), token: 143 };
+/// A muted repository line tight beneath its setup heading.
+pub const FLOW_SUBTITLE: Style = Style { owner: owner(), token: 144 };
+/// The muted description of a Model way’s Details.
+pub const MODEL_DESCRIPTION: Style = Style { owner: owner(), token: 145 };
+/// Native terms and definitions inside the Model ending’s list.
+pub const MODEL_FACT: Style = Style { owner: owner(), token: 146 };
+/// The Model sign-in’s external address and folded paste.
+pub const MODEL_SIGN_IN: Style = Style { owner: owner(), token: 147 };
+/// Native browser elements for the admin group and Model’s definition list.
+pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
+    (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
+    (owner(), skein_ui::Role::Slot, MODEL_FACTS, "dl"),
+    (owner(), skein_ui::Role::Term, MODEL_FACT, "dt"),
+    (owner(), skein_ui::Role::Description, MODEL_FACT, "dd"),
+    (owner(), skein_ui::Role::Heading { level: 3 }, ADMIN_LEGEND, "legend"),
+];
 /// The look's names (skein's ui.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
@@ -396,6 +440,24 @@ pub const NAMES: Names<'static> = Names {
         b"temper-flow-pair",
         b"temper-welcome-intro",
         b"temper-project-empty",
+        b"temper-flow-secondary",
+        b"temper-flow-quiet",
+        b"temper-flow-choices",
+        b"temper-flow-choice",
+        b"temper-flow-actions",
+        b"temper-flow-field",
+        b"temper-flow-facts",
+        b"temper-model-choices",
+        b"temper-flow-details",
+        b"temper-model-key",
+        b"temper-admin-first",
+        b"temper-admin-legend",
+        b"temper-model-facts",
+        b"temper-model-actions",
+        b"temper-flow-subtitle",
+        b"temper-model-description",
+        b"temper-model-fact",
+        b"temper-model-sign-in",
     ],
     regions: &[b"temper-link"],
 };

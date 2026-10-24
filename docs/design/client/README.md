@@ -787,9 +787,13 @@ keeps (`../protocol/configuration.md`, section 2).
     adopted, the welcome moves on to Model. Once "Set up a Forgejo here"
     is accepted, the welcome moves on to Model, the set up running on.
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
-    (above), its way in the welcome's address (`browser.md`, 2.3), "‹
-    All ways" back to its Choose, so that an account added there is the
-    accounts page's too; a sign-in sends the browser back to the
+    (above), its way in the welcome's address (`browser.md`, 2.3).
+    Its ways sit directly under the lead, with neither the standalone
+    Choose container nor its holder controls; entering from a deployment
+    chooser resets the holder to the person's own. Inside a way, "‹ All
+    ways" and the foot's "‹ Back" both return to Model Choose; on Choose
+    the foot's returns to Forge. Standalone `ConnectModel` keeps its
+    holder controls. An account added there is the accounts page's too; a sign-in sends the browser back to the
     welcome at its Ready, `/welcome?at=ready` (`ConnectModel`, The
     tab's departure). Until it does (`ConnectModel`, Signing in),
     the step's body draws the sign-in as `ConnectModel`'s does, its
@@ -1894,6 +1898,15 @@ The words for each offered source are:
   key’s organization." and "Pasted here · at once"; then the way's
   button.
 
+- **Details:** a key's heading is "An OpenAI API key", then "From
+  OpenAI’s platform, under API keys. What temper’s agents use is billed
+  to the key’s organization.", the secret "Key (pasted once)" field and
+  the primary "Add key". A program's Details says "Your Claude subscription",
+  "temper runs Claude Code, signed in to your Claude subscription on each
+  host its agents run on. Name the login, then sign in on each host, in a
+  terminal there:", the existing program-name input labeled "Name", the
+  command, and "Claude Code asks you to sign in. temper never reads its
+  login." Its neutral act is "Use your Claude subscription".
 - **The banner:** "Agents need an LLM account to run." and "Continue
   with ChatGPT", "Use your Claude subscription", "Use an API key", one
   for each way the configured providers offer (The ways, above), each
@@ -1906,9 +1919,15 @@ The words for each offered source are:
   agents run on, in a terminal there:", the command, `temper
   program-login claude-alice`, and "Claude Code asks you to sign in.
   temper never reads its login."; for a sign-in, A sign-in's (below).
+  Sign-in cards are headed "Signing in to ChatGPT" until a successful
+  Made end supplies "Signed in to ChatGPT as ADDRESS". The welcome's
+  successful end adds "ChatGPT · ADDRESS is on the Accounts page, with
+  its details.", using the supplied account display.
   Then, for a key and a sign-in, its account, the model a new chat's
-  first run takes and what it pays for, as name and value ("Account",
-  "Model", "Pays for"), and, while the demo's model half held (5.6),
+  first run takes and what it pays for, as rows in a facts list ("Account",
+  "Model", "Pays for"), with muted labels and right-aligned values.
+  For a sign-in, Start a chat, Manage usage when available, and Continue
+  with ChatGPT share a wrapping actions row. While the demo's model half held (5.6),
   "The playground’s scripted model stepped aside.".
 - **An account** is its provider and display name, "ChatGPT ·
   alice@example.com"; a key-only account, "OpenAI API key"; a program's,

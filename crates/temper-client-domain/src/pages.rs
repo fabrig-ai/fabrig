@@ -551,6 +551,13 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             if pages.connect_model.is_none() {
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
             }
+            if let Address::Welcome { .. } = address {
+                let page = pages.connect_model.as_mut().expect("open flow has state");
+                if page.holder != jig_client::contract::AccountHolder::Own {
+                    page.leave();
+                    **page = connect_model::ConnectModel::default();
+                }
+            }
         } else if let Some(mut page) = pages.connect_model.take() {
             page.leave();
         }

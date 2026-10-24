@@ -30,9 +30,6 @@ What the client doesn't draw yet:
 - **The owned forge's versions,** Forgejo's and its runner's, in its
   Details and its Each step, from the row's `owned` pins; the client
   says "Forgejo and its runner".
-- **A key's Details** have their heading, "An OpenAI API key", and
-  their paragraph; the client's is headed "Details", with the field
-  alone (`pages/connect_model.rs`).
 - **Ready's "Open Forgejo ↗"** on an owned forge, signing the person in
   through temper (its `/user/oauth2/temper`); the client draws it on
   Forges alone.
@@ -49,10 +46,7 @@ What the client doesn't draw yet:
   "sam/notes, private". Its "Not listed?" links its middle words; the
   client links the whole sentence.
 
-Where the client does otherwise:
-
-- **Back from a key's Details** goes to Model's Choose, as the client
-  README's 5.6 says; the client's goes to Forge's Choose.
+Where the client does otherwise: nothing known.
 
 Not yet known: whether GitHub keeps the state through its
 installation's Configure and Save, and whether the picker reads the

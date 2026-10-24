@@ -37,6 +37,8 @@ fn control(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, act:
     }
     if word == Word::WelcomePlayground || word == Word::WelcomeSetup {
         b.style(look::FLOW_PRIMARY);
+    } else if word != Word::WelcomePlaygroundInstead {
+        b.style(look::FLOW_QUIET);
     }
     b.close();
 }
@@ -152,9 +154,9 @@ pub(crate) fn main(
         b.open(Role::Slot);
         b.style(look::WELCOME_FOOT);
         let back = match step {
-            Step::Forge { forge: Some(_) } | Step::Model { .. } => Step::Forge { forge: None },
+            Step::Model { way: Some(_) } | Step::Ready => Step::Model { way: None },
+            Step::Forge { forge: Some(_) } | Step::Model { way: None } => Step::Forge { forge: None },
             Step::Welcome | Step::Forge { forge: None } => Step::Welcome,
-            Step::Ready => Step::Model { way: None },
         };
         go(b, w, bindings, Word::WelcomeBack, back);
         control(

@@ -136,6 +136,9 @@ fn welcome_model_keeps_its_frame_when_opening_key_details() {
             gone(Role::Status, b"Live"),
             press(Role::Link, "‹ All ways".as_bytes()),
             see(Role::Link, b"Use an API key"),
+            press(Role::Link, b"Use an API key"),
+            press(Role::Link, "‹ Back".as_bytes()),
+            see(Role::Link, b"Use an API key"),
         ],
     );
 }

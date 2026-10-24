@@ -109,7 +109,7 @@ fn choose_draws_a_card_per_choice_in_order() {
         ],
     );
     let choices =
-        view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::WELCOME_CHOICES)).unwrap();
+        view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICES)).unwrap();
     let cards: Vec<_> = view.tree().nodes().iter().filter(|n| parent(view.tree(), n.id) == Some(choices.id)).collect();
     assert_eq!(cards.len(), 3);
     let primary: Vec<_> = view
@@ -120,6 +120,14 @@ fn choose_draws_a_card_per_choice_in_order() {
         .map(|n| n.name.as_deref().unwrap())
         .collect();
     assert_eq!(primary, [b"Connect GitHub".as_slice()]);
+    for (name, style) in [
+        (b"Choose".as_slice(), crate::look::FLOW_SECONDARY),
+        (b"Show how".as_slice(), crate::look::FLOW_SECONDARY),
+        ("Use an App of your own ›".as_bytes(), crate::look::FLOW_QUIET),
+    ] {
+        let id = node(view.tree(), Role::Link, name);
+        assert!(view.tree().nodes().iter().find(|n| n.id == id).unwrap().styles.as_slice().contains(&style));
+    }
     assert!(cards.iter().all(|n| n.role == Role::Region));
     let regions: Vec<_> =
         view.tree().nodes().iter().filter(|n| n.role == Role::Region).filter_map(|n| n.name.as_deref()).collect();
@@ -264,7 +272,28 @@ fn set_up_failed_offers_set_up_again() {
             .unwrap(),
     ));
     let view = f::page_view(&root);
-    node(view.tree(), Role::Alert, b"Set up failed: fetch failed");
+    let reason = node(view.tree(), Role::Alert, b"Set up failed: fetch failed");
+    assert!(
+        view.tree()
+            .nodes()
+            .iter()
+            .find(|n| n.id == reason)
+            .unwrap()
+            .styles
+            .as_slice()
+            .contains(&crate::look::FLOW_FAILED)
+    );
+    let retry = node(view.tree(), Role::Button, b"Set up again");
+    assert!(
+        view.tree()
+            .nodes()
+            .iter()
+            .find(|n| n.id == retry)
+            .unwrap()
+            .styles
+            .as_slice()
+            .contains(&crate::look::FLOW_SECONDARY)
+    );
     assert!(f::find(view.tree(), Role::List, b"Each step").is_some());
     assert_eq!(press(&root, Role::Button, b"Set up again"), d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
 }
@@ -590,6 +619,18 @@ fn details_show_the_set_ups_fields_with_their_defaults() {
         .collect();
     assert_eq!(primary, [b"Set up a Forgejo here".as_slice()]);
     assert_ne!(grandparent(org.id), grandparent(project.id));
+    let pair = grandparent(project.id).unwrap();
+    assert!(nodes.iter().find(|n| n.id == pair).unwrap().styles.as_slice().contains(&crate::look::FLOW_PAIR));
+    for field in [org, repository, project] {
+        let wrapper = parent(view.tree(), field.id).unwrap();
+        let wrapper = nodes.iter().find(|n| n.id == wrapper).unwrap();
+        assert!(wrapper.styles.as_slice().contains(&crate::look::FLOW_FIELD));
+    }
+    let facts = nodes.iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_FACTS)).unwrap();
+    assert_eq!(facts.role, Role::List);
+    let items: Vec<_> = nodes.iter().filter(|n| parent(view.tree(), n.id) == Some(facts.id)).collect();
+    assert_eq!(items.len(), 2);
+    assert!(items.iter().all(|n| n.role == Role::Item));
     assert!(!view.tree().nodes().iter().any(|node| node.role == Role::ChoiceGroup));
     let mut view = f::page_view(&root);
     let id = node(view.tree(), Role::TextField, b"Into a new project, named");
@@ -1469,7 +1510,10 @@ fn github_picker_accounts_rows_pages_and_name_are_bound() {
         view.tree().nodes().iter().find(|n| n.id == name).unwrap().value.as_ref().unwrap().text.as_ref(),
         b"second"
     );
-    node(view.tree(), Role::Button, b"Adopt acme/second");
+    let id = node(view.tree(), Role::Button, b"Adopt acme/second");
+    assert!(
+        view.tree().nodes().iter().find(|n| n.id == id).unwrap().styles.as_slice().contains(&crate::look::FLOW_PRIMARY)
+    );
     let action = press(&root, Role::Button, b"Next");
     let token = attempt(drive(&mut root, d::Event::Act { action }));
     answer(&mut root, token, picker_page(false, false));
@@ -1620,6 +1664,17 @@ fn github_adopted_card_and_completion_follow_the_row_after_reload_and_encode_the
         let view = f::browser_page_view(&root);
         node(view.tree(), Role::Heading { level: 2 }, b"owner /?/repo/#% is ready");
         node(view.tree(), Role::Paragraph, b"In the new project Shop, on GitHub.");
+        let open = node(view.tree(), Role::Link, b"Open Shop");
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .find(|n| n.id == open)
+                .unwrap()
+                .styles
+                .as_slice()
+                .contains(&crate::look::FLOW_PRIMARY)
+        );
         assert_eq!(
             press(&root, Role::Link, b"Open Shop"),
             d::Action::Pages(pages::Act::OpenProject { project: f::PROJECT })
@@ -1942,6 +1997,17 @@ fn the_admin_card_names_the_configured_host_or_forge_number() {
 fn admin_details_keep_the_token_out_of_actions_and_rendered_pages() {
     let mut root = admin_root(Some(Choice::Forge(HERE)), admin_row(w::Connection::NotConnected, None, None, true));
     let mut before = f::page_view(&root);
+    let group = node(before.tree(), Role::Region, b"Your first repository");
+    let legend = node(before.tree(), Role::Heading { level: 3 }, b"Your first repository");
+    let nodes = before.tree().nodes();
+    assert!(nodes.iter().find(|n| n.id == group).unwrap().styles.as_slice().contains(&crate::look::ADMIN_FIRST));
+    let start = nodes.iter().position(|n| n.id == group).unwrap();
+    let end = start + usize::try_from(nodes[start].size).unwrap();
+    assert_eq!(nodes[start + 1].id, legend);
+    for name in [b"Organization".as_slice(), b"Repository", b"Into a new project, named", b"Runner label"] {
+        let field = node(before.tree(), Role::TextField, name);
+        assert!(nodes[start + 1..end].iter().any(|n| n.id == field));
+    }
     let field = node(before.tree(), Role::TextField, "The site admin’s token".as_bytes());
     assert!(crate::act(&mut before, field, Act::Input { value: ADMIN_TOKEN.into() }).is_none());
     admin_input(&mut root, "The site admin’s token".as_bytes(), ADMIN_TOKEN);

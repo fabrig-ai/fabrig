@@ -78,10 +78,10 @@ fn declaring_a_program_login_shows_its_command_on_ready() {
         &mut front,
         &mut root,
         Role::TextField,
-        b"Program name",
+        b"Name",
         skein_ui::Act::Input { value: b"claude-alice".as_slice().into() },
     );
-    press(&mut front, &mut root, Role::Button, b"Declare", skein_ui::Act::Press);
+    press(&mut front, &mut root, Role::Button, b"Use your Scripted subscription", skein_ui::Act::Press);
     assert!(text(&root).contains("Declared your Scripted subscription · claude-alice"));
     assert!(text(&root).contains("temper program-login claude-alice"));
     assert!(text(&root).contains("Claude Code asks you to sign in. temper never reads its login."));

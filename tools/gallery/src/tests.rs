@@ -15,7 +15,7 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
-fn every_link_has_an_address() {
+fn navigation_links_have_addresses_and_install_action_links_keep_their_binding() {
     for sample in samples::samples() {
         let mut view = view(&sample);
         let mut links = Vec::new();
@@ -26,8 +26,20 @@ fn every_link_has_an_address() {
             }
         }
         for node in links {
-            let address = temper_client_view::href(&mut view, node).expect("link has an href");
-            assert!(!address.is_empty(), "{}: empty href for {node:?}", sample.name);
+            if let Some(address) = temper_client_view::href(&mut view, node) {
+                assert!(!address.is_empty(), "{}: empty href for {node:?}", sample.name);
+            } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::Install {
+                forge,
+                ..
+            })) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+            {
+                // The existing picker link starts an asynchronous install request;
+                // it has no static destination until the forge answers.
+                assert_eq!(sample.name, "github-picker");
+                assert_eq!(forge, 2);
+            } else {
+                panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
+            }
         }
     }
 }
@@ -55,6 +67,99 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "welcome-paste-expired",
+        heading: "Connect a model",
+        parts: &[
+            Part::Named { role: Role::Status, name: "This sign-in has ended." },
+            Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
+            Part::Absent { role: Role::TextField, name: "Address of the page that couldn't be reached" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-declined",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+    },
+    Holds {
+        name: "welcome-model-renewed",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+    },
+    Holds {
+        name: "welcome-model-refused",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+    },
+    Holds {
+        name: "welcome-paste-waiting",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+    },
+    Holds {
+        name: "welcome-paste-written",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+    },
+    Holds {
+        name: "welcome-paste-too-long",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+    },
+    Holds {
+        name: "welcome-paste-sending",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+    },
+    Holds {
+        name: "welcome-paste-finishing",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Status, name: "Finishing your sign-in…" }],
+    },
+    Holds {
+        name: "welcome-paste-address",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+    },
+    Holds {
+        name: "welcome-paste-state",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+    },
+    Holds {
+        name: "welcome-paste-too-many",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+    },
+    Holds {
+        name: "welcome-paste-ended",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+    },
+    Holds {
+        name: "welcome-paste-lost",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+    },
+    Holds {
+        name: "welcome-paste-unsent",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+    },
+    Holds {
+        name: "forges-github-install",
+        heading: "Forges",
+        parts: &[Part::Named { role: Role::Button, name: "Install on GitHub" }],
+    },
+    Holds {
+        name: "forge-admin-details",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Your first repository" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "Your first repository" },
+            Part::Named { role: Role::TextField, name: "Runner label" },
+        ],
+    },
+    Holds {
         name: "forge-setup-failed",
         heading: "Connect a forge",
         parts: &[
@@ -71,6 +176,47 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::List, name: "Each step" },
             Part::Named { role: Role::Button, name: "Set up again" },
         ],
+    },
+    Holds {
+        name: "welcome-model-key-details",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::TextField, name: "Key (pasted once)" }],
+    },
+    Holds {
+        name: "welcome-model-signing-in",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Heading { level: 2 }, name: "Signing in to ChatGPT" }],
+    },
+    Holds {
+        name: "welcome-model-signin-ready",
+        heading: "Connect a model",
+        parts: &[Part::Named {
+            role: Role::Paragraph,
+            name: "ChatGPT · pat@example.com is on the Accounts page, with its details.",
+        }],
+    },
+    Holds {
+        name: "github-app-details",
+        heading: "Connect a forge",
+        parts: &[Part::Named { role: Role::Region, name: "An App of your own" }],
+    },
+    Holds {
+        name: "github-install",
+        heading: "Connect a forge",
+        parts: &[Part::Named { role: Role::Button, name: "Install on GitHub" }],
+    },
+    Holds {
+        name: "github-picker",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Choice, name: "sam/widget" },
+            Part::Named { role: Role::Button, name: "Adopt sam/widget" },
+        ],
+    },
+    Holds {
+        name: "github-adopted",
+        heading: "Connect a forge",
+        parts: &[Part::Named { role: Role::Link, name: "Open widget" }],
     },
     Holds {
         name: "welcome-forge-choose",
@@ -383,7 +529,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "connect-model-program-details",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Program name" }],
+        parts: &[Part::Named { role: Role::TextField, name: "Name" }],
     },
     Holds {
         name: "connect-model-key-ready",
@@ -393,7 +539,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "connect-model-signin-ready",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Status, name: "Signed in to ChatGPT as pat@example.com" }],
+        parts: &[Part::Named { role: Role::Heading { level: 2 }, name: "Signed in to ChatGPT as pat@example.com" }],
     },
     Holds {
         name: "connect-model-declined",
@@ -828,6 +974,11 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         ("welcome-forge-choose", vec!["Connect GitHub"]),
         ("welcome-forge-details", vec!["Set up a Forgejo here"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
+        ("github-app-details", vec!["Connect the App"]),
+        ("github-install", vec!["Install on GitHub"]),
+        ("github-picker", vec!["Adopt sam/widget"]),
+        ("github-adopted", vec!["Open widget"]),
+        ("forges-github-install", vec!["Install on GitHub"]),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("sample");
         let view = view(&sample);
@@ -842,7 +993,7 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         if name == "welcome-forge-details" {
             assert_eq!(
                 view.tree().nodes().iter().filter(|node| node.styles.as_slice().contains(&look::FLOW_PAIR)).count(),
-                1
+                2
             );
         }
     }

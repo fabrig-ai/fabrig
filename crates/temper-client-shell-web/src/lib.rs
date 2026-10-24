@@ -75,7 +75,7 @@ pub fn start() {
             pictures: &[],
             draw: |_, _, _, _, _| false,
             components: &[],
-            elements: &[],
+            elements: temper_client_view::look::ELEMENTS,
         },
         &host.bounds.tree,
         b"temper",

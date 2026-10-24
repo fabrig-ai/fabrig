@@ -88,6 +88,17 @@ fn the_model_choose_names_the_plan_sign_in_and_key_ways() {
     assert_eq!(primary, [b"Continue with ChatGPT".as_slice()]);
     let names = control_names(&root);
     assert!(names.contains(&b"Continue with ChatGPT".to_vec()));
+    let key = fixtures::find(view.tree(), Role::Link, b"Use an API key").unwrap();
+    assert!(
+        view.tree()
+            .nodes()
+            .iter()
+            .find(|n| n.id == key)
+            .unwrap()
+            .styles
+            .as_slice()
+            .contains(&crate::look::FLOW_SECONDARY)
+    );
     assert!(names.contains(&b"Use an API key".to_vec()));
 }
 #[test]
@@ -126,6 +137,8 @@ fn the_deployment_holder_offers_keys_only() {
     let mut root = ways_root(providers, false);
     model_action(&mut root, M::Holder { holder: c::AccountHolder::Deployment });
     let names = control_names(&root);
+    assert!(names.contains(&b"Use your accounts".to_vec()));
+    assert!(names.contains(&b"Use deployment accounts".to_vec()));
     assert!(names.contains(&b"Use an OpenAI API key".to_vec()));
     assert!(names.contains(&b"Use an Anthropic API key".to_vec()));
     assert!(!names.contains(&b"Continue with ChatGPT".to_vec()));
@@ -139,9 +152,9 @@ fn a_program_way_shows_the_default_name_and_the_command_on_each_host() {
     let mut view = fixtures::view();
     press(&mut view, &mut root, Role::Link, b"Use your Claude subscription", Act::Press);
     let tree = fixtures::build(&mut view, &root);
-    let field = tree.nodes().iter().find(|node| node.name.as_deref() == Some(b"Program name")).unwrap();
+    let field = tree.nodes().iter().find(|node| node.name.as_deref() == Some(b"Name")).unwrap();
     assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"claude-pat");
-    assert!(fixtures::find(tree, Role::Button, b"Declare").is_some());
+    assert!(fixtures::find(tree, Role::Button, b"Use your Claude subscription").is_some());
     assert!(String::from_utf8(fixtures::text(tree).into_vec()).unwrap().contains("temper program-login claude-pat"));
 }
 
@@ -207,7 +220,7 @@ fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: c::OwnerOutc
 fn words(root: &d::Domain) -> String {
     String::from_utf8(fixtures::text(fixtures::page_view(root).tree()).into_vec()).unwrap()
 }
-fn ending(end: c::OwnerAccountEnd, display: &[u8]) -> d::Domain {
+pub(super) fn ending(end: c::OwnerAccountEnd, display: &[u8]) -> d::Domain {
     let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
     let attempt = sent(
         &mut root,
@@ -261,8 +274,27 @@ fn a_key_has_details_then_ready_with_its_account_and_chat_link() {
 #[test]
 fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
     let (mut root, _) = flow_fixture(d::WayKind::Program);
-    assert!(words(&root).contains("temper program-login claude-pat"));
+    for expected in [
+        "Your Claude subscription",
+        "temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there:",
+        "temper program-login claude-pat",
+        "Claude Code asks you to sign in. temper never reads its login.",
+    ] {
+        assert!(words(&root).contains(expected), "missing {expected}");
+    }
     let view = fixtures::page_view(&root);
+    assert!(fixtures::find(view.tree(), Role::TextField, b"Name").is_some());
+    let act = fixtures::find(view.tree(), Role::Button, b"Use your Claude subscription").unwrap();
+    assert!(
+        view.tree()
+            .nodes()
+            .iter()
+            .find(|n| n.id == act)
+            .unwrap()
+            .styles
+            .as_slice()
+            .contains(&crate::look::FLOW_SECONDARY)
+    );
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY)));
     model_action(&mut root, M::ProgramName { value: Box::from(b"claude-alice".as_slice()) });
     let attempt = sent(&mut root, M::Submit { name: [1; 16] });

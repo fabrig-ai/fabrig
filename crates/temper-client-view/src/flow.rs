@@ -7,6 +7,8 @@ use skein_ui::{Binding, Builder, Role, Run, State};
 
 pub(crate) enum Control<'a> {
     Link { name: &'a [u8], to: Binding },
+    SecondaryLink { name: &'a [u8], to: Binding },
+    QuietDisabled { name: &'a [u8] },
     Button { name: &'a [u8], to: Binding },
     PrimaryLink { name: &'a [u8], to: Binding },
     PrimaryButton { name: &'a [u8], to: Binding },
@@ -40,14 +42,17 @@ pub(crate) fn steps(b: &mut Builder, w: &Words, names: &[&[u8]], current: usize)
 }
 /// One choice's region, named by its level-2 heading.
 pub(crate) fn choice(b: &mut Builder, heading: &[u8], words: &[u8], note: &[u8], action: Control<'_>) {
-    card(b, heading);
+    choice_card(b, heading);
     crate::cards::text(b, Role::Paragraph, words);
     b.open(Role::Paragraph);
     b.style(look::FLOW_MUTED);
     b.name(note);
     b.text(Run::Plain, note);
     b.close();
+    b.open(Role::Slot);
+    b.style(look::FLOW_ACTIONS);
     control(b, action);
+    b.close();
     b.close();
 }
 /// A list whose lines say their state in words.
@@ -88,14 +93,35 @@ pub(crate) fn card(b: &mut Builder, heading: &[u8]) {
     b.name(heading);
     crate::cards::text(b, Role::Heading { level: 2 }, heading);
 }
+/// Open a choice card; its action group takes the remaining height.
+pub(crate) fn choice_card(b: &mut Builder, heading: &[u8]) {
+    card(b, heading);
+    b.style(look::FLOW_CHOICE);
+}
+/// Open a details card without changing Model's outer Choose card.
+pub(crate) fn details(b: &mut Builder, heading: &[u8]) {
+    card(b, heading);
+    b.style(look::FLOW_DETAILS);
+}
+/// A repository’s muted line, tight beneath a setup or Ready heading.
+pub(crate) fn subtitle(b: &mut Builder, words: &[u8]) {
+    b.open(Role::Paragraph);
+    b.style(look::FLOW_SUBTITLE);
+    b.name(words);
+    b.text(Run::Plain, words);
+    b.close();
+}
 /// Draw the control in its given kind.
 pub(crate) fn control(b: &mut Builder, action: Control<'_>) {
-    let primary = match action {
-        Control::PrimaryLink { .. } | Control::PrimaryButton { .. } | Control::PrimaryDisabled { .. } => true,
-        Control::Link { .. } | Control::Button { .. } | Control::Disabled { .. } => false,
+    let style = match action {
+        Control::PrimaryLink { .. } | Control::PrimaryButton { .. } | Control::PrimaryDisabled { .. } => {
+            look::FLOW_PRIMARY
+        }
+        Control::SecondaryLink { .. } | Control::Button { .. } | Control::Disabled { .. } => look::FLOW_SECONDARY,
+        Control::Link { .. } | Control::QuietDisabled { .. } => look::FLOW_QUIET,
     };
     match action {
-        Control::PrimaryLink { name, to } | Control::Link { name, to } => {
+        Control::PrimaryLink { name, to } | Control::SecondaryLink { name, to } | Control::Link { name, to } => {
             crate::link(b, name, to);
             b.text(Run::Plain, name);
         }
@@ -104,14 +130,12 @@ pub(crate) fn control(b: &mut Builder, action: Control<'_>) {
             b.name(name);
             b.bind(to);
         }
-        Control::PrimaryDisabled { name } | Control::Disabled { name } => {
+        Control::PrimaryDisabled { name } | Control::Disabled { name } | Control::QuietDisabled { name } => {
             b.open(Role::Button);
             b.name(name);
             b.state(State::Disabled);
         }
     }
-    if primary {
-        b.style(look::FLOW_PRIMARY);
-    }
+    b.style(style);
     b.close();
 }

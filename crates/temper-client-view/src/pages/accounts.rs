@@ -58,8 +58,15 @@ fn named_control(
     disabled: bool,
     pressed: bool,
 ) {
+    let model = match &meaning {
+        Meaning::Model(_) => true,
+        Meaning::Action(_) | Meaning::Go(_) | Meaning::Key | Meaning::SignInAddress | Meaning::Program => false,
+    };
     let Some(binding) = bindings.insert(meaning) else { return };
     b.open(Role::Button);
+    if model {
+        b.style(crate::look::FLOW_SECONDARY);
+    }
     b.name(name);
     b.bind(binding);
     if pressed {
@@ -445,7 +452,15 @@ fn signings_without_rows(
 }
 fn connect(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: W) {
     if let Some(to) = bindings.insert(Meaning::Go(temper_client_domain::Address::ConnectModel { way: None })) {
-        crate::flow::control(b, crate::flow::Control::Link { name: &words::say(w, word, &[]), to });
+        let name = words::say(w, word, &[]);
+        crate::flow::control(
+            b,
+            if word == W::Connect {
+                crate::flow::Control::PrimaryLink { name: &name, to }
+            } else {
+                crate::flow::Control::SecondaryLink { name: &name, to }
+            },
+        );
     }
 }
 pub(super) fn key_field(
@@ -559,6 +574,10 @@ pub(super) fn outcome(
                 .saturating_add(u64::try_from(address.len()).expect("address length fits"));
             if bytes <= u64::from(text_per_node) {
                 b.open(Role::Link);
+                if root.pages().connect_model().is_some() {
+                    b.style(crate::look::FLOW_QUIET);
+                    b.style(crate::look::MODEL_SIGN_IN);
+                }
                 b.text(Run::Plain, &label);
                 b.external(address);
                 b.close();
@@ -795,6 +814,9 @@ pub(super) fn paste(
     }
     if folded {
         b.open(Role::Disclosure);
+        if root.pages().connect_model().is_some() {
+            b.style(crate::look::MODEL_SIGN_IN);
+        }
         b.name(&words::say(w, W::PasteDisclosure, &[]));
         text(b, w, Role::Paragraph, W::PasteHistory);
     }
@@ -834,6 +856,9 @@ fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
     }
     if let Some(binding) = bindings.insert(Meaning::SignInAddress) {
         b.open(Role::TextField);
+        if root.pages().connect_model().is_some() {
+            b.style(crate::look::FLOW_FIELD);
+        }
         b.name(&words::say(w, W::PasteField, &[]));
         b.entry(skein_ui::EntryKind::Secret);
         b.value(b"", form.paste.written());

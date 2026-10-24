@@ -30,12 +30,29 @@ pub enum Then {
     Held,
     Releasing,
     SigningIn,
+    Paste(PasteFrame),
     AccountRefused,
     KeyReady,
     SignInReady,
     Declined,
     Renewed,
     SignInRefused,
+}
+/// The paste's visible frames, reached through the same public events as a browser.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PasteFrame {
+    Waiting,
+    Written,
+    TooLong,
+    Sending,
+    Finishing,
+    Address,
+    State,
+    TooMany,
+    Ended,
+    Expired,
+    Lost,
+    Unsent,
 }
 #[derive(Clone, Debug)]
 pub struct Sample {
@@ -44,7 +61,9 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 55;
+pub const N: usize = 79;
+const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
+use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
 fn task(task: u64) -> Address {
     Address::Task { task, filter: PlanFilter::All }
@@ -52,8 +71,6 @@ fn task(task: u64) -> Address {
 
 #[must_use]
 pub fn samples() -> [Sample; N] {
-    const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
-    use World::{Bare, FirstRun, Reference, Solo};
     [
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
@@ -62,12 +79,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
         welcome_sample("welcome-first-run-0", temper_client_domain::Step::Welcome),
         Sample { name: "chats-first-run-1", world: FirstRun { step: 1 }, address: CHATS, then: Shown },
-        Sample {
-            name: "connect-forge-first-run-6",
-            world: FirstRun { step: 6 },
-            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(3)) },
-            then: Shown,
-        },
+        owned_sample("connect-forge-first-run-6", 6, false),
         Sample { name: "forges-first-run-7", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
         Sample {
             name: "connect-forge-choose",
@@ -81,6 +93,28 @@ pub fn samples() -> [Sample; N] {
             temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Forge(3)) },
         ),
         welcome_sample("welcome-model-choose", temper_client_domain::Step::Model { way: None }),
+        welcome_model_sample("welcome-model-key-details", temper_client_domain::WayKind::Key, Shown),
+        welcome_model_sample("welcome-model-signing-in", temper_client_domain::WayKind::SignIn, SigningIn),
+        welcome_model_sample("welcome-model-signin-ready", temper_client_domain::WayKind::SignIn, SignInReady),
+        welcome_model_sample("welcome-model-declined", temper_client_domain::WayKind::SignIn, Declined),
+        welcome_model_sample("welcome-model-renewed", temper_client_domain::WayKind::SignIn, Renewed),
+        welcome_model_sample("welcome-model-refused", temper_client_domain::WayKind::SignIn, SignInRefused),
+        paste_sample("welcome-paste-waiting", PasteFrame::Waiting),
+        paste_sample("welcome-paste-written", PasteFrame::Written),
+        paste_sample("welcome-paste-too-long", PasteFrame::TooLong),
+        paste_sample("welcome-paste-sending", PasteFrame::Sending),
+        paste_sample("welcome-paste-finishing", PasteFrame::Finishing),
+        paste_sample("welcome-paste-address", PasteFrame::Address),
+        paste_sample("welcome-paste-state", PasteFrame::State),
+        paste_sample("welcome-paste-too-many", PasteFrame::TooMany),
+        paste_sample("welcome-paste-ended", PasteFrame::Ended),
+        paste_sample("welcome-paste-expired", PasteFrame::Expired),
+        paste_sample("welcome-paste-lost", PasteFrame::Lost),
+        paste_sample("welcome-paste-unsent", PasteFrame::Unsent),
+        github_sample("github-app-details", 0),
+        github_sample("github-install", 20),
+        github_sample("github-picker", 21),
+        github_sample("github-adopted", 22),
         owned_sample("forge-details", 0, false),
         owned_sample("forge-setting-up-middle", 6, false),
         owned_sample("forge-setup-failed", 9, false),
@@ -94,24 +128,9 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
-        Sample {
-            name: "chat-first-run-2-T1",
-            world: FirstRun { step: 2 },
-            address: Address::Chat { task: 1 },
-            then: Shown,
-        },
-        Sample {
-            name: "chat-first-run-3-T1",
-            world: FirstRun { step: 3 },
-            address: Address::Chat { task: 1 },
-            then: Shown,
-        },
-        Sample {
-            name: "chat-first-run-4-T4",
-            world: FirstRun { step: 4 },
-            address: Address::Chat { task: 4 },
-            then: Shown,
-        },
+        first_chat("chat-first-run-2-T1", 2, 1),
+        first_chat("chat-first-run-3-T1", 3, 1),
+        first_chat("chat-first-run-4-T4", 4, 4),
         Sample {
             name: "inbox-reference",
             world: Reference,
@@ -148,7 +167,20 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "task-reference-T24", world: Reference, address: task(24), then: Shown },
         Sample { name: "task-reference-T12", world: Reference, address: task(12), then: Shown },
         Sample { name: "task-solo-T9", world: Solo, address: task(9), then: Shown },
+        Sample { name: "forges-github-install", world: FirstRun { step: 20 }, address: Address::Forges, then: Shown },
+        owned_sample("forge-admin-details", 23, false),
     ]
+}
+fn first_chat(name: &'static str, step: u8, task: u64) -> Sample {
+    Sample { name, world: World::FirstRun { step }, address: Address::Chat { task }, then: Then::Shown }
+}
+fn github_sample(name: &'static str, step: u8) -> Sample {
+    Sample {
+        name,
+        world: World::FirstRun { step },
+        address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(2)) },
+        then: Then::Shown,
+    }
 }
 fn welcome_sample(name: &'static str, step: temper_client_domain::Step) -> Sample {
     Sample { name, world: World::FirstRun { step: 0 }, address: Address::Welcome { step }, then: Then::Shown }
@@ -165,6 +197,16 @@ fn owned_sample(name: &'static str, step: u8, ready: bool) -> Sample {
         then: Then::Shown,
     }
 }
+fn paste_sample(name: &'static str, frame: PasteFrame) -> Sample {
+    welcome_model_sample(name, temper_client_domain::WayKind::SignIn, Then::Paste(frame))
+}
+fn welcome_model_sample(name: &'static str, kind: temper_client_domain::WayKind, then: Then) -> Sample {
+    let mut sample = model_sample(name, kind, then);
+    if let Address::ConnectModel { way } = sample.address {
+        sample.address = Address::Welcome { step: temper_client_domain::Step::Model { way } };
+    }
+    sample
+}
 fn model_sample(name: &'static str, kind: temper_client_domain::WayKind, then: Then) -> Sample {
     let way = temper_client_domain::ModelWay {
         source: None,
@@ -173,18 +215,46 @@ fn model_sample(name: &'static str, kind: temper_client_domain::WayKind, then: T
     };
     Sample { name, world: World::Reference, address: Address::ConnectModel { way: Some(way) }, then }
 }
-#[must_use]
-pub fn mockup(sample: &Sample) -> Option<String> {
-    match sample.name {
+fn special_mockup(name: &str) -> Option<String> {
+    match name {
+        "forges-github-install" => return Some("forges.html?world=first-run-github&step=3&bare".to_owned()),
+        "forge-admin-details" => {
+            return Some("connect-forge.html?world=first-run-elsewhere&step=2&forge=3&bare".to_owned());
+        }
         "forge-setup-failed" | "welcome-setup-failed" => {
             return Some("connect-forge.html?world=first-run&step=6&forge=3&bare#other-states".to_owned());
         }
+        "welcome-model-key-details" => {
+            return Some("welcome.html?world=first-run&step=0&at=model&way=key&bare".to_owned());
+        }
+        "welcome-model-signing-in" | "welcome-model-signin-ready" => {
+            return Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare".to_owned());
+        }
+        "github-app-details" => {
+            return Some("connect-forge.html?world=first-run-github&step=1&forge=2&bare".to_owned());
+        }
+        "github-install" => return Some("connect-forge.html?world=first-run-github&step=3&forge=2&bare".to_owned()),
+        "github-picker" => return Some("connect-forge.html?world=first-run-github&step=4&forge=2&bare".to_owned()),
+        "github-adopted" => return Some("connect-forge.html?world=first-run-github&step=5&forge=2&bare".to_owned()),
         "welcome-forge-choose" => return Some("welcome.html?world=first-run&step=0&at=forge&bare".to_owned()),
         "welcome-forge-details" => return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned()),
         "welcome-model-choose" => return Some("welcome.html?world=first-run&step=0&at=model&bare".to_owned()),
         "welcome-ready-under-way" => return Some("welcome.html?world=first-run-real&step=3&at=ready&bare".to_owned()),
         "welcome-ready-adopted" => return Some("welcome.html?world=first-run-real&step=4&at=ready&bare".to_owned()),
         _ => {}
+    }
+    None
+}
+#[must_use]
+pub fn mockup(sample: &Sample) -> Option<String> {
+    if let Then::Paste(frame) = sample.then {
+        return Some(format!(
+            "connect-model.html?world=first-run&step=0&way=chatgpt&paste={}&elsewhere=1&bare",
+            frame.mockup()
+        ));
+    }
+    if let Some(reference) = special_mockup(sample.name) {
+        return Some(reference);
     }
     if sample.then == Then::GoogleSignIn {
         return Some("sign-in.html?world=google-sign-in&bare".to_owned());
@@ -211,6 +281,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             | Then::Held
             | Then::Releasing
             | Then::SigningIn
+            | Then::Paste(_)
             | Then::AccountRefused
             | Then::KeyReady => return None,
         };
@@ -266,7 +337,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
-    let mut root = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
+    let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::with_capacity(temper_client_domain::max_out(&limits()));
     match sample.then {
         Then::Shown | Then::Held => {}
@@ -303,12 +374,34 @@ pub fn domain(sample: &Sample) -> Domain {
             &mut out,
         ),
         Then::SigningIn
+        | Then::Paste(_)
         | Then::AccountRefused
         | Then::KeyReady
         | Then::SignInReady
         | Then::Declined
         | Then::Renewed
         | Then::SignInRefused => account(&mut root, sample.then, &mut out),
+    }
+    if sample.then == Then::Paste(PasteFrame::Expired) {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
+        doc.signing = skein_lib::List::with_capacity(1);
+        doc.signing
+            .push(c::OwnerAccountSignIn { source: 43, provider: 18, holder: c::OwnerAccountHolder::Party(73) })
+            .expect("one signing");
+        crate::driver::deliver(
+            &mut root,
+            accounts_watch.expect("paste sample accounts watch"),
+            c::Delivery::OwnerAccounts(Box::new(doc.clone())),
+            &mut out,
+        );
+        doc.signing.clear();
+        doc.cut = false;
+        crate::driver::deliver(
+            &mut root,
+            accounts_watch.expect("paste sample accounts watch"),
+            c::Delivery::OwnerAccounts(Box::new(doc)),
+            &mut out,
+        );
     }
     root
 }
@@ -378,14 +471,20 @@ fn account(root: &mut Domain, then: Then, out: &mut Queue<Request>) {
     step(
         root,
         Event::Went {
-            place: temper_client_domain::Place::Address(Address::ConnectModel {
-                way: Some(temper_client_domain::pages::connect_model::model_way(way)),
-            }),
+            place: temper_client_domain::Place::Address(temper_client_domain::pages::connect_model::address(
+                root.pages().address(),
+                Some(temper_client_domain::pages::connect_model::model_way(way)),
+            )),
         },
         out,
     );
     if !key {
-        step(root, Event::Act { action: Action::Pages(Act::ConnectModel(A::SignIn { name: [97; 16], way })) }, out);
+        let act = if matches!(then, Then::Paste(_)) {
+            A::SignInElsewhere { name: [97; 16], way }
+        } else {
+            A::SignIn { name: [97; 16], way }
+        };
+        step(root, Event::Act { action: Action::Pages(Act::ConnectModel(act)) }, out);
     }
     if key {
         step(
@@ -428,6 +527,100 @@ fn account(root: &mut Domain, then: Then, out: &mut Queue<Request>) {
                     why: None,
                 },
             },
+        },
+        out,
+    );
+    if let Then::Paste(frame) = then {
+        paste(root, frame, out);
+    }
+}
+impl PasteFrame {
+    fn mockup(self) -> &'static str {
+        match self {
+            Self::Waiting => "waiting",
+            Self::Written => "written",
+            Self::TooLong => "too-long",
+            Self::Sending => "sending",
+            Self::Finishing => "finishing",
+            Self::Address => "address",
+            Self::State => "state",
+            Self::TooMany => "too-many",
+            Self::Ended => "not-waiting",
+            Self::Expired => "expired",
+            Self::Lost => "lost",
+            Self::Unsent => "unsent",
+        }
+    }
+}
+fn paste(root: &mut Domain, frame: PasteFrame, out: &mut Queue<Request>) {
+    use PasteFrame as F;
+    use temper_client_domain::pages::connect_model::Act as A;
+    if matches!(frame, F::Waiting | F::Expired) {
+        return;
+    }
+    let value = if frame == F::TooLong {
+        vec![
+            b'x';
+            usize::try_from(
+                temper_client_domain::pages::accounts::current_me(root.client()).expect("sample me").redirect_bytes
+            )
+            .expect("redirect bound fits")
+                + 1
+        ]
+    } else {
+        b"gallery-private-address".to_vec()
+    };
+    step(root, Event::SignInAddress { value: skein_lib::Secret::new(value.into_boxed_slice()) }, out);
+    if matches!(frame, F::Written | F::TooLong) {
+        return;
+    }
+    step(root, Event::Act { action: Action::Pages(Act::ConnectModel(A::Finish { name: [98; 16] })) }, out);
+    step(root, Event::Client { event: jig_client::Event::Stored }, out);
+    let attempt = sent_attempt(out);
+    if frame == F::Sending {
+        return;
+    }
+    let envelope = match frame {
+        F::Lost => skein_lib::RequestEnvelope::Lost,
+        F::Unsent => skein_lib::RequestEnvelope::Again,
+        F::Waiting
+        | F::Written
+        | F::TooLong
+        | F::Sending
+        | F::Finishing
+        | F::Address
+        | F::State
+        | F::TooMany
+        | F::Ended
+        | F::Expired => skein_lib::RequestEnvelope::Final,
+    };
+    let answer = match frame {
+        F::Finishing => {
+            Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountFinishing {
+                source: 43,
+            }))))
+        }
+        F::Address | F::State | F::TooMany | F::Ended => {
+            let why = match frame {
+                F::Address => c::SignInRedirectWhy::Address,
+                F::State => c::SignInRedirectWhy::State,
+                F::TooMany => c::SignInRedirectWhy::TooMany,
+                F::Ended => c::SignInRedirectWhy::NotWaiting,
+                F::Waiting | F::Written | F::TooLong | F::Sending | F::Finishing | F::Expired | F::Lost | F::Unsent => {
+                    unreachable!("only refusal frames select a redirect refusal")
+                }
+            };
+            Some(jig_client::Answered::Jig(c::Answer::Refused {
+                refusal: c::Refusal::SignInRedirect { why },
+                at: None,
+            }))
+        }
+        F::Waiting | F::Written | F::TooLong | F::Sending | F::Expired | F::Lost | F::Unsent => None,
+    };
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt, envelope, answer, why: None } },
         },
         out,
     );

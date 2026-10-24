@@ -290,7 +290,14 @@ fn install_on_another_account_follows_an_accepted_installation() {
     for (accepted, name) in [(true, b"Install on another account".as_slice()), (false, b"Install on GitHub")] {
         let root = f::forge_root(Address::Forges, cf::github_rows(accepted));
         let view = f::page_view(&root);
-        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY)));
+        let install = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|node| node.role == Role::Button && node.name.as_deref() == Some(name))
+            .unwrap();
+        let style = if accepted { crate::look::FLOW_SECONDARY } else { crate::look::FLOW_PRIMARY };
+        assert!(install.styles.as_slice().contains(&style));
         assert_eq!(
             action(&root, Role::Button, name),
             d::Action::Forge(d::forge::Act::Install { forge: 2, back: b"/forges".as_slice().into() })

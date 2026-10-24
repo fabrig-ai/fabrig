@@ -13,12 +13,30 @@ fn the_frame_carries_its_tokens() {
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
 }
-const FLOW_NAMES: [(skein_ui::Style, &[u8]); 5] = [
+const FLOW_NAMES: [(skein_ui::Style, &[u8]); 23] = [
     (FLOW_PRIMARY, b"temper-flow-primary"),
     (FLOW_FAILED, b"temper-flow-failed"),
     (FLOW_PAIR, b"temper-flow-pair"),
     (WELCOME_INTRO, b"temper-welcome-intro"),
     (PROJECT_EMPTY, b"temper-project-empty"),
+    (FLOW_SECONDARY, b"temper-flow-secondary"),
+    (FLOW_QUIET, b"temper-flow-quiet"),
+    (FLOW_CHOICES, b"temper-flow-choices"),
+    (FLOW_CHOICE, b"temper-flow-choice"),
+    (FLOW_ACTIONS, b"temper-flow-actions"),
+    (FLOW_FIELD, b"temper-flow-field"),
+    (FLOW_FACTS, b"temper-flow-facts"),
+    (MODEL_CHOICES, b"temper-model-choices"),
+    (FLOW_DETAILS, b"temper-flow-details"),
+    (MODEL_KEY, b"temper-model-key"),
+    (ADMIN_FIRST, b"temper-admin-first"),
+    (ADMIN_LEGEND, b"temper-admin-legend"),
+    (MODEL_FACTS, b"temper-model-facts"),
+    (MODEL_ACTIONS, b"temper-model-actions"),
+    (FLOW_SUBTITLE, b"temper-flow-subtitle"),
+    (MODEL_DESCRIPTION, b"temper-model-description"),
+    (MODEL_FACT, b"temper-model-fact"),
+    (MODEL_SIGN_IN, b"temper-model-sign-in"),
 ];
 #[test]
 fn each_style_or_region_is_named_under_temper() {
