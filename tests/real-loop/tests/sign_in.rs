@@ -8,6 +8,13 @@ use temper_real_loop_world::{
 #[global_allocator]
 static HEAP: Counting = Counting;
 
+/// The ctl calls each story reads: `me` after the sign-in, the accounts at its end.
+const ME: usize = 1;
+const ACCOUNTS: usize = 2;
+/// The person ends with one account, of one signed-in source.
+const ONE_ACCOUNT: usize = 1;
+const ONE_SOURCE: usize = 1;
+
 #[test]
 fn a_terminal_sign_in_returns_to_the_real_listener() {
     let ran = run_sign_in(|| {
@@ -35,17 +42,17 @@ fn a_terminal_sign_in_returns_to_the_real_listener() {
     assert_eq!(answer.status, Some(200), "listener success page");
     assert!(answer.body.as_ref() == b"Sign-in received. You may close this page.\n", "fixed success page");
     assert_eq!(ran.code_exchanges(), 1, "exactly one code exchange");
-    let me: serde_json::Value = serde_json::from_slice(&ran.calls()[1].stdout).expect("me JSON");
+    let me: serde_json::Value = serde_json::from_slice(&ran.calls()[ME].stdout).expect("me JSON");
     let person = me["party"]["number"].as_u64().expect("person number");
-    let accounts: serde_json::Value = serde_json::from_slice(&ran.calls()[2].stdout).expect("accounts JSON");
+    let accounts: serde_json::Value = serde_json::from_slice(&ran.calls()[ACCOUNTS].stdout).expect("accounts JSON");
     let rows = accounts["accounts"]["party"].as_array().expect("person's accounts");
-    assert_eq!(rows.len(), 1, "one account for the person");
+    assert_eq!(rows.len(), ONE_ACCOUNT, "one account for the person");
     let account = &rows[0];
     assert_eq!(account["provider"], 1);
     assert_eq!(account["plan"], true);
     assert_eq!(account["holder"]["party"], person);
     let sources = account["sources"].as_array().expect("account's sources");
-    assert_eq!(sources.len(), 1, "one signed-in source");
+    assert_eq!(sources.len(), ONE_SOURCE, "one signed-in source");
     assert_eq!(sources[0]["kind"], "sign_in");
     assert_eq!(sources[0]["usable"], true);
     assert_eq!(sources[0]["state"]["kind"], "granted");
@@ -84,17 +91,17 @@ fn a_terminal_sign_in_finishes_by_the_pasted_address() {
     assert_eq!(answer.status, None, "closed listener sends no HTTP status");
     assert!(answer.body.is_empty(), "closed listener sends no page");
     assert_eq!(ran.code_exchanges(), 1, "exactly one code exchange after the late return");
-    let me: serde_json::Value = serde_json::from_slice(&ran.calls()[1].stdout).expect("me JSON");
+    let me: serde_json::Value = serde_json::from_slice(&ran.calls()[ME].stdout).expect("me JSON");
     let person = me["party"]["number"].as_u64().expect("person number");
-    let accounts: serde_json::Value = serde_json::from_slice(&ran.calls()[2].stdout).expect("accounts JSON");
+    let accounts: serde_json::Value = serde_json::from_slice(&ran.calls()[ACCOUNTS].stdout).expect("accounts JSON");
     let rows = accounts["accounts"]["party"].as_array().expect("person's accounts");
-    assert_eq!(rows.len(), 1, "one account for the person after the late return");
+    assert_eq!(rows.len(), ONE_ACCOUNT, "one account for the person after the late return");
     let account = &rows[0];
     assert_eq!(account["provider"], 1);
     assert_eq!(account["plan"], true);
     assert_eq!(account["holder"]["party"], person);
     let sources = account["sources"].as_array().expect("account's sources");
-    assert_eq!(sources.len(), 1, "one signed-in source");
+    assert_eq!(sources.len(), ONE_SOURCE, "one signed-in source");
     assert_eq!(sources[0]["kind"], "sign_in");
     assert_eq!(sources[0]["usable"], true);
     assert_eq!(sources[0]["state"]["kind"], "granted");
