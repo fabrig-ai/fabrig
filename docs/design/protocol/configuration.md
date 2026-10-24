@@ -1265,6 +1265,60 @@ variable, else its default.
 - **Tests give all three,** each a directory of the test's own: no test
   resolves a default under `$HOME` (`../domain/testing.md`).
 
+### 12.1 The fake-backend sandbox
+
+temper box --fake-backends prepares effective configuration for the
+welcome's local peers (setup.md, 7.5). The flag belongs to configuration
+preparation and box supervision alone; the client, service and engine use
+their ordinary configuration and paths.
+
+For caller directories C, D and K, its private sandbox is
+E = D/box/fake-backends, with configuration C' = E/config, data
+D' = E/data and cache K. All child commands receive C', D' and K,
+including the worker's agent configuration and its argument. No child is
+given the original deployment's data. Original configuration and records
+are never overwritten; no credential, account, worker secret or program
+login is imported.
+
+- **First preparation:** absent or empty C runs ordinary init in C'/D'/K,
+  keeping its listeners until their steps claim them. A nonempty C is
+  accepted only for the current init-shaped standalone configuration,
+  its public agent document and its two public charters. Unsupported
+  shapes are refused with the member named, before any child starts.
+  Fresh worker/deployment secrets are made in D'. Configuration paths
+  resolve against C before public assets are copied; init's data paths
+  are rebased to D', never followed into the source store.
+- **Lifetime:** the box holds an exclusive nonblocking file lock on
+  E/lock. It publishes E/prepared last, after effective documents and
+  resources pass the ordinary deployment and agent checks. The marker
+  identifies source directory names and public-document digests. Partial
+  preparation, incompatible source identity or changed source documents
+  is refused with instructions to reset the sandbox.
+- **Restart:** effective configuration and data survive box shutdown.
+  Reuse keeps edits to C' and the state in D', so an ordinary managed
+  Forgejo configuration/restart uses the same mechanism as elsewhere.
+  The box prints these effective directories. Removing E resets this
+  scratch deployment; a normal start never reads it as the real one.
+- **Roots:** GitHub forge 2's API, web, git and transport name one
+  plaintext loopback fake. Provider 1 keeps its shipped client, scopes,
+  must-grant, resource and callback; its five sign-in origins name the
+  local issuer. The openai endpoint in both effective documents names
+  the same plaintext fake model, with stale TLS members removed. The
+  pure transformation is temper-fake's, with bounded bytes and explicit
+  paths/sockets as inputs; files and listeners belong to temper's shell.
+- **Browser:** application.clients.bundle names a loopback-navigation
+  bundle (../client/browser.md, 2.6). The box materializes the separately
+  packaged bundle, or uses an explicitly configured provisioned bundle.
+  With neither available it refuses, explaining
+  scripts/bundle.sh --loopback and the configuration member. Startup
+  neither builds a bundle nor accesses a remote service.
+
+Forgejo here keeps the ordinary owned steps and cache (setup.md, 6.6);
+an empty cache may need its ordinary one-time pinned download, while a
+disconnected walk uses a populated cache. Forgejo elsewhere is an
+ordinary managed entry backed by its separate fake. Program login is the
+ordinary command with its configured fake adapter, not an automatic login.
+
 ## 13. Settings in the store
 
 Designed, not built: mission 2 of the configuring plan builds it

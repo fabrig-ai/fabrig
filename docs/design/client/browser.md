@@ -542,9 +542,18 @@ without it.
   case already counts for the bundle, so the memory account does not
   change. `temper-service` adopts a bundle, wherever the binary got it.
   A directory configured is read as before, and the binary's is unused.
+- **The fake-backend bundle is separate.** An embed build can package a
+  second bundle with the existing loopback-navigation feature. The box's
+  fake-backend configuration writer materializes it into its scratch
+  configuration and names that directory (../protocol/configuration.md,
+  12.1). The ordinary embedded bundle remains loopback-free. A build with
+  TEMPER_BUNDLE=none packages neither bundle and runs no nested build.
+  A separately provisioned loopback bundle can instead be named in
+  application.clients.bundle; missing provision is a startup refusal with
+  the scripts/bundle.sh --loopback command, never a runtime build.
 - **`scripts/bundle.sh` stays,** for a bundle built apart: the browser
-  tier's, which turns on `loopback-navigation` (4.3) and so is never
-  the binary's, and a developer's. `scripts/install.sh PREFIX`
+  tier's, which turns on `loopback-navigation` (4.3), and a
+  developer's. The ordinary binary bundle never enables it. `scripts/install.sh PREFIX`
   installs the binary alone, built with `--release --locked`, and
   prints its path.
 - **Tested in both builds.** Every suite passes with and without the
@@ -693,7 +702,7 @@ real key in that restored form.
 - **The bundle the gate builds** turns on skein-ui-web's
   `loopback-navigation` (`scripts/bundle.sh --loopback`), so that the
   round trip (4.2) can send its tab to the fake issuer on plaintext
-  loopback; the binary's bundle never does (skein's `ui-web.md`,
+  loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (2.6).
 - **A guide: at most 12 tests, and about 120 seconds** (60 seconds before

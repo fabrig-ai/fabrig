@@ -1279,6 +1279,56 @@ running its commands, and the client names them (6.5).
 - **a container image** whose entry point is `temper box`, every process
   of its tree ending with the container.
 
+### 7.5 The welcome's fake backends
+
+temper box --fake-backends [DIRECTORIES] prepares the retained isolated
+sandbox of configuration.md, 12.1. Every child reads the effective
+temper.json and agent.json through its effective directory flags; changing
+only the parent's parsed bytes is insufficient.
+
+The preparation prints its effective paths and the peer commands.
+GitHub has one fixed person and repository. Its App id and matching fixture
+key, the dummy model key and the elsewhere Forgejo's admin token are the
+values a walk uses. The fixed signed-in model bearer uses the first added
+credential stream with the same seed as the issuer, while the primary
+model key stays the API-key choice. Neither value is a real credential.
+
+The standalone issuer command is:
+
+    temper fake oauth --document FILE [--ready PREFIX] [--seed N]
+
+Its bounded document has a loopback listen socket with a nonzero port,
+redirect_port (the shipped 1455 by default) and redirect_path
+(auth/callback by default). The listen socket determines its HTTP origin
+and shipped authorization, token, revocation and keys paths. Unknown,
+duplicate, ill-typed and oversized members are refused before any output
+or listener: at most 16 KiB for the document and 1024 bytes per URL/path.
+
+temper-fake decodes the document and configures skein's OAuth peer;
+temper owns the files, signal handling, readiness and the real loop.
+Authorization grants immediately with the shipped client/scopes/resource,
+the fixed fake person, OpenID tokens/keys and the fixed bearer accepted
+by the model. No login or consent page is added.
+
+The wrapper refills its bounded token-plan queue each pass. Each issuer
+launch admits at most 64 sign-ins, since the primitive retains used codes.
+Exhaustion, or refresh after revoking the fixed refresh token, requires an
+issuer restart. Generated configuration keeps callback port 1455; concurrent
+human sign-ins from several local boxes are not promised. Tests name
+explicit callback ports. Long-running peers retain no observation stream
+unless one is explicitly requested.
+
+The flag/configuration and standalone issuer are independent delivery
+steps. Automatic GitHub/issuer/model supervision is the following step:
+their long steps are outside the playground's asked group, whose retirement
+must not end a newly connected person's model or issuer. Listener ownership
+and readiness follow the ordinary box contract; an issuer primitive gap
+must be resolved before claiming inherited-listener support.
+
+Forgejo here remains owned and real; elsewhere keeps its managed
+configuration/restart, and program login remains a command the walker runs
+once. No product path branches on the flag.
+
 ## 8. The configuration
 
 - **One document,** `temper serve`'s, `temper.json` in the

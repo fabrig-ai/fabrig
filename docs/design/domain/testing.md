@@ -91,6 +91,20 @@ calls to GitHub are only skein's opt-in conformance (skein's
 `fake-forge.md`, section 11), run by hand on credentials from the person's private
 directory, never in a suite or at the gate. The user's own token is never used.
 
+The fake-backend welcome's configuration and issuer contracts are tested
+at their lowest owning layer (../protocol/configuration.md, 12.1;
+../protocol/setup.md, 7.5): CLI and filesystem preparation in temper's unit
+tests, bounded document rewriting and issuer plans in temper-fake, and
+actual child configuration reads in the existing process tier. A new
+process module proves a fresh effective box, retained restart, standalone
+issuer sign-in through the shipped registration and a first fake-model
+reply. It keeps private fixtures, the existing fetch stub and ordinary
+teardown; no test contacts a real account or downloads Forgejo. Browser
+coverage is only for the uninterrupted navigation chain, not document
+rewrites or OAuth bytes. Tests stay in their tiers. A/B evidence reports
+summed test execution by world and the new process stories against their
+two-second aim, excluding compilation, queue and gate elapsed time.
+
 ### 2.1 System worlds
 
 One runs the real engine driving the real worker: the composed system
