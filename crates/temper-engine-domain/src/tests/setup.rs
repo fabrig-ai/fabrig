@@ -763,36 +763,51 @@ fn seed_with_landing() -> crate::Config {
         deadline: None,
         priority: Some(2),
     }]);
-    configured.landing.projects.insert(1, Box::new([crate::LandingRule {
-        connector: 0,
-        kind: 4,
-        pattern: authority::Pattern {
-            segments: Box::new([b"branch".as_slice().into()]),
-            last: authority::Last::Exact(b"main".as_slice().into()),
-        },
-        enforce: true,
-        ci: false,
-        up_to_date: true,
-        gates: Box::new([]),
-        approvals: Box::new([]),
-    }])).unwrap();
+    configured
+        .landing
+        .projects
+        .insert(
+            1,
+            Box::new([crate::LandingRule {
+                connector: 0,
+                kind: 4,
+                pattern: authority::Pattern {
+                    segments: Box::new([b"branch".as_slice().into()]),
+                    last: authority::Last::Exact(b"main".as_slice().into()),
+                },
+                enforce: true,
+                ci: false,
+                up_to_date: true,
+                gates: Box::new([]),
+                approvals: Box::new([]),
+            }]),
+        )
+        .unwrap();
     configured
 }
 
 fn seed_bytes(policy: &jig_domain_core::ConfiguredPolicy) -> u64 {
     people::policy_bytes(
         &jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates).unwrap(),
-    ).unwrap()
+    )
+    .unwrap()
 }
 
 fn joined_seed_bytes(configured: &crate::Config, limits: &Limits) -> u64 {
     let mut policy = configured.core.seed_projects[0].policy.clone();
     let built = crate::route::policy_translate::build_landing(
-        configured.landing.projects.get(&1).unwrap(), true, limits.authority.requirements, 0,
-    ).unwrap();
+        configured.landing.projects.get(&1).unwrap(),
+        true,
+        limits.authority.requirements,
+        0,
+    )
+    .unwrap();
     policy.policy.requirements = crate::route::policy_translate::combine_requirements(
-        &policy.policy.requirements, &built.requirements, limits.authority.requirements,
-    ).unwrap();
+        &policy.policy.requirements,
+        &built.requirements,
+        limits.authority.requirements,
+    )
+    .unwrap();
     seed_bytes(&policy)
 }
 
@@ -805,7 +820,10 @@ fn a_parsed_fit_seed_policy_refuses_its_joined_bytes_before_core_construction() 
     assert!(seed_bytes(&configured.core.seed_projects[0].policy) <= limits.policy_bytes);
     assert!(!configured.core.seed_projects[0].policy.permissions.is_empty());
     assert!(!configured.core.seed_projects[0].policy.templates.is_empty());
-    assert_eq!(crate::refused(configured, &limits).as_ref(), [crate::Refused::Policy { project: 1, bytes: Some(joined) }]);
+    assert_eq!(
+        crate::refused(configured, &limits).as_ref(),
+        [crate::Refused::Policy { project: 1, bytes: Some(joined) }]
+    );
 }
 
 #[test]

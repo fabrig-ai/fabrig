@@ -949,9 +949,7 @@ pub enum Refused {
 pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     let room = u32::try_from(config.core.defaults.charters.len().saturating_add(config.core.owners.len()))
         .expect("bounded configuration")
-        .saturating_add(
-            u32::try_from(config.core.seed_projects.len()).expect("bounded projects").saturating_mul(2),
-        )
+        .saturating_add(u32::try_from(config.core.seed_projects.len()).expect("bounded projects").saturating_mul(2))
         .saturating_add(config.landing.projects.len())
         .saturating_add(7);
     let mut refused = List::with_capacity(room);

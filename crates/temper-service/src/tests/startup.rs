@@ -417,10 +417,18 @@ fn an_override_by_dotted_name_is_set_or_refused() {
         );
     }
 }
+fn application_with_landing_requirements() -> Box<[u8]> {
+    let input = fixtures::with(
+        fixtures::APPLICATION,
+        b"landing.projects[0].rules[0].gates",
+        br#"[{"number":3,"blocking":true,"freshness":"exact"}]"#,
+    );
+    fixtures::with(&input, b"landing.projects[0].rules[0].approvals", br#"[{"role":0,"people":1,"freshness":"clean"}]"#)
+}
 #[test]
 fn a_landing_rule_reads_jigs_pattern_form() {
     let jig = fixtures::engine().jig;
-    let (members, problems) = application(fixtures::APPLICATION, &jig);
+    let (members, problems) = application(&application_with_landing_requirements(), &jig);
     assert_eq!(&*lines(&problems), b"", "landing accepted");
     let members = members.unwrap();
     let rule = &members.landing.projects.get(&1).unwrap()[0];
@@ -497,7 +505,8 @@ fn jig_refusals_print_words() {
 #[test]
 fn members_and_references_are_checked() {
     let jig = fixtures::engine().jig;
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap();
+    let input = application_with_landing_requirements();
+    let input = core::str::from_utf8(&input).unwrap();
     for (from, to, expected) in [
         ("\"charter\":1", "\"charter\":2", "application.charter: unknown reference\n"),
         ("\"kind\":4", "\"kind\":3", "application.landing.projects[0].rules[0].kind: invalid form\n"),
