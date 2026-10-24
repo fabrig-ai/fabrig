@@ -126,7 +126,7 @@ fn choice(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, wa
         && let Some(to) =
             bindings.insert(Meaning::Model(Act::SignInElsewhere { name: root.pages().account_name(), way }))
     {
-        flow::control(b, Control::Link { name: &say(w, W::Elsewhere), to });
+        flow::control(b, Control::Button { name: &say(w, W::Elsewhere), to });
     }
     b.close();
 }

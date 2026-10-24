@@ -704,7 +704,7 @@ fn choose_offers_this_browser_isnt_on_tempers_computer_beside_the_sign_in() {
     let mut view = fixtures::view();
     let tree = fixtures::build(&mut view, &root);
     let primary = fixtures::find(tree, Role::Button, b"Continue with ChatGPT").unwrap();
-    let secondary = fixtures::find(tree, Role::Link, "This browser isn't on temper's computer ›".as_bytes()).unwrap();
+    let secondary = fixtures::find(tree, Role::Button, "This browser isn't on temper's computer ›".as_bytes()).unwrap();
     assert!(
         tree.nodes().iter().find(|n| n.id == primary).unwrap().styles.as_slice().contains(&crate::look::FLOW_PRIMARY)
     );
