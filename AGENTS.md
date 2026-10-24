@@ -16,11 +16,6 @@ this, then the design sections your task names.
 - **The layout** of crates and tests: `docs/design/testing.md`, section 6.
   Step crates are `crates/*`; their worlds are `tests/*`; shared test
   harnesses are `testing/*`.
-- **The code graph** (codebase-memory-mcp) indexes the primary checkout,
-  `main`, as the project named by that checkout's path, as the
-  workspace's `AGENTS.md` says: `realpath ~/src/rust/skein | sed
-  's|^/||; s|/|-|g'`. Use it for structure; check each name it gives with
-  `rg` in your worktree before relying on it.
 
 ## The gate
 
