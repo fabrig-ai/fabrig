@@ -148,6 +148,7 @@ fn fixture() -> crate::forge::Fixture {
             value["engine"]["projects"][0]["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds;
             admit(value);
         },
+        ..crate::forge::fixture()
     }
 }
 fn admit(value: &Value) {

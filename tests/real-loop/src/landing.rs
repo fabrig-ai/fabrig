@@ -51,6 +51,7 @@ pub fn fixture() -> crate::forge::Fixture {
             }]}]);
             configure(value, agent, forge);
         },
+        ..crate::forge::fixture()
     }
 }
 

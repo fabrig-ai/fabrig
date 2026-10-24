@@ -11,11 +11,12 @@ pub const HOOK_SECRET: &[u8] = b"real-loop-hook-secret";
 #[derive(Clone, Copy)]
 pub struct Fixture {
     pub setup: fn() -> api::Setup,
+    pub extra_setups: fn() -> Box<[api::Setup]>,
     pub configure: fn(&mut serde_json::Value, &mut serde_json::Value, SocketAddr),
 }
 #[must_use]
 pub fn fixture() -> Fixture {
-    Fixture { setup, configure: |_, _, _| {} }
+    Fixture { setup, extra_setups: || Box::new([]), configure: |_, _, _| {} }
 }
 fn setup() -> api::Setup {
     api::Setup {
@@ -168,8 +169,21 @@ pub(crate) struct State {
 impl State {
     pub(crate) fn new(fixture: Fixture) -> (Self, Peer) {
         let setup = (fixture.setup)();
-        let table =
+        assert_eq!(setup.id, ID, "the primary repository keeps the hosted fixture identity");
+        let setups = std::iter::once(setup).chain((fixture.extra_setups)()).collect::<Vec<_>>();
+        let setup = &setups[0];
+        let mut table =
             temper_fake_git_hosted::fixtures::table(&setup.name, setup.protection.as_ref().map(|p| p.branch.as_ref()));
+        // fixtures::table reserves one repository; rebuild before sharing with
+        // typed git and HTTP so every setup has the same wire identity.
+        table.repositories = skein_lib::List::with_capacity(u32::try_from(setups.len()).expect("repository count"));
+        for setup in &setups {
+            table.repositories.push(skein_fake_forge_protocol::Repository {
+                id: setup.id,
+                full: setup.name.clone(),
+                protected: setup.protection.as_ref().map(|p| p.branch.clone()),
+            }).expect("one table entry per setup");
+        }
         let mut config = temper_fake_git_hosted::fixtures::CONFIG;
         // The HTTP peer admits four simultaneous calls, unlike the git-only fixture.
         config.limits.calls = protocol_limits().calls;
@@ -189,8 +203,11 @@ impl State {
             now.wall.as_nanos().checked_sub(now.now.as_nanos()).expect("wall time follows monotonic origin"),
         ));
         let mut domain = domain::Domain::new(&config, fixtures::SEED);
-        domain::repository(&mut domain, &config, setup);
-        domain::grant(&mut domain, b"acme/app", 1, api::Permission::Write);
+        for setup in setups {
+            let name = setup.name.clone();
+            domain::repository(&mut domain, &config, setup);
+            domain::grant(&mut domain, &name, 1, api::Permission::Write);
+        }
         let handle = Rc::new(RefCell::new(Forge::new(domain, config)));
         crate::git::share(Some(temper_fake_git_hosted::Typed::new(handle.clone(), &table)));
         let peer = Peer::new(

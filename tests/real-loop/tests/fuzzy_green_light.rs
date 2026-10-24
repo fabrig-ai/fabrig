@@ -74,6 +74,7 @@ fn fixture() -> forge::Fixture {
                 project["policy"]["roles"][0]["authority"]["delegation"]["depth"] = 5.into();
             }
         },
+        ..forge::fixture()
     }
 }
 

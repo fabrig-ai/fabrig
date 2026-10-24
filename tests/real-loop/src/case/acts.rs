@@ -127,6 +127,19 @@ pub enum Read {
     BudgetSubownerFirst,
     BudgetOwnerFirst,
     BudgetDirectorFirst,
+    // 6.6
+    WaitingE1Pending,
+    WaitingRepinPending,
+    WaitingReviewWriting,
+    WaitingDirectorEnded,
+    WaitingOwnerEnded,
+    WaitingE1Ended,
+    WaitingRepinEnded,
+    WaitingE1CoderEnded,
+    WaitingE1ReviewerEnded,
+    WaitingRepinCoderEnded,
+    WaitingRepinReviewerEnded,
+    WaitingRootsEnded,
     // 6.4
     RedReviewWriting,
     RedChangeOpen,
@@ -1214,5 +1227,62 @@ pub fn step_6_7() -> Vec<calls::Step> {
     for (task, latest) in [(CAP_SUBOWNER, 19), (CAP_DIRECTOR, 21)] {
         steps.push(call(D1, argv!["activity", number(task), "--before", calls::activity_before(latest), "--json"]));
     }
+    steps
+}
+
+// Act 3, step 6.6. Name every call position: holds and releases make no call.
+const WAITING_SIGN_IN: usize = 0;
+const WAITING_ADOPT_APP: usize = WAITING_SIGN_IN + 1;
+const WAITING_ADOPT_KIT: usize = WAITING_ADOPT_APP + 1;
+const WAITING_CHAT: usize = WAITING_ADOPT_KIT + 1;
+const WAITING_DIRECTOR_REPLIED: usize = WAITING_CHAT + 1;
+const WAITING_OWNER_REPLIED: usize = WAITING_DIRECTOR_REPLIED + 1;
+const WAITING_REVIEW_CREATED: usize = WAITING_OWNER_REPLIED + 1;
+const WAITING_REVIEW_WRITING: usize = WAITING_REVIEW_CREATED + 1;
+const WAITING_E1_PENDING: usize = WAITING_REVIEW_WRITING + 1;
+const WAITING_REPIN_PENDING: usize = WAITING_E1_PENDING + 1;
+const WAITING_DIRECTOR_ENDED: usize = WAITING_REPIN_PENDING + 1;
+const WAITING_ENDED_FIRST: usize = WAITING_DIRECTOR_ENDED + 1;
+pub const READS_6_6: &[(Read, usize)] = &[
+    (Read::WaitingReviewWriting, WAITING_REVIEW_WRITING),
+    (Read::WaitingE1Pending, WAITING_E1_PENDING),
+    (Read::WaitingRepinPending, WAITING_REPIN_PENDING),
+    (Read::WaitingDirectorEnded, WAITING_ENDED_FIRST),
+    (Read::WaitingOwnerEnded, WAITING_ENDED_FIRST + 1),
+    (Read::WaitingE1Ended, WAITING_ENDED_FIRST + 2),
+    (Read::WaitingRepinEnded, WAITING_ENDED_FIRST + 3),
+    (Read::WaitingE1CoderEnded, WAITING_ENDED_FIRST + 4),
+    (Read::WaitingE1ReviewerEnded, WAITING_ENDED_FIRST + 5),
+    (Read::WaitingRepinCoderEnded, WAITING_ENDED_FIRST + 6),
+    (Read::WaitingRepinReviewerEnded, WAITING_ENDED_FIRST + 7),
+    (Read::WaitingRootsEnded, WAITING_ENDED_FIRST + 8),
+];
+
+#[must_use]
+pub fn step_6_6() -> Vec<calls::Step> {
+    use super::{Agent, waiting::*};
+    let mut steps = vec![sign_in(D1)];
+    for name in ["app", "kit"] {
+        steps.push(call(D1, argv!["adopt", "--project", number(PROJECT), "--owner", "acme", "--name", name,
+            "--landing", "main", "--no-home", "--key", name]));
+    }
+    steps.extend([
+        call(D1, argv!["chat", "--project", number(PROJECT), "--key", "waiting", PERSON]),
+        call(D1, argv!["wait", "task", number(DIRECTOR), "--until", "replied"]),
+        call(D1, argv!["wait", "task", number(A1), "--until", "replied"]),
+        calls::until(D1, argv!["task", number(E1), "--json"], Agent::Review.cue(), b"\"task\""),
+        calls::held(REVIEW_HOLD),
+        call(D1, argv!["task", number(E1_REVIEWER), "--json"]),
+        call(D1, argv!["task", number(E1), "--json"]),
+        call(D1, argv!["task", number(REPIN), "--activity", "32", "--json"]),
+        calls::release_hold(REVIEW_HOLD),
+        // After this release, the person only waits and reads. No targeted
+        // release/amend/message starts repin; the initial dependency does.
+        call(D1, argv!["wait", "task", number(DIRECTOR), "--until", "ended"]),
+    ]);
+    for task in [DIRECTOR, A1, E1, REPIN, E1_CODER, E1_REVIEWER, REPIN_CODER, REPIN_REVIEWER] {
+        steps.push(call(D1, argv!["task", number(task), "--activity", "32", "--json"]));
+    }
+    steps.push(call(D1, argv!["tasks", "--project", number(PROJECT), "--ended", "--json"]));
     steps
 }

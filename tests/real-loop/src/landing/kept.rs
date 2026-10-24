@@ -25,6 +25,7 @@ pub fn fixture() -> crate::forge::Fixture {
             }
             admit(value);
         },
+        ..crate::forge::fixture()
     }
 }
 

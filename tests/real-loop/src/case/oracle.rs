@@ -183,6 +183,11 @@ fn cued(system: &[u8]) -> Option<Agent> {
         Agent::BudgetSubowner,
         Agent::BudgetInvestigator,
         Agent::BudgetAdvisor,
+        // 6.6
+        Agent::WaitingDirector,
+        Agent::WaitingOwner,
+        Agent::WaitingKitCoder,
+        Agent::WaitingAppCoder,
         // 6.4
         Agent::RedDirector,
         Agent::RedOwner,
@@ -4018,8 +4023,9 @@ mod misread_tests {
 
 // Act 2, step 5.4 (domain/testing.md, 5.3)
 /// The forge's pull lifecycle; comments are outside this step's promises.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pull {
+    pub repository: Vec<u8>,
     pub number: u64,
     pub branch: Vec<u8>,
     pub opened: u64,
@@ -4038,34 +4044,35 @@ fn pull_digest(records: &[skein_fake_forge_domain::Observation]) -> Vec<Pull> {
     let mut heads = BTreeMap::new();
     for record in records {
         match record {
-            Observation::Moved { branch, to, .. } => {
-                heads.insert(branch.to_vec(), *to);
+            Observation::Moved { repository, branch, to, .. } => {
+                heads.insert((repository.to_vec(), branch.to_vec()), *to);
             }
-            Observation::Opened { number, branches: Some(branches), .. } => pulls.push(Pull {
+            Observation::Opened { repository, number, branches: Some(branches), .. } => pulls.push(Pull {
+                repository: repository.to_vec(),
                 number: *number,
                 branch: branches.head.to_vec(),
                 opened: branches.commit,
-                pushed: heads.get(branches.head.as_ref()).copied(),
+                pushed: heads.get(&(repository.to_vec(), branches.head.to_vec())).copied(),
                 landed: None,
                 merged_head: None,
                 merged: false,
                 closed: false,
                 deleted: None,
             }),
-            Observation::Closed { number, .. } => {
-                if let Some(pull) = pulls.iter_mut().find(|pull| pull.number == *number) {
+            Observation::Closed { repository, number, .. } => {
+                if let Some(pull) = pulls.iter_mut().find(|pull| pull.repository == repository.as_ref() && pull.number == *number) {
                     pull.closed = true;
                 }
             }
-            Observation::Merged { number, head, commit, .. } => {
-                if let Some(pull) = pulls.iter_mut().find(|pull| pull.number == *number) {
+            Observation::Merged { repository, number, head, commit, .. } => {
+                if let Some(pull) = pulls.iter_mut().find(|pull| pull.repository == repository.as_ref() && pull.number == *number) {
                     pull.merged = true;
                     pull.landed = Some(*commit);
                     pull.merged_head = Some(*head);
                 }
             }
-            Observation::Deleted { branch, at, .. } => {
-                if let Some(pull) = pulls.iter_mut().rev().find(|pull| pull.branch == branch.as_ref()) {
+            Observation::Deleted { repository, branch, at, .. } => {
+                if let Some(pull) = pulls.iter_mut().rev().find(|pull| pull.repository == repository.as_ref() && pull.branch == branch.as_ref()) {
                     pull.deleted = Some(*at);
                 }
             }
@@ -4666,6 +4673,7 @@ mod direction_tests {
                 merged_green: true,
                 pulls: vec![
                     Pull {
+                        repository: crate::case::KIT.as_bytes().to_vec(),
                         number: X3_PULL_NUMBER,
                         branch: format!("temper/{DIRECTION}/c{X3}").into_bytes(),
                         opened: 7,
@@ -4677,6 +4685,7 @@ mod direction_tests {
                         deleted: Some(7),
                     },
                     Pull {
+                        repository: crate::case::KIT.as_bytes().to_vec(),
                         number: STORY_PULL_NUMBER,
                         branch: format!("temper/{DIRECTION}/c{STORY_CHANGE}").into_bytes(),
                         opened: 8,
@@ -4848,6 +4857,7 @@ mod direction_tests {
                 5 => observed.kit.pulls[0].opened = 99,
                 6 => observed.kit.pulls[1].merged = false,
                 7 => observed.kit.pulls.push(Pull {
+                    repository: crate::case::KIT.as_bytes().to_vec(),
                     number: 3,
                     branch: format!("temper/{DIRECTION}/c{PLANNED}").into_bytes(),
                     opened: 9,
@@ -5196,6 +5206,52 @@ mod direction_tests {
             let mut observed = passing.clone();
             observed.kit.pulls = pull_digest(&records);
             assert!(!step_5_4(&observed).is_empty(), "record mutation {mutation}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod qualified_pull_tests {
+    use super::{Pull, pull_digest};
+    use skein_fake_forge_domain::{Branches, Observation};
+
+    #[test]
+    fn a_pulls_facts_stay_in_their_repository() {
+        // Equal pull numbers and branch names are local to their repository.
+        const KIT: &[u8] = b"acme/kit";
+        const APP: &[u8] = b"acme/app";
+        const BRANCH: &[u8] = b"temper/1/c3";
+        let records = [
+            Observation::Moved { repository: KIT.into(), branch: BRANCH.into(), from: None, to: 11, by: 1 },
+            Observation::Moved { repository: APP.into(), branch: BRANCH.into(), from: None, to: 22, by: 1 },
+            Observation::Opened { repository: KIT.into(), number: 1, kind: skein_fake_forge_domain::api::Kind::Pull,
+                title: Box::new([]), body: Box::new([]), labels: Box::new([]),
+                branches: Some(Branches { head: BRANCH.into(), base: b"main".as_slice().into(), commit: 11 }), by: 1 },
+            Observation::Opened { repository: APP.into(), number: 1, kind: skein_fake_forge_domain::api::Kind::Pull,
+                title: Box::new([]), body: Box::new([]), labels: Box::new([]),
+                branches: Some(Branches { head: BRANCH.into(), base: b"main".as_slice().into(), commit: 22 }), by: 1 },
+        ];
+        // Each row adds one kind of fact. Its expected repository-local
+        // state is data: closed, merged (head, commit), deleted-at.
+        let rows = [
+            ("push/open", None, [(false, None, None), (false, None, None)]),
+            ("close", Some(Observation::Closed { repository: APP.into(), number: 1, by: 1 }),
+                [(false, None, None), (true, None, None)]),
+            ("merge", Some(Observation::Merged { repository: APP.into(), number: 1, base: b"main".as_slice().into(), head: 22, commit: 33, by: 1 }),
+                [(false, None, None), (false, Some((22, 33)), None)]),
+            ("delete", Some(Observation::Deleted { repository: APP.into(), branch: BRANCH.into(), at: 22, by: 1 }),
+                [(false, None, None), (false, None, Some(22))]),
+        ];
+        for (name, tail, states) in rows {
+            let mut input = records.to_vec();
+            input.extend(tail);
+            let expected = [(KIT, 11), (APP, 22)].into_iter().zip(states).map(
+                |((repository, head), (closed, merge, deleted))| Pull {
+                    repository: repository.to_vec(), number: 1, branch: BRANCH.to_vec(),
+                    opened: head, pushed: Some(head), closed, merged: merge.is_some(),
+                    merged_head: merge.map(|(head, _)| head), landed: merge.map(|(_, commit)| commit), deleted,
+                }).collect::<Vec<_>>();
+            assert_eq!(pull_digest(&input), expected, "{name}");
         }
     }
 }
@@ -6380,6 +6436,7 @@ mod blocker_tests {
                 main: BTreeMap::from([(BLOCKER_FILE.as_bytes().into(), BLOCKER_FIXED.as_bytes().into())]),
                 merged_green: true,
                 pulls: vec![Pull {
+                    repository: crate::case::KIT.as_bytes().to_vec(),
                     number: BLOCKER_PULL,
                     branch: format!("temper/{BLOCKER_DIRECTOR}/c{BLOCKER_E1}").into_bytes(),
                     opened: 8,
@@ -8426,6 +8483,7 @@ mod red_tests {
         let pulls = [(RED_CHANGE, RED_DIRECTOR, RED_A4_PULL, 6, 7), (RED_REPAIR, RED_REPAIR, RED_REPAIR_PULL, 4, 5)]
             .into_iter()
             .map(|(task, root, number, head, merge)| Pull {
+                repository: crate::case::KIT.as_bytes().to_vec(),
                 number,
                 branch: format!("temper/{root}/c{task}").into_bytes(),
                 opened: if task == RED_CHANGE { RED_FIRST_HEAD } else { head },

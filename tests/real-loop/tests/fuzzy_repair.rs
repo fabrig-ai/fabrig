@@ -73,6 +73,7 @@ fn fixture() -> forge::Fixture {
             limits["root.brief.budgets.ci"] = 512.into();
             limits["root.brief.brief_bytes"] = 512.into();
         },
+        ..forge::fixture()
     }
 }
 

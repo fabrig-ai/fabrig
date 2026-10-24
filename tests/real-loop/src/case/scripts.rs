@@ -802,10 +802,13 @@ fn direction_owner(forge: SocketAddr, spec: &str, spend: u64, notes: u32, tasks:
     })
 }
 fn direction_change(forge: SocketAddr, spec: &str, path: &str, tasks: u32) -> Value {
+    repository_change(forge, crate::forge::ID, spec, path, tasks)
+}
+fn repository_change(forge: SocketAddr, repository: u32, spec: &str, path: &str, tasks: u32) -> Value {
     json!({
         "executor":{"kind":"procedure","connector":1,"code":2},
         "spec":{"words":spec,"parameters":[
-            {"name":1,"kind":"resource","connector":1,"resource":temper_engine_domain_forge::tag(1, crate::forge::ID)},
+            {"name":1,"kind":"resource","connector":1,"resource":temper_engine_domain_forge::tag(1, repository)},
             {"name":2,"kind":"bytes","value":"main"},
             {"name":6,"kind":"bytes","value":path}]},
         "contract":{"kind":"change","connector":1,"change_kind":1,"words":128},
@@ -1436,18 +1439,18 @@ pub fn step_6_4(forge: SocketAddr) -> Box<[Script]> {
         },
         Script {
             cue: Agent::RedCoder.cue().into(),
-            turns: Box::new([red_finish_change(
+            turns: Box::new([finish_change(
                 call(b"write", &json!({"path":RED_A4_FILE,"content":RED_A4})),
                 "a4",
                 "Preserve green CI.",
             )]),
         },
-        Script { cue: red_review_cue(RED_FIRST_HEAD), turns: Box::new([direction_held(RED_REVIEW_HOLD, verdict())]) },
+        Script { cue: review_cue(RED_FIRST_HEAD), turns: Box::new([direction_held(RED_REVIEW_HOLD, verdict())]) },
         Script {
             cue: Agent::RedRepairCoder.cue().into(),
             turns: Box::new([direction_held(
                 RED_REPAIR_HOLD,
-                red_finish_change(
+                finish_change(
                     call(b"edit", &json!({"path":RED_FILE,"edits":[{"old":RED_BROKEN,"new":RED_BASE}]})),
                     "Repair kit CI",
                     "Restore the green cue.",
@@ -1455,7 +1458,7 @@ pub fn step_6_4(forge: SocketAddr) -> Box<[Script]> {
             )]),
         },
         Script { cue: format!("[Requested by task {RED_REPAIR}]").into_bytes().into(), turns: Box::new([verdict()]) },
-        Script { cue: red_review_cue(RED_UPDATED_HEAD), turns: Box::new([verdict()]) },
+        Script { cue: review_cue(RED_UPDATED_HEAD), turns: Box::new([verdict()]) },
     ])
 }
 
@@ -1484,7 +1487,7 @@ pub fn step_6_4_rules() -> Box<[Box<[Rule]>]> {
     ])
 }
 
-fn red_review_cue(head: u64) -> Box<[u8]> {
+fn review_cue(head: u64) -> Box<[u8]> {
     use std::fmt::Write;
     let mut hex = String::new();
     for byte in skein_fake_forge_domain::object_bytes(head) {
@@ -1493,7 +1496,7 @@ fn red_review_cue(head: u64) -> Box<[u8]> {
     format!("Pull request at head {hex}").into_bytes().into()
 }
 
-fn red_finish_change(mut work: Turn, title: &str, body: &str) -> Turn {
+fn finish_change(mut work: Turn, title: &str, body: &str) -> Turn {
     let mut lines = work.lines.into_vec();
     lines.extend(call(b"finish", &json!({"form":"change","fields":{"title":title,"body":body}})).lines);
     work.lines = lines.into();
@@ -1604,5 +1607,49 @@ pub fn step_6_7_rules() -> Box<[Box<[Rule]>]> {
         ]),
         table(&[(CAP_A5_REPORT, 2), (CROSSED, 2), (CAP_SPLIT, 3), (DELEGATED, 1), (BEGIN, 0), ("", 3)]),
         Box::new([]),
+    ])
+}
+
+// Act 3, step 6.6 (domain/testing.md, 5.3)
+#[must_use]
+pub fn step_6_6(forge: SocketAddr) -> Box<[Script]> {
+    use super::waiting::*;
+    let mut owner = direction_owner(forge, OWNER_SPEC, 30, 0, 6);
+    owner["authority"]["tools"] = 1.into();
+    let e1 = repository_change(forge, KIT_ID, E1_SPEC, FILE, 2);
+    let mut repin = repository_change(forge, APP_ID, REPIN_SPEC, PIN, 2);
+    repin["dependencies"] = json!([{"kind":"batch","number":0}]);
+    let verdict = || call(b"finish", &json!({"form":"verdict","label":"1","text":REVIEWED,"fields":{},"items":[]}));
+    Box::new([
+        Script { cue: Agent::WaitingDirector.cue().into(), turns: Box::new([
+            then_wait(call(b"delegate", &json!({"batch":[owner]})), "A1 owns the two changes."),
+            report(DIRECTOR_REPORT), wait("A1 is still working."),
+        ]) },
+        Script { cue: Agent::WaitingOwner.cue().into(), turns: Box::new([
+            then_wait(call(b"delegate", &json!({"batch":[e1,repin]})), "e1 and the waiting repin are delegated."),
+            report(OWNER_REPORT), wait("Waiting for both landing results; no relay."),
+        ]) },
+        Script { cue: Agent::WaitingKitCoder.cue().into(), turns: Box::new([
+            finish_change(call(b"write", &json!({"path":FILE,"content":FIXED})), "e1", "Fix B's fake."),
+        ]) },
+        Script { cue: review_cue(KIT_REVIEW_HEAD), turns: Box::new([direction_held(REVIEW_HOLD, verdict())]) },
+        Script { cue: Agent::WaitingAppCoder.cue().into(), turns: Box::new([
+            finish_change(call(b"write", &json!({"path":PIN,"content":pin_input()})), "Repin kit", "Use e1's landed kit commit."),
+        ]) },
+        Script { cue: review_cue(APP_REVIEW_HEAD), turns: Box::new([verdict()]) },
+    ])
+}
+
+#[must_use]
+pub fn step_6_6_rules() -> Box<[Box<[Rule]>]> {
+    use super::waiting::{A1, OWNER_REPORT, REPIN};
+    let table = |entries: &[(&str, u32)]| -> Box<[Rule]> {
+        entries.iter().map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn: *turn }).collect()
+    };
+    Box::new([
+        table(&[(OWNER_REPORT, 1), (CROSSED, 1), (&format!("{DELEGATED}{A1}"), 2), (BEGIN, 0), ("", 2)]),
+        // e1's ending selects only a wait; repin starts by its dependency rail.
+        table(&[(&format!("Result from task {REPIN}:"), 1), (CROSSED, 1), (DELEGATED, 2), (BEGIN, 0), ("", 2)]),
+        Box::new([]), Box::new([]), Box::new([]), Box::new([]),
     ])
 }

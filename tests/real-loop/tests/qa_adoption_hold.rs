@@ -47,7 +47,7 @@ fn branch_file() -> Option<Vec<u8>> {
 }
 
 fn fixture() -> forge::Fixture {
-    forge::Fixture { setup: forge::fixture().setup, configure: landing::configure }
+    forge::Fixture { configure: landing::configure, ..forge::fixture() }
 }
 fn tool(name: &[u8], arguments: &serde_json::Value) -> Turn {
     Turn {

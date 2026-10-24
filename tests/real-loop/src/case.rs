@@ -135,6 +135,11 @@ pub enum Agent {
     BudgetSubowner,
     BudgetInvestigator,
     BudgetAdvisor,
+    // 6.6
+    WaitingDirector,
+    WaitingOwner,
+    WaitingKitCoder,
+    WaitingAppCoder,
     // 6.4
     RedDirector,
     RedOwner,
@@ -161,6 +166,11 @@ impl Agent {
             Self::BudgetSubowner => b"@case_budget_subowner",
             Self::BudgetInvestigator => b"@case_budget_investigator",
             Self::BudgetAdvisor => b"@case_budget_advisor",
+            // 6.6
+            Self::WaitingDirector => b"@case_waiting_director",
+            Self::WaitingOwner => b"@case_waiting_owner",
+            Self::WaitingKitCoder => b"@case_waiting_kit",
+            Self::WaitingAppCoder => b"@case_waiting_app",
             // 6.4
             Self::RedDirector => b"@case_red_director",
             Self::RedOwner => b"@case_red_owner",
@@ -286,6 +296,7 @@ pub fn fixture() -> forge::Fixture {
             value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 512.into();
             landing::admit(value);
         },
+        ..forge::fixture()
     }
 }
 
@@ -400,7 +411,7 @@ pub fn fixture_4_6() -> forge::Fixture {
             value["engine"]["limits"]["overrides"]["tasks.retries.agent.base_ms"] = 1.into();
             landing::admit(value);
         },
-        setup: forge::fixture().setup,
+        ..forge::fixture()
     }
 }
 
@@ -440,6 +451,7 @@ pub fn fixture_5_1() -> forge::Fixture {
             value["application"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
+        ..forge::fixture()
     }
 }
 
@@ -562,6 +574,7 @@ pub fn fixture_5_2() -> forge::Fixture {
             value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
             landing::admit(value);
         },
+        ..forge::fixture()
     }
 }
 
@@ -756,6 +769,7 @@ pub fn fixture_5_4() -> forge::Fixture {
             value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
             landing::admit(value);
         },
+        ..forge::fixture()
     }
 }
 
@@ -934,6 +948,7 @@ pub fn fixture_6_2() -> forge::Fixture {
             }
             landing::admit(value);
         },
+        ..forge::fixture()
     }
 }
 
@@ -1097,6 +1112,7 @@ pub fn fixture_6_4() -> forge::Fixture {
             }
             landing::admit(value);
         },
+        ..forge::fixture()
     }
 }
 
@@ -1154,5 +1170,116 @@ pub fn fixture_6_7() -> forge::Fixture {
             landing::admit(value);
         },
         ..fixture()
+    }
+}
+
+// Act 3, step 6.6 (domain/testing.md, 5.3). These identities belong only
+// to this two-repository case; earlier steps retain KIT = acme/app.
+pub mod waiting {
+    pub const DIRECTOR: u64 = 1;
+    pub const A1: u64 = 2;
+    pub const E1: u64 = 3;
+    pub const REPIN: u64 = 4;
+    pub const E1_CODER: u64 = 5;
+    pub const E1_REVIEWER: u64 = 6;
+    pub const REPIN_CODER: u64 = 7;
+    pub const REPIN_REVIEWER: u64 = 8;
+    pub const KIT_ID: u32 = 3;
+    pub const APP_ID: u32 = 2;
+    pub const KIT: &str = "acme/kit";
+    pub const APP: &str = "acme/app";
+    pub const FILE: &str = "src/fake.rs";
+    pub const FIXED: &str = "// B's fake answers correctly.\n";
+    pub const PIN: &str = "kit.pin";
+    pub const CI_FILE: &str = "ci.txt";
+    pub const GREEN: &str = "green\n";
+    pub const PERSON: &str = "@case_waiting_director Yes: let e1 land in kit, then app's waiting repin; report both.";
+    pub const OWNER_SPEC: &str = "@case_waiting_owner Delegate e1 in kit and app's repin together; repin depends on batch member zero. Wait for both results; send no relay.";
+    pub const E1_SPEC: &str = "@case_waiting_kit Fix B's fake in src/fake.rs and land e1 in kit.";
+    pub const REPIN_SPEC: &str = "@case_waiting_app Repin kit.pin to e1's landed kit commit and land in app.";
+    pub const OWNER_REPORT: &str = "A1 reports e1 and app's waiting repin landed without relay.";
+    pub const DIRECTOR_REPORT: &str = "The director reports kit e1 and app's dependent repin landed.";
+    pub const REVIEW_HOLD: &[u8] = b"case-6-6-e1-review";
+    // Script inputs only: app root 1, kit root 2, e1 coder 3, kit merge 4,
+    // repin coder 5, app merge 6. Initial Waiting serializes the coders.
+    // The oracle instead renders the unique actual kit Merged.commit.
+    pub const KIT_REVIEW_HEAD: u64 = 3;
+    pub const PIN_INPUT: u64 = 4;
+    pub const APP_REVIEW_HEAD: u64 = 5;
+
+    #[must_use]
+    pub fn pin_input() -> String {
+        use std::fmt::Write;
+        let mut words = String::new();
+        for byte in skein_fake_forge_domain::object_bytes(PIN_INPUT) {
+            write!(words, "{byte:02x}").expect("commit words");
+        }
+        words
+    }
+}
+
+fn waiting_setup(id: u32, name: &str) -> api::Setup {
+    let mut setup = (landing::fixture().setup)();
+    setup.id = id;
+    setup.name = name.as_bytes().into();
+    let mut tree = setup.tree.into_vec();
+    tree.push(api::File { path: waiting::CI_FILE.as_bytes().into(), content: waiting::GREEN.as_bytes().into() });
+    setup.tree = tree.into();
+    // The same stable CI file is present at the base and changed tree.
+    setup.checks.cue = Some(api::Cue::File {
+        path: waiting::CI_FILE.as_bytes().into(), green: waiting::GREEN.as_bytes().into(),
+    });
+    setup
+}
+
+#[must_use]
+pub fn fixture_6_6() -> forge::Fixture {
+    forge::Fixture {
+        setup: || waiting_setup(waiting::APP_ID, waiting::APP),
+        extra_setups: || Box::new([waiting_setup(waiting::KIT_ID, waiting::KIT)]),
+        configure: |value, agent, forge| {
+            (landing::fixture().configure)(value, agent, forge);
+            let mut kit_rule = value["application"]["landing"]["projects"][0]["rules"][0].clone();
+            kit_rule["pattern"]["segments"][3] = "kit".into();
+            value["application"]["landing"]["projects"][0]["rules"].as_array_mut().expect("rules").push(kit_rule);
+            // Two enforced rules each contribute CI, up-to-date and exact-head
+            // blocking review: 2 * 3 = 6 requirements. Both repos are hooked.
+            value["engine"]["limits"]["overrides"]["authority.requirements"] = 6.into();
+            // Deployment depth five leaves director four, A1 three and each
+            // procedure two for its coder/reviewer. Landing's depth four
+            // refuses A1's requested three, leaving the story without A1.
+            value["engine"]["rules"]["ceiling"]["delegation"]["depth"] = 5.into();
+            for project in value["engine"]["projects"].as_array_mut().expect("projects") {
+                project["policy"]["ceiling"]["delegation"]["depth"] = 5.into();
+                project["policy"]["roles"][0]["authority"]["delegation"]["depth"] = 5.into();
+            }
+            // Eight tasks, two batch members, one dependency. The deepest child
+            // has three requester ancestors + its terminal result = four joins;
+            // repin has two ancestors + dependency + result = four as well.
+            for name in ["tasks.batch", "authority.batch"] {
+                value["engine"]["limits"]["overrides"][name] = 2.into();
+            }
+            // Three lines carry a change's repository, branch and path; they
+            // also cover the maximum requester ancestry. Two adopted repositories
+            // and two checkout repositories fit the existing small capacities.
+            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+            value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 512.into();
+            value["engine"]["templates"][0]["contract"]["report"]["words"] = 128.into();
+            // The coder's write + finish and each owner's delegate + wait share
+            // one completion, serialized by the existing single call slot.
+            agent["profile"]["declared"]["calls_per_response"] = 1.into();
+            value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+            value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
+            value["engine"]["limits"]["overrides"]["fleet.calls"] = 1.into();
+            // Each procedure reserves ten, A1 adds its ten-unit run reserve,
+            // and the director adds ten: spends 20, 30 and 40 respectively.
+            value["engine"]["templates"][0]["budget"] = json!({"as_allowed":40});
+            // Hooks/adoption supply changes; retain the case's PATIENCE+1 polls.
+            let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
+            for name in ["poll_ms", "poll_max_ms"] {
+                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
+            }
+            landing::admit(value);
+        },
     }
 }
