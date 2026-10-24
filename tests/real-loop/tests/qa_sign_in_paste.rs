@@ -9,6 +9,8 @@ const FIELD: &[u8] = b"Address of the page that couldn't be reached";
 // A varying-port callback may fail its address check before its state check.
 const REFUSED: &[u8] = b"That ";
 const READY: &[u8] = b"Signed in to ChatGPT";
+/// The browser returns natively once per story.
+const ONE_RETURN: usize = 1;
 
 fn begin() -> Vec<calls::Step> {
     vec![
@@ -38,7 +40,7 @@ fn paste_then_native_return_exchanges_once() {
         steps
     });
     assert_eq!(ran.code_exchanges(), 1, "one code exchange");
-    assert_eq!(ran.returned().len(), 1);
+    assert_eq!(ran.returned().len(), ONE_RETURN);
     let late = &ran.returned()[0];
     assert!(late.error.is_some() || late.status.is_some_and(|status| status >= 400), "late return refused");
     assert_eq!(ran.terminal().exit, Some(Exit::Code(0)));
@@ -62,7 +64,7 @@ fn bad_paste_leaves_native_return_working() {
         steps
     });
     assert_eq!(ran.code_exchanges(), 1);
-    assert_eq!(ran.returned().len(), 1);
+    assert_eq!(ran.returned().len(), ONE_RETURN);
     assert_eq!(ran.returned()[0].status, Some(200));
     assert!(ran.returned()[0].error.is_none());
 }
