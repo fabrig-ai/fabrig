@@ -208,6 +208,21 @@ pub(crate) enum Word {
     NotSignedIn,
     NotOurs,
     MoveCancelled,
+    Elsewhere,
+    PasteDisclosure,
+    PasteHistory,
+    PasteInstructions,
+    PasteField,
+    PasteFinish,
+    PasteSending,
+    PasteFinishing,
+    PasteLong,
+    PasteAddress,
+    PasteState,
+    PasteTooMany,
+    PasteEnded,
+    PasteAgain,
+    OpenPlanSignIn,
 }
 const ROWS: &[(Word, &[u8])] = &[
     (Word::UnusableOn, b"Can't be used on "),
@@ -390,6 +405,18 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::NotSignedIn, b"Not signed in"),
     (Word::NotOurs, b"Not this application's record"),
     (Word::MoveCancelled, b"The move was cancelled"),
+    (Word::Elsewhere, "This browser isn't on temper's computer ›".as_bytes()),
+    (Word::PasteDisclosure, b"Signed in, but the page couldn't be reached?"),
+    (Word::PasteHistory, b"Go forward to that page, or find it in your history, and copy its address."),
+    (Word::PasteField, b"Address of the page that couldn't be reached"),
+    (Word::PasteFinish, b"Finish connecting"),
+    (Word::PasteSending, "Finishing…".as_bytes()),
+    (Word::PasteFinishing, "Finishing your sign-in…".as_bytes()),
+    (Word::PasteLong, b"That's longer than a sign-in's address. Copy the address bar alone."),
+    (Word::PasteAddress, b"That isn't this sign-in's address. Copy the whole address of the page that couldn't be reached, from the address bar."),
+    (Word::PasteState, b"That address is from an earlier sign-in. Paste the one from this sign-in's tab, or start again."),
+    (Word::PasteEnded, b"This sign-in has ended."),
+    (Word::PasteAgain, b"That address wasn't sent. Paste it again."),
 ];
 // Both names are borrowed; no configured name is replaced by a guessed brand.
 pub(crate) fn provider_words(name: &[u8]) -> (&[u8], &[u8]) {
@@ -427,6 +454,9 @@ const NAMED: &[(Word, &[u8], &[u8])] = &[
     (Word::KeyAdded, "Added your ".as_bytes(), " API key".as_bytes()),
     (Word::PlanRuns, "temper’s agents now run on your ".as_bytes(), " plan.".as_bytes()),
     (Word::Command, "temper program-login ".as_bytes(), "".as_bytes()),
+    (Word::OpenPlanSignIn, b"Open ", "'s sign-in ›".as_bytes()),
+    (Word::PasteInstructions, b"When ", b" is done, its tab shows a page that can't be reached. Copy that page's whole address from the address bar, come back here, and paste it. If a page opens instead, such as another program's sign-in, close that program's sign-in and start again."),
+    (Word::PasteTooMany, b"That's too many addresses from other sign-ins. Continue with ", b" to start again."),
 ];
 // PLAN is hole 0 and DISPLAY hole 1; hole 2 repeats PLAN in a renewal.
 struct EndWords {

@@ -12,6 +12,7 @@ pub(crate) enum Meaning {
     Model(pages::connect_model::Act),
     Go(temper_client_domain::Address),
     Key,
+    SignInAddress,
     Program,
 }
 #[derive(Debug)]
@@ -68,11 +69,17 @@ impl Bindings {
                 _ => {}
             }
             let action = match (meaning, act) {
+                (Meaning::SignInAddress, Act::Input { value }) => {
+                    return Some(Event::SignInAddress { value: Secret::new(value) });
+                }
                 (Meaning::Key, Act::Input { value }) => return Some(Event::AccountKey { value: Secret::new(value) }),
                 (Meaning::Action(action), Act::Press) => action.clone(),
                 (_, Act::Submit | Act::Toggle | Act::Drawing { .. })
                 | (Meaning::Action(_) | Meaning::Model(_) | Meaning::Go(_) | Meaning::Program, Act::Input { .. })
-                | (Meaning::Key | Meaning::Program | Meaning::Model(_) | Meaning::Go(_), Act::Press) => return None,
+                | (
+                    Meaning::Key | Meaning::SignInAddress | Meaning::Program | Meaning::Model(_) | Meaning::Go(_),
+                    Act::Press,
+                ) => return None,
             };
             return Some(Event::Act { action: Action::Pages(pages::Act::Accounts(action)) });
         }

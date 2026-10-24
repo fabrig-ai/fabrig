@@ -634,8 +634,9 @@ pub enum Word {
 // A failed setup's step adds five phrases.
 // Ready's refused read and exhausted busy rereads add three phrases.
 // A task document's reading line and seven lasting read ends (client/README.md, 3.5).
-const PHRASES: u32 = 1126;
-const SEGMENTS: u32 = 1977;
+// The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
+const PHRASES: u32 = 1141;
+const SEGMENTS: u32 = 1998;
 const ALL: [Word; 573] = [
     Word::NoProjectYet,
     Word::AdminTitle,

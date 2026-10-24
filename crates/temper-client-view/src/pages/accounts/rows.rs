@@ -242,7 +242,7 @@ fn draw(
         }
     }
     if page.request_row == Some(row) || (page.request.broken.is_some() && editing(page, row)) {
-        outcome(b, root, w, &page.request, text_bytes);
+        outcome(b, root, w, bindings, &page.request, text_bytes);
         if let SignInState::Ended { source } = page.request.sign_in_state(root.client())
             && let Some(doc) = accounts::document(root.client())
             && let Some(last) = &doc.last_end

@@ -114,7 +114,21 @@ fn choice(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, wa
     } else {
         Control::Link { name: &label, to }
     };
-    flow::choice(b, &heading, &description, &say(w, note), control);
+    flow::card(b, &heading);
+    crate::cards::text(b, Role::Paragraph, &description);
+    b.open(Role::Paragraph);
+    b.style(crate::look::FLOW_MUTED);
+    b.name(&say(w, note));
+    b.text(Run::Plain, &say(w, note));
+    b.close();
+    flow::control(b, control);
+    if let Way::SignIn { .. } = way
+        && let Some(to) =
+            bindings.insert(Meaning::Model(Act::SignInElsewhere { name: root.pages().account_name(), way }))
+    {
+        flow::control(b, Control::Link { name: &say(w, W::Elsewhere), to });
+    }
+    b.close();
 }
 fn request_for_way(page: &model::ConnectModel, way: Way) -> bool {
     if page.request.returned() && model::model_way(way).kind == WayKind::SignIn {
@@ -230,7 +244,7 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         for way in &ways {
             choice(b, root, w, bindings, *way, &ways);
         }
-        super::accounts::outcome(b, root, w, &page.request, text_per_node);
+        super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
         b.close();
         return;
     };
@@ -287,7 +301,7 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         }
     }
     if request_for_way(page, way) {
-        super::accounts::outcome(b, root, w, &page.request, text_per_node);
+        super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
     }
     if let Some(pending) = &page.request.pending
         && let Some(jig_client::Outcome::Lost | jig_client::Outcome::Unsent) = &pending.outcome
@@ -372,7 +386,7 @@ fn ready_body(
                     return;
                 }
             } else {
-                text(b, w, Role::Status, W::Unknown);
+                super::accounts::paste(b, root, w, bindings, &page.request, false);
                 return;
             }
             crate::cards::text(b, Role::Paragraph, &named(w, W::PlanRuns, plan));

@@ -520,3 +520,225 @@ fn a_retired_reload_offers_no_demo_key_or_card() {
         }
     }
 }
+
+const PASTE_FIELD: &[u8] = b"Address of the page that couldn't be reached";
+pub(super) fn pasting(elsewhere: bool) -> (d::Domain, skein_lib::Token) {
+    let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
+    let way = d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true };
+    let action = if elsewhere { M::SignInElsewhere { name: [1; 16], way } } else { M::SignIn { name: [1; 16], way } };
+    let attempt = sent(&mut root, action);
+    answer(
+        &mut root,
+        attempt,
+        c::OwnerOutcome::AccountSignInStarted {
+            source: 43,
+            address: Box::from(b"https://issuer.example/visit".as_slice()),
+        },
+    );
+    (root, watch)
+}
+fn paste_input(root: &mut d::Domain, value: &[u8]) {
+    fixtures::root_event(root, d::Event::SignInAddress { value: skein_lib::Secret::new(Box::from(value)) });
+}
+#[test]
+fn signing_in_offers_the_paste_folded_under_its_address() {
+    let (root, _) = pasting(false);
+    let view = fixtures::page_view(&root);
+    let disclosure = view
+        .tree()
+        .nodes()
+        .iter()
+        .position(|n| {
+            n.role == Role::Disclosure && n.name.as_deref() == Some(b"Signed in, but the page couldn't be reached?")
+        })
+        .unwrap();
+    let field = view.tree().nodes().iter().position(|n| n.name.as_deref() == Some(PASTE_FIELD)).unwrap();
+    assert!(field > disclosure && field < disclosure + usize::try_from(view.tree().nodes()[disclosure].size).unwrap());
+    assert!(!view.tree().nodes()[disclosure].states.as_slice().contains(&skein_ui::State::Expanded));
+    assert!(words(&root).contains("Go forward to that page, or find it in your history, and copy its address."));
+}
+fn paste_case(case: usize) -> d::Domain {
+    use c::SignInRedirectWhy as R;
+    let (mut root, watch) = pasting(false);
+    if case == 1 {
+        paste_input(&mut root, b"fixture");
+    }
+    if case == 2 {
+        paste_input(&mut root, &[b'x'; 257]);
+    }
+    if (3..=9).contains(&case) {
+        paste_input(&mut root, b"fixture");
+        let attempt = sent(&mut root, M::Finish { name: [2; 16] });
+        if case == 4 {
+            answer(&mut root, attempt, c::OwnerOutcome::AccountFinishing { source: 43 });
+        }
+        if (5..=8).contains(&case) {
+            let why = [R::Address, R::State, R::TooMany, R::NotWaiting]
+                [case.checked_sub(5).expect("refusal case starts at five")];
+            fixtures::root_event(
+                &mut root,
+                d::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Answer {
+                            attempt,
+                            envelope: skein_lib::RequestEnvelope::Final,
+                            answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                                refusal: c::Refusal::SignInRedirect { why },
+                                at: None,
+                            })),
+                            why: None,
+                        },
+                    },
+                },
+            );
+        }
+        if case == 9 {
+            fixtures::root_event(
+                &mut root,
+                d::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Answer {
+                            attempt,
+                            envelope: skein_lib::RequestEnvelope::Lost,
+                            answer: None,
+                            why: None,
+                        },
+                    },
+                },
+            );
+        }
+    }
+    if case == 10 {
+        let mut doc = super::accounts::card_document(b"openai", b"fixture", c::OwnerAccountKind::SignIn);
+        doc.signing.clear();
+        doc.signing
+            .push(c::OwnerAccountSignIn { source: 43, provider: 17, holder: c::OwnerAccountHolder::Party(73) })
+            .unwrap();
+        super::accounts::deliver(&mut root, watch, doc.clone());
+        doc.signing.clear();
+        doc.cut = false;
+        super::accounts::deliver(&mut root, watch, doc);
+    }
+    root
+}
+#[test]
+fn the_paste_reads_each_state_in_its_words() {
+    // Each row drives the page through its public events, then reads the actual tree.
+    for (case, message, field, enabled, button_name) in [
+        (0, "When ChatGPT is done, its tab shows a page that can't be reached.", true, false, "Finish connecting"),
+        (1, "Copy that page's whole address from the address bar", true, true, "Finish connecting"),
+        (2, "That's longer than a sign-in's address. Copy the address bar alone.", true, false, "Finish connecting"),
+        (3, "Finishing…", true, false, "Finishing…"),
+        (4, "Finishing your sign-in…", false, false, ""),
+        (
+            5,
+            "That isn't this sign-in's address. Copy the whole address of the page that couldn't be reached, from the address bar.",
+            true,
+            false,
+            "Finish connecting",
+        ),
+        (
+            6,
+            "That address is from an earlier sign-in. Paste the one from this sign-in's tab, or start again.",
+            true,
+            false,
+            "Finish connecting",
+        ),
+        (
+            7,
+            "That's too many addresses from other sign-ins. Continue with ChatGPT to start again.",
+            false,
+            true,
+            "Continue with ChatGPT",
+        ),
+        (8, "This sign-in has ended.", false, true, "Continue with ChatGPT"),
+        (9, "That address wasn't sent. Paste it again.", true, false, "Finish connecting"),
+        (10, "This sign-in has ended.", false, true, "Continue with ChatGPT"),
+    ] {
+        let root = paste_case(case);
+        let view = fixtures::page_view(&root);
+        let page_words = words(&root);
+        // Button names are accessible names and may not contribute text runs.
+        assert!(
+            page_words.contains(message)
+                || view.tree().nodes().iter().any(|n| n.name.as_deref() == Some(message.as_bytes())),
+            "state {case}"
+        );
+        let control =
+            view.tree().nodes().iter().find(|n| n.role == Role::TextField && n.name.as_deref() == Some(PASTE_FIELD));
+        assert_eq!(control.is_some(), field, "state {case}");
+        if let Some(control) = control {
+            assert_eq!(control.entry, Some(skein_ui::EntryKind::Secret));
+            assert!(control.value.as_ref().unwrap().text.is_empty());
+            assert_eq!(control.states.as_slice().contains(&skein_ui::State::Disabled), case == 3);
+        }
+        if button_name.is_empty() {
+            assert!(fixtures::find(view.tree(), Role::Button, b"Finish connecting").is_none());
+        } else {
+            let id = fixtures::find(view.tree(), Role::Button, button_name.as_bytes()).unwrap();
+            let control = view.tree().nodes().iter().find(|n| n.id == id).unwrap();
+            assert_eq!(!control.states.as_slice().contains(&skein_ui::State::Disabled), enabled, "state {case}");
+        }
+    }
+}
+#[test]
+fn the_paste_field_decodes_to_the_secret_event_and_finish_to_its_act() {
+    let (mut root, _) = pasting(false);
+    let mut view = fixtures::view();
+    let node = fixtures::find(fixtures::build(&mut view, &root), Role::TextField, PASTE_FIELD).unwrap();
+    let decoded =
+        crate::event(&mut view, node, Act::Input { value: Box::from(b"fixture-private".as_slice()) }).unwrap();
+    let d::Event::SignInAddress { value } = decoded else { panic!("secret event") };
+    assert!(value.expose() == b"fixture-private");
+    paste_input(&mut root, b"fixture-private");
+    let node = fixtures::find(fixtures::build(&mut view, &root), Role::Button, b"Finish connecting").unwrap();
+    assert_eq!(
+        crate::act(&mut view, node, Act::Press),
+        Some(d::Action::Pages(d::pages::Act::ConnectModel(M::Finish { name: root.pages().account_name() })))
+    );
+    assert!(!format!("{view:?}").contains("fixture-private"));
+}
+#[test]
+fn choose_offers_this_browser_isnt_on_tempers_computer_beside_the_sign_in() {
+    let mut root = offered_root();
+    let mut view = fixtures::view();
+    let tree = fixtures::build(&mut view, &root);
+    let primary = fixtures::find(tree, Role::Button, b"Continue with ChatGPT").unwrap();
+    let secondary = fixtures::find(tree, Role::Link, "This browser isn't on temper's computer ›".as_bytes()).unwrap();
+    assert!(
+        tree.nodes().iter().find(|n| n.id == primary).unwrap().styles.as_slice().contains(&crate::look::FLOW_PRIMARY)
+    );
+    assert!(
+        !tree
+            .nodes()
+            .iter()
+            .find(|n| n.id == secondary)
+            .unwrap()
+            .styles
+            .as_slice()
+            .contains(&crate::look::FLOW_PRIMARY)
+    );
+    let event = crate::event(&mut view, secondary, Act::Press).unwrap();
+    let d::Event::Act { action: d::Action::Pages(d::pages::Act::ConnectModel(M::SignInElsewhere { .. })) } = &event
+    else {
+        panic!("elsewhere sign-in act")
+    };
+    fixtures::root_event(&mut root, event);
+    assert!(root.pages().connect_model().unwrap().elsewhere());
+}
+#[test]
+fn signing_in_elsewhere_draws_the_sign_ins_link_and_the_paste_unfolded() {
+    let (root, _) = pasting(true);
+    assert!(root.pages().connect_model().unwrap().elsewhere());
+    let view = fixtures::page_view(&root);
+    let at = view.tree().nodes().iter().position(|n| n.role == Role::Link && n.external.is_some()).unwrap();
+    let link = &view.tree().nodes()[at];
+    assert!(link.external.as_deref() == Some(b"https://issuer.example/visit"), "the sign-in's start link");
+    assert_eq!(fixtures::node_text(view.tree(), at).as_ref(), "Open ChatGPT's sign-in ›".as_bytes());
+    assert!(fixtures::find(view.tree(), Role::TextField, PASTE_FIELD).is_some());
+    assert!(
+        !view.tree().nodes().iter().any(|n| n.role == Role::Disclosure
+            && n.name.as_deref() == Some(b"Signed in, but the page couldn't be reached?"))
+    );
+    assert!(!words(&root).contains("Go forward to that page"));
+}

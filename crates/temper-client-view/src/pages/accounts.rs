@@ -466,10 +466,12 @@ pub(super) fn key_field(
     }
     b.close();
 }
+#[expect(clippy::too_many_lines, reason = "one request outcome includes its sign-in address and shared paste")]
 pub(super) fn outcome(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
+    bindings: &mut Bindings,
     form: &accounts::request::Request,
     text_per_node: u32,
 ) {
@@ -539,9 +541,19 @@ pub(super) fn outcome(
         }
     }
     if let Some(address) = form.sign_in_address(root.client()) {
-        text(b, w, Role::Paragraph, W::Address);
+        let elsewhere = match root.pages().connect_model() {
+            Some(page) => page.elsewhere(),
+            None => false,
+        };
+        if !elsewhere {
+            text(b, w, Role::Paragraph, W::Address);
+        }
         if skein_ui::markdown::safe_url(address) {
-            let label = words::say(w, W::OpenSignIn, &[]);
+            let label = if elsewhere {
+                named(w, W::OpenPlanSignIn, paste_plan(root, form))
+            } else {
+                words::say(w, W::OpenSignIn, &[])
+            };
             let bytes = u64::try_from(label.len())
                 .expect("word length fits")
                 .saturating_add(u64::try_from(address.len()).expect("address length fits"));
@@ -565,6 +577,9 @@ pub(super) fn outcome(
         } else {
             text(b, w, Role::Alert, W::UnsafeAddress);
         }
+        paste(b, root, w, bindings, form, !elsewhere);
+    } else if form.paste_state(root.client()) == accounts::PasteState::Ended {
+        paste(b, root, w, bindings, form, false);
     }
 }
 fn is_owner(root: &Domain) -> bool {
@@ -702,4 +717,140 @@ pub(crate) fn own_signing_name(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
         return Some(words::join(&[&label, &number]));
     }
     None
+}
+
+fn paste_way(root: &Domain, form: &accounts::request::Request) -> Option<accounts::Way> {
+    if let Some(pending) = &form.pending
+        && let c::Ask::SignIn { provider, .. } = pending.ask
+    {
+        for way in &accounts::ways(
+            &accounts::current_me(root.client())?.providers,
+            root.forge().demo_provider(),
+            c::AccountHolder::Own,
+        ) {
+            if let accounts::Way::SignIn { provider: number, .. } = *way
+                && number == provider
+            {
+                return Some(*way);
+            }
+        }
+    }
+    temper_client_domain::pages::connect_model::way(root.pages(), root.client())
+}
+fn paste_plan<'a>(root: &'a Domain, form: &accounts::request::Request) -> &'a [u8] {
+    if let Some(way) = paste_way(root, form)
+        && let Some(me) = accounts::current_me(root.client())
+    {
+        for offer in &me.providers {
+            if offer.provider == way.provider() {
+                return words::provider_words(offer.name.bytes()).1;
+            }
+        }
+    }
+    b""
+}
+fn paste_restart(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    form: &accounts::request::Request,
+) {
+    let Some(way) = paste_way(root, form) else { return };
+    let Some(me) = accounts::current_me(root.client()) else { return };
+    let ways = accounts::ways(&me.providers, root.forge().demo_provider(), c::AccountHolder::Own);
+    let meaning = if root.pages().connect_model().is_some() {
+        Meaning::Model(temper_client_domain::pages::connect_model::Act::SignIn {
+            name: root.pages().account_name(),
+            way,
+        })
+    } else if let Some(page) = root.pages().accounts()
+        && let Some(row) = page.request_row
+    {
+        Meaning::Action(accounts::Act::Submit {
+            name: root.pages().account_name(),
+            row,
+            operation: accounts::Operation::SignIn { provider: way.provider() },
+        })
+    } else {
+        return;
+    };
+    named_control(b, bindings, &super::connect_model::label(me, way, &ways, w), meaning, false, false);
+}
+/// The wrapper is separate so the elsewhere entry point reuses the same body.
+pub(super) fn paste(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    form: &accounts::request::Request,
+    folded: bool,
+) {
+    if form.paste_state(root.client()) == accounts::PasteState::Closed {
+        return;
+    }
+    if folded {
+        b.open(Role::Disclosure);
+        b.name(&words::say(w, W::PasteDisclosure, &[]));
+        text(b, w, Role::Paragraph, W::PasteHistory);
+    }
+    paste_body(b, root, w, bindings, form);
+    if folded {
+        b.close();
+    }
+}
+fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, form: &accounts::request::Request) {
+    use accounts::PasteState as S;
+    let state = form.paste_state(root.client());
+    let alert = match state {
+        S::Closed | S::Refused { why: c::SignInRedirectWhy::NotWaiting } => return,
+        S::Finishing => {
+            text(b, w, Role::Status, W::PasteFinishing);
+            return;
+        }
+        S::Ended => {
+            text(b, w, Role::Status, W::PasteEnded);
+            paste_restart(b, root, w, bindings, form);
+            return;
+        }
+        S::Refused { why: c::SignInRedirectWhy::TooMany } => {
+            crate::cards::text(b, Role::Alert, &named(w, W::PasteTooMany, paste_plan(root, form)));
+            paste_restart(b, root, w, bindings, form);
+            return;
+        }
+        S::Refused { why: c::SignInRedirectWhy::Address } => Some(W::PasteAddress),
+        S::Refused { why: c::SignInRedirectWhy::State } => Some(W::PasteState),
+        S::TooLong => Some(W::PasteLong),
+        S::Again => Some(W::PasteAgain),
+        S::Waiting { .. } | S::Sending => None,
+    };
+    crate::cards::text(b, Role::Paragraph, &named(w, W::PasteInstructions, paste_plan(root, form)));
+    if let Some(word) = alert {
+        text(b, w, Role::Alert, word);
+    }
+    if let Some(binding) = bindings.insert(Meaning::SignInAddress) {
+        b.open(Role::TextField);
+        b.name(&words::say(w, W::PasteField, &[]));
+        b.entry(skein_ui::EntryKind::Secret);
+        b.value(b"", form.paste.written());
+        b.bind(binding);
+        if state == S::Sending {
+            b.state(State::Disabled);
+        }
+        b.close();
+    }
+    let meaning = if root.pages().connect_model().is_some() {
+        Meaning::Model(temper_client_domain::pages::connect_model::Act::Finish { name: root.pages().account_name() })
+    } else {
+        Meaning::Action(accounts::Act::Finish { name: root.pages().account_name() })
+    };
+    control(
+        b,
+        w,
+        bindings,
+        if state == S::Sending { W::PasteSending } else { W::PasteFinish },
+        meaning,
+        state != (S::Waiting { ready: true }),
+        false,
+    );
 }

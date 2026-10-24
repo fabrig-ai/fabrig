@@ -1313,3 +1313,39 @@ fn english_phrase_declarations_match_the_vocabulary() {
         memory_literal::check(&path, marker, expected, actual);
     }
 }
+
+#[test]
+fn an_accounts_rows_sign_in_offers_the_paste() {
+    let (mut root, watch) = super::connect_model::flow_fixture(d::WayKind::SignIn);
+    fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(d::Address::Accounts) });
+    deliver(&mut root, watch, card_document(b"openai", b"fixture", c::OwnerAccountKind::SignIn));
+    answer_account_operation(
+        &mut root,
+        Operation::SignIn { provider: PROVIDER },
+        c::OwnerOutcome::AccountSignInStarted {
+            source: SOURCE,
+            address: Box::from(b"https://issuer.example/visit".as_slice()),
+        },
+    );
+    let mut view = fixtures::view();
+    let tree = fixtures::build(&mut view, &root);
+    let field = fixtures::find(tree, Role::TextField, b"Address of the page that couldn't be reached").unwrap();
+    let field_at = tree.nodes().iter().position(|n| n.id == field).unwrap();
+    let disclosure = tree
+        .nodes()
+        .iter()
+        .position(|n| {
+            n.role == Role::Disclosure && n.name.as_deref() == Some(b"Signed in, but the page couldn't be reached?")
+        })
+        .unwrap();
+    assert!(field_at > disclosure && field_at < disclosure + usize::try_from(tree.nodes()[disclosure].size).unwrap());
+    let input = crate::event(&mut view, field, Act::Input { value: Box::from(b"fixture".as_slice()) }).unwrap();
+    let d::Event::SignInAddress { value } = &input else { panic!("secret event") };
+    assert!(value.expose() == b"fixture");
+    fixtures::root_event(&mut root, input);
+    let finish = fixtures::find(fixtures::build(&mut view, &root), Role::Button, b"Finish connecting").unwrap();
+    assert_eq!(
+        crate::act(&mut view, finish, Act::Press),
+        Some(d::Action::Pages(d::pages::Act::Accounts(A::Finish { name: root.pages().account_name() })))
+    );
+}
