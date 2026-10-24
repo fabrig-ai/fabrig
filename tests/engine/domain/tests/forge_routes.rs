@@ -2550,6 +2550,7 @@ fn an_explicit_forge_effect_proposal_is_retained_until_its_holder_accepts() {
             proposer: people::Proposer::Task(assignment.task),
             proposal,
             decision: people::ProposalDecision::Accept,
+            running: None,
         },
     }));
     world.until(Until::Ready);
@@ -2568,6 +2569,7 @@ fn an_explicit_forge_effect_proposal_is_retained_until_its_holder_accepts() {
             proposer: people::Proposer::Task(assignment.task),
             proposal,
             decision: people::ProposalDecision::Accept,
+            running: None,
         },
     }));
     world.until(Until::Ready);
