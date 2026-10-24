@@ -52,9 +52,7 @@ fn continued(read: TranscriptRead, offset: u64) -> TranscriptRead {
         TranscriptRead::Window { task, attempt, turn, .. } => {
             TranscriptRead::Window { task, attempt, turn, after: Some(offset) }
         }
-        TranscriptRead::Page { task, backwards, .. } => {
-            TranscriptRead::Page { task, backwards, after: Some(offset) }
-        }
+        TranscriptRead::Page { task, backwards, .. } => TranscriptRead::Page { task, backwards, after: Some(offset) },
         TranscriptRead::Turn { .. } => panic!("these cases use paged complete-turn reads"),
     }
 }
@@ -137,7 +135,9 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
         assert_eq!(*owner, OWNER);
         assert_eq!(turns.iter().map(|turn| turn.turn).collect::<Vec<_>>(), [first]);
         assert_eq!(
-            turns.iter().map(|turn| u64::try_from(turn.transcript.len()).expect("fixture size") + FRAME_OVERHEAD)
+            turns
+                .iter()
+                .map(|turn| u64::try_from(turn.transcript.len()).expect("fixture size") + FRAME_OVERHEAD)
                 .collect::<Vec<_>>(),
             [charge]
         );
@@ -150,7 +150,9 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
         assert_eq!(*owner, OWNER);
         assert_eq!(turns.iter().map(|turn| turn.turn).collect::<Vec<_>>(), [second]);
         assert_eq!(
-            turns.iter().map(|turn| u64::try_from(turn.transcript.len()).expect("fixture size") + FRAME_OVERHEAD)
+            turns
+                .iter()
+                .map(|turn| u64::try_from(turn.transcript.len()).expect("fixture size") + FRAME_OVERHEAD)
                 .collect::<Vec<_>>(),
             [charge]
         );
@@ -180,9 +182,7 @@ fn fresh_closing_changes_only_the_open_window_flag() {
     patches::kept(&source, &patches::source(&mut world), &"closing preserves rollback bytes");
     for original in &before {
         let mut expected = original.clone();
-        let core::Record::Core(core::CoreRecord::RunProof(proof)) = &mut expected else {
-            panic!("fixture run proof")
-        };
+        let core::Record::Core(core::CoreRecord::RunProof(proof)) = &mut expected else { panic!("fixture run proof") };
         if let Some(window) = &mut proof.window {
             window.closed = true;
         }
