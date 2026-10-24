@@ -622,6 +622,8 @@ impl Judge {
             }
             Step::Terminal(_) => panic!("Terminal unsupported"),
             Step::Browse { .. } => panic!("Browse unsupported"),
+            Step::Authorize => panic!("Authorize unsupported"),
+            Step::Return => panic!("Return unsupported"),
         }
         // The oracle's commands are the acts' verbs (Observed::with_commands).
         self.ran.push(step);
@@ -902,6 +904,8 @@ fn describe(step: &calls::Step) -> String {
     match step {
         Step::FixtureReady => "FixtureReady".into(),
         Step::Browse { call } => format!("Browse call {call}"),
+        Step::Authorize => "Authorize".into(),
+        Step::Return => "Return".into(),
         Step::Terminal(_) => "Terminal".into(),
         Step::ReleaseHold { name } => format!("ReleaseHold {}", String::from_utf8_lossy(name)),
         Step::Advance => "Advance".into(),

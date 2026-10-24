@@ -258,7 +258,8 @@ impl App for Temper {
                 | domain::Event::Client { .. }
                 | domain::Event::Forge(_)
                 | domain::Event::SignedOut
-                | domain::Event::AccountKey { .. },
+                | domain::Event::AccountKey { .. }
+                | domain::Event::SignInAddress { .. },
             )
             | None => false,
         }
@@ -372,6 +373,7 @@ impl App for Temper {
             | domain::Event::Act { .. }
             | domain::Event::Forge(_)
             | domain::Event::AccountKey { .. }
+            | domain::Event::SignInAddress { .. }
             | domain::Event::Client { .. } => vec![],
         }
     }
