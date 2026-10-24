@@ -1020,8 +1020,10 @@ nothing is written.
   limit, is its patched body's and its 12 bytes of framing. Where either
   machine is made, every frame is charged so, behind or not, so a frame's
   charge does not hang on its version, and a turn refused past a bound
-  (`TurnFailure::TooLarge`) names that size; with none, a frame is
-  charged its turn's bytes, as today. The head alone (a turn past a
+  (`TurnFailure::TooLarge`) names that size. A direct Window/Page read
+  charges the whole frame, including metadata, payload and framing,
+  whether or not a machine is made. With no machine, a party's read
+  charges the turn's bytes. The head alone (a turn past a
   page's bound, 8.3) serves a frame at the binary's versions only: a
   head whose body or turn is behind is read on, whole, from the bytes
   already read. A patched record past its machine's bytes or nodes
