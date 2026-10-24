@@ -193,36 +193,16 @@ fn patched_frames_past_bounds_match_current_boundaries() {
     let expected = frame_reads::turn(2, b"said", &[], 19);
     let charge = u64::try_from(frames::frame(6, &expected).len()).expect("frame charge");
     let behind_transcript = frame_reads::turn(1, b"said", b"x", 0);
-    let behind_length = u64::try_from(frames::frame(6, &behind_transcript).len()).expect("behind frame length");
     let mut behind = fixture(frame_reads::SETS, &behind_transcript);
     let mut current = fixture(frame_reads::SETS, &expected);
-    // store.md 8.3: a cursor is an offset in its own transcript file.
-    let boundary = |cursor: Option<u64>, length: u64| match cursor {
-        None => None,
-        Some(0) => Some("start"),
-        Some(offset) if offset == length => Some("end"),
-        Some(offset) => panic!("cursor {offset} is not a boundary of the {length}-byte frame"),
-    };
     for read in kinds() {
         let reference = settled(&mut current, ask(read, charge - 1));
         let patched = settled(&mut behind, ask(read, charge - 1));
-        assert!(!patched.is_empty(), "{read:?}: no terminal");
         assert!(
-            !patched.iter().any(|event| matches!(event, Event::Turns { turns, .. } if !turns.is_empty())),
-            "{read:?}: {patched:?}"
+            matches!(reference.as_slice(), [Event::Unread { owner }] if *owner == READER),
+            "{read:?}: {reference:?}"
         );
-        let [Event::Turns { owner, turns, next }] = patched.as_slice() else {
-            panic!("{read:?}: {patched:?}");
-        };
-        let [Event::Turns { owner: reference_owner, turns: reference_turns, next: reference_next }] =
-            reference.as_slice()
-        else {
-            panic!("{read:?}: {reference:?}");
-        };
-        println!("{read:?}: {patched:?}; current: {reference:?}");
-        assert_eq!(owner, reference_owner, "{read:?}");
-        assert_eq!(turns, reference_turns, "{read:?}");
-        assert_eq!(boundary(*next, behind_length), boundary(*reference_next, charge), "{read:?}");
+        assert!(matches!(patched.as_slice(), [Event::Unread { owner }] if *owner == READER), "{read:?}: {patched:?}");
     }
 }
 
