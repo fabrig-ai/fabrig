@@ -179,8 +179,8 @@ forge, temper adds:
   the terminal, signing in, and the clients' listener; `forge.md` is the
   forge's part of the client, `browser.md` the browser shell, `tools.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
-  from a command line), and `mockups/` the pages' look (reference
-  material, not contract).
+  from a command line), and `mockups/` the pages' design: their look,
+  parts, words and acts, binding, with a `STATUS.md` of their own.
 - **`qa.md`:** temper's binding to skein's lab (skein's `lab.md`): its
   experiments in `lab/`, their charter, tool and checks, and M1's
   campaign.

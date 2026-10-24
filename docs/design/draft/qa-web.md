@@ -34,9 +34,9 @@ a driver reaches the pages by (section 6), its stories and checks
   with signatures. The pictures go to a judge, who turns each new
   difference into an expectation that fails, a departure with the
   decision that accepts it, or a question for the user (section 5).
-- **The mockups are reference, the documents hold**
-  (`client/mockups/README.md`): each difference is judged against the
-  design text, which takes the mockup's way, the page's, or neither.
+- **The mockups are the pages' design** (`client/mockups/README.md`):
+  each difference is judged against them and the client's documents,
+  which agree; where the page is right, the mockup is behind.
 - **The hand is a browser the cluster holds,** reached through one tool,
   `browse`, whose acts are the person's browser face's: find by role and
   name, press, type, keys, go, reload, back, the address, an outline, a

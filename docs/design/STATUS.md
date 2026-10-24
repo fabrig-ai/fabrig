@@ -87,8 +87,8 @@ Open fake scripts use final text; Finite finish calls and all chat bounds stay.
 | `../guide/forgejo.md` | no | all: Forgejo connected, managed and owned from the client: github, after jig's request carrying a value and a jig repin |
 | `../guide/server.md` | partly | 10: the LLM account carried across a redeploy by `temper ctl export` and `import`: accounts-move's M3 |
 
-`client/mockups/` is reference material for the client's look and the
-order of its pages, not contract (`client/README.md`, 3.5).
+How far the client's pages are from their mockups is
+`client/mockups/STATUS.md`'s.
 
 ## 3. Not planned
 

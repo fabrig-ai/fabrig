@@ -38,15 +38,28 @@
   // such as the repositories given to GitHub's installation.
   if (W.choices) W.choices(world, params);
 
-  // Annotations show unless hidden; sources show when asked. `?bare`
-  // draws the product alone, for a capture: no bar, no marks.
-  const FLAGS = { plain: 'mock-plain', sources: 'mock-sources' };
+  // Annotations show unless hidden; sources and the future show when
+  // asked. `?bare` draws the product alone, for a capture: no bar, no
+  // marks; `?future` draws its future pieces too. View's Hide this bar
+  // does the same from page to page, keeping the future as it was set,
+  // until Esc or the corner's handle brings the bar back.
+  const FLAGS = { plain: 'mock-plain', sources: 'mock-sources', future: 'mock-future' };
+  const BARLESS = 'mock-barless';
   const bare = params.has('bare');
-  if (bare) document.body.classList.add(FLAGS.plain);
-  else {
+  const barless = !bare && stored(BARLESS) === '1';
+  if (bare || barless) document.body.classList.add(FLAGS.plain);
+  if (barless) {
+    document.body.classList.add(BARLESS);
+    if (stored(FLAGS.future) === '1') document.body.classList.add(FLAGS.future);
+  } else if (!bare) {
     for (const [flag, cls] of Object.entries(FLAGS)) if (stored(cls) === '1') document.body.classList.add(cls);
     document.body.classList.add('mock');
   }
+  if (params.has('future')) document.body.classList.add(FLAGS.future);
+
+  // The pages under the README's rules (README.md, section 5; STATUS.md,
+  // section 1): realistic, with their future pieces marked.
+  const REVIEWED = { welcome: '2026-10-25', github: '2026-10-25' };
 
   // ---- Words and links ------------------------------------------------
 
@@ -86,6 +99,7 @@
     if (!p.has('step')) p.set('step', at);
     for (const kept of ['project', 'granted', 'pick']) if (params.has(kept) && !p.has(kept)) p.set(kept, params.get(kept));
     if (bare) p.set('bare', '');
+    if (params.has('future') && !p.has('future')) p.set('future', '');
     return `${file}?${p}${hash ? `#${hash}` : ''}`;
   }
 
@@ -163,6 +177,30 @@
   // them).
   function ref(name) { return name ? `<i class="case-ref" title="The reference case's name">${esc(name)}</i>` : ''; }
   function gap(id, what) { return `<i class="gap" title="temper-on-temper.md ${esc(id)}: ${esc(what)}. Drawn ahead of temper's design.">gap ${esc(id)}</i>`; }
+
+  // A piece the engine can't supply yet, shown only under View → Future,
+  // marked with what would supply it: a mission, a draft, or "not
+  // designed". `variant` gives what the page shows today in its place.
+  // A need is its mark's few words and what would supply it.
+  const NEEDS = {
+    display: ['the account’s email', 'the account’s display, its email, which jig’s sign-in leaves empty (jig’s client/domain/contract.md, 7.1, OwnerAccountLine.display)'],
+    preview: ['the resolved default', 'the model a new chat’s first run takes, before it runs: jig’s Template.resolved_default (jig’s client/domain/contract.md, 5.3)'],
+    ci: ['a CI read at main', 'the verdict of CI at a repository’s main: a later mission (design STATUS.md, first-repo)'],
+    projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
+    eligible: ['jig’s not-eligible end', 'a sign-in’s ending for an account not eligible for plan usage (client README, section 11)'],
+    port: ['jig’s port-taken end', 'a sign-in’s ending for the listener’s port held by another program (client README, section 11)'],
+    login: ['the person’s login', 'the person’s Forgejo login on the owned forge’s row (client forge.md, 5.4)'],
+    grant: ['not designed', 'an installation’s choice of repositories, all or those selected, and their count'],
+  };
+  function future(need, html) {
+    const [label, detail] = NEEDS[need] || [need, need];
+    const tag = /^\s*<(div|section|table|ul|ol|p|dl|details|h[1-6])\b/.test(html) ? 'div' : 'span';
+    return `<${tag} class="future" data-need="${esc(label)}"><i class="future-mark" title="${esc(`Future: needs ${detail}`)}">future · ${esc(label)}</i>${html}</${tag}>`;
+  }
+  function variant(need, today, then) {
+    const tag = /^\s*<(div|section|table|ul|ol|p|dl|details|h[1-6])\b/.test(today) ? 'div' : 'span';
+    return `${today ? `<${tag} class="today">${today}</${tag}>` : ''}${future(need, then)}`;
+  }
 
   function ahead(label, what) { return `<i class="gap" title="Drawn ahead of temper’s design: ${esc(what)}">ahead · ${esc(label)}</i>`; }
 
@@ -300,7 +338,6 @@
   const demoRunning = () => !!demo && (!demo.state || demo.state === 'running');
   const usableModel = () => world.accounts.some(a => a.sources.length);
   const ownForge = () => world.forges.some(f => f.mode !== 'fake' && f.state === 'connected');
-  const welcomeMark = () => ahead('welcome', 'the first run’s welcome, and the demo started only when chosen: no mission yet');
   const tryDemo = (label = 'Try the playground') => `<a href="${esc(u('chats.html?world=first-run&step=1'))}">${label}</a>`;
   const noModelLine = () => `No model yet · <a class="text-link" href="${esc(u(demo?.state === 'not started' ? 'welcome.html?at=model' : 'connect-model.html'))}">Connect a model</a>`;
   const modelHalf = () => demoRunning() && !world.accounts.some(a => a.provider !== demo.provider);
@@ -315,7 +352,10 @@
     const setup = demo?.state === 'not started' && (!ownForge() || !usableModel());
     const words = !ownForge() && !usableModel() ? 'temper has no forge and no model yet.' : !ownForge() ? 'temper has no forge yet.' : 'temper has no model yet.';
     const settingUp = world.forges.some(f => f.mode !== 'fake' && ['setting up', 'connecting'].includes(f.state));
-    const banner = setup ? `<aside class="first-run-banner" aria-label="Setup"><p>${words} ${welcomeMark()}</p><div class="terminal-proposal-actions">${settingUp ? forgeBannerAct('welcome.html') : ''}<a href="${esc(u('welcome.html'))}">Continue setting up</a>${!ownForge() ? tryDemo() : ''}</div></aside>` : demoBanner();
+    // Continue setting up names its step (client README, 5.6).
+    const started = world.forges.some(f => f.mode !== 'fake' && ['setting up', 'connecting', 'connected'].includes(f.state));
+    const resume = !started ? 'forge' : !usableModel() ? 'model' : 'ready';
+    const banner = setup ? `<aside class="first-run-banner" aria-label="Setup"><p>${words}</p><div class="terminal-proposal-actions">${settingUp ? forgeBannerAct() : ''}<a href="${esc(u(`welcome.html?at=${resume}`))}">Continue setting up</a>${!ownForge() ? tryDemo() : ''}</div></aside>` : demoBanner();
     return banner ? `<div class="demo-strip">${banner}</div>` : '';
   }
   function forgeBannerAct(target) {
@@ -338,9 +378,13 @@
   const shownProject = () => params.get('project') || world.project;
   const inProject = t => (t.project || world.project) === shownProject();
   const projectTasks = () => Object.keys(world.tasks).filter(k => inProject(T(k)));
-  const project = () => fact('jig: the project', esc(params.get('project') || world.project || 'No project yet'));
-  // A first run has no project until the playground's start or the first
-  // repository makes one (draft first-run.md, 2.4).
+  // A first run's deployment has the project `temper init` seeds; with
+  // no project until the playground's start or the first repository
+  // makes one (draft first-run.md, 2.4), its place reads "No project yet".
+  const seeded = () => world.seeded && shownProject() === world.seeded;
+  const project = () => seeded()
+    ? variant('projectless', conf('engine.projects, its first, unnamed, so “Project 1” (protocol/setup.md, 8.3)', esc(world.seeded)), 'No project yet')
+    : fact('jig: the project', esc(params.get('project') || world.project || 'No project yet'));
   const noProject = () => !(params.get('project') || world.project);
   const PROJECT_NAV = ['board', 'changes', 'tasks', 'adopt'];
   const navShown = () => NAV.filter(e => !noProject() || !PROJECT_NAV.includes(e[0]));
@@ -362,6 +406,7 @@
         <button type="button" data-go="${next ? next.id : ''}" ${next ? '' : 'disabled'} title="${esc(nextTitle)}" aria-label="Next step">›</button>
       </div>
       <div class="mockbar-now"><b>${esc(when)}</b><span>${esc(W.acts[step.act])}</span></div>
+      ${page === 'index' ? '' : REVIEWED[page] ? `<span class="mockbar-rules" title="${esc(`Under the README’s rules since ${REVIEWED[page]}: what the main drawing shows, the engine has. STATUS.md says what the client lacks.`)}">Under the rules</span>` : '<span class="mockbar-rules not" title="Not under the README’s rules yet: it may draw what the engine lacks (STATUS.md, section 2).">Not reviewed</span>'}
       <div class="mockbar-right">
         <div class="mockbar-legend" aria-hidden="true">${legend}</div>
         <button type="button" data-pop="steps" aria-expanded="false">Steps ⌄</button>
@@ -422,6 +467,8 @@
       <h4>Show</h4>
       ${toggle('plain', 'Annotations', 'the reference case’s names, and the gaps temper lacks for what a page draws.')}
       ${toggle('sources', 'Sources', 'each value underlined by where it comes from; hover one for the detail. Unmarked text is the UI’s own words.')}
+      ${toggle('future', 'Future', 'what the engine can’t supply yet, each marked with what it needs, in place of what the page shows today.')}
+      <button type="button" class="view-hide" data-hide-bar><b>Hide this bar</b> and the marks: each page as it will look, from page to page. Esc, or the bottom-right corner, brings it back.</button>
       <h4>Sources</h4><ul class="view-legend">${legend}</ul>
     </div>`;
   }
@@ -447,6 +494,10 @@
       if (e.target.closest('.mockbar-pop')) return;
       document.querySelectorAll('[data-popover]').forEach(p => { p.hidden = true; });
     });
+    const showBar = on => { store(BARLESS, on ? '0' : '1'); location.reload(); };
+    document.querySelector('[data-hide-bar]')?.addEventListener('click', () => showBar(false));
+    document.querySelector('[data-show-bar]')?.addEventListener('click', () => showBar(true));
+    if (barless) document.addEventListener('keydown', e => { if (e.key === 'Escape') showBar(true); });
     document.querySelectorAll('[data-flag]').forEach(box => box.addEventListener('change', () => {
       const cls = FLAGS[box.dataset.flag];
       const on = box.dataset.flag === 'plain' ? !box.checked : box.checked;
@@ -702,6 +753,21 @@
 
   const pages = {};
 
+  // Every state each world's steps name, page by page.
+  function statesIndex() {
+    const byPage = {};
+    for (const [key, w] of Object.entries(C.worlds)) for (const s of w.steps) for (const [h, text] of s.look) {
+      const [path, hash] = h.split('#');
+      const [file, query] = path.split('?');
+      const p = new URLSearchParams(query || '');
+      if (!p.has('world')) p.set('world', key);
+      if (!p.has('step')) p.set('step', s.id);
+      const target = `${file}?${p}${hash ? `#${hash}` : ''}`;
+      (byPage[file] = byPage[file] || []).push(`<li><a href="${esc(u(target))}">${esc(text)}</a> <span class="muted">· ${esc(w.name)}, step ${esc(s.label)}</span></li>`);
+    }
+    return Object.entries(byPage).sort(([a], [b]) => a.localeCompare(b)).map(([file, items]) => `<details class="mock-states"><summary><b>${esc(file)}</b> · ${plural(items.length, 'state', 'states')}${REVIEWED[file.replace('.html', '')] ? ' · under the rules' : ''}</summary><ul>${items.join('')}</ul></details>`).join('');
+  }
+
   pages.index = () => {
     const look = step.look.map(([h, text]) => `<li><a href="${u(h)}">${esc(text)}</a></li>`).join('');
     const worlds = Object.entries(C.worlds).map(([key, w]) => key === worldKey
@@ -711,16 +777,18 @@
       .map(([h, label]) => `<a href="${u(h)}">${label}</a>`).join(' · ');
     return `<div class="mock-index">
       <h1>temper's client, in mockups</h1>
-      <p>Each page is drawn from a world at a step, in the bar above: ‹ and › move the step, <b>Steps</b> lists them, and <b>View</b> switches the world and what is marked. The README says what each page follows, and what it draws ahead of temper's design.</p>
+      <p>Each page is drawn from a world at a step, in the bar above: ‹ and › move the step, <b>Steps</b> lists them, and <b>View</b> switches the world and what is marked. The README says what the mockups are and their rules; STATUS.md, how far the client is from them. The bar says whether a page is under the rules yet.</p>
       <h2>Worlds</h2>
       <ul>${worlds}</ul>
       <h2>${esc(W.name)} · ${esc(step.label)} · ${esc(step.title)}</h2>
       <p>${esc(step.summary)}</p>
       <ol>${look}</ol>
+      <h2>Every page's states</h2>
+      ${statesIndex()}
       <h2>Pages</h2>
       <p>${pagesList}; a chat, a task and a change open from them. <a href="first-run.html">first-run.html</a> opens the first run at its first step: the link <code>temper box</code> prints. <a href="${u(`github.html?world=${GH_WORLD}`, '2')}">github.html</a> draws GitHub’s own pages, in the world First run, on GitHub. <a href="${u(`sign-in.html?world=${SIGN_IN_WORLD}`, '1')}">sign-in.html</a> draws the stock front page, signed out, and its sign-in’s endings, in the world Google sign-in.</p>
       <h2>Marks</h2>
-      <p>Slate marks are annotations, not the product: the reference case's names (<i class="case-ref">B</i>, <i class="case-ref">f1</i>) and the gaps temper lacks for what a page draws (<i class="gap">gap 6.5</i>). <b>Sources</b>, in View, underlines each value by where it comes from: <span class="legend-engine">an engine fact</span>, <span class="legend-config">a name from the configuration</span>, <span class="legend-written">words as a person or an agent wrote them</span>, or <span class="legend-ops">an ops application</span>. Unmarked text is the UI's own words, and names no workflow.</p>
+      <p>Slate marks are annotations, not the product: the reference case's names (<i class="case-ref">B</i>, <i class="case-ref">f1</i>) and the gaps temper lacks for what a page draws (<i class="gap">gap 6.5</i>). <b>Sources</b>, in View, underlines each value by where it comes from: <span class="legend-engine">an engine fact</span>, <span class="legend-config">a name from the configuration</span>, <span class="legend-written">words as a person or an agent wrote them</span>, or <span class="legend-ops">an ops application</span>. Unmarked text is the UI's own words, and names no workflow. <b>Future</b>, in View, shows what the engine can’t supply yet, each piece marked with what it needs (<i class="future-mark">future · not designed</i>), in place of what the page shows today.</p>
     </div>`;
   };
 
@@ -773,10 +841,10 @@
   // 3.5); the frame keeps the setup strip.
   function noProjectChats() {
     const act = ownForge()
-      ? `<a class="button primary" href="#" data-later="Mockup: the adoption form into a new project, named after the repository chosen (client README, 4.4).">Adopt a repository</a>${ahead('jig', 'a project made after the first start: jig’s MakeProject, designed, not built')}`
+      ? '<a class="button primary" href="#" data-later="Mockup: the adoption form into a new project, named after the repository chosen (client README, 4.4).">Adopt a repository</a>'
       : `<a class="button primary" href="${esc(u('welcome.html?at=forge'))}">Set up temper</a>`;
     const playground = demo?.state === 'not started' ? tryDemo() : '';
-    return `<section class="first-run-empty no-project"><h1>No project yet</h1><p>${fact('jig: the person’s projects, none', 'A project starts with its first repository.')}</p><div class="button-row">${act}${playground}</div></section>`;
+    return `<section class="first-run-empty no-project"><h1>No project yet</h1><p>A project starts with its first repository.</p><div class="button-row">${act}${playground}</div></section>`;
   }
 
   pages.chats = () => {
@@ -803,7 +871,10 @@
     const line = newChatLine();
     const composer = `${line ? `<div class="composer-line">${line}</div>` : ''}<div class="terminal-entry-composer"><span class="entry-prompt" aria-hidden="true">›</span><textarea rows="1" aria-label="Start a new chat"></textarea><span class="entry-hint">temper · Enter to start · Shift+Enter for newline</span><button class="send-button" aria-label="Start chat"${usableModel() ? ' data-later' : ' disabled'}>↑</button></div>`;
     const list = `<div class="section-heading"><h2>Your chats</h2><div class="filter-row"><button class="filter active">All</button><button class="filter">Live</button><button class="filter">Closed</button></div></div>${all.length ? `<div class="chat-list">${all.join('')}</div>` : '<div class="empty-state">No chats yet.</div>'}`;
-    if (!modelHalf()) return listPage('chats', [['Chats']], `${params.has('project') ? `<div class="compact-context"><span>${project()} · ${fact('temper: the project’s repositories, and their forges', Object.values(world.repos).filter(r => !r.retired && inProject(r)).map(r => `${esc(r.name)} on ${esc(forgeName(forgeOf(r.forge)))}`).join(' · '))}</span></div>` : ''}<div class="welcome"><div class="section-heading" style="margin-top:0"><h2>Start a chat</h2></div>${composer}</div>${list}${planVariants()}`);
+    if (!modelHalf()) {
+      const body = `${params.has('project') ? `<div class="compact-context"><span>${project()} · ${fact('temper: the project’s repositories, and their forges', Object.values(world.repos).filter(r => !r.retired && inProject(r)).map(r => `${esc(r.name)} on ${esc(forgeName(forgeOf(r.forge)))}`).join(' · '))}</span></div>` : ''}<div class="welcome"><div class="section-heading" style="margin-top:0"><h2>Start a chat</h2></div>${composer}</div>${list}${planVariants()}`;
+      return listPage('chats', [['Chats']], seeded() ? variant('projectless', body, noProjectChats()) : body);
+    }
     // The demo's start, in place of the page's heading (client README,
     // 5.6): a chat starts with its first message, so no task, no number.
     const chatbar = `<div class="terminal-chatbar"><div class="terminal-chat-identity"><strong class="terminal-title">New chat</strong><span class="terminal-phase" role="status">Ready</span></div><div class="terminal-chat-meta"><span>${fact('temper: the demo’s model half holds', 'Scripted model')}</span></div></div>`;
@@ -1108,6 +1179,9 @@
     return a.sources.every(s => s.kind === 'key') ? holder : `${a.provider} · ${holder}`;
   }
   const isPlan = a => a.sources.some(s => s.kind === 'sign-in');
+  // An account's heading (client README, 5.5, An account): its name, its
+  // display where jig gives one, and its holder.
+  const accountHeading = a => fact('client README, 5.5, An account: OwnerAccountLine.{provider, display, holder} (jig’s client/domain/contract.md, 7.1)', `${esc(a.name)}${isPlan(a) ? future('display', esc(` · ${a.sources[0].name}`)) : ''} · ${esc(holderWords(a))}`);
   const paysFor = a => (isPlan(a) ? 'Your own work, and projects where you’re the only member' : 'Your own work');
   const accountUsers = a => Object.keys(world.tasks).filter(k => T(k).account === a.name && isLive(k) && T(k).kind !== 'change').sort((x, y) => x.slice(1) - y.slice(1));
 
@@ -1245,7 +1319,7 @@
   };
   const modelButton = (label, target, primary = false) => `<button type="button" class="button${primary ? ' primary' : ''}" data-model-go="${esc(u(target))}">${esc(label)}</button>`;
   function pasteTarget(state, elsewhere = true) {
-    return `connect-model.html?way=chatgpt&paste=${state}${elsewhere ? '&elsewhere=1' : ''}`;
+    return `${page === 'welcome' ? 'welcome.html?at=model&' : 'connect-model.html?'}way=chatgpt&paste=${state}${elsewhere ? '&elsewhere=1' : ''}`;
   }
   function signInPaste(state, folded) {
     const restart = modelButton('Continue with ChatGPT', page === 'accounts' ? 'accounts.html?paste=waiting' : pasteTarget('waiting', false));
@@ -1272,22 +1346,23 @@
     const link = `<a class="text-link" href="https://issuer.example/visit" target="_blank" rel="noopener noreferrer">${esc(elsewhere ? PASTE_WORDS.link : PASTE_WORDS.open)}</a>`;
     return `<h3>Signing in</h3>${ended ? '' : `${elsewhere ? '' : `<p>${esc(PASTE_WORDS.address)}</p>`}<p>${link}</p>`}${signInPaste(state, !elsewhere && !ended)}`;
   }
-  const wayLabel = w => conf('a way the configuration offers to connect a model', esc(w));
+  const wayLabel = w => conf('engine.providers, offered as me.providers (jig’s client/domain/contract.md, 7.1, ProviderOffer); the label, client README 5.5, The ways', esc(w));
   function modelChoices(signIn, keyForm = 'connect-model.html?way=key') {
     const ways = world.config.ways || [];
     const chatgpt = ways.find(w => w.startsWith('Continue with'));
     const key = ways.find(w => w.startsWith('Use an') && w.endsWith('API key'));
-    const elsewhere = worldKey === 'first-run' ? 'connect-model.html?way=chatgpt&step=model-elsewhere' : pasteTarget('waiting');
+    const elsewhere = worldKey === 'first-run' && page !== 'welcome' ? 'connect-model.html?way=chatgpt&step=model-elsewhere' : pasteTarget('waiting');
     return `<div class="forge-choices model-choices">${chatgpt ? `<section class="card card-pad"><h3>ChatGPT</h3><p>Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s agents use your plan’s included usage.</p><p class="muted tiny">In a browser on the engine’s machine · about a minute</p><div class="button-row">${modelButton(chatgpt, signIn, true)}${modelButton(PASTE_WORDS.elsewhere, elsewhere)}</div></section>` : ''}${key ? `<section class="card card-pad"><h3>An OpenAI API key</h3><p>A key from OpenAI’s platform. What temper’s agents use is billed to the key’s organization.</p><p class="muted tiny">Pasted here · at once</p><a class="button" href="${esc(u(keyForm))}">${wayLabel(key)}</a></section>` : ''}</div>`;
   }
-  function chatgptReady(a, wasPlayground, withoutDisplay = false) {
+  function chatgptReady(a, wasPlayground) {
     const s = a.sources[0];
     const t = Object.keys(world.tasks).find(k => T(k).account === a.name && isLive(k) && isChat(T(k)));
-    return `<h3>${fact('jig: the sign-in’s end', esc(withoutDisplay ? 'Signed in to ChatGPT' : `Signed in to ChatGPT as ${s.name}`))}${withoutDisplay ? '' : ` ${displayMark()}`}</h3>
+    const ended = 'jig’s client/domain/contract.md, 7.1: OwnerAccounts.last_end, Made { account }';
+    return `<h3>${fact(ended, `Signed in to ChatGPT${future('display', esc(` as ${s.name}`))}`)}</h3>
       <p>temper’s agents now run on your ChatGPT plan.</p>
       <div class="repo-lines">
-        <div class="kv"><span>Account</span><strong>${fact('jig: the account, in temper’s words', esc(`${accountName(a)} · ${holderWords(a)}`))}</strong></div>
-        <div class="kv"><span>Model</span><strong>${fact('jig: the model a new chat’s first run takes', esc(world.config.next?.model || 'gpt-6-luna'))}</strong></div>
+        <div class="kv"><span>Account</span><strong>${accountHeading(a)}</strong></div>
+        ${future('preview', `<div class="kv"><span>Model</span><strong>${esc(world.config.next?.model || 'gpt-6-luna')}</strong></div>`)}
         <div class="kv"><span>Pays for</span><strong>${fact('jig: the account’s uses; a plan serves its holder alone', esc(paysFor(a)))}</strong></div>
       </div>
       ${wasPlayground ? `<p>The playground’s scripted model stepped aside${t ? `: ${t}’s next run takes ${esc(T(t).model)}` : ''}.</p>` : ''}
@@ -1296,11 +1371,9 @@
   }
   function keyForm() {
     return `<div class="forge-setup welcome-model"><h3>An OpenAI API key</h3><p>From OpenAI’s platform, under API keys. What temper’s agents use is billed to the key’s organization.</p>
-        <label class="forge-field"><span>Name</span><input type="text" value="sam-key"></label>
-        <label class="forge-field"><span>API key</span><input type="password" placeholder="sk-…"></label>
-        <button class="button primary" data-later="Mockup: the key makes an account, OpenAI API key, held by you, and reads Ready.">Add the key</button>
-        ${PASTED}
-        <p class="gap-note">A key reads Ready until a run is refused: a wrong key shows only once OpenAI refuses a request.</p></div>`;
+        <label class="forge-field"><span>Key (pasted once)</span><input type="password"></label>
+        <button class="button primary" data-later="Mockup: the key makes an account, OpenAI API key, held by you, and reads Ready.">Add key</button>
+        <p class="mock-note">A key reads Ready until a run is refused: nothing checks it when it is added, so a wrong key shows only once OpenAI refuses a request.</p></div>`;
   }
   function claudeSketch() {
     return `<div class="forge-setup"><h3>Your Claude subscription ${ahead('sketch', 'Claude’s subscription in Connect a model, in outline for the context: the words are client README 5.5’s, the command credentials.md’s')}</h3>
@@ -1326,7 +1399,7 @@
       ['lost', 'Lost; paste again', 'lost', true],
       ['unsent', 'Unsent; paste again', 'unsent', true],
       ['done', 'Done; the watch shows Ready', 'done', true],
-    ].map(([id, heading, state, elsewhere]) => `<h3 id="paste-${id}"><a href="${esc(u(pasteTarget(state, elsewhere)))}">${esc(heading)}</a></h3>${modelSteps(state === 'done' ? 3 : 1, 'chatgpt')}${flowWrap(state === 'done' ? chatgptReady(chatgptLike({ source: {} }), wasPlayground, true) : signInCard(state, elsewhere))}`).join('')}`;
+    ].map(([id, heading, state, elsewhere]) => `<h3 id="paste-${id}"><a href="${esc(u(pasteTarget(state, elsewhere)))}">${esc(heading)}</a></h3>${modelSteps(state === 'done' ? 3 : 1, 'chatgpt')}${flowWrap(state === 'done' ? chatgptReady(chatgptLike({ source: {} }), wasPlayground) : signInCard(state, elsewhere))}`).join('')}`;
   }
   const modelSteps = (current, way) => flowSteps(current, '', ['Choose', way !== 'chatgpt' ? 'Details' : 'Signing in', 'Ready']);
   const endingCard = (words, acts, mark = '', failed = true) => `<h3>Signing in to ChatGPT ${mark}</h3><p${failed ? ' class="forge-failure"' : ''}>${words}</p>${acts ? `<div class="button-row">${acts}</div>` : ''}`;
@@ -1343,7 +1416,7 @@
     if (way === 'chatgpt' && signing && signing.state !== 'done') {
       current = 1; body = flowWrap(signInCard(signing.state, signing.elsewhere));
     }
-    else if (way === 'chatgpt' && (a || signing?.state === 'done')) { current = 3; body = flowWrap(chatgptReady(a || chatgptLike({ source: {} }), wasPlayground, signing?.state === 'done')); }
+    else if (way === 'chatgpt' && (a || signing?.state === 'done')) { current = 3; body = flowWrap(chatgptReady(a || chatgptLike({ source: {} }), wasPlayground)); }
     else if (way === 'key') { current = 1; body = flowWrap(keyForm()); }
     else if (way === 'program') { current = 1; body = flowWrap(claudeSketch()); }
     const back = ['key', 'program'].includes(way) ? `<p><a class="text-link" href="${esc(u('connect-model.html'))}">‹ All ways</a></p>` : '';
@@ -1397,14 +1470,14 @@
   function githubReady(f, from = 'connect-forge') {
     const install = f.app.installs[0];
     const adopted = githubAdopted(f);
-    if (adopted) return `<div class="forge-setup"><h3>${fact('temper: the repository adopted at Ready', esc(`${adopted.name} is ready`))}</h3><p>In the new project ${fact('jig: the new project', esc(adopted.project))}, on GitHub.</p><p>${fact('temper: the App\'s permissions, in the forge\'s words (client README, 4.7)', 'temper may: read; push; open pull requests; land; review; set statuses; comment; create issues; create and delete branches.')}</p><p>${fact('temper: on GitHub, always (client README, 4.7)', 'Commit statuses stay temper\'s own: GitHub\'s rules cannot require them.')}</p><p>${fact('temper: the branch rules the adoption read (domain forge.md, 5.1)', 'The branch has no rules.')}</p>
+    if (adopted) return `<div class="forge-setup"><h3>${fact('client forge.md, 5.4, Ready: the forges watch’s Row.repositories[].{owner, name}', esc(`${adopted.name} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract.md, 3.2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(adopted.project))}, on GitHub.</p><p>${fact('client README, 4.7, and client forge.md, 5.4: the adoption’s Adopted.kinds, a GitHub App’s status never set', 'temper may: read; push; open pull requests; land; review; comment; create issues; create and delete branches.')}</p><p>${fact('temper: on GitHub, always (client README, 4.7)', 'Commit statuses stay temper\'s own: GitHub\'s rules cannot require them.')}</p><p>${fact('temper: the branch rules the adoption read (domain forge.md, 5.1)', 'The branch has no rules.')}</p>
         <div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(adopted.project)}`))}">Open ${esc(adopted.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: github.com/${adopted.name}, in a new tab.`)}">Open on GitHub ↗</a></div><p class="muted tiny">GitHub is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p></div>`;
     const repos = install.names.map(n => [n, (world.github?.repos[install.account] || []).find(([r]) => r === n)?.[1]]);
     const target = from === 'welcome' ? 'welcome.html?at=model' : 'connect-forge.html?forge=2';
     const first = repos[0][0];
-    return `<div class="forge-setup"><h3>Choose a repository to start in</h3><p>${fact('temper: the App’s installation, its account and its repositories', esc(`${f.app.slug} is installed on ${install.account}, with ${install.all ? `all its repositories, ${install.names.length}` : `${plural(install.names.length, 'repository', 'repositories')} you chose`}.`))}</p>
-        <div class="pick-list" data-pick="${esc(u(target, '5'))}" data-owner="${esc(install.account)}">${repos.map(([n, priv], i) => `<label class="pick-row"><input type="radio" name="pick" value="${esc(n)}"${i ? '' : ' checked'}><span>${fact('temper: a repository the installation reaches', esc(`${install.account}/${n}`))}</span>${priv ? '<span class="tag">private</span>' : ''}</label>`).join('')}</div>
-        <label class="forge-field"><span>Into a new project, named ${ahead('jig', 'a project made after the first start: jig’s MakeProject, designed, not built')}</span><input type="text" value="${esc(first)}" data-pick-project></label>
+    return `<div class="forge-setup"><h3>Choose a repository to start in</h3><p>${fact('client README, 4.6: the forges watch’s Row.installations[].account, and the App’s slug', variant('grant', esc(`${f.app.slug} is installed on ${install.account}.`), esc(`${f.app.slug} is installed on ${install.account}, with ${install.all ? `all its repositories, ${install.names.length}` : `${plural(install.names.length, 'repository', 'repositories')} you chose`}.`)))}</p>
+        <div class="pick-list" data-pick="${esc(u(target, '5'))}" data-owner="${esc(install.account)}">${repos.map(([n, priv], i) => `<label class="pick-row"><input type="radio" name="pick" value="${esc(n)}"${i ? '' : ' checked'}><span>${fact('client forge.md, 4.3: the Reachable read’s rows, Reached.{owner, name, private}', esc(`${install.account}/${n}`))}</span>${priv ? '<span class="tag">private</span>' : ''}</label>`).join('')}</div>
+        <label class="forge-field"><span>Into a new project, named</span><input type="text" value="${esc(first)}" data-pick-project></label>
         <div class="button-row"><a class="button primary" data-pick-go href="${esc(u(`${target}&pick=${encodeURIComponent(first)}`, '5'))}">Adopt ${esc(`${install.account}/${first}`)}</a></div>
         <p class="muted tiny">Not listed? <a class="text-link" href="${esc(toGithub('install', from, '4'))}">Choose its repositories on GitHub</a>, and GitHub sends you back here.</p></div>`;
   }
@@ -1419,19 +1492,18 @@
   function githubRefusal(why, from = 'connect-forge') {
     const [head, words, back, step] = {
       request: ['GitHub sent a request, not an installation', 'Only an owner of an organization can install temper’s App there, and temper can’t wait for an owner to approve it yet: an installation approved later isn’t used. Install it on your own account, or on an organization you own.', githubBack(from), '3'],
-      ended: ['This link has ended', 'It was used already, it expired, or temper restarted since. Start again from temper.', 'connect-forge.html', '1'],
+      ended: ['This link has ended', 'It was used already, it expired, or temper restarted since. Start again from temper.', 'connect-forge.html?forge=2', '1'],
     }[why];
-    return `<div class="forge-setup"><h3>${esc(head)}</h3><p>${fact('temper: the setup route’s refusal, in its words', esc(words))}</p><a class="button primary" href="${esc(u(back, step))}">Back to temper</a></div>`;
+    return `<div class="forge-setup"><h3>${esc(head)}</h3><p>${fact('client forge.md, 9.1: the clients’ listener’s own page, in its words', esc(words))}</p><a class="button primary" href="${esc(u(back, step))}">Back to temper</a></div>`;
   }
   function ownedCommands(f) { return `<div class="forge-setup"><h3>Set it up from a terminal</h3><p>temper was not started by temper box, so it does not start a Forgejo itself. Run these, keep the last two running (a service manager is best), then restart temper:</p><pre><code>${conf('the owned forge’s number in the configuration', esc(`temper forge fetch ${f.n}\ntemper forge prepare ${f.n}\ntemper forge run ${f.n} forgejo\ntemper forge run ${f.n} runner`))}</code></pre><p>Once it is connected, make your first repository here.</p></div>`; }
   function ownedForm(f, target = `connect-forge.html?forge=${f.n}`, at = '6') {
     const setup = f.setup;
     return `<div class="forge-setup">
-        <h3>Forgejo on this machine ${ahead('B4 M4', 'the first repository, made and adopted at set-up: B4’s M4, once temper-15 moves the admin token into the engine')}</h3>
-        <p>temper box downloads Forgejo ${conf('the owned forge’s pinned version', esc(f.versions.forgejo))} and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart.</p>
-        <div class="forge-fields"><label class="forge-field"><span>Organization</span>${conf('the set-up’s organization', `<input type="text" value="${esc(setup.org)}">`)}</label><label class="forge-field"><span>Repository</span>${conf('the set-up’s repository', `<input type="text" value="${esc(setup.repo)}">`)}</label></div>
-        <div class="forge-fields"><label class="forge-field"><span>Into a new project, named</span>${conf('the set-up’s project name, following the repository’s', `<input type="text" value="${esc(setup.project)}">`)}</label></div>
-        ${ahead('jig', 'a project made after the first start: jig’s MakeProject, designed, not built')}
+        <h3>Forgejo on this machine</h3>
+        <p>temper box downloads Forgejo ${fact('client forge.md, 5.4: the forges watch’s Row.owned.forgejo, its pin', esc(f.versions.forgejo))} and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart.</p>
+        <div class="forge-fields"><label class="forge-field"><span>Organization</span><input type="text" value="${esc(setup.org)}"></label><label class="forge-field"><span>Repository</span><input type="text" value="${esc(setup.repo)}"></label></div>
+        <div class="forge-fields"><label class="forge-field"><span>Into a new project, named</span><input type="text" value="${esc(setup.project)}"></label></div>
         <ul class="forge-facts"><li>Its CI jobs run on this machine, as you, with no isolation.</li><li>Forgejo stops when temper box stops. Its repositories are kept in temper’s data directory.</li></ul>
         <a class="button primary" href="${esc(u(target, at))}">Set up a Forgejo here</a>
       </div>`;
@@ -1442,8 +1514,8 @@
   function ownedProgress(f, { allDone = false, failedAt = null } = {}) {
     const order = ['fetching', 'preparing', 'starting', 'connecting', 'repository'];
     const current = allDone ? order.length : order.indexOf(failedAt || f.setup.step);
-    const lines = [`${current > 0 ? 'Fetched' : 'Fetching'} Forgejo ${f.versions.forgejo} and its runner ${f.versions.runner}`, `Preparing: its database, temper’s admin, your account ${f.person}`, 'Starting Forgejo and its runner', 'Connecting as temper', `Making ${f.setup.org}/${f.setup.repo}, and adopting it into ${f.setup.project}`];
-    return fact('temper box: each step of the owned forge’s set-up', `<ol class="forge-progress">${lines.map((line, i) => `<li${i < current ? ' class="done"' : i === current ? ` class="${failedAt ? 'failed' : 'current'}"` : ''}>${esc(line)}</li>`).join('')}</ol>`);
+    const lines = [esc(`${current > 0 ? 'Fetched' : 'Fetching'} Forgejo ${f.versions.forgejo} and its runner ${f.versions.runner}`), `Preparing: its database, temper’s admin, your account${future('login', esc(` ${f.person}`))}`, 'Starting Forgejo and its runner', 'Connecting as temper', esc(`Making ${f.setup.org}/${f.setup.repo}, and adopting it into ${f.setup.project}`)];
+    return fact('client forge.md, 5.4, Setting up: Row.connection (SettingUp.step, Connecting), Row.first.state, the adoption; Row.owned’s versions', `<ol class="forge-progress">${lines.map((line, i) => `<li${i < current ? ' class="done"' : i === current ? ` class="${failedAt ? 'failed' : 'current'}"` : ''}>${line}</li>`).join('')}</ol>`);
   }
   function forgeActs(f) {
     if (f.state === 'setting up') return `${ownedProgress(f)}<a class="text-link" href="${esc(u(`connect-forge.html?forge=${f.n}`))}">Open its set-up ›</a>`;
@@ -1497,11 +1569,11 @@
   }
 
   function elsewhereHow(next) {
-    return `<div class="forge-elsewhere"><h3>A Forgejo elsewhere</h3><p class="muted tiny">Restart needed</p><p>Add its address to the configuration and restart temper box. Then connect as its admin, and temper makes and keeps its bot, or paste its bot’s tokens.</p>
+    return `<div class="forge-elsewhere"><h3>A Forgejo elsewhere</h3><p>Add its address to the configuration and restart temper box. Then connect as its admin, and temper makes and keeps its bot, or paste its bot’s tokens.</p>
 
           <p>For a forge at forge.example, add this entry to application.forges in ~/.config/temper/temper.json. Replace the example host with yours; use an unused forge number.</p>
           <pre><code>{
-  "number": ${conf('the next unused forge number', esc(next))},
+  "number": ${conf('application.forges: one past the highest forge number (client forge.md, 5.4)', esc(next))},
   "kind": "forgejo",
   "api": {"host": "forge.example", "port": 443},
   "transport": {"tls": {
@@ -1513,7 +1585,7 @@
 }</code></pre>
           <p>Add its git identity to application.identities, using an unused identity number and the same forge number:</p>
           <pre><code>{
-  "number": ${conf('the next unused forge number', esc(next))}, "forge": ${conf('the next unused forge number', esc(next))}, "login": null,
+  "number": ${conf('application.forges: one past the highest forge number (client forge.md, 5.4)', esc(next))}, "forge": ${conf('application.forges: one past the highest forge number (client forge.md, 5.4)', esc(next))}, "login": null,
   "author": {
     "name": "temper",
     "email": "temper-bot@forge.example"
@@ -1521,12 +1593,12 @@
 }</code></pre>
           <p>To connect as its admin, add its setup entry to application.setup:</p>
           <pre><code>{
-  "forge": ${conf('the next unused forge number', esc(next))},
+  "forge": ${conf('application.forges: one past the highest forge number (client forge.md, 5.4)', esc(next))},
   "bot": {"login": "temper", "email": "temper-bot@forge.example"},
   "mode": "managed"
 }</code></pre>
           <p>Without it, temper takes its bot’s tokens only.</p>
-          <p>Stop and start ${conf('the command to restart temper', esc(world.config.restart))}. Return to Forges to connect with the bot’s API and git tokens, or choose “Connect as its admin”. Keep credentials out of the configuration.</p>
+          <p>Restart temper box, then connect it from this page.</p>
         </div>`;
   }
   function forgeRow(f, open = false) {
@@ -1539,6 +1611,7 @@
   }
   function adminCard(f) {
     const s = f.setup;
+    const stopped = f.state === 'not connected' && params.get('stop') || f.stop;
     if (f.state === 'connecting') return `<h2>Connecting forge ${esc(f.n)} as its admin.</h2><p>Making its bot, then ${esc(s.org)}/${esc(s.repo)}.</p>`;
     if (f.state === 'connected') return `<h2>Connected as ${esc(f.login)} (id ${esc(f.id)}), managed.</h2><p>Made ${esc(s.org)}/${esc(s.repo)}, and its project ${esc(s.project)}. Its CI runs on your forge’s runners labelled ${esc(s.label)}; with none, a change’s checks wait.</p><div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${s.project}`))}">Open ${esc(s.project)}</a><a class="text-link" href="#" data-later="Mockup: the repository on Forgejo">Open ${esc(s.org)}/${esc(s.repo)} on Forgejo ↗</a></div>`;
     const stops = {
@@ -1550,17 +1623,19 @@
       other: 'The connection stopped: Forgejo answered 500.',
     };
     const stages = { admin: "checking the admin's token", org: 'its organization', repository: 'its repository', file: 'its starter workflow' };
-    const stop = f.stop?.startsWith('first-') ? `temper made its bot, but making ${s.org}/${s.repo} stopped at ${stages[f.stop.slice(6)]}: Forgejo answered 500. Paste the token again to finish it.` : stops[f.stop];
+    const stop = stopped?.startsWith('first-') ? `temper made its bot, but making ${s.org}/${s.repo} stopped at ${stages[stopped.slice(6)]}: Forgejo answered 500. Paste the token again to finish it.` : stops[stopped];
     const field = (label, value, type = 'text') => {
-      const refusal = type === 'password' && f.stop === 'required' || label === 'Organization' && f.stop === 'org-required' || label === 'Repository' && f.stop === 'repository-required' ? 'Required.' : type === 'password' && f.stop === 'too-long' ? 'The pasted values are past 4 KiB, the most a request carries.' : label === 'Runner label' && f.stop === 'label' ? 'Letters, digits, dots, dashes and underscores, at most 64.' : '';
-      return `<label class="forge-field"><span>${label}</span><input type="${type}" value="${esc(refusal ? '' : value)}"${refusal ? ' aria-invalid="true"' : ''}>${refusal ? `<span class="forge-failure">${refusal}</span>` : ''}</label>`;
+      const refusal = type === 'password' && stopped === 'required' || label === 'Organization' && stopped === 'org-required' || label === 'Repository' && stopped === 'repository-required' ? 'Required.' : type === 'password' && stopped === 'too-long' ? 'The pasted values are past 4 KiB, the most a request carries.' : label === 'Runner label' && stopped === 'label' ? 'Letters, digits, dots, dashes and underscores, at most 64.' : '';
+      // An invalid label is kept as written; a required field was left empty.
+      const shown = refusal && label !== 'Runner label' ? '' : label === 'Runner label' && stopped === 'label' ? 'docker!' : value;
+      return `<label class="forge-field"><span>${label}</span><input type="${type}" value="${esc(shown)}"${refusal ? ' aria-invalid="true"' : ''}>${refusal ? `<span class="forge-failure">${refusal}</span>` : ''}</label>`;
     };
     return `${stop ? `<p class="forge-failure">${esc(stop)}</p><p class="muted tiny">temper kept nothing of the token.</p>` : ''}<h2>Connect as its admin</h2><p>Paste a site admin’s token with the scopes write:admin, read:user, write:organization and write:repository. temper keeps it, and uses it only to make its bot and your first repository, and to give the bot access to it. To stop temper using it, delete the token on Forgejo.</p>${field('The site admin’s token', '', 'password')}<fieldset><legend>Your first repository</legend>${field('Organization', s.org)}${field('Repository', s.repo)}${field('Into a new project, named', s.project)}${field('Runner label', s.label)}<p class="muted tiny">Its CI runs on your forge’s runners with this label. Forgejo’s runner registers as docker unless told otherwise.</p></fieldset><button class="button primary" data-later="Mockup: send the token once, then Connecting">Connect as its admin</button>`;
   }
   function flowCard(f, from = 'connect-forge') {
     if (f.admin) return adminCard(f);
     if (f.kind === 'GitHub') return f.state === 'connected' ? githubReady(f, from) : f.state === 'connecting' ? githubConnecting(f, from) : githubAppForm(f);
-    if (f.state === 'connected') return `<h3>${fact('temper: the repository made at set-up', esc(`${f.setup.org}/${f.setup.repo} is ready`))}</h3><p>In the new project ${fact('jig: the new project', esc(f.setup.project))}, on ${conf('the forge’s name', esc(forgeName(f)))}. Its first CI run passed, on this machine.</p>${ownedProgress(f, { allDone: true })}<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(f.setup.project)}`))}">Open ${esc(f.setup.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: Forgejo opens in a new tab, signed in as ${f.person} through temper.`)}">Open Forgejo ↗</a>${ahead('sign-in', 'signing in to an owned Forgejo through temper, as its OpenID provider: no mission yet')}</div><p class="muted tiny">${conf('the forge’s name', esc(forgeName(f)))} is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p>`;
+    if (f.state === 'connected') return `<h3>${fact('temper: the repository made at set-up', esc(`${f.setup.org}/${f.setup.repo} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract.md, 3.2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(f.setup.project))}, on ${esc(forgeName(f))}.${future('ci', ' Its first CI run passed, on this machine.')}</p>${ownedProgress(f, { allDone: true })}<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(f.setup.project)}`))}">Open ${esc(f.setup.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: Forgejo opens in a new tab at its /user/oauth2/temper, and signs ${f.person} in through temper.`)}">Open Forgejo ↗</a></div><p class="muted tiny">${conf('the forge’s name', esc(forgeName(f)))} is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p>`;
     if (['setting up', 'set up failed'].includes(f.state)) return `<h3>Setting up Forgejo on this machine</h3>${chosenValues(f)}${ownedProgress(f, { failedAt: f.state === 'set up failed' ? 'preparing' : null })}${f.state === 'set up failed' ? `${ownedFailure()}<button class="button" data-later="Mockup: the box runs the steps again; a fetched binary is kept.">Set up again</button>` : '<p class="muted tiny">You may leave this page: the steps go on, and the banner says where they are.</p>'}`;
     return f.box ? ownedForm(f) : ownedCommands(f);
   }
@@ -1573,68 +1648,94 @@
     return `<div class="forge-choices">${github ? `<section class="card card-pad"><h3>GitHub</h3><p>Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use.</p><p class="muted tiny">In this tab, on GitHub · about two minutes</p><div class="button-row"><a class="button primary" href="${esc(toGithub('create', target.startsWith('welcome') ? 'welcome' : 'connect-forge', '2'))}">Connect GitHub</a><a class="text-link" href="${esc(u(`${target}${github.n}`))}">Use an App of your own ›</a></div></section>` : ''}${offer ? `<section class="card card-pad"><h3>Forgejo on this machine</h3><p>A forge of your own, run by temper box. No account needed: temper makes your first repository, and you start in it.</p><p class="muted tiny">${offer.box ? 'Here · about a minute' : 'Needs four commands and a restart'}</p><a class="button" href="${esc(u(`${target}${offer.n}`))}">Choose</a></section>` : ''}${admin}<section class="card card-pad"><h3>A Forgejo elsewhere</h3><p>Your own Forgejo server. temper connects as its admin, or with its bot’s tokens.</p><p class="muted tiny">Needs a change to temper’s configuration and a restart</p><a class="button" href="${esc(u(`${target}elsewhere`))}">Show how</a></section></div>`;
   }
 
-  // The first link offers a choice; real setup keeps its place while the
-  // box works in the background. The demo starts only across its link.
+  // The welcome (client README, 3.5): over, its link opens Chats in its
+  // place; otherwise it shows Welcome, and its other steps only at their
+  // addresses, `?at=`. The demo starts only across its link.
+  const SIGN_IN_ENDS = {
+    declined: () => ['You signed in without plan usage.', true],
+    held: () => ['Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.'],
+    misconfigured: () => ['OpenAI refused temper’s sign-in. Check the configuration’s registration.'],
+    'port-taken': () => [variant('port', 'Try later', 'temper can’t listen on 127.0.0.1:1455: another program has it, such as Codex’s own sign-in. Finish or close that sign-in, then Continue with ChatGPT.')],
+  };
+  function signInEnd(end) {
+    const again = '<button class="button" data-later="Mockup: a fresh sign-in, in this tab; ChatGPT sends it back here.">Continue with ChatGPT</button>';
+    if (end === 'not-eligible') return future('eligible', `<div class="welcome-end"><p class="forge-failure">This ChatGPT account can’t be used for plan usage in temper. Plan usage needs an eligible ChatGPT plan.</p><div class="button-row"><a class="button" href="${esc(u('welcome.html?at=model&way=key'))}">Use an API key</a><button class="button" data-later="Mockup: a fresh sign-in, after signing out of ChatGPT in the browser.">Sign in to another account</button></div></div>`);
+    const [words, key] = SIGN_IN_ENDS[end]();
+    return `<div class="welcome-end"><p class="forge-failure" role="alert">${fact('jig’s client/domain/contract.md, 7.1: OwnerAccounts.last_end, its Refused or Failed', words)}</p><div class="button-row">${again}${key ? `<a class="button" href="${esc(u('welcome.html?at=model&way=key'))}">Use an API key</a>` : ''}</div></div>`;
+  }
   pages.welcome = () => {
     document.body.classList.add('terminal-pages');
     // The person's forge in play: the one acted on, else the owned offer.
     const f = world.forges.find(f => f.mode !== 'fake' && !['not connected', 'not set up', 'retired'].includes(f.state)) || world.forges.find(f => f.mode === 'owned');
     const startedForge = f && !['not connected', 'not set up'].includes(f.state);
+    const adopted = startedForge ? Object.values(world.repos).find(r => r.forge === f.n && !r.retired) : null;
+    const done = startedForge && f.state === 'connected' && !!adopted;
     // GitHub's way stays at Forge until a repository is adopted from it.
-    const githubOpen = startedForge && f.kind === 'GitHub' && !githubAdopted(f);
-    const asked = params.get('at') || (demoRunning() ? 'demo' : !startedForge ? 'welcome' : githubOpen ? 'forge' : !usableModel() ? 'model' : 'ready');
-    const at = asked === 'ready' && githubOpen ? 'forge' : asked;
+    const githubOpen = startedForge && f.kind === 'GitHub' && !adopted;
+    const over = demoRunning() || (usableModel() && ownForge());
+    const at = params.get('at') || (over ? 'over' : 'welcome');
     const views = ['welcome', 'forge', 'model', 'ready'];
     const current = views.includes(at) ? at : 'welcome';
     const way = params.get('way');
     const back = (current === 'forge' && params.has('forge')) || (current === 'model' && way) ? current : views[Math.max(0, views.indexOf(current) - 1)];
     const foot = `<div class="welcome-foot"><a class="text-link" href="${esc(u(`welcome.html?at=${back}`))}">‹ Back</a><a class="text-link" href="${esc(u('chats.html'))}">Later</a>${!ownForge() ? tryDemo('Try the playground instead') : ''}</div>`;
-    const heading = (text, tag = 'h2') => `<${tag}>${text} ${welcomeMark()}</${tag}>`;
     const eachStep = () => f.mode === 'owned' ? `<details class="welcome-progress"><summary>Each step</summary>${ownedProgress(f)}</details>` : '';
+    // The first repository: the adopted one, else the set up's, once asked.
+    const repo = adopted ? adopted.name : startedForge && f.setup ? `${f.setup.org}/${f.setup.repo}` : null;
+    const proj = adopted ? adopted.project : startedForge && f.setup ? f.setup.project : null;
     let content;
-    if (at === 'demo') {
-      content = `<p class="mock-note">Once the playground runs, the link opens Chats; the welcome is gone. <a class="text-link" href="${esc(u('chats.html'))}">Open Chats</a></p>`;
+    if (at === 'over') {
+      content = `<p class="mock-note">${demoRunning() ? 'The playground runs' : 'A model is usable, and a forge of Sam’s is connected'}: the link opens Chats, its address in the welcome’s place, so that back doesn’t return here. <a class="text-link" href="${esc(u('chats.html'))}">Open Chats</a></p>`;
     } else if (current === 'welcome') {
       const providers = world.config.providers || [...new Set(world.accounts.filter(a => a.provider !== demo?.provider).map(a => a.provider))];
       const ways = (world.config.ways || []).map(way => way === 'Use an API key' ? providers.map(p => `an ${esc(p)} API key`).join(' or ') : way.startsWith('Continue with ') ? `your ${esc(way.slice(14))} plan` : esc(way.replace(/^Use /, ''))).join(', or ');
-      content = `${heading('Welcome to temper', 'h1')}<p class="welcome-lead">Ask for a change in a chat. temper’s agents make it on a branch, open a pull request, and land it once CI passes.</p>
+      content = `<h1>Welcome to temper</h1><p class="welcome-lead">Ask for a change in a chat. temper’s agents make it on a branch, open a pull request, and land it once CI passes.</p>
         <div class="welcome-choices"><section class="card card-pad"><h2>Try the playground</h2><p>A built-in scripted model and forge. Ask one of three requests and follow its change from a branch to main.</p><p class="muted">Nothing leaves this machine, and nothing costs. · Ready at once</p><a class="button primary" href="${esc(u('chats.html?world=first-run&step=1'))}">Try the playground</a></section>
-        <section class="card card-pad"><h2>Set up temper</h2><p>Your forge: GitHub, or a Forgejo temper runs on this machine.<br>Your model: ${conf('the configuration’s ways to connect a model, and its providers', ways)}.</p><p class="muted">About five minutes</p><a class="button primary" href="${esc(u('welcome.html?at=forge'))}">Set up temper</a></section></div>
+        <section class="card card-pad"><h2>Set up temper</h2><p>Your forge: GitHub, or a Forgejo temper runs on this machine.<br>Your model: ${conf('engine.providers, offered as me.providers (jig’s client/domain/contract.md, 7.1, ProviderOffer), in 5.5’s words for each way', ways)}.</p><p class="muted">About five minutes</p><a class="button primary" href="${esc(u('welcome.html?at=forge'))}">Set up temper</a></section></div>
         <p class="muted welcome-after">Started in the playground? Connect your own forge and model whenever you like; the playground then steps aside.</p>`;
     } else if (current === 'forge') {
       const which = params.get('forge') || (githubOpen ? String(f.n) : null);
       const chosen = world.forges.find(f => String(f.n) === which && f.mode !== 'fake');
       const next = Math.max(...world.forges.map(f => f.n)) + 1;
-      const details = which === 'elsewhere' ? `${elsewhereHow(next)}<p class="muted">After the restart, the link opens this wizard where you left it.</p>` : (chosen?.kind === 'GitHub' || chosen?.admin) ? flowCard(chosen, 'welcome') : chosen ? ownedForm(chosen, 'welcome.html?at=model&world=first-run-real&step=2') : '';
-      content = `${heading('Connect a forge')}<p class="muted welcome-lead">Where your repositories live: temper’s agents push branches and open pull requests there.</p>${which ? flowWrap(details) : forgeChoices('welcome.html?at=forge&forge=')}${foot}`;
+      const details = which === 'elsewhere' ? elsewhereHow(next) : (chosen?.kind === 'GitHub' || chosen?.admin) ? flowCard(chosen, 'welcome') : chosen ? ownedForm(chosen, 'welcome.html?at=model&world=first-run-real&step=2') : '';
+      content = `<h2>Connect a forge</h2><p class="muted welcome-lead">Where your repositories live: temper’s agents push branches and open pull requests there.</p>${which ? flowWrap(details) : forgeChoices('welcome.html?at=forge&forge=')}${foot}`;
     } else if (current === 'model') {
-      // The forge's line: under way, with its steps, or done, ticked, with
-      // its first repository and project, so Model says what Forge did.
-      const adopted = f?.kind === 'GitHub' ? githubAdopted(f) : null;
-      const done = startedForge && f.state === 'connected' && (f.kind !== 'GitHub' || adopted);
-      const into = f?.setup ? `${f.setup.org}/${f.setup.repo}, ${done ? 'in' : 'into'} ${f.setup.newProject ? `the new project ${f.setup.project}` : f.setup.project}` : '';
+      // The forge's line, so that Model says what Forge did: under way,
+      // with its steps, or done, ticked, with its first repository.
+      const into = f?.setup ? `${repo}, ${done ? 'in' : 'into'} ${f.setup.newProject ? `the new project ${proj}` : proj}` : '';
       const words = [forgeName(f), done ? '' : f?.kind === 'GitHub' && f.state === 'connected' ? 'no repository chosen yet' : f?.state, f?.kind === 'GitHub' && !done ? '' : into].filter(Boolean).join(' · ');
-      const status = startedForge ? `<div class="welcome-status">${fact('temper: the forge, its state, and its first repository and project', `${done ? '<span class="ok">✓</span> ' : ''}${esc(words)}`)}${done ? '' : eachStep()}</div>` : '';
-      // Connect a model's Choose, or a key's Details, within the wizard;
-      // ChatGPT's sign-in returns to the wizard's Almost ready.
+      const status = startedForge ? `<div class="welcome-status">${fact('client README, 3.5, The welcome: the forges watch’s Row.{connection, first, repositories}, or the set up’s request', `${done ? '<span class="ok">✓</span> ' : ''}${esc(words)}`)}${done ? '' : eachStep()}</div>` : '';
+      // Connect a model's Choose and Details, and its sign-in, within the
+      // wizard; a sign-in in this tab comes back to Ready.
       const signedIn = worldKey === GH_WORLD ? 'welcome.html?at=ready&step=6' : 'welcome.html?at=ready&world=first-run-real&step=3';
-      const body = way === 'key' ? flowWrap(keyForm()) : modelChoices(signedIn, 'welcome.html?at=model&way=key');
-      const variants = worldKey === 'first-run-real' ? `<section class="mock-variants" id="other-states"><h2>Other ways, where the configuration offers them</h2>${flowWrap(claudeSketch())}<p style="margin-top:14px">ChatGPT’s other endings, and the account’s other states, are drawn in the first run: <a class="text-link" href="${esc(u('connect-model.html?world=first-run&step=5#other-states'))}">Connect a model</a> and <a class="text-link" href="${esc(u('accounts.html?world=first-run&step=5#other-states'))}">Accounts</a>.</p></section>` : '';
-      content = `${status}${heading('Connect a model')}<p class="muted welcome-lead">temper’s agents run on it: on a plan you sign in to, or on a key.</p>${body}${foot}${variants}`;
+      const allWays = `<p><a class="text-link" href="${esc(u('welcome.html?at=model'))}">‹ All ways</a></p>`;
+      const paste = way === 'chatgpt' && params.get('paste');
+      const a = ownAccounts().find(a => a.provider === 'OpenAI' && isPlan(a));
+      const body = way === 'key' ? `${allWays}${flowWrap(keyForm())}`
+        : paste === 'done' ? `${allWays}${flowWrap(chatgptReady(a || chatgptLike({ source: {} }), false))}`
+        : paste ? `${allWays}${flowWrap(signInCard(paste, params.get('elsewhere') === '1'))}`
+        : modelChoices(signedIn, 'welcome.html?at=model&way=key');
+      content = `${status}<h2>Connect a model</h2><p class="muted welcome-lead">temper’s agents run on it: on a plan you sign in to, or on a key.</p>${body}${foot}`;
     } else {
-      const ready = f?.state === 'connected';
       const owned = f.mode === 'owned';
-      const repo = `${f.setup.org}/${f.setup.repo}`, proj = f.setup.project;
       const next = world.config.next;
-      const model = next ? `${accountName(account(next.account))} · ${next.model}` : 'No model yet';
-      const modelLine = `<li class="done">${fact('jig: the usable model and its account', esc(`Model: ${model}`))}</li>`;
-      const forgeLine = `<li class="${ready ? 'done' : 'current'}">${fact('temper: the forge’s connection state and login', esc(ready ? `Forge: ${forgeName(f)}, connected as ${f.login}` : `Forge: ${forgeName(f)} · ${f.state}`))}${!ready ? eachStep() : ''}</li>`;
-      const open = owned ? `<a class="text-link" href="#" data-later="Mockup: Forgejo opens in a new tab, signed in as sam through temper.">Open Forgejo ↗</a>${ahead('sign-in', 'signing in to an owned Forgejo through temper, as its OpenID provider: no mission yet')}` : `<a class="text-link" href="#" data-later="${esc(`Mockup: github.com/${repo}, in a new tab.`)}">Open on GitHub ↗</a>`;
-      content = `${heading(ready ? esc(`${repo} is ready`) : 'Almost ready')}<ul class="forge-progress welcome-checklist">${ready ? forgeLine + modelLine : modelLine + forgeLine}<li class="${ready ? 'done' : ''}">${fact('temper and jig: the first repository, its project and CI', esc(`Project ${proj}, with ${repo}${ready && owned ? ' · its first CI run passed' : ''}`))}</li></ul>${ready ? `<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(proj)}`))}">Open ${esc(proj)}</a>${open}</div>` : `<button class="button primary" disabled>Open ${esc(proj)}</button><p class="muted tiny welcome-after">It opens once ${esc(repo)} is made.</p>`}`;
+      const a = next ? account(next.account) : ownAccounts().find(a => a.sources.length);
+      const end = !usableModel() && params.get('end');
+      const modelLine = a
+        ? `<li class="done">Model: ${accountHeading(a)}${future('preview', esc(` · ${next?.model || a.models?.[0] || ''}`))}</li>`
+        : `<li>Model: none yet · <a class="text-link" href="${esc(u('welcome.html?at=model'))}">Connect a model</a>${end ? signInEnd(end) : ''}</li>`;
+      const forgeLine = !startedForge ? `<li>Forge: none yet · <a class="text-link" href="${esc(u('welcome.html?at=forge'))}">Connect a forge</a></li>`
+        : `<li class="${done ? 'done' : 'current'}">${fact('client forge.md, 5.4: the forges watch’s Row.connection, and Connected.login', esc(f.state === 'connected' ? `Forge: ${forgeName(f)}, connected as ${f.login}` : `Forge: ${forgeName(f)} · ${f.state}`))}${!done && f.state !== 'connected' ? eachStep() : ''}</li>`;
+      const projectLine = repo ? `<li class="${done ? 'done' : ''}">${fact('client README, 3.5, The welcome: Row.first’s org and repository, and its project; Row.repositories once adopted', esc(`Project ${proj}, with ${repo}`))}${done && owned ? future('ci', ' · its first CI run passed') : ''}</li>` : '';
+      // Connected with no first repository: adopt one (client README, 4.4).
+      const acts = done ? `<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(proj)}`))}">Open ${esc(proj)}</a>${owned ? `<a class="text-link" href="#" data-later="${esc(`Mockup: Forgejo opens in a new tab at its /user/oauth2/temper, and signs ${f.person} in through temper.`)}">Open Forgejo ↗</a>` : f.kind === 'GitHub' ? `<a class="text-link" href="#" data-later="${esc(`Mockup: github.com/${repo}, in a new tab.`)}">Open on GitHub ↗</a>` : `<a class="text-link" href="#" data-later="Mockup: the repository on Forgejo">Open ${esc(repo)} on Forgejo ↗</a>`}</div>`
+        : repo ? `<button class="button primary" disabled>Open ${esc(proj)}</button><p class="muted tiny welcome-after">It opens once ${esc(repo)} is made.</p>`
+        : startedForge && f.state === 'connected' ? '<a class="button primary" href="#" data-later="Mockup: the adoption form, into a new project named after the repository chosen (client README, 4.4).">Adopt a repository</a>' : '';
+      content = `<h2>${done ? esc(`${repo} is ready`) : 'Almost ready'}</h2><ul class="forge-progress welcome-checklist">${done ? forgeLine + modelLine : modelLine + forgeLine}${projectLine}</ul>${acts}`;
     }
-    // Ready is done, not current, once the forge is connected too.
-    const step = current === 'ready' && f?.state === 'connected' ? views.length : views.indexOf(current);
-    return `${topbar(null, { bare: true })}<main class="welcome-page">${at === 'demo' ? '' : flowSteps(step, '', ['Welcome', 'Forge', 'Model', 'Ready'])}${content}</main>`;
+    // Ready is done, not current, once its forge and model both are.
+    const step = current === 'ready' && done && usableModel() ? views.length : views.indexOf(current);
+    return `${topbar(null, { bare: true })}<main class="welcome-page">${at === 'over' ? '' : flowSteps(step, '', ['Welcome', 'Forge', 'Model', 'Ready'])}${content}</main>`;
   };
 
   pages['connect-forge'] = () => {
@@ -1677,8 +1778,9 @@
     if (at === 'refused') {
       document.body.classList.add('terminal-pages');
       const why = params.get('why') === 'ended' ? 'ended' : 'request';
-      const how = why === 'request' ? 'GitHub sent the tab here after Request, with no installation: an owner of the organization is to approve it.' : 'The state in the address is used, expired or from before a restart.';
-      return `<main class="welcome-page">${where(`http://127.0.0.1:8367/forges/${f.n}/github/setup?setup_action=request&state=Qm9v…`, how)}<p class="route-brand">temper</p>${flowWrap(githubRefusal(why, from))}</main>`;
+      const how = why === 'request' ? 'GitHub sent the tab here after Request, with no installation: an owner of the organization is to approve it.' : 'The state in the address is used, expired or from before a restart. The manifest’s and the redirect’s addresses answer the same.';
+      const route = why === 'request' ? 'setup?setup_action=request&state=Qm9v…' : 'setup?installation_id=…&state=Qm9v…';
+      return `<main class="welcome-page">${where(`http://127.0.0.1:8367/forges/${f.n}/github/${route}`, how)}<p class="route-brand">temper</p>${flowWrap(githubRefusal(why, from))}</main>`;
     }
     const accountOf = login => gh.accounts.find(a => a.login === login) || gh.accounts[0];
     const avatar = a => `<span class="gh-avatar${a.kind === 'org' ? ' gh-org' : ''}" aria-hidden="true">${esc(a.login[0].toUpperCase())}</span>`;
@@ -1887,7 +1989,8 @@
 
   const render = pages[page] || pages.index;
   const html = render();
-  document.body.insertAdjacentHTML('afterbegin', (bare ? '' : mockbar() + stepPop() + stepsPop() + viewPop()) + html);
+  const restore = '<button type="button" class="mock-restore" data-show-bar title="Show the mockups’ bar (Esc)" aria-label="Show the mockups’ bar">▾</button>';
+  document.body.insertAdjacentHTML('afterbegin', (bare ? '' : barless ? restore : mockbar() + stepPop() + stepsPop() + viewPop()) + html);
   bindCasebar();
   bindSources();
   bindTrees();

@@ -11,7 +11,9 @@
         ['welcome.html', 'The welcome: the playground, or set up'],
         ['welcome.html?at=forge', 'Connect a forge'],
         ['welcome.html?at=forge&forge=3', 'Forgejo on this machine: its defaults'],
-        ['chats.html', 'Chats behind it: no project yet, the setup strip'],
+        ['welcome.html?at=forge&forge=elsewhere', 'A Forgejo elsewhere: how to add it'],
+        ['welcome.html?at=ready', 'Ready, opened by its address: no forge, no model yet'],
+        ['chats.html', 'Chats behind it: Project 1, no chat yet; the setup strip'],
       ],
       apply() {},
     },
@@ -20,9 +22,19 @@
       summary: 'temper box fetches Forgejo and its runner. The wizard moves on to the model while it does: ChatGPT, or an OpenAI API key.',
       look: [
         ['welcome.html?at=model', 'Connect a model, while Forgejo sets up: ChatGPT, or an API key'],
-        ['welcome.html?at=model#other-states', 'Other ways, where the configuration offers them'],
+        ['welcome.html?at=model&way=key', 'An OpenAI API key: its Details'],
+        ['welcome.html?at=model&way=chatgpt&paste=waiting', 'Signing in, come back before its end: the paste folded'],
+        ['welcome.html?at=model&way=chatgpt&paste=waiting&elsewhere=1', 'This browser isn’t on temper’s computer: the paste'],
+        ['welcome.html?at=model&way=chatgpt&paste=written&elsewhere=1', 'The paste: the whole address pasted, hidden'],
+        ['welcome.html?at=model&way=chatgpt&paste=finishing&elsewhere=1', 'The paste: finishing'],
+        ['welcome.html?at=model&way=chatgpt&paste=done&elsewhere=1', 'The paste: signed in, in the wizard'],
+        ['welcome.html?at=ready&end=declined', 'Back from ChatGPT: signed in without plan usage'],
+        ['welcome.html?at=ready&end=held', 'Back from ChatGPT: another person holds that account'],
+        ['welcome.html?at=ready&end=misconfigured', 'Back from ChatGPT: OpenAI refused temper’s sign-in'],
+        ['welcome.html?at=ready&end=port-taken', 'Back from ChatGPT: its listener’s port taken'],
+        ['welcome.html?at=ready&end=not-eligible', 'Back from ChatGPT: not eligible for plan usage (future)'],
         ['forges.html', 'Forges: forge 3, setting up; no playground'],
-        ['chats.html', 'Chats: no project yet, the setup strip’s status'],
+        ['chats.html', 'Chats: Project 1, no chat yet; the setup strip’s status'],
       ],
       apply(w) {
         const f = w.forges.find(f => f.n === 3);
@@ -35,9 +47,8 @@
       summary: 'Sam chooses Continue with ChatGPT: ChatGPT’s sign-in opens in the same tab, in the browser on this machine. Sam approves, and temper’s listener on 127.0.0.1:1455 sends the browser back to the wizard: signed in as sam@example.com. The forge is still starting, so the wizard is at Almost ready.',
       look: [
         ['welcome.html?at=ready', 'Almost ready: the model, ChatGPT; waiting for Forgejo'],
-        ['accounts.html', 'Accounts: ChatGPT · sam@example.com'],
-        ['chats.html', 'Chats: no project yet; the strip, no forge yet'],
-        ['connect-model.html?world=first-run&step=5#other-states', 'The sign-in’s other endings, drawn in the first run'],
+        ['accounts.html', 'Accounts: ChatGPT'],
+        ['chats.html', 'Chats: Project 1, no chat yet; the strip, no forge yet'],
       ],
       apply(w, id) {
         w.accounts.unshift({ name: 'ChatGPT', plan: 'ChatGPT plan', provider: 'OpenAI', holder: 'Sam', models: ['gpt-6-luna'], at: id,
@@ -51,6 +62,7 @@
       summary: 'temper connected as the forge’s bot, made work/hello and adopted it into the new project hello. A forge of Sam’s is connected, so the playground, never started, is retired: nothing of it shows.',
       look: [
         ['welcome.html?at=ready', 'work/hello is ready'],
+        ['welcome.html', 'The link, the first run over: Chats in its place'],
         ['chats.html?project=hello', 'Chats in hello: no chat yet, no strip'],
         ['forges.html', 'Forges: forge 3 alone'],
         ['accounts.html', 'Accounts: ChatGPT alone'],

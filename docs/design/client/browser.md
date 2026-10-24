@@ -3,7 +3,7 @@
 Provisional, 2026-10-05, revised 2026-10-23. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
-`forge.md`), with the mockups' look (`mockups/`, reference material),
+`forge.md`), with the mockups' design (`mockups/`),
 which this document takes as given; how a view runs in a browser is
 skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 (jig's `protocol/browser.md`). It is built in two milestones (section

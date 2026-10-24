@@ -15,9 +15,12 @@
     return {
       now: 0,
       person: 'Sam',
-      // No project until the playground's start or the first repository
-      // makes one (draft first-run.md, 2.4).
-      project: null,
+      // The project `temper init` seeds, unnamed, so "Project 1"
+      // (setup.md, 8.3); with none until the playground's start or the
+      // first repository makes one (draft first-run.md, 2.4), its place
+      // reads "No project yet", under View → Future.
+      project: 'Project 1',
+      seeded: 'Project 1',
 
       config: {
         templates: { chat: 'chat', goal: 'goal' },
@@ -79,7 +82,7 @@
       summary: 'temper box started temper serve alone: the playground is configured but not started, and no forge or model is Sam’s. The link opens the welcome: try the playground, or set temper up.',
       look: [
         ['welcome.html', 'The welcome: the playground, or set up'],
-        ['chats.html', 'Chats behind it: no project yet, the setup strip'],
+        ['chats.html', 'Chats behind it: Project 1, no chat yet; the setup strip'],
       ],
       apply() {},
     },

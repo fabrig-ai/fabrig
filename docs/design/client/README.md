@@ -12,8 +12,11 @@ API jig's `client/domain/contract.md` and its protocol jig's
 `protocol/client.md`: this document takes them as given and cites them.
 The forge's parts of the client are `forge.md`, the browser `browser.md`,
 and the agents' tools, `temper ctl`, `tools.md`. The mockups (`mockups/`)
-are reference material for the pages' look and the order of their parts,
-not contract. What is still open is listed in section 11.
+are the pages' design: their look, their parts and their order, their
+words and where each act leads; this document holds what each page
+reads, watches and does, and cites them for the rest
+(`mockups/README.md`, section 1). What is still open is listed in
+section 11.
 
 ## 1. In one page
 
@@ -31,7 +34,7 @@ not contract. What is still open is listed in section 11.
   changes, the forge's adoption form, the forges, and the LLM accounts
   (3.5); designed, not built, "How work runs" and a proposal of
   settings' review (5.13). The
-  mockups give their look and the order of their parts. What no page
+  mockups design them: their look, parts, words and acts. What no page
   shows is open (section 11).
 - **Its cards are its own.** A proposal, a question, a held task, a
   person task, a result, an entry of activity, an outcome and each
@@ -300,8 +303,9 @@ sentence explaining a lasting refusal; after a transient read end it asks
 again while open, waiting one second, doubling to at most thirty seconds.
 
 Each page has an address, and watches what it shows while it is open;
-leaving it closes its handles. Its mockup gives its look and the order
-of its parts (reference material, not contract). Lists of tasks are
+leaving it closes its handles. Its mockup is its design: its look, its
+parts and their order, its words and where its acts lead
+(`mockups/README.md`). Lists of tasks are
 task queries (jig's `client/domain/contract.md`, 6.1): the chat and
 goal templates' labels are jig's defaults, which temper's configuration
 keeps (`../protocol/configuration.md`, section 2).
@@ -733,7 +737,7 @@ keeps (`../protocol/configuration.md`, section 2).
 - **The welcome** (`welcome.html`) is one page, `Welcome { step }`, its
   step Welcome, Forge, Model or Ready, at `/welcome` and
   `/welcome?at=forge`, `model` or `ready` (`browser.md`, 2.3); its
-  words are 5.6's.
+  words are its mockup's (5.6).
   - *Its frame* is temper's name, the person's name and "Sign out"
     alone: no project, navigation or link state, and neither the
     accounts' banner nor the demo's nor the setup strip (5.1). Each
@@ -829,7 +833,11 @@ keeps (`../protocol/configuration.md`, section 2).
     and no model is usable, "Model: PROVIDER · signing in", PROVIDER
     its LLM provider's name (5.5), with no act, so that a person come
     back from the sign-in reads it as under way; or "Model: none yet"
-    with "Connect a model", to the Model step; and no model line until
+    with "Connect a model", to the Model step, and under it, where the
+    person's last sign-in (the `accounts` document's `last_end`) ended
+    with no account usable, that ending's words and acts as
+    `ConnectModel` draws them (5.5, A sign-in), so that a sign-in come
+    back refused, failed or declined says so; and no model line until
     the `accounts` document is delivered; and "Project
     PROJECT, with ORG/NAME" once the forge's first repository is on its
     row. Until adopted, "Open PROJECT" is disabled, with "It opens once
@@ -1129,9 +1137,7 @@ and adds a last field, "Into a new project, named", the name's field
 following the picker's chosen repository until the person changes it,
 required. "Adopt" sends jig's `MakeProject` of that name and policy 1
 (`../protocol/setup.md`, 8.3), then `Adopt` into it, as its home; a
-name taken is jig's refusal, shown under the field. Until jig makes
-projects at runtime, the form is refused "a new project", as `SetUp`'s
-is (4.6).
+name taken is jig's refusal, shown under the field.
 
 **The picker,** between "Forge number" and "Owner": the repositories
 temper can reach on that forge (`forge.md`, 5.1), the project's own
@@ -1304,7 +1310,8 @@ for its kind, its user's login and its installations. Its nodes:
   for the forge's group; *set up refused*, with why: not offered (the
   forge's connection does not offer it, or no such forge), not under
   the box, busy (`../protocol/forge.md`, 2.8), a new project, which
-  waits on jig's projects at runtime, or invalid, a name Forgejo
+  the engine no longer raises now that jig makes projects at runtime,
+  or invalid, a name Forgejo
   would refuse (the org a login of at most 40 bytes, the repository
   1 to 100 bytes of letters, digits, `.`, `_` or `-`, neither `.` nor
   `..`; skein `forge-setup.md`, 4.9) or past the engine's
@@ -1692,7 +1699,7 @@ of each (`../draft/first-run.md`, 3.6).
 - **Every node a person acts on has a role and a name,** since skein's
   fake person finds nodes only by them; nothing a person must know is
   said by style alone (skein's `ui.md`, section 8).
-- **The look:** the mockups' (`mockups/style.css`, reference material),
+- **The look:** the mockups' (`mockups/style.css`),
   as style tokens each shell interprets or ignores; the terminal prints
   none, and the browser's stylesheet draws them (`browser.md`, 2.5).
   The composers are text areas that submit on Enter (skein-ui's
@@ -2126,38 +2133,18 @@ no retirement fact; a running playground keeps its project and words:
   8.4), as the demo's scripted words
   do once `../protocol/setup.md` 8.4 takes the playground's words
   (`../draft/first-run.md`, 2.3).
-- **The welcome** (`welcome.html`; `../draft/first-run.md`, 2.3): the
-  wizard's steps, Welcome, Forge, Model and Ready, along its top, under
-  a frame of temper's name, the person's and "Sign out" alone. Welcome:
-  the level-1 heading "Welcome to temper"; "Ask for a change in a chat.
-  temper’s agents make it on a branch, open a pull request, and land it
-  once CI passes."; two cards, "Try the playground" ("A built-in
-  scripted model and forge. Ask one of three requests and follow its
-  change from a branch to main."; "Nothing leaves this machine, and
-  nothing costs. · Ready at once") and "Set up temper" ("Your forge:
-  GitHub, or a Forgejo temper runs on this machine. Your model: your
-  ChatGPT plan, or an OpenAI API key.", by the default document's
-  forges and its providers' ways;
-  "About five minutes"), each with its button, the set up card's a
-  link to the Forge step drawn as one (a move is a link: `browser.md`,
-  2.3); then
-  "Started in the playground? Connect your own forge and model whenever
-  you like; the playground then steps aside." Forge is `ConnectForge`'s
-  Choose and Details; Model is `ConnectModel`'s Choose (5.5, The ways);
-  Ready names each as set up or under way, under "Almost ready", then
-  "Open PROJECT" under "OWNER/NAME is ready" once the forge's work is
-  adopted, whichever a sign-in comes back to. Forge's heading is
-  "Connect a forge", then
-  "Where your repositories live: temper’s agents push branches and
-  open pull requests there."; Model's "Connect a model", then "temper’s
-  agents run on it: on a plan you sign in to, or on a key.". Each
-  step between Welcome and Ready offers a foot: "‹ Back", to its
-  Choose inside a choice, otherwise to the step before; "Later", to
-  the chats page; and "Try the playground instead" while the demo is
-  answered (4.8) and no real forge is connected, including before the
-  demo's end is read. Ready has no foot. A document with no demo
-  (`application.demo` null, the demo's read answering none) has neither
-  the playground's card nor the closing line, and no step offers the playground.
+- **The welcome** (`welcome.html`; `../draft/first-run.md`, 2.3): its
+  steps' words, their order and their acts are its mockup's
+  (`mockups/welcome.html`, at the states its worlds list). Beyond them:
+  the set up card's model sentence follows the default document's
+  providers and their ways (5.5, The ways); a move is a link
+  (`browser.md`, 2.3); the foot's "‹ Back" goes to its step's Choose
+  inside a choice, otherwise to the step before, and its "Try the
+  playground instead" shows while the demo is answered (4.8) and no
+  real forge is connected, including before the demo's end is read;
+  and a document with no demo (`application.demo` null, the demo's
+  read answering none) has neither the playground's card nor the
+  closing line, and no step offers the playground.
 - **The setup strip:** "temper has no forge and no model yet.", or the
   one missing alone ("temper has no forge yet.", "temper has no model
   yet."; for a person whose role does not hold the deployment's forges,
@@ -4194,13 +4181,6 @@ own tests:
   the providers' facts, jig's `domain/providers.md`, 2.5); until then,
   each reads as the ending jig gives, in its words. Default: none drawn
   before jig's fact.
-- **A sign-in's end after the welcome's return** (3.5, The welcome):
-  a sign-in started at the welcome's Model step that ends refused or
-  failed comes back to Ready, which then says "Model: none yet" with
-  "Connect a model", and draws none of the ending's words, which the
-  accounts page and `ConnectModel` at the source still show.
-  Candidate: Ready draws the person's last ending under the model's
-  line while no account is usable. Default: as above.
 - **A sign-in started from another client** (3.5, `ConnectModel`): a
   page opened at a sign-in's way, by a reload or a link, knows no
   sign-in of its own, and offers the way's button again; the accounts

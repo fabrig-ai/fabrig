@@ -11,22 +11,27 @@
       setup: { org: 'work', repo: 'hello', project: 'hello', label: 'docker', newProject: true } });
     return w;
   }
-  const states = [
-    ['Choose', 'not connected', null], ['Details', 'not connected', null],
-    ['Token required', 'not connected', 'required'], ['Token over 4 KiB', 'not connected', 'too-long'], ['Invalid runner label', 'not connected', 'label'], ['Organization required', 'not connected', 'org-required'], ['Repository required', 'not connected', 'repository-required'], ['Connecting', 'connecting', null], ['NotAdmin', 'not connected', 'not-admin'],
-    ['Refused 401', 'not connected', '401'], ['Refused 403, bot', 'not connected', '403-bot'],
-    ['Refused 403, organization', 'not connected', '403-org'], ['Unmarked', 'not connected', 'unmarked'],
-    ['Other', 'not connected', 'other'], ['Create, admin', 'not connected', 'first-admin'],
-    ['Create, organization', 'not connected', 'first-org'], ['Create, repository', 'not connected', 'first-repository'],
-    ['Create, starter workflow', 'not connected', 'first-file'], ['Ready', 'connected', null],
+  // Each stop is a state of Details, at `?stop=`: the four repository
+  // fields kept, and no token drawn.
+  const STOPS = [
+    ['required', 'Token required'], ['too-long', 'Token over 4 KiB'], ['label', 'Invalid runner label'],
+    ['org-required', 'Organization required'], ['repository-required', 'Repository required'],
+    ['not-admin', 'Not a site admin’s token'], ['401', 'Refused, 401'], ['403-bot', 'Refused 403: making the bot'],
+    ['403-org', 'Refused 403: making the organization'], ['unmarked', 'The bot’s login held, unmarked'], ['other', 'Another stop: 500'],
+    ['first-admin', 'The first repository stopped: checking the token'], ['first-org', 'The first repository stopped: its organization'],
+    ['first-repository', 'The first repository stopped: its repository'], ['first-file', 'The first repository stopped: its starter workflow'],
   ];
-  const steps = states.map(([title, state, stop], i) => ({
-    id: String(i + 1), label: String(i + 1), hour: i / 60, act: 1, title,
-    summary: i === 0 ? 'The configuration was restarted: its Forgejo has its own card.' : `${title}; the four repository fields are kept, and no token is drawn.`,
-    look: [[`welcome.html?at=forge${i === 0 ? '' : '&forge=3'}`, title], [`connect-forge.html${i === 0 ? '' : '?forge=3'}`, title]],
+  const both = (query, label) => [[`welcome.html?at=forge${query}`, label], [`connect-forge.html${query ? `?${query.slice(1)}` : ''}`, `${label}, from Forges`]];
+  const steps = [
+    { title: 'Choose', state: 'not connected', summary: 'The configuration was restarted: its Forgejo has its own card.', look: both('', 'Connect a forge: Forgejo at git.example.org') },
+    { title: 'Details', state: 'not connected', summary: 'Sam chooses Connect as its admin: the site admin’s token, and the first repository’s fields.',
+      look: [...both('&forge=3', 'Connect as its admin'), ...STOPS.map(([stop, label]) => [`welcome.html?at=forge&forge=3&stop=${stop}`, label])] },
+    { title: 'Connecting', state: 'connecting', summary: 'temper makes its bot, then work/hello.', look: both('&forge=3', 'Connecting as its admin') },
+    { title: 'Ready', state: 'connected', summary: 'temper made its bot, work/hello and the project hello.', look: [...both('&forge=3', 'Connected, managed'), ['welcome.html?at=model', 'Connect a model: the forge ticked']] },
+  ].map(({ title, state, summary, look }, i) => ({
+    id: String(i + 1), label: String(i + 1), hour: i / 60, act: 1, title, summary, look,
     apply(w) {
-      const f = w.forges.find(f => f.n === 3);
-      Object.assign(f, { state, stop });
+      w.forges.find(f => f.n === 3).state = state;
       if (state === 'connected') {
         w.project = 'hello';
         w.repos['work/hello'] = { name: 'work/hello', forge: 3, branch: 'main', tip: '5d0e9b1', project: 'hello', ci: { state: 'waiting' }, queue: [] };

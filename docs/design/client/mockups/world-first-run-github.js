@@ -59,7 +59,7 @@
       look: [
         ['welcome.html', 'The welcome: the playground, or set up'],
         ['welcome.html?at=forge', 'Connect a forge, in the wizard: Connect GitHub'],
-        ['chats.html', 'Chats behind it: no project yet, the setup strip'],
+        ['chats.html', 'Chats behind it: Project 1, no chat yet; the setup strip'],
         ['connect-forge.html', 'Connect a forge, from Forges: the same choice'],
         ['connect-forge.html?forge=2', 'An App of your own: its details, behind its link'],
       ],
@@ -81,6 +81,8 @@
         ['github.html?at=install&from=welcome', 'GitHub: where to install temper’s App'],
         ['github.html?at=account&account=sam&from=welcome', 'GitHub: on sam, all its repositories or those selected'],
         ['github.html?at=account&account=brightline&from=welcome', 'GitHub: an organization Sam doesn’t own, a request'],
+        ['github.html?at=refused&why=request&from=welcome', 'Back from a request: temper’s own page'],
+        ['github.html?at=refused&why=ended&from=welcome', 'A link that has ended: temper’s own page'],
         ['connect-forge.html?forge=2', 'Connect a forge, had Sam come back: Install on GitHub'],
         ['forges.html', 'Forges: GitHub, connecting'],
       ],

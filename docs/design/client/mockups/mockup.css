@@ -49,6 +49,11 @@ body.mock .drawer { top: calc(var(--mock-bar) + 49px); }
 .view-toggle { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 6px; padding: 4px 6px; border-radius: 3px; cursor: pointer; }
 .view-toggle:hover { background: var(--note-pale); }
 .view-toggle input { margin: 2px 0 0; accent-color: var(--note); }
+.view-hide { display: block; width: 100%; margin-top: 4px; padding: 4px 6px 4px 28px; border: 0; border-radius: 3px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.view-hide:hover { background: var(--note-pale); }
+/* The bar hidden: an unseen handle in the corner, shown on hover. */
+.mock-restore { position: fixed; right: 4px; bottom: 4px; z-index: 40; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: #2b2f36; color: #dfe5ec; font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; opacity: 0; transition: opacity .15s; cursor: pointer; }
+.mock-restore:hover, .mock-restore:focus-visible { opacity: .9; }
 .view-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 6px !important; }
 .mockbar-legend { display: none; gap: 10px; color: #c6d0db; font-size: 10px; }
 body.mock-sources .mockbar-legend { display: flex; }
@@ -85,6 +90,27 @@ body.mock-plain .case-ref, body.mock-plain .gap, body.mock-plain .gap-note, body
 .mock-variants > h2 { font-weight: 700; margin: 0 0 6px; }
 .mock-variants > h3 { font-weight: 700; margin: 18px 0 6px; }
 .mock-variants > p { margin: 0 0 12px; }
+
+/* The future: hidden unless asked (View → Future, or ?future); then
+   in place of what the page shows today, outlined and marked with what
+   it needs. A capture (?bare&future) draws it unmarked. */
+body:not(.mock-future) .future { display: none !important; }
+body.mock-future .today { display: none !important; }
+.future { outline: 1px dashed var(--note-line); outline-offset: 3px; border-radius: 2px; }
+div.future { display: block; }
+.future-mark { display: inline-flex; align-items: center; height: 16px; margin-right: 6px; padding: 0 5px; border-radius: 3px; border: 1px dashed var(--note-line); color: var(--note); background: var(--note-pale); font: 600 9.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-style: normal; vertical-align: 1px; white-space: nowrap; }
+div.future > .future-mark { display: flex; width: max-content; margin: 0 0 6px; }
+body.mock-plain .future { outline: none; }
+body.mock-plain .future-mark { display: none !important; }
+
+/* Whether a page is under the README's rules, in the bar. */
+.mockbar-rules { padding: 2px 7px; border-radius: 3px; font: 600 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #cfe8d5; border: 1px solid #4f7a5a; white-space: nowrap; }
+.mockbar-rules.not { color: #e8d9b8; border-color: #7a6a4f; }
+
+/* The contents' list of each page's states. */
+.mock-states { margin: 4px 0; }
+.mock-states summary { cursor: pointer; }
+.mock-states ul { margin: 4px 0 10px; }
 
 /* Where the tab is, on a way that leaves temper: its address, and how it
    got there. */
