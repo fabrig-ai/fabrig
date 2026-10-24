@@ -75,7 +75,7 @@ pub(crate) fn read(value: &Value) -> Result<api::Read, Problem> {
             page: value.required(b"page")?.small()?,
         }),
         b"branch" => Ok(api::Read::Branch { branch: value.required(b"branch")?.text()? }),
-        b"branches" => Ok(api::Read::Branches),
+        b"branches" => Ok(api::Read::Branches { prefix: value.required(b"prefix")?.text()? }),
         b"pull_files" => Ok(api::Read::PullFiles {
             number: value.required(b"number")?.number()?,
             head: commit(value.required(b"head")?)?,

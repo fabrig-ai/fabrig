@@ -119,6 +119,7 @@ impl World {
             Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
             None,
             false,
+            4,
         )
     }
 
@@ -132,7 +133,33 @@ impl World {
             Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
             Some(protection),
             signatures,
+            4,
         )
+    }
+
+    #[must_use]
+    pub fn with_branches(seed: u64, branches: u32) -> World {
+        Self::configured(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            branches,
+        )
+    }
+
+    pub fn preload_branches(&mut self, count: u32) {
+        for number in 0..count {
+            self.external(
+                raw::Op::Git(raw::Git::Create {
+                    branch: format!("foreign/{number}").into_bytes().into_boxed_slice(),
+                    commit: 1,
+                }),
+                2,
+            );
+        }
     }
 
     pub fn signatures(&mut self, required: bool) {
@@ -146,9 +173,11 @@ impl World {
         writer: Option<skein_forge_client::Writer>,
         protection: Option<raw::Protection>,
         signatures: bool,
+        branches: u32,
     ) -> World {
         let limits = top::Limits { facts, client: skein_forge_client::Limits { facts, ..CLIENT }, ..LIMITS };
         let mut config = fake_config();
+        config.limits.branches = branches;
         config.limits.bypassing_users = protection
             .as_ref()
             .map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
@@ -216,7 +245,7 @@ impl World {
     /// Construct and restart without any configured writer.
     #[must_use]
     pub fn writerless(seed: u64) -> World {
-        Self::configured(seed, LIMITS.facts, false, None, None, false)
+        Self::configured(seed, LIMITS.facts, false, None, None, false, 4)
     }
     pub fn give_writer(&mut self, writer: skein_forge_client::Writer) -> bool {
         let accepted = top::writer(&mut self.top, &self.env, writer, &mut self.top_out);
@@ -238,6 +267,7 @@ impl World {
             Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
             None,
             false,
+            4,
         )
     }
 

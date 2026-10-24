@@ -327,8 +327,12 @@ pub(crate) fn adoption_read(
                 pending.permission = Some(permission);
                 let check_prefix = pending.request.role != Role::Context;
                 pending.stage = if check_prefix { AdoptionStage::Branches } else { AdoptionStage::Settings };
+                let read = if check_prefix {
+                    api::Read::Branches { prefix: pending.request.prefix.clone() }
+                } else {
+                    api::Read::Settings
+                };
                 d.adoptions.insert(owner, pending).expect("replaces read chain");
-                let read = if check_prefix { api::Read::Branches } else { api::Read::Settings };
                 child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
             }
             Ok(_) => adopted(d, out, owner, Err(api::Error::InvalidAnswer)),

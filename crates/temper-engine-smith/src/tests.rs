@@ -216,7 +216,7 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
         (b"read_statuses", br#"{"repository":{"forge":1,"repository":2},"read":{"commit":"0000000000000000000000000000000000000000000000000000000000000000","page":1}}"#, br#"{"repository":{"forge":1,"repository":2},"read":{}}"#),
         (b"read_remarks", br#"{"repository":{"forge":1,"repository":2},"read":{"number":1,"review":1,"page":1}}"#, br#"{"repository":{"forge":1,"repository":2},"read":{}}"#),
         (b"read_branch", br#"{"repository":{"forge":1,"repository":2},"read":{"branch":"main"}}"#, br#"{"repository":{"forge":1,"repository":2},"read":{}}"#),
-        (b"read_branches", br#"{"repository":{"forge":1,"repository":2},"read":{}}"#, br#"{"repository":{"forge":1,"repository":2},"read":{"kind":"wrong"}}"#),
+        (b"read_branches", br#"{"repository":{"forge":1,"repository":2},"read":{"prefix":"temper/"}}"#, br#"{"repository":{"forge":1,"repository":2},"read":{"kind":"wrong"}}"#),
         (b"read_pull_files", br#"{"repository":{"forge":1,"repository":2},"read":{"number":1,"head":"0000000000000000000000000000000000000000000000000000000000000000","page":1}}"#, br#"{"repository":{"forge":1,"repository":2},"read":{}}"#),
         (b"read_compare", br#"{"repository":{"forge":1,"repository":2},"read":{"before":"0000000000000000000000000000000000000000000000000000000000000000","after":"0000000000000000000000000000000000000000000000000000000000000000"}}"#, br#"{"repository":{"forge":1,"repository":2},"read":{}}"#),
         (b"read_checks", br#"{"repository":{"forge":1,"repository":2},"read":{"commit":"0000000000000000000000000000000000000000000000000000000000000000"}}"#, br#"{"repository":{"forge":1,"repository":2},"read":{}}"#),

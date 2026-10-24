@@ -2353,7 +2353,10 @@ fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
         engine::Call {
             completion: 1,
             position: 1,
-            tool: engine::Tool::ReadForge { repository: forge_world::REPO, read: skein_forge::api::Read::Branches },
+            tool: engine::Tool::ReadForge {
+                repository: forge_world::REPO,
+                read: skein_forge::api::Read::Branches { prefix: Box::from(&b"temper/"[..]) },
+            },
         },
     );
     world.send(event);

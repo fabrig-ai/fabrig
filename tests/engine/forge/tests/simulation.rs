@@ -27,7 +27,8 @@ fn an_existing_repository_is_adopted_after_its_permission_and_collaborators_are_
 
 #[test]
 fn a_repository_with_another_deployments_branch_prefix_is_refused() {
-    let mut world = World::new(4);
+    let mut world = World::with_branches(4, 222);
+    world.preload_branches(220);
     world.produce(b"temper/other");
     world.adopt();
     assert!(
@@ -1975,4 +1976,46 @@ fn a_lost_writer_restarts_its_unfinished_fresh_read_before_releasing() {
         panic!("fresh head retained")
     };
     assert!(head.owned);
+}
+
+#[test]
+fn a_repository_with_222_branches_and_two_recorded_prefix_branches_is_adopted() {
+    let mut world = World::with_branches(4, 222);
+    world.adopt();
+    for (task, suffix) in [(9, b"one".as_slice()), (10, b"two".as_slice())] {
+        let branch = format!("temper/{}", std::str::from_utf8(suffix).expect("ASCII fixture suffix"));
+        world.produce(branch.as_bytes());
+        let name = top::Name {
+            forge: REPO.forge,
+            repository: REPO.repository,
+            what: top::What::Branch(Box::new([Box::from(&b"temper"[..]), Box::from(suffix)])),
+        };
+        world.event(top::Event::Names { task, resources: Box::new([name.clone()]) });
+        world.event(top::Event::Hold { task, resource: name.clone(), from: None });
+        world.event(top::Event::Claim {
+            task,
+            attempt: 1,
+            writes: Box::new([name.clone()]),
+            holders: Box::new([task]),
+        });
+        world.event(top::Event::Answered {
+            task,
+            attempt: 1,
+            pushed: Box::new([(name.clone(), translate::commit(world.branch(branch.as_bytes())))]),
+        });
+        world.run_for(1);
+        let Some(top::Stored::BranchHead(head)) = world.stored().get(&top::Key::BranchHead(name)) else {
+            panic!("writer branch tip retained")
+        };
+        assert!(head.owned);
+    }
+    world.preload_branches(219);
+    drop(world.take_seen());
+    world.adopt();
+    assert!(
+        world.seen().iter().any(|request| matches!(request, top::Request::Adopted { result: Ok(_), .. })),
+        "{:?}",
+        world.seen()
+    );
+    assert!(!world.seen().iter().any(|request| matches!(request, top::Request::Adopted { result: Err(_), .. })));
 }

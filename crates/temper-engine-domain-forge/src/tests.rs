@@ -331,7 +331,10 @@ fn adoption_reads_permission_before_committing_its_role() {
     let next = ready(&mut d);
     assert_eq!(next.len(), 1);
     let branches = match &next[0] {
-        Request::Call { call, op: skein_forge::api::Op::Read(skein_forge::api::Read::Branches), .. } => *call,
+        Request::Call { call, op: skein_forge::api::Op::Read(skein_forge::api::Read::Branches { prefix }), .. } => {
+            assert_eq!(prefix.as_ref(), b"temper/");
+            *call
+        }
         Request::Call { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
@@ -389,7 +392,7 @@ fn adoption_reads_permission_before_committing_its_role() {
                 rate: None,
                 call: branches,
                 cost: 1,
-                result: Ok(skein_forge::api::Answer::Branches(Box::new([Box::from(&b"main"[..])]))),
+                result: Ok(skein_forge::api::Answer::Branches(Box::new([]))),
             })
         )
         .is_empty()
