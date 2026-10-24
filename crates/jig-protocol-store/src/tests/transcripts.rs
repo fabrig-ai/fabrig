@@ -350,6 +350,253 @@ fn backwards(after: Option<u64>) -> crate::TranscriptRead {
 fn pair() -> [TurnRecord; 2] {
     [fixtures::window_turn(LIVE, 2, 1, b"one"), fixtures::turn(LIVE, 2, 2, b"two")]
 }
+// Each pair turn has a 55-byte versioned body and 12 bytes of framing.
+const PAIR_FRAME: u64 = 67;
+// One window-opening turn needs only one page; two attempts expose an
+// unchanged empty cursor without relying on a wall-clock deadline.
+const WINDOW_REQUESTS: u32 = 2;
+#[test]
+fn an_undersized_window_read_terminates_without_repeating_its_cursor() {
+    let turns = [fixtures::window_turn(LIVE, 2, 1, b"one")];
+    let (mut store, disk) = readable(&turns);
+    let mut after = None;
+    for _ in 0..WINDOW_REQUESTS {
+        let (events, below) = ask(&mut store, 801, window(after), 1, PAIR_FRAME.checked_sub(1).expect("one below"));
+        let events = if events.is_empty() { answer_reads(&mut store, below, &disk, 4096) } else { events };
+        match events.as_ref() {
+            [Event::Unread { .. }] => {
+                unread(&events);
+                assert!(store.transcripts.reads.is_empty());
+                assert_eq!(store.transcripts.reading, None);
+                return;
+            }
+            [Event::Turns { turns, next: Some(next), .. }] => {
+                assert!(turns.is_empty(), "undersized first turn cannot fit");
+                after = Some(*next);
+            }
+            _ => panic!("unread or continuation: {events:?}"),
+        }
+    }
+    panic!("window did not terminate after {WINDOW_REQUESTS} requests; unchanged cursor {after:?}");
+}
+
+#[test]
+fn direct_reads_without_row_or_byte_room_are_unread() {
+    let (mut store, disk) = readable(&pair());
+    let selected = crate::TranscriptRead::Turn { task: LIVE, attempt: 2, turn: 1 };
+    for read in [window(None), forwards(None), backwards(None), selected] {
+        for (rows, bytes) in [(0, PAIR_FRAME), (1, 0)] {
+            let (events, below) = ask(&mut store, 801, read, rows, bytes);
+            let events = if events.is_empty() { answer_reads(&mut store, below, &disk, 4096) } else { events };
+            unread(&events);
+        }
+    }
+}
+
+#[test]
+fn exact_frame_room_keeps_a_prefix_and_advances_its_cursor() {
+    let turns = pair();
+    let (mut store, disk) = readable(&turns);
+    for read in [window(None), forwards(None), backwards(None)] {
+        let (_, below) = ask(&mut store, 801, read, 2, PAIR_FRAME);
+        let events = answer_reads(&mut store, below, &disk, 4096);
+        let (_, found, next) = page(&events);
+        let (expected, cursor) = match read {
+            crate::TranscriptRead::Page { backwards: true, .. } => (turns.get(1..).expect("tail"), PAIR_FRAME),
+            crate::TranscriptRead::Window { .. }
+            | crate::TranscriptRead::Turn { .. }
+            | crate::TranscriptRead::Page { backwards: false, .. } => (turns.get(..1).expect("prefix"), PAIR_FRAME),
+        };
+        assert_eq!(found, expected);
+        assert_eq!(next, Some(cursor));
+    }
+    let (_, below) = ask(&mut store, 801, window(Some(PAIR_FRAME)), 2, PAIR_FRAME);
+    let events = answer_reads(&mut store, below, &disk, 4096);
+    let (_, found, next) = page(&events);
+    assert_eq!(found, turns.get(1..).expect("remaining turn"));
+    assert_eq!(next, None);
+}
+
+#[test]
+fn a_nonempty_prefix_continues_before_a_turn_that_refuses() {
+    let turns = [fixtures::window_turn(LIVE, 2, 1, b"one"), fixtures::turn(LIVE, 2, 2, b"four")];
+    let (mut store, disk) = readable(&turns);
+    let (_, below) = ask(&mut store, 801, window(None), 2, PAIR_FRAME);
+    let events = answer_reads(&mut store, below, &disk, 4096);
+    let (_, found, next) = page(&events);
+    assert_eq!(found, turns.get(..1).expect("fitting prefix"));
+    assert_eq!(next, Some(PAIR_FRAME));
+    // The next turn needs one more payload byte than this request permits.
+    let (_, below) = ask(&mut store, 801, window(next), 2, PAIR_FRAME);
+    unread(&answer_reads(&mut store, below, &disk, 4096));
+}
+
+#[test]
+fn exhausted_pages_remain_empty_terminal_answers() {
+    let (mut store, disk) = readable(&pair());
+    for read in [forwards(Some(PAIR_FRAME.checked_mul(2).expect("two frames"))), backwards(Some(0))] {
+        let (events, below) = ask(&mut store, 801, read, 0, 0);
+        assert!(below.transcripts.is_empty());
+        let (_, found, next) = page(&events);
+        assert!(found.is_empty());
+        assert_eq!(next, None);
+    }
+    let (_, below) = ask(&mut store, 801, window(Some(u64::try_from(disk.len()).expect("end"))), 1, 0);
+    let events = answer_reads(&mut store, below, &disk, 4096);
+    let (_, found, next) = page(&events);
+    assert!(found.is_empty());
+    assert_eq!(next, None);
+}
+
+fn framed_readable(raw: &[u8]) -> Store {
+    use jig_test_patches_jig::frames;
+    let mut store = fixtures::over(fixtures::stores());
+    store.patch_sets(super::frame_patches::SETS);
+    fixtures::run(
+        &mut store,
+        crate::Request::Open { owner: Token::new(800), root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+    );
+    fixtures::plant(
+        &mut store.stores,
+        &[
+            skein_kv::Op::Put {
+                key: crate::keys::encode_own(&crate::keys::Own::Transcript { task: frames::TASK }, fixtures::KEY_LIMIT)
+                    .expect("frame places key"),
+                value: crate::codec::component::Transcript {
+                    length: u64::try_from(raw.len()).expect("frame"),
+                    window: 0,
+                }
+                .encode()
+                .expect("frame places"),
+            },
+            skein_kv::Op::Put {
+                key: crate::keys::encode_own(
+                    &crate::keys::Own::Attempt { task: frames::TASK, attempt: frames::ATTEMPT },
+                    fixtures::KEY_LIMIT,
+                )
+                .expect("attempt key"),
+                value: crate::codec::component::Attempt { first: 0 }.encode().expect("attempt place"),
+            },
+        ],
+    );
+    store
+}
+fn fixture_page(store: &mut Store, raw: &[u8], read: crate::TranscriptRead, bytes: u64) -> Box<[Event]> {
+    // The fixture has one written smith site, then its terminal.
+    const STOPS: u32 = 2;
+    let (mut events, mut below) = ask(store, 801, read, 1, bytes);
+    for _ in 0..STOPS {
+        if events.is_empty() {
+            events = answer_reads(store, below, raw, 4096);
+        }
+        let mut events_iter = events.into_iter();
+        let event = events_iter.next().expect("frame read event");
+        assert!(events_iter.next().is_none());
+        if let Event::Site { owner, of, key, site, at, mut patcher } = event {
+            assert_eq!(of, crate::Owner::Smith);
+            let (old, new) = patcher.parts();
+            let result = jig_test_patches_smith::patches::written(
+                site,
+                old,
+                new,
+                at,
+                &mut jig_test_patches_smith::patches::Context { key },
+            );
+            let mut above = Queue::with_capacity(crate::MAX_OUT_DOWN);
+            below = fixtures::below();
+            crate::down(
+                store,
+                &fixtures::env(),
+                crate::Request::Site { owner, patcher, result },
+                &mut above,
+                &mut below,
+            );
+            events = fixtures::events(&mut above);
+        } else {
+            return Box::new([event]);
+        }
+    }
+    panic!("fixture frame did not terminate");
+}
+// Fixture said/replay fields each allow 64 bytes. Its current turn is 74
+// bytes; a current frame with read=None has another 56 bytes (body + 12).
+const FIXTURE_FRAME: u64 = 130;
+const FIXTURE_TEXT: usize = 64;
+// 64 replay bytes and the 18-byte frame key passed to the written site.
+const FIXTURE_TOKENS: u32 = 82;
+#[test]
+fn current_and_patched_frames_share_the_exact_direct_read_bound() {
+    use jig_test_patches_jig::frames;
+    let said = [b's'; FIXTURE_TEXT];
+    let replay = [b'r'; FIXTURE_TEXT];
+    // Written tokens are replay length plus the 18-byte frame key.
+    let expected = jig_store_world::patches::fixture_turn(2, &said, &[], FIXTURE_TOKENS);
+    for (body, version, raw_length) in [(5, 1, 189), (6, 1, 194), (6, 2, FIXTURE_FRAME)] {
+        let transcript = jig_store_world::patches::fixture_turn(version, &said, &replay, FIXTURE_TOKENS);
+        let raw = frames::frame(body, &transcript);
+        assert_eq!(u64::try_from(raw.len()).expect("raw frame length"), raw_length);
+        let mut store = framed_readable(&raw);
+        for read in [
+            crate::TranscriptRead::Window {
+                task: frames::TASK,
+                attempt: frames::ATTEMPT,
+                turn: frames::TURN,
+                after: None,
+            },
+            crate::TranscriptRead::Turn { task: frames::TASK, attempt: frames::ATTEMPT, turn: frames::TURN },
+            crate::TranscriptRead::Page { task: frames::TASK, backwards: false, after: None },
+            crate::TranscriptRead::Page { task: frames::TASK, backwards: true, after: None },
+        ] {
+            let events = fixture_page(&mut store, &raw, read, FIXTURE_FRAME);
+            let (_, turns, next) = page(&events);
+            assert_eq!(turns.len(), 1);
+            assert_eq!(turns.first().expect("one turn").transcript, expected);
+            assert_eq!(next, None);
+            unread(&fixture_page(&mut store, &raw, read, FIXTURE_FRAME.checked_sub(1).expect("one below")));
+            // The effective bound is min(request, page), including patched framing.
+            store.limits.store.page.bytes =
+                u32::try_from(FIXTURE_FRAME.checked_sub(1).expect("one below")).expect("page");
+            unread(&fixture_page(&mut store, &raw, read, FIXTURE_FRAME));
+            store.limits.store.page.bytes = fixtures::store_limits().store.page.bytes;
+        }
+    }
+}
+
+#[test]
+fn configured_read_room_and_frame_capacity_are_measured_separately() {
+    use jig_protocol_config::{Profile, profile};
+    // The frame bound is TurnRecord::worst_case_bytes + 12, including
+    // version, optional read, transcript length, checksum and both lengths.
+    const MAX_FRAME: u64 = 8_388_672;
+    for (kind, request, page) in [(Profile::Small, 65_536, 1_569_908), (Profile::Standard, 262_144, 10_666_836)] {
+        let configured = profile(kind);
+        let codec = crate::codec::limits(&configured.core).expect("profile codec");
+        assert_eq!(u64::from(configured.core.resume_bytes), request);
+        assert_eq!(configured.store.store.page.bytes, page);
+        assert_eq!(crate::core_v6::TurnRecord::worst_case_bytes(&codec.core).expect("body") + 12, MAX_FRAME);
+        assert!(request.min(u64::from(page)) < MAX_FRAME);
+    }
+    let limits = fixtures::store_limits();
+    let sets = super::frame_patches::SETS;
+    let capacity = crate::transcripts::patches::capacity(&sets.sets[0], 0, &limits).expect("body capacity");
+    assert_eq!(u64::from(capacity.bytes) + 12, MAX_FRAME);
+    for (limits, page) in [(jig_store_world::root::limits(), 330_532), (jig_store_world::patches::limits(), 2_048)] {
+        assert_eq!(limits.core.resume_bytes, 256);
+        assert_eq!(limits.store.page.bytes, page);
+        let room = u64::from(limits.core.resume_bytes).min(u64::from(page));
+        assert!(room >= FIXTURE_FRAME);
+        assert!(room < MAX_FRAME);
+    }
+    assert_eq!(limits.core.resume_bytes, 256);
+    assert_eq!(limits.store.page.bytes, 16_778_240);
+    // Supplied well-formed smith fixtures: the current turn's maximum is
+    // 74 bytes; the earlier layout's replay grows its raw maximum to 138.
+    for (text, expected) in [(sets.sets[1].families[0].texts[0], 138), (sets.sets[1].families[0].texts[1], 74)] {
+        let schema = skein_codec::schema::parse(text.as_bytes()).expect("fixture schema");
+        let root = schema.find(b"Turn").expect("fixture turn");
+        assert_eq!(schema.most_bytes(root), expected);
+    }
+}
 #[test]
 fn a_window_read_starts_at_the_windows_first_turn() {
     let turns = [

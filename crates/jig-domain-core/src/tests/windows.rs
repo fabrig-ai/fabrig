@@ -183,9 +183,11 @@ fn beginning_a_transcript_keeps_its_windows_closed_flag() {
     assert_eq!(transcript.window, Some((1, 1)));
 }
 
-#[test]
-fn a_closed_window_within_the_limit_prepares_without_resuming() {
+fn assert_closed_prepares(tail_bytes: u32, body: &[u8], expected_tail: &[u8]) {
     let (mut core, limits) = closed_window();
+    core.settings.tail_bytes = tail_bytes;
+    let tries = core.tasks.task(1).unwrap().tries;
+    let refusals = core.tasks.task(1).unwrap().refusals;
     core.current.test_charter_mut(1).policy.resume = true;
     run_choice::host(&mut core, &limits, Token::new(7), &[b"scripted"]);
     let mut accounts_out = Queue::with_capacity(accounts::max_out(&limits.accounts));
@@ -205,7 +207,8 @@ fn a_closed_window_within_the_limit_prepares_without_resuming() {
     );
     send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: 1 });
     core.contexts.insert(1, core.tasks.run_context(1).unwrap()).unwrap();
-    append(&mut core, 1, b"closed text");
+    append(&mut core, 1, body);
+    assert_eq!(tail(&core, tail_bytes).as_ref(), expected_tail);
     let _out = watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, ready: true });
     let attempt = *core.workspace_pending.get(&1).unwrap();
     let out = watch_outputs(
@@ -226,6 +229,13 @@ fn a_closed_window_within_the_limit_prepares_without_resuming() {
     }
     assert!(prepared, "closed window prepares a run");
     assert_eq!(core.proofs.get(&1).unwrap().window, None);
+    assert_eq!(core.tasks.task(1).unwrap().tries, tries);
+    assert_eq!(core.tasks.task(1).unwrap().refusals, refusals);
+}
+
+#[test]
+fn a_closed_window_within_the_limit_prepares_without_resuming() {
+    assert_closed_prepares(128, b"closed text", b"closed text");
 }
 
 #[test]
@@ -236,4 +246,17 @@ fn a_closed_tail_keeps_newest_text_within_its_budget() {
     append(&mut core, 2, b"tail");
     assert_eq!(tail(&core, 4).as_ref(), b"tail");
     assert!(resumed(&mut core).is_empty());
+}
+
+// engine.md 7.2: the cut marker takes 19 bytes; this budget cannot carry it.
+const TINY_TAIL: u32 = 8;
+
+#[test]
+fn a_closed_tail_needing_a_cut_omits_text_without_marker_room() {
+    assert_closed_prepares(TINY_TAIL, b"text that needs cutting", b"");
+}
+
+#[test]
+fn a_short_whole_closed_tail_fits_below_the_marker_size() {
+    assert_closed_prepares(TINY_TAIL, b"fits all", b"fits all");
 }

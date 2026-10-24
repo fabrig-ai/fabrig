@@ -738,6 +738,11 @@ fn settle(store: &mut Store, owner: Token, mut read: Read, result: Result<bool, 
                 return;
             }
             let end = if read.backwards { 0 } else { read.end };
+            if read.turns.is_empty() && read.position != end {
+                store.transcripts.reading = None;
+                above.push(Event::Unread { owner });
+                return;
+            }
             let next = match read.scan {
                 Scan::Turn { .. } => None,
                 Scan::Window { .. } | Scan::Page => {

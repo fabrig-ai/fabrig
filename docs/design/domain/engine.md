@@ -718,7 +718,13 @@ the per-run charter routes by them.
   unread transcript is counted; its activity shows a run begun fresh,
   as one past the limit. A closed window's tail the store cannot read
   (a frame unread, `../protocol/store.md`, 8.3) is left out: the attempt
-  starts fresh without it, and nothing is counted. However the upgrade's
+  starts fresh without it, and nothing is counted. When a turn's rendered
+  text needs cutting, a tail budget too small for the 19-byte cut marker
+  gives no text for that turn. If no turn leaves text, the tail is empty:
+  the closed window's next attempt still starts fresh, without a failure
+  counted. A window page that cannot hold one turn answers `Unread`.
+  An open unread window retains its transient-failure semantics above.
+  However the upgrade's
   stop classes the attempt it ends (temper's `draft/upgrades.md`, 7.2),
   a closed window is kept for its tail's load, where a transient try
   drops an open one. No attempt is to be live across the switch: an

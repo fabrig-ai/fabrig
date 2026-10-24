@@ -1100,17 +1100,25 @@ fn assert_refused(events: &[Event], store: &Store) {
 fn assert_abandoned(disk: Harness) {
     assert_abandoned_at(disk, FIXTURE_LAST);
 }
-fn assert_abandoned_at(mut disk: Harness, last: u64) {
+fn assert_abandoned_at(disk: Harness, last: u64) {
+    assert_abandoned_with(disk, last, BASE, 0);
+}
+fn assert_abandoned_with(disk: Harness, last: u64, sets: crate::PatchSets, version: u32) {
+    let (_, events) = reopen_abandoned(disk, sets, version);
+    assert_opened(&events, last);
+}
+fn reopen_abandoned(mut disk: Harness, sets: crate::PatchSets, version: u32) -> (Store, Box<[Event]>) {
     disk.assert_source_unchanged(1);
     assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
     let source = disk.source_items(1);
     let mut disk = disk.crash(31);
     let mut store = disk.store(false);
-    store.patch_sets(BASE);
-    store.application.version = 0;
-    assert_opened(&disk.open(&mut store), last);
+    store.patch_sets(sets);
+    store.application.version = version;
+    let events = disk.open(&mut store);
     assert!(!disk.items().iter().any(|item| item.path.starts_with(b"generations/2")));
     assert_eq!(disk.source_items(1), source);
+    (store, events)
 }
 #[test]
 fn a_shell_without_the_written_site_refuses_and_the_next_start_removes_the_copy() {
@@ -1639,6 +1647,125 @@ fn fresh_store(disk: &Harness, after: bool) -> Store {
     store.limits.journal.writes = 2;
     store.patch_sets(if after { FRESH_AFTER } else { FRESH_BEFORE });
     store
+}
+// One credential exercises the closing walk's deployment-bounded decoder.
+const FRESH_CREDENTIALS: &[u32] = &[2];
+const FRESH_PROOF_TASK: u64 = 1;
+fn bounded_fresh_proof() -> jig_domain_core::Record {
+    let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(mut proof)) =
+        fresh_record(FRESH_PROOF_TASK, false)
+    else {
+        panic!("fresh proof fixture")
+    };
+    proof.credentials = Box::from(FRESH_CREDENTIALS);
+    jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof))
+}
+fn fresh_proof_key() -> Box<[u8]> {
+    crate::keys::encode(
+        &jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(FRESH_PROOF_TASK)),
+        fixtures::KEY_LIMIT,
+    )
+    .expect("fresh proof key")
+}
+fn fresh_source() -> (Disk, Store) {
+    let mut disk = Disk::new(&fresh_baseline());
+    let mut store = disk.store_with_chunk(CHUNK);
+    store.patch_sets(FRESH_BEFORE);
+    disk.open(&mut store);
+    (disk, store)
+}
+fn fresh_with_proof() -> Vec<Item> {
+    let (mut disk, mut store) = fresh_source();
+    disk.request(
+        &mut store,
+        fixtures::commit(
+            FRESH_TASKS + 1,
+            Box::new([fixtures::header(FRESH_TASKS + 1), Write::Save(bounded_fresh_proof())]),
+        ),
+    );
+    disk.items()
+}
+#[test]
+fn a_closing_proof_past_its_lowered_decode_limit_refuses_load() {
+    let mut disk = Harness::new(&fresh_with_proof());
+    let mut store = fresh_store(&disk, true);
+    store.limits.core.accounts.credentials = 0;
+    store.codec = crate::codec::limits(&store.limits.core).expect("lower proof decode limit");
+    let events = disk.open(&mut store);
+    assert_check(&events, &store, crate::Check::Load { key: fresh_proof_key() });
+    assert_abandoned_with(disk, FRESH_TASKS + 1, FRESH_BEFORE, fixtures::APPLICATION.version);
+}
+#[test]
+fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
+    let mut disk = Harness::new(&fresh_with_proof());
+    let mut store = fresh_store(&disk, true);
+    store.limits.core.accounts.credentials = 1;
+    store.codec = crate::codec::limits(&store.limits.core).expect("exact proof decode limit");
+    let events = disk.open(&mut store);
+    let Some(Event::Opened { .. }) = events.last() else { panic!("valid closing proof: {events:?}") };
+    let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(mut expected)) = bounded_fresh_proof()
+    else {
+        panic!("proof fixture")
+    };
+    expected.window.as_mut().expect("window").closed = true;
+    let record = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(expected));
+    assert_eq!(
+        proof_bytes(&mut store, FRESH_PROOF_TASK),
+        crate::codec::encode(&record, &store.codec, &[]).expect("proof")
+    );
+    assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
+    disk.assert_source_unchanged(1);
+}
+// Private raw KV setup, driven by the existing disk: the public writer never
+// produces these mismatched or malformed run-proof keys.
+fn fresh_with_raw_proof(key: Box<[u8]>, record: jig_domain_core::Record) -> Vec<Item> {
+    let (mut disk, mut store) = fresh_source();
+    let ops = Box::new([
+        fixtures::header_put(fixtures::DEPLOYMENT, FRESH_TASKS + 1),
+        skein_kv::Op::Put { key, value: crate::codec::encode(&record, &store.codec, &[]).expect("raw proof") },
+    ]);
+    let env = crate::memory_env(store.limits.store);
+    let mut above = Queue::with_capacity(skein_kv::MAX_OUT.above);
+    let mut below = fixtures::below();
+    skein_kv::down(
+        &mut store.stores.store,
+        &env,
+        skein_kv::Request::Commit { owner: Token::new(1), ops },
+        &mut above,
+        &mut below.store,
+    );
+    disk.drive(&mut below, |io, below| {
+        let Io::Store(arrived) = io else { panic!("raw proof uses the public map driver") };
+        skein_kv::up(&mut store.stores.store, &env, arrived.event, &mut above, &mut below.store);
+    });
+    let Some(skein_kv::Event::Committed { number, .. }) = above.pop() else { panic!("raw proof committed") };
+    assert_eq!(number, FRESH_TASKS + 1);
+    assert!(above.is_empty());
+    disk.items()
+}
+#[test]
+fn a_closing_proof_at_another_tasks_key_refuses_load() {
+    let key = fresh_proof_key();
+    let mut disk = Harness::new(&fresh_with_raw_proof(key.clone(), fresh_record(2, false)));
+    let mut store = fresh_store(&disk, true);
+    let events = disk.open(&mut store);
+    assert_check(&events, &store, crate::Check::Load { key });
+    let (store, events) = reopen_abandoned(disk, FRESH_BEFORE, fixtures::APPLICATION.version);
+    assert_refused(&events, &store);
+}
+#[test]
+fn a_malformed_closing_proof_key_refuses_load() {
+    // A valid run-proof address followed by an extra tag stays in its range
+    // but cannot decode as a key (store.md 4.1).
+    let mut key = fresh_proof_key().into_vec();
+    key.push(0);
+    let key = key.into_boxed_slice();
+    let mut disk = Harness::new(&fresh_with_raw_proof(key.clone(), fresh_record(FRESH_PROOF_TASK, false)));
+    let mut store = fresh_store(&disk, true);
+    let events = disk.open(&mut store);
+    assert_check(&events, &store, crate::Check::Load { key });
+    let (store, events) = reopen_abandoned(disk, FRESH_BEFORE, fixtures::APPLICATION.version);
+    assert_refused(&events, &store);
 }
 fn proof_bytes(store: &mut Store, task: u64) -> Box<[u8]> {
     let key = crate::keys::encode(

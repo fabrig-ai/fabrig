@@ -483,14 +483,16 @@ pub enum Event {
         owner: Token,
         row: Option<Row>,
     },
-    /// A transcript's turns; `next` is the offset to continue from.
+    /// A transcript's turns; `next` is the offset to continue from after
+    /// a nonempty prefix. An empty page is terminal (store.md 8.3).
     Turns {
         owner: Token,
         turns: Box<[core::TurnRecord]>,
         next: Option<u64>,
     },
     /// A transcript read failed: a frame's checksum, a window at another
-    /// turn, a dropped transcript (store.md 8.3, 8.5).
+    /// turn, a dropped transcript, or no complete turn fitting the direct
+    /// read's room while committed bytes remain (store.md 8.3, 8.5).
     Unread {
         owner: Token,
     },

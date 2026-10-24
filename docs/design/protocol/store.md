@@ -920,6 +920,10 @@ the committed length. The next open cuts the file to its committed length
   bound has its fields and length read, not its bytes.
 - **A page of a task's turns,** forwards or backwards, from a cursor that
   is an offset the component gives and takes back.
+- **Direct complete-turn requests** that cannot produce a turn under the
+  read's room terminate `Unread`, never a retryable empty page at an
+  unchanged offset; a nonempty prefix may give a continuation. A party's
+  single-turn `TooLarge` answer is unchanged.
 - **A tail,** for a fresh run's brief: the window's last turns as text,
   each rendered by the host's protocol layer when loaded, and each turn's
   text at most the tail's own budget, as the core's memory prices it.
@@ -1859,6 +1863,13 @@ section 2).
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
   golden bytes; refusals at open (format, deployment, sizes, numbers).
+  Direct transcript pages either advance through a nonempty prefix or
+  terminate `Unread` when no turn fits. Private phase tests refuse a
+  closing run proof outside its decode limit, a mismatched key and proof,
+  and a malformed run-proof key with `Check::Load` naming the offending
+  key: the active generation and source stay unchanged, and the next
+  start sweeps the abandoned copy. The existing closing-write fault and
+  crash stories retain the switch-order evidence.
 - **Fuzz targets** for each family's decoder and a frame's.
 - **On the real ring,** the reference binary (`service.md`, section 7)
   killed around each phase of a turn's commit and started again. A killed
@@ -1930,7 +1941,10 @@ section 2).
   - effects in flight that a patch changes (temper's
     `draft/upgrades.md`, section 8). Transcripts are patched as they
     are read (8.6), and a fresh mark closes the live windows (10.2,
-    step 4);
+    step 4). A pending fresh mark requires a full upgrade, with workers
+    stopped and every live attempt ended before the switch even when
+    their wires match (temper's `draft/upgrades.md`, section 9). Its
+    stop implementation is still owed in upgrades mission 4, M2;
   - pieces held by a frame's turn (smith's `Found.hits`, `pieces Hit`)
     are copied, not opened, so a smith patch that changes `Hit` is
     refused `Pieces` until they open (skein's `codec.md`, 11.3 and
@@ -1947,10 +1961,6 @@ section 2).
     core's identity plan over every core record, though no row in the
     map holds a turn; a frames' root kept out of `Row`'s `Value` would
     spare that walk;
-  - an upgrade across a patch marked fresh is a full one (8.6), which
-    temper's `draft/upgrades.md`, section 9, is to say: a pending patch
-    so marked keeps the workers from staying, though it moves no
-    version;
   - smith's machine is made for the most nodes its kept turn allows
     (8.6): from the baseline on, about 298 MB of tables per serving
     store (`Patcher::worst_case_heap` at 2,109,520 nodes), priced and
