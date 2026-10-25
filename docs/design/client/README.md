@@ -805,7 +805,13 @@ keeps (`../protocol/configuration.md`, section 2).
     step", holding `ConnectForge`'s Setting up steps; once connected
     with its first repository adopted, ticked, "✓ FORGE · ORG/NAME, in
     PROJECT", on GitHub the repository Ready adopted; PROJECT reads
-    "the new project NAME" for a new one. A GitHub forge with none
+    "the new project NAME" when the setup retains that choice. GitHub's
+    durable `row.repositories` supplies the adopted owner, name and
+    project number; its name is resolved from `me.projects`. It does not
+    retain whether the project was new, so after a reload the line reads
+    "in NAME". The asking tab's picker retains its new-project request
+    and says "in the new project NAME" while it matches that adoption.
+    A GitHub forge with none
     adopted yet reads "GitHub · no repository chosen yet", as a forge
     connected with no first repository reads "FORGE · no repository
     chosen yet"; a set up or a first repository that failed keeps all
@@ -840,15 +846,22 @@ keeps (`../protocol/configuration.md`, section 2).
     with "Connect a model", to the Model step, and under it, where the
     person's last sign-in (the `accounts` document's `last_end`) ended
     with no account usable, that ending's words and acts as
-    `ConnectModel` draws them (5.5, A sign-in), so that a sign-in come
-    back refused, failed or declined says so; and no model line until
-    the `accounts` document is delivered; and "Project
+    the welcome mockup draws them: declined, held or misconfigured,
+    using `ConnectModel`'s words (5.5, A sign-in), with a fresh
+    "Continue with ChatGPT", and "Use an API key" for declined when
+    offered. These read `OwnerAccounts.last_end`, without retaining
+    the signing page. The port-taken fact is not in that document
+    (M-j); Not eligible remains Future in the mockup. There is no model
+    line until the `accounts` document is delivered; and "Project
     PROJECT, with ORG/NAME" once the forge's first repository is on its
     row. Until adopted, "Open PROJECT" is disabled, with "It opens once
     ORG/NAME is made." Once that repository is adopted (`forge.md`,
     5.4, Ready), its heading is "ORG/NAME is ready", its checklist
-    done, with "Open PROJECT", to the chats page in that project; while the forge is connected with no first
-    repository, "Adopt a repository", to `Adopt` into a new project
+    forge first, then Model and Project, with "Open PROJECT", to the
+    chats page in that project. GitHub uses its durable adoption for
+    the same checklist and heading; its row has no repository web
+    address, so no "Open on GitHub ↗" is drawn. While the forge is
+    connected with no first repository, "Adopt a repository", to `Adopt` into a new project
     (4.4). Ready is
     done, not current, along the top once its forge and model both
     are.
@@ -1500,7 +1513,7 @@ of each (`../draft/first-run.md`, 3.6).
   when the link first becomes live, again each time it becomes live
   after it was not, again once a start it sent is answered, and again
   when the forge's half ends (below), so that the end's none replaces
-  a running answer within the session. It
+  a running or not-started answer within the session. It
   keeps the last answer, and drops the answer of a read it has
   replaced. None, and no answer yet, both mean no demo is shown.
 - **Started when chosen** (`../protocol/setup.md`, 8.4): the demo's
@@ -1539,8 +1552,13 @@ of each (`../draft/first-run.md`, 3.6).
   its step 5): the model's half ends when an account of another LLM
   provider that counts for it (above) is first usable, the person's own
   or, for an owner, the deployment's, and does not hold again; the demo ends
-  when a forge of the person's first connects, and the read then
-  answers none (`../protocol/setup.md`, 8.4). Each act has one owner.
+  when a forge of the person's first connects, even if the playground
+  was never started, and the read then answers none (`../protocol/setup.md`, 8.4). Each act has one owner.
+  The client observes that connection from a not-started or running
+  answer, retains the retired provider and project, and rereads once.
+  Chats and navigation drop the retired project in that live session,
+  selecting a surviving project or none. A connected GitHub App counts
+  before it is installed; the setup strip no longer offers the playground.
   At the demo's end the engine removes the demo model's account
   itself, as it closes the demo's chats, whether or not a client saw
   the end (`../protocol/setup.md`, 8.4), and the side sends nothing.
@@ -2096,8 +2114,9 @@ The words for each offered source are:
 temper's phrasebook words the demo (4.8; the mockups' first run) as
 the playground, the person's name for it (with the user, 2026-10-23;
 `../draft/first-run.md`, 2.3); OWNER/NAME is the demo's repository, and
-the cues the demo's, copied in. An ended demo read retains its provider
-and project after a reload: the Model step excludes that provider, even
+the cues the demo's, copied in. A personal forge's connection retires
+both a not-started and a running playground live; an ended demo read
+retains its provider and project after a reload: the Model step excludes that provider, even
 if its account cleanup is still pending, and the navigation and default
 project pick skip that project. With no other project, none is selected
 and the navigation says "No project yet". An unavailable read supplies

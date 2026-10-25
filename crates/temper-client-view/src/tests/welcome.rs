@@ -562,6 +562,10 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
             "It opens once work/hello is made.",
         ],
     );
+    let after = node(view.tree(), Role::Paragraph, "It opens once work/hello is made.");
+    let after = view.tree().nodes().iter().find(|n| n.id == after).unwrap();
+    assert!(after.styles.as_slice().contains(&crate::look::WELCOME_AFTER));
+    assert!(after.styles.as_slice().contains(&crate::look::WELCOME_TINY));
     let disclosure = node(view.tree(), Role::Disclosure, "Each step");
     assert!(
         !view.tree().nodes().iter().find(|n| n.id == disclosure).unwrap().states.as_slice().contains(&State::Expanded)
@@ -709,4 +713,177 @@ fn model_endings_have_their_heading_and_one_back() {
             );
         }
     }
+}
+
+fn github_adopted_rows() -> skein_lib::List<w::ForgeRow> {
+    let mut rows = forge::github_rows(true);
+    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    parts.repositories = skein_lib::List::with_capacity(1);
+    parts
+        .repositories
+        .push(
+            w::Adoption::new(
+                &w::CEILINGS,
+                w::AdoptionParts {
+                    owner: b"sam".as_slice().into(),
+                    name: b"widget".as_slice().into(),
+                    project: f::PROJECT,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    rows
+}
+#[test]
+fn model_ticks_githubs_durable_adoption_with_its_named_project() {
+    let view = model_view(github_adopted_rows());
+    let id = line_before_model(view.tree(), "GitHub · sam/widget, in Shop");
+    assert!(
+        view.tree().nodes().iter().find(|n| n.id == id).unwrap().styles.as_slice().contains(&crate::look::FLOW_DONE)
+    );
+    each_step(view.tree(), false);
+}
+#[test]
+fn github_ready_has_the_same_checklist_and_project_control_as_owned_forgejo() {
+    for (rows, heading, forge_line, project_line) in [
+        (
+            github_adopted_rows(),
+            "sam/widget is ready",
+            "Forge: GitHub, connected as my-app[bot]",
+            "Project Shop, with sam/widget",
+        ),
+        (
+            owned_adopted_rows(),
+            "work/hello is ready",
+            "Forge: Forgejo on this machine, connected as temper",
+            "Project Shop, with work/hello",
+        ),
+    ] {
+        let (mut root, account) = f::forge_root_accounts(Address::Welcome { step: Step::Ready }, rows);
+        f::welcome_account(&mut root, account);
+        let view = f::page_view(&root);
+        node(view.tree(), Role::Heading { level: 1 }, heading);
+        forge::words_in_order(view.tree(), &[forge_line, "Model:", project_line, "Open Shop"]);
+        assert_eq!(
+            press(&root, Role::Link, "Open Shop"),
+            d::Action::Pages(pages::Act::OpenProject { project: f::PROJECT })
+        );
+        assert!(
+            f::find(view.tree(), Role::Link, "Open on GitHub ↗".as_bytes()).is_none(),
+            "no repository web address in the row"
+        );
+    }
+}
+fn ready_ending(end: jig_client::contract::OwnerAccountEnd, message: &str, key: bool) {
+    use jig_client::contract as c;
+    let (mut root, watch) = ready_model_fixture();
+    let mut doc = signing_document();
+    doc.signing.clear();
+    doc.last_end = Some(c::OwnerAccountLastEnd { source: 43, end });
+    super::accounts::deliver(&mut root, watch, doc);
+    let view = f::page_view(&root);
+    forge::words_in_order(view.tree(), &["Model: none yet", "Connect a model", message, "Continue with ChatGPT"]);
+    let tree = view.tree();
+    let nodes = tree.nodes();
+    let line = nodes.iter().position(|n| n.name.as_deref() == Some(b"Model: none yet")).unwrap();
+    let line_end = line.checked_add(usize::try_from(nodes[line].size).unwrap()).unwrap();
+    assert!(
+        nodes[line.checked_add(1).unwrap()..line_end]
+            .iter()
+            .any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Connect a model"))
+    );
+    assert!(f::node_text(tree, line).starts_with("Model: none yet · ".as_bytes()));
+    let ending = line_end;
+    assert_eq!(nodes[ending].role, Role::Slot);
+    assert!(nodes[ending].styles.as_slice().contains(&crate::look::WELCOME_END));
+    let end = ending.checked_add(usize::try_from(nodes[ending].size).unwrap()).unwrap();
+    assert!(nodes[ending..end].iter().any(|n| n.role == Role::Alert && n.name.as_deref() == Some(message.as_bytes())));
+    assert!(
+        nodes[ending..end]
+            .iter()
+            .any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Continue with ChatGPT"))
+    );
+    node(tree, Role::Alert, message);
+    assert_eq!(f::find(view.tree(), Role::Link, b"Use an API key").is_some(), key);
+    if key {
+        assert_eq!(
+            press(&root, Role::Link, "Use an API key"),
+            d::Action::Pages(pages::Act::Go { address: model_address(d::WayKind::Key) })
+        );
+    }
+    let action = press(&root, Role::Button, "Continue with ChatGPT");
+    assert_eq!(
+        action,
+        d::Action::Pages(pages::Act::ConnectModel(pages::connect_model::Act::SignIn {
+            name: root.pages().account_name(),
+            way: pages::accounts::Way::SignIn { provider: 17, plan: true }
+        }))
+    );
+    let limits = f::limits();
+    let mut out = skein_lib::Queue::with_capacity(d::max_out(&limits));
+    d::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+        d::Event::Act { action },
+        &mut out,
+    );
+    let mut started = false;
+    for request in &out {
+        if let d::Request::Show { address: Address::Welcome { step: Step::Model { way: Some(_) } }, .. } = request {
+            started = true;
+        }
+    }
+    assert!(started, "Ready's retry starts the actual model flow");
+}
+#[test]
+fn ready_draws_a_declined_sign_in_with_retry_and_key() {
+    ready_ending(
+        jig_client::contract::OwnerAccountEnd::Made { account: 1, declined: true },
+        "You signed in without plan usage.",
+        true,
+    );
+}
+#[test]
+fn ready_draws_a_held_sign_in_with_retry() {
+    ready_ending(
+        jig_client::contract::OwnerAccountEnd::Refused {
+            refusal: jig_client::contract::OwnerAccountRefusal::Held { provider: 17 },
+        },
+        "Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
+        false,
+    );
+}
+#[test]
+fn ready_draws_a_misconfigured_sign_in_with_retry() {
+    ready_ending(
+        jig_client::contract::OwnerAccountEnd::Failed {
+            failure: jig_client::contract::OwnerAccountFailure::Misconfigured,
+        },
+        "OpenAI refused temper's sign-in. Check the configuration's registration.",
+        false,
+    );
+}
+
+fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
+    let mut rows = forge::first_rows(forge::connected(), forge::made());
+    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    parts.repositories = skein_lib::List::with_capacity(1);
+    parts
+        .repositories
+        .push(
+            w::Adoption::new(
+                &w::CEILINGS,
+                w::AdoptionParts {
+                    owner: b"work".as_slice().into(),
+                    name: b"hello".as_slice().into(),
+                    project: f::PROJECT,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    rows
 }

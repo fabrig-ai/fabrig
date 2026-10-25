@@ -329,6 +329,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::ConnectModel(act) } => {
             let chosen = connect_model::way(pages, client);
+            if pages.address == (Address::Welcome { step: crate::Step::Ready })
+                && let connect_model::Act::SignIn { .. } = &act
+                && pages.connect_model.is_none()
+            {
+                pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
+            }
             if let Some(page) = &mut pages.connect_model {
                 page.playground |= pages.demo_model;
                 page.act(client, &pages.address, chosen, pages.demo_provider, act, &mut pages.serial, out);

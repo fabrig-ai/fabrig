@@ -102,8 +102,10 @@ pub fn setup(root: &Domain) -> Option<Setup> {
     let owner = accounts::current_me(root.client())?.deployment_role == Some(jig_client::contract::HeldRole::Owner);
     let mut connected = false;
     let mut started = false;
+    let mut personal_connected = false;
     for row in &rows(root.forges(), root.forge().demo()) {
         if let Connection::Connected { .. } = row.connection {
+            personal_connected = true;
             connected |= !connect::underway(row) && !connect::failed(row);
             started = true;
         }
@@ -117,5 +119,10 @@ pub fn setup(root: &Domain) -> Option<Setup> {
     } else {
         Step::Ready
     };
-    Some(Setup { playground: !connected && root.forge().demo().is_some(), forge: owner && !connected, model, step })
+    Some(Setup {
+        playground: !personal_connected && root.forge().demo().is_some(),
+        forge: owner && !connected,
+        model,
+        step,
+    })
 }

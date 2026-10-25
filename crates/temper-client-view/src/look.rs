@@ -297,6 +297,14 @@ pub const MODEL_DESCRIPTION: Style = Style { owner: owner(), token: 145 };
 pub const MODEL_FACT: Style = Style { owner: owner(), token: 146 };
 /// The Model sign-in’s external address and folded paste.
 pub const MODEL_SIGN_IN: Style = Style { owner: owner(), token: 147 };
+/// Ready’s evenly spaced checklist.
+pub const WELCOME_CHECKLIST: Style = Style { owner: owner(), token: 148 };
+/// Ready’s sign-in ending aligned with the checklist edge.
+pub const WELCOME_END: Style = Style { owner: owner(), token: 149 };
+/// The small note below Ready’s disabled action.
+pub const WELCOME_TINY: Style = Style { owner: owner(), token: 150 };
+/// Model’s muted forge status above its heading.
+pub const WELCOME_STATUS: Style = Style { owner: owner(), token: 151 };
 /// Native browser elements for the admin group and Model’s definition list.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
@@ -458,6 +466,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-model-description",
         b"temper-model-fact",
         b"temper-model-sign-in",
+        b"temper-welcome-checklist",
+        b"temper-welcome-end",
+        b"temper-welcome-tiny",
+        b"temper-welcome-status",
     ],
     regions: &[b"temper-link"],
 };

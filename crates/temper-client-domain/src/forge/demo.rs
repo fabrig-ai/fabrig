@@ -294,13 +294,14 @@ pub(crate) fn progress(
 
 fn observe_end(side: &mut Side, accounts: Option<&c::OwnerAccounts>, client: &Client, out: &mut Queue<Request>) {
     let Some(demo) = side.demo.answer.as_ref() else { return };
-    if demo.state != DemoState::Running {
+    if demo.state == DemoState::Ended {
         return;
     }
-    let model_ended = match accounts {
-        Some(accounts) => other_model_usable(accounts, owner_deployment(side, client), demo.provider),
-        None => false,
-    };
+    let model_ended = demo.state == DemoState::Running
+        && match accounts {
+            Some(accounts) => other_model_usable(accounts, owner_deployment(side, client), demo.provider),
+            None => false,
+        };
     let mut forge_ended = false;
     if let super::forges::State::Rows(rows) = &side.forges {
         for row in rows {

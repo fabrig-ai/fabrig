@@ -33,15 +33,15 @@ What the client doesn't draw yet:
 - **Ready's "Open Forgejo ↗"** on an owned forge, signing the person in
   through temper (its `/user/oauth2/temper`); the client draws it on
   Forges alone.
-- **GitHub's Model and Ready:** the forge's line ticked, "GitHub ·
-  sam/widget, in the new project widget", and Ready's checklist under
-  "sam/widget is ready". The client reads a GitHub forge with its
-  repository adopted as "no repository chosen yet", and its Ready
-  falls back to the older layout (`pages/welcome.rs`, `legacy_ready`).
-- **A sign-in's ending on Ready,** under "Model: none yet": declined,
-  held, misconfigured, and "Try later" for the port taken, each with its
-  acts. The client's Ready says "Model: none yet" with "Connect a
-  model" alone.
+- **GitHub's target details:** Model and Ready use the durable adoption,
+  and the asking tab names its new project. The durable row does not
+  retain whether the project was new, so after reload Model says
+  "in PROJECT". No repository web address reaches the client for
+  Ready's "Open on GitHub ↗".
+- **A sign-in's port taken on Ready:** declined, held and misconfigured
+  now draw their words and acts. "Try later" still needs the listener's
+  port-taken fact in the client (M-j); `OwnerAccounts.last_end` does
+  not carry it.
 - **The picker's private repository** wears a tag; the client writes
   "sam/notes, private". Its "Not listed?" links its middle words; the
   client links the whole sentence.

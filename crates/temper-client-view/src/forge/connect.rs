@@ -792,6 +792,27 @@ pub(crate) fn status(b: &mut Builder, root: &Domain, w: &Words, row: &Row, ready
         &w.say(word, &[Hole::Name(name(w, row, root)), Hole::Name(forge::words::forge_connection(row))]),
     );
 }
+/// The welcome uses GitHub's durable adoption, or the first-repository setup's target.
+/// The asking tab also knows it made a new project; a durable adoption alone does not.
+pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a [u8], &'a [u8], SetUpProject)> {
+    if row.kind == Kind::GitHub {
+        let adopted = row.repositories.first()?;
+        let project = if let Some(picker) = root.forge().picker(row.number)
+            && let Some(starting) = &picker.starting
+            && starting.value.adoption.project == adopted.project
+        {
+            SetUpProject::New(starting.value.name.clone())
+        } else {
+            SetUpProject::Existing(adopted.project)
+        };
+        return Some((&adopted.owner, &adopted.name, project));
+    }
+    if let Some(first) = &row.first {
+        return Some((&first.org, &first.repository, first.project.clone()));
+    }
+    let last = root.forge().set_up()?;
+    if last.forge == row.number { Some((&last.org, &last.repository, last.project.clone())) } else { None }
+}
 /// The welcome's Model step says what Forge did (client/README.md, 3.5).
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     let connected = match row.connection {
@@ -803,27 +824,25 @@ pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row)
         | Connection::Connecting
         | Connection::Stopped { .. } => false,
     };
-    let done = match &row.first {
-        Some(first) => match first.state {
-            FirstState::Made { .. } => connected,
-            FirstState::Making | FirstState::Failed { .. } => false,
-        },
-        None => false,
+    let done = if row.kind == Kind::GitHub {
+        adopted_project(root, row).is_some()
+    } else {
+        match &row.first {
+            Some(first) => match first.state {
+                FirstState::Made { .. } => connected,
+                FirstState::Making | FirstState::Failed { .. } => false,
+            },
+            None => false,
+        }
     };
-    let target = match &row.first {
-        Some(first) => Some((&first.org, &first.repository, &first.project)),
-        None => match root.forge().set_up() {
-            Some(last) if last.forge == row.number => Some((&last.org, &last.repository, &last.project)),
-            Some(_) | None => None,
-        },
-    };
+    let target = welcome_target(root, row);
     let forge = name(w, row, root);
-    let line = if connected && !underway(row) && row.first.is_none() {
+    let line = if connected && !underway(row) && target.is_none() {
         w.say(Word::WelcomeForgeNoRepository, &[Hole::Name(forge)])
     } else if let Some((org, repository, project)) = target {
-        let project = match project {
+        let project = match &project {
             SetUpProject::New(name) => w.say(Word::WelcomeNewProject, &[Hole::Name(copy_of(name))]),
-            SetUpProject::Existing(_) => project_name(root, w, project),
+            SetUpProject::Existing(_) => project_name(root, w, &project),
         };
         let repository = forge::words::full_name(org, repository);
         if done {

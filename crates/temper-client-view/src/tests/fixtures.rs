@@ -1504,15 +1504,14 @@ pub fn demo_forges_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
 ) -> temper_client_domain::Domain {
-    root_at_with_activity(
-        address,
-        &domain_limits(),
-        b"Shop",
-        Some((PROJECT, true, w::DemoState::Running)),
-        None,
-        Some(rows),
-    )
-    .0
+    demo_forges_state_root(address, rows, w::DemoState::Running)
+}
+pub fn demo_forges_state_root(
+    address: temper_client_domain::Address,
+    rows: List<w::ForgeRow>,
+    state: w::DemoState,
+) -> temper_client_domain::Domain {
+    root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, Some(rows)).0
 }
 
 pub fn demo_state_root(address: temper_client_domain::Address, state: w::DemoState) -> temper_client_domain::Domain {

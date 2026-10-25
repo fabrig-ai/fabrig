@@ -113,7 +113,12 @@ fn personal(
         b.description(&summary);
     }
     if let Some(first) = &row.first {
-        crate::cards::text(b, Role::Paragraph, &forge::words::first_repository(first));
+        match first.state {
+            forge::forges::FirstState::Made { .. } => {}
+            forge::forges::FirstState::Making | forge::forges::FirstState::Failed { .. } => {
+                crate::cards::text(b, Role::Paragraph, &forge::words::first_repository(first));
+            }
+        }
     }
     account(b, w, row);
     access(b, w, row);
@@ -134,6 +139,25 @@ fn personal(
         }
     }
     owned(b, w, row);
+    if let Some(first) = &row.first
+        && let forge::forges::FirstState::Made { .. } = first.state
+        && let Connection::Connected { .. } = row.connection
+    {
+        b.open(Role::Slot);
+        connect::text(b, w, Role::Term, Word::GitHubRepositories);
+        crate::cards::text(
+            b,
+            Role::Description,
+            &w.say(
+                Word::SetupMade,
+                &[
+                    Hole::Name(forge::words::full_name(&first.org, &first.repository)),
+                    Hole::Name(connect::project_name(root, w, &first.project)),
+                ],
+            ),
+        );
+        b.close();
+    }
     connect::app_line(b, w, row);
     if let Some(line) = forge::words::last_connect(row) {
         crate::cards::text(b, Role::Paragraph, &line);

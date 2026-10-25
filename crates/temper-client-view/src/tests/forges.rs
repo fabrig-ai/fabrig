@@ -538,3 +538,57 @@ fn a_stopped_github_row_has_no_app_or_install_block() {
     assert!(f::find(view.tree(), Role::Button, b"Install on GitHub").is_none());
     assert!(f::find(view.tree(), Role::Link, b"Connect an App of your own").is_some());
 }
+
+#[test]
+fn the_owned_repository_body_names_its_project_without_a_numeric_made_line() {
+    let root = f::forge_root(Address::Forges, cf::first_rows(cf::connected(), cf::made()));
+    let view = f::page_view(&root);
+    assert!(slot_has(view.tree(), b"Repositories", "work/hello · project Shop".as_bytes()));
+    let row = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
+        .unwrap();
+    assert!(row.description.as_deref().unwrap().ends_with("work/hello · project Shop".as_bytes()));
+    assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("made, in 1"));
+}
+#[test]
+fn a_repository_making_or_failed_keeps_its_existing_body() {
+    for (state, message) in [
+        (w::FirstState::Making, "Making work/hello"),
+        (
+            w::FirstState::Failed(
+                w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::Repository }).unwrap(),
+            ),
+            "Making work/hello failed: making the repository",
+        ),
+    ] {
+        let root = f::forge_root(Address::Forges, cf::first_rows(cf::connected(), state));
+        let view = f::page_view(&root);
+        assert!(f::find(view.tree(), Role::Paragraph, message.as_bytes()).is_some());
+        assert!(f::find(view.tree(), Role::Term, b"Repositories").is_none());
+    }
+}
+
+#[test]
+fn a_pasted_app_hides_the_setup_strips_playground_before_installation_and_the_retirement_read() {
+    let mut rows = cf::github_rows(false);
+    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    parts.app = Some(w::AppWay::Pasted);
+    parts.ended = None;
+    parts.installations.clear();
+    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    let root = f::demo_forges_state_root(
+        Address::Chats { filter: ChatsFilter::All, start: false },
+        rows,
+        w::DemoState::NotStarted,
+    );
+    assert!(root.demo_answered());
+    assert!(root.forge().demo().is_some(), "retirement has not been reread yet");
+    let setup = d::forge::listed::setup(&root).expect("installation and model remain to set up");
+    assert!(!setup.playground, "a connected App ends the playground offer before installation");
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
+    assert!(f::find(view.tree(), Role::Link, b"Try the playground").is_none());
+}

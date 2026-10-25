@@ -256,7 +256,14 @@ fn a_connected_forge_and_usable_model_remove_the_setup_strip_and_dot() {
 fn github_ready_picks_adopts_into_a_new_project_and_stays_adopted_after_reload() {
     let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
     let mut now = Time::ZERO.saturating_add(Duration::from_secs(1));
-    assert_eq!(front.reachable_reads, [(1, Some(1), 1)]);
+    pump(
+        &mut front,
+        &mut root,
+        &mut now,
+        d::Event::Went {
+            place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(1)) } }),
+        },
+    );
     let mut picker = view(&root);
     node(&picker, Role::Heading { level: 2 }, b"Choose a repository to start in");
     let row = node(&picker, Role::Choice, b"acme/second, private");
@@ -286,8 +293,24 @@ fn github_ready_picks_adopts_into_a_new_project_and_stays_adopted_after_reload()
     let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forges") };
     assert_eq!(rows[0].repositories.len(), 1, "the engine must publish its adopted repository on the forge watch");
     assert_eq!(rows[0].repositories[0].project, 2);
+    pump(
+        &mut front,
+        &mut root,
+        &mut now,
+        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
+    );
+    let model = view(&root);
+    node(&model, Role::Paragraph, "GitHub · acme/second, in the new project second".as_bytes());
+    pump(
+        &mut front,
+        &mut root,
+        &mut now,
+        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Ready }) },
+    );
     let ready = view(&root);
-    node(&ready, Role::Heading { level: 2 }, b"acme/second is ready");
+    node(&ready, Role::Heading { level: 1 }, b"acme/second is ready");
+    node(&ready, Role::Paragraph, b"Forge: GitHub, connected as app[bot]");
+    node(&ready, Role::Paragraph, b"Project second, with acme/second");
     node(&ready, Role::Link, b"Open second");
     let read_count = front.reachable_reads.len();
     front.reload(CLIENT, now);
@@ -307,4 +330,12 @@ fn github_ready_picks_adopts_into_a_new_project_and_stays_adopted_after_reload()
     node(&ready, Role::Heading { level: 2 }, b"acme/second is ready");
     node(&ready, Role::Link, b"Open second");
     assert_eq!(front.reachable_reads.len(), read_count, "reload uses the adoption on the row");
+    pump(
+        &mut front,
+        &mut root,
+        &mut now,
+        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
+    );
+    let reloaded_model = view(&root);
+    node(&reloaded_model, Role::Paragraph, "GitHub · acme/second, in second".as_bytes());
 }

@@ -69,7 +69,7 @@ fn steps(b: &mut Builder, root: &Domain, w: &Words, current: Step) {
                 None => false,
             };
             let adopted = match crate::forge::connect::personal(root) {
-                Some(row) if owned_target(root, row).is_some() => {
+                Some(row) if ready_target(root, row).is_some() => {
                     crate::forge::connect::adopted_project(root, row).is_some()
                 }
                 Some(_) | None => connected,
@@ -139,7 +139,10 @@ pub(crate) fn main(
         }
         Step::Model { .. } => {
             if let Some(row) = crate::forge::connect::personal(root) {
+                b.open(Role::Slot);
+                b.style(look::WELCOME_STATUS);
                 crate::forge::connect::welcome_line(b, root, w, row);
+                b.close();
             }
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
             paragraph(b, w, Word::WelcomeModelLead, look::WELCOME_LEAD);
@@ -147,7 +150,7 @@ pub(crate) fn main(
         }
         Step::Ready => {
             ready_heading(b, root, w);
-            ready(b, root, w, bindings, forge);
+            ready(b, root, w, bindings, accounts, forge);
         }
     }
     if let Step::Forge { .. } | Step::Model { .. } = step {
@@ -179,11 +182,14 @@ fn legacy_ready(
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
     forge: &mut crate::forge::bindings::Bindings,
 ) {
     use crate::forge::connect;
     use skein_ui::phrases::Hole;
     b.open(Role::List);
+    b.style(look::FLOW_PROGRESS);
+    b.style(look::WELCOME_CHECKLIST);
     b.open(Role::Item);
     let row = connect::personal(root);
     if let Some(row) = row {
@@ -218,7 +224,7 @@ fn legacy_ready(
         go(b, w, bindings, Word::WelcomeForgeTitle, Step::Forge { forge: None });
     }
     b.close();
-    model_line(b, root, w, bindings);
+    model_line(b, root, w, bindings, accounts);
     b.close();
     if let Some(row) = row
         && row.first.is_none()
@@ -228,7 +234,13 @@ fn legacy_ready(
     }
 }
 
-fn model_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+fn model_line(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
+) {
     if let Some(usable) = temper_client_domain::pages::welcome::model_usable(root) {
         b.open(Role::Item);
         if usable {
@@ -238,8 +250,16 @@ fn model_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
         } else if let Some(provider) = super::accounts::own_signing_name(root, w) {
             crate::cards::text(b, Role::Paragraph, &w.say(Word::WelcomeModelSigningIn, &[Hole::Name(provider)]));
         } else {
-            text(b, w, Role::Paragraph, Word::WelcomeNoModel);
+            b.open(Role::Paragraph);
+            b.name(&w.say(Word::WelcomeNoModel, &[]));
+            w.text(b, Word::WelcomeNoModel, &[]);
+            b.text(Run::Plain, b" \xc2\xb7 ");
             go(b, w, bindings, Word::WelcomeModelTitle, Step::Model { way: None });
+            b.close();
+            b.open(Role::Slot);
+            b.style(look::WELCOME_END);
+            super::connect_model::welcome_end(b, root, w, accounts);
+            b.close();
         }
         if usable {
             text(b, w, Role::Status, Word::FlowDone);
@@ -263,29 +283,20 @@ fn real_forge_connected(root: &Domain) -> bool {
     }
     false
 }
-fn owned_target<'a>(
+fn ready_target<'a>(
     root: &'a Domain,
     row: &'a temper_client_domain::forge::forges::Row,
-) -> Option<(&'a [u8], &'a [u8], &'a temper_client_domain::forge::forges::SetUpProject)> {
-    if row.kind != temper_client_domain::forge::forges::Kind::Forgejo
-        || row.mode != temper_client_domain::forge::forges::Mode::Owned
-    {
+) -> Option<(&'a [u8], &'a [u8], temper_client_domain::forge::forges::SetUpProject)> {
+    use temper_client_domain::forge::forges::{Kind, Mode};
+    if row.kind != Kind::GitHub && (row.kind != Kind::Forgejo || row.mode != Mode::Owned) {
         return None;
     }
-    if let Some(first) = &row.first {
-        return Some((&first.org, &first.repository, &first.project));
-    }
-    if let Some(last) = root.forge().set_up()
-        && last.forge == row.number
-    {
-        return Some((&last.org, &last.repository, &last.project));
-    }
-    None
+    crate::forge::connect::welcome_target(root, row)
 }
 fn ready_heading(b: &mut Builder, root: &Domain, w: &Words) {
     if let Some(row) = crate::forge::connect::personal(root)
         && crate::forge::connect::adopted_project(root, row).is_some()
-        && let Some((org, repository, _)) = owned_target(root, row)
+        && let Some((org, repository, _)) = ready_target(root, row)
     {
         crate::cards::text(
             b,
@@ -301,6 +312,7 @@ fn ready(
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
     forge: &mut crate::forge::bindings::Bindings,
 ) {
     use crate::{
@@ -308,20 +320,21 @@ fn ready(
         forge::connect,
     };
     let Some(row) = connect::personal(root) else {
-        legacy_ready(b, root, w, bindings, forge);
+        legacy_ready(b, root, w, bindings, accounts, forge);
         return;
     };
-    let Some((org, repository, project)) = owned_target(root, row) else {
-        legacy_ready(b, root, w, bindings, forge);
+    let Some((org, repository, project)) = ready_target(root, row) else {
+        legacy_ready(b, root, w, bindings, accounts, forge);
         return;
     };
     let adopted = connect::adopted_project(root, row);
     let repository = temper_client_domain::forge::words::full_name(org, repository);
-    let project = connect::project_name(root, w, project);
+    let project = connect::project_name(root, w, &project);
     b.open(Role::List);
     b.style(look::FLOW_PROGRESS);
+    b.style(look::WELCOME_CHECKLIST);
     if adopted.is_none() {
-        model_line(b, root, w, bindings);
+        model_line(b, root, w, bindings, accounts);
     }
     b.open(Role::Item);
     if adopted.is_some() {
@@ -345,7 +358,7 @@ fn ready(
     }
     b.close();
     if adopted.is_some() {
-        model_line(b, root, w, bindings);
+        model_line(b, root, w, bindings, accounts);
     }
     b.open(Role::Item);
     if adopted.is_some() {
@@ -366,7 +379,12 @@ fn ready(
         flow::control(b, Control::PrimaryLink { name: &open, to: bindings.insert(Act::OpenProject { project }) });
     } else {
         flow::control(b, Control::PrimaryDisabled { name: &open });
-        crate::cards::text(b, Role::Paragraph, &w.say(Word::WelcomeOpensOnce, &[Hole::Name(repository)]));
+        b.open(Role::Paragraph);
+        b.style(look::WELCOME_AFTER);
+        b.style(look::WELCOME_TINY);
+        b.name(&w.say(Word::WelcomeOpensOnce, &[Hole::Name(repository.clone())]));
+        b.text(Run::Plain, &w.say(Word::WelcomeOpensOnce, &[Hole::Name(repository)]));
+        b.close();
     }
     connect::setup_ending(b, root, w, forge, row);
 }

@@ -511,6 +511,61 @@ fn ready_body(
         on_accounts(b, root, w, bindings, way);
     }
 }
+/// Ready reads the last durable ending even after the signing tab has returned.
+pub(super) fn welcome_end(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+    let Some(doc) = accounts::document(root.client()) else { return };
+    let Some(last) = &doc.last_end else { return };
+    let declined = match last.end {
+        c::OwnerAccountEnd::Made { declined: true, .. } | c::OwnerAccountEnd::Renewed { declined: true, .. } => true,
+        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Held { .. } }
+        | c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::Misconfigured } => false,
+        c::OwnerAccountEnd::Made { .. }
+        | c::OwnerAccountEnd::Renewed { .. }
+        | c::OwnerAccountEnd::Refused { .. }
+        | c::OwnerAccountEnd::Failed { .. } => return,
+    };
+    let Some(me) = accounts::current_me(root.client()) else { return };
+    let ways = accounts::ways(&me.providers, root.forge().demo_provider(), c::AccountHolder::Own);
+    // These endings are ChatGPT's: last_end has no provider on a Failed ending.
+    let mut offered = None;
+    for way in &ways {
+        if let Way::SignIn { plan: true, .. } = way
+            && names(me, *way).1 == b"ChatGPT"
+        {
+            offered = Some(*way);
+            break;
+        }
+    }
+    let Some(way) = offered else { return };
+    b.open(Role::Slot);
+    b.style(crate::look::MODEL_SIGN_IN);
+    sign_in_end(b, root, w, way, &last.end);
+    b.open(Role::Slot);
+    b.style(crate::look::MODEL_ACTIONS);
+    button(
+        b,
+        bindings,
+        &label(me, way, &ways, w),
+        Act::SignIn { name: root.pages().account_name(), way },
+        false,
+        false,
+    );
+    if declined && ways.as_slice().contains(&Way::Key { provider: way.provider() }) {
+        go(
+            b,
+            bindings,
+            &say(w, W::KeyWayOnly),
+            Address::Welcome {
+                step: temper_client_domain::Step::Model {
+                    way: Some(model::model_way(Way::Key { provider: way.provider() })),
+                },
+            },
+            false,
+        );
+    }
+    b.close();
+    b.close();
+}
 pub(super) fn sign_in_end(b: &mut Builder, root: &Domain, w: &Words, way: Way, end: &c::OwnerAccountEnd) -> bool {
     match end {
         c::OwnerAccountEnd::Made { declined: true, .. } | c::OwnerAccountEnd::Renewed { declined: true, .. } => {

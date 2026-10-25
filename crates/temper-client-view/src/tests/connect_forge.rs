@@ -824,16 +824,16 @@ fn a_failed_first_repository_says_its_step_with_set_up_again() {
 fn the_forges_row_names_the_first_repository_and_project() {
     for (state, expected, first) in [
         (w::FirstState::Making, b"work/hello, into Shop".as_slice(), b"Making work/hello".as_slice()),
-        (made(), "work/hello · project Shop".as_bytes(), b"work/hello made, in 1"),
+        (made(), "work/hello · project Shop".as_bytes(), "work/hello · project Shop".as_bytes()),
     ] {
-        let root = f::forge_root(Address::Forges, first_rows(connected(), state));
+        let root = f::forge_root(Address::Forges, first_rows(connected(), state.clone()));
         let view = f::page_view(&root);
         let id = node(view.tree(), Role::Disclosure, b"Forgejo on this machine");
         let row = view.tree().nodes().iter().find(|n| n.id == id).unwrap();
         let description = row.description.as_deref().unwrap();
         assert!(description.ends_with(expected));
         assert!(!row.states.as_slice().contains(&State::Expanded));
-        node(view.tree(), Role::Paragraph, first);
+        node(view.tree(), if state == made() { Role::Description } else { Role::Paragraph }, first);
     }
 }
 

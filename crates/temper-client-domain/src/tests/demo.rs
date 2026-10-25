@@ -1152,3 +1152,42 @@ fn a_retired_project_is_skipped_but_a_running_one_stays() {
         assert_eq!(root.pages().project(), expected);
     }
 }
+
+#[test]
+fn a_forge_connected_before_the_playground_starts_retires_and_rereads_once() {
+    for survivor in [false, true] {
+        let mut root = crate::unlinked(&f::limits(), f::SEED);
+        let (me_watch, account) = f::start_accounts(&mut root, List::with_capacity(0));
+        let forges = family_watch(&deliver_role(&mut root, me_watch, Some(c::HeldRole::Owner)));
+        let mut out = deliver_demo_read(&mut root, page_with_state(w::DemoState::NotStarted));
+        assert!(deployment_watch(&mut out).is_none());
+        if survivor {
+            let mut me = f::chats::me();
+            let mut other = me.projects.get(0).unwrap().clone();
+            other.project = 2;
+            let mut projects = List::with_capacity(2);
+            projects.push(me.projects.get(0).unwrap().clone()).unwrap();
+            projects.push(other).unwrap();
+            me.projects = projects;
+            up(
+                &mut root,
+                jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            );
+        }
+        let mut out = forge_rows(&mut root, forges, true);
+        let reread = demo_reread(&mut out);
+        assert_eq!(root.forge().retired_demo(), Some(demo::RetiredDemo { provider: PROVIDER, project: f::PROJECT }));
+        assert_eq!(root.pages().project(), if survivor { Some(2) } else { None });
+        assert!(root.demo().is_none());
+        assert!(deployment_watch(&mut out).is_none(), "NotStarted has no model cleanup");
+        assert!(removed(&mut out).is_empty());
+        assert!(forge_rows(&mut root, forges, true).is_empty(), "only one reread");
+        let mut out =
+            up(&mut root, jig_client::Up::ReadDone { read: reread, result: page_with_state(w::DemoState::Ended) });
+        assert!(removed(&mut out).is_empty());
+        assert!(deployment_watch(&mut deliver_accounts(&mut root, account, ending_accounts(true))).is_none());
+    }
+}

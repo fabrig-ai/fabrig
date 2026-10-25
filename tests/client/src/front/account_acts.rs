@@ -49,7 +49,7 @@ enum WelcomeForge {
     None,
     Connected,
     Owned,
-    Demo { running: bool },
+    Demo { running: bool, github: bool },
 }
 #[must_use]
 pub fn program_fixture(seed: u64) -> (Joint, Root) {
@@ -119,7 +119,7 @@ fn fixture_root(
     program: bool,
 ) -> (Joint, Root) {
     let welcome = forge != WelcomeForge::None;
-    let forge_setup = matches!(forge, WelcomeForge::Owned | WelcomeForge::Demo { .. });
+    let forge_setup = matches!(forge, WelcomeForge::Owned | WelcomeForge::Demo { github: false, .. });
     let mut limits = if tools { temper_client_tools::limits::client() } else { fixtures::domain_limits() };
     if let Some(rows) = rows {
         limits.client.domain.rows = rows;
@@ -167,7 +167,11 @@ fn fixture_root(
                 web: None,
                 read_only: false,
                 number: 1,
-                kind: temper_engine_domain_forge::Kind::Forgejo,
+                kind: if matches!(forge, WelcomeForge::Demo { github: true, .. }) {
+                    temper_engine_domain_forge::Kind::GitHub
+                } else {
+                    temper_engine_domain_forge::Kind::Forgejo
+                },
                 mode: if forge_setup {
                     temper_engine_domain_forge::Mode::Owned
                 } else {
@@ -200,7 +204,7 @@ fn fixture_root(
         })));
         front.engine.settle();
     }
-    if let WelcomeForge::Demo { running } = forge {
+    if let WelcomeForge::Demo { running, .. } = forge {
         front.demo = Some(demo_answer(running));
     }
     front.bind(CLIENT, fixtures::PARTY);
@@ -383,9 +387,15 @@ pub fn demo_fixture(seed: u64, state: &temper_client_protocol_wire::v1::DemoStat
         2,
         None,
         false,
-        WelcomeForge::Demo { running: *state == temper_client_protocol_wire::v1::DemoState::Running },
+        WelcomeForge::Demo { running: *state == temper_client_protocol_wire::v1::DemoState::Running, github: false },
         false,
     )
+}
+
+/// `NotStarted` beside an unconnected pasted GitHub App, before any installation.
+#[must_use]
+pub fn demo_github_fixture(seed: u64) -> (Joint, Root) {
+    fixture_root(seed, false, 2, None, false, WelcomeForge::Demo { running: false, github: true }, false)
 }
 
 fn demo_answer(running: bool) -> temper_client_protocol_wire::v1::DemoAnswer {

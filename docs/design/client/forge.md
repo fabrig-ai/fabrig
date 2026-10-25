@@ -790,7 +790,10 @@ says:
   (`../protocol/git.md`, section 3).
 - **Its first repository,** when its set up asked for one
   (`../protocol/setup.md`, 6.7): "Making ORG/NAME" from the ask until
-  it is made, "ORG/NAME made, in PROJECT" once it is, or "Making
+  it is made; once made and connected, the body's "Repositories" row
+  says "ORG/NAME · project PROJECT", resolving PROJECT to its name,
+  as the summary does. It stays plain while the client has no project's
+  changes address. There is no separate Made paragraph. Or "Making
   ORG/NAME failed: STEP", the step one of "checking the admin's
   token", "making the organization", "making the repository" (its
   bot's access with it) or "adding the starter workflow", beside "Set
