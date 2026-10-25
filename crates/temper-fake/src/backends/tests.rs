@@ -65,12 +65,12 @@ fn json(bytes: &[u8]) -> Value {
 }
 
 #[test]
-fn welcome_steps_name_only_the_two_held_peers_and_share_the_seed() {
+fn welcome_steps_name_only_the_three_held_peers_and_share_the_seed() {
     let (_, _, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
         let given = steps(config, &peers);
-        assert_eq!(given.len(), 2);
+        assert_eq!(given.len(), 3);
         for (step, name, command, document, listen) in [
             (
                 &given[0],
@@ -85,6 +85,13 @@ fn welcome_steps_name_only_the_two_held_peers_and_share_the_seed() {
                 b"llm".as_slice(),
                 b"/effective/config/llm.json".as_slice(),
                 peers.llm,
+            ),
+            (
+                &given[2],
+                b"fake issuer".as_slice(),
+                b"oauth".as_slice(),
+                b"/effective/config/oauth.json".as_slice(),
+                peers.oauth,
             ),
         ] {
             assert_eq!(step.name(), name);

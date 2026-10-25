@@ -1266,12 +1266,18 @@ fn llm_fails_a_credential_its_line_names_and_accepts_the_added_key() {
 
 #[test]
 fn fakes_claim_their_inherited_listeners_before_the_first_drive() {
-    for kind in ["llm", "forge"] {
+    for kind in ["llm", "forge", "oauth"] {
         let scratch = support::Scratch::startup(&format!("fake-inherited-{kind}"));
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("listener");
         let address = listener.local_addr().expect("address");
-        let mut value =
-            if kind == "llm" { llm_document(scratch.path(), false) } else { forge_document(scratch.path()) };
+        let mut value = match kind {
+            "llm" => llm_document(scratch.path(), false),
+            "forge" => forge_document(scratch.path()),
+            "oauth" => {
+                json!({"listen":{"socket":address.to_string()},"redirect_port":1455,"redirect_path":"auth/callback"})
+            }
+            _ => unreachable!("table kind"),
+        };
         value["listen"] = json!({"socket":address.to_string()});
         let path = scratch.path().join("fake.json");
         document(&path, &value);

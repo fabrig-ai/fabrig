@@ -414,10 +414,6 @@ fn llm_configuration(source: &Source, seed: u64, created: &mut Created) -> Resul
 
 fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_shell::Kernel), String> {
     let listeners = skein_shell::inherited_listeners().map_err(super::listeners_refusal)?;
-    if arguments.kind == Kind::Oauth && !listeners.is_empty() {
-        super::close(listeners.into_iter().map(|(fd, _)| fd).collect());
-        return Err("inherited listeners are not supported by the standalone OAuth issuer".into());
-    }
     let mut control_address = None;
     let (mut peer, shared, observations, writer, buffer) = match arguments.kind {
         Kind::Llm => {
@@ -469,7 +465,7 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
         let adopted = match &mut peer {
             Peer::Llm(peer) => peer.adopt_listener(fd, addr),
             Peer::Forge(peer) => peer.adopt_listener(fd, addr),
-            Peer::Oauth(_) => unreachable!("OAuth refused inherited listeners before construction"),
+            Peer::Oauth(peer) => peer.adopt_listener(fd, addr),
         };
         adopted.map_err(|fd| format!("listener: fd {} at {addr} refused", fd.raw()))?;
     }

@@ -25,17 +25,18 @@ pub struct Peers {
     pub oauth: SocketAddr,
     pub llm: SocketAddr,
 }
-/// Shared by the welcome peers and the manual issuer (protocol/setup.md, 7.5).
+/// Shared by the supervised welcome peers (protocol/setup.md, 7.5).
 pub const SEED: u64 = 7;
 
 /// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
 #[must_use]
 pub fn steps(config: &[u8], peers: &Peers) -> Box<[Step]> {
-    let mut steps = List::with_capacity(2);
+    let mut steps = List::with_capacity(3);
     let seed = Decimal::of(SEED);
     for (name, command, document, listen) in [
         (b"fake github".as_slice(), b"forge".as_slice(), b"github.json".as_slice(), peers.github),
         (b"fake model", b"llm", b"llm.json", peers.llm),
+        (b"fake issuer", b"oauth", b"oauth.json", peers.oauth),
     ] {
         let mut arguments = List::with_capacity(6);
         for word in [b"fake".as_slice(), command, b"--document"] {
@@ -46,7 +47,7 @@ pub fn steps(config: &[u8], peers: &Peers) -> Box<[Step]> {
         arguments.push(bytes::copy_of(seed.as_bytes())).expect("seed counted");
         steps
             .push(Step::new(bytes::copy_of(name), arguments.into_boxed(), StepKind::Long).listening(Box::new([listen])))
-            .expect("two welcome peers counted");
+            .expect("three welcome peers counted");
     }
     steps.into_boxed()
 }

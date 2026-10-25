@@ -148,8 +148,8 @@ fn bundle_paths_check_both_sides_of_the_absolute_bound() {
 }
 
 fn prepare_empty(scratch: &Scratch, source: &Directories) -> Prepared {
-    // Init holds five ordinary listeners; GitHub and model add two held peer listeners.
-    const INIT_LISTENERS: usize = 7;
+    // Init holds five ordinary listeners; GitHub, model and issuer add three held peer listeners.
+    const INIT_LISTENERS: usize = 8;
     let supplied = provision_bundle(&scratch.0.join("explicit-bundle"));
     let prepared = prepare(source, Some(&supplied)).expect("init directly into effective directories");
     let tree = read_json(&prepared.directories.document());
@@ -170,18 +170,20 @@ fn peer_reservations_transfer_once_and_close_with_preparation() {
     let source = scratch.dirs();
     let prepared = prepare_empty(&scratch, &source);
     let peers = prepared.peers;
-    for address in [peers.github, peers.llm] {
+    for address in [peers.github, peers.llm, peers.oauth] {
         assert_eq!(prepared.listeners.0.iter().filter(|(_, port)| port.get() == address.port()).count(), 1);
         assert!(TcpListener::bind(address).is_err(), "peer reservation remains owned");
     }
-    assert!(TcpListener::bind(peers.oauth).is_ok(), "manual issuer reservation is released");
     drop(prepared);
-    for address in [peers.github, peers.llm] {
+    for address in [peers.github, peers.llm, peers.oauth] {
         assert!(TcpListener::bind(address).is_ok(), "owned peer fd closes on preparation drop");
     }
     let reused = prepare(&source, None).expect("retained configuration");
     assert_eq!(reused.peers, peers);
     assert!(reused.listeners.0.is_empty(), "reuse leaves binding to the ordinary box");
+    for address in [peers.github, peers.llm, peers.oauth] {
+        assert!(TcpListener::bind(address).is_ok(), "retained peer address is available for the ordinary box");
+    }
 }
 
 #[test]
@@ -605,9 +607,10 @@ fn effective_commands_reopen_the_retained_directories() {
         backends::steps(&prepared.directories.config, &prepared.peers),
     );
     let prefix = backends::steps(&prepared.directories.config, &prepared.peers);
-    assert_eq!(&steps.always[..2], prefix.as_ref());
-    for step in
-        steps.always[2..].iter().chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+    assert_eq!(&steps.always[..prefix.len()], prefix.as_ref());
+    for step in steps.always[prefix.len()..]
+        .iter()
+        .chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
     {
         // All setup/serve commands receive the effective directory flags, including the retained cache.
         let args =

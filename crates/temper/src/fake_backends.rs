@@ -383,14 +383,15 @@ fn print(dirs: &Directories) {
     eprintln!("box: effective configuration {}", crate::path(&dirs.config).display());
     eprintln!("box: effective data {}", crate::path(&dirs.data).display());
     eprintln!("box: effective cache {}", crate::path(&dirs.cache).display());
-    for (name, kind, document) in [("fake github", "forge", "github.json"), ("fake model", "llm", "llm.json")] {
+    for (name, kind, document) in [
+        ("fake github", "forge", "github.json"),
+        ("fake model", "llm", "llm.json"),
+        ("fake issuer", "oauth", "oauth.json"),
+    ] {
         let document = crate::path(&dirs.config).join(document);
         let quoted = format!("'{}'", document.to_string_lossy().replace('\'', "'\\''"));
         eprintln!("box: supervised {name}: temper fake {kind} --document {quoted} --seed {}", backends::SEED);
     }
-    let document = crate::path(&dirs.config).join("oauth.json");
-    let quoted = format!("'{}'", document.to_string_lossy().replace('\'', "'\\''"));
-    eprintln!("box: manually start temper fake oauth --document {quoted} --seed {}", backends::SEED);
 }
 #[expect(
     clippy::too_many_lines,
@@ -515,10 +516,9 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
     let peers = checked_peers(&effective, &documents.temper)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
     write(&marker, &source.marker, false)?;
-    for (listener, address) in [(github, peers.github), (llm, peers.llm)] {
+    for (listener, address) in [(github, peers.github), (llm, peers.llm), (oauth, peers.oauth)] {
         held.0.push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
     }
-    drop(oauth);
     print(&effective);
     Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, peers, _lock: lock })
 }

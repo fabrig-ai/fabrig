@@ -79,7 +79,7 @@ fn life(root: &Path, paths: &[PathBuf; 3], effective: &Path, client: &str, bundl
         vec![Step::Run(Call::sign_in())],
         DEADLINE,
         || {
-            for name in ["github.json", "llm.json"] {
+            for name in ["github.json", "llm.json", "oauth.json"] {
                 let peer = value(&effective.join(name));
                 let address: SocketAddr =
                     peer["listen"]["socket"].as_str().expect("retained peer socket").parse().expect("peer address");
