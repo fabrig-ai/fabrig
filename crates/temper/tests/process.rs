@@ -971,10 +971,50 @@ fn assert_box_streams(ended: &support::boxed::Outcome) {
     assert!(skein_lib::bytes::find(link, b"/jig/v1/sign-in/link?secret=").is_some(), "the sign-in link");
     let alone = |line: &[u8]| line.is_empty() || line.starts_with(b"http://127.0.0.1:");
     assert!(ended.stdout.split(|byte| *byte == b'\n').all(alone), "stdout holds links alone");
-    let steps: [&[u8]; 5] = [b"prepare 1: ", b"forgejo 1: ", b"runner 1: ", b"serve: ", b"box: "];
-    let lines = || ended.stderr.split(|byte| *byte == b'\n').filter(|line| !line.is_empty());
-    assert!(lines().all(|line| steps.iter().any(|step| line.starts_with(step))), "each stderr line names its step");
-    assert!(lines().any(|line| line.starts_with(b"runner 1: ")), "the runner's lines arrive prefixed");
+    let steps = ["prepare 1: ", "forgejo 1: ", "runner 1: ", "serve: "];
+    let stderr = std::str::from_utf8(&ended.stderr).expect("box diagnostics");
+    assert!(
+        stderr.lines().all(|line| {
+            steps.iter().any(|step| line.starts_with(step))
+                || box_terminal_line(line, &["prepare 1", "forgejo 1", "runner 1", "serve"])
+        }),
+        "each stderr line names its step or carries prescribed box words: {stderr}"
+    );
+    assert!(stderr.lines().any(|line| line.starts_with("runner 1: ")), "the runner's lines arrive prefixed");
+}
+
+// Only a valid UTC time-of-day prefix can precede the existing box notices.
+fn box_notice_words(line: &str) -> &str {
+    let bytes = line.as_bytes();
+    if bytes.len() >= 10
+        && bytes[2] == b':'
+        && bytes[5] == b':'
+        && &bytes[8..10] == b"Z "
+        && [0, 1, 3, 4, 6, 7].iter().all(|index| bytes[*index].is_ascii_digit())
+        && &bytes[..2] < b"24"
+        && &bytes[3..5] < b"60"
+        && &bytes[6..8] < b"60"
+    {
+        &line[10..]
+    } else {
+        line
+    }
+}
+
+fn box_terminal_line(line: &str, starting: &[&str]) -> bool {
+    let words = box_notice_words(line);
+    line.is_empty()
+        || [
+            "Open this link in a browser on this machine. It signs you in as this",
+            "temper's owner, once and for a short while, so keep it private.",
+            "Opened again once spent, it prints a fresh one here.",
+            "Ctrl-C stops temper.",
+        ]
+        .contains(&line)
+        || words.starts_with("box: ")
+        || ["Stopping", "Stopped"].contains(&words)
+        || (words != line && words == "A fresh sign-in link:")
+        || words.strip_prefix("Starting ").is_some_and(|name| starting.contains(&name))
 }
 
 #[test]
@@ -1294,7 +1334,7 @@ fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
     );
     assert_playground_chat_and_account_ended("runtime", &seen.calls[SETUP_END..END_READS_END], Some(account));
     assert_eq!(
-        stderr.lines().filter(|line| *line == "box: forge 1's group stopped").count(),
+        stderr.lines().filter(|line| box_notice_words(line) == "box: forge 1's group stopped").count(),
         1,
         "the runtime connect stops the demo exactly once: {stderr}"
     );
@@ -1708,7 +1748,7 @@ fn a_second_forge_ends_the_playground_for_good_closing_its_chat_and_account() {
             assert_playground_end_forges(call, first);
         }
         assert_eq!(
-            stderr.lines().filter(|line| *line == "box: forge 1's group stopped").count(),
+            stderr.lines().filter(|line| box_notice_words(line) == "box: forge 1's group stopped").count(),
             usize::from(run == "second"),
             "{run}: demo group stops exactly once at the end: {stderr}"
         );
@@ -1915,12 +1955,16 @@ fn assert_demo_streams(stdout: &[u8], stderr: &[u8]) {
     assert_eq!(stdout, [link, b"\n"].concat(), "exactly one stdout line");
     let stderr = std::str::from_utf8(stderr).expect("demo diagnostics");
     assert!(!stderr.contains("temper fake seed"), "the engine owns the demo's start: {stderr}");
-    let steps = ["fake llm: ", "prepare 1: ", "fake forge 1: ", "serve: ", "box: "];
+    let steps = ["fake llm: ", "prepare 1: ", "fake forge 1: ", "serve: "];
     let no_bundle = "init: this temper has no browser (built with TEMPER_BUNDLE=none): the browser is not served";
     let no_git = "init: no git on PATH: a real forge's repositories need git 2.41 or later, set as workers[].git";
     for line in stderr.lines() {
         assert!(
             steps.iter().any(|prefix| line.starts_with(prefix))
+                || box_terminal_line(
+                    line,
+                    &["fake llm", "prepare 1", "fake forge 1", "prepare 3", "fake forge 3", "serve"],
+                )
                 || line == no_git
                 || (temper::bundle::OWN.is_none() && line == no_bundle),
             "unprefixed demo diagnostic: {line}"

@@ -1,5 +1,6 @@
 //! One shared terminal on one real ring (protocol/setup.md, 7.2 and 13.1).
 //! The synthetic children expose write completions; Service is used unchanged.
+#![cfg(test)]
 #![forbid(unsafe_code)]
 #![expect(
     clippy::disallowed_types,
@@ -438,18 +439,18 @@ fn shared_terminal(root: Fd) -> (Fd, Fd, Fd) {
     let reader = pipe.pipes.first().expect("one output pipe").parent.expect("capture reader");
     let writer = descriptor(&opened.pipes, 1);
     close_placeholders(&opened);
-    let mut duplicates = startup(
+    let mut terminal = startup(
         root,
         Box::new([
             Pipe { child: 1, way: Way::Given(Token::new(1)), parent: Some(writer) },
             Pipe { child: 2, way: Way::Given(Token::new(2)), parent: Some(writer) },
         ]),
     );
-    let duplicated = hosted_pipes(&mut duplicates).expect("independently owned terminal writers");
-    close_placeholders(&duplicated);
+    let writers = hosted_pipes(&mut terminal).expect("independently owned terminal writers");
+    close_placeholders(&writers);
     close_keeper_fd(writer);
-    let stdout = descriptor(&duplicated.pipes, 1);
-    let stderr = descriptor(&duplicated.pipes, 2);
+    let stdout = descriptor(&writers.pipes, 1);
+    let stderr = descriptor(&writers.pipes, 2);
     assert_ne!(stdout, stderr, "two owners never share a descriptor number");
     (reader, stdout, stderr)
 }

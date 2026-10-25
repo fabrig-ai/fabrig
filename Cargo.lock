@@ -2346,8 +2346,10 @@ dependencies = [
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
+ "skein-world",
  "temper-forge-setup",
 ]
 
