@@ -27,8 +27,8 @@ this, then the design sections your task names.
   provisional), the fuzzy one (binaries named `fuzzy_*`) within 120 seconds
   (60 seconds before the user's doubling of 10-22, provisional). A test past
   its slow period is flagged SLOW.
-- Run what compiles and the tests of the crates you touch through
-  `heavy`: `heavy cargo nextest run -p <crate>`.
+- Build and test only through `heavy`, as agents'
+  `roles/implementer.md` says.
 
 ## The code's rules
 
