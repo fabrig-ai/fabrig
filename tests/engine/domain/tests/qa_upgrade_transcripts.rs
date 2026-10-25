@@ -142,7 +142,8 @@ fn omitted_rendered_text_leaves_a_closed_tail_empty() {
     driver.settle();
     let assignment = driver.last_assignment();
     fresh(&assignment);
-    assert_eq!(tail(&assignment), None);
+    // Jig's domain/engine.md 7.2 leaves empty-tail section encoding unspecified.
+    assert_eq!(tail(&assignment), Some(b"".as_slice()));
     no_failure_charged(&driver, first.task);
 }
 
@@ -162,9 +163,11 @@ fn an_issued_open_unread_spends_one_transient_try() {
     driver.fire_at(Duration::from_secs(1));
     driver.settle();
     let assignment = driver.last_assignment();
-    assert_eq!(assignment.attempt, first.attempt + 2);
+    // Preparation precedes the claim (jig's domain/engine.md 7.1; domain/tasks.md 5.2).
+    assert_eq!(assignment.attempt, first.attempt + 1);
     fresh(&assignment);
-    assert_eq!(tail(&assignment), None);
+    // The discarded open window leaves no text in the fresh brief's tail.
+    assert_eq!(tail(&assignment), Some(b"".as_slice()));
 }
 
 #[test]
