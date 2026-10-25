@@ -20,6 +20,8 @@ step() {
     return "$step_exit"
 }
 
+# skein's programming-model.md, 2: every binary installs the fail-stop hook first.
+step fail-stop python3 -I -B scripts/fail_stop.py
 step fmt cargo fmt --all --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
 export NEXTEST_DOUBLE_SPAWN=0

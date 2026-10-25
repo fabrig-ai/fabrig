@@ -24,6 +24,7 @@ skein-scratch = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-world = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-io = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-shell = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fail-stop = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-sim = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-fake-machine = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-http = { git = "https://github.com/fabrig-dev/skein.git" }
@@ -73,11 +74,19 @@ smith-run-world = { path = "tests/run" }
 smith-session-world = { path = "tests/session" }
 smith-tools-world = { path = "tests/tools" }
 
-# Panics are fail-stop and overflow traps, in every profile. (The test harness
-# needs unwinding, so cargo ignores `panic` for test targets.)
+# Panics are fail-stop and overflow traps, in every profile. Release aborts.
+# Dev unwinds, as the test harness needs, so that the binaries and the tests
+# share one build of each dependency; each binary's main installs
+# skein_fail_stop's hook first, which aborts on a panic before anything
+# unwinds (skein's programming-model.md, 2).
 [profile.dev]
-panic = "abort"
 overflow-checks = true
+
+# Dependencies carry no debug information in dev and test builds, which
+# halves the test executables; the workspace's own crates keep the line
+# tables that backtraces name.
+[profile.dev.package."*"]
+debug = false
 
 [profile.release]
 panic = "abort"
@@ -203,6 +212,7 @@ name = "live_configuration"
 path = "tests/end-to-end/live_configuration.rs"
 
 [dependencies]
+skein-fail-stop.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 smith-agent-shell.workspace = true

@@ -39,6 +39,7 @@ fn terminal(recording: &Path, trace: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    skein_fail_stop::install();
     let raw: Vec<_> = std::env::args_os().collect();
     if raw.get(1).is_some_and(|argument| argument == "check") {
         std::io::stdout()

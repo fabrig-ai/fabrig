@@ -3,6 +3,7 @@
 use std::{env, process::ExitCode};
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     let args: Vec<_> = env::args_os().collect();
     let clock = skein_shell::Clock::new();
     let environment = smith_local_shell::credentials::Environment { variables: env::vars_os().collect() };

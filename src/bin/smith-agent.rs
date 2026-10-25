@@ -8,6 +8,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     let mut arguments = env::args_os().skip(1);
     let Some(configuration) = arguments.next() else {
         eprintln!("smith-agent: usage: smith-agent CONFIG.json");

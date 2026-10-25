@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     match arguments.as_slice() {
         [command, request] if command == "attempt" => attempt_command(Path::new(request)),
