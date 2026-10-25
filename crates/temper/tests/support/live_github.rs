@@ -665,7 +665,7 @@ impl Referee<cluster::Root> for Judge<'_> {
         if let Some(stopped) = self.members.stopped() {
             let scan = github::Scan::new(&fs::read(&self.inputs.pem).expect("PEM read only for scan"));
             let secrets = self.relay.tokens();
-            let mut diagnostic = format!("live GitHub cluster failed={}\n", self.members.failed());
+            let mut diagnostic = format!("live GitHub cluster failure={:?}\n", self.members.failure());
             for process in stopped {
                 clean(&scan, self.jwt, &secrets, &process.stderr);
                 writeln!(

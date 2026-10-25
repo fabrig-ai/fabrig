@@ -814,6 +814,10 @@ impl Members {
         self.failure.is_some()
     }
     #[must_use]
+    pub fn failure(&self) -> Option<&str> {
+        self.failure.as_deref()
+    }
+    #[must_use]
     pub fn passed(&self) -> bool {
         if self.stopped().is_none() {
             return false;
