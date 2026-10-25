@@ -16,8 +16,9 @@ README held for them.
 `welcome.html` and `github.html`, at the states their worlds list:
 `world-first-run.js` at step 0, `world-first-run-real.js`,
 `world-first-run-github.js` and `world-first-run-elsewhere.js`. Audited
-2026-10-24, at temper ef61bf9e2 and jig 97ff323a8; under the rules
-since 2026-10-25, with the user. The Chats, Forges, Accounts and
+2026-10-25, at temper 3273eae0d (first-run-ux-6's walk of its 64 rows,
+desktop and phone, and its fixes); under the rules since 2026-10-25,
+with the user. The Chats, Forges, Accounts and
 Connect pages the journey passes through are other groups'.
 
 What the client doesn't draw yet:
@@ -32,7 +33,12 @@ What the client doesn't draw yet:
   port-taken fact in the client (M-j); `OwnerAccounts.last_end` does
   not carry it.
 
-Where the client does otherwise: nothing known.
+Where the client does otherwise:
+
+- **Ready opened before a GitHub repository is chosen,** at
+  `/welcome?at=ready`, draws "Almost ready" with its forge and model
+  lines, as the client README's 3.5 allows; the mockup goes back to
+  the picker.
 
 Not yet known: whether GitHub keeps the state through its
 installation's Configure and Save, and whether the picker reads the
