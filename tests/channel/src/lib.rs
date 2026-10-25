@@ -918,11 +918,18 @@ impl World {
     }
 
     /// Offer one live piece through the real agent half.
-    pub fn agent_sends_live(&mut self, turn: u32, retry: u32, offset: u64, bytes: &[u8]) -> bool {
+    pub fn agent_sends_live(
+        &mut self,
+        turn: u32,
+        retry: u32,
+        offset: u64,
+        kind: agent::PieceKind<'_>,
+        bytes: &[u8],
+    ) -> bool {
         if let Half::Agent(agent) = &mut self.agent.half {
             return agent
                 .send_live(
-                    agent::Piece { turn, retry, offset, bytes },
+                    agent::Piece { turn, retry, offset, kind, bytes },
                     Token::new(33),
                     &mut self.agent.agent_events,
                     &mut self.agent.below,

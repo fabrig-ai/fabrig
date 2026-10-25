@@ -212,7 +212,7 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
             bounds: limits().receiving,
             outcome: run::outcome::OutcomeSpec { change: None, verdicts: Box::new([]), report: None, failure: None },
             deliver: None,
-            deltas: observed,
+            deltas: smith_protocol_llm::Deltas { text: observed, input: false },
             observation: observed.then_some(smith_protocol_llm::Observation { first: true, messages: 0 }),
         },
         &mut up,
@@ -228,6 +228,8 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
             let prompt = match &measure {
                 smith_protocol_llm::Measure::Prompt { owner, .. } => Some(*owner),
                 smith_protocol_llm::Measure::Completion { .. }
+                | smith_protocol_llm::Measure::Call { .. }
+                | smith_protocol_llm::Measure::Arguments { .. }
                 | smith_protocol_llm::Measure::Delta { .. }
                 | smith_protocol_llm::Measure::Terminal { .. }
                 | smith_protocol_llm::Measure::Retried { .. } => None,
@@ -389,6 +391,8 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
             let prompt = match &measure {
                 smith_protocol_llm::Measure::Prompt { owner, .. } => Some(*owner),
                 smith_protocol_llm::Measure::Completion { .. }
+                | smith_protocol_llm::Measure::Call { .. }
+                | smith_protocol_llm::Measure::Arguments { .. }
                 | smith_protocol_llm::Measure::Delta { .. }
                 | smith_protocol_llm::Measure::Terminal { .. }
                 | smith_protocol_llm::Measure::Retried { .. } => None,
@@ -437,6 +441,8 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
             smith_protocol_llm::Measure::Retried { .. } => unreachable!("direct components do not retry internally"),
             other @ (smith_protocol_llm::Measure::Prompt { .. }
             | smith_protocol_llm::Measure::Completion { .. }
+            | smith_protocol_llm::Measure::Call { .. }
+            | smith_protocol_llm::Measure::Arguments { .. }
             | smith_protocol_llm::Measure::Delta { .. }) => content.push(other),
         }
     }
@@ -490,7 +496,10 @@ fn run(dialect: Provider, calls: bool, observed: bool, owner_close: bool) {
                     }
                     completion_count += 1;
                 }
-                smith_protocol_llm::Measure::Terminal { .. } | smith_protocol_llm::Measure::Retried { .. } => {
+                smith_protocol_llm::Measure::Call { .. }
+                | smith_protocol_llm::Measure::Arguments { .. }
+                | smith_protocol_llm::Measure::Terminal { .. }
+                | smith_protocol_llm::Measure::Retried { .. } => {
                     unreachable!("separated above")
                 }
             }

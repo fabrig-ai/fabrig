@@ -434,6 +434,7 @@ impl Sinks {
     /// Drain an actual component observation before its domain terminal is consumed.
     pub(crate) fn measure(&mut self, origin: Time, measure: smith_protocol_llm::Measure) {
         match measure {
+            smith_protocol_llm::Measure::Call { .. } | smith_protocol_llm::Measure::Arguments { .. } => {}
             smith_protocol_llm::Measure::Retried { at, owner, status, retry_ms } => {
                 self.attempt_ready(owner);
                 let records = self.responses.retried(at, origin, owner, status, retry_ms);

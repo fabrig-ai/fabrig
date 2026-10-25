@@ -91,7 +91,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(smith_protocol_channel::Endpoints::worst_case(limits.endpoints, limits.charter.llm_endpoint)?)?
         .checked_add(Queue::<skein_channel::Event>::worst_case(8)?)?
         .checked_add(Queue::<OpenEvent>::worst_case(1)?)?
-        .checked_add(Queue::<Lower>::worst_case(6)?)?;
+        .checked_add(Queue::<Lower>::worst_case(6)?)?
+        .checked_add(320)?;
     bytes
         .checked_add(skein_lib::Map::<crate::component::CallKey, skein_lib::Token>::worst_case(limits.calls)?)?
         .checked_add(skein_lib::Map::<skein_lib::Token, crate::component::CallKey>::worst_case(limits.calls)?)?

@@ -60,7 +60,7 @@ struct Active {
     outcome: run::outcome::OutcomeSpec,
     deliver: Option<run::outcome::ChangeSpec>,
     observation: Option<crate::Observation>,
-    deltas: bool,
+    deltas: crate::Deltas,
 }
 
 // One translated request waits while its owner encodes the observed new part.
@@ -109,7 +109,7 @@ pub struct MaxOut {
 pub const MAX_OUT: MaxOut = MaxOut { above: 128, below: 128 };
 
 // One prompt plus at most completion content and terminal measures for each
-// routed event. Deltas need only one cell. The service drains before re-entry.
+// routed event. Text, call-start and argument deltas each need one cell. The service drains before re-entry.
 const MEASURES: u32 = MAX_OUT
     .above
     .checked_mul(2)
@@ -155,10 +155,10 @@ fn capture_worst_case(limits: &ComponentLimits) -> Option<u64> {
     let prompt = u64::from(client.request).checked_add(history)?.checked_add(tools)?;
     // The Client admits the sum of text, call IDs/names/arguments and replay
     // token payload under answer, rather than one full string per block.
-    // Capture omits replay payload. A separate answer allowance covers text
-    // deltas emitted alongside completed blocks by either provider decoder.
+    // Capture omits replay payload. Two separate answer allowances cover text
+    // and call identity/argument measures beside completed provider blocks.
     let completion = List::<smith_events::Block>::worst_case(client.output_items)?
-        .checked_add(u64::from(client.answer).checked_mul(2)?)?
+        .checked_add(u64::from(client.answer).checked_mul(3)?)?
         .checked_mul(u64::from(limits.connection.calls))?;
     Queue::<crate::Measure>::worst_case(MEASURES)?.checked_add(prompt)?.checked_add(completion)
 }
@@ -399,7 +399,7 @@ impl Component {
         outcome: run::outcome::OutcomeSpec,
         deliver: Option<run::outcome::ChangeSpec>,
         observation: Option<crate::Observation>,
-        deltas: bool,
+        deltas: crate::Deltas,
         to_domain: &mut Queue<ToDomain>,
         io: &mut Queue<IoRequest>,
     ) {
@@ -629,7 +629,7 @@ impl Component {
                 let count = u32::try_from(text.len()).expect("the client admitted a u32 text bound");
                 to_domain.push(ToDomain::Text { owner: call, bytes: count });
                 let live = match self.active.get(&call) {
-                    Some(active) => active.deltas,
+                    Some(active) => active.deltas.text,
                     None => false,
                 };
                 if live {
@@ -640,7 +640,23 @@ impl Component {
                 let count = u32::try_from(text.len()).expect("the client admitted a u32 text bound");
                 to_domain.push(ToDomain::Text { owner: call, bytes: count });
             }
-            shared::Delta::ToolStart { .. } | shared::Delta::ToolArguments { .. } => {}
+            shared::Delta::ToolStart { index, id, name } => {
+                if self.input_wanted(call) {
+                    self.measures.push(crate::Measure::Call { at: now, owner: call, index, id, name });
+                }
+            }
+            shared::Delta::ToolArguments { index, delta } => {
+                if self.input_wanted(call) {
+                    self.measures.push(crate::Measure::Arguments { at: now, owner: call, index, bytes: delta });
+                }
+            }
+        }
+    }
+
+    fn input_wanted(&self, owner: Token) -> bool {
+        match self.active.get(&owner) {
+            Some(active) => active.deltas.input,
+            None => false,
         }
     }
 

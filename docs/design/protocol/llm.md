@@ -366,15 +366,15 @@ A completion's prompt is built from what the domain gives:
     it belongs to and its kind, and the service names each call's turn and
     retry from what the domain told it.
 
-  This component hands deltas over when either consumer asks: the event
-  sink or a front end, or an ask that names a kind built, now `text`. It
-  does so for the
-  run's main conversation's completions only: a sub-agent's and a
-  compaction's give none, whoever asks. A delta of a kind nobody asks
-  for, or that is not built, is not handed over: a tool call's
-  start (`ToolStart`), arguments (`ToolArguments`) and reasoning deltas
-  stay dropped here until their kinds are built. Nothing of the delta
-  reaches the domain, whatever asks.
+  `Deltas.text` selects text measures when the event sink or channel asks,
+  preserving the event sink's capture policy for every conversation.
+  `Deltas.input` selects `Call` (provider index, id and name from `ToolStart`)
+  and `Arguments` (index and bytes from `ToolArguments`), for the channel
+  only. The service applies the channel's main-ordinary-completion rule:
+  sub-agents and compactions produce no channel pieces. The component
+  only hands over selected measures; it coalesces none and knows no turn
+  or retry. The event sink ignores input measures. Reasoning deltas stay
+  unbuilt. Nothing of any delta reaches the domain beyond byte counts.
 - **The guard, before an ordinary request is sent.** When the session
   gives a request the line, its last prompt's reported size and where
   the new part starts (domain/session.md, 8.1), this layer measures the
@@ -552,10 +552,9 @@ component and skein's client against scripted byte peers, in each dialect.
     field;
   - the request's bytes, the first byte and the largest gap measured
     for the event stream, and deltas given to it only when asked;
-  - deltas handed over for the channel when the ask names `text`, and for
-    no one when neither asks; reasoning and arguments deltas handed over
-    for no ask; a sub-agent's and a compaction's completions handing
-    none;
+  - text and input measures handed over only when independently selected,
+    in each dialect; reasoning never handed over; the channel's selection
+    excludes sub-agents and compactions without changing event capture;
   - a call cut off, and nesting asked for, each answered as its problem;
   - `finish`'s schema for each form of contract, and a result decoded from
     it;
@@ -628,10 +627,9 @@ All run in virtual time, in milliseconds each, within the focused suite.
 
 - **More providers:** other dialects and local models. They are skein's
   client's to add, and configuration's to name.
-- **Reasoning and a tool call's arguments as they stream:** the channel
-  carries their kinds (channel.md, section 4) and this component drops
-  their deltas until they are built. Reasoning also needs each provider
-  asked for readable reasoning, which skein's requests do not yet do.
+- **Reasoning as it streams:** the channel carries its kind, but this
+  component still drops its deltas. Arguments are built (section 6).
+  Readable reasoning also needs each provider asked for it.
 - **MCP tools:** schemas passed through like host tools', once MCP is a
   tool source.
 - **Edit formats:** which format each dialect is offered, once measured;

@@ -46,9 +46,9 @@ fn pieces_reach_the_host_in_order_before_their_turn() {
     let mut world = asking(text_ask());
     world.agent_admits();
     world.settle();
-    assert!(world.agent_sends_live(1, 0, 0, b"abc"));
+    assert!(world.agent_sends_live(1, 0, 0, smith_protocol_channel::PieceKind::Text, b"abc"));
     world.settle();
-    assert!(world.agent_sends_live(1, 0, 3, b"de"));
+    assert!(world.agent_sends_live(1, 0, 3, smith_protocol_channel::PieceKind::Text, b"de"));
     world.agent_tells_turn(1, None, &window_turn_fixture());
     world.settle();
     let pieces: Vec<_> = world
@@ -90,7 +90,7 @@ fn a_piece_after_its_turns_record_is_dropped_and_counted() {
     world.settle();
     world.agent_tells_turn(1, None, &window_turn_fixture());
     world.settle();
-    assert!(!world.agent_sends_live(1, 0, 0, b"late"));
+    assert!(!world.agent_sends_live(1, 0, 0, smith_protocol_channel::PieceKind::Text, b"late"));
     assert_eq!(world.lost_live_bytes(), 4);
     assert_eq!(world.observations().iter().filter(|seen| matches!(seen, Observation::HostLive { .. })).count(), 0);
 }
@@ -98,12 +98,12 @@ fn a_piece_after_its_turns_record_is_dropped_and_counted() {
 #[test]
 fn pieces_before_admitted_or_after_the_answer_are_dropped_and_counted() {
     let mut world = asking(text_ask());
-    assert!(!world.agent_sends_live(1, 0, 0, b"early"));
+    assert!(!world.agent_sends_live(1, 0, 0, smith_protocol_channel::PieceKind::Text, b"early"));
     assert_eq!(world.lost_live_bytes(), 5);
     world.agent_admits();
     world.settle();
     world.agent_parks();
-    assert!(!world.agent_sends_live(1, 0, 0, b"late"));
+    assert!(!world.agent_sends_live(1, 0, 0, smith_protocol_channel::PieceKind::Text, b"late"));
     assert_eq!(world.lost_live_bytes(), 9);
     world.settle();
     assert_eq!(world.observations().iter().filter(|seen| matches!(seen, Observation::HostLive { .. })).count(), 0);
@@ -114,7 +114,7 @@ fn a_piece_of_a_kind_not_asked_is_dropped_and_counted() {
     let mut world = asking(LiveAsk { text: false, reasoning: true, input: true });
     world.agent_admits();
     world.settle();
-    assert!(!world.agent_sends_live(1, 0, 0, b"text"));
+    assert!(!world.agent_sends_live(1, 0, 0, smith_protocol_channel::PieceKind::Text, b"text"));
     assert_eq!(world.lost_live_bytes(), 4);
 }
 
@@ -123,7 +123,9 @@ fn a_full_queue_drops_a_piece_and_still_takes_the_turn() {
     let mut world = asking(text_ask());
     world.agent_admits();
     world.settle();
-    let sent = (0..8).take_while(|offset| world.agent_sends_live(1, 0, offset * 3, b"abc")).count();
+    let sent = (0..8)
+        .take_while(|offset| world.agent_sends_live(1, 0, offset * 3, smith_protocol_channel::PieceKind::Text, b"abc"))
+        .count();
     assert!(sent > 0 && sent < 8);
     assert_eq!(world.lost_live_bytes(), 3);
     world.agent_tells_turn(1, None, &window_turn_fixture());
@@ -132,4 +134,42 @@ fn a_full_queue_drops_a_piece_and_still_takes_the_turn() {
         world.observations().iter().filter(|seen| matches!(seen, Observation::HostTurn { number: 1, .. })).count(),
         1
     );
+}
+
+#[test]
+fn two_calls_input_reaches_the_host_from_its_own_offset_zero() {
+    let mut world = asking(LiveAsk { text: false, reasoning: false, input: true });
+    world.agent_admits();
+    world.settle();
+    for id in [b"first".as_slice(), b"second".as_slice()] {
+        assert!(world.agent_sends_live(
+            1,
+            0,
+            0,
+            smith_protocol_channel::PieceKind::Input { id, tool: b"finish" },
+            b"{}"
+        ));
+        world.settle();
+    }
+    let pieces: Vec<_> = world
+        .observations()
+        .iter()
+        .filter_map(|seen| {
+            if let Observation::HostLive { kind, offset, bytes, call, .. } = seen {
+                Some((kind, offset, bytes, call))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(pieces.len(), 2);
+    for (index, (kind, offset, bytes, call)) in pieces.iter().enumerate() {
+        assert_eq!(**kind, smith_channel::LiveKind::Input);
+        assert_eq!(**offset, 0);
+        assert_eq!(bytes.as_ref(), b"{}");
+        let call = call.as_ref().expect("input identity");
+        assert_eq!(call.id(), [b"first".as_slice(), b"second".as_slice()][index]);
+        assert_eq!(call.tool(), b"finish");
+    }
+    assert_eq!(world.lost_live_bytes(), 0);
 }

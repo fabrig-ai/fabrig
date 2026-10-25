@@ -16,7 +16,7 @@ fn active(observe: bool) -> Backend {
     let mut request = request(&backend);
     let FromDomain::Complete { prompt, observation, deltas, .. } = &mut request else { panic!("complete") };
     *observation = if observe { Some(Observation { first: true, messages: 0 }) } else { None };
-    *deltas = observe;
+    deltas.text = observe;
     prompt.system = b"system".as_slice().into();
     prompt.tools.inspect = true;
     prompt.messages = Box::new([llm::Message {

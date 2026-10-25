@@ -38,7 +38,7 @@ mod stated;
 mod tools;
 mod types;
 
-pub use boundary::{Below, BelowEvent, FromDomain, ToDomain};
+pub use boundary::{Below, BelowEvent, Deltas, FromDomain, ToDomain};
 pub use capture::{Measure, Observation};
 pub use completion::completion;
 pub use component::{Component, ComponentError, ComponentLimits, MAX_OUT, MaxOut, component_worst_case};

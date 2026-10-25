@@ -46,6 +46,7 @@ fn actual_codex_text_deltas_join_to_the_observed_completion() {
                 assert_eq!(completion.blocks.as_slice(), &[Block::Text { text: b"one two".to_vec().into() }]);
                 completed += 1;
             }
+            Measure::Call { .. } | Measure::Arguments { .. } => unreachable!("input not selected"),
             Measure::Retried { .. } => unreachable!("direct components do not retry internally"),
             Measure::Terminal { owner, measures } => {
                 assert_eq!(owner, Token::new(7));
@@ -122,5 +123,74 @@ fn deltas_are_handed_over_only_when_asked() {
             }
         }
         assert_eq!(text, expected, "observed={observed}, deltas={deltas}");
+    }
+    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+        let events: &[&str] = match provider {
+            skein_llm::Provider::OpenAiCodex => &[
+                r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"item","call_id":"call","name":"read","arguments":""}}"#,
+                r#"{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{}"}"#,
+                r#"{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"item","call_id":"call","name":"read","arguments":"{}"}}"#,
+                r#"{"type":"response.completed","response":{"status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":1}}}"#,
+            ],
+            skein_llm::Provider::Anthropic => &[
+                r#"{"type":"message_start","message":{"id":"message","type":"message","role":"assistant","content":[],"usage":{"input_tokens":1,"output_tokens":0}}}"#,
+                r#"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"call","name":"read","input":{}}}"#,
+                r#"{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{}"}}"#,
+                r#"{"type":"content_block_stop","index":0}"#,
+                r#"{"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":1}}"#,
+                r#"{"type":"message_stop"}"#,
+            ],
+            skein_llm::Provider::OpenAi => unreachable!("current dialects"),
+        };
+        let mut body = String::new();
+        for event in events {
+            body.push_str("data: ");
+            body.push_str(event);
+            body.push_str("\n\n");
+        }
+        let head =
+            format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\n\r\n", body.len());
+        for observed in [false, true] {
+            for text in [false, true] {
+                for input in [false, true] {
+                    let mut peer = Peer::for_provider(1, 1, provider);
+                    peer.deltas(text);
+                    peer.input(input);
+                    if observed {
+                        peer.start_observed(OWNER, DEADLINE, DEADLINE, DEADLINE);
+                    } else {
+                        peer.start(OWNER, DEADLINE, DEADLINE, DEADLINE);
+                    }
+                    peer.bytes(SOCKET, head.as_bytes());
+                    peer.bytes(SOCKET, body.as_bytes());
+                    let mut calls = 0;
+                    let mut arguments = Vec::new();
+                    for measure in &peer.measures {
+                        match measure {
+                            Measure::Call { owner, index, id, name, .. } => {
+                                assert_eq!((*owner, *index), (Token::new(OWNER), 0));
+                                assert_eq!((id.as_ref(), name.as_ref()), (b"call".as_slice(), b"read".as_slice()));
+                                calls += 1;
+                            }
+                            Measure::Arguments { owner, index, bytes, .. } => {
+                                assert_eq!((*owner, *index), (Token::new(OWNER), 0));
+                                arguments.extend_from_slice(bytes);
+                            }
+                            Measure::Prompt { .. }
+                            | Measure::Completion { .. }
+                            | Measure::Delta { .. }
+                            | Measure::Retried { .. }
+                            | Measure::Terminal { .. } => {}
+                        }
+                    }
+                    assert_eq!(
+                        calls,
+                        usize::from(input),
+                        "{provider:?}, input={input}, text={text}, observed={observed}"
+                    );
+                    assert_eq!(arguments, if input { b"{}".as_slice() } else { b"" }, "{provider:?}");
+                }
+            }
+        }
     }
 }

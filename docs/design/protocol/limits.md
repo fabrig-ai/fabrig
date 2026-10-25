@@ -431,12 +431,16 @@ terms (channel.md, sections 2 and 7):
     its bytes reach the bound or the interval ends since the oldest
     unsent byte, whichever comes first;
   - **the held bytes:** four pieces, 16 KiB, by rule 5: what can wait
-    at once for a channel with no room is one stream's bytes, never a
-    count of the largest pieces. Past it the newest bytes are dropped
+    at once for a channel with no room is the retry's shared text and call
+    bytes. Each piece contains one stream only. Past it the newest bytes are dropped
     and counted (channel.md, section 7). A piece is cut from the held
     bytes, so nothing else in this path is charged. The queue's reserve
     for pieces is one piece's frame, since the agent sends one piece at
-    a time. The service's sum adds the held bytes once (3.8, section 5);
+    a time. The service's sum adds the held bytes once (3.8, section 5).
+    Identities are bounded at 16,385: one per retained byte plus the open
+    call, each with at most 256 id bytes and 64 tool bytes. Their map
+    cells, payload and the held bytes' stream/offset cursors are counted
+    by `live::worst_case`; the host keeps one bounded input identity;
 - **by direction,** by rule 6. What the agent writes is bounded by its
   own derived limits. What it reads is bounded by what it admits: a
   start within the charter's run bound, a message within its bound. The

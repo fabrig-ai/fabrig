@@ -451,14 +451,18 @@ impl Component {
 
     /// Whether one text piece fits without spending authoritative or fact room.
     #[must_use]
-    pub fn takes_live(&self, bytes: u32) -> bool {
+    pub fn takes_live(&self, kind: crate::PieceKind<'_>, bytes: u32) -> bool {
         if self.phase != Phase::Admitted || self.ended {
             return false;
         }
         let Some(ask) = &self.live else {
             return false;
         };
-        if !ask.text() {
+        let asked = match kind {
+            crate::PieceKind::Text => ask.text(),
+            crate::PieceKind::Input { .. } => ask.input(),
+        };
+        if !asked {
             return false;
         }
         let Some(frame) = crate::live::frame_bytes(&self.bodies, bytes) else {
@@ -494,7 +498,7 @@ impl Component {
     ) -> Result<bool, Error> {
         let length = u64::try_from(piece.bytes.len()).expect("piece length fits u64");
         if self.last_sent_turn.checked_add(1) != Some(piece.turn)
-            || !self.takes_live(u32::try_from(length).unwrap_or(u32::MAX))
+            || !self.takes_live(piece.kind, u32::try_from(length).unwrap_or(u32::MAX))
             || to_service.room() < crate::limits::MAX_OUT.to_domain
             || below.room() < crate::limits::MAX_OUT.below
         {

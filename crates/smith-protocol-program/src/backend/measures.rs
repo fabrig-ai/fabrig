@@ -187,8 +187,11 @@ impl Backend {
 
     pub(super) fn partial_measure(&mut self, at: Time, document: &Document, event: u32) -> Option<()> {
         let owner = match &self.request {
-            Some(FromDomain::Complete { owner, deltas: true, .. }) => *owner,
-            Some(FromDomain::Complete { deltas: false, .. } | FromDomain::Cancel { .. }) | None => return Some(()),
+            Some(FromDomain::Complete { owner, deltas: protocol::Deltas { text: true, .. }, .. }) => *owner,
+            Some(
+                FromDomain::Complete { deltas: protocol::Deltas { text: false, .. }, .. } | FromDomain::Cancel { .. },
+            )
+            | None => return Some(()),
         };
         if self.owner != Some(owner) {
             return Some(());

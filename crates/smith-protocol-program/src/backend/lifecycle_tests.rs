@@ -230,7 +230,7 @@ pub(super) fn request(backend: &Backend) -> FromDomain {
         },
         deliver: None,
         observation: None,
-        deltas: false,
+        deltas: smith_protocol_llm::Deltas { text: false, input: false },
     }
 }
 #[test]

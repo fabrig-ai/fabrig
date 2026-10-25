@@ -191,7 +191,7 @@ fn submit(prompt: llm::Prompt, provider: skein_llm::Provider) -> (Vec<adapter::T
             outcome: run::outcome::OutcomeSpec { change: None, verdicts: Box::new([]), failure: None, report: None },
             deliver: None,
             observation: None,
-            deltas: false,
+            deltas: smith_protocol_llm::Deltas { text: false, input: false },
         },
         &mut above,
         &mut below,

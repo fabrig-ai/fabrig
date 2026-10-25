@@ -54,8 +54,7 @@ of domain/host.md, section 2.
   the channel and stop at each side's protocol layer, so each domain
   sees an account and a generation only.
 - **Live content is not a fact.** What the run's main conversation
-  streams before a turn commits (its text, later its reasoning and a
-  tool call's input) crosses as pieces, only at the host's ask, with
+  streams before a turn commits (its text and a tool call's input, later its reasoning) crosses as pieces, only at the host's ask, with
   room to spare, and never holding the run back (sections 4 and 7). The facts stay
   content-free (section 8).
 - **Durations, never times.** Each side turns a duration into a deadline on
@@ -156,7 +155,7 @@ of domain/host.md, section 2.
 - **the ask,** if the host wants live content: one boolean for each
   kind of it, `text`, `reasoning` and `input` (section 4). An absent ask,
   or one with every kind false, asks for nothing, and nothing is sent.
-  The agent sends only the kinds it builds, now `text`: an ask for
+  The agent sends only the kinds it builds, now `text` and `input`: an ask for
   another kind is not refused, and gets nothing. The ask holds for every
   activation the start opens, and a resume's start makes its own;
 - **the window:** how many turns, and how many bytes of them, may be
@@ -221,12 +220,13 @@ completion streamed, in bytes, before its turn commits:
   tool's name, as the completion names them. Absent for the other
   kinds.
 
-The schema carries all three kinds, so that building reasoning or a
-tool's input later changes no version. Only `text` is produced: a
-completion of a sub-agent or a compaction gives none, and the other
-kinds have no producer yet. Content is bytes: a piece may end inside a
+The schema carries all three kinds. Text and tool input are produced;
+reasoning has no producer. A completion of a sub-agent or a compaction
+gives none. Content is bytes: a piece may end inside a
 character, and the host's owner joins the pieces before it decodes.
 
+Each call's input pieces are contiguous within a retry; opening a later
+call fences earlier calls' argument bytes. Text has its own stream.
 Pieces of one stream of one retry follow in offset order, each starting
 at or after the end of the one before. A start after the end is a gap,
 the bytes between dropped (section 7); a reader marks a gap and carries
@@ -447,9 +447,12 @@ limits.md, 2.4, gives.
   rule for facts, and none holds the run back. The agent coalesces what
   the completion streams into pieces by a byte bound and an interval,
   whichever comes first. Bytes with no room to go are held, up to a
-  bound; past it the newest are dropped, so what is held stays whole from
+  shared bound for the retry's text and calls; past it the newest are dropped, so what is held stays whole from
   its start, and the next piece to go starts past the dropped bytes: a
-  gap (section 4). Every dropped byte is counted, as live bytes not
+  gap (section 4). Unnamed arguments, arguments of an earlier call after
+  a later call opens, and arguments whose identity is invalid (id over
+  256 bytes, tool over 64, or either not UTF-8) are also dropped.
+  Every dropped byte is counted, as live bytes not
   projected, beside the facts' count. The numbers are in
   protocol/limits.md, 3.6. When a turn's record is ready, the bytes still
   held for it are sent or dropped first, so no piece follows its turn
@@ -560,8 +563,10 @@ a trace is kept is the agent's configuration (agent.md).
   - a start asking for text: a completion's pieces arrive in order with
     their turn, retry and offset, before that turn's record, and the
     joined bytes equal the text the turn tells;
-  - a start with no ask, and one asking for reasoning and input only:
+  - a start with no ask, and one asking for reasoning only:
     no piece, and the facts as before;
+  - input asked: three sub-agent calls and finish each start at offset 0,
+    with distinct ids and scripted arguments, and children give no piece;
   - a retried completion: the second try's pieces start again at offset
     0, and a reader keeps only that try's;
   - a channel with no room: pieces held, then dropped past the held
@@ -616,6 +621,5 @@ a trace is kept is the agent's configuration (agent.md).
 - **Which facts cross:** whether a host wants more than liveness from them,
   such as a call's model or a tool's name. Content is answered: it crosses
   as live content (section 4), never as a fact.
-- **Reasoning and a tool's input as they stream:** the schema carries
-  them (section 4); building them, and asking each provider for readable
-  reasoning, is later work.
+- **Reasoning as it streams:** the schema carries its kind (section 4);
+  building it and asking each provider for readable reasoning is later work.

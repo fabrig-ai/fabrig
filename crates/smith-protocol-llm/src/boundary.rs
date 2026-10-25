@@ -8,6 +8,13 @@ use alloc::boxed::Box;
 use skein_lib::Token;
 use smith_domain::{llm, run};
 
+/// Live measures selected independently by the event sink and host channel.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Deltas {
+    pub text: bool,
+    pub input: bool,
+}
+
 /// A request routed from the root domain by its owning service.
 #[derive(Debug)]
 #[expect(
@@ -26,8 +33,8 @@ pub enum FromDomain {
         deliver: Option<run::outcome::ChangeSpec>,
         /// Content selected by the event owner; absent when nothing asks for it.
         observation: Option<crate::Observation>,
-        /// Hand this completion's text deltas over as `Measure::Delta`.
-        deltas: bool,
+        /// Hand over the selected text and tool-input measures.
+        deltas: Deltas,
     },
     /// Cancel one outstanding completion.
     Cancel { owner: Token },

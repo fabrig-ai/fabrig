@@ -198,7 +198,7 @@ pub(super) fn domain_request(service: &mut Service, request: domain::Request) {
             if wanted {
                 live_step(service, crate::live::Action::Open { owner, retry: name.retry });
             }
-            let deltas = observation.is_some() || wanted;
+            let deltas = service.live.deltas(&prompt, observation.is_some());
             let outcome = service.outcome.clone().expect("an admitted Start retains its result contract");
             let request = llm::FromDomain::Complete {
                 owner,

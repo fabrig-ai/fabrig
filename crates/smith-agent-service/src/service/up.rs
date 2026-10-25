@@ -177,7 +177,11 @@ pub(super) fn live_step(service: &mut Service, action: crate::live::Action<'_>) 
     };
     let ending = match &action {
         crate::live::Action::End { .. } => true,
-        crate::live::Action::Open { .. } | crate::live::Action::Delta { .. } | crate::live::Action::Pump => false,
+        crate::live::Action::Call { .. }
+        | crate::live::Action::Arguments { .. }
+        | crate::live::Action::Open { .. }
+        | crate::live::Action::Delta { .. }
+        | crate::live::Action::Pump => false,
     };
     let mut room = crate::live::Connection {
         channel,
@@ -212,17 +216,35 @@ fn llm_measures(service: &mut Service) {
         let prompt_owner = match &measure {
             llm::Measure::Prompt { owner, .. } => Some(*owner),
             llm::Measure::Completion { .. }
+            | llm::Measure::Call { .. }
+            | llm::Measure::Arguments { .. }
             | llm::Measure::Delta { .. }
             | llm::Measure::Terminal { .. }
             | llm::Measure::Retried { .. } => None,
         };
-        if let llm::Measure::Delta { owner, text, .. } = &measure {
-            live_step(service, crate::live::Action::Delta { owner: *owner, bytes: text });
+        match &measure {
+            llm::Measure::Delta { owner, text, .. } => {
+                live_step(service, crate::live::Action::Delta { owner: *owner, bytes: text });
+            }
+            llm::Measure::Call { owner, index, id, name, .. } => {
+                live_step(service, crate::live::Action::Call { owner: *owner, index: *index, id, tool: name });
+            }
+            llm::Measure::Arguments { owner, index, bytes, .. } => {
+                live_step(service, crate::live::Action::Arguments { owner: *owner, index: *index, bytes });
+            }
+            llm::Measure::Prompt { .. }
+            | llm::Measure::Completion { .. }
+            | llm::Measure::Terminal { .. }
+            | llm::Measure::Retried { .. } => {}
         }
         match &mut service.events {
             Some(events) => events.sinks.measure(events.origin(), measure),
             None => match measure {
-                llm::Measure::Terminal { .. } | llm::Measure::Delta { .. } | llm::Measure::Retried { .. } => {}
+                llm::Measure::Terminal { .. }
+                | llm::Measure::Call { .. }
+                | llm::Measure::Arguments { .. }
+                | llm::Measure::Delta { .. }
+                | llm::Measure::Retried { .. } => {}
                 llm::Measure::Prompt { .. } | llm::Measure::Completion { .. } => {
                     unreachable!("only an event owner selects component content")
                 }

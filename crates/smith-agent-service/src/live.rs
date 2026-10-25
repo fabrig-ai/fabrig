@@ -1,6 +1,6 @@
-//! Best effort main-conversation text (protocol/channel.md 7; limits.md 3.6).
+//! Best effort main-conversation text and tool input (protocol/channel.md 7; limits.md 3.6).
 use skein_channel::Lower;
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Duration, Map, Queue, Time, Token};
 use smith_domain::llm;
 use smith_protocol_channel::{self as channel, Piece};
 
@@ -9,7 +9,7 @@ const HELD: u32 = 16_384;
 const PIECE: u32 = 4096;
 
 pub(crate) trait Room {
-    fn takes(&self, bytes: u32) -> bool;
+    fn takes(&self, kind: channel::PieceKind<'_>, bytes: u32) -> bool;
     fn send(&mut self, piece: Piece<'_>);
     fn lose(&mut self, bytes: u64);
 }
@@ -25,12 +25,12 @@ pub(crate) struct Connection<'a> {
 }
 
 impl Room for Connection<'_> {
-    fn takes(&self, bytes: u32) -> bool {
+    fn takes(&self, kind: channel::PieceKind<'_>, bytes: u32) -> bool {
         let maximum = self.maximum;
         let entrances = if self.ending { 2 } else { 1 };
         self.above.room() >= maximum.to_domain.saturating_mul(entrances)
             && self.below.room() >= maximum.below.saturating_mul(entrances)
-            && self.channel.takes_live(bytes)
+            && self.channel.takes_live(kind, bytes)
     }
     fn send(&mut self, piece: Piece<'_>) {
         let token = Token::new(*self.next);
@@ -47,6 +47,8 @@ impl Room for Connection<'_> {
 pub(crate) enum Action<'a> {
     Open { owner: Token, retry: u32 },
     Delta { owner: Token, bytes: &'a [u8] },
+    Call { owner: Token, index: u32, id: &'a [u8], tool: &'a [u8] },
+    Arguments { owner: Token, index: u32, bytes: &'a [u8] },
     End { turn: u32 },
     Pump,
 }
@@ -59,18 +61,21 @@ struct Stream {
     ended: bool,
 }
 
-// Each gap precedes at least one retained byte. Thus HELD cells bound even
-// alternating one-byte accepted runs and arbitrary dropped provider deltas.
+// At most one identity per held byte, plus the currently open empty call.
+const IDENTITIES: u32 = HELD.checked_add(1).expect("held identities bound");
+
 #[derive(Debug)]
-struct Gap {
-    at: u64,
-    offset: u64,
+struct Call {
+    identity: smith_channel::LiveCall,
+    held: u32,
 }
 
 #[derive(Debug)]
 struct HeldByte {
     byte: u8,
     arrived: Time,
+    call: Option<u32>,
+    offset: u64,
 }
 
 #[derive(Debug)]
@@ -80,29 +85,28 @@ pub(crate) struct Live {
     stream: Option<Stream>,
     held: Queue<HeldByte>,
     interval: Duration,
-    gaps: Queue<Gap>,
-    gap: Option<Gap>,
-    read: u64,
-    written: u64,
-    offset: u64,
+    calls: Map<u32, Call>,
+    current: Option<u32>,
     next: u64,
-    tail: u64,
+    input_next: u64,
 }
 
 pub(crate) fn worst_case() -> Option<u64> {
-    Queue::<HeldByte>::worst_case(HELD)?.checked_add(Queue::<Gap>::worst_case(HELD)?)
+    Queue::<HeldByte>::worst_case(HELD)?
+        .checked_add(Map::<u32, Call>::worst_case(IDENTITIES)?)?
+        .checked_add(u64::from(IDENTITIES).checked_mul(320)?)
 }
 
 pub(crate) fn wanted(ask: Option<&smith_channel::LiveAsk>, prompt: &llm::Prompt) -> bool {
-    let text = match ask {
-        Some(ask) => ask.text(),
+    let selected = match ask {
+        Some(ask) => ask.text() || ask.input(),
         None => false,
     };
     let ordinary = match prompt.purpose {
         llm::Purpose::Ordinary { .. } => true,
         llm::Purpose::Compaction { .. } => false,
     };
-    text && prompt.asker == llm::Asker::Main && ordinary
+    selected && prompt.asker == llm::Asker::Main && ordinary
 }
 
 impl Live {
@@ -113,13 +117,10 @@ impl Live {
             stream: None,
             held: Queue::with_capacity(HELD),
             interval: live_interval,
-            gaps: Queue::with_capacity(HELD),
-            gap: None,
-            read: 0,
-            written: 0,
-            offset: 0,
+            calls: Map::with_capacity(IDENTITIES),
+            current: None,
             next: 0,
-            tail: 0,
+            input_next: 0,
         }
     }
     pub(crate) fn ask(&mut self, ask: Option<smith_channel::LiveAsk>) {
@@ -128,12 +129,22 @@ impl Live {
     pub(crate) fn wants(&self, prompt: &llm::Prompt) -> bool {
         wanted(self.ask.as_ref(), prompt)
     }
+    pub(crate) fn deltas(&self, prompt: &llm::Prompt, observed: bool) -> smith_protocol_llm::Deltas {
+        let eligible = self.wants(prompt);
+        let (text, input) = match &self.ask {
+            Some(ask) => (ask.text(), ask.input()),
+            None => (false, false),
+        };
+        smith_protocol_llm::Deltas { text: observed || (eligible && text), input: eligible && input }
+    }
     pub(crate) fn act<R: Room>(&mut self, action: Action<'_>, now: Time, room: &mut R) {
         match action {
             Action::Open { owner, retry } => {
                 self.open(owner, self.last_turn.checked_add(1).expect("bounded turns"), retry, room);
             }
             Action::Delta { owner, bytes } => self.delta(owner, bytes, now, room),
+            Action::Call { owner, index, id, tool } => self.call(owner, index, id, tool),
+            Action::Arguments { owner, index, bytes } => self.arguments(owner, index, bytes, now, room),
             Action::End { turn } => {
                 self.end(room);
                 self.last_turn = turn;
@@ -144,13 +155,51 @@ impl Live {
     fn open<R: Room>(&mut self, owner: Token, turn: u32, retry: u32, room: &mut R) {
         self.end(room);
         self.stream = Some(Stream { owner, turn, retry, ended: false });
-        self.read = 0;
-        self.written = 0;
-        self.offset = 0;
         self.next = 0;
-        self.tail = 0;
+        self.input_next = 0;
+    }
+    fn call(&mut self, owner: Token, index: u32, id: &[u8], tool: &[u8]) {
+        match &self.stream {
+            Some(stream) if stream.owner == owner && !stream.ended => {}
+            Some(_) | None => return,
+        }
+        if let Some(previous) = self.current.take()
+            && self.calls.get(&previous).expect("open call").held == 0
+        {
+            self.calls.remove(&previous);
+        }
+        self.input_next = 0;
+        // Validate before allocating the bounded identity, including UTF-8.
+        if id.len() > 256 || tool.len() > 64 {
+            return;
+        }
+        let Ok(identity) = smith_channel::LiveCall::new(
+            &smith_channel::CEILINGS,
+            smith_channel::LiveCallParts { id: id.into(), tool: tool.into() },
+        ) else {
+            return;
+        };
+        self.calls.insert(index, Call { identity, held: 0 }).expect("one identity per held byte plus open call");
+        self.current = Some(index);
+    }
+    fn arguments<R: Room>(&mut self, owner: Token, index: u32, bytes: &[u8], now: Time, room: &mut R) {
+        match &self.stream {
+            Some(stream) if stream.owner == owner => {}
+            Some(_) | None => return,
+        }
+        if self.current != Some(index) {
+            room.lose(u64::try_from(bytes.len()).expect("delta length"));
+            return;
+        }
+        self.append(owner, Some(index), bytes, now, room);
     }
     fn delta<R: Room>(&mut self, owner: Token, bytes: &[u8], now: Time, room: &mut R) {
+        match &self.ask {
+            Some(ask) if ask.text() => self.append(owner, None, bytes, now, room),
+            Some(_) | None => {}
+        }
+    }
+    fn append<R: Room>(&mut self, owner: Token, call: Option<u32>, bytes: &[u8], now: Time, room: &mut R) {
         let Some(stream) = &self.stream else {
             return;
         };
@@ -162,27 +211,29 @@ impl Live {
             room.lose(length);
             return;
         }
-        let count = bytes.len().min(usize::try_from(self.held.room()).expect("held bound fits usize"));
-        if count > 0 {
-            if self.held.is_empty() {
-                self.offset = self.next;
-            } else if self.tail != self.next {
-                self.gaps.push(Gap { at: self.written, offset: self.next });
-            }
-            for byte in bytes.get(..count).expect("admitted prefix") {
-                self.held.push(HeldByte { byte: *byte, arrived: now });
-            }
-            let count = u64::try_from(count).expect("held bytes fit u64");
-            self.written = self.written.checked_add(count).expect("bounded stream bytes");
-            self.tail = self.next.checked_add(count).expect("bounded stream bytes");
+        let next = match call {
+            Some(_) => &mut self.input_next,
+            None => &mut self.next,
+        };
+        let count = bytes.len().min(usize::try_from(self.held.room()).expect("held bound"));
+        for (position, byte) in bytes.get(..count).expect("admitted prefix").iter().enumerate() {
+            self.held.push(HeldByte {
+                byte: *byte,
+                arrived: now,
+                call,
+                offset: next.checked_add(u64::try_from(position).expect("held bound")).expect("stream bound"),
+            });
         }
-        self.next = self.next.checked_add(length).expect("bounded stream bytes");
-        room.lose(u64::try_from(bytes.len().saturating_sub(count)).expect("delta length fits u64"));
+        if let Some(index) = call {
+            let identity = self.calls.get_mut(&index).expect("open identity");
+            identity.held = identity.held.checked_add(u32::try_from(count).expect("held bound")).expect("held bound");
+        }
+        *next = next.checked_add(length).expect("bounded stream bytes");
+        room.lose(u64::try_from(bytes.len().saturating_sub(count)).expect("delta length"));
         self.pump(now, room);
     }
     pub(crate) fn deadline(&self) -> Option<Time> {
-        let byte = self.held.iter().next()?;
-        Some(byte.arrived.saturating_add(self.interval))
+        Some(self.held.iter().next()?.arrived.saturating_add(self.interval))
     }
     fn pump<R: Room>(&mut self, now: Time, room: &mut R) {
         let Some(stream) = &self.stream else {
@@ -192,44 +243,54 @@ impl Live {
             return;
         }
         for _ in 0..HELD {
-            let due = match self.deadline() {
-                Some(deadline) => now >= deadline,
-                None => false,
+            let Some(first) = self.held.iter().next() else {
+                break;
             };
-            if self.held.is_empty() || (self.held.len() < PIECE && !due) {
+            let offset = first.offset;
+            let call = first.call;
+            let due = now >= first.arrived.saturating_add(self.interval);
+            let mut count: u32 = 0;
+            for byte in &self.held {
+                if count == PIECE
+                    || byte.call != call
+                    || byte.offset != offset.checked_add(u64::from(count)).expect("stream bound")
+                {
+                    break;
+                }
+                count = count.checked_add(1).expect("piece bound");
+            }
+            // A stream boundary flushes the preceding short piece without mixing streams.
+            if count < PIECE && count == self.held.len() && !due {
                 break;
             }
-            if self.gap.is_none() {
-                self.gap = self.gaps.pop();
-            }
-            if let Some(gap) = &self.gap
-                && gap.at == self.read
-            {
-                self.offset = self.gap.take().expect("gap at read cursor").offset;
-                self.gap = self.gaps.pop();
-            }
-            let mut count = self.held.len().min(PIECE);
-            if let Some(gap) = &self.gap {
-                count = count.min(
-                    u32::try_from(gap.at.checked_sub(self.read).expect("gap follows read cursor"))
-                        .expect("gap within held bytes"),
-                );
-            }
-            if !room.takes(count) {
+            let kind = match call {
+                Some(index) => {
+                    let identity = &self.calls.get(&index).expect("held identity").identity;
+                    channel::PieceKind::Input { id: identity.id(), tool: identity.tool() }
+                }
+                None => channel::PieceKind::Text,
+            };
+            if !room.takes(kind, count) {
                 break;
             }
             let mut bytes = [0; 4096];
-            for byte in bytes.get_mut(..usize::try_from(count).expect("piece fits usize")).expect("piece bound") {
-                *byte = self.held.pop().expect("held piece byte").byte;
+            for byte in bytes.get_mut(..usize::try_from(count).expect("piece bound")).expect("piece bound") {
+                *byte = self.held.pop().expect("held byte").byte;
             }
             room.send(Piece {
+                kind,
                 turn: stream.turn,
                 retry: stream.retry,
-                offset: self.offset,
-                bytes: bytes.get(..usize::try_from(count).expect("piece fits usize")).expect("piece bound"),
+                offset,
+                bytes: bytes.get(..usize::try_from(count).expect("piece bound")).expect("piece bound"),
             });
-            self.read = self.read.checked_add(u64::from(count)).expect("bounded stream bytes");
-            self.offset = self.offset.checked_add(u64::from(count)).expect("bounded stream bytes");
+            if let Some(index) = call {
+                let identity = self.calls.get_mut(&index).expect("held identity");
+                identity.held = identity.held.checked_sub(count).expect("held count");
+                if identity.held == 0 && self.current != Some(index) {
+                    self.calls.remove(&index);
+                }
+            }
         }
     }
     fn end<R: Room>(&mut self, room: &mut R) {
@@ -240,12 +301,14 @@ impl Live {
                 break;
             }
         }
-        for _ in 0..HELD {
-            if self.gaps.pop().is_none() {
-                break;
-            }
+        for _ in 0..IDENTITIES {
+            let index = match self.calls.iter().next() {
+                Some((index, _)) => *index,
+                None => break,
+            };
+            self.calls.remove(&index);
         }
-        self.gap = None;
+        self.current = None;
         if let Some(stream) = &mut self.stream {
             stream.ended = true;
         }
@@ -276,6 +339,7 @@ mod tests {
         retry: u32,
         offset: u64,
         bytes: Box<[u8]>,
+        call: Option<smith_channel::LiveCall>,
     }
     struct Room {
         takes: bool,
@@ -303,7 +367,7 @@ mod tests {
         }
     }
     impl ChannelRoom for Room {
-        fn takes(&self, _: u32) -> bool {
+        fn takes(&self, _: smith_protocol_channel::PieceKind<'_>, _: u32) -> bool {
             self.takes && self.remaining > 0
         }
         fn send(&mut self, piece: Piece<'_>) {
@@ -313,6 +377,16 @@ mod tests {
                     retry: piece.retry,
                     offset: piece.offset,
                     bytes: Box::from(piece.bytes),
+                    call: match piece.kind {
+                        smith_protocol_channel::PieceKind::Text => None,
+                        smith_protocol_channel::PieceKind::Input { id, tool } => Some(
+                            smith_channel::LiveCall::new(
+                                &smith_channel::CEILINGS,
+                                smith_channel::LiveCallParts { id: id.into(), tool: tool.into() },
+                            )
+                            .expect("valid input identity"),
+                        ),
+                    },
                 })
                 .expect("piece bound");
             self.remaining = self.remaining.saturating_sub(1);
@@ -403,7 +477,7 @@ mod tests {
             (false, false, false, false),
             (true, false, false, true),
             (false, true, false, false),
-            (false, false, true, false),
+            (false, false, true, true),
             (true, true, true, true),
         ] {
             let ask = ask(text, reasoning, input);
@@ -486,5 +560,60 @@ mod tests {
         let later = Time::from_nanos(end.as_nanos() - 1);
         live.delta(OWNER, b"bc", later, &mut room);
         assert_eq!(live.deadline(), Some(later.saturating_add(interval)));
+    }
+    #[test]
+    fn unnamed_refused_and_earlier_calls_arguments_are_counted() {
+        let (mut live, mut room) = stream(true);
+        live.arguments(OWNER, 0, b"unnamed", AT_ZERO, &mut room);
+        live.call(OWNER, 0, &[b'x'; 257], b"tool");
+        live.arguments(OWNER, 0, b"refused", AT_ZERO, &mut room);
+        live.call(OWNER, 1, b"first", b"tool");
+        live.call(OWNER, 2, b"second", b"tool");
+        live.arguments(OWNER, 1, b"earlier", AT_ZERO, &mut room);
+        assert_eq!(room.lost, 21);
+        assert!(room.sent.is_empty());
+    }
+
+    #[test]
+    fn interleaved_text_and_input_keep_separate_offsets_and_identities() {
+        let (mut live, mut room) = stream(true);
+        live.delta(OWNER, b"ab", AT_ZERO, &mut room);
+        live.call(OWNER, 0, b"first", b"tool");
+        live.arguments(OWNER, 0, b"12", AT_ZERO, &mut room);
+        live.delta(OWNER, b"cd", AT_ZERO, &mut room);
+        live.arguments(OWNER, 0, b"34", AT_ZERO, &mut room);
+        live.call(OWNER, 1, b"second", b"other");
+        live.arguments(OWNER, 1, b"56", AT_ZERO, &mut room);
+        live.end(&mut room);
+        assert_eq!(room.offsets().as_slice(), [(0, 2), (0, 2), (2, 2), (2, 2), (0, 2)]);
+        let mut calls = List::with_capacity(5);
+        for piece in &room.sent {
+            match &piece.call {
+                Some(call) => calls.push(Some(call.id())).expect("five pieces"),
+                None => calls.push(None).expect("five pieces"),
+            }
+        }
+        assert_eq!(
+            calls.as_slice(),
+            [None, Some(b"first".as_slice()), None, Some(b"first".as_slice()), Some(b"second".as_slice())]
+        );
+        assert_eq!(room.lost, 0);
+    }
+
+    #[test]
+    fn text_and_calls_share_the_held_bound() {
+        let (mut live, mut room) = stream(false);
+        live.delta(OWNER, &[b't'; LARGE_DELTA], AT_ZERO, &mut room);
+        live.call(OWNER, 0, b"call", b"tool");
+        live.arguments(OWNER, 0, &[b'i'; LARGE_DELTA], AT_ZERO, &mut room);
+        assert_eq!(room.lost, 3616);
+        room.takes = true;
+        live.end(&mut room);
+        assert_eq!(room.lost, 3616);
+        let mut bytes: usize = 0;
+        for piece in &room.sent {
+            bytes = bytes.checked_add(piece.bytes.len()).expect("held bound");
+        }
+        assert_eq!(bytes, HELD);
     }
 }

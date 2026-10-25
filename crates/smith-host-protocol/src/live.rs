@@ -28,16 +28,18 @@ pub(super) struct Streams {
     ask: Option<LiveAsk>,
     last_turn: u32,
     ends: [Option<(u32, u64)>; 3],
+    input: Option<smith_channel::LiveCall>,
 }
 
 impl Streams {
     pub(super) const fn new(ask: Option<LiveAsk>, last_turn: u32) -> Self {
-        Self { ask, last_turn, ends: [None; 3] }
+        Self { ask, last_turn, ends: [None; 3], input: None }
     }
 
     pub(super) fn turn(&mut self, turn: u32) {
         self.last_turn = turn;
         self.ends = [None; 3];
+        self.input = None;
     }
 
     pub(super) fn check(&mut self, piece: &Live) -> Result<(), Rule> {
@@ -63,7 +65,8 @@ impl Streams {
             if piece.retry() < retry {
                 return Err(Rule::Retry);
             }
-            if piece.retry() == retry && piece.offset() < end {
+            let same_call = *piece.kind() != LiveKind::Input || self.input.as_ref() == piece.call().as_ref();
+            if piece.retry() == retry && same_call && piece.offset() < end {
                 return Err(Rule::Offset);
             }
         }
@@ -72,6 +75,9 @@ impl Streams {
             return Err(Rule::Offset);
         };
         *held = Some((piece.retry(), end));
+        if *piece.kind() == LiveKind::Input {
+            self.input.clone_from(piece.call());
+        }
         Ok(())
     }
 }
@@ -132,5 +138,23 @@ mod tests {
             }
             assert_eq!(last, refused, "{case}");
         }
+    }
+    #[test]
+    fn each_inputs_call_starts_a_new_cursor_and_backwards_offsets_are_refused() {
+        let mut streams = Streams::new(Some(LiveAsk { text: true, reasoning: false, input: true }), 0);
+        let first = piece(1, 0, LiveKind::Input, 0, 3, true);
+        assert_eq!(streams.check(&first), Ok(()));
+        assert_eq!(streams.check(&piece(1, 0, LiveKind::Input, 2, 1, true)), Err(Rule::Offset));
+        let mut second = first.into_parts();
+        second.call = Some(
+            LiveCall::new(
+                &CEILINGS,
+                LiveCallParts { id: b"second".as_slice().into(), tool: b"tool".as_slice().into() },
+            )
+            .unwrap(),
+        );
+        assert_eq!(streams.check(&Live::new(&CEILINGS, second).unwrap()), Ok(()));
+        assert_eq!(streams.check(&text(1, 0, 0, 3)), Ok(()));
+        assert_eq!(streams.check(&text(1, 0, 2, 1)), Err(Rule::Offset));
     }
 }

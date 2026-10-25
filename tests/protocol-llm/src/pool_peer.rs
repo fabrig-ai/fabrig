@@ -79,6 +79,7 @@ pub struct Peer {
     /// Plaintext request bytes independently received on the peer's sockets.
     pub request_bytes: u64,
     deltas: Option<bool>,
+    input: bool,
 }
 
 impl Peer {
@@ -144,12 +145,18 @@ impl Peer {
             measures: Vec::new(),
             request_bytes: 0,
             deltas: None,
+            input: false,
         }
     }
 
     /// Select delta handover independently of prompt and completion capture.
     pub fn deltas(&mut self, wanted: bool) {
         self.deltas = Some(wanted);
+    }
+
+    /// Select tool-input measures independently of event capture and text.
+    pub fn input(&mut self, wanted: bool) {
+        self.input = wanted;
     }
 
     /// Admit one actual call with caller-selected model and whole deadlines.
@@ -226,7 +233,10 @@ impl Peer {
                     failure: None,
                 },
                 deliver: None,
-                deltas: self.deltas.unwrap_or(observation.is_some()),
+                deltas: smith_protocol_llm::Deltas {
+                    text: self.deltas.unwrap_or(observation.is_some()),
+                    input: self.input,
+                },
                 observation,
             },
             &mut self.above,
@@ -402,6 +412,8 @@ fn drain_measures(
         let prompt = match &measure {
             smith_protocol_llm::Measure::Prompt { owner, .. } => Some(*owner),
             smith_protocol_llm::Measure::Completion { .. }
+            | smith_protocol_llm::Measure::Call { .. }
+            | smith_protocol_llm::Measure::Arguments { .. }
             | smith_protocol_llm::Measure::Delta { .. }
             | smith_protocol_llm::Measure::Terminal { .. }
             | smith_protocol_llm::Measure::Retried { .. } => None,

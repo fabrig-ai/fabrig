@@ -137,7 +137,7 @@ fn complete(owner: u64, generation: u64, bounds: Receiving) -> FromDomain {
         outcome: run::outcome::OutcomeSpec { change: None, verdicts: Box::new([]), report: None, failure: None },
         deliver: None,
         observation: None,
-        deltas: false,
+        deltas: smith_protocol_llm::Deltas { text: false, input: false },
     }
 }
 
@@ -406,7 +406,7 @@ fn an_observed_request_is_native_validated_before_its_payload_is_copied() {
             .expect("valid private grant");
         let mut request = complete(7, 1, limits.receiving);
         if let FromDomain::Complete { prompt, observation, deltas, .. } = &mut request {
-            *deltas = true;
+            deltas.text = true;
             *observation = Some(smith_protocol_llm::Observation { first: true, messages: 0 });
             if malformed {
                 prompt.system = vec![0xff].into();
