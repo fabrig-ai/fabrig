@@ -56,6 +56,7 @@ name = "end_to_end"
 path = "../../../tests/echo/tests/end_to_end.rs"
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-world.workspace = true
 skein-echo-client.workspace = true
 skein-echo-world = { path = "../../../tests/echo" }

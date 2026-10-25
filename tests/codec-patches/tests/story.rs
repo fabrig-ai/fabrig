@@ -48,8 +48,8 @@ mod tests {
             fs::remove_dir_all(&self.0).expect("remove story scratch directory");
         }
     }
-    fn owner() -> &'static Path {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
+    fn owner() -> PathBuf {
+        skein_scratch::paths::package()
     }
     fn input(step: &str, name: &str) -> PathBuf {
         owner().join("story").join(step).join(name)
@@ -263,7 +263,7 @@ mod tests {
         ]);
         assert_eq!(failures, expected);
         author(root, "patches/p0002.rs", WRITTEN, "p0002.rs");
-        for (path, bytes) in files(owner(), Path::new("patches/golden/0003/shelf")) {
+        for (path, bytes) in files(&owner(), Path::new("patches/golden/0003/shelf")) {
             put(root, &Path::new("patches/golden/0002/shelf").join(path.file_name().expect("golden name")), &bytes);
         }
         golden_names(root, "patches/golden/0002/shelf", SHELF_GOLDENS);
@@ -319,7 +319,7 @@ mod tests {
         clean(root, &main);
         for directory in ["schema", "patches"] {
             let replayed = files(root, Path::new(directory));
-            let committed = files(owner(), Path::new(directory));
+            let committed = files(&owner(), Path::new(directory));
             assert_eq!(
                 replayed.keys().collect::<Vec<_>>(),
                 committed.keys().collect::<Vec<_>>(),

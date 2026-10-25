@@ -109,6 +109,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-throwaway-forgejo",
  "skein-tls",
@@ -174,6 +175,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-tls",
@@ -498,6 +500,7 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-codegen",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -508,6 +511,7 @@ dependencies = [
  "skein-codegen",
  "skein-heap",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -516,6 +520,7 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-fail-stop",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -594,6 +599,7 @@ dependencies = [
  "skein-fail-stop",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-world",
 ]
@@ -608,6 +614,7 @@ dependencies = [
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-world",
@@ -796,6 +803,7 @@ version = "0.0.0"
 dependencies = [
  "skein-json",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -936,6 +944,7 @@ dependencies = [
  "skein-json",
  "skein-json-world",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -974,6 +983,7 @@ dependencies = [
  "skein-heap",
  "skein-json",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -1036,6 +1046,7 @@ dependencies = [
  "skein-json",
  "skein-json-world",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -1081,6 +1092,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-llm",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -1236,6 +1248,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
 ]
 

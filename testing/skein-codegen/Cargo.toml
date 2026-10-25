@@ -20,3 +20,6 @@ skein-codec = { path = "../../crates/skein-codec" }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true

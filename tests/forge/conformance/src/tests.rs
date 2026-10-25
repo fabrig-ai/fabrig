@@ -369,7 +369,7 @@ fn unquoted_log_times_keep_fraction_width_offset_and_identity() {
 fn recorded_corpus_has_no_unmasked_uuid_or_log_time() {
     let mut bad_uuids = 0;
     let mut bad_times = 0;
-    let corpus = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let corpus = skein_scratch::paths::package();
     for group in ["transcripts", "deliveries"] {
         for case in std::fs::read_dir(corpus.join(group)).expect("corpus group") {
             let case = case.expect("case").path();
@@ -623,8 +623,8 @@ fn forgejo_repo_search_facts_reject_refused_reads() {
 
 #[test]
 fn recorded_admin_scope_grants_and_refusals_hold() {
-    let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    for fact in crate::admin_scopes::facts(out).expect("recorded scope cases") {
+    let out = skein_scratch::paths::package();
+    for fact in crate::admin_scopes::facts(&out).expect("recorded scope cases") {
         assert_eq!(fact.outcome, crate::facts::Outcome::Holds, "{}", fact.name);
     }
 }

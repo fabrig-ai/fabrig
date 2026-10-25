@@ -914,15 +914,11 @@ mod tests {
     #[expect(
         clippy::disallowed_types,
         clippy::disallowed_methods,
-        clippy::disallowed_macros,
         reason = "ordinary fixture code converts archived native values to neutral prompts"
     )]
     fn borrowed_encoder_matches_every_archived_codex_request() {
         for scenario in ["single-text", "tool-call", "tool-result-final"] {
-            let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("src/openai/fixtures")
-                .join(scenario)
-                .join("request.json");
+            let file = skein_scratch::paths::package().join("src/openai/fixtures").join(scenario).join("request.json");
             let captured = std::fs::read(file).unwrap();
             let wrapper = openai::Json::from_bytes(&captured, &LIMITS.document()).unwrap();
             let body = openai::json::text_ref(

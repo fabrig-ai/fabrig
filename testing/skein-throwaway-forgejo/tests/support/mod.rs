@@ -2,7 +2,7 @@ use skein_throwaway_forgejo::{Instance, Settings, Token};
 use std::{
     fs,
     io::{BufRead, BufReader},
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::{Command, Stdio},
 };
 pub struct Attached {
@@ -11,10 +11,10 @@ pub struct Attached {
     pub scratch: PathBuf,
 }
 pub fn attached(login: &str, id: u64) -> Attached {
-    let scratch = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("attached-{}", std::process::id()));
+    let scratch = skein_scratch::paths::target_tmp().join(format!("attached-{}", std::process::id()));
     fs::create_dir_all(&scratch).expect("scratch");
     fs::write(scratch.join("keep"), b"mine").expect("owner file");
-    let mut child = Command::new(env!("CARGO_BIN_EXE_attached-peer"))
+    let mut child = Command::new(skein_scratch::paths::binary("attached-peer"))
         .args([login, &id.to_string()])
         .stdout(Stdio::piped())
         .spawn()

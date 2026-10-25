@@ -1,6 +1,7 @@
 //! Parent-side conformance and the shared real ring's ownership contracts.
 
 use std::collections::BTreeMap;
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use skein_io::kernel::{Complete, Done, Error, Family, Fd, Op, Signal, Spawn, Submit};
@@ -92,7 +93,7 @@ impl Host for RecordingParent {
         for _ in 0..count {
             let mut record = self.script.submissions().pop().expect("counted record");
             if let Op::Spawn { spawn } = &mut record.kind {
-                spawn.program = Box::from(env!("CARGO_BIN_EXE_world_process_fixture").as_bytes());
+                spawn.program = Box::from(skein_scratch::paths::binary("world_process_fixture").as_os_str().as_bytes());
                 spawn.args = Box::new([Box::from(&b"echo"[..]), Box::from(&b"0"[..]), Box::from(&b"1"[..])]);
             }
             self.script.submissions().push(record);
@@ -240,7 +241,7 @@ fn fixture(hosted: bool) -> RecordingParent {
     let mut world = real::World::new(Quiet);
     if hosted {
         world.host(HostedProgram {
-            program: Box::from(env!("CARGO_BIN_EXE_world_process_fixture").as_bytes()),
+            program: Box::from(skein_scratch::paths::binary("world_process_fixture").as_os_str().as_bytes()),
             make: echo,
             instances: 1,
             operations: 8,

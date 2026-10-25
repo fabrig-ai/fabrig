@@ -4,6 +4,7 @@
 mod support;
 
 use std::net::{Ipv4Addr, TcpStream};
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use skein_io::kernel::{Exit, Fd, Pipe, Spawn, Way};
@@ -21,7 +22,7 @@ fn spawn_and_exit(kernel: &mut Kernel, state: &mut io::Io, root: Fd, held: Token
     let mut completions = Queue::with_capacity(16);
     let mut events = Queue::with_capacity(16);
     let spawn = Spawn {
-        program: Box::from(env!("CARGO_BIN_EXE_process_fixture").as_bytes()),
+        program: Box::from(skein_scratch::paths::binary("process_fixture").as_os_str().as_bytes()),
         args: Box::new([Box::from(&b"given-listener"[..]), Box::from(address.to_string().as_bytes())]),
         env: Box::new([Box::from(&b"LISTEN_FDS=1"[..])]),
         root,

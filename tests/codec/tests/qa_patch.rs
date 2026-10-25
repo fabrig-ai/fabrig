@@ -526,7 +526,7 @@ fn existing_story_goldens_pass_through_written_dispatch() {
     patcher.keep(include_bytes!("../schema/every-v1.schema")).unwrap();
     patcher.keep(include_bytes!("../schema/every-v2.schema")).unwrap();
     let plan = patcher.plan(patches::P0001.as_bytes()).unwrap().unwrap();
-    let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let base = skein_scratch::paths::package();
     let mut goldens = std::fs::read_dir(base.join("patches/golden/0001"))
         .unwrap()
         .map(|entry| entry.unwrap().path())

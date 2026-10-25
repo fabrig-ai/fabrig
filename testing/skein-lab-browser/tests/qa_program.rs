@@ -38,7 +38,7 @@ fn start() -> (Scratch, Child, Reader) {
     fs::create_dir(scratch.path().join("profile")).expect("empty browser scratch");
     fs::create_dir(scratch.path().join("out")).expect("shot output");
     let stderr = scratch.path().join("stderr");
-    let process = Command::new(env!("CARGO_BIN_EXE_skein-lab-browser"))
+    let process = Command::new(skein_scratch::paths::binary("skein-lab-browser"))
         .arg("--chromium")
         .arg(support::chromium())
         .arg("--fonts")

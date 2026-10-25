@@ -33,7 +33,7 @@ impl Origin {
         let address = listener.local_addr().expect("bound fixture address");
         let stop = Arc::new(AtomicBool::new(false));
         let stopping = stop.clone();
-        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixture/hand");
+        let fixture = skein_scratch::paths::package().join("tests/fixture/hand");
         let index = fs::read_to_string(fixture.join("index.html"))
             .expect("fixture browser conversation")
             .replace("{off}", &off.to_string());
@@ -261,7 +261,7 @@ fn browser_hand() {
     fs::create_dir(&out).unwrap();
     let stderr = scratch.path().join("stderr");
     let mut child = Child(
-        Command::new(env!("CARGO_BIN_EXE_skein-lab-browser"))
+        Command::new(skein_scratch::paths::binary("skein-lab-browser"))
             .arg("hand")
             .arg("--chromium")
             .arg(support::chromium())

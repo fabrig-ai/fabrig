@@ -295,7 +295,7 @@ mod tests {
             ],
         );
         let owner = root.join("nested/owner");
-        let output = Command::new(env!("CARGO_BIN_EXE_skein-codegen"))
+        let output = Command::new(skein_scratch::paths::binary("skein-codegen"))
             .arg("patch")
             .arg(&owner)
             .args(["--base", "HEAD", "--baseline"])
@@ -320,7 +320,7 @@ mod tests {
             ],
         );
         fs::write(owner.join("schema/shelf-v2.schema"), V2).expect("current v2");
-        let output = Command::new(env!("CARGO_BIN_EXE_skein-codegen"))
+        let output = Command::new(skein_scratch::paths::binary("skein-codegen"))
             .arg("patch")
             .arg(&owner)
             .args(["--base", "HEAD", "--owner", "shop"])
@@ -329,7 +329,7 @@ mod tests {
         assert_eq!(output.status.code(), Some(1_i32));
         assert!(String::from_utf8(output.stdout).expect("utf8").contains("Asked"), "planner refusal printed");
         let before = Landed::read(&owner).expect("tree snapshot");
-        let output = Command::new(env!("CARGO_BIN_EXE_skein-codegen"))
+        let output = Command::new(skein_scratch::paths::binary("skein-codegen"))
             .arg("patch")
             .arg(&owner)
             .args(["--base", "HEAD", "--check"])
@@ -337,10 +337,11 @@ mod tests {
             .expect("binary check");
         assert_eq!(output.status.code(), Some(1_i32));
         assert_eq!(Landed::read(&owner).expect("tree snapshot"), before);
-        let output = Command::new(env!("CARGO_BIN_EXE_skein-codegen")).arg("patch").output().expect("binary error");
+        let output =
+            Command::new(skein_scratch::paths::binary("skein-codegen")).arg("patch").output().expect("binary error");
         assert_eq!(output.status.code(), Some(2_i32));
         fs::write(owner.join("schema/shelf-v2.schema"), "invalid").expect("invalid current");
-        let output = Command::new(env!("CARGO_BIN_EXE_skein-codegen"))
+        let output = Command::new(skein_scratch::paths::binary("skein-codegen"))
             .arg("patch")
             .arg(&owner)
             .args(["--base", "HEAD", "--check"])

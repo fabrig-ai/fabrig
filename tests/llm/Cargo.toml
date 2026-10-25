@@ -16,6 +16,7 @@ skein-fake-llm-domain.workspace = true
 skein-fake-llm-protocol.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-heap.workspace = true
 # Decode observed fixture framing with the existing independent reference reader.
 skein-http-world = { path = "../http" }

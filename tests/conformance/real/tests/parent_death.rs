@@ -36,7 +36,7 @@ impl Tree {
     fn start(mode: &str) -> Self {
         skein_shell::make_subreaper().expect("adopt and reap orphaned sleep");
         let scratch = Scratch::new("parent-death");
-        let parent = Command::new(env!("CARGO_BIN_EXE_process_fixture"))
+        let parent = Command::new(skein_scratch::paths::binary("process_fixture"))
             .args(["parent-death-parent", mode])
             .current_dir(scratch.path())
             .process_group(0)
@@ -122,7 +122,7 @@ fn a_wrong_parent_is_refused_before_exec() {
     let scratch = Scratch::new("wrong-parent");
     let stderr = fs::File::create(scratch.path().join("stderr")).expect("capture refusal");
     let mut child = DirectChild(
-        Command::new(env!("CARGO_BIN_EXE_process_fixture"))
+        Command::new(skein_scratch::paths::binary("process_fixture"))
             .args(["parent-death-child", "--parent", "4294967295", "protected"])
             .current_dir(scratch.path())
             .stdin(Stdio::piped())

@@ -117,34 +117,34 @@ pub fn written(site: Site, old: &Old, new: &mut Build, at: Node, cx: &mut Contex
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::path::PathBuf;
 
-    fn owner() -> &'static Path {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
+    fn owner() -> PathBuf {
+        skein_scratch::paths::package()
     }
 
     #[test]
     fn current() {
-        skein_codegen::patch::current(owner()).map_err(|error| error.to_string()).expect("patches are current");
+        skein_codegen::patch::current(&owner()).map_err(|error| error.to_string()).expect("patches are current");
     }
 
     #[test]
     fn p0001_goldens() {
-        skein_codegen::patch::goldens(owner(), 1, super::written)
+        skein_codegen::patch::goldens(&owner(), 1, super::written)
             .map_err(|error| error.to_string())
             .expect("patch 0001 goldens");
     }
 
     #[test]
     fn p0002_goldens() {
-        skein_codegen::patch::goldens(owner(), 2, super::written)
+        skein_codegen::patch::goldens(&owner(), 2, super::written)
             .map_err(|error| error.to_string())
             .expect("patch 0002 goldens");
     }
 
     #[test]
     fn p0003_goldens() {
-        skein_codegen::patch::goldens(owner(), 3, super::written)
+        skein_codegen::patch::goldens(&owner(), 3, super::written)
             .map_err(|error| error.to_string())
             .expect("patch 0003 goldens");
     }

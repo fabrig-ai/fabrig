@@ -12,6 +12,7 @@ skein-codec = { path = "../../crates/skein-codec" }
 skein-lib.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-codegen = { path = "../../testing/skein-codegen" }
 skein-heap.workspace = true
 

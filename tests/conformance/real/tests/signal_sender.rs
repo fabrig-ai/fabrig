@@ -3,7 +3,7 @@
 
 fn service(sender: &str) {
     for backend in ["ring", "readiness"] {
-        let output = std::process::Command::new(env!("CARGO_BIN_EXE_signal_sender_fixture"))
+        let output = std::process::Command::new(skein_scratch::paths::binary("signal_sender_fixture"))
             .args([backend, sender])
             .output()
             .expect("the single-threaded signal fixture starts");

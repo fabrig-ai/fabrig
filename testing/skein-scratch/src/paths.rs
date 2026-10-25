@@ -45,7 +45,7 @@ pub fn binary(name: &str) -> PathBuf {
 
 /// The target's scratch space, made if absent: `tmp` in the target
 /// directory, which holds the profile's directory and its `deps`, where the
-/// test's executable is. Cargo names it CARGO_TARGET_TMPDIR when it compiles
+/// test's executable is. Cargo names it `CARGO_TARGET_TMPDIR` when it compiles
 /// an integration test.
 #[must_use]
 pub fn target_tmp() -> PathBuf {

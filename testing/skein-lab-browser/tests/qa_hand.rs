@@ -47,7 +47,7 @@ impl Hand {
         let origin = format!("http://127.0.0.1:{port}");
         let stderr = scratch.path().join("stderr");
         let mut child = Child(
-            Command::new(env!("CARGO_BIN_EXE_skein-lab-browser"))
+            Command::new(skein_scratch::paths::binary("skein-lab-browser"))
                 .arg("hand")
                 .arg("--chromium")
                 .arg(support::chromium())

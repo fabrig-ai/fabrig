@@ -33,3 +33,6 @@ disallowed_methods = "deny"
 name = "attached-peer"
 path = "tests/support/attached.rs"
 test = false
+
+[dev-dependencies]
+skein-scratch.workspace = true

@@ -31,7 +31,7 @@ fn browser_program() {
     let fonts = support::fonts();
     let chromium = support::chromium();
     let mut child = Child(
-        Command::new(env!("CARGO_BIN_EXE_skein-lab-browser"))
+        Command::new(skein_scratch::paths::binary("skein-lab-browser"))
             .args([
                 "--chromium",
                 chromium.to_str().unwrap(),
@@ -59,7 +59,7 @@ fn browser_program() {
         stdin.write_all(&bytes).unwrap();
         reader.answer()
     };
-    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixture");
+    let fixture = skein_scratch::paths::package().join("tests/fixture");
     let served = call(object([
         ("call", string("serve")),
         ("origin", string("fixture")),

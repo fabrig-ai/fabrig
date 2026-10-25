@@ -258,7 +258,7 @@ impl Referee<Process> for TreeJudge {
 
 fn fixture(mode: &str) -> Command {
     Command {
-        program: env!("CARGO_BIN_EXE_world_process_fixture").into(),
+        program: skein_scratch::paths::binary("world_process_fixture"),
         arguments: if mode == "exit" { vec!["exit".into(), "0".into()] } else { vec![mode.into()] },
         environment: Vec::new(),
         directory: "/tmp".into(),
@@ -1126,7 +1126,7 @@ fn legacy_stderr_capture_still_fails_the_scenario_at_overflow() {
 
 fn terminal_fixture() -> Command {
     Command {
-        program: env!("CARGO_BIN_EXE_world_terminal_fixture").into(),
+        program: skein_scratch::paths::binary("world_terminal_fixture"),
         arguments: vec![],
         environment: vec![],
         directory: "/tmp".into(),

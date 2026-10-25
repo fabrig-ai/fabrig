@@ -196,7 +196,7 @@ fn run(idle: bool) {
     let start = clock.now().now;
     let binary = Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_skein-echo").into(),
+            program: skein_scratch::paths::binary("skein-echo"),
             arguments: vec!["127.0.0.1:0".into()],
             environment: vec![],
             directory: std::env::current_dir().expect("test working directory"),

@@ -6,6 +6,7 @@ use skein_conformance::{
     nested_roots, permissions, remove, rename,
 };
 use skein_conformance_real::Real;
+use std::os::unix::ffi::OsStrExt;
 
 /// A regular file's reads and writes count every byte they could: one of
 /// the outcomes the contract allows, the one the calm simulator gives.
@@ -122,7 +123,11 @@ fn a_write_open_finds_what_exists_and_truncate_sets_its_length() {
 
 #[test]
 fn a_directory_lock_is_busy_through_a_second_open_until_the_first_closes() {
-    skein_conformance::lock(&mut Real::new(BACKEND), env!("CARGO_BIN_EXE_process_fixture").as_bytes()).check();
+    skein_conformance::lock(
+        &mut Real::new(BACKEND),
+        skein_scratch::paths::binary("process_fixture").as_os_str().as_bytes(),
+    )
+    .check();
 }
 
 #[test]

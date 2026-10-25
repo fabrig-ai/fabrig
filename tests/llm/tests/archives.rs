@@ -6,10 +6,7 @@ use skein_llm_world::{World, call, limits_for};
 
 fn archive(scenario: &str, file: &str) -> Vec<u8> {
     std::fs::read(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../crates/skein-llm/src/anthropic/fixtures")
-            .join(scenario)
-            .join(file),
+        skein_scratch::paths::package().join("../../crates/skein-llm/src/anthropic/fixtures").join(scenario).join(file),
     )
     .expect("preserved historical archive")
 }

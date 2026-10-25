@@ -49,14 +49,14 @@ pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Co
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::path::PathBuf;
 
-    fn owner() -> &'static Path {
-        Path::new(env!("CARGO_MANIFEST_DIR"))
+    fn owner() -> PathBuf {
+        skein_scratch::paths::package()
     }
 
     #[test]
     fn current() {
-        skein_codegen::patch::current(owner()).map_err(|error| error.to_string()).expect("patches are current");
+        skein_codegen::patch::current(&owner()).map_err(|error| error.to_string()).expect("patches are current");
     }
 }

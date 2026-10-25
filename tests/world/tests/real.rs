@@ -94,7 +94,7 @@ fn an_unhandled_interrupt_ends_a_real_child_with_signal_two() {
     use skein_world::end_to_end::{Binary, Command, Mode};
     for group in [false, true] {
         let command = Command {
-            program: env!("CARGO_BIN_EXE_world_process_fixture").into(),
+            program: skein_scratch::paths::binary("world_process_fixture"),
             arguments: vec!["never".into()],
             environment: vec![],
             directory: "/tmp".into(),

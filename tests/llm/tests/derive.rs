@@ -72,7 +72,7 @@ fn capture(provider: Provider, scenario: &str, file: &str) -> Vec<u8> {
         Provider::Anthropic => "anthropic",
     };
     std::fs::read(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        skein_scratch::paths::package()
             .join("../../crates/skein-llm/src")
             .join(dialect)
             .join("fixtures")

@@ -218,9 +218,10 @@ fn dispatch(krate: &Crate, out: &mut String) -> Result<(), Error> {
 }
 
 fn tests(krate: &Crate, out: &mut String) {
-    out.push_str("\n#[cfg(test)]\nmod tests {\n    use std::path::Path;\n\n    fn owner() -> &'static Path {\n        Path::new(env!(\"CARGO_MANIFEST_DIR\"))\n    }\n\n    #[test]\n    fn current() {\n        skein_codegen::patch::current(owner()).map_err(|error| error.to_string()).expect(\"patches are current\");\n    }\n");
+    // The test finds its crate when it runs (testing-strategy.md, 8).
+    out.push_str("\n#[cfg(test)]\nmod tests {\n    use std::path::PathBuf;\n\n    fn owner() -> PathBuf {\n        skein_scratch::paths::package()\n    }\n\n    #[test]\n    fn current() {\n        skein_codegen::patch::current(&owner()).map_err(|error| error.to_string()).expect(\"patches are current\");\n    }\n");
     for number in krate.patches.keys() {
-        write!(out, "\n    #[test]\n    fn p{number:04}_goldens() {{\n        skein_codegen::patch::goldens(owner(), {number}, super::written)\n            .map_err(|error| error.to_string())\n            .expect(\"patch {number:04} goldens\");\n    }}\n").expect("String write");
+        write!(out, "\n    #[test]\n    fn p{number:04}_goldens() {{\n        skein_codegen::patch::goldens(&owner(), {number}, super::written)\n            .map_err(|error| error.to_string())\n            .expect(\"patch {number:04} goldens\");\n    }}\n").expect("String write");
     }
     out.push_str("}\n");
 }

@@ -134,9 +134,9 @@ mod tests {
             }
         }
         let owner = Scratch::new();
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        copy(root, &root.join("schema"), &owner);
-        copy(root, &root.join("patches"), &owner);
+        let root = skein_scratch::paths::package();
+        copy(&root, &root.join("schema"), &owner);
+        copy(&root, &root.join("patches"), &owner);
         owner
     }
 

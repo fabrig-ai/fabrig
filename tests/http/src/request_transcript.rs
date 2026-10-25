@@ -23,7 +23,6 @@
 
 use std::fmt::Write as _;
 use std::fs;
-use std::path::PathBuf;
 
 use skein_http::server::{self, Body, Error, Rejection, Response, Reuse};
 use skein_http::{Method, Version};
@@ -68,7 +67,7 @@ pub fn plan() -> Plan {
 /// Every request transcript, in the order of their names.
 #[must_use]
 pub fn all() -> Vec<Transcript> {
-    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("transcripts").join("requests");
+    let directory = skein_scratch::paths::workspace().join("tests/http").join("transcripts").join("requests");
     let mut names = Vec::new();
     for entry in fs::read_dir(&directory).expect("the request transcripts directory") {
         let path = entry.expect("a directory entry").path();

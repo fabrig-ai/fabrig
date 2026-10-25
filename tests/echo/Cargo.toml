@@ -21,6 +21,7 @@ skein-echo-client.workspace = true
 
 # The clock, for tests/real.rs.
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-shell.workspace = true
 
 # Ordinary Rust (programming-model.md, 10.2), so not the step crates' lints.

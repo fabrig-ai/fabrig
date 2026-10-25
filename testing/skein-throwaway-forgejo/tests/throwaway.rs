@@ -6,7 +6,7 @@ use skein_throwaway_forgejo::{Failure, Forgejo, Init, Outgoing, Refusal, Setting
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 #[test]
 fn a_binary_printing_another_version_is_refused_naming_it() {
-    let scratch = Path::new(env!("CARGO_TARGET_TMPDIR")).join("wrong-version");
+    let scratch = skein_scratch::paths::target_tmp().join("wrong-version");
     fs::create_dir_all(&scratch).expect("scratch");
     let binary = scratch.join("forgejo");
     fs::write(&binary, b"#!/bin/sh\nprintf 'forgejo version 15.0.0+gitea-1.22.0\\n'\n").expect("script");
@@ -22,7 +22,7 @@ fn a_binary_printing_another_version_is_refused_naming_it() {
 }
 #[test]
 fn a_scratch_directory_that_is_not_empty_is_refused() {
-    let scratch = Path::new(env!("CARGO_TARGET_TMPDIR")).join("occupied");
+    let scratch = skein_scratch::paths::target_tmp().join("occupied");
     fs::create_dir_all(&scratch).expect("scratch");
     fs::write(scratch.join("keep"), b"mine").expect("file");
     let binary = scratch.join("forgejo");
@@ -41,7 +41,7 @@ fn a_throwaway_forgejo_starts_serves_its_admin_and_is_removed() {
         &std::env::var_os("SKEIN_FORGEJO").expect("SKEIN_FORGEJO must name the pinned Forgejo"),
     ))
     .expect("pinned Forgejo");
-    let scratch = Path::new(env!("CARGO_TARGET_TMPDIR")).join("throwaway-start");
+    let scratch = skein_scratch::paths::target_tmp().join("throwaway-start");
     let mut instance = forgejo.start(&scratch, &Settings::small()).expect("started");
     let admin = instance.admin().clone();
     let user = instance.exchange(&Outgoing::get("/api/v1/user", Some(&admin.token))).expect("answered");
@@ -66,7 +66,7 @@ fn forgejo_running(root: &Path, body: &str) -> Forgejo {
 }
 #[test]
 fn a_work_path_runs_commands_in_the_scratch_with_its_environment() {
-    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("work-path-run");
+    let root = skein_scratch::paths::target_tmp().join("work-path-run");
     let forgejo = forgejo_running(&root, "pwd; echo \"$HOME $PATH $TZ\"; echo \"$@\"");
     let work = forgejo.work_path(&root.join("work"), &Settings::small()).expect("prepared");
     let output = work.run(&["admin", "user", "list"]).expect("ran");
@@ -80,7 +80,7 @@ fn a_work_path_runs_commands_in_the_scratch_with_its_environment() {
 }
 #[test]
 fn a_failed_work_path_command_keeps_its_exit_code_and_both_streams() {
-    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("work-path-fail");
+    let root = skein_scratch::paths::target_tmp().join("work-path-fail");
     let forgejo = forgejo_running(&root, "echo output; echo diagnostic >&2; exit 7");
     let work = forgejo.work_path(&root.join("work"), &Settings::small()).expect("prepared");
     let output = work.run(&["migrate"]).expect("ran");
@@ -91,7 +91,7 @@ fn a_failed_work_path_command_keeps_its_exit_code_and_both_streams() {
 }
 #[test]
 fn a_work_path_is_refused_when_its_scratch_is_not_empty() {
-    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("work-path-occupied");
+    let root = skein_scratch::paths::target_tmp().join("work-path-occupied");
     let forgejo = forgejo_running(&root, "exit 0");
     let work = root.join("work");
     fs::create_dir_all(&work).expect("work");

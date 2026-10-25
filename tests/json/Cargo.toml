@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-scratch.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true
 
