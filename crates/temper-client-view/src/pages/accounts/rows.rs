@@ -148,9 +148,16 @@ fn draw(
     b.close();
     let held = holder_words(root, w, name, holder, sources);
     crate::cards::text(b, Role::Paragraph, &held);
-    if let Some(source) = deciding { tag(b, w, source); }
-    let line = words::join(&[&models, if models.is_empty() { b"" } else { &separator }, &pays,
-        if use_line.is_empty() { b"" } else { &separator }, &use_line]);
+    if let Some(source) = deciding {
+        tag(b, w, source);
+    }
+    let line = words::join(&[
+        &models,
+        if models.is_empty() { b"" } else { &separator },
+        &pays,
+        if use_line.is_empty() { b"" } else { &separator },
+        &use_line,
+    ]);
     crate::cards::text(b, Role::Paragraph, &line);
     b.close();
     let Some(page) = root.pages().accounts() else {
@@ -165,10 +172,21 @@ fn draw(
     }
     crate::cards::text(b, Role::Paragraph, &w.say(crate::words::Word::AccountSources, &[]));
     b.open(Role::List);
-    for (index, source) in sources.iter().take(usize::try_from(bindings.counts().sources).expect("bounded sources")).enumerate() {
+    for (index, source) in
+        sources.iter().take(usize::try_from(bindings.counts().sources).expect("bounded sources")).enumerate()
+    {
         b.open(Role::Item);
         b.open(Role::Text);
-        b.run(Run::Plain, &words::say(w, W::Number, &[skein_ui::phrases::Hole::Number(u64::try_from(index).expect("bounded source").checked_add(1).expect("bounded source"))]));
+        b.run(
+            Run::Plain,
+            &words::say(
+                w,
+                W::Number,
+                &[skein_ui::phrases::Hole::Number(
+                    u64::try_from(index).expect("bounded source").checked_add(1).expect("bounded source"),
+                )],
+            ),
+        );
         b.run(Run::Plain, b". ");
         match source.kind {
             c::OwnerAccountKind::SignIn => {
@@ -215,7 +233,9 @@ fn draw(
     omitted(b, w, W::SourcesOmitted, sources.len(), bindings.counts().sources);
     b.open(Role::Slot);
     b.style(crate::look::DETAILS);
-    if !models.is_empty() { pair(b, w, W::Models, &models); }
+    if !models.is_empty() {
+        pair(b, w, W::Models, &models);
+    }
     pair(b, w, W::PaysFor, &pays);
     if row.holder == c::AccountHolder::Deployment {
         pair(b, w, W::UsedBy, &chips(w, runs, waiting));
@@ -314,24 +334,45 @@ fn draw(
     }
     b.close();
 }
-fn caption(w: &Words, name: Option<&[u8]>, display: &c::DocumentText, plan: bool, sources: &List<c::OwnerAccountSource>) -> Box<[u8]> {
+fn caption(
+    w: &Words,
+    name: Option<&[u8]>,
+    display: &c::DocumentText,
+    plan: bool,
+    sources: &List<c::OwnerAccountSource>,
+) -> Box<[u8]> {
     let (brand, plan_name) = words::provider_words(name.unwrap_or(b""));
     for source in sources {
         if source.kind == c::OwnerAccountKind::Program {
-            return words::join(&[&named(w, W::Subscription, plan_name), &words::say(w, W::Separator, &[]), source.name.as_deref().unwrap_or(b"")]);
+            return words::join(&[
+                &named(w, W::Subscription, plan_name),
+                &words::say(w, W::Separator, &[]),
+                source.name.as_deref().unwrap_or(b""),
+            ]);
         }
     }
     let mut signed = plan;
-    for source in sources { signed |= source.kind == c::OwnerAccountKind::SignIn; }
+    for source in sources {
+        signed |= source.kind == c::OwnerAccountKind::SignIn;
+    }
     if signed {
         let separator = words::say(w, W::Separator, &[]);
         let label = if plan { plan_name } else { brand };
-        return words::join(&[label, if display.bytes().is_empty() || display.bytes() == label { b"" } else { &separator },
-            if display.bytes() == label { b"" } else { display.bytes() }]);
+        return words::join(&[
+            label,
+            if display.bytes().is_empty() || display.bytes() == label { b"" } else { &separator },
+            if display.bytes() == label { b"" } else { display.bytes() },
+        ]);
     }
     named(w, W::ApiKeyBrand, brand)
 }
-fn holder_words(root: &Domain, w: &Words, name: Option<&[u8]>, holder: c::OwnerAccountHolder, sources: &List<c::OwnerAccountSource>) -> Box<[u8]> {
+fn holder_words(
+    root: &Domain,
+    w: &Words,
+    name: Option<&[u8]>,
+    holder: c::OwnerAccountHolder,
+    sources: &List<c::OwnerAccountSource>,
+) -> Box<[u8]> {
     let owner = match holder {
         c::OwnerAccountHolder::Deployment => words::say(w, W::HeldDeployment, &[]),
         c::OwnerAccountHolder::Party(_) => match accounts::current_me(root.client()) {
@@ -340,17 +381,25 @@ fn holder_words(root: &Domain, w: &Words, name: Option<&[u8]>, holder: c::OwnerA
         },
     };
     for source in sources {
-        if matches!(source.kind, c::OwnerAccountKind::SignIn | c::OwnerAccountKind::Program) {
-            return words::join(&[words::provider_words(name.unwrap_or(b"")).0, &words::say(w, W::Separator, &[]), &owner]);
+        if source.kind == c::OwnerAccountKind::SignIn || source.kind == c::OwnerAccountKind::Program {
+            return words::join(&[
+                words::provider_words(name.unwrap_or(b"")).0,
+                &words::say(w, W::Separator, &[]),
+                &owner,
+            ]);
         }
     }
     owner
 }
 fn tag(b: &mut Builder, w: &Words, source: &c::OwnerAccountSource) {
     b.open(Role::Status);
-    b.style(if source.usable { crate::look::STATUS_ACTIVE }
-        else if matches!(source.state, c::OwnerAccountState::Later { .. }) { crate::look::STATUS_RETRYING }
-        else { crate::look::STATUS_HELD });
+    b.style(if source.usable {
+        crate::look::STATUS_ACTIVE
+    } else if let c::OwnerAccountState::Later { .. } = source.state {
+        crate::look::STATUS_RETRYING
+    } else {
+        crate::look::STATUS_HELD
+    });
     let label = summary_state(w, Some(source));
     b.name(&label);
     b.open(Role::Text);

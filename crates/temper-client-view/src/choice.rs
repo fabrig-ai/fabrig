@@ -112,9 +112,16 @@ pub(crate) fn composer(
         b.open(Role::Paragraph);
         b.style(crate::look::ACCOUNT_LINE);
         w.text(b, W::ComposerNoModel, &[]);
-        control(b, bindings, Role::Link, &w.say(W::ConnectModel, &[]),
-            Act::Go { address: Address::ConnectModel { way: None } }, false);
+        control(
+            b,
+            bindings,
+            Role::Link,
+            &w.say(W::ConnectModel, &[]),
+            Act::Go { address: Address::ConnectModel { way: None } },
+            false,
+        );
         b.close();
+        feedback(b, root, task, w, bindings, times);
         b.close();
         return;
     }
@@ -178,6 +185,18 @@ pub(crate) fn composer(
         }
         b.close();
     }
+    feedback(b, root, task, w, bindings, times);
+    b.close();
+}
+fn feedback(
+    b: &mut Builder,
+    root: &Domain,
+    task: Option<&c::Task>,
+    w: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
+    let draft = root.pages().choice();
     if draft.pending.is_some() {
         line(b, w, W::ChoicePending, &[]);
     }
@@ -187,7 +206,6 @@ pub(crate) fn composer(
     if let Some(task) = task {
         waiting(b, root, task.run_wait, w, bindings, times);
     }
-    b.close();
 }
 
 /// Display names keep the catalogue's bounded presentation.
@@ -587,7 +605,9 @@ fn using_line(
 fn program_name(root: &Domain, provider: Option<u32>, w: &Words) -> Box<[u8]> {
     if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
         for offer in &me.providers {
-            if Some(offer.provider) == provider && let Some(program) = offer.programs.get(0) {
+            if Some(offer.provider) == provider
+                && let Some(program) = offer.programs.get(0)
+            {
                 return shown(if program.bytes() == b"claude_code" { b"Claude Code" } else { program.bytes() }, w);
             }
         }
@@ -616,11 +636,19 @@ fn using_account(
         return;
     };
     let text = match source.kind {
-        c::OwnerAccountKind::Key => w.say(W::UsingKey, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.0)), Hole::Name(name)]),
-        c::OwnerAccountKind::SignIn => w.say(W::UsingPlan, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.1)), Hole::Name(name)]),
+        c::OwnerAccountKind::Key => {
+            w.say(W::UsingKey, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.0)), Hole::Name(name)])
+        }
+        c::OwnerAccountKind::SignIn => {
+            w.say(W::UsingPlan, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.1)), Hole::Name(name)])
+        }
         c::OwnerAccountKind::Program => w.say(
             W::UsingProgram,
-            &[Hole::Name(skein_lib::bytes::copy_of(provider_name.1)), Hole::Name(program_name(root, account.provider, w)), Hole::Name(name)],
+            &[
+                Hole::Name(skein_lib::bytes::copy_of(provider_name.1)),
+                Hole::Name(program_name(root, account.provider, w)),
+                Hole::Name(name),
+            ],
         ),
         c::OwnerAccountKind::None => w.say(W::UsingModel, &[Hole::Name(name)]),
     };

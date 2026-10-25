@@ -1367,12 +1367,27 @@ fn forge_banners_exclude_the_playgrounds_provider_before_and_after_retirement() 
 
 /// A complete unavailable slice, shared by both composers' event-path tests.
 pub(super) fn no_model_root(task_page: bool) -> d::Domain {
-    let (mut root, _, _, watch) = line_fixture(None, List::with_capacity(0), None, None, None, task_page);
-    delivered(&mut root, watch, c::Delivery::OwnerAccounts(Box::new(c::OwnerAccounts {
-        program_hosts: List::with_capacity(0), accounts: List::with_capacity(0), signing: List::with_capacity(0),
-        last_end: None, usable: false, settled: true, cut: false,
-        readiness: List::with_capacity(0), readiness_cut: false,
-    })));
+    let (mut root, _, task_watch, watch) = line_fixture(None, List::with_capacity(0), None, None, None, task_page);
+    if let Some(task_watch) = task_watch {
+        let mut task = root.pages().chat().unwrap().task(root.client()).unwrap().clone();
+        task.run_wait = Some(c::TaskRunWait::Credential);
+        delivered(&mut root, task_watch, c::Delivery::Task(Box::new(task)));
+    }
+    delivered(
+        &mut root,
+        watch,
+        c::Delivery::OwnerAccounts(Box::new(c::OwnerAccounts {
+            program_hosts: List::with_capacity(0),
+            accounts: List::with_capacity(0),
+            signing: List::with_capacity(0),
+            last_end: None,
+            usable: false,
+            settled: true,
+            cut: false,
+            readiness: List::with_capacity(0),
+            readiness_cut: false,
+        })),
+    );
     root
 }
 #[test]
@@ -1380,8 +1395,18 @@ fn configured_provider_words_name_the_whole_composer_line() {
     for (provider, kind, address, expected) in [
         (b"openai".as_slice(), c::OwnerAccountKind::Key, None, "Using your OpenAI API key · chosen"),
         (b"openai", c::OwnerAccountKind::SignIn, None, "Using ChatGPT plan · chosen"),
-        (b"openai", c::OwnerAccountKind::SignIn, Some(b"https://provider.example/usage".as_slice()), "Using ChatGPT plan · chosen · Manage usage"),
-        (b"anthropic", c::OwnerAccountKind::Program, None, "Using your Claude subscription, through Claude Code · chosen"),
+        (
+            b"openai",
+            c::OwnerAccountKind::SignIn,
+            Some(b"https://provider.example/usage".as_slice()),
+            "Using ChatGPT plan · chosen · Manage usage",
+        ),
+        (
+            b"anthropic",
+            c::OwnerAccountKind::Program,
+            None,
+            "Using your Claude subscription, through Claude Code · chosen",
+        ),
         (b"local", c::OwnerAccountKind::Key, None, "Using your local API key · chosen"),
     ] {
         let mut row = account(3, kind, address);
@@ -1389,7 +1414,8 @@ fn configured_provider_words_name_the_whole_composer_line() {
         let mut first = source(kind, true);
         first.name = Some(Box::from(b"a-login-not-a-program-name".as_slice()));
         row.sources.push(first).unwrap();
-        let (mut root, me_watch, _, _) = line_fixture(Some(readiness(c::Readiness::Usable)), accounts(&[row]), Some(3), None, None, true);
+        let (mut root, me_watch, _, _) =
+            line_fixture(Some(readiness(c::Readiness::Usable)), accounts(&[row]), Some(3), None, None, true);
         let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
         let offer = me.providers.get_mut(0).unwrap();
         offer.name = c::DocumentText::complete(c::Text::new(Box::from(provider), 32).unwrap());
@@ -1407,10 +1433,23 @@ fn configured_provider_words_name_the_whole_composer_line() {
 #[test]
 fn chooser_groups_use_the_providers_words() {
     for (configured, shown) in [(b"openai".as_slice(), b"OpenAI".as_slice()), (b"anthropic", b"Anthropic")] {
-        let (mut root, me_watch, _, _) = line_fixture(Some(readiness(c::Readiness::Usable)), accounts(&[account(3, c::OwnerAccountKind::Key, None)]), Some(3), None, None, true);
+        let (mut root, me_watch, _, _) = line_fixture(
+            Some(readiness(c::Readiness::Usable)),
+            accounts(&[account(3, c::OwnerAccountKind::Key, None)]),
+            Some(3),
+            None,
+            None,
+            true,
+        );
         let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
-        me.providers.get_mut(0).unwrap().name = c::DocumentText::complete(c::Text::new(Box::from(configured), 32).unwrap());
+        me.providers.get_mut(0).unwrap().name =
+            c::DocumentText::complete(c::Text::new(Box::from(configured), 32).unwrap());
         delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
         assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, shown).is_some());
     }
+}
+
+#[test]
+fn the_no_model_line_keeps_the_tasks_wait_feedback() {
+    assert!(text(&no_model_root(true)).contains("Waiting for a credential"));
 }

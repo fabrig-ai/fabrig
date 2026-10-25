@@ -135,42 +135,14 @@ fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindin
         &words.say(Word::NewChatLink, &[]),
         Act::Go { address: Address::Chats { filter: temper_client_domain::ChatsFilter::All, start: true } },
     );
-    if let Some(me) = root.pages().me(root.client())
-        && me.projects.len() >= 2
-    {
-        b.open(Role::Disclosure);
-        b.style(look::KIND_MENU);
-        let chosen = match filter.project {
-            Some(project) => super::project_name(Some(me), root.forge().demo(), project, words)
-                .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))])),
-            None => words.say(Word::AllProjects, &[]),
-        };
-        b.name(&chosen);
-        b.open(Role::Slot);
-        filter_control(
-            b,
-            bindings,
-            &words.say(Word::AllProjects, &[]),
-            Filter { project: None, ..filter },
-            filter.project.is_none(),
-        );
-        for project in &me.projects {
-            let name = project.name.bytes();
-            filter_control(
-                b,
-                bindings,
-                name,
-                Filter { project: Some(project.project), ..filter },
-                filter.project == Some(project.project),
-            );
-        }
-        b.close();
-        b.close();
-    }
+    project_filter(b, root, filter, words, bindings);
     b.open(Role::Disclosure);
     b.style(look::KIND_MENU);
     let chosen = match filter.goal {
-        Some(goal) => words.say(Word::ModelEffort, &[Hole::Name(words.say(Word::Goal, &[])), Hole::Name(words.say(Word::TaskWho, &[Hole::Number(goal)]))]),
+        Some(goal) => words.say(
+            Word::ModelEffort,
+            &[Hole::Name(words.say(Word::Goal, &[])), Hole::Name(words.say(Word::TaskWho, &[Hole::Number(goal)]))],
+        ),
         None => words.say(Word::AllGoals, &[]),
     };
     b.name(&chosen);
@@ -233,6 +205,40 @@ fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindin
     b.close();
     b.close();
 }
+fn project_filter(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindings: &mut Bindings) {
+    if let Some(me) = root.pages().me(root.client())
+        && me.projects.len() >= 2
+    {
+        b.open(Role::Disclosure);
+        b.style(look::KIND_MENU);
+        let chosen = match filter.project {
+            Some(project) => super::project_name(Some(me), root.forge().demo(), project, words)
+                .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))])),
+            None => words.say(Word::AllProjects, &[]),
+        };
+        b.name(&chosen);
+        b.open(Role::Slot);
+        filter_control(
+            b,
+            bindings,
+            &words.say(Word::AllProjects, &[]),
+            Filter { project: None, ..filter },
+            filter.project.is_none(),
+        );
+        for project in &me.projects {
+            let name = project.name.bytes();
+            filter_control(
+                b,
+                bindings,
+                name,
+                Filter { project: Some(project.project), ..filter },
+                filter.project == Some(project.project),
+            );
+        }
+        b.close();
+        b.close();
+    }
+}
 fn entry(
     b: &mut Builder,
     root: &Domain,
@@ -255,7 +261,7 @@ fn entry(
     };
     b.name(&card_name(root, card.object, kind, words));
     b.style(style);
-    let update = matches!(card.group, InboxGroup::Results | InboxGroup::Replies);
+    let update = card.group == InboxGroup::Results || card.group == InboxGroup::Replies;
     if !update {
         b.open(Role::Slot);
         b.style(look::META);
@@ -273,9 +279,17 @@ fn entry(
             b.text(Run::Plain, " › ".as_bytes());
         }
         if let Some(task) = source_task(card.object) {
-            control(b, bindings, Role::Link, &words.say(Word::TaskWho, &[Hole::Number(task)]), Act::Go { address: Address::Task { task, filter: PlanFilter::All } });
+            control(
+                b,
+                bindings,
+                Role::Link,
+                &words.say(Word::TaskWho, &[Hole::Number(task)]),
+                Act::Go { address: Address::Task { task, filter: PlanFilter::All } },
+            );
         }
-        if let Some(page) = &card.page && let Some(title) = task_title(page) {
+        if let Some(page) = &card.page
+            && let Some(title) = task_title(page)
+        {
             b.text(Run::Plain, b" ");
             b.text(Run::Plain, title);
         }
@@ -304,12 +318,19 @@ fn entry(
             }
         }
         crate::confirm::card_controls(b, root, card, words, bindings);
-        if matches!(card.group, InboxGroup::Proposals | InboxGroup::Questions) && let Some(task) = source_task(card.object) {
+        if (card.group == InboxGroup::Proposals || card.group == InboxGroup::Questions)
+            && let Some(task) = source_task(card.object)
+        {
             let name = open_task_name(words, task);
-            control(b, bindings, Role::Link, &name, Act::Go { address: Address::Task { task, filter: PlanFilter::All } });
+            control(
+                b,
+                bindings,
+                Role::Link,
+                &name,
+                Act::Go { address: Address::Task { task, filter: PlanFilter::All } },
+            );
         }
-    }
-    else if update && let Some(task) = source_task(card.object) {
+    } else if update && let Some(task) = source_task(card.object) {
         b.open(Role::Heading { level: 3 });
         b.style(look::TITLE);
         let name = words.say(Word::Task, &[Hole::Number(task)]);
@@ -320,7 +341,9 @@ fn entry(
     b.close();
 }
 fn update_act(card: &Card, task: u64) -> Act {
-    if let ObjectKey::Result(_) = card.object && let Some(through) = card.position {
+    if let ObjectKey::Result(_) = card.object
+        && let Some(through) = card.position
+    {
         Act::OpenResult { task, through }
     } else {
         Act::Go { address: Address::Task { task, filter: PlanFilter::All } }
@@ -331,12 +354,24 @@ fn open_task_name(words: &Words, task: u64) -> Box<[u8]> {
     words.say(Word::SetupOpen, &[Hole::Name(crate::accounts::words::join(&[&task, " ↗".as_bytes()]))])
 }
 fn task_title(page: &ReadValue) -> Option<&[u8]> {
-    if let ReadValue::Question(question) = page { return Some(question.task.title.bytes()); }
-    if let ReadValue::Escalation(held) = page { return Some(held.task.title.bytes()); }
-    if let ReadValue::OwnerEscalation(held) = page { return Some(held.task.chip.title.bytes()); }
-    if let ReadValue::PersonTask(task) = page { return Some(task.task.title.bytes()); }
-    if let ReadValue::OwnerPersonTask(task) = page { return Some(task.task.title.bytes()); }
-    if let ReadValue::Task(task) = page { return Some(task.chip.title.bytes()); }
+    if let ReadValue::Question(question) = page {
+        return Some(question.task.title.bytes());
+    }
+    if let ReadValue::Escalation(held) = page {
+        return Some(held.task.title.bytes());
+    }
+    if let ReadValue::OwnerEscalation(held) = page {
+        return Some(held.task.chip.title.bytes());
+    }
+    if let ReadValue::PersonTask(task) = page {
+        return Some(task.task.title.bytes());
+    }
+    if let ReadValue::OwnerPersonTask(task) = page {
+        return Some(task.task.title.bytes());
+    }
+    if let ReadValue::Task(task) = page {
+        return Some(task.chip.title.bytes());
+    }
     None
 }
 fn source_task(object: ObjectKey) -> Option<u64> {

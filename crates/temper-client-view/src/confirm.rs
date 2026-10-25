@@ -193,7 +193,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
         b.open(Role::Dialog);
         b.name(&words.say(word, &[]));
         b.text(Run::Plain, &words.say(word, &[]));
-        crate::cards::proposal(b, page, words, rows);
+        crate::cards::proposal_at(b, page, words, rows, crate::cards::Place::Confirmation);
         if open.act != ActKind::Accept || !crate::cards::proposal_has_rows(page) {
             crate::cards::decision(b, words, Some(page), open.act);
         }

@@ -896,11 +896,17 @@ fn only_the_starts_address_focuses_its_composer_including_the_demo() {
 fn unavailable_models_leave_an_editable_draft_but_no_submission() {
     let root = super::choice::no_model_root(false);
     let mut view = fixtures::page_view(&root);
-    assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), "No model yet · Connect a model".as_bytes()).is_some());
+    assert!(
+        skein_lib::bytes::find(&fixtures::text(view.tree()), "No model yet · Connect a model".as_bytes()).is_some()
+    );
     assert!(fixtures::find(view.tree(), Role::Disclosure, b"Change model").is_none());
     let connect = fixtures::find(view.tree(), Role::Link, b"Connect a model").expect("connect link");
-    assert_eq!(crate::act(&mut view, connect, skein_ui::Act::Press), Some(temper_client_domain::Action::Pages(
-        temper_client_domain::pages::Act::Go { address: temper_client_domain::Address::ConnectModel { way: None } })));
+    assert_eq!(
+        crate::act(&mut view, connect, skein_ui::Act::Press),
+        Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+            address: temper_client_domain::Address::ConnectModel { way: None }
+        }))
+    );
     for (role, name, event) in [
         (Role::Button, b"Start chat".as_slice(), skein_ui::Act::Press),
         (Role::TextArea, b"Start a chat".as_slice(), skein_ui::Act::Submit),
@@ -909,18 +915,36 @@ fn unavailable_models_leave_an_editable_draft_but_no_submission() {
         assert_eq!(crate::act(&mut view, node, event), None);
     }
     let field = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").expect("draft field");
-    assert!(crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(b"still editable".as_slice()) }).is_some());
+    assert!(
+        crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(b"still editable".as_slice()) }).is_some()
+    );
 }
 #[test]
 fn rows_name_their_project_and_only_kept_ended_transcripts() {
     for ended in [false, true] {
         for kept in [false, true] {
             let mut line = line();
-            if ended { line.ended_at = Some(Wall::EPOCH); }
+            if ended {
+                line.ended_at = Some(Wall::EPOCH);
+            }
             line.flags.retention = if kept { Retention::Kept } else { Retention::ForgottenOnceRead };
             let (tree, _) = tree(&line);
             assert!(skein_lib::bytes::find(&fixtures::text(&tree), "Shop · T9".as_bytes()).is_some());
-            assert_eq!(fixtures::find(&tree, Role::Paragraph, b"Closed. Its transcript is kept.").is_some(), ended && kept);
+            assert_eq!(
+                fixtures::find(&tree, Role::Paragraph, b"Closed. Its transcript is kept.").is_some(),
+                ended && kept
+            );
         }
     }
+}
+
+#[test]
+fn a_kept_ended_row_without_a_clock_is_closed_even_with_stale_wait_metadata() {
+    let mut line = line();
+    line.chip.phase = Phase::Ended;
+    line.waits_on = WaitsOn::Delegates;
+    let (tree, _) = tree(&line);
+    assert!(fixtures::find(&tree, Role::Status, b"Closed").is_some());
+    assert!(fixtures::find(&tree, Role::Paragraph, b"Closed. Its transcript is kept.").is_some());
+    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"3 delegates").is_none());
 }

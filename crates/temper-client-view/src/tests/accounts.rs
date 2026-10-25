@@ -1359,10 +1359,18 @@ fn account_order(doc: c::OwnerAccounts) -> Vec<u32> {
     deliver(&mut root, watch, doc);
     let mut view = bounded_view(fixtures::limits().accounts);
     fixtures::build(&mut view, &root);
-    let ids: Vec<_> = view.tree().nodes().iter().filter(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Remove account")).map(|node| node.id).collect();
+    let ids: Vec<_> = view
+        .tree()
+        .nodes()
+        .iter()
+        .filter(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Remove account"))
+        .map(|node| node.id)
+        .collect();
     let mut numbers = Vec::new();
     for id in ids {
-        if let Some(d::Action::Pages(d::pages::Act::Accounts(A::Submit { row, .. }))) = crate::act(&mut view, id, Act::Press) {
+        if let Some(d::Action::Pages(d::pages::Act::Accounts(A::Submit { row, .. }))) =
+            crate::act(&mut view, id, Act::Press)
+        {
             numbers.push(row.account);
         }
     }
@@ -1370,10 +1378,21 @@ fn account_order(doc: c::OwnerAccounts) -> Vec<u32> {
 }
 #[test]
 fn an_accounts_row_keeps_its_header_sources_facts_and_acts_in_order() {
-    let (mut root, me_watch, _, _, accounts_watch) = fixtures::root_at_full(d::Address::Accounts, &fixtures::limits(), b"Shop");
+    let (mut root, me_watch, _, _, accounts_watch) =
+        fixtures::root_at_full(d::Address::Accounts, &fixtures::limits(), b"Shop");
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.projects.get_mut(0).unwrap().models = super::choice::line_models(true);
-    fixtures::root_event(&mut root, d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) } } });
+    fixtures::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+    );
     deliver(&mut root, accounts_watch.unwrap(), card_document(b"openai", b"Pat", c::OwnerAccountKind::SignIn));
     let view = fixtures::page_view(&root);
     let tree = view.tree();
@@ -1393,5 +1412,9 @@ fn an_accounts_row_keeps_its_header_sources_facts_and_acts_in_order() {
         assert!(at > previous, "{name:?}");
         previous = at;
     }
-    assert!(!nodes.iter().any(|node| node.name.as_deref() == Some(b"Used by") || node.name.as_deref() == Some(b"Waiting for it")));
+    assert!(
+        !nodes
+            .iter()
+            .any(|node| node.name.as_deref() == Some(b"Used by") || node.name.as_deref() == Some(b"Waiting for it"))
+    );
 }

@@ -70,6 +70,7 @@ fn task(task: u64) -> Address {
 }
 
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one entry per named gallery state, in index order")]
 pub fn samples() -> [Sample; N] {
     [
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },

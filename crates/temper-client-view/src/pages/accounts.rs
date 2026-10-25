@@ -361,6 +361,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         if count == 0 {
             // A block of their own, so that the link keeps to the page's column.
             b.open(Role::Slot);
+            b.style(crate::look::EMPTY);
             text(b, w, Role::Paragraph, W::NoOwn);
             connect(b, w, bindings, W::Connect);
             b.close();

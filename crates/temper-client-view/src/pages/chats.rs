@@ -57,7 +57,9 @@ pub(crate) fn main(
             if let Address::Chats { start: true, .. } = root.pages().address() {
                 b.focus(0);
             }
-            if crate::choice::can_send(root) { b.state(State::SubmitsOnEnter); }
+            if crate::choice::can_send(root) {
+                b.state(State::SubmitsOnEnter);
+            }
             b.style(crate::look::COMPOSER);
             b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
             b.bind(bindings.insert(Act::ChatWords { words: Box::default() }));
@@ -71,7 +73,11 @@ pub(crate) fn main(
             {
                 b.open(Role::Button);
                 b.name(&words.say(Word::Start, &[]));
-                if !crate::choice::can_send(root) || chats.start.is_some() || root.forge().demo_starting() || root.forge().demo_failure().is_some() {
+                if !crate::choice::can_send(root)
+                    || chats.start.is_some()
+                    || root.forge().demo_starting()
+                    || root.forge().demo_failure().is_some()
+                {
                     b.state(State::Disabled);
                 }
                 b.bind(bindings.insert(Act::StartChat));
@@ -211,6 +217,17 @@ fn start(
     suggestions(b, root, demo, words, bindings);
 }
 
+pub(crate) fn ended(chip: &jig_client::contract::Chip) -> bool {
+    use jig_client::contract::{ChipPhase, OwnerChipPhase, Phase};
+    if let Phase::Done | Phase::Ended | Phase::Failed | Phase::Cancelled = chip.phase {
+        return true;
+    }
+    if let ChipPhase::Owner { phase: OwnerChipPhase::Ended, .. } | ChipPhase::Ended { .. } = chip.details.as_ref() {
+        return true;
+    }
+    false
+}
+
 pub(crate) fn row(
     b: &mut Builder,
     root: &Domain,
@@ -222,18 +239,29 @@ pub(crate) fn row(
     b.open(Role::Item);
     b.style(crate::look::ROW);
     b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 10, a: line.chip.task, b: 0 });
-    b.open(Role::Paragraph);
+    b.open(Role::Slot);
     b.style(crate::look::META);
-    if let Some(project) = super::project_name(root.pages().me(root.client()), root.forge().demo(), line.project, words) {
+    if let Some(me) = root.pages().me(root.client()) {
+        status(b, &line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words);
+    }
+    b.open(Role::Paragraph);
+    if let Some(project) = super::project_name(root.pages().me(root.client()), root.forge().demo(), line.project, words)
+    {
         b.text(Run::Plain, &project);
         words.text(b, Word::ToolSeparator, &[]);
     }
-    control(b, bindings, Role::Link, &words.say(Word::Chat, &[Hole::Number(line.chip.task)]),
-        Act::Go { address: Address::Chat { task: line.chip.task } });
+    control(
+        b,
+        bindings,
+        Role::Link,
+        &words.say(Word::Chat, &[Hole::Number(line.chip.task)]),
+        Act::Go { address: Address::Chat { task: line.chip.task } },
+    );
+    b.close();
     b.close();
     text(b, Role::Paragraph, line.chip.title.bytes());
-    if let Some(me) = root.pages().me(root.client()) {
-        status(b, &line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words);
+    if (line.ended_at.is_some() || ended(&line.chip)) && line.flags.retention == jig_client::contract::Retention::Kept {
+        text(b, Role::Paragraph, &words.say(Word::ChatKept, &[]));
     }
     b.open(Role::Paragraph);
     b.style(crate::look::DETAILS);
@@ -241,15 +269,14 @@ pub(crate) fn row(
     b.name(&spend);
     b.text(Run::Plain, &spend);
     if line.ended_at.is_none()
+        && !ended(&line.chip)
         && let jig_client::contract::ChipPhase::Owner { details, .. } = line.chip.details.as_ref()
-        && details.live_delegates > 0 {
+        && details.live_delegates > 0
+    {
         words.text(b, Word::ToolSeparator, &[]);
         words.text(b, Word::ChatDelegates, &[Hole::Number(u64::from(details.live_delegates))]);
     }
     b.close();
-    if line.ended_at.is_some() && line.flags.retention == jig_client::contract::Retention::Kept {
-        text(b, Role::Paragraph, &words.say(Word::ChatKept, &[]));
-    }
     b.open(Role::Paragraph);
     b.style(crate::look::TIME);
     b.text(Run::Plain, &times.say(words, TimeForm::Ago, line.ended_at.unwrap_or(line.last_activity)));
@@ -298,6 +325,10 @@ pub(crate) fn status(
 ) {
     use jig_client::contract::{ChipPhase, HoldCategory, OwnerRequester, WaitsOn, WakeRule};
     use jig_client::facts::ChatStatus;
+    if ended(chip) {
+        closed_status(b, words);
+        return;
+    }
     let live = delegates.unwrap_or(if let ChipPhase::Owner { details, .. } = chip.details.as_ref() {
         details.live_delegates
     } else {
@@ -386,6 +417,15 @@ pub(crate) fn status(
         | ChatStatus::Held(_)
         | ChatStatus::Closing => words.say_word(jig_client::words::Word::status(&status), holes.as_slice()),
     };
+    b.name(&name);
+    b.text(Run::Plain, &name);
+    b.close();
+}
+
+fn closed_status(b: &mut Builder, words: &Words) {
+    b.open(Role::Status);
+    b.style(crate::look::STATUS_QUIET);
+    let name = words.say(Word::ChatClosed, &[]);
     b.name(&name);
     b.text(Run::Plain, &name);
     b.close();

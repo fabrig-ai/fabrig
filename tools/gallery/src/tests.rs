@@ -66,10 +66,16 @@ enum Part {
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
-    Holds { name: "chat-first-run-7-T1", heading: "T1 · Add CSV export to widget",
-        parts: &[Part::Named { role: Role::Status, name: "Closed 21:19" }] },
-    Holds { name: "chats-first-run-5", heading: "Chats",
-        parts: &[Part::Named { role: Role::Link, name: "Manage usage" }] },
+    Holds {
+        name: "chat-first-run-7-T1",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[Part::Named { role: Role::Status, name: "Closed 21:19" }],
+    },
+    Holds {
+        name: "chats-first-run-5",
+        heading: "Chats",
+        parts: &[Part::Named { role: Role::Link, name: "Manage usage" }],
+    },
     Holds {
         name: "welcome-paste-expired",
         heading: "Connect a model",
@@ -279,8 +285,8 @@ const HOLDS: [Holds; samples::N] = [
         heading: "work/hello is ready",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Forge: Forgejo on this machine, connected as temper" },
-            Part::Named { role: Role::Paragraph, name: "Project Playground, with work/hello" },
-            Part::Named { role: Role::Link, name: "Open Playground" },
+            Part::Named { role: Role::Paragraph, name: "Project hello, with work/hello" },
+            Part::Named { role: Role::Link, name: "Open hello" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
         ],
     },
@@ -301,7 +307,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
-                description: "forge 3 · Forgejo · Connected as temper\nwork/hello · project Default",
+                description: "forge 3 · Forgejo · Connected as temper\nwork/hello · project hello",
             },
             Part::Absent { role: Role::Heading { level: 2 }, name: "The playground" },
         ],
@@ -452,7 +458,11 @@ const HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Disclosure, name: "1 tool call" },
         ],
     },
-    Holds { name: "inbox-reference", heading: "Inbox", parts: &[Part::Named { role: Role::Link, name: "T1 Director replied" }] },
+    Holds {
+        name: "inbox-reference",
+        heading: "Inbox",
+        parts: &[Part::Named { role: Role::Link, name: "T1 Director replied" }],
+    },
     Holds {
         name: "accounts-reference",
         heading: "Accounts",
@@ -922,7 +932,7 @@ fn times_read_against_each_mockup_worlds_fixed_now() {
 
 #[test]
 fn gallery_chat_clocks_are_separate_leaves_under_the_speakers() {
-    for (name, clock) in [("chat-reference-T1", "06:56"), ("chat-solo-T10", "09:16")] {
+    for (name, clock) in [("chat-reference-T1", "06:56"), ("chat-solo-T10", "09:18")] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("sample");
         let view = view(&sample);
         let tree = view.tree();

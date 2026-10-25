@@ -250,7 +250,9 @@ fn proposal_titles_head_the_cards_and_funding_is_said_once_in_both_pages() {
                 let funding = b"Funds 40 from your pool \xc2\xb7 120 left, 80 after";
                 assert!(skein_lib::bytes::find(&fixtures::node_text(tree, description), funding).is_some());
                 assert_eq!(occurrences(tree, funding), 1);
-                for expected in [b"May spend 40".as_slice(), b"May delegate 1 task, depth 1"] { assert_eq!(occurrences(tree, expected), 0); }
+                for expected in [b"May spend 40".as_slice(), b"May delegate 1 task, depth 1"] {
+                    assert_eq!(occurrences(tree, expected), 0);
+                }
             }
         }
     }
@@ -316,16 +318,8 @@ fn proposal_facts_are_labelled_joined_and_contained_in_their_rows() {
     task.authority.authority.delegation.depth = 0;
     target.action = c::ProposalAction::Batch { tasks, own: true };
     for (page, _delegation, budget) in [
-        (
-            owner,
-            "1 task, depth 1",
-            "Funds 40 from your pool · 120 left, 80 after",
-        ),
-        (
-            document,
-            "0 tasks, depth 0",
-            "Funds 40 from your pool · 120 left, 80 after",
-        ),
+        (owner, "1 task, depth 1", "Funds 40 from your pool · 120 left, 80 after"),
+        (document, "0 tasks, depth 0", "Funds 40 from your pool · 120 left, 80 after"),
     ] {
         let mut builder = Builder::new(&fixtures::tree_limits());
         crate::cards::proposal(&mut builder, &page, &fixtures::words(), 4);
@@ -338,9 +332,7 @@ fn proposal_facts_are_labelled_joined_and_contained_in_their_rows() {
             }
         }
         let rows = rows.unwrap();
-        let goal = alloc::fmt::format(format_args!(
-            "yours · Agent charter 2"
-        ));
+        let goal = alloc::fmt::format(format_args!("yours · Agent charter 2"));
         for (label, expected) in [
             (b"Goal".as_slice(), goal.as_str()),
             (b"Landing", "branch main of robin/tally on github.com · priority 2"),
@@ -363,7 +355,8 @@ fn proposal_facts_are_labelled_joined_and_contained_in_their_rows() {
 fn a_non_batch_proposal_keeps_its_deciding_facts() {
     let mut page = batch_proposal();
     let c::ReadValue::OwnerProposal(proposal) = &mut page else { panic!("owner proposal") };
-    proposal.action = c::OwnerProposalAction::Release { task: c::OwnerTaskLink::Stored { number: 9, status: None }, hold: None };
+    proposal.action =
+        c::OwnerProposalAction::Release { task: c::OwnerTaskLink::Stored { number: 9, status: None }, hold: None };
     let mut builder = Builder::new(&fixtures::tree_limits());
     crate::cards::proposal(&mut builder, &page, &fixtures::words(), 4);
     let tree = builder.finish();

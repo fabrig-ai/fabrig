@@ -285,7 +285,10 @@ fn a_question_keeps_its_title_in_its_line_and_has_no_heading() {
     let tree = view.tree();
     let question = styled(tree, look::KIND_QUESTION);
     assert_eq!(style_count(subtree(tree, question), look::TITLE), 0);
-    assert!(skein_lib::bytes::find(&fixtures::node_text(tree, question), fixtures::task::document().chip.title.bytes()).is_some());
+    assert!(
+        skein_lib::bytes::find(&fixtures::node_text(tree, question), fixtures::task::document().chip.title.bytes())
+            .is_some()
+    );
     assert_eq!(style_count(tree.nodes(), look::DETAILS), 0);
 }
 #[test]
@@ -471,7 +474,9 @@ fn loaded_task_held_and_result_titles_keep_the_title_token() {
         let view = fixtures::page_view(&root);
         let mut found = false;
         for title in view.tree().nodes() {
-            if title.role == (Role::Heading { level: 3 }) && let Some(name) = &title.name {
+            if title.role == (Role::Heading { level: 3 })
+                && let Some(name) = &title.name
+            {
                 found |= skein_lib::bytes::find(name, task.chip.title.bytes()).is_some();
             }
         }
@@ -536,7 +541,14 @@ fn the_kind_disclosure_names_the_choice_and_keeps_the_five_buttons_folded() {
     ] {
         let view = fixtures::page_view(&fixtures::inbox_root_filtered(Filter { kind, ..Filter::ALL }));
         let tree = view.tree();
-        let menu = tree.nodes().iter().position(|node| node.role == Role::Disclosure && node.name.as_deref() == Some(name)).unwrap();
+        let mut menu = None;
+        for (index, node) in tree.nodes().iter().enumerate() {
+            if node.role == Role::Disclosure && node.name.as_deref() == Some(name) {
+                menu = Some(index);
+                break;
+            }
+        }
+        let menu = menu.unwrap();
         assert_eq!(tree.nodes()[menu].role, Role::Disclosure);
         assert_eq!(tree.nodes()[menu].name.as_deref(), Some(name));
         assert!(tree.nodes()[menu].states.is_empty());
@@ -713,7 +725,11 @@ fn project_and_goal_menus_follow_new_chat_and_precede_kind() {
         let filters = subtree(view.tree(), styled(view.tree(), look::FILTERS));
         assert_eq!(filters[1].name.as_deref(), Some(b"+ New chat".as_slice()));
         let mut names = skein_lib::List::with_capacity(3);
-        for node in filters { if node.role == Role::Disclosure { names.push(node.name.as_deref().unwrap()).unwrap(); } }
+        for node in filters {
+            if node.role == Role::Disclosure {
+                names.push(node.name.as_deref().unwrap()).unwrap();
+            }
+        }
         assert_eq!(names.as_slice(), [projects, goals, b"Kind"]);
     }
 }
@@ -722,22 +738,54 @@ fn questions_answer_inside_a_folded_disclosure_and_keep_refusals() {
     let task = fixtures::task::document();
     let mut acts = skein_lib::List::with_capacity(1);
     acts.push(c::Offered { act: c::ActKind::Answer, admission: c::Admission::Allowed, effect: None }).unwrap();
-    let page = c::Question { task: task.chip, from: None, message: fixtures::INBOX_QUESTION,
-        words: fixtures::first_run::text(b"Which path?"), since: skein_lib::Wall::EPOCH, acts, ending: None };
-    let root = fixtures::inbox_with_document(Filter::ALL, Some((c::Read::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION }, c::ReadValue::Question(Box::new(page)))));
+    let page = c::Question {
+        task: task.chip,
+        from: None,
+        message: fixtures::INBOX_QUESTION,
+        words: fixtures::first_run::text(b"Which path?"),
+        since: skein_lib::Wall::EPOCH,
+        acts,
+        ending: None,
+    };
+    let root = fixtures::inbox_with_document(
+        Filter::ALL,
+        Some((
+            c::Read::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION },
+            c::ReadValue::Question(Box::new(page)),
+        )),
+    );
     let mut view = fixtures::page_view(&root);
     let menu = fixtures::find(view.tree(), Role::Disclosure, b"Answer in words").expect("answer disclosure");
     let mut at = 0;
-    for (index, node) in view.tree().nodes().iter().enumerate() { if node.id == menu { at = index; } }
+    for (index, node) in view.tree().nodes().iter().enumerate() {
+        if node.id == menu {
+            at = index;
+        }
+    }
     let nodes = subtree(view.tree(), at);
     assert!(nodes[0].states.is_empty());
     let answer = role_node(nodes, Role::Button).id;
-    assert_eq!(crate::act(&mut view, answer, Act::Press), Some(temper_client_domain::Action::Pages(
-        temper_client_domain::pages::Act::Decide { object: c::ObjectKey::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION }, revision: None, act: c::ActKind::Answer })));
+    assert_eq!(
+        crate::act(&mut view, answer, Act::Press),
+        Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Decide {
+            object: c::ObjectKey::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION },
+            revision: None,
+            act: c::ActKind::Answer
+        }))
+    );
     let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
     let mut card = card.clone();
-    card.outcome = Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None })));
+    card.outcome = Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::NotOffered,
+        at: None,
+    })));
     let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
-    crate::confirm::card_controls(&mut builder, &root, &card, &fixtures::words(), &mut crate::frame::Bindings::new(128));
+    crate::confirm::card_controls(
+        &mut builder,
+        &root,
+        &card,
+        &fixtures::words(),
+        &mut crate::frame::Bindings::new(128),
+    );
     assert!(skein_lib::bytes::find(&fixtures::text(&builder.finish()), b"This act is not offered").is_some());
 }

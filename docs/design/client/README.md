@@ -447,7 +447,9 @@ keeps (`../protocol/configuration.md`, section 2).
   both places, and "Closed" for every ended chat, as the filter says
   it; the user's pick, 10-23), its
   own spend, "N spent", and "1 delegate" or "N delegates" while it has live ones, and when it
-  ended or was last active, as 5.12's ago ("1 h 28 min ago").
+  ended or was last active, as 5.12's ago ("1 h 28 min ago"). An ended line
+  whose retention is Kept adds “Closed. Its transcript is kept.”; no
+  other line claims that its transcript stays.
 - **The inbox** (`inbox.html`) shows what needs the person, then the
   updates, each entry its card (section 1), under two headings, each
   with how many entries it lists beside it, the updates' as new ones
@@ -1929,8 +1931,10 @@ The words for each offered source are:
 - **The banner:** "Agents need an LLM account to run." and "Continue
   with ChatGPT", "Use your Claude subscription", "Use an API key", one
   for each way the configured providers offer (The ways, above), each
-  a link to `ConnectModel` at its way. A chat may be started
-  meanwhile; its page says "Starting: waiting for an account".
+  a link to `ConnectModel` at its way. While no account is usable and the
+  demo's model half does not hold, the composer says "No model yet · Connect
+  a model", offers no chooser and keeps its draft editable; its button and
+  Enter cannot send. Unknown usability keeps the existing behaviour.
 - **Ready,** for a key: "Added your OpenAI API key", PROVIDER's
   configured name ("Added your PROVIDER API key"), and "temper’s
   agents now run on it."; for a program's login: "Declared your Claude
@@ -1966,8 +1970,14 @@ The words for each offered source are:
   only member"; a key's or a program's login's with no uses given,
   "Your own work" (jig's `domain/accounts.md`, 4.2).
 - **The composer's line** names the account and model the work's next
-  run takes, one line above the chooser (3.5), from what jig gives
-  every page: `me`, the accounts document and its readiness:
+  run takes, just above its field, with the folded chooser beside it
+  (3.5), from what jig gives every page: `me`, the accounts document
+  and its readiness. When the welcome's model usability is known false
+  and the demo's model half does not hold, it says “No model yet ·
+  Connect a model”, the link to `ConnectModel` with no way chosen.
+  There is no chooser, Start chat and Send are disabled, and Enter
+  sends nothing; the draft stays editable. Unknown usability keeps
+  today's behavior. Otherwise:
   - *MODEL* is the draft's model (a task's LLM choice; a new chat's,
     its template's), then " · EFFORT" where the choice names an effort.
     Where the template names none, it is the supplied
@@ -1997,7 +2007,7 @@ The words for each offered source are:
     source. Mixed provider offers do not establish a model's endpoint
     kind, so name no account. Another payer's work, or a cut document or
     account, names no account.
-    The source words the line, with the configured provider name from
+    The source words the line, with the provider and plan words above from
     `me`: "Using your OpenAI API key · MODEL" for a key; "Using ChatGPT
     plan · MODEL · Manage usage" for a signed-in plan, the last an
     external link where the document gives a safe manage-usage address;

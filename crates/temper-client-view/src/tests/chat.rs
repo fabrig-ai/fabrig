@@ -1719,9 +1719,7 @@ fn the_chatbar_and_chats_line_share_every_status_phrase() {
 #[test]
 fn the_chatbar_draws_the_supplied_budget_including_zero() {
     use temper_client_domain::{Address, Event};
-    for (budget, phrase) in
-        [(0, "7 spent · of 0".as_bytes()), (100, "7 spent · of 100".as_bytes())]
-    {
+    for (budget, phrase) in [(0, "7 spent · of 0".as_bytes()), (100, "7 spent · of 100".as_bytes())] {
         let (mut root, _, watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
         let mut task = fixtures::task::document();
         task.chip.task = TASK;

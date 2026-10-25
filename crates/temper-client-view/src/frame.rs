@@ -37,9 +37,10 @@ impl Bindings {
     pub fn decode(&self, token: Token, act: skein_ui::Act) -> Option<temper_client_domain::Action> {
         for (key, meaning) in &self.entries {
             if *key == token {
-                if !self.submissions && matches!((meaning, &act),
-                    (Act::StartChat | Act::Send, skein_ui::Act::Press)
-                    | (Act::ChatWords { .. } | Act::MessageWords { .. }, skein_ui::Act::Submit)) {
+                if !self.submissions
+                    && let (Act::StartChat | Act::Send, skein_ui::Act::Press)
+                    | (Act::ChatWords { .. } | Act::MessageWords { .. }, skein_ui::Act::Submit) = (meaning, &act)
+                {
                     return None;
                 }
                 let meaning = match (meaning, act) {

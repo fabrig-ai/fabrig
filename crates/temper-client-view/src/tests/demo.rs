@@ -166,7 +166,14 @@ fn a_forge_only_banner_links_to_connect_without_a_model_link() {
     let root = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false);
     let mut view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"This is the playground: a playground forge.").is_some());
-    let banner = view.tree().nodes().iter().position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Playground")).unwrap();
+    let mut banner = None;
+    for (index, node) in view.tree().nodes().iter().enumerate() {
+        if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
+            banner = Some(index);
+            break;
+        }
+    }
+    let banner = banner.unwrap();
     assert!(skein_lib::bytes::find(&f::node_text(view.tree(), banner), b"Connect a model").is_none());
     let link = f::find(view.tree(), Role::Link, b"Connect a forge").unwrap();
     assert_eq!(

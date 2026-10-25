@@ -92,6 +92,15 @@ fn frame(w: World, connecting: bool) -> c::Me {
         member.models = models;
         template_preview(member);
     }
+    if matches!(w, FirstRun { step: 7 | 8 }) {
+        let mut projects = List::with_capacity(2);
+        let mut hello = member.clone();
+        hello.project = 2;
+        hello.name = doc("hello");
+        projects.push(member.clone()).expect("retired playground");
+        projects.push(hello).expect("new project");
+        me.projects = projects;
+    }
     me.providers = providers(w);
     if connecting {
         for index in 0..me.providers.len() {
@@ -112,8 +121,11 @@ fn frame(w: World, connecting: bool) -> c::Me {
 }
 fn template_preview(member: &mut c::MeProject) {
     let template = member.templates.get_mut(0).expect("chat template");
-    template.llm = Some(c::LlmChoice { account: None,
-        main: c::ModelEffort { model: text("gpt-6-luna"), effort: None }, subagents: List::with_capacity(0) });
+    template.llm = Some(c::LlmChoice {
+        account: None,
+        main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
+        subagents: List::with_capacity(0),
+    });
 }
 fn providers(w: World) -> List<c::ProviderOffer> {
     let mut rows = List::with_capacity(2);
@@ -303,14 +315,42 @@ fn forges(world: World) -> Box<[u8]> {
         .expect("one forge");
     }
     if world == Solo || world == Reference {
-        rows.push(w::ForgeRow::new(&limits, w::ForgeRowParts {
-            number: 2, kind: w::Kind::Github, mode: w::Mode::Managed,
-            connection: w::Connection::Connected(w::Connected::new(&limits,
-                w::ConnectedParts { id: 2, login: b"temper".as_slice().into() }).expect("connected forge")),
-            offer: w::Offer::NotOffered, first: None, installations: List::with_capacity(0),
-            ended: None, app: None, web: None, repositories: List::with_capacity(0),
-            owned: None, admin: false, ended_stop: None,
-        }).expect("personal forge")).expect("forge row");
+        let mut installations = List::with_capacity(1);
+        installations
+            .push(
+                w::Installation::new(
+                    &limits,
+                    w::InstallationParts { id: 1, account: None, suspended: false, stray: false },
+                )
+                .expect("accepted installation"),
+            )
+            .expect("installation room");
+        rows.push(
+            w::ForgeRow::new(
+                &limits,
+                w::ForgeRowParts {
+                    number: 2,
+                    kind: w::Kind::Github,
+                    mode: w::Mode::Managed,
+                    connection: w::Connection::Connected(
+                        w::Connected::new(&limits, w::ConnectedParts { id: 2, login: b"temper".as_slice().into() })
+                            .expect("connected forge"),
+                    ),
+                    offer: w::Offer::NotOffered,
+                    first: None,
+                    installations,
+                    ended: None,
+                    app: None,
+                    web: None,
+                    repositories: List::with_capacity(0),
+                    owned: None,
+                    admin: false,
+                    ended_stop: None,
+                },
+            )
+            .expect("personal forge"),
+        )
+        .expect("forge row");
     }
     if let FirstRun { step } = world {
         rows.push(
@@ -376,8 +416,11 @@ fn forges(world: World) -> Box<[u8]> {
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
                                     project: w::SetUpProject::Existing(
-                                        w::ExistingProject::new(&limits, w::ExistingProjectParts { project: 1 })
-                                            .expect("project"),
+                                        w::ExistingProject::new(
+                                            &limits,
+                                            w::ExistingProjectParts { project: if step == 7 { 2 } else { 1 } },
+                                        )
+                                        .expect("project"),
                                     ),
                                     state: if step == 7 {
                                         w::FirstState::Made(
@@ -608,10 +651,9 @@ fn task_line(t: c::Task) -> c::TaskLine {
 }
 fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
     let numbers: &[u64] = match (w, ended) {
-        (Reference, false) | (Solo, true) => &[1],
+        (Reference | FirstRun { step: 2 | 3 }, false) | (Solo, true) => &[1],
         (Reference, true) => &[3, 2],
         (Solo, false) => &[6, 10],
-        (FirstRun { step: 2 | 3 }, false) => &[1],
         (FirstRun { step: 4..=6 }, false) => &[4, 1],
         (FirstRun { step: 7 }, true) => &[1, 4],
         (FirstRun { .. } | World::Bare, _) => &[],
@@ -987,8 +1029,9 @@ fn document(w: World, number: u64) -> c::Task {
         t.last_activity = offset(w, 19);
         t.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Cancelled {
             by: c::OwnerRequester::Deployment { project: PROJECT },
-            reason: doc("The playground ended when your forge connected."),
-            result: None, at: offset(w, 19),
+            reason: doc("the playground ended when Forgejo on this machine connected"),
+            result: None,
+            at: offset(w, 19),
         })));
         t.acts.clear();
     }
@@ -1763,7 +1806,7 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     let minutes: &[i64] = match (w, task) {
         (Reference, 1) => &[-64, -50, -50],
         (Solo, 6) => &[-118, -117, -88],
-        (Solo, 10) => &[-14, -12],
+        (Solo, 10) => &[-12, -12],
         (Solo, 9) => &[-21, -15, -14],
         (FirstRun { step: 2 }, 1) => &[1, 1, 1],
         (FirstRun { step: 3..=7 }, 1) => &[1, 1, 1, 4, 4],
@@ -1907,10 +1950,16 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
             let mut sources = List::with_capacity(2);
             sources
                 .push(c::OwnerAccountSource {
-                    name: Some(Box::from(if matches!(w, FirstRun { step: 5..=9 }) { "sam@example.com" } else { "playground" }.as_bytes())),
+                    name: Some(Box::from(
+                        if matches!(w, FirstRun { step: 5..=9 }) { "sam@example.com" } else { "playground" }.as_bytes(),
+                    )),
                     place: 1,
                     number: 1,
-                    kind: if matches!(w, FirstRun { step: 5..=9 }) { c::OwnerAccountKind::SignIn } else { c::OwnerAccountKind::Key },
+                    kind: if matches!(w, FirstRun { step: 5..=9 }) {
+                        c::OwnerAccountKind::SignIn
+                    } else {
+                        c::OwnerAccountKind::Key
+                    },
                     state: c::OwnerAccountState::Granted,
                     usable: true,
                     expiring: false,
@@ -1925,7 +1974,11 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 plan: matches!(w, FirstRun { step: 5..=9 }),
                 provider: Some(if matches!(w, FirstRun { step: 5..=9 }) { 18 } else { 17 }),
                 provider_name: Some(doc(if matches!(w, FirstRun { step: 5..=9 }) { "openai" } else { "Playground" })),
-                manage_usage: if matches!(w, FirstRun { step: 5..=9 }) { Some(Box::from(b"https://chatgpt.com/settings/usage".as_slice())) } else { None },
+                manage_usage: if matches!(w, FirstRun { step: 5..=9 }) {
+                    Some(Box::from(b"https://chatgpt.com/settings/usage".as_slice()))
+                } else {
+                    None
+                },
                 display: doc(if matches!(w, FirstRun { step: 5..=9 }) { "ChatGPT" } else { "Scripted model" }),
                 holder: c::OwnerAccountHolder::Party(73),
                 sources,
@@ -2536,9 +2589,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     sample_answer(
         root,
         attempt,
-        jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade {
-            project: PROJECT,
-        }))),
+        jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project: 2 }))),
         out,
     );
     let attempt = sample_attempt(root, out);
