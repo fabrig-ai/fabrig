@@ -818,10 +818,11 @@ tested in skein, and in a browser on skein's UI example (skein's
   parts' platform halves are compiled only there; skein's gate builds
   skein's (section 18).
 - **The browser tier:** a suite of its own, `--profile browser`, run by
-  jig's gate after it builds jig's test application's bundle with
-  skein's bundler, within its budget (a rule: its profile's global
-  timeout, `../../development/workflow.md`, section 2). Each
-  test starts one server (the application's binary; for jig, the
+  `scripts/browser.sh` after it builds jig's test application's bundle
+  with skein's bundler, a slow tier outside jig's gate (agents'
+  `docs/design/landing-flow.md`, 4), within its budget (a rule: its
+  profile's global timeout, `../../development/workflow.md`, section 2).
+  Each test starts one server (the application's binary; for jig, the
   reference `jig-test`, serving its bundle and the mapping at `/jig`)
   and one Chromium, and plays its stories with a person each: a browser
   context, its own cookies and storage. A missing Chromium or bundle

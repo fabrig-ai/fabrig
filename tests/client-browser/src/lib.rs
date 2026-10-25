@@ -36,10 +36,11 @@ pub fn chromium() -> PathBuf {
 #[must_use]
 pub fn bundle() -> PathBuf {
     let path = PathBuf::from(
-        std::env::var_os("JIG_TEST_BUNDLE").expect("run scripts/check.sh to build the bundle and set JIG_TEST_BUNDLE"),
+        std::env::var_os("JIG_TEST_BUNDLE")
+            .expect("run scripts/browser.sh to build the bundle and set JIG_TEST_BUNDLE"),
     );
     let path = if path.is_absolute() { path } else { Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(path) };
-    assert!(path.join("index.html").is_file(), "run scripts/check.sh to build the bundle at {}", path.display());
+    assert!(path.join("index.html").is_file(), "run scripts/browser.sh to build the bundle at {}", path.display());
     path.canonicalize().expect("absolute bundle")
 }
 fn private(path: &Path, bytes: &[u8]) {

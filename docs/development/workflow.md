@@ -56,26 +56,11 @@ hold in jig.
 - **The browser suite** is Chromium against `jig-test`, run with `--profile
   browser`, within **120 seconds** (60 seconds before the user's doubling of
   10-22, provisional). Missing Chromium or a bundle fails and names its
-  setup command. The gate builds and bundles the test application first:
-
-```sh
-cargo build --target wasm32-unknown-unknown -p jig-client-test-shell-web
-cargo build -p skein-ui-bundle
-target/debug/skein-ui-bundle \
-    --module target/wasm32-unknown-unknown/debug/jig_client_test_shell_web.wasm \
-    --name jig_client_test_shell_web --prefix /bundle/ \
-    --stylesheet crates/jig-client-shell-web/jig.css \
-    --stylesheet testing/jig-client-test-shell-web/jig_client_test_shell_web.css \
-    --pictures jig=crates/jig-client-shell-web/pictures \
-    --pictures jig-test=testing/jig-client-test-shell-web/pictures \
-    --files testing/jig-client-test-shell-web/files \
-    --noscript 'jig needs WebAssembly and scripts.' \
-    --out target/jig-test-bundle
-cargo build -p jig-test
-JIG_TEST_BUNDLE="$(pwd)/target/jig-test-bundle"
-export JIG_TEST_BUNDLE
-cargo nextest run --workspace --profile browser
-```
+  setup command. It is a slow tier, outside the gate (agents'
+  `docs/design/landing-flow.md`, 4): `scripts/browser.sh` builds and
+  bundles the test application, then runs it, and takes nextest's
+  arguments, so that one test runs alone (`scripts/browser.sh -E
+  'test(=NAME)'`).
 
 The test application's module, built once with `--profile web`, is
 3,395,581 bytes before compression. Its guide is 4 MiB before

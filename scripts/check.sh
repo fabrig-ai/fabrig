@@ -1,7 +1,9 @@
 #!/bin/sh
 # The gate (docs/development/workflow.md, section 1): formatting, lints as
-# errors, then three test suites in full: the default one, then the fuzzy
-# one, then the browser tier. agents' `land` runs it through the machine's queue.
+# errors, then both test suites in full: the default one, then the fuzzy
+# one. agents' `land` runs it through the machine's queue. Nothing slower:
+# the browser tier is scripts/browser.sh, outside the gate (agents'
+# docs/design/landing-flow.md, 4).
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -34,21 +36,3 @@ export NEXTEST_DOUBLE_SPAWN=0
 step build cargo nextest run --workspace --no-run
 step focused cargo nextest run --workspace
 step fuzzy cargo nextest run --workspace --profile fuzzy
-
-# The browser tier (protocol/browser.md, 15).
-step bundle cargo build --target wasm32-unknown-unknown -p jig-client-test-shell-web
-step bundle cargo build -p skein-ui-bundle
-step bundle target/debug/skein-ui-bundle \
-    --module target/wasm32-unknown-unknown/debug/jig_client_test_shell_web.wasm \
-    --name jig_client_test_shell_web --prefix /bundle/ \
-    --stylesheet crates/jig-client-shell-web/jig.css \
-    --stylesheet testing/jig-client-test-shell-web/jig_client_test_shell_web.css \
-    --pictures jig=crates/jig-client-shell-web/pictures \
-    --pictures jig-test=testing/jig-client-test-shell-web/pictures \
-    --files testing/jig-client-test-shell-web/files \
-    --noscript 'jig needs WebAssembly and scripts.' \
-    --out target/jig-test-bundle
-step bundle cargo build -p jig-test
-JIG_TEST_BUNDLE="$(pwd)/target/jig-test-bundle"
-export JIG_TEST_BUNDLE
-step browser cargo nextest run --workspace --profile browser
