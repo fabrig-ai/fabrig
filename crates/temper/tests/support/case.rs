@@ -3,7 +3,7 @@ use super::{Ended, Scratch, WITHIN, cluster, ctl};
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Error, Finish, Line, Report, Rule, Script};
 use skein_io::kernel::Exit;
-use skein_lib::{Duration, Time, base64};
+use skein_lib::{Duration, Time, Wall, base64};
 use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
 use std::{
@@ -27,6 +27,7 @@ const PLACED_RELEASE_INTERVAL: Duration = Duration::from_millis(20);
 
 pub struct Run {
     calls: Vec<Ended>,
+    observed_at: Vec<Option<Wall>>,
     told: Vec<Told>,
     kit: Kit,
     workers: BTreeMap<u64, String>,
@@ -50,7 +51,11 @@ impl Run {
                 Some((*read, serde_json::from_slice(&call.stdout).expect("case document")))
             })
             .collect();
-        Observed { documents, told: self.told.clone(), commands: Vec::new(), kit: self.kit.clone() }
+        let observed_at = reads
+            .iter()
+            .filter_map(|(read, position)| Some((*read, self.observed_at.get(*position).copied().flatten()?)))
+            .collect();
+        Observed { documents, observed_at, told: self.told.clone(), commands: Vec::new(), kit: self.kit.clone() }
             .with_commands(&self.steps)
     }
     #[must_use]
@@ -231,6 +236,7 @@ pub fn run(
         steps: steps.into(),
         ran: Vec::new(),
         calls: Vec::new(),
+        observed_at: Vec::new(),
         slots: Vec::new(),
         client: scratch.path().join("client"),
         provisioning: false,
@@ -293,6 +299,7 @@ struct Judge {
     steps: VecDeque<calls::Step>,
     ran: Vec<calls::Step>,
     calls: Vec<Ended>,
+    observed_at: Vec<Option<Wall>>,
     slots: Vec<usize>,
     client: PathBuf,
     provisioning: bool,
@@ -471,6 +478,7 @@ impl Judge {
                 Ended { exit: ended.exit, stdout: ended.stdout.clone(), stderr: ended.stderr.clone() }
             })
             .collect();
+        self.observed_at = self.slots.iter().map(|slot| batch.observed_at()[*slot]).collect();
         for ended in &batch.ends()[self.processed..] {
             if ended.exit.is_none() {
                 continue;
@@ -577,9 +585,9 @@ impl Judge {
                 assert_eq!(at.0, 1);
                 let args = self.arguments(argv);
                 self.slots.push(batch.ends().len());
-                batch.push(ctl::Step::Until(
+                batch.push(ctl::Step::UntilMatching(
                     ctl::Call::new(&args.iter().map(String::as_str).collect::<Vec<_>>()),
-                    holds,
+                    *holds,
                 ));
             }
             Step::Join { call } => {
@@ -928,7 +936,7 @@ fn describe(step: &calls::Step) -> String {
             "Until at {}: {}; holds {:?}; early {:?}",
             at.0,
             describe_argv(argv),
-            String::from_utf8_lossy(holds),
+            holds,
             String::from_utf8_lossy(early),
         ),
     }
@@ -1032,6 +1040,7 @@ impl Judge {
         let workers = std::mem::take(&mut self.workers);
         *self.run.borrow_mut() = Some(Run {
             calls: std::mem::take(&mut self.calls),
+            observed_at: std::mem::take(&mut self.observed_at),
             told,
             kit,
             workers,

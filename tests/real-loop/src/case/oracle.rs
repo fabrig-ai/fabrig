@@ -5,6 +5,7 @@ use super::{
 };
 use crate::{Exit, Ran, calls};
 use serde_json::Value;
+use skein_lib::Wall;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt,
@@ -14,6 +15,8 @@ use std::{
 pub struct Observed {
     /// ctl's whole JSON document, by the act that read it; absent if that act failed.
     pub documents: BTreeMap<Read, Value>,
+    /// Client completion/observation wall inputs, never the server read instant.
+    pub observed_at: BTreeMap<Read, Wall>,
     /// Each LLM query in order, by its cue: its messages' texts and tool outputs.
     pub told: Vec<Told>,
     /// Command verbs of the submitted ctl argv (reads and waits included).
@@ -78,6 +81,7 @@ impl Observed {
     #[must_use]
     pub fn from_ran(ran: &Ran, reads: &[(Read, usize)]) -> Self {
         let mut documents = BTreeMap::new();
+        let mut observed_at = BTreeMap::new();
         for (read, position) in reads {
             let Some(call) = ran.calls().get(*position) else { continue };
             if call.exit != Some(Exit::Code(0)) {
@@ -85,6 +89,9 @@ impl Observed {
             }
             if let Ok(document) = serde_json::from_slice::<Value>(&call.stdout) {
                 documents.insert(*read, document);
+                if let Some(wall) = call.observed_at {
+                    observed_at.insert(*read, wall);
+                }
             }
         }
         let mut told = Vec::new();
@@ -104,6 +111,7 @@ impl Observed {
         }
         Self {
             documents,
+            observed_at,
             commands: Vec::new(),
             told,
             kit: Kit {
@@ -527,6 +535,7 @@ mod tests {
         }
         main.insert(DESIGN_DOC.as_bytes().to_vec(), DESIGN_WORDS.as_bytes().to_vec());
         Observed {
+            observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
             told: vec![
@@ -743,6 +752,10 @@ pub fn step_4_5_limited(observed: &Observed) -> Vec<Miss> {
         ),
     ] {
         step_check(&mut misses, "4.5", met, promise, what);
+        if !met && what == "the account and its source must be unusable and later until the same reset" {
+            let diagnostic = limited_read_time(observed, until);
+            misses.last_mut().expect("account checkpoint miss").what.push_str(&diagnostic);
+        }
     }
     account_survives(&mut misses, observed);
     // The failed call committed no assistant turn: a fresh attempt must still
@@ -763,6 +776,25 @@ pub fn step_4_5_limited(observed: &Observed) -> Vec<Miss> {
         "A's resumed query must retain its spec on credential 0 after its failed query",
     );
     misses
+}
+
+fn limited_read_time(observed: &Observed, until: Option<u64>) -> String {
+    let time = observed.observed_at.get(&Read::Limited).map(|wall| wall.as_nanos());
+    match (time, until) {
+        (Some(at), Some(until)) => {
+            let relation = match at.cmp(&until) {
+                core::cmp::Ordering::Greater => "after",
+                core::cmp::Ordering::Equal => "at",
+                core::cmp::Ordering::Less => "before",
+            };
+            format!(
+                "; accounts read completion observed at {at} ns, {relation} task reset {until} ns; required account/source state absent; completion time does not establish server sample ordering"
+            )
+        }
+        (None, Some(until)) => format!("; accounts read completion time unavailable; task reset {until} ns"),
+        (Some(at), None) => format!("; accounts read completion observed at {at} ns; task reset unavailable"),
+        (None, None) => "; accounts read completion time and task reset unavailable".into(),
+    }
 }
 
 // Each document projects the engine's one monotonic deadline to wall time as
@@ -796,6 +828,7 @@ mod account_tests {
     }
     fn refused_met() -> Observed {
         Observed {
+            observed_at: BTreeMap::new(),
             documents: BTreeMap::from([
                 (
                     Read::AWaiting,
@@ -919,6 +952,41 @@ mod account_tests {
         for what in ["waiting task", "unusable", "timestamp", "person's act", "original task", "resumed query"] {
             assert!(misses.iter().any(|miss| miss.what.contains(what)), "{what}");
         }
+    }
+    #[test]
+    fn limited_state_miss_reports_observed_completion_before_at_or_after_reset() {
+        for (at, relation) in [(RESET - 1, "before"), (RESET, "at"), (RESET + 1, "after")] {
+            let mut observed = limited_met();
+            observed.observed_at.insert(Read::Limited, skein_lib::Wall::from_nanos(at));
+            observed.documents.get_mut(&Read::Limited).expect("accounts")["accounts"]["deployment"][0]["usable"] =
+                true.into();
+            let misses = step_4_5_limited(&observed);
+            assert_eq!(misses.len(), 1, "completion timing cannot change the assertion");
+            let what = &misses[0].what;
+            assert!(
+                what.contains(&format!("completion observed at {at} ns, {relation} task reset {RESET} ns")),
+                "{what}"
+            );
+            assert!(what.contains("completion time does not establish server sample ordering"));
+            assert_met(&step_4_5_limited(&{
+                let mut passing = limited_met();
+                passing.observed_at = observed.observed_at;
+                passing
+            }));
+        }
+    }
+    #[test]
+    fn limited_state_miss_without_metadata_reports_unavailable_time() {
+        let mut observed = limited_met();
+        observed.documents.remove(&Read::Limited);
+        let misses = step_4_5_limited(&observed);
+        assert_eq!(misses.len(), 1);
+        assert!(misses[0].what.contains("completion time unavailable"));
+        assert!(!misses[0].what.contains("observed at 0"));
+        observed.documents.get_mut(&Read::AWaiting).expect("waiting")["run_wait"] = Value::Null;
+        let misses = step_4_5_limited(&observed);
+        assert_eq!(misses.len(), 3, "missing until still cascades to the three existing checks");
+        assert!(misses.iter().any(|miss| miss.what.contains("completion time and task reset unavailable")));
     }
 }
 
@@ -1108,6 +1176,7 @@ mod pace_tests {
     }
     fn met() -> Observed {
         Observed {
+            observed_at: BTreeMap::new(),
             documents: BTreeMap::from([
                 (
                     Read::PaceAsked,
@@ -1492,6 +1561,7 @@ mod restart_tests {
             &json!({"target":PHASE,"form":"answer","question":PHASE_QUESTION_NUMBER,"words":PHASE_ANSWER}),
         );
         Observed {
+            observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
             kit: Kit { records: Vec::new(), pulls: Vec::new(), main: BTreeMap::new(), merged_green: false },
@@ -1868,6 +1938,7 @@ mod rules_tests {
         let mut later = fresh.clone();
         later.extend([assistant("Answer A."), user("Answer sent")]);
         Observed {
+            observed_at: BTreeMap::new(),
             documents: BTreeMap::from([
                 (
                     Read::RulesWaiting,
@@ -2214,6 +2285,7 @@ mod shape_tests {
         let shape = json!({"chip":{"task":SHAPE,"phase":"ended"},"project":PROJECT,
             "result":{"value":{"report":{"bytes":SHAPE_REPORT}}}});
         Observed {
+            observed_at: BTreeMap::new(),
             documents: BTreeMap::from([(Read::MoverEnded, a), (Read::ShapeEnded, shape)]),
             told: vec![
                 told(Agent::Mover, OLD_BRIEF, &[]),
@@ -2693,6 +2765,7 @@ mod pause_tests {
             credential: None,
         };
         Observed {
+            observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
             told: vec![
@@ -3243,6 +3316,7 @@ mod plan_tests {
             &format!("Note {PLAN_NOTE_NUMBER} revision 1: {PLAN_NOTE}\n{PLAN_WORDS}\n"),
         ));
         Observed {
+            observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
             kit: Kit { records: Vec::new(), pulls: Vec::new(), main: BTreeMap::new(), merged_green: true },
@@ -3830,6 +3904,7 @@ mod misread_tests {
             &draft_commit(),
         ));
         Observed {
+            observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
             told: vec![
@@ -4666,6 +4741,7 @@ mod direction_tests {
             &format!("Note {DEFERRED_NOTE_NUMBER} revision 1: {DEFERRED_NOTE}\n{DEFERRED_WORDS}\n"),
         ));
         Observed {
+            observed_at: BTreeMap::new(),
             documents,
             commands: Vec::new(),
             told: vec![
@@ -5644,6 +5720,7 @@ mod batch_tests {
         ));
         queries.push(told(Agent::BatchSubowner, &sub));
         Observed {
+            observed_at: BTreeMap::new(),
             documents,
             told: queries,
             commands: Vec::new(),
@@ -6476,6 +6553,7 @@ mod blocker_tests {
     }
     fn met() -> Observed {
         Observed {
+            observed_at: BTreeMap::new(),
             documents: documents(),
             told: queries(),
             commands: Vec::new(),
@@ -7301,6 +7379,7 @@ mod budget_tests {
 
     fn met() -> Observed {
         let mut observed = Observed {
+            observed_at: BTreeMap::new(),
             documents: BTreeMap::new(),
             told: Vec::new(),
             commands: vec![
@@ -8585,7 +8664,13 @@ mod red_tests {
         queries
     }
     fn met() -> Observed {
-        Observed { documents: met_documents(), told: met_queries(), commands: Vec::new(), kit: met_kit() }
+        Observed {
+            observed_at: BTreeMap::new(),
+            documents: met_documents(),
+            told: met_queries(),
+            commands: Vec::new(),
+            kit: met_kit(),
+        }
     }
     fn rejects(observed: &Observed, promise: Promise) {
         assert!(
@@ -9265,6 +9350,7 @@ mod cap_tests {
     }
     fn met() -> Observed {
         let mut observed = Observed {
+            observed_at: BTreeMap::new(),
             documents: BTreeMap::new(),
             told: Vec::new(),
             commands: Vec::new(),
@@ -10504,6 +10590,7 @@ mod waiting_tests {
             );
         }
         Observed {
+            observed_at: BTreeMap::new(),
             documents: documents(),
             told: queries,
             commands: [

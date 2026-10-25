@@ -105,9 +105,34 @@ pub enum Step {
     Until {
         at: Dir,
         argv: Argv,
-        holds: &'static [u8],
+        holds: ReadCondition,
         early: &'static [u8],
     },
+}
+/// A condition on one genuine ctl response, shared by both observation adapters.
+#[derive(Clone, Copy, Debug)]
+pub enum ReadCondition {
+    Contains(&'static [u8]),
+    LimitedTask { task: u64, account: u64, source: u64 },
+}
+impl ReadCondition {
+    #[must_use]
+    pub fn matches(self, stdout: &[u8]) -> bool {
+        match self {
+            Self::Contains(bytes) => occurrences(stdout, bytes) != 0,
+            Self::LimitedTask { task, account, source } => {
+                let Ok(value) = serde_json::from_slice::<serde_json::Value>(stdout) else { return false };
+                value.pointer("/chip/task").and_then(serde_json::Value::as_u64) == Some(task)
+                    && value.pointer("/chip/phase").and_then(serde_json::Value::as_str) == Some("due")
+                    && value.pointer("/run_wait/account/account").and_then(serde_json::Value::as_u64) == Some(account)
+                    && value.pointer("/run_wait/account/source").and_then(serde_json::Value::as_u64) == Some(source)
+                    && value
+                        .pointer("/run_wait/account/why/limited/until")
+                        .and_then(serde_json::Value::as_u64)
+                        .is_some()
+            }
+        }
+    }
 }
 /// Follow the installation or manifest link printed by a completed ctl call.
 #[must_use]
@@ -189,6 +214,10 @@ pub fn call(at: Dir, argv: Argv) -> Step {
 }
 #[must_use]
 pub fn until(at: Dir, argv: Argv, holds: &'static [u8], early: &'static [u8]) -> Step {
+    until_matching(at, argv, ReadCondition::Contains(holds), early)
+}
+#[must_use]
+pub fn until_matching(at: Dir, argv: Argv, holds: ReadCondition, early: &'static [u8]) -> Step {
     Step::Until { at, argv, holds, early }
 }
 #[must_use]
@@ -268,6 +297,8 @@ pub struct Called {
     pub stderr: Vec<u8>,
     pub spawned: Time,
     pub ended: Time,
+    /// Wall input when the completed ctl response and exit were observed, not the server sample.
+    pub observed_at: Option<Wall>,
     pub tries: u32,
     pub early: u32,
 }
@@ -565,6 +596,7 @@ impl Caller {
                 stderr: Vec::new(),
                 spawned: now,
                 ended: now,
+                observed_at: None,
                 tries: 0,
                 early: 0,
             });
@@ -574,6 +606,7 @@ impl Caller {
         call.stdout.clear();
         call.stderr.clear();
         call.exit = None;
+        call.observed_at = None;
         call.tries += 1;
         self.running[index] = Some(Running::default());
         if matches!(self.steps.get(self.next), Some(Step::Start { .. }))
@@ -584,7 +617,7 @@ impl Caller {
         }
         self.submit(index, Op::Spawn { spawn: Box::new(spawn) });
     }
-    fn complete(&mut self, complete: Complete, now: Time) {
+    fn complete(&mut self, complete: Complete, now: Time, wall: Wall) {
         if crate::terminal::Typist::owns(complete.op) {
             self.terminal.complete(complete, &mut self.submissions);
             return;
@@ -667,6 +700,7 @@ impl Caller {
             (Op::Wait { pidfd, reap: true }, Done::Exit(exit)) => {
                 self.calls[index].exit = Some(exit);
                 self.calls[index].ended = now;
+                self.calls[index].observed_at = Some(wall);
                 self.submit(index, Op::Close { fd: pidfd });
             }
             (Op::Close { .. } | Op::Signal { .. }, Done::Nothing) => {}
@@ -910,7 +944,7 @@ impl Caller {
                     return;
                 }
                 if let Step::Until { holds, early, .. } = step
-                    && occurrences(&call.stdout, holds) == 0
+                    && !holds.matches(&call.stdout)
                     && call.exit == Some(Exit::Code(0))
                 {
                     call.early += u32::from(occurrences(&call.stdout, early) != 0);
@@ -949,9 +983,9 @@ impl Caller {
     }
 }
 impl Host for Caller {
-    fn iterate(&mut self, now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
         while let Some(complete) = self.completions.pop() {
-            self.complete(complete, now);
+            self.complete(complete, now, wall);
         }
         self.settle();
         if self.released {
@@ -996,3 +1030,100 @@ impl Host for Caller {
 
 pub(crate) mod recorded;
 pub(crate) use recorded::Recorded;
+
+#[cfg(test)]
+mod read_condition_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn limited() -> Vec<u8> {
+        serde_json::to_vec_pretty(&json!({"chip":{"task":crate::case::A,"phase":"due"},
+            "run_wait":{"account":{"account":crate::case::FIRST_ACCOUNT,"source":0,
+                "why":{"limited":{"until":42}}}}}))
+        .expect("task JSON")
+    }
+    fn condition() -> ReadCondition {
+        ReadCondition::LimitedTask { task: crate::case::A, account: crate::case::FIRST_ACCOUNT, source: 0 }
+    }
+    #[test]
+    fn limited_task_requires_all_fields_together_in_one_decoded_document() {
+        let bytes = limited();
+        assert!(condition().matches(&bytes), "JSON whitespace does not change the predicate");
+        for (path, wrong) in [
+            ("/chip/task", json!(999)),
+            ("/chip/phase", json!("running")),
+            ("/run_wait/account/account", json!(999)),
+            ("/run_wait/account/source", json!(1)),
+            ("/run_wait/account/why/limited/until", json!(null)),
+            ("/run_wait/account/why/limited/until", json!("42")),
+            ("/run_wait/account/why/limited/until", json!(-1)),
+            ("/run_wait/account/why/limited/until", json!(42.5)),
+            ("/run_wait/account/why/limited/until", json!(true)),
+        ] {
+            let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
+            *value.pointer_mut(path).expect("field") = wrong;
+            assert!(!condition().matches(&serde_json::to_vec(&value).expect("JSON")), "{path}");
+        }
+        assert!(!condition().matches(br#"{"chip":{"task":2,"phase":"due"},"run_wait":null}"#));
+        assert!(!condition().matches(br#"{"chip":{"task":2,"phase":"due"}}"#));
+        let mut missing: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
+        missing["run_wait"]["account"]["why"]["limited"].as_object_mut().expect("limit").remove("until");
+        assert!(!condition().matches(&serde_json::to_vec(&missing).expect("JSON")));
+        assert!(!condition().matches(b"not JSON"));
+        let mut joined = bytes.clone();
+        joined.extend_from_slice(&bytes);
+        assert!(!condition().matches(&joined), "fields cannot be taken from separate responses");
+    }
+    #[test]
+    fn substring_conditions_keep_existing_non_json_semantics() {
+        let condition = ReadCondition::Contains(b"ready");
+        assert!(condition.matches(b"plain ready text"));
+        assert!(!condition.matches(b"plain pending text"));
+    }
+    #[test]
+    fn real_loop_until_retries_initial_due_and_retains_exact_matching_response() {
+        let mut caller = Caller::new(
+            vec![until_matching(D1, crate::argv!["task", number(crate::case::A), "--json"], condition(), b"ended")],
+            PathBuf::new(),
+            Fd::new(0),
+        );
+        caller.advance(Time::from_nanos(1));
+        caller.running[0] = None;
+        caller.calls[0].exit = Some(Exit::Code(0));
+        caller.calls[0].stdout =
+            serde_json::to_vec(&json!({"chip":{"task":crate::case::A,"phase":"due"},"run_wait":null}))
+                .expect("initial due JSON");
+        caller.calls[0].observed_at = Some(Wall::from_nanos(2));
+        caller.advance(Time::from_nanos(3));
+        assert_eq!(caller.next, 0, "initial admission must not advance to accounts");
+        assert_eq!(caller.calls[0].tries, 2);
+        assert_eq!(caller.calls[0].observed_at, None, "a retry clears its preceding response timestamp");
+        let stdout = limited();
+        caller.running[0] = None;
+        caller.calls[0].exit = Some(Exit::Code(0));
+        caller.calls[0].stdout = stdout.clone();
+        caller.calls[0].observed_at = Some(Wall::from_nanos(4));
+        caller.advance(Time::from_nanos(5));
+        assert_eq!(caller.next, 1);
+        assert_eq!(caller.calls.len(), 1, "retries retain the original call slot");
+        assert_eq!(caller.calls[0].stdout, stdout, "retain actual response bytes without reconstruction");
+        assert_eq!(caller.calls[0].observed_at, Some(Wall::from_nanos(4)));
+    }
+    #[test]
+    fn real_loop_completion_uses_its_wall_input() {
+        let mut caller = Caller::new(vec![call(D1, crate::argv!["accounts", "--json"])], PathBuf::new(), Fd::new(0));
+        caller.advance(Time::from_nanos(1));
+        caller.owners.insert(Token::new(100), 0);
+        caller.complete(
+            Complete {
+                op: Token::new(100),
+                kind: Op::Wait { pidfd: Fd::new(7), reap: true },
+                result: Ok(Done::Exit(Exit::Code(0))),
+            },
+            Time::from_nanos(2),
+            Wall::from_nanos(123),
+        );
+        assert_eq!(caller.calls[0].observed_at, Some(Wall::from_nanos(123)));
+        assert_eq!(caller.calls[0].ended, Time::from_nanos(2));
+    }
+}

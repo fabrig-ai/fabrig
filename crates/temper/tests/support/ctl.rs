@@ -9,6 +9,7 @@ use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
+use temper_real_loop_world::calls::ReadCondition;
 
 // The service's output bound also holds the complete tools guide (4,698 bytes).
 const OUTPUT: usize = 65_536;
@@ -74,6 +75,7 @@ pub enum Step {
     Start(Call),
     Join,
     Until(Call, &'static [u8]),
+    UntilMatching(Call, ReadCondition),
     Cut,
     Pause,
     Resume,
@@ -290,7 +292,7 @@ impl Child {
 
 enum Action {
     Run,
-    Until(Call, &'static [u8]),
+    Until(Call, ReadCondition),
     Stderr(&'static [u8]),
     Signal,
     NextLink,
@@ -333,6 +335,7 @@ pub struct Calls {
     phase: Option<Time>,
     forgejo: Option<u32>,
     ends: Vec<Ended>,
+    observed_at: Vec<Option<Wall>>,
     complete: Queue<Complete>,
     submit: Queue<Submit>,
 }
@@ -390,6 +393,11 @@ impl Calls {
     pub fn ends(&self) -> &[Ended] {
         &self.ends
     }
+    /// Wall input at completed response observation, parallel to ends (not server sample time).
+    #[must_use]
+    pub fn observed_at(&self) -> &[Option<Wall>] {
+        &self.observed_at
+    }
     /// All bytes read from the box's stdout, including an incomplete link on failure.
     pub(super) fn stdout(&self) -> &[u8] {
         &self.link
@@ -441,6 +449,7 @@ impl Calls {
             phase: None,
             forgejo,
             ends: Vec::new(),
+            observed_at: Vec::new(),
             complete: Queue::with_capacity(32),
             submit: Queue::with_capacity(32),
         };
@@ -487,6 +496,7 @@ impl Calls {
             assert!(self.started.is_none(), "only one started call");
             let index = self.ends.len();
             self.ends.push(Ended { exit: None, stdout: Vec::new(), stderr: Vec::new() });
+            self.observed_at.push(None);
             self.started = Some((child, index));
         } else {
             self.child = Some(child);
@@ -512,6 +522,7 @@ impl Calls {
         if self.started.as_ref().is_some_and(|(child, _)| child.finished()) {
             let (child, index) = self.started.take().expect("finished started call");
             self.ends[index] = child.ended;
+            self.observed_at[index] = Some(self.wall);
             self.awaiting_started = false;
         }
         if !self.child.as_ref().is_some_and(Child::finished) {
@@ -520,12 +531,16 @@ impl Calls {
         let ended = self.child.take().expect("finished ctl").ended;
         self.finish_step(true);
         match self.action.take().expect("current action") {
-            Action::Run => self.ends.push(ended),
-            Action::Until(call, bytes) => {
-                if ended.stdout.windows(bytes.len()).any(|window| window == bytes) {
+            Action::Run => {
+                self.ends.push(ended);
+                self.observed_at.push(Some(self.wall));
+            }
+            Action::Until(call, condition) => {
+                if condition.matches(&ended.stdout) {
                     self.ends.push(ended);
+                    self.observed_at.push(Some(self.wall));
                 } else {
-                    self.action = Some(Action::Until(call, bytes));
+                    self.action = Some(Action::Until(call, condition));
                     self.retry = Some(now.saturating_add(PACE));
                 }
             }
@@ -656,7 +671,11 @@ impl Calls {
             Some(Step::Start(call)) => self.start(call, true),
             Some(Step::Join) => self.awaiting_started = self.started.is_some(),
             Some(Step::Until(call, bytes)) => {
-                self.action = Some(Action::Until(call.clone(), bytes));
+                self.action = Some(Action::Until(call.clone(), ReadCondition::Contains(bytes)));
+                self.start(call, false);
+            }
+            Some(Step::UntilMatching(call, condition)) => {
+                self.action = Some(Action::Until(call.clone(), condition));
                 self.start(call, false);
             }
             Some(Step::Cut) => {
@@ -907,4 +926,39 @@ pub fn charter_change_file(file: &Path, setting: &Ended, instructions: &str) {
     value["instructions"] = instructions.into();
     let file_value = serde_json::json!({"items":[{"setting":document["setting"],"set":value}]});
     std::fs::write(file, serde_json::to_vec(&file_value).expect("settings FILE JSON")).expect("settings FILE");
+}
+
+#[cfg(test)]
+mod read_condition_tests {
+    use super::*;
+
+    fn completed(stdout: &[u8]) -> Child {
+        let mut child = Child::new(Vec::new(), 0);
+        child.ended.exit = Some(Exit::Code(0));
+        child.ended.stdout = stdout.to_vec();
+        child
+    }
+    #[test]
+    fn process_until_retains_matching_bytes_and_their_completion_wall() {
+        let condition = ReadCondition::LimitedTask { task: 2, account: 1, source: 0 };
+        let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
+        calls.action = Some(Action::Until(Call::new(&["task", "2", "--json"]), condition));
+        calls.child = Some(completed(br#"{"chip":{"task":2,"phase":"due"},"run_wait":null}"#));
+        calls.wall = Wall::from_nanos(10);
+        calls.finish(Time::from_nanos(1));
+        assert!(calls.ends.is_empty());
+        assert!(calls.observed_at().is_empty());
+        let stdout = b"{\n \"chip\": {\"task\":2,\"phase\":\"due\"},\n \"run_wait\":{\"account\":{\"account\":1,\"source\":0,\"why\":{\"limited\":{\"until\":30}}}}\n}\n";
+        calls.child = Some(completed(stdout));
+        calls.wall = Wall::from_nanos(20);
+        calls.finish(Time::from_nanos(2));
+        assert_eq!(calls.ends.len(), 1);
+        assert_eq!(calls.ends[0].stdout, stdout);
+        assert_eq!(calls.observed_at(), &[Some(Wall::from_nanos(20))]);
+        calls.action = Some(Action::Run);
+        calls.child = Some(completed(b"{\"accounts\":{}}"));
+        calls.wall = Wall::from_nanos(40);
+        calls.finish(Time::from_nanos(3));
+        assert_eq!(calls.observed_at(), &[Some(Wall::from_nanos(20)), Some(Wall::from_nanos(40))]);
+    }
 }

@@ -186,6 +186,7 @@ mod tests {
             stderr: vec![],
             spawned: Time::ZERO,
             ended: Time::ZERO,
+            observed_at: None,
             tries: 0,
             early: 0,
         });
