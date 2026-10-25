@@ -127,6 +127,7 @@ skein-fake-llm-protocol = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-fake-llm-domain = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-llm = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-shell = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fail-stop = { git = "https://github.com/fabrig-dev/skein.git" }
 smith-fake-claude = { git = "https://github.com/fabrig-dev/smith.git" }
 smith-protocol-program = { git = "https://github.com/fabrig-dev/smith.git" }
 smith-host-protocol = { git = "https://github.com/fabrig-dev/smith.git" }
@@ -215,11 +216,19 @@ jig-domain-views = { path = "crates/jig-domain-views" }
 jig-domain-host = { path = "crates/jig-domain-host" }
 jig-protocol-charter = { path = "crates/jig-protocol-charter" }
 
-# Panics are fail-stop and overflow traps, in every profile. (The test harness
-# needs unwinding, so cargo ignores `panic` for test targets.)
+# Panics are fail-stop and overflow traps, in every profile. Release aborts.
+# Dev unwinds, as the test harness needs, so that the binaries and the tests
+# share one build of each dependency; each binary's main installs
+# skein_fail_stop's hook first, which aborts on a panic before anything
+# unwinds (skein's programming-model.md, 2).
 [profile.dev]
-panic = "abort"
 overflow-checks = true
+
+# Dependencies carry no debug information in dev and test builds, which
+# halves the test executables; the workspace's own crates keep the line
+# tables that backtraces name.
+[profile.dev.package."*"]
+debug = false
 
 [profile.dev.package.jig-boundary]
 opt-level = 3

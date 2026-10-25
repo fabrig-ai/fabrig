@@ -2,6 +2,7 @@
 use std::{env, process::ExitCode};
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     match jig_test::configure(env::args_os().skip(1)).and_then(jig_test::run) {
         Ok(code) => ExitCode::from(code),
         Err(why) => {
