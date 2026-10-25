@@ -30,6 +30,8 @@ pub struct Limits {
     pub resources_per_task: u32,
     pub paths_per_subscription: u32,
     pub name_bytes: u32,
+    /// Authority name depth, supplied from `authority.segments` by the root.
+    pub authority_segments: u32,
     pub output: u32,
     pub facts: u32,
     pub adoptions: u32,

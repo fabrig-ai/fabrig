@@ -39,6 +39,7 @@ pub const LIMITS: top::Limits = top::Limits {
     issues: 8,
     resources_per_task: 4,
     paths_per_subscription: 4,
+    authority_segments: 8,
     name_bytes: 128,
     output: 80,
     facts: 16,

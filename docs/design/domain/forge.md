@@ -225,6 +225,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **One deployment's prefix.** Adoption refuses a repository where
   branches under temper's prefix exist that the store records no making
   of: they are another deployment's (jig's `domain/connectors.md`, 12).
+  A prefix whose branches' names would pass the authority's segments
+  (`authority.segments`, counting forge, host, owner, repository and
+  `branch` before the branch's own parts) is refused as too large.
 - **People the forge knows.** Adoption reads the repository's
   collaborators, each with its permission (read, write or admin), and
   gives them to the core as parties known by their forge user's id. The

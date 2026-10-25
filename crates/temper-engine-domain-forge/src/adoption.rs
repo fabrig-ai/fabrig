@@ -490,6 +490,18 @@ fn invalid_fields(request: &Adoption, limits: &Limits) -> bool {
             return true;
         }
     }
+    // resource_name counts forge/host/owner/repository/branch first (five).
+    // tree_branch appends <root>/<c|r|s><task>[-<attempt>] to the prefix:
+    // two branch parts, plus one for every slash already in the prefix.
+    let mut segments = 7_u64;
+    for byte in &request.prefix {
+        if *byte == b'/' {
+            segments = segments.checked_add(1).expect("prefix length is bounded by u32 name_bytes");
+        }
+    }
+    if segments > u64::from(limits.authority_segments) {
+        return true;
+    }
     request.checks.len() > usize::try_from(limits.change_policy.gates).expect("u32 fits usize")
 }
 

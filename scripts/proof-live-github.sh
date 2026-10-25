@@ -62,7 +62,7 @@ if run.get('cleaned') is True:
 # Refuse tampered metadata before constructing any URL or reading the key.
 if (run.get('owner') != owner or run.get('repository') != 'temper-probe'
         or not re.fullmatch(r'\d{8}T\d{6}[0-9a-f]{4}', run.get('run', ''))
-        or run.get('prefix') != 'temper/live-' + run['run'] + '/'):
+        or run.get('prefix') != 'temper/live-' + run['run'] + '-'):
     raise SystemExit('backstop: invalid run metadata')
 count_file = scratch / 'count.txt'
 try:

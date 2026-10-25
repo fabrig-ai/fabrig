@@ -163,6 +163,8 @@ const FORGE: forge::Limits = forge::Limits {
     resources_per_task: 2,
     // Paths retained by one subscription, from the engine forge world fixture.
     paths_per_subscription: 4,
+    // Direct connector fixture; engine() takes the configured authority.segments.
+    authority_segments: 8,
     // Leaves 122 bytes for a git base within the checkout's 256 bytes.
     name_bytes: 64,
     // Output records reserved per forge step, from the engine forge world fixture.
@@ -374,7 +376,7 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         call_answer_bytes: jig.core.call_answer_bytes,
         settings: jig.core.settings,
         call_records: jig.core.call_records,
-        forge: limits.forge,
+        forge: forge::Limits { authority_segments: jig.core.authority.segments, ..limits.forge },
     }
 }
 

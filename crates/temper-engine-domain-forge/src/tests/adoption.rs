@@ -3,6 +3,48 @@ use super::*;
 use jig_domain_people as people;
 
 #[test]
+fn an_adoption_refuses_a_prefix_whose_branches_exceed_authority_segments_before_a_call() {
+    let mut d = domain();
+    let mut adoption = fixtures::adoption();
+    adoption.prefix = Box::from(b"temper/live-x/".as_slice());
+    outputs(
+        &mut d,
+        Event::Application {
+            role: None,
+            carried: None,
+            request: Token::new(4),
+            token: Token::new(9),
+            retention: Duration::from_secs(60),
+            ask: Ask::Adopt(adoption),
+        },
+    );
+    assert_eq!(
+        d.application_outcome(Token::new(9)),
+        Some(&ApplicationOutcome::ForgeRefused(AdoptionRefusal::TooLarge))
+    );
+    assert!(ready(&mut d).is_empty(), "no forge read for a prefix that cannot fit");
+}
+
+#[test]
+fn an_adoption_accepts_a_prefix_whose_branches_fit_authority_segments() {
+    use skein_forge::api;
+    let mut d = domain();
+    fixtures::begin_adoption(&mut d, Token::new(4), fixtures::adoption());
+    for answer in [
+        api::Answer::Permission(api::Permission::Write),
+        api::Answer::Branches(Box::new([])),
+        api::Answer::Settings(adopted().settings),
+        api::Answer::Protection(None),
+    ] {
+        fixtures::answer_next(&mut d, Ok(answer));
+    }
+    let requests =
+        fixtures::answer_next(&mut d, Ok(api::Answer::Collaborators { collaborators: Box::new([]), more: false }));
+    let [.., Request::Adopted { result: Ok(value), .. }] = requests.as_ref() else { panic!("adoption accepted") };
+    assert_eq!(value.repository.prefix.as_ref(), b"temper/");
+}
+
+#[test]
 fn an_adoption_locates_its_repository_before_any_other_read() {
     let mut d = domain();
     outputs(

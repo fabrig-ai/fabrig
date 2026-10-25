@@ -173,13 +173,18 @@ fn a_brief_holds_a_whole_task_specification() {
 
 #[test]
 fn the_root_limits_take_jigs_children_and_temper_own() {
-    let settings = fixtures::engine();
+    let mut settings = fixtures::engine();
+    settings.jig.limits.core.authority.segments =
+        settings.jig.limits.core.authority.segments.checked_add(1).expect("fixture segment limit can increase");
     let root = limits::engine(&settings.jig.limits, &settings.limits).expect("coherent root limits");
     let jig = settings.jig.limits.core;
     assert_eq!(root.journal, settings.limits.root.journal);
     assert_eq!(root.loads, settings.limits.root.loads);
     assert_eq!(root.brief, settings.limits.root.brief);
-    assert_eq!(root.forge, settings.limits.forge);
+    assert_eq!(
+        root.forge,
+        temper_engine_domain_forge::Limits { authority_segments: jig.authority.segments, ..settings.limits.forge }
+    );
     assert_eq!(root.tasks, jig.tasks);
     assert_eq!(root.authority, jig.authority);
     assert_eq!(root.people, jig.people);

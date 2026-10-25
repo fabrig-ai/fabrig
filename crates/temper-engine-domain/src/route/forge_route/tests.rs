@@ -80,6 +80,31 @@ fn adopted(forge: u16) -> super::forge::Repository {
 }
 
 #[test]
+fn tree_branches_count_prefix_slashes_against_authority_segments() {
+    // forge, host, owner, repository, branch, temper, root, marker/task.
+    const AUTHORITY_SEGMENTS: u32 = 8;
+    // The old live prefix puts live-x in a branch segment of its own.
+    const DEEP_AUTHORITY_SEGMENTS: u32 = 9;
+    const BRANCH_BYTES: u32 = 128;
+    for (prefix, segments, fits) in [
+        (b"temper/live-x/".as_slice(), AUTHORITY_SEGMENTS, false),
+        (b"temper/live-x/", DEEP_AUTHORITY_SEGMENTS, true),
+        (b"temper/", AUTHORITY_SEGMENTS, true),
+        (b"temper/live-x-", AUTHORITY_SEGMENTS, true),
+    ] {
+        let mut repository = adopted(1);
+        repository.prefix = prefix.into();
+        for marker in [b'c', b'r', b's'] {
+            for attempt in [None, Some(3)] {
+                let branch = super::tree_branch(&repository, 1, marker, 2, attempt, BRANCH_BYTES).expect("tree branch");
+                let what = super::branch_what(&branch, BRANCH_BYTES).expect("branch parts");
+                assert_eq!(super::resource_name(&repository, &what, segments).is_some(), fits, "branch {branch:?}");
+            }
+        }
+    }
+}
+
+#[test]
 fn delegations_with_one_repository_id_take_their_own_forges_holding() {
     use super::{forge, tasks};
     use alloc::boxed::Box;

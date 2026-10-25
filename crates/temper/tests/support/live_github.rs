@@ -70,7 +70,7 @@ impl Inputs {
         fs::File::open("/dev/urandom").expect("random source").read_exact(&mut random).expect("run randomness");
         let run =
             format!("{}{:02x}{:02x}", String::from_utf8(date.stdout).expect("UTC text").trim(), random[0], random[1]);
-        let prefix = format!("temper/live-{run}/");
+        let prefix = format!("temper/live-{run}-");
         Self {
             owner,
             installation,
