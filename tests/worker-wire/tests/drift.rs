@@ -1,9 +1,9 @@
 use skein_codegen::{generate, parse};
-use std::{fs, path::Path};
+use std::fs;
 
 #[test]
 fn worker_wire_schema_matches_generated_code_and_goldens() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/jig-protocol-worker-wire");
+    let root = skein_scratch::paths::workspace().join("crates/jig-protocol-worker-wire");
     let source = fs::read_to_string(root.join("schema/worker-wire-v9.schema")).expect("schema");
     let schema = parse(&source).expect("schema valid");
     let output = generate(&schema);

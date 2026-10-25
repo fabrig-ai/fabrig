@@ -527,7 +527,7 @@ fn memory_below_the_components_sum_is_refused() {
         + 1_341_208;
     // Regenerate this charge with JIG_MEMORY_WRITE=1 through heavy, then run
     // normally to check it. The unchanged terms above keep the act saving local.
-    let charge_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/deployment_act_growth.txt");
+    let charge_path = skein_scratch::paths::package().join("src/tests/deployment_act_growth.txt");
     if std::env::var_os("JIG_MEMORY_WRITE").is_some_and(|value| value == "1") {
         let What::Memory { over } = problems.problems.get(0).unwrap().what else { panic!("memory refusal") };
         std::fs::write(&charge_path, format!("{}\n", over.checked_sub(without_acts).unwrap())).unwrap();

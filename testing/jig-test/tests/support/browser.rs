@@ -38,7 +38,7 @@ impl Drop for Binary {
 }
 pub fn start(directory: &Path) -> Binary {
     Binary(
-        Command::new(env!("CARGO_BIN_EXE_jig-test"))
+        Command::new(skein_scratch::paths::binary("jig-test"))
             .args(["serve", "config.json"])
             .current_dir(directory)
             .stdout(Stdio::piped())

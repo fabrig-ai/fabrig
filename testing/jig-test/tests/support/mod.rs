@@ -60,7 +60,8 @@ pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
         serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] = env!("CARGO_BIN_EXE_jig-test").into();
+    value["workers"][0]["agent"]["program"] =
+        skein_scratch::paths::binary("jig-test").to_str().expect("a UTF-8 path").into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
     value["workers"][0]["agent"]["arguments"] = serde_json::json!(["agent", directory.join("agent.json")]);
     value["application"]["workers"] = worker["application"]["workers"].clone();
@@ -76,7 +77,7 @@ pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
 pub fn start(directory: &Path) -> Binary {
     Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_jig-test").into(),
+            program: skein_scratch::paths::binary("jig-test"),
             arguments: vec!["serve".into(), "config.json".into()],
             directory: directory.into(),
             environment: std::env::vars_os().filter(|(name, _)| name == "PATH").collect(),

@@ -41,6 +41,7 @@ disallowed_types = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+skein-scratch.workspace = true
 jig-core-world = { path = "../../tests/core" }
 jig-domain-core.workspace = true
 jig-test-domain.workspace = true

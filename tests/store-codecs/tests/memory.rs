@@ -8,7 +8,7 @@ static HEAP: Counting = Counting;
 
 fn check<T>(family: &str, record: &str, bound: u64, decode: impl FnOnce(&[u8]) -> T) {
     let golden = std::fs::read(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        skein_scratch::paths::package()
             .join(format!("../../crates/jig-protocol-store/golden/{family}/record_{record}_full.bin")),
     )
     .expect("full golden row");

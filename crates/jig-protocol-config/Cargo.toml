@@ -37,4 +37,5 @@ skein-io.workspace = true
 workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 tempfile = "3"

@@ -2,10 +2,10 @@
 use skein_codegen::{generate, parse};
 use std::fmt::Write as _;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 fn store() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/jig-protocol-store")
+    skein_scratch::paths::workspace().join("crates/jig-protocol-store")
 }
 
 fn check(family: &str, version: u16) {
@@ -64,7 +64,7 @@ fn the_core_familys_code_and_goldens_have_no_drift() {
 
 #[test]
 fn the_test_connectors_code_and_goldens_have_no_drift() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testing/jig-test-store");
+    let root = skein_scratch::paths::workspace().join("testing/jig-test-store");
     let source = fs::read_to_string(root.join("schema/test-connector-v2.schema")).expect("schema readable");
     let output = generate(&parse(&source).expect("schema valid"));
     let code = root.join("src/generated/v2.rs");
