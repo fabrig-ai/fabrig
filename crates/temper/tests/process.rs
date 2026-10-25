@@ -1012,6 +1012,7 @@ fn box_terminal_line(line: &str, starting: &[&str], group_notices: &[&str]) -> b
         ]
         .contains(&line)
         || words.starts_with("box: ")
+        || words.strip_prefix("Logs: ").is_some_and(|path| path.starts_with('/') && path.ends_with("/box/logs/"))
         || ["Stopping", "Stopped"].contains(&words)
         || group_notices.contains(&words)
         || (words != line && words == "A fresh sign-in link:")

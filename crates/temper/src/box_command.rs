@@ -91,6 +91,15 @@ pub(crate) fn run_configuration(
             listeners: listeners.into_boxed_slice(),
             serve: b"serve".as_slice().into(),
             root,
+            echo: temper_box::host::Echo::Steps, // Echo::Steps until --echo (stage 3)
+            data: {
+                let bytes = directory.as_os_str().as_bytes();
+                let mut end = bytes.len();
+                while end > 1 && bytes.get(end - 1) == Some(&b'/') {
+                    end -= 1;
+                }
+                bytes[..end].into()
+            },
             signals,
             stdout: Fd::new(1),
             stderr: Fd::new(2),

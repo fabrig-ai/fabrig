@@ -102,7 +102,7 @@ fn a_once_step_that_fails_ends_the_box_with_exit_one() {
     let steps = [once(b"prepare", &[b"exit", b"1"]), long(b"forgejo", &[b"never"])];
     let mut harness = Harness::new(&steps);
     assert_eq!(harness.run_to_end(), Exit::Code(1));
-    assert_eq!(&*harness.stderr(), b"Starting prepare\nprepare exited 1; giving up\n");
+    assert_eq!(&*harness.stderr(), b"Logs: /data/box/logs/\nStarting prepare\nprepare exited 1; giving up\n");
     assert_eq!(harness.spawn_times(b"forgejo").len(), 0, "failure never starts the next step");
 }
 #[test]
@@ -198,7 +198,7 @@ fn serves_pipe_lines_are_bounded_named_and_answered() {
             if name == "ask" { b"Forge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n".as_slice() } else { b"" };
         assert_eq!(
             &*harness.stderr(),
-            crate::lines::joined(&[b"Starting serve\n", lifecycle, diagnostic]).as_ref(),
+            crate::lines::joined(&[b"Logs: /data/box/logs/\nStarting serve\n", lifecycle, diagnostic]).as_ref(),
             "{name}"
         );
         if !diagnostic.is_empty() {
@@ -542,7 +542,11 @@ fn an_unrecorded_group_neither_probes_nor_writes_and_waits_at_every_box_start() 
         let mut harness = Harness::grouped(steps, &[Item::file(b"box", b"kept")], true);
         harness.run_until_idle();
         assert_eq!(harness.launches.len(), 1, "only serve starts");
-        assert_eq!(harness.stderr().as_ref(), b"Starting serve\n", "no probe of box/started/3");
+        assert_eq!(
+            harness.stderr().as_ref(),
+            b"box: cannot write /data/box/logs/: NotADirectory; the steps' lines follow here\nStarting serve\n",
+            "no probe of box/started/3"
+        );
         harness.ask(b"start 3\n");
         harness.run_until_idle();
         assert_eq!(&*harness.reply_bytes(), b"step 3 prepare\nstep 3 run\nstarted 3\n");
@@ -613,7 +617,7 @@ fn a_group_stop_is_reported_on_stderr_after_the_control_pipe_closes() {
     harness.run_until_idle();
     assert_eq!(
         harness.stderr().as_ref(),
-        b"Starting serve\nForge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n",
+        b"Logs: /data/box/logs/\nStarting serve\nForge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n",
         "the group has not closed"
     );
     let serve = harness.hosted.get(harness.serve_index()).unwrap().pid;
@@ -804,7 +808,7 @@ fn split_links_and_diagnostics_form_ordered_first_fresh_and_restarted_blocks() {
     assert_eq!(
         harness.terminal_bytes().as_ref(),
         concat!(
-            "Starting serve\nStarting diagnostic\ndiagnostic: interposed\n",
+            "Logs: /data/box/logs/\nStarting serve\nStarting diagnostic\ndiagnostic: interposed\n",
             "\nOpen this link in a browser on this machine. It signs you in as this\n",
             "temper's owner, once and for a short while, so keep it private.\n",
             "Opened again once spent, it prints a fresh one here.\n\n",
@@ -930,7 +934,7 @@ fn a_legacy_handoff_does_not_print_or_mark_the_first_block() {
     harness.run_until_idle();
     harness.write_child(harness.child_index(b"serve"), 1, b"held\n");
     harness.run_until_idle();
-    assert_eq!(harness.terminal_bytes().as_ref(), b"Starting serve\nStarting seed\n");
+    assert_eq!(harness.terminal_bytes().as_ref(), b"Logs: /data/box/logs/\nStarting serve\nStarting seed\n");
     assert_eq!(harness.read_stdin(harness.child_index(b"seed"), LINE_BYTES).as_ref(), b"held\n");
     harness.write_child(harness.child_index(b"serve"), 1, b"visible\n");
     harness.run_until_idle();

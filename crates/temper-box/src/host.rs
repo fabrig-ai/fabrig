@@ -3,6 +3,7 @@ use crate::{
     layout::{self, Placed},
     limits::{Limits, Unfit},
     lines::{self, Lines, Output},
+    logs::{Logs, Piece},
     machine::{Input, Machine, Order, Outcome, Said},
     pipe::{self, Command, Line, Reader},
     ready::Ready,
@@ -20,6 +21,12 @@ use skein_lib::{
     stream::{Down, Read, Up},
 };
 use temper_forge_setup::{Kind, Step, Steps};
+/// Which diagnostic lines also reach the terminal.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Echo {
+    None,
+    Steps,
+}
 /// The descriptors and command inherited from the binary.
 #[derive(Debug)]
 pub struct Settings {
@@ -28,6 +35,8 @@ pub struct Settings {
     pub serve: Box<[u8]>,
     pub listeners: Box<[(Fd, core::net::SocketAddr)]>,
     pub root: Fd,
+    pub echo: Echo,
+    pub data: Box<[u8]>,
     pub signals: Fd,
     pub stdout: Fd,
     pub stderr: Fd,
@@ -124,6 +133,7 @@ pub struct Service {
     machine: Machine,
     steps: Box<[Placed]>,
     records: Records,
+    logs: Logs,
     record_wall: Wall,
     control: Option<Control>,
     closing_control: [Option<Token>; 2],
@@ -153,14 +163,11 @@ pub struct Service {
 impl Service {
     /// Checks the policy limits and adopts the binary's descriptors.
     pub fn new(limits: &Limits, steps: Steps, settings: Settings) -> Result<Self, Unfit> {
-        let mut longest = 0;
-        for group in &steps.asked {
-            longest = longest.max(u32::try_from(group.steps.len()).expect("bounded group"));
-        }
-        let reply_entries = longest.checked_add(2).expect("bounded startup memory");
+        let reply_entries = reply_entries(&steps);
         let steps = layout::flatten(steps);
         let machine = Machine::new(limits, &steps)?;
         let records = Records::new(&steps);
+        let logs = Logs::new(&steps, &settings.data, limits.log_bytes);
         let count = u32::try_from(steps.len()).expect("steps fit u32");
         let mut bounds = io_limits(count);
         bounds.sockets = bounds
@@ -172,6 +179,7 @@ impl Service {
             .output
             .max(limits.line_bytes.checked_add(10).expect("notice timestamp"))
             .max(terminal::max_bytes(&steps))
+            .max(Logs::max_notice(&steps, &settings.data))
             .max(LINE_BYTES.checked_add(1).expect("URL LF"));
         let mut children = List::with_capacity(count);
         let mut inputs = u64::try_from(settings.serve.len()).expect("serve name");
@@ -225,6 +233,7 @@ impl Service {
             machine,
             steps,
             records,
+            logs,
             record_wall: Wall::EPOCH,
             control: None,
             closing_control: [None, None],
@@ -652,27 +661,31 @@ impl Service {
             for (fd, pipe) in state.pipes.iter_mut().enumerate() {
                 let plain = fd == 0 && lines::route(&self.settings.serve, description.name(), 1);
                 let entries = if plain { self.formatter.block_entries() } else { 1 };
-                if (self.terminal.takes(entries) || self.terminal.failed())
+                let diagnostic_ready = plain || self.logs.takes();
+                if diagnostic_ready
+                    && (self.terminal.takes(entries) || self.terminal.failed())
                     && let Some(output) = pipe.lines.take(description.name())
-                    && !self.terminal.failed()
                 {
                     match output {
-                        Output::Line { bytes, wall } if plain => {
+                        Output::Piece { bytes, wall } => self.logs.put(Piece { step, bytes, wall }),
+                        Output::Line { bytes, wall } if plain && !self.terminal.failed() => {
                             self.terminal.block(self.formatter.block(bytes, wall)).expect("atomic block room");
                             self.formatter.admitted_block();
                         }
-                        Output::Legacy { bytes } => {
+                        Output::Legacy { bytes } if !self.terminal.failed() => {
                             self.terminal.push(Item { target: Target::Stdout, bytes });
                         }
-                        Output::Line { bytes, .. } => {
+                        Output::Line { bytes, .. } if !self.terminal.failed() => {
                             self.terminal.push(Item { target: Target::Stderr, bytes });
                         }
-                        Output::Refused { wall } => {
+                        Output::Refused { wall } if !self.terminal.failed() => {
                             self.terminal.push(self.formatter.notice(terminal::REFUSAL, wall));
                         }
+                        Output::Line { .. } | Output::Legacy { .. } | Output::Refused { .. } => {}
                     }
                 }
-                if pipe.lines.wants_read()
+                if (plain || self.logs.takes())
+                    && pipe.lines.wants_read()
                     && !pipe.reading
                     && (self.terminal.takes(1) || self.terminal.failed())
                     && let Some(stream) = pipe.token
@@ -691,7 +704,7 @@ impl Service {
             if description.name() == self.settings.serve.as_ref() {
                 settled &= self.closing_control == [None, None];
             }
-            if state.spawn && settled && !withdraw_queued(&self.orders, step) {
+            if state.spawn && settled && self.logs.takes() && !withdraw_queued(&self.orders, step) {
                 state.spawn = false;
                 self.serial = self.serial.checked_add(1).expect("spawn serial");
                 let owner = Token::new(self.serial);
@@ -719,6 +732,29 @@ impl Service {
                 });
             }
         }
+    }
+    fn log_work(&mut self) {
+        if (self.terminal.takes(1) || self.terminal.failed())
+            && let Some(notice) = self.logs.take_notice()
+            && !self.terminal.failed()
+        {
+            self.terminal.push(self.formatter.notice(&notice, self.env.wall));
+        }
+        if self.logs.completed() {
+            let echo = self.settings.echo == Echo::Steps || self.logs.failed(self.logs_step());
+            if (!echo || self.terminal.takes(1) || self.terminal.failed())
+                && let Some(piece) = self.logs.take()
+                && echo
+                && !self.terminal.failed()
+            {
+                let name = self.steps.get(piece.step).expect("log step").step.name();
+                self.terminal.push(Item { target: Target::Stderr, bytes: piece.echo(name) });
+            }
+        }
+        self.logs.tick(self.settings.root, &mut self.submissions);
+    }
+    fn logs_step(&self) -> usize {
+        self.logs.step().expect("completed piece")
     }
     fn record_work(&mut self) {
         if (self.terminal.takes(1) || self.terminal.failed())
@@ -828,6 +864,12 @@ impl Service {
                 }
             }
         }
+        if !self.logs.closed() {
+            if self.logs.settled() {
+                self.logs.close();
+            }
+            return;
+        }
         if self.phase != Phase::Closing {
             if self.requests.room() == 0 {
                 return;
@@ -845,6 +887,13 @@ impl Service {
             self.root = Root::Closing;
         }
     }
+}
+fn reply_entries(steps: &Steps) -> u32 {
+    let mut longest = 0_u32;
+    for group in &steps.asked {
+        longest = longest.max(u32::try_from(group.steps.len()).expect("bounded group"));
+    }
+    longest.checked_add(2).expect("bounded reply queue")
 }
 // A terminal fact or pipe reply can hold a Withdraw in the order queue after
 // its Spawn has been consumed. Admission must already respect that withdrawal.
@@ -967,6 +1016,8 @@ fn footprint(
         .expect("bounded startup memory")
         .checked_add(u64::from(limits.line_bytes).checked_mul(2).expect("bounded startup memory"))
         .expect("bounded startup memory")
+        .checked_add(Logs::worst_case(steps, &settings.data))
+        .expect("logger memory")
         .checked_add(Records::worst_case(count))
         .expect("bounded startup memory")
         .checked_add(link_memory(steps))
@@ -1109,7 +1160,9 @@ impl skein_shell::Host for Service {
                     break;
                 }
                 let complete = self.completions.pop().expect("counted completion");
-                if Records::owns(complete.op) {
+                if Logs::owns(complete.op) {
+                    self.logs.complete(complete);
+                } else if Records::owns(complete.op) {
                     self.record_wall = wall;
                     self.records.complete(complete);
                 } else if complete.op == ROOT_CLOSE {
@@ -1128,7 +1181,12 @@ impl skein_shell::Host for Service {
             }
         }
         self.record_work();
-        if self.phase == Phase::New && self.records.ready() && self.orders.room() >= self.machine.max_out() {
+        self.log_work();
+        if self.phase == Phase::New
+            && self.logs.ready()
+            && self.records.ready()
+            && self.orders.room() >= self.machine.max_out()
+        {
             self.machine.start(now, self.records.recorded(), &mut self.orders);
             stamp_orders(&self.orders, &mut self.order_walls, wall);
             self.phase = Phase::Running;
@@ -1180,6 +1238,7 @@ impl skein_shell::Host for Service {
         self.children();
         self.control_work();
         self.record_work();
+        self.log_work();
         self.finish();
         if self.requests.room() >= 2 {
             self.terminal.tick(self.phase == Phase::Closing, &mut self.requests);
@@ -1200,7 +1259,7 @@ impl skein_shell::Host for Service {
         &mut self.submissions
     }
     fn work_pending(&self, now: Time) -> bool {
-        if self.phase == Phase::New && self.records.ready()
+        if self.phase == Phase::New && self.logs.ready() && self.records.ready()
             || !self.completions.is_empty() && self.room(io::MAX_OUT_UP)
             || !self.events.is_empty()
             || self.events_runnable()
@@ -1214,6 +1273,15 @@ impl skein_shell::Host for Service {
         }
         if let Some(at) = self.next_deadline()
             && at <= now
+        {
+            return true;
+        }
+        if self.logs.pending()
+            || self.logs.has_notice() && (self.terminal.takes(1) || self.terminal.failed())
+            || self.logs.completed()
+                && (self.settings.echo == Echo::None && !self.logs.failed(self.logs_step())
+                    || self.terminal.takes(1)
+                    || self.terminal.failed())
         {
             return true;
         }
@@ -1255,6 +1323,7 @@ impl skein_shell::Host for Service {
                 let entries = if plain { self.formatter.block_entries() } else { 1 };
                 if self.orders.room() >= self.machine.max_out()
                     && self.requests.room() >= 8
+                    && (plain || self.logs.takes())
                     && ((pipe.lines.ready() && (self.terminal.takes(entries) || self.terminal.failed()))
                         || (pipe.lines.wants_read()
                             && !pipe.reading
@@ -1271,7 +1340,7 @@ impl skein_shell::Host for Service {
             if description.name() == self.settings.serve.as_ref() {
                 settled &= self.closing_control == [None, None];
             }
-            if state.spawn && settled && !withdraw_queued(&self.orders, step) {
+            if state.spawn && settled && self.logs.takes() && !withdraw_queued(&self.orders, step) {
                 return true;
             }
         }
@@ -1302,6 +1371,7 @@ impl skein_shell::Host for Service {
     fn is_empty(&self) -> bool {
         self.phase == Phase::Closing
             && self.root == Root::Closed
+            && self.logs.closed()
             && self.machine.is_idle()
             && self.io.is_empty()
             && self.requests.is_empty()
@@ -1322,7 +1392,7 @@ impl skein_shell::Host for Service {
         self.memory
     }
     fn operations(&self) -> u32 {
-        io::operations(&self.env.limits).expect("io operations").saturating_add(2)
+        io::operations(&self.env.limits).expect("io operations").checked_add(3).expect("root, records, logger")
     }
 }
 

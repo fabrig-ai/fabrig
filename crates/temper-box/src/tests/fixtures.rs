@@ -157,6 +157,7 @@ pub struct Harness {
     pub replies: List<Box<[u8]>>,
     pub hold_spawn: Option<Box<[u8]>>,
     pub held_spawn: Option<Call>,
+    pub refuse_log: Option<Box<[u8]>>,
     pub wall: Wall,
     pub terminal_writes: List<(Fd, Box<[u8]>)>,
     pub stdout_bytes: List<u8>,
@@ -189,6 +190,16 @@ impl Harness {
         buffer: u32,
         limits: &limits::Limits,
     ) -> Self {
+        Self::configured_echo(steps, items, stubborn, buffer, limits, crate::host::Echo::Steps)
+    }
+    pub fn configured_echo(
+        steps: temper_forge_setup::Steps,
+        items: &[skein_fake_machine::Item],
+        stubborn: bool,
+        buffer: u32,
+        limits: &limits::Limits,
+        echo: crate::host::Echo,
+    ) -> Self {
         let mut config = Config::calm();
         config.buffer = buffer;
         let mut sim = Sim::new(0x12_02, config);
@@ -209,6 +220,8 @@ impl Harness {
             }
         }
         let settings = Settings {
+            echo,
+            data: bytes::copy_of(b"/data"),
             program: bytes::copy_of(b"process_fixture"),
             environment: Box::new([
                 bytes::copy_of(b"HOME=/box"),
@@ -242,6 +255,7 @@ impl Harness {
             replies: List::with_capacity(128),
             hold_spawn: None,
             held_spawn: None,
+            refuse_log: None,
             wall: Wall::EPOCH,
             terminal_writes: List::with_capacity(4096),
             stdout_bytes: List::with_capacity(65_536),
@@ -280,6 +294,16 @@ impl Harness {
         }
     }
     fn answer_call(&mut self, call: Call) {
+        if let Some(name) = &self.refuse_log
+            && let Ask::Open { path, how: skein_io::kernel::OpenHow::CreateNoFollow { .. }, .. } = &call.ask
+            && path.as_ref() == name.as_ref()
+        {
+            self.refuse_log = None;
+            self.answers.push(Answer { ticket: call.ticket, result: Err(skein_io::kernel::Error::NoSpace) });
+            self.sim.answer(&mut self.answers);
+            return;
+        }
+
         skein_fake_machine::step(&mut self.machine, call, &mut self.answers);
         if self.stubborn {
             let mut answer = self.answers.pop().expect("one answer");
