@@ -346,6 +346,34 @@ fn an_unfit_first_scan_entry_makes_the_prefix_empty() {
 }
 
 #[test]
+fn a_stat_answered_after_its_deadline_keeps_its_own_answer() {
+    let stat = Stat { kind: Kind::File, size: 10, mode: 0o644, owner: 1000, links: 1 };
+    for (result, expected) in [
+        (Ok(Done::Stat(stat)), Event::Stated { owner: OWNER, stat }),
+        (
+            Err(crate::kernel::Error::Permission),
+            Event::Failed { owner: OWNER, error: crate::kernel::Error::Permission, committed: false, residue: None },
+        ),
+    ] {
+        let (mut io, file, _) = write_opened();
+        let mut events = Queue::with_capacity(2);
+        let mut subs = Queue::with_capacity(2);
+        file_layer::down(&mut io, Time::ZERO, Request::Stat { owner: OWNER, file }, &mut events, &mut subs);
+        let submit = subs.pop().expect("stat in flight");
+        assert_eq!(submit.kind, Op::Stat { fd: CHILD });
+        file_layer::expire(&mut io, Time::ZERO.saturating_add(Duration::from_secs(2)), &mut subs);
+        assert!(subs.is_empty(), "stat is not cancellable");
+        assert!(events.is_empty() && !io.takes(), "the deadline waits for the stat's answer");
+        complete(&mut io, submit, result, &mut events, &mut subs);
+        assert_eq!(events.pop(), Some(expected));
+        assert!(events.is_empty(), "exactly one terminal");
+        assert!(subs.is_empty() && io.takes());
+        assert_eq!(io.descriptor(file), Some(CHILD));
+        assert_eq!(io.next_deadline(), None);
+    }
+}
+
+#[test]
 fn a_deadline_waits_for_uncancellable_stat_then_closes_the_file() {
     let mut io = FileIo::with_whole_limit(3, 2, 4, 8, Duration::from_secs(1));
     let root = io.adopt_root(ROOT).expect("room for the root");

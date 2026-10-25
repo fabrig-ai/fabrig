@@ -30,6 +30,44 @@ fn a_rename_names_the_directory_it_leaves_and_the_one_it_lands_in() {
 }
 
 #[test]
+fn a_rename_or_remove_answered_after_its_deadline_keeps_its_own_answer() {
+    for result in [Ok(Done::Nothing), Err(Error::NotFound)] {
+        for (request, success) in [
+            (
+                Request::Rename {
+                    owner: OWNER,
+                    from_root: STAGING,
+                    from: Box::from(&b"InRelease"[..]),
+                    to_root: CACHE,
+                    to: Box::from(&b"index"[..]),
+                },
+                Event::Renamed { owner: OWNER },
+            ),
+            (
+                Request::Remove { owner: OWNER, root: CACHE, name: Box::from(&b"index"[..]), directory: false },
+                Event::Removed { owner: OWNER },
+            ),
+        ] {
+            let mut page = Page::new();
+            file_layer::down(&mut page.io, Time::ZERO, request, &mut page.events, &mut page.subs);
+            let submit = page.subs.pop().expect("one operation in flight");
+            file_layer::expire(&mut page.io, Time::ZERO.saturating_add(Duration::from_secs(2)), &mut page.subs);
+            assert!(page.subs.is_empty(), "rename and remove are not cancellable");
+            assert!(page.events.is_empty() && !page.io.takes(), "the deadline waits for the operation's answer");
+            complete(&mut page.io, submit, result.clone(), &mut page.events, &mut page.subs);
+            let expected = match result {
+                Ok(_) => success,
+                Err(error) => Event::Failed { owner: OWNER, error, committed: false, residue: None },
+            };
+            assert_eq!(page.events.pop(), Some(expected));
+            assert!(page.events.is_empty(), "exactly one terminal");
+            assert!(page.subs.is_empty() && page.io.takes());
+            assert_eq!(page.io.next_deadline(), None);
+        }
+    }
+}
+
+#[test]
 fn a_rename_of_a_name_holding_a_slash_fails_before_any_record() {
     for (from, to) in [(b"dir/from".as_slice(), b"to".as_slice()), (b"from".as_slice(), b"dir/to".as_slice())] {
         let mut io = FileIo::new(3, 16, 4, Duration::from_secs(1));

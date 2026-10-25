@@ -886,6 +886,11 @@ fn stopped(io: &mut FileIo, complete: Complete, reason: Error, events: &mut Queu
             directory::locked(owner, complete, events);
             return;
         }
+        direct @ (Pending::Stating { .. } | Pending::Rename { .. } | Pending::Remove { .. }) => {
+            io.pending = Some(direct);
+            up_inner(io, complete, events, subs);
+            return;
+        }
         page @ Pending::Page { .. } => {
             directory::answered(io, page, complete, Some(reason), events, subs);
             return;
@@ -894,15 +899,12 @@ fn stopped(io: &mut FileIo, complete: Complete, reason: Error, events: &mut Queu
         | Pending::OpenRead { .. }
         | Pending::OpenDirectory { .. }
         | Pending::Stat { .. }
-        | Pending::Stating { .. }
         | Pending::Cleanup { .. }
         | Pending::Write { .. }
         | Pending::Read { .. }
         | Pending::Cut { .. }
         | Pending::Sync { .. }
         | Pending::Close { .. }
-        | Pending::Rename { .. }
-        | Pending::Remove { .. }
         | Pending::ListOpening { .. }
         | Pending::List { .. }
         | Pending::ListClosing { .. }
