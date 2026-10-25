@@ -237,6 +237,7 @@ which bounds its writers. Each:
 | `api` | an address, jig's format, or `null` | a socket address, or a host's name and port; never an in-process name. `null` on GitHub alone, for github.com's: `api.github.com`, port 443 | where the forge component connects for the forge's REST API: Forgejo's under `/api/v1`, GitHub's at its root |
 | `transport` | `"plaintext"`, `{"tls": {"server_name": string, "trust": a configuration path or null}}`, or `null` | plaintext only when `api` is a socket address on loopback; `trust` null is the machine's roots. `null` on GitHub alone, for TLS to github.com's API with the machine's roots | the forge component's connections |
 | `git` | string, or `null` | an `http` or `https` URL: a host, an optional port and an optional path; no user, query, fragment or final `/`; `http` only to a loopback host. `null` on GitHub alone, for `https://github.com` | the base of each repository's remote, `<git>/<owner>/<name>.git`, which the engine's routing makes (channel.md, section 4); and the host segment of the forge's resource paths: `git`'s host, with `:port` when it names a port |
+| `git_program` | a data path or an absolute path, or absent | within 4096 bytes, resolved under data as setup's `fake.git`; refused together with that member, naming both | the git executable workers run for this forge's repositories, for a custom git build or wrapper; absent keeps `workers[].git` (section 4), or the demo's existing `fake.git` (setup.md, 8.4) |
 | `web` | string, or `null` | on GitHub, a URL by `git`'s rule, `null` for `https://github.com`; on Forgejo, `null` | GitHub's browser pages: the manifest's form, the install link and an installation's pages (setup.md, connecting GitHub; `../client/forge.md`) |
 | `log_origins` | list of strings, or `null` | each an origin: `"https://<host>[:<port>]"`, TLS with `transport`'s trust (the machine's roots when it names none), or `"http://<host>[:<port>]"` to a loopback host alone, as skein's fake serves its logs; no path, user, query, fragment or final `/`; the port 443 or 80 when absent. Each host is resolved at start, and one that does not resolve refuses the start, naming the forge and the host; at most `forges.log_origins` (section 7). `null` is the kind's default: GitHub's `["https://productionresultssa1.blob.core.windows.net"]`, Forgejo's none | the origins to which a job log's redirect is followed (forge.md, GitHub's API as temper uses it); `[]` fetches no job log |
 | `app_read_only` | boolean, or absent | on GitHub alone, refused on Forgejo naming its path; absent is `false` | `true`: the pasted App (setup.md, 17.3), its hook and its installations are another's, and the engine's setup host changes none of them (setup.md, 17.7): the paste check and reconcile leave the App's hook as they read it, and a stray installation is shown and never uninstalled; installing, accepting and the forge component's reads and mints are unchanged |
@@ -1318,6 +1319,9 @@ login is imported.
   the same plaintext fake model, with stale TLS members removed. The
   pure transformation is temper-fake's, with bounded bytes and explicit
   paths/sockets as inputs; files and listeners belong to temper's shell.
+  Its rewrite table holds the init-shaped git/program edits plus all four
+  removable TLS members on each of forge, sign-in and model endpoint: 42
+  slots. The agent document needs eight of the same bounded slots.
 - **Browser:** --bundle DIR, or source application.clients.bundle,
   names a provisioned loopback-navigation bundle (../client/browser.md,
   2.6). Build it once with scripts/bundle.sh --loopback DIR, then run
@@ -1326,6 +1330,33 @@ login is imported.
   refusal names that bundle command and --bundle; no hand-edited setting
   is required. The ordinary embedded bundle cannot replace it. Startup
   neither builds a bundle nor accesses a remote service.
+
+
+Before starting its supervised processes, the box prints these fixed
+prefixes on stderr, for people and lab readiness captures. Addresses are
+loopback IPs with ports; each origin belongs to a peer the box runs, so
+there are no per-peer commands to run:
+
+```text
+box: effective configuration C'
+box: effective data D'
+box: effective cache K
+box: fake github http://ADDR
+box: fake issuer http://ADDR
+box: fake model http://ADDR
+box: fake forgejo http://ADDR
+box: model key FILE
+box: Forgejo elsewhere admin token file FILE
+box: program login: COMMAND
+box: GitHub own App id 1, key file FILE
+```
+
+The model key line names the effective `llm.json`'s `key` file, which a
+person pastes on the Model step's key way. Key and token lines print
+paths only. The program-login command names the effective directories
+and ends `NAME (the name the Model step shows)`: the person substitutes
+the name declared by the welcome's Model step. The own-App line names
+App 1's matching private fixture PEM.
 
 
 The effective configuration keeps forge 1 as the playground, forge 2 as

@@ -69,7 +69,11 @@ pub enum Step {
     Mark(&'static str),
     /// Wait for bytes in the box's captured stderr; requires a box referee.
     Stderr(&'static [u8]),
+    /// Run the box's printed program-login command outside ctl, with its Model-step name.
+    ProgramLogin(&'static str),
     Run(Call),
+    /// Follow the previous call's printed address on the box referee's visitor.
+    Visit,
     /// Form a dependent call from the completed calls' documents.
     Then(NextCall),
     Start(Call),
@@ -292,8 +296,10 @@ impl Child {
 
 enum Action {
     Run,
+    Visit,
     Until(Call, ReadCondition),
     Stderr(&'static [u8]),
+    ProgramLogin(&'static str),
     Signal,
     NextLink,
 }
@@ -369,6 +375,19 @@ impl Calls {
     pub fn idle(&self) -> bool {
         self.done()
     }
+    pub(super) fn visiting(&self) -> bool {
+        matches!(self.action, Some(Action::Visit))
+    }
+    pub(super) fn visited(&mut self, status: u16) {
+        assert!(self.visiting(), "visit requested");
+        self.ends.push(Ended {
+            exit: Some(Exit::Code(0)),
+            stdout: format!("HTTP/1.1 {status}\n").into_bytes(),
+            stderr: Vec::new(),
+        });
+        self.observed_at.push(Some(self.wall));
+        self.action = None;
+    }
     /// Queue another step before this batch runs.
     pub fn push(&mut self, step: Step) {
         if !self.cancelling {
@@ -412,6 +431,12 @@ impl Calls {
     }
     /// The box referee checks after each ring wake, including stderr reads.
     pub(super) fn observe_box_stderr(&mut self, stderr: &[u8], now: Time) {
+        if let Some(Action::ProgramLogin(name)) = self.action
+            && let Some(command) = super::program_login::printed(stderr, name)
+        {
+            self.action = Some(Action::Run);
+            self.spawn(b"/bin/sh".as_slice().into(), vec![b"-c".as_slice().into(), command], Vec::new(), false);
+        }
         while let Some(Action::Stderr(bytes)) = &self.action {
             if !stderr.windows(bytes.len()).any(|window| window == *bytes) {
                 break;
@@ -544,7 +569,8 @@ impl Calls {
                     self.retry = Some(now.saturating_add(PACE));
                 }
             }
-            Action::Stderr(_) => panic!("a stderr gate has no child"),
+            Action::Visit => panic!("a visit has no child"),
+            Action::Stderr(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
             Action::NextLink => unreachable!("link wait has no child"),
             Action::Signal => assert_eq!(
                 ended.exit,
@@ -605,6 +631,23 @@ impl Calls {
             }
         }
     }
+    fn waiting(&self, now: Time) -> bool {
+        self.cancelling
+            || self.child.is_some()
+            || self.awaiting_started
+            || matches!(
+                self.action,
+                Some(Action::Stderr(_) | Action::ProgramLogin(_) | Action::NextLink | Action::Visit)
+            )
+            || self.retry.is_some_and(|retry| retry > now)
+    }
+    fn await_box(&mut self, action: Action) {
+        assert!(matches!(self.box_stderr, BoxStderr::Captured), "box action needs captured stderr");
+        if let Action::Stderr(bytes) = &action {
+            assert!(!bytes.is_empty(), "Step::Stderr requires nonempty bytes");
+        }
+        self.action = Some(action);
+    }
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
@@ -613,12 +656,7 @@ impl Calls {
         {
             return;
         }
-        if self.cancelling
-            || self.child.is_some()
-            || self.awaiting_started
-            || matches!(self.action, Some(Action::Stderr(_) | Action::NextLink))
-            || self.retry.is_some_and(|retry| retry > now)
-        {
+        if self.waiting(now) {
             return;
         }
         if let Some(Action::Until(call, _)) = &self.action {
@@ -641,11 +679,8 @@ impl Calls {
                 }
                 self.advance(now);
             }
-            Some(Step::Stderr(bytes)) => {
-                assert!(matches!(self.box_stderr, BoxStderr::Captured), "Step::Stderr requires captured box stderr");
-                assert!(!bytes.is_empty(), "Step::Stderr requires nonempty bytes");
-                self.action = Some(Action::Stderr(bytes));
-            }
+            Some(Step::Stderr(bytes)) => self.await_box(Action::Stderr(bytes)),
+            Some(Step::ProgramLogin(name)) => self.await_box(Action::ProgramLogin(name)),
             Some(Step::NextLink) => {
                 self.action = Some(Action::NextLink);
                 self.bound(now);
@@ -664,6 +699,7 @@ impl Calls {
                 );
                 self.child.as_mut().expect("open child").typing = until.map_or(Input::Hold, Input::After);
             }
+            Some(Step::Visit) => self.action = Some(Action::Visit),
             Some(Step::Run(call)) => {
                 self.action = Some(Action::Run);
                 self.start(call, false);

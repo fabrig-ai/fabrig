@@ -140,6 +140,9 @@ fn connect_github_creates_installs_and_returns_to_the_welcome() {
             if call.method == skein_http::Method::Post && call.target.starts_with(b"/settings/apps/new?"))
         })
         .count();
+    if outcome != Outcome::Done {
+        eprintln!("GitHub chain observations: {:#?}", github.observations());
+    }
     assert_eq!(outcome, Outcome::Done);
     assert_eq!(posts, 1, "one manifest post through installation and adoption");
     assert_eq!(github.github_layer().expect("GitHub layer").installations().iter().count(), 1, "one installation");

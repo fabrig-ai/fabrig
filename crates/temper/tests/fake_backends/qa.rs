@@ -315,17 +315,32 @@ fn qa_split_directories_isolate_source_records_and_rewrite_every_public_root() {
     assert_ne!(forge, issuer);
     assert_ne!(model, issuer);
 
-    let printed = format!("{}\n{}", String::from_utf8_lossy(&outcome.stdout), String::from_utf8_lossy(&outcome.stderr));
-    for path in [effective.join("config"), effective.join("data"), fixture.cache.clone()] {
-        assert!(
-            printed.contains(path.to_str().expect("fixture path")),
-            "effective directory printed: {}",
-            path.display()
-        );
-    }
-    for peer in ["fake forge", "fake oauth", "fake llm"] {
-        assert!(printed.contains(peer), "manual peer command printed: {peer}");
-    }
+    let printed = String::from_utf8_lossy(&outcome.stderr);
+    let forgejo = read_json(&effective.join("config/forgejo.json"));
+    let llm = read_json(&effective.join("config/llm.json"));
+    let wanted = [
+        format!("box: effective configuration {}", effective.join("config").display()),
+        format!("box: effective data {}", effective.join("data").display()),
+        format!("box: effective cache {}", fixture.cache.display()),
+        format!("box: fake github http://{forge}"),
+        format!("box: fake issuer http://{issuer}"),
+        format!("box: fake model http://{model}"),
+        format!("box: fake forgejo http://{}", socket(&forgejo["listen"])),
+        format!("box: model key {}", llm["key"].as_str().expect("model key path")),
+        format!("box: Forgejo elsewhere admin token file {}", effective.join("data/forgejo-admin.token").display()),
+    ];
+    let lines: Vec<_> = printed.lines().filter(|line| line.starts_with("box: ")).collect();
+    assert_eq!(&lines[..wanted.len()], wanted);
+    let command = lines[wanted.len()].strip_prefix("box: program login: ").expect("program login prefix");
+    assert!(
+        command.contains("program-login --config '") && command.ends_with(" NAME (the name the Model step shows)"),
+        "{command}"
+    );
+    assert_eq!(
+        lines[wanted.len() + 1],
+        format!("box: GitHub own App id 1, key file {}", effective.join("data/github-app.pem").display())
+    );
+    assert_eq!(lines.len(), wanted.len() + 2, "directories, peer origins, file paths, login command and own App");
 }
 
 #[test]

@@ -109,6 +109,25 @@ captured in readiness output or browser/lab evidence. Tests stay in their tiers.
 summed test execution by world and the new process stories against their
 two-second aim, excluding compilation, queue and gate elapsed time.
 
+The fake-box welcome stories share `fake_backends/walk.rs`'s `Walk` and
+explicit `add_key()`, `Visit`, `ProgramLogin` and `Mark` acts. The shared
+key act copies the box's key only when the Model step asks for it. All
+key-backed paths use one committed-turn assertion and one forge-row
+lookup. The box harness supplies system git discovery for fake boxes,
+as it does for independent forge/model peers. `Visit` reuses the process tier's
+redirect visitor against the box's supervised peers, opens a connection
+per hop, submits the manifest form and records method, path and status.
+GitHub one-click with a key asserts `[200,200,302,302,200]`; an own App
+with a key asserts `[302,200]`; ChatGPT sign-in paired with GitHub one-click
+adds `[302,200]`. ctl sign-in supplies no return address, so its visit ends
+at callback 200; the lab browser walk proves the return to welcome. These
+three stories and Forgejo elsewhere with a key assert the initial offers,
+connected forge and adopted repository, usable account, successful reply
+wait and exactly one complete committed turn containing the fake model's
+assistant reply. Stories live beside the harness under `walk/`. The browser GitHub chain
+prints the fake's recorded request heads when its navigation fails, so the
+callback and repository-picker failure can be traced from the same run.
+
 ### 2.1 System worlds
 
 One runs the real engine driving the real worker: the composed system
@@ -1033,6 +1052,22 @@ and 10).
   in `TEMPER_TEST_CLAUDE`. The argument checks, the directories checked at
   each name and made private, and the command's arguments and environment
   before the exec are the shell's lower tests.
+- **The fake box's program and owned Forgejo walk,** through `ctl` on
+  `box --fake-backends`: a fresh owner's accounts and offered Forgejo
+  are read, the ordinary owned setup adopts `work/hello`, and the
+  Model step's default program source is declared. The story executes
+  the box's printed login command in a separate process, verifies the
+  source, and reads both Ready's account/forge facts and the worker's
+  usable program status. The story ends at Ready: jig's
+  `crates/jig-domain-core/src/run_choice.rs:202–223` refuses a program
+  for requester-ended chats, and area 2's `goal` tool is planned work
+  (../client/tools.md, 5.5; `temper-client-tools/src/guide.rs:79`).
+  Both limitations are flagged to the user; the story creates neither
+  a chat nor a goal. The key-backed walk proves the welcome's first
+  chat. Owned setup uses the existing owned-story allowance and a
+  private cache seeded with the pinned
+  Forgejo and runner binaries; digest verification, startup and
+  repository adoption remain ordinary.
 - **The cluster,** its own tests (../protocol/README.md, 15.6), on
   temper's fakes as processes, never on Forgejo: `lab/cluster/`, the
   lab's description of the cluster (../protocol/README.md, 15.5), read

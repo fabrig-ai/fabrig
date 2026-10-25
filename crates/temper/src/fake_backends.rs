@@ -405,32 +405,38 @@ fn provisioned_bundle(path: Option<&Path>, limits: temper_service::limits::Clien
     Ok(path.to_path_buf())
 }
 fn print(dirs: &Directories, peers: &Peers, binary: &Path) {
-    use std::fmt::Write;
     eprintln!("box: effective configuration {}", crate::path(&dirs.config).display());
     eprintln!("box: effective data {}", crate::path(&dirs.data).display());
     eprintln!("box: effective cache {}", crate::path(&dirs.cache).display());
-    for (name, kind, document) in [
-        ("fake github", "forge", "github.json"),
-        ("fake issuer", "oauth", "oauth.json"),
-        ("fake model", "llm", "llm.json"),
-        ("fake forgejo", "forge", "forgejo.json"),
-    ] {
-        let document = crate::path(&dirs.config).join(document);
-        let quoted = format!("'{}'", document.to_string_lossy().replace('\'', "'\\''"));
-        eprintln!("box: supervised {name}: temper fake {kind} --document {quoted} --seed {}", backends::SEED);
+    for (name, address) in
+        [("github", peers.github), ("issuer", peers.oauth), ("model", peers.llm), ("forgejo", peers.forgejo)]
+    {
+        eprintln!("box: fake {name} http://{address}");
     }
+    // Retained peer documents may select another key file under effective data.
+    let model = temper_fake::llm::Document::decode(
+        &peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES).expect("validated model document"),
+    )
+    .expect("validated model document");
+    eprintln!("box: model key {}", crate::path(model.key()).display());
     eprintln!(
         "box: Forgejo elsewhere admin token file {}",
         crate::path(&dirs.data).join("forgejo-admin.token").display()
     );
-    eprintln!("box: Forgejo elsewhere origin http://{}", peers.forgejo);
+    eprintln!("box: program login: {}", program_login_line(dirs, binary));
+    eprintln!("box: GitHub own App id 1, key file {}", crate::path(&dirs.data).join("github-app.pem").display());
+}
+fn program_login_line(dirs: &Directories, binary: &Path) -> String {
+    use std::fmt::Write;
     let mut command = format!("'{}' program-login", binary.display().to_string().replace('\'', "'\\''"));
     for (flag, path) in [("config", &dirs.config), ("data", &dirs.data), ("cache", &dirs.cache)] {
         write!(command, " --{flag} '{}'", crate::path(path).display().to_string().replace('\'', "'\\''"))
             .expect("string");
     }
-    command.push_str(" source");
-    eprintln!("box: {command}");
+    // Owners in the effective document have a provider and subject, not the
+    // signed-in party's display name from which the Model step derives NAME.
+    command.push_str(" NAME (the name the Model step shows)");
+    command
 }
 fn sibling(binary: &Path) -> Result<PathBuf, String> {
     if !binary.is_absolute() {
@@ -578,7 +584,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
         backends::rewrite(&initial, &public(&crate::path(&effective.config).join("agent.json"))?, &paths, &peers)
             .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     // Existing peer decoders check their generated documents before any marker is published.
-    let _forge = temper_fake::forge::Document::decode(&documents.github)
+    let forge = temper_fake::forge::Document::decode(&documents.github)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     let _forgejo = temper_fake::forge::Document::decode(&documents.forgejo)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
@@ -594,6 +600,11 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
     ] {
         write(&crate::path(&effective.config).join(name), document, name == "temper.json" || name == "agent.json")?;
     }
+    write(
+        &crate::path(&effective.data).join("github-app.pem"),
+        &forge.github_app_key().expect("generated GitHub App"),
+        false,
+    )?;
     validate(&effective, &documents.temper, adapter)?;
     let peers = checked_peers(&effective, &documents.temper)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.

@@ -991,9 +991,9 @@ fn box_notice_words(line: &str) -> &str {
         && bytes[5] == b':'
         && &bytes[8..10] == b"Z "
         && [0, 1, 3, 4, 6, 7].iter().all(|index| bytes[*index].is_ascii_digit())
-        && &bytes[..2] < b"24"
-        && &bytes[3..5] < b"60"
-        && &bytes[6..8] < b"60"
+        && &bytes[..2] < b"24".as_slice()
+        && &bytes[3..5] < b"60".as_slice()
+        && &bytes[6..8] < b"60".as_slice()
     {
         &line[10..]
     } else {
@@ -1182,7 +1182,7 @@ fn a_forgejo_set_up_from_the_client_starts_again_by_its_record() {
             flags.clone(),
             &client_root,
             steps,
-            Duration::from_secs(190),
+            support::forge_land::OWNED_ALLOWANCE,
             || support::first_repository::live(&paths[0], &paths[1], &client_root),
             support::first_repository::llm(&paths[0]),
         );
@@ -1291,7 +1291,7 @@ fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
         flags,
         scratch.path(),
         steps,
-        Duration::from_secs(190),
+        support::forge_land::OWNED_ALLOWANCE,
         || {
             (
                 first_repository::live_for(&paths[0], &paths[1], scratch.path(), HELLO),

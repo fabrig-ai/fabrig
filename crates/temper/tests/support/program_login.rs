@@ -1,6 +1,22 @@
 //! Login fixtures with configuration and public trust only, no deployment secrets.
 use std::{fs, path::Path};
 
+/// Copy the box's command, replacing only its documented Model-step placeholder.
+/// The shell keeps the printed quoting intact; it execs temper as a separate process.
+#[must_use]
+pub fn printed(stderr: &[u8], name: &str) -> Option<Box<[u8]>> {
+    let _name = smith_host_domain::SourceName::new(name.as_bytes()).expect("portable program source name");
+    let stderr = String::from_utf8_lossy(stderr);
+    let command = stderr.lines().find_map(|line| {
+        line.strip_prefix("box: program login: ")?
+            .strip_suffix("NAME (the name the Model step shows)")
+            .filter(|line| line.contains(" program-login "))
+    })?;
+    let command = format!("exec {command}{name}");
+    eprintln!("copied program-login command: {command}");
+    Some(command.into_bytes().into_boxed_slice())
+}
+
 pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Path) {
     let (agent, deployment) = super::configuration::documents(
         directory,

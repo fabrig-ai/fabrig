@@ -30,6 +30,9 @@ pub struct Peers {
 /// Shared by the supervised welcome peers (protocol/setup.md, 7.5).
 pub const SEED: u64 = 7;
 
+/// The fake program's model, alongside the credential-backed `OpenAI` model.
+pub const PROGRAM_MODEL: &str = "fake-claude";
+
 /// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
 #[must_use]
 pub fn steps(config: &[u8], peers: &Peers) -> Box<[Step]> {
@@ -65,8 +68,12 @@ pub struct Documents {
     pub forgejo: Box<[u8]>,
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
-// Five origins, two endpoints, a forge, worker argv and a bundle, including deleted TLS fields.
-const EDITS: u32 = 32;
+// Init-shaped temper: forge roots/program (5), sign-in/program source (7),
+// model endpoint (2), program route (3), two charter alternatives (2), bundle
+// (1), worker argv/configuration (2), managed forge/limits (8). Each of the
+// forge, sign-in and endpoint may also remove all four stale TLS members.
+// The agent document needs only its endpoint (6), route (1) and adapter (1).
+const EDITS: u32 = 5 + 7 + 2 + 3 + 2 + 1 + 2 + 8 + 3 * 4;
 #[derive(Debug)]
 struct Edit {
     first: u32,
@@ -287,7 +294,55 @@ fn endpoint(d: &Document, at: u32, socket: &[u8], agent: bool, edits: &mut Edits
     edits.text(d, transport, b"plaintext", &p.member(b"transport"))?;
     tls(d, at, edits, p)
 }
-/// Rewrite only the named external targets. The shell validates and rebases imported resources first.
+
+fn program_model(agent: bool) -> Result<Box<[u8]>, Refusal> {
+    // Match the shipped direct model's window, output and positive fixture prices.
+    Ok(read::joined(&[
+        b"{\"name\":",
+        &text(PROGRAM_MODEL.as_bytes())?,
+        br#", "window":1048576,"output":8192,"prices":{"input":1,"cached":1,"output":1,"unit":1000000},"#,
+        if agent { br#""reasoning_item":65536,"head":60000,"idle":30000"# } else { br#""endpoint":"fake-claude""# },
+        b"}",
+    ]))
+}
+
+fn program_endpoint(socket: &[u8], agent: bool) -> Result<Box<[u8]>, Refusal> {
+    let tail = if agent {
+        read::joined(&[
+            br#""identity":"plain","connect":10000,"handshake":10000,"models":["#,
+            &program_model(true)?,
+            b"]",
+        ])
+    } else {
+        bytes::copy_of(br#""connect_ms":10000,"handshake_ms":10000"#)
+    };
+    Ok(read::joined(&[
+        br#"{"name":"fake-claude","number":2,"dialect":3,"provider":"openai","program":"claude_code","address":"#,
+        &if agent { text(socket)? } else { address(socket)? },
+        br#", "transport":"plaintext","headers":[],"#,
+        &tail,
+        b"}",
+    ]))
+}
+
+fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
+    let endpoints = member(d, llm, b"endpoints", p)?;
+    append(d, endpoints, &program_endpoint(socket, false)?, edits)?;
+    append(d, member(d, llm, b"models", p)?, &program_model(false)?, edits)?;
+    let providers = member(d, llm, b"providers", p)?;
+    let provider = selected(d, providers, b"number", b"1", true, &p.member(b"providers"))?;
+    append(d, member(d, provider, b"models", p)?, &text(PROGRAM_MODEL.as_bytes())?, edits)
+}
+
+fn program_charters(d: &Document, engine: u32, edits: &mut Edits) -> Result<(), Refusal> {
+    let p = Path::root().member(b"engine").member(b"charters");
+    let charters = member(d, engine, b"charters", &p)?;
+    for charter in &read::list(d, charters, 1, &p)? {
+        append(d, member(d, *charter, b"alternatives", &p)?, &text(PROGRAM_MODEL.as_bytes())?, edits)?;
+    }
+    Ok(())
+}
+/// Wire welcome peers and a program model in ordinary documents. The shell validates and rebases imported resources first.
 pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents, Refusal> {
     for (name, bytes) in [(b"temper".as_slice(), temper), (b"agent", agent)] {
         if bytes.len() > usize::try_from(crate::DOCUMENT_BYTES).expect("document bound fits") {
@@ -314,13 +369,16 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     let mut edits = Edits::new();
     let application = member(&d, 0, b"application", &root)?;
     let ap = root.member(b"application");
-    forge(&d, application, &github, &mut edits, &ap)?;
+    let git_program = path(&paths.data, b"demo/bin/git");
+    forge(&d, application, &github, &git_program, &mut edits, &ap)?;
     let engine = member(&d, 0, b"engine", &root)?;
     let ep = root.member(b"engine").member(b"llm");
     let llm_at = member(&d, engine, b"llm", &root.member(b"engine"))?;
     sign_in(&d, llm_at, &oauth, &mut edits, &ep)?;
     let endpoints = member(&d, llm_at, b"endpoints", &ep)?;
     endpoint(&d, endpoints, &llm, false, &mut edits, &ep.member(b"endpoints"))?;
+    program_route(&d, llm_at, &llm, &mut edits, &ep)?;
+    program_charters(&d, engine, &mut edits)?;
     let clients = member(&d, application, b"clients", &ap)?;
     let bundle = member(&d, clients, b"bundle", &ap.member(b"clients"))?;
     if !read::is_null(&d, bundle) {
@@ -328,10 +386,11 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     }
     edits.text(&d, bundle, &paths.bundle, &ap.member(b"clients").member(b"bundle"))?;
     worker(&d, &paths.config, &mut edits)?;
-    managed(&d, application, &forgejo, &mut edits)?;
+    managed(&d, application, &forgejo, &git_program, &mut edits)?;
     let mut agent_edits = Edits::new();
     let endpoints = member(&a, 0, b"endpoints", &root)?;
     endpoint(&a, endpoints, &llm, true, &mut agent_edits, &root.member(b"endpoints"))?;
+    append(&a, endpoints, &program_endpoint(&llm, true)?, &mut agent_edits)?;
     let programs = member(&a, 0, b"programs", &root)?;
     let adapter = read::joined(&[
         b"{\"path\":",
@@ -344,7 +403,7 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     Ok(Documents {
         temper: edits.finish(&d)?,
         agent: agent_edits.finish(&a)?,
-        github: forge_document(&github, &paths.data)?,
+        github: forge_document(&github, &paths.data, &d, clients)?,
         oauth: read::joined(&[
             b"{\"listen\":",
             &address(&oauth)?,
@@ -383,7 +442,13 @@ fn object_member(d: &Document, at: u32, name: &[u8], value: &[u8], edits: &mut E
         append(d, at, &read::joined(&[b"{", &text(name)?, b":", value, b"}"]), edits)
     }
 }
-fn managed(d: &Document, application: u32, socket: &[u8], edits: &mut Edits) -> Result<(), Refusal> {
+fn managed(
+    d: &Document,
+    application: u32,
+    socket: &[u8],
+    git_program: &[u8],
+    edits: &mut Edits,
+) -> Result<(), Refusal> {
     let p = Path::root().member(b"application");
     let origin = text(&read::joined(&[b"http://", socket]))?;
     let forge = read::joined(&[
@@ -391,6 +456,8 @@ fn managed(d: &Document, application: u32, socket: &[u8], edits: &mut Edits) -> 
         &address(socket)?,
         b",\"web\":null,\"git\":",
         &origin,
+        b",\"git_program\":",
+        &text(git_program)?,
         br#", "transport":"plaintext"}"#,
     ]);
     for (name, value) in [
@@ -421,7 +488,14 @@ fn managed(d: &Document, application: u32, socket: &[u8], edits: &mut Edits) -> 
     }
     Ok(())
 }
-fn forge(d: &Document, application: u32, github: &[u8], edits: &mut Edits, ap: &Path) -> Result<(), Refusal> {
+fn forge(
+    d: &Document,
+    application: u32,
+    github: &[u8],
+    git_program: &[u8],
+    edits: &mut Edits,
+    ap: &Path,
+) -> Result<(), Refusal> {
     let forges = member(d, application, b"forges", ap)?;
     let fp = ap.member(b"forges");
     let forge = selected(d, forges, b"number", b"2", true, &fp)?;
@@ -446,6 +520,7 @@ fn forge(d: &Document, application: u32, github: &[u8], edits: &mut Edits, ap: &
         };
         edits.set(d, at, &value, &fp.member(name))?;
     }
+    object_member(d, forge, b"git_program", &text(git_program)?, edits)?;
     tls(d, forge, edits, &fp)?;
     Ok(())
 }
@@ -516,9 +591,14 @@ fn worker(d: &Document, config: &[u8], edits: &mut Edits) -> Result<(), Refusal>
     edits.set(d, arguments, &read::joined(&[b"[\"agent\",", &text(&name)?, b"]"]), &wp)?;
     Ok(())
 }
-fn forge_document(socket: &[u8], data: &[u8]) -> Result<Box<[u8]>, Refusal> {
+fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Result<Box<[u8]>, Refusal> {
+    let p = Path::root().member(b"application").member(b"clients").member(b"listener");
+    let listener = member(d, clients, b"listener", &p)?;
+    let at = member(d, listener, b"socket", &p)?;
+    let clients = read::text(d, at, 128, &p.member(b"socket"))?;
+    let setup = text(&read::joined(&[b"http://", &clients, b"/forges/2/github/setup"]))?;
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"admin_token\":", &text(&path(data, b"github-admin.token"))?,
-        br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
+        br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
 }
 fn model_document(socket: &[u8], data: &[u8]) -> Result<Box<[u8]>, Refusal> {
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"key\":", &text(&path(data, b"llm.key"))?,

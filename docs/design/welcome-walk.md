@@ -73,7 +73,9 @@ the owned stories' allowance.
 The proof that the clicks work is skein's lab: hand drives Chromium
 (skein's `lab-browser.md`, 8) against an ordinary box. hand reaches
 temper's origin and the fakes the box names as its peers (`--peer`,
-8.5), and every other destination stays refused. Four experiments cover
+8.5). The ChatGPT walk also names the app-owned fixed callback origin,
+`http://127.0.0.1:1455`, which its shipped registration preserves. Every
+other destination stays refused. Four experiments cover
 the seven paths, all in the browser:
 
 | Experiment | Forge | Model |
@@ -83,8 +85,11 @@ the seven paths, all in the browser:
 | `lab/welcome-own-app` | GitHub, an App of the person's own | a program's login, to Ready |
 | `lab/welcome-forgejo-here` | Forgejo here | a key |
 
-Each walks `/welcome` to Ready and opens the project. It sends a first
-chat, waits for the reply, and finds it again after a reload. Its
+After opening the printed link, the hand waits for the visible Sign out
+button before navigating: the link's page must finish signing in. Each
+walks `/welcome` to Ready and opens the project. It types a first chat
+and presses Start chat, waits for the reply, and finds it again after a
+reload. Its
 checks require hand's trouble to be empty, and ctl's chat to hold the
 expected reply as its first committed assistant message. Each welcome
 step is its own phase of the walk, so the look's live scenes

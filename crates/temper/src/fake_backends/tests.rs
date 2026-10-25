@@ -68,6 +68,20 @@ fn provisioned_source(scratch: &Scratch) -> Directories {
 }
 
 #[test]
+fn program_login_line_names_the_model_steps_placeholder_and_quotes_effective_directories() {
+    let dirs = Directories {
+        config: b"/effective owner's/config".as_slice().into(),
+        data: b"/effective data".as_slice().into(),
+        cache: b"/shared cache".as_slice().into(),
+        origins: [skein_shell::Origin::Flag; 3],
+    };
+    assert_eq!(
+        program_login_line(&dirs, Path::new("/bin owner's/temper")),
+        "'/bin owner'\\''s/temper' program-login --config '/effective owner'\\''s/config' --data '/effective data' --cache '/shared cache' NAME (the name the Model step shows)"
+    );
+}
+
+#[test]
 fn fake_backends_is_an_additive_box_only_switch() {
     let environment = [(Box::<[u8]>::from(b"HOME".as_slice()), Box::<[u8]>::from(b"/fixture/home".as_slice()))];
     for (words, expected) in [
@@ -832,4 +846,22 @@ fn fake_backends_echo_takes_the_variable_and_refuses_the_flag() {
             .expect_err("invalid fake-backend echo")
             .contains("TEMPER_ECHO: expected none or steps")
     );
+}
+
+#[test]
+fn own_app_key_is_the_seeded_apps_private_pem() {
+    let scratch = Scratch::new("own-app-key");
+    let (source, prepared) = prepared_source(&scratch);
+    let path = crate::path(&prepared.directories.data).join("github-app.pem");
+    let key = fs::read(&path).expect("own-App key left for the person");
+    let forge = temper_fake::forge::Document::decode(
+        &fs::read(crate::path(&prepared.directories.config).join("github.json")).expect("forge document"),
+    )
+    .expect("generated forge");
+    assert_eq!(key, forge.github_app_key().expect("seeded App").as_ref());
+    assert!(key.starts_with(b"-----BEGIN RSA PRIVATE KEY-----"));
+    assert_eq!(fs::metadata(&path).expect("key metadata").mode() & 0o777, 0o600);
+    drop(prepared);
+    let _again = start(&source, None).expect("reuse keeps the key");
+    assert_eq!(fs::read(&path).expect("retained key"), key);
 }

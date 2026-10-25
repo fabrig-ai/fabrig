@@ -162,6 +162,7 @@ fn generated_peers_use_existing_formats_and_the_first_added_key() {
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
     let forge = crate::forge::Document::decode(&docs.github).expect("existing forge format");
     let llm = crate::llm::Document::decode(&docs.llm).expect("existing model format");
+    assert_eq!(json(&docs.github)["github"]["app"]["setup_url"], "http://127.0.0.1:8367/forges/2/github/setup");
     assert_eq!(forge.listen(), peers.github);
     assert_eq!(llm.listen(), peers.llm);
     assert_eq!(llm.key(), b"/effective/data/llm.key");
@@ -177,11 +178,19 @@ fn generated_peers_use_existing_formats_and_the_first_added_key() {
 
 #[test]
 fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
+    // Fill every TLS removal slot alongside all welcome git/program edits.
+    const TLS: [&str; 4] = ["server_name", "trust", "trust_der", "identity_file"];
     let (mut temper, mut agent, paths, peers) = fixture();
+    for pointer in ["/application/forges/1", "/engine/llm/providers/0/sources/sign_in", "/engine/llm/endpoints/0"] {
+        for member in TLS {
+            temper.pointer_mut(pointer).expect("rewrite target")[member] = "/stale/root.der".into();
+        }
+    }
+    for member in TLS {
+        agent["endpoints"][0][member] = "/stale/root.der".into();
+    }
     temper["application"]["forges"].as_array_mut().expect("forges").reverse();
     temper["engine"]["llm"]["providers"].as_array_mut().expect("providers").reverse();
-    temper["engine"]["llm"]["endpoints"][0]["trust"] = "/stale/root.der".into();
-    agent["endpoints"][0]["trust_der"] = "/stale/root.der".into();
     agent["endpoints"].as_array_mut().expect("endpoints").reverse();
     let docs = write(&temper, &agent, &paths, &peers).expect("structural rewrite");
     let effective = json(&docs.temper);
@@ -190,6 +199,16 @@ fn target_selection_uses_ids_and_names_and_removes_stale_tls() {
     assert!(effective["engine"]["llm"]["endpoints"][0].get("trust").is_none());
     assert!(effective_agent["endpoints"][1].get("trust_der").is_none());
     assert_eq!(effective_agent["endpoints"][1]["address"], "127.0.0.1:9103");
+    for target in [
+        &effective["application"]["forges"][1],
+        &effective["engine"]["llm"]["providers"][1]["sources"]["sign_in"],
+        &effective["engine"]["llm"]["endpoints"][0],
+        &effective_agent["endpoints"][1],
+    ] {
+        for member in TLS {
+            assert!(target.get(member).is_none(), "removed {member}: {target}");
+        }
+    }
 }
 
 #[test]
@@ -278,9 +297,15 @@ fn managed_four_and_adapter_are_ordinary_and_preserve_existing_entries() {
         for index in [0_usize, 2] {
             assert_eq!(effective["application"]["forges"][index], temper["application"]["forges"][index]);
         }
+        assert_eq!(effective["application"]["forges"][1]["git_program"], "/effective/data/demo/bin/git");
+        assert!(
+            effective["application"]["forges"][2].get("git_program").is_none(),
+            "Forgejo here keeps the machine git"
+        );
+        assert_eq!(effective["application"]["forges"][3]["git_program"], "/effective/data/demo/bin/git");
         assert_eq!(
             effective["application"]["forges"][3],
-            json!({"number":4,"kind":"forgejo","api":{"socket":"127.0.0.1:9104"},"git":"http://127.0.0.1:9104","web":null,"transport":"plaintext"})
+            json!({"number":4,"kind":"forgejo","api":{"socket":"127.0.0.1:9104"},"git":"http://127.0.0.1:9104","git_program":"/effective/data/demo/bin/git","web":null,"transport":"plaintext"})
         );
         assert_eq!(effective["application"]["setup"][2]["mode"], "managed");
         assert_eq!(
@@ -291,6 +316,55 @@ fn managed_four_and_adapter_are_ordinary_and_preserve_existing_entries() {
         let document = crate::forge::Document::decode(&docs.forgejo).expect("existing Forgejo schema");
         assert_eq!(document.listen(), peers.forgejo);
         assert_eq!(document.admin_token(), b"/effective/data/forgejo-admin.token");
+    }
+}
+
+#[test]
+fn program_offer_has_a_runnable_model_route_in_both_documents() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("program route rewrite");
+    let effective = json(&docs.temper);
+    let effective_agent = json(&docs.agent);
+    let llm = &effective["engine"]["llm"];
+    let provider = llm["providers"]
+        .as_array()
+        .expect("providers")
+        .iter()
+        .find(|provider| provider["number"] == 1)
+        .expect("program's provider");
+    assert!(provider["models"].as_array().expect("provider models").contains(&json!("fake-claude")));
+    assert!(provider["sources"]["programs"].as_array().expect("program adapters").contains(&json!("claude_code")));
+    let model = llm["models"]
+        .as_array()
+        .expect("models")
+        .iter()
+        .find(|model| model["name"] == "fake-claude")
+        .expect("program model");
+    assert_eq!(model["endpoint"], "fake-claude");
+    let engine_endpoint = llm["endpoints"]
+        .as_array()
+        .expect("engine endpoints")
+        .iter()
+        .find(|endpoint| endpoint["name"] == model["endpoint"])
+        .expect("engine program endpoint");
+    let agent_endpoint = effective_agent["endpoints"]
+        .as_array()
+        .expect("agent endpoints")
+        .iter()
+        .find(|endpoint| endpoint["name"] == model["endpoint"])
+        .expect("agent program endpoint");
+    for endpoint in [engine_endpoint, agent_endpoint] {
+        assert_eq!(endpoint["program"], "claude_code");
+        assert_eq!(endpoint["provider"], "openai");
+        assert_eq!(endpoint["number"], 2);
+    }
+    let agent_model = agent_endpoint["models"].as_array().expect("agent models").first().expect("program model");
+    for field in ["name", "window", "output", "prices"] {
+        assert_eq!(model[field], agent_model[field], "program declarations agree: {field}");
+    }
+    for charter in effective["engine"]["charters"].as_array().expect("charters") {
+        assert!(charter["alternatives"].as_array().expect("charter alternatives").contains(&json!("fake-claude")));
+        assert_eq!(charter["model"], "gpt-6-luna", "the existing default remains credential-backed");
     }
 }
 
