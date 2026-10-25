@@ -9,6 +9,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain_forge as top;
 use temper_engine_forge_world::LIMITS;
 
+/// A candidate base read (main tip or any Checks): send time, request, returned branch commit.
+pub type BaseRead = (Wall, skein_forge::api::Read, Option<skein_forge::api::Commit>);
+
 /// A top, transport, fake service and independently scripted people.
 pub struct Protocol {
     top: top::Domain,
@@ -17,7 +20,8 @@ pub struct Protocol {
     top_out: Queue<top::Request>,
     stored: Map<top::Key, top::Stored>,
     seen: List<top::Request>,
-    pending: BTreeMap<u64, (u64, Token, bool)>,
+    pending: BTreeMap<u64, (u64, Token, bool, Option<usize>)>,
+    base_reads: Vec<BaseRead>,
     answered: BTreeSet<u64>,
     serial: u64,
     generation: u64,
@@ -100,6 +104,7 @@ impl Protocol {
             stored: Map::with_capacity(128),
             seen: List::with_capacity(256),
             pending: BTreeMap::new(),
+            base_reads: Vec::new(),
             answered: BTreeSet::new(),
             serial: 0,
             generation: 1,
@@ -551,13 +556,27 @@ impl Protocol {
             self.item_start = self.tally().routes.get(&Route::Issues).copied().unwrap_or(0);
             self.item_pages.push(0);
         }
-        assert!(self.pending.insert(self.serial, (self.generation, call, items)).is_none(), "unique call");
+        let sample = if let skein_forge::api::Op::Read(read) = &op
+            && (matches!(read, skein_forge::api::Read::Branch { branch } if branch.as_ref() == b"main")
+                || matches!(read, skein_forge::api::Read::Checks { .. }))
+        {
+            self.base_reads.push((self.env.wall, read.clone(), None));
+            Some(self.base_reads.len() - 1)
+        } else {
+            None
+        };
+        assert!(self.pending.insert(self.serial, (self.generation, call, items, sample)).is_none(), "unique call");
         self.joint.call(self.serial, repository, op);
     }
     fn take_answers(&mut self) {
         for (id, answer) in core::mem::take(&mut self.joint.answers) {
             assert!(self.answered.insert(id), "call {id} answered once");
-            let (generation, call, items) = self.pending.remove(&id).expect("submitted call");
+            let (generation, call, items, sample) = self.pending.remove(&id).expect("submitted call");
+            if let Some(sample) = sample
+                && let Ok(skein_forge::api::Answer::Commit(commit)) = &answer.result
+            {
+                self.base_reads[sample].2 = Some(*commit);
+            }
             if items {
                 let pages = self.tally().routes.get(&Route::Issues).copied().unwrap_or(0) - self.item_start;
                 *self.item_pages.last_mut().expect("listing pass") = pages;
@@ -586,6 +605,10 @@ impl Protocol {
     #[must_use]
     pub fn listing_passes(&self) -> &[u64] {
         &self.item_pages
+    }
+    #[must_use]
+    pub fn base_reads(&self) -> &[BaseRead] {
+        &self.base_reads
     }
     #[must_use]
     pub fn costs(&self) -> u64 {
