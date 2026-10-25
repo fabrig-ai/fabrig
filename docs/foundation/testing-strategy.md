@@ -512,6 +512,18 @@ repository rather than the code it ships (a check of the sources' names,
 a generator that a drift test runs) may be built optimized: that hides
 nothing the tests check, and it costs what it does, not ten times that.
 
+**A test reads its paths when it runs.** It finds its package, its
+workspace, its package's binaries and the target's scratch space through
+`skein_scratch::paths`, which reads what cargo and nextest set when a test
+runs, never with `env!`: a path compiled in names the worktree, and the
+build cache, which keys every input, then shares no test executable
+between worktrees or machines. A library that other packages' tests call
+finds its files from the workspace's root, since the running package is
+theirs. A library that another repository's tests use keeps its
+compile-time path: at run time it could not find its own checkout, and
+cargo's checkout of the pinned revision has the same path in every
+worktree.
+
 **A slow test is understood, never hidden.** Most tests do no I/O and
 are bound by the CPU, so a slow one has a cause in the code under test
 or in the test: a scan where a lookup would do (O(N) where O(1) or

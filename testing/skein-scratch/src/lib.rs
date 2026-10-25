@@ -3,11 +3,14 @@
 //! dropped, whatever it holds and whatever modes a test gave what is in it,
 //! a failing test's included. The conformance suite lays out a root there
 //! for each scenario on files (`tests/conformance/real`; kernel.md, 8), and
-//! the ring's own tests their files (`tests/ring`).
+//! the ring's own tests their files (`tests/ring`). [`paths`] is where a
+//! test finds its package, its workspace and its binaries when it runs.
 //!
 //! Ordinary Rust (programming-model.md, 10.2): it runs in tests only.
 
 #![forbid(unsafe_code)]
+
+pub mod paths;
 
 use std::fs;
 use std::io::ErrorKind;
@@ -76,7 +79,7 @@ impl Drop for Scratch {
 
 /// Fails the test, loudly.
 #[expect(clippy::panic, reason = "a test's scratch directory fails the test, as an assertion does")]
-fn fail(what: &str) -> ! {
+pub(crate) fn fail(what: &str) -> ! {
     panic!("{what}");
 }
 
@@ -97,6 +100,21 @@ fn reopen(dir: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::Scratch;
+
+    #[test]
+    fn a_test_finds_its_package_and_its_workspace_when_it_runs() {
+        let package = super::paths::package();
+        assert!(package.join("Cargo.toml").is_file(), "the package holds its manifest: {}", package.display());
+        let root = package.ancestors().nth(2).expect("skein-scratch is two levels below the root");
+        assert_eq!(super::paths::workspace(), root, "the root holds Cargo.lock");
+    }
+
+    #[test]
+    fn the_target_tmp_is_beside_the_profile_directory() {
+        let tmp = super::paths::target_tmp();
+        assert!(tmp.is_dir(), "made if absent: {}", tmp.display());
+        assert_eq!(tmp.file_name(), Some(std::ffi::OsStr::new("tmp")), "named tmp: {}", tmp.display());
+    }
 
     #[test]
     fn a_scratch_directory_has_no_link_on_its_way() {
