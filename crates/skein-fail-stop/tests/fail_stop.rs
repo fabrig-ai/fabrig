@@ -14,6 +14,6 @@ fn a_panic_on_a_second_thread_aborts_the_process_after_its_report() {
     let fixture = std::env::var_os("CARGO_BIN_EXE_fail_stop_fixture").expect("the fixture's path, set at run time");
     let output = Command::new(fixture).output().expect("the fixture starts");
     assert_eq!(output.status.signal(), Some(SIGABRT), "the process aborts: {:?}", output.status);
-    let report = std::str::from_utf8(&output.stderr).expect("the report is UTF-8");
+    let report = core::str::from_utf8(&output.stderr).expect("the report is UTF-8");
     assert!(report.contains("the fixture's thread panics"), "the default hook reported first: {report}");
 }
