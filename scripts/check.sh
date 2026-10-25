@@ -6,10 +6,23 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
+# Each step's time, for the landing flow's reports (agents'
+# docs/design/landing-flow.md, 10): `gate-step NAME SECONDS EXIT` on stderr.
+step() {
+    step_name=$1
+    shift
+    step_start=$(date +%s%N)
+    step_exit=0
+    "$@" || step_exit=$?
+    step_ms=$((($(date +%s%N) - step_start) / 1000000))
+    printf 'gate-step %s %d.%03d %d\n' "$step_name" $((step_ms / 1000)) $((step_ms % 1000)) "$step_exit" >&2
+    return "$step_exit"
+}
+
+step fmt cargo fmt --check
+step clippy cargo clippy --workspace --all-targets -- -D warnings
 # The browser's step crates (protocol/browser.md, 15).
-cargo clippy --target wasm32-unknown-unknown \
+step wasm cargo clippy --target wasm32-unknown-unknown \
     -p jig-client-protocol-wire -p jig-client-protocol-link \
     -p jig-client-protocol-http -p jig-client-domain -p jig-client \
     -p jig-client-view -p jig-client-shell-web -p jig-client-test-protocol-wire \
@@ -18,13 +31,14 @@ cargo clippy --target wasm32-unknown-unknown \
     -p jig-ops-client-view -- -D warnings
 # skein's testing-strategy.md, section 8: a test is a process.
 export NEXTEST_DOUBLE_SPAWN=0
-cargo nextest run --workspace
-cargo nextest run --workspace --profile fuzzy
+step build cargo nextest run --workspace --no-run
+step focused cargo nextest run --workspace
+step fuzzy cargo nextest run --workspace --profile fuzzy
 
 # The browser tier (protocol/browser.md, 15).
-cargo build --target wasm32-unknown-unknown -p jig-client-test-shell-web
-cargo build -p skein-ui-bundle
-target/debug/skein-ui-bundle \
+step bundle cargo build --target wasm32-unknown-unknown -p jig-client-test-shell-web
+step bundle cargo build -p skein-ui-bundle
+step bundle target/debug/skein-ui-bundle \
     --module target/wasm32-unknown-unknown/debug/jig_client_test_shell_web.wasm \
     --name jig_client_test_shell_web --prefix /bundle/ \
     --stylesheet crates/jig-client-shell-web/jig.css \
@@ -34,7 +48,7 @@ target/debug/skein-ui-bundle \
     --files testing/jig-client-test-shell-web/files \
     --noscript 'jig needs WebAssembly and scripts.' \
     --out target/jig-test-bundle
-cargo build -p jig-test
+step bundle cargo build -p jig-test
 JIG_TEST_BUNDLE="$(pwd)/target/jig-test-bundle"
 export JIG_TEST_BUNDLE
-cargo nextest run --workspace --profile browser
+step browser cargo nextest run --workspace --profile browser
