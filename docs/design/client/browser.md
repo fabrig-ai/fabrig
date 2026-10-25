@@ -765,7 +765,15 @@ tests 4.1's stories take and 4.2's story, the tier reaches its 12.
   milestone (section 4): the test needs only its `web`. A GitHub forge needs a fixed
   clients' listener (`forge.md`, 9.1), so the tier reserves a loopback
   port the kernel assigns before `temper serve` starts and names it in
-  the configuration.
+  the configuration. The fake admits four connections: Chromium's
+  keep-alive, the forge client, the setup client's current request and
+  its previous connection until that close completes. EOF and the next
+  Accept may arrive in the same pass, before the previous slot is
+  reclaimed. A focused fixture test on the simulator holds that close
+  completion and checks that the next connection still receives its
+  HTTP answer, without starting Chromium. Its probe reads the seeded
+  App's bot, using the fixture's identity and HTTP response length;
+  it depends on no favicon answer or copied refusal body.
 - **The test:** the signed-in browser opens the welcome's forge choice
   and presses Connect GitHub. The ordinary client supplies its return
   address. The manifest page posts its form on load to

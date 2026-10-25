@@ -5,9 +5,10 @@ use skein_fake_peers::forge::{Forge, Peer};
 use skein_lib::{Duration, List, Secret};
 use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 
-// One Chromium keep-alive, temper's forge connection and its separate setup client.
-// The recorded chain uses one browser connection to this origin.
-const CONNECTIONS: u32 = 3;
+// One Chromium keep-alive, temper's forge connection, the setup client's
+// next request and its previous connection until that close completes.
+// EOF and the next Accept can arrive together, before the old slot is reclaimed.
+const CONNECTIONS: u32 = 1 + 1 + 2;
 // The forge's Full and Contents tokens, plus the setup client's picker token.
 const INSTALLATION_TOKENS: u32 = 3;
 // Browser navigation (3), connect/conversion (4), reconcile/accept (5),
@@ -19,6 +20,9 @@ const ACCOUNT: u64 = 10;
 const BOT: u64 = 11;
 const REPOSITORY: u32 = 1;
 const FULL_NAME: &[u8] = b"acme/app";
+
+#[cfg(test)]
+mod tests;
 
 pub(super) fn peer(address: SocketAddr) -> Peer {
     let profile = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small);

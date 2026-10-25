@@ -36,6 +36,11 @@ jig-client-protocol-wire.workspace = true
 jig-client-protocol-link.workspace = true
 jig-client-fake-person-browser.workspace = true
 
+[dev-dependencies]
+skein-io.workspace = true
+skein-world.workspace = true
+skein-sim = { git = "https://github.com/fabrig-dev/skein.git" }
+
 [lints.rust]
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"
