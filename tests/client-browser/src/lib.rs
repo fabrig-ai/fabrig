@@ -1,6 +1,6 @@
 //! The browser tier (client/browser.md, 4.3): Chromium against `temper serve`, on a scratch deployment whose
 //! forge and LLM endpoint are unreached, or the box's first-run demo with its own fakes, serving the
-//! bundle the gate builds. Its helpers are jig's
+//! bundle scripts/browser.sh builds. Its helpers are jig's
 //! `tests/client-browser/src/lib.rs`'s, for temper's binary and bundle.
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{
@@ -51,12 +51,12 @@ pub fn chromium() -> PathBuf {
     }
     panic!("Chromium is required: set SKEIN_TEST_CHROMIUM or put chromium on PATH");
 }
-/// The bundle the gate builds, named by `TEMPER_TEST_BUNDLE`.
+/// The bundle scripts/browser.sh builds, named by `TEMPER_TEST_BUNDLE`.
 #[must_use]
 pub fn bundle() -> PathBuf {
     let path = PathBuf::from(
         std::env::var_os("TEMPER_TEST_BUNDLE")
-            .expect("build the bundle with scripts/bundle.sh target/temper-bundle and set TEMPER_TEST_BUNDLE"),
+            .expect("run scripts/browser.sh to build the bundle and set TEMPER_TEST_BUNDLE"),
     );
     let path = if path.is_absolute() { path } else { Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(path) };
     assert!(

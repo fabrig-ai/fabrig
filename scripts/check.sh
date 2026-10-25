@@ -1,7 +1,9 @@
 #!/bin/sh
 # The gate (docs/development/workflow.md, section 1): formatting, lints as
 # errors, then both test suites in full: the default one, then the fuzzy
-# one. agents' `land` runs it through the machine's queue.
+# one. agents' `land` runs it through the machine's queue. Nothing slower:
+# the browser tier is scripts/browser.sh, outside the gate (agents'
+# docs/design/landing-flow.md, 4).
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -49,11 +51,3 @@ export NEXTEST_DOUBLE_SPAWN=0
 step build cargo nextest run --workspace --no-run
 step focused cargo nextest run --workspace
 step fuzzy cargo nextest run --workspace --profile fuzzy
-# The browser bundle, built once by the gate (client/browser.md, 4.3).
-step bundle scripts/bundle.sh --loopback target/temper-bundle >/dev/null
-# The browser tier, Chromium against temper serve on that bundle
-# (client/browser.md, 4.3).
-step bundle cargo build -p temper
-TEMPER_TEST_BUNDLE="$(pwd)/target/temper-bundle"
-export TEMPER_TEST_BUNDLE
-step browser cargo nextest run --workspace --profile browser

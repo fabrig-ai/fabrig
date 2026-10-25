@@ -6,3 +6,6 @@ path = "after-landing.xml"
 
 [profile.qa.junit]
 path = "after-landing.xml"
+
+[profile.browser.junit]
+path = "after-landing.xml"

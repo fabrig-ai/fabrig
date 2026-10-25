@@ -2244,7 +2244,7 @@ crates/temper/tests/support/github.rs   GitHub's App as processes (2.6): the fak
 crates/temper/tests/support/cluster.rs  the cluster's reader: `lab/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/README.md, 15.5)
 lab/cluster                         the cluster's description, in the lab's format, which the process tier and skein's lab runner both run
 crates/temper/tests/live.rs         the live tier (2.7), nextest profile live
-tests/client-browser                temper-client-browser-world: the browser tier (../client/browser.md, section 4), Chromium against temper serve on the bundle the gate builds; nextest profile browser
+tests/client-browser                temper-client-browser-world: the browser tier (../client/browser.md, section 4), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser
 crates/temper-client-shell-terminal/tests  the terminal's machine world (../client/README.md, section 10)
 crates/temper-fake-git              the fake git program's core: temper fake git (4.3)
 testing/temper-fake-git-hosted      the fake git program hosted by skein's world, with its fixtures (4.3)

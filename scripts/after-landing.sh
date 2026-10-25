@@ -1,8 +1,8 @@
 #!/bin/sh
-# The tiers the gate leaves out that main must keep green: agents' `land`
-# runs this after each code landing, through heavy --gate, and a failure
-# goes to the director (agents' roles/owners.md, 4.5). Process and full QA run
+# The tiers the gate leaves out that main must keep green (agents'
+# roles/owners.md, 4.5): the process tier, full QA and the browser tier, each
 # independently on this checkout; the outer runner owns queueing and cleanup.
+# Nothing runs this until the user designs how it should run.
 set -eu
 umask 077
 cd -P "$(dirname "$0")/.."
@@ -84,8 +84,8 @@ def tests(name, profile, command):
         emit("junit-unavailable", phase=name, reason=str(error))
 
 
-def finish(process_ok, qa_ok):
-    code = 0 if process_ok and qa_ok else 1
+def finish(process_ok, qa_ok, browser_ok):
+    code = 0 if process_ok and qa_ok and browser_ok else 1
     if code:
         failures = {name: status for name, status in statuses.items() if status != 0}
         details = dict(sha=sha, failed_phases=failures, failed_tests=failed_tests,
@@ -114,6 +114,7 @@ def finish(process_ok, qa_ok):
         emit("failure-summary", **details)
     emit("run-end", sha=sha, host=socket.gethostname(), start=started, end=stamp(),
          process_exit_code=0 if process_ok else 1, qa_exit_code=0 if qa_ok else 1,
+         browser_exit_code=0 if browser_ok else 1,
          phases=statuses, exit_code=code)
     raise SystemExit(code)
 
@@ -128,7 +129,7 @@ target = root / "target"
 if target.is_symlink() or (target.exists() and not target.is_dir()):
     statuses["setup"] = 1
     emit("setup-failed", reason="after-landing requires the worktree's physical target directory")
-    finish(False, False)
+    finish(False, False, False)
 os.environ.update(CARGO_TARGET_DIR=str(target), TEMPER_BUNDLE="none",
                   TEMPER_TEST_BUNDLE=str(target / "temper-bundle"),
                   TEMPER_TEST_CLAUDE=str(target / "debug/fake-claude"),
@@ -181,8 +182,17 @@ else:
 qa_ok = all(code == 0 for name, code in statuses.items() if name.startswith("qa-"))
 emit("qa-extension-end", start=extension, end=stamp(),
      command_wall_seconds=round(time.monotonic() - clock, 3), exit_code=0 if qa_ok else 1)
+
+# The browser tier (client/browser.md, 4.3), outside the gate: Chromium
+# against temper serve on the QA extension's bundle, as scripts/browser.sh runs it.
+browser = ["cargo", "nextest", "run", "--workspace", "--profile", "browser"] + tool_config
+if bundle_ok and programs_ok:
+    tests("browser-tests", "browser", browser + ["--no-fail-fast", "--failure-output", "immediate-final"])
+else:
+    blocked("browser-tests")
+browser_ok = statuses["browser-tests"] == 0
 # Repeat timings at the end so the outer heavy tail retains them too.
 for result in measurements:
     emit("phase-summary", **result)
-finish(process_ok, qa_ok)
+finish(process_ok, qa_ok, browser_ok)
 PY

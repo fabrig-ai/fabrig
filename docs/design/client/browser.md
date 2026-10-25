@@ -692,14 +692,16 @@ forms reach one carried value with the armour's two line feeds, and
 that the field is emptied; the service's, that `Paste` reads the fake's
 real key in that restored form.
 
-### 4.3 Its budget and the gate
+### 4.3 Its budget, outside the gate
 
 - **A suite of its own,** outside the focused and fuzzy suites
   (`../domain/testing.md`, section 2), in its own crate
   (`tests/client-browser`, `temper-client-browser-world`), run by
-  temper's gate with a nextest profile `browser`, one test at a time,
-  on the bundle the gate builds once, with the dev profile.
-- **The bundle the gate builds** turns on skein-ui-web's
+  `scripts/browser.sh`, a slow tier outside temper's gate (agents'
+  `docs/design/landing-flow.md`, 4), with a nextest profile `browser`,
+  one test at a time, on the bundle it builds first, with the dev
+  profile.
+- **The tier's bundle** turns on skein-ui-web's
   `loopback-navigation` (`scripts/bundle.sh --loopback`), so that the
   round trip (4.2) can send its tab to the fake issuer on plaintext
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
@@ -707,11 +709,11 @@ real key in that restored form.
   runs alike over a binary built with or without its own (2.6).
 - **A guide: at most 12 tests, and about 120 seconds** (60 seconds before
   the user's doubling of 10-22, provisional) on the slowest of the machines
-  that run temper's gate. Past it, a story moves to a world or goes, and the
+  that build temper. Past it, a story moves to a world or goes, and the
   budget stays.
 - **Chromium** is the machine's, at the path its owner configures
-  (skein's `browser.md`), which skein's and jig's gates read from
-  `SKEIN_TEST_CHROMIUM`, and temper's gate too. A missing Chromium or
+  (skein's `browser.md`), which skein's, jig's and temper's browser
+  tiers read from `SKEIN_TEST_CHROMIUM`. A missing Chromium or
   bundle fails the suite, and never skips it (skein's `ui-web.md`,
   14.1).
 - **The client's crates for wasm32:** the gate runs clippy for
