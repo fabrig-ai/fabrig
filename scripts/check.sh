@@ -5,8 +5,21 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
+# Each step's time, for the landing flow's reports (agents'
+# docs/design/landing-flow.md, 10): `gate-step NAME SECONDS EXIT` on stderr.
+step() {
+    step_name=$1
+    shift
+    step_start=$(date +%s%N)
+    step_exit=0
+    "$@" || step_exit=$?
+    step_ms=$((($(date +%s%N) - step_start) / 1000000))
+    printf 'gate-step %s %d.%03d %d\n' "$step_name" $((step_ms / 1000)) $((step_ms % 1000)) "$step_exit" >&2
+    return "$step_exit"
+}
+
 python3 -I -B -m unittest discover -t scripts/lab -s scripts/lab/tests/unit
-cargo fmt --all --check
+step fmt cargo fmt --all --check
 # testing-strategy.md 10: A setup written once; Named fixtures and sizes.
 mkdir -p target
 rustc --edition=2024 -D warnings scripts/check-contracts.rs -o target/check-contracts
@@ -19,10 +32,10 @@ cargo run --locked --target-dir target/recovery-shape --manifest-path scripts/re
 cargo run --locked --target-dir target/recovery-shape --manifest-path scripts/recovery-shape/Cargo.toml -- --connection-shapes --controls crates/skein-forge-connection/src/tests/connection.rs crates/skein-forge-connection/src/limits/tests.rs
 # testing-strategy.md 10: Named fixtures and sizes, in the two sampled listing tests.
 cargo run --locked --target-dir target/recovery-shape --manifest-path scripts/recovery-shape/Cargo.toml -- --listing-sizes --controls crates/skein-forge/src/forgejo/plans/tests/calls.rs
-cargo clippy --workspace --all-targets -- -D warnings
+step clippy cargo clippy --workspace --all-targets -- -D warnings
 # The portable libraries and the browser-only halves on their shipping target.
-cargo check --target wasm32-unknown-unknown -p skein-lib -p skein-codec -p skein-http
-cargo clippy --target wasm32-unknown-unknown -p skein-ui -p skein-ui-web \
+step wasm cargo check --target wasm32-unknown-unknown -p skein-lib -p skein-codec -p skein-http
+step wasm cargo clippy --target wasm32-unknown-unknown -p skein-ui -p skein-ui-web \
     -p skein-ui-example-view -p skein-ui-example-shell-web -- -D warnings
 scripts/taste.sh crates/skein-tls tests/tls
 # The TLS machine on its own: the workspace's build unifies rustls's std,
@@ -30,15 +43,16 @@ scripts/taste.sh crates/skein-tls tests/tls
 cargo check -p skein-tls
 # testing-strategy.md, section 8: nextest starts each test directly.
 export NEXTEST_DOUBLE_SPAWN=0
-cargo nextest run --workspace
-cargo nextest run --workspace --profile fuzzy
+step build cargo nextest run --workspace --no-run
+step focused cargo nextest run --workspace
+step fuzzy cargo nextest run --workspace --profile fuzzy
 # The browser tier uses a dev-profile module under the server's strict policy.
-cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web
-cargo run -p skein-ui-bundle -- \
+step bundle cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web
+step bundle cargo run -p skein-ui-bundle -- \
     --module target/wasm32-unknown-unknown/debug/skein_ui_example_shell_web.wasm \
     --name skein_ui_example_shell_web --prefix /bundle/ --stylesheet examples/ui/shell-web/notes.css --out target/ui-example-bundle \
     --noscript 'Notes needs WebAssembly and scripts.'
-cargo build -p skein-ui-example-server
+step bundle cargo build -p skein-ui-example-server
 SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle"
 export SKEIN_UI_EXAMPLE_BUNDLE
-cargo nextest run --workspace --profile browser
+step browser cargo nextest run --workspace --profile browser
