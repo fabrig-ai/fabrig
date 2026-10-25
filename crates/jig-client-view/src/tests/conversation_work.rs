@@ -219,6 +219,7 @@ fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_te
             &mut domain,
             run,
             Delivery::Run(Box::new(RunText {
+                writing: None,
                 attempt: u64::MAX,
                 began: None,
                 turn: ProvisionalTurnName { retry: u32::MAX, attempt: u64::MAX, number: 1 },

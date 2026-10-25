@@ -82,23 +82,7 @@ pub fn lost(channel: Token) -> core::Event {
 #[must_use]
 pub fn up(domain: &mut Domain, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
-        host::LinkUp::Piece { run, attempt, piece } => {
-            if piece.kind == host::LiveKind::Text
-                && let Ok(offset) = u32::try_from(piece.offset)
-            {
-                return Some(core::Event::RunText {
-                    run,
-                    attempt,
-                    turn: piece.turn,
-                    retry: piece.retry,
-                    offset,
-                    text: piece.bytes,
-                    call: None,
-                });
-            }
-            domain.pieces_dropped = domain.pieces_dropped.saturating_add(1);
-            return None;
-        }
+        host::LinkUp::Piece { run, attempt, piece } => return live_piece(domain, run, attempt, piece),
         host::LinkUp::Logins { logins } => {
             let mut rows = List::with_capacity(u32::try_from(logins.len()).expect("bounded source rows"));
             for login in logins {
@@ -611,4 +595,37 @@ fn grants_refused(ending: &Ending) -> bool {
             host::Ending::Ended { .. } | host::Ending::Parked { .. } | host::Ending::Failed { .. } => false,
         },
     }
+}
+
+fn live_piece(domain: &mut Domain, run: Token, attempt: Token, piece: host::Piece) -> Option<core::Event> {
+    if let Ok(offset) = u32::try_from(piece.offset) {
+        match piece.kind {
+            host::LiveKind::Text => {
+                return Some(core::Event::RunText {
+                    run,
+                    attempt,
+                    turn: piece.turn,
+                    retry: piece.retry,
+                    offset,
+                    text: piece.bytes,
+                    call: None,
+                });
+            }
+            host::LiveKind::Input { call, tool } => {
+                return Some(core::Event::RunInput {
+                    run,
+                    attempt,
+                    turn: piece.turn,
+                    retry: piece.retry,
+                    offset,
+                    id: call,
+                    tool,
+                    input: piece.bytes,
+                });
+            }
+            host::LiveKind::Reasoning => {}
+        }
+    }
+    domain.pieces_dropped = domain.pieces_dropped.saturating_add(1);
+    None
 }

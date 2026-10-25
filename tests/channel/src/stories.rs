@@ -32,6 +32,7 @@ pub enum Story {
     Progress,
     Call,
     Facts,
+    Input,
     Inbox,
     Wait,
     Window,

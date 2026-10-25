@@ -571,20 +571,19 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
   11), and is told nothing of deliveries made before it; the client
   watches again (section 4), and its first delivery is the document
   whole.
-- **A run's text** is a watch of the run: its deliveries carry the turn's
-  name, the content's kind, the content after the offset the client has,
-  and the offset it ends at (`../client/domain/contract.md`, 7.3). A watch opened, or opened
-  again after its stream dropped, starts from the beginning of the turn
-  being written, within its bound; the client keeps what it holds and
-  takes what goes past it (`../client/domain/client.md`, 8.3).
-  These messages leave without waiting for a commit, marked provisional.
-  **Three kinds,** `text`, `reasoning` and `input` (a tool call's input
-  as it streams, named by the call's provider id and its tool), are in
-  the wire as a run's text is, each from its own offset, so that adding
-  one needs no new version. The engine sends `text` only; a client ignores
-  a kind it has no use for. Only a run asked for its
-  text, a conversation's, has any, and only a run whose host gives the
-  call it is making has that (`channel.md`, 6.4).
+- **A run's text** is a watch of the run: each `RunText` delivery carries
+  the turn's name, text after the client's offset, and its end offset
+  (`../client/domain/contract.md`, 7.3). `writing` carries the current call
+  being written whole: provider id, tool, input suffix, byte offsets and
+  `cut`. `call` remains the call being made. The client keeps text and
+  replaces `writing` whole on an accepted delivery. A new turn or retry
+  replaces the provisional document; a committed turn clears it.
+  Input is carried from the first retained character boundary through the
+  last complete UTF-8 character; an incomplete final character waits for
+  the next piece, and invalid UTF-8 omits `writing`. These deliveries leave
+  without a commit, marked provisional. Reasoning has no client surface.
+  Only conversations are asked for text and input (`channel.md`, 6.4).
+
 
 ## 8. Signing in
 

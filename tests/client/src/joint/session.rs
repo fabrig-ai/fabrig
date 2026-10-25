@@ -743,11 +743,11 @@ impl Session {
 
     fn immediate(&mut self, value: core::Now, now: Time, wall: Wall) -> Result<(), Invalid> {
         match value {
-            core::Now::RunText { watcher, turn, from, to, text, cut, call } => {
+            core::Now::RunText { watcher, turn, from, to, text, cut, call, writing } => {
                 if self.driver.transport.watch(watcher).is_none() {
                     return Ok(());
                 }
-                let source = jig_domain_views::Writing { turn, from, to, text, cut, call };
+                let source = jig_domain_views::Writing { turn, from, to, text, cut, call, writing };
                 let value = packets::stream(&mut self.driver.transport, watcher, &source, &self.limits.client.domain)
                     .map_err(Invalid::Packet)?;
                 if self.driver.transport.is_closing(watcher) {

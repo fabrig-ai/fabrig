@@ -26,6 +26,7 @@ pub(super) fn fold_call(fixture: &mut Fixture, name: CallName, fold: Fold) -> bo
 }
 pub(super) fn stream(number: u32, from: u32, through: u32, bytes: &[u8], cut: bool) -> RunText {
     RunText {
+        writing: None,
         attempt: 1,
         began: Some(Wall::EPOCH),
         turn: ProvisionalTurnName { retry: 0, attempt: 1, number },

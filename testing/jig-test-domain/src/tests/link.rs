@@ -558,7 +558,10 @@ fn unkept_piece_kinds_and_offsets_are_dropped_and_counted() {
     let mut domain = fixtures::domain();
     for (index, (kind, offset)) in [
         (host::LiveKind::Reasoning, 0),
-        (host::LiveKind::Input { call: Box::from(&b"call"[..]), tool: Box::from(&b"tool"[..]) }, 0),
+        (
+            host::LiveKind::Input { call: Box::from(&b"call"[..]), tool: Box::from(&b"tool"[..]) },
+            u64::from(u32::MAX) + 1,
+        ),
         (host::LiveKind::Text, u64::from(u32::MAX) + 1),
     ]
     .into_iter()
@@ -610,4 +613,36 @@ fn a_bound_failure_reaches_the_core_with_its_configured_value() {
         };
         assert_eq!(end, tasks::End::Exceeded(tasks::Exceeded { bound: expected, value: u64::MAX }));
     }
+}
+
+#[test]
+fn an_input_piece_reaches_the_core_with_its_provider_identity() {
+    let mut domain = fixtures::domain();
+    let event = link::up(
+        &mut domain,
+        fixtures::CHANNEL,
+        host::LinkUp::Piece {
+            run: fixtures::RUN,
+            attempt: fixtures::ATTEMPT,
+            piece: host::Piece {
+                turn: 3,
+                retry: 2,
+                offset: 0,
+                bytes: Box::from(b"{}".as_slice()),
+                kind: host::LiveKind::Input {
+                    call: Box::from(b"call".as_slice()),
+                    tool: Box::from(b"tool".as_slice()),
+                },
+            },
+        },
+    );
+    let Some(core::Event::RunInput { run, attempt, turn, retry, offset, id, tool, input }) = event else {
+        panic!("routed input")
+    };
+    assert_eq!((run, attempt, turn, retry, offset), (fixtures::RUN, fixtures::ATTEMPT, 3, 2, 0));
+    assert_eq!(
+        (id.as_ref(), tool.as_ref(), input.as_ref()),
+        (b"call".as_slice(), b"tool".as_slice(), b"{}".as_slice())
+    );
+    assert_eq!(domain.pieces_dropped(), 0);
 }

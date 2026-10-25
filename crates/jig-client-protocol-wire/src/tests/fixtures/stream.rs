@@ -101,6 +101,7 @@ pub fn run_text(limits: &Limits, call: LiveCall) -> RunText {
     RunText::new(
         limits,
         RunTextParts {
+            writing: None,
             attempt: u64::MAX,
             began: Some(u64::MAX),
             turn,

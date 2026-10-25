@@ -311,6 +311,20 @@ pub fn current_call(value: &views::Call, limits: &Limits) -> Result<client::Curr
 /// Refuses any owner fact or complete boxed document above the receiving bounds.
 pub fn writing(value: &views::Writing, limits: &Limits) -> Result<client::RunText, Invalid> {
     Ok(client::RunText {
+        writing: value
+            .writing
+            .as_ref()
+            .map(|call| {
+                Ok(client::WritingCall {
+                    id: raw_text(&call.id, limits)?,
+                    tool: raw_text(&call.tool, limits)?,
+                    from: call.from,
+                    through: call.through,
+                    input: raw_text(&call.input, limits)?,
+                    cut: call.cut,
+                })
+            })
+            .transpose()?,
         attempt: value.turn.attempt,
         began: None,
         turn: client::ProvisionalTurnName {
@@ -871,6 +885,7 @@ pub(crate) mod tests {
             attempt: Some(u64::MAX),
             committed_turn: 11,
             writing: Some(views::Writing {
+                writing: None,
                 turn: views::TurnName { attempt: 19, turn: 17, retry: 3 },
                 from: 31,
                 to: 33,

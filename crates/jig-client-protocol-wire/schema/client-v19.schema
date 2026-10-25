@@ -733,7 +733,8 @@ record LiveCallDecoded { value: Call }
 record LiveCallRaw { value: CurrentCall }
 enum LiveCall { decoded: LiveCallDecoded, raw: LiveCallRaw }
 record ProvisionalTurnName { attempt: u64 number: u32 retry: u32 }
-record RunText { attempt: u64 began: option u64 turn: ProvisionalTurnName from: u32 through: u32 text: text 65536 cut: bool call: option LiveCall }
+record WritingCall { id: text 256 tool: text 64 from: u32 through: u32 input: text 65536 cut: bool }
+record RunText { attempt: u64 began: option u64 turn: ProvisionalTurnName from: u32 through: u32 text: text 65536 cut: bool call: option LiveCall writing: option WritingCall }
 record RunState { task: u64 attempt: option u64 committed_turn: u32 writing: option RunText call: option CurrentCall }
 record ProposalActionBatch { tasks: bytes 16777216 own: bool }
 record ProposalActionEffect { part: Part }

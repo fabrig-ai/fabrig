@@ -32,6 +32,10 @@ pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText,
     w::RunText::new(
         limits,
         w::RunTextParts {
+            writing: match &value.writing {
+                Some(call) => writing_call(call, limits)?,
+                None => None,
+            },
             attempt: value.turn.attempt,
             began: None,
             turn: w::ProvisionalTurnName::new(
@@ -56,6 +60,47 @@ pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText,
         },
     )
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "protocol/client.md 7: this protocol owner validates retained input UTF-8"
+)]
+pub fn writing_call(value: &views::WritingCall, limits: &w::Limits) -> Result<Option<w::WritingCall>, w::Problem> {
+    let mut skip: usize = 0;
+    if value.from != 0 {
+        for byte in &value.input {
+            if byte & 0xc0 != 0x80 {
+                break;
+            }
+            skip = skip.checked_add(1).expect("input boundary");
+        }
+    }
+    let input = value.input.get(skip..).expect("input suffix");
+    let length = match core::str::from_utf8(input) {
+        Ok(_) => input.len(),
+        Err(error) => match error.error_len() {
+            Some(_) => return Ok(None),
+            None => error.valid_up_to(),
+        },
+    };
+    let Some(from) = value.from.checked_add(u32::try_from(skip).expect("bounded input")) else {
+        return Ok(None);
+    };
+    let Some(through) = from.checked_add(u32::try_from(length).expect("bounded input")) else {
+        return Ok(None);
+    };
+    Ok(Some(w::WritingCall::new(
+        limits,
+        w::WritingCallParts {
+            id: bytes::copy_of(&value.id),
+            tool: bytes::copy_of(&value.tool),
+            from,
+            through,
+            input: bytes::copy_of(input.get(..length).expect("complete character prefix")),
+            cut: value.cut,
+        },
+    )?))
+}
+
 pub fn run(value: &d::Run, limits: &w::Limits) -> Result<w::RunState, w::Problem> {
     w::RunState::new(
         limits,
@@ -159,4 +204,32 @@ fn tree_pieces(rows: &List<w::OwnerTreeRow>, bound: u32, path: w::Path) -> Resul
         encoded.push(out.finish()).expect("supplied rows fit");
     }
     pieces(&encoded, bound, path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn call(from: u32, input: &[u8]) -> views::WritingCall {
+        views::WritingCall {
+            id: Box::from(b"call".as_slice()),
+            tool: Box::from(b"tool".as_slice()),
+            from,
+            through: from.checked_add(u32::try_from(input.len()).expect("fixture bytes")).expect("fixture offset"),
+            input: Box::from(input),
+            cut: from != 0,
+        }
+    }
+    #[test]
+    fn an_incomplete_character_waits_until_the_next_piece_completes_it() {
+        let first = writing_call(&call(0, b"\xc3"), &w::CEILINGS).expect("wire").expect("identity");
+        assert_eq!((first.from(), first.through(), first.input()), (0, 0, b"".as_slice()));
+        let second = writing_call(&call(0, b"\xc3\xa9"), &w::CEILINGS).expect("wire").expect("whole character");
+        assert_eq!((second.from(), second.through(), second.input()), (0, 2, "é".as_bytes()));
+    }
+    #[test]
+    fn a_trim_skips_continuation_bytes_and_invalid_utf8_omits_writing() {
+        let value = writing_call(&call(1, b"\xa9x"), &w::CEILINGS).expect("wire").expect("suffix");
+        assert_eq!((value.from(), value.through(), value.input(), value.cut()), (2, 3, b"x".as_slice(), true));
+        assert!(writing_call(&call(0, b"\xff"), &w::CEILINGS).expect("wire").is_none());
+    }
 }

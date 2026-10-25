@@ -117,6 +117,7 @@ fn finished(phase: Option<OwnerChipPhase>, prior: Option<OwnerPriorPhase>) -> bo
         Watched {
             watch: run,
             event: WatchEvent::Delivered(Delivery::Run(Box::new(RunText {
+                writing: None,
                 attempt: 1,
                 began: None,
                 turn: ProvisionalTurnName { retry: 0, attempt: 1, number: 1 },

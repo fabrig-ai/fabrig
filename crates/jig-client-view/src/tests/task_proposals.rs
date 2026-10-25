@@ -190,6 +190,7 @@ fn task_proposals_share_exact_cards_with_committed_and_live_calls_without_confla
                 &mut d,
                 run,
                 Delivery::Run(Box::new(RunText {
+                    writing: None,
                     attempt: 2,
                     began: None,
                     turn: ProvisionalTurnName { retry: 0, attempt: 2, number: 1 },

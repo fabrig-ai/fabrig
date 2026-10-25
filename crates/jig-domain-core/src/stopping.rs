@@ -111,6 +111,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
         | Event::Delivered { .. }
         | Event::StreamDelivered { .. }
         | Event::RunCall { .. }
+        | Event::RunInput { .. }
         | Event::RunText { .. }
         | Event::Tasks(_)
         | Event::ConnectorRepair { .. }

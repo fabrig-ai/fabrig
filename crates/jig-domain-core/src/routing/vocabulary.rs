@@ -261,6 +261,7 @@ pub enum Now {
         text: Box<[u8]>,
         cut: bool,
         call: Option<views::Call>,
+        writing: Option<views::WritingCall>,
     },
     /// One page of scope index lines.
     NotesIndexed { owner: Token, lines: List<notes::Line>, more: u32 },
@@ -472,6 +473,17 @@ pub enum Event {
     StreamDelivered { watcher: Token },
     /// A content call with its opaque source identity, independent of text.
     RunCall { run: Token, attempt: Token, call: views::Call },
+    /// A main completion's current tool input, before its turn commits.
+    RunInput {
+        run: Token,
+        attempt: Token,
+        turn: u32,
+        retry: u32,
+        offset: u32,
+        id: Box<[u8]>,
+        tool: Box<[u8]>,
+        input: Box<[u8]>,
+    },
     /// A live host's text or no-text start, named by its activation turn and supplied retry.
     RunText {
         run: Token,

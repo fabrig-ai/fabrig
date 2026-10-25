@@ -17,7 +17,7 @@ use jig_client_domain::contract::{
     RolePolicy, RunBeginning, RunEnding, RunObservation, RunStage, RunState, RunText, RunWork, Runtime, SeenThrough,
     Speaker, Specification, SpecificationDocument, SpendLine, SpendPage, SpendPeriod, Steering, Subject, TakenBy, Task,
     TaskContext, TaskHold, TaskLine, TaskPage, TaskSpend, Tasks, Text, Tree, TreeNode, Turn, TurnLimits, TurnName,
-    Usage, VersionRange, WakePolicy, WatchEnd, WatchEvent, WriterSlot,
+    Usage, VersionRange, WakePolicy, WatchEnd, WatchEvent, WriterSlot, WritingCall,
 };
 use skein_lib::{Duration, List, Token, Wall};
 
@@ -1196,7 +1196,8 @@ impl Payload for LiveCall {
     }
 }
 fields!(ProvisionalTurnName { attempt, number, retry });
-fields!(RunText { attempt, began, turn, from, through, text, cut, call });
+fields!(WritingCall { id, tool, from, through, input, cut });
+fields!(RunText { attempt, began, turn, from, through, text, cut, call, writing });
 fields!(RunState { task, attempt, committed_turn, writing, call });
 impl Payload for WatchEvent {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {

@@ -51,6 +51,8 @@ pub struct Outcome {
     pub text_bytes: usize,
     pub text_prefixes: Vec<Box<[u8]>>,
     pub text_committed: bool,
+    pub input_seen: bool,
+    pub input_committed: bool,
     pub start_messages: u32,
     pub waited: bool,
     pub windows: u32,
@@ -179,6 +181,8 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, k
         text_bytes: views.text_bytes,
         text_prefixes: views.reply.prefixes.clone(),
         text_committed: views.reply.committed,
+        input_seen: views.input.seen,
+        input_committed: views.input.committed,
         verdict: Verdict::Passed,
         turns_committed: u32::try_from(turns.len()).expect("bounded turns"),
         answers_acknowledged: worker.map_or(0, |wire| u32::try_from(wire.acknowledgements.len()).expect("bounded answers")),
@@ -425,6 +429,7 @@ pub(crate) struct Views {
     pub(crate) activity_seen: bool,
     pub(crate) text_bytes: usize,
     pub(crate) reply: crate::live_text::Reply,
+    pub(crate) input: crate::live_input::Input,
     pub(crate) messages_ended: usize,
     pub(crate) refusals_kept: bool,
     pub(crate) engine_drained: bool,
@@ -468,7 +473,7 @@ fn make_referee(
             crate::stories::Story::InvalidCharter
             | crate::stories::Story::BeyondGrace
             | crate::stories::Story::Shutdown => 0,
-            crate::stories::Story::InvalidTranscript => 1,
+            crate::stories::Story::InvalidTranscript | crate::stories::Story::Input => 1,
             crate::stories::Story::Window => 7,
             crate::stories::Story::Facts => 2,
             crate::stories::Story::Drain

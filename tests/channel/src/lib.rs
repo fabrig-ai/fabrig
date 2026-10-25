@@ -7,6 +7,7 @@ pub mod stories;
 pub mod world;
 
 mod account_setup;
+mod live_input;
 mod live_text;
 pub mod program_sources;
 

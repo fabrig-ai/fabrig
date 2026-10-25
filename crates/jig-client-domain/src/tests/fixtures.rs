@@ -329,6 +329,7 @@ pub(crate) fn run(task: u64, turn: u32, retry: u32, from: u32, bytes: &[u8]) -> 
     Up::Watched {
         watch: INITIAL_TASK_WATCH,
         event: contract::WatchEvent::Delivered(contract::Delivery::Run(Box::new(contract::RunText {
+            writing: None,
             attempt: RUN_ATTEMPT,
             began: Some(Wall::EPOCH),
             turn: contract::ProvisionalTurnName { attempt: RUN_ATTEMPT, number: turn, retry },

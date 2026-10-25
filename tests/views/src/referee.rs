@@ -298,6 +298,9 @@ impl Referee {
                 call: call.clone(),
             }),
             Event::Called { run, call, .. } => self.observe(Seen::Called { run: *run, call: call.clone() }),
+            Event::Input { .. } => {
+                unreachable!("input has separate unit stories; this world scripts text and made calls")
+            }
             Event::Changed { .. }
             | Event::Unwatch { .. }
             | Event::Gone { .. }
@@ -314,7 +317,7 @@ impl Referee {
                     Seen::Make { watcher: *watcher, subject: *subject, window: *window }
                 }
                 Request::Deliver { watcher } => Seen::Deliver { watcher: *watcher },
-                Request::Stream { watcher, turn, from, to, text, cut, call } => Seen::Stream {
+                Request::Stream { watcher, turn, from, to, text, cut, call, writing: _ } => Seen::Stream {
                     watcher: *watcher,
                     turn: *turn,
                     from: *from,

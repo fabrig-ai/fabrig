@@ -384,7 +384,7 @@ impl Parties {
     }
 
     pub fn now(&mut self, now: &core::Now) {
-        if let core::Now::RunText { watcher, turn, from, to, text, cut, call } = now {
+        if let core::Now::RunText { watcher, turn, from, to, text, cut, call, .. } = now {
             self.streams.push(Stream {
                 watcher: watcher.raw(),
                 turn: *turn,

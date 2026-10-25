@@ -75,6 +75,17 @@ pub struct Call {
     pub began: Option<skein_lib::Wall>,
 }
 
+/// The provider call whose bounded input suffix is being written.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WritingCall {
+    pub id: Box<[u8]>,
+    pub tool: Box<[u8]>,
+    pub from: u32,
+    pub through: u32,
+    pub input: Box<[u8]>,
+    pub cut: bool,
+}
+
 /// An opaque followed run and the client's acknowledged provisional position.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Follow {
@@ -92,6 +103,7 @@ pub struct Writing {
     pub text: Box<[u8]>,
     pub cut: bool,
     pub call: Option<Call>,
+    pub writing: Option<WritingCall>,
 }
 
 /// Events from the parent.
@@ -111,6 +123,8 @@ pub enum Event {
     StreamDelivered { watcher: Token },
     /// A live host wrote text starting at this turn's absolute offset.
     Text { run: Token, turn: TurnName, offset: u32, text: Box<[u8]>, call: Option<Call> },
+    /// A main completion appends to the call it is currently writing.
+    Input { run: Token, turn: TurnName, offset: u32, id: Box<[u8]>, tool: Box<[u8]>, input: Box<[u8]> },
     /// Any content call, independently of the main completion's text identity.
     Called { run: Token, attempt: u64, call: Call },
     /// A committed turn stops being provisional without ending its live run.
@@ -133,7 +147,16 @@ pub enum Request {
     /// Deliver the document the parent holds until durable.
     Deliver { watcher: Token },
     /// Deliver a provisional suffix; its turn and absolute positions never mix.
-    Stream { watcher: Token, turn: TurnName, from: u32, to: u32, text: Box<[u8]>, cut: bool, call: Option<Call> },
+    Stream {
+        watcher: Token,
+        turn: TurnName,
+        from: u32,
+        to: u32,
+        text: Box<[u8]>,
+        cut: bool,
+        call: Option<Call>,
+        writing: Option<WritingCall>,
+    },
     /// Admission found no capacity.
     Refused { watcher: Token, refusal: Refusal },
     /// The watch has released its last outstanding request.

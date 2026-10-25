@@ -129,6 +129,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Text { run, turn, offset, text, call } => {
             crate::text::written(domain, env, run, turn, offset, &text, call, out);
         }
+        Event::Input { run, turn, offset, id, tool, input } => {
+            crate::text::input(domain, env, run, turn, offset, id, tool, &input, out);
+        }
         Event::Called { run, attempt, call } => crate::text::called(domain, env, run, attempt, call, out),
         Event::TurnCommitted { run, attempt, turn } => crate::text::committed(domain, run, attempt, turn),
         Event::RunEnded { run } => crate::text::ended(domain, run),

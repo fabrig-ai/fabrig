@@ -16,10 +16,12 @@ fn an_empty_retry_replaces_unwatched_text_at_the_world_stream_boundary() {
     assert!(world.text(7, name(1), b"", None).is_empty());
     let opened = open(&mut world, 1);
     assert!(opened.iter().any(|request| matches!(request, Request::Stream {
+                writing: None,
         turn, from: 0, to: 0, text, cut: false, ..
     } if *turn == name(1) && text.is_empty())));
     world.settle();
     assert!(world.text(7, name(1), b"new prefix", None).iter().any(|request| matches!(request, Request::Stream {
+                writing: None,
         turn, from: 0, to: 10, text, cut: false, ..
     } if *turn == name(1) && text.as_ref() == b"new prefix")));
     world.settle();
@@ -38,6 +40,7 @@ fn a_worlds_sole_watcher_reopens_from_an_unwatched_retry_without_a_replay_source
     assert!(world.text(7, name(1), b"retained", None).is_empty());
     let reopened = open(&mut world, 2);
     assert!(reopened.iter().any(|request| matches!(request, Request::Stream {
+                writing: None,
         turn, from: 0, to: 8, text, cut: false, ..
     } if *turn == name(1) && text.as_ref() == b"retained")));
     world.settle();
@@ -62,6 +65,7 @@ fn world_run_admission_survives_detach_and_late_text_starts_when_an_ended_run_fr
     world.step(Event::RunEnded { run: Token::new(7) });
     let late = world.text(8, name(0), b"kept", None);
     assert!(late.iter().any(|request| matches!(request, Request::Stream {
+                writing: None,
         watcher, turn, from: 8, to: 12, text, cut: true, ..
     } if *watcher == Token::new(2) && *turn == name(0) && text.as_ref() == b"kept")));
     world.settle();
@@ -77,6 +81,7 @@ fn a_dropped_fact_marks_the_watched_turn_cut() {
     assert_eq!(
         world.text(7, name(0), b"suffix", None),
         vec![Request::Stream {
+            writing: None,
             watcher: Token::new(1),
             turn: name(0),
             from: 9,

@@ -26,6 +26,7 @@ pub(crate) fn merge(watch: &Watch, mut value: RunText, limit: u32) -> Option<Run
                 if value.through == held.through {
                     kept.began = value.began;
                     kept.call = value.call;
+                    kept.writing = value.writing;
                 }
                 return Some(kept);
             }

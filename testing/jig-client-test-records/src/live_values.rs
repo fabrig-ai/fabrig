@@ -69,6 +69,7 @@ pub fn writing_record() -> w::RunText {
     w::RunText::new(
         &l,
         w::RunTextParts {
+            writing: None,
             attempt: 31,
             began: None,
             turn: w::ProvisionalTurnName::new(&l, w::ProvisionalTurnNameParts { attempt: 31, number: 37, retry: 5 })

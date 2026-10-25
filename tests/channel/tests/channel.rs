@@ -301,3 +301,13 @@ fn two_providers_keep_real_source_bindings_across_engine_restart() {
     assert_eq!(outcome.providers_before, expected);
     assert_eq!(outcome.providers_after, expected);
 }
+
+#[test]
+fn a_conversations_input_reaches_the_native_client_before_its_turn() {
+    let outcome = run(Story::Input);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert!(outcome.input_seen);
+    assert!(outcome.input_committed);
+    assert_eq!(outcome.turns_committed, 1);
+    assert_eq!(outcome.answers_acknowledged, 1);
+}

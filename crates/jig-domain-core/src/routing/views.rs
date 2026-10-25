@@ -94,8 +94,8 @@ pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
                 };
                 out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
             }
-            views::Request::Stream { watcher, turn, from, to, text, cut, call } => {
-                out.push(Request::Now(Box::new(Now::RunText { watcher, turn, from, to, text, cut, call })));
+            views::Request::Stream { watcher, turn, from, to, text, cut, call, writing } => {
+                out.push(Request::Now(Box::new(Now::RunText { watcher, turn, from, to, text, cut, call, writing })));
             }
         }
     }
@@ -510,6 +510,58 @@ pub(super) fn run_text(
                     offset,
                     text,
                     call,
+                },
+            ),
+            &mut out,
+        );
+        if had_call && !views::has_current_call(&core.views, run, attempt.raw()) {
+            changed_run(core, env, run, &mut out);
+        }
+    }
+    out.push(Request::Decided);
+    Requests::Out(out)
+}
+
+#[expect(clippy::too_many_arguments, reason = "the host reports input with its fenced turn and provider identity")]
+pub(super) fn run_input(
+    core: &mut Core,
+    env: &Env<Limits>,
+    run: Token,
+    attempt: Token,
+    turn: u32,
+    retry: u32,
+    offset: u32,
+    id: Box<[u8]>,
+    tool: Box<[u8]>,
+    input: Box<[u8]>,
+) -> Requests {
+    let mut out = Queue::with_capacity(crate::room_max(&env.limits).expect("bounded input route").held);
+    append_stream(super::watch_marks::end_invalid(core, env), &mut out);
+    let live = match core.proofs.get(&run.raw()) {
+        Some(proof) => {
+            proof.attempt == attempt.raw()
+                && proof.terminal.is_none()
+                && turn != 0
+                && match proof.turn {
+                    Some(kept) => turn > kept.turn,
+                    None => true,
+                }
+        }
+        None => false,
+    };
+    if live {
+        let had_call = views::has_current_call(&core.views, run, attempt.raw());
+        append_stream(
+            route_view(
+                core,
+                env,
+                views::Event::Input {
+                    run,
+                    turn: views::TurnName { attempt: attempt.raw(), turn, retry },
+                    offset,
+                    id,
+                    tool,
+                    input,
                 },
             ),
             &mut out,

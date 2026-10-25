@@ -148,6 +148,7 @@ pub fn run_text_record() -> w::RunText {
 }
 pub fn run_text() -> c::RunText {
     c::RunText {
+        writing: None,
         attempt: 7,
         began: None,
         turn: c::ProvisionalTurnName { attempt: 7, number: 7, retry: 7 },
@@ -281,6 +282,7 @@ pub fn text_record() -> w::RunText {
     w::RunText::new(
         &lim,
         w::RunTextParts {
+            writing: None,
             attempt: 41,
             began: Some(u64::MAX),
             turn: w::ProvisionalTurnName::new(&lim, w::ProvisionalTurnNameParts { attempt: 41, number: 7, retry: 3 })
@@ -296,6 +298,7 @@ pub fn text_record() -> w::RunText {
 }
 pub fn run_text_expected() -> c::RunText {
     c::RunText {
+        writing: None,
         attempt: 41,
         began: Some(Wall::from_nanos(u64::MAX)),
         turn: c::ProvisionalTurnName { attempt: 41, number: 7, retry: 3 },

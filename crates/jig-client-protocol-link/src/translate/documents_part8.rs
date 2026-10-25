@@ -109,6 +109,28 @@ pub(crate) fn run_text_fields(value: &w::RunText, limits: &Limits) -> Result<c::
         None => None,
     };
     Ok(c::RunText {
+        writing: match value.writing() {
+            Some(call) => {
+                if call.through().checked_sub(call.from()) != u32::try_from(call.input().len()).ok() {
+                    return Err(too_large());
+                }
+                Some(c::WritingCall {
+                    id: match c::Text::new(call.id().into(), 256) {
+                        Ok(text) => text,
+                        Err(_) => return Err(too_large()),
+                    },
+                    tool: match c::Text::new(call.tool().into(), 64) {
+                        Ok(text) => text,
+                        Err(_) => return Err(too_large()),
+                    },
+                    input: text(call.input(), limits)?,
+                    from: call.from(),
+                    through: call.through(),
+                    cut: call.cut(),
+                })
+            }
+            None => None,
+        },
         attempt: value.attempt(),
         began: opt0,
         turn: provisional_turn_name_fields(value.turn(), limits),

@@ -13,6 +13,7 @@ pub fn run_text_record() -> w::RunText {
     w::RunText::new(
         &lim,
         w::RunTextParts {
+            writing: None,
             attempt: 7,
             began: None,
             turn: w::ProvisionalTurnName::new(&lim, w::ProvisionalTurnNameParts { attempt: 7, number: 7, retry: 7 })

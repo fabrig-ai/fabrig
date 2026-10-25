@@ -64,6 +64,9 @@ impl skein_world::Referee<Proc> for Referee {
                         matches!(self.story, crate::stories::Story::Facts)
                             && self.injected
                             && self.views.borrow().reply.prefixes.len() < crate::live_text::PIECES
+                            || matches!(self.story, crate::stories::Story::Input)
+                                && self.views.borrow().input.opened
+                                && !self.views.borrow().input.seen
                             || matches!(self.story, crate::stories::Story::DurableRestart) && !self.injected
                             || matches!(self.story, crate::stories::Story::HeldCommit | crate::stories::Story::Drain)
                                 && now < Time::from_nanos(1_000_000_000),
@@ -195,7 +198,7 @@ impl skein_world::Referee<Proc> for Referee {
             && ended
             && replied
             && self.rules.complete()
-            && (!matches!(self.story, crate::stories::Story::Facts) || self.views.borrow().reply.committed)
+            && self.provisional_committed()
             && (!matches!(self.story, crate::stories::Story::Providers)
                 || !self.views.borrow().providers_after.1.is_empty())
         {
@@ -575,6 +578,8 @@ impl Referee {
                 }
             }
         }
+        self.input_story(procs);
+
         if matches!(self.story, crate::stories::Story::Facts) && !self.injected
             && procs.iter().any(|proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).next().is_some())) {
             self.injected = true;
@@ -616,6 +621,7 @@ impl Referee {
             | crate::stories::Story::Opening(_)
             | crate::stories::Story::Progress
             | crate::stories::Story::Facts
+            | crate::stories::Story::Input
             | crate::stories::Story::Inbox
             | crate::stories::Story::Call
             | crate::stories::Story::Wait
@@ -952,4 +958,21 @@ pub(crate) fn roots_at_end(procs: &[Proc]) {
         }
     }
     assert_eq!(rules.verdict(), skein_world::domain::Verdict::Passed);
+}
+
+impl Referee {
+    fn provisional_committed(&self) -> bool {
+        (!matches!(self.story, crate::stories::Story::Facts) || self.views.borrow().reply.committed)
+            && (!matches!(self.story, crate::stories::Story::Input) || self.views.borrow().input.committed)
+    }
+    fn input_story(&mut self, procs: &mut [Proc]) {
+        if matches!(self.story, crate::stories::Story::Input) && !self.injected
+            && procs.iter().any(|proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).next().is_some())) {
+            self.injected=true;
+            crate::live_input::Input::watch(procs);
+        }
+        if matches!(self.story, crate::stories::Story::Input) && self.injected {
+            self.views.borrow_mut().input.act(procs, &self.store.borrow());
+        }
+    }
 }

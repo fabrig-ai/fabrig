@@ -620,8 +620,8 @@ handles, as every presentation does (sections 7 and 8).
 - **The one stream.** A watch of a run follows a task's live run: its
   attempt; the turn being written, named by its attempt, its number
   within it and its completion's retry; that retry's text so far; and
-  the call it is making; all provisional, and marked so (contract.md,
-  7.3).
+  the call it is making and the call being written (`writing`); all
+  provisional, and marked so (contract.md, 7.3).
 - **Read from an offset, one turn at a time.** The client keeps the
   text it holds of the turn being written, within the bound on a
   provisional turn's bytes, takes each delivery's text past its offset,
@@ -643,11 +643,11 @@ handles, as every presentation does (sections 7 and 8).
   committed only through its task's activity, read once the task's
   document says the activity has moved (contract.md, 7.3).
   `jig_client::thread` puts the two together (section 10).
-- **Kinds.** The wire names a delivery's kind: `text`, `reasoning` or
-  `input` (protocol/client.md, 7.3). `client.text(handle)` is kind `text`
-  only, the one the engine sends; the others are held the same way, by
-  turn, retry and offset, once a producer exists, and no surface for
-  them is added before.
+- **The call being written.** `RunText.writing` is the whole current
+  provider id, tool and UTF-8 input suffix, its byte offsets and cut mark.
+  Each accepted delivery replaces it whole, including a delivery with no
+  new text. Earlier turns or retries change nothing. `call` still names
+  the call being made; reasoning has no surface.
 - **Only for a run asked for it.** A run whose task is not a conversation,
   or whose host names no call, has no text or no call respectively, and
   its words appear as each turn commits.

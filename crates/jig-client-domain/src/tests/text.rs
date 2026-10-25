@@ -123,3 +123,33 @@ fn text_past_the_turn_s_bound_is_cut_and_marked() {
         assert!(text.cut, "{case}");
     }
 }
+
+#[test]
+fn writing_is_replaced_whole_on_accepted_empty_deliveries_and_stale_turns_change_nothing() {
+    use crate::{Event, Up, contract};
+    use alloc::boxed::Box;
+    let mut c = Client::running();
+    for (turn, id, input, expected) in [
+        (NEXT_TURN, b"a".as_slice(), b"first".as_slice(), b"first".as_slice()),
+        (FIRST_TURN, b"old", b"stale", b"first"),
+        (NEXT_TURN, b"b", b"next", b"next"),
+    ] {
+        let mut up = super::fixtures::run(SUBJECT_TASK, turn, FIRST_RETRY, 0, b"");
+        let Up::Watched { watch, event: contract::WatchEvent::Delivered(contract::Delivery::Run(value)) } = &mut up
+        else {
+            panic!("fixture")
+        };
+        *watch = c.name(run_subject());
+        value.writing = Some(contract::WritingCall {
+            id: contract::Text::new(Box::from(id), 256).unwrap(),
+            tool: contract::Text::new(Box::from(b"tool".as_slice()), 64).unwrap(),
+            from: 0,
+            through: u32::try_from(input.len()).unwrap(),
+            input: contract::Text::new(Box::from(input), 65536).unwrap(),
+            cut: false,
+        });
+        c.step(Event::Up { up });
+        assert_eq!(c.domain.text(RUN).unwrap().writing.as_ref().unwrap().input.bytes(), expected);
+    }
+    assert_eq!(c.domain.text(RUN).unwrap().writing.as_ref().unwrap().id.bytes(), b"b");
+}

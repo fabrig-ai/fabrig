@@ -462,10 +462,11 @@ holds, and neither of its components reads them.
   by the worker's hand-out into jig's typed fact (`../domain/hosts.md`,
   6.8; smith's `protocol/channel.md`, section 4). The wire carries all
   three kinds, so that reasoning and a tool's input need no new version;
-  only `text` has a producer now. A worker never sends a piece of a kind
+  smith now produces `text` and `input` from agent processes. A worker never sends a piece of a kind
   its agents do not build. One that arrives crosses the engine's side as
   it is, every field translated and nothing decided, and the engine's
-  root drops it, counted, as it hands the piece to the core
+  root routes text and input to the core, dropping reasoning and offsets
+  past `u32`, counted
   (`../domain/engine.md`, section 11).
 - **A tool begun with its call comes only from a host that gives it:** a
   tool begun with its call's name, its tool and its input within the

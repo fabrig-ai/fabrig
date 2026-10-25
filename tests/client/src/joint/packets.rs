@@ -787,6 +787,7 @@ mod tests {
         assert_eq!(state.task, 31);
         assert_eq!(state.writing, None);
         let source = jig_domain_views::Writing {
+            writing: None,
             turn: jig_domain_views::TurnName { attempt: u64::MAX, turn: 17, retry: u32::MAX },
             from: 91,
             to: 93,

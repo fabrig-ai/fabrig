@@ -402,6 +402,7 @@ impl<A: crate::Application> Engine<A> {
         let kept = text.len().min(self.bounds.text as usize);
         let from = through - u32::try_from(kept).expect("text bound fits");
         let run = RunText {
+            writing: None,
             attempt: turn.attempt,
             began,
             turn,

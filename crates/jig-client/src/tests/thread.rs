@@ -65,6 +65,7 @@ fn run() -> RunState {
 }
 fn provisional(number: u32, words: &[u8]) -> RunText {
     RunText {
+        writing: None,
         attempt: ATTEMPT,
         began: None,
         turn: ProvisionalTurnName { attempt: ATTEMPT, number, retry: 0 },

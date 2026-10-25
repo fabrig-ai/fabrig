@@ -64,6 +64,7 @@ fn corrupted_provisional_bytes_fail_the_referee() {
                 call: None,
             });
             world.referee.saw(&[Request::Stream {
+                writing: None,
                 watcher: Token::new(1),
                 turn,
                 from: 3,

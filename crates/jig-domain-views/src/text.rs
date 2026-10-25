@@ -6,7 +6,8 @@
 //! turn-qualified acknowledged offset, and one separate stream in flight.
 //! Stale turns are ignored; a gap replaces the suffix and marks the turn cut.
 //! An acknowledged earlier turn never advances a later turn's offset.
-//! Reports and combined call bytes are bounded by `text_bytes` at ingress;
+//! Text reports and made calls are bounded by `text_bytes` at ingress;
+//! input appends and trims its oldest bytes within the same call allowance.
 //! a gap or trimming the retained suffix marks the current turn cut.
 //!
 //! ```text
@@ -20,7 +21,7 @@
 //! any           RunEnded              same       none (drop provisional writing)
 //! ```
 use crate::watch::{self, State, Watcher};
-use crate::{Call, Domain, Limits, Request, TurnName};
+use crate::{Call, Domain, Limits, Request, TurnName, WritingCall};
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
 use skein_lib::{Env, Id, List, Queue, Token, Wall};
@@ -33,10 +34,29 @@ pub struct RetainedRun {
     from: u32,
     to: u32,
     text: Box<[u8]>,
-    call: Option<Call>,
+    call: Option<CallSlot>,
     revision: u64,
     committed: bool,
     cut: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum CallSlot {
+    Made(Call),
+    Writing(WritingCall),
+}
+
+fn made(slot: Option<&CallSlot>) -> Option<&Call> {
+    match slot {
+        Some(CallSlot::Made(call)) => Some(call),
+        Some(CallSlot::Writing(_)) | None => None,
+    }
+}
+fn writing_call(slot: Option<&CallSlot>) -> Option<&WritingCall> {
+    match slot {
+        Some(CallSlot::Writing(call)) => Some(call),
+        Some(CallSlot::Made(_)) | None => None,
+    }
 }
 
 impl RetainedRun {
@@ -81,48 +101,16 @@ pub(crate) fn written(
     let Some(end) = offset.checked_add(length) else {
         return;
     };
-    // The core fences ended attempts. Retain the same fence for watches whose
-    // stream terminal can arrive after the run's end and before its successor.
-    for (_, id) in &domain.names {
-        let watch = domain.watchers.get(*id).expect("named watch");
-        if let Some(follow) = watch.follow
-            && follow.run == token
-            && let Some(ended) = watch.ended_turn
-            && turn <= ended
-        {
-            return;
-        }
-    }
-    if !domain.runs.contains_key(&token) {
-        if domain.runs.len() >= limits.runs {
-            return;
-        }
-        domain.runs.insert(token, empty(turn.attempt)).expect("retained live run admission checked");
-    }
-    let run = domain.runs.get_mut(&token).expect("admitted live run");
-    if turn.attempt < run.attempt {
+    let Some(new_turn) = prepare(domain, limits, token, turn) else {
         return;
-    }
-    let new_turn = match run.turn {
-        Some(current) => {
-            if turn < current || (turn == current && run.committed) {
-                return;
-            }
-            turn != current
-        }
-        None => true,
     };
-    let gap = !new_turn && offset > run.to;
+    let run = domain.runs.get_mut(&token).expect("admitted live run");
     if new_turn {
-        run.cut = false;
-        run.attempt = turn.attempt;
-        run.turn = Some(turn);
-        run.committed = false;
         run.from = offset;
         run.to = offset;
-        run.text = Box::new([]);
-        run.call = None;
-    } else if gap {
+    }
+    let gap = !new_turn && offset > run.to;
+    if gap {
         run.cut = true;
         run.from = offset;
         run.to = offset;
@@ -137,7 +125,7 @@ pub(crate) fn written(
         }
     }
     let call = match call {
-        Some(call) => Some(timed(call, run.call.as_ref(), env.wall)),
+        Some(call) => Some(CallSlot::Made(timed(call, made(run.call.as_ref()), env.wall))),
         None => run.call.clone(),
     };
     if !new_turn && !gap && end <= run.to && call == run.call {
@@ -235,7 +223,7 @@ pub(crate) fn called(
     if attempt != run.attempt {
         *run = empty(attempt);
     }
-    let call = timed(call, run.call.as_ref(), env.wall);
+    let call = CallSlot::Made(timed(call, made(run.call.as_ref()), env.wall));
     if run.call.as_ref() == Some(&call) {
         return;
     }
@@ -261,6 +249,9 @@ pub(crate) fn committed(domain: &mut Domain, token: Token, attempt: u64, turn: u
         run.from = 0;
         run.to = 0;
         run.text = Box::new([]);
+        if writing_call(run.call.as_ref()).is_some() {
+            run.call = None;
+        }
         // Accepting text attests no tool ending. The current content call
         // remains independent until a supplied new turn/retry, call or run end.
     }
@@ -317,7 +308,8 @@ fn offer(watch: &mut Watcher, run: &RetainedRun, out: &mut Queue<Request>) {
         to: run.to,
         text: copy_of(run.text.get(index..).expect("retained suffix")),
         cut: run.cut || from > offset,
-        call: run.call.clone(),
+        call: made(run.call.as_ref()).cloned(),
+        writing: writing_call(run.call.as_ref()).cloned(),
     });
 }
 
@@ -370,7 +362,8 @@ pub fn writing(domain: &Domain, token: Token, capacity: u32) -> Option<crate::Wr
         to: run.to,
         text: copy_of(run.text.get(index..).expect("retained suffix")),
         cut: run.cut || from != 0,
-        call: bounded_call(run.call.clone(), capacity),
+        call: bounded_call(made(run.call.as_ref()).cloned(), capacity),
+        writing: bounded_writing(writing_call(run.call.as_ref()), capacity),
     })
 }
 
@@ -397,7 +390,7 @@ pub fn revision(domain: &Domain, token: Token) -> Option<u64> {
 #[must_use]
 pub fn has_current_call(domain: &Domain, token: Token, attempt: u64) -> bool {
     match domain.runs.get(&token) {
-        Some(run) => run.attempt == attempt && run.call.is_some(),
+        Some(run) => run.attempt == attempt && made(run.call.as_ref()).is_some(),
         None => false,
     }
 }
@@ -410,5 +403,141 @@ pub fn current_call(domain: &Domain, token: Token, attempt: u64, capacity: u32) 
     if run.attempt != attempt {
         return None;
     }
-    bounded_call(run.call.clone(), capacity)
+    bounded_call(made(run.call.as_ref()).cloned(), capacity)
+}
+
+fn prepare(domain: &mut Domain, limits: &Limits, token: Token, turn: TurnName) -> Option<bool> {
+    // The core fences ended attempts. Retain the same fence for watches whose
+    // stream terminal can arrive after the run's end and before its successor.
+    for (_, id) in &domain.names {
+        let watch = domain.watchers.get(*id).expect("named watch");
+        if let Some(follow) = watch.follow
+            && follow.run == token
+            && let Some(ended) = watch.ended_turn
+            && turn <= ended
+        {
+            return None;
+        }
+    }
+    if !domain.runs.contains_key(&token) {
+        if domain.runs.len() >= limits.runs {
+            return None;
+        }
+        domain.runs.insert(token, empty(turn.attempt)).expect("retained live run admission checked");
+    }
+    let run = domain.runs.get_mut(&token).expect("admitted live run");
+    if turn.attempt < run.attempt {
+        return None;
+    }
+    let new_turn = match run.turn {
+        Some(current) => {
+            if turn < current || (turn == current && run.committed) {
+                return None;
+            }
+            turn != current
+        }
+        None => true,
+    };
+    if new_turn {
+        run.cut = false;
+        run.attempt = turn.attempt;
+        run.turn = Some(turn);
+        run.committed = false;
+        run.from = 0;
+        run.to = 0;
+        run.text = Box::new([]);
+        run.call = None;
+    }
+    Some(new_turn)
+}
+
+#[expect(clippy::too_many_arguments, reason = "a live input report carries its turn, identity and byte offset")]
+pub(crate) fn input(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    token: Token,
+    turn: TurnName,
+    offset: u32,
+    id: Box<[u8]>,
+    tool: Box<[u8]>,
+    input: &[u8],
+    out: &mut Queue<Request>,
+) {
+    let Some(identity) = id.len().checked_add(tool.len()) else {
+        return;
+    };
+    let Ok(identity) = u32::try_from(identity) else {
+        return;
+    };
+    let Some(capacity) = env.limits.text_bytes.checked_sub(identity) else {
+        return;
+    };
+    let Ok(length) = u32::try_from(input.len()) else {
+        return;
+    };
+    let Some(end) = offset.checked_add(length) else {
+        return;
+    };
+    if prepare(domain, &env.limits, token, turn).is_none() {
+        return;
+    }
+    let run = domain.runs.get_mut(&token).expect("admitted input run");
+    let mut call = match writing_call(run.call.as_ref()) {
+        Some(previous) if previous.id == id && previous.tool == tool => previous.clone(),
+        Some(_) | None => {
+            WritingCall { id, tool, from: offset, through: offset, input: Box::new([]), cut: offset != 0 }
+        }
+    };
+    if offset > call.through {
+        call.from = offset;
+        call.through = offset;
+        call.input = Box::new([]);
+        call.cut = true;
+    }
+    if end > call.through {
+        let from = call.from.max(end.saturating_sub(capacity));
+        let mut suffix = List::with_capacity(capacity);
+        for position in from..call.through {
+            let index = usize::try_from(position.checked_sub(call.from).expect("input offset")).expect("input index");
+            suffix.push(*call.input.get(index).expect("retained input")).expect("bounded input");
+        }
+        for position in from.max(call.through)..end {
+            let index = usize::try_from(position.checked_sub(offset).expect("input offset")).expect("input index");
+            suffix.push(*input.get(index).expect("incoming input")).expect("bounded input");
+        }
+        call.cut = call.cut || from > call.from;
+        call.from = from;
+        call.through = end;
+        call.input = suffix.into_boxed();
+    }
+    let slot = Some(CallSlot::Writing(call));
+    if run.call == slot {
+        return;
+    }
+    run.call = slot;
+    run.revision = run.revision.checked_add(1).expect("provisional revision space");
+    for (_, id) in &domain.names {
+        let watch = domain.watchers.get_mut(*id).expect("named watch");
+        if let Some(follow) = watch.follow
+            && follow.run == token
+        {
+            offer(watch, run, out);
+        }
+    }
+}
+
+fn bounded_writing(value: Option<&WritingCall>, capacity: u32) -> Option<WritingCall> {
+    let value = value?;
+    let identity = u32::try_from(value.id.len().checked_add(value.tool.len())?).ok()?;
+    let bound = capacity.checked_sub(identity)?;
+    let from = value.from.max(value.through.saturating_sub(bound));
+    let index = usize::try_from(from.checked_sub(value.from)?).ok()?;
+    Some(WritingCall {
+        id: copy_of(&value.id),
+        tool: copy_of(&value.tool),
+        from,
+        through: value.through,
+        input: copy_of(value.input.get(index..)?),
+        cut: value.cut || from > value.from,
+    })
 }

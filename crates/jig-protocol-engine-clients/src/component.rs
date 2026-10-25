@@ -166,8 +166,8 @@ impl Component {
             Event::WatchRefused { watcher, why } => self.watch_answer(env, watcher, Some(why)),
             Event::Delivery { watcher, document } => self.delivery(env, watcher, &document),
             Event::WatchEnded { watcher, why } => self.watch_ended(env, watcher, why),
-            Event::RunText { watcher, turn, from, to, text, cut, call } => {
-                self.run_text(env, watcher, jig_domain_views::Writing { turn, from, to, text, cut, call });
+            Event::RunText { watcher, turn, from, to, text, cut, call, writing } => {
+                self.run_text(env, watcher, jig_domain_views::Writing { turn, from, to, text, cut, call, writing });
             }
             Event::Application(crate::FromApplication::Delivery { watcher, family, record }) => {
                 self.application_delivery(env, watcher, family, record);

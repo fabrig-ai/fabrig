@@ -84,7 +84,7 @@ Between the core's fleet and a host, whatever its shape:
     for each LLM account its check chose, its source's credential or a
     program source's name, and the application's credentials its
     workspace needs (engine.md, 7.1); and the **ask** for live content:
-    one boolean per kind, `text`, `reasoning` and `input`, which the core
+    one boolean per kind, `text`, `reasoning`, which the core
     sets for a run whose task is a conversation (engine.md, 7.1) and the
     hub passes into smith's start (6.2, 6.5);
   - **messages** for the run, named, in order (tasks.md, 8.2);
@@ -559,7 +559,7 @@ Nothing decides on a fact.
   running a tool, only on such a fact, never inferring it from an
   attempt being placed.
 - **A run's text, at the assignment's ask.** A run whose assignment
-  asks for text hands up, as facts, its main conversation's text as the
+  asks for text and input hands up, as best effort content, its main conversation's text and call being written as the
   model writes it, from any host: pieces, each naming its turn, its
   retry, its kind and its offset (below). In an agent process the pieces
   come up smith's channel, which the host's half decodes (smith's
@@ -582,12 +582,10 @@ Nothing decides on a fact.
   streams, named by the call's provider id and its tool; and the offset
   of its first byte within that retry's stream of that kind
   (`../protocol/llm.md`, section 3), counted as smith counts it, in 64
-  bits, in the hub's vocabulary and on jig's channel alike. Only `text`
-  is produced and kept now: smith builds no other kind, so a host hands
-  up none. A piece of another kind that reaches the engine, and one
-  whose offset is past the 32 bits the views count, is dropped by the
-  engine's root as it hands the piece to the core, counted, until the
-  views keep it (engine.md, section 11).
+  bits, in the hub's vocabulary and on jig's channel alike. Smith produces text and input from an agent process. Input names the
+  call being written; it does not attest that a tool began. The root
+  routes it to `RunInput`. Reasoning and offsets past the views' 32 bits
+  are dropped and counted (engine.md, section 11).
 - **No piece after its turn.** A piece of a turn goes up before that
   turn's record; once the turn is sent, none of it follows, and a retry's
   content starts again at offset 0. The engine's views rely on it, and
@@ -963,10 +961,9 @@ committed keep their ordinary handling.
   text for now (6.5). Later the conversation's run could ask for it from
   its parent, so the person sees the delegate write; whether that asks
   of the assignment, or of the views, is open.
-- **A tool's input and reasoning, as they stream.** Their kinds are in
-  the wire (6.5) and have no producer: each waits for smith to build it
-  and, for reasoning, for the LLM providers to be asked for readable
-  reasoning.
+- **Reasoning as it streams.** Its kind is in the wire (6.5), but smith
+  has no producer for it. Input is now produced by agent processes;
+  reasoning still needs each provider asked for readable reasoning.
 
 - **Fairness on the engine's loop:** whether runs in the engine need a
   share of each iteration, so many chats never slow the engine's

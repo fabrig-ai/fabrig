@@ -148,6 +148,7 @@ fn text(domain: &mut Domain, turn: u32, offset: u32, text: &[u8]) -> Box<[Reques
 }
 fn stream(watcher: u64, turn: u32, from: u32, to: u32, text: &[u8], cut: bool) -> Request {
     Request::Stream {
+        writing: None,
         watcher: Token::new(watcher),
         turn: TurnName { attempt: 1, turn, retry: 0 },
         from,
@@ -272,6 +273,7 @@ fn ending_a_run_discards_text_and_a_new_attempt_can_write() {
     assert_eq!(
         out.as_ref(),
         &[Request::Stream {
+            writing: None,
             watcher: Token::new(1),
             turn: TurnName { attempt: 2, turn: 1, retry: 0 },
             from: 0,
@@ -306,6 +308,7 @@ fn current_calls_are_bounded_and_paced_with_the_stream() {
     assert_eq!(
         out.as_ref(),
         &[Request::Stream {
+            writing: None,
             watcher: Token::new(1),
             turn: TurnName { attempt: 1, turn: 1, retry: 0 },
             from: 0,

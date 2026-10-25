@@ -439,8 +439,8 @@ pub fn now_event(now: core::Now) -> Option<Event> {
     Some(match now {
         core::Now::SignInRefused { to } => Event::SignInRefused { to },
         core::Now::WatchRefused { watcher, why } => Event::WatchRefused { watcher, why },
-        core::Now::RunText { watcher, turn, from, to, text, cut, call } => {
-            Event::RunText { watcher, turn, from, to, text, cut, call }
+        core::Now::RunText { watcher, turn, from, to, text, cut, call, writing } => {
+            Event::RunText { watcher, turn, from, to, text, cut, call, writing }
         }
         core::Now::CallBusy { .. }
         | core::Now::Relayed { .. }
@@ -507,6 +507,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Delivered { .. }
         | core::Event::StreamDelivered { .. }
         | core::Event::RunCall { .. }
+        | core::Event::RunInput { .. }
         | core::Event::RunText { .. }
         | core::Event::Tasks(_)
         | core::Event::StartRecurring { .. }

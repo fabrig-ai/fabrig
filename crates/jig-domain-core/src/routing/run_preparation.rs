@@ -185,7 +185,7 @@ pub(super) fn workspace_prepared(
         live: crate::LiveAsk {
             text: core.tasks.task(task).expect("live task").flags.conversation,
             reasoning: false,
-            input: false,
+            input: core.tasks.task(task).expect("live task").flags.conversation,
         },
         task,
         attempt,

@@ -44,6 +44,7 @@ pub enum Event {
         text: Box<[u8]>,
         cut: bool,
         call: Option<views::Call>,
+        writing: Option<views::WritingCall>,
     },
     Application(FromApplication),
     Secrets(SecretsAnswer),

@@ -570,9 +570,9 @@ is due again once its dependencies are done.
    - its start's messages, named, oldest first; the rest are relayed as
      the run reads (7.4);
    - its **ask** for live content (`hosts.md`, section 2): `text` set when
-     its task is flagged conversation (tasks.md, section 3), `reasoning`
-     and `input` never yet. The core sets it with the run's prepared
-     parts (step 2), from which the root puts the assignment together;
+     its task is flagged conversation (tasks.md, section 3), and `input`
+     set by the same rule; `reasoning` is false. The core sets it with the
+     run's prepared parts (step 2), from which the root puts the assignment together;
      the root copies it, kind by kind, and no host decides it. A task a
      conversation delegates is not flagged, so its run is not asked
      (`hosts.md`, section 12);
@@ -1151,10 +1151,9 @@ computes for them is said below (11.1 to 11.5).
 - **A run's text as it is written** is the one stream: kept per live run
   being watched, within a bound, named by the turn and the retry the host
   reports it for (hosts.md, 6.5), and delivered from the offset each
-  watcher has; never stored, and marked provisional. The core keeps kind
-  `text` only: a piece of another kind is dropped where it enters the
-  core, by the engine's root as it translates the hub's piece into the
-  core's text, and counted, until the views keep it. So is a piece whose
+  watcher has; never stored, and marked provisional. The core keeps
+  `text` and `input`: the root routes them as `RunText` and `RunInput`.
+  Reasoning is dropped and counted at that boundary. So is a piece whose
   offset is past the 32 bits the views count, where a host counts
   smith's 64 (`hosts.md`, 6.5). The protocol layer carries every kind
   and offset as it is (`../protocol/channel.md`, 6.4), and the same root
@@ -1164,6 +1163,12 @@ computes for them is said below (11.1 to 11.5).
   turn's text cut, as text past its bound does. It decides nothing and
   leaves at once (5.2). A committed turn reaches a client through the
   task's activity, read (7.2).
+  Input retains the call being written in the current-call slot, within
+  the same id + tool + input allowance. A later call replaces it; gaps and
+  trimming the oldest bytes mark it cut. A begun call replaces it, so the
+  call being written and the call being made are never retained together.
+  A new turn or retry clears it, and committed or fenced turns cannot
+  change it. Deliveries carry the current input suffix whole as `writing`.
 - **History is the store's.** What a client shows of the past (a task's
   results, its activity, a plan's revisions and why, the ended tasks a
   query finds) is read (5.3), paged, never held.

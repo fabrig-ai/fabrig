@@ -1906,6 +1906,7 @@ fn result_metadata_boxes_price_unfilled_delegate_and_followup_capacity_without_i
 mod owner_chip;
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "whole retained-run admission story includes every mandatory writing field")]
 fn live_raw_calls_price_both_texts_whole_and_refuse_without_replacing_retained_run() {
     use crate::payload::Payload;
     let name = TurnName { attempt: u64::MAX, number: u32::MAX };
@@ -1917,6 +1918,7 @@ fn live_raw_calls_price_both_texts_whole_and_refuse_without_replacing_retained_r
         cut: true,
     };
     let run = RunText {
+        writing: None,
         attempt: name.attempt,
         began: None,
         turn: provisional(name),
@@ -2048,6 +2050,7 @@ fn whole_run_state_prices_independent_call_and_writing_and_preserves_refused_sna
     bounds.text = 3;
     assert!(!crate::payload::fits(&state, &bounds), "a whole opaque id never gets shortened to admit a document");
     let writing = RunText {
+        writing: None,
         attempt: u64::MAX,
         began: None,
         turn: ProvisionalTurnName { retry: 0, attempt: u64::MAX, number: u32::MAX },
@@ -2118,6 +2121,7 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
     engine.open(Time::ZERO, 11, token, Subject::Run { task: 8, turn: Some(old), offset: 20 }).unwrap();
     let up = engine.poll(Time::ZERO);
     let suffix = RunText {
+        writing: None,
         attempt: old.attempt,
         began: None,
         turn: old,
@@ -2141,6 +2145,7 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
     engine.continue_run(token, Some(old), 40).unwrap();
     let up = engine.poll(Time::ZERO);
     let empty = RunText {
+        writing: None,
         attempt: current.attempt,
         began: None,
         turn: current,

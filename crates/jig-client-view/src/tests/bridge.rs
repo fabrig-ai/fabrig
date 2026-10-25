@@ -29,6 +29,7 @@ fn a_changed_handle_is_the_page_s_delivery() {
 fn a_run_s_text_reaches_the_page_in_its_changed_document() {
     let (mut fixture, _, watch, _) = turns::ready();
     let text = contract::RunText {
+        writing: None,
         attempt: 2,
         began: Some(Wall::EPOCH),
         turn: contract::ProvisionalTurnName { attempt: 2, number: 1, retry: 0 },

@@ -11,6 +11,7 @@ fn take(domain: &mut Domain, watcher: u64) -> Box<[Request]> {
 }
 fn expected(watcher: u64, retry: u32, from: u32, text: &[u8], cut: bool) -> Request {
     Request::Stream {
+        writing: None,
         watcher: Token::new(watcher),
         turn: name(retry),
         from,
@@ -329,4 +330,52 @@ fn call_only_live_runs_use_the_existing_retention_capacity_until_end() {
     assert_eq!(domain.runs(), 1);
     assert!(current_call(&domain, Token::new(8), 1, 16).is_some());
     assert!(writing(&domain, Token::new(8), 16).is_none());
+}
+
+fn input_piece(domain: &mut Domain, turn: u32, id: &[u8], offset: u32, input: &[u8]) {
+    drive(
+        domain,
+        Event::Input {
+            run: Token::new(7),
+            turn: TurnName { attempt: 1, turn, retry: 0 },
+            offset,
+            id: Box::from(id),
+            tool: Box::from(b"t".as_slice()),
+            input: Box::from(input),
+        },
+    );
+}
+#[test]
+fn writing_input_replaces_the_previous_call_and_tracks_gaps_and_trimming() {
+    let mut domain = Domain::new(&LIMITS);
+    input_piece(&mut domain, 1, b"a", 0, b"ab");
+    input_piece(&mut domain, 1, b"a", 5, b"c");
+    let call = writing(&domain, Token::new(7), 16).unwrap().writing.unwrap();
+    assert_eq!((call.from, call.through, call.cut), (5, 6, true));
+    assert_eq!(call.input.as_ref(), b"c");
+    input_piece(&mut domain, 1, b"b", 0, b"01234567890123456789");
+    let document = writing(&domain, Token::new(7), 16).unwrap();
+    assert!(document.call.is_none());
+    let call = document.writing.unwrap();
+    assert_eq!(call.id.as_ref(), b"b");
+    assert_eq!((call.from, call.through, call.cut), (6, 20, true));
+    assert_eq!(call.input.as_ref(), b"67890123456789");
+    assert_eq!(call.id.len() + call.tool.len() + call.input.len(), 16);
+}
+#[test]
+fn a_new_turn_or_begun_call_replaces_writing_and_committed_input_is_fenced() {
+    let mut domain = Domain::new(&LIMITS);
+    input_piece(&mut domain, 1, b"a", 0, b"ab");
+    text(&mut domain, 2, 0, b"next");
+    assert!(writing(&domain, Token::new(7), 16).unwrap().writing.is_none());
+    input_piece(&mut domain, 2, b"b", 0, b"cd");
+    call(&mut domain, 9, 1, 0, b"made", Wall::EPOCH);
+    let document = writing(&domain, Token::new(7), 16).unwrap();
+    assert!(document.writing.is_none());
+    assert!(document.call.is_some());
+    input_piece(&mut domain, 2, b"c", 0, b"ef");
+    drive(&mut domain, Event::TurnCommitted { run: Token::new(7), attempt: 1, turn: 2 });
+    input_piece(&mut domain, 2, b"d", 0, b"late");
+    assert!(writing(&domain, Token::new(7), 16).is_none());
+    assert!(!has_current_call(&domain, Token::new(7), 1));
 }

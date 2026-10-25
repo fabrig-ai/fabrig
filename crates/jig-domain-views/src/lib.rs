@@ -12,7 +12,9 @@ mod limits;
 mod tests;
 mod text;
 mod watch;
-pub use boundary::{Call, CallIdentity, End, Event, Follow, Made, Refusal, Request, TurnName, Window, Writing};
+pub use boundary::{
+    Call, CallIdentity, End, Event, Follow, Made, Refusal, Request, TurnName, Window, Writing, WritingCall,
+};
 pub use domain::{Domain, fire, max_out, step};
 pub use facts::Fact;
 pub use limits::{Limits, worst_case};

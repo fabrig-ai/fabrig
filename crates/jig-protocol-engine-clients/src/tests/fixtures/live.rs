@@ -23,6 +23,7 @@ pub fn current_call() -> v::Call {
 }
 pub fn writing() -> v::Writing {
     v::Writing {
+        writing: None,
         turn: v::TurnName { attempt: 31, turn: 37, retry: 5 },
         from: 41,
         to: 43,

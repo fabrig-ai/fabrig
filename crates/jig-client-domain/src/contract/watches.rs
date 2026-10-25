@@ -118,6 +118,18 @@ pub struct RunText {
     pub text: Text,
     pub cut: bool,
     pub call: Option<LiveCall>,
+    pub writing: Option<WritingCall>,
+}
+
+/// The provider call whose provisional input is being written.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct WritingCall {
+    pub id: Text,
+    pub tool: Text,
+    pub from: u32,
+    pub through: u32,
+    pub input: Text,
+    pub cut: bool,
 }
 
 /// A nonterminal watch event.

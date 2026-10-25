@@ -56,8 +56,8 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
             }
             Some(kit::Event::WatchRefused { watcher, why })
         }
-        core::Now::RunText { watcher, turn, from, to, text, cut, call } => {
-            Some(kit::Event::RunText { watcher, turn, from, to, text, cut, call })
+        core::Now::RunText { watcher, turn, from, to, text, cut, call, writing } => {
+            Some(kit::Event::RunText { watcher, turn, from, to, text, cut, call, writing })
         }
         core::Now::CallBusy { .. }
         | core::Now::Relayed { .. }
@@ -151,6 +151,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::Delivered { .. }
         | core::Event::StreamDelivered { .. }
         | core::Event::RunCall { .. }
+        | core::Event::RunInput { .. }
         | core::Event::RunText { .. }
         | core::Event::Tasks(..)
         | core::Event::StartRecurring { .. }
@@ -233,6 +234,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Delivered { .. }
         | core::Event::StreamDelivered { .. }
         | core::Event::RunCall { .. }
+        | core::Event::RunInput { .. }
         | core::Event::RunText { .. }
         | core::Event::Tasks(..)
         | core::Event::StartRecurring { .. }

@@ -616,6 +616,7 @@ impl Peer {
     }
     pub fn release_text(&mut self, watcher: Token) {
         self.event(Event::RunText {
+            writing: None,
             watcher,
             turn: jig_domain_views::TurnName { attempt: 7, turn: 7, retry: 7 },
             from: 7,

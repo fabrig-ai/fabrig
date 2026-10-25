@@ -1186,7 +1186,9 @@ commit, so they leave through the journal's door (`../../README.md`,
 
 - **The run's document** is its attempt, the turn being written, named by
   its attempt, its number within it and its completion's retry as the
-  host reports them, that retry's text so far, and the call it is making,
+  host reports them, that retry's text so far, the call it is making, and the call being
+  written (`writing`), with its provider id, tool, bounded input suffix,
+  byte offsets and cut mark,
   within a bound on bytes.
 - **Read from an offset:** each delivery carries the turn's name, the text
   after the offset the client has, and the offset it ends at; the client
@@ -1206,8 +1208,8 @@ commit, so they leave through the journal's door (`../../README.md`,
   follows the last, and its beginning is in the document.
 - **Only from a host that gives it.** A run's text and the call it is
   making come from hosts that hand them up (`../../domain/hosts.md`,
-  6.5): a run in an agent process gives neither, and its document holds
-  no text and no call, while its turns reach the client as they commit.
+  6.5): an agent process gives text and the call being written; it gives
+  no call being made. Its durable turns arrive as they commit.
 
 ### 7.4 An application's streams
 

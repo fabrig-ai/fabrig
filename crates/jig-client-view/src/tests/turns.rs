@@ -106,6 +106,7 @@ fn live(d: &mut Fixture, run: jig_client::Handle, number: u32) {
         d,
         run,
         Delivery::Run(Box::new(RunText {
+            writing: None,
             attempt: 2,
             began: Some(Wall::EPOCH),
             turn: ProvisionalTurnName { retry: 0, attempt: 2, number },
@@ -354,6 +355,7 @@ fn full_width_attempt_turn_keys_survive_commit_under_the_actual_task_log_scope()
             &mut d,
             run,
             Delivery::Run(Box::new(RunText {
+                writing: None,
                 attempt,
                 began: Some(Wall::EPOCH),
                 turn: ProvisionalTurnName { retry: 0, attempt, number: u32::MAX },
@@ -438,6 +440,7 @@ fn held_and_closing_owner_facts_do_not_finish_an_unobserved_live_attempt() {
         &mut d,
         run,
         Delivery::Run(Box::new(RunText {
+            writing: None,
             attempt: u64::MAX,
             began: Some(Wall::EPOCH),
             turn: ProvisionalTurnName { retry: 0, attempt: u64::MAX, number: 1 },
@@ -498,6 +501,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
         cut: true,
     };
     let mut value = RunText {
+        writing: None,
         attempt: name.attempt,
         began: None,
         turn: name,
@@ -538,6 +542,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
     assert_eq!(uncut.nodes().len() + 4, expanded.nodes().len(), "wall and raw-call loss are independent leaves");
     assert!(contains(&uncut, UTF8_TEXTS[2]));
     let mut first_seen = RunText {
+        writing: None,
         attempt: name.attempt,
         began: None,
         turn: name,
@@ -582,6 +587,7 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
             &mut d,
             run,
             Delivery::Run(Box::new(RunText {
+                writing: None,
                 attempt: name.attempt,
                 began: Some(Wall::from_nanos(u64::MAX)),
                 turn: name,
@@ -630,6 +636,7 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
         &mut reloaded,
         run,
         Delivery::Run(Box::new(RunText {
+            writing: None,
             attempt: u64::MAX,
             began: None,
             turn: ProvisionalTurnName { retry: 0, attempt: u64::MAX, number: 1 },
@@ -690,6 +697,7 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
         &mut d,
         run,
         Delivery::Run(Box::new(RunText {
+            writing: None,
             attempt: 2,
             began: None,
             turn: ProvisionalTurnName { retry: 0, attempt: 2, number: 1 },
@@ -783,6 +791,7 @@ fn whole_run_call_only_is_visible_once_without_a_turn_and_uses_normal_document_a
     deliver(&mut d, run, Delivery::RunState(Box::new(state.clone())));
     assert_eq!(build(&d, 3, words).0.nodes().len(), without_wall + 2);
     state.writing = Some(RunText {
+        writing: None,
         attempt: 2,
         began: None,
         turn: ProvisionalTurnName { retry: 0, attempt: 2, number: 1 },
@@ -875,8 +884,17 @@ fn displayed_retry_replaces_empty_then_resumes_with_exact_actual_watch_position(
     );
     assert!(contains(&build(&d, 3, words).0, b"whole private input"), "existing rich call detail is still available");
     let name = ProvisionalTurnName { attempt: 2, number: 1, retry: u32::MAX };
-    let mut value =
-        RunText { attempt: 2, began: None, turn: name, from: 0, through: 0, text: text(b""), cut: false, call: None };
+    let mut value = RunText {
+        writing: None,
+        attempt: 2,
+        began: None,
+        turn: name,
+        from: 0,
+        through: 0,
+        text: text(b""),
+        cut: false,
+        call: None,
+    };
     let _out = deliver(&mut d, run, Delivery::Run(Box::new(value.clone())));
     d.reopen(run);
     assert!(d.down.as_slice().contains(&jig_client::Down::Continue {
