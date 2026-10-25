@@ -11,5 +11,6 @@ pub mod pipe;
 mod ready;
 mod records;
 pub mod sink;
+pub mod terminal;
 #[cfg(test)]
 mod tests;

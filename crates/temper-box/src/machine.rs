@@ -1,6 +1,7 @@
 //! Steps, exits and timers in; process orders out (protocol/setup.md, 7.2).
 use crate::layout::Placed;
 use crate::limits::{Limits, Unfit, check};
+use crate::terminal::Fact;
 use alloc::boxed::Box;
 use skein_io::kernel::Exit;
 use skein_lib::{List, Queue, Time};
@@ -31,6 +32,7 @@ pub enum Order {
     Close { step: usize },
     Record { forge: u16 },
     Say { said: Said },
+    Terminal { fact: Fact },
 }
 /// Pipe replies name a placed step; formatting belongs to the host.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -94,6 +96,12 @@ pub(crate) struct State {
     phase: Phase,
     exits: Queue<Time>,
 }
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum StopNotice {
+    Unrequested,
+    Requested,
+    Reported,
+}
 /// The box's policy, independent of process handles and step names.
 #[derive(Debug)]
 pub struct Machine {
@@ -103,6 +111,7 @@ pub struct Machine {
     outcome: Option<Outcome>,
     forced: bool,
     begun: bool,
+    stop_notice: StopNotice,
 }
 impl Machine {
     /// Checks limits and allocates each step's bounded exit history.
@@ -167,12 +176,22 @@ impl Machine {
             outcome: None,
             forced: false,
             begun: false,
+            stop_notice: StopNotice::Unrequested,
         })
     }
-    /// Reserves spawns, closes, records and replies for every entry point.
+    /// Conservative reservation for start/input/fire: each of N steps can
+    /// contribute a hold, spawn, Starting and progress reply (4N). Closing or
+    /// signalling visits each step once instead of spawning it; records/replies
+    /// and the two stop facts fit the remaining six. Fire visits each state once.
+    /// Reserve this before consuming any policy input.
     #[must_use]
     pub fn max_out(&self) -> u32 {
-        u32::try_from(self.states.len()).expect("steps fit u32").saturating_mul(3).saturating_add(4)
+        u32::try_from(self.states.len())
+            .expect("steps fit u32")
+            .checked_mul(4)
+            .expect("order bound")
+            .checked_add(6)
+            .expect("lifecycle facts")
     }
     /// Starts the first step once.
     pub fn start(&mut self, _now: Time, recorded: &[u16], orders: &mut Queue<Order>) {
@@ -227,6 +246,7 @@ impl Machine {
         if let Some(state) = self.states.get_mut(step) {
             state.phase = Phase::Starting { next };
             state.waiting = false;
+            orders.push(Order::Terminal { fact: Fact::Starting { step } });
             orders.push(Order::Spawn { step });
             if let Some(group) = state.group
                 && self.groups.get(group).expect("group index").status == Status::Starting
@@ -310,6 +330,10 @@ impl Machine {
                 }
             }
             Input::Closed { step } => self.closed(now, step, orders),
+        }
+        if self.stop_notice == StopNotice::Requested && self.is_idle() {
+            self.stop_notice = StopNotice::Reported;
+            orders.push(Order::Terminal { fact: Fact::Stopped });
         }
     }
     fn started(&mut self, now: Time, step: usize, orders: &mut Queue<Order>) {
@@ -736,6 +760,10 @@ impl Machine {
         }
     }
     fn stop(&mut self, now: Time, orders: &mut Queue<Order>) {
+        if self.stop_notice == StopNotice::Unrequested {
+            self.stop_notice = StopNotice::Requested;
+            orders.push(Order::Terminal { fact: Fact::Stopping });
+        }
         if self.outcome.is_some() {
             self.forced = true;
             for (step, state) in self.states.iter_mut().enumerate() {

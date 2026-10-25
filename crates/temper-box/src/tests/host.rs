@@ -102,7 +102,7 @@ fn a_once_step_that_fails_ends_the_box_with_exit_one() {
     let steps = [once(b"prepare", &[b"exit", b"1"]), long(b"forgejo", &[b"never"])];
     let mut harness = Harness::new(&steps);
     assert_eq!(harness.run_to_end(), Exit::Code(1));
-    assert_eq!(&*harness.stderr(), b"box: prepare gave up after 0 restarts\n");
+    assert_eq!(&*harness.stderr(), b"Starting prepare\nbox: prepare gave up after 0 restarts\n");
     assert_eq!(harness.spawn_times(b"forgejo").len(), 0, "failure never starts the next step");
 }
 #[test]
@@ -193,7 +193,7 @@ fn serves_pipe_lines_are_bounded_named_and_answered() {
         harness.ask(input);
         harness.run_until_idle();
         assert_eq!(&*harness.reply_bytes(), expected, "{name}");
-        assert_eq!(&*harness.stderr(), diagnostic, "{name}");
+        assert_eq!(&*harness.stderr(), crate::lines::joined(&[b"Starting serve\n", diagnostic]).as_ref(), "{name}");
         if !diagnostic.is_empty() {
             harness.ask(b"start 99\n");
             harness.run_until_idle();
@@ -509,7 +509,10 @@ fn a_link_receives_only_the_first_line_and_its_end() {
                 }
                 Advance => harness.sim.advance_to(harness.sim.now().saturating_add(Duration::from_millis(500))),
                 Stdout(expected) => assert_eq!(harness.stdout().as_ref(), expected.as_ref(), "{name}: stdout"),
-                Stderr(expected) => assert_eq!(harness.stderr().as_ref(), expected, "{name}: stderr"),
+                Stderr(expected) => assert!(
+                    Harness::contains(&harness.stderr(), expected),
+                    "{name}: child stderr remains visible alongside lifecycle and block notices"
+                ),
                 Spawns(child, expected) => assert_eq!(harness.spawn_times(child).len(), expected, "{name}: launches"),
             }
             harness.run_until_idle();
@@ -532,7 +535,7 @@ fn an_unrecorded_group_neither_probes_nor_writes_and_waits_at_every_box_start() 
         let mut harness = Harness::grouped(steps, &[Item::file(b"box", b"kept")], true);
         harness.run_until_idle();
         assert_eq!(harness.launches.len(), 1, "only serve starts");
-        assert!(harness.stderr().is_empty(), "no probe of box/started/3");
+        assert_eq!(harness.stderr().as_ref(), b"Starting serve\n", "no probe of box/started/3");
         harness.ask(b"start 3\n");
         harness.run_until_idle();
         assert_eq!(&*harness.reply_bytes(), b"step 3 prepare\nstep 3 run\nstarted 3\n");
@@ -597,7 +600,7 @@ fn a_group_stop_is_reported_on_stderr_after_the_control_pipe_closes() {
     harness.replies.clear();
     harness.ask(b"stop 1\n");
     harness.run_until_idle();
-    assert!(harness.stderr().is_empty(), "the group has not closed");
+    assert_eq!(harness.stderr().as_ref(), b"Starting serve\n", "the group has not closed");
     let serve = harness.hosted.get(harness.serve_index()).unwrap().pid;
     let forge = harness.hosted.get(harness.child_index(b"forgejo 3")).unwrap().pid;
     harness.sim.finish_service(serve, Exit::Code(1));
@@ -748,4 +751,177 @@ fn a_dormant_listener_queues_connections_and_is_given_again_after_restart() {
     harness.sim.assert_quiescent(harness.pid);
     harness.sim.assert_no_open_fds(harness.pid);
     harness.sim.assert_no_open_fds(client);
+}
+
+fn terminal_harness() -> Harness {
+    Harness::with_stubborn(&[long(b"serve", &[b"never"]), long(b"diagnostic", &[b"never"])], true)
+}
+#[test]
+fn split_links_and_diagnostics_form_ordered_first_fresh_and_restarted_blocks() {
+    let mut harness = terminal_harness();
+    harness.run_until_idle();
+    let serve = harness.child_index(b"serve");
+    let diagnostic = harness.child_index(b"diagnostic");
+    harness.write_child(serve, 1, b"http://first");
+    harness.run_until_idle();
+    harness.write_child(diagnostic, 2, b"interposed\n");
+    harness.run_until_idle();
+    assert_eq!(harness.stdout().as_ref(), b"", "split URL stays in assembly");
+    harness.write_child(serve, 1, b"/link\n");
+    harness.run_until_idle();
+    harness.wall = skein_lib::Wall::from_nanos(86_399_000_000_000);
+    harness.write_child(serve, 1, b"http://fre");
+    harness.run_until_idle();
+    harness.write_child(diagnostic, 1, b"between refresh pieces\n");
+    harness.run_until_idle();
+    harness.write_child(serve, 1, b"sh\n");
+    harness.run_until_idle();
+    let pid = harness.hosted.get(serve).unwrap().pid;
+    harness.sim.finish_service(pid, Exit::Code(0));
+    harness.run_until_idle();
+    harness.wall = skein_lib::Wall::from_nanos(86_400_000_000_000);
+    harness.sim.advance_to(harness.sim.now().saturating_add(Duration::from_millis(500)));
+    harness.run_until_idle();
+    harness.write_child(harness.child_index(b"serve"), 1, b"http://restart\n");
+    harness.run_until_idle();
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    assert_eq!(
+        harness.terminal_bytes().as_ref(),
+        concat!(
+            "Starting serve\nStarting diagnostic\ndiagnostic: interposed\n",
+            "\nOpen this link in a browser on this machine. It signs you in as this\n",
+            "temper's owner, once and for a short while, so keep it private.\n",
+            "Opened again once spent, it prints a fresh one here.\n\n",
+            "http://first/link\n\nCtrl-C stops temper.\n\n",
+            "diagnostic: between refresh pieces\n23:59:59Z A fresh sign-in link:\nhttp://fresh\n",
+            "00:00:00Z Starting serve\n00:00:00Z A fresh sign-in link:\nhttp://restart\n",
+            "00:00:00Z Stopping\n00:00:00Z Stopped\n",
+        )
+        .as_bytes()
+    );
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+#[test]
+fn held_output_preserves_completion_wall_and_blocks_both_descriptors() {
+    use skein_shell::Host;
+    let mut harness = terminal_harness();
+    harness.run_until_idle();
+    harness.write_child(harness.child_index(b"serve"), 1, b"first\n");
+    harness.run_until_idle();
+    harness.hold_terminal_ack = true;
+    harness.write_child(harness.child_index(b"diagnostic"), 2, b"held diagnostic\n");
+    harness.run_until_idle();
+    let before = harness.terminal_writes.len();
+    harness.wall = skein_lib::Wall::from_nanos(86_399_000_000_000);
+    // The existing io profile reads one byte at a time. Assemble the prefix
+    // while room exists, then retain the final LF after diagnostics use that
+    // room. Its completion is old even though extraction must wait.
+    harness.write_child(harness.child_index(b"serve"), 1, b"fresh");
+    harness.run_until_idle();
+    for words in [b"queued one\n".as_slice(), b"queued two\n", b"later diagnostic\n"] {
+        harness.write_child(harness.child_index(b"diagnostic"), 1, words);
+        harness.run_until_idle();
+    }
+    harness.write_child(harness.child_index(b"serve"), 1, b"\n");
+    harness.run_until_idle();
+    assert_eq!(harness.terminal_writes.len(), before, "small Room and Send never release the active item");
+    assert!(!harness.service.work_pending(harness.sim.now()), "blocked output lets the loop sleep");
+    harness.wall = skein_lib::Wall::from_nanos(172_800_000_000_000);
+    harness.release_terminal_ack();
+    harness.run_until_idle();
+    let all = harness.terminal_bytes();
+    assert!(
+        Harness::contains(&all, b"23:59:59Z A fresh sign-in link:\nfresh\n"),
+        "completion time survives admission pressure: {all:?}"
+    );
+    assert!(Harness::contains(&all, b"diagnostic: later diagnostic\n"));
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+#[test]
+fn serve_overflow_is_refused_without_bytes_then_eof_link_and_diagnostic_drain() {
+    let mut harness = terminal_harness();
+    harness.run_until_idle();
+    let serve = harness.child_index(b"serve");
+    let cap = super::fixtures::line_cap();
+    harness.write_child(serve, 1, &cap);
+    harness.run_until_idle();
+    harness.write_child(serve, 1, b"x\ngood\nlast");
+    harness.run_until_idle();
+    harness.write_child(harness.child_index(b"diagnostic"), 2, b"EOF fragment");
+    harness.run_until_idle();
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    assert_eq!(harness.stdout().as_ref(), b"good\nlast\n");
+    let output = harness.terminal_bytes();
+    assert!(!Harness::contains(&output, b"xxxx"), "no refused URL prefix or tail is written");
+    assert!(Harness::contains(&output, b"box: serve: sign-in link too long\n\nOpen this link"));
+    assert!(Harness::contains(&output, b"diagnostic: EOF fragment\n"));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+
+#[test]
+fn output_ack_bypasses_blocked_ordinary_events_without_spinning_or_losing_items() {
+    use skein_shell::Host;
+    let mut harness = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
+    harness.hold_terminal_ack = true;
+    harness.run_until_idle();
+    let (queued, orders) = crate::host::pressure::saturate(&mut harness.service);
+    harness.run_until_idle();
+    assert!(crate::host::pressure::blocked(&harness.service));
+    assert!(!harness.service.work_pending(harness.sim.now()), "full queues without a credit are not runnable work");
+    assert!(crate::host::pressure::bounded(&harness.service));
+    harness.release_terminal_ack(); // Its full-budget Room arrives behind both retained ordinary events.
+    harness.run_until_idle();
+    let output = harness.terminal_bytes();
+    assert_eq!(bytes::count(&output, b"queued\n", queued.saturating_add(1)), queued);
+    assert_eq!(bytes::count(&output, b"Stopping\n", orders.saturating_add(1)), orders);
+    assert!(crate::host::pressure::bounded(&harness.service));
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+
+#[test]
+fn failed_terminal_output_still_drains_retained_child_reads_and_closes() {
+    use skein_io::kernel::Error;
+    let mut harness = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
+    harness.hold_terminal_ack = true;
+    harness.run_until_idle();
+    // A first block cannot fit beside the active Starting notice. This leaves
+    // admitted bytes in the pipe and io intake when the output breaks.
+    harness.write_child(harness.child_index(b"serve"), 1, b"retained link\n");
+    harness.run_until_idle();
+    let mut failed = harness.held_terminal_ack.pop().expect("active terminal write");
+    failed.result = Err(Error::BrokenPipe);
+    harness.held_terminal_ack.push(failed);
+    harness.release_terminal_ack();
+    assert_eq!(harness.run_to_end(), Exit::Code(1));
+    assert!(crate::host::pressure::bounded(&harness.service));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+#[test]
+fn a_legacy_handoff_does_not_print_or_mark_the_first_block() {
+    use super::fixtures::link;
+    let mut harness = Harness::with_stubborn(&[long(b"serve", &[b"never"]), link(b"seed", &[b"never"])], true);
+    harness.run_until_idle();
+    harness.write_child(harness.child_index(b"serve"), 1, b"held\n");
+    harness.run_until_idle();
+    assert_eq!(harness.terminal_bytes().as_ref(), b"Starting serve\nStarting seed\n");
+    assert_eq!(harness.read_stdin(harness.child_index(b"seed"), LINE_BYTES).as_ref(), b"held\n");
+    harness.write_child(harness.child_index(b"serve"), 1, b"visible\n");
+    harness.run_until_idle();
+    assert!(Harness::contains(&harness.terminal_bytes(), b"\nOpen this link in a browser on this machine."));
+    assert_eq!(harness.stdout().as_ref(), b"visible\n");
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
 }

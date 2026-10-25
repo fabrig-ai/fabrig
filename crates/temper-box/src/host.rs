@@ -2,12 +2,13 @@
 use crate::{
     layout::{self, Placed},
     limits::{Limits, Unfit},
-    lines::{self, Lines},
+    lines::{self, Lines, Output},
     machine::{Input, Machine, Order, Outcome, Said, Why},
     pipe::{self, Command, Line, Reader},
     ready::Ready,
     records::Records,
-    sink::Sink,
+    sink::{Sink, Terminal},
+    terminal::{self, Fact, Formatter, Item, Target},
 };
 use alloc::boxed::Box;
 use skein_io::{
@@ -31,7 +32,7 @@ pub struct Settings {
     pub stdout: Fd,
     pub stderr: Fd,
 }
-/// A longer line is emitted in pieces, each prefixed.
+/// Serve URL payload cap (LF excluded); diagnostic pieces share the read cap.
 pub const LINE_BYTES: u32 = 4096;
 const ROOT_CLOSE: Token = Token::new(u64::MAX);
 #[derive(Debug)]
@@ -106,6 +107,12 @@ struct Control {
 }
 /// All io and policy state owned by one box process.
 #[derive(Debug)]
+struct Told {
+    event: Event,
+    wall: Wall,
+}
+
+#[derive(Debug)]
 pub struct Service {
     io: Io,
     env: Env<io::Limits>,
@@ -118,7 +125,9 @@ pub struct Service {
     reply_entries: u32,
     settings: Settings,
     children: Box<[Child]>,
-    sinks: [Sink; 2],
+    terminal: Terminal,
+    formatter: Formatter,
+    terminate_pending: bool,
     listeners: Box<[(core::net::SocketAddr, Token)]>,
     listeners_closing: usize,
     signals: Token,
@@ -128,7 +137,8 @@ pub struct Service {
     root: Root,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
-    told: Queue<Event>,
+    events: Queue<Event>,
+    told: Queue<Told>,
     requests: Queue<Request>,
     orders: Queue<Order>,
     memory: u64,
@@ -140,7 +150,7 @@ impl Service {
         for group in &steps.asked {
             longest = longest.max(u32::try_from(group.steps.len()).expect("bounded group"));
         }
-        let reply_entries = longest.saturating_add(2);
+        let reply_entries = longest.checked_add(2).expect("bounded startup memory");
         let steps = layout::flatten(steps);
         let machine = Machine::new(limits, &steps)?;
         let records = Records::new(&steps);
@@ -151,7 +161,11 @@ impl Service {
             .checked_add(u32::try_from(settings.listeners.len()).expect("bounded listeners"))
             .expect("listener slots");
         bounds.intake = bounds.intake.max(limits.line_bytes);
-        bounds.output = bounds.output.max(limits.line_bytes);
+        bounds.output = bounds
+            .output
+            .max(limits.line_bytes.checked_add(10).expect("notice timestamp"))
+            .max(terminal::FIXED_BYTES)
+            .max(LINE_BYTES.checked_add(1).expect("URL LF"));
         let mut children = List::with_capacity(count);
         let mut inputs = u64::try_from(settings.serve.len()).expect("serve name");
         for placed in &steps {
@@ -164,51 +178,35 @@ impl Service {
                     .expect("prefix"),
             );
             children.push(Child::new(&settings.serve, step)).expect("one child per step");
-            inputs = inputs.saturating_add(u64::try_from(size_of_val(step.listeners())).expect("listener addresses"));
-            inputs = inputs.saturating_add(u64::try_from(step.name().len()).expect("name length"));
-            inputs = inputs.saturating_add(u64::try_from(size_of_val(step.arguments())).expect("argument slots"));
+            inputs = inputs
+                .checked_add(u64::try_from(size_of_val(step.listeners())).expect("listener addresses"))
+                .expect("bounded startup memory");
+            inputs = inputs
+                .checked_add(u64::try_from(step.name().len()).expect("name length"))
+                .expect("bounded startup memory");
+            inputs = inputs
+                .checked_add(u64::try_from(size_of_val(step.arguments())).expect("argument slots"))
+                .expect("bounded startup memory");
             for argument in step.arguments() {
-                inputs = inputs.saturating_add(u64::try_from(argument.len()).expect("argument length"));
+                inputs = inputs
+                    .checked_add(u64::try_from(argument.len()).expect("argument length"))
+                    .expect("bounded startup memory");
             }
         }
-        inputs = inputs.saturating_add(inherited_bytes(&settings, count));
+        inputs = inputs.checked_add(inherited_bytes(&settings, count)).expect("bounded startup memory");
         let mut io = Io::new(&bounds);
         let signals = io.adopt_signals(settings.signals).expect("three adopted slots");
         let stdout = io.adopt_write_pipe(settings.stdout, None).expect("stdout slot");
         let stderr = io.adopt_write_pipe(settings.stderr, None).expect("stderr slot");
         let listeners = adopt_listeners(&mut io, &settings.listeners);
-        let capacity = io::operations(&bounds).expect("bounded operations").saturating_mul(4).max(64);
-        let entries = count.saturating_mul(2).saturating_add(1);
-        // Each queued record can own a launch or a chunk. Count even the impossible
-        // case where every slot holds the largest launch and the largest chunk.
-        let payload = inputs.saturating_add(u64::from(bounds.output)).saturating_add(
-            u64::try_from(size_of::<kernel::Pipe>())
-                .expect("pipe spec")
-                .saturating_mul(u64::try_from(settings.listeners.len()).expect("listener count").saturating_add(4)),
-        );
-        let queues = Queue::<Complete>::worst_case(capacity)
-            .expect("completion queue")
-            .saturating_add(Queue::<Submit>::worst_case(capacity).expect("submission queue"))
-            .saturating_add(Queue::<Event>::worst_case(capacity).expect("event queue"))
-            .saturating_add(Queue::<Request>::worst_case(capacity).expect("request queue"))
-            .saturating_add(Queue::<Order>::worst_case(capacity).expect("order queue"));
-        let memory = io::worst_case(&bounds)
-            .expect("io memory")
-            .saturating_add(crate::limits::worst_case(limits, count).expect("policy memory"))
-            .saturating_add(inputs.saturating_mul(3))
-            .saturating_add(listener_memory(&settings.listeners))
-            .saturating_add(u64::from(count).saturating_mul(64))
-            .saturating_add(queues)
-            .saturating_add(payload.saturating_mul(u64::from(capacity).saturating_mul(4)))
-            .saturating_add(List::<Child>::worst_case(count).expect("child states"))
-            .saturating_add(List::<Placed>::worst_case(count).expect("step states"))
-            .saturating_add(u64::from(count).saturating_mul(u64::from(LINE_BYTES).saturating_mul(4)))
-            .saturating_add(Sink::worst_case(entries, bounds.output).saturating_mul(2))
-            .saturating_add(Sink::worst_case(reply_entries, limits.line_bytes))
-            .saturating_add(u64::from(limits.line_bytes).saturating_mul(2))
-            .saturating_add(Records::worst_case(count))
-            .saturating_add(link_memory(&steps))
-            .saturating_add(u64::from(count).saturating_mul(Ready::worst_case()));
+        let capacity = io::operations(&bounds)
+            .expect("bounded operations")
+            .checked_mul(4)
+            .expect("queue capacity")
+            .max(64)
+            .max(machine.max_out().checked_mul(2).expect("policy queue progress"));
+        let entries = count.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(3);
+        let memory = footprint(limits, &settings, &steps, &bounds, capacity, reply_entries, inputs);
         Ok(Self {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds },
@@ -221,7 +219,9 @@ impl Service {
             reply_entries,
             settings,
             children: children.into_boxed(),
-            sinks: [Sink::new(stdout, entries), Sink::new(stderr, entries)],
+            terminal: Terminal::new(stdout, stderr, entries),
+            formatter: Formatter::new(),
+            terminate_pending: false,
             listeners: listeners.into_boxed(),
             listeners_closing: 0,
             signals,
@@ -231,6 +231,7 @@ impl Service {
             root: Root::Open,
             completions: Queue::with_capacity(capacity),
             submissions: Queue::with_capacity(capacity),
+            events: Queue::with_capacity(capacity),
             told: Queue::with_capacity(capacity),
             requests: Queue::with_capacity(capacity),
             orders: Queue::with_capacity(capacity),
@@ -238,7 +239,68 @@ impl Service {
         })
     }
     fn room(&self, bound: io::MaxOut) -> bool {
-        self.told.room() >= bound.events && self.submissions.room() >= bound.submissions
+        self.events.room() >= bound.events
+            && self.told.room() >= self.events.len().checked_add(bound.events).expect("retained event admission")
+            && self.submissions.room() >= bound.submissions
+    }
+    fn progress_event(&self, event: &Event) -> bool {
+        match event {
+            Event::Stream { owner, .. } | Event::Closed { owner } => self.terminal.owns(*owner),
+            Event::Shutdown { .. }
+            | Event::Spawned { .. }
+            | Event::Exited { .. }
+            | Event::Failed { .. }
+            | Event::Listening { .. }
+            | Event::Accepted { .. }
+            | Event::Connecting { .. }
+            | Event::Connected { .. }
+            | Event::Output { .. }
+            | Event::Usage { .. }
+            | Event::Resized
+            | Event::Window { .. } => false,
+        }
+    }
+    fn events_runnable(&self) -> bool {
+        if self.requests.room() >= 6 && self.orders.room() >= self.machine.max_out() && !self.told.is_empty() {
+            return true;
+        }
+        if self.requests.room() >= 2 {
+            for told in &self.told {
+                if self.progress_event(&told.event) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+    fn order_ready(&self) -> bool {
+        match self.orders.iter().next() {
+            Some(Order::Terminal { fact: Fact::Starting { step } })
+                if self.steps.get(*step).expect("step").asked.is_some() =>
+            {
+                true
+            }
+            Some(Order::Terminal { .. }) => self.terminal.takes(1) || self.terminal.failed(),
+            Some(Order::Say { said: Said::Stopped { .. } }) => {
+                (self.terminal.takes(1) || self.terminal.failed()) && self.reply_ready()
+            }
+            Some(Order::Say { .. }) => self.reply_ready(),
+            Some(
+                Order::Spawn { .. }
+                | Order::Hold { .. }
+                | Order::Wait { .. }
+                | Order::Signal { .. }
+                | Order::Close { .. }
+                | Order::Record { .. },
+            ) => true,
+            None => false,
+        }
+    }
+    fn reply_ready(&self) -> bool {
+        match &self.control {
+            Some(control) => !control.sink.room() || control.sink.takes(),
+            None => true,
+        }
     }
     fn input(&mut self, input: Input) {
         self.machine.input(self.env.now, input, &mut self.orders);
@@ -287,10 +349,9 @@ impl Service {
                         control.reading = false;
                     }
                 }
-                for sink in &mut self.sinks {
-                    if sink.token == owner {
-                        sink.closed();
-                    }
+                if self.terminal.owns(owner) && self.terminal.closed(owner) {
+                    self.failed = true;
+                    self.terminate_pending = true;
                 }
                 for (step, state) in self.children.iter_mut().enumerate() {
                     if let Some(stdin) = &state.stdin
@@ -311,7 +372,7 @@ impl Service {
                         if pipe.token == Some(owner) {
                             pipe.token = None;
                             pipe.reading = false;
-                            pipe.lines.end();
+                            pipe.lines.end(self.env.wall);
                         }
                     }
                 }
@@ -383,14 +444,12 @@ impl Service {
                 return;
             }
         }
-        for sink in &mut self.sinks {
-            if sink.token == owner {
-                if sink.up(up, &mut self.requests) {
-                    self.failed = true;
-                    self.input(Input::Terminate);
-                }
-                return;
+        if self.terminal.owns(owner) {
+            if self.terminal.up(owner, up, self.env.limits.output, &mut self.requests) {
+                self.failed = true;
+                self.terminate_pending = true;
             }
+            return;
         }
         for (step, state) in self.children.iter_mut().enumerate() {
             if let Some(stdin) = &mut state.stdin
@@ -404,9 +463,9 @@ impl Service {
                 if pipe.token == Some(owner) {
                     pipe.reading = false;
                     match up {
-                        Up::Bytes(bytes) => pipe.lines.push(bytes),
+                        Up::Bytes(bytes) => pipe.lines.push(bytes, self.env.wall),
                         Up::End | Up::Failed(_) => {
-                            pipe.lines.end();
+                            pipe.lines.end(self.env.wall);
                             self.requests.push(Request::Close { entity: owner });
                         }
                         Up::Room => {}
@@ -423,17 +482,32 @@ impl Service {
             }
         }
     }
+    fn terminal_fact(&mut self, fact: Fact) {
+        let name = match fact {
+            Fact::Starting { step } => {
+                let placed = self.steps.get(step).expect("step fact");
+                if placed.asked.is_some() {
+                    return;
+                }
+                placed.step.name()
+            }
+            Fact::Stopping | Fact::Stopped => b"".as_slice(),
+        };
+        if !self.terminal.failed() {
+            self.terminal.push(self.formatter.fact(fact, name, self.env.wall));
+        }
+    }
     fn order(&mut self, order: Order) {
         match order {
+            Order::Terminal { fact } => self.terminal_fact(fact),
             Order::Record { forge } => self.records.write(forge),
             Order::Say { said } => {
-                if let Said::Stopped { forge } = said {
-                    let sink = self.sinks.get_mut(1).expect("stderr");
-                    if sink.takes() {
-                        let digits = Decimal::of(u64::from(forge));
-                        sink.push(lines::joined(&[b"box: forge ", digits.as_bytes(), b"'s group stopped\n"]))
-                            .expect("sink room checked");
-                    }
+                if let Said::Stopped { forge } = said
+                    && !self.terminal.failed()
+                {
+                    let digits = Decimal::of(u64::from(forge));
+                    let words = lines::joined(&[b"box: forge ", digits.as_bytes(), b"'s group stopped\n"]);
+                    self.terminal.push(self.formatter.notice(&words, self.env.wall));
                 }
                 if let Some(control) = &mut self.control {
                     let line = match said {
@@ -517,7 +591,7 @@ impl Service {
     }
     fn children(&mut self) {
         for (step, state) in self.children.iter_mut().enumerate() {
-            if self.requests.room() < 6 || self.orders.room() < self.machine.max_out() {
+            if self.requests.room() < 8 || self.orders.room() < self.machine.max_out() {
                 break;
             }
             if let Some(ready) = &mut state.ready {
@@ -538,18 +612,30 @@ impl Service {
             let description = &self.steps.get(step).expect("step state").step;
             for (fd, pipe) in state.pipes.iter_mut().enumerate() {
                 let plain = fd == 0 && lines::route(&self.settings.serve, description.name(), 1);
-                let sink = self.sinks.get_mut(usize::from(!plain)).expect("two sinks");
-                if sink.takes() {
-                    if let Some(line) = pipe.lines.take(description.name()) {
-                        sink.push(line).expect("checked sink room");
+                let entries = if plain { self.formatter.block_entries() } else { 1 };
+                if (self.terminal.takes(entries) || self.terminal.failed())
+                    && let Some(output) = pipe.lines.take(description.name())
+                    && !self.terminal.failed()
+                {
+                    match output {
+                        Output::Line { bytes, wall } if plain => {
+                            self.terminal.block(self.formatter.block(bytes, wall)).expect("atomic block room");
+                            self.formatter.admitted_block();
+                        }
+                        Output::Legacy { bytes } => {
+                            self.terminal.push(Item { target: Target::Stdout, bytes });
+                        }
+                        Output::Line { bytes, .. } => {
+                            self.terminal.push(Item { target: Target::Stderr, bytes });
+                        }
+                        Output::Refused { wall } => {
+                            self.terminal.push(self.formatter.notice(terminal::REFUSAL, wall));
+                        }
                     }
-                } else if !sink.room() {
-                    // Broken sinks discard bounded pending pieces during teardown.
-                    drop(pipe.lines.take(description.name()));
                 }
                 if pipe.lines.wants_read()
                     && !pipe.reading
-                    && sink.takes()
+                    && (self.terminal.takes(1) || self.terminal.failed())
                     && let Some(stream) = pipe.token
                 {
                     self.requests.push(Request::Stream {
@@ -596,10 +682,11 @@ impl Service {
         }
     }
     fn record_work(&mut self) {
-        if (self.sinks.get(1).expect("stderr").takes() || !self.sinks.get(1).expect("stderr").room())
+        if (self.terminal.takes(1) || self.terminal.failed())
             && let Some(notice) = self.records.take_notice()
+            && !self.terminal.failed()
         {
-            drop(self.sinks.get_mut(1).expect("stderr").push(notice));
+            self.terminal.push(self.formatter.notice(&notice, self.env.wall));
         }
         if !self.records.has_notice()
             && self.orders.room() >= self.machine.max_out()
@@ -616,7 +703,7 @@ impl Service {
         control.sink.drained()
             && self.orders.is_empty()
             && self.orders.room() >= self.machine.max_out()
-            && self.sinks.get(1).expect("stderr").takes()
+            && (self.terminal.takes(1) || self.terminal.failed())
             && self.phase == Phase::Running
     }
     fn take_control_line(&mut self) {
@@ -631,19 +718,15 @@ impl Service {
                 Command::Start(forge) => self.input(Input::Ask { forge }),
                 Command::Stop(forge) => self.input(Input::Stop { forge }),
                 Command::Unknown => {
-                    self.sinks
-                        .get_mut(1)
-                        .expect("stderr")
-                        .push(skein_lib::bytes::copy_of(b"box: serve: unknown pipe line\n"))
-                        .expect("diagnostic room");
+                    if !self.terminal.failed() {
+                        self.terminal.push(self.formatter.notice(b"box: serve: unknown pipe line\n", self.env.wall));
+                    }
                 }
             },
             Line::TooLong => {
-                self.sinks
-                    .get_mut(1)
-                    .expect("stderr")
-                    .push(skein_lib::bytes::copy_of(b"box: serve: pipe line too long\n"))
-                    .expect("diagnostic room");
+                if !self.terminal.failed() {
+                    self.terminal.push(self.formatter.notice(b"box: serve: pipe line too long\n", self.env.wall));
+                }
             }
         }
     }
@@ -656,11 +739,11 @@ impl Service {
             && control.line.is_none()
             && self.control_ready()
             && self.orders.room() >= self.machine.max_out()
-            && self.sinks.get(1).expect("stderr").takes()
+            && (self.terminal.takes(1) || self.terminal.failed())
             && self.phase == Phase::Running
     }
     fn control_work(&mut self) {
-        if self.requests.room() < 3 {
+        if self.requests.room() < 5 {
             return;
         }
         self.take_control_line();
@@ -678,7 +761,11 @@ impl Service {
         }
     }
     fn finish(&mut self) {
-        if !self.machine.is_idle() || self.machine.outcome().is_none() || !self.records.ready() {
+        if !self.machine.is_idle()
+            || self.machine.outcome().is_none()
+            || !self.records.ready()
+            || !self.orders.is_empty()
+        {
             return;
         }
         for state in &self.children {
@@ -697,20 +784,19 @@ impl Service {
             }
             match self.machine.outcome() {
                 Some(Outcome::GaveUp { step, restarts }) => {
-                    let sink = self.sinks.get_mut(1).expect("stderr");
-                    if sink.room() && !sink.takes() {
-                        return;
-                    }
-                    if sink.takes() {
+                    if !self.terminal.failed() {
+                        if !self.terminal.takes(1) {
+                            return;
+                        }
                         let digits = Decimal::of(u64::from(restarts));
-                        sink.push(lines::joined(&[
+                        let words = lines::joined(&[
                             b"box: ",
                             self.steps.get(step).expect("failed step").step.name(),
                             b" gave up after ",
                             digits.as_bytes(),
                             b" restarts\n",
-                        ]))
-                        .expect("sink room");
+                        ]);
+                        self.terminal.push(self.formatter.notice(&words, self.env.wall));
                     }
                 }
                 Some(Outcome::Stopped) | None => {}
@@ -730,11 +816,98 @@ impl Service {
         }
     }
 }
+/// All owned heap, including impossible simultaneous launch/chunk payloads.
+fn footprint(
+    limits: &Limits,
+    settings: &Settings,
+    steps: &[Placed],
+    bounds: &io::Limits,
+    capacity: u32,
+    reply_entries: u32,
+    inputs: u64,
+) -> u64 {
+    let count = u32::try_from(steps.len()).expect("bounded steps");
+    let entries = count.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(3);
+    // Each queued record can own a launch or a chunk. Count even the impossible
+    // case where every slot holds the largest launch and the largest chunk.
+    let payload = inputs
+        .checked_add(u64::from(bounds.output))
+        .expect("bounded startup memory")
+        .checked_add(
+            u64::try_from(size_of::<kernel::Pipe>())
+                .expect("pipe spec")
+                .checked_mul(
+                    u64::try_from(settings.listeners.len())
+                        .expect("listener count")
+                        .checked_add(4)
+                        .expect("bounded startup memory"),
+                )
+                .expect("bounded startup memory"),
+        )
+        .expect("bounded startup memory");
+    let queues = Queue::<Complete>::worst_case(capacity)
+        .expect("completion queue")
+        .checked_add(Queue::<Submit>::worst_case(capacity).expect("submission queue"))
+        .expect("bounded startup memory")
+        .checked_add(Queue::<Event>::worst_case(capacity).expect("event queue"))
+        .expect("raw events")
+        .checked_add(Queue::<Told>::worst_case(capacity).expect("retained events"))
+        .expect("captured walls")
+        .checked_add(Queue::<Request>::worst_case(capacity).expect("request queue"))
+        .expect("bounded startup memory")
+        .checked_add(Queue::<Order>::worst_case(capacity).expect("order queue"))
+        .expect("bounded startup memory");
+    io::worst_case(bounds)
+        .expect("io memory")
+        .checked_add(crate::limits::worst_case(limits, count).expect("policy memory"))
+        .expect("bounded startup memory")
+        .checked_add(inputs.checked_mul(3).expect("bounded startup memory"))
+        .expect("bounded startup memory")
+        .checked_add(listener_memory(&settings.listeners))
+        .expect("bounded startup memory")
+        .checked_add(u64::from(count).checked_mul(64).expect("bounded startup memory"))
+        .expect("bounded startup memory")
+        .checked_add(queues)
+        .expect("bounded startup memory")
+        .checked_add(
+            payload.checked_mul(u64::from(capacity).checked_mul(5).expect("payload queues")).expect("queued payloads"),
+        )
+        .expect("bounded startup memory")
+        .checked_add(List::<Child>::worst_case(count).expect("child states"))
+        .expect("bounded startup memory")
+        .checked_add(List::<Placed>::worst_case(count).expect("step states"))
+        .expect("bounded startup memory")
+        .checked_add(
+            u64::from(count)
+                .checked_mul(u64::from(LINE_BYTES).checked_mul(4).expect("bounded startup memory"))
+                .expect("bounded startup memory"),
+        )
+        .expect("bounded startup memory")
+        .checked_add(Terminal::worst_case(entries, bounds.output))
+        .expect("terminal FIFO")
+        // Construction: extracted line plus the three block items can overlap
+        // assembly and the FIFO. Notices may also copy words to add a time.
+        .checked_add(u64::from(bounds.output).checked_mul(4).expect("formatter overlap"))
+        .expect("formatter memory")
+        .checked_add(List::<Item>::worst_case(6).expect("formatter item tables"))
+        .expect("formatter tables")
+        .checked_add(Sink::worst_case(reply_entries, limits.line_bytes))
+        .expect("bounded startup memory")
+        .checked_add(u64::from(limits.line_bytes).checked_mul(2).expect("bounded startup memory"))
+        .expect("bounded startup memory")
+        .checked_add(Records::worst_case(count))
+        .expect("bounded startup memory")
+        .checked_add(link_memory(steps))
+        .expect("bounded startup memory")
+        .checked_add(u64::from(count).checked_mul(Ready::worst_case()).expect("bounded startup memory"))
+        .expect("bounded startup memory")
+}
 fn listener_memory(held: &[(Fd, core::net::SocketAddr)]) -> u64 {
     let count = u32::try_from(held.len()).expect("bounded listeners");
     u64::try_from(size_of_val(held))
         .expect("held listener slots")
-        .saturating_add(List::<(core::net::SocketAddr, Token)>::worst_case(count).expect("listener tokens"))
+        .checked_add(List::<(core::net::SocketAddr, Token)>::worst_case(count).expect("listener tokens"))
+        .expect("bounded startup memory")
 }
 fn adopt_listeners(io: &mut Io, held: &[(Fd, core::net::SocketAddr)]) -> List<(core::net::SocketAddr, Token)> {
     let mut listeners = List::with_capacity(u32::try_from(held.len()).expect("bounded listeners"));
@@ -745,7 +918,9 @@ fn adopt_listeners(io: &mut Io, held: &[(Fd, core::net::SocketAddr)]) -> List<(c
     listeners
 }
 fn spawn_environment(environment: &[Box<[u8]>], listeners: usize) -> Box<[Box<[u8]>]> {
-    let mut out = List::with_capacity(u32::try_from(environment.len()).expect("bounded environment").saturating_add(1));
+    let mut out = List::with_capacity(
+        u32::try_from(environment.len()).expect("bounded environment").checked_add(1).expect("bounded startup memory"),
+    );
     for entry in environment {
         if !entry.starts_with(b"LISTEN_FDS=") && !entry.starts_with(b"LISTEN_PID=") {
             out.push(entry.clone()).expect("environment counted");
@@ -789,28 +964,43 @@ fn link_memory(steps: &[Placed]) -> u64 {
     let mut memory = 0_u64;
     for step in steps {
         if step.step.kind() == Kind::Link {
-            memory = memory.saturating_add(u64::from(LINE_BYTES)).saturating_add(Sink::worst_case(1, LINE_BYTES));
+            memory = memory
+                .checked_add(u64::from(LINE_BYTES))
+                .expect("bounded startup memory")
+                .checked_add(Sink::worst_case(1, LINE_BYTES))
+                .expect("bounded startup memory");
         }
     }
     memory
 }
 fn inherited_bytes(settings: &Settings, count: u32) -> u64 {
     let mut inputs = 0_u64;
-    inputs = inputs.saturating_add(
-        u64::try_from(size_of_val(settings.environment.as_ref()))
-            .expect("environment slots")
-            .saturating_mul(u64::from(count).saturating_add(1)),
-    );
+    inputs = inputs
+        .checked_add(
+            u64::try_from(size_of_val(settings.environment.as_ref()))
+                .expect("environment slots")
+                .checked_mul(u64::from(count).checked_add(1).expect("bounded startup memory"))
+                .expect("bounded startup memory"),
+        )
+        .expect("bounded startup memory");
     for value in &settings.environment {
-        inputs = inputs.saturating_add(
-            u64::try_from(value.len()).expect("environment length").saturating_mul(u64::from(count).saturating_add(1)),
-        );
+        inputs = inputs
+            .checked_add(
+                u64::try_from(value.len())
+                    .expect("environment length")
+                    .checked_mul(u64::from(count).checked_add(1).expect("bounded startup memory"))
+                    .expect("bounded startup memory"),
+            )
+            .expect("bounded startup memory");
     }
-    inputs = inputs.saturating_add(
-        u64::try_from(settings.program.len())
-            .expect("program length")
-            .saturating_mul(u64::from(count).saturating_add(1)),
-    );
+    inputs = inputs
+        .checked_add(
+            u64::try_from(settings.program.len())
+                .expect("program length")
+                .checked_mul(u64::from(count).checked_add(1).expect("bounded startup memory"))
+                .expect("bounded startup memory"),
+        )
+        .expect("bounded startup memory");
     inputs
 }
 /// Up to four entities per step, three inherited streams and two serve control pipes.
@@ -839,7 +1029,7 @@ impl skein_shell::Host for Service {
             if !self.io.is_ready() || !self.room(io::MAX_OUT_RESUME) {
                 break;
             }
-            io::resume(&mut self.io, &self.env, &mut self.told, &mut self.submissions);
+            io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
         }
         if !self.io.is_ready() {
             for _ in 0..self.completions.len() {
@@ -852,7 +1042,7 @@ impl skein_shell::Host for Service {
                 } else if complete.op == ROOT_CLOSE {
                     self.root = Root::Closed;
                 } else {
-                    io::up(&mut self.io, &self.env, complete, &mut self.told, &mut self.submissions);
+                    io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
                 }
             }
             if self.completions.is_empty() {
@@ -860,7 +1050,7 @@ impl skein_shell::Host for Service {
                     if !self.io.is_due(now) || !self.room(io::MAX_OUT_FIRE) {
                         break;
                     }
-                    io::fire(&mut self.io, &self.env, &mut self.told, &mut self.submissions);
+                    io::fire(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
                 }
             }
         }
@@ -869,31 +1059,43 @@ impl skein_shell::Host for Service {
             self.machine.start(now, self.records.recorded(), &mut self.orders);
             self.phase = Phase::Running;
         }
+        // Capture wall time on intake, before an ordinary event can wait behind
+        // policy pressure. Scan once: progress bypasses a blocked ordinary front,
+        // while all ordinary events keep their relative order.
+        for _ in 0..self.events.len() {
+            let event = self.events.pop().expect("captured event");
+            self.told.push(Told { event, wall });
+        }
+        // An ordinary event can issue four requests. Leave two slots for the
+        // active terminal's Send and full-budget Demand, even if policy stalls.
+        let mut blocked = false;
         for _ in 0..self.told.len() {
-            if self.orders.room() < self.machine.max_out() || self.requests.room() < 4 {
-                break;
+            let told = self.told.pop().expect("counted event");
+            let progress = self.progress_event(&told.event);
+            if self.requests.room() < if progress { 2 } else { 6 }
+                || !progress && (blocked || self.orders.room() < self.machine.max_out())
+            {
+                if !progress {
+                    blocked = true;
+                }
+                self.told.push(told);
+                continue;
             }
-            let event = self.told.pop().expect("counted event");
-            self.event(event);
+            self.env.wall = told.wall;
+            self.event(told.event);
+            self.env.wall = wall;
+        }
+        if self.terminate_pending && self.orders.room() >= self.machine.max_out() {
+            self.terminate_pending = false;
+            self.input(Input::Terminate);
         }
         if self.told.is_empty() && self.orders.room() >= self.machine.max_out() {
             self.machine.fire(now, &mut self.orders);
         }
+        // Close can cancel a probe, close both control pipes and close a child:
+        // four requests, with the same two-slot acknowledgement reserve.
         for _ in 0..self.orders.len() {
-            if self.requests.room() < 3 {
-                break;
-            }
-            if let Some(Order::Say { .. }) = self.orders.iter().next()
-                && let Some(control) = &self.control
-                && control.sink.room()
-                && !control.sink.takes()
-            {
-                break;
-            }
-            if let Some(Order::Say { said: Said::Stopped { .. } }) = self.orders.iter().next()
-                && self.sinks.get(1).expect("stderr").room()
-                && !self.sinks.get(1).expect("stderr").takes()
-            {
+            if self.requests.room() < 6 || !self.order_ready() {
                 break;
             }
             let order = self.orders.pop().expect("counted order");
@@ -903,10 +1105,8 @@ impl skein_shell::Host for Service {
         self.control_work();
         self.record_work();
         self.finish();
-        for sink in &mut self.sinks {
-            if self.requests.room() > 0 {
-                sink.tick(self.phase == Phase::Closing, &mut self.requests);
-            }
+        if self.requests.room() >= 2 {
+            self.terminal.tick(self.phase == Phase::Closing, &mut self.requests);
         }
         for _ in 0..self.requests.len() {
             if !self.io.takes() || self.submissions.room() < io::MAX_OUT_DOWN.submissions {
@@ -924,13 +1124,15 @@ impl skein_shell::Host for Service {
         &mut self.submissions
     }
     fn work_pending(&self, now: Time) -> bool {
-        if self.phase == Phase::New
-            || !self.completions.is_empty()
-            || !self.told.is_empty()
-            || !self.requests.is_empty()
-            || !self.orders.is_empty()
-            || self.io.is_ready()
-            || self.io.is_due(now)
+        if self.phase == Phase::New && self.records.ready()
+            || !self.completions.is_empty() && self.room(io::MAX_OUT_UP)
+            || !self.events.is_empty()
+            || self.events_runnable()
+            || !self.requests.is_empty() && self.io.takes() && self.submissions.room() >= io::MAX_OUT_DOWN.submissions
+            || !self.orders.is_empty() && self.order_ready() && self.requests.room() >= 6
+            || self.terminate_pending && self.orders.room() >= self.machine.max_out()
+            || self.io.is_ready() && self.room(io::MAX_OUT_RESUME)
+            || self.io.is_due(now) && self.room(io::MAX_OUT_FIRE)
         {
             return true;
         }
@@ -939,10 +1141,12 @@ impl skein_shell::Host for Service {
         {
             return true;
         }
-        if self.records.pending() && (!self.records.has_notice() || self.sinks.get(1).expect("stderr").takes()) {
+        if self.records.pending() && (!self.records.has_notice() || (self.terminal.takes(1) || self.terminal.failed()))
+        {
             return true;
         }
         if let Some(control) = &self.control
+            && self.requests.room() >= 5
             && (control.sink.pending()
                 || control.sink.needs_flush()
                 || self.can_read_control()
@@ -950,10 +1154,11 @@ impl skein_shell::Host for Service {
         {
             return true;
         }
-        for sink in &self.sinks {
-            if sink.pending() {
-                return true;
-            }
+        if self.terminal.pending(self.phase == Phase::Closing) && self.requests.room() >= 2 {
+            return true;
+        }
+        if self.orders.room() < self.machine.max_out() || self.requests.room() < 8 {
+            return false;
         }
         for (step, state) in self.children.iter().enumerate() {
             if let Some(stdin) = &state.stdin
@@ -964,9 +1169,14 @@ impl skein_shell::Host for Service {
             let description = &self.steps.get(step).expect("step state").step;
             for (fd, pipe) in state.pipes.iter().enumerate() {
                 let plain = fd == 0 && lines::route(&self.settings.serve, description.name(), 1);
-                let sink = self.sinks.get(usize::from(!plain)).expect("two sinks");
-                if (pipe.lines.ready() && (sink.takes() || !sink.room()))
-                    || (pipe.lines.wants_read() && !pipe.reading && pipe.token.is_some() && sink.takes())
+                let entries = if plain { self.formatter.block_entries() } else { 1 };
+                if self.orders.room() >= self.machine.max_out()
+                    && self.requests.room() >= 8
+                    && ((pipe.lines.ready() && (self.terminal.takes(entries) || self.terminal.failed()))
+                        || (pipe.lines.wants_read()
+                            && !pipe.reading
+                            && pipe.token.is_some()
+                            && (self.terminal.takes(1) || self.terminal.failed())))
                 {
                     return true;
                 }
@@ -986,12 +1196,16 @@ impl skein_shell::Host for Service {
     }
     fn next_deadline(&self) -> Option<Time> {
         let deadline = self.next_policy_deadline();
-        match (self.io.next_deadline(), deadline) {
+        let io_deadline = if self.room(io::MAX_OUT_FIRE) { self.io.next_deadline() } else { None };
+        match (io_deadline, deadline) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, None) | (None, a) => a,
         }
     }
     fn next_policy_deadline(&self) -> Option<Time> {
+        if self.orders.room() < self.machine.max_out() || !self.told.is_empty() {
+            return None;
+        }
         let mut deadline = self.machine.next_deadline();
         for state in &self.children {
             if let Some(ready) = &state.ready
@@ -1009,6 +1223,7 @@ impl skein_shell::Host for Service {
             && self.io.is_empty()
             && self.requests.is_empty()
             && self.orders.is_empty()
+            && self.events.is_empty()
             && self.told.is_empty()
             && self.completions.is_empty()
             && self.submissions.is_empty()
@@ -1024,5 +1239,56 @@ impl skein_shell::Host for Service {
     }
     fn operations(&self) -> u32 {
         io::operations(&self.env.limits).expect("io operations").saturating_add(2)
+    }
+}
+
+/// Test-only saturation of the real host's destination queues. The simulator
+/// still owns every completion and ACK; no service or io behaviour is replaced.
+#[cfg(test)]
+pub(crate) mod pressure {
+    use super::{Event, Fact, Item, Order, Service, Target, Told};
+    use skein_lib::{Wall, bytes};
+    pub fn saturate(service: &mut Service) -> (u32, u32) {
+        let mut queued = 0_u32;
+        while service.terminal.takes(1) {
+            service.terminal.push(Item { target: Target::Stderr, bytes: bytes::copy_of(b"queued\n") });
+            queued = queued.checked_add(1).unwrap();
+        }
+        let orders = service.orders.room();
+        for _ in 0..orders {
+            service.orders.push(Order::Terminal { fact: Fact::Stopping });
+        }
+        // These ordinary events must stay in this order while ACKs bypass them.
+        for wall in [Wall::EPOCH, Wall::from_nanos(1)] {
+            service.told.push(Told { event: Event::Resized, wall });
+        }
+        (queued, orders)
+    }
+    pub fn blocked(service: &Service) -> bool {
+        service.orders.room() == 0
+            && !service.terminal.takes(1)
+            && service.told.len() == 2
+            && service.told.iter().next().expect("ordinary front").wall == Wall::EPOCH
+            && service.told.iter().nth(1).expect("ordinary second").wall == Wall::from_nanos(1)
+    }
+    fn children_bounded(service: &Service) -> bool {
+        for child in &service.children {
+            for pipe in &child.pipes {
+                if !pipe.lines.bounded() {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+    pub fn bounded(service: &Service) -> bool {
+        service.orders.len() <= service.orders.capacity()
+            && service.told.len() <= service.told.capacity()
+            && service.events.len() <= service.events.capacity()
+            && service.requests.len() <= service.requests.capacity()
+            && service.submissions.len() <= service.submissions.capacity()
+            && service.completions.len() <= service.completions.capacity()
+            && service.terminal.bounded(service.env.limits.output)
+            && children_bounded(service)
     }
 }

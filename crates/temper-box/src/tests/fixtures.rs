@@ -51,7 +51,7 @@ impl Rig {
         rig.completed(ONCE_1);
         rig.completed(ONCE_2);
         rig.started(SERVE);
-        rig.orders();
+        rig.effects();
         rig
     }
     pub fn input(&mut self, input: Input) {
@@ -78,22 +78,20 @@ impl Rig {
     pub fn terminate(&mut self) {
         self.input(Input::Terminate);
     }
-    pub fn orders(&mut self) -> Box<[Order]> {
-        let mut orders = List::with_capacity(self.out.len());
-        for _ in 0..self.out.len() {
-            orders.push(self.out.pop().expect("counted order")).expect("counted capacity");
-        }
-        orders.into_boxed()
+    /// Policy tables inspect effects explicitly; lifecycle facts have their own
+    /// full interleaved sequence tests in machine.rs.
+    pub fn effects(&mut self) -> Box<[Order]> {
+        take_effects(&mut self.out)
     }
     pub fn failed_long(&mut self, step: usize) {
         self.exited(step, Exit::Code(1));
         self.closed(step);
-        self.orders();
+        self.effects();
     }
     pub fn restart_forgejo(&mut self) {
         self.completed(PREPARE);
         self.started(FORGEJO);
-        self.orders();
+        self.effects();
     }
 }
 
@@ -159,6 +157,12 @@ pub struct Harness {
     pub replies: List<Box<[u8]>>,
     pub hold_prepare: bool,
     pub held_prepare: Option<Call>,
+    pub wall: Wall,
+    pub terminal_writes: List<(Fd, Box<[u8]>)>,
+    pub stdout_bytes: List<u8>,
+    pub stderr_bytes: List<u8>,
+    pub hold_terminal_ack: bool,
+    pub held_terminal_ack: Queue<Complete>,
 }
 impl Harness {
     pub fn new(steps: &[Step]) -> Self {
@@ -238,6 +242,12 @@ impl Harness {
             replies: List::with_capacity(128),
             hold_prepare: false,
             held_prepare: None,
+            wall: Wall::EPOCH,
+            terminal_writes: List::with_capacity(4096),
+            stdout_bytes: List::with_capacity(65_536),
+            stderr_bytes: List::with_capacity(65_536),
+            hold_terminal_ack: false,
+            held_terminal_ack: Queue::with_capacity(2),
         }
     }
     fn answer(&mut self) {
@@ -360,8 +370,29 @@ impl Harness {
     }
     pub fn turn(&mut self) {
         self.sim.reap(self.pid, self.service.completions());
+        for _ in 0..self.service.completions().len() {
+            let complete = self.service.completions().pop().unwrap();
+            let mut terminal = false;
+            if let Op::PipeWrite { fd, bytes, from } = &complete.kind
+                && (*fd == self.stdout || *fd == self.stderr)
+            {
+                if !self.hold_terminal_ack
+                    && let Ok(Done::Count(count)) = complete.result
+                {
+                    let start = usize::try_from(*from).unwrap();
+                    let end = start.checked_add(usize::try_from(count).unwrap()).unwrap();
+                    self.terminal_writes.push((*fd, Box::from(bytes.get(start..end).unwrap()))).unwrap();
+                }
+                terminal = true;
+            }
+            if terminal && self.hold_terminal_ack {
+                self.held_terminal_ack.push(complete);
+            } else {
+                self.service.completions().push(complete);
+            }
+        }
         self.bind();
-        self.service.iterate(self.sim.now(), Wall::EPOCH);
+        self.service.iterate(self.sim.now(), self.wall);
         self.service.drain();
         for submission in self.service.submissions().iter() {
             if let Op::PipeWrite { fd, bytes, from } = &submission.kind
@@ -371,6 +402,12 @@ impl Harness {
             }
         }
         self.sim.submit(self.pid, self.service.submissions());
+        for byte in self.sim.peer_drain(self.pid, self.stdout, 65_536) {
+            self.stdout_bytes.push(byte).unwrap();
+        }
+        for byte in self.sim.peer_drain(self.pid, self.stderr, 65_536) {
+            self.stderr_bytes.push(byte).unwrap();
+        }
         self.answer();
         self.settle_hosted();
     }
@@ -505,11 +542,30 @@ impl Harness {
         }
         times.into_boxed()
     }
+    pub fn release_terminal_ack(&mut self) {
+        self.hold_terminal_ack = false;
+        for _ in 0..self.held_terminal_ack.len() {
+            self.service.completions().push(self.held_terminal_ack.pop().unwrap());
+        }
+    }
+    pub fn terminal_bytes(&self) -> Box<[u8]> {
+        let mut bytes = List::with_capacity(65_536);
+        for (_, piece) in &self.terminal_writes {
+            for byte in piece {
+                bytes.push(*byte).unwrap();
+            }
+        }
+        bytes.into_boxed()
+    }
     pub fn stdout(&mut self) -> Box<[u8]> {
-        self.sim.peer_drain(self.pid, self.stdout, 65_536).into_boxed_slice()
+        let bytes = bytes::copy_of(self.stdout_bytes.as_slice());
+        self.stdout_bytes.clear();
+        bytes
     }
     pub fn stderr(&mut self) -> Box<[u8]> {
-        self.sim.peer_drain(self.pid, self.stderr, 65_536).into_boxed_slice()
+        let bytes = bytes::copy_of(self.stderr_bytes.as_slice());
+        self.stderr_bytes.clear();
+        bytes
     }
     pub fn contains(bytes: &[u8], needle: &[u8]) -> bool {
         for part in bytes.windows(needle.len()) {
@@ -546,4 +602,61 @@ fn open_listener(sim: &mut Sim, pid: Pid, address: core::net::SocketAddr) -> Fd 
     assert_eq!(call(sim, pid, Op::Bind { fd, addr: address }).result, Ok(Done::Bound(address)));
     assert_eq!(call(sim, pid, Op::Listen { fd, backlog: 4 }).result, Ok(Done::Nothing));
     fd
+}
+
+/// Effect-only view for existing policy tables, deliberately named at each use.
+pub fn pop_effect(out: &mut Queue<Order>) -> Option<Order> {
+    while let Some(order) = out.pop() {
+        if is_effect(&order) {
+            return Some(order);
+        }
+    }
+    None
+}
+pub fn effects_empty(out: &Queue<Order>) -> bool {
+    for order in out {
+        if is_effect(order) {
+            return false;
+        }
+    }
+    true
+}
+pub fn take_effects(out: &mut Queue<Order>) -> Box<[Order]> {
+    let mut effects = List::with_capacity(out.len());
+    while let Some(order) = pop_effect(out) {
+        effects.push(order).expect("counted effects");
+    }
+    effects.into_boxed()
+}
+/// Fact-only view for tests that assert lifecycle without policy effects.
+pub fn take_facts(out: &mut Queue<Order>) -> Box<[crate::terminal::Fact]> {
+    let mut facts = List::with_capacity(out.len());
+    while let Some(order) = out.pop() {
+        if let Order::Terminal { fact } = order {
+            facts.push(fact).expect("counted facts");
+        }
+    }
+    facts.into_boxed()
+}
+
+// The unchanged child read/legacy payload cap, shared by both boundary suites.
+pub fn line_cap() -> Box<[u8]> {
+    let mut bytes = List::with_capacity(crate::host::LINE_BYTES);
+    for _ in 0..crate::host::LINE_BYTES {
+        bytes.push(b'x').unwrap();
+    }
+    bytes.into_boxed()
+}
+
+fn is_effect(order: &Order) -> bool {
+    match order {
+        Order::Terminal { .. } => false,
+        Order::Spawn { .. }
+        | Order::Hold { .. }
+        | Order::Wait { .. }
+        | Order::Signal { .. }
+        | Order::Close { .. }
+        | Order::Record { .. }
+        | Order::Say { .. } => true,
+    }
 }

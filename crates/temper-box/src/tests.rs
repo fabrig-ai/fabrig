@@ -7,3 +7,4 @@ mod machine;
 mod pipe;
 mod ready;
 mod sink;
+mod terminal;

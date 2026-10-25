@@ -1,4 +1,4 @@
-use super::fixtures::{FORGEJO, ONCE_1, ONCE_2, PREPARE, RUNNER, Rig, SERVE};
+use super::fixtures::{FORGEJO, ONCE_1, ONCE_2, PREPARE, RUNNER, Rig, SERVE, effects_empty, pop_effect, take_effects};
 use crate::{
     limits,
     machine::{Input, Order, Outcome},
@@ -9,54 +9,54 @@ use temper_forge_setup::Kind;
 #[test]
 fn a_once_step_must_exit_zero_before_the_next_starts() {
     let mut rig = Rig::new(&limits::small());
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: PREPARE }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: PREPARE }]);
     rig.started(PREPARE);
-    assert_eq!(&*rig.orders(), &[]);
+    assert_eq!(&*rig.effects(), &[]);
     rig.exited(PREPARE, Exit::Code(0));
-    assert_eq!(&*rig.orders(), &[Order::Close { step: PREPARE }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: PREPARE }]);
     rig.closed(PREPARE);
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: FORGEJO }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: FORGEJO }]);
 }
 #[test]
 fn a_long_step_lets_the_next_start_once_it_has_started() {
     let mut rig = Rig::new(&limits::small());
     rig.completed(PREPARE);
-    rig.orders();
+    rig.effects();
     rig.started(FORGEJO);
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: RUNNER }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: RUNNER }]);
 }
 #[test]
 fn a_long_step_that_exits_runs_its_once_steps_again_before_it() {
     let mut rig = Rig::running();
     rig.exited(FORGEJO, Exit::Code(1));
-    assert_eq!(&*rig.orders(), &[Order::Close { step: FORGEJO }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: FORGEJO }]);
     rig.closed(FORGEJO);
     rig.advance(Duration::from_millis(500));
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: PREPARE }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: PREPARE }]);
     rig.completed(PREPARE);
-    assert_eq!(&*rig.orders(), &[Order::Close { step: PREPARE }, Order::Spawn { step: FORGEJO }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: PREPARE }, Order::Spawn { step: FORGEJO }]);
     rig.started(FORGEJO);
-    assert_eq!(&*rig.orders(), &[]);
+    assert_eq!(&*rig.effects(), &[]);
 }
 #[test]
 fn a_long_step_that_exits_runs_every_once_step_just_before_it_again() {
     let mut rig = Rig::running();
     rig.failed_long(SERVE);
     rig.advance(Duration::from_millis(500));
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: ONCE_1 }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: ONCE_1 }]);
     rig.completed(ONCE_1);
-    assert_eq!(&*rig.orders(), &[Order::Close { step: ONCE_1 }, Order::Spawn { step: ONCE_2 }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: ONCE_1 }, Order::Spawn { step: ONCE_2 }]);
     rig.completed(ONCE_2);
-    assert_eq!(&*rig.orders(), &[Order::Close { step: ONCE_2 }, Order::Spawn { step: SERVE }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: ONCE_2 }, Order::Spawn { step: SERVE }]);
 }
 #[test]
 fn a_long_step_after_a_long_step_restarts_alone() {
     let mut rig = Rig::running();
     rig.failed_long(RUNNER);
     rig.advance(Duration::from_millis(500));
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: RUNNER }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: RUNNER }]);
     rig.started(RUNNER);
-    assert_eq!(&*rig.orders(), &[]);
+    assert_eq!(&*rig.effects(), &[]);
 }
 #[test]
 fn the_backoff_doubles_and_stops_doubling_at_its_maximum() {
@@ -64,7 +64,7 @@ fn the_backoff_doubles_and_stops_doubling_at_its_maximum() {
     let mut rig = Rig::new(&limits::Limits { restarts: 8, ..limits::small() });
     rig.completed(PREPARE);
     rig.started(FORGEJO);
-    rig.orders();
+    rig.effects();
     for millis in [500, 1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000] {
         rig.failed_long(FORGEJO);
         assert_eq!(
@@ -73,7 +73,7 @@ fn the_backoff_doubles_and_stops_doubling_at_its_maximum() {
             "gap {millis}"
         );
         rig.advance(Duration::from_millis(millis));
-        rig.orders();
+        rig.effects();
         rig.restart_forgejo();
     }
 }
@@ -82,7 +82,7 @@ fn the_backoff_starts_again_after_a_window_without_an_exit() {
     let mut rig = Rig::running();
     rig.failed_long(FORGEJO);
     rig.advance(Duration::from_millis(500));
-    rig.orders();
+    rig.effects();
     rig.restart_forgejo();
     rig.advance(Duration::from_secs(301));
     rig.failed_long(FORGEJO);
@@ -94,13 +94,13 @@ fn more_exits_than_restarts_within_the_window_give_up_naming_the_step() {
     for millis in [500, 1_000, 2_000, 4_000, 8_000] {
         rig.failed_long(FORGEJO);
         rig.advance(Duration::from_millis(millis));
-        rig.orders();
+        rig.effects();
         rig.restart_forgejo();
     }
     rig.exited(FORGEJO, Exit::Code(1));
     rig.closed(FORGEJO);
     assert_eq!(rig.machine.outcome(), Some(Outcome::GaveUp { step: FORGEJO, restarts: 5 }));
-    assert_eq!(&*rig.orders(), &[Order::Close { step: FORGEJO }, Order::Signal { step: SERVE }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: FORGEJO }, Order::Signal { step: SERVE }]);
 }
 #[test]
 fn a_once_step_that_fails_gives_up_and_stops_what_runs() {
@@ -108,7 +108,7 @@ fn a_once_step_that_fails_gives_up_and_stops_what_runs() {
         let mut rig = Rig::running();
         rig.failed_long(SERVE);
         rig.advance(Duration::from_millis(500));
-        rig.orders();
+        rig.effects();
         if not_started {
             rig.input(Input::NotStarted { step: ONCE_1 });
         } else {
@@ -126,7 +126,7 @@ fn a_once_step_that_fails_gives_up_and_stops_what_runs() {
         } else {
             &[Order::Close { step: ONCE_1 }, Order::Signal { step: RUNNER }]
         };
-        assert_eq!(&*rig.orders(), expected, "not started {not_started}");
+        assert_eq!(&*rig.effects(), expected, "not started {not_started}");
     }
 }
 #[test]
@@ -134,12 +134,12 @@ fn a_stop_signals_the_long_steps_last_first_one_at_a_time() {
     let mut rig = Rig::running();
     rig.terminate();
     for (step, next) in [(SERVE, Some(RUNNER)), (RUNNER, Some(FORGEJO)), (FORGEJO, None)] {
-        assert_eq!(&*rig.orders(), &[Order::Signal { step }]);
+        assert_eq!(&*rig.effects(), &[Order::Signal { step }]);
         rig.exited(step, Exit::Code(0));
-        assert_eq!(&*rig.orders(), &[Order::Close { step }]);
+        assert_eq!(&*rig.effects(), &[Order::Close { step }]);
         rig.closed(step);
         if next.is_none() {
-            assert_eq!(&*rig.orders(), &[]);
+            assert_eq!(&*rig.effects(), &[]);
         }
     }
     assert!(rig.machine.is_idle(), "all children closed");
@@ -150,11 +150,11 @@ fn every_long_step_is_signalled_twice_with_a_grace_after_each() {
     let mut rig = Rig::running();
     rig.terminate();
     for step in [SERVE, RUNNER, FORGEJO] {
-        assert_eq!(&*rig.orders(), &[Order::Signal { step }]);
+        assert_eq!(&*rig.effects(), &[Order::Signal { step }]);
         rig.advance(Duration::from_secs(10));
-        assert_eq!(&*rig.orders(), &[Order::Signal { step }]);
+        assert_eq!(&*rig.effects(), &[Order::Signal { step }]);
         rig.advance(Duration::from_secs(10));
-        assert_eq!(&*rig.orders(), &[Order::Close { step }]);
+        assert_eq!(&*rig.effects(), &[Order::Close { step }]);
         rig.closed(step);
     }
     assert!(rig.machine.is_idle(), "all children closed");
@@ -164,28 +164,28 @@ fn a_stop_during_a_backoff_starts_nothing() {
     let mut rig = Rig::running();
     rig.failed_long(FORGEJO);
     rig.terminate();
-    assert_eq!(&*rig.orders(), &[Order::Signal { step: SERVE }]);
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: SERVE }]);
     rig.advance(Duration::from_millis(500));
-    assert_eq!(&*rig.orders(), &[]);
+    assert_eq!(&*rig.effects(), &[]);
 }
 #[test]
 fn a_step_still_starting_is_stopped_once_started() {
     let mut rig = Rig::new(&limits::small());
     rig.completed(PREPARE);
-    rig.orders();
+    rig.effects();
     rig.terminate();
-    assert_eq!(&*rig.orders(), &[]);
+    assert_eq!(&*rig.effects(), &[]);
     rig.started(FORGEJO);
-    assert_eq!(&*rig.orders(), &[Order::Signal { step: FORGEJO }]);
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: FORGEJO }]);
 }
 #[test]
 fn a_second_termination_signal_closes_every_child_at_once() {
     let mut rig = Rig::running();
     rig.terminate();
-    rig.orders();
+    rig.effects();
     rig.terminate();
     assert_eq!(
-        &*rig.orders(),
+        &*rig.effects(),
         &[Order::Close { step: FORGEJO }, Order::Close { step: RUNNER }, Order::Close { step: SERVE }]
     );
     for step in [FORGEJO, RUNNER, SERVE] {
@@ -198,15 +198,15 @@ fn a_second_termination_signal_closes_every_child_at_once() {
 fn a_long_step_refused_before_start_retries_and_continues_the_order() {
     let mut rig = Rig::new(&limits::small());
     rig.completed(PREPARE);
-    rig.orders();
+    rig.effects();
     rig.input(Input::NotStarted { step: FORGEJO });
-    assert_eq!(&*rig.orders(), &[]);
+    assert_eq!(&*rig.effects(), &[]);
     rig.advance(Duration::from_millis(500));
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: PREPARE }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: PREPARE }]);
     rig.completed(PREPARE);
-    assert_eq!(&*rig.orders(), &[Order::Close { step: PREPARE }, Order::Spawn { step: FORGEJO }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: PREPARE }, Order::Spawn { step: FORGEJO }]);
     rig.started(FORGEJO);
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: RUNNER }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: RUNNER }]);
 }
 
 #[test]
@@ -391,21 +391,18 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
         let mut machine = Machine::new(&limits::small(), &placed()).unwrap();
         let mut out = Queue::with_capacity(128);
         machine.start(Time::ZERO, &[], &mut out);
-        assert_eq!(out.pop(), Some(Spawn { step: 0 }), "{name}");
-        assert!(out.is_empty());
+        assert_eq!(pop_effect(&mut out), Some(Spawn { step: 0 }), "{name}");
+        assert!(effects_empty(&out));
         machine.input(Time::ZERO, Started { step: 0 }, &mut out);
-        assert_eq!(out.pop(), Some(Spawn { step: 5 }), "{name}: dormant skipped");
+        assert_eq!(pop_effect(&mut out), Some(Spawn { step: 5 }), "{name}: dormant skipped");
         machine.input(Time::ZERO, Started { step: 5 }, &mut out);
         for (action, expected) in script {
             match action {
                 I(input) => machine.input(Time::ZERO, input, &mut out),
                 F(ms) => machine.fire(Time::ZERO.saturating_add(Duration::from_millis(ms)), &mut out),
             }
-            let mut got = skein_lib::List::with_capacity(out.len());
-            for _ in 0..out.len() {
-                got.push(out.pop().unwrap()).unwrap();
-            }
-            assert_eq!(got.as_slice(), expected.as_ref(), "{name}");
+            let got = take_effects(&mut out);
+            assert_eq!(got.as_ref(), expected.as_ref(), "{name}");
         }
     }
     // The record barrier also works when there is no preparation, or no long step.
@@ -425,41 +422,41 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
         let mut machine = Machine::new(&limits::small(), &placed).unwrap();
         let mut out = Queue::with_capacity(32);
         machine.start(Time::ZERO, &[], &mut out);
-        assert!(out.is_empty());
+        assert!(effects_empty(&out));
         machine.input(Time::ZERO, Ask { forge: 9 }, &mut out);
-        assert_eq!(out.pop(), Some(Spawn { step: 0 }));
-        assert_eq!(out.pop(), Some(progress(0)));
+        assert_eq!(pop_effect(&mut out), Some(Spawn { step: 0 }));
+        assert_eq!(pop_effect(&mut out), Some(progress(0)));
         machine.input(Time::ZERO, Started { step: 0 }, &mut out);
         if !long {
             machine.input(Time::ZERO, Exited { step: 0, exit: Exit::Code(0) }, &mut out);
-            assert_eq!(out.pop(), Some(Close { step: 0 }));
+            assert_eq!(pop_effect(&mut out), Some(Close { step: 0 }));
             machine.input(Time::ZERO, Closed { step: 0 }, &mut out);
         }
-        assert_eq!(out.pop(), Some(Record { forge: 9 }));
-        assert!(out.is_empty());
+        assert_eq!(pop_effect(&mut out), Some(Record { forge: 9 }));
+        assert!(effects_empty(&out));
         machine.input(Time::ZERO, Written { forge: 9 }, &mut out);
-        assert_eq!(out.pop(), Some(Say { said: Said::Started { forge: 9 } }));
-        assert!(out.is_empty());
+        assert_eq!(pop_effect(&mut out), Some(Say { said: Said::Started { forge: 9 } }));
+        assert!(effects_empty(&out));
     }
     // A record joins the startup chain, with no ask or record barrier.
     let mut machine = Machine::new(&limits::small(), &placed()).unwrap();
     let mut out = Queue::with_capacity(128);
     machine.start(Time::ZERO, &[3], &mut out);
-    out.pop();
+    pop_effect(&mut out);
     machine.input(Time::ZERO, Started { step: 0 }, &mut out);
-    assert_eq!(out.pop(), Some(Spawn { step: 1 }));
+    assert_eq!(pop_effect(&mut out), Some(Spawn { step: 1 }));
     for (step, next) in [(1, 2), (2, 3)] {
         machine.input(Time::ZERO, Started { step }, &mut out);
         machine.input(Time::ZERO, Exited { step, exit: Exit::Code(0) }, &mut out);
-        out.pop();
+        pop_effect(&mut out);
         machine.input(Time::ZERO, Closed { step }, &mut out);
-        assert_eq!(out.pop(), Some(Spawn { step: next }));
+        assert_eq!(pop_effect(&mut out), Some(Spawn { step: next }));
     }
     machine.input(Time::ZERO, Started { step: 3 }, &mut out);
-    assert_eq!(out.pop(), Some(Spawn { step: 4 }));
+    assert_eq!(pop_effect(&mut out), Some(Spawn { step: 4 }));
     machine.input(Time::ZERO, Started { step: 4 }, &mut out);
-    assert_eq!(out.pop(), Some(Spawn { step: 5 }));
-    assert!(out.is_empty());
+    assert_eq!(pop_effect(&mut out), Some(Spawn { step: 5 }));
+    assert!(effects_empty(&out));
     // Flatten includes end placements, and preserves the stage on every item.
     let placed = placed();
     assert_eq!(placed.len(), 8);
@@ -654,8 +651,8 @@ fn a_link_takes_the_first_line_once_across_restarts_and_stop() {
         let mut out = Queue::with_capacity(machine.max_out());
         let mut now = Time::ZERO;
         machine.start(now, &[], &mut out);
-        assert_eq!(out.pop(), Some(Spawn { step: PREPARE }), "{name}");
-        assert!(out.is_empty());
+        assert_eq!(pop_effect(&mut out), Some(Spawn { step: PREPARE }), "{name}");
+        assert!(effects_empty(&out));
         for (action, expected) in script {
             match action {
                 I(input) => machine.input(now, input, &mut out),
@@ -664,11 +661,8 @@ fn a_link_takes_the_first_line_once_across_restarts_and_stop() {
                     machine.fire(now, &mut out);
                 }
             }
-            let mut got = skein_lib::List::with_capacity(out.len());
-            for _ in 0..out.len() {
-                got.push(out.pop().unwrap()).unwrap();
-            }
-            assert_eq!(got.as_slice(), expected.as_ref(), "{name}: {action:?}");
+            let got = take_effects(&mut out);
+            assert_eq!(got.as_ref(), expected.as_ref(), "{name}: {action:?}");
         }
         assert_eq!(machine.outcome(), outcome, "{name}");
     }
@@ -744,32 +738,32 @@ fn an_asked_groups_final_once_step_gates_started_and_failure_allows_another_ask(
         machine.start(Time::ZERO, &[], &mut out);
         machine.input(Time::ZERO, Input::Ask { forge: 3 }, &mut out);
         for step in 0..3 {
-            assert_eq!(out.pop(), Some(Order::Spawn { step }));
-            assert_eq!(out.pop(), Some(Order::Say { said: Said::Step { step } }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Step { step } }));
             machine.input(Time::ZERO, Input::Started { step }, &mut out);
         }
-        assert!(out.is_empty(), "the once step must exit before started");
+        assert!(effects_empty(&out), "the once step must exit before started");
         machine.input(Time::ZERO, Input::Exited { step: 2, exit: Exit::Code(code) }, &mut out);
         if code == 0 {
-            assert_eq!(out.pop(), Some(Order::Close { step: 2 }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Close { step: 2 }));
             machine.input(Time::ZERO, Input::Closed { step: 2 }, &mut out);
-            assert_eq!(out.pop(), Some(Order::Record { forge: 3 }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Record { forge: 3 }));
             machine.input(Time::ZERO, Input::Written { forge: 3 }, &mut out);
-            assert_eq!(out.pop(), Some(Order::Say { said: Said::Started { forge: 3 } }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 3 } }));
         } else {
             for step in 0..3 {
-                assert_eq!(out.pop(), Some(Order::Close { step }));
+                assert_eq!(pop_effect(&mut out), Some(Order::Close { step }));
                 machine.input(Time::ZERO, Input::Closed { step }, &mut out);
             }
             assert_eq!(
-                out.pop(),
+                pop_effect(&mut out),
                 Some(Order::Say { said: Said::Failed { forge: 3, why: Why::Exited { step: 2, exit: Exit::Code(1) } } })
             );
             machine.input(Time::ZERO, Input::Ask { forge: 3 }, &mut out);
-            assert_eq!(out.pop(), Some(Order::Spawn { step: 0 }));
-            assert_eq!(out.pop(), Some(Order::Say { said: Said::Step { step: 0 } }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 0 }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Step { step: 0 } }));
         }
-        assert!(out.is_empty());
+        assert!(effects_empty(&out));
     }
 }
 
@@ -800,41 +794,41 @@ fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
             let now = Time::ZERO;
             machine.start(now, if recorded { &[3] } else { &[] }, &mut out);
             if !recorded {
-                assert_eq!(out.pop(), Some(Order::Spawn { step: 3 }));
+                assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 3 }));
                 machine.input(now, Input::Started { step: 3 }, &mut out);
                 machine.input(now, Input::Ask { forge: 3 }, &mut out);
             }
-            assert_eq!(out.pop(), Some(Order::Spawn { step: 0 }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 0 }));
             if !recorded {
-                assert_eq!(out.pop(), Some(Order::Say { said: Said::Step { step: 0 } }));
+                assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Step { step: 0 } }));
             }
             machine.input(now, Input::Started { step: 0 }, &mut out);
-            assert_eq!(out.pop(), Some(Order::Wait { step: 0 }));
-            assert!(out.is_empty(), "{recorded}/{ending}: no runner or record before version");
+            assert_eq!(pop_effect(&mut out), Some(Order::Wait { step: 0 }));
+            assert!(effects_empty(&out), "{recorded}/{ending}: no runner or record before version");
             match ending {
                 "ready" => {
                     machine.input(now, Input::Ready { step: 0 }, &mut out);
-                    assert_eq!(out.pop(), Some(Order::Spawn { step: 1 }));
+                    assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 1 }));
                     if !recorded {
-                        assert_eq!(out.pop(), Some(Order::Say { said: Said::Step { step: 1 } }));
+                        assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Step { step: 1 } }));
                     }
                     machine.input(now, Input::Ready { step: 0 }, &mut out);
-                    assert!(out.is_empty(), "a stale ready cannot skip the once step");
+                    assert!(effects_empty(&out), "a stale ready cannot skip the once step");
                     machine.input(now, Input::Started { step: 1 }, &mut out);
-                    assert_eq!(out.pop(), Some(Order::Spawn { step: 2 }));
+                    assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 2 }));
                     if !recorded {
-                        assert_eq!(out.pop(), Some(Order::Say { said: Said::Step { step: 2 } }));
+                        assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Step { step: 2 } }));
                     }
                     machine.input(now, Input::Started { step: 2 }, &mut out);
                     machine.input(now, Input::Exited { step: 2, exit: Exit::Code(0) }, &mut out);
-                    assert_eq!(out.pop(), Some(Order::Close { step: 2 }));
+                    assert_eq!(pop_effect(&mut out), Some(Order::Close { step: 2 }));
                     machine.input(now, Input::Closed { step: 2 }, &mut out);
                     if recorded {
-                        assert_eq!(out.pop(), Some(Order::Spawn { step: 3 }));
+                        assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 3 }));
                     } else {
-                        assert_eq!(out.pop(), Some(Order::Record { forge: 3 }));
+                        assert_eq!(pop_effect(&mut out), Some(Order::Record { forge: 3 }));
                         machine.input(now, Input::Written { forge: 3 }, &mut out);
-                        assert_eq!(out.pop(), Some(Order::Say { said: Said::Started { forge: 3 } }));
+                        assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 3 } }));
                     }
                 }
                 "timeout" => {
@@ -842,10 +836,10 @@ fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
                     if recorded {
                         assert_eq!(machine.outcome(), Some(Outcome::GaveUp { step: 0, restarts: 0 }));
                     } else {
-                        assert_eq!(out.pop(), Some(Order::Close { step: 0 }));
+                        assert_eq!(pop_effect(&mut out), Some(Order::Close { step: 0 }));
                         machine.input(now, Input::Closed { step: 0 }, &mut out);
                         assert_eq!(
-                            out.pop(),
+                            pop_effect(&mut out),
                             Some(Order::Say { said: Said::Failed { forge: 3, why: Why::NotReady { step: 0 } } })
                         );
                     }
@@ -853,22 +847,22 @@ fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
                 "stop" => {
                     machine.input(now, Input::Terminate, &mut out);
                     machine.input(now, Input::Ready { step: 0 }, &mut out);
-                    assert_eq!(out.pop(), Some(Order::Signal { step: if recorded { 0 } else { 3 } }));
-                    assert!(out.is_empty(), "ready during stop launches nothing");
+                    assert_eq!(pop_effect(&mut out), Some(Order::Signal { step: if recorded { 0 } else { 3 } }));
+                    assert!(effects_empty(&out), "ready during stop launches nothing");
                 }
                 "exit" => {
                     machine.input(now, Input::Exited { step: 0, exit: Exit::Code(1) }, &mut out);
-                    assert_eq!(out.pop(), Some(Order::Close { step: 0 }));
+                    assert_eq!(pop_effect(&mut out), Some(Order::Close { step: 0 }));
                     machine.input(now, Input::Closed { step: 0 }, &mut out);
                     if !recorded {
                         assert_eq!(
-                            out.pop(),
+                            pop_effect(&mut out),
                             Some(Order::Say {
                                 said: Said::Failed { forge: 3, why: Why::Exited { step: 0, exit: Exit::Code(1) } }
                             })
                         );
                     }
-                    assert!(out.is_empty(), "exit while waiting starts nothing");
+                    assert!(effects_empty(&out), "exit while waiting starts nothing");
                 }
                 _ => unreachable!(),
             }
@@ -902,25 +896,25 @@ fn an_unrecorded_group_runs_only_when_asked_even_with_a_stale_record() {
         let mut machine = Machine::new(&limits::small(), &placed).unwrap();
         let mut out = Queue::with_capacity(machine.max_out());
         machine.start(Time::ZERO, records, &mut out);
-        assert_eq!(out.pop(), Some(Order::Spawn { step: 3 }));
+        assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step: 3 }));
         machine.input(Time::ZERO, Input::Started { step: 3 }, &mut out);
-        assert!(out.is_empty(), "only serve starts, also on a second box");
+        assert!(effects_empty(&out), "only serve starts, also on a second box");
         machine.input(Time::ZERO, Input::Ask { forge: 1 }, &mut out);
         for step in 0..3 {
-            assert_eq!(out.pop(), Some(Order::Spawn { step }));
-            assert_eq!(out.pop(), Some(Order::Say { said: Said::Step { step } }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Spawn { step }));
+            assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Step { step } }));
             machine.input(Time::ZERO, Input::Started { step }, &mut out);
             if step == 1 {
                 machine.input(Time::ZERO, Input::Exited { step, exit: Exit::Code(0) }, &mut out);
-                assert_eq!(out.pop(), Some(Order::Close { step }));
+                assert_eq!(pop_effect(&mut out), Some(Order::Close { step }));
                 machine.input(Time::ZERO, Input::Closed { step }, &mut out);
             }
         }
-        assert_eq!(out.pop(), Some(Order::Say { said: Said::Started { forge: 1 } }));
-        assert!(out.is_empty(), "no record order");
+        assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 1 } }));
+        assert!(effects_empty(&out), "no record order");
         machine.input(Time::ZERO, Input::Ask { forge: 1 }, &mut out);
-        assert_eq!(out.pop(), Some(Order::Say { said: Said::Started { forge: 1 } }));
-        assert!(out.is_empty());
+        assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 1 } }));
+        assert!(effects_empty(&out));
     }
 }
 
@@ -949,7 +943,7 @@ fn stoppable_group(recorded: bool) -> Rig {
     let out = skein_lib::Queue::with_capacity(machine.max_out());
     let mut rig = Rig { machine, out, now: skein_lib::Time::ZERO };
     rig.machine.start(rig.now, &[], &mut rig.out);
-    assert_eq!(&*rig.orders(), &[Order::Spawn { step: 3 }]);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 3 }]);
     rig.started(3);
     rig
 }
@@ -957,19 +951,19 @@ fn start_stoppable(rig: &mut Rig, recorded: bool) {
     use crate::machine::Said;
     rig.input(Input::Ask { forge: 1 });
     for step in 0..3 {
-        assert_eq!(&*rig.orders(), &[Order::Spawn { step }, Order::Say { said: Said::Step { step } }]);
+        assert_eq!(&*rig.effects(), &[Order::Spawn { step }, Order::Say { said: Said::Step { step } }]);
         rig.started(step);
         if step == 1 {
             rig.exited(step, Exit::Code(0));
-            assert_eq!(&*rig.orders(), &[Order::Close { step }]);
+            assert_eq!(&*rig.effects(), &[Order::Close { step }]);
             rig.closed(step);
         }
     }
     if recorded {
-        assert_eq!(&*rig.orders(), &[Order::Record { forge: 1 }]);
+        assert_eq!(&*rig.effects(), &[Order::Record { forge: 1 }]);
         rig.input(Input::Written { forge: 1 });
     }
-    assert_eq!(&*rig.orders(), &[Order::Say { said: Said::Started { forge: 1 } }]);
+    assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Started { forge: 1 } }]);
 }
 #[test]
 fn a_group_stop_signals_in_reverse_and_answers_only_after_all_closes_then_can_start_again() {
@@ -979,17 +973,17 @@ fn a_group_stop_signals_in_reverse_and_answers_only_after_all_closes_then_can_st
         start_stoppable(&mut rig, recorded);
         rig.input(Input::Stop { forge: 1 });
         for step in [2, 0] {
-            assert_eq!(&*rig.orders(), &[Order::Signal { step }]);
+            assert_eq!(&*rig.effects(), &[Order::Signal { step }]);
             rig.advance(limits::small().grace);
-            assert_eq!(&*rig.orders(), &[Order::Signal { step }]);
+            assert_eq!(&*rig.effects(), &[Order::Signal { step }]);
             rig.advance(limits::small().grace);
-            assert_eq!(&*rig.orders(), &[Order::Close { step }]);
+            assert_eq!(&*rig.effects(), &[Order::Close { step }]);
             rig.closed(step);
         }
-        assert_eq!(&*rig.orders(), &[Order::Say { said: Said::Stopped { forge: 1 } }]);
+        assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Stopped { forge: 1 } }]);
         assert_eq!(rig.machine.outcome(), None, "serve keeps running");
         rig.advance(Duration::from_secs(100));
-        assert!(rig.orders().is_empty(), "nothing restarts");
+        assert!(rig.effects().is_empty(), "nothing restarts");
         start_stoppable(&mut rig, recorded);
     }
 }
@@ -998,33 +992,33 @@ fn group_stop_refusals_cover_dormant_starting_failing_closing_unknown_and_box_st
     use crate::machine::{Said, Why};
     fn failed(rig: &mut Rig, input: Input, forge: u16, why: Why) {
         rig.input(input);
-        assert_eq!(&*rig.orders(), &[Order::Say { said: Said::Failed { forge, why } }]);
+        assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Failed { forge, why } }]);
     }
     let mut rig = stoppable_group(false);
     rig.input(Input::Stop { forge: 1 });
-    assert_eq!(&*rig.orders(), &[Order::Say { said: Said::Stopped { forge: 1 } }]);
+    assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Stopped { forge: 1 } }]);
     failed(&mut rig, Input::Stop { forge: 99 }, 99, Why::NotAsked);
     rig.input(Input::Ask { forge: 1 });
-    rig.orders();
+    rig.effects();
     failed(&mut rig, Input::Stop { forge: 1 }, 1, Why::Busy);
     rig.started(0);
-    rig.orders();
+    rig.effects();
     rig.input(Input::NotStarted { step: 1 });
-    assert_eq!(&*rig.orders(), &[Order::Close { step: 0 }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 0 }]);
     failed(&mut rig, Input::Stop { forge: 1 }, 1, Why::Busy);
     rig.input(Input::Ask { forge: 1 });
-    assert!(rig.orders().is_empty(), "the failing forge waits for its own failure line");
+    assert!(rig.effects().is_empty(), "the failing forge waits for its own failure line");
     rig.closed(0);
-    rig.orders();
+    rig.effects();
     start_stoppable(&mut rig, false);
     rig.input(Input::Stop { forge: 1 });
-    assert_eq!(&*rig.orders(), &[Order::Signal { step: 2 }]);
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 2 }]);
     for forge in [1, 99] {
         failed(&mut rig, Input::Ask { forge }, forge, Why::Busy);
         failed(&mut rig, Input::Stop { forge }, forge, Why::Busy);
     }
     rig.terminate();
-    rig.orders();
+    rig.effects();
     for forge in [1, 99] {
         failed(&mut rig, Input::Ask { forge }, forge, Why::Stopping);
         failed(&mut rig, Input::Stop { forge }, forge, Why::Stopping);
@@ -1039,32 +1033,32 @@ fn a_group_stop_disarms_backoff_and_closes_a_live_or_starting_restart_preparatio
         rig.failed_long(2);
         if preparation != "backoff" {
             rig.advance(limits::small().backoff);
-            assert_eq!(&*rig.orders(), &[Order::Spawn { step: 1 }]);
+            assert_eq!(&*rig.effects(), &[Order::Spawn { step: 1 }]);
             if preparation == "live" {
                 rig.started(1);
             }
         }
         rig.input(Input::Stop { forge: 1 });
         if preparation == "starting" {
-            assert!(rig.orders().is_empty());
+            assert!(rig.effects().is_empty());
             rig.started(1);
         } else if preparation == "not started" {
-            assert!(rig.orders().is_empty());
+            assert!(rig.effects().is_empty());
             rig.input(Input::NotStarted { step: 1 });
         }
         if preparation == "starting" || preparation == "live" {
-            assert_eq!(&*rig.orders(), &[Order::Signal { step: 1 }]);
+            assert_eq!(&*rig.effects(), &[Order::Signal { step: 1 }]);
             rig.exited(1, Exit::Code(1));
-            assert_eq!(&*rig.orders(), &[Order::Close { step: 1 }]);
+            assert_eq!(&*rig.effects(), &[Order::Close { step: 1 }]);
             rig.closed(1);
         }
-        assert_eq!(&*rig.orders(), &[Order::Signal { step: 0 }]);
+        assert_eq!(&*rig.effects(), &[Order::Signal { step: 0 }]);
         rig.exited(0, Exit::Code(1));
-        assert_eq!(&*rig.orders(), &[Order::Close { step: 0 }]);
+        assert_eq!(&*rig.effects(), &[Order::Close { step: 0 }]);
         rig.closed(0);
-        assert_eq!(&*rig.orders(), &[Order::Say { said: Said::Stopped { forge: 1 } }]);
+        assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Stopped { forge: 1 } }]);
         rig.advance(Duration::from_secs(100));
-        assert!(rig.orders().is_empty(), "{preparation}: no restart or continuation");
+        assert!(rig.effects().is_empty(), "{preparation}: no restart or continuation");
     }
 }
 #[test]
@@ -1072,15 +1066,56 @@ fn box_termination_during_a_group_stop_closes_everything_without_a_stopped_reply
     let mut rig = stoppable_group(false);
     start_stoppable(&mut rig, false);
     rig.input(Input::Stop { forge: 1 });
-    assert_eq!(&*rig.orders(), &[Order::Signal { step: 2 }]);
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 2 }]);
     rig.terminate();
-    assert_eq!(&*rig.orders(), &[Order::Signal { step: 3 }]);
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
     rig.terminate();
-    assert_eq!(&*rig.orders(), &[Order::Close { step: 0 }, Order::Close { step: 2 }, Order::Close { step: 3 }]);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 0 }, Order::Close { step: 2 }, Order::Close { step: 3 }]);
     for step in [0, 2, 3] {
         rig.closed(step);
     }
-    assert!(rig.orders().is_empty());
+    assert!(rig.effects().is_empty());
     assert!(rig.machine.is_idle());
     assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
+}
+
+#[test]
+fn lifecycle_facts_interleave_with_spawn_and_actual_stop_settlement() {
+    use crate::{layout, machine::Machine, terminal::Fact};
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::Steps;
+    let placed =
+        layout::flatten(Steps { always: Box::new([super::fixtures::step(b"serve", Kind::Long)]), asked: Box::new([]) });
+    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut out = Queue::with_capacity(machine.max_out());
+    machine.start(Time::ZERO, &[], &mut out);
+    assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Starting { step: 0 } }));
+    assert_eq!(out.pop(), Some(Order::Spawn { step: 0 }));
+    machine.input(Time::ZERO, Input::Started { step: 0 }, &mut out);
+    machine.input(Time::ZERO, Input::Terminate, &mut out);
+    assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Stopping }));
+    assert_eq!(out.pop(), Some(Order::Signal { step: 0 }));
+    assert!(out.is_empty(), "assigning Outcome::Stopped is not settlement");
+    machine.input(Time::ZERO, Input::Terminate, &mut out);
+    assert_eq!(out.pop(), Some(Order::Close { step: 0 }));
+    assert!(out.is_empty(), "a second termination never repeats Stopping");
+    machine.input(Time::ZERO, Input::Closed { step: 0 }, &mut out);
+    assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::Stopped }));
+    machine.input(Time::ZERO, Input::Closed { step: 0 }, &mut out);
+    machine.input(Time::ZERO, Input::Terminate, &mut out);
+    assert!(out.is_empty(), "Stopped is emitted once");
+}
+#[test]
+fn failure_and_a_requested_stop_keep_independent_outcomes() {
+    use super::fixtures::take_facts;
+    use crate::terminal::Fact;
+    let mut rig = Rig::new(&limits::small());
+    rig.effects();
+    rig.started(PREPARE);
+    rig.exited(PREPARE, Exit::Code(1));
+    rig.closed(PREPARE);
+    assert_eq!(take_facts(&mut rig.out).as_ref(), &[]);
+    rig.terminate();
+    assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::Stopping, Fact::Stopped]);
+    assert_eq!(rig.machine.outcome(), Some(Outcome::GaveUp { step: PREPARE, restarts: 0 }));
 }
