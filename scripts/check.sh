@@ -1,6 +1,8 @@
 #!/bin/sh
 # What CI runs: formatting, lints as errors, then both test suites in full
 # (testing-strategy.md, section 8): the focused one, then the fuzzy one.
+# Nothing slower: the browser tier is scripts/browser.sh, outside the gate
+# (agents' docs/design/landing-flow.md, 4).
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -46,13 +48,3 @@ export NEXTEST_DOUBLE_SPAWN=0
 step build cargo nextest run --workspace --no-run
 step focused cargo nextest run --workspace
 step fuzzy cargo nextest run --workspace --profile fuzzy
-# The browser tier uses a dev-profile module under the server's strict policy.
-step bundle cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web
-step bundle cargo run -p skein-ui-bundle -- \
-    --module target/wasm32-unknown-unknown/debug/skein_ui_example_shell_web.wasm \
-    --name skein_ui_example_shell_web --prefix /bundle/ --stylesheet examples/ui/shell-web/notes.css --out target/ui-example-bundle \
-    --noscript 'Notes needs WebAssembly and scripts.'
-step bundle cargo build -p skein-ui-example-server
-SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle"
-export SKEIN_UI_EXAMPLE_BUNDLE
-step browser cargo nextest run --workspace --profile browser

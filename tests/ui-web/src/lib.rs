@@ -91,10 +91,10 @@ pub const SECOND: skein_lib::Duration = skein_lib::Duration::from_secs(2);
 pub fn example_bundle() -> std::path::PathBuf {
     let directory = std::env::var_os("SKEIN_UI_EXAMPLE_BUNDLE")
         .map(std::path::PathBuf::from)
-        .expect("run scripts/check.sh to build the example bundle and set SKEIN_UI_EXAMPLE_BUNDLE");
+        .expect("run scripts/browser.sh to build the example bundle and set SKEIN_UI_EXAMPLE_BUNDLE");
     assert!(
         directory.join("index.html").is_file(),
-        "run scripts/check.sh to provide the example bundle at {}",
+        "run scripts/browser.sh to provide the example bundle at {}",
         directory.display()
     );
     directory

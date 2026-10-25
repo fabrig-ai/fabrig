@@ -345,11 +345,13 @@ and `skein-http` alone for `wasm32-unknown-unknown` (lib.md, section 2),
 and clippy's lints as errors on that target for `skein-ui`,
 `skein-ui-web` and the UI example's view and browser shell, since the
 parts' platform halves compile only there (ui-web.md, section 14); then
-the focused suite and the fuzzy suite, with nextest (section 7); then
-the UI example's bundle, made with `skein-ui-bundle` from a module built
-with the dev profile (ui-web.md, 4.1), and the browser suite, which runs
-the browser kit's tests against Chromium and the UI example's tier on
-that bundle (ui-web.md, 14.1). The builds for that target need only the
+the focused suite and the fuzzy suite, with nextest (section 7), and
+nothing slower. `scripts/browser.sh` is the browser tier, outside the
+gate (agents' `docs/design/landing-flow.md`, 4): the UI example's
+bundle, made with `skein-ui-bundle` from a module built with the dev
+profile (ui-web.md, 4.1), and the browser suite, which runs the browser
+kit's tests against Chromium and the UI example's tier on that bundle
+(ui-web.md, 14.1). The builds for that target need only the
 target installed: they run nothing, since lib, the codec, HTTP,
 skein-ui and the example's view hold no io and their tests run on the
 host, and skein-ui-web's platform half runs in the browser tier.
