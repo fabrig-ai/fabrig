@@ -1329,8 +1329,9 @@ login is imported.
 
 The effective configuration keeps forge 1 as the playground, forge 2 as
 GitHub and forge 3 as the owned Forgejo. Forge 4 is the ordinary managed
-Forgejo elsewhere: its API, git and web roots name a separate loopback
-fake. Its retained peer document is C'/forgejo.json, and its dummy admin
+Forgejo elsewhere: its API and git roots name a separate loopback
+fake. Its web member is null, as for ordinary Forgejo (section 3);
+readiness prints the fake peer's origin separately. Its retained peer document is C'/forgejo.json, and its dummy admin
 token is D'/forgejo-admin.token, private with mode 0600. Readiness names
 only that file's path; its contents belong in no log, report or record.
 The sandbox's own configured counts admit all four forges and their four
