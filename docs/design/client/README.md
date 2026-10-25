@@ -573,6 +573,13 @@ keeps (`../protocol/configuration.md`, section 2).
     accounts" nor "Deployment accounts", nor in their counts.
   - *With none of the person's own,* "Your accounts" holds "No model
     of yours yet." and "Connect a model", to `ConnectModel`.
+  Under "Your accounts" its lead says "The LLM accounts temper’s agents run
+  on for you. A task keeps its account: while the account is limited, the task
+  waits for it." The connect link wraps below it on a phone. Each folded row
+  shows its name, holder, deciding source’s tag and summary. Opened, its state
+  precedes "Its sources in order: a run takes the first usable one.", its
+  numbered sources, the rule and labelled model and use facts, then its acts.
+  "Deployment accounts" appears only when the owner’s document holds accounts.
 - **`ConnectModel`** (`connect-model.html`) connects one more LLM
   account, in `ConnectForge`'s shape: Choose; then Signing in, for a
   sign-in, or Details, for a key or a program's login; then Ready.

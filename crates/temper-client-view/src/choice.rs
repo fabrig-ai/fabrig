@@ -671,7 +671,9 @@ fn provider(b: &mut Builder, root: &Domain, task: Option<&c::Task>, number: Opti
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
     for offer in &me.providers {
         if offer.provider == number {
-            line(b, w, W::ChoiceProvider, &[Hole::Name(provider_shown(root, Some(number), offer.name.bytes(), w))]);
+            let configured = provider_shown(root, Some(number), offer.name.bytes(), w);
+            let shown = crate::accounts::words::provider_words(&configured).0;
+            line(b, w, W::ChoiceProvider, &[Hole::Name(skein_lib::bytes::copy_of(shown))]);
             break;
         }
     }

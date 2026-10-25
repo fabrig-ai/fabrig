@@ -98,7 +98,7 @@ fn account_readiness(ready: Option<c::PayerReadiness>) -> d::Domain {
 fn account_facts(ready: Option<c::PayerReadiness>, accounts: List<c::OwnerAccountLine>) -> d::Domain {
     line_facts(ready, accounts, Some(3), Some(7), None, true)
 }
-fn line_models(task_page: bool) -> List<c::MeModel> {
+pub(super) fn line_models(task_page: bool) -> List<c::MeModel> {
     let mut models = List::with_capacity(3);
     models
         .push(c::MeModel {
@@ -1401,5 +1401,16 @@ fn configured_provider_words_name_the_whole_composer_line() {
         }
         delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
         assert_eq!(using_text(&root), expected);
+    }
+}
+
+#[test]
+fn chooser_groups_use_the_providers_words() {
+    for (configured, shown) in [(b"openai".as_slice(), b"OpenAI".as_slice()), (b"anthropic", b"Anthropic")] {
+        let (mut root, me_watch, _, _) = line_fixture(Some(readiness(c::Readiness::Usable)), accounts(&[account(3, c::OwnerAccountKind::Key, None)]), Some(3), None, None, true);
+        let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+        me.providers.get_mut(0).unwrap().name = c::DocumentText::complete(c::Text::new(Box::from(configured), 32).unwrap());
+        delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, shown).is_some());
     }
 }
