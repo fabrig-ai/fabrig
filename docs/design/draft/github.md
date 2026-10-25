@@ -972,6 +972,14 @@ Each step lands working, and shows what it proved in the real loop
     is charged, not served); no credential in a record, a request line
     or a fact, the handed, replaced and renewed ones too. temper's
     protocol world covers these until then.
+- **The installation's rate,** in the protocol world's qa profile
+  (`tests/engine/protocol-forge/tests/qa_rate.rs`): one, two and three
+  changes on one installation, heard by polling at the shipped
+  cadences, counted as GitHub charges them (the installation's HTTP
+  requests, the App's JWT calls apart) over a virtual window scaled to
+  the hour. Three shapes: CI pending, heads pushed every five minutes,
+  and main moving besides. Each states its total per hour and its
+  requests by kind, and the base reads a shared read would save.
 - **The real loop** (`../domain/testing.md`, 2.4): GitHub connected
   through the manifest flow, the browser's steps driven as requests;
   repositories added to a project later; a direct landing, and one
@@ -1081,6 +1089,17 @@ Each with the default the draft takes.
   documents keep deliveries three days. Default: back to the newest
   `guid` temper kept, and within a day at most; the slow pass covers the
   rest.
+- **Three iterating changes on one installation:** they ask about
+  6,000 requests an hour, over the installation's 5,000 (section 8);
+  two ask about 4,300, and three with CI pending about 4,200
+  (`qa_rate.rs`). The base's reads are about 5 % of it, and sharing
+  them across changes would save under 1 %. The pull's keep, six reads per
+  pass, is about 70 %, and the repository's listing 720 an hour.
+  The fake charged every answer here, while GitHub answers an unchanged
+  read with a validator `304` at no cost (sections 9 and 11, P6); which
+  of the keep's reads would be `304`s is still to check. Which cut, if
+  any, brings three iterating changes under the rate: those `304`s, the
+  keep's passes, or the listing's interval?
 - **Generations across starts** (credentials.md, section 8): generation
   1 at every start, and growing while the engine runs. Default: still
   standalone only.
