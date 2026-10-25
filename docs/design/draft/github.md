@@ -1015,6 +1015,8 @@ Each step lands working, and shows what it proved in the real loop
   from the same key and revokes it afterwards. It requires Python's
   `cryptography` package. This run needs no person token; the separate
   conformance's person actions above do not belong to it.
+  After the backstop, the script removes its private state directory on
+  every exit, pass or fail; set `TEMPER_LIVE_GITHUB_KEEP=1` to keep it for inspection.
 
 ## 18. Later
 

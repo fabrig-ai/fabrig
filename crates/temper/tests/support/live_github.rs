@@ -110,7 +110,7 @@ pub fn run() {
     relay.quiesce();
     let cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| teardown(&inputs, &relay)));
     eprintln!(
-        "live github run={} requests={} wall={}s state={}",
+        "live github run={} requests={} wall={}s state={} (removed on exit unless TEMPER_LIVE_GITHUB_KEEP=1)",
         inputs.run,
         relay.count(),
         clock.now().now.saturating_since(started).as_nanos() / 1_000_000_000,
@@ -768,7 +768,7 @@ fn scan(inputs: &Inputs, relay: &Relay, jwt: &Secret, outputs: &[Vec<u8>]) {
         clean(bytes);
     }
     let mut pending = ["engine", "w1", "llm"].map(|name| inputs.scratch.join(name)).to_vec();
-    let excluded = inputs.scratch.join("engine/data/state/secrets");
+    let excluded = github::secrets(&inputs.scratch.join("engine"));
     while let Some(path) = pending.pop() {
         if path == excluded {
             continue;

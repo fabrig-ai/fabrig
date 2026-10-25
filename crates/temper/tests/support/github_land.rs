@@ -660,7 +660,7 @@ impl Referee<cluster::Root> for Judge {
             let scan = Scan::new(app.pem.expose());
             scan.files(
                 &self.scratch,
-                &self.members.dir("engine").join("data/state/generations/1/secrets"),
+                &github::secrets(&self.members.dir("engine")),
                 &self.scratch.join("github-app.pem"),
             );
             for member in stopped {

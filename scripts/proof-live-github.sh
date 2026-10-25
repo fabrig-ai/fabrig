@@ -15,6 +15,9 @@ export NEXTEST_DOUBLE_SPAWN=0
 heavy cargo nextest run -p temper --profile live --no-run
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github.XXXXXX")")
 cleanup() {
+    status=$?
+    # Backstop failures must not skip removal of the run's private state.
+    set +e
     # A fresh private cwd identifies only this run's processes. Never inspect environments.
     owned=
     for process in /proc/[0-9]*; do
@@ -138,7 +141,8 @@ try:
         if status not in (204, 404):
             print('backstop: branch left=' + name, file=sys.stderr)
 except (RuntimeError, ValueError, KeyError, TypeError, OSError, StopIteration):
-    print('backstop: cleanup incomplete; inspect private state=' + str(scratch), file=sys.stderr)
+    print('backstop: cleanup incomplete; state=' + str(scratch)
+          + ' (removed on exit unless TEMPER_LIVE_GITHUB_KEEP=1)', file=sys.stderr)
 finally:
     if token is not None:
         try:
@@ -147,8 +151,28 @@ finally:
                 raise RuntimeError('backstop: cleanup token revocation failed')
         except (RuntimeError, ValueError, TypeError):
             print('backstop: cleanup token revocation incomplete', file=sys.stderr)
-    print('live github backstop requests=' + str(count-start) + ' total=' + str(count) + ' state=' + str(scratch))
+    print('live github backstop requests=' + str(count-start) + ' total=' + str(count) + ' state=' + str(scratch)
+          + ' (removed on exit unless TEMPER_LIVE_GITHUB_KEEP=1)')
 PY
+    backstop_status=$?
+    [ "$status" -ne 0 ] || status=$backstop_status
+    if [ "${TEMPER_LIVE_GITHUB_KEEP:-}" = 1 ]; then
+        printf 'live github state kept at %s (TEMPER_LIVE_GITHUB_KEEP=1)\n' "$scratch" >&2
+    elif [ -n "$scratch" ]; then
+        # Only the canonical mktemp path made above may be removed.
+        case "$scratch" in
+            */temper-live-github.[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9])
+                if rm -rf -- "$scratch"; then
+                    if [ "$status" -ne 0 ]; then
+                        printf '%s\n' 'live github state removed; rerun with TEMPER_LIVE_GITHUB_KEEP=1 to keep it' >&2
+                    fi
+                else
+                    status=1
+                fi
+                ;;
+        esac
+    fi
+    exit "$status"
 }
 trap cleanup EXIT
 trap 'exit 130' INT

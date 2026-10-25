@@ -514,11 +514,7 @@ impl Referee<cluster::Root> for Judge {
             self.forge(false);
             let app = self.app.as_ref().expect("made App");
             let scan = Scan::new(app.pem.expose());
-            scan.files(
-                &self.scratch,
-                &self.members.dir("engine").join("data/state/generations/1/secrets"),
-                &self.scratch.join("github-app.pem"),
-            );
+            scan.files(&self.scratch, &secrets(&self.members.dir("engine")), &self.scratch.join("github-app.pem"));
             for member in stopped {
                 scan.clean(&member.stdout);
                 scan.clean(&member.stderr);
@@ -667,11 +663,18 @@ pub(crate) fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path)
     app
 }
 
+pub(crate) fn secrets(engine: &Path) -> PathBuf {
+    let path = engine.join("data/state/generations/1/secrets");
+    assert!(path.is_dir(), "excluded directory is jig's secrets store");
+    path
+}
+
 pub(crate) struct Scan {
     pem: Vec<u8>,
     der: Box<[u8]>,
     encoded: Vec<u8>,
 }
+
 impl Scan {
     pub(crate) fn new(pem: &[u8]) -> Self {
         let compact: String =
@@ -710,4 +713,24 @@ impl Scan {
             }
         }
     }
+}
+
+#[test]
+fn file_scan_excludes_only_jigs_generation_secrets_store() {
+    let scratch = Scratch::new(&format!("github_file_scan-{}", std::process::id()));
+    let engine = scratch.path().join("engine");
+    let store = engine.join("data/state/generations/1/secrets");
+    assert!(std::panic::catch_unwind(|| secrets(&engine)).is_err());
+    fs::create_dir_all(&store).expect("generation secrets store");
+    let pem = b"-----BEGIN PRIVATE KEY-----\nZmFrZS1hcHAta2V5LWJ5dGVz\n-----END PRIVATE KEY-----\n";
+    let scan = Scan::new(pem);
+    fs::write(store.join("log-1"), &scan.der).expect("key in secrets store");
+    let downloaded = scratch.path().join("github-app.pem");
+    fs::write(&downloaded, pem).expect("downloaded PEM");
+    let excluded = secrets(&engine);
+    scan.files(scratch.path(), &excluded, &downloaded);
+
+    fs::write(engine.join("ordinary"), &scan.der).expect("key outside secrets store");
+    assert!(std::panic::catch_unwind(|| scan.files(scratch.path(), &excluded, &downloaded)).is_err());
+    scratch.remove();
 }
