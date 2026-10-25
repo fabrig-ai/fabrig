@@ -919,8 +919,8 @@ pub enum Refused {
     /// The charter at this index: its run policy's bytes, `None` past `u64`,
     /// beyond `journal.run_bytes`.
     Run { charter: usize, bytes: Option<u64> },
-    /// The core's resume limit is 0 or beyond `journal.transcript_bytes`.
-    Resume,
+    /// The configured `core.resume_bytes` is 0 or beyond `journal.transcript_bytes`.
+    Resume { bytes: u32 },
     /// The forge's judges hold fewer projects than the authority's policies.
     JudgeProjects,
     /// The forge's judges hold fewer criteria than the authority's requirements.
@@ -972,7 +972,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     }
     let resume = config.core.settings.resume_bytes;
     if resume == 0 || resume > limits.journal.transcript_bytes {
-        refused.push(Refused::Resume).expect("counted refusals");
+        refused.push(Refused::Resume { bytes: resume }).expect("counted refusals");
     }
     // Judges' tables smaller than the authority's refuse each landing set
     // past them, so only the tables are named.

@@ -141,7 +141,7 @@ fn a_resume_limit_past_a_rows_bytes_refuses_the_start() {
             b"workers[0].limits.overrides",
             format!("{{{WORKER_OVERRIDES},\"hub.transcript_bytes\":262161}}").as_bytes(),
         )),
-        b"engine.limits.overrides.core.resume_bytes: must agree with root.journal.transcript_bytes, above 0\n"
+        b"application.limits.overrides.root.journal.transcript_bytes: 65540 bytes, short of core.resume_bytes, 65541 bytes\n"
     );
 }
 #[test]

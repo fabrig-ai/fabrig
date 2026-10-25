@@ -652,9 +652,17 @@ pub fn root(
                     None => What::Jig(config::What::Bound),
                 },
             ),
-            domain::Refused::Resume => (
+            domain::Refused::Resume { bytes: 0 } => (
                 engine_path.member(b"limits").member(b"overrides").member(b"core.resume_bytes"),
                 What::Against { other: b"root.journal.transcript_bytes, above 0" },
+            ),
+            domain::Refused::Resume { bytes } => (
+                own(b"root.journal.transcript_bytes"),
+                What::Short {
+                    bytes: u64::from(limits.journal.transcript_bytes),
+                    of: b"core.resume_bytes",
+                    needs: u64::from(bytes),
+                },
             ),
             domain::Refused::JudgeProjects => {
                 (own(b"forge.judge_projects"), What::Against { other: b"authority.projects in engine.limits" })
