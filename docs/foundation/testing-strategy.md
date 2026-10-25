@@ -524,7 +524,10 @@ each repin and kept in the build cache. A per-crate override
 (`[profile.dev.package.<crate>]`) is allowed for one hot leaf crate
 alone: a profile must show a cost no test can avoid, and the user, or
 the director for them, signs it off; a comment beside the override
-cites both.
+cites both. Dependencies carry no debug information in dev and test
+builds (`[profile.dev.package."*"]`, the user, 10-25): that halves the
+test executables and changes no test's speed or result, and only a
+backtrace through a dependency loses its line numbers.
 
 A fuzzy test lives beside its world and uses that world's settings,
 random ones included. When a fuzzy seed fails, the bug is fixed and the
