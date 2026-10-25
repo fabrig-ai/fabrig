@@ -309,7 +309,15 @@ impl Typist {
     pub(crate) fn ready(&self, act: &Act, links: u32) -> bool {
         match act {
             Act::Open => !self.opening || self.live() || !self.active && links > self.link_count,
-            Act::TypeOn { .. } | Act::TypeKept { .. } => !self.acted || !self.writing && self.fresh().next().is_some(),
+            Act::TypeOn { label, .. } | Act::TypeKept { label } => {
+                if self.acted {
+                    !self.writing && self.fresh().next().is_some()
+                } else {
+                    self.read.pages[self.cursor..]
+                        .last()
+                        .is_some_and(|page| page.commands == self.commands && control(&page.bytes, label).is_some())
+                }
+            }
             Act::See { holds, lacks } => self
                 .fresh()
                 .any(|page| contains(&page.bytes, holds) && lacks.is_none_or(|lacks| !contains(&page.bytes, lacks))),
@@ -535,6 +543,30 @@ mod tests {
             typist.read.lines,
             [b"temper: signing in\n".as_slice().into(), b"temper: closed\n".as_slice().into()]
         );
+    }
+
+    #[test]
+    fn typing_waits_until_the_last_fresh_page_offers_its_control() {
+        let label = b"+ Connect a model";
+        for act in [Act::TypeOn { label, words: b"" }, Act::TypeKept { label }] {
+            let mut typist = Typist::default();
+            typist.printed(b"== Accounts == Live\n[1] Accounts\n");
+            assert!(!typist.ready(&act, 1), "the last page has not offered the control yet");
+
+            typist.printed(b"== Accounts == Live\n[2] + Connect a model\n");
+            typist.cursor = typist.read.pages.len();
+            assert!(!typist.ready(&act, 1), "a page before the cursor is stale");
+
+            typist.printed(b"== Accounts == Live\n[2] + Connect a model\n");
+            typist.commands += 1;
+            assert!(!typist.ready(&act, 1), "a page from an older command is stale");
+
+            typist.printed(b"== Accounts == Live\n[3] + Connect a model\n");
+            assert!(typist.ready(&act, 1), "the last fresh page offers the control");
+
+            typist.printed(b"== Accounts == Live\n[1] Accounts\n");
+            assert!(!typist.ready(&act, 1), "only the last page supplies the control's number");
+        }
     }
 
     #[test]
