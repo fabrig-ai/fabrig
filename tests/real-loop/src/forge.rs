@@ -178,11 +178,14 @@ impl State {
         // typed git and HTTP so every setup has the same wire identity.
         table.repositories = skein_lib::List::with_capacity(u32::try_from(setups.len()).expect("repository count"));
         for setup in &setups {
-            table.repositories.push(skein_fake_forge_protocol::Repository {
-                id: setup.id,
-                full: setup.name.clone(),
-                protected: setup.protection.as_ref().map(|p| p.branch.clone()),
-            }).expect("one table entry per setup");
+            table
+                .repositories
+                .push(skein_fake_forge_protocol::Repository {
+                    id: setup.id,
+                    full: setup.name.clone(),
+                    protected: setup.protection.as_ref().map(|p| p.branch.clone()),
+                })
+                .expect("one table entry per setup");
         }
         let mut config = temper_fake_git_hosted::fixtures::CONFIG;
         // The HTTP peer admits four simultaneous calls, unlike the git-only fixture.

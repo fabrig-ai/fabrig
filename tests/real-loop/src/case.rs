@@ -1226,9 +1226,8 @@ fn waiting_setup(id: u32, name: &str) -> api::Setup {
     tree.push(api::File { path: waiting::CI_FILE.as_bytes().into(), content: waiting::GREEN.as_bytes().into() });
     setup.tree = tree.into();
     // The same stable CI file is present at the base and changed tree.
-    setup.checks.cue = Some(api::Cue::File {
-        path: waiting::CI_FILE.as_bytes().into(), green: waiting::GREEN.as_bytes().into(),
-    });
+    setup.checks.cue =
+        Some(api::Cue::File { path: waiting::CI_FILE.as_bytes().into(), green: waiting::GREEN.as_bytes().into() });
     setup
 }
 
@@ -1261,6 +1260,11 @@ pub fn fixture_6_6() -> forge::Fixture {
             value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 1.into();
             value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
             value["engine"]["limits"]["overrides"]["fleet.calls"] = 1.into();
+            // F10: the atomic A1 batch exceeds the inherited 2048-byte link
+            // input. Until F10 admission/drop handling is fixed, this fixture
+            // gives both link sides the agent's existing tool_payload bound.
+            value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4096.into();
+            value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 4096.into();
             // Each procedure reserves ten, A1 adds its ten-unit run reserve,
             // and the director adds ten: spends 20, 30 and 40 respectively.
             value["engine"]["templates"][0]["budget"] = json!({"as_allowed":40});

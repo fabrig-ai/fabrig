@@ -1260,11 +1260,29 @@ pub const READS_6_6: &[(Read, usize)] = &[
 
 #[must_use]
 pub fn step_6_6() -> Vec<calls::Step> {
-    use super::{Agent, waiting::*};
+    use super::{
+        Agent,
+        waiting::{A1, DIRECTOR, E1, E1_CODER, E1_REVIEWER, PERSON, REPIN, REPIN_CODER, REPIN_REVIEWER, REVIEW_HOLD},
+    };
     let mut steps = vec![sign_in(D1)];
     for name in ["app", "kit"] {
-        steps.push(call(D1, argv!["adopt", "--project", number(PROJECT), "--owner", "acme", "--name", name,
-            "--landing", "main", "--no-home", "--key", name]));
+        steps.push(call(
+            D1,
+            argv![
+                "adopt",
+                "--project",
+                number(PROJECT),
+                "--owner",
+                "acme",
+                "--name",
+                name,
+                "--landing",
+                "main",
+                "--no-home",
+                "--key",
+                name
+            ],
+        ));
     }
     steps.extend([
         call(D1, argv!["chat", "--project", number(PROJECT), "--key", "waiting", PERSON]),

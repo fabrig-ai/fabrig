@@ -11,18 +11,22 @@ fn a_kit_change_releases_the_apps_waiting_repin_without_relay_without_the_a3_a4_
     // Repin is initially Waiting, never active-kept: it has no coding,
     // attempt, delegate or app pull before e1 ends. No Met is expected.
     let ran = run_cluster_forge(
-        case::PAUSE_WORKERS, &[], case::fixture_6_6(),
-        case::scripts::step_6_6, case::scripts::step_6_6_rules, case::acts::step_6_6,
+        case::PAUSE_WORKERS,
+        &[],
+        case::fixture_6_6(),
+        case::scripts::step_6_6,
+        case::scripts::step_6_6_rules,
+        case::acts::step_6_6,
     );
     for (at, called) in ran.calls().iter().enumerate() {
-        println!("call {at}: exit={:?}\nstdout: {}\nstderr: {}", called.exit,
-            String::from_utf8_lossy(&called.stdout), String::from_utf8_lossy(&called.stderr));
-        assert_eq!(called.exit, Some(Exit::Code(0)), "call {at}: {}\n{}",
-            String::from_utf8_lossy(&called.stderr), String::from_utf8_lossy(&called.stdout));
+        assert_eq!(
+            called.exit,
+            Some(Exit::Code(0)),
+            "call {at}: {}\n{}",
+            String::from_utf8_lossy(&called.stderr),
+            String::from_utf8_lossy(&called.stdout)
+        );
     }
-    let observed = case::oracle::Observed::from_ran(&ran, case::acts::READS_6_6)
-        .with_commands(&case::acts::step_6_6());
-    for (read, doc) in &observed.documents { println!("{read:?}: {doc}"); }
-    for t in &observed.told { println!("QUERY {:?}: {}", t.agent, String::from_utf8_lossy(&t.words)); }
-    println!("RECORDS: {:?}", observed.kit.records);
+    let observed = case::oracle::Observed::from_ran(&ran, case::acts::READS_6_6).with_commands(&case::acts::step_6_6());
+    case::oracle::assert_met(&case::oracle::step_6_6(&observed));
 }
