@@ -255,6 +255,35 @@ fn a_joined_policy_past_its_bytes_returns_problems_before_construction() {
 }
 
 #[test]
+fn live_github_owner_names_exceed_the_joined_seed_policy_allowance() {
+    // Reuse the source seed policy; only files' names become this pure fixture's keys.
+    let template = include_str!("../../../temper/tests/support/github/engine.json")
+        .replace("{{", "{")
+        .replace("}}", "}")
+        .replace("{proc.forge.ready.address}", "127.0.0.1:31002")
+        .replace("{proc.llm.ready.address}", "127.0.0.1:31004")
+        .replace("{story.clients}", "127.0.0.1:31005")
+        .replace("secrets/w1.digest", "secrets/worker-a.digest");
+    for (owner, policy_bytes) in [("freeekanayaka", 4299_u64), ("fabrig-ai", 4167_u64)] {
+        let document = template.replace("\"acme\"", &format!("\"{owner}\""));
+        let document = fixtures::with(
+            document.as_bytes(),
+            b"application.forges[0]",
+            br#"{"number":1,"kind":"github","api":{"socket":"127.0.0.1:31001"},"transport":"plaintext","git":"http://127.0.0.1:31002","web":null,"app_read_only":true}"#,
+        );
+        let rule = format!(
+            r#"[{{"project":1,"rules":[{{"connector":1,"kind":4,"pattern":{{"segments":["forge","127.0.0.1:31002","{owner}","temper-probe","branch"],"last":"exact","value":"main"}},"enforce":true,"ci":true,"up_to_date":true,"gates":[{{"number":1,"blocking":true,"freshness":"exact"}}],"approvals":[]}}]}}]"#
+        );
+        let document = fixtures::with(&document, b"application.landing.projects", rule.as_bytes());
+        assert_eq!(
+            started(&document).as_ref(),
+            format!("engine.projects[0].policy.bytes: {policy_bytes} bytes, past core.policy_bytes of 4096\n")
+                .as_bytes()
+        );
+    }
+}
+
+#[test]
 fn unaccountable_policy_bytes_use_the_existing_bound_formatter() {
     let mut found = Problems::empty();
     found.push(

@@ -126,7 +126,7 @@ pub fn run() {
     assert!(relay.refused().is_empty(), "relay refusals: {:?}", relay.refused());
 }
 
-fn document(path: &Path) -> Value {
+pub(crate) fn document(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("fixture document")).expect("fixture JSON")
 }
 fn save(path: &Path, value: &Value) {
@@ -147,6 +147,14 @@ fn render_owner(value: &mut Value, owner: &str) {
         }
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
+}
+/// Shape the live engine without reading inputs or constructing a relay.
+pub(crate) fn configure_engine(value: &mut Value, owner: &str, api: SocketAddr, git: SocketAddr, workers: SocketAddr) {
+    render_owner(value, owner);
+    value["engine"]["hosts"]["listener"][0]["socket"] = workers.to_string().into();
+    value["application"]["forges"][0] = json!({"number":1,"kind":"github","api":{"socket":api.to_string()},"transport":"plaintext","git":format!("http://{git}"),"web":null,"app_read_only":true});
+    github_land::configure_landing(value, git, owner, REPOSITORY);
+    value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 15000.into();
 }
 fn configure_llm(path: &Path, inputs: &Inputs) {
     github_land::configure_llm(path);
@@ -601,11 +609,7 @@ impl Referee<cluster::Root> for Judge<'_> {
             self.members.prepare("engine");
             let path = self.members.dir("engine").join("config/temper.json");
             let mut value = document(&path);
-            render_owner(&mut value, &self.inputs.owner);
-            value["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
-            value["application"]["forges"][0] = json!({"number":1,"kind":"github","api":{"socket":self.relay.api.to_string()},"transport":"plaintext","git":format!("http://{}",self.relay.git),"web":null,"app_read_only":true});
-            github_land::configure_landing(&mut value, self.relay.git, &self.inputs.owner, REPOSITORY);
-            value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 15000.into();
+            configure_engine(&mut value, &self.inputs.owner, self.relay.api, self.relay.git, self.workers);
             save(&path, &value);
             self.members.up(&["engine"]);
             self.stage = Stage::Engine;

@@ -78,7 +78,7 @@ impl Cluster {
     fn description(scratch: &Path) -> Self {
         Self::description_from(scratch, &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../lab/cluster"))
     }
-    fn description_from(scratch: &Path, directory: &Path) -> Self {
+    pub(crate) fn description_from(scratch: &Path, directory: &Path) -> Self {
         let experiment = directory.canonicalize().expect("description directory");
         let value: Value =
             serde_json::from_slice(&fs::read(experiment.join("experiment.json")).expect("cluster description"))
