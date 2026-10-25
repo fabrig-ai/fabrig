@@ -372,9 +372,9 @@ A completion's prompt is built from what the domain gives:
   run's main conversation's completions only: a sub-agent's and a
   compaction's give none, whoever asks. A delta of a kind nobody asks
   for, or that is not built, is not handed over: a tool call's
-  arguments (`ToolArguments`) and reasoning deltas stay dropped here
-  until their kinds are built. Nothing of the delta reaches the domain,
-  whatever asks.
+  start (`ToolStart`), arguments (`ToolArguments`) and reasoning deltas
+  stay dropped here until their kinds are built. Nothing of the delta
+  reaches the domain, whatever asks.
 - **The guard, before an ordinary request is sent.** When the session
   gives a request the line, its last prompt's reported size and where
   the new part starts (domain/session.md, 8.1), this layer measures the

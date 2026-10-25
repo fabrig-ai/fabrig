@@ -640,7 +640,7 @@ impl Component {
                 let count = u32::try_from(text.len()).expect("the client admitted a u32 text bound");
                 to_domain.push(ToDomain::Text { owner: call, bytes: count });
             }
-            shared::Delta::ToolArguments { .. } => {}
+            shared::Delta::ToolStart { .. } | shared::Delta::ToolArguments { .. } => {}
         }
     }
 
