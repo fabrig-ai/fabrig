@@ -1,12 +1,9 @@
 # Agent guidance for temper
 
-- Before merging anything to main, run the checks in
-  `docs/development/workflow.md`; main moves only when they all pass. A
-  change to Markdown files only skips them (same document).
-- **A plan's run lands through agents' `land`,** which runs those checks,
-  `scripts/check.sh`, as its gate and pushes to `origin`'s `main`
-  (workflow.md, section 1). A change to Markdown files only lands with
-  `land --docs`. Outside a run, push only when the user asks.
+- **main moves only through agents' `land`,** which runs the gate,
+  `scripts/check.sh`, and pushes (`docs/development/workflow.md`, section
+  1). Do not run the gate yourself before `land`. A change to Markdown
+  files only lands with `land --docs`. Push only your own branch.
 - The default test suite (unit tests and the worlds' focused tests under
   `tests/`) takes at most 30 seconds (15 seconds before the user's doubling
   of 10-22, provisional); the fuzzy suite (the worlds' `tests/fuzzy_*.rs`,
