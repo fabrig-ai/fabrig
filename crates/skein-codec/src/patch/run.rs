@@ -3,9 +3,9 @@
 use super::{Capacity, Patcher, PlanIx, RefusalIx, Site, Tables, add, plan, spelled};
 use crate::Reason;
 use crate::schema::{self, DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, VariantIx};
-use crate::value::{Items, Node, Part, Path, Problem, Refusal, Source, Value};
+use crate::value::{Items, Node, Part, Path, Problem, Refusal, Source, Value, growing_room};
 use alloc::boxed::Box;
-use skein_lib::{Buffer, List, Stack};
+use skein_lib::{Buffer, List};
 
 mod build;
 mod heap;
@@ -59,13 +59,15 @@ pub struct Old {
 pub struct Build {
     pub(super) tables: Tables,
     out: Buffer,
-    walk: Stack<Frame>,
-    opened: Stack<Open>,
+    walk: List<Frame>,
+    opened: List<Open>,
     state: State,
     plan: Option<PlanIx>,
     pending: Option<Expected>,
     stop: Option<Stop>,
     nodes: u32,
+    reserve: Value,
+    old_room: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,7 +115,7 @@ enum OpenKind {
 
 impl Old {
     pub(super) fn new(nodes: u32) -> Old {
-        Old { value: Value::with_room(nodes), root: None }
+        Old { value: Value::growing(nodes), root: None }
     }
     /// The root returned by decoding the running record.
     #[must_use]
@@ -221,13 +223,20 @@ impl Patcher {
         if record.len() > usize::try_from(self.build.tables.capacity.bytes).expect("u32 fits usize") {
             return Err(Halt::Room);
         }
+        self.old.value.use_reserved(&mut self.build.reserve);
+        self.build.room_bytes(u32::try_from(record.len()).expect("record fits capacity"));
         let plan = self.build.current();
         let old = self.build.tables.schemas.get(plan.old).expect("kept old schema");
-        let node = match self.old.value.decode(old, root, record) {
+        let (decoded, nodes) = self.old.value.decode_count(old, root, record, &mut self.build.reserve);
+        self.build.old_room = self.old.value.room();
+        self.build.room_nodes(nodes);
+        let node = match decoded {
             Ok(node) => node,
             Err(refusal) => return Err(Halt::Decode(refusal)),
         };
         self.old.root = Some(node);
+        let plan = self.build.current();
+        let old = self.build.tables.schemas.get(plan.old).expect("kept old schema");
         let target = plan.declarations.get(root.index()).expect("old root conversion").new;
         let new = target.ok_or(Halt::Misbuilt(path(old, root)))?;
         let expected = Expected { source: Source::Declaration(new), path: path(self.build.new_schema(), new) };
@@ -297,22 +306,61 @@ impl Build {
                 schemas: List::with_capacity(capacity.versions),
                 plans: List::with_capacity(capacity.patches),
             },
-            out: Buffer::with_capacity(capacity.bytes),
-            walk: Stack::with_capacity(capacity.nodes),
-            opened: Stack::with_capacity(capacity.nodes),
+            out: Buffer::with_capacity(0),
+            walk: List::with_capacity(0),
+            opened: List::with_capacity(0),
             state: State::Idle,
             plan: None,
             pending: None,
             stop: None,
             nodes: 0,
+            reserve: Value::growing(capacity.nodes),
+            old_room: 0,
         }
     }
     fn clear_stacks(&mut self) {
-        for _ in 0..self.walk.len() {
-            self.walk.pop().expect("walk has a frame");
+        self.walk.clear();
+        self.opened.clear();
+    }
+    fn pop_walk(&mut self) -> Option<Frame> {
+        let frame = self.walk.last().copied()?;
+        self.walk.truncate(self.walk.len().checked_sub(1).expect("a frame remains"));
+        Some(frame)
+    }
+    fn pop_open(&mut self) -> Option<Open> {
+        let open = self.opened.last().copied()?;
+        self.opened.truncate(self.opened.len().checked_sub(1).expect("a frame remains"));
+        Some(open)
+    }
+    fn top_open_mut(&mut self) -> Option<&mut Open> {
+        self.opened.get_mut(self.opened.len().checked_sub(1)?)
+    }
+    fn room_nodes(&mut self, need: u32) {
+        let ceiling = self.tables.capacity.nodes;
+        self.reserve.reserve(need, self.old_room);
+        let room = growing_room(self.walk.capacity(), need, ceiling);
+        if room > self.walk.capacity() {
+            let mut larger = List::with_capacity(room);
+            for &frame in &self.walk {
+                larger.push(frame).expect("the larger stack holds every frame");
+            }
+            self.walk = larger;
         }
-        for _ in 0..self.opened.len() {
-            self.opened.pop().expect("build has a frame");
+        let room = growing_room(self.opened.capacity(), need, ceiling);
+        if room > self.opened.capacity() {
+            let mut larger = List::with_capacity(room);
+            for &open in &self.opened {
+                larger.push(open).expect("the larger stack holds every frame");
+            }
+            self.opened = larger;
+        }
+    }
+    fn room_bytes(&mut self, need: u32) {
+        let room = growing_room(self.out.capacity(), need, self.tables.capacity.bytes);
+        if room > self.out.capacity() {
+            let mut larger = Buffer::with_capacity(room);
+            larger.put(self.out.as_slice()).expect("the larger output holds every byte");
+            self.out = larger;
         }
     }
     fn current(&self) -> &plan::Plan {
@@ -331,12 +379,25 @@ impl Build {
         result
     }
     fn put(&mut self, bytes: &[u8]) -> Result<(), Halt> {
+        let Ok(count) = u32::try_from(bytes.len()) else {
+            return Err(Halt::Room);
+        };
+        let need = self.out.len().checked_add(count).ok_or(Halt::Room)?;
+        if need > self.tables.capacity.bytes {
+            return Err(Halt::Room);
+        }
+        self.room_bytes(need);
         match self.out.put(bytes) {
             Ok(()) => Ok(()),
             Err(_) => Err(Halt::Room),
         }
     }
     fn push(&mut self, frame: Frame) -> Result<(), Halt> {
+        let need = self.walk.len().checked_add(1).ok_or(Halt::Room)?;
+        if need > self.tables.capacity.nodes {
+            return Err(Halt::Room);
+        }
+        self.room_nodes(need);
         match self.walk.push(frame) {
             Ok(()) => Ok(()),
             Err(_) => Err(Halt::Room),
@@ -347,6 +408,7 @@ impl Build {
         if self.nodes > self.tables.capacity.nodes {
             return Err(Halt::Room);
         }
+        self.room_nodes(self.nodes);
         Ok(())
     }
     fn turns(&self) -> u64 {

@@ -1,5 +1,6 @@
 //! Heap admission includes each transient parser and each retained table (11.7).
-use super::{Buffer, Capacity, Frame, List, Open, Patcher, Schema, Stack, Value, plan, schema};
+use super::{Buffer, Capacity, Frame, List, Open, Patcher, Schema, Value, plan, schema};
+use skein_lib::Stack;
 
 impl Patcher {
     /// The run, two records, kept schemas and plans, including their scratch.
@@ -19,6 +20,14 @@ impl Patcher {
         ] {
             total = total.checked_add(bytes)?;
         }
-        Some(total)
+        let mut tables = Value::worst_case_heap(capacity.nodes)?;
+        for bytes in [
+            Buffer::worst_case(capacity.bytes)?,
+            Stack::<Frame>::worst_case(capacity.nodes)?,
+            Stack::<Open>::worst_case(capacity.nodes)?,
+        ] {
+            tables = tables.checked_add(bytes)?;
+        }
+        total.checked_add(tables.checked_add(15)?.checked_div(16)?)
     }
 }

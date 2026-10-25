@@ -20,7 +20,7 @@ impl Build {
             State::Idle | State::Done | State::Finished => return Err(Halt::Order),
         }
         for _ in 0..self.turns() {
-            let Some(frame) = self.walk.pop() else {
+            let Some(frame) = self.pop_walk() else {
                 self.state = State::Done;
                 return Ok(Step::Done);
             };
@@ -292,6 +292,14 @@ impl Build {
                 let span = Span { start, end };
                 let nodes = self.value_nodes(new, span);
                 self.count_nodes(nodes)?;
+                let plan = self.tables.plans.get(self.plan.expect("a run has a plan").index()).expect("kept plan");
+                let bytes = spelled(plan.pool.as_slice(), span);
+                let count = u32::try_from(bytes.len()).expect("pool fits text capacity");
+                let need = self.out.len().checked_add(count).ok_or(Halt::Room)?;
+                if need > self.tables.capacity.bytes {
+                    return Err(Halt::Room);
+                }
+                self.room_bytes(need);
                 let plan = self.tables.plans.get(self.plan.expect("a run has a plan").index()).expect("kept plan");
                 let bytes = spelled(plan.pool.as_slice(), span);
                 match self.out.put(bytes) {

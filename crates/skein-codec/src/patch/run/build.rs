@@ -33,7 +33,7 @@ impl Build {
     }
     fn begin(&mut self) -> Result<Expected, Halt> {
         let expected = self.expected()?;
-        if let Some(open) = self.opened.top() {
+        if let Some(open) = self.opened.last() {
             match open.kind {
                 OpenKind::List { bound, .. } => {
                     if open.progress >= bound {
@@ -47,13 +47,13 @@ impl Build {
         Ok(expected)
     }
     fn complete(&mut self) {
-        if let Some(open) = self.opened.top_mut() {
+        if let Some(open) = self.top_open_mut() {
             open.progress = add(open.progress, 1);
         }
         self.pending = self.following();
     }
     fn following(&self) -> Option<Expected> {
-        let open = self.opened.top()?;
+        let open = self.opened.last()?;
         match open.kind {
             OpenKind::Record { decl, first, count } => {
                 if open.progress >= count {
@@ -363,7 +363,7 @@ impl Build {
         if self.state != State::Stopped {
             return Err(Halt::Order);
         }
-        let open = self.opened.top().copied().ok_or(Halt::Order)?;
+        let open = self.opened.last().copied().ok_or(Halt::Order)?;
         match open.kind {
             OpenKind::Record { count, .. } => {
                 if open.progress != count {
@@ -377,7 +377,7 @@ impl Build {
             }
             OpenKind::List { at, .. } => self.out.set_u32(at, open.progress),
         }
-        self.opened.pop().expect("an open frame was checked");
+        self.pop_open().expect("an open frame was checked");
         self.complete();
         Ok(())
     }
@@ -407,7 +407,7 @@ impl Build {
                 self.complete();
                 return Ok(());
             }
-            let frame = self.walk.pop().expect("a carried frame remains");
+            let frame = self.pop_walk().expect("a carried frame remains");
             if self.turn(old, frame, true)?.is_some() {
                 unreachable!("carry refuses every stop");
             }

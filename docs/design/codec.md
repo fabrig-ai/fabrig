@@ -1,6 +1,6 @@
 # Codecs from schemas
 
-Provisional, 2026-10-06, revised 2026-10-24. How an application protocol
+Provisional, 2026-10-06, revised 2026-10-25. How an application protocol
 built on skein encodes its records, and how its kept records follow its
 schemas from one version to the next. A schema says each record's fields
 and their bounds. skein's generator turns it into plain Rust codecs,
@@ -458,11 +458,11 @@ variant's.
   its limits, decodes it, and a refusal names the same field with the
   same reason. Limits below
   the ceilings stay the generated decoders'.
-- **Its room.** A value's entries are allocated once, for the room it
-  is made with, and reused for every record it decodes: decoding
-  allocates nothing. A record that needs more nodes than the room is
-  refused with `Refusal::Room`, since a node may take no bytes (an empty
-  record), so the bytes alone do not bound the count.
+- **Its room.** A value made with `with_room` allocates its entries
+  once and reuses them: decoding allocates nothing. A patch's machine
+  grows its own entries (11.7). A record that needs more nodes than
+  the room is refused with `Refusal::Room`, since a node may take no
+  bytes (an empty record), so the bytes alone do not bound the count.
 - **Held fields stay opaque.** A `bytes` field that holds a record or
   pieces is read as its bytes, as the generated code reads it; a patch
   opens it (section 11).
@@ -950,8 +950,9 @@ impl Diff {
 - **Versions inside:** every versioned record a patch reaches,
   root or nested, has its version rewritten.
 - **Bounded:** a machine's heap is a worst case over its capacity (its
-  versions, patches, texts, a record's bytes and nodes), allocated once;
-  a record one version behind allocates nothing (11.7).
+  versions, patches, texts, a record's bytes and nodes). A value made
+  with `with_room` allocates once; a patch's machine grows its own
+  run's tables and keeps their room (11.7).
 
 ### 11.1 The text
 
@@ -1448,20 +1449,37 @@ impl Build {                         // the new value, in preorder
 
 ### 11.7 Bounds
 
-- **Allocated once:** `new` allocates the run's tables at the capacity
-  (the old value's entries, the output, the walk's and the build's
-  stacks); `keep` a schema's tables, `plan` a plan's, each once.
+- **Kept and growing tables:** `new` allocates the kept schemas' and
+  plans' slots once; `keep` a schema's tables, `plan` a plan's, each
+  once. The run's tables (the old value's entries, the output, the
+  walk's and the build's stacks) start at a small floor independent
+  of the capacity, grow as a record needs them, never past the
+  capacity's bytes and nodes, and keep their largest room for the
+  records after. Before any record, together they hold at most the
+  smaller of their capacity's price and 64 KiB. While the most nodes
+  and bytes reached by any started record, a refused one included,
+  are each at most a sixteenth of their capacity, their held heap is
+  at most the larger of that floor and twice the run's tables' price
+  at those needs.
+  Small tables double, up to a sixteenth of their ceiling; the next
+  growth takes the ceiling. A builder that outgrows the old index
+  reserves its replacement separately until the next start can use
+  it, sharing the small entries' allowance with the occupied index.
+  Growth copies at most the capacity's nodes or bytes.
 - **Per record:** the old record's box is its caller's, moved in by
-  `start` and freed by the next. A record one version behind allocates
-  nothing; each further pass allocates its record's box, the last
-  `finish`'s bytes at their exact length, and a held field's bytes are
-  its caller's box for its family's machine.
+  `start` and freed by the next. A record no larger in nodes or bytes
+  than the most reached before it allocates nothing beyond its pass's
+  box; each further pass allocates that box, the last `finish`'s bytes
+  at their exact length, and a held field's bytes are its caller's
+  box for its family's machine.
 - **The worst case:** `worst_case_heap(capacity)` is the run's tables,
   two records' bytes, and the capacity's versions of kept texts and
   patches of plans, each at the capacity's `text`, parsing's and
-  planning's scratch included, in checked arithmetic. jig's budget for
-  patching is its map's twice plus the machine of each family it keeps:
-  a held field runs its family's machine while its holder's waits.
+  planning's scratch included, and what growth holds while it moves,
+  at most a sixteenth of the run's tables, rounded up, in checked
+  arithmetic. jig's budget for patching is its map's twice plus the
+  machine of each family it keeps: a held field runs its family's
+  machine while its holder's waits.
 - **Bounded walks:** each `next` turns at most a bound the capacity's
   nodes give, and no step recurses: the walk and the build, `carry`'s
   among them, are stacks bounded by the record's nodes. A record past
@@ -1502,7 +1520,16 @@ Step tests, in skein-lib and skein-codec, and the story in
   and decoded by the new schema's generated code.
 - **Memory:** the heap the machine holds stays within
   `worst_case_heap`, counted by the counting allocator through keeping,
-  planning and many records.
+  planning and many records. Large ceilings with small written and
+  held records stay near the small records' price, through repeated
+  reuse. Lists grow through several steps to the node and byte
+  ceilings; exactly at each they fit, one past they halt with the
+  same refusal, and the next fitting record reuses their room. Step
+  tests check both stacks with nested and written values, zero and
+  tiny capacities, a larger next pass, and reuse after refusal;
+  capacities and backing allocations show that reuse neither grows
+  nor copies a table. The price includes growth's peak within a
+  sixteenth of the run's tables.
 
 ## 12. The command and its check
 
@@ -1852,6 +1879,9 @@ world, no cargo inside a test.
   by the gate as any member: `current` and the golden tests.
 
 ## 13. Open questions
+
+- **Shrinking:** a patcher keeps the largest allocation it reached, so
+  one large record keeps it at that size until the patcher goes.
 
 - **Upstreams' levels:** the command writes a patch's `after` as its
   author gives it (12.3); jig's mission, which orders patches across

@@ -834,3 +834,282 @@ fn an_enum_item_past_a_list_bound_names_the_list_field() {
     );
     assert_eq!(patcher.next(), Err(Halt::Order));
 }
+
+// Store transcript ceilings, with the memory story's two texts and one patch.
+const LARGE: Capacity = Capacity { versions: 2, patches: 1, text: 256, nodes: 1 << 21, bytes: 1 << 22 };
+// Nine doublings expose several entry and output growth steps before the ceiling.
+const GROWTH_CEILING: u32 = 1 << 9;
+const NODE_CEILING: Capacity = Capacity { nodes: GROWTH_CEILING, bytes: GROWTH_CEILING + 5, ..LARGE };
+const BYTE_CEILING: Capacity = Capacity { nodes: GROWTH_CEILING - 3, bytes: GROWTH_CEILING, ..LARGE };
+// The report's store configuration; texts and kept slots dominate its fixed price.
+const STORE: Capacity = Capacity { versions: 4, patches: 4, text: 65536, ..LARGE };
+// The memory fixture's root with two scalar fields fits these ceilings.
+const SMALL: Capacity = Capacity { nodes: 8, bytes: 64, ..LARGE };
+
+fn run_price(nodes: u32, bytes: u32) -> u64 {
+    use skein_lib::{Buffer, Stack};
+    Value::worst_case_heap(nodes)
+        .expect("entries")
+        .checked_add(Buffer::worst_case(bytes).expect("output"))
+        .expect("run fits u64")
+        .checked_add(Stack::<super::Frame>::worst_case(nodes).expect("walk"))
+        .expect("run fits u64")
+        .checked_add(Stack::<super::Open>::worst_case(nodes).expect("build"))
+        .expect("run fits u64")
+}
+
+fn eager_price(capacity: Capacity) -> u64 {
+    use skein_lib::List;
+    let mut total = run_price(capacity.nodes, capacity.bytes);
+    for bytes in [
+        u64::from(capacity.bytes).checked_mul(2).expect("records"),
+        List::<schema::Schema>::worst_case(capacity.versions).expect("schemas"),
+        List::<crate::patch::plan::Plan>::worst_case(capacity.patches).expect("plans"),
+        schema::worst_case_heap(capacity.text)
+            .expect("schema scratch")
+            .checked_mul(u64::from(capacity.versions))
+            .expect("schemas"),
+        crate::patch::plan::worst_case_heap(capacity.text)
+            .expect("plan scratch")
+            .checked_mul(u64::from(capacity.patches.max(1)))
+            .expect("plans"),
+    ] {
+        total = total.checked_add(bytes).expect("eager price fits u64");
+    }
+    total
+}
+
+#[test]
+fn growth_adds_at_most_a_sixteenth_to_the_price() {
+    for capacity in [LARGE, NODE_CEILING, BYTE_CEILING, CAPACITY, STORE, SMALL] {
+        let eager = eager_price(capacity);
+        let run = run_price(capacity.nodes, capacity.bytes);
+        let growing = Patcher::worst_case_heap(capacity).expect("price");
+        assert!(eager <= growing);
+        assert!(growing <= eager + run.div_ceil(16));
+    }
+}
+
+fn run_held(patcher: &Patcher) -> u64 {
+    use skein_lib::{Buffer, List};
+    Value::worst_case_heap(patcher.old.value.room())
+        .expect("old")
+        .checked_add(Value::worst_case_heap(patcher.build.reserve.room()).expect("reserved entries"))
+        .expect("held fits u64")
+        .checked_add(Buffer::worst_case(patcher.build.out.capacity()).expect("output"))
+        .expect("held fits u64")
+        .checked_add(List::<super::Frame>::worst_case(patcher.build.walk.capacity()).expect("walk"))
+        .expect("held fits u64")
+        .checked_add(List::<super::Open>::worst_case(patcher.build.opened.capacity()).expect("build"))
+        .expect("held fits u64")
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct Allocations {
+    entries: [(u32, *const ()); 2],
+    out: (u32, *const ()),
+    walk: (u32, *const ()),
+    opened: (u32, *const ()),
+}
+
+fn allocations(patcher: &Patcher) -> Allocations {
+    let mut entries = [patcher.old.value.allocation(), patcher.build.reserve.allocation()];
+    entries.sort();
+    Allocations {
+        entries,
+        out: (patcher.build.out.capacity(), patcher.build.out.as_slice().as_ptr().cast()),
+        walk: (patcher.build.walk.capacity(), patcher.build.walk.as_slice().as_ptr().cast()),
+        opened: (patcher.build.opened.capacity(), patcher.build.opened.as_slice().as_ptr().cast()),
+    }
+}
+
+fn list_bytes(items: u32) -> Box<[u8]> {
+    // A list count followed by one byte per item; this fixture is unversioned.
+    let length = usize::try_from(items).expect("items").checked_add(size_of::<u32>()).expect("wire fits usize");
+    let mut writer = skein_lib::Writer::new(length);
+    writer.put(&items.to_be_bytes()).expect("count fits");
+    for _ in 0..items {
+        writer.put(&[7]).expect("item fits");
+    }
+    writer.finish()
+}
+
+#[test]
+fn small_records_hold_at_most_twice_their_run_price() {
+    const TEXT: &str = "record D { f: list 1024 u8 }";
+    // Each row crosses a small doubling, staying below LARGE's sixteenth.
+    const ITEMS: &[u32] = &[0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023];
+    const PARENTS: u32 = 2; // Root and list, besides their items.
+    let (mut patcher, plan) = planned_at(LARGE, TEXT, TEXT, "");
+    assert_eq!(run_held(&patcher), 0, "new, keep and plan allocate no run table");
+    for &items in ITEMS {
+        let wire = list_bytes(items);
+        let bytes = u32::try_from(wire.len()).expect("wire");
+        let bound = run_price(items + PARENTS, bytes) * 2;
+        patcher.start(plan, D, wire).expect("start");
+        assert!(run_held(&patcher) <= bound);
+        assert_eq!(patcher.next(), Ok(Step::Done));
+        assert!(run_held(&patcher) <= bound);
+        patcher.finish().expect("finish");
+        let before = allocations(&patcher);
+        patcher.start(plan, D, list_bytes(items)).expect("reuse");
+        assert_eq!(allocations(&patcher), before);
+        assert_eq!(patcher.next(), Ok(Step::Done));
+        assert_eq!(allocations(&patcher), before);
+        patcher.finish().expect("finish");
+        assert_eq!(allocations(&patcher), before);
+    }
+}
+
+#[test]
+fn zero_and_one_node_rooms_keep_their_refusals() {
+    // An empty record takes one node and no bytes, testing room before reading.
+    for (nodes, expected) in [(0, Err(Halt::Decode(Refusal::Room))), (1, Ok(()))] {
+        let (mut patcher, plan) =
+            planned_at(Capacity { nodes, bytes: 0, ..CAPACITY }, "record D {}", "record D {}", "");
+        assert_eq!(patcher.start(plan, D, Box::default()), expected);
+    }
+}
+
+#[test]
+fn tiny_ceilings_allocate_only_their_configured_room() {
+    // A record and its byte take two nodes, below the first sixteenth.
+    const TINY: Capacity = Capacity { nodes: 2, bytes: 1, ..CAPACITY };
+    let (mut patcher, plan) = planned_at(TINY, "record D { f: u8 }", "record D { f: u8 }", "");
+    patcher.start(plan, D, Box::from([7])).expect("tiny start");
+    assert_eq!(patcher.next(), Ok(Step::Done));
+    assert_eq!(run_held(&patcher), run_price(TINY.nodes, TINY.bytes));
+    let before = allocations(&patcher);
+    patcher.start(plan, D, Box::from([7])).expect("tiny reuse");
+    assert_eq!(allocations(&patcher), before);
+}
+
+#[test]
+fn nested_walks_grow_both_stacks_and_reuse_them() {
+    // Three nested lists and their leaf, inside the root: five nodes.
+    const NESTED: &str = "record D { f: list 1 list 1 list 1 u8 }";
+    const WIRE: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 7];
+    let (mut patcher, plan) = planned_at(NODE_CEILING, NESTED, NESTED, "written D.f\n");
+    patcher.start(plan, D, WIRE.into()).expect("nested old");
+    let before = allocations(&patcher);
+    let at = stopped(&mut patcher);
+    let (old, build) = patcher.parts();
+    build.carry(old, old.field(at, F).expect("list")).expect("nested carry");
+    assert_eq!(patcher.next(), Ok(Step::Done));
+    assert_eq!(patcher.finish().expect("finish"), WIRE);
+    assert_eq!(allocations(&patcher), before, "nested walk reuses reserved stacks");
+    assert!(patcher.build.walk.capacity() > 2);
+    assert!(patcher.build.opened.capacity() > 2);
+}
+
+#[test]
+fn written_nesting_grows_live_stacks_and_reserves_old_entries() {
+    // Six nested options and their leaf outgrow the two-node old record.
+    const DEPTH: u32 = 6;
+    const NEW: &str = "record D { f: option option option option option option u8 }";
+    const LINES: &str = "retype D.f bool option option option option option option u8\nwritten D.f\n";
+    const WIRE: &[u8] = &[1, 1, 1, 1, 1, 1, 7];
+    let (mut patcher, plan) =
+        planned_at(Capacity { patches: CAPACITY.patches, ..NODE_CEILING }, "record D { f: bool }", NEW, LINES);
+    patcher.start(plan, D, Box::from([1])).expect("old");
+    stopped(&mut patcher);
+    for _ in 0..DEPTH {
+        patcher.build.open().expect("open option");
+        assert!(run_held(&patcher) <= run_price(patcher.build.nodes, patcher.build.out.len()) * 2);
+    }
+    patcher.build.put_uint(7).expect("leaf");
+    assert!(run_held(&patcher) <= run_price(patcher.build.nodes, patcher.build.out.len()) * 2);
+    for _ in 0..DEPTH {
+        patcher.build.close().expect("close option");
+    }
+    assert_eq!(patcher.next(), Ok(Step::Done));
+    assert_eq!(patcher.finish().expect("finish"), WIRE);
+    assert!(patcher.build.opened.capacity() >= DEPTH);
+    assert!(patcher.build.walk.capacity() >= DEPTH);
+    let before = allocations(&patcher);
+    // The new shape becomes an old record without allocating its larger index.
+    let identity = patcher.identity(2).expect("identity");
+    patcher.start(identity, D, WIRE.into()).expect("larger old record");
+    assert_eq!(allocations(&patcher), before, "only ownership of reserved entries changes");
+    assert_eq!(patcher.next(), Ok(Step::Done));
+    assert_eq!(allocations(&patcher), before);
+}
+
+#[test]
+fn a_larger_next_pass_uses_the_reserved_run_tables() {
+    const NEW: &str = "versioned record D { f: u8 g: option u8 }";
+    const LINES: &str = "add D.g option u8 some 9\n";
+    const FIRST: &[u8] = &[0, 2, 7, 1, 9];
+    const LAST: &[u8] = &[0, 3, 7, 1, 9];
+    let (mut patcher, first) = planned_at(
+        Capacity { versions: CAPACITY.versions, patches: CAPACITY.patches, ..NODE_CEILING },
+        "versioned record D { f: u8 }",
+        NEW,
+        LINES,
+    );
+    patcher.keep(b"family f 3\nversioned record D { f: u8 g: option u8 }").expect("third version");
+    let second = patcher.plan(b"patch 1\nowner o 8\nfamily f 2 to 3\n").expect("patch").expect("family");
+    patcher.start(first, D, Box::from([0, 1, 7])).expect("first");
+    assert_eq!(patcher.next(), Ok(Step::Done));
+    assert_eq!(patcher.finish().expect("first finish"), FIRST);
+    let before = allocations(&patcher);
+    patcher.next_pass(second, D).expect("larger second pass");
+    assert_eq!(allocations(&patcher), before);
+    assert_eq!(patcher.next(), Ok(Step::Done));
+    assert_eq!(patcher.finish().expect("last finish"), LAST);
+    assert_eq!(allocations(&patcher), before);
+}
+
+#[test]
+fn refused_growth_keeps_its_room_for_smaller_records() {
+    const TEXT: &str = "record D { f: list 1024 u8 }";
+    // The count fits, but an extra byte after the list refuses at the root's tail.
+    const ITEMS: u32 = 23;
+    let (mut patcher, plan) = planned_at(NODE_CEILING, TEXT, TEXT, "");
+    let bytes = list_bytes(ITEMS);
+    let mut wire = skein_lib::Writer::new(bytes.len().checked_add(1).expect("wire and trailing byte"));
+    wire.put(&bytes).expect("list fits");
+    wire.put(&[0]).expect("tail fits");
+    assert_eq!(
+        patcher.start(plan, D, wire.finish()),
+        Err(Halt::Decode(Refusal::Problem(Problem {
+            path: Path { decl: D, part: Part::Tail },
+            reason: Reason::Trailing,
+        })))
+    );
+    let before = allocations(&patcher);
+    patcher.start(plan, D, list_bytes(ITEMS - 1)).expect("smaller record after refusal");
+    assert_eq!(allocations(&patcher), before);
+    assert_eq!(patcher.next(), Ok(Step::Done));
+    assert_eq!(allocations(&patcher), before);
+}
+
+#[test]
+fn entry_and_output_room_grow_in_several_steps() {
+    const TEXT: &str = "record D { f: list 1024 u8 }";
+    // These item counts visit the small growth steps before either ceiling.
+    const ITEMS: &[u32] = &[0, 1, 3, 7, 15, 23, 31, 63, 127, 255];
+    const MIN_STEPS: u32 = 3; // codec.md, 11.8's growth story.
+    for capacity in [NODE_CEILING, BYTE_CEILING] {
+        let (mut patcher, plan) = planned_at(capacity, TEXT, TEXT, "");
+        let mut entries = 0;
+        let mut output = 0;
+        let mut entry_steps = 0;
+        let mut output_steps = 0;
+        for &items in ITEMS {
+            patcher.start(plan, D, list_bytes(items)).expect("growing record");
+            if patcher.old.value.room() > entries {
+                entries = patcher.old.value.room();
+                entry_steps += 1;
+            }
+            if patcher.build.out.capacity() > output {
+                output = patcher.build.out.capacity();
+                output_steps += 1;
+            }
+            assert_eq!(patcher.next(), Ok(Step::Done));
+            patcher.finish().expect("finish");
+        }
+        assert!(entry_steps >= MIN_STEPS);
+        assert!(output_steps >= MIN_STEPS);
+    }
+}
