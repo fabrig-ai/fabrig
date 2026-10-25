@@ -36,6 +36,8 @@ if grep -rnE 'assert_eq!\(\([a-z_]+\.exit, [a-z_]+\.exit|\.len\(\), [0-9]+[,)]' 
     exit 1
 fi
 
+# skein's programming-model.md, 2: every binary installs the fail-stop hook first.
+step fail-stop python3 -I -B scripts/fail_stop.py
 step fmt cargo fmt --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
 # The browser's client crates (client/browser.md, 4.3).

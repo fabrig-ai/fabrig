@@ -3,6 +3,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::{env, process::ExitCode};
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     if env::args_os().next().as_deref().is_some_and(temper::fake::git::is_git) {
         return ExitCode::from(temper::fake::git::run(&skein_shell::arguments()));
     }

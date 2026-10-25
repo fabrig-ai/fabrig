@@ -11,6 +11,7 @@ name = "temper-client-gallery"
 path = "src/main.rs"
 
 [dependencies]
+skein-fail-stop.workspace = true
 temper-client-view.workspace = true
 temper-client-domain.workspace = true
 temper-client-protocol-wire.workspace = true

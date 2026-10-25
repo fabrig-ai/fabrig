@@ -1,5 +1,6 @@
 use std::{env, path::Path, process};
 fn main() {
+    skein_fail_stop::install();
     let mut args = env::args_os();
     let _program = args.next();
     let Some(out) = args.next() else {

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    skein_fail_stop::install();
     let mut git = None;
     let mut scratch = None;
     let mut out = None;

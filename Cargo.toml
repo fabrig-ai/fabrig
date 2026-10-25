@@ -89,6 +89,7 @@ jig-protocol-worker-link = { git = "https://github.com/fabrig-dev/jig.git" }
 jig-protocol-engine-clients-http = { git = "https://github.com/fabrig-dev/jig.git" }
 jig-protocol-engine-clients = { git = "https://github.com/fabrig-dev/jig.git" }
 skein-shell = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fail-stop = { git = "https://github.com/fabrig-dev/skein.git" }
 temper-client-shell-terminal = { path = "crates/temper-client-shell-terminal" }
 temper-client-shell-cli = { path = "crates/temper-client-shell-cli" }
 temper-client-shell-web = { path = "crates/temper-client-shell-web" }
@@ -202,11 +203,19 @@ jig-people-world = { git = "https://github.com/fabrig-dev/jig.git" }
 temper-fake-checkout = { path = "tests/fake-checkout" }
 temper-worker-checkout-world = { path = "tests/worker/checkout" }
 
-# Panics are fail-stop and overflow traps, in every profile. (The test harness
-# needs unwinding, so cargo ignores `panic` for test targets.)
+# Panics are fail-stop and overflow traps, in every profile. Release aborts.
+# Dev unwinds, as the test harness needs, so that the binaries and the tests
+# share one build of each dependency; each binary's main installs
+# skein_fail_stop's hook first, which aborts on a panic before anything
+# unwinds (skein's programming-model.md, 2).
 [profile.dev]
-panic = "abort"
 overflow-checks = true
+
+# Dependencies carry no debug information in dev and test builds, which
+# halves the test executables; the workspace's own crates keep the line
+# tables that backtraces name.
+[profile.dev.package."*"]
+debug = false
 
 [profile.release]
 panic = "abort"

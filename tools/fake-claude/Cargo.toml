@@ -12,6 +12,7 @@ name = "fake-claude"
 path = "src/main.rs"
 
 [dependencies]
+skein-fail-stop.workspace = true
 smith-fake-claude.workspace = true
 
 [lints]
