@@ -200,7 +200,7 @@ mod tests {
         let guard = smith_bench::guard::Guard::new(&root.join("user"), &root.join("config"), &root.join("state"), &[])
             .expect("guard");
         let private = smith_bench::isolate::empty(&guard, &root.join("attempt")).expect("private paths");
-        let project = Path::new(env!("CARGO_MANIFEST_DIR")).join("benchmarks");
+        let project = skein_scratch::paths::package().join("benchmarks");
         let pin_file = project.join("agents/smith/everything.pin.toml");
         let pin = smith_bench::read_configuration(&pin_file).expect("pin");
         let mut task = smith_bench::read_task(&project.join("tasks/probes/first-request/task.toml")).expect("task");
@@ -244,7 +244,7 @@ mod tests {
         let result = smith_bench::process::execute(
             &clock,
             skein_world::end_to_end::Command {
-                program: env!("CARGO_BIN_EXE_smith").into(),
+                program: skein_scratch::paths::binary("smith"),
                 arguments: product_check_arguments(&invocation, &private.workspace, root),
                 environment,
                 directory: private.workspace.clone(),

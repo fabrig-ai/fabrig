@@ -12,7 +12,7 @@ use skein_scratch::Scratch;
 use smith_fake_claude::{CONFIG_DIR, LOGIN_FILE, OBSERVATIONS_FILE, observations};
 
 fn invoke(home: &Path, config: Option<&Path>, args: &[&str]) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_fake-claude"));
+    let mut command = Command::new(skein_scratch::paths::binary("fake-claude"));
     command.env_clear().env("HOME", home).current_dir(home).args(args);
     if let Some(config) = config {
         command.env(CONFIG_DIR, config);
@@ -113,10 +113,10 @@ fn print_scripted_child(story: Story, script: ServerScript) -> (Scratch, Child) 
     fs::create_dir(&run).expect("run directory");
     fs::write(config.join(LOGIN_FILE), b"claude.ai").expect("login");
     fs::write(config.join(STORY_FILE), story.encode()).expect("story");
-    let configuration = serde_json::json!({"mcpServers":{"smith":{"type":"stdio", "command":env!("CARGO_BIN_EXE_fake-claude-server"),"args":[script.encode()],"env":{}}}});
+    let configuration = serde_json::json!({"mcpServers":{"smith":{"type":"stdio", "command":skein_scratch::paths::binary("fake-claude-server"),"args":[script.encode()],"env":{}}}});
     fs::write(run.join("mcp.json"), serde_json::to_vec(&configuration).expect("configuration JSON"))
         .expect("MCP configuration");
-    let child = Command::new(env!("CARGO_BIN_EXE_fake-claude"))
+    let child = Command::new(skein_scratch::paths::binary("fake-claude"))
         .env_clear()
         .env("HOME", scratch.path())
         .env(CONFIG_DIR, &config)

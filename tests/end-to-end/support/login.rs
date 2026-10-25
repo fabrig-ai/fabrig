@@ -78,7 +78,7 @@ pub fn sign_in(scratch: &Scratch) -> Ran {
     let now = clock.now().now;
     let binary = Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_smith").into(),
+            program: skein_scratch::paths::binary("smith"),
             arguments: vec!["login".into(), "test".into()],
             environment: vec![
                 ("HOME".into(), scratch.path().into()),

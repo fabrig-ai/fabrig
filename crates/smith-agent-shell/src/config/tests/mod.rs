@@ -80,7 +80,7 @@ fn empty_and_equals_values_reach_the_shared_environment_encoder() {
 
 #[test]
 fn a_trust_file_that_is_not_a_regular_file_is_refused_naming_it() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let path = skein_scratch::paths::package();
     let error = trust(path.to_str()).expect_err("directory is not a certificate file");
     assert!(error.contains(path.to_str().expect("fixture path")), "refusal names the path");
     assert!(error.contains("NotAFile"), "refusal names the non-file");
@@ -125,7 +125,9 @@ fn named_endpoint_resolves_and_its_tls_trust_builds_before_start() {
         server_name: Some("example.test".into()),
         authority: None,
         target: None,
-        trust_der: Some(format!("{}/../../tests/protocol-llm/fixtures/root.der", env!("CARGO_MANIFEST_DIR"))),
+        trust_der: Some(
+            skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string(),
+        ),
         trust: None,
         headers: vec![],
         identity: None,
@@ -378,7 +380,7 @@ fn all_product_models(mut document: serde_json::Value) -> serde_json::Value {
     }
     anthropic["models"] = models.into();
     document["endpoints"].as_array_mut().unwrap().push(anthropic);
-    let trust = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/protocol-llm/fixtures/root.der");
+    let trust = skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der");
     for endpoint in document["endpoints"].as_array_mut().unwrap() {
         endpoint["trust_der"] = trust.to_str().expect("fixture trust path").into();
     }

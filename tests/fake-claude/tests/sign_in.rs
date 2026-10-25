@@ -3,14 +3,14 @@
 use skein_scratch::Scratch;
 use smith_agent_shell::program::{prepare, sign_in};
 use smith_fake_claude::{LOGIN_FILE, Login, OBSERVATIONS_FILE, STORY_FILE, Story, observations};
-use std::{fs, io::Write, path::Path, process::Stdio};
+use std::{fs, io::Write, process::Stdio};
 
 #[test]
 fn a_sign_in_through_the_fake_writes_its_login() {
     let scratch = Scratch::new("shell-fake-login");
     let configuration = prepare(&scratch.path().join("programs"), "source").expect("source directories");
     let mut command = sign_in(
-        Path::new(env!("CARGO_BIN_EXE_fake-claude")),
+        &skein_scratch::paths::binary("fake-claude"),
         &configuration,
         [("HOME".into(), scratch.path().as_os_str().into()), ("ANTHROPIC_API_KEY".into(), "x".into())],
     );
@@ -31,7 +31,7 @@ fn a_sign_in_by_code_reads_the_pasted_line() {
     let story = Story { login: Login::Code("claude.ai".into()), ..Story::default() };
     fs::write(configuration.join(STORY_FILE), story.encode()).expect("code story");
     let mut command = sign_in(
-        Path::new(env!("CARGO_BIN_EXE_fake-claude")),
+        &skein_scratch::paths::binary("fake-claude"),
         &configuration,
         [("HOME".into(), scratch.path().as_os_str().into())],
     );

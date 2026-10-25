@@ -224,7 +224,7 @@ fn observations(procs: &[Process], saved: bool) -> Seen {
 
 #[must_use]
 pub fn start(arguments: Vec<std::ffi::OsString>, directory: &Path, mode: Mode) -> Binary {
-    start_program(Path::new(env!("CARGO_BIN_EXE_smith")), arguments, directory, mode)
+    start_program(&skein_scratch::paths::binary("smith"), arguments, directory, mode)
 }
 
 fn start_program(program: &Path, arguments: Vec<std::ffi::OsString>, directory: &Path, mode: Mode) -> Binary {
@@ -604,7 +604,7 @@ pub fn refusal_program(program: &Path, scratch: &Scratch, arguments: Vec<std::ff
 
 #[must_use]
 pub fn refusal_code(scratch: &Scratch, arguments: Vec<std::ffi::OsString>, code: u8) -> Vec<u8> {
-    refusal_program_code(Path::new(env!("CARGO_BIN_EXE_smith")), scratch, arguments, code)
+    refusal_program_code(&skein_scratch::paths::binary("smith"), scratch, arguments, code)
 }
 
 fn refusal_program_code(
@@ -691,7 +691,7 @@ pub fn smith_with_environment(
     environment.extend(additional);
     let mut binary = Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_smith").into(),
+            program: skein_scratch::paths::binary("smith"),
             arguments: arguments.iter().map(std::ffi::OsString::from).collect(),
             environment,
             directory: scratch.path().into(),

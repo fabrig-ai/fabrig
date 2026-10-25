@@ -245,7 +245,7 @@ fn run(
         process_environment.push(("ANTHROPIC_API_KEY".into(), key));
     }
     let command = |arguments| Command {
-        program: env!("CARGO_BIN_EXE_smith").into(),
+        program: skein_scratch::paths::binary("smith"),
         arguments,
         environment: process_environment.clone(),
         directory: scratch.path().into(),
@@ -311,7 +311,7 @@ fn observer(
         serial: None,
         trace: None,
         rendered: serde_json::Value::Null,
-        program: env!("CARGO_BIN_EXE_smith").into(),
+        program: skein_scratch::paths::binary("smith"),
         state: scratch.path().join("state"),
         teardown,
     };

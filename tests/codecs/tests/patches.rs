@@ -1,6 +1,6 @@
 //! Kept turns, their pieces word and their patch set (transcript.md, 12).
 
-use std::{collections::BTreeSet, fs, path::Path};
+use std::{collections::BTreeSet, fs};
 
 use skein_codec::{
     patch::{Halt, Site},
@@ -17,8 +17,7 @@ const TRANSCRIPT: &str = include_str!("../../../crates/smith-transcript/schema/t
 fn each_version_one_golden_patches_to_its_version_two_golden() {
     let output =
         skein_codegen::generate(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
-    let directory =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../transcript-patches/patches/golden/0001/fixture-turn");
+    let directory = skein_scratch::paths::workspace().join("tests/transcript-patches/patches/golden/0001/fixture-turn");
     let files: BTreeSet<_> = fs::read_dir(&directory)
         .expect("patch goldens")
         .map(|entry| entry.expect("golden entry").file_name())

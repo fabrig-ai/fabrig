@@ -251,20 +251,19 @@ fn run_fixture(
 ) -> (Ran, Vec<skein_fake_llm_domain::api::Query>) {
     assert_no_children();
     let mut command_arguments: Vec<std::ffi::OsString> = arguments.iter().map(std::ffi::OsString::from).collect();
+    let smith = skein_scratch::paths::binary("smith");
+    let smith = smith.to_str().expect("the binary's path is UTF-8");
     let program = match watching {
         window::Story::Resize => {
-            let mut setup: Vec<std::ffi::OsString> =
-                ["-c", "stty rows 24 cols 80; exec \"$@\"", "smith-window", env!("CARGO_BIN_EXE_smith")]
-                    .into_iter()
-                    .map(Into::into)
-                    .collect();
+            let mut setup: Vec<std::ffi::OsString> = ["-c", "stty rows 24 cols 80; exec \"$@\"", "smith-window", smith]
+                .into_iter()
+                .map(Into::into)
+                .collect();
             setup.append(&mut command_arguments);
             command_arguments = setup;
             "/bin/sh"
         }
-        window::Story::None | window::Story::Modes | window::Story::ProgramRun | window::Story::ProgramCheck => {
-            env!("CARGO_BIN_EXE_smith")
-        }
+        window::Story::None | window::Story::Modes | window::Story::ProgramRun | window::Story::ProgramCheck => smith,
     };
     let mut binary = Binary::start(
         Command {

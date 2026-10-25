@@ -19,8 +19,8 @@ fn unanswering_end_goldens_keep_the_first_cause_under_every_capture_policy() {
         ("agent_code", AnswerClass::Agent, None, Some(AgentExit::Code(7)), None),
         ("agent_signal", AnswerClass::Agent, None, Some(AgentExit::Signal(15)), None),
     ] {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join(format!("../../crates/smith-events/golden/v4/end_{name}.jsonl"));
+        let path =
+            skein_scratch::paths::package().join(format!("../../crates/smith-events/golden/v4/end_{name}.jsonl"));
         let frozen = std::fs::read(path).expect("frozen end golden");
         let record = read(&frozen, &limits()).expect(name).expect("completed run");
         let Event::RunCompleted(completed) = &record.event else { panic!("completed run") };
@@ -265,8 +265,7 @@ fn a_chunked_stream_checks_each_version_and_rejects_an_unterminated_tail() {
 
 #[test]
 fn a_frozen_line_of_another_version_is_refused_by_name() {
-    let path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/smith-events/golden/unsupported-v5.jsonl");
+    let path = skein_scratch::paths::workspace().join("crates/smith-events/golden/unsupported-v5.jsonl");
     let line = std::fs::read(path).expect("unsupported golden");
     assert_eq!(read(&line, &limits()), Err(Error::Version(5)));
 }
@@ -960,8 +959,7 @@ fn failure_metadata_is_typed_and_detail_remains_capture_selected_and_bounded() {
 #[test]
 fn budget_goldens_keep_the_usage_lines_call_under_every_capture() {
     for (name, call) in [("budget_ordinary", None), ("budget_told", Some(b"child-7".as_slice()))] {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join(format!("../../crates/smith-events/golden/v4/{name}.jsonl"));
+        let path = skein_scratch::paths::package().join(format!("../../crates/smith-events/golden/v4/{name}.jsonl"));
         let frozen = std::fs::read(path).expect("budget golden");
         let record = read(&frozen, &limits()).expect("bounded budget record").expect("budget event");
         let Event::Budget(value) = &record.event else { panic!("budget") };

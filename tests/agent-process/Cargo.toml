@@ -45,6 +45,7 @@ serde = { version = "1", features = ["derive"] }
 smith-transcript.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 smith-bench = { path = "../../benchmarks" }
 
 [lints.rust]

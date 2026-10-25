@@ -10,7 +10,7 @@ const TOLD_TEXT: &str = "Told program text";
 
 fn signed_in(story: &Value) -> Scratch {
     let scratch = Scratch::new();
-    let executable = std::path::Path::new(env!("CARGO_BIN_EXE_smith")).with_file_name("fake-claude");
+    let executable = skein_scratch::paths::binary("smith").with_file_name("fake-claude");
     let settings = format!(
         "model='anthropic/claude-opus-5-5'\n[programs]\nclaude_code='{}'\n\
          [accounts.work]\nprovider='anthropic'\nsource='program'\n[endpoints.anthropic]\naccount='work'\nprogram='claude_code'\n",

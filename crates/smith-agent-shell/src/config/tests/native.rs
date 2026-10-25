@@ -56,7 +56,7 @@ fn trust_arrays_accept_der_and_pem_with_system_roots_disabled() {
         Writer,
         base64::{self, Alphabet},
     };
-    let der = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/protocol-llm/fixtures/root.der"));
+    let der = include_bytes!("../../../../../tests/protocol-llm/fixtures/root.der");
     let encoded = base64::encoded_len(Alphabet::Standard, u32::try_from(der.len()).expect("root bytes"))
         .expect("encoded root length");
     let mut writer = Writer::new(usize::try_from(encoded).expect("encoded root fits"));
@@ -71,7 +71,7 @@ fn trust_arrays_accept_der_and_pem_with_system_roots_disabled() {
     document["endpoints"][0]["transport"] = serde_json::json!("tls");
     document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
     document["endpoints"][0]["trust"] = serde_json::json!({"system":false,
-        "der":[concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/protocol-llm/fixtures/root.der")],
+        "der":[skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der")],
         "pem":[path]});
     let built = from_value(document);
     std::fs::remove_file(path).expect("remove PEM fixture");
@@ -97,7 +97,7 @@ fn trust_arrays_keep_one_combined_certificate_bound() {
     document["endpoints"][0]["transport"] = serde_json::json!("tls");
     document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
     document["endpoints"][0]["trust"] = serde_json::json!({"system":false,
-        "der":[concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/protocol-llm/fixtures/root.der")],
+        "der":[skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der")],
         "pem":[path,path]});
     let built = from_value(document);
     std::fs::remove_file(path).expect("remove PEM fixture");

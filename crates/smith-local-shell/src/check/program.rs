@@ -19,7 +19,7 @@ fn program_invocations_fit_the_standard_memory() {
                 .expect("programs path prefix")
         )
     );
-    let trust = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/protocol-llm/fixtures/root.der");
+    let trust = skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der");
     let settings = settings::merge(
         &command::Shared::default(),
         "/workspace".into(),

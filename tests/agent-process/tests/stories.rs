@@ -160,7 +160,7 @@ fn the_configured_environment_reaches_the_actual_agents_command_spawn() {
 fn a_broken_declared_relationship_is_named_before_channel_adoption() {
     use smith_agent_shell::{Agent, Resources};
     let errors = smith_agent_process_world::AgentErrors::default();
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/read-past-payload.json");
+    let path = skein_scratch::paths::package().join("fixtures/read-past-payload.json");
     let startup = Agent::read(
         &path,
         Resources {

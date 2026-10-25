@@ -535,7 +535,8 @@ mod tests {
     }
 
     fn resolved(trace: bool) -> settings::resolve::Resolved {
-        let certificate = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/protocol-llm/fixtures/root.der");
+        let certificate =
+            skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
         let trace = if trace { "[trace]\npath='/unopened-events'\n" } else { "" };
         let text = format!(
             "model='codex/gpt-6-luna'\n[deployment]\nmemory=8589934592\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n{trace}"
@@ -646,7 +647,8 @@ mod tests {
         // The smoke-tools Chat arm: standard profile, codex/gpt-6-luna
         // selected at low effort, an env token and an everything trace.
         // Invocation derivation prices descriptors without reading the variable.
-        let certificate = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/protocol-llm/fixtures/root.der");
+        let certificate =
+            skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
         let text = format!(
             "model='codex/gpt-6-luna'\neffort='low'\n\
              [accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n\

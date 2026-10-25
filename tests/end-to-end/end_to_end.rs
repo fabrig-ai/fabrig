@@ -279,8 +279,8 @@ fn smith_on_a_terminal_signs_in_and_commits_in_place() {
 #[test]
 fn the_startup_refusals_of_both_commands_are_observed_outside() {
     let scratch = Scratch::new();
-    let agent = std::path::Path::new(env!("CARGO_BIN_EXE_smith-agent"));
-    let errors = support::refusal_program(agent, &scratch, vec!["".into()]);
+    let agent = skein_scratch::paths::binary("smith-agent");
+    let errors = support::refusal_program(&agent, &scratch, vec!["".into()]);
     assert!(String::from_utf8_lossy(&errors).contains("configuration metadata"));
     let config = scratch.path().join("config/smith/config.toml");
     std::fs::create_dir_all(&config).expect("settings metadata refusal");
@@ -292,13 +292,13 @@ fn the_startup_refusals_of_both_commands_are_observed_outside() {
         br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},"endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","transport":"plaintext","connect":1000,"handshake":1000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],"environment":[]}"#,
     )
     .expect("valid agent fixture");
-    let errors = support::refusal_program(agent, &scratch, vec![path.clone().into()]);
+    let errors = support::refusal_program(&agent, &scratch, vec![path.clone().into()]);
     assert_eq!(
         String::from_utf8_lossy(&errors).lines().last(),
         Some("smith: the run could not answer: the channel ended before the answer")
     );
     std::fs::write(&path, br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},"endpoints":[{"name":"invalid","number":1,"dialect":1,"account":0,"provider":"codex","connect":10000,"handshake":10000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":60000,"idle":30000}],"address":"192.0.2.1:8080","transport":"plaintext"}],"environment":[]}"#).expect("invalid transport fixture");
-    let errors = support::refusal_program(agent, &scratch, vec![path.into()]);
+    let errors = support::refusal_program(&agent, &scratch, vec![path.into()]);
     assert_eq!(
         String::from_utf8_lossy(&errors).lines().last(),
         Some("smith: plaintext endpoint address must be loopback")
@@ -319,8 +319,7 @@ fn smith_agent_refuses_a_malformed_configuration_before_its_channel_opens() {
     let scratch = Scratch::new();
     let path = scratch.path().join("malformed-agent.json");
     std::fs::write(&path, br#"{"profile":"standard"}"#).expect("malformed configuration fixture");
-    let errors =
-        support::refusal_program(std::path::Path::new(env!("CARGO_BIN_EXE_smith-agent")), &scratch, vec![path.into()]);
+    let errors = support::refusal_program(&skein_scratch::paths::binary("smith-agent"), &scratch, vec![path.into()]);
     let line = std::str::from_utf8(&errors).expect("UTF-8 refusal");
     assert!(line.starts_with("smith: configuration JSON:"));
     assert_eq!(line.lines().count(), 1, "startup writes one refusal");
@@ -333,8 +332,7 @@ fn smith_agent_names_a_broken_relationship_and_exits_1_before_its_channel_opens(
     std::fs::write(&path,
         br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"read_window":1025,"tool_payload":1024}},"endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","transport":"plaintext","connect":1000,"handshake":1000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],"environment":[]}"#,
     ).expect("broken relationship fixture");
-    let errors =
-        support::refusal_program(std::path::Path::new(env!("CARGO_BIN_EXE_smith-agent")), &scratch, vec![path.into()]);
+    let errors = support::refusal_program(&skein_scratch::paths::binary("smith-agent"), &scratch, vec![path.into()]);
     assert_eq!(
         std::str::from_utf8(&errors).expect("UTF-8 refusal"),
         "smith: read-in-payload: declared.read_window=1025 bytes; declared.tool_payload=1024 bytes\n"
@@ -348,8 +346,7 @@ fn smith_agent_names_a_repeated_environment_entry_before_its_channel_opens() {
     std::fs::write(&path,
         br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"tool_payload":256,"read_window":256}},"endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","transport":"plaintext","connect":1000,"handshake":1000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],"environment":[{"name":"A","value":"one"},{"name":"A","value":"two"}]}"#,
     ).expect("repeated environment fixture");
-    let errors =
-        support::refusal_program(std::path::Path::new(env!("CARGO_BIN_EXE_smith-agent")), &scratch, vec![path.into()]);
+    let errors = support::refusal_program(&skein_scratch::paths::binary("smith-agent"), &scratch, vec![path.into()]);
     assert_eq!(
         std::str::from_utf8(&errors).expect("UTF-8 refusal"),
         "smith: environment: entry 1 has an invalid or repeated name\n"
@@ -365,8 +362,7 @@ fn smith_agent_refuses_empty_endpoints_by_name_before_its_channel_opens() {
         br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"tool_payload":256,"read_window":256}},"endpoints":[],"environment":[]}"#,
     )
     .expect("empty endpoints fixture");
-    let errors =
-        support::refusal_program(std::path::Path::new(env!("CARGO_BIN_EXE_smith-agent")), &scratch, vec![path.into()]);
+    let errors = support::refusal_program(&skein_scratch::paths::binary("smith-agent"), &scratch, vec![path.into()]);
     assert_eq!(
         std::str::from_utf8(&errors).expect("UTF-8 refusal"),
         "smith: field: declared.endpoints must not be empty\n"

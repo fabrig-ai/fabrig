@@ -169,7 +169,7 @@ pub fn run_arriving(
 
 fn start(scratch: &Scratch, name: &str, logout: bool, mode: Mode) -> Binary {
     let mut command = Command {
-        program: env!("CARGO_BIN_EXE_smith").into(),
+        program: skein_scratch::paths::binary("smith"),
         arguments: vec![if logout { "logout".into() } else { "login".into() }, name.into()],
         environment: vec![
             ("HOME".into(), scratch.path().into()),

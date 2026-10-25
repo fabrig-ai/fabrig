@@ -657,7 +657,8 @@ mod configured_trace_tests {
         std::fs::write(chat.join("state"), b"old state").unwrap();
         let alias = scratch.path().join("alias");
         std::os::unix::fs::symlink(&chat, &alias).unwrap();
-        let certificate = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/protocol-llm/fixtures/root.der");
+        let certificate =
+            skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
         for (path, allowed) in
             [(scratch.path().join("outside"), true), (chat.join("state"), false), (alias.join("trace"), false)]
         {
