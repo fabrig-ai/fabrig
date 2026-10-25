@@ -409,8 +409,14 @@ loopback, as the fake LLM peer does (fake-llm.md, 3). It mints no token: each
 token response, to a sign-in or a refresh, is one its script queues, so its
 script lists every access token it grants, each refresh's included, before
 a world starts. A world that runs it beside the fake LLM peer gives the peer
-that list (fake-llm.md, 6). Randomized cases use the fuzzy profile. Memory
-high water is checked against `worst_case`.
+that list (fake-llm.md, 6). Before its first drive, the hosted issuer
+peer may adopt a caller-held listener with `Peer::adopt_listener(fd, addr)`,
+as the fake LLM peer does. Its queued listen claims that address; on refusal
+the caller retains the descriptor. The peer owns an accepted descriptor
+through ordinary shutdown. A simulated peer test serves an issuer document
+on the adopted address and checks settled io and no open descriptors.
+Randomized cases use the fuzzy profile. Memory high water is checked
+against `worst_case`.
 
 **The issuer's terms** are tested the same way: a new registration and
 signing in again, each sending what section 2.1 says and nothing else; an
