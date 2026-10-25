@@ -130,7 +130,11 @@ pub fn writer_settings() -> Settings {
 /// Component bounds use exactly the top's client limits.
 #[must_use]
 pub fn protocol_shared() -> Shared {
-    let client = temper_engine_forge_world::LIMITS.client;
+    protocol_shared_for(&temper_engine_forge_world::LIMITS.client)
+}
+/// Component bounds for a world's explicit client limits.
+#[must_use]
+pub fn protocol_shared_for(client: &skein_forge_client::Limits) -> Shared {
     Shared {
         calls: client.calls,
         rows: client.rows,

@@ -72,6 +72,21 @@ impl Protocol {
         );
         Self::with_limits(seed, joint, fixtures::GITHUB, limits)
     }
+    /// The Forgejo world with a story's explicit domain limits; the component's
+    /// shared bounds follow their client limits.
+    #[must_use]
+    pub fn forgejo_with_limits(seed: u64, limits: &top::Limits) -> Self {
+        let joint = Joint::with(
+            seed,
+            0,
+            fixtures::protocol_config(),
+            fixtures::limits(),
+            fixtures::writer_settings(),
+            fixtures::protocol_shared_for(&limits.client),
+            joint::checks(1000),
+        );
+        Self::with_limits(seed, joint, fixtures::FORGEJO, limits)
+    }
     fn with(seed: u64, joint: Joint, fixture: fixtures::Fixture) -> Self {
         Self::with_limits(seed, joint, fixture, &LIMITS)
     }

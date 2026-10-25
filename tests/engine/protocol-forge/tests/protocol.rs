@@ -365,6 +365,25 @@ fn idle_forge_call_cost_does_not_follow_old_issue_history() {
 }
 
 #[test]
+fn a_repository_with_more_branches_than_rows_is_adopted_with_one_branches_read() {
+    use temper_engine_forge_world::LIMITS;
+
+    let limits = top::Limits { client: skein_forge_client::Limits { rows: 3, ..LIMITS.client }, ..LIMITS };
+    let mut world = Protocol::forgejo_with_limits(11, &limits);
+    let main = world.branch(b"main");
+    for number in 1..=3 {
+        let branch = format!("work/{number}");
+        world.push(branch.as_bytes(), b"outside temper's prefix");
+        assert_ne!(world.branch(branch.as_bytes()), main, "the fake holds {branch} besides main");
+    }
+    assert_eq!(world.branch(b"main"), main);
+    let before = world.tally().routes.get(&Route::Branches).copied().unwrap_or(0);
+    world.adopt();
+    let reads = world.tally().routes.get(&Route::Branches).copied().unwrap_or(0) - before;
+    assert_eq!(reads, 1, "one read under the prefix: no page of the four, and no refused attempt retried");
+}
+
+#[test]
 fn honest_costs_equal_the_requests_the_fake_served() {
     let mut world = Protocol::new(11);
     world.adopt();
