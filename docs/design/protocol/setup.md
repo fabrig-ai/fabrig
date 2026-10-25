@@ -1251,6 +1251,11 @@ temper box
   for its steps, `temper-forge-setup`'s with the fakes' before them
   and the demo's group among the asked (8.4), and gives them to
   `temper-box`, each asked group apart.
+- **Welcome peers first:** the fake-backend configuration supplies an
+  always-running prefix before the ordinary steps. Every asked group's
+  insertion point, the playground's included, follows that prefix.
+  An empty prefix leaves the ordinary order unchanged. Stopping an asked
+  group never stops these peers.
 - **Checked:** a boundary test fails the gate when `temper-box` depends
   on a crate named `temper-*` but `temper-forge-setup`, or names an item
   of it but `steps`, `Steps`, `Group`, `Stage`, `Step` and its `Kind`.
@@ -1282,9 +1287,10 @@ running its commands, and the client names them (6.5).
 ### 7.5 The welcome's fake backends
 
 temper box --fake-backends [--bundle DIR] [DIRECTORIES] prepares the retained isolated
-sandbox of configuration.md, 12.1. Every child reads the effective
-temper.json and agent.json through its effective directory flags; changing
-only the parent's parsed bytes is insufficient.
+sandbox of configuration.md, 12.1. Ordinary children read the effective
+temper.json and agent.json through their effective directory flags; peer
+commands read absolute effective document paths. Changing only the parent's
+parsed bytes is insufficient.
 
 Build the loopback bundle once, then start even with empty configuration:
 
@@ -1295,7 +1301,9 @@ without it, that configured bundle is used. Missing both refuses with the
 bundle command and --bundle. Empty C stays untouched: init writes directly
 into the effective sandbox. Box startup performs no build or fetch.
 
-The preparation prints its effective paths and the peer commands.
+The preparation prints its effective paths, supervised peers and dummy
+facts' paths. For a peer not yet supervised it prints the manual command;
+it never reports that peer as running.
 GitHub has one fixed person and repository. Its App id and matching fixture
 key, the dummy model key and the elsewhere Forgejo's admin token are the
 values a walk uses. The fixed signed-in model bearer uses the first added
@@ -1327,16 +1335,34 @@ human sign-ins from several local boxes are not promised. Tests name
 explicit callback ports. Long-running peers retain no observation stream
 unless one is explicitly requested.
 
-The flag/configuration and standalone issuer are independent delivery
-steps. Automatic GitHub/issuer/model supervision is the following step:
-their long steps are outside the playground's asked group, whose retirement
-must not end a newly connected person's model or issuer. Listener ownership
-and readiness follow the ordinary box contract; an issuer primitive gap
-must be resolved before claiming inherited-listener support.
+The GitHub and model peers are long steps named `fake github` and
+`fake model`, before ordinary steps and outside the playground's asked
+group. Their arguments are `fake forge --document C'/github.json --seed 7`
+and `fake llm --document C'/llm.json --seed 7`, respectively, with no
+directory flags. The issuer uses the same seed, so its bearer matches the
+model's first added key. A supervised issuer is `fake issuer`, using
+`fake oauth --document C'/oauth.json --seed 7`; it requires the primitive's
+inherited-listener support. It never substitutes a self-bound startup race
+for that contract.
 
-Forgejo here remains owned and real; elsewhere keeps its managed
-configuration/restart, and program login remains a command the walker runs
-once. No product path branches on the flag.
+The box owns the peers' held listeners before spawning them. First
+preparation transfers its reservations exactly once; on reuse the ordinary
+box listener mechanism binds the retained documents' addresses. Each is
+loopback with a nonzero port, distinct from the other peer ports and the
+ordinary box listeners. Output paths stay within D'. The retained documents
+are revalidated on both paths; edits are not silently replaced.
+
+Held listeners provide the ordinary fake peers' readiness and accept
+backlog. Restart, backoff, give-up and reverse-order shutdown use the
+ordinary supervisor. Retiring the playground must not end a newly connected
+person's model or issuer. Peer memory lasts one launch: a restarted peer
+uses the same seed and output files, but does not recover in-memory Apps or
+other changes. Effective configuration and temper's data remain retained.
+
+Forgejo here remains owned and real; elsewhere uses the ordinary managed
+configuration. The program way uses a separately provisioned fake adapter
+(configuration.md, 12.1) and the ordinary program-login mechanism. No product
+path branches on the flag.
 
 ## 8. The configuration
 
@@ -2212,8 +2238,14 @@ them as it does any Forgejo.
 - **Its outputs,** in a document's form, where the box's fakes read the
   files `temper init` and the preparation drew: the fake writes each
   file the document names before it binds, so that each exists before
-  its ready line, created new at 0o600; a file already there refuses the
-  start, naming it. Each file's directory must exist, but the admin
+  its ready line, created new at 0o600 when absent. A retained admin token,
+  model key, added key or TLS root is kept only when it is this user's
+  private single-link regular file and contains exactly the expected
+  seeded bytes. The check rejects symlinks, compares the opened and named
+  device/inode, and bounds the read by the expected length plus one;
+  any refusal names the file. A retained file is never rewritten or
+  included in this invocation's rollback. Observations remain create-new
+  and refuse an existing file. Each file's directory must exist, but the admin
   token's, the forge's directory (section 3), which the fake makes
   private when absent and refuses, naming it, when it is not private, as
   `temper forge prepare` does. Each key, `key`'s and `added_keys`', and the admin token are each 20

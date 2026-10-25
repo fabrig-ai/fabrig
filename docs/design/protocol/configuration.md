@@ -1302,7 +1302,13 @@ login is imported.
   An explicit --bundle changes only the retained effective bundle selection,
   after validating it; other effective edits and data remain. Without that
   override, the retained bundle is authoritative. The box prints these
-  effective directories. Removing E resets this scratch deployment; a
+  effective directories. Compatible v1 peer documents are revalidated and
+  retained; the seeded output files follow setup.md, 8.4. Peer in-memory
+  state lasts one launch, independently of retained configuration and data.
+  A later required document or adapter schema that cannot safely reuse an
+  older sandbox is refused by name with explicit reset instructions;
+  startup never migrates or deletes E or silently omits a required peer.
+  Removing E resets this scratch deployment; a
   normal start never reads it as the real one.
 - **Roots:** GitHub forge 2's API, web, git and transport name one
   plaintext loopback fake. Provider 1 keeps its shipped client, scopes,
@@ -1326,6 +1332,13 @@ an empty cache may need its ordinary one-time pinned download, while a
 disconnected walk uses a populated cache. Forgejo elsewhere is an
 ordinary managed entry backed by its separate fake. Program login is the
 ordinary command with its configured fake adapter, not an automatic login.
+The fake program way uses the pinned `fake-claude` executable provisioned
+beside `temper`, resolved to that exact absolute sibling path, and its
+private adapter directory under D'. Enabling that way without the sidecar
+refuses with its path named. Startup builds or fetches nothing and never
+discovers or falls back to a real `claude` from PATH. An older sandbox that
+still names an unsafe real adapter is refused before a fake program login;
+no credential or login state is imported.
 
 ## 13. Settings in the store
 

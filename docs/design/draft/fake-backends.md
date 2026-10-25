@@ -89,8 +89,13 @@ section 4 what stays real.
    --document`, seeded with one personal account and one repository,
    and with its App's id and key printed for the own-App path), the
    issuer and the model as always-running steps, not in the playground's
-   asked group, which the first connected forge retires. Readiness and
-   listener handover as the playground's fakes do.
+   asked group, which the first connected forge retires. Their prefix
+   precedes every asked group's insertion point. The box holds each
+   listener before spawn and hands it over as for the playground's fakes;
+   the issuer requires the same held-listener support. Compatible retained
+   documents and exact private seed outputs survive restart; peer memory
+   lasts one launch. There is no second supervisor or self-bound readiness
+   substitute.
 4. **The walk.** Reproduce GitHub's Create, install and return as one
    browser click chain against the separate processes, and fix what
    breaks. Then walk each path to Ready in a browser: GitHub one-click,
