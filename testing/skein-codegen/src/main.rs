@@ -68,6 +68,7 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
 
 #[expect(clippy::print_stderr, reason = "the command's errors are printed to stderr (codec.md 12.8)")]
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     match execute() {
         Ok(code) => ExitCode::from(code),
         Err(error) => {

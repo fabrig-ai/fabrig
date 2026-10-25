@@ -57,6 +57,7 @@ fn worst_case() -> Option<u64> {
         .checked_add(u64::from(EVENT_BYTES).checked_mul(64)?.checked_mul(u64::try_from(STREAMS).ok()?)?)
 }
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {

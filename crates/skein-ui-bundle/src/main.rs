@@ -84,6 +84,7 @@ fn run() -> Result<(), String> {
 }
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {

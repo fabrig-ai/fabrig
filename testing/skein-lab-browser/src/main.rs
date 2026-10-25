@@ -10,6 +10,7 @@ mod runtime;
 #[cfg(test)]
 mod tests;
 fn main() {
+    skein_fail_stop::install();
     let config = match config::Config::parse(std::env::args_os().skip(1)) {
         Ok(config) => config,
         Err(usage) => {

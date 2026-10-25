@@ -2,6 +2,7 @@
 use std::io::{Read, Write};
 use std::net::TcpListener;
 fn main() {
+    skein_fail_stop::install();
     let args: Vec<_> = std::env::args().collect();
     let listener = TcpListener::bind("127.0.0.1:0").expect("loopback listener");
     println!("{}", listener.local_addr().expect("bound address").port());

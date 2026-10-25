@@ -13,6 +13,7 @@ const DESCRIPTORS: &str = "/proc/self/fd";
 const DESCRIPTORS: &str = "/dev/fd";
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     let mut args = std::env::args();
     let _program = args.next();
     let mode = args.next();

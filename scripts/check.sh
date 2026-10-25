@@ -21,6 +21,8 @@ step() {
 }
 
 python3 -I -B -m unittest discover -t scripts/lab -s scripts/lab/tests/unit
+# programming-model.md, 2: every binary installs the fail-stop hook first.
+step fail-stop python3 -I -B scripts/fail_stop.py
 step fmt cargo fmt --all --check
 # testing-strategy.md 10: A setup written once; Named fixtures and sizes.
 mkdir -p target

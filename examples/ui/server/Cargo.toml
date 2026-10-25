@@ -11,6 +11,7 @@ name = "skein-ui-example"
 path = "src/main.rs"
 
 [dependencies]
+skein-fail-stop.workspace = true
 skein-ui-example-view.workspace = true
 skein-http.workspace = true
 skein-lib.workspace = true

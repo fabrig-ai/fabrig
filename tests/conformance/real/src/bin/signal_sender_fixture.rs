@@ -14,6 +14,7 @@ fn main() {
     // Three entities give io 14 operation slots; 32 records hold a complete
     // batch and the events produced while it lands.
     const RECORDS: u32 = 32;
+    skein_fail_stop::install();
     let mut args = std::env::args().skip(1);
     let backend = match args.next().as_deref() {
         Some("ring") => Backend::Ring,
@@ -141,4 +142,6 @@ fn main() {
 }
 
 #[cfg(not(target_os = "linux"))]
-fn main() {}
+fn main() {
+    skein_fail_stop::install();
+}

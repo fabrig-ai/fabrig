@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    skein_fail_stop::install();
     let mut forgejo = None;
     let mut runner = None;
     let mut scratch = None;

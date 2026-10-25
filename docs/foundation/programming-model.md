@@ -178,8 +178,13 @@ to a file.
   reads off the service between iterations, it reads in the loop's hook
   (shell.md, 12). Before the loop, startup reads its configuration and
   certificates with the kit (shell.md, 6).
-- **Panics abort.** `panic = "abort"` in every profile: a panic anywhere is
-  fail-stop, and a supervisor restarts the process. In a client compiled
+- **Panics abort.** A panic anywhere is fail-stop, and a supervisor
+  restarts the process. The release and web profiles say `panic =
+  "abort"`. The dev profile unwinds, as the test harness needs, so that a
+  binary and its tests share one build of each dependency; every
+  binary's `main` therefore installs `skein_fail_stop`'s hook before
+  anything else, which reports the panic and aborts before anything
+  unwinds, and each repository's gate checks that it does. In a client compiled
   to WebAssembly the abort is a trap, and its shell restarts the client,
   in a browser by reloading its page.
 
@@ -856,7 +861,7 @@ one place arms and re-arms it (5.4), not every handler.
 | A stale handle is detected | the generation | runtime |
 | A state and what it holds are one value | enums with data | compiler |
 | Statuses are not ignored | `#[must_use]`, `unused_must_use`, `let_underscore_must_use` | compiler, clippy; review for an ignored `Option` |
-| Fail-stop | `panic = "abort"` | build profile |
+| Fail-stop | `panic = "abort"` in release; in dev, `skein_fail_stop::install()` first in every `main` | build profile; the gate's `scripts/fail_stop.py` |
 | No leaks; ownership is a tree | | simulator |
 
 What step code may not use, and what checks that, is 10.3. Each

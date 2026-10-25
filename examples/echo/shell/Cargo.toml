@@ -12,6 +12,7 @@ name = "skein-echo"
 path = "src/main.rs"
 
 [dependencies]
+skein-fail-stop.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true

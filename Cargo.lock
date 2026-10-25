@@ -101,6 +101,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 name = "forgejo-conformance"
 version = "0.0.0"
 dependencies = [
+ "skein-fail-stop",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-conformance",
@@ -163,6 +164,7 @@ dependencies = [
 name = "github-conformance"
 version = "0.0.0"
 dependencies = [
+ "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-fake-peers",
@@ -513,6 +515,7 @@ name = "skein-codegen"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-fail-stop",
 ]
 
 [[package]]
@@ -529,6 +532,7 @@ version = "0.0.0"
 dependencies = [
  "libc",
  "skein-conformance",
+ "skein-fail-stop",
  "skein-io",
  "skein-lib",
  "skein-scratch",
@@ -587,6 +591,7 @@ dependencies = [
  "skein-echo-client",
  "skein-echo-service",
  "skein-echo-world",
+ "skein-fail-stop",
  "skein-io",
  "skein-lib",
  "skein-shell",
@@ -607,6 +612,10 @@ dependencies = [
  "skein-sim",
  "skein-world",
 ]
+
+[[package]]
+name = "skein-fail-stop"
+version = "0.0.0"
 
 [[package]]
 name = "skein-fake-channel"
@@ -940,6 +949,7 @@ dependencies = [
 name = "skein-io-world"
 version = "0.0.0"
 dependencies = [
+ "skein-fail-stop",
  "skein-fake-machine",
  "skein-heap",
  "skein-io",
@@ -993,6 +1003,7 @@ name = "skein-lab-browser"
 version = "0.0.0"
 dependencies = [
  "skein-browser",
+ "skein-fail-stop",
  "skein-fake-person",
  "skein-fake-person-browser",
  "skein-io",
@@ -1219,6 +1230,7 @@ dependencies = [
 name = "skein-throwaway-forgejo"
 version = "0.0.0"
 dependencies = [
+ "skein-fail-stop",
  "skein-forge",
  "skein-http",
  "skein-io",
@@ -1267,6 +1279,7 @@ dependencies = [
 name = "skein-ui-bundle"
 version = "0.0.0"
 dependencies = [
+ "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
  "wasm-bindgen-cli-support",
@@ -1276,6 +1289,7 @@ dependencies = [
 name = "skein-ui-example-server"
 version = "0.0.0"
 dependencies = [
+ "skein-fail-stop",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -1353,6 +1367,7 @@ name = "skein-ui-web-tests"
 version = "0.0.0"
 dependencies = [
  "skein-browser",
+ "skein-fail-stop",
  "skein-fake-peers",
  "skein-fake-person",
  "skein-fake-person-browser",
@@ -1383,6 +1398,7 @@ dependencies = [
 name = "skein-world-tests"
 version = "0.0.0"
 dependencies = [
+ "skein-fail-stop",
  "skein-fake-machine",
  "skein-heap",
  "skein-io",

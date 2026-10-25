@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 fn main() {
+    skein_fail_stop::install();
     if let Err(error) = main_result() {
         eprintln!("{error}");
         std::process::exit(1);

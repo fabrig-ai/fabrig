@@ -40,6 +40,7 @@ struct Configuration {
 }
 
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     let configuration = match configure(env::args().skip(1)) {
         Ok(configuration) => configuration,
         Err(why) => {

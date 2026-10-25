@@ -131,6 +131,7 @@ impl Host for Terminal {
     }
 }
 fn main() -> ExitCode {
+    skein_fail_stop::install();
     let Input::Terminal { kept, .. } = raw_input(Fd::new(0), Keys::Pass).expect("terminal input") else {
         return ExitCode::FAILURE;
     };

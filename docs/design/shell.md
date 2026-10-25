@@ -186,8 +186,9 @@ What startup reads, its configuration, its secrets and certificates, it
 reads with the kit (6.1). Then `main` makes the service and calls `drive`
 (section 12).
 
-`panic = "abort"` in every profile: a panic is fail-stop, and a
-supervisor restarts the process.
+A panic is fail-stop, and a supervisor restarts the process. Before
+step 1, `main` installs `skein_fail_stop`'s hook, which aborts on a
+panic in a build that unwinds (programming-model.md, 2).
 
 ### 6.1 Reading files at startup
 

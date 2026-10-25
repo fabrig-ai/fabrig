@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 
 fn main() {
+    skein_fail_stop::install();
     let args: Vec<_> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("server") => server(&args[1..], false),
