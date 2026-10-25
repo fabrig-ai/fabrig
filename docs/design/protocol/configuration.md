@@ -1327,6 +1327,17 @@ login is imported.
   neither builds a bundle nor accesses a remote service.
 
 
+The effective configuration keeps forge 1 as the playground, forge 2 as
+GitHub and forge 3 as the owned Forgejo. Forge 4 is the ordinary managed
+Forgejo elsewhere: its API, git and web roots name a separate loopback
+fake. Its retained peer document is C'/forgejo.json, and its dummy admin
+token is D'/forgejo-admin.token, private with mode 0600. Readiness names
+only that file's path; its contents belong in no log, report or record.
+The managed entry carries the ordinary admin-connect contract, not an
+automatic account login or a product fake branch. A retained sandbox
+missing this required document refuses by name with reset instructions;
+its marker stays v1 and no file is silently generated on reuse.
+
 Forgejo here keeps the ordinary owned steps and cache (setup.md, 6.6);
 an empty cache may need its ordinary one-time pinned download, while a
 disconnected walk uses a populated cache. Forgejo elsewhere is an

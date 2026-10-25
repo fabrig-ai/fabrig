@@ -99,9 +99,13 @@ actual child configuration reads in the existing process tier. A new
 process module proves a fresh effective box, retained restart, standalone
 issuer sign-in through the shipped registration and a first fake-model
 reply. It keeps private fixtures, the existing fetch stub and ordinary
-teardown; no test contacts a real account or downloads Forgejo. Browser
-coverage is only for the uninterrupted navigation chain, not document
-rewrites or OAuth bytes. Tests stay in their tiers. A/B evidence reports
+teardown; no test contacts a real account or downloads Forgejo. The managed elsewhere entry's fourth stable forge id and admin-token
+naming are checked at the lowest setup/configuration layer. Missing or
+unsafe required peer documents and program sidecars have named refusal
+coverage; compatible retained edits remain untouched. Browser coverage is
+only for the uninterrupted navigation chain, not document rewrites or
+OAuth bytes. The walk's token file is private and its contents are never
+captured in readiness output or browser/lab evidence. Tests stay in their tiers. A/B evidence reports
 summed test execution by world and the new process stories against their
 two-second aim, excluding compilation, queue and gate elapsed time.
 

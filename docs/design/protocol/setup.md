@@ -1340,8 +1340,9 @@ The preparation prints its effective paths, supervised peers and dummy
 facts' paths. For a peer not yet supervised it prints the manual command;
 it never reports that peer as running.
 GitHub has one fixed person and repository. Its App id and matching fixture
-key, the dummy model key and the elsewhere Forgejo's admin token are the
-values a walk uses. The fixed signed-in model bearer uses the first added
+key and the dummy model key are the values a walk uses. The elsewhere
+Forgejo's admin token is kept in its private file: instructions name only
+the path, and no log, report or record contains its contents. The fixed signed-in model bearer uses the first added
 credential stream with the same seed as the issuer, while the primary
 model key stays the API-key choice. Neither value is a real credential.
 
@@ -1394,8 +1395,17 @@ person's model or issuer. Peer memory lasts one launch: a restarted peer
 uses the same seed and output files, but does not recover in-memory Apps or
 other changes. Effective configuration and temper's data remain retained.
 
-Forgejo here remains owned and real; elsewhere uses the ordinary managed
-configuration. The program way uses a separately provisioned fake adapter
+Forgejo here remains owned and real. Elsewhere is forge 4, preserving
+forge 1's playground, forge 2's GitHub and forge 3's owned configuration.
+Its separate `fake forgejo` long step uses
+`fake forge --document C'/forgejo.json --seed 7`, with its held loopback
+listener before ordinary steps and outside the playground's asked group.
+Its retained token output is D'/forgejo-admin.token, subject to the same
+private-file validation and seed-output reuse as the other peers. The
+ordinary managed entry offers the person's admin connect; its empty setup
+directory is valid for that mode. Admission and reconciliation use the
+ordinary configuration checks, without raised budgets or policy limits.
+The program way uses a separately provisioned fake adapter
 (configuration.md, 12.1) and the ordinary program-login mechanism. No product
 path branches on the flag.
 
