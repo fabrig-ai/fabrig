@@ -15,8 +15,9 @@ const FIRST_TURN: u32 = 1;
 const SPENT: u64 = 1;
 const OLD_TEXT: &[u8] = b"text from the retired conversation";
 const NEW_TEXT: &[u8] = b"text from the new conversation";
-const FIRST_WAKE: u8 = 141;
-const NEXT_WAKE: u8 = 142;
+// say_ask uses each byte as both an opaque key and UTF-8 words.
+const FIRST_WAKE: u8 = b'A';
+const NEXT_WAKE: u8 = b'B';
 // The direct driver's own public pump/settle bound is 200 iterations.
 const STEPS: usize = 200;
 
@@ -173,7 +174,10 @@ fn retired_terminals_cannot_poison_a_later_window_load() {
     driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: retired_owner }));
     driver.settle();
     let second = driver.last_assignment();
-    driver.send(protocol::turn(CHANNEL, second.task, second.attempt, FIRST_TURN, SPENT, None, NEW_TEXT));
+    // Take the offered messages so parking waits for the next explicit wake
+    // (jig's domain/engine.md 7.4). Their numbers, not request keys, fence reads.
+    let read = second.messages.last().map(|message| message.number);
+    driver.send(protocol::turn(CHANNEL, second.task, second.attempt, FIRST_TURN, SPENT, read, NEW_TEXT));
     driver.settle();
     driver.answer(CHANNEL, second.task, second.attempt, SPENT, tasks::End::Parked, engine::Parts::none());
     driver.settle();
