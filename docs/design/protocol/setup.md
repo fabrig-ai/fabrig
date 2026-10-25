@@ -1135,7 +1135,8 @@ temper box
   (7.1), or a long one exits more than `box.restarts` times within
   `box.window_ms`. The backoff is counted from a step's exits within the
   window, so it starts again from `box.backoff_ms` once a step has run a
-  window without exiting.
+  window without exiting. Its stop treats a step still starting as the box's
+  stop does.
 - **Stops** at a first termination signal: the long steps in reverse
   order, each by a signal, `box.grace_ms`, a second signal, which turns
   `temper serve`'s drain into an abort (README.md, section 4),
@@ -1143,12 +1144,21 @@ temper box
   once, long or link, so every long step, and a link step still
   running, is sent both; a dormant group's steps run nothing, and are
   sent nothing. A second termination
-  signal closes them all. It exits 0 after a stop it was asked for.
+  signal closes them all. A step the box has not yet asked to start when the
+  stop begins is not started. One it has asked for is waited on in its place
+  in that order, and a child that starts then is stopped as above, or closed
+  at once after a second termination signal; it is never readied, continued,
+  recorded or restarted. The box cannot interrupt the system's creation of a
+  process: that call blocks the box's one loop for as long as it lasts,
+  without bound on a filesystem that stalls (skein's `kernel.md`, section 6),
+  and a signal or a deadline is acted on only once it returns. It exits 0
+  after a stop it was asked for.
 - **Stops a group** at `stop FORGE` (7.1): the group's running steps
   alone, as the box's stop does, in reverse order, each by a signal,
   `box.grace_ms`, a second signal, `box.grace_ms` again, then a close;
   a step that exits during it is not restarted, and a once step still
-  running is closed with them. Once they are all closed the box answers
+  running is closed with them; a step still starting is treated as at the
+  box's stop. Once they are all closed the box answers
   `stopped FORGE`, the group dormant, says `<label>: stopped` on its
   terminal (below), and runs on; a termination signal during it
   stops the box as above, which closes them too.
@@ -2850,7 +2860,12 @@ relies on.
   backoff and the cap; the stop's order, and `temper serve`'s second
   signal; a link step started on its long step's first line, given it
   alone, once per box, and given a restart's first line when the long
-  step exited before writing one.
+  step exited before writing one; a stop, a give up, a group's stop and its
+  failure withdrawing a spawn not yet asked for, once, a second termination
+  ordering no second withdraw; a spawn asked for waited on in its place,
+  its late child stopped, or closed at once after a second termination,
+  never readied, continued, recorded or restarted, and its late failure
+  ending it as a stop's.
 - **The fetch's machine** (6.6), in temper-forge-setup, given its URLs
   and digests: each pin's URL and digest for each architecture, and
   another architecture refused; another status or a redirect refused;
@@ -2875,7 +2890,10 @@ relies on.
   demo's, answering `started` with no record written, and dormant again
   at the box's next start until asked; a line past `box.line_bytes`
   refused; `temper serve` restarted with a pipe afresh, an answer meant
-  for the exited one dropped.
+  for the exited one dropped; a restart held unsent and then a stop
+  launching nothing; a held spawn's late start and late failure during a
+  box's stop, and a late start during a group's stop, the box ending with
+  nothing open.
 - **The box's terminal and logs** (7.2), in temper-box, its clock the
   test's: given one pipe for its stdout and its stderr, serve's link
   written in pieces between other steps' lines reads whole there; the

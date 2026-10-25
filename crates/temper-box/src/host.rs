@@ -55,6 +55,7 @@ struct Child {
     process: Option<Token>,
     pipes: [Pipe; 2],
     spawn: bool,
+    withdrawn: Option<Wall>,
     hold: bool,
     line: Option<Box<[u8]>>,
     stdin: Option<Sink>,
@@ -69,6 +70,7 @@ impl Child {
             process: None,
             pipes: [Pipe::new(lines::route(serve, step.name(), 1)), Pipe::new(false)],
             spawn: false,
+            withdrawn: None,
             hold: false,
             line: None,
             stdin: None,
@@ -296,6 +298,7 @@ impl Service {
             Some(Order::Say { .. }) => self.reply_ready(),
             Some(
                 Order::Spawn { .. }
+                | Order::Withdraw { .. }
                 | Order::Hold { .. }
                 | Order::Wait { .. }
                 | Order::Signal { .. }
@@ -526,6 +529,15 @@ impl Service {
     }
     fn order(&mut self, order: Order, wall: Wall) {
         match order {
+            Order::Withdraw { step } => {
+                let state = self.children.get_mut(step).expect("machine step");
+                if state.spawn && state.owner.is_none() {
+                    state.spawn = false;
+                    state.hold = false;
+                    state.line = None;
+                    state.withdrawn = Some(wall);
+                }
+            }
             Order::Terminal { fact } => self.terminal_fact(fact, wall),
             Order::Record { forge } => self.records.write(forge),
             Order::Say { said } => {
@@ -594,7 +606,25 @@ impl Service {
             }
         }
     }
+    fn withdrawn(&mut self) {
+        for (step, state) in self.children.iter_mut().enumerate() {
+            if self.orders.room() < self.machine.max_out() {
+                break;
+            }
+            if let Some(wall) = state.withdrawn.take() {
+                policy_input_at(
+                    &mut self.machine,
+                    self.env.now,
+                    wall,
+                    Input::Withdrawn { step },
+                    &mut self.orders,
+                    &mut self.order_walls,
+                );
+            }
+        }
+    }
     fn children(&mut self) {
+        self.withdrawn();
         for (step, state) in self.children.iter_mut().enumerate() {
             if self.requests.room() < 8 || self.orders.room() < self.machine.max_out() {
                 break;
@@ -661,7 +691,7 @@ impl Service {
             if description.name() == self.settings.serve.as_ref() {
                 settled &= self.closing_control == [None, None];
             }
-            if state.spawn && settled {
+            if state.spawn && settled && !withdraw_queued(&self.orders, step) {
                 state.spawn = false;
                 self.serial = self.serial.checked_add(1).expect("spawn serial");
                 let owner = Token::new(self.serial);
@@ -815,6 +845,16 @@ impl Service {
             self.root = Root::Closing;
         }
     }
+}
+// A terminal fact or pipe reply can hold a Withdraw in the order queue after
+// its Spawn has been consumed. Admission must already respect that withdrawal.
+fn withdraw_queued(orders: &Queue<Order>, step: usize) -> bool {
+    for order in orders {
+        if *order == (Order::Withdraw { step }) {
+            return true;
+        }
+    }
+    false
 }
 // The companion queue has exactly the order queue's capacity. Every policy
 // entry stamps ALL newly emitted orders before another entry or consumption;
@@ -1193,6 +1233,13 @@ impl skein_shell::Host for Service {
         if self.terminal.pending(self.phase == Phase::Closing) && self.requests.room() >= 2 {
             return true;
         }
+        if self.orders.room() >= self.machine.max_out() {
+            for state in &self.children {
+                if state.withdrawn.is_some() {
+                    return true;
+                }
+            }
+        }
         if self.orders.room() < self.machine.max_out() || self.requests.room() < 8 {
             return false;
         }
@@ -1224,7 +1271,7 @@ impl skein_shell::Host for Service {
             if description.name() == self.settings.serve.as_ref() {
                 settled &= self.closing_control == [None, None];
             }
-            if state.spawn && settled {
+            if state.spawn && settled && !withdraw_queued(&self.orders, step) {
                 return true;
             }
         }

@@ -271,14 +271,14 @@ fn an_exited_serve_loses_its_answers_and_gets_fresh_pipes() {
     let old_output = child.output.unwrap();
     let old_input = child.input.unwrap();
     let pid = child.pid;
-    harness.hold_prepare = true;
+    harness.hold_spawn = Some(bytes::copy_of(b"prepare 3"));
     harness.ask(b"start 3\n");
     harness.run_until_idle();
-    assert!(harness.held_prepare.is_some());
+    assert!(harness.held_spawn.is_some());
     harness.sim.finish_service(pid, Exit::Code(1));
     harness.run_until_idle();
     harness.replies.clear();
-    harness.release_prepare();
+    harness.release_spawn();
     harness.run_until_idle();
     assert!(harness.replies.is_empty(), "answers to the exited serve are dropped");
     harness.sim.advance_to(harness.sim.now().saturating_add(Duration::from_millis(500)));
@@ -1100,4 +1100,135 @@ fn long_labels_pass_actual_output_admission_with_tiny_control_and_write_caps() {
         harness.sim.assert_no_open_fds(harness.pid);
         assert_eq!(harness.machine.open_handles(), 0);
     }
+}
+
+#[test]
+fn an_unsent_restart_is_withdrawn_while_old_output_waits_on_the_terminal() {
+    let mut harness = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
+    harness.hold_terminal_ack = true;
+    harness.run_until_idle();
+    let serve = harness.child_index(b"serve");
+    harness.write_child(serve, 1, b"x");
+    harness.run_until_idle();
+    let pid = harness.hosted.get(serve).unwrap().pid;
+    harness.sim.finish_service(pid, Exit::Code(0));
+    harness.run_until_idle();
+    harness.sim.advance_to(harness.sim.now().saturating_add(Duration::from_millis(500)));
+    harness.run_until_idle();
+    assert_eq!(harness.spawn_times(b"serve").len(), 1, "old EOF fragment holds the restart unsent");
+    harness.terminate();
+    harness.run_until_idle();
+    harness.release_terminal_ack();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    assert_eq!(harness.spawn_times(b"serve").len(), 1, "withdrawn restart never launches");
+    assert_eq!(harness.stdout().as_ref(), b"x\n", "old output is preserved");
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+#[test]
+fn a_held_spawn_starts_late_and_is_stopped_or_closed_after_second_termination() {
+    for forced in [false, true] {
+        let mut harness = Harness::with_stubborn(
+            &[long(b"forgejo", &[b"never"]).with_ready(([127, 0, 0, 1], 3000).into()), long(b"runner", &[b"never"])],
+            true,
+        );
+        harness.hold_spawn = Some(bytes::copy_of(b"forgejo"));
+        harness.run_until_idle();
+        assert!(harness.held_spawn.is_some());
+        harness.terminate();
+        harness.run_until_idle();
+        if forced {
+            harness.terminate();
+            harness.run_until_idle();
+        }
+        harness.release_spawn();
+        assert_eq!(harness.run_to_end(), Exit::Code(0));
+        let mut signals = 0_u32;
+        for entry in harness.sim.trace() {
+            if entry.pid == harness.pid
+                && let Event::Submit { kind: Summary::Signal { signal: 15, to: Target::Child, .. }, .. } = entry.event
+            {
+                signals += 1;
+            }
+        }
+        assert_eq!(signals, if forced { 0 } else { 2 });
+        assert_eq!(harness.spawn_times(b"forgejo").len(), 1);
+        assert_eq!(harness.spawn_times(b"runner").len(), 0, "late child is never readied or continued");
+        harness.sim.assert_quiescent(harness.pid);
+        harness.sim.assert_no_open_fds(harness.pid);
+    }
+}
+#[test]
+fn a_held_spawn_failing_during_stop_ends_without_retry_or_failure_notice() {
+    let mut harness = Harness::with_stubborn(&[long(b"forgejo", &[b"never"]), long(b"runner", &[b"never"])], true);
+    harness.hold_spawn = Some(bytes::copy_of(b"forgejo"));
+    harness.run_until_idle();
+    assert!(harness.held_spawn.is_some());
+    harness.terminate();
+    harness.run_until_idle();
+    harness.fail_spawn();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    assert_eq!(harness.spawn_times(b"forgejo").len(), 1, "counts the failed call too");
+    assert_eq!(harness.spawn_times(b"runner").len(), 0);
+    assert!(!Harness::contains(&harness.stderr(), b"restarting"));
+    assert!(!Harness::contains(&harness.stderr(), b"giving up"));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+#[test]
+fn a_groups_late_restart_preparation_is_stopped_then_the_group_can_start_again() {
+    let mut harness = Harness::grouped(grouped_steps(), &[], true);
+    harness.run_until_idle();
+    harness.ask(b"start 3\n");
+    harness.run_until_idle();
+    harness.read_reply(256);
+    harness.replies.clear();
+    harness.hold_spawn = Some(bytes::copy_of(b"prepare 3"));
+    let forge = harness.child_index(b"forgejo 3");
+    let pid = harness.hosted.get(forge).unwrap().pid;
+    harness.sim.finish_service(pid, Exit::Code(1));
+    harness.run_until_idle();
+    harness.sim.advance_to(harness.sim.now().saturating_add(Duration::from_millis(500)));
+    harness.run_until_idle();
+    assert!(harness.held_spawn.is_some());
+    harness.ask(b"stop 3\n");
+    harness.run_until_idle();
+    assert!(harness.reply_bytes().is_empty(), "stop awaits the admitted preparation");
+    harness.release_spawn();
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"stopped 3\n");
+    assert_eq!(harness.spawn_times(b"forgejo 3").len(), 1, "late once step never continues");
+    harness.read_reply(256);
+    harness.replies.clear();
+    harness.ask(b"start 3\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 3 prepare\nstep 3 run\nstarted 3\n");
+    assert_eq!(harness.spawn_times(b"forgejo 3").len(), 2);
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+
+#[test]
+fn a_spawn_order_ahead_of_a_blocked_stop_notice_still_never_launches() {
+    let mut harness = Harness::with_stubborn(&[once(b"prepare", &[b"never"]), long(b"serve", &[b"never"])], true);
+    harness.hold_terminal_ack = true;
+    harness.run_until_idle();
+    let prepare = harness.child_index(b"prepare");
+    for line in [b"one\n".as_slice(), b"two\n", b"three\n", b"four\n"] {
+        harness.write_child(prepare, 1, line);
+        harness.run_until_idle();
+    }
+    let pid = harness.hosted.get(prepare).unwrap().pid;
+    harness.sim.finish_service(pid, Exit::Code(0));
+    harness.run_until_idle();
+    assert_eq!(harness.spawn_times(b"serve").len(), 0);
+    harness.terminate();
+    harness.run_until_idle();
+    harness.release_terminal_ack();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    assert_eq!(harness.spawn_times(b"serve").len(), 0, "queued withdrawal prevents admission behind a full terminal");
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
 }

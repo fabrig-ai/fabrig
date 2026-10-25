@@ -6,13 +6,14 @@ use alloc::boxed::Box;
 use skein_io::kernel::Exit;
 use skein_lib::{List, Queue, Time};
 use temper_forge_setup::Kind;
-/// Inputs referring only to a step's index.
+/// Inputs referring only to a step's index. Withdrawn ends an unsent spawn without an io owner.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Input {
     Started { step: usize },
     Ready { step: usize },
     NotReady { step: usize },
     Line { step: usize },
+    Withdrawn { step: usize },
     NotStarted { step: usize },
     Exited { step: usize, exit: Exit },
     Closed { step: usize },
@@ -22,11 +23,12 @@ pub enum Input {
     Written { forge: u16 },
     NotWritten { forge: u16 },
 }
-/// Effects requested of the host.
+/// Effects requested of the host. Withdraw drops a spawn only before its io request exists.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Order {
     Hold { step: usize },
     Spawn { step: usize },
+    Withdraw { step: usize },
     Wait { step: usize },
     Signal { step: usize },
     Close { step: usize },
@@ -92,6 +94,7 @@ pub(crate) struct State {
     kind: Kind,
     ready: bool,
     waiting: bool,
+    withdraw: bool,
     group: Option<usize>,
     phase: Phase,
     why: Option<Why>,
@@ -164,6 +167,7 @@ impl Machine {
                     kind: step.step.kind(),
                     ready: step.step.ready().is_some(),
                     waiting: false,
+                    withdraw: false,
                     group,
                     phase: Phase::Dormant,
                     why: None,
@@ -183,8 +187,10 @@ impl Machine {
     }
     /// Conservative reservation for start/input/fire: each of N steps can
     /// contribute a hold, spawn, Starting and progress reply (4N). Closing or
-    /// signalling visits each step once instead of spawning it. A group transition
-    /// adds at most one fact and one reply (or one record); restart adds one fact;
+    /// signalling visits each step once instead of spawning it. Teardown also
+    /// withdraws each starting step once (at most N); this and the reverse stop
+    /// visit fit within 4N, including a failure's closes and a give-up's stop.
+    /// A group transition adds at most one fact and one reply (or one record); restart adds one fact;
     /// giving up adds one fact and visits the stop range. These alternatives and
     /// the two stop facts fit the remaining six. Fire visits each state once and
     /// emits at most four orders per state, with no group completion transitions.
@@ -251,6 +257,7 @@ impl Machine {
         if let Some(state) = self.states.get_mut(step) {
             state.phase = Phase::Starting { next };
             state.waiting = false;
+            state.withdraw = false;
             state.why = None;
             orders.push(Order::Terminal { fact: Fact::Starting { step } });
             orders.push(Order::Spawn { step });
@@ -264,6 +271,13 @@ impl Machine {
     /// Takes one lifecycle or termination input.
     pub fn input(&mut self, now: Time, input: Input, orders: &mut Queue<Order>) {
         match input {
+            Input::Withdrawn { step } => {
+                if let Some(state) = self.states.get(step)
+                    && state.withdraw
+                {
+                    self.ended_start(now, step, orders);
+                }
+            }
             Input::Terminate => self.stop(now, orders),
             Input::Ask { forge } => self.ask(forge, orders),
             Input::Stop { forge } => self.stop_group(now, forge, orders),
@@ -302,29 +316,33 @@ impl Machine {
                 }
             }
             Input::NotStarted { step } => {
-                if self.outcome.is_none()
-                    && let Some(group) = self.starting_group(step)
-                {
-                    self.states.get_mut(step).expect("step").phase = Phase::Stopped;
-                    self.fail(group, Why::NotStarted { step }, orders);
-                    self.failed_if_closed(group, orders);
-                    return;
+                if self.outcome.is_some() || self.group_stopping(step) || self.group_failing(step) {
+                    self.ended_start(now, step, orders);
+                } else {
+                    if self.outcome.is_none()
+                        && let Some(group) = self.starting_group(step)
+                    {
+                        self.states.get_mut(step).expect("step").phase = Phase::Stopped;
+                        self.fail(group, Why::NotStarted { step }, orders);
+                        self.failed_if_closed(group, orders);
+                        return;
+                    }
+                    if let Some(state) = self.states.get_mut(step) {
+                        let next = match state.phase {
+                            Phase::Starting { next } => next,
+                            Phase::Dormant
+                            | Phase::Waiting { .. }
+                            | Phase::Live { .. }
+                            | Phase::Closing { .. }
+                            | Phase::Backoff { .. }
+                            | Phase::Grace { .. }
+                            | Phase::Stopped => return,
+                        };
+                        state.phase = Phase::Closing { next, success: false };
+                        state.why = Some(Why::NotStarted { step });
+                    }
+                    self.closed(now, step, orders);
                 }
-                if let Some(state) = self.states.get_mut(step) {
-                    let next = match state.phase {
-                        Phase::Starting { next } => next,
-                        Phase::Dormant
-                        | Phase::Waiting { .. }
-                        | Phase::Live { .. }
-                        | Phase::Closing { .. }
-                        | Phase::Backoff { .. }
-                        | Phase::Grace { .. }
-                        | Phase::Stopped => return,
-                    };
-                    state.phase = Phase::Closing { next, success: false };
-                    state.why = Some(Why::NotStarted { step });
-                }
-                self.closed(now, step, orders);
             }
             Input::Exited { step, exit } => {
                 if self.outcome.is_none()
@@ -341,6 +359,25 @@ impl Machine {
         if self.stop_notice == StopNotice::Requested && self.is_idle() {
             self.stop_notice = StopNotice::Reported;
             orders.push(Order::Terminal { fact: Fact::Stopped });
+        }
+    }
+    // A withdrawal or late spawn failure is a teardown end, with no failure cause.
+    fn ended_start(&mut self, now: Time, step: usize, orders: &mut Queue<Order>) {
+        let Some(state) = self.states.get_mut(step) else { return };
+        if let Phase::Starting { .. } = state.phase {
+            state.phase = Phase::Closing { next: None, success: false };
+            self.closed(now, step, orders);
+        }
+    }
+    fn withdraw_range(&mut self, first: usize, end: usize, orders: &mut Queue<Order>) {
+        for step in first..end {
+            let state = self.states.get_mut(step).expect("withdraw step");
+            if let Phase::Starting { .. } = state.phase
+                && !state.withdraw
+            {
+                state.withdraw = true;
+                orders.push(Order::Withdraw { step });
+            }
         }
     }
     fn started(&mut self, now: Time, step: usize, orders: &mut Queue<Order>) {
@@ -620,6 +657,8 @@ impl Machine {
                 state.phase = Phase::Stopped;
             }
         }
+        let (first, end) = (group.first, group.end);
+        self.withdraw_range(first, end, orders);
         self.stop_group_next(now, index, orders);
     }
     fn stop_group_next(&mut self, now: Time, index: usize, orders: &mut Queue<Order>) {
@@ -704,6 +743,8 @@ impl Machine {
                 | Phase::Stopped => {}
             }
         }
+        let (first, end) = (group.first, group.end);
+        self.withdraw_range(first, end, orders);
         self.failed_if_closed(index, orders);
     }
     fn failed_if_closed(&mut self, index: usize, orders: &mut Queue<Order>) {
@@ -764,6 +805,7 @@ impl Machine {
         self.outcome = Some(Outcome::GaveUp { step, restarts });
         orders.push(Order::Terminal { fact: Fact::GivingUp { step, why } });
         self.disarm();
+        self.withdraw_range(0, self.states.len(), orders);
         self.stop_next(now, orders);
     }
     fn disarm(&mut self) {
@@ -804,6 +846,7 @@ impl Machine {
         } else {
             self.outcome = Some(Outcome::Stopped);
             self.disarm();
+            self.withdraw_range(0, self.states.len(), orders);
             self.stop_next(now, orders);
         }
     }

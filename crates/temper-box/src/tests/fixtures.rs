@@ -155,8 +155,8 @@ pub struct Harness {
     pub pending: List<Token>,
     pub control_fds: List<Fd>,
     pub replies: List<Box<[u8]>>,
-    pub hold_prepare: bool,
-    pub held_prepare: Option<Call>,
+    pub hold_spawn: Option<Box<[u8]>>,
+    pub held_spawn: Option<Call>,
     pub wall: Wall,
     pub terminal_writes: List<(Fd, Box<[u8]>)>,
     pub stdout_bytes: List<u8>,
@@ -240,8 +240,8 @@ impl Harness {
             pending: List::with_capacity(64),
             control_fds: List::with_capacity(64),
             replies: List::with_capacity(128),
-            hold_prepare: false,
-            held_prepare: None,
+            hold_spawn: None,
+            held_spawn: None,
             wall: Wall::EPOCH,
             terminal_writes: List::with_capacity(4096),
             stdout_bytes: List::with_capacity(65_536),
@@ -268,24 +268,27 @@ impl Harness {
                     self.pending.push(token).expect("bounded hosted launches");
                 }
             }
-            if self.hold_prepare
+            if let Some(name) = &self.hold_spawn
                 && let Ask::Spawn { args, .. } = &call.ask
-                && args.last().expect("step name").as_ref() == b"prepare 3"
+                && args.last().expect("step name").as_ref() == name.as_ref()
             {
-                assert!(self.held_prepare.is_none());
-                self.held_prepare = Some(call);
+                assert!(self.held_spawn.is_none());
+                self.held_spawn = Some(call);
                 continue;
             }
-            skein_fake_machine::step(&mut self.machine, call, &mut self.answers);
-            if self.stubborn {
-                let mut answer = self.answers.pop().expect("one answer");
-                if let Ok(Reply::Program(Program::Never)) = &answer.result {
-                    answer.result = Ok(Reply::Program(Program::Service));
-                }
-                self.answers.push(answer);
-            }
-            self.sim.answer(&mut self.answers);
+            self.answer_call(call);
         }
+    }
+    fn answer_call(&mut self, call: Call) {
+        skein_fake_machine::step(&mut self.machine, call, &mut self.answers);
+        if self.stubborn {
+            let mut answer = self.answers.pop().expect("one answer");
+            if let Ok(Reply::Program(Program::Never)) = &answer.result {
+                answer.result = Ok(Reply::Program(Program::Service));
+            }
+            self.answers.push(answer);
+        }
+        self.sim.answer(&mut self.answers);
     }
     fn bind(&mut self) {
         for complete in self.service.completions().iter() {
@@ -452,9 +455,15 @@ impl Harness {
         }
         found.expect("live hosted serve")
     }
-    pub fn release_prepare(&mut self) {
-        self.hold_prepare = false;
-        skein_fake_machine::step(&mut self.machine, self.held_prepare.take().expect("held prepare"), &mut self.answers);
+    pub fn release_spawn(&mut self) {
+        self.hold_spawn = None;
+        let call = self.held_spawn.take().expect("held spawn");
+        self.answer_call(call);
+    }
+    pub fn fail_spawn(&mut self) {
+        self.hold_spawn = None;
+        let call = self.held_spawn.take().expect("held spawn");
+        self.answers.push(Answer { ticket: call.ticket, result: Err(skein_io::kernel::Error::NotFound) });
         self.sim.answer(&mut self.answers);
     }
     pub fn ask(&mut self, line: &[u8]) {
@@ -652,6 +661,7 @@ fn is_effect(order: &Order) -> bool {
     match order {
         Order::Terminal { .. } => false,
         Order::Spawn { .. }
+        | Order::Withdraw { .. }
         | Order::Hold { .. }
         | Order::Wait { .. }
         | Order::Signal { .. }

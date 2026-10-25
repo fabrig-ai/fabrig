@@ -174,7 +174,7 @@ fn a_step_still_starting_is_stopped_once_started() {
     rig.completed(PREPARE);
     rig.effects();
     rig.terminate();
-    assert_eq!(&*rig.effects(), &[]);
+    assert_eq!(&*rig.effects(), &[Order::Withdraw { step: FORGEJO }]);
     rig.started(FORGEJO);
     assert_eq!(&*rig.effects(), &[Order::Signal { step: FORGEJO }]);
 }
@@ -353,7 +353,7 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
         &long_failed,
         &[
             (I(Started { step: 3 }), &[Spawn { step: 4 }, progress(4)]),
-            (I(Exited { step: 3, exit: Exit::Signal(9) }), &[Close { step: 3 }]),
+            (I(Exited { step: 3, exit: Exit::Signal(9) }), &[Close { step: 3 }, Order::Withdraw { step: 4 }]),
             (I(Closed { step: 3 }), &[]),
             (I(Started { step: 4 }), &[Close { step: 4 }]),
             (I(Closed { step: 4 }), &[failed(3, Why::Exited { step: 3, exit: Exit::Signal(9) })]),
@@ -1060,10 +1060,10 @@ fn a_group_stop_disarms_backoff_and_closes_a_live_or_starting_restart_preparatio
         }
         rig.input(Input::Stop { forge: 1 });
         if preparation == "starting" {
-            assert!(rig.effects().is_empty());
+            assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
             rig.started(1);
         } else if preparation == "not started" {
-            assert!(rig.effects().is_empty());
+            assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
             rig.input(Input::NotStarted { step: 1 });
         }
         if preparation == "starting" || preparation == "live" {
@@ -1443,6 +1443,148 @@ fn max_out_covers_simultaneous_retry_and_group_failure_emissions() {
         if !grouped {
             machine.fire(Time::ZERO.saturating_add(limits::small().backoff), &mut out);
             assert_eq!(out.len(), COUNT.checked_mul(2).unwrap(), "one Starting and Spawn per simultaneous retry");
+            while out.pop().is_some() {}
+            machine.input(Time::ZERO, Input::Terminate, &mut out);
+            assert!(out.len() <= machine.max_out());
+            let effects = take_effects(&mut out);
+            assert_eq!(effects.len(), usize::try_from(COUNT).unwrap(), "one Withdraw per starting retry");
+            for (step, effect) in effects.iter().enumerate() {
+                assert_eq!(*effect, Order::Withdraw { step });
+            }
+            machine.input(Time::ZERO, Input::Terminate, &mut out);
+            assert!(out.is_empty(), "a second termination withdraws nothing twice");
         }
     }
+}
+
+#[test]
+fn an_unsent_spawn_is_withdrawn_at_the_first_stop() {
+    use crate::terminal::Fact;
+    let mut rig = Rig::new(&limits::small());
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: PREPARE }]);
+    rig.completed(PREPARE);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: PREPARE }, Order::Spawn { step: FORGEJO }]);
+    rig.terminate();
+    let mut effects = skein_lib::Queue::with_capacity(8);
+    let mut facts = skein_lib::Queue::with_capacity(8);
+    while let Some(order) = rig.out.pop() {
+        effects.push(order);
+        facts.push(order);
+    }
+    assert_eq!(&*take_effects(&mut effects), &[Order::Withdraw { step: FORGEJO }]);
+    assert_eq!(&*super::fixtures::take_facts(&mut facts), &[Fact::Stopping]);
+    rig.input(Input::Withdrawn { step: FORGEJO });
+    assert_eq!(rig.out.pop(), Some(Order::Terminal { fact: Fact::Stopped }));
+    assert!(rig.out.is_empty());
+    assert!(rig.machine.is_idle());
+    assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
+}
+
+fn stopping_forgejo_spawn() -> Rig {
+    let mut rig = Rig::new(&limits::small());
+    rig.effects();
+    rig.completed(PREPARE);
+    rig.effects();
+    rig.terminate();
+    assert_eq!(&*rig.effects(), &[Order::Withdraw { step: FORGEJO }]);
+    assert_eq!(rig.machine.next_deadline(), None, "a starting step has no deadline");
+    rig
+}
+#[test]
+fn an_admitted_spawn_after_a_second_termination_is_closed_without_another_withdraw() {
+    let mut rig = stopping_forgejo_spawn();
+    rig.terminate();
+    assert!(rig.out.is_empty());
+    rig.started(FORGEJO);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: FORGEJO }]);
+    rig.closed(FORGEJO);
+    assert!(rig.machine.is_idle());
+    assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
+}
+#[test]
+fn a_late_spawn_failure_ends_as_a_stop_without_a_failure_fact() {
+    let mut rig = stopping_forgejo_spawn();
+    rig.input(Input::NotStarted { step: FORGEJO });
+    assert_eq!(rig.out.pop(), Some(Order::Terminal { fact: crate::terminal::Fact::Stopped }));
+    assert!(rig.out.is_empty(), "no restart, give-up or continuation");
+    assert!(rig.machine.is_idle());
+    assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
+}
+#[test]
+fn giving_up_withdraws_a_starting_preparation_and_continues_the_stop() {
+    let mut rig = Rig::running();
+    for millis in [500, 1000, 2000, 4000, 8000] {
+        rig.failed_long(RUNNER);
+        rig.advance(Duration::from_millis(millis));
+        rig.started(RUNNER);
+        rig.effects();
+    }
+    rig.failed_long(FORGEJO);
+    rig.advance(Duration::from_millis(500));
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: PREPARE }]);
+    rig.exited(RUNNER, Exit::Code(1));
+    rig.closed(RUNNER);
+    assert_eq!(
+        &*rig.effects(),
+        &[Order::Close { step: RUNNER }, Order::Withdraw { step: PREPARE }, Order::Signal { step: SERVE }]
+    );
+    rig.input(Input::Withdrawn { step: PREPARE });
+    assert!(rig.out.is_empty());
+    rig.exited(SERVE, Exit::Code(0));
+    rig.closed(SERVE);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: SERVE }]);
+    assert!(rig.machine.is_idle());
+    assert_eq!(rig.machine.outcome(), Some(Outcome::GaveUp { step: RUNNER, restarts: 5 }));
+}
+#[test]
+fn a_group_stop_withdraws_its_preparation_before_signalling_the_earlier_child() {
+    use crate::machine::Said;
+    let mut rig = stoppable_group(false);
+    start_stoppable(&mut rig, false);
+    rig.failed_long(2);
+    rig.advance(limits::small().backoff);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 1 }]);
+    rig.input(Input::Stop { forge: 1 });
+    assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
+    assert_eq!(rig.machine.next_deadline(), None, "reverse stop waits on the starting step");
+    rig.input(Input::Withdrawn { step: 1 });
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 0 }]);
+    rig.exited(0, Exit::Code(0));
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 0 }]);
+    rig.closed(0);
+    assert_eq!(&*rig.effects(), &[Order::Say { said: Said::Stopped { forge: 1 } }]);
+    rig.advance(Duration::from_secs(100));
+    assert!(rig.out.is_empty());
+    start_stoppable(&mut rig, false);
+}
+#[test]
+fn a_group_failure_withdraws_its_starting_step_and_can_be_asked_again() {
+    use crate::machine::{Said, Why};
+    let mut rig = stoppable_group(false);
+    rig.input(Input::Ask { forge: 1 });
+    rig.effects();
+    rig.started(0);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 1 }, Order::Say { said: Said::Step { step: 1 } }]);
+    rig.exited(0, Exit::Code(1));
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 0 }, Order::Withdraw { step: 1 }]);
+    rig.closed(0);
+    assert!(rig.out.is_empty());
+    rig.input(Input::Withdrawn { step: 1 });
+    assert_eq!(
+        &*rig.effects(),
+        &[Order::Say { said: Said::Failed { forge: 1, why: Why::Exited { step: 0, exit: Exit::Code(1) } } }]
+    );
+    start_stoppable(&mut rig, false);
+}
+#[test]
+fn a_box_stop_does_not_withdraw_a_group_stops_spawn_twice() {
+    let mut rig = stoppable_group(false);
+    start_stoppable(&mut rig, false);
+    rig.failed_long(2);
+    rig.advance(limits::small().backoff);
+    rig.effects();
+    rig.input(Input::Stop { forge: 1 });
+    assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
+    rig.terminate();
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
 }
