@@ -241,3 +241,150 @@ fn a_step_name_that_is_not_a_plain_file_name_falls_back_to_echo() {
     assert!(Harness::contains(&output, b"bad/name: diagnostic\n"));
     stop(&mut h);
 }
+
+#[test]
+fn a_group_failure_carries_its_final_lines_as_one_block_only_when_quiet() {
+    use super::fixtures::{grouped_steps, once};
+    for echo in [Echo::None, Echo::Steps] {
+        let mut steps = grouped_steps();
+        steps.asked[0].steps[0].1 = once(b"prepare 3", &[b"never"]);
+        let mut h = Harness::configured_echo(steps, &[], true, 16_384, &limits::small(), echo);
+        h.run_until_idle();
+        let serve = h.hosted.get(h.serve_index()).unwrap().pid;
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        let child = h.child_index(b"prepare 3");
+        h.write_child(child, 2, b"one\ntwo\nthree\n");
+        let pid = h.hosted.get(child).unwrap().pid;
+        h.sim.finish_service(pid, Exit::Code(1));
+        h.run_until_idle();
+        let output = h.stderr();
+        if echo == Echo::None {
+            assert!(Harness::contains(&output, b"Forge 3 (Forgejo): failed, prepare 3 exited 1\n    prepare 3: one\n    prepare 3: two\n    prepare 3: three\n    Log: /data/box/logs/prepare-3.log\n"));
+        } else {
+            assert!(Harness::contains(&output, b"prepare 3: one\nprepare 3: two\nprepare 3: three\n"));
+            assert!(!Harness::contains(&output, b"    prepare 3:"));
+            assert!(!Harness::contains(&output, b"    Log:"));
+        }
+        assert!(h.sim.service_running(serve), "a failed group leaves serve running");
+        stop(&mut h);
+    }
+}
+
+#[test]
+fn restart_tails_are_bounded_include_the_eof_piece_and_reset_before_spawn() {
+    use skein_lib::Duration;
+    let limits = limits::Limits { tail_lines: 2, ..limits::small() };
+    let mut h = harness(Echo::None, &[], true, &limits);
+    h.run_until_idle();
+    let child = h.child_index(b"forge 1");
+    h.write_child(child, 2, b"one\ntwo\nthree\nlast");
+    let pid = h.hosted.get(child).unwrap().pid;
+    h.sim.finish_service(pid, Exit::Code(1));
+    h.run_until_idle();
+    let output = h.stderr();
+    assert!(Harness::contains(&output, b"forge 1 exited 1; restarting in 0.5 s\n    forge 1: three\n    forge 1: last\n    Log: /data/box/logs/forge-1.log\n"));
+    assert!(!Harness::contains(&output, b"    forge 1: two\n"));
+    h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(500)));
+    h.run_until_idle();
+    let child = h.child_index(b"forge 1");
+    h.write_child(child, 1, b"fresh\n");
+    let pid = h.hosted.get(child).unwrap().pid;
+    h.sim.finish_service(pid, Exit::Code(1));
+    h.run_until_idle();
+    let output = h.stderr();
+    assert!(Harness::contains(
+        &output,
+        b"forge 1 exited 1; restarting in 1 s\n    forge 1: fresh\n    Log: /data/box/logs/forge-1.log\n"
+    ));
+    assert!(!Harness::contains(&output, b"    forge 1: last\n"));
+    stop(&mut h);
+}
+
+#[test]
+fn a_waiting_give_up_drains_its_log_without_holding_teardown_orders_or_spinning() {
+    use skein_shell::Host;
+    let limits = limits::Limits { restarts: 0, ..limits::small() };
+    let mut h = harness(Echo::None, &[], true, &limits);
+    h.run_until_idle();
+    h.hold_log_write = true;
+    let child = h.child_index(b"forge 1");
+    h.write_child(child, 2, b"held final line\n");
+    h.run_until_idle();
+    assert!(h.held_log_write.is_some());
+    let pid = h.hosted.get(child).unwrap().pid;
+    h.sim.finish_service(pid, Exit::Code(1));
+    h.run_until_idle();
+    assert!(!h.service.work_pending(h.sim.now()), "waiting on the logger is not runnable");
+    assert!(!Harness::contains(&h.stderr(), b"giving up"));
+    assert!(
+        !h.sim.service_running(h.hosted.get(h.serve_index()).unwrap().pid) || h.service.next_deadline().is_some(),
+        "give-up's teardown progresses while its block waits"
+    );
+    h.release_log_write();
+    assert_eq!(h.run_to_end(), Exit::Code(1));
+    let output = h.stderr();
+    assert!(Harness::contains(
+        &output,
+        b"forge 1 exited 1; giving up\n    forge 1: held final line\n    Log: /data/box/logs/forge-1.log\n"
+    ));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+
+#[test]
+fn a_failed_log_or_an_empty_run_has_no_failure_tail() {
+    for refused in [true, false] {
+        let mut h = harness(Echo::None, &[], true, &limits::small());
+        if refused {
+            h.refuse_log = Some(bytes::copy_of(b"forge-1.log"));
+        }
+        h.run_until_idle();
+        let child = h.child_index(b"forge 1");
+        if refused {
+            h.write_child(child, 2, b"visible\n");
+            h.run_until_idle();
+        }
+        let pid = h.hosted.get(child).unwrap().pid;
+        h.sim.finish_service(pid, Exit::Code(1));
+        h.run_until_idle();
+        let output = h.stderr();
+        assert!(Harness::contains(&output, b"forge 1 exited 1; restarting"));
+        assert!(!Harness::contains(&output, b"    Log:"));
+        stop(&mut h);
+    }
+}
+
+#[test]
+fn another_logs_refusal_waits_behind_the_failure_without_blocking_its_tail() {
+    let mut h = harness(Echo::None, &[], true, &limits::small());
+    h.run_until_idle();
+    let forge = h.child_index(b"forge 1");
+    h.write_child(forge, 2, b"final\n");
+    h.run_until_idle();
+    h.hold_terminal_ack = true;
+    h.write_child(h.serve_index(), 1, b"http://first\n");
+    h.run_until_idle();
+    h.write_child(h.serve_index(), 1, b"http://fresh\n");
+    h.run_until_idle();
+    h.hold_log_write = true;
+    h.write_child(h.serve_index(), 2, b"fallback\n");
+    h.run_until_idle();
+    assert!(h.held_log_write.is_some());
+    let pid = h.hosted.get(forge).unwrap().pid;
+    h.sim.finish_service(pid, Exit::Code(1));
+    h.run_until_idle();
+    h.fail_log_write();
+    h.run_until_idle();
+    h.release_terminal_ack();
+    h.run_until_idle();
+    let output = h.stderr();
+    let block = b"forge 1 exited 1; restarting in 0.5 s\n    forge 1: final\n    Log: /data/box/logs/forge-1.log\n";
+    let block_at = bytes::find(&output, block).expect("whole failure block");
+    let refusal_at =
+        bytes::find(&output, b"box: cannot write /data/box/logs/serve.log: NoSpace;").expect("one refusal");
+    assert!(block_at < refusal_at, "refusal follows the waiting block");
+    assert!(Harness::contains(&output, b"serve: fallback\n"));
+    stop(&mut h);
+}

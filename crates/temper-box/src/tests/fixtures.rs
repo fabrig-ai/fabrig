@@ -158,6 +158,8 @@ pub struct Harness {
     pub hold_spawn: Option<Box<[u8]>>,
     pub held_spawn: Option<Call>,
     pub refuse_log: Option<Box<[u8]>>,
+    pub hold_log_write: bool,
+    pub held_log_write: Option<Call>,
     pub wall: Wall,
     pub terminal_writes: List<(Fd, Box<[u8]>)>,
     pub stdout_bytes: List<u8>,
@@ -256,6 +258,8 @@ impl Harness {
             hold_spawn: None,
             held_spawn: None,
             refuse_log: None,
+            hold_log_write: false,
+            held_log_write: None,
             wall: Wall::EPOCH,
             terminal_writes: List::with_capacity(4096),
             stdout_bytes: List::with_capacity(65_536),
@@ -294,6 +298,14 @@ impl Harness {
         }
     }
     fn answer_call(&mut self, call: Call) {
+        if self.hold_log_write
+            && let Ask::Write { .. } = &call.ask
+        {
+            assert!(self.held_log_write.is_none(), "one logger operation");
+            self.held_log_write = Some(call);
+            return;
+        }
+
         if let Some(name) = &self.refuse_log
             && let Ask::Open { path, how: skein_io::kernel::OpenHow::CreateNoFollow { .. }, .. } = &call.ask
             && path.as_ref() == name.as_ref()
@@ -483,6 +495,17 @@ impl Harness {
         self.hold_spawn = None;
         let call = self.held_spawn.take().expect("held spawn");
         self.answer_call(call);
+    }
+    pub fn release_log_write(&mut self) {
+        self.hold_log_write = false;
+        let call = self.held_log_write.take().expect("held write");
+        self.answer_call(call);
+    }
+    pub fn fail_log_write(&mut self) {
+        self.hold_log_write = false;
+        let call = self.held_log_write.take().expect("held write");
+        self.answers.push(Answer { ticket: call.ticket, result: Err(skein_io::kernel::Error::NoSpace) });
+        self.sim.answer(&mut self.answers);
     }
     pub fn fail_spawn(&mut self) {
         self.hold_spawn = None;
@@ -692,5 +715,22 @@ fn is_effect(order: &Order) -> bool {
         | Order::Close { .. }
         | Order::Record { .. }
         | Order::Say { .. } => true,
+    }
+}
+
+pub fn grouped_steps() -> temper_forge_setup::Steps {
+    use temper_forge_setup::{Group, Stage, Steps};
+    Steps {
+        always: Box::new([long(b"serve", &[b"never"])]),
+        asked: Box::new([Group {
+            label: bytes::copy_of(b"Forge 3 (Forgejo)"),
+            recorded: true,
+            forge: 3,
+            before: 0,
+            steps: Box::new([
+                (Stage::Prepare, once(b"prepare 3", &[b"exit", b"0"])),
+                (Stage::Run, long(b"forgejo 3", &[b"never"])),
+            ]),
+        }]),
     }
 }

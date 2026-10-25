@@ -1,4 +1,4 @@
-use super::fixtures::{Harness, long, once};
+use super::fixtures::{Harness, grouped_steps, long, once};
 use crate::host::{LINE_BYTES, io_limits};
 use alloc::boxed::Box;
 use skein_io::kernel::{Done, Exit, Target};
@@ -150,22 +150,6 @@ fn the_io_limits_are_usable_for_one_six_and_sixty_four_steps() {
     }
 }
 
-fn grouped_steps() -> temper_forge_setup::Steps {
-    use temper_forge_setup::{Group, Stage, Steps};
-    Steps {
-        always: Box::new([long(b"serve", &[b"never"])]),
-        asked: Box::new([Group {
-            label: bytes::copy_of(b"Forge 3 (Forgejo)"),
-            recorded: true,
-            forge: 3,
-            before: 0,
-            steps: Box::new([
-                (Stage::Prepare, once(b"prepare 3", &[b"exit", b"0"])),
-                (Stage::Run, long(b"forgejo 3", &[b"never"])),
-            ]),
-        }]),
-    }
-}
 #[test]
 fn serves_pipe_lines_are_bounded_named_and_answered() {
     let mut too_long = List::with_capacity(257);
