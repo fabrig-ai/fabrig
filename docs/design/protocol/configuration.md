@@ -1333,8 +1333,12 @@ Forgejo elsewhere: its API, git and web roots name a separate loopback
 fake. Its retained peer document is C'/forgejo.json, and its dummy admin
 token is D'/forgejo-admin.token, private with mode 0600. Readiness names
 only that file's path; its contents belong in no log, report or record.
-The managed entry carries the ordinary admin-connect contract, not an
-automatic account login or a product fake branch. A retained sandbox
+The sandbox's own configured counts admit all four forges and their four
+identities; these explicit local overrides are checked through ordinary
+admission and worst-case sizing. Repository defaults, policy bounds and
+time budgets remain the ordinary ones. The managed entry carries the
+ordinary admin-connect contract, not an automatic account login or a
+product fake branch. A retained sandbox
 missing this required document refuses by name with reset instructions;
 its marker stays v1 and no file is silently generated on reuse.
 
