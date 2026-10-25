@@ -854,6 +854,11 @@ fn merged_pulls(address: std::net::SocketAddr, token: &str) -> Vec<serde_json::V
     panic!("merged pull pagination exceeded 100 pages")
 }
 
+#[must_use]
+pub fn last_readme_line(readme: &[u8]) -> Option<&str> {
+    std::str::from_utf8(readme).expect("README UTF-8").lines().rfind(|line| !line.is_empty())
+}
+
 fn forge_identity(
     address: std::net::SocketAddr,
     line: &str,
@@ -883,11 +888,7 @@ fn forge_identity(
         .filter(|byte| !byte.is_ascii_whitespace())
         .collect();
     let readme = base64::decode(Alphabet::Standard, &encoded, 1 << 20).expect("README base64");
-    assert_eq!(
-        std::str::from_utf8(&readme).expect("README UTF-8").lines().last(),
-        Some(line),
-        "the merged pull head ends with the tagged line"
-    );
+    assert_eq!(last_readme_line(&readme), Some(line), "the merged pull head ends with the tagged line");
     let branches = get("branches?limit=100&page=1");
     assert_eq!(get("branches?limit=100&page=2"), serde_json::json!([]));
     let mut branches: Vec<_> = branches
@@ -1078,6 +1079,36 @@ fn committed_tools(rows: &[serde_json::Value]) -> impl Iterator<Item = &serde_js
         .filter_map(|block| block.get("call"))
 }
 
+pub fn require_chat_progress(task: &serde_json::Value) -> Result<(), String> {
+    let bad = "chat progress facts missing";
+    let owner = task.pointer("/chip/details/owner").ok_or(bad)?;
+    let phase = owner.get("phase").ok_or(bad)?;
+    if phase.get("active").and_then(serde_json::Value::as_str) != Some("idle") {
+        return Ok(());
+    }
+    let details = &owner["details"];
+    let attempt = details.get("attempt").ok_or(bad)?;
+    require(attempt.is_null() || attempt.is_u64(), bad)?;
+    let children = details["live_delegates"].as_u64().ok_or(bad)?;
+    let waits = task.get("waits_on").ok_or(bad)?;
+    let run_wait = task.get("run_wait").ok_or(bad)?;
+    let entries = task["subscriptions"]["entries"].as_array().ok_or(bad)?;
+    let cut = task["cut"].as_bool().ok_or(bad)?;
+    let wake = task.get("wake").ok_or(bad)?;
+    let shipped = serde_json::json!({
+        "words":"immediate", "notices":"immediate", "news":"immediate",
+        "results":"last_or_failure", "questions":true, "answers":true, "timers":true
+    });
+    let empty_park = !cut
+        && !attempt.is_null()
+        && children == 0
+        && waits == "news"
+        && run_wait.is_null()
+        && entries.is_empty()
+        && wake == &shipped;
+    require(!empty_park, "chat parked without delegating a change")
+}
+
 fn require(condition: bool, message: &str) -> Result<(), String> {
     if condition { Ok(()) } else { Err(message.to_owned()) }
 }
@@ -1149,7 +1180,7 @@ impl LiveJudge<'_> {
                 self.wait_until = Some(now.saturating_add(Duration::from_secs(1800)));
                 self.queue_delegates();
             }
-            LivePhase::Delegates => self.find_delegates(now, &last)?,
+            LivePhase::Delegates => self.find_delegates(now, calls, &last)?,
             LivePhase::Waiting => {
                 self.wait_call = Some(calls.ends().len() - 1);
                 if last["met"] == false {
@@ -1274,7 +1305,12 @@ impl LiveJudge<'_> {
 
         Ok(())
     }
-    fn find_delegates(&mut self, now: skein_lib::Time, last: &serde_json::Value) -> Result<(), String> {
+    fn find_delegates(
+        &mut self,
+        now: skein_lib::Time,
+        calls: &super::ctl::Calls,
+        last: &serde_json::Value,
+    ) -> Result<(), String> {
         let mut delegates = Vec::new();
         for row in last["live"].as_array().ok_or("live delegates missing")? {
             delegates.push(row["chip"]["task"].as_u64().ok_or("delegate number missing")?);
@@ -1288,6 +1324,8 @@ impl LiveJudge<'_> {
             delegates.push(row["chip"]["task"].as_u64().ok_or("ended delegate number missing")?);
         }
         if delegates.is_empty() {
+            let chat = live_json(calls.ends().iter().rev().nth(1).ok_or("chat snapshot missing")?)?;
+            require_chat_progress(&chat)?;
             require(now < self.wait_until.ok_or("delegate deadline missing")?, "chat did not delegate within 1800s")?;
             self.queue(&[
                 "wait",
@@ -1456,6 +1494,7 @@ impl LiveJudge<'_> {
 }
 impl LiveJudge<'_> {
     fn queue_delegates(&mut self) {
+        self.queue(&["task", &self.tasks.chat.to_string(), "--json"]);
         self.queue(&[
             "tasks",
             "--project",

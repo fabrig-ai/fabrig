@@ -1338,7 +1338,11 @@ section 8; testing-strategy.md, 2.9).
   `a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge`, run by
   `scripts/proof-live.sh forge-land`: a fresh ChatGPT sign-in, init's shipped
   charters and real Responses on `gpt-6-luna`; the chat chooses `change`, a
-  tagged README line lands on work/hello with CI green, and a fresh client
+  tagged README line lands on work/hello with CI green: its final nonempty
+  line matches exactly, skipping only zero-length lines. Before discovering
+  a change, an attempted idle/news chat with no live child, run wait or
+  subscription and the shipped immediate wake policy fails promptly.
+  Active work and final parked replies remain valid. A fresh client
   finds the same chat, pull and merge hash after the box restarts on its three
   directories, without another provider sign-in, push or merge. It closes the
   chat and drains the box; the sitting allows ten minutes for sign-in, forty
