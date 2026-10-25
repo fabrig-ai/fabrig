@@ -175,6 +175,15 @@ pub(crate) fn write(
     binary: &Path,
     preferred: [u16; 5],
 ) -> Result<Written, String> {
+    write_with_program(directories, environment, binary, preferred, None)
+}
+pub(crate) fn write_with_program(
+    directories: &Directories,
+    environment: &[EnvironmentEntry],
+    binary: &Path,
+    preferred: [u16; 5],
+    program: Option<&Path>,
+) -> Result<Written, String> {
     let document = directories.document();
     for destination in [
         &document,
@@ -190,7 +199,10 @@ pub(crate) fn write(
         }
     }
     let git = find(environment, b"git");
-    let claude = find(environment, b"claude");
+    let claude = match program {
+        Some(path) => Some(path.to_path_buf()),
+        None => find(environment, b"claude"),
+    };
     let mut io = Io::open()?;
     let listeners = io.ports(preferred)?;
     let result = (|| {

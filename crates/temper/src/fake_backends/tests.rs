@@ -148,8 +148,8 @@ fn bundle_paths_check_both_sides_of_the_absolute_bound() {
 }
 
 fn prepare_empty(scratch: &Scratch, source: &Directories) -> Prepared {
-    // Init holds five ordinary listeners; GitHub, model and issuer add three held peer listeners.
-    const INIT_LISTENERS: usize = 8;
+    // Init holds five ordinary listeners; the four welcome peers each add one.
+    const INIT_LISTENERS: usize = 9;
     let supplied = provision_bundle(&scratch.0.join("explicit-bundle"));
     let prepared = prepare(source, Some(&supplied)).expect("init directly into effective directories");
     let tree = read_json(&prepared.directories.document());
@@ -170,18 +170,18 @@ fn peer_reservations_transfer_once_and_close_with_preparation() {
     let source = scratch.dirs();
     let prepared = prepare_empty(&scratch, &source);
     let peers = prepared.peers;
-    for address in [peers.github, peers.llm, peers.oauth] {
+    for address in [peers.github, peers.oauth, peers.llm, peers.forgejo] {
         assert_eq!(prepared.listeners.0.iter().filter(|(_, port)| port.get() == address.port()).count(), 1);
         assert!(TcpListener::bind(address).is_err(), "peer reservation remains owned");
     }
     drop(prepared);
-    for address in [peers.github, peers.llm, peers.oauth] {
+    for address in [peers.github, peers.oauth, peers.llm, peers.forgejo] {
         assert!(TcpListener::bind(address).is_ok(), "owned peer fd closes on preparation drop");
     }
     let reused = prepare(&source, None).expect("retained configuration");
     assert_eq!(reused.peers, peers);
     assert!(reused.listeners.0.is_empty(), "reuse leaves binding to the ordinary box");
-    for address in [peers.github, peers.llm, peers.oauth] {
+    for address in [peers.github, peers.oauth, peers.llm, peers.forgejo] {
         assert!(TcpListener::bind(address).is_ok(), "retained peer address is available for the ordinary box");
     }
 }
@@ -690,12 +690,103 @@ fn source_public_asset_links_are_refused_before_reading_them() {
 }
 
 #[test]
-fn import_preserves_explicitly_disabled_optional_programs() {
+fn import_preserves_disabled_git_and_adds_the_fake_program() {
     let scratch = Scratch::new("disabled-programs");
     let source = provisioned_source(&scratch);
     let prepared = prepare(&source, None).expect("import optional choices independently of today's PATH");
     let temper = read_json(&prepared.directories.document());
     let agent = read_json(&crate::path(&prepared.directories.config).join("agent.json"));
     assert!(temper["application"]["workers"][0]["git"].is_null());
-    assert_eq!(agent["programs"], serde_json::json!({}));
+    assert_eq!(
+        agent["programs"]["claude_code"]["path"],
+        sibling(&std::env::current_exe().expect("binary")).expect("sibling").to_str().expect("path")
+    );
+}
+
+#[test]
+fn four_forges_pass_ordinary_admission_with_a_directoryless_managed_entry() {
+    let scratch = Scratch::new("four-forge-admission-r2");
+    let (_source, first) = prepared_source(&scratch);
+    let checked = crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
+    assert_eq!(checked.named.forges.len(), 4);
+    assert_eq!(checked.named.identities.len(), 4);
+    let entry = checked.checked.setup.entry(4).expect("managed four");
+    assert!(entry.directory.is_empty());
+    assert_eq!(temper_forge_setup::given::values(entry, None, &checked.checked.limits).admin_name.as_ref(), b"admin");
+    validate(&first.directories, &first.bytes).expect("sandbox validation");
+    let (memory, operations) =
+        crate::envelope_in(&first.directories, &first.bytes).expect("ordinary computed startup sizing");
+    assert!(memory > 0 && operations > 0);
+    eprintln!("four-forge ordinary sizing: {memory} bytes, {operations} operations");
+}
+
+#[test]
+fn missing_required_retained_documents_refuse_without_writes() {
+    for (index, name) in REQUIRED.iter().enumerate() {
+        let scratch = Scratch::new(&format!("required-{index}"));
+        let (source, first) = prepared_source(&scratch);
+        let config = crate::path(&first.directories.config).to_path_buf();
+        let marker = fs::read(config.parent().expect("sandbox").join("prepared")).expect("marker");
+        fs::remove_file(config.join(name)).expect("remove required fixture document");
+        let before = fs::read_dir(&config).expect("config listing").count();
+        drop(first);
+        let error = prepare(&source, None).err().expect("missing required document refused");
+        assert!(error.contains(name) && error.contains("reset"), "{error}");
+        assert_eq!(fs::read_dir(&config).expect("unchanged listing").count(), before);
+        assert!(fs::read(config.parent().expect("sandbox").join("prepared")).expect("marker") == marker);
+        assert!(!config.join(name).exists());
+    }
+}
+
+#[test]
+fn foreign_retained_adapter_refuses_without_resetting_or_rewriting_it() {
+    let scratch = Scratch::new("foreign-adapter");
+    let (source, first) = prepared_source(&scratch);
+    let path = crate::path(&first.directories.config).join("agent.json");
+    let mut agent = read_json(&path);
+    agent["programs"]["claude_code"]["path"] = "/foreign/claude".into();
+    store_json(&path, &agent);
+    // Moving temper makes both retained executable paths foreign; the adapter reset must win.
+    let mut deployment = read_json(&first.directories.document());
+    deployment["workers"][0]["agent"]["program"] = "/foreign/temper".into();
+    store_json(&first.directories.document(), &deployment);
+    let before = fs::read(&path).expect("fixture bytes");
+    drop(first);
+    let error = prepare(&source, None).err().expect("foreign adapter refused");
+    assert!(error.contains("agent.json/programs/claude_code/path") && error.contains("reset"), "{error}");
+    assert!(fs::read(path).expect("unchanged") == before);
+}
+
+#[test]
+fn exact_sibling_and_provisioning_refusals_use_explicit_paths() {
+    let expected = sibling(Path::new("/fixture/temper")).expect("absolute sibling");
+    assert_eq!(expected, Path::new("/fixture/fake-claude"));
+    adapter_identity(b"/fixture/fake-claude", &expected).expect("correct identity");
+    assert!(adapter_identity(b"/foreign/claude", &expected).expect_err("foreign").contains("reset"));
+    let scratch = Scratch::new("program-provisioning");
+    let path = scratch.0.join("fake-claude");
+    for exists in [false, true] {
+        if exists {
+            write(&path, b"not executable", false).expect("nonexecutable fixture");
+        }
+        let error = provisioned_program(&path).expect_err("provision outside startup");
+        assert!(
+            error.contains(path.to_str().expect("path")) && error.contains("cargo build -p temper-fake-claude"),
+            "{error}"
+        );
+        assert!(!error.contains("reset"), "{error}");
+    }
+}
+
+#[test]
+fn source_adapter_is_a_bounded_fact_without_path_discovery() {
+    let scratch = Scratch::new("source-program-fact");
+    let source = provisioned_source(&scratch);
+    let path = crate::path(&source.config).join("agent.json");
+    let mut agent = read_json(&path);
+    agent["programs"] = serde_json::json!({"claude_code":{"path":"/absent/source/claude","directory":crate::path(&source.data).join("programs")}});
+    store_json(&path, &agent);
+    let first = prepare(&source, None).expect("source adapter does not need to exist or match PATH");
+    let effective = read_json(&crate::path(&first.directories.config).join("agent.json"));
+    assert_ne!(effective["programs"]["claude_code"]["path"], agent["programs"]["claude_code"]["path"]);
 }

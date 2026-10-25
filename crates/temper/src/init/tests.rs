@@ -348,3 +348,18 @@ fn the_person_diagnostic_names_the_login_or_the_uid() {
         assert_eq!(person_line(person, login, 42).as_deref(), expected);
     }
 }
+
+#[test]
+fn explicit_program_fact_precedes_path_discovery() {
+    let root = scratch("program-fact");
+    let dirs = directories(&root);
+    let env = environment(&root, true);
+    let binary = root.join("temper");
+    let adapter = root.join("fake-claude");
+    let written = write_with_program(&dirs, &env, &binary, [0; 5], Some(&adapter)).expect("injected init fact");
+    let agent: serde_json::Value =
+        serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
+    assert_eq!(agent["programs"]["claude_code"]["path"], adapter.to_str().expect("path"));
+    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+    fs::remove_dir_all(root).expect("fixture cleanup");
+}

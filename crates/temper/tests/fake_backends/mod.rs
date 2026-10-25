@@ -79,7 +79,7 @@ fn life(root: &Path, paths: &[PathBuf; 3], effective: &Path, client: &str, bundl
         vec![Step::Run(Call::sign_in())],
         DEADLINE,
         || {
-            for name in ["github.json", "llm.json", "oauth.json"] {
+            for name in ["github.json", "oauth.json", "llm.json", "forgejo.json"] {
                 let peer = value(&effective.join(name));
                 let address: SocketAddr =
                     peer["listen"]["socket"].as_str().expect("retained peer socket").parse().expect("peer address");
@@ -131,6 +131,17 @@ fn the_serve_child_reads_retained_effective_documents_across_restart() {
         generated["workers"][0]["agent"]["arguments"],
         serde_json::json!(["agent", effective.join("agent.json")])
     );
+    let adapter = value(&effective.join("agent.json"));
+    let sibling = Path::new(env!("CARGO_BIN_EXE_temper")).parent().expect("temper parent").join("fake-claude");
+    assert_eq!(adapter["programs"]["claude_code"]["path"], sibling.to_str().expect("adapter path"));
+    assert_eq!(
+        adapter["programs"]["claude_code"]["directory"],
+        sandbox.join("data/programs").to_str().expect("program directory")
+    );
+    let admin = sandbox.join("data/forgejo-admin.token");
+    assert_eq!(fs::metadata(&admin).expect("private token output").mode() & 0o777, 0o600);
+    let token_inode = fs::metadata(&admin).expect("token inode").ino();
+    let forgejo_document = fs::read(effective.join("forgejo.json")).expect("retained forgejo peer");
     let peer = fs::read(effective.join("oauth.json")).expect("retained peer address");
     let secret = fs::read(sandbox.join("data/worker.secret")).expect("generated sandbox fixture secret");
     write(&sandbox.join("data/retained-fixture"), b"retained data");
@@ -147,6 +158,8 @@ fn the_serve_child_reads_retained_effective_documents_across_restart() {
         second.windows(b"retained effective fixture only".len()).any(|part| part == b"retained effective fixture only")
     );
     assert_eq!(fs::read(effective.join("oauth.json")).expect("retained peer"), peer);
+    assert!(fs::read(effective.join("forgejo.json")).expect("retained forgejo peer") == forgejo_document);
+    assert_eq!(fs::metadata(&admin).expect("retained token inode").ino(), token_inode);
     assert_eq!(fs::read(sandbox.join("data/worker.secret")).expect("retained sandbox secret"), secret);
     assert_eq!(fs::read(sandbox.join("data/retained-fixture")).expect("retained data"), b"retained data");
     edited["application"]["clients"]["bundle"] = retained_bundle.to_str().expect("bundle path").into();

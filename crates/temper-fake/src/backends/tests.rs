@@ -49,11 +49,13 @@ fn fixture() -> (Value, Value, Paths, Peers) {
         data: b"/effective/data".as_slice().into(),
         cache: b"/cache".as_slice().into(),
         bundle: b"/effective/config/bundle-loopback".as_slice().into(),
+        claude: b"/fixture/fake-claude".as_slice().into(),
     };
     let peers = Peers {
         github: "127.0.0.1:9101".parse().expect("peer"),
         oauth: "127.0.0.1:9102".parse().expect("peer"),
         llm: "127.0.0.1:9103".parse().expect("peer"),
+        forgejo: "127.0.0.1:9104".parse().expect("peer"),
     };
     (temper, agent, paths, peers)
 }
@@ -65,12 +67,12 @@ fn json(bytes: &[u8]) -> Value {
 }
 
 #[test]
-fn welcome_steps_name_only_the_three_held_peers_and_share_the_seed() {
+fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
     let (_, _, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
         let given = steps(config, &peers);
-        assert_eq!(given.len(), 3);
+        assert_eq!(given.len(), 4);
         for (step, name, command, document, listen) in [
             (
                 &given[0],
@@ -80,18 +82,25 @@ fn welcome_steps_name_only_the_three_held_peers_and_share_the_seed() {
                 peers.github,
             ),
             (
-                &given[1],
+                &given[2],
                 b"fake model".as_slice(),
                 b"llm".as_slice(),
                 b"/effective/config/llm.json".as_slice(),
                 peers.llm,
             ),
             (
-                &given[2],
+                &given[1],
                 b"fake issuer".as_slice(),
                 b"oauth".as_slice(),
                 b"/effective/config/oauth.json".as_slice(),
                 peers.oauth,
+            ),
+            (
+                &given[3],
+                b"fake forgejo".as_slice(),
+                b"forge".as_slice(),
+                b"/effective/config/forgejo.json".as_slice(),
+                peers.forgejo,
             ),
         ] {
             assert_eq!(step.name(), name);
@@ -254,4 +263,94 @@ fn peer_and_effective_path_bounds_refuse_before_rewriting() {
     let mut input = paths;
     input.data = vec![b'/'; 4097].into();
     write(&temper, &agent, &input, &peers).expect_err("effective data path past its byte bound");
+}
+
+#[test]
+fn managed_four_and_adapter_are_ordinary_and_preserve_existing_entries() {
+    for present in [false, true] {
+        let (temper, mut agent, paths, peers) = fixture();
+        if present {
+            agent["programs"] = json!({"claude_code":{"path":"/source/claude","directory":"/source/programs"}});
+        }
+        let docs = write(&temper, &agent, &paths, &peers).expect("ordinary rewrite");
+        let effective = json(&docs.temper);
+        let effective_agent = json(&docs.agent);
+        for index in [0_usize, 2] {
+            assert_eq!(effective["application"]["forges"][index], temper["application"]["forges"][index]);
+        }
+        assert_eq!(
+            effective["application"]["forges"][3],
+            json!({"number":4,"kind":"forgejo","api":{"socket":"127.0.0.1:9104"},"git":"http://127.0.0.1:9104","web":null,"transport":"plaintext"})
+        );
+        assert_eq!(effective["application"]["setup"][2]["mode"], "managed");
+        assert_eq!(
+            effective_agent["programs"]["claude_code"],
+            json!({"path":"/fixture/fake-claude","directory":"/effective/data/programs"})
+        );
+        assert_eq!(effective["engine"]["llm"]["providers"][0]["sources"]["programs"], json!(["claude_code"]));
+        let document = crate::forge::Document::decode(&docs.forgejo).expect("existing Forgejo schema");
+        assert_eq!(document.listen(), peers.forgejo);
+        assert_eq!(document.admin_token(), b"/effective/data/forgejo-admin.token");
+    }
+}
+
+#[test]
+fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
+    use skein_forge::forgejo::document::{Document, User};
+    use skein_forge_setup::{
+        item::Item,
+        reachable::{self, Reachable},
+        reconcile::{Event, Need, Reply},
+    };
+    use skein_lib::{Queue, Secret};
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite");
+    let document = crate::read::document(&docs.temper).expect("effective document");
+    let application =
+        super::member(&document, 0, b"application", &jig_protocol_config::Path::root()).expect("application");
+    let setup = super::member(&document, application, b"setup", &jig_protocol_config::Path::root()).expect("setup");
+    let mut problems = temper_forge_setup::problem::Problems::empty();
+    let limits = temper_forge_setup::limits::small();
+    let setup = temper_forge_setup::Setup::read(
+        &document,
+        setup,
+        &limits,
+        &jig_protocol_config::Directories::working(),
+        &mut problems,
+    )
+    .expect("ordinary setup fixture");
+    let given = temper_forge_setup::given::values(setup.entry(4).expect("managed entry"), None, &limits);
+    assert_eq!(given.admin_name.as_ref(), b"admin");
+    let token = crate::credential::credential(SEED, crate::credential::ADMIN_TOKEN);
+    let forge = crate::forge::Document::decode(&docs.forgejo).expect("forge document");
+    let (mut peer, _) = crate::forge::peer(&forge, &token, SEED).expect("seeded peer");
+    let store = peer.setup_mut();
+    let admin = store.find(b"temper-admin").expect("actual seeded admin");
+    assert!(store.token_user(&token) == Some(admin.id), "seed token authenticates the seeded admin");
+    let user =
+        User { id: admin.id, login: admin.login.clone(), is_admin: admin.admin, full_name: admin.full_name.clone() };
+    let mut machine = Reachable::new(&given, None, 1).expect("managed Given admitted");
+    let mut out = Queue::with_capacity(reachable::MAX_OUT);
+    reachable::step(&mut machine, Event::Begin, &mut out);
+    let Some(Need::Read(Item::AdminToken)) = out.pop() else { panic!("read the admin token") };
+    reachable::step(&mut machine, Event::Read(Some(Secret::new(token.as_slice().into()))), &mut out);
+    let Some(Need::Send { .. }) = out.pop() else { panic!("send the next ordinary request") };
+    reachable::step(&mut machine, Event::Reply(Reply::Document(Document::User(user))), &mut out);
+    let Some(Need::Send { .. }) = out.pop() else {
+        panic!("ordinary reachability must accept the seeded admin despite its different login")
+    };
+    reachable::step(
+        &mut machine,
+        Event::Reply(Reply::Document(Document::ApiSettings(skein_forge::forgejo::document::ApiSettings {
+            max_response_items: 32,
+            default_paging_num: 30,
+        }))),
+        &mut out,
+    );
+    let Some(Need::Send { .. }) = out.pop() else { panic!("send the next ordinary request") };
+    reachable::step(&mut machine, Event::Reply(Reply::Rows(Box::new([]))), &mut out);
+    let Some(Need::Done(skein_forge_setup::reconcile::Outcome::Reachable { more: false, .. })) = out.pop() else {
+        panic!("the ordinary picker finishes")
+    };
+    peer.shutdown();
 }

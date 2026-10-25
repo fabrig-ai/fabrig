@@ -18,12 +18,14 @@ pub struct Paths {
     pub data: Box<[u8]>,
     pub cache: Box<[u8]>,
     pub bundle: Box<[u8]>,
+    pub claude: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Peers {
     pub github: SocketAddr,
     pub oauth: SocketAddr,
     pub llm: SocketAddr,
+    pub forgejo: SocketAddr,
 }
 /// Shared by the supervised welcome peers (protocol/setup.md, 7.5).
 pub const SEED: u64 = 7;
@@ -31,12 +33,13 @@ pub const SEED: u64 = 7;
 /// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
 #[must_use]
 pub fn steps(config: &[u8], peers: &Peers) -> Box<[Step]> {
-    let mut steps = List::with_capacity(3);
+    let mut steps = List::with_capacity(4);
     let seed = Decimal::of(SEED);
     for (name, command, document, listen) in [
         (b"fake github".as_slice(), b"forge".as_slice(), b"github.json".as_slice(), peers.github),
-        (b"fake model", b"llm", b"llm.json", peers.llm),
         (b"fake issuer", b"oauth", b"oauth.json", peers.oauth),
+        (b"fake model", b"llm", b"llm.json", peers.llm),
+        (b"fake forgejo", b"forge", b"forgejo.json", peers.forgejo),
     ] {
         let mut arguments = List::with_capacity(6);
         for word in [b"fake".as_slice(), command, b"--document"] {
@@ -47,7 +50,7 @@ pub fn steps(config: &[u8], peers: &Peers) -> Box<[Step]> {
         arguments.push(bytes::copy_of(seed.as_bytes())).expect("seed counted");
         steps
             .push(Step::new(bytes::copy_of(name), arguments.into_boxed(), StepKind::Long).listening(Box::new([listen])))
-            .expect("three welcome peers counted");
+            .expect("four welcome peers counted");
     }
     steps.into_boxed()
 }
@@ -59,6 +62,7 @@ pub struct Documents {
     pub github: Box<[u8]>,
     pub oauth: Box<[u8]>,
     pub llm: Box<[u8]>,
+    pub forgejo: Box<[u8]>,
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
 // Five origins, two endpoints, a forge, worker argv and a bundle, including deleted TLS fields.
@@ -100,14 +104,23 @@ impl Edits {
             for edit in &self.rows {
                 if edit.first == at {
                     if let Some(value) = &edit.value {
-                        out.document(value);
+                        if edit.first == edit.after
+                            && value.token(0).expect("inserted value").kind == Kind::ObjectStart
+                            && d.token(at).expect("container close").kind == Kind::ObjectEnd
+                        {
+                            for inner in 1..value.len().checked_sub(1).expect("object close") {
+                                token(value, inner, out);
+                            }
+                        } else {
+                            out.document(value);
+                        }
                     }
                     skip = edit.after;
                     edited = true;
                     break;
                 }
             }
-            if !edited {
+            if !edited || skip == at {
                 token(d, at, out);
             }
         }
@@ -217,6 +230,7 @@ fn paths(paths: &Paths) -> Result<(), Refusal> {
         (b"data", &paths.data),
         (b"cache", &paths.cache),
         (b"bundle", &paths.bundle),
+        (b"claude", &paths.claude),
     ] {
         let p = Path::root().member(name);
         read::absolute(bytes, &p)?;
@@ -284,7 +298,12 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     let github = socket(peers.github, &Path::root().member(b"github"))?;
     let oauth = socket(peers.oauth, &Path::root().member(b"oauth"))?;
     let llm = socket(peers.llm, &Path::root().member(b"llm"))?;
-    if peers.github == peers.oauth || peers.github == peers.llm || peers.oauth == peers.llm {
+    let forgejo = socket(peers.forgejo, &Path::root().member(b"forgejo"))?;
+    if peers.github == peers.oauth
+        || peers.github == peers.llm
+        || peers.oauth == peers.llm
+        || [peers.github, peers.oauth, peers.llm].contains(&peers.forgejo)
+    {
         return Err(read::why(&Path::root(), b"peer sockets must be distinct"));
     }
     let d = read::document(temper)?;
@@ -309,9 +328,19 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     }
     edits.text(&d, bundle, &paths.bundle, &ap.member(b"clients").member(b"bundle"))?;
     worker(&d, &paths.config, &mut edits)?;
+    managed(&d, application, &forgejo, &mut edits)?;
     let mut agent_edits = Edits::new();
     let endpoints = member(&a, 0, b"endpoints", &root)?;
     endpoint(&a, endpoints, &llm, true, &mut agent_edits, &root.member(b"endpoints"))?;
+    let programs = member(&a, 0, b"programs", &root)?;
+    let adapter = read::joined(&[
+        b"{\"path\":",
+        &text(&paths.claude)?,
+        b",\"directory\":",
+        &text(&path(&paths.data, b"programs"))?,
+        b"}",
+    ]);
+    object_member(&a, programs, b"claude_code", &adapter, &mut agent_edits)?;
     Ok(Documents {
         temper: edits.finish(&d)?,
         agent: agent_edits.finish(&a)?,
@@ -322,7 +351,75 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
             b",\"redirect_port\":1455,\"redirect_path\":\"auth/callback\"}",
         ]),
         llm: model_document(&llm, &paths.data)?,
+        forgejo: read::joined(&[
+            b"{\"listen\":",
+            &address(&forgejo)?,
+            b",\"admin_token\":",
+            &text(&path(&paths.data, b"forgejo-admin.token"))?,
+            br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}]}"#,
+        ]),
     })
+}
+// Insert at the closing token so edits to existing children remain independent.
+fn append(d: &Document, at: u32, bytes: &[u8], edits: &mut Edits) -> Result<(), Refusal> {
+    let close = config::after(d, at)
+        .or(Err(read::why(&Path::root(), b"invalid container")))?
+        .checked_sub(1)
+        .expect("container close");
+    let value = read::document(bytes)?;
+    // A zero-width insertion leaves the original container close to be emitted.
+    edits
+        .rows
+        .push(Edit { first: close, after: close, value: Some(value) })
+        .or(Err(read::why(&Path::root(), b"too many rewrites")))
+}
+fn object_member(d: &Document, at: u32, name: &[u8], value: &[u8], edits: &mut Edits) -> Result<(), Refusal> {
+    let p = Path::root().member(name);
+    let mut object = read::object(d, at, &p)?;
+    if let Some(old) = object.member(d, name) {
+        edits.set(d, old, value, &p)
+    } else {
+        // A fragment is encoded as an object; write strips its outer container.
+        append(d, at, &read::joined(&[b"{", &text(name)?, b":", value, b"}"]), edits)
+    }
+}
+fn managed(d: &Document, application: u32, socket: &[u8], edits: &mut Edits) -> Result<(), Refusal> {
+    let p = Path::root().member(b"application");
+    let origin = text(&read::joined(&[b"http://", socket]))?;
+    let forge = read::joined(&[
+        br#"{"number":4,"kind":"forgejo","api":"#.as_slice(),
+        &address(socket)?,
+        b",\"web\":null,\"git\":",
+        &origin,
+        br#", "transport":"plaintext"}"#,
+    ]);
+    for (name, value) in [
+        (b"forges".as_slice(), forge.as_ref()),
+        (
+            b"identities",
+            br#"{"number":4,"forge":4,"login":"temper","author":{"name":"Temper","email":"temper@localhost"}}"#,
+        ),
+        (b"setup", br#"{"forge":4,"bot":{"login":"temper","email":"temper@localhost"},"mode":"managed"}"#),
+    ] {
+        append(d, member(d, application, name, &p)?, value, edits)?;
+    }
+    let limits = member(d, application, b"limits", &p)?;
+    let overrides = member(d, limits, b"overrides", &p)?;
+    object_member(d, overrides, b"forge.client.repositories", b"4", edits)?;
+    object_member(d, overrides, b"forge.repositories", b"4", edits)?;
+    // One extra client repository adds two terminal effects to the existing batch.
+    object_member(d, overrides, b"forge.output", b"84", edits)?;
+    let engine = member(d, 0, b"engine", &Path::root())?;
+    let limits = member(d, engine, b"limits", &Path::root())?;
+    let overrides = member(d, limits, b"overrides", &Path::root())?;
+    object_member(d, overrides, b"accounts.credentials", b"4", edits)?;
+    let workers = member(d, 0, b"workers", &Path::root())?;
+    for worker in &read::list(d, workers, 1, &Path::root().member(b"workers"))? {
+        let limits = member(d, *worker, b"limits", &Path::root())?;
+        let overrides = member(d, limits, b"overrides", &Path::root())?;
+        object_member(d, overrides, b"accounts.credentials", b"4", edits)?;
+    }
+    Ok(())
 }
 fn forge(d: &Document, application: u32, github: &[u8], edits: &mut Edits, ap: &Path) -> Result<(), Refusal> {
     let forges = member(d, application, b"forges", ap)?;
@@ -364,6 +461,7 @@ fn sign_in(d: &Document, llm_at: u32, oauth: &[u8], edits: &mut Edits, ep: &Path
     let sp = pp.member(b"sources").member(b"sign_in");
     let sign_in = member(d, sources, b"sign_in", &pp.member(b"sources"))?;
     registration(d, sign_in, &sp)?;
+    object_member(d, sources, b"programs", br#"["claude_code"]"#, edits)?;
     let origin = read::joined(&[b"http://", oauth]);
     for (name, suffix) in [
         (b"issuer".as_slice(), b"".as_slice()),

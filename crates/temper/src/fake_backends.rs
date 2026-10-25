@@ -20,6 +20,8 @@ use std::{
 use temper_fake::backends::{self, Paths, Peers};
 use temper_forge_setup_shell::process as locks;
 
+const REQUIRED: &[&str] = &["temper.json", "agent.json", "github.json", "oauth.json", "llm.json", "forgejo.json"];
+
 struct Listeners(Vec<(Fd, NonZeroU16)>);
 impl Drop for Listeners {
     fn drop(&mut self) {
@@ -261,6 +263,9 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
             .map_err(|why| refuse("oauth.json", why))?;
     let llm = temper_fake::llm::Document::decode(&peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?)
         .map_err(|why| refuse("llm.json", why))?;
+    let forgejo =
+        temper_fake::forge::Document::decode(&peer_document(dirs, "forgejo.json", temper_fake::DOCUMENT_BYTES)?)
+            .map_err(|why| refuse("forgejo.json", why))?;
     let deployment = crate::setup::check(bytes, &dirs.jig())?;
     let mut serve = vec![crate::address(&deployment.named.clients)?];
     if let Some(webhooks) = &deployment.named.webhooks {
@@ -285,8 +290,13 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
             ports.push(ready.port());
         }
     }
-    let peers = Peers { github: github.listen(), oauth: oauth.listen(), llm: llm.listen() };
-    for (name, listen) in [("github.json", peers.github), ("oauth.json", peers.oauth), ("llm.json", peers.llm)] {
+    let peers = Peers { github: github.listen(), oauth: oauth.listen(), llm: llm.listen(), forgejo: forgejo.listen() };
+    for (name, listen) in [
+        ("github.json", peers.github),
+        ("oauth.json", peers.oauth),
+        ("llm.json", peers.llm),
+        ("forgejo.json", peers.forgejo),
+    ] {
         if !listen.ip().is_loopback() || listen.port() == 0 || ports.contains(&listen.port()) {
             return Err(format!(
                 "{}: peer listen must be nonzero loopback with a distinct, unreserved port",
@@ -295,10 +305,11 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
         }
         ports.push(listen.port());
     }
-    for (name, output) in [("github.json", github.admin_token()), ("llm.json", llm.key())]
-        .into_iter()
-        .chain(llm.added_keys().iter().map(|path| ("llm.json", path.as_ref())))
-        .chain(llm.root().into_iter().map(|path| ("llm.json", path)))
+    for (name, output) in
+        [("github.json", github.admin_token()), ("forgejo.json", forgejo.admin_token()), ("llm.json", llm.key())]
+            .into_iter()
+            .chain(llm.added_keys().iter().map(|path| ("llm.json", path.as_ref())))
+            .chain(llm.root().into_iter().map(|path| ("llm.json", path)))
     {
         if !contained(&dirs.data, output) {
             return Err(format!(
@@ -330,7 +341,9 @@ fn validate(dirs: &Directories, bytes: &[u8]) -> Result<(), String> {
         return Err("effective deployment, worker root and agent configuration must stay in the sandbox".into());
     }
     for entry in &deployment.checked.setup.entries {
-        if !contained(&dirs.data, &entry.directory) {
+        let directoryless =
+            matches!(entry.mode, temper_forge_setup::setup::Mode::Managed { .. }) && entry.directory.is_empty();
+        if !directoryless && !contained(&dirs.data, &entry.directory) {
             return Err("application.setup.directory: must stay under effective data".into());
         }
     }
@@ -339,12 +352,18 @@ fn validate(dirs: &Directories, bytes: &[u8]) -> Result<(), String> {
     let argv = tree.at("workers/0/agent/arguments")?;
     let wanted = Json::Array(vec![Json::String(b"agent".as_slice().into()), Json::String(configuration.into())]);
     argv.same(&wanted, "workers/0/agent/arguments")?;
+    let agent_document = public(&crate::path(&dirs.config).join("agent.json"))?;
+    let agent_tree = Json::decode(&agent_document)?;
+    let expected = sibling(&std::env::current_exe().map_err(|why| why.to_string())?)?;
+    let adapter = agent_tree.string("programs/claude_code/path")
+        .map_err(|_| "agent.json/programs/claude_code/path: unsupported adapter; remove this sandbox directory explicitly to reset it".to_string())?;
+    adapter_identity(adapter, &expected)?;
+    provisioned_program(&expected)?;
     if tree.string("workers/0/agent/program")?
         != std::env::current_exe().map_err(|why| why.to_string())?.as_os_str().as_bytes()
     {
         return Err("workers/0/agent/program: expected this temper binary".into());
     }
-    let _agent_document = public(&crate::path(&dirs.config).join("agent.json"))?;
     for file in &named.files {
         if !file.private {
             let asset = public(crate::path(&file.path))?;
@@ -379,19 +398,55 @@ fn provisioned_bundle(path: Option<&Path>, limits: temper_service::limits::Clien
         crate::bundle::read(path.as_os_str().as_bytes(), limits).map_err(|why| format!("{why}; {instructions}"))?;
     Ok(path.to_path_buf())
 }
-fn print(dirs: &Directories) {
+fn print(dirs: &Directories, peers: &Peers, binary: &Path) {
+    use std::fmt::Write;
     eprintln!("box: effective configuration {}", crate::path(&dirs.config).display());
     eprintln!("box: effective data {}", crate::path(&dirs.data).display());
     eprintln!("box: effective cache {}", crate::path(&dirs.cache).display());
     for (name, kind, document) in [
         ("fake github", "forge", "github.json"),
-        ("fake model", "llm", "llm.json"),
         ("fake issuer", "oauth", "oauth.json"),
+        ("fake model", "llm", "llm.json"),
+        ("fake forgejo", "forge", "forgejo.json"),
     ] {
         let document = crate::path(&dirs.config).join(document);
         let quoted = format!("'{}'", document.to_string_lossy().replace('\'', "'\\''"));
         eprintln!("box: supervised {name}: temper fake {kind} --document {quoted} --seed {}", backends::SEED);
     }
+    eprintln!(
+        "box: Forgejo elsewhere admin token file {}",
+        crate::path(&dirs.data).join("forgejo-admin.token").display()
+    );
+    eprintln!("box: Forgejo elsewhere origin http://{}", peers.forgejo);
+    let mut command = format!("'{}' program-login", binary.display().to_string().replace('\'', "'\\''"));
+    for (flag, path) in [("config", &dirs.config), ("data", &dirs.data), ("cache", &dirs.cache)] {
+        write!(command, " --{flag} '{}'", crate::path(path).display().to_string().replace('\'', "'\\''"))
+            .expect("string");
+    }
+    command.push_str(" source");
+    eprintln!("box: {command}");
+}
+fn sibling(binary: &Path) -> Result<PathBuf, String> {
+    if !binary.is_absolute() {
+        return Err("temper binary: expected an absolute path".into());
+    }
+    Ok(binary.parent().ok_or("temper binary: missing parent")?.join("fake-claude"))
+}
+fn adapter_identity(given: &[u8], expected: &Path) -> Result<(), String> {
+    if given != expected.as_os_str().as_bytes() {
+        return Err("agent.json/programs/claude_code/path: expected this temper's fake-claude sibling; remove this sandbox directory explicitly to reset it".into());
+    }
+    Ok(())
+}
+fn provisioned_program(path: &Path) -> Result<(), String> {
+    let executable = fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.mode() & 0o111 != 0);
+    if !executable {
+        return Err(format!(
+            "{}: missing or nonexecutable adapter; provision it with cargo build -p temper-fake-claude",
+            path.display()
+        ));
+    }
+    Ok(())
 }
 #[expect(
     clippy::too_many_lines,
@@ -406,6 +461,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
                 .into(),
         );
     }
+    let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     let marker = root.join("prepared");
     let exists = match fs::symlink_metadata(&root) {
         Ok(_) => true,
@@ -424,6 +480,10 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         };
         Some(provisioned_bundle(bundle.or(source.bundle.as_deref()), limits)?)
     };
+    let adapter = sibling(&binary)?;
+    if !exists {
+        provisioned_program(&adapter)?;
+    }
     let user = skein_shell::effective_user();
     make_private(crate::path(&source_dirs.data), user)?;
     make_private(root.parent().expect("box parent"), user)?;
@@ -440,16 +500,26 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         private_root(crate::path(&effective.data), user)
             .map_err(|why| reset(&root, &format!("unsafe effective data: {why}")))?;
         private_document(&marker)?;
-        for name in ["temper.json", "agent.json", "github.json", "oauth.json", "llm.json"] {
-            private_document(&crate::path(&effective.config).join(name))?;
+        for name in REQUIRED {
+            let path = crate::path(&effective.config).join(name);
+            if !path.exists() {
+                return Err(reset(&root, &format!("missing required {name}")));
+            }
+            public_path(&path).and_then(|()| private_document(&path)).map_err(|why| reset(&root, &why))?;
         }
         let content = public(&effective.document())?;
         let peers = checked_peers(&effective, &content)?;
         let bytes = replace_bundle(&effective, content, bundle)?;
-        print(&effective);
+        print(&effective, &peers, &binary);
         return Ok(Prepared { directories: effective, bytes, listeners: Listeners(Vec::new()), peers, _lock: lock });
     }
-    let written = crate::init::core(&effective)?;
+    let written = crate::init::write_with_program(
+        &effective,
+        &skein_shell::environment(),
+        &binary,
+        [8367, 8368, 8369, 8370, 8371],
+        Some(&adapter),
+    )?;
     let mut held = Listeners(written.listeners);
     // Init deliberately writes public documents 0644; every retained sandbox document is private.
     for path in written.paths {
@@ -487,19 +557,24 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
     let oauth = reserve(&excluded)?;
     excluded.push(addr(&oauth)?.port());
     let llm = reserve(&excluded)?;
-    let peers = Peers { github: addr(&github)?, oauth: addr(&oauth)?, llm: addr(&llm)? };
+    excluded.push(addr(&llm)?.port());
+    let forgejo = reserve(&excluded)?;
+    let peers = Peers { github: addr(&github)?, oauth: addr(&oauth)?, llm: addr(&llm)?, forgejo: addr(&forgejo)? };
     let bundle = provisioned.expect("new preparation checked the bundle");
     let paths = Paths {
         config: effective.config.clone(),
         data: effective.data.clone(),
         cache: effective.cache.clone(),
         bundle: bytes(&bundle),
+        claude: bytes(&adapter),
     };
     let documents =
         backends::rewrite(&initial, &public(&crate::path(&effective.config).join("agent.json"))?, &paths, &peers)
             .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     // Existing peer decoders check their generated documents before any marker is published.
     let _forge = temper_fake::forge::Document::decode(&documents.github)
+        .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+    let _forgejo = temper_fake::forge::Document::decode(&documents.forgejo)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     let _model = temper_fake::llm::Document::decode(&documents.llm)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
@@ -509,6 +584,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         ("github.json", &documents.github),
         ("oauth.json", &documents.oauth),
         ("llm.json", &documents.llm),
+        ("forgejo.json", &documents.forgejo),
     ] {
         write(&crate::path(&effective.config).join(name), document, name == "temper.json" || name == "agent.json")?;
     }
@@ -516,10 +592,12 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
     let peers = checked_peers(&effective, &documents.temper)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
     write(&marker, &source.marker, false)?;
-    for (listener, address) in [(github, peers.github), (llm, peers.llm), (oauth, peers.oauth)] {
+    for (listener, address) in
+        [(github, peers.github), (oauth, peers.oauth), (llm, peers.llm), (forgejo, peers.forgejo)]
+    {
         held.0.push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
     }
-    print(&effective);
+    print(&effective, &peers, &binary);
     Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, peers, _lock: lock })
 }
 #[cfg(test)]

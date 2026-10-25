@@ -55,11 +55,12 @@ impl Source {
             }
         };
         let claude = if agent.at("programs/claude_code").is_ok() {
-            Some(current_executable(
-                b"claude",
-                agent.string("programs/claude_code/path")?,
-                "agent.json/programs/claude_code/path",
-            )?)
+            let name = agent.string("programs/claude_code/path")?;
+            let path = crate::path(name);
+            if !path.is_absolute() || name.len() > 4096 || name.contains(&0) {
+                return Err("agent.json/programs/claude_code/path: expected a bounded absolute adapter path".into());
+            }
+            Some(path.to_path_buf())
         } else {
             None
         };
