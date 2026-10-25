@@ -11,6 +11,7 @@ use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
 use std::{
     cell::RefCell,
+    fmt::Write,
     fs,
     io::Read,
     net::SocketAddr,
@@ -662,6 +663,22 @@ impl Referee<cluster::Root> for Judge<'_> {
         self.members.observe(now, &hosts[..hosts.len() - 1]);
         assert!(self.relay.refused().is_empty(), "relay refusals: {:?}", self.relay.refused());
         if let Some(stopped) = self.members.stopped() {
+            let scan = github::Scan::new(&fs::read(&self.inputs.pem).expect("PEM read only for scan"));
+            let secrets = self.relay.tokens();
+            let mut diagnostic = format!("live GitHub cluster failed={}\n", self.members.failed());
+            for process in stopped {
+                clean(&scan, self.jwt, &secrets, &process.stderr);
+                writeln!(
+                    diagnostic,
+                    "{} life={} stderr:\n{}",
+                    process.name,
+                    process.life,
+                    String::from_utf8_lossy(&process.stderr)
+                )
+                .expect("diagnostic text");
+            }
+            clean(&scan, self.jwt, &secrets, diagnostic.as_bytes());
+            eprint!("{diagnostic}");
             assert!(hosts.iter().all(Host::is_empty));
             assert_eq!(
                 stopped.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(),
@@ -758,16 +775,17 @@ fn github_musts(inputs: &Inputs, relay: &Relay, authorization: &[u8], seen: &See
     }
     assert!(relay.refused().is_empty());
 }
+fn clean(scan: &github::Scan, jwt: &Secret, secrets: &[Vec<u8>], bytes: &[u8]) {
+    scan.clean(bytes);
+    assert!(skein_lib::bytes::find(bytes, jwt.expose()).is_none(), "no verifier JWT outside memory");
+    for secret in secrets {
+        assert!(skein_lib::bytes::find(bytes, secret).is_none(), "no minted token outside jig secrets");
+    }
+}
 fn scan(inputs: &Inputs, relay: &Relay, jwt: &Secret, outputs: &[Vec<u8>]) {
     let scan = github::Scan::new(&fs::read(&inputs.pem).expect("PEM read only for scan"));
     let secrets = relay.tokens();
-    let clean = |bytes: &[u8]| {
-        scan.clean(bytes);
-        assert!(skein_lib::bytes::find(bytes, jwt.expose()).is_none(), "no verifier JWT outside memory");
-        for secret in &secrets {
-            assert!(skein_lib::bytes::find(bytes, secret).is_none(), "no minted token outside jig secrets");
-        }
-    };
+    let clean = |bytes: &[u8]| clean(&scan, jwt, &secrets, bytes);
     for bytes in outputs {
         clean(bytes);
     }
