@@ -136,8 +136,21 @@ fn silent_ci_at_shipped_stall_boundary() {
     assert_eq!(world.merges, 0, "QA: silent CI never permits a merge");
 }
 
+fn requester_heard_hold(world: &World, requester: u64, change: u64) -> bool {
+    task(world, requester)
+        .inbox
+        .iter()
+        .chain(
+            world
+                .assigned
+                .iter()
+                .filter(|assignment| assignment.task == requester)
+                .flat_map(|assignment| &assignment.messages),
+        )
+        .any(|word| matches!(word.kind, tasks::MessageKind::Escalation { task, .. } if task == change))
+}
+
 #[test]
-#[ignore = "qa: the world's clock jump leaves the change Checking past its stall (no wake at Wait.until); the real loop's q2 holds it; o/github-land-2 M3"]
 fn stalled_change_notifies_its_requester() {
     // QA: domain/forge.md 8.4; Q2. The requester is the live chat that delegated.
     let (mut world, requester) = silent_change();
@@ -155,7 +168,17 @@ fn stalled_change_notifies_its_requester() {
     world.until(temper_engine_domain_world::forge_routes::Until::Ready);
     let change = change_row(&world).task;
     let deadline = change_row(&world).change.since.as_nanos() + STALL.as_nanos();
-    at(&mut world, Wall::from_nanos(deadline + TICK.as_nanos()));
+    // Jump to the stall, then advance through any one-second Busy retries.
+    // Unlike the boundary snapshots, this story must settle the requester notice.
+    world.env.now = Time::from_nanos(deadline - TICK.as_nanos());
+    for _ in 0..200 {
+        world.tick();
+        if matches!(task(&world, change).phase, tasks::Phase::Held { .. })
+            && requester_heard_hold(&world, requester, change)
+        {
+            break;
+        }
+    }
     assert!(
         matches!(task(&world, change).phase, tasks::Phase::Held { .. }),
         "QA: the core procedure task must be held too: {:?}; forge: {:?}; pending: {:?}; events: {:?}",
@@ -164,20 +187,18 @@ fn stalled_change_notifies_its_requester() {
         world.pending,
         world.events
     );
-    let notices = &task(&world, requester).inbox;
     assert!(
-        notices.iter().any(|word| {
-            let kind = format!("{:?}", word.kind);
-            kind.contains("Held") && kind.contains(&change.to_string())
-        }),
-        "QA: the requesting chat must receive its delegate's hold notice: {notices:?}; requester phase: {:?}; messages: {:?}",
-        task(&world, requester).phase,
-        world
-            .assigned
-            .iter()
-            .filter(|assignment| assignment.task == requester)
-            .map(|assignment| &assignment.messages)
-            .collect::<Vec<_>>()
+        matches!(change_row(&world).change.state, change::State::Held { why: change::Hold::Stalled, .. }),
+        "QA: the hold card must carry the stall reason: {:?}",
+        change_row(&world)
+    );
+    // The requester hears generically; the reason is on the hold card. Its
+    // woken assignment may already have consumed the notice from its inbox.
+    assert!(
+        requester_heard_hold(&world, requester, change),
+        "QA: the requesting chat must receive its delegate's hold notice: {:?}; assignments: {:?}",
+        task(&world, requester),
+        world.assigned
     );
     assert_eq!(world.merges, 0);
 }
