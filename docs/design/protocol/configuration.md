@@ -1386,7 +1386,14 @@ private adapter directory D'/programs. Preparation supplies that path as
 init's program fact; source import checks an existing adapter's bounded
 absolute shape without looking for Claude on PATH. The pure rewrite writes
 the exact sibling and private directory even when the source has no adapter,
-and the ordinary provider configuration offers that adapter. No startup
+and an ordinary Anthropic provider (number 2, `signed_in_plan: false`,
+with its required `manage_usage` address `https://claude.ai/settings/usage`)
+offers that adapter and the `fake-claude` model. Init ships no Claude
+provider, so the rewrite adds it with only the program source; both
+program endpoints name `anthropic` with its dialect 2, while OpenAI keeps
+its key and ChatGPT sign-in sources. The fake overrides `documents.lines` to 3 so
+OpenAI, demo and Anthropic fit in the Model step’s provider offers.
+The view therefore shows “Use your Claude subscription” and “Declared your Claude subscription”. No startup
 path discovers or falls back to a real `claude` from PATH.
 
 Reuse requires agent.json/programs/claude_code/path to equal that sibling.

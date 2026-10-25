@@ -70,8 +70,20 @@ without a model on the real stack (a fake LLM, a junk held record); its paid
 runs wait on the owner's go and a person's sign-in (2026-10-24).
 
 [welcome-chatgpt/](welcome-chatgpt/README.md) walks the welcome’s ChatGPT
-sign-in on the ordinary fake box, then checks a first conversation and
+sign-in and Forgejo elsewhere connection on the ordinary fake box, then checks a first conversation and
 reload through hand and ctl. It has two processes and no driver.
+
+[welcome-github/](welcome-github/README.md) walks GitHub one-click through
+its create/install/return pages and adopts `fake-person/widget`.
+[welcome-forgejo-here/](welcome-forgejo-here/README.md) sets up a real local
+Forgejo and its first repository from staged pinned cache binaries.
+Both paste the box's fake model key in the browser, require its embedded
+Ready card, and follow “Start a chat” into the adopted project before
+checking the first chat's reply and reload. Each welcome step
+is a separate action, and each experiment has two processes and no driver.
+[welcome-own-app/](welcome-own-app/README.md) walks GitHub with an App of
+the person's own and a program login. It ends at Ready and checks the
+named program account and its worker usable, with no hand trouble.
 
 # The look experiment
 

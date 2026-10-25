@@ -68,12 +68,14 @@ pub struct Documents {
     pub forgejo: Box<[u8]>,
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
-// Init-shaped temper: forge roots/program (5), sign-in/program source (7),
+// Init-shaped temper: forge roots/program (5), sign-in (6),
 // model endpoint (2), program route (3), two charter alternatives (2), bundle
-// (1), worker argv/configuration (2), managed forge/limits (8). Each of the
+// (1), worker argv/configuration (2), managed forge/provider limits (9). Each of the
 // forge, sign-in and endpoint may also remove all four stale TLS members.
 // The agent document needs only its endpoint (6), route (1) and adapter (1).
-const EDITS: u32 = 5 + 7 + 2 + 3 + 2 + 1 + 2 + 8 + 3 * 4;
+const EDITS: u32 = 5 + 6 + 2 + 3 + 2 + 1 + 2 + 9 + 3 * 4;
+// The Model step must see OpenAI, demo and Anthropic in one provider offer.
+const PROVIDER_LINES: u32 = 3;
 #[derive(Debug)]
 struct Edit {
     first: u32,
@@ -317,7 +319,7 @@ fn program_endpoint(socket: &[u8], agent: bool) -> Result<Box<[u8]>, Refusal> {
         bytes::copy_of(br#""connect_ms":10000,"handshake_ms":10000"#)
     };
     Ok(read::joined(&[
-        br#"{"name":"fake-claude","number":2,"dialect":3,"provider":"openai","program":"claude_code","address":"#,
+        br#"{"name":"fake-claude","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":"#,
         &if agent { text(socket)? } else { address(socket)? },
         br#", "transport":"plaintext","headers":[],"#,
         &tail,
@@ -330,8 +332,18 @@ fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &P
     append(d, endpoints, &program_endpoint(socket, false)?, edits)?;
     append(d, member(d, llm, b"models", p)?, &program_model(false)?, edits)?;
     let providers = member(d, llm, b"providers", p)?;
-    let provider = selected(d, providers, b"number", b"1", true, &p.member(b"providers"))?;
-    append(d, member(d, provider, b"models", p)?, &text(PROGRAM_MODEL.as_bytes())?, edits)
+    // Init ships OpenAI and demo, leaving provider 2 for Claude's program way.
+    // Keep the public provider/model/source declaration in the ordinary schema.
+    append(
+        d,
+        providers,
+        &read::joined(&[
+            br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","models":["#,
+            &text(PROGRAM_MODEL.as_bytes())?,
+            br#"],"sources":{"programs":["claude_code"]}}"#,
+        ]),
+        edits,
+    )
 }
 
 fn program_charters(d: &Document, engine: u32, edits: &mut Edits) -> Result<(), Refusal> {
@@ -480,6 +492,8 @@ fn managed(
     let limits = member(d, engine, b"limits", &Path::root())?;
     let overrides = member(d, limits, b"overrides", &Path::root())?;
     object_member(d, overrides, b"accounts.credentials", b"4", edits)?;
+    let lines = Decimal::of(u64::from(PROVIDER_LINES));
+    object_member(d, overrides, b"documents.lines", lines.as_bytes(), edits)?;
     let workers = member(d, 0, b"workers", &Path::root())?;
     for worker in &read::list(d, workers, 1, &Path::root().member(b"workers"))? {
         let limits = member(d, *worker, b"limits", &Path::root())?;
@@ -536,7 +550,6 @@ fn sign_in(d: &Document, llm_at: u32, oauth: &[u8], edits: &mut Edits, ep: &Path
     let sp = pp.member(b"sources").member(b"sign_in");
     let sign_in = member(d, sources, b"sign_in", &pp.member(b"sources"))?;
     registration(d, sign_in, &sp)?;
-    object_member(d, sources, b"programs", br#"["claude_code"]"#, edits)?;
     let origin = read::joined(&[b"http://", oauth]);
     for (name, suffix) in [
         (b"issuer".as_slice(), b"".as_slice()),

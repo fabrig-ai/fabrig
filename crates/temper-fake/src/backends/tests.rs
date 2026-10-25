@@ -312,7 +312,7 @@ fn managed_four_and_adapter_are_ordinary_and_preserve_existing_entries() {
             effective_agent["programs"]["claude_code"],
             json!({"path":"/fixture/fake-claude","directory":"/effective/data/programs"})
         );
-        assert_eq!(effective["engine"]["llm"]["providers"][0]["sources"]["programs"], json!(["claude_code"]));
+        assert!(effective["engine"]["llm"]["providers"][0]["sources"].get("programs").is_none());
         let document = crate::forge::Document::decode(&docs.forgejo).expect("existing Forgejo schema");
         assert_eq!(document.listen(), peers.forgejo);
         assert_eq!(document.admin_token(), b"/effective/data/forgejo-admin.token");
@@ -323,6 +323,11 @@ fn managed_four_and_adapter_are_ordinary_and_preserve_existing_entries() {
 fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let (temper, agent, paths, peers) = fixture();
     let docs = write(&temper, &agent, &paths, &peers).expect("program route rewrite");
+    let document = crate::read::document(&docs.temper).expect("effective document");
+    let engine = super::member(&document, 0, b"engine", &jig_protocol_config::Path::root()).expect("engine");
+    let admitted = jig_protocol_config::engine(&document, engine, &jig_protocol_config::Directories::working())
+        .expect("the program provider passes ordinary engine admission");
+    assert_eq!(admitted.limits.core.documents.lines, 3, "all three provider offers fit the Model step");
     let effective = json(&docs.temper);
     let effective_agent = json(&docs.agent);
     let llm = &effective["engine"]["llm"];
@@ -330,8 +335,19 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         .as_array()
         .expect("providers")
         .iter()
-        .find(|provider| provider["number"] == 1)
+        .find(|provider| provider["number"] == 2)
         .expect("program's provider");
+    assert_eq!(
+        provider,
+        &json!({
+            "name":"anthropic", "number":2, "signed_in_plan":false,
+            "manage_usage":"https://claude.ai/settings/usage",
+            "models":["fake-claude"], "sources":{"programs":["claude_code"]}
+        })
+    );
+    let openai = &llm["providers"][0];
+    assert_eq!(openai["models"], temper["engine"]["llm"]["providers"][0]["models"]);
+    assert!(openai["sources"].get("programs").is_none());
     assert!(provider["models"].as_array().expect("provider models").contains(&json!("fake-claude")));
     assert!(provider["sources"]["programs"].as_array().expect("program adapters").contains(&json!("claude_code")));
     let model = llm["models"]
@@ -355,7 +371,8 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         .expect("agent program endpoint");
     for endpoint in [engine_endpoint, agent_endpoint] {
         assert_eq!(endpoint["program"], "claude_code");
-        assert_eq!(endpoint["provider"], "openai");
+        assert_eq!(endpoint["provider"], "anthropic");
+        assert_eq!(endpoint["dialect"], 2, "Anthropic’s endpoint dialect");
         assert_eq!(endpoint["number"], 2);
     }
     let agent_model = agent_endpoint["models"].as_array().expect("agent models").first().expect("program model");
