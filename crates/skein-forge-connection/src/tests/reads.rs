@@ -549,6 +549,33 @@ fn branches_round_trip_the_prefix_in_one_refs_request() {
 }
 
 #[test]
+fn a_missing_branch_prefix_reads_its_404_body_and_keeps_the_connection() {
+    let mut h = fixtures::known();
+    h.call(1, fixtures::REPO, Op::Read(Read::Branches { prefix: Box::from(&b"temper/"[..]) }));
+    h.run(Duration::ZERO);
+    last(&h, b"GET /api/v1/repos/fixture/specimen/git/refs/heads/temper%2F HTTP/1.1");
+    let response = fixtures::response(404, br#"{"message":"Not Found"}"#);
+    let head_end = response.windows(b"\r\n\r\n".len()).position(|bytes| bytes == b"\r\n\r\n").expect("head ends")
+        + b"\r\n\r\n".len();
+    let (head, body) = response.split_at(head_end);
+    h.answer(fixtures::FORGE, head);
+    h.run(Duration::ZERO);
+    assert!(h.answered(1).is_none(), "the 404 body must be read before answering");
+    h.answer(fixtures::FORGE, body);
+    h.run(Duration::ZERO);
+    assert_eq!(h.answered(1).expect("missing prefix").result, Ok(Answer::Branches(Box::new([]))));
+    assert_eq!(h.answered(1).expect("missing prefix").cost, 1);
+
+    let opened = h.connections_opened();
+    h.call(2, fixtures::REPO, Op::Read(Read::Branch { branch: Box::from(&b"main"[..]) }));
+    h.run(Duration::ZERO);
+    last(&h, b"GET /api/v1/repos/fixture/specimen/branches/main HTTP/1.1");
+    answer(&mut h, &branch(b"main", b""));
+    assert_eq!(h.answered(2).expect("main branch").result, Ok(Answer::Commit(SHA)));
+    assert_eq!(h.connections_opened(), opened, "the next call reuses the connection");
+}
+
+#[test]
 fn protection_checks_admin_access_even_when_no_rule_applies() {
     let mut h = fixtures::known();
     for (name, call, rule, response, expected) in [

@@ -59,6 +59,7 @@ pub struct Plan {
     limit: u32,
     position: u32,
     more: bool,
+    missing: bool,
     now: Time,
     cut: bool,
     bound: Option<u32>,
@@ -84,6 +85,7 @@ impl Plan {
             limit: 1,
             position: 0,
             more: false,
+            missing: false,
             now: Time::ZERO,
             cut: false,
             bound: None,
@@ -277,7 +279,8 @@ impl Plan {
         match heard {
             Heard::Head { status, fields } => {
                 if self.stage == Stage::Branches && status == 404 {
-                    return self.terminal(api::Answer::Branches(Box::new([])), bounds);
+                    self.missing = true;
+                    return Ok(None);
                 }
                 if status != 200 {
                     let asked = if self.stage == Stage::Read
@@ -307,11 +310,18 @@ impl Plan {
                 self.row(row, bounds, word, tables)?;
                 Ok(None)
             }
-            Heard::Done(Body::Document(document)) => self.done(document, bounds, word, tables),
-            Heard::Done(Body::Malformed(crate::forgejo::decode::Malformed::Bound { field })) => {
-                Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge })
+            Heard::Done(body) => {
+                if self.missing {
+                    return self.terminal(api::Answer::Branches(Box::new([])), bounds);
+                }
+                match body {
+                    Body::Document(document) => self.done(document, bounds, word, tables),
+                    Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
+                        Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge })
+                    }
+                    Body::Malformed(_) | Body::Empty | Body::Raw { .. } => Err(api::Error::InvalidAnswer),
+                }
             }
-            Heard::Done(Body::Malformed(_) | Body::Empty | Body::Raw { .. }) => Err(api::Error::InvalidAnswer),
             Heard::Failed(failure) => Err(crate::forgejo::plans::failure::transport(failure)),
         }
     }
