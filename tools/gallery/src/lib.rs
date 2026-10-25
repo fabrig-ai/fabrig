@@ -102,6 +102,9 @@ fn built(sample: &Sample) -> (temper_client_view::View, temper_client_view::Limi
             origin: Some(Box::from(b"https://temper.example.com".as_slice())),
         },
     );
+    let mut forge_sign_in = temper_client_view::forge_sign_in::Forges::new();
+    forge_sign_in.read("3 forgejo http://127.0.0.1:8368 owned");
+    view.forge_sign_in(forge_sign_in);
     let mut patches = Queue::with_capacity(bounds.tree.patches);
     temper_client_view::build(&mut view, &root, worlds::now(sample.world), &mut patches);
     let mut collected = Vec::new();

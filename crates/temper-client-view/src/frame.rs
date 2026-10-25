@@ -150,7 +150,14 @@ pub(crate) fn banner(builder: &mut Builder, root: &Domain, words: &crate::words:
     let me = pages.me(root.client());
     builder.open(Role::Banner);
     builder.style(crate::look::BANNER);
-    text(builder, Role::Paragraph, &words.say(crate::words::Word::Brand, &[]), Some(crate::look::BRAND));
+    crate::link(
+        builder,
+        &words.say(crate::words::Word::BrandChats, &[]),
+        bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } }),
+    );
+    builder.style(crate::look::BRAND);
+    builder.text(Run::Plain, &words.say(crate::words::Word::Brand, &[]));
+    builder.close();
     if let Address::Welcome { .. } = pages.address()
         && unavailable(root).is_none()
     {

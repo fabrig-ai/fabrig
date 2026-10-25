@@ -387,7 +387,15 @@ fn here(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings,
         b.close();
         text(b, w, Role::Paragraph, Word::ForgeTerminalNext);
     } else {
-        text(b, w, Role::Paragraph, Word::ForgeHereDetails);
+        if let Some(owned) = &row.owned {
+            crate::cards::text(
+                b,
+                Role::Paragraph,
+                &w.say(Word::ForgeHereVersionDetails, &[Hole::Name(copy_of(&owned.forgejo))]),
+            );
+        } else {
+            text(b, w, Role::Paragraph, Word::ForgeHereDetails);
+        }
         setup_fields(b, root, w, bindings, row.number);
         b.open(Role::List);
         b.style(look::FLOW_FACTS);
@@ -511,7 +519,16 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
             | Connection::Stopped { .. } => None,
         }
     };
-    let fetch = w.say(if current > Some(0) { Word::ForgeFetched } else { Word::ForgeFetch }, &[]);
+    let fetch = if let Some(owned) = &row.owned
+        && let Some(runner) = &owned.runner
+    {
+        w.say(
+            if current > Some(0) { Word::ForgeFetchedVersions } else { Word::ForgeFetchVersions },
+            &[Hole::Name(copy_of(&owned.forgejo)), Hole::Name(copy_of(runner))],
+        )
+    } else {
+        w.say(if current > Some(0) { Word::ForgeFetched } else { Word::ForgeFetch }, &[])
+    };
     let prepare = w.say(Word::ForgePrepare, &[]);
     let run = w.say(Word::ForgeRun, &[]);
     let connecting = w.say(Word::ForgeConnectingAsTemper, &[]);
@@ -1097,7 +1114,10 @@ fn github_picker(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBin
     {
         adoption_outcome(b, w, &adoption.value, answer);
     }
-    let label = w.say(Word::GitHubNotListed, &[]);
+    b.open(Role::Paragraph);
+    b.style(look::FLOW_MUTED);
+    w.text(b, Word::GitHubNotListed, &[]);
+    let label = w.say(Word::GitHubChooseRepositories, &[]);
     if disabled {
         flow::control(b, Control::QuietDisabled { name: &label });
     } else {
@@ -1109,6 +1129,8 @@ fn github_picker(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBin
             },
         );
     }
+    w.text(b, Word::GitHubNotListedAfter, &[]);
+    b.close();
 }
 fn github_choices(
     b: &mut Builder,
@@ -1159,9 +1181,10 @@ fn github_choices(
                 b.name(&w.say(Word::GitHubRepositories, &[]));
                 for (index, repository) in page.rows.iter().enumerate() {
                     let name = forge::words::full_name(&repository.owner.login, &repository.name);
-                    let label = if repository.private { w.say(Word::GitHubPrivate, &[Hole::Name(name)]) } else { name };
+                    b.open(Role::Slot);
+                    b.style(look::REPOSITORY_CHOICE);
                     b.open(Role::Choice);
-                    b.name(&label);
+                    b.name(&name);
                     let index = u32::try_from(index).expect("bounded page");
                     if picker.chosen == index {
                         b.state(State::Selected);
@@ -1170,6 +1193,13 @@ fn github_choices(
                         b.state(State::Disabled);
                     }
                     b.bind(forge.insert(Meaning::Picker { forge: row.number, act: Act::Choose(index) }));
+                    b.close();
+                    if repository.private {
+                        b.open(Role::Text);
+                        b.style(look::REPOSITORY_PRIVATE);
+                        w.text(b, Word::GitHubPrivateTag, &[]);
+                        b.close();
+                    }
                     b.close();
                 }
                 b.close();

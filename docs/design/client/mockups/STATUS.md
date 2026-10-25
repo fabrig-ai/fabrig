@@ -22,17 +22,6 @@ Connect pages the journey passes through are other groups'.
 
 What the client doesn't draw yet:
 
-- **The brand** is a link to Chats; the client's is plain text
-  (`temper-client-view`'s `frame.rs`).
-- **The set up card's model sentence** follows the providers' ways the
-  configuration offers (`me.providers`); the client's words are fixed,
-  "your ChatGPT plan, or an OpenAI API key" (`words.rs`).
-- **The owned forge's versions,** Forgejo's and its runner's, in its
-  Details and its Each step, from the row's `owned` pins; the client
-  says "Forgejo and its runner".
-- **Ready's "Open Forgejo ↗"** on an owned forge, signing the person in
-  through temper (its `/user/oauth2/temper`); the client draws it on
-  Forges alone.
 - **GitHub's target details:** Model and Ready use the durable adoption,
   and the asking tab names its new project. The durable row does not
   retain whether the project was new, so after reload Model says
@@ -42,9 +31,6 @@ What the client doesn't draw yet:
   now draw their words and acts. "Try later" still needs the listener's
   port-taken fact in the client (M-j); `OwnerAccounts.last_end` does
   not carry it.
-- **The picker's private repository** wears a tag; the client writes
-  "sam/notes, private". Its "Not listed?" links its middle words; the
-  client links the whole sentence.
 
 Where the client does otherwise: nothing known.
 

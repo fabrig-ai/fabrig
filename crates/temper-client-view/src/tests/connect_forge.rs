@@ -1500,7 +1500,19 @@ fn github_picker_accounts_rows_pages_and_name_are_bound() {
     assert!(has_state(view.tree(), Role::Choice, b"acme", State::Selected));
     node(view.tree(), Role::Choice, b"other");
     assert!(has_state(view.tree(), Role::Choice, b"acme/first", State::Selected));
-    let second = node(view.tree(), Role::Choice, b"acme/second, private");
+    let second = node(view.tree(), Role::Choice, b"acme/second");
+    let at = view.tree().nodes().iter().position(|n| n.id == second).unwrap() - 1;
+    assert!(view.tree().nodes()[at].styles.as_slice().contains(&crate::look::REPOSITORY_CHOICE));
+    let subtree = &view.tree().nodes()[at..at + usize::try_from(view.tree().nodes()[at].size).unwrap()];
+    assert!(
+        subtree.iter().any(|n| n.role == Role::Text && n.styles.as_slice().contains(&crate::look::REPOSITORY_PRIVATE))
+    );
+    assert_eq!(f::node_text(view.tree(), at).as_ref(), b"private");
+    words_in_order(
+        view.tree(),
+        &["Not listed? ", "Choose its repositories on GitHub", ", and GitHub sends you back here."],
+    );
+
     node(view.tree(), Role::Button, b"Next");
     let action = crate::act(&mut view, second, Act::Toggle).unwrap();
     drive(&mut root, d::Event::Act { action });
@@ -1520,11 +1532,7 @@ fn github_picker_accounts_rows_pages_and_name_are_bound() {
     node(f::browser_page_view(&root).tree(), Role::Button, b"First page");
     let back = d::address::print(root.pages().address());
     let mut view = f::browser_page_view(&root);
-    let id = node(
-        view.tree(),
-        Role::Link,
-        b"Not listed? Choose its repositories on GitHub, and GitHub sends you back here.",
-    );
+    let id = node(view.tree(), Role::Link, b"Choose its repositories on GitHub");
     assert_eq!(
         crate::act(&mut view, id, Act::Press),
         Some(d::Action::Forge(d::forge::Act::Install { forge: GITHUB, back }))
@@ -1590,11 +1598,7 @@ fn github_picker_read_refusals_show_their_words_and_keep_install_available() {
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             node(view.tree(), Role::Alert, expected);
             assert!(f::find(view.tree(), Role::ChoiceGroup, b"Repositories").is_none());
-            let install = node(
-                view.tree(),
-                Role::Link,
-                b"Not listed? Choose its repositories on GitHub, and GitHub sends you back here.",
-            );
+            let install = node(view.tree(), Role::Link, b"Choose its repositories on GitHub");
             assert_eq!(
                 crate::act(&mut view, install, Act::Press),
                 Some(d::Action::Forge(d::forge::Act::Install {
@@ -2203,4 +2207,67 @@ fn the_admin_card_keeps_the_whole_configured_web_address() {
     let mut heading = b"Forgejo at ".to_vec();
     heading.extend_from_slice(&[b'a'; 2048]);
     node(view.tree(), Role::Heading { level: 2 }, &heading);
+}
+
+pub(super) fn pinned_rows(connection: w::Connection, pins: bool, runner: bool) -> List<w::ForgeRow> {
+    let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered).into_parts();
+    if pins {
+        parts.owned = Some(
+            w::OwnedForge::new(
+                &w::CEILINGS,
+                w::OwnedForgeParts {
+                    forgejo: b"17.0.0".as_slice().into(),
+                    runner: runner.then(|| b"11.2.1".as_slice().into()),
+                    password: b"/fake/first-password".as_slice().into(),
+                },
+            )
+            .unwrap(),
+        );
+    }
+    let mut rows = List::with_capacity(1);
+    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    rows
+}
+
+#[test]
+fn owned_details_draw_the_forgejo_pin_and_keep_the_unpinned_words() {
+    for (pins, runner) in [(true, true), (true, false), (false, false)] {
+        let root = f::forge_root(
+            Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
+            pinned_rows(w::Connection::NotSetUp, pins, runner),
+        );
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let expected = if pins {
+                "temper box downloads Forgejo 17.0.0 and its runner"
+            } else {
+                "temper box downloads Forgejo and its runner"
+            };
+            words_in_order(view.tree(), &[expected, "starts them, and makes your first repository"]);
+        }
+    }
+}
+
+#[test]
+fn owned_fetch_steps_draw_both_pins_or_keep_the_unpinned_words() {
+    for (pins, runner, fetching, fetched) in [
+        (true, true, "Fetching Forgejo 17.0.0 and its runner 11.2.1", "Fetched Forgejo 17.0.0 and its runner 11.2.1"),
+        (true, false, "Fetching Forgejo and its runner", "Fetched Forgejo and its runner"),
+        (false, false, "Fetching Forgejo and its runner", "Fetched Forgejo and its runner"),
+    ] {
+        for (step, expected) in [(w::SetUpStep::Fetch, fetching), (w::SetUpStep::Prepare, fetched)] {
+            let connection = w::Connection::SettingUp(
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step) }).unwrap(),
+            );
+            let root = f::forge_root(
+                Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
+                pinned_rows(connection, pins, runner),
+            );
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                words_in_order(
+                    view.tree(),
+                    &[expected, "Preparing", "Starting Forgejo and its runner", "Connecting", "Making"],
+                );
+            }
+        }
+    }
 }

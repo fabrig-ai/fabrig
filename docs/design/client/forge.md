@@ -454,6 +454,13 @@ and `connect-forge.html`.
   until a forge of yours connects · OWNER/NAME"; opened, its Account
   line. Once the demo has ended (`../draft/first-run.md`, 2.3), it
   shows nowhere.
+- **Owned setup versions** come from the forge row's `owned` pins.
+  Details names the Forgejo version in what temper box downloads;
+  the first of Each step's five lines names both Forgejo and runner
+  versions, "Fetching" until fetched, then "Fetched". Without `owned`,
+  Details keeps "Forgejo and its runner"; without `owned.runner`,
+  that first step keeps its unversioned wording. These are shared by
+  Connect a forge and the welcome. Preparing names no future login.
 - **Connecting a forge,** `ConnectForge { forge }`, is four steps,
   named along its top: Choose, Details, Setting up ("Connecting" for a
   Forgejo elsewhere) and Ready. GitHub's, through temper's App, is

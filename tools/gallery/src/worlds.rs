@@ -374,7 +374,21 @@ fn forges(world: World) -> Box<[u8]> {
                     app: None,
                     web: if step == 23 { Some(b"http://forgejo.test".as_slice().into()) } else { None },
                     repositories: List::with_capacity(0),
-                    owned: None,
+                    owned: if step == 23 {
+                        None
+                    } else {
+                        Some(
+                            w::OwnedForge::new(
+                                &limits,
+                                w::OwnedForgeParts {
+                                    forgejo: b"17.0.0".as_slice().into(),
+                                    runner: Some(b"13.2.0".as_slice().into()),
+                                    password: b"/fake/forge/person_password".as_slice().into(),
+                                },
+                            )
+                            .expect("owned pins"),
+                        )
+                    },
                     admin: step == 23,
                     ended_stop: None,
                 },
@@ -1868,14 +1882,10 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 place: 1,
                 uses: None,
                 plan: false,
-                provider: Some(if matches!(w, FirstRun { step: 5..=7 | 9 }) { 18 } else { 17 }),
-                provider_name: Some(doc(if matches!(w, FirstRun { step: 5..=7 | 9 }) {
-                    "OpenAI"
-                } else {
-                    "Playground"
-                })),
+                provider: Some(if matches!(w, FirstRun { step: 5..=9 }) { 18 } else { 17 }),
+                provider_name: Some(doc(if matches!(w, FirstRun { step: 5..=9 }) { "OpenAI" } else { "Playground" })),
                 manage_usage: None,
-                display: doc(if matches!(w, FirstRun { step: 5..=7 | 9 }) { "ChatGPT" } else { "Scripted model" }),
+                display: doc(if matches!(w, FirstRun { step: 5..=9 }) { "ChatGPT" } else { "Scripted model" }),
                 holder: c::OwnerAccountHolder::Party(73),
                 sources,
                 cut: false,

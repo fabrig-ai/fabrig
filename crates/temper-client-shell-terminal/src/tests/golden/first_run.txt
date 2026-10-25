@@ -1,19 +1,19 @@
 == What shall we change? == Live
-temper
+[1] temper
 Menu:
-  [1] Playground (pressed)
+  [2] Playground (pressed)
   Main navigation:
-    [2] Inbox
-    [3] Chats (current)
-    [4] Adopt a repository
-    [5] Forges
-    [6] Accounts
+    [3] Inbox
+    [4] Chats (current)
+    [5] Adopt a repository
+    [6] Forges
+    [7] Accounts
   * Pat
-  [7] Sign out
+  [8] Sign out
 Playground:
   This is the playground: a scripted model and a playground forge.
-  [8] Connect a model
-  [9] Connect a forge
+  [9] Connect a model
+  [10] Connect a forge
 New chat
 * Ready
 Scripted model
@@ -22,19 +22,19 @@ Signed in as the deployment’s owner
 What shall we change?
   Try a request in playground/widget. Follow the task from its branch to a landed change.
   Suggested requests:
-    - [10] Add CSV export to widget
-    - [11] Add a dark theme to widget
-    - [12] Fix widget’s empty search state
+    - [11] Add CSV export to widget
+    - [12] Add a dark theme to widget
+    - [13] Fix widget’s empty search state
   The scripted model plays these requests from its script.
 Using Scripted model · Default
 Change model:
-  - [13] Scripted model
-  [14] Reset choice
-[15] Start a chat: (empty) (enter sends)
+  - [14] Scripted model
+  [15] Reset choice
+[16] Start a chat: (empty) (enter sends)
 temper · Enter to start · Shift+Enter for newline
-[16] Start chat
+[17] Start chat
 ## Your chats
-[17] All (pressed)
-[18] Live
-[19] Closed
+[18] All (pressed)
+[19] Live
+[20] Closed
 No chats yet.

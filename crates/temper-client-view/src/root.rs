@@ -173,6 +173,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.forge,
             *step,
             view.limits.tree.text_per_node,
+            &view.forge_sign_in,
         );
     } else if let temper_client_domain::Address::Inbox { .. } = root.pages().address() {
         crate::pages::inbox::main(&mut builder, root, &view.forge_words, &mut view.pages, view.rows, &mut times);

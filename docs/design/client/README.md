@@ -738,10 +738,10 @@ keeps (`../protocol/configuration.md`, section 2).
   step Welcome, Forge, Model or Ready, at `/welcome` and
   `/welcome?at=forge`, `model` or `ready` (`browser.md`, 2.3); its
   words are its mockup's (5.6).
-  - *Its frame* is temper's name, the person's name and "Sign out"
-    alone: no project, navigation or link state, and neither the
-    accounts' banner nor the demo's nor the setup strip (5.1). Each
-    step's heading is the page's level-1 heading.
+  - *Its frame* is temper's brand link to Chats (named "temper chats"),
+    the person's name and "Sign out" alone: no project, navigation or
+    link state, and neither the accounts' banner nor the demo's nor the
+    setup strip (5.1). Each step's heading is the page's level-1 heading.
   - *Whether it shows:* at its Welcome step, the page decides once each
     time it opens, when its facts are in. The first run is over
     when a model is usable, and a forge other than the
@@ -772,7 +772,13 @@ keeps (`../protocol/configuration.md`, section 2).
     the demo's read names it, which the start's first act makes
     (`../draft/first-run.md`, 2.4); until then the chats page shows the
     demo's start under way, as in that project.
-    *"Set up temper"* opens its Forge step.
+    *"Set up temper"* opens its Forge step. Its card's model sentence
+    reads the offered `me.providers` ways, excluding the playground's
+    provider: "your PLAN plan" for a sign-in, "your PLAN subscription"
+    for a program's login, and "an PROVIDER API key" per key provider,
+    in 5.5's provider and plan words. Key providers join with " or ";
+    the other alternatives join with ", or ". No model sentence is
+    drawn with no offered way.
   - *Forge* is `ConnectForge`'s Choose and Details (`forge.md`, 5.4),
     its choice in the welcome's address (`browser.md`, 2.3); inside a
     choice, the foot's one "‹ Back" returns to Forge's Choose. The
@@ -858,7 +864,11 @@ keeps (`../protocol/configuration.md`, section 2).
     ORG/NAME is made." Once that repository is adopted (`forge.md`,
     5.4, Ready), its heading is "ORG/NAME is ready", its checklist
     forge first, then Model and Project, with "Open PROJECT", to the
-    chats page in that project. GitHub uses its durable adoption for
+    chats page in that project. On a connected owned Forgejo whose
+    page facts offer sign-in through temper (`forge.md`, 5.4),
+    "Open Forgejo ↗" follows it, with the same
+    `ROOT/user/oauth2/temper` address as Forges. It is absent until
+    adoption. GitHub uses its durable adoption for
     the same checklist and heading; its row has no repository web
     address, so no "Open on GitHub ↗" is drawn. While the forge is
     connected with no first repository, "Adopt a repository", to `Adopt` into a new project
@@ -1896,6 +1906,10 @@ The words for each offered source are:
   Any other provider's plan reads as its name. jig configures no plan's
   display name yet (jig's `protocol/configuration.md`, section 3), so
   the plan is branded by its provider until it does.
+- **The welcome's model sentence** uses these provider and plan names
+  for each offered way (3.5, The welcome), grouping all key providers
+  into one alternative. It reflects the deployment's catalogue rather
+  than assuming OpenAI's two ways.
 - **The ways,** on `ConnectModel`'s Choose (3.5) and in the banner, one for
   each source a configured provider offers, in provider number order,
   but the demo's provider (`Demo.provider`, 4.8), whose account is the

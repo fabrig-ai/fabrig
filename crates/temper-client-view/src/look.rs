@@ -305,6 +305,12 @@ pub const WELCOME_END: Style = Style { owner: owner(), token: 149 };
 pub const WELCOME_TINY: Style = Style { owner: owner(), token: 150 };
 /// Model’s muted forge status above its heading.
 pub const WELCOME_STATUS: Style = Style { owner: owner(), token: 151 };
+/// A private repository's tag in the first-run picker.
+pub const REPOSITORY_PRIVATE: Style = Style { owner: owner(), token: 152 };
+/// A repository radio, its native label and optional privacy tag on one row.
+pub const REPOSITORY_CHOICE: Style = Style { owner: owner(), token: 153 };
+/// Ready's project button and optional Forgejo link.
+pub const WELCOME_ACTIONS: Style = Style { owner: owner(), token: 154 };
 /// Native browser elements for the admin group and Model’s definition list.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
@@ -470,6 +476,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-end",
         b"temper-welcome-tiny",
         b"temper-welcome-status",
+        b"temper-repository-private",
+        b"temper-repository-choice",
+        b"temper-welcome-actions",
     ],
     regions: &[b"temper-link"],
 };

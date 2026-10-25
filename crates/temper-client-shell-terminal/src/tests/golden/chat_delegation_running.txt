@@ -1,15 +1,15 @@
 == T1 · Add CSV export to widget == Live
-temper
+[1] temper
 Menu:
-  [1] demo (pressed)
+  [2] demo (pressed)
   Main navigation:
-    [2] Inbox
-    [3] Chats (current)
-    [4] Adopt a repository
-    [5] Forges
-    [6] Accounts
+    [3] Inbox
+    [4] Chats (current)
+    [5] Adopt a repository
+    [6] Forges
+    [7] Accounts
   * Pat
-  [7] Sign out
+  [8] Sign out
 T1 · Add CSV export to widget:
   * waiting on 1 delegate
   0 spent · of 1 · delegates spent 0
@@ -30,10 +30,10 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [8] Task 2 ↗
+    [9] Task 2 ↗
   1 tool call: wait
     wait
 Using the default model
-[9] Message: (empty) (enter sends)
+[10] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[10] Send
+[11] Send

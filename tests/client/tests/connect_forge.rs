@@ -266,7 +266,14 @@ fn github_ready_picks_adopts_into_a_new_project_and_stays_adopted_after_reload()
     );
     let mut picker = view(&root);
     node(&picker, Role::Heading { level: 2 }, b"Choose a repository to start in");
-    let row = node(&picker, Role::Choice, b"acme/second, private");
+    let row = node(&picker, Role::Choice, b"acme/second");
+    assert!(
+        picker
+            .tree()
+            .nodes()
+            .iter()
+            .any(|n| n.styles.as_slice().contains(&temper_client_view::look::REPOSITORY_PRIVATE))
+    );
     let action = temper_client_view::act(&mut picker, row, skein_ui::Act::Toggle).expect("chosen row");
     pump(&mut front, &mut root, &mut now, d::Event::Act { action });
     let mut picker = view(&root);

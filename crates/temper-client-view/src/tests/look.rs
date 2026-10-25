@@ -173,7 +173,7 @@ fn the_composers_carry_the_composer_token() {
 fn the_chat_structure_tokens_stay_on_their_roles() {
     let view = fixtures::page_view(&super::chats::listed_root());
     for (token, role) in [
-        (BRAND, Role::Paragraph),
+        (BRAND, Role::Link),
         (LIVE, Role::Status),
         (ROWS, Role::List),
         (ROW, Role::Item),

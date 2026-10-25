@@ -207,7 +207,7 @@ fn the_welcome_step_says_its_words_and_offers_both_cards() {
         "Nothing leaves this machine, and nothing costs. · Ready at once",
         "Try the playground",
         "Set up temper",
-        "Your forge: GitHub, or a Forgejo temper runs on this machine. Your model: your ChatGPT plan, or an OpenAI API key.",
+        "Your forge: GitHub, or a Forgejo temper runs on this machine.",
         "About five minutes",
         "Set up temper",
         "Started in the playground? Connect your own forge and model whenever you like; the playground then steps aside.",
@@ -886,4 +886,132 @@ fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
         .unwrap();
     *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
     rows
+}
+
+#[test]
+fn the_setup_card_names_only_the_configured_model_ways() {
+    use jig_client::contract as c;
+    let openai = [b"openai".as_slice()];
+    let both_keys = [b"openai".as_slice(), b"anthropic"];
+    for (signin, key_names, expected) in [
+        (true, [].as_slice(), "Your model: your ChatGPT plan."),
+        (false, openai.as_slice(), "Your model: an OpenAI API key."),
+        (true, openai.as_slice(), "Your model: your ChatGPT plan, or an OpenAI API key."),
+        (false, both_keys.as_slice(), "Your model: an OpenAI API key or an Anthropic API key."),
+    ] {
+        let (mut root, watch, _) = f::root_at(Address::Welcome { step: Step::Welcome }, &f::domain_limits());
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.providers = skein_lib::List::with_capacity(2);
+        for (provider, name) in [b"openai".as_slice(), b"anthropic"].into_iter().enumerate() {
+            if (provider == 0 && signin) || key_names.contains(&name) {
+                me.providers
+                    .push(c::ProviderOffer {
+                        provider: u32::try_from(provider).unwrap() + 20,
+                        name: super::connect_model::text(name),
+                        key_bytes: 4096,
+                        sign_in: provider == 0 && signin,
+                        signed_in_plan: true,
+                        key: key_names.contains(&name),
+                        programs: skein_lib::List::with_capacity(0),
+                        programs_cut: false,
+                        none: false,
+                        manage_usage: None,
+                    })
+                    .unwrap();
+            }
+        }
+        f::root_event(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                    },
+                },
+            },
+        );
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let at = view
+                .tree()
+                .nodes()
+                .iter()
+                .position(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Set up temper"))
+                .unwrap();
+            let card = String::from_utf8(f::node_text(view.tree(), at).into_vec()).unwrap();
+            assert!(card.contains(expected), "{card}");
+            assert_eq!(card.matches("Your model:").count(), 1);
+            if !signin {
+                assert!(!card.contains("ChatGPT"));
+            }
+            if key_names.is_empty() {
+                assert!(!card.contains("API key"));
+            }
+        }
+    }
+}
+
+#[test]
+fn welcomes_five_steps_use_the_owned_pins_without_a_future_login() {
+    for (pins, runner, fetching, fetched) in [
+        (true, true, "Fetching Forgejo 17.0.0 and its runner 11.2.1", "Fetched Forgejo 17.0.0 and its runner 11.2.1"),
+        (true, false, "Fetching Forgejo and its runner", "Fetched Forgejo and its runner"),
+        (false, false, "Fetching Forgejo and its runner", "Fetched Forgejo and its runner"),
+    ] {
+        for (step, expected) in [(w::SetUpStep::Fetch, fetching), (w::SetUpStep::Prepare, fetched)] {
+            let connection = w::Connection::SettingUp(
+                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step) }).unwrap(),
+            );
+            let root =
+                f::forge_root(Address::Welcome { step: Step::Ready }, forge::pinned_rows(connection, pins, runner));
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                forge::words_in_order(
+                    view.tree(),
+                    &[expected, "Preparing", "Starting Forgejo and its runner", "Connecting", "Making"],
+                );
+                assert!(!String::from_utf8_lossy(&f::main_text(view.tree())).contains(" sam"));
+            }
+        }
+    }
+}
+
+#[test]
+fn ready_offers_forgejo_sign_in_only_after_its_owned_repository_is_adopted() {
+    for (rows, offered) in [
+        (owned_adopted_rows(), true),
+        (forge::first_rows(forge::connected(), w::FirstState::Making), false),
+        (
+            forge::pinned_rows(
+                w::Connection::SettingUp(
+                    w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Fetch) }).unwrap(),
+                ),
+                true,
+                true,
+            ),
+            false,
+        ),
+        (github_adopted_rows(), false),
+    ] {
+        let (mut root, accounts) = f::forge_root_accounts(Address::Welcome { step: Step::Ready }, rows);
+        f::welcome_account(&mut root, accounts);
+        for facts_present in [true, false] {
+            let mut view = f::view_of(f::browser_words());
+            if facts_present {
+                let mut facts = crate::forge_sign_in::Forges::new();
+                facts.read("3 forgejo http://127.0.0.1:3000 owned");
+                facts.read("2 github http://127.0.0.1:3001 other");
+                view.forge_sign_in(facts);
+            }
+            f::build(&mut view, &root);
+            let link = f::find(view.tree(), Role::Link, "Open Forgejo ↗".as_bytes());
+            assert_eq!(link.is_some(), offered && facts_present);
+            if let Some(link) = link {
+                assert_eq!(
+                    crate::href(&mut view, link).as_deref(),
+                    Some(b"http://127.0.0.1:3000/user/oauth2/temper".as_slice())
+                );
+                forge::words_in_order(view.tree(), &["Open Shop", "Open Forgejo ↗"]);
+            }
+        }
+    }
 }

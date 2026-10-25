@@ -79,13 +79,55 @@ fn steps(b: &mut Builder, root: &Domain, w: &Words, current: Step) {
     };
     crate::flow::steps(b, w, &[&welcome, &forge, &model, &ready], current);
 }
-fn card(b: &mut Builder, w: &Words, title: Word, description: Word, time: Word) {
+fn card(b: &mut Builder, w: &Words, title: Word) {
     b.open(Role::Region);
     b.style(look::WELCOME_CARD);
     b.name(&w.say(title, &[]));
     text(b, w, Role::Heading { level: 2 }, title);
-    text(b, w, Role::Paragraph, description);
-    paragraph(b, w, time, look::WELCOME_MUTED);
+}
+fn setup_description(b: &mut Builder, root: &Domain, w: &Words) {
+    use temper_client_domain::pages::accounts::{self, Way};
+    b.open(Role::Paragraph);
+    w.text(b, Word::WelcomeSetupDescription, &[]);
+    if let Some(me) = root.pages().me(root.client()) {
+        let ways =
+            accounts::ways(&me.providers, root.forge().demo_provider(), jig_client::contract::AccountHolder::Own);
+        if !ways.is_empty() {
+            w.text(b, Word::WelcomeYourModel, &[]);
+        }
+        let mut written = false;
+        // Keys form one alternative, with one named key per provider.
+        for way in &ways {
+            let word = match way {
+                Way::SignIn { .. } => Word::WelcomeModelPlan,
+                Way::Program { .. } => Word::WelcomeModelProgram,
+                Way::Key { .. } => continue,
+            };
+            if written {
+                w.text(b, Word::WelcomeModelWayOr, &[]);
+            }
+            let (_, plan) = super::connect_model::names(me, *way);
+            w.text(b, word, &[Hole::Name(crate::choice::shown(plan, w))]);
+            written = true;
+        }
+        let mut key_written = false;
+        for way in &ways {
+            if let Way::Key { .. } = way {
+                if key_written {
+                    w.text(b, Word::WelcomeModelKeysOr, &[]);
+                } else if written {
+                    w.text(b, Word::WelcomeModelWayOr, &[]);
+                }
+                let (brand, _) = super::connect_model::names(me, *way);
+                w.text(b, Word::WelcomeModelKey, &[Hole::Name(crate::choice::shown(brand, w))]);
+                key_written = true;
+            }
+        }
+        if written || key_written {
+            w.text(b, Word::WelcomeModelEnd, &[]);
+        }
+    }
+    b.close();
 }
 #[expect(clippy::too_many_arguments, reason = "welcome composes the forge and accounts flows with their bindings")]
 pub(crate) fn main(
@@ -97,6 +139,7 @@ pub(crate) fn main(
     forge: &mut crate::forge::bindings::Bindings,
     step: Step,
     text_per_node: u32,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
@@ -113,17 +156,15 @@ pub(crate) fn main(
                 b.open(Role::Slot);
                 b.style(look::WELCOME_CHOICES);
                 if playground {
-                    card(
-                        b,
-                        w,
-                        Word::WelcomePlayground,
-                        Word::WelcomePlaygroundDescription,
-                        Word::WelcomePlaygroundCost,
-                    );
+                    card(b, w, Word::WelcomePlayground);
+                    text(b, w, Role::Paragraph, Word::WelcomePlaygroundDescription);
+                    paragraph(b, w, Word::WelcomePlaygroundCost, look::WELCOME_MUTED);
                     control(b, w, bindings, Word::WelcomePlayground, Act::Playground);
                     b.close();
                 }
-                card(b, w, Word::WelcomeSetup, Word::WelcomeSetupDescription, Word::WelcomeSetupTime);
+                card(b, w, Word::WelcomeSetup);
+                setup_description(b, root, w);
+                paragraph(b, w, Word::WelcomeSetupTime, look::WELCOME_MUTED);
                 go(b, w, bindings, Word::WelcomeSetup, Step::Forge { forge: None });
                 b.close();
                 b.close();
@@ -150,7 +191,7 @@ pub(crate) fn main(
         }
         Step::Ready => {
             ready_heading(b, root, w);
-            ready(b, root, w, bindings, accounts, forge);
+            ready(b, root, w, bindings, accounts, forge, sign_in);
         }
     }
     if let Step::Forge { .. } | Step::Model { .. } = step {
@@ -314,6 +355,7 @@ fn ready(
     bindings: &mut Bindings,
     accounts: &mut crate::accounts::Bindings,
     forge: &mut crate::forge::bindings::Bindings,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     use crate::{
         flow::{self, Control},
@@ -376,7 +418,11 @@ fn ready(
     b.close();
     let open = w.say(Word::SetupOpen, &[Hole::Name(project)]);
     if let Some(project) = adopted {
+        b.open(Role::Slot);
+        b.style(look::WELCOME_ACTIONS);
         flow::control(b, Control::PrimaryLink { name: &open, to: bindings.insert(Act::OpenProject { project }) });
+        crate::forge::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
+        b.close();
     } else {
         flow::control(b, Control::PrimaryDisabled { name: &open });
         b.open(Role::Paragraph);

@@ -1,19 +1,19 @@
 == T1 · Add CSV export to widget == Live
-temper
+[1] temper
 Menu:
-  [1] Playground (pressed)
+  [2] Playground (pressed)
   Main navigation:
-    [2] Inbox
-    [3] Chats (current)
-    [4] Adopt a repository
-    [5] Forges
-    [6] Accounts
+    [3] Inbox
+    [4] Chats (current)
+    [5] Adopt a repository
+    [6] Forges
+    [7] Accounts
   * Pat
-  [7] Sign out
+  [8] Sign out
 Playground:
   This is the playground: a scripted model and a playground forge.
-  [8] Connect a model
-  [9] Connect a forge
+  [9] Connect a model
+  [10] Connect a forge
 T1 · Add CSV export to widget:
   * waiting on your words
   0 spent · of 1 · delegates spent 0
@@ -37,7 +37,7 @@ Conversation:
       - Pull request opened (completed)
       - CI passed (completed)
       - Landed (completed)
-    [10] Task 2 ↗
+    [11] Task 2 ↗
   1 tool call: wait
     wait
   Temper
@@ -46,6 +46,6 @@ Conversation:
   1 tool call: wait
     wait
 Using Scripted model · Default
-[11] Message: (empty) (enter sends)
+[12] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[12] Send
+[13] Send

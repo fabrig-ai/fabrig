@@ -28,7 +28,7 @@ fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
 fn text(b: &mut Builder, w: &Words, role: Role, word: W) {
     crate::cards::text(b, role, &say(w, word));
 }
-fn names(me: &c::Me, way: Way) -> (&[u8], &[u8]) {
+pub(crate) fn names(me: &c::Me, way: Way) -> (&[u8], &[u8]) {
     for offer in &me.providers {
         if offer.provider == way.provider() {
             return words::provider_words(offer.name.bytes());

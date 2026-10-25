@@ -331,11 +331,16 @@ fn each_link_shows_its_name_as_its_text() {
         if node.role == Role::Link {
             assert_eq!(node.size, 2, "a link holds one text");
             let [run] = nodes[index + 1].text.as_slice() else { panic!("one run per link") };
-            assert_eq!(Some(run.text.as_ref()), node.name.as_deref());
+            let expected = if node.name.as_deref() == Some(b"temper chats") {
+                b"temper".as_slice()
+            } else {
+                node.name.as_deref().unwrap()
+            };
+            assert_eq!(run.text.as_ref(), expected);
             links += 1;
         }
     }
-    assert_eq!(links, 6);
+    assert_eq!(links, 7);
 }
 
 #[test]
@@ -632,8 +637,8 @@ fn assert_menu(view: &crate::View, children: &[(Role, Option<&[u8]>)]) {
     let banner = banner.expect("banner");
     let end = banner.checked_add(usize::try_from(nodes[banner].size).expect("banner size")).expect("banner end");
     let brand = banner.checked_add(1).expect("brand index");
-    assert_eq!(nodes[brand].role, Role::Paragraph);
-    assert_eq!(nodes[brand].name.as_deref(), Some(b"temper".as_slice()));
+    assert_eq!(nodes[brand].role, Role::Link);
+    assert_eq!(nodes[brand].name.as_deref(), Some(b"temper chats".as_slice()));
     let menu = brand.checked_add(usize::try_from(nodes[brand].size).expect("brand size")).expect("menu index");
     assert_eq!(nodes[menu].role, Role::Disclosure);
     assert_eq!(nodes[menu].name.as_deref(), Some(b"Menu".as_slice()));
@@ -1010,5 +1015,32 @@ fn retired_navigation_omits_the_playground_project_after_reload() {
             assert_eq!(fixtures::find(tree, Role::Button, b"Other").is_some(), another);
             assert_eq!(fixtures::find(tree, Role::Paragraph, b"No project yet").is_some(), !another);
         }
+    }
+}
+
+#[test]
+fn the_brand_links_to_chats_with_its_accessible_label() {
+    let root = fixtures::root_in_project(None);
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        fixtures::build(&mut view, &root);
+        let brand = fixtures::find(view.tree(), Role::Link, b"temper chats").expect("brand link");
+        let mut at = None;
+        for (index, node) in view.tree().nodes().iter().enumerate() {
+            if node.id == brand {
+                at = Some(index);
+                break;
+            }
+        }
+        let at = at.expect("brand position");
+        assert_eq!(fixtures::node_text(view.tree(), at).as_ref(), b"temper");
+        assert!(view.tree().nodes()[at].styles.as_slice().contains(&crate::look::BRAND));
+        assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/chats".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, brand, Act::Press),
+            Some(Action::Pages(pages::Act::Go {
+                address: temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+            }))
+        );
     }
 }

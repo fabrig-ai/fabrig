@@ -122,21 +122,12 @@ fn personal(
     }
     account(b, w, row);
     access(b, w, row);
-    if row.kind == Kind::Forgejo
-        && let Connection::Connected { .. } = row.connection
-        && let Some(forge) = sign_in.number(row.number)
+    if open_link(b, w, row, sign_in, None)
+        && let Some(me) = root.pages().me(root.client())
     {
-        let label = w.say(Word::SignInOpen, &[]);
-        b.open(Role::Link);
-        b.name(&label);
-        b.external(&forge.open());
-        b.text(skein_ui::Run::Plain, &label);
+        b.open(Role::Paragraph);
+        w.text(b, Word::SignInOpenBody, &[Hole::Name(me.party.login.bytes().into())]);
         b.close();
-        if let Some(me) = root.pages().me(root.client()) {
-            b.open(Role::Paragraph);
-            w.text(b, Word::SignInOpenBody, &[Hole::Name(me.party.login.bytes().into())]);
-            b.close();
-        }
     }
     owned(b, w, row);
     if let Some(first) = &row.first
@@ -308,4 +299,37 @@ fn owned(b: &mut Builder, w: &Words, row: &Row) {
     connect::text(b, w, Role::Term, Word::ForgePasswordLabel);
     crate::cards::text(b, Role::Description, &forge::words::forge_password(&owned.password));
     b.close();
+}
+
+/// Shared with the welcome's adopted Ready; the page facts opt a connected Forgejo in.
+pub(crate) fn open_link(
+    b: &mut Builder,
+    w: &Words,
+    row: &Row,
+    sign_in: &crate::forge_sign_in::Forges,
+    style: Option<skein_ui::Style>,
+) -> bool {
+    if row.kind != Kind::Forgejo {
+        return false;
+    }
+    match row.connection {
+        Connection::Connected { .. } => {}
+        Connection::NotConnected
+        | Connection::NotSetUp
+        | Connection::SettingUp { .. }
+        | Connection::SetUpFailed { .. }
+        | Connection::Connecting
+        | Connection::Stopped { .. } => return false,
+    }
+    let Some(forge) = sign_in.number(row.number) else { return false };
+    let label = w.say(Word::SignInOpen, &[]);
+    b.open(Role::Link);
+    b.name(&label);
+    if let Some(style) = style {
+        b.style(style);
+    }
+    b.external(&forge.open());
+    b.text(skein_ui::Run::Plain, &label);
+    b.close();
+    true
 }
