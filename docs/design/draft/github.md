@@ -1002,7 +1002,9 @@ Each step lands working, and shows what it proved in the real loop
 
 - **temper's live landing story** (`scripts/proof-live-github.sh`, R2-156)
   uses only `app.pem` as a credential, with public App and installation
-  ids from `app.json`. Before starting the product, the harness signs an
+  ids from `app.json`. It adopts the probe with `--no-ci --check 1`, using
+  the scripted gate because the probe repositories run no CI.
+  Before starting the product, the harness signs an
   RS256 App JWT with Skein's JWT builder and signer, then mints a token
   for the owner's probe installation through the guarded relay, scoped
   to `temper-probe`. This makes the first verifier read independent of

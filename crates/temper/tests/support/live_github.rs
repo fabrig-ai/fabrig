@@ -344,9 +344,10 @@ impl Judge<'_> {
                 // The failed call's words are shown once the secrecy scan has passed over them.
                 scan(self.inputs, self.relay, self.jwt, &[ended.stdout.clone(), ended.stderr.clone()]);
                 panic!(
-                    "live ctl call {index} failed in {:?}: {:?}, stderr: {}",
+                    "live ctl call {index} failed in {:?}: {:?}, stdout: {}, stderr: {}",
                     self.stage,
                     ended.exit,
+                    String::from_utf8_lossy(&ended.stdout),
                     String::from_utf8_lossy(&ended.stderr)
                 );
             }
@@ -392,6 +393,9 @@ impl Judge<'_> {
                             "main",
                             "--prefix",
                             &self.inputs.prefix,
+                            "--no-ci",
+                            "--check",
+                            "1",
                             "--key",
                             "live-adopt",
                             "--json",
