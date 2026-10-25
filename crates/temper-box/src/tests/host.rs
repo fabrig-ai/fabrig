@@ -155,7 +155,7 @@ fn grouped_steps() -> temper_forge_setup::Steps {
     Steps {
         always: Box::new([long(b"serve", &[b"never"])]),
         asked: Box::new([Group {
-            label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
+            label: bytes::copy_of(b"Forge 3 (Forgejo)"),
             recorded: true,
             forge: 3,
             before: 0,
@@ -952,7 +952,7 @@ fn labelled_group_failure_keeps_serve_usable_and_wire_replies_numeric() {
     harness.write_child(harness.serve_index(), 1, b"http://first\n");
     harness.run_until_idle();
     harness.stderr();
-    for _attempt in 0..2 {
+    for _attempt in 0_u32..2 {
         harness.ask(b"start 3\n");
         harness.run_until_idle();
         assert_eq!(harness.reply_bytes().as_ref(), b"step 3 prepare\nfailed 3 prepare 3 exited 7\n");
