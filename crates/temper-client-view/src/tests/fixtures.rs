@@ -784,6 +784,7 @@ pub mod chat {
     pub fn provisional_with_text(words: &[u8]) -> Thread {
         let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
         let text = c::RunText {
+            writing: None,
             attempt: ATTEMPT,
             began: Some(Wall::EPOCH),
             turn: c::ProvisionalTurnName { attempt: ATTEMPT, number: TURN, retry: RETRY },

@@ -53,6 +53,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::EffectConnector(..)
         | core::Event::EffectDeadline
         | core::Event::RunCall { .. }
+        | core::Event::RunInput { .. }
         | core::Event::RunText { .. }
         | core::Event::Tasks(..)
         | core::Event::StartRecurring { .. }
@@ -109,8 +110,8 @@ pub fn to_component(request: root::PartyRequest) -> Option<kit::Event> {
     match request {
         root::PartyRequest::SignInRefused { to } => Some(kit::Event::SignInRefused { to }),
         root::PartyRequest::WatchRefused { watcher, why } => Some(kit::Event::WatchRefused { watcher, why }),
-        root::PartyRequest::RunText { watcher, turn, from, to, text, cut, call } => {
-            Some(kit::Event::RunText { watcher, turn, from, to, text, cut, call })
+        root::PartyRequest::RunText { watcher, turn, from, to, text, cut, call, writing } => {
+            Some(kit::Event::RunText { watcher, turn, from, to, text, cut, call, writing })
         }
         root::PartyRequest::Deliver(delivery) => delivered(delivery),
     }

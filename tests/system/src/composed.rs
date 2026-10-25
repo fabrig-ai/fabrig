@@ -696,12 +696,21 @@ impl World {
             engine::Request::Forge { call, repository, op } => self.forge(call, repository, &op),
             engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
             | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
-            engine::Request::Party(engine::PartyRequest::RunText { watcher, turn, from, to, text, cut, call }) => {
+            engine::Request::Party(engine::PartyRequest::RunText {
+                watcher,
+                turn,
+                from,
+                to,
+                text,
+                cut,
+                call,
+                writing,
+            }) => {
                 assert_eq!(watcher, RUN_WATCH);
                 let watch = self.run_watch.as_mut().expect("a run watch");
                 assert_eq!(usize::try_from(from).expect("bounded offset"), watch.text.len());
                 assert_eq!(usize::try_from(to).expect("bounded offset"), watch.text.len() + text.len());
-                assert!(call.is_none(), "the reply contains text only");
+                assert!(call.is_none() && writing.is_none(), "the reply contains text only");
                 assert!(!cut, "the short reply fits the stream buffer");
                 let name = (turn.attempt, turn.turn, turn.retry);
                 if let Some(previous) = watch.turn {

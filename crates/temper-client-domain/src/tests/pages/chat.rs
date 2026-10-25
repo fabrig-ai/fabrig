@@ -72,6 +72,7 @@ fn open_run(f: &mut f::Fixture) -> skein_lib::Token {
 fn run_text(from: u32, bytes: &[u8]) -> c::RunText {
     let length = u32::try_from(bytes.len()).unwrap();
     c::RunText {
+        writing: None,
         attempt: f::ATTEMPT,
         began: Some(skein_lib::Wall::EPOCH),
         turn: c::ProvisionalTurnName { attempt: f::ATTEMPT, number: u32::try_from(f::POSITION).unwrap(), retry: 0 },

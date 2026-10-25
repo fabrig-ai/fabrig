@@ -48,8 +48,9 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Now::WatchRefused { watcher, why } => {
             let _sent = super::now(domain, Request::Party(crate::PartyRequest::WatchRefused { watcher, why }));
         }
-        core::Now::RunText { watcher, turn, from, to, text, cut, call } => {
-            let request = Request::Party(crate::PartyRequest::RunText { watcher, turn, from, to, text, cut, call });
+        core::Now::RunText { watcher, turn, from, to, text, cut, call, writing } => {
+            let request =
+                Request::Party(crate::PartyRequest::RunText { watcher, turn, from, to, text, cut, call, writing });
             let _sent = super::now(domain, request);
         }
         core::Now::DropPayload { payload } => drop(take_payload(domain, payload)),

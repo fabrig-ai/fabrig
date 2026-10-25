@@ -59,6 +59,7 @@ pub fn party(event: core::Event) -> engine::Event {
         core::Event::EffectConnector(..) => panic!("the client kit does not make EffectConnector"),
         core::Event::EffectDeadline => panic!("the client kit does not make EffectDeadline"),
         core::Event::RunCall { .. } => panic!("the client kit does not make RunCall"),
+        core::Event::RunInput { .. } => panic!("the client kit does not make RunInput"),
         core::Event::RunText { .. } => panic!("the client kit does not make RunText"),
         core::Event::Tasks(..) => panic!("the client kit does not make Tasks"),
         core::Event::StartRecurring { .. } => panic!("the client kit does not make StartRecurring"),
@@ -229,10 +230,10 @@ pub fn incoming(
                 .watch(watcher)
                 .is_some()
                 .then(|| packets::refused(transport, watcher, why).expect("original refused watch")),
-            PartyRequest::RunText { watcher, turn, from, to, text, cut, call } => {
+            PartyRequest::RunText { watcher, turn, from, to, text, cut, call, writing } => {
                 transport.watch(watcher)?;
-                let writing = jig_domain_views::Writing { turn, from, to, text, cut, call };
-                Some(packets::stream(transport, watcher, &writing, limits).expect("whole run stream translates"))
+                let source = jig_domain_views::Writing { turn, from, to, text, cut, call, writing };
+                Some(packets::stream(transport, watcher, &source, limits).expect("whole run stream translates"))
             }
         },
         engine::Request::Store(_)

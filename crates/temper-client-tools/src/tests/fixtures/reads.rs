@@ -284,6 +284,7 @@ fn activity_party() -> c::Party {
 pub(crate) fn provisional() -> c::Delivery {
     let c::Delivery::RunState(mut run) = no_provisional() else { unreachable!("run state fixture") };
     run.writing = Some(c::RunText {
+        writing: None,
         attempt: ATTEMPT,
         began: None,
         turn: c::ProvisionalTurnName { attempt: ATTEMPT, number: TURN.checked_add(1).expect("next turn"), retry: 0 },

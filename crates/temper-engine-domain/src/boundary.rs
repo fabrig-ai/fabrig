@@ -643,6 +643,7 @@ pub enum PartyRequest {
         text: Box<[u8]>,
         cut: bool,
         call: Option<views::Call>,
+        writing: Option<views::WritingCall>,
     },
     Deliver(Delivery),
 }

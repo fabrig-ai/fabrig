@@ -454,6 +454,7 @@ fn an_agents_task_reads_its_thread_as_a_chat() {
         page.thread.run(
             &c::RunState { task: f::TASK, attempt: Some(ATTEMPT), committed_turn: 0, writing: None, call: None },
             Some(&c::RunText {
+                writing: None,
                 attempt: ATTEMPT,
                 began: None,
                 turn: c::ProvisionalTurnName { attempt: ATTEMPT, number: 1, retry: 0 },
@@ -516,6 +517,7 @@ fn an_agents_live_run_text_reaches_its_thread() {
     let watch = watch.expect("run opened");
     let mut run = c::RunState { task: f::TASK, attempt: Some(ATTEMPT), committed_turn: 0, writing: None, call: None };
     run.writing = Some(c::RunText {
+        writing: None,
         attempt: ATTEMPT,
         began: Some(Wall::EPOCH),
         turn: c::ProvisionalTurnName { attempt: ATTEMPT, number: 1, retry: 0 },
@@ -551,6 +553,7 @@ fn an_agents_live_run_text_reaches_its_thread() {
                     attempt: Some(ATTEMPT),
                     committed_turn: 0,
                     writing: Some(c::RunText {
+                        writing: None,
                         attempt: ATTEMPT,
                         began: Some(Wall::EPOCH),
                         turn: c::ProvisionalTurnName { attempt: ATTEMPT, number: 1, retry: 0 },

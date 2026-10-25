@@ -45,18 +45,33 @@ pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option
     Some(core::Event::Fleet(match link {
         Link::Hello { worker, hello } => fleet::Event::Hello { channel, worker, hello: self::hello(hello) },
         Link::Up { up: host::LinkUp::Piece { run, attempt, piece }, .. } => {
-            if piece.kind == host::LiveKind::Text
-                && let Ok(offset) = u32::try_from(piece.offset)
-            {
-                return Some(core::Event::RunText {
-                    run,
-                    attempt,
-                    turn: piece.turn,
-                    retry: piece.retry,
-                    offset,
-                    text: piece.bytes,
-                    call: None,
-                });
+            if let Ok(offset) = u32::try_from(piece.offset) {
+                match piece.kind {
+                    host::LiveKind::Text => {
+                        return Some(core::Event::RunText {
+                            run,
+                            attempt,
+                            turn: piece.turn,
+                            retry: piece.retry,
+                            offset,
+                            text: piece.bytes,
+                            call: None,
+                        });
+                    }
+                    host::LiveKind::Input { call, tool } => {
+                        return Some(core::Event::RunInput {
+                            run,
+                            attempt,
+                            turn: piece.turn,
+                            retry: piece.retry,
+                            offset,
+                            id: call,
+                            tool,
+                            input: piece.bytes,
+                        });
+                    }
+                    host::LiveKind::Reasoning => {}
+                }
             }
             domain.pieces_dropped = domain.pieces_dropped.saturating_add(1);
             return None;
@@ -586,11 +601,63 @@ mod tests {
     }
 
     #[test]
+    fn input_pieces_reach_the_core_with_their_provider_identity_and_offsets() {
+        let (mut domain, _) = crate::tests::resume_fixture::root();
+        let run = Token::new(31);
+        let attempt = Token::new(932);
+        for offset in [0, u32::MAX] {
+            let event = receive(
+                &mut domain,
+                Token::new(7),
+                Link::Up {
+                    up: host::LinkUp::Piece {
+                        run,
+                        attempt,
+                        piece: host::Piece {
+                            turn: 3,
+                            retry: 2,
+                            kind: host::LiveKind::Input {
+                                call: Box::from(b"call".as_slice()),
+                                tool: Box::from(b"tool".as_slice()),
+                            },
+                            offset: u64::from(offset),
+                            bytes: Box::from(b"{}".as_slice()),
+                        },
+                    },
+                    parts: Parts::none(),
+                },
+            );
+            let Some(core::Event::RunInput {
+                run: actual_run,
+                attempt: actual_attempt,
+                turn,
+                retry,
+                offset: actual_offset,
+                id,
+                tool,
+                input,
+            }) = event
+            else {
+                panic!("input reaches core")
+            };
+            assert_eq!((actual_run, actual_attempt, turn, retry, actual_offset), (run, attempt, 3, 2, offset));
+            assert_eq!(
+                (id.as_ref(), tool.as_ref(), input.as_ref()),
+                (b"call".as_slice(), b"tool".as_slice(), b"{}".as_slice())
+            );
+        }
+        assert_eq!(domain.pieces_dropped(), 0);
+    }
+
+    #[test]
     fn unkept_piece_kinds_and_offsets_are_dropped_and_counted() {
         let (mut domain, _) = crate::tests::resume_fixture::root();
         for (index, (kind, offset)) in [
             (host::LiveKind::Reasoning, 0),
-            (host::LiveKind::Input { call: Box::from(&b"call"[..]), tool: Box::from(&b"tool"[..]) }, 0),
+            (
+                host::LiveKind::Input { call: Box::from(&b"call"[..]), tool: Box::from(&b"tool"[..]) },
+                u64::from(u32::MAX) + 1,
+            ),
             (host::LiveKind::Text, u64::from(u32::MAX) + 1),
         ]
         .into_iter()

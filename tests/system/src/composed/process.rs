@@ -220,7 +220,7 @@ impl Process {
     fn start(&mut self, start: agent::Start, window: agent::Window, around: &Around<'_>) {
         assert!(self.agent.is_none());
         let assignment = around.assignment.expect("committed assignment");
-        assert_eq!(assignment.live, host::LiveAsk { text: true, reasoning: false, input: false });
+        assert_eq!(assignment.live, host::LiveAsk { text: true, reasoning: false, input: true });
         let asked = assignment.live;
         assert_eq!(
             start.live,

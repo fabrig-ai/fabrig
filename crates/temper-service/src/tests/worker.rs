@@ -654,7 +654,13 @@ fn the_worker_demands_each_cancellation_record_and_end() {
     assert!(
         peer.component
             .send_live(
-                smith_protocol_channel::Piece { turn: 1, retry: 0, offset: 0, bytes: b"last text" },
+                smith_protocol_channel::Piece {
+                    kind: smith_protocol_channel::PieceKind::Text,
+                    turn: 1,
+                    retry: 0,
+                    offset: 0,
+                    bytes: b"last text"
+                },
                 AGENT_OWNER,
                 &mut peer.events,
                 &mut peer.out,
