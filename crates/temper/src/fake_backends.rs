@@ -65,7 +65,8 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
     Ok(bundle)
 }
 pub(crate) fn run(source: &Directories, bundle: Option<&Path>) -> Result<Exit, String> {
-    let Prepared { directories, bytes, mut listeners, peers, _lock: lock } = prepare(source, bundle)?;
+    let adapter = sibling(&std::env::current_exe().map_err(|why| why.to_string())?)?;
+    let Prepared { directories, bytes, mut listeners, peers, _lock: lock } = prepare(source, bundle, &adapter)?;
     let first = backends::steps(&directories.config, &peers);
     let result = crate::box_command::run_configuration(&directories, &bytes, std::mem::take(&mut listeners.0), first);
     drop(lock);
@@ -144,7 +145,12 @@ fn write(path: &Path, content: &[u8], replace: bool) -> Result<(), String> {
     file.write_all(content).map_err(|why| format!("{}: {why}", path.display()))?;
     file.sync_all().map_err(|why| format!("{}: {why}", path.display()))
 }
-fn replace_bundle(dirs: &Directories, content: Box<[u8]>, bundle: Option<&Path>) -> Result<Box<[u8]>, String> {
+fn replace_bundle(
+    dirs: &Directories,
+    content: Box<[u8]>,
+    bundle: Option<&Path>,
+    adapter: &Path,
+) -> Result<Box<[u8]>, String> {
     let mut updated = content.clone();
     if let Some(bundle) = bundle {
         let mut document = Json::decode(&content)?;
@@ -155,7 +161,7 @@ fn replace_bundle(dirs: &Directories, content: Box<[u8]>, bundle: Option<&Path>)
         }
     }
     // Check the entire candidate, including its bundle, before touching retained bytes.
-    validate(dirs, &updated)?;
+    validate(dirs, &updated, adapter)?;
     if updated == content {
         return Ok(content);
     }
@@ -321,7 +327,7 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
     }
     Ok(peers)
 }
-fn validate(dirs: &Directories, bytes: &[u8]) -> Result<(), String> {
+fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), String> {
     let deployment = crate::setup::check(bytes, &dirs.jig())?;
     let named = &deployment.named;
     for file in named.files.iter().chain(&named.asked_files) {
@@ -354,11 +360,10 @@ fn validate(dirs: &Directories, bytes: &[u8]) -> Result<(), String> {
     argv.same(&wanted, "workers/0/agent/arguments")?;
     let agent_document = public(&crate::path(&dirs.config).join("agent.json"))?;
     let agent_tree = Json::decode(&agent_document)?;
-    let expected = sibling(&std::env::current_exe().map_err(|why| why.to_string())?)?;
     let adapter = agent_tree.string("programs/claude_code/path")
         .map_err(|_| "agent.json/programs/claude_code/path: unsupported adapter; remove this sandbox directory explicitly to reset it".to_string())?;
-    adapter_identity(adapter, &expected)?;
-    provisioned_program(&expected)?;
+    adapter_identity(adapter, expected)?;
+    provisioned_program(expected)?;
     if tree.string("workers/0/agent/program")?
         != std::env::current_exe().map_err(|why| why.to_string())?.as_os_str().as_bytes()
     {
@@ -448,11 +453,12 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+// The adapter is this temper's fake-claude sibling; it is a parameter so that tests can provision one.
 #[expect(
     clippy::too_many_lines,
     reason = "startup owns its lock and listeners through validation and publishes the prepared marker last"
 )]
-fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared, String> {
+fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> Result<Prepared, String> {
     let (root, effective) = directories(source_dirs)?;
     let source_config = resolved(Path::new("/"), &source_dirs.config)?;
     if source_config.starts_with(&root) {
@@ -480,9 +486,8 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         };
         Some(provisioned_bundle(bundle.or(source.bundle.as_deref()), limits)?)
     };
-    let adapter = sibling(&binary)?;
     if !exists {
-        provisioned_program(&adapter)?;
+        provisioned_program(adapter)?;
     }
     let user = skein_shell::effective_user();
     make_private(crate::path(&source_dirs.data), user)?;
@@ -509,7 +514,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         }
         let content = public(&effective.document())?;
         let peers = checked_peers(&effective, &content)?;
-        let bytes = replace_bundle(&effective, content, bundle)?;
+        let bytes = replace_bundle(&effective, content, bundle, adapter)?;
         print(&effective, &peers, &binary);
         return Ok(Prepared { directories: effective, bytes, listeners: Listeners(Vec::new()), peers, _lock: lock });
     }
@@ -518,7 +523,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         &skein_shell::environment(),
         &binary,
         [8367, 8368, 8369, 8370, 8371],
-        Some(&adapter),
+        Some(adapter),
     )?;
     let mut held = Listeners(written.listeners);
     // Init deliberately writes public documents 0644; every retained sandbox document is private.
@@ -566,7 +571,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         data: effective.data.clone(),
         cache: effective.cache.clone(),
         bundle: bytes(&bundle),
-        claude: bytes(&adapter),
+        claude: bytes(adapter),
     };
     let documents =
         backends::rewrite(&initial, &public(&crate::path(&effective.config).join("agent.json"))?, &paths, &peers)
@@ -588,7 +593,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
     ] {
         write(&crate::path(&effective.config).join(name), document, name == "temper.json" || name == "agent.json")?;
     }
-    validate(&effective, &documents.temper)?;
+    validate(&effective, &documents.temper, adapter)?;
     let peers = checked_peers(&effective, &documents.temper)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
     write(&marker, &source.marker, false)?;
