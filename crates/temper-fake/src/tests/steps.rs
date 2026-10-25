@@ -165,19 +165,52 @@ fn documents_give_the_box_its_whole_ordered_steps() {
             Steps { always: Box::new([reconcile1, serve]), asked: Box::new([]) },
         ),
     ];
+    for (name, value, expected) in rows {
+        assert_eq!(checked_steps(&value, Box::new([])), expected, "{name}");
+    }
+}
+
+fn checked_steps(value: &Value, first: Box<[Step]>) -> Steps {
     let flags: Vec<Box<[u8]>> =
         ["--config", "C", "--data", "D", "--cache", "K"].iter().map(|flag| Box::from(flag.as_bytes())).collect();
-    for (name, value, expected) in rows {
-        let bytes = serde_json::to_vec(&value).unwrap();
-        let d =
-            config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
-        let app = config::read::Object::new(&d, 0).unwrap().member(&d, b"application").unwrap();
-        let at = config::read::Object::new(&d, app).unwrap().member(&d, b"setup").unwrap();
-        let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-        let mut ps = problem::Problems::empty();
-        let setup = Setup::read(&d, at, &temper_forge_setup::limits::small(), &directories, &mut ps)
-            .unwrap_or_else(|| panic!("{name}: {}", String::from_utf8_lossy(&problem::lines(&ps))));
-        let demo = demo::read(&value).unwrap();
-        assert_eq!(steps(&setup, demo.as_ref(), &flags, Box::new(serve_listeners), false), expected, "{name}");
+    let bytes = serde_json::to_vec(value).unwrap();
+    let d = config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
+    let app = config::read::Object::new(&d, 0).unwrap().member(&d, b"application").unwrap();
+    let at = config::read::Object::new(&d, app).unwrap().member(&d, b"setup").unwrap();
+    let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    let mut ps = problem::Problems::empty();
+    let setup = Setup::read(&d, at, &temper_forge_setup::limits::small(), &directories, &mut ps)
+        .unwrap_or_else(|| panic!("{}", String::from_utf8_lossy(&problem::lines(&ps))));
+    let demo = demo::read(value).unwrap();
+    let serve_listeners = ["127.0.0.1:8367".parse().unwrap(), "127.0.0.1:8371".parse().unwrap()];
+    steps(&setup, demo.as_ref(), &flags, Box::new(serve_listeners), false, first)
+}
+
+#[test]
+fn first_steps_precede_fakes_and_both_groups_without_entering_the_playground() {
+    let fake = demo::fixture()["application"]["setup"][0].clone();
+    let mut other = fake.clone();
+    other["forge"] = json!(2);
+    other["directory"] = json!("forge-2");
+    other["mode"]["fake"]["listen"]["socket"] = json!("127.0.0.1:3002");
+    let owned: Value = serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).unwrap();
+    let mut owned = owned["application"]["setup"][0].clone();
+    owned["forge"] = json!(3);
+    owned["directory"] = json!("forge-3");
+    owned["mode"]["owned"]["listen"]["socket"] = json!("127.0.0.1:3003");
+    owned["start"] = json!("asked");
+    let value = document(json!([fake, other, owned]), true);
+    let ordinary = checked_steps(&value, Box::new([]));
+    let first = [command("fake github", &["github"], Kind::Long), command("fake model", &["model"], Kind::Long)];
+    let given = checked_steps(&value, Box::new(first.clone()));
+    assert_eq!(&given.always[..2], &first);
+    assert_eq!(&given.always[2..], ordinary.always.as_ref());
+    assert_eq!(given.asked.len(), 2);
+    assert_eq!(given.asked[0].before, 2, "playground follows the first steps");
+    assert_eq!(given.asked[1].before, 4, "owned group also follows the unasked fake's two steps");
+    for (given, ordinary) in given.asked.iter().zip(ordinary.asked.iter()) {
+        assert_eq!(given.steps, ordinary.steps, "first steps stay outside asked groups");
+        assert_eq!(given.forge, ordinary.forge);
+        assert_eq!(given.recorded, ordinary.recorded);
     }
 }

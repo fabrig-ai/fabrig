@@ -184,7 +184,7 @@ fn refused_start() {
             directories: &[],
             observations: None,
             path: Some("key"),
-            reason: "File exists (os error 17)",
+            reason: "retained output differs from expected seeded bytes",
         },
         Row {
             name: "added_key",
@@ -198,7 +198,7 @@ fn refused_start() {
             directories: &[],
             observations: None,
             path: Some("second.key"),
-            reason: "File exists (os error 17)",
+            reason: "retained output differs from expected seeded bytes",
         },
         Row {
             name: "admin_token",
@@ -208,7 +208,7 @@ fn refused_start() {
             directories: &[("forge", 0o700)],
             observations: None,
             path: Some("forge/admin_token"),
-            reason: "File exists (os error 17)",
+            reason: "retained output differs from expected seeded bytes",
         },
         Row {
             name: "root",
@@ -218,7 +218,7 @@ fn refused_start() {
             directories: &[],
             observations: None,
             path: Some("root.der"),
-            reason: "File exists (os error 17)",
+            reason: "retained output differs from expected seeded bytes",
         },
         Row {
             name: "observations",

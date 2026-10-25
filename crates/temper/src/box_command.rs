@@ -7,7 +7,7 @@ use temper_box::host::{Service, Settings};
 /// Checks the document before starting its steps; refusals contain unprefixed lines.
 pub fn run(directories: &super::Directories) -> Result<Exit, String> {
     let (bytes, held) = configuration(directories)?;
-    run_configuration(directories, &bytes, held)
+    run_configuration(directories, &bytes, held, Box::new([]))
 }
 
 /// Runs a document already retained in its effective directories. Owns all supplied listeners.
@@ -15,6 +15,7 @@ pub(crate) fn run_configuration(
     directories: &super::Directories,
     bytes: &[u8],
     held: Vec<(Fd, std::num::NonZeroU16)>,
+    first: Box<[temper_forge_setup::Step]>,
 ) -> Result<Exit, String> {
     let mut owned = held.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let opened = (|| {
@@ -39,6 +40,7 @@ pub(crate) fn run_configuration(
             &directories.flags(),
             serve.into_boxed_slice(),
             cfg!(target_os = "linux"),
+            first,
         );
         let mut listeners = Vec::new();
         for step in

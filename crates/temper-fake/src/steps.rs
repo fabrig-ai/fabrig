@@ -15,6 +15,7 @@ use temper_forge_setup::{
 /// demo runs. Its `started` follows its long steps' start, as the steps'
 /// order takes them (7.2). A fake forge other than the demo's runs in its
 /// place, unasked.
+/// The caller's first steps precede these steps and every asked group's insertion point (7.3).
 #[must_use]
 #[expect(clippy::manual_map, reason = "step code uses explicit matches, never closures")]
 pub fn steps(
@@ -23,13 +24,15 @@ pub fn steps(
     flags: &[Box<[u8]>],
     listeners: Box<[core::net::SocketAddr]>,
     forgejo_listens: bool,
+    first: Box<[Step]>,
 ) -> Steps {
     let given = temper_forge_setup::steps(setup, flags, listeners, forgejo_listens);
     let demo_forge = match demo {
         Some(demo) => Some(demo.forge()),
         None => None,
     };
-    let mut prefix = 0_u32;
+    let first_len = u32::try_from(first.len()).expect("bounded first steps");
+    let mut prefix = first_len;
     for entry in &setup.entries {
         if let Mode::Fake(_) = &entry.mode
             && demo_forge != Some(entry.forge)
@@ -40,6 +43,9 @@ pub fn steps(
     let capacity =
         u32::try_from(given.always.len()).expect("bounded steps").checked_add(prefix).expect("bounded prefix");
     let mut always = List::with_capacity(capacity);
+    for step in first {
+        always.push(step).expect("first steps counted");
+    }
     for entry in &setup.entries {
         if let Mode::Fake(fake) = &entry.mode
             && demo_forge != Some(entry.forge)
@@ -72,7 +78,7 @@ pub fn steps(
             .push(Group {
                 forge: demo.forge(),
                 recorded: false,
-                before: 0,
+                before: first_len,
                 steps: Box::new([
                     (
                         Stage::Run,

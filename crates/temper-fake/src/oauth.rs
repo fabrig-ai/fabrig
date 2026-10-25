@@ -26,6 +26,11 @@ pub struct Document {
     redirect_uri: Box<[u8]>,
 }
 impl Document {
+    #[must_use]
+    pub fn listen(&self) -> SocketAddr {
+        self.listen
+    }
+
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
         let d = match config::document(bytes, &config::DocumentLimits { bytes: DOCUMENT_BYTES, tokens: 64, depth: 8 }) {
             Ok(d) => d,

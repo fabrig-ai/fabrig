@@ -9,8 +9,11 @@ use skein_shell::{Fallback, Host as _, Origin, Setting, Settings};
 use std::{
     cell::RefCell,
     fs::{self, File, OpenOptions},
-    io::{self, Write},
-    os::unix::{ffi::OsStrExt, fs::OpenOptionsExt},
+    io::{self, Read, Write},
+    os::unix::{
+        ffi::OsStrExt,
+        fs::{MetadataExt, OpenOptionsExt},
+    },
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -266,6 +269,46 @@ struct Created {
     directories: Vec<PathBuf>,
 }
 impl Created {
+    fn output(&mut self, path: &Path, expected: &[u8]) -> Result<(), String> {
+        let metadata = match fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(why) if why.kind() == io::ErrorKind::NotFound => {
+                self.file(path, expected)?;
+                return Ok(());
+            }
+            Err(why) => return Err(format!("{}: {why}", path.display())),
+        };
+        let safe = |metadata: &fs::Metadata| {
+            metadata.is_file()
+                && !metadata.file_type().is_symlink()
+                && metadata.uid() == skein_shell::effective_user()
+                // No group or other permission bits.
+                && metadata.mode().trailing_zeros() >= 6
+                && metadata.nlink() == 1
+        };
+        if !safe(&metadata) {
+            return Err(format!("{}: expected this user's private single-link regular output", path.display()));
+        }
+        let file = File::open(path).map_err(|why| format!("{}: {why}", path.display()))?;
+        let opened = file.metadata().map_err(|why| format!("{}: {why}", path.display()))?;
+        let named = fs::symlink_metadata(path).map_err(|why| format!("{}: {why}", path.display()))?;
+        if !safe(&opened)
+            || !safe(&named)
+            || opened.dev() != named.dev()
+            || opened.ino() != named.ino()
+            || opened.dev() != metadata.dev()
+            || opened.ino() != metadata.ino()
+        {
+            return Err(format!("{}: output changed while opening", path.display()));
+        }
+        let bound = u64::try_from(expected.len()).expect("bounded output").checked_add(1).expect("output bound");
+        let mut content = Vec::new();
+        file.take(bound).read_to_end(&mut content).map_err(|why| format!("{}: {why}", path.display()))?;
+        if content != expected {
+            return Err(format!("{}: retained output differs from expected seeded bytes", path.display()));
+        }
+        Ok(())
+    }
     fn file(&mut self, path: &Path, bytes: &[u8]) -> Result<File, String> {
         let mut file = OpenOptions::new()
             .write(true)
@@ -312,7 +355,7 @@ fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(
             let token = credential(seed, credential::ADMIN_TOKEN);
             let path = super::path(document.admin_token());
             created.directory(path.parent().expect("absolute token file"))?;
-            created.file(path, &token)?;
+            created.output(path, &token)?;
             Ok((document, token))
         }
         Source::Setup { directories, forge } => {
@@ -345,13 +388,13 @@ fn llm_configuration(source: &Source, seed: u64, created: &mut Created) -> Resul
             let document =
                 llm::Document::decode(&bytes).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
             let key = credential(seed, credential::KEY);
-            created.file(super::path(document.key()), &key)?;
+            created.output(super::path(document.key()), &key)?;
             for (i, path) in document.added_keys().iter().enumerate() {
                 let stream = credential::added_key(u32::try_from(i).expect("fifteen added keys"));
-                created.file(super::path(path), &credential(seed, stream))?;
+                created.output(super::path(path), &credential(seed, stream))?;
             }
             if let Some(root) = document.root() {
-                created.file(super::path(root), skein_fake_peers::transport::ROOT)?;
+                created.output(super::path(root), skein_fake_peers::transport::ROOT)?;
             }
             llm::configuration(&document, &key, seed)
         }

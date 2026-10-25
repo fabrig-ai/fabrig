@@ -10,6 +10,7 @@ use std::{
     io::Write,
     net::{SocketAddr, TcpListener},
     num::NonZeroU16,
+    os::fd::IntoRawFd,
     os::unix::{
         ffi::OsStrExt,
         fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
@@ -29,6 +30,7 @@ struct Prepared {
     directories: Directories,
     bytes: Box<[u8]>,
     listeners: Listeners,
+    peers: Peers,
     // Held through drive; closing the descriptor releases the OS lock even after a crash.
     _lock: locks::Lock,
 }
@@ -61,8 +63,9 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
     Ok(bundle)
 }
 pub(crate) fn run(source: &Directories, bundle: Option<&Path>) -> Result<Exit, String> {
-    let Prepared { directories, bytes, mut listeners, _lock: lock } = prepare(source, bundle)?;
-    let result = crate::box_command::run_configuration(&directories, &bytes, std::mem::take(&mut listeners.0));
+    let Prepared { directories, bytes, mut listeners, peers, _lock: lock } = prepare(source, bundle)?;
+    let first = backends::steps(&directories.config, &peers);
+    let result = crate::box_command::run_configuration(&directories, &bytes, std::mem::take(&mut listeners.0), first);
     drop(lock);
     result
 }
@@ -238,6 +241,75 @@ fn contained(root: &[u8], path: &[u8]) -> bool {
         .strip_prefix(crate::path(root))
         .is_ok_and(|rest| !rest.as_os_str().is_empty() && rest.components().all(|p| matches!(p, Component::Normal(_))))
 }
+fn peer_document(dirs: &Directories, name: &str, bound: u32) -> Result<Box<[u8]>, String> {
+    let path = crate::path(&dirs.config).join(name);
+    public_path(&path)?;
+    private_document(&path)?;
+    skein_shell::read_private_file(&path, bound, skein_shell::effective_user())
+        .map(|bytes| bytes.expose().into())
+        .map_err(|why| format!("{}: {}", path.display(), crate::unread(why)))
+}
+fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
+    let refuse = |name: &str, why: temper_fake::Refusal| {
+        format!("{}: {}", crate::path(&dirs.config).join(name).display(), String::from_utf8_lossy(&why.line()))
+    };
+    let github =
+        temper_fake::forge::Document::decode(&peer_document(dirs, "github.json", temper_fake::DOCUMENT_BYTES)?)
+            .map_err(|why| refuse("github.json", why))?;
+    let oauth =
+        temper_fake::oauth::Document::decode(&peer_document(dirs, "oauth.json", temper_fake::oauth::DOCUMENT_BYTES)?)
+            .map_err(|why| refuse("oauth.json", why))?;
+    let llm = temper_fake::llm::Document::decode(&peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?)
+        .map_err(|why| refuse("llm.json", why))?;
+    let deployment = crate::setup::check(bytes, &dirs.jig())?;
+    let mut serve = vec![crate::address(&deployment.named.clients)?];
+    if let Some(webhooks) = &deployment.named.webhooks {
+        serve.push(crate::address(&webhooks.listener)?);
+    }
+    let ordinary = temper_fake::steps(
+        &deployment.checked.setup,
+        deployment.demo.as_ref(),
+        &dirs.flags(),
+        serve.into_boxed_slice(),
+        true,
+        Box::new([]),
+    );
+    let mut ports = vec![1455];
+    for step in
+        ordinary.always.iter().chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+    {
+        for listen in step.listeners() {
+            ports.push(listen.port());
+        }
+        if let Some(ready) = step.ready() {
+            ports.push(ready.port());
+        }
+    }
+    let peers = Peers { github: github.listen(), oauth: oauth.listen(), llm: llm.listen() };
+    for (name, listen) in [("github.json", peers.github), ("oauth.json", peers.oauth), ("llm.json", peers.llm)] {
+        if !listen.ip().is_loopback() || listen.port() == 0 || ports.contains(&listen.port()) {
+            return Err(format!(
+                "{}: peer listen must be nonzero loopback with a distinct, unreserved port",
+                crate::path(&dirs.config).join(name).display()
+            ));
+        }
+        ports.push(listen.port());
+    }
+    for (name, output) in [("github.json", github.admin_token()), ("llm.json", llm.key())]
+        .into_iter()
+        .chain(llm.added_keys().iter().map(|path| ("llm.json", path.as_ref())))
+        .chain(llm.root().into_iter().map(|path| ("llm.json", path)))
+    {
+        if !contained(&dirs.data, output) {
+            return Err(format!(
+                "{}: output {} must stay under effective data",
+                crate::path(&dirs.config).join(name).display(),
+                crate::path(output).display()
+            ));
+        }
+    }
+    Ok(peers)
+}
 fn validate(dirs: &Directories, bytes: &[u8]) -> Result<(), String> {
     let deployment = crate::setup::check(bytes, &dirs.jig())?;
     let named = &deployment.named;
@@ -311,12 +383,14 @@ fn print(dirs: &Directories) {
     eprintln!("box: effective configuration {}", crate::path(&dirs.config).display());
     eprintln!("box: effective data {}", crate::path(&dirs.data).display());
     eprintln!("box: effective cache {}", crate::path(&dirs.cache).display());
-    for (kind, name) in [("forge", "github.json"), ("oauth", "oauth.json"), ("llm", "llm.json")] {
-        let document = crate::path(&dirs.config).join(name);
+    for (name, kind, document) in [("fake github", "forge", "github.json"), ("fake model", "llm", "llm.json")] {
+        let document = crate::path(&dirs.config).join(document);
         let quoted = format!("'{}'", document.to_string_lossy().replace('\'', "'\\''"));
-        eprintln!("box: manually start temper fake {kind} --document {quoted} --seed 7");
+        eprintln!("box: supervised {name}: temper fake {kind} --document {quoted} --seed {}", backends::SEED);
     }
-    eprintln!("box: manual peer reservations released; peers bind their own listeners");
+    let document = crate::path(&dirs.config).join("oauth.json");
+    let quoted = format!("'{}'", document.to_string_lossy().replace('\'', "'\\''"));
+    eprintln!("box: manually start temper fake oauth --document {quoted} --seed {}", backends::SEED);
 }
 #[expect(
     clippy::too_many_lines,
@@ -368,15 +442,11 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         for name in ["temper.json", "agent.json", "github.json", "oauth.json", "llm.json"] {
             private_document(&crate::path(&effective.config).join(name))?;
         }
-        let _github =
-            temper_fake::forge::Document::decode(&public(&crate::path(&effective.config).join("github.json"))?)
-                .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
-        let _model = temper_fake::llm::Document::decode(&public(&crate::path(&effective.config).join("llm.json"))?)
-            .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
-        let _oauth = Json::decode(&public(&crate::path(&effective.config).join("oauth.json"))?)?;
-        let bytes = replace_bundle(&effective, public(&effective.document())?, bundle)?;
+        let content = public(&effective.document())?;
+        let peers = checked_peers(&effective, &content)?;
+        let bytes = replace_bundle(&effective, content, bundle)?;
         print(&effective);
-        return Ok(Prepared { directories: effective, bytes, listeners: Listeners(Vec::new()), _lock: lock });
+        return Ok(Prepared { directories: effective, bytes, listeners: Listeners(Vec::new()), peers, _lock: lock });
     }
     let written = crate::init::core(&effective)?;
     let mut held = Listeners(written.listeners);
@@ -442,11 +512,15 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>) -> Result<Prepared,
         write(&crate::path(&effective.config).join(name), document, name == "temper.json" || name == "agent.json")?;
     }
     validate(&effective, &documents.temper)?;
+    let peers = checked_peers(&effective, &documents.temper)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
     write(&marker, &source.marker, false)?;
-    drop((github, oauth, llm));
+    for (listener, address) in [(github, peers.github), (llm, peers.llm)] {
+        held.0.push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
+    }
+    drop(oauth);
     print(&effective);
-    Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, _lock: lock })
+    Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, peers, _lock: lock })
 }
 #[cfg(test)]
 mod tests;

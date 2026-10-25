@@ -78,7 +78,25 @@ fn life(root: &Path, paths: &[PathBuf; 3], effective: &Path, client: &str, bundl
         &client,
         vec![Step::Run(Call::sign_in())],
         DEADLINE,
-        || get_root(effective),
+        || {
+            for name in ["github.json", "llm.json"] {
+                let peer = value(&effective.join(name));
+                let address: SocketAddr =
+                    peer["listen"]["socket"].as_str().expect("retained peer socket").parse().expect("peer address");
+                let timeout = std::time::Duration::from_millis(500);
+                let mut socket = TcpStream::connect_timeout(&address, timeout).expect("supervised peer listener");
+                socket.set_read_timeout(Some(timeout)).expect("peer read bound");
+                socket.set_write_timeout(Some(timeout)).expect("peer write bound");
+                write!(socket, "GET / HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n").expect("peer request");
+                let mut status = [0_u8; 12];
+                socket.read_exact(&mut status).expect("bounded peer HTTP status");
+                assert!(
+                    status.starts_with(b"HTTP/1.1 ") && status[9..].iter().all(u8::is_ascii_digit),
+                    "{name}: {status:?}"
+                );
+            }
+            get_root(effective)
+        },
     );
     assert_eq!(outcome.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&outcome.stderr));
     assert_eq!(outcome.left, Some(Vec::new()), "no child outlives its box");

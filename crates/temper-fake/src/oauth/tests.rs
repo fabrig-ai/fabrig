@@ -23,6 +23,14 @@ fn document(value: &Value) -> Result<Document, Refusal> {
 }
 
 #[test]
+fn checked_document_exposes_its_listener() {
+    for socket in ["127.0.0.1:8123", "[::1]:8124"] {
+        let checked = document(&json!({"listen":{"socket":socket}})).unwrap();
+        assert_eq!(checked.listen(), socket.parse().unwrap());
+    }
+}
+
+#[test]
 fn decoder_refuses_invalid_members_before_constructing_a_peer() {
     for (bytes, expected) in [
         (b"{".as_slice(), "document: invalid JSON\n"),

@@ -6,7 +6,7 @@
     reason = "ordinary tests edit bounded public JSON fixtures with serde"
 )]
 #![expect(clippy::default_numeric_fallback, reason = "JSON fixture integers have no Rust arithmetic unit")]
-use super::{Documents, Paths, Peers, rewrite};
+use super::{Documents, Paths, Peers, SEED, rewrite, steps};
 use crate::Refusal;
 use alloc::{vec, vec::Vec};
 use core::num::NonZeroU16;
@@ -62,6 +62,41 @@ fn write(t: &Value, a: &Value, p: &Paths, peers: &Peers) -> Result<Documents, Re
 }
 fn json(bytes: &[u8]) -> Value {
     serde_json::from_slice(bytes).expect("effective JSON")
+}
+
+#[test]
+fn welcome_steps_name_only_the_two_held_peers_and_share_the_seed() {
+    let (_, _, _, peers) = fixture();
+    assert_eq!(SEED, 7);
+    for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
+        let given = steps(config, &peers);
+        assert_eq!(given.len(), 2);
+        for (step, name, command, document, listen) in [
+            (
+                &given[0],
+                b"fake github".as_slice(),
+                b"forge".as_slice(),
+                b"/effective/config/github.json".as_slice(),
+                peers.github,
+            ),
+            (
+                &given[1],
+                b"fake model".as_slice(),
+                b"llm".as_slice(),
+                b"/effective/config/llm.json".as_slice(),
+                peers.llm,
+            ),
+        ] {
+            assert_eq!(step.name(), name);
+            assert_eq!(step.kind(), temper_forge_setup::Kind::Long);
+            assert_eq!(
+                step.arguments(),
+                [b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"].map(Box::<[u8]>::from)
+            );
+            assert_eq!(step.listeners(), &[listen]);
+            assert_eq!(step.ready(), None);
+        }
+    }
 }
 
 #[test]

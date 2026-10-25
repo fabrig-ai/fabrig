@@ -8,7 +8,8 @@ use skein_json::{
     document::Kind,
     writer::{Encoder, Limits},
 };
-use skein_lib::{Decimal, List};
+use skein_lib::{Decimal, List, bytes};
+use temper_forge_setup::{Kind as StepKind, Step};
 
 /// Absolute effective directories and the already provisioned loopback bundle.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -24,6 +25,32 @@ pub struct Peers {
     pub oauth: SocketAddr,
     pub llm: SocketAddr,
 }
+/// Shared by the welcome peers and the manual issuer (protocol/setup.md, 7.5).
+pub const SEED: u64 = 7;
+
+/// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
+#[must_use]
+pub fn steps(config: &[u8], peers: &Peers) -> Box<[Step]> {
+    let mut steps = List::with_capacity(2);
+    let seed = Decimal::of(SEED);
+    for (name, command, document, listen) in [
+        (b"fake github".as_slice(), b"forge".as_slice(), b"github.json".as_slice(), peers.github),
+        (b"fake model", b"llm", b"llm.json", peers.llm),
+    ] {
+        let mut arguments = List::with_capacity(6);
+        for word in [b"fake".as_slice(), command, b"--document"] {
+            arguments.push(bytes::copy_of(word)).expect("peer arguments counted");
+        }
+        arguments.push(path(config, document)).expect("peer document counted");
+        arguments.push(bytes::copy_of(b"--seed")).expect("seed flag counted");
+        arguments.push(bytes::copy_of(seed.as_bytes())).expect("seed counted");
+        steps
+            .push(Step::new(bytes::copy_of(name), arguments.into_boxed(), StepKind::Long).listening(Box::new([listen])))
+            .expect("two welcome peers counted");
+    }
+    steps.into_boxed()
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Documents {
     pub temper: Box<[u8]>,
@@ -200,9 +227,7 @@ fn paths(paths: &Paths) -> Result<(), Refusal> {
             b"data" => b"/github-admin.token".len(),
             _ => 0,
         };
-        if bytes.len().saturating_add(suffix) > 4096
-            || bytes.ends_with(b"/..")
-            || skein_lib::bytes::find(bytes, b"/../").is_some()
+        if bytes.len().saturating_add(suffix) > 4096 || bytes.ends_with(b"/..") || bytes::find(bytes, b"/../").is_some()
         {
             return Err(read::why(&p, b"path past its bound"));
         }
