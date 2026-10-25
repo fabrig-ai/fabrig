@@ -766,16 +766,22 @@ tests 4.1's stories take and 4.2's story, the tier reaches its 12.
   clients' listener (`forge.md`, 9.1), so the tier reserves a loopback
   port the kernel assigns before `temper serve` starts and names it in
   the configuration.
-- **The test:** GitHub's Connect asked through `temper ctl`, which
-  prints the manifest page's link (`tools.md`); the browser opens
-  `/forges/N/github/manifest?state=S`, which posts its form as it
-  loads, with nothing pressed. The form posts to
-  `WEB/settings/apps/new?state=S`, the fake's. The test
-  ends once the fake's GitHub layer has taken the post, its `manifest`
-  field the page's and its state S, with no policy violation. The post
-  is answered `200` with a page holding one link, `Create GitHub App`
-  (id `create`); the test does not follow it, and the later steps are
-  the real loop's (`../domain/testing.md`, 2.4).
+- **The test:** the signed-in browser opens the welcome's forge choice
+  and presses Connect GitHub. The ordinary client supplies its return
+  address. The manifest page posts its form on load to
+  `WEB/settings/apps/new?state=S`, the fake's, with no policy violation.
+  Its answer holds one link, Create GitHub App. Pressing that link runs
+  the uninterrupted conversion, default installation and setup callback;
+  setup answers with a 303 to the welcome's selected forge. The browser
+  reaches that address and reads the connected state. One manifest post
+  and one installation are observed. No URL is intercepted or rewritten,
+  and split HTTP requests do not stand in for this click chain.
+- **The advancing loop** keeps lending peers active during navigation and
+  pending browser commands. A stalled browser operation is diagnosed at
+  this tier before assigning it to the service or a fake. A separate
+  process comparison uses the same ordinary peer configuration and
+  lifecycle when needed. Evidence records route categories and statuses,
+  never state/code values, token contents or a secret final address.
 - **No github.com:** `web` is the fake's, and the page's policy lets
   its form post nowhere else. No test of the tier holds a real
   credential.
