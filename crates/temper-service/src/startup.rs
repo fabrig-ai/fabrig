@@ -2,6 +2,9 @@
 pub(crate) mod application;
 pub(crate) mod checks;
 mod problems;
+#[cfg(test)]
+#[path = "tests/welcome_policy.rs"]
+mod welcome_policy;
 use crate::{AccountsRuntime, Service, Worker, WorkerRuntime, settings};
 use alloc::boxed::Box;
 pub use application::sign_in::{Endpoints, SignIn, url as sign_in_url};

@@ -63,6 +63,8 @@ temper-worker-protocol-git.workspace = true
 jig-protocol-worker-link.workspace = true
 
 [dev-dependencies]
+temper-init.workspace = true
+temper-engine-domain-world = { path = "../../tests/engine/domain" }
 skein-shell.workspace = true
 skein-scratch.workspace = true
 skein-fake-oauth.workspace = true

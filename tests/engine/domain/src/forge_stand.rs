@@ -6,6 +6,7 @@ use temper_engine_domain as engine;
 use temper_engine_forge_world::translate;
 
 pub struct ForgeStand {
+    forge: u16,
     domain: fake::Domain,
     env: Env<fake::Config>,
     out: Queue<fake::Request>,
@@ -22,6 +23,12 @@ impl Default for ForgeStand {
 }
 
 impl ForgeStand {
+    /// This independent peer stands for one configured forge, defaulting to one.
+    #[must_use]
+    pub fn at_forge(mut self, forge: u16) -> Self {
+        self.forge = forge;
+        self
+    }
     #[must_use]
     pub fn quiescent(&self) -> bool {
         self.pending.is_empty() && self.out.is_empty()
@@ -74,6 +81,12 @@ impl ForgeStand {
     pub fn with_setup(setups: Box<[raw::Setup]>) -> ForgeStand {
         let mut config = temper_engine_forge_world::fake_config();
         config.limits.repositories = u32::try_from(setups.len()).expect("bounded repositories");
+        // The fake holds owner/repository as one name; callers can supply long
+        // names to exercise the real root's independent field admission limits.
+        for setup in &setups {
+            config.limits.name_bytes =
+                config.limits.name_bytes.max(u32::try_from(setup.name.len()).expect("fixture name"));
+        }
         config.latency_min = skein_lib::Duration::ZERO;
         config.latency_max = skein_lib::Duration::ZERO;
         let mut domain = fake::Domain::new(&config, 71);
@@ -92,6 +105,7 @@ impl ForgeStand {
             assert!(names.insert(id, name).is_none());
         }
         ForgeStand {
+            forge: 1,
             domain,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config },
             out: Queue::with_capacity(fake::MAX_OUT),
@@ -164,7 +178,7 @@ impl ForgeStand {
     pub fn read(&mut self, repository: api::Repository, read: api::Read) -> api::Answer {
         assert!(self.quiescent(), "read between stand calls");
         assert!(!self.domain.is_due(self.env.now), "finish fake work before observing");
-        assert_eq!(repository.forge, 1);
+        assert_eq!(repository.forge, self.forge);
         let op = api::Op::Read(read);
         let name = translate::locate_name(&op)
             .unwrap_or_else(|| self.repositories.get(&repository.repository).expect("configured repository").clone());
@@ -195,7 +209,7 @@ impl ForgeStand {
     pub fn call(&mut self, call: Token, repository: api::Repository, op: api::Op, limits: &skein_forge_client::Limits) {
         self.limits = *limits;
         self.calls = self.calls.checked_add(1).expect("stand calls bound");
-        assert_eq!(repository.forge, 1);
+        assert_eq!(repository.forge, self.forge);
         let name: Box<[u8]> = if let Some(name) = translate::locate_name(&op) {
             name
         } else {
