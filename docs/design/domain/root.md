@@ -271,7 +271,8 @@ to the forge; a timer to the child that armed it. What temper adds:
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked
   again is answered without rendering again. A read's answer leaves
-  through the door.
+  through the door. A rendered call past the configured core call-answer
+  byte bound is refused with the existing busy answer.
 
 ### 5.3 The core's asks of the forge
 
@@ -603,8 +604,10 @@ adds:
 
 ## 10. Limits and worst cases
 
-The root carries configured core.policy_bytes unchanged and derives one
-effective core envelope for runtime, store opening and sizing. Startup
+The root carries configured `core.policy_bytes` and `core.call_answer_bytes`
+unchanged and derives one effective core envelope for runtime, store opening,
+sizing and the service wire. The journal transcript bound is independent;
+transcript capacity never enlarges the configured call-answer bound. Startup
 checks that envelope against the codec and checks that a policy at its
 configured bound plus its owned row carrier fits the journal. Transcript
 capacity never enlarges the configured policy budget. Restore refuses an

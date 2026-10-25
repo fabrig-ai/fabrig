@@ -77,20 +77,25 @@ fn sized_policy(bytes: u64) -> core::ConfiguredPolicy {
         connector: 0,
         kind: 1,
         pattern: authority::Pattern {
-            segments: vec![Box::<[u8]>::default(); usize::try_from(limits.authority.segments).unwrap()]
-                .into_boxed_slice(),
+            segments: vec![
+                Box::<[u8]>::default();
+                usize::try_from(limits.authority.segments).expect("fixture segment count fits usize")
+            ]
+            .into_boxed_slice(),
             last: authority::Last::Exact(Box::new([])),
         },
     };
-    let grants = vec![empty_grant; usize::try_from(limits.authority.grants).unwrap()].into_boxed_slice();
-    configured.policy.projections = grants.clone();
+    let grants = vec![empty_grant; usize::try_from(limits.authority.grants).expect("fixture grant count fits usize")]
+        .into_boxed_slice();
+    configured.policy.projections.clone_from(&grants);
     for role in &mut configured.policy.roles {
-        role.authority.grants = grants.clone();
+        role.authority.grants.clone_from(&grants);
     }
     let snapshot = core::policy_snapshot(&configured.policy, &configured.permissions, &configured.templates)
         .expect("representable policy");
     let base = people::policy_bytes(&snapshot).expect("policy carrier bytes");
-    let mut remaining = usize::try_from(bytes.checked_sub(base).expect("carrier is below the byte fixture")).unwrap();
+    let mut remaining = usize::try_from(bytes.checked_sub(base).expect("carrier is below the byte fixture"))
+        .expect("fixture bytes fit usize");
     // Fill existing bounded segments, then their terminal words. The last
     // segment can contribute one byte, so cap and cap+1 are both representable.
     for grant in configured
@@ -101,13 +106,15 @@ fn sized_policy(bytes: u64) -> core::ConfiguredPolicy {
     {
         let authority::Last::Exact(last) = &mut grant.pattern.last else { unreachable!("exact fixture") };
         for word in grant.pattern.segments.iter_mut().chain(std::iter::once(last)) {
-            let count = remaining.min(usize::try_from(limits.authority.segment_bytes).unwrap());
+            let count = remaining
+                .min(usize::try_from(limits.authority.segment_bytes).expect("fixture segment bytes fit usize"));
             *word = vec![b'x'; count].into_boxed_slice();
             remaining -= count;
         }
     }
     assert_eq!(remaining, 0, "existing shape capacities reach the named policy byte bound");
-    let snapshot = core::policy_snapshot(&configured.policy, &configured.permissions, &configured.templates).unwrap();
+    let snapshot = core::policy_snapshot(&configured.policy, &configured.permissions, &configured.templates)
+        .expect("bounded policy snapshot");
     assert_eq!(people::policy_bytes(&snapshot), Some(bytes));
     configured
 }
@@ -164,7 +171,7 @@ fn saved_policy(bytes: u64, project: bool) -> Driver {
 fn replay_policy(driver: Driver, limits: &engine::Limits) -> Driver {
     let mut store = Store::with_limits(limits);
     for (index, writes) in driver.transactions.into_iter().enumerate() {
-        let number = u64::try_from(index).unwrap() + 1;
+        let number = u64::try_from(index).expect("transaction index fits u64") + 1;
         // Complete transactions include deployment counters, settings history,
         // keyed answers and project rows, just as the real root committed them.
         store.submit(number, writes.into_boxed_slice(), 0);

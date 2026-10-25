@@ -26,6 +26,7 @@ temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-forge-issues.workspace = true
 
 [dev-dependencies]
+jig-protocol-config.workspace = true
 skein-world.workspace = true
 
 [lints]

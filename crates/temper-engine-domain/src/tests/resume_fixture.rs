@@ -111,8 +111,9 @@ pub fn limits() -> engine::Limits {
     };
     let deliveries = 20_u32.max(fleet::max_out(&fleet).checked_add(1).expect("fleet burst plus continuation"));
     let mut limits = engine::Limits {
-        // The same small-profile policy budget as the engine world fixture.
-        policy_bytes: 16_384,
+        // The same configured core byte budgets as the engine world fixture.
+        policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
+        call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
         settings: jig_domain_core::settings::Limits { history: 64, alternatives: 16, permissions: 32, proposals: 4 },
         templates: 2,
         documents: jig_domain_core::documents::DocumentLimits {

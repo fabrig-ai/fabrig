@@ -57,6 +57,8 @@ pub struct Limits {
     pub templates: u32,
     /// Configured policy byte budget, copied unchanged into the core.
     pub policy_bytes: u64,
+    /// Configured settled-call byte budget, independent of journal capacity.
+    pub call_answer_bytes: u32,
     /// Settings history and value bounds parsed by jig.
     pub settings: jig_domain_core::settings::Limits,
     /// Forge connector subtree and its bounded outbox.
@@ -138,7 +140,7 @@ pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
         authority: limits.authority,
         load_slots: limits.loads.loads,
         call_records: limits.call_records,
-        call_answer_bytes: limits.journal.transcript_bytes,
+        call_answer_bytes: limits.call_answer_bytes,
         people: limits.people,
         fleet: limits.fleet,
         brief: brief_limits(&limits.brief),
@@ -159,8 +161,8 @@ pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
 
 /// One policy at its configured bound, including its largest owned row carrier.
 /// `store::owned_bytes(Write::Save)` excludes the outer Record slot: project
-/// policies add their name, while settings values add ConfiguredPolicy and a
-/// single-item revision adds Item (store/settings_bytes.rs). Whole changes
+/// policies add their name, while settings values add `ConfiguredPolicy` and a
+/// single-item revision adds `Item` (`store/settings_bytes.rs`). Whole changes
 /// still pass the existing request and per-write admission separately.
 #[must_use]
 pub fn policy_row_bound(limits: &Limits) -> Option<u64> {

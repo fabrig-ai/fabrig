@@ -191,7 +191,7 @@ fn temper_ctl_settings() {
     assert!(!inventory["settings"].as_array().expect("settings").is_empty());
     let text = String::from_utf8_lossy(&text.stdout);
     assert!(text.starts_with(&format!("newest revision {newest}\n")), "{text}");
-    assert!(text.contains("charter 1 "), "{text}");
+    assert!(text.contains("charter 1:"), "{text}");
     scratch.remove();
 }
 

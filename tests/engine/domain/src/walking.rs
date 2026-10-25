@@ -123,6 +123,7 @@ pub fn limits() -> engine::Limits {
     let deliveries = 20_u32.max(fleet::max_out(&fleet).checked_add(1).expect("fleet burst plus continuation"));
     let mut limits = engine::Limits {
         policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
+        call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
         settings: jig_domain_core::settings::Limits { history: 64, alternatives: 16, permissions: 32, proposals: 4 },
         templates: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.templates,
         documents: jig_domain_core::documents::DocumentLimits {

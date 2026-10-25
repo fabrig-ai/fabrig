@@ -165,6 +165,7 @@ fn the_store_uses_the_roots_effective_core_limits() {
     assert_ne!(parsed.load_slots, effective.load_slots);
     let checked = store::limits(&root, &root.forge, &profile).unwrap();
     assert_eq!(checked.core, effective);
+    assert_eq!(checked.core.call_answer_bytes, parsed.call_answer_bytes);
 }
 
 #[test]
@@ -173,7 +174,6 @@ fn settings_history_loads_with_the_roots_effective_envelope() {
     use skein_lib::{Token, Wall};
     let (root, _, _) = fixtures::store_limits();
     let effective = engine::core_limits(&root);
-    eprintln!("effective settings history load_bytes={}", reads::settings::load_bytes(&effective, 1).unwrap());
     let mut store = fixtures::memory_store();
     let revision = settings::Revision {
         head: settings::Head {

@@ -472,3 +472,14 @@ fn effective_core_limits_preserve_each_configured_policy_budget() {
         assert_eq!(temper_engine_domain::core_limits(&root).policy_bytes, configured);
     }
 }
+
+#[test]
+fn effective_core_limits_preserve_the_configured_call_answer_budget() {
+    let own = limits::profile(limits::Profile::Small);
+    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    // The service fixture's configured bound differs from both profile and journal.
+    jig.core.call_answer_bytes = fixtures::engine().jig.limits.core.call_answer_bytes;
+    let root = limits::engine(&jig, &own).expect("configured answer budget fits the root");
+    assert_eq!(root.call_answer_bytes, jig.core.call_answer_bytes);
+    assert_eq!(temper_engine_domain::core_limits(&root).call_answer_bytes, jig.core.call_answer_bytes);
+}

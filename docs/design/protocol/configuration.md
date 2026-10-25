@@ -772,12 +772,12 @@ have one, an engine alone none. Each:
   `limits` (jig's `protocol/configuration.md`, section 6).
 - **What the root takes of `engine.limits`:** its core children's
   (`tasks.`, `authority.`, `people.`, `fleet.`, `accounts.`, `notes.`
-  and `documents.`), with `core.templates` and `core.call_records`. The
+  and `documents.`), with `core.templates`, `core.call_records`, `core.policy_bytes` and
+  `core.call_answer_bytes`, each configured byte bound taken unchanged. The
   rest of the core's it gives the core itself (`../domain/root.md`,
   section 10): from its own `root.` limits, in place of `brief.`,
   `core.brief_parts`, `core.brief_core_budgets.`, `core.resume_bytes`,
-  `core.run_bytes`, `core.policy_bytes`,
-  `core.escalation_reason_bytes`, `core.call_answer_bytes`,
+  `core.run_bytes`, `core.escalation_reason_bytes`,
   `core.load_slots` and `core.load_bytes`, a person's read of the store,
   from `root.loads.read_bytes`; as constants, in place of `views.`,
   `core.fill_mark` and `core.connectors`. An

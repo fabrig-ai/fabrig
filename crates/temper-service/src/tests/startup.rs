@@ -13,19 +13,23 @@ const REFUSED_TEMPLATE: u32 = 7;
 fn startup_checks_the_effective_codec_envelope_before_generic_sizing() {
     let jig = config::profile(config::Profile::Small);
     let mut own = crate::limits::profile(crate::limits::Profile::Small);
-    // Parsed core limits remain valid; the root derives resume_bytes from this
-    // journal override, so checking the parsed profile alone misses the refusal.
+    // Parsed core limits remain valid. Deliberately corrupt the effective root
+    // answer bound to exercise this check independently of parsed admission;
+    // journal capacity no longer widens the configured answer bound (R3-114).
     own.root.journal.transcript_bytes = u32::MAX;
-    let root = crate::limits::engine_candidate(&jig, &own);
+    let mut root = crate::limits::engine_candidate(&jig, &own);
+    root.call_answer_bytes = u32::MAX;
     let expected = config::check_effective_limits(&temper_engine_domain::core_limits(&root))
-        .expect_err("effective resume exceeds the codec");
+        .expect_err("effective answer exceeds the codec");
     let mut problems = Problems::empty();
     crate::startup::checks::engine_envelope(&root, &mut problems);
     assert_eq!(problems.problems.len(), 1);
-    let mut expected_line = Vec::from(b"engine.".as_slice());
-    expected_line.extend_from_slice(&expected.codec_message().expect("named codec diagnostic"));
-    expected_line.push(b'\n');
-    assert_eq!(lines(&problems).as_ref(), expected_line);
+    let message = expected.codec_message().expect("named codec diagnostic");
+    let mut expected_line = skein_lib::Writer::new(b"engine.".len() + message.len() + b"\n".len());
+    expected_line.put(b"engine.").unwrap();
+    expected_line.put(&message).unwrap();
+    expected_line.put(b"\n").unwrap();
+    assert_eq!(lines(&problems), expected_line.finish());
 }
 
 #[test]

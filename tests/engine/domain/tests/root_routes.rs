@@ -4379,6 +4379,61 @@ fn a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed(
     assert_eq!(live(&driver, first.task).tries.lost, 1);
 }
 
+// A configured test envelope well below the independent 8192-byte journal row.
+const CONFIGURED_RENDERED_CALL_BYTES: u32 = 128;
+const RENDERED_CALL_NAME: &[u8] = b"answer-bound";
+const TYPED_TOOL: &[u8] = b"unknown-tool";
+
+/// Use the existing recorded typed-call and deferred Render path. The core's
+/// answer bound counts the opaque call name and tool as well as the body.
+fn rendered_call_answer(extra: u32) -> (Driver, Box<[u8]>) {
+    let mut bounds = limits();
+    bounds.call_answer_bytes = CONFIGURED_RENDERED_CALL_BYTES;
+    let (mut driver, assignment) = Driver::configured_chat([config(91), config(91)], &bounds);
+    driver.protocol.defer_render = true;
+    let to = typed_call(&mut driver, &assignment, RENDERED_CALL_NAME);
+    let body = engine::Call { completion: 2, position: 0, tool: engine::Tool::Unavailable };
+    driver.send(engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }));
+    for _ in 0..60 {
+        driver.advance(true);
+    }
+    let (to, _) = driver.protocol.pending_renders.pop().expect("recorded call reached Render");
+    let payload_bytes = usize::try_from(CONFIGURED_RENDERED_CALL_BYTES + extra).expect("small answer")
+        - RENDERED_CALL_NAME.len()
+        - TYPED_TOOL.len();
+    let body: Box<[u8]> = vec![b'x'; payload_bytes].into();
+    driver.send(engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
+        to,
+        answer: jig_domain_core::SettledAnswer::Host { error: false, body: body.clone() },
+    }));
+    driver.settle();
+    (driver, body)
+}
+
+#[test]
+fn a_rendered_call_answer_at_its_configured_byte_bound_is_admitted() {
+    let (driver, body) = rendered_call_answer(0);
+    let delivered = downs(&driver);
+    let host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error, text }, .. } =
+        delivered.last().expect("rendered route response")
+    else {
+        panic!("rendered host answer")
+    };
+    assert_eq!((call.as_ref(), *error, text.as_ref()), (RENDERED_CALL_NAME, false, body.as_ref()));
+}
+
+#[test]
+fn a_rendered_call_answer_one_byte_past_its_configured_bound_is_busy() {
+    let (driver, _) = rendered_call_answer(1);
+    let delivered = downs(&driver);
+    let host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error, text }, .. } =
+        delivered.last().expect("rendered route response")
+    else {
+        panic!("rendered host refusal")
+    };
+    assert_eq!((call.as_ref(), *error, text.as_ref()), (RENDERED_CALL_NAME, true, b"busy".as_slice()));
+}
+
 /// A hub call the world's protocol cannot decode by itself: the test decodes
 /// it, and gets the decode request's reply right back.
 fn typed_call(driver: &mut Driver, assignment: &engine::Assignment, name: &[u8]) -> ReplyTo {
@@ -4386,7 +4441,7 @@ fn typed_call(driver: &mut Driver, assignment: &engine::Assignment, name: &[u8])
         run: Token::new(assignment.task),
         attempt: Token::new(assignment.attempt),
         call: name.into(),
-        tool: b"unknown-tool".as_slice().into(),
+        tool: TYPED_TOOL.into(),
         writes: false,
         input: b"opaque-input".as_slice().into(),
         deadline: Duration::from_secs(2),
@@ -4404,7 +4459,7 @@ fn typed_call(driver: &mut Driver, assignment: &engine::Assignment, name: &[u8])
     assert_eq!((task, attempt), (assignment.task, assignment.attempt));
     assert_eq!(
         (call.name.as_ref(), call.tool.as_ref(), call.input.as_ref()),
-        (name, b"unknown-tool".as_slice(), b"opaque-input".as_slice())
+        (name, TYPED_TOOL, b"opaque-input".as_slice())
     );
     assert!(!call.writes);
     assert_eq!(call.deadline, Duration::from_secs(2));

@@ -831,5 +831,5 @@ fn a_seed_policy_at_its_actual_joined_byte_bound_is_admitted() {
     let mut limits = super::resume_fixture::limits();
     limits.policy_bytes = joined_seed_bytes(&seed_with_landing(), &limits);
     assert!(crate::refused(seed_with_landing(), &limits).is_empty());
-    assert!(Domain::new(seed_with_landing(), &limits).is_ok());
+    Domain::new(seed_with_landing(), &limits).expect("joined seed policy at its exact bound constructs the root");
 }
