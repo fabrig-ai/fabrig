@@ -31,6 +31,9 @@ chat whose committed reply is the fake's (the user's brief, 10-24).
     file.
 - **A program,** Claude Code's, is the real mechanism: `agent.json`'s
   `programs.claude_code.path` is the `fake-claude` sibling of `temper`.
+  Init ships no Claude provider, so the box adds Anthropic as provider 2,
+  serving model `fake-claude` through `claude_code`, and the Model step
+  offers "Use your Claude subscription".
 - **A forge's git** is its `git_program` (`protocol/configuration.md`):
   the box sets the fake git adapter for forges 2 and 4, since skein's
   fake forges speak a fake git protocol. Forgejo here keeps the
@@ -110,13 +113,16 @@ step is its own phase of the walk, so the look's live scenes
 | after "Connect as its admin" made and adopted the first repository, the welcome stayed on Forge | its advance knew only owned set-up's answer; the client README moves on to Model once any first repository is adopted | the advance follows the adoption, whatever the forge |
 | the own App's pasted key was refused as malformed | hand typed the key's line endings into the one-line field as spaces, past the parser's 1196-byte bound; a person's paste drops them | hand drops line endings typed into a one-line field |
 | a key walk never saw the welcome's Ready checklist | as designed: only a sign-in returns to it; an account made on the Model step shows `ConnectModel`'s Ready, whose "Start a chat" is the way on | none: the walks follow it |
+| the program was offered as "Use your ChatGPT subscription" | the box first put Claude Code on provider 1, OpenAI | Anthropic, provider 2, as above |
+| the GitHub browser story failed about one run in thirty | a closing connection still held a fixture slot when the picker's next one was accepted, so it was refused unread | the fixture admits four, derived; a simulator regression holds a close open while the next connection arrives |
 
-On main since 10-25 22:33Z (set 1: skein `ab7b536c`, temper `3064e597`):
-the fake box's wiring, every process story, `lab/welcome-chatgpt`, and
-every fix above but these, which land with set 2: the welcome's advance
-to Model after any first adoption (a Forgejo elsewhere's stayed on
-Forge), and hand's typing into a one-line field, which turned a pasted
-key's line endings into spaces where a person's paste drops them.
+All of it is on main: set 1 (10-25 22:33Z; skein `ab7b536c`, temper
+`3064e597`), set 2 (23:20Z; skein `dc65a4f7`, temper `375dca8d`) and the
+fixture's admission (temper `cafc5131`). Each lab experiment passes seeds 1, 2
+and 3, each run in 6 to 9 s, or about 11 with Forgejo here (set 2's
+runs); each process story runs in about a
+second, or six to eleven with a real Forgejo. A person's way through
+is `docs/guide/box.md`, "Trying the welcome with nothing real".
 
 Open, for their owners:
 - **A program can't take a first chat.** jig refuses a program model for
