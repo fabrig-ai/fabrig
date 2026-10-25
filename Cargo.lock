@@ -732,6 +732,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-fail-stop",
  "skein-fake-channel",
  "skein-fake-llm-domain",
  "skein-fake-machine",
@@ -899,6 +900,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "sha2",
+ "skein-fail-stop",
  "skein-io",
  "skein-lib",
  "skein-llm",
@@ -1019,6 +1021,7 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
+ "skein-fail-stop",
  "skein-fake-machine",
  "skein-heap",
  "skein-io",
