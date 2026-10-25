@@ -1319,9 +1319,6 @@ login is imported.
   the same plaintext fake model, with stale TLS members removed. The
   pure transformation is temper-fake's, with bounded bytes and explicit
   paths/sockets as inputs; files and listeners belong to temper's shell.
-  Its rewrite table holds the init-shaped git/program edits plus all four
-  removable TLS members on each of forge, sign-in and model endpoint: 42
-  slots. The agent document needs eight of the same bounded slots.
 - **Browser:** --bundle DIR, or source application.clients.bundle,
   names a provisioned loopback-navigation bundle (../client/browser.md,
   2.6). Build it once with scripts/bundle.sh --loopback DIR, then run
@@ -1331,11 +1328,8 @@ login is imported.
   is required. The ordinary embedded bundle cannot replace it. Startup
   neither builds a bundle nor accesses a remote service.
 
-
-Before starting its supervised processes, the box prints these fixed
-prefixes on stderr, for people and lab readiness captures. Addresses are
-loopback IPs with ports; each origin belongs to a peer the box runs, so
-there are no per-peer commands to run:
+Before starting its supervised processes, the box prints these lines on
+stderr, for the person and for the lab, which captures them by prefix:
 
 ```text
 box: effective configuration C'
@@ -1351,19 +1345,18 @@ box: program login: COMMAND
 box: GitHub own App id 1, key file FILE
 ```
 
-The model key line names the effective `llm.json`'s `key` file, which a
-person pastes on the Model step's key way. Key and token lines print
-paths only. The program-login command names the effective directories
-and ends `NAME (the name the Model step shows)`: the person substitutes
-the name declared by the welcome's Model step. The own-App line names
-App 1's matching private fixture PEM.
-
+A FILE is a path, never its contents. COMMAND is `temper program-login`
+with the effective directories, ending in the placeholder `NAME (the name
+the Model step shows)` for the source name the Model step declares.
 
 The effective configuration keeps forge 1 as the playground, forge 2 as
 GitHub and forge 3 as the owned Forgejo. Forge 4 is the ordinary managed
 Forgejo elsewhere: its API and git roots name a separate loopback
 fake. Its web member is null, as for ordinary Forgejo (section 3);
-readiness prints the fake peer's origin separately. Its retained peer document is C'/forgejo.json, and its dummy admin
+readiness prints the fake peer's origin separately. Forges 2 and 4 name
+the fake git adapter as their `git_program` (section 3), since skein's
+fake forges speak a fake git protocol; forge 3 keeps the machine's git.
+Its retained peer document is C'/forgejo.json, and its dummy admin
 token is D'/forgejo-admin.token, private with mode 0600. Readiness names
 only that file's path; its contents belong in no log, report or record.
 The sandbox's own configured counts admit all four forges and their four
@@ -1385,16 +1378,13 @@ beside `temper`, resolved to that exact absolute sibling path, and its
 private adapter directory D'/programs. Preparation supplies that path as
 init's program fact; source import checks an existing adapter's bounded
 absolute shape without looking for Claude on PATH. The pure rewrite writes
-the exact sibling and private directory even when the source has no adapter,
-and an ordinary Anthropic provider (number 2, `signed_in_plan: false`,
-with its required `manage_usage` address `https://claude.ai/settings/usage`)
-offers that adapter and the `fake-claude` model. Init ships no Claude
-provider, so the rewrite adds it with only the program source; both
-program endpoints name `anthropic` with its dialect 2, while OpenAI keeps
-its key and ChatGPT sign-in sources. The fake overrides `documents.lines` to 3 so
-OpenAI, demo and Anthropic fit in the Model step’s provider offers.
-The view therefore shows “Use your Claude subscription” and “Declared your Claude subscription”. No startup
-path discovers or falls back to a real `claude` from PATH.
+the exact sibling and private directory even when the source has no adapter.
+Init ships no Claude provider, so the rewrite adds an ordinary Anthropic
+provider, number 2, whose one source is that adapter and whose one model,
+`fake-claude`, the fake model serves through an Anthropic-dialect endpoint
+in both effective documents. It raises `documents.lines` to 3, so that
+the Model step offers OpenAI, demo and Anthropic. No startup path
+discovers or falls back to a real `claude` from PATH.
 
 Reuse requires agent.json/programs/claude_code/path to equal that sibling.
 A different retained path refuses with that member named and explicit reset

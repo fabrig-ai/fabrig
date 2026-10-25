@@ -1380,23 +1380,13 @@ bundle command and --bundle. Empty C stays untouched: init writes directly
 into the effective sandbox. Box startup performs no build or fetch.
 
 Before starting its supervised peers, preparation prints the effective
-directories, fixed peer origins and fixture file paths (configuration.md,
-12.1). Its `box: program login:` command names those effective directories
-and ends `NAME (the name the Model step shows)`. The person substitutes
-the source name declared on the Model step.
-GitHub has one fixed person and repository. Its App id and matching fixture
-key and the dummy model key are the values a walk uses. Preparation writes
-App 1's matching PEM to D'/github-app.pem, mode 0600, retains it on reuse,
-and appends `box: GitHub own App id 1, key file FILE` to its printed facts.
-The generated GitHub document sets the seeded App's optional `setup_url`
-to `http://CLIENTS/forges/2/github/setup`. An already installed App still
-offers Install while its installation is stray; visiting GitHub and its
-setup callback accepts that installation. Manifest conversion creates a
-new App with its own installations and tokens, without inheriting the seed
-App's installation or minted tokens. Forges 2 and 4 select the generated
-fake git adapter through `application.forges[].git_program`; owned Forgejo
-keeps real git (configuration.md, section 3).
-The elsewhere
+directories, the fakes' origins and the files a walk pastes
+(configuration.md, 12.1).
+GitHub has one fixed person and repository. Its App 1 is seeded and
+installed, with the setup URL a person gives an App of their own (17.3),
+`http://<listener>/forges/2/github/setup`, so that the own-App path's
+Install comes back to temper; App 1's private key is D'/github-app.pem,
+mode 0600. The dummy model key is the key a walk pastes. The elsewhere
 Forgejo's admin token is kept in its private file: instructions name only
 the path, and no log, report or record contains its contents. The fixed signed-in model bearer uses the first added
 credential stream with the same seed as the issuer, while the primary

@@ -677,54 +677,31 @@ through the director.
 
 ## 12. Welcome paths on the fake box
 
-`lab/welcome-github` clicks GitHub's one-click App creation, installation
-and return, adopts `fake-person/widget`, pastes the box's named fake model
-key, and follows the embedded Ready card’s “Start a chat” into `widget`.
-`lab/welcome-forgejo-here` clicks
-Forgejo here, makes `work/hello` in `hello`, and uses the same key path.
-Each waits for visible sign-in before opening the welcome, requires the
-Model step’s embedded Ready card and “Added your OpenAI API key” status,
-and presses “Start a chat”. Unlike sign-in, an added key stays on Model
-(`client/README.md`, The welcome). The walk checks the selected project,
-which is the new composer’s project, before pressing “Start chat” and
-requiring the fake reply before and after reload. Welcome, Forge, Model,
-Ready and chat are separate seed actions, so a live scene can capture
-between them. Forgejo here’s Ready phase waits
-for the Model step’s repository-adopted summary before following “Start a
-chat”, since its real setup continues in the background during Model.
-All welcome experiments keep
-one byte-identical `call`, guarded by a unit test: failure keeps an
-outline and shot, then stops. Each later phase requires its predecessor’s
-completion marker, since the lab records failed actions and continues the
-seed; a failed phase therefore leaves every later phase without browser calls.
+Four experiments click the welcome's seven paths in Chromium, each on an
+ordinary `temper box --fake-backends` (`protocol/configuration.md`,
+12.1), from the box's printed sign-in link to a first chat:
 
-The GitHub hand admits its box's captured fake GitHub origin as its sole
-peer. Forgejo here's hand has no peer: its walk never opens the forge's
-pages. Its subject supplies a `forgejo-cache` USTAR tree at the box's
-cache paths for Forgejo 17.0.0 and runner 13.2.0; ordinary fetch verifies
-the pins. Both checks reject all hand trouble and require ctl's first
-committed assistant message to equal the fake model's reply. These are
-on-demand browser experiments, with pure manifest/proof tests and POSIX
-shell process tests under `lab/tests/`.
+| Experiment | Forge | Model |
+|---|---|---|
+| `lab/welcome-chatgpt` | Forgejo elsewhere | ChatGPT sign-in |
+| `lab/welcome-github` | GitHub, one click | a key |
+| `lab/welcome-own-app` | GitHub, an App of the person's own | a program, to Ready |
+| `lab/welcome-forgejo-here` | Forgejo here | a key |
 
-The fake GitHub serves the browser’s optional favicon request without API
-credentials as a bodyless 204. Its console errors remain part of the
-empty-trouble requirement; no resource failure is filtered out.
-`lab/welcome-chatgpt` connects Forgejo elsewhere in the browser, pasting
-the box's named admin-token file, then signs in with ChatGPT, opens the
-project and checks the first committed reply before and after reload.
-`lab/welcome-own-app` pastes the box's named App 1 key, installs on the
-fake GitHub, chooses `fake-person/widget`, and declares the Model step's
-program login on the fake box’s Anthropic provider: “Use your Claude
-subscription”, backed by the Claude Code adapter. Its
-terminal step runs the box's printed command through
-`--cache DIR` with the page's name appended before submitting the program
-account. It ends at Ready, since jig
-cannot keep a chat open through a program yet, and checks the program
-source and its connected worker both usable. The own App’s
-Install on GitHub button requests the departing install page, whose
-return leads to the repository picker. Both experiments check the
-whole hand trouble log and expose each welcome step as a separate action
-and `steps` phase for live captures (`draft/qa-web.md`, 3.3). A failed phase
-latches the walk closed in its ground directory: although the runner
-invokes later actions, they make no further browser calls.
+- **Two processes, no driver:** the box, and hand (skein's
+  `lab-browser.md`, section 8). hand's origin is temper's; the fakes a
+  page leaves for are its `--peer`s (8.5), by the origins the box
+  prints, and ChatGPT's walk also names the shipped callback's
+  `http://127.0.0.1:1455`. What a person pastes, a key, a token or a
+  PEM, is read from the files the box names.
+- **One action per welcome step,** Welcome, Forge, Model, Ready and the
+  chat, so that the look's live scenes can capture between them
+  (`draft/qa-web.md`, 3.3). The lab runs a seed's later actions after a
+  failed one, so each step runs only once its predecessor completed.
+- **Checks:** hand's trouble is empty, and ctl's chat holds the fake
+  model's reply as its first committed assistant message, before and
+  after a reload. A program takes no chat yet, so `welcome-own-app` ends
+  at Ready and checks the program's source and its worker usable.
+- **Forgejo here downloads nothing:** its subject carries the pinned
+  Forgejo and runner in the box's cache, which the ordinary fetch
+  verifies.
