@@ -58,9 +58,9 @@ one new path with one already proved, so that a failure names one thing:
 | `forgejo_elsewhere_and_a_key_…` | Forgejo elsewhere, by its admin token, its first repository made | a key |
 | `github_one_click_and_a_key_…` | GitHub, temper's App by manifest | a key |
 | `githubs_own_app_and_a_key_…` | GitHub, an App of the person's own | a key |
-| `chatgpt_sign_in_and_forgejo_elsewhere_…` | Forgejo elsewhere | ChatGPT sign-in |
+| `chatgpt_sign_in_and_github_one_click_…` | GitHub one-click | ChatGPT sign-in |
 | `forgejo_here_and_a_key_…` | Forgejo here | a key |
-| `a_program_and_forgejo_here_…` | Forgejo here | a program's login |
+| `a_program_and_forgejo_here_reach_ready_…` | Forgejo here | a program's login, to Ready |
 
 Each story asserts what the welcome shows before its new path. It then
 asserts the end: the forge connected with its first repository adopted,
@@ -80,7 +80,7 @@ the seven paths, all in the browser:
 |---|---|---|
 | `lab/welcome-chatgpt` | Forgejo elsewhere | ChatGPT sign-in |
 | `lab/welcome-github` | GitHub one-click | a key |
-| `lab/welcome-own-app` | GitHub, an App of the person's own | a program's login |
+| `lab/welcome-own-app` | GitHub, an App of the person's own | a program's login, to Ready |
 | `lab/welcome-forgejo-here` | Forgejo here | a key |
 
 Each walks `/welcome` to Ready and opens the project. It sends a first
@@ -99,11 +99,21 @@ step is its own phase of the walk, so the look's live scenes
 | the first chat's worker never replied on a fake forge | workers ran the machine's git against a fake git protocol | a forge's `git_program`, a general setting |
 | the printed program-login line named a source `source` | the welcome declares `claude-` + the person's name, which the box can't know when it prints | the line ends with the placeholder |
 | Ready on a Forgejo elsewhere said "Almost ready" after adoption | `ready_target` admitted GitHub and owned Forgejo only; the client README's Ready names no such limit | the guard removed |
+| a manifest's new App inherited the seeded App's installation, so setup answered 410 | skein's fake GitHub kept the old App's installations and tokens when a conversion replaced the App | skein's fake: a conversion replaces the App whole |
+| the own App's installation stayed stray | a seeded installation isn't an accepted one, so the own App takes GitHub's install hop, and the fake's install page refused an App with no setup URL | skein's fake: a seeded App takes a setup URL; the box sets it, and leaves the App's private key in a file it names |
+| a program's account was usable but had no model | the box offered `claude_code` with no model endpoint behind it | the box's documents route model `fake-claude` to the program |
 
 As of 10-25 21:30Z, the fixes past the GitHub chain are on their
 branches, landing with the walk's first set.
 
 Open, for their owners:
+- **A program can't take a first chat.** jig refuses a program model for
+  a requester-ended task (`jig-domain-core/src/run_choice.rs`, a
+  deliberate gap), and ctl has no goal tool yet (`client/tools.md`, area
+  2). So a person who connects their subscription reaches Ready, and
+  their first chat is refused.
+- jig's `accounts.usable` is true once a program's source is declared,
+  before its login, while the worker's program is still not signed in.
 - temper's setup response waits on a GitHub API call through refused
   connections with doubling backoff, 11.4 s in one record, so a
   person's tab hangs with no answer while GitHub's API is unreachable.
