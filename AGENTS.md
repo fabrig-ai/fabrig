@@ -11,8 +11,8 @@
   worlds on an idle machine with the workflow's serial profile; keep
   additions within those budgets.
 - smith follows skein's `docs/foundation/programming-model.md`,
-  `testing-strategy.md` and `notes.md`. Read them before writing code:
-  the first two are rules, and a departure needs its reason, stated in
+  `testing-strategy.md` and `notes.md`. Read the first two's section 1
+  before writing code: they are rules, and a departure needs its reason, stated in
   the design or the commit. Source citations use those file names and their sections.
 - smith's contracts are in `docs/design/domain/`. Code cites them as
   `domain/<file>.md` with a specific section, at module or type level,
@@ -34,4 +34,4 @@
   generic schedules, replay, referee plumbing or counting allocators.
   A missing shared mechanism belongs in skein before its smith consumer.
 - Work in a branch of your own worktree, never in the primary checkout.
-  `land` is the only way to `main`, and the only push.
+  Push only your own branch: `land` is the only way to `main`.
