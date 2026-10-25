@@ -12,7 +12,12 @@ fn a_procedures_effect_waits_for_another_connectors_verdict_then_is_made() {
     assert!(world.systems[0].observed().is_empty(), "unknown observer facts authorize no effect");
     assert!(!world.pending_reads.is_empty(), "the second connector reads for its verdict");
     assert!(world.store.rows.values().any(|row| matches!(row, root::Record::Connector { number: 1, record: connector::Record::Procedure(state) } if state.task == task && state.steps == 1 && !state.awaiting)), "refused effect is counted, with no outstanding entry");
+    world.hold_writes = true;
     world.observed(13);
+    let (number, call) = world.pending_writes.pop().expect("procedure's committed write");
+    world.restart(81, true);
+    let event = world.systems[0].answer(call, jig_test_system::Fault::None);
+    world.send(root::Event::Connector { number, event: connector::Event::System(event) });
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1, "{:?}", world.trace);
     assert_eq!(world.systems[0].observed()[0].key.purpose, 19);
     assert!(
@@ -584,4 +589,64 @@ fn a_workers_limit_reaches_the_accounts_child_and_holds_its_charter_until_the_re
 
 fn assignment(world: &World) -> &root::Assignment {
     world.assigned.as_ref().expect("live assignment")
+}
+
+#[test]
+fn ordinary_failed_and_held_entries_keep_their_call_and_task_routes_across_restart() {
+    for (seed, recovery, result, expected) in [
+        (88, connector::Recovery::Keyed, connector::ApplyResult::Conflict, core::connector::OutboxOutcome::Failed),
+        (
+            89,
+            connector::Recovery::Unrecoverable,
+            connector::ApplyResult::Uncertain,
+            core::connector::OutboxOutcome::Held { entry: 1 },
+        ),
+    ] {
+        let (mut configuration, limits) = jig_core_world::effects::fixture(seed, false);
+        configuration.first.kinds.iter_mut().find(|kind| kind.kind == 5).expect("configured effect kind").recovery =
+            recovery;
+        let mut world = World::configured(seed, false, configuration, limits);
+        world.recovery = recovery;
+        world.hold_writes = true;
+        world.call(1, 220);
+        let key = world.call_key(1);
+        let entry = world
+            .store
+            .rows
+            .values()
+            .find_map(|row| match row {
+                root::Record::Connector { record: connector::Record::Outbox(entry), .. } => Some(entry.clone()),
+                root::Record::Core(_) | root::Record::Connector { .. } => None,
+            })
+            .expect("ordinary pending entry");
+        world.restart(seed, false);
+        world.send(root::Event::Connector {
+            number: 1,
+            event: connector::Event::System(connector::SystemEvent::Applied {
+                entry: entry.number,
+                attempt: entry.attempt.expect("sent attempt").number,
+                result,
+            }),
+        });
+        let expected = if result == connector::ApplyResult::Uncertain {
+            core::connector::OutboxOutcome::Held { entry: entry.number }
+        } else {
+            expected
+        };
+        assert!(matches!(world.store.rows.get(&root::Key::Core(core::Key::Core(core::CoreKey::Call(key)))),
+            Some(root::Record::Core(core::Record::Core(core::CoreRecord::Call(core::CallRecord {
+                part: core::CallPart::Effect { outcome: Some(outcome), .. }, ..
+            })))) if *outcome == expected));
+        let row = jig_core_world::fixtures::live_row(&world, key.task);
+        let tasks::Phase::Held { source, .. } = &row.phase else { panic!("ordinary outcome holds its task") };
+        assert_eq!(source.as_deref(), Some(&tasks::HoldSource::Effect { connector: 1, entry: entry.number }));
+        if recovery == connector::Recovery::Unrecoverable {
+            world.send(root::Event::Connector {
+                number: 1,
+                event: connector::Event::Resolve { entry: entry.number, repeat: false },
+            });
+        }
+        assert!(!world.store.rows.values().any(|row| matches!(row,
+            root::Record::Connector { record: connector::Record::Outbox(row), .. } if row.number == entry.number)));
+    }
 }

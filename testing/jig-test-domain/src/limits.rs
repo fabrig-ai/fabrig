@@ -70,6 +70,6 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         )?)?
         .checked_add(Map::<Token, u64>::worst_case(limits.core.tasks.tasks)?)?
         .checked_add(Map::<u64, u16>::worst_case(entries)?)?
-        .checked_add(Map::<u64, u64>::worst_case(entries)?)?
+        .checked_add(Map::<u64, crate::OutboxOwner>::worst_case(entries)?)?
         .checked_add(Map::<Token, (Token, authority::Judge, [u8; 32])>::worst_case(limits.core.authority.facts)?)
 }

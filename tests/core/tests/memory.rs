@@ -132,3 +132,76 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_prices_one_outpu
     assert_eq!((queries.held(), queries.peak()), (held, held), "retained metadata inspection also allocates nothing");
     meter.check(queries, bound, &limits);
 }
+
+#[test]
+fn populated_projection_and_call_owner_routes_restore_under_the_counted_heap_bound() {
+    use jig_test_connector as connector;
+    use jig_test_domain as root;
+    let (mut configuration, limits) = jig_core_world::effects::fixture(193, false);
+    let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
+    policy.projections.clone_from(&policy.ceiling.grants);
+    configuration.core.seed_projects[0].policy.policy = policy.clone();
+    let mut restart = jig_core_world::effects::fixture(193, false).0;
+    restart.core.seed_projects[0].policy.policy = policy;
+    let mut world = jig_core_world::effects::World::configured(193, false, configuration, limits);
+    world.hold_writes = true;
+    world.call(1, 230);
+    let request = jig_core_world::fixtures::goal(
+        &world,
+        1,
+        b"routing owners".as_slice().into(),
+        people::TaskExecutor::Agent { charter: 1 },
+        jig_core_world::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
+    );
+    jig_core_world::stories::reads::request(&mut world, 94, request);
+    let goal = world
+        .people_answers
+        .iter()
+        .rev()
+        .find_map(|reply| match reply {
+            people::Reply::Outcome(people::Outcome::Created { first, .. }) => Some(*first),
+            people::Reply::Signer(_)
+            | people::Reply::Full { .. }
+            | people::Reply::SignedIn { .. }
+            | people::Reply::SignedOut
+            | people::Reply::Outcome(_)
+            | people::Reply::Refused(_)
+            | people::Reply::Again(_) => None,
+        })
+        .expect("tracked goal admitted alongside the caller");
+    world.hold_projection_settlements = true;
+    world.send(root::Event::ProjectionEffect { goal, number: 1, effect: jig_core_world::effects::World::effect() });
+    let pending = std::mem::take(&mut world.pending_writes);
+    assert_eq!(
+        world
+            .store
+            .rows
+            .values()
+            .filter(|row| matches!(row, root::Record::Connector { record: connector::Record::Outbox(_), .. }))
+            .count(),
+        2
+    );
+    world.restart_with(restart);
+    assert_eq!(
+        world
+            .store
+            .rows
+            .values()
+            .filter(|row| matches!(row, root::Record::Connector { record: connector::Record::Outbox(_), .. }))
+            .count(),
+        2
+    );
+    for (number, call) in pending {
+        let event = world.systems[usize::from(number - 1)].answer(call, jig_test_system::Fault::None);
+        world.send(root::Event::Connector { number, event: connector::Event::System(event) });
+    }
+    world.retry_due();
+    world.release_writes();
+    assert!(
+        !world
+            .store
+            .rows
+            .values()
+            .any(|row| matches!(row, root::Record::Connector { record: connector::Record::Outbox(_), .. }))
+    );
+}

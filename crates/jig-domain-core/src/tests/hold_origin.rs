@@ -110,3 +110,182 @@ fn failed_effect_task_document_names_the_held_task_account_and_preserves_the_act
     };
     assert_eq!(escalation.task.hold.unwrap().account, hold.account);
 }
+
+struct ProjectionWriterFixture {
+    core: Core,
+    limits: Limits,
+    resources: [tasks::Name; 2],
+    entries: [u64; 2],
+}
+
+fn projection_writers(procedure: bool) -> ProjectionWriterFixture {
+    let (mut core, limits) = tree_core();
+    let resources = [b"first".as_slice(), b"other".as_slice()]
+        .map(|path| tasks::Name { connector: 2, path: Box::new([Box::from(path)]) });
+    let hold = tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits };
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Kinds { connector: 2, kinds: Box::new([tasks::Kind { connector: 2, kind: 1, hold }]) },
+    );
+    for resource in &resources {
+        send_task(&mut core, &limits, tasks::Event::Resource { name: resource.clone(), hold });
+        send_task(
+            &mut core,
+            &limits,
+            tasks::Event::ResourceAccess {
+                project: 1,
+                name: resource.clone(),
+                access: tasks::ResourceAccess::Writable,
+            },
+        );
+    }
+    let mut holder = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
+    holder.holdings = Box::new([
+        tasks::Holding::Write { resource: resources[0].clone(), kind: 1 },
+        tasks::Holding::Write { resource: resources[1].clone(), kind: 1 },
+    ]);
+    if procedure {
+        holder.executor = tasks::Executor::Procedure { connector: 2, code: 1 };
+    }
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Make {
+            reply_to: ReplyTo::new(Token::new(1)),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([holder]),
+        },
+    );
+    assert_eq!(core.tasks.holder(&resources[0]), Some(1));
+    if procedure {
+        send_task(
+            &mut core,
+            &limits,
+            tasks::Event::Procedure {
+                reply_to: ReplyTo::new(Token::new(2)),
+                task: 1,
+                step: 1,
+                read: None,
+                decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
+            },
+        );
+        assert_eq!(core.tasks.procedure_due(1), None);
+    }
+    let entries = [
+        fresh(&mut core.counters, Family::ConnectorRow).unwrap(),
+        fresh(&mut core.counters, Family::ConnectorRow).unwrap(),
+    ];
+    for (resource, entry) in resources.iter().zip(entries) {
+        send_task(
+            &mut core,
+            &limits,
+            tasks::Event::EffectInFlight {
+                reply_to: ReplyTo::new(Token::new(3)),
+                task: 1,
+                resource: resource.clone(),
+                entry,
+            },
+        );
+        assert_eq!(core.tasks.writer(resource).unwrap().writer, tasks::Writer::Effect { entry });
+    }
+    ProjectionWriterFixture { core, limits, resources, entries }
+}
+
+#[test]
+fn projection_outcomes_settle_only_their_writers_without_holding_or_waking_a_procedure() {
+    use connector::OutboxOutcome;
+    for (outcome, terminal) in [
+        (OutboxOutcome::Made, true),
+        (OutboxOutcome::Failed, true),
+        (OutboxOutcome::Withdrawn, true),
+        (OutboxOutcome::NotMade, true),
+        (OutboxOutcome::Uncertain, false),
+        (OutboxOutcome::Held { entry: 1 }, false),
+    ] {
+        let ProjectionWriterFixture { mut core, limits, resources, entries } = projection_writers(true);
+        let before = core.tasks.task(1).unwrap().clone();
+        let key = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
+        let part = CallPart::Effect { connector: 2, entry: entries[1], deadline: Wall::EPOCH, outcome: None };
+        core.call_parts.insert(key, part.clone()).unwrap();
+        let env = Env { now: Time::ZERO, wall: Wall::from_nanos(9), limits };
+        for _ in 0_u8..2 {
+            let Requests::Out(mut out) = step(
+                &mut core,
+                &env,
+                Event::EffectConnector(connector::Event::ProjectionOutbox { connector: 2, entry: entries[0], outcome }),
+            );
+            while let Some(request) = out.pop() {
+                if let Request::Held(held) = &request
+                    && let Held::CallAnswer { .. } = **held
+                {
+                    panic!("projection answered a call");
+                }
+                if let Request::Ask { ask: Ask::StartProcedure { .. }, .. } = request {
+                    panic!("projection started a procedure");
+                }
+            }
+            assert_eq!(core.tasks.writer(&resources[0]).is_none(), terminal, "{outcome:?}");
+            assert_eq!(core.tasks.writer(&resources[1]).unwrap().writer, tasks::Writer::Effect { entry: entries[1] });
+            assert_eq!(core.tasks.task(1), Some(&before));
+            assert_eq!(core.tasks.procedure_due(1), None);
+            assert_eq!(core.call_parts.get(&key), Some(&part));
+        }
+        if !terminal {
+            send_task(
+                &mut core,
+                &limits,
+                tasks::Event::EffectInFlight {
+                    reply_to: ReplyTo::new(Token::new(4)),
+                    task: 1,
+                    resource: resources[0].clone(),
+                    entry: entries[0],
+                },
+            );
+            assert_eq!(core.tasks.writer(&resources[0]).unwrap().writer, tasks::Writer::Effect { entry: entries[0] });
+        }
+    }
+}
+
+#[test]
+fn projection_outcomes_ignore_unconfigured_connectors_and_unallocated_entries() {
+    let ProjectionWriterFixture { mut core, limits, resources, entries } = projection_writers(false);
+    for (connector, entry) in [(3, entries[0]), (2, 0), (2, entries[1] + 1)] {
+        let _out = step(
+            &mut core,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            Event::EffectConnector(connector::Event::ProjectionOutbox {
+                connector,
+                entry,
+                outcome: connector::OutboxOutcome::Made,
+            }),
+        );
+        assert!(core.tasks.writer(&resources[0]).is_some());
+        assert!(core.tasks.writer(&resources[1]).is_some());
+    }
+}
+
+#[test]
+fn ordinary_writer_outcomes_still_hold_agents_and_wake_procedures() {
+    use connector::OutboxOutcome;
+    for (procedure, outcome) in [
+        (false, OutboxOutcome::Failed),
+        (false, OutboxOutcome::Held { entry: 1 }),
+        (true, OutboxOutcome::Failed),
+        (true, OutboxOutcome::Held { entry: 1 }),
+    ] {
+        let ProjectionWriterFixture { mut core, limits, resources, entries } = projection_writers(procedure);
+        let _out = step(
+            &mut core,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            Event::EffectConnector(connector::Event::Outbox { connector: 2, task: 1, entry: entries[0], outcome }),
+        );
+        if procedure && outcome == OutboxOutcome::Failed {
+            assert!(core.tasks.procedure_due(1).is_some());
+        } else {
+            let tasks::Phase::Held { source, .. } = &core.tasks.task(1).unwrap().phase else { panic!("ordinary hold") };
+            assert_eq!(source.as_deref(), Some(&tasks::HoldSource::Effect { connector: 2, entry: entries[0] }));
+        }
+        assert_eq!(core.tasks.writer(&resources[0]).is_none(), outcome == OutboxOutcome::Failed);
+    }
+}

@@ -131,6 +131,12 @@ pub enum Event {
         task: u64,
         outcome: OutboxOutcome,
     },
+    /// A projection's outcome settles writers independently of any task or call.
+    ProjectionOutbox {
+        connector: u16,
+        entry: u64,
+        outcome: OutboxOutcome,
+    },
     News {
         task: u64,
         subscription: u64,

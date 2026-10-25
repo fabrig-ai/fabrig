@@ -324,6 +324,30 @@ pub struct Config {
     pub second: connector::Config,
 }
 
+/// Routing identity reconstructed from the connector's persisted effect key.
+#[derive(Clone, Copy, Debug)]
+struct OutboxOwner {
+    task: u64,
+    projection: bool,
+}
+
+fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntry) -> bool {
+    let key = &row.key;
+    let projection = (key.attempt, key.completion, key.position) == (0, 0, 1);
+    let owner = OutboxOwner { task: row.task, projection };
+    if domain.outbox_owners.insert(row.number, owner).is_err() {
+        return false;
+    }
+    if (key.attempt, key.completion, key.position) == (0, 0, 0) {
+        if domain.outbox_procedures.insert(row.number, number).is_err() {
+            return false;
+        }
+    } else {
+        domain.outbox_procedures.remove(&row.number);
+    }
+    true
+}
+
 /// The root's live components and one commit barrier.
 #[derive(Debug)]
 pub struct Domain {
@@ -345,7 +369,7 @@ pub struct Domain {
     effect_procedures: Map<Token, u64>,
     outbox_procedures: Map<u64, u16>,
     judges: Map<Token, (Token, jig_domain_authority::Judge, [u8; 32])>,
-    outbox_tasks: Map<u64, u64>,
+    outbox_owners: Map<u64, OutboxOwner>,
     payloads: Map<Token, Payload>,
     next_payload: u64,
     decision_wrote: bool,
@@ -458,7 +482,7 @@ impl Domain {
             effect_procedures: Map::with_capacity(limits.core.tasks.tasks),
             outbox_procedures: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outbox procedures")),
             judges: Map::with_capacity(limits.core.authority.facts),
-            outbox_tasks: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outboxes")),
+            outbox_owners: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outboxes")),
             payloads: Map::with_capacity(
                 limits.core.fleet.turns.checked_add(limits.core.fleet.attempts).expect("payload room"),
             ),
@@ -1175,11 +1199,7 @@ fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word
 fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record: connector::Record) -> bool {
     match &record {
         connector::Record::Outbox(row) => {
-            if domain.outbox_tasks.insert(row.number, row.task).is_err() {
-                return false;
-            }
-            // The application encodes procedure purposes with attempt zero.
-            if row.key.attempt == 0 && domain.outbox_procedures.insert(row.number, number).is_err() {
+            if !remember_outbox(domain, number, row) {
                 return false;
             }
         }

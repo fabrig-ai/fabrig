@@ -4,6 +4,7 @@ use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use jig_test_connector as connector;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
@@ -289,13 +290,25 @@ fn settle_tree(world: &mut World, goal: (u64, u64), child: (u64, u64), restart_c
     });
     assert_eq!(world.projections.iter().filter(|(_, _, feed)| feed.closing).count(), 2);
     assert_eq!(projection_rows(world, goal.0), 4, "header and full ended plan retained");
-    world.restart_with(restart_configuration);
-    assert_eq!(projection_rows(world, goal.0), 4, "closing retention survives restart");
+    assert!(world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(goal.0)))));
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(goal.0)))));
     world.hold_writes = true;
     world.send(root::Event::ProjectionEffect { goal: goal.0, number: 1, effect: World::effect() });
     assert_eq!(world.pending_writes.len(), 1, "closing write admitted after the task ended");
     assert_eq!(projection_rows(world, goal.0), 4);
-    world.release_writes();
+    let (number, call) = world.pending_writes.pop().expect("committed projection attempt");
+    let entry = projection_outbox(world, goal.0).expect("persisted projection");
+    let procedures = world.procedure_inputs.len();
+    let answers = world.answers.len();
+    world.restart_with(restart_configuration);
+    assert_eq!(projection_rows(world, goal.0), 4, "closing retention survives restart");
+    assert_eq!(projection_outbox(world, goal.0).expect("restored projection").number, entry.number);
+    let event = world.systems[0].answer(call, jig_test_system::Fault::None);
+    world.send(root::Event::Connector { number, event: connector::Event::System(event) });
+    assert!(projection_outbox(world, goal.0).is_none(), "late terminal settles the restored entry");
+    assert_eq!(world.procedure_inputs.len(), procedures, "a projection does not step a procedure");
+    assert_eq!(world.answers.len(), answers, "a projection does not answer calls");
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(goal.0)))));
     assert_eq!(world.systems[0].observed().iter().filter(|effect| effect.applied).count(), 1);
     world.send(root::Event::Core(core::Event::ProjectionSettled { goal: goal.0, connector: 1 }));
     assert_eq!(projection_rows(world, goal.0), 4, "other connector still owns its last feed");
@@ -391,8 +404,25 @@ fn an_untracked_goals_projection_is_forgotten_once_its_write_settles() {
     world.send(root::Event::ProjectionEffect { goal, number: 1, effect: World::effect() });
     assert_eq!(world.pending_writes.len(), 1, "the closing projection still writes");
     assert_eq!(projection_rows(&world, goal), 2);
-    world.release_writes();
-    assert_eq!(world.systems[0].observed().iter().filter(|effect| effect.applied).count(), 1);
+    let before = jig_core_world::fixtures::live_row(&world, goal).phase.clone();
+    let entry = projection_outbox(&world, goal).expect("pending projection");
+    world.restart_with(untracked_configuration(173).0);
+    let procedures = world.procedure_inputs.len();
+    world.send(root::Event::Connector {
+        number: 1,
+        event: connector::Event::System(connector::SystemEvent::Applied {
+            entry: entry.number,
+            attempt: entry.attempt.expect("sent attempt").number,
+            result: connector::ApplyResult::Conflict,
+        }),
+    });
+    assert!(projection_outbox(&world, goal).is_none());
+    assert_eq!(
+        jig_core_world::fixtures::live_row(&world, goal).phase,
+        before,
+        "failed projection never holds its goal"
+    );
+    assert_eq!(world.procedure_inputs.len(), procedures);
     world.send(root::Event::Core(core::Event::ProjectionSettled { goal, connector: 1 }));
     assert_eq!(projection_rows(&world, goal), 2, "second connector still owns its feed");
     world.send(root::Event::Core(core::Event::ProjectionSettled { goal, connector: 2 }));
@@ -440,4 +470,67 @@ fn a_conversation_asks_for_text_and_its_delegate_asks_for_nothing() {
     let child = delegate_agent(&mut world, b"Delegate", 20, 0, 0);
     assert_ne!(child.0, task, "delegate admitted: {:?}", world.answers);
     assert_eq!(world.assigned.as_ref().expect("delegate assigned").live, core::LiveAsk::NONE);
+}
+
+fn projection_outbox(world: &World, goal: u64) -> Option<connector::OutboxEntry> {
+    world.store.rows.values().find_map(|row| match row {
+        root::Record::Connector { record: connector::Record::Outbox(entry), .. } if entry.task == goal => {
+            Some(entry.clone())
+        }
+        root::Record::Core(_) | root::Record::Connector { .. } => None,
+    })
+}
+
+#[test]
+fn unresolved_projection_outcomes_keep_their_entry_across_restart_until_connector_recovery() {
+    for (seed, recovery) in [(174, connector::Recovery::Keyed), (175, connector::Recovery::Unrecoverable)] {
+        let configuration = || {
+            let (mut config, limits) = untracked_configuration(seed);
+            config.first.kinds.iter_mut().find(|kind| kind.kind == 5).expect("configured effect kind").recovery =
+                recovery;
+            (config, limits)
+        };
+        let (config, limits) = configuration();
+        let mut world = World::configured(seed, false, config, limits);
+        let goal = tracked_goal(&mut world);
+        world.hold_projection_settlements = true;
+        world.hold_writes = true;
+        world.hold_lookups = true;
+        world.send(root::Event::ProjectionEffect { goal, number: 1, effect: World::effect() });
+        let entry = projection_outbox(&world, goal).expect("pending projection");
+        let before = jig_core_world::fixtures::live_row(&world, goal).phase.clone();
+        world.send(root::Event::Connector {
+            number: 1,
+            event: connector::Event::System(connector::SystemEvent::Applied {
+                entry: entry.number,
+                attempt: entry.attempt.expect("sent attempt").number,
+                result: connector::ApplyResult::Uncertain,
+            }),
+        });
+        assert!(projection_outbox(&world, goal).is_some(), "unresolved entry remains durable");
+        assert_eq!(jig_core_world::fixtures::live_row(&world, goal).phase, before);
+        world.hold_lookups = false;
+        world.restart_with(configuration().0);
+        assert!(projection_outbox(&world, goal).is_some(), "routing ownership survives restart");
+        let procedures = world.procedure_inputs.len();
+        match recovery {
+            connector::Recovery::Unrecoverable => world.send(root::Event::Connector {
+                number: 1,
+                event: connector::Event::Resolve { entry: entry.number, repeat: false },
+            }),
+            connector::Recovery::Keyed => world.send(root::Event::Connector {
+                number: 1,
+                event: connector::Event::System(connector::SystemEvent::Applied {
+                    entry: entry.number,
+                    attempt: entry.attempt.expect("sent attempt").number,
+                    result: connector::ApplyResult::Conflict,
+                }),
+            }),
+            connector::Recovery::Conditional | connector::Recovery::Idempotent => unreachable!(),
+        }
+        assert!(projection_outbox(&world, goal).is_none(), "terminal recovery releases routing ownership");
+        assert_eq!(jig_core_world::fixtures::live_row(&world, goal).phase, before);
+        assert_eq!(world.procedure_inputs.len(), procedures);
+        jig_core_world::fixtures::finish_chat(&mut world, 0, b"projection recovered");
+    }
 }

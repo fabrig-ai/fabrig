@@ -639,7 +639,7 @@ pub(super) fn route_connector(
             connector::Request::Save { record } => {
                 match &record {
                     connector::Record::Outbox(row) => {
-                        assert!(domain.outbox_tasks.insert(row.number, row.task).is_ok(), "bounded outbox task routes");
+                        assert!(crate::remember_outbox(domain, number, row), "bounded outbox owner routes");
                     }
                     connector::Record::ApplicationObject { .. }
                     | connector::Record::ApplicationAnswer { .. }
@@ -705,8 +705,8 @@ pub(super) fn route_connector(
                 })));
             }
             connector::Request::Outcome { entry, outcome } => {
-                let task = match domain.outbox_tasks.get(&entry) {
-                    Some(task) => *task,
+                let owner = match domain.outbox_owners.get(&entry) {
+                    Some(owner) => *owner,
                     None => continue,
                 };
                 let made = match outcome {
@@ -727,12 +727,12 @@ pub(super) fn route_connector(
                 match domain.outbox_procedures.get(&entry) {
                     Some(number) if settled => work.push(Work::Connector {
                         number: *number,
-                        event: connector::Event::EffectDecision { task, made },
+                        event: connector::Event::EffectDecision { task: owner.task, made },
                     }),
                     Some(_) | None => {}
                 }
                 if settled {
-                    domain.outbox_tasks.remove(&entry);
+                    domain.outbox_owners.remove(&entry);
                     domain.outbox_procedures.remove(&entry);
                 }
                 let outcome = match outcome {
@@ -743,12 +743,12 @@ pub(super) fn route_connector(
                     connector::Outcome::Withdrawn => core::connector::OutboxOutcome::Withdrawn,
                     connector::Outcome::Skipped => core::connector::OutboxOutcome::NotMade,
                 };
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Outbox {
-                    connector: number,
-                    entry,
-                    task,
-                    outcome,
-                })));
+                let event = if owner.projection {
+                    core::connector::Event::ProjectionOutbox { connector: number, entry, outcome }
+                } else {
+                    core::connector::Event::Outbox { connector: number, entry, task: owner.task, outcome }
+                };
+                work.push(Work::Core(core::Event::EffectConnector(event)));
             }
             connector::Request::Slots { pool, slots } => {
                 let name = tasks::Name { connector: number, path: name(pool).segments };
@@ -789,9 +789,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask,
         }
         core::connector::Ask::DropProposal { proposal } => connector::Event::DropProposal { number: proposal },
         core::connector::Ask::Keep { owner, entry, task, key } => {
-            if domain.effect_procedures.remove(&owner).is_some() {
-                assert!(domain.outbox_procedures.insert(entry, number).is_ok(), "procedure effect route");
-            }
+            domain.effect_procedures.remove(&owner);
             let (attempt, completion, position) = match key.origin {
                 core::EffectPurpose::Call { attempt, completion, position } => (attempt, completion, position),
                 core::EffectPurpose::Procedure { .. } => (0, 0, 0),

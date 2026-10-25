@@ -370,6 +370,12 @@ pub(crate) fn connector(
         connector::Event::Outbox { connector, entry, task, outcome } => {
             settled(core, work, &mut out, connector, entry, task, outcome);
         }
+        connector::Event::ProjectionOutbox { connector, entry, outcome } => {
+            if core.connectors.contains(&connector) && entry != 0 && entry <= core.counters.deployment().connector_rows
+            {
+                settle_writers(core, work, entry, outcome);
+            }
+        }
         connector::Event::Closed { task, connector } => closed(core, &env.limits, work, task, connector),
         connector::Event::Drift { task, resource } => {
             work.push(Event::Tasks(tasks::Event::HoldFrom {
@@ -1375,6 +1381,20 @@ fn settled(
             connector::OutboxOutcome::Uncertain | connector::OutboxOutcome::Held { .. } => {}
         }
     }
+    settle_writers(core, work, entry, outcome);
+    let procedure = match core.tasks.task(task) {
+        Some(row) => match row.executor {
+            tasks::Executor::Procedure { .. } => true,
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+        },
+        None => false,
+    };
+    if let Some(event) = core.connector_outbox(task, connector_number, entry, outcome, procedure) {
+        work.push(Event::Tasks(event));
+    }
+}
+
+fn settle_writers(core: &Core, work: &mut Queue<Event>, entry: u64, outcome: connector::OutboxOutcome) {
     match outcome {
         connector::OutboxOutcome::Made
         | connector::OutboxOutcome::Failed
@@ -1385,16 +1405,6 @@ fn settled(
             }
         }
         connector::OutboxOutcome::Uncertain | connector::OutboxOutcome::Held { .. } => {}
-    }
-    let procedure = match core.tasks.task(task) {
-        Some(row) => match row.executor {
-            tasks::Executor::Procedure { .. } => true,
-            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
-        },
-        None => false,
-    };
-    if let Some(event) = core.connector_outbox(task, connector_number, entry, outcome, procedure) {
-        work.push(Event::Tasks(event));
     }
 }
 
