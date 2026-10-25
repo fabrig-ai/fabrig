@@ -976,7 +976,7 @@ fn assert_box_streams(ended: &support::boxed::Outcome) {
     assert!(
         stderr.lines().all(|line| {
             steps.iter().any(|step| line.starts_with(step))
-                || box_terminal_line(line, &["prepare 1", "forgejo 1", "runner 1", "serve"])
+                || box_terminal_line(line, &["prepare 1", "forgejo 1", "runner 1", "serve"], &[])
         }),
         "each stderr line names its step or carries prescribed box words: {stderr}"
     );
@@ -1001,7 +1001,7 @@ fn box_notice_words(line: &str) -> &str {
     }
 }
 
-fn box_terminal_line(line: &str, starting: &[&str]) -> bool {
+fn box_terminal_line(line: &str, starting: &[&str], group_notices: &[&str]) -> bool {
     let words = box_notice_words(line);
     line.is_empty()
         || [
@@ -1013,6 +1013,7 @@ fn box_terminal_line(line: &str, starting: &[&str]) -> bool {
         .contains(&line)
         || words.starts_with("box: ")
         || ["Stopping", "Stopped"].contains(&words)
+        || group_notices.contains(&words)
         || (words != line && words == "A fresh sign-in link:")
         || words.strip_prefix("Starting ").is_some_and(|name| starting.contains(&name))
 }
@@ -1334,7 +1335,7 @@ fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
     );
     assert_playground_chat_and_account_ended("runtime", &seen.calls[SETUP_END..END_READS_END], Some(account));
     assert_eq!(
-        stderr.lines().filter(|line| box_notice_words(line) == "box: forge 1's group stopped").count(),
+        stderr.lines().filter(|line| box_notice_words(line) == "Playground: stopped").count(),
         1,
         "the runtime connect stops the demo exactly once: {stderr}"
     );
@@ -1375,7 +1376,7 @@ fn demo_then_forgejo_steps(root: &std::path::Path, task: support::first_reposito
     steps.insert(5, Step::Run(Call::new(&["wait", "task", "1", "--until", "replied", "--timeout", "30s", "--json"])));
     // Keep the same signed-in client and box: skip the setup story's mark and sign-in.
     steps.extend(forgejo_setup_steps("first").into_iter().skip(2));
-    steps.push(Step::Stderr(b"box: forge 1's group stopped\n"));
+    steps.push(Step::Stderr(b"Playground: stopped\n"));
     // The end is read at runtime, using the restart story's chat/account/refusal reads.
     steps.extend(playground_end_steps("third").into_iter().skip(3));
     steps.push(Step::Stderr(b" repo is work/hello "));
@@ -1384,10 +1385,14 @@ fn demo_then_forgejo_steps(root: &std::path::Path, task: support::first_reposito
 }
 
 fn assert_demo_then_forgejo_streams(stdout: &[u8], stderr: &str) {
-    // The real forge adds its three step prefixes to the demo stream's checker.
+    // The real forge adds its three step prefixes and exact group notices.
     let demo_streams: String = stderr
         .split_inclusive('\n')
-        .filter(|line| !["prepare 3: ", "forgejo 3: ", "runner 3: "].iter().any(|prefix| line.starts_with(prefix)))
+        .filter(|line| {
+            !["prepare 3: ", "forgejo 3: ", "runner 3: "].iter().any(|prefix| line.starts_with(prefix))
+                && !["Forge 3 (Forgejo): starting", "Forge 3 (Forgejo): started"]
+                    .contains(&box_notice_words(line.trim_end_matches('\n')))
+        })
         .collect();
     assert_demo_streams(stdout, demo_streams.as_bytes());
 }
@@ -1748,7 +1753,7 @@ fn a_second_forge_ends_the_playground_for_good_closing_its_chat_and_account() {
             assert_playground_end_forges(call, first);
         }
         assert_eq!(
-            stderr.lines().filter(|line| box_notice_words(line) == "box: forge 1's group stopped").count(),
+            stderr.lines().filter(|line| box_notice_words(line) == "Playground: stopped").count(),
             usize::from(run == "second"),
             "{run}: demo group stops exactly once at the end: {stderr}"
         );
@@ -1779,7 +1784,7 @@ fn playground_end_steps(run: &str) -> Vec<support::ctl::Step> {
     let mut steps = vec![Step::Run(Call::sign_in())];
     if run == "second" {
         // The engine ends the demo before any client reads or watches it.
-        steps.push(Step::Stderr(b"box: forge 1's group stopped\n"));
+        steps.push(Step::Stderr(b"Playground: stopped\n"));
     }
     if first {
         steps.push(Step::Run(Call::new(&["demo-start", "--key", "first"])));
@@ -1964,6 +1969,7 @@ fn assert_demo_streams(stdout: &[u8], stderr: &[u8]) {
                 || box_terminal_line(
                     line,
                     &["fake llm", "prepare 1", "fake forge 1", "prepare 3", "fake forge 3", "serve"],
+                    &["Playground: starting", "Playground: started", "Playground: stopped"],
                 )
                 || line == no_git
                 || (temper::bundle::OWN.is_none() && line == no_bundle),

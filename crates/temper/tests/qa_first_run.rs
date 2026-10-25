@@ -197,9 +197,10 @@ fn qa_running_playground_ends_whole_when_owned_forge_connects_without_restart() 
     for (path, source) in cached.iter().zip(&sources) {
         forge_land::assert_cached_binary_unchanged(path, source);
     }
-    // setup.md 7.2's `Playground: stopped` is the labelled terminal's, not built:
-    // qa_an_asked_groups_failure_is_named_by_its_label keeps that gap.
-    assert!(stderr.contains("box: forge 1's group stopped"), "box reports the demo group's stop: {stderr}");
+    assert!(
+        stderr.lines().any(|line| box_notice_words(line) == "Playground: stopped"),
+        "box reports the demo group's stop: {stderr}"
+    );
     scratch.remove();
 }
 
@@ -209,10 +210,30 @@ fn qa_bad_cached_release_fails_setup_but_keeps_the_playground_working() {
 }
 
 #[test]
-#[ignore = "backlog: the box's terminal names its groups by label (setup.md 7.2, 7.3: `Forge 3 (Forgejo): failed, WHY`, `Playground: stopped`), not built: the quiet terminal's, finding F1's work (STATUS, protocol/setup.md's row)"]
 fn qa_an_asked_groups_failure_is_named_by_its_label() {
     let stderr = bad_cached_release();
-    assert!(stderr.contains("Forge 3 (Forgejo): failed, "), "{stderr}");
+    assert!(
+        stderr.lines().any(|line| box_notice_words(line) == "Forge 3 (Forgejo): failed, fetch 3 exited 1"),
+        "{stderr}"
+    );
+}
+
+// Match process.rs: strip only a validated UTC time-of-day prefix.
+fn box_notice_words(line: &str) -> &str {
+    let bytes = line.as_bytes();
+    if bytes.len() >= 10
+        && bytes[2] == b':'
+        && bytes[5] == b':'
+        && &bytes[8..10] == b"Z "
+        && [0, 1, 3, 4, 6, 7].iter().all(|index| bytes[*index].is_ascii_digit())
+        && &bytes[..2] < b"24"
+        && &bytes[3..5] < b"60"
+        && &bytes[6..8] < b"60"
+    {
+        &line[10..]
+    } else {
+        line
+    }
 }
 
 /// Returns the box's stderr once the failed set up's other promises hold.
@@ -263,7 +284,10 @@ fn bad_cached_release() -> String {
     assert!(!dirs[1].join("box/started/3").exists());
     assert_eq!(fs::read(&cached[0]).expect("retained corrupt binary"), b"invalid cached release\n");
     let stderr = String::from_utf8_lossy(&outcome.stderr).into_owned();
-    assert!(!stderr.contains("box: forge 1's group stopped"), "the playground runs on: {stderr}");
+    assert!(
+        !stderr.lines().any(|line| box_notice_words(line) == "Playground: stopped"),
+        "the playground runs on: {stderr}"
+    );
     scratch.remove();
     stderr
 }
