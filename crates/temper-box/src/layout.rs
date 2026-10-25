@@ -12,6 +12,7 @@ pub struct Asked {
 pub struct Placed {
     pub step: Step,
     pub asked: Option<Asked>,
+    pub label: Option<Box<[u8]>>,
 }
 #[must_use]
 pub fn flatten(steps: Steps) -> Box<[Placed]> {
@@ -35,21 +36,36 @@ pub fn flatten(steps: Steps) -> Box<[Placed]> {
                 && usize::try_from(present.before).expect("index fits") == before
             {
                 let group = group.take().expect("present group");
+                let mut label = Some(group.label);
                 for (stage, step) in group.steps {
                     out.push(Placed {
                         step,
                         asked: Some(Asked { forge: group.forge, recorded: group.recorded, stage }),
+                        label: label.take(),
                     })
                     .expect("step capacity");
                 }
             }
         }
         if let Some(step) = always.next() {
-            out.push(Placed { step, asked: None }).expect("step capacity");
+            out.push(Placed { step, asked: None, label: None }).expect("step capacity");
         }
     }
     for group in &groups {
         assert!(group.is_none(), "group's before is within always");
     }
     out.into_boxed()
+}
+/// Labels are supplied opaque bytes, owned once at the group's first step.
+#[must_use]
+pub fn label(steps: &[Placed], forge: u16) -> Option<&[u8]> {
+    for placed in steps {
+        if let Some(asked) = placed.asked
+            && asked.forge == forge
+            && let Some(label) = &placed.label
+        {
+            return Some(label);
+        }
+    }
+    None
 }

@@ -94,6 +94,7 @@ pub(crate) struct State {
     waiting: bool,
     group: Option<usize>,
     phase: Phase,
+    why: Option<Why>,
     exits: Queue<Time>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -165,6 +166,7 @@ impl Machine {
                     waiting: false,
                     group,
                     phase: Phase::Dormant,
+                    why: None,
                     exits: Queue::with_capacity(limits.restarts.saturating_add(1)),
                 })
                 .expect("one state per step");
@@ -181,8 +183,11 @@ impl Machine {
     }
     /// Conservative reservation for start/input/fire: each of N steps can
     /// contribute a hold, spawn, Starting and progress reply (4N). Closing or
-    /// signalling visits each step once instead of spawning it; records/replies
-    /// and the two stop facts fit the remaining six. Fire visits each state once.
+    /// signalling visits each step once instead of spawning it. A group transition
+    /// adds at most one fact and one reply (or one record); restart adds one fact;
+    /// giving up adds one fact and visits the stop range. These alternatives and
+    /// the two stop facts fit the remaining six. Fire visits each state once and
+    /// emits at most four orders per state, with no group completion transitions.
     /// Reserve this before consuming any policy input.
     #[must_use]
     pub fn max_out(&self) -> u32 {
@@ -246,6 +251,7 @@ impl Machine {
         if let Some(state) = self.states.get_mut(step) {
             state.phase = Phase::Starting { next };
             state.waiting = false;
+            state.why = None;
             orders.push(Order::Terminal { fact: Fact::Starting { step } });
             orders.push(Order::Spawn { step });
             if let Some(group) = state.group
@@ -291,7 +297,7 @@ impl Machine {
                     if let Some(group) = self.starting_group(step) {
                         self.fail(group, Why::NotReady { step }, orders);
                     } else {
-                        self.give_up(now, step, 0, orders);
+                        self.give_up(now, step, 0, Why::NotReady { step }, orders);
                     }
                 }
             }
@@ -316,6 +322,7 @@ impl Machine {
                         | Phase::Stopped => return,
                     };
                     state.phase = Phase::Closing { next, success: false };
+                    state.why = Some(Why::NotStarted { step });
                 }
                 self.closed(now, step, orders);
             }
@@ -326,7 +333,7 @@ impl Machine {
                 {
                     self.fail(group, Why::Exited { step, exit }, orders);
                 } else {
-                    self.exited(step, exit == Exit::Code(0), orders);
+                    self.exited(step, exit, orders);
                 }
             }
             Input::Closed { step } => self.closed(now, step, orders),
@@ -448,17 +455,19 @@ impl Machine {
         }
         self.spawn(link, self.continuation(link), orders);
     }
-    fn exited(&mut self, step: usize, success: bool, orders: &mut Queue<Order>) {
+    fn exited(&mut self, step: usize, exit: Exit, orders: &mut Queue<Order>) {
         let Some(state) = self.states.get_mut(step) else {
             return;
         };
         match state.phase {
             Phase::Starting { next } | Phase::Live { next } => {
-                state.phase = Phase::Closing { next, success };
+                state.why = Some(Why::Exited { step, exit });
+                state.phase = Phase::Closing { next, success: exit == Exit::Code(0) };
                 orders.push(Order::Close { step });
             }
             Phase::Grace { .. } => {
-                state.phase = Phase::Closing { next: None, success };
+                state.why = Some(Why::Exited { step, exit });
+                state.phase = Phase::Closing { next: None, success: exit == Exit::Code(0) };
                 orders.push(Order::Close { step });
             }
             Phase::Dormant | Phase::Waiting { .. } | Phase::Closing { .. } | Phase::Backoff { .. } | Phase::Stopped => {
@@ -494,7 +503,8 @@ impl Machine {
                         self.spawn(next, self.continuation(next), orders);
                     }
                 } else {
-                    self.give_up(now, step, 0, orders);
+                    let why = self.states.get(step).expect("step").why.expect("accepted failure");
+                    self.give_up(now, step, 0, why, orders);
                 }
             }
             Phase::Dormant
@@ -581,6 +591,7 @@ impl Machine {
         let group = self.groups.get_mut(index).expect("group");
         group.status = Status::Starting;
         let first = group.first;
+        orders.push(Order::Terminal { fact: Fact::GroupStarting { forge } });
         self.advance_group(index, Some(first), orders);
     }
     fn stop_group(&mut self, now: Time, forge: u16, orders: &mut Queue<Order>) {
@@ -595,6 +606,10 @@ impl Machine {
         }
         let index = self.group(forge).expect("checked group");
         let group = self.groups.get_mut(index).expect("group");
+        if group.status == Status::Dormant {
+            orders.push(Order::Say { said: Said::Stopped { forge } });
+            return;
+        }
         group.status = Status::Stopping;
         // A restart's preparation can still be live. Disarm its continuation
         // and backoff along with the long steps (protocol/setup.md, 7.2).
@@ -621,6 +636,7 @@ impl Machine {
         }
         let group = self.groups.get_mut(index).expect("group");
         group.status = Status::Dormant;
+        orders.push(Order::Terminal { fact: Fact::GroupStopped { forge: group.forge } });
         orders.push(Order::Say { said: Said::Stopped { forge: group.forge } });
     }
     fn advance_group(&mut self, index: usize, next: Option<usize>, orders: &mut Queue<Order>) {
@@ -641,6 +657,7 @@ impl Machine {
     fn group_started(&mut self, index: usize, orders: &mut Queue<Order>) {
         let group = self.groups.get_mut(index).expect("group");
         group.status = Status::Started;
+        orders.push(Order::Terminal { fact: Fact::GroupStarted { forge: group.forge } });
         orders.push(Order::Say { said: Said::Started { forge: group.forge } });
     }
     fn written(&mut self, forge: u16, orders: &mut Queue<Order>) {
@@ -716,6 +733,7 @@ impl Machine {
             }
         }
         group.status = Status::Dormant;
+        orders.push(Order::Terminal { fact: Fact::GroupFailed { forge: group.forge, why } });
         orders.push(Order::Say { said: Said::Failed { forge: group.forge, why } });
     }
     fn restart(&mut self, now: Time, step: usize, next: Option<usize>, orders: &mut Queue<Order>) {
@@ -729,8 +747,9 @@ impl Machine {
         }
         state.exits.push(now);
         let count = state.exits.len();
+        let why = state.why.expect("restart follows accepted exit or spawn refusal");
         if count > self.limits.restarts {
-            self.give_up(now, step, self.limits.restarts, orders);
+            self.give_up(now, step, self.limits.restarts, why, orders);
         } else {
             let mut delay = self.limits.backoff;
             for _ in 1..count {
@@ -738,10 +757,12 @@ impl Machine {
             }
             self.states.get_mut(step).expect("known step").phase =
                 Phase::Backoff { at: now.saturating_add(delay), next };
+            orders.push(Order::Terminal { fact: Fact::Restarting { step, why, delay } });
         }
     }
-    fn give_up(&mut self, now: Time, step: usize, restarts: u32, orders: &mut Queue<Order>) {
+    fn give_up(&mut self, now: Time, step: usize, restarts: u32, why: Why, orders: &mut Queue<Order>) {
         self.outcome = Some(Outcome::GaveUp { step, restarts });
+        orders.push(Order::Terminal { fact: Fact::GivingUp { step, why } });
         self.disarm();
         self.stop_next(now, orders);
     }

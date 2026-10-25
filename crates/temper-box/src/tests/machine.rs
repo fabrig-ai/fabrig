@@ -240,6 +240,7 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
             always: Box::new([step(b"anchor", Kind::Long), step(b"serve", Kind::Long)]),
             asked: Box::new([
                 Group {
+                    label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
                     recorded: true,
                     forge: 3,
                     before: 1,
@@ -251,6 +252,7 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
                     ]),
                 },
                 Group {
+                    label: skein_lib::bytes::copy_of(b"other label"),
                     recorded: true,
                     forge: 4,
                     before: 2,
@@ -410,6 +412,7 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
         let placed = layout::flatten(Steps {
             always: Box::new([]),
             asked: Box::new([Group {
+                label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
                 recorded: true,
                 forge: 9,
                 before: 0,
@@ -461,6 +464,12 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
     let placed = placed();
     assert_eq!(placed.len(), 8);
     assert_eq!(placed[6].asked, Some(Asked { recorded: true, forge: 4, stage: Stage::Prepare }));
+    assert_eq!(layout::label(&placed, 3), Some(b"Forge 3 (Forgejo)".as_slice()));
+    assert_eq!(layout::label(&placed, 4), Some(b"other label".as_slice()));
+    assert_eq!(layout::label(&placed, 99), None);
+    for (index, item) in placed.iter().enumerate() {
+        assert_eq!(item.label.is_some(), [1, 6].contains(&index), "each label moves once to its first placed step");
+    }
 }
 
 #[test]
@@ -638,6 +647,7 @@ fn a_link_takes_the_first_line_once_across_restarts_and_stop() {
                 step(b"seed", Kind::Link),
             ]),
             asked: Box::new([Group {
+                label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
                 recorded: true,
                 forge: 3,
                 before: 4,
@@ -674,15 +684,20 @@ fn check_link_placement(steps: &[crate::layout::Placed]) {
 #[test]
 #[should_panic(expected = "a link is not first")]
 fn a_link_cannot_be_first() {
-    check_link_placement(&[crate::layout::Placed { step: super::fixtures::step(b"seed", Kind::Link), asked: None }]);
+    check_link_placement(&[crate::layout::Placed {
+        label: None,
+        step: super::fixtures::step(b"seed", Kind::Link),
+        asked: None,
+    }]);
 }
 #[test]
 #[should_panic(expected = "a link is outside groups")]
 fn a_link_cannot_belong_to_a_group() {
     use crate::layout::{Asked, Placed};
     check_link_placement(&[
-        Placed { step: super::fixtures::step(b"serve", Kind::Long), asked: None },
+        Placed { label: None, step: super::fixtures::step(b"serve", Kind::Long), asked: None },
         Placed {
+            label: None,
             step: super::fixtures::step(b"seed", Kind::Link),
             asked: Some(Asked { recorded: true, forge: 3, stage: temper_forge_setup::Stage::Run }),
         },
@@ -693,8 +708,8 @@ fn a_link_cannot_belong_to_a_group() {
 fn a_link_cannot_follow_a_once_step() {
     use crate::layout::Placed;
     check_link_placement(&[
-        Placed { step: super::fixtures::step(b"prepare", Kind::Once), asked: None },
-        Placed { step: super::fixtures::step(b"seed", Kind::Link), asked: None },
+        Placed { label: None, step: super::fixtures::step(b"prepare", Kind::Once), asked: None },
+        Placed { label: None, step: super::fixtures::step(b"seed", Kind::Link), asked: None },
     ]);
 }
 #[test]
@@ -703,10 +718,11 @@ fn a_link_cannot_follow_a_group_step() {
     use crate::layout::{Asked, Placed};
     check_link_placement(&[
         Placed {
+            label: None,
             step: super::fixtures::step(b"serve", Kind::Long),
             asked: Some(Asked { recorded: true, forge: 3, stage: temper_forge_setup::Stage::Run }),
         },
-        Placed { step: super::fixtures::step(b"seed", Kind::Link), asked: None },
+        Placed { label: None, step: super::fixtures::step(b"seed", Kind::Link), asked: None },
     ]);
 }
 
@@ -722,6 +738,7 @@ fn an_asked_groups_final_once_step_gates_started_and_failure_allows_another_ask(
     let placed = layout::flatten(Steps {
         always: Box::new([]),
         asked: Box::new([Group {
+            label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
             recorded: true,
             forge: 3,
             before: 0,
@@ -777,6 +794,7 @@ fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
     let placed = layout::flatten(Steps {
         always: Box::new([step(b"serve", Kind::Long)]),
         asked: Box::new([Group {
+            label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
             recorded: true,
             forge: 3,
             before: 0,
@@ -882,6 +900,7 @@ fn an_unrecorded_group_runs_only_when_asked_even_with_a_stale_record() {
     let placed = layout::flatten(Steps {
         always: Box::new([step(b"serve", Kind::Long)]),
         asked: Box::new([Group {
+            label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
             forge: 1,
             before: 0,
             recorded: false,
@@ -928,6 +947,7 @@ fn stoppable_group(recorded: bool) -> Rig {
         &layout::flatten(Steps {
             always: Box::new([super::fixtures::step(b"serve", Kind::Long)]),
             asked: Box::new([Group {
+                label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
                 forge: 1,
                 recorded,
                 before: 0,
@@ -1114,8 +1134,315 @@ fn failure_and_a_requested_stop_keep_independent_outcomes() {
     rig.started(PREPARE);
     rig.exited(PREPARE, Exit::Code(1));
     rig.closed(PREPARE);
-    assert_eq!(take_facts(&mut rig.out).as_ref(), &[]);
+    assert_eq!(
+        take_facts(&mut rig.out).as_ref(),
+        &[Fact::GivingUp { step: PREPARE, why: crate::machine::Why::Exited { step: PREPARE, exit: Exit::Code(1) } }]
+    );
     rig.terminate();
     assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::Stopping, Fact::Stopped]);
     assert_eq!(rig.machine.outcome(), Some(Outcome::GaveUp { step: PREPARE, restarts: 0 }));
+}
+
+#[test]
+fn group_facts_follow_transitions_without_reask_duplicates() {
+    use super::fixtures::take_facts;
+    use crate::terminal::Fact;
+    for recorded in [false, true] {
+        let mut rig = stoppable_group(recorded);
+        rig.input(Input::Ask { forge: 1 });
+        assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::GroupStarting { forge: 1 }, Fact::Starting { step: 0 }]);
+        rig.input(Input::Ask { forge: 1 });
+        assert!(rig.out.is_empty());
+        rig.started(0);
+        assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::Starting { step: 1 }]);
+        rig.completed(1);
+        assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::Starting { step: 2 }]);
+        rig.started(2);
+        if recorded {
+            assert!(take_facts(&mut rig.out).is_empty(), "the record gates started");
+            rig.input(Input::Ask { forge: 1 });
+            assert!(rig.out.is_empty());
+            rig.input(Input::Written { forge: 1 });
+        }
+        assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::GroupStarted { forge: 1 }]);
+        rig.input(Input::Ask { forge: 1 });
+        assert!(take_facts(&mut rig.out).is_empty(), "started reask is wire-only");
+        rig.input(Input::Stop { forge: 1 });
+        assert!(take_facts(&mut rig.out).is_empty(), "stop waits for closure");
+        for step in [2, 0] {
+            rig.exited(step, Exit::Signal(15));
+            assert!(take_facts(&mut rig.out).is_empty(), "intentional exits do not restart");
+            rig.closed(step);
+            let facts = take_facts(&mut rig.out);
+            if step == 0 {
+                assert_eq!(facts.as_ref(), &[Fact::GroupStopped { forge: 1 }]);
+            } else {
+                assert!(facts.is_empty());
+            }
+        }
+        rig.input(Input::Stop { forge: 1 });
+        assert!(take_facts(&mut rig.out).is_empty(), "dormant stop is wire-only");
+        assert_eq!(rig.machine.outcome(), None, "serve remains live");
+    }
+}
+
+#[test]
+fn group_failure_facts_keep_exit_spawn_readiness_and_record_reasons_until_closure() {
+    use super::fixtures::{step, take_facts};
+    use crate::{
+        layout,
+        machine::{Machine, Why},
+        terminal::Fact,
+    };
+    use skein_lib::{Queue, Time, bytes};
+    use temper_forge_setup::{Group, Stage, Steps};
+    let placed = layout::flatten(Steps {
+        always: Box::new([]),
+        asked: Box::new([Group {
+            forge: 7,
+            before: 0,
+            recorded: true,
+            label: bytes::copy_of(b"unrelated label"),
+            steps: Box::new([(Stage::Run, step(b"child", Kind::Long).with_ready(([127, 0, 0, 1], 3000).into()))]),
+        }]),
+    });
+    for (input, why) in [
+        (Input::NotStarted { step: 0 }, Why::NotStarted { step: 0 }),
+        (Input::NotReady { step: 0 }, Why::NotReady { step: 0 }),
+        (Input::NotWritten { forge: 7 }, Why::NotWritten),
+        (Input::Exited { step: 0, exit: Exit::Code(0) }, Why::Exited { step: 0, exit: Exit::Code(0) }),
+        (Input::Exited { step: 0, exit: Exit::Code(9) }, Why::Exited { step: 0, exit: Exit::Code(9) }),
+        (Input::Exited { step: 0, exit: Exit::Signal(9) }, Why::Exited { step: 0, exit: Exit::Signal(9) }),
+    ] {
+        let machine = Machine::new(&limits::small(), &placed).unwrap();
+        let mut rig = Rig { out: Queue::with_capacity(machine.max_out()), machine, now: Time::ZERO };
+        rig.machine.start(rig.now, &[], &mut rig.out);
+        rig.input(Input::Ask { forge: 7 });
+        take_facts(&mut rig.out);
+        if input != (Input::NotStarted { step: 0 }) {
+            rig.started(0);
+            take_facts(&mut rig.out);
+            if why == Why::NotWritten {
+                rig.input(Input::Ready { step: 0 });
+                take_facts(&mut rig.out);
+            }
+        }
+        rig.input(input);
+        if input != (Input::NotStarted { step: 0 }) {
+            assert!(take_facts(&mut rig.out).is_empty(), "{why:?}: failure waits for closure");
+            rig.closed(0);
+        }
+        assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::GroupFailed { forge: 7, why }]);
+        rig.closed(0);
+        rig.input(Input::Ask { forge: 99 });
+        assert!(take_facts(&mut rig.out).is_empty(), "no duplicate failure or notices for refusals");
+        assert_eq!(rig.machine.outcome(), None);
+    }
+}
+
+#[test]
+fn restart_and_give_up_facts_keep_exact_reasons_at_the_decision() {
+    use super::fixtures::take_facts;
+    use crate::{machine::Why, terminal::Fact};
+    for exit in [Exit::Code(0), Exit::Code(17), Exit::Signal(31)] {
+        let mut rig = Rig::running();
+        let why = Why::Exited { step: FORGEJO, exit };
+        for millis in [500, 1_000, 2_000, 4_000, 8_000] {
+            rig.exited(FORGEJO, exit);
+            assert!(take_facts(&mut rig.out).is_empty(), "no retry before Closed");
+            rig.closed(FORGEJO);
+            let delay = Duration::from_millis(millis);
+            assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::Restarting { step: FORGEJO, why, delay }]);
+            assert_eq!(rig.machine.next_deadline(), Some(rig.now.saturating_add(delay)));
+            rig.advance(delay);
+            rig.effects();
+            rig.restart_forgejo();
+        }
+        rig.exited(FORGEJO, exit);
+        take_facts(&mut rig.out);
+        rig.closed(FORGEJO);
+        assert_eq!(rig.out.pop(), Some(Order::Terminal { fact: Fact::GivingUp { step: FORGEJO, why } }));
+        assert_eq!(
+            rig.out.pop(),
+            Some(Order::Signal { step: SERVE }),
+            "give-up precedes teardown of another live child"
+        );
+        assert!(!rig.machine.is_idle());
+        assert_eq!(rig.machine.outcome(), Some(Outcome::GaveUp { step: FORGEJO, restarts: 5 }));
+        for step in [SERVE, RUNNER] {
+            rig.exited(step, Exit::Signal(15));
+            rig.closed(step);
+        }
+        assert!(take_facts(&mut rig.out).is_empty(), "settlement does not repeat failure");
+        assert!(rig.machine.is_idle());
+    }
+}
+
+#[test]
+fn retry_preparation_and_readiness_give_up_keep_the_actual_step_reason() {
+    use super::fixtures::{step, take_facts};
+    use crate::{
+        layout,
+        machine::{Machine, Why},
+        terminal::Fact,
+    };
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::Steps;
+    for not_started in [false, true] {
+        let mut rig = Rig::running();
+        rig.failed_long(SERVE);
+        rig.advance(limits::small().backoff);
+        rig.effects();
+        let why = if not_started {
+            rig.input(Input::NotStarted { step: ONCE_1 });
+            Why::NotStarted { step: ONCE_1 }
+        } else {
+            rig.started(ONCE_1);
+            rig.exited(ONCE_1, Exit::Signal(12));
+            assert!(take_facts(&mut rig.out).is_empty());
+            rig.closed(ONCE_1);
+            Why::Exited { step: ONCE_1, exit: Exit::Signal(12) }
+        };
+        assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::GivingUp { step: ONCE_1, why }]);
+        assert!(!rig.machine.is_idle());
+    }
+    let placed = layout::flatten(Steps {
+        always: Box::new([step(b"forge", Kind::Long).with_ready(([127, 0, 0, 1], 3000).into())]),
+        asked: Box::new([]),
+    });
+    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut out = Queue::with_capacity(machine.max_out());
+    machine.start(Time::ZERO, &[], &mut out);
+    machine.input(Time::ZERO, Input::Started { step: 0 }, &mut out);
+    take_facts(&mut out);
+    machine.input(Time::ZERO, Input::NotReady { step: 0 }, &mut out);
+    assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::GivingUp { step: 0, why: Why::NotReady { step: 0 } } }));
+    assert_eq!(out.pop(), Some(Order::Signal { step: 0 }));
+    machine.input(Time::ZERO, Input::Exited { step: 0, exit: Exit::Code(0) }, &mut out);
+    machine.input(Time::ZERO, Input::Closed { step: 0 }, &mut out);
+    assert!(take_facts(&mut out).is_empty());
+}
+
+#[test]
+fn spawn_refusal_retry_fact_and_inclusive_window_reset_use_the_selected_delay() {
+    use super::fixtures::take_facts;
+    use crate::{machine::Why, terminal::Fact};
+    let limits = limits::small();
+    let mut rig = Rig::new(&limits);
+    rig.completed(PREPARE);
+    rig.effects();
+    rig.input(Input::NotStarted { step: FORGEJO });
+    assert_eq!(
+        take_facts(&mut rig.out).as_ref(),
+        &[Fact::Restarting { step: FORGEJO, why: Why::NotStarted { step: FORGEJO }, delay: limits.backoff }]
+    );
+    rig.advance(limits.backoff);
+    rig.effects();
+    rig.restart_forgejo();
+    // Exactly the window retains the first exit; one nanosecond beyond the
+    // window from the latest exit removes both and starts again at 500 ms.
+    rig.now = skein_lib::Time::ZERO.saturating_add(limits.window);
+    for delay in [Duration::from_secs(1), limits.backoff] {
+        let why = Why::Exited { step: FORGEJO, exit: Exit::Code(0) };
+        rig.exited(FORGEJO, Exit::Code(0));
+        rig.closed(FORGEJO);
+        assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::Restarting { step: FORGEJO, why, delay }]);
+        let exit_at = rig.now;
+        rig.advance(delay);
+        rig.effects();
+        rig.restart_forgejo();
+        rig.now = exit_at.saturating_add(limits.window).saturating_add(Duration::from_nanos(1));
+    }
+}
+
+#[test]
+fn intentional_stop_exits_and_spawn_refusals_emit_no_restart_or_give_up() {
+    use super::fixtures::take_facts;
+    use crate::terminal::Fact;
+    for exit in [Exit::Code(0), Exit::Code(1), Exit::Signal(15)] {
+        let mut rig = Rig::running();
+        rig.terminate();
+        assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::Stopping]);
+        for step in [SERVE, RUNNER, FORGEJO] {
+            rig.exited(step, exit);
+            rig.closed(step);
+            let facts = take_facts(&mut rig.out);
+            if step == FORGEJO {
+                assert_eq!(facts.as_ref(), &[Fact::Stopped]);
+            } else {
+                assert!(facts.is_empty());
+            }
+        }
+        assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
+    }
+    let mut rig = Rig::new(&limits::small());
+    rig.effects();
+    rig.terminate();
+    take_facts(&mut rig.out);
+    rig.input(Input::NotStarted { step: PREPARE });
+    assert_eq!(take_facts(&mut rig.out).as_ref(), &[Fact::Stopped]);
+    assert_eq!(rig.machine.outcome(), Some(Outcome::Stopped));
+}
+
+#[test]
+fn max_out_covers_simultaneous_retry_and_group_failure_emissions() {
+    use super::fixtures::step;
+    use crate::{layout, machine::Machine};
+    use skein_lib::{List, Queue, Time, bytes};
+    use temper_forge_setup::{Group, Stage, Steps};
+    const COUNT: u32 = 64;
+    let mut longs = List::with_capacity(COUNT);
+    let mut group_steps = List::with_capacity(COUNT);
+    for _ in 0..COUNT {
+        longs.push(step(b"long", Kind::Long)).unwrap();
+        group_steps.push((Stage::Run, step(b"long", Kind::Long))).unwrap();
+    }
+    for grouped in [false, true] {
+        let placed = layout::flatten(if grouped {
+            Steps {
+                always: Box::new([]),
+                asked: Box::new([Group {
+                    forge: 7,
+                    before: 0,
+                    recorded: true,
+                    label: bytes::copy_of(b"many"),
+                    steps: Box::from(group_steps.as_slice()),
+                }]),
+            }
+        } else {
+            Steps { always: Box::from(longs.as_slice()), asked: Box::new([]) }
+        });
+        let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+        let mut out = Queue::with_capacity(machine.max_out());
+        machine.start(Time::ZERO, &[], &mut out);
+        while out.pop().is_some() {}
+        if grouped {
+            machine.input(Time::ZERO, Input::Ask { forge: 7 }, &mut out);
+            while out.pop().is_some() {}
+        }
+        for step in 0..usize::try_from(COUNT).unwrap() {
+            machine.input(Time::ZERO, Input::Started { step }, &mut out);
+            assert!(out.len() <= machine.max_out());
+            while out.pop().is_some() {}
+        }
+        if grouped {
+            machine.input(Time::ZERO, Input::NotWritten { forge: 7 }, &mut out);
+            assert_eq!(out.len(), COUNT, "failure closes every live group member within the reservation");
+            while out.pop().is_some() {}
+        } else {
+            for step in 0..usize::try_from(COUNT).unwrap() {
+                machine.input(Time::ZERO, Input::Exited { step, exit: Exit::Signal(9) }, &mut out);
+                while out.pop().is_some() {}
+            }
+        }
+        for step in 0..usize::try_from(COUNT).unwrap() {
+            machine.input(Time::ZERO, Input::Closed { step }, &mut out);
+            assert!(out.len() <= machine.max_out());
+            while out.pop().is_some() {}
+        }
+        if !grouped {
+            machine.fire(Time::ZERO.saturating_add(limits::small().backoff), &mut out);
+            assert_eq!(out.len(), COUNT.checked_mul(2).unwrap(), "one Starting and Spawn per simultaneous retry");
+        }
+    }
 }

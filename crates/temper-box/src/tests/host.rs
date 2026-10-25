@@ -95,14 +95,14 @@ fn a_long_step_that_keeps_exiting_is_given_up_naming_it() {
         assert!(pair[1].saturating_since(pair[0]) >= Duration::from_millis(gap), "the backoff doubles");
     }
     assert_eq!(harness.spawn_times(b"prepare").len(), 6, "each restart runs prepare again");
-    assert!(Harness::contains(&harness.stderr(), b"box: forgejo gave up after 5 restarts\n"), "give-up names step");
+    assert!(Harness::contains(&harness.stderr(), b"forgejo exited 1; giving up\n"), "give-up names step");
 }
 #[test]
 fn a_once_step_that_fails_ends_the_box_with_exit_one() {
     let steps = [once(b"prepare", &[b"exit", b"1"]), long(b"forgejo", &[b"never"])];
     let mut harness = Harness::new(&steps);
     assert_eq!(harness.run_to_end(), Exit::Code(1));
-    assert_eq!(&*harness.stderr(), b"Starting prepare\nbox: prepare gave up after 0 restarts\n");
+    assert_eq!(&*harness.stderr(), b"Starting prepare\nprepare exited 1; giving up\n");
     assert_eq!(harness.spawn_times(b"forgejo").len(), 0, "failure never starts the next step");
 }
 #[test]
@@ -155,6 +155,7 @@ fn grouped_steps() -> temper_forge_setup::Steps {
     Steps {
         always: Box::new([long(b"serve", &[b"never"])]),
         asked: Box::new([Group {
+            label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
             recorded: true,
             forge: 3,
             before: 0,
@@ -193,7 +194,13 @@ fn serves_pipe_lines_are_bounded_named_and_answered() {
         harness.ask(input);
         harness.run_until_idle();
         assert_eq!(&*harness.reply_bytes(), expected, "{name}");
-        assert_eq!(&*harness.stderr(), crate::lines::joined(&[b"Starting serve\n", diagnostic]).as_ref(), "{name}");
+        let lifecycle =
+            if name == "ask" { b"Forge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n".as_slice() } else { b"" };
+        assert_eq!(
+            &*harness.stderr(),
+            crate::lines::joined(&[b"Starting serve\n", lifecycle, diagnostic]).as_ref(),
+            "{name}"
+        );
         if !diagnostic.is_empty() {
             harness.ask(b"start 99\n");
             harness.run_until_idle();
@@ -539,7 +546,11 @@ fn an_unrecorded_group_neither_probes_nor_writes_and_waits_at_every_box_start() 
         harness.ask(b"start 3\n");
         harness.run_until_idle();
         assert_eq!(&*harness.reply_bytes(), b"step 3 prepare\nstep 3 run\nstarted 3\n");
-        assert!(harness.stderr().is_empty(), "no record write");
+        assert_eq!(
+            harness.stderr().as_ref(),
+            b"Forge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n",
+            "unrecorded group emits its lifecycle without a record write"
+        );
         let root = harness.machine.reopen_root(0);
         let file = harness.machine.open(root, b"box", How::Read).unwrap();
         assert_eq!(harness.machine.read(file, 0, 4).unwrap().as_slice(), b"kept");
@@ -570,7 +581,7 @@ fn a_pipe_stop_closes_only_its_group_keeps_the_record_and_can_be_started_again()
         harness.run_until_idle();
     }
     assert_eq!(&*harness.reply_bytes(), b"stopped 3\n");
-    assert!(Harness::contains(&harness.stderr(), b"box: forge 3's group stopped\n"));
+    assert!(Harness::contains(&harness.stderr(), b"Forge 3 (Forgejo): stopped\n"));
     assert_eq!(harness.spawn_times(b"serve").len(), 1);
     assert_eq!(harness.spawn_times(b"forgejo 3").len(), 1);
     let root = harness.machine.reopen_root(0);
@@ -600,14 +611,18 @@ fn a_group_stop_is_reported_on_stderr_after_the_control_pipe_closes() {
     harness.replies.clear();
     harness.ask(b"stop 1\n");
     harness.run_until_idle();
-    assert_eq!(harness.stderr().as_ref(), b"Starting serve\n", "the group has not closed");
+    assert_eq!(
+        harness.stderr().as_ref(),
+        b"Starting serve\nForge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n",
+        "the group has not closed"
+    );
     let serve = harness.hosted.get(harness.serve_index()).unwrap().pid;
     let forge = harness.hosted.get(harness.child_index(b"forgejo 3")).unwrap().pid;
     harness.sim.finish_service(serve, Exit::Code(1));
     harness.sim.finish_service(forge, Exit::Code(0));
     harness.run_until_idle();
     assert!(harness.reply_bytes().is_empty(), "the old control pipe has closed");
-    assert_eq!(&*harness.stderr(), b"box: forge 1's group stopped\n");
+    assert_eq!(&*harness.stderr(), b"serve exited 1; restarting in 0.5 s\nForge 3 (Forgejo): stopped\n");
     harness.terminate();
     assert_eq!(harness.run_to_end(), Exit::Code(0));
     harness.sim.assert_quiescent(harness.pid);
@@ -795,6 +810,7 @@ fn split_links_and_diagnostics_form_ordered_first_fresh_and_restarted_blocks() {
             "Opened again once spent, it prints a fresh one here.\n\n",
             "http://first/link\n\nCtrl-C stops temper.\n\n",
             "diagnostic: between refresh pieces\n23:59:59Z A fresh sign-in link:\nhttp://fresh\n",
+            "23:59:59Z serve exited 0; restarting in 0.5 s\n",
             "00:00:00Z Starting serve\n00:00:00Z A fresh sign-in link:\nhttp://restart\n",
             "00:00:00Z Stopping\n00:00:00Z Stopped\n",
         )
@@ -924,4 +940,164 @@ fn a_legacy_handoff_does_not_print_or_mark_the_first_block() {
     assert_eq!(harness.run_to_end(), Exit::Code(0));
     harness.sim.assert_quiescent(harness.pid);
     harness.sim.assert_no_open_fds(harness.pid);
+}
+
+#[test]
+fn labelled_group_failure_keeps_serve_usable_and_wire_replies_numeric() {
+    let mut steps = grouped_steps();
+    steps.asked[0].label = bytes::copy_of(b"other label\xff");
+    steps.asked[0].steps[0].1 = once(b"prepare 3", &[b"exit", b"7"]);
+    let mut harness = Harness::grouped(steps, &[], true);
+    harness.run_until_idle();
+    harness.write_child(harness.serve_index(), 1, b"http://first\n");
+    harness.run_until_idle();
+    harness.stderr();
+    for _attempt in 0..2 {
+        harness.ask(b"start 3\n");
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), b"step 3 prepare\nfailed 3 prepare 3 exited 7\n");
+        assert_eq!(
+            harness.stderr().as_ref(),
+            b"00:00:00Z other label\xff: starting\n00:00:00Z other label\xff: failed, prepare 3 exited 7\n"
+        );
+        harness.read_reply(256);
+        harness.replies.clear();
+        harness.ask(b"start 99\n");
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), b"failed 99 not asked\n");
+        assert!(harness.stderr().is_empty(), "a refusal is a wire reply only");
+        harness.read_reply(256);
+        harness.replies.clear();
+    }
+    assert_eq!(harness.spawn_times(b"serve").len(), 1, "failure leaves the same serve usable");
+    assert_eq!(harness.spawn_times(b"prepare 3").len(), 2);
+    assert_eq!(harness.spawn_times(b"forgejo 3").len(), 0);
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    assert!(!Harness::contains(&harness.stderr(), b"giving up"), "group failure never becomes box failure");
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+    assert_eq!(harness.machine.open_handles(), 0);
+}
+
+#[test]
+fn lifecycle_facts_keep_source_wall_and_order_under_terminal_backpressure() {
+    use skein_lib::Wall;
+    use skein_shell::Host;
+    let mut limits = crate::limits::small();
+    limits.restarts = 1;
+    let mut harness = Harness::configured(
+        temper_forge_setup::Steps {
+            always: Box::new([long(b"serve", &[b"never"]), long(b"other", &[b"never"])]),
+            asked: Box::new([]),
+        },
+        &[],
+        true,
+        skein_sim::Config::calm().buffer,
+        &limits,
+    );
+    harness.run_until_idle();
+    harness.write_child(harness.serve_index(), 1, b"http://first\n");
+    harness.run_until_idle();
+    harness.hold_terminal_ack = true;
+    harness.write_child(harness.child_index(b"other"), 2, b"held\n");
+    harness.run_until_idle();
+    for words in [b"queued one\n".as_slice(), b"queued two\n"] {
+        harness.write_child(harness.child_index(b"other"), 2, words);
+        harness.run_until_idle();
+    }
+    harness.wall = Wall::from_nanos(86_399_000_000_000);
+    let serve = harness.hosted.get(harness.serve_index()).unwrap().pid;
+    harness.sim.finish_service(serve, Exit::Signal(9));
+    harness.run_until_idle();
+    // Both the restart decision and its monotonic timer progress while output
+    // waits for its ACK. The Starting fact then waits in the same ordered FIFO.
+    harness.wall = Wall::from_nanos(86_400_000_000_000);
+    harness.sim.advance_to(harness.sim.now().saturating_add(limits.backoff));
+    harness.run_until_idle();
+    assert_eq!(harness.spawn_times(b"serve").len(), 2);
+    let serve = harness.hosted.get(harness.serve_index()).unwrap().pid;
+    harness.sim.finish_service(serve, Exit::Code(0));
+    harness.run_until_idle();
+    assert_eq!(
+        crate::host::pressure::outcome(&harness.service),
+        Some(crate::machine::Outcome::GaveUp { step: 0, restarts: 1 })
+    );
+    assert_eq!(harness.service.exit(), None, "another child and terminal ACK remain outstanding");
+    assert!(!Harness::contains(&harness.terminal_bytes(), b"giving up"));
+    assert!(
+        crate::host::pressure::fact_waits(
+            &harness.service,
+            crate::terminal::Fact::GivingUp {
+                step: 0,
+                why: crate::machine::Why::Exited { step: 0, exit: Exit::Code(0) }
+            },
+            Wall::from_nanos(86_400_000_000_000),
+        ),
+        "the give-up fact must wait unformatted in the policy queue"
+    );
+    assert!(crate::host::pressure::bounded(&harness.service));
+    harness.wall = Wall::from_nanos(172_861_000_000_000);
+    harness.release_terminal_ack();
+    harness.run_until_idle();
+    let output = harness.terminal_bytes();
+    assert!(Harness::contains(&output, b"other: held\nother: queued one\nother: queued two\n23:59:59Z serve killed by signal 9; restarting in 0.5 s\n00:00:00Z Starting serve\n00:00:00Z serve exited 0; giving up\n"), "source walls and decision order survive output delay: {output:?}");
+    assert_eq!(bytes::count(&output, b"giving up\n", 2), 1);
+    assert_eq!(harness.service.exit(), None, "giving up is visible before the stubborn other child closes");
+    assert_eq!(harness.run_to_end(), Exit::Code(1));
+    assert_eq!(bytes::count(&harness.terminal_bytes(), b"giving up\n", 2), 1, "no final duplicate");
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+
+#[test]
+fn long_labels_pass_actual_output_admission_with_tiny_control_and_write_caps() {
+    use skein_lib::Wall;
+    for buffer in [8, 16] {
+        let label: Box<[u8]> = Box::new([b'L'; 4352]);
+        let name: Box<[u8]> = Box::new([b'N'; 80]);
+        let mut steps = grouped_steps();
+        steps.asked[0].label = label.clone();
+        steps.asked[0].steps[0].1 = once(&name, &[b"exit", b"255"]);
+        let limits = crate::limits::Limits { line_bytes: 64, ..crate::limits::small() };
+        let mut harness = Harness::configured(steps, &[], true, buffer, &limits);
+        harness.run_until_idle();
+        harness.write_child(harness.serve_index(), 1, b"link\n");
+        harness.run_until_idle();
+        harness.wall = Wall::from_nanos(86_399_000_000_000);
+        harness.ask(b"start 3\n");
+        harness.run_until_idle();
+        let expected_reply = crate::lines::joined(&[b"step 3 prepare\nfailed 3 ", name.get(..54).unwrap(), b"\n"]);
+        let mut received = List::with_capacity(u32::try_from(expected_reply.len()).unwrap());
+        for _ in 0..expected_reply.len() {
+            if received.len() == u32::try_from(expected_reply.len()).unwrap() {
+                break;
+            }
+            for byte in harness.read_reply(u32::try_from(expected_reply.len()).unwrap().saturating_sub(received.len()))
+            {
+                received.push(byte).unwrap();
+            }
+            harness.run_until_idle();
+        }
+        assert_eq!(received.as_slice(), expected_reply.as_ref(), "wire WHY is still truncated to the 64-byte line cap");
+        let expected = crate::lines::joined(&[
+            b"23:59:59Z ",
+            &label,
+            b": starting\n23:59:59Z ",
+            &label,
+            b": failed, ",
+            &name,
+            b" exited 255\n",
+        ]);
+        assert!(
+            Harness::contains(&harness.terminal_bytes(), &expected),
+            "long lifecycle lines must actually write with buffer {buffer}"
+        );
+        assert!(crate::host::pressure::bounded(&harness.service));
+        harness.terminate();
+        assert_eq!(harness.run_to_end(), Exit::Code(0));
+        harness.sim.assert_quiescent(harness.pid);
+        harness.sim.assert_no_open_fds(harness.pid);
+        assert_eq!(harness.machine.open_handles(), 0);
+    }
 }

@@ -1,11 +1,22 @@
 //! Pure terminal words and targets (protocol/setup.md, 7.2).
-use crate::lines::joined;
+use crate::{
+    layout::{self, Placed},
+    lines::joined,
+    machine::Why,
+    pipe,
+};
 use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use skein_lib::{Decimal, Duration, List, Wall};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Fact {
     Starting { step: usize },
+    GroupStarting { forge: u16 },
+    GroupStarted { forge: u16 },
+    GroupFailed { forge: u16, why: Why },
+    GroupStopped { forge: u16 },
+    Restarting { step: usize, why: Why, delay: Duration },
+    GivingUp { step: usize, why: Why },
     Stopping,
     Stopped,
 }
@@ -60,9 +71,25 @@ impl Formatter {
         self.first_printed = true;
     }
     #[must_use]
-    pub fn fact(&self, fact: Fact, name: &[u8], wall: Wall) -> Item {
+    pub fn fact(&self, fact: Fact, steps: &[Placed], wall: Wall) -> Item {
         let words = match fact {
-            Fact::Starting { .. } => joined(&[b"Starting ", name, b"\n"]),
+            Fact::Starting { step } => joined(&[b"Starting ", steps.get(step).expect("step fact").step.name(), b"\n"]),
+            Fact::GroupStarting { forge } => {
+                joined(&[layout::label(steps, forge).expect("group label"), b": starting\n"])
+            }
+            Fact::GroupStarted { forge } => {
+                joined(&[layout::label(steps, forge).expect("group label"), b": started\n"])
+            }
+            Fact::GroupFailed { forge, why: reason } => {
+                joined(&[layout::label(steps, forge).expect("group label"), b": failed, ", &why(reason, steps), b"\n"])
+            }
+            Fact::GroupStopped { forge } => {
+                joined(&[layout::label(steps, forge).expect("group label"), b": stopped\n"])
+            }
+            Fact::Restarting { why: reason, delay, .. } => {
+                joined(&[&why(reason, steps), b"; restarting in ", &seconds(delay), b" s\n"])
+            }
+            Fact::GivingUp { why: reason, .. } => joined(&[&why(reason, steps), b"; giving up\n"]),
             Fact::Stopping => skein_lib::bytes::copy_of(b"Stopping\n"),
             Fact::Stopped => skein_lib::bytes::copy_of(b"Stopped\n"),
         };
@@ -81,6 +108,55 @@ impl Formatter {
         };
         Item { target: Target::Stderr, bytes }
     }
+}
+/// The same exact WHY words feed terminal notices and bounded numeric replies.
+#[must_use]
+pub fn why(why: Why, steps: &[Placed]) -> Box<[u8]> {
+    match why {
+        Why::Busy => skein_lib::bytes::copy_of(b"busy"),
+        Why::NotAsked => skein_lib::bytes::copy_of(b"not asked"),
+        Why::Stopping => skein_lib::bytes::copy_of(b"stopping"),
+        Why::Exited { step, exit } => pipe::exited(steps.get(step).expect("step reason").step.name(), exit),
+        Why::NotStarted { step } => pipe::not_started(steps.get(step).expect("step reason").step.name()),
+        Why::NotReady { step } => joined(&[steps.get(step).expect("step reason").step.name(), b" version unavailable"]),
+        Why::NotWritten => skein_lib::bytes::copy_of(pipe::not_written()),
+    }
+}
+/// UTC (10), longest WHY suffix/signal (at most 38), restart words (20),
+/// decimal u64 nanoseconds in seconds (at most 21), punctuation and LF all
+/// fit 128 extra bytes. Sum independent label/name maxima conservatively.
+#[must_use]
+pub fn max_bytes(steps: &[Placed]) -> u32 {
+    let mut label = 0_u32;
+    let mut name = 0_u32;
+    for placed in steps {
+        name = name.max(u32::try_from(placed.step.name().len()).expect("bounded step name"));
+        if let Some(words) = &placed.label {
+            label = label.max(u32::try_from(words.len()).expect("bounded label"));
+        }
+    }
+    label.checked_add(name).expect("lifecycle words").checked_add(128).expect("lifecycle line").max(FIXED_BYTES)
+}
+fn seconds(delay: Duration) -> Box<[u8]> {
+    let nanos = delay.as_nanos();
+    let whole = Decimal::of(nanos.div_euclid(1_000_000_000));
+    let mut part = nanos.rem_euclid(1_000_000_000);
+    if part == 0 {
+        return skein_lib::bytes::copy_of(whole.as_bytes());
+    }
+    let mut fraction = [b'0'; 9];
+    for digit in fraction.iter_mut().rev() {
+        *digit = b'0'.checked_add(u8::try_from(part.rem_euclid(10)).expect("decimal digit")).expect("ASCII digit");
+        part = part.div_euclid(10);
+    }
+    let mut end = fraction.len();
+    for digit in fraction.iter().rev() {
+        if *digit != b'0' {
+            break;
+        }
+        end = end.checked_sub(1).expect("nonzero fraction");
+    }
+    joined(&[whole.as_bytes(), b".", fraction.get(..end).expect("trimmed fraction")])
 }
 fn pair(value: u64) -> [u8; 2] {
     [
