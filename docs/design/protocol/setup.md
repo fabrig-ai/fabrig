@@ -1157,7 +1157,15 @@ temper box
   that step's (8.4). The box reads every step's output a line at a
   time, and writes a line only once it holds it whole, to its line feed
   or its step's end, so that nothing written to its stderr lands inside
-  a link when both streams are one terminal.
+  a link when both streams are one terminal. A terminal-bound serve URL has
+  at most 4096 payload bytes, excluding its line feed; an EOF fragment within
+  that bound receives a line feed. An oversized URL is discarded through its
+  line feed or EOF and named once on stderr, without printing any of its
+  bytes; the next line can be read normally. This bound covers the configured
+  public origin and sign-in path. The legacy first-line handoff to a link
+  step keeps its existing bounded-piece semantics and receives no sign-in
+  block. Other child streams retain bounded pieces, each completed with a
+  line feed at the piece bound or EOF.
 - **Its terminal,** its stderr, is quiet: the box's own lines alone.
   Before the first sign-in block (below), `First run: wrote the
   configuration, <path>` when `temper init` ran (7.1), `Logs:
@@ -1199,6 +1207,33 @@ temper box
   (jig's `protocol/client.md`, section 8) or a restarted serve's first,
   comes after `<time> A fresh sign-in link:` on stderr. A line given to
   a link step has no block.
+
+  One bounded FIFO owns whole terminal items tagged stdout or stderr. It
+  admits the first block as three adjacent items (words, URL, Ctrl-C words),
+  or a fresh block as two (announcement, URL), before consuming that URL.
+  With N steps, at most max(3, 2N + 1) items are outstanding, including the
+  active item. Only one item is in flight across both descriptors: after
+  sending it, the host demands the target's entire io output budget, and
+  its Room acknowledgement proves the write finished before the next item
+  starts. A small write grant alone is not that acknowledgement.
+
+  Full output pauses new child read demands; already admitted reads retain
+  their bounded per-pipe chunk. Admission checks precede line extraction,
+  policy input and order consumption, reserving every destination the input
+  can produce. Output acknowledgements and io settlement can progress while
+  ordinary work waits for room; blocked queues alone do not make the loop
+  runnable. The footprint counts all queue containers and owned payloads,
+  per-pipe assembly and retained chunks, formatter overlap, legacy handoff,
+  control replies and io operations, within the existing startup accounting.
+
+  The machine emits typed Starting, Stopping and Stopped facts, without
+  words or wall time. A pure terminal formatter receives the host's supplied
+  wall time and step names. Starting names always steps; Stopping is emitted
+  once on the first requested stop, and Stopped after actual settlement.
+  Timestamping starts once the first visible block is admitted, and survives
+  serve restarts; a refused URL or legacy handoff does not start it. A line's
+  completion wall time is retained across output backpressure, rather than
+  replaced with its later write time.
 - **Its logs,** `<data>/box/logs/`, mode 0700, made as needed: one file
   per step, its name with each space a `-` and `.log` after it
   (`serve.log`, `prepare-3.log`), mode 0600, holding every line the
@@ -2810,6 +2845,15 @@ relies on.
   log's path; a log moved to `.1` at `box.log_bytes`, and the last run's
   moved to `logs.previous/` at a start; a log not written named once,
   its step's lines then on the terminal.
+  The link/ordering cases include separate held write acknowledgements,
+  full output and policy queues with acknowledgement progress, first/fresh
+  and restarted-serve blocks, UTC midnight rollover, bounded EOF fragments,
+  exact/over-bound URLs with recovery, and the legacy first-line handoff.
+  One default real-loop story runs the real box Service and synthetic
+  children on one real ring, making split writes to a shared stdout/stderr
+  pipe with interposed diagnostics. It observes complete ordered blocks,
+  then asks for stop and drains all owned resources; it uses no backend,
+  download or sleep. Exhaustive saturation cases stay in simulated tests.
 - **The setup host's handover at runtime** (5.1), in temper-service's
   step tests: at `started`, `TakeOver` when the handover is present, its
   record kept before removal, then `Reconcile` and the connect, the row
