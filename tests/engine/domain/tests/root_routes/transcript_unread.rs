@@ -47,9 +47,7 @@ fn take_transcript_reply(driver: &mut Driver, task: u64) -> engine::Event {
 }
 
 fn owner(reply: &engine::Event) -> Token {
-    let engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) = reply else {
-        panic!("held store page")
-    };
+    let engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) = reply else { panic!("held store page") };
     *owner
 }
 

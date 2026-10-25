@@ -5,7 +5,10 @@ use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Token};
 use temper_engine_domain as engine;
-use temper_engine_domain_world::{direct::{Driver, say_ask}, protocol};
+use temper_engine_domain_world::{
+    direct::{Driver, say_ask},
+    protocol,
+};
 
 const CHANNEL: Token = Token::new(7);
 const FIRST_TURN: u32 = 1;
