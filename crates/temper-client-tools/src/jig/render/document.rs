@@ -56,21 +56,22 @@ pub(crate) fn print(
             length: u32::try_from(limits.result_bytes).expect("output bound fits"),
         };
         let mut measured = Encoder::measure(&bounds);
-        encode(&document, limits, &mut measured);
+        encode(&document, limits, subject_digest(&document, limits), &mut measured);
         if measured.measured().is_err() {
             return super::failure(b"result limit", json, 1);
         }
     }
     let stdout = if json {
+        let digest = subject_digest(&document, limits);
         let bounds = skein_json::writer::Limits {
             depth: 32,
             length: if accounts { limits.text } else { u32::try_from(limits.result_bytes).expect("output bound fits") },
         };
         let mut measure = Encoder::measure(&bounds);
-        encode(&document, limits, &mut measure);
+        encode(&document, limits, digest, &mut measure);
         let Ok(size) = measure.measured() else { return super::failure(b"result limit", true, 1) };
         let mut write = Encoder::write(size, &bounds);
-        encode(&document, limits, &mut write);
+        encode(&document, limits, digest, &mut write);
         write.finish()
     } else {
         let book = phrasebook(limits.text);
@@ -381,7 +382,16 @@ fn hex(bytes: &[u8], out: &mut Encoder) {
     }
     out.string(&hex.finish());
 }
-fn encode(document: &Document<'_>, limits: &Limits, out: &mut Encoder) {
+fn subject_digest(document: &Document<'_>, limits: &Limits) -> Option<crate::jig::digest::Digest> {
+    match document {
+        Document::Me(me) => Some(crate::jig::digest::part(&super::Part::Me(me), limits)),
+        Document::Task(task, _) | Document::HistoricalTask(task, _, _) => {
+            Some(crate::jig::digest::part(&super::Part::Task(task), limits))
+        }
+        Document::Accounts(_) | Document::ReadSet(..) | Document::Wait(_) | Document::SizedTurn { .. } => None,
+    }
+}
+fn encode(document: &Document<'_>, limits: &Limits, digest: Option<crate::jig::digest::Digest>, out: &mut Encoder) {
     let mut cut = Cut {
         room: usize::try_from(limits.text).expect("text limit fits"),
         left: 0,
@@ -392,10 +402,10 @@ fn encode(document: &Document<'_>, limits: &Limits, out: &mut Encoder) {
     match document {
         Document::Wait(wait) => waiting::encode(wait, limits, out),
         Document::Accounts(value) => accounts::encode(*value, limits, true, out),
-        Document::Me(me) => subjects::encode(&super::Part::Me(me), limits, true, out),
-        Document::Task(task, _) => subjects::encode(&super::Part::Task(task), limits, true, out),
+        Document::Me(me) => subjects::encode_as(&super::Part::Me(me), limits, digest, out),
+        Document::Task(task, _) => subjects::encode_as(&super::Part::Task(task), limits, digest, out),
         Document::HistoricalTask(task, result, _) => {
-            cut.digest = Some(crate::jig::digest::part(&super::Part::Task(task), limits));
+            cut.digest = digest;
             tasks::encode_historical_task(task, result, out, &mut cut);
         }
         Document::ReadSet(reading, _) => read_sets::encode(reading, limits, out, &mut cut),
