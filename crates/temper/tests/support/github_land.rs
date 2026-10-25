@@ -723,6 +723,8 @@ pub(crate) fn configure_llm(path: &Path) {
 }
 fn configure_engine(value: &mut Value, forge: SocketAddr) {
     configure_landing(value, forge, "acme", "app");
+    // Keep App setup and log polling aligned with the live GitHub story.
+    value["application"]["forges"][0]["app_read_only"] = true.into();
     let limits = &mut value["application"]["limits"]["overrides"];
     for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {
         limits[format!("forge.client.{name}")] = millis.into();
@@ -731,7 +733,7 @@ fn configure_engine(value: &mut Value, forge: SocketAddr) {
     limits["forge.client.pending"] = 8.into();
     limits["forge.client.calls"] = 4.into();
     limits["forge_component.connections"] = 4.into();
-    limits["forge_component.log_poll_ms"] = 10.into();
+    limits["forge_component.log_poll_ms"] = 15000.into();
 }
 
 pub(crate) fn landing_reads() -> Vec<ctl::Call> {
