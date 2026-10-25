@@ -1298,7 +1298,8 @@ temper box
   owned opaque bytes passed from the setup/fake constructor into the box's
   layout and written verbatim: `Playground` for the demo's,
   `Forge N (Forgejo)` for an owned forge's. The box never infers a label
-  from arguments; it adds no label field to a wire reply or stored record. `before` is its place in the order:
+  from arguments; it adds no label field to a wire reply or stored record.
+  `before` is its place in the order:
   the index in `always` it runs just before (its length puts it last).
   Each step carries its `Stage`, whose word its `step` lines carry, and
   its listeners, the socket addresses the box holds and gives it (7.1). The
