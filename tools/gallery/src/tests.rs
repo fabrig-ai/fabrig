@@ -452,7 +452,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Disclosure, name: "1 tool call" },
         ],
     },
-    Holds { name: "inbox-reference", heading: "Inbox", parts: &[Part::Named { role: Role::Link, name: "Task 1" }] },
+    Holds { name: "inbox-reference", heading: "Inbox", parts: &[Part::Named { role: Role::Link, name: "T1 Director replied" }] },
     Holds {
         name: "accounts-reference",
         heading: "Accounts",

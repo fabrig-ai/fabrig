@@ -458,55 +458,35 @@ keeps (`../protocol/configuration.md`, section 2).
   none, "Nothing needs you." or "No updates.". Its first heading's
   row holds "+ New chat", a link to the Chats page's start
   (`/chats?at=start`, its text area focused: no act of its own), then
-  its filters: the projects, each a button, while the person has two
-  projects or more (with one, the banner's project says it; the
-  user's pick, 10-23, until skein-ui has a menu and the three filters
-  become menus); the kinds in one
-  disclosure, folded until the person opens it, holding "All kinds"
-  and each kind, the chosen one pressed, and named "Kind" while every
-  kind is shown, "Kind · Question" once one is chosen, in the word its
-  pressed button says, so that the folded menu says what the list is
-  filtered by; then "All goals" and "Goal". The filter is in the
-  inbox's address (`browser.md`, 2.3), "/?kind=question": a filter
-  chosen is a move to the inbox at that address, as a link pressed is,
-  so that a reload, back and a shared link keep it, and back undoes
-  the choice. The move folds the Kind menu, as a menu closes on its
-  choice, and its name says what was chosen.
-- **A card that needs the person** begins with a line: its kind as a
-  tag, "Proposal", its project and the task's link, "Task N", and at
-  its right how long it waits, "Waiting 12 min" (5.12's span), from
-  its object's time: a proposal's wait, a question's, a hold's, a
-  person task's; on a chat's page too, a proposal's card says "waiting
-  12 min". Its title, where it has one, is its heading: a proposal's,
-  the goal it proposes; a question's, a held task's or a person
-  task's, the task's. A proposal's card is the chat's, its title, its
-  text, its rows and its acts, without the chat's "Open in inbox ↗".
-- **An update's card** begins with its project and the task's link,
-  "Task N", which opens it and so marks it seen (below). Its heading
-  says what came: "T10 Add a --json flag to tally report replied" for
-  a reply, "T10 … is done" for a result done, "T10 … ended" for
-  another, its ending in words after it. Then a result's first line;
-  and last, how many of the chat's turns are unread, where the inbox's
-  entry counts them, and when it came (5.12's ago), a result's time, a
-  reply's last activity: "1 new · 12 min ago", "5+ new · …" where the
-  count is limited, "12 min ago" alone for a result or a count not
-  given. A reply draws neither its request nor its words: no field
-  carries a reply's first line (mockups README, Where each value comes
-  from).
-- **A question** in the inbox is a delegate's, asked of a task the
-  person requested, their chat among them (jig's `domain/people.md`,
-  section 6). Its card, under "Needs you": "Question", its project, the
-  asked task's link, "Task N", whose conversation holds the question
-  (above), and the question's words as written. Its act is an answer in
-  words, "Answer words" and "Answer", one request (3.6): "Pending" while
-  it is sent, "Answered" once the engine has it. The answer goes to the
-  asked task, which relays it to its delegate as its own judgement. An
-  answered card keeps its outcome while the page stays open; the inbox
-  read again holds it no more, and the navigation's count no longer
-  counts it. A question carries words alone, so its answer is words
-  (choices, section 11), and temper has no hold of its own for one: the
-  person answers in words, or stops the asking task from its page,
-  which holds it until it is released (5.11).
+  its filters as folded menus, in order: projects (only with two or more),
+  goals, then Kind. Each menu names its choice: "All projects" or the
+  project's name; "All goals" or "Goal · TN"; "Kind" or "Kind · Question".
+  The project menu holds All projects and each project; the goal menu holds
+  All goals and the Goal field; Kind holds All kinds and each kind. A choice
+  moves to the filtered inbox's address and folds its menu (`browser.md`, 2.3).
+- **A card that needs the person** begins with its kind's tag, then
+  "PROJECT › TN TITLE", for its own task alone, and its wait at the right
+  (5.12). A proposal holds no proposing task's title, so its line stops at
+  TN; questions, held tasks and person tasks use their documents' titles.
+  A batch proposal keeps the mockup's Why, Goal, Landing and Budget rows:
+  its reason quoted, its executor and specification, its landing resources
+  and grants with priority, and its funding once. Template and charter
+  names are not supplied, so their existing numbered words remain. Its
+  acts are "Accept", "Reject with reason" and "Open TN ↗"; a chat's card
+  keeps "Open in inbox ↗".
+- **An update's card** has its heading as the link that opens it and marks
+  a result seen. It repeats no project line or task-number link. The heading
+  says "TN TITLE replied", "TN TITLE is done", or "TN TITLE ended";
+  while its document is unread, the existing "Task N" words are the heading's
+  link. Then the result's first line and the unread count and age (5.12).
+  A reply has no preview: its document carries no reply's first line.
+- **A question** in the inbox is a delegate's, asked of a task the person
+  requested, their chat among them. It has no heading of its own: its line,
+  then its words as written. "Answer in words" is folded until opened,
+  holding "Answer words" and "Answer"; "Open TN ↗" opens the asked task.
+  The answer goes to that task, which relays it to its delegate. "Pending"
+  and "Answered" keep today's request outcomes, and a refusal stays under
+  its card. Choices remain future work (section 11).
 - **Seen** is how far the person has read: jig's read positions (jig's
   `client/domain/pages.md`, section 3), one over their results and one
   over each chat's turns. An update is seen when it is opened, and no

@@ -99,9 +99,10 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
         match admission {
             Admission::Allowed | Admission::Bounded { .. } => {
                 let rejecting = act == ActKind::Reject && proposal_object(card.object);
-                if rejecting {
+                let answering = act == ActKind::Answer;
+                if rejecting || answering {
                     b.open(Role::Disclosure);
-                    b.name(&words.say(Word::Reject, &[]));
+                    b.name(&words.say(if answering { Word::AnswerInWords } else { Word::Reject }, &[]));
                     if let Some(open) = root.pages().confirmation()
                         && open.object == card.object
                         && open.act == ActKind::Reject
@@ -129,7 +130,7 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
                     if rejecting { Word::RejectProposal } else { word },
                     Act::Decide { object: card.object, revision: acts::revision(page), act },
                 );
-                if rejecting {
+                if rejecting || answering {
                     b.close();
                 }
             }

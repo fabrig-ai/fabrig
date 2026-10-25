@@ -1044,3 +1044,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   .temper-row:has(> .temper-meta) > .temper-time { grid-column: 1; grid-row: 5; text-align: left; }
   .temper-row:has(> .temper-meta) > p:not(.temper-meta):not(.temper-details):not(.temper-time):nth-of-type(4) { grid-row: 4; }
 }
+
+/* Card lineage uses the same quiet path as the mockup, with one separator. */
+.temper-meta p > a { margin: 0; }
+.temper-meta p > a::before { content: none; }
+/* Answer in words takes rejection's folded-editor pattern. */
+.temper-kind-question > details { display: inline-block; margin: 10px 8px 0 0; vertical-align: baseline; }
+.temper-kind-question > details > summary { display: inline-block; cursor: pointer; list-style: none; min-height: 28px; padding: 5px 9px; border: 1px solid #dcd5ca; border-radius: 4px; font: 600 11px/1.35 var(--temper-mono); }
+.temper-kind-question > details > summary::-webkit-details-marker { display: none; }
+.temper-kind-question > a, .temper-page .temper-kind-proposal > a { display: inline-block; margin-top: 10px; color: var(--temper-accent-dark); font-size: 11px; font-weight: 600; }

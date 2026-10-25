@@ -102,8 +102,8 @@ pub enum Word {
     ForgeSetupUrl,
     SetupOrganization,
     SetupRepository,
-    SetupProject,
-    SetupExisting,
+    AnswerInWords,
+    ProposalOwn,
     SetupNew,
     SetupAdopt,
     SetupRequired,
@@ -660,7 +660,7 @@ pub enum Word {
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 const PHRASES: u32 = 1162;
-const SEGMENTS: u32 = 2039;
+const SEGMENTS: u32 = 2037;
 const ALL: [Word; 594] = [
     Word::WelcomeYourModel,
     Word::BrandChats,
@@ -750,8 +750,8 @@ const ALL: [Word; 594] = [
     Word::ForgeSetupUrl,
     Word::SetupOrganization,
     Word::SetupRepository,
-    Word::SetupProject,
-    Word::SetupExisting,
+    Word::AnswerInWords,
+    Word::ProposalOwn,
     Word::SetupNew,
     Word::SetupAdopt,
     Word::SetupRequired,
@@ -1313,8 +1313,8 @@ impl Word {
             Self::ForgeSetupUrl => 1700,
             Self::SetupOrganization => 1820,
             Self::SetupRepository => 1821,
-            Self::SetupProject => 1822,
-            Self::SetupExisting => 1823,
+            Self::AnswerInWords => 1822,
+            Self::ProposalOwn => 1823,
             Self::GitHubUnknown => 1965,
             Self::GitHubReadNoAccess => 1966,
             Self::GitHubReadNotFound => 1967,
@@ -2193,8 +2193,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeSetupUrl => (&[b"On GitHub, set the App\xe2\x80\x99s setup URL to temper\xe2\x80\x99s address followed by /forges/", b"/github/setup, and give it the permissions and events temper\xe2\x80\x99s guide lists."], &[Number]),
         Word::SetupOrganization => (&[b"Organization"], &[]),
         Word::SetupRepository => (&[b"Repository"], &[]),
-        Word::SetupProject => (&[b"Project"], &[]),
-        Word::SetupExisting => (&[b"", b", the project you are in"], &[Name]),
+        Word::AnswerInWords => (&[b"Answer in words"], &[]),
+        Word::ProposalOwn => (&[b"yours \xc2\xb7 "], &[]),
                 Word::AdminTitle => (&[b"Connect as its admin"], &[]),
         Word::AdminDescription => (&[b"Paste a site admin\xe2\x80\x99s token with the scopes write:admin, read:user, write:organization and write:repository. temper keeps it, and uses it only to make its bot and your first repository, and to give the bot access to it. To stop temper using it, delete the token on Forgejo."], &[]),
         Word::AdminCard => (&[b"temper connects as its site admin, makes its bot and your first repository."], &[]),
