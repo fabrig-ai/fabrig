@@ -698,7 +698,7 @@ fn account_bounds_have_a_literal_price() {
     let bounds = crate::Limits::of(&domain, &words).unwrap();
     let actual = crate::worst_case(&bounds, &domain, &words).expect("priced fixture");
     memory_figures::check(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../temper/tests/figures/memory/client-view"),
+        &skein_scratch::paths::workspace().join("crates/temper/tests/figures/memory/client-view"),
         &crate::limits::memory_terms(&bounds, &domain, &words).expect("view memory terms"),
         actual,
     );
@@ -1290,7 +1290,7 @@ fn only_deployment_rows_show_usage_facts_and_their_use_summary() {
 
 #[test]
 fn english_phrase_declarations_match_the_vocabulary() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/words.rs");
+    let path = skein_scratch::paths::package().join("src/words.rs");
     let source = std::fs::read_to_string(&path).unwrap();
     let variants = source.split("pub enum Word {\n").nth(1).unwrap().split("\n}").next().unwrap();
     let names: Vec<_> = variants.lines().map(str::trim).filter(|line| line.ends_with(',')).collect();

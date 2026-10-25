@@ -175,7 +175,7 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
 #[test]
 fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     let scratch = support::Scratch::startup("box-fresh-init");
-    let init = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+    let init = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(support::configuration::flags(scratch.path()))
         .output()
@@ -971,7 +971,7 @@ fn memory_figure(
     terms: &temper_service::startup::MemoryTerms,
     required: temper_service::startup::Requirements,
 ) {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/figures/memory").join(name);
+    let path = skein_scratch::paths::package().join("tests/figures/memory").join(name);
     memory_figures::check(&path.join("engine"), &terms.engine, required.engine_bytes);
     memory_figures::check(&path.join("worker"), &terms.worker, required.worker_bytes);
 }
@@ -1203,7 +1203,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
             fs::write(&git, b"#!/bin/sh\nexit 0\n").expect("git");
             fs::set_permissions(&git, fs::Permissions::from_mode(0o755)).expect("executable");
         }
-        let output = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+        let output = std::process::Command::new(skein_scratch::paths::binary("temper"))
             .arg("init")
             .args(support::configuration::flags(scratch.path()))
             .env_clear()
@@ -1333,7 +1333,7 @@ fn owned_memory_figures_for_a_worker_alone_include_its_process_and_no_engine() {
     .expect("worker-alone terms");
     assert!(terms.engine.is_empty());
     memory_figures::check(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/figures/memory/worker-alone/worker"),
+        &skein_scratch::paths::package().join("tests/figures/memory/worker-alone/worker"),
         &terms.worker,
         required.worker_bytes,
     );
@@ -1372,7 +1372,12 @@ fn serve_box_refuses_closed_or_non_pipe_descriptors_before_starting() {
             } else {
                 let mut command = std::process::Command::new("/bin/sh");
                 command
-                    .args(["-c", &script, "serve-box-test", env!("CARGO_BIN_EXE_temper")])
+                    .args([
+                        "-c",
+                        &script,
+                        "serve-box-test",
+                        skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),
+                    ])
                     .env_clear()
                     .stdin(std::process::Stdio::piped());
                 command
@@ -1609,10 +1614,10 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
 
 #[test]
 fn the_live_github_configuration_passes_startup_admission_for_both_owners() {
-    use std::{os::unix::ffi::OsStrExt, path::Path};
+    use std::os::unix::ffi::OsStrExt;
     use support::live_github::{configure_engine, document};
 
-    let templates = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/support/github");
+    let templates = skein_scratch::paths::package().join("tests/support/github");
     let api = "127.0.0.1:31001".parse().expect("synthetic API socket");
     let git = "127.0.0.1:31002".parse().expect("synthetic git socket");
     let workers = "127.0.0.1:31003".parse().expect("synthetic worker socket");
@@ -1717,7 +1722,7 @@ fn checked_in_deployment_profiles_pass_startup_admission() {
 
 #[test]
 fn turn_bounds() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let root = skein_scratch::paths::workspace();
     for (deployment, agent) in [
         ("crates/temper-init/template/temper.json", "crates/temper-init/template/agent.json"),
         ("docs/examples/owned.json", "docs/examples/owned/agent.json"),
@@ -1752,7 +1757,7 @@ fn turn_bounds() {
 #[test]
 fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
     let scratch = support::Scratch::startup("small-hub-turn");
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+    let output = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(support::configuration::flags(scratch.path()))
         .output()
@@ -1766,7 +1771,7 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
     limits["hub.transcript_bytes"] = hub.transcript_bytes.into();
     limits["hub.turn_queue_bytes"] = hub.turn_queue_bytes.into();
     fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+    let output = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("serve")
         .args(support::configuration::flags(scratch.path()))
         .output()
@@ -1949,7 +1954,7 @@ exit 38
 #[test]
 fn forge_run_refuses_other_listener_counts_and_any_for_the_runner_before_opening_files() {
     for (which, count) in [("forgejo", "0"), ("forgejo", "2"), ("forgejo", "many"), ("runner", "1"), ("runner", "0")] {
-        let ended = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+        let ended = std::process::Command::new(skein_scratch::paths::binary("temper"))
             .args(["forge", "run", "--config", "/no-document", "--data", "/unused", "--cache", "/unused", "1", which])
             .env_clear()
             .env("LISTEN_FDS", count)
@@ -1970,7 +1975,12 @@ fn listener_refusals_name_the_fd_before_serve_or_a_fake_opens_files() {
         &["fake", "forge", "--document", "/no-document"],
     ] {
         let ended = std::process::Command::new("/bin/sh")
-            .args(["-c", "exec \"$@\" 3>/dev/null", "bad-listener", env!("CARGO_BIN_EXE_temper")])
+            .args([
+                "-c",
+                "exec \"$@\" 3>/dev/null",
+                "bad-listener",
+                skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),
+            ])
             .args(args)
             .env_clear()
             .env("LISTEN_FDS", "1")
@@ -1985,7 +1995,7 @@ fn listener_refusals_name_the_fd_before_serve_or_a_fake_opens_files() {
 #[test]
 fn forge_child_refuses_a_wrong_parent_or_missing_program_without_reading_a_document() {
     for (parent, program) in [(0, "/bin/true"), (std::process::id(), "/no-such-forge-child-program")] {
-        let ended = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+        let ended = std::process::Command::new(skein_scratch::paths::binary("temper"))
             .args(["forge", "child", "--parent", &parent.to_string(), "--signal", "kill", "--", program])
             .env_clear()
             .output()

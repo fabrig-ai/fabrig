@@ -59,7 +59,7 @@ pub fn configuration(directory: &Path, names: &Names<'_>) {
 }
 #[must_use]
 pub fn prepare(directory: &Path, forge: u16) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_temper"))
+    Command::new(skein_scratch::paths::binary("temper"))
         .args(["forge", "prepare"])
         .args(super::configuration::flags(directory))
         .arg(forge.to_string())
@@ -213,7 +213,7 @@ impl Programs {
 }
 #[must_use]
 pub fn command(directory: &Path, program: &str) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_temper"));
+    let mut command = Command::new(skein_scratch::paths::binary("temper"));
     command
         .args(["forge", "run"])
         .args(super::configuration::flags(directory))
@@ -402,7 +402,7 @@ pub fn start(directory: &Path) -> Running {
 }
 #[must_use]
 pub fn reconcile(directory: &Path, forge: u16) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_temper"))
+    Command::new(skein_scratch::paths::binary("temper"))
         .args(["forge", "reconcile"])
         .args(super::configuration::flags(directory))
         .arg(forge.to_string())
@@ -578,7 +578,7 @@ pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
     serde_json::to_string(&example_value(owned))
         .expect("example JSON")
         .replace("/home/me/temper", directory.to_str().expect("deployment path"))
-        .replace("/usr/local/bin/temper", env!("CARGO_BIN_EXE_temper"))
+        .replace("/usr/local/bin/temper", skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"))
         .into_bytes()
 }
 /// The guide's copied files and private forge credentials.
@@ -863,7 +863,7 @@ pub fn bounded_template(directory: &Path) -> Bounded {
 /// Numeric allowances and policies are left exactly as shipped.
 #[must_use]
 pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let root = skein_scratch::paths::workspace();
     let source = root.join(relative);
     let render = |path: &Path| {
         let text = fs::read_to_string(path).expect("profile source");
@@ -1116,7 +1116,7 @@ pub fn memory_in_band(declared: u64, required: u64) -> bool {
 
 /// Only this drift check writes the document's memory literals, in the established explicit mode.
 pub fn check_memory(relative: &str, required: temper_service::startup::Requirements) {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(relative);
+    let path = skein_scratch::paths::package().join(relative);
     let mut text = fs::read_to_string(&path).expect("owned example");
     let value: serde_json::Value = serde_json::from_str(&text).expect("owned JSON");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");

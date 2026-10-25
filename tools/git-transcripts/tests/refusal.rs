@@ -1,7 +1,7 @@
 #[test]
 fn an_unset_forgejo_variable_is_refused_naming_it() {
-    let tmp = std::path::Path::new(env!("CARGO_TARGET_TMPDIR"));
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_git-transcripts"))
+    let tmp = skein_scratch::paths::target_tmp();
+    let output = std::process::Command::new(skein_scratch::paths::binary("git-transcripts"))
         .args(["--git", "/usr/bin/git", "--scratch"])
         .arg(tmp.join("refusal-scratch"))
         .arg("--out")

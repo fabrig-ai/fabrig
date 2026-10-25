@@ -1,11 +1,11 @@
 //! Shared deterministic codec inputs (skein's codec.md, section 6).
 use skein_lib::Rng;
-use std::{fs, path::Path};
+use std::fs;
 
 /// Read every golden in a stable order, relative to the workspace root.
 #[must_use]
 pub fn goldens(dir: &str) -> Vec<Vec<u8>> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(dir);
+    let root = skein_scratch::paths::workspace().join(dir);
     let mut paths: Vec<_> =
         fs::read_dir(root).expect("golden directory").map(|entry| entry.expect("golden entry").path()).collect();
     paths.sort();

@@ -2,7 +2,10 @@
 use std::{fs, path::Path};
 
 pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Path) {
-    let (agent, deployment) = super::configuration::documents(directory, env!("CARGO_BIN_EXE_temper"));
+    let (agent, deployment) = super::configuration::documents(
+        directory,
+        skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),
+    );
     let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
     if let Some(programs) = programs {
         agent["programs"] = serde_json::json!({"claude_code":{"path":executable,"directory":programs}});
@@ -51,7 +54,7 @@ pub fn run(directory: &Path) -> super::Ended {
     use skein_world::end_to_end::{Binary, Command, Mode, Streams};
     let mut binary = Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("program-login".into())
                 .chain(super::configuration::flags(directory))
                 .chain(["source".into()])

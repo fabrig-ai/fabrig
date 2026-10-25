@@ -15,7 +15,7 @@ use std::{
 };
 
 fn command(kind: &str, document: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_temper"));
+    let mut command = Command::new(skein_scratch::paths::binary("temper"));
     command
         .env_clear()
         .args(["fake", kind, "--document"])
@@ -293,7 +293,7 @@ fn refused_start() {
 }
 
 fn deployment_command(kind: &str, directory: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_temper"));
+    let mut command = Command::new(skein_scratch::paths::binary("temper"));
     command
         .env_clear()
         .args(["fake", kind])
@@ -598,7 +598,7 @@ fn the_old_form_prepared_fake_reconciles_twice_before_it_stops() {
     command.arg("1");
     let run = Running::command(command, None);
     for pass in ["first", "second"] {
-        let output = Command::new(env!("CARGO_BIN_EXE_temper"))
+        let output = Command::new(skein_scratch::paths::binary("temper"))
             .env_clear()
             .args(["forge", "reconcile"])
             .args(support::configuration::flags(scratch.path()))
@@ -982,7 +982,7 @@ fn git_run() {
         let dir = scratch.path();
         fs::create_dir(dir.join("bin")).expect("git's directory");
         let git = dir.join("bin/git");
-        std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_temper"), &git).expect("git link");
+        std::os::unix::fs::symlink(skein_scratch::paths::binary("temper"), &git).expect("git link");
         fs::create_dir(dir.join("home")).expect("git's HOME");
         fs::create_dir(dir.join("work")).expect("worker directory");
         let doc = dir.join("forge.json");
@@ -1052,7 +1052,7 @@ fn git_run() {
             if let Some((path, content)) = step.edit {
                 fs::write(at.join(path), content).expect("worker edit");
             }
-            let mut command = Command::new(if row.verb { Path::new(env!("CARGO_BIN_EXE_temper")) } else { &git });
+            let mut command = Command::new(if row.verb { skein_scratch::paths::binary("temper") } else { git.clone() });
             command.env_clear().current_dir(at).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
             if row.verb {
                 command.args(["fake", "git"]);
@@ -1124,7 +1124,7 @@ fn check_run() {
     let store = directory.join("copy");
     let data = directory.join("data");
     let cache = directory.join("cache");
-    let ended = Command::new(env!("CARGO_BIN_EXE_temper"))
+    let ended = Command::new(skein_scratch::paths::binary("temper"))
         .env_clear()
         .args(["fake", "forge", "check", "--config"])
         .arg(directory)

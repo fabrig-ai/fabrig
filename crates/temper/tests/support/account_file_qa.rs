@@ -18,7 +18,10 @@ fn configure(directory: &Path) -> oauth::Peer {
     let mut issuer = sign_in::configuration(directory);
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    let (_, fixture) = super::configuration::documents(directory, env!("CARGO_BIN_EXE_temper"));
+    let (_, fixture) = super::configuration::documents(
+        directory,
+        skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),
+    );
     let fixture: serde_json::Value = serde_json::from_slice(&fixture).expect("fixture JSON");
     for field in ["forges", "identities", "setup", "demo", "webhooks", "workers", "clients"] {
         value["application"][field] = fixture["application"][field].clone();

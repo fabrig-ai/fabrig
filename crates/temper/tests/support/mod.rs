@@ -77,7 +77,8 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
     write_private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     write_private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     write_private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
-    let (agent, value) = configuration::documents(directory, env!("CARGO_BIN_EXE_temper"));
+    let (agent, value) =
+        configuration::documents(directory, skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"));
     write_private(&directory.join("agent.json"), &agent);
     let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
     forgejo::configuration(directory, forge, &mut value);
@@ -107,7 +108,7 @@ impl Scratch {
         Self::at("startup", case)
     }
     fn at(tier: &str, case: &str) -> Self {
-        let path = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(tier).join(case);
+        let path = skein_scratch::paths::target_tmp().join(tier).join(case);
         if path.exists() {
             fs::remove_dir_all(&path).expect("remove prior scratch");
         }
@@ -139,7 +140,7 @@ pub fn serve(directory: &Path) -> Binary {
 }
 fn serve_command(directory: &Path) -> Command {
     Command {
-        program: env!("CARGO_BIN_EXE_temper").into(),
+        program: skein_scratch::paths::binary("temper"),
         arguments: std::iter::once("serve".into()).chain(configuration::flags(directory)).collect(),
         directory: directory.into(),
         environment: Vec::new(),

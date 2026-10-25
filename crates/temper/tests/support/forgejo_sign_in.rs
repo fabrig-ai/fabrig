@@ -149,7 +149,7 @@ pub fn run(directory: &Path) {
     success(&reconciled);
     let log = fs::File::create(directory.join("sign-in-serve.log")).expect("private log");
     let mut serve = Serve {
-        child: Command::new(env!("CARGO_BIN_EXE_temper"))
+        child: Command::new(skein_scratch::paths::binary("temper"))
             .arg("serve")
             .args(configuration::flags(directory))
             .current_dir(directory)

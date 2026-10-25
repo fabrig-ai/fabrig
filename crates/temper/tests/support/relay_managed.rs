@@ -564,7 +564,7 @@ fn journal_distinguishes_learn_redirect_guard_and_upstream_refusals() {
     use std::net::TcpStream;
     let upstream = TcpListener::bind("127.0.0.1:0").expect("loopback upstream");
     let listener = TcpListener::bind("127.0.0.1:0").expect("loopback relay");
-    let path = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("managed-journal-{}.jsonl", std::process::id()));
+    let path = skein_scratch::paths::target_tmp().join(format!("managed-journal-{}.jsonl", std::process::id()));
     std::fs::create_dir_all(path.parent().expect("test directory")).expect("test directory");
     let shared = Shared {
         fake: true,
@@ -640,7 +640,7 @@ fn journal_distinguishes_learn_redirect_guard_and_upstream_refusals() {
 #[test]
 fn delivery_polls_have_their_own_cap_and_leave_the_git_budget_available() {
     use std::net::TcpStream;
-    let path = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("managed-polls-{}.jsonl", std::process::id()));
+    let path = skein_scratch::paths::target_tmp().join(format!("managed-polls-{}.jsonl", std::process::id()));
     std::fs::create_dir_all(path.parent().expect("test directory")).expect("test directory");
     let shared = Shared {
         fake: true,

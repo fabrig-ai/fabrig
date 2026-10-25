@@ -24,7 +24,7 @@ pub fn restart() {
     let clock = Clock::new();
     let began = clock.now().now;
     let scratch = Scratch::new("github_land");
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/support/github");
+    let directory = skein_scratch::paths::package().join("tests/support/github");
     let mut description = cluster::Cluster::read_from(scratch.path(), &directory);
     let [clients, workers] = super::free_addresses(&[]);
     description.bind("story.clients", &clients.to_string());
@@ -41,7 +41,7 @@ pub fn restart() {
     let key = description.dir("llm").join("llm.key");
     let observations = description.dir("forge").join("observations");
     let engine = description.dir("engine").join("config/temper.json");
-    std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_temper"), description.dir("w1").join("git"))
+    std::os::unix::fs::symlink(skein_scratch::paths::binary("temper"), description.dir("w1").join("git"))
         .expect("worker's fake git");
     let (mut members, hosts) = description.members();
     members.up(&["forge"]);

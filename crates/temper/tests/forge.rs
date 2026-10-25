@@ -94,7 +94,7 @@ fn a_termination_signal_kills_the_commands_group_and_ends_the_preparation_interr
     let scratch = support::Scratch::new("forge_interrupted");
     let programs = support::owned::scripted(scratch.path());
     programs.hang("forgejo", "migrate");
-    let run = Command::new(env!("CARGO_BIN_EXE_temper"))
+    let run = Command::new(skein_scratch::paths::binary("temper"))
         .args(["forge", "prepare"])
         .args(support::configuration::flags(scratch.path()))
         .arg("1")
@@ -293,7 +293,7 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
     let path = owned::file(scratch.path(), 1, temper_forge_setup::place::File::State);
     let before = fs::read(&path).expect("old state");
     programs.hang("forgejo", "dump");
-    let run = Command::new(env!("CARGO_BIN_EXE_temper"))
+    let run = Command::new(skein_scratch::paths::binary("temper"))
         .args(["forge", "prepare"])
         .args(support::configuration::flags(scratch.path()))
         .arg("1")
@@ -480,7 +480,7 @@ fn forge_fetch_command() {
         if row != "missing-roots" {
             support::fetch::roots(&root);
         }
-        let mut command = Command::new(env!("CARGO_BIN_EXE_temper"));
+        let mut command = Command::new(skein_scratch::paths::binary("temper"));
         command.args(["forge", "fetch"]).args(configuration::flags(scratch.path()));
         if row != "usage" {
             command.arg("3");

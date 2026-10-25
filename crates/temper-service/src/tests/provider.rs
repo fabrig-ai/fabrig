@@ -25,9 +25,8 @@ struct Configuration {
     files: [(Box<[u8]>, Secret); 2],
 }
 fn configuration() -> Configuration {
-    let scratch = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../target")
-        .join(format!("provider-world-{}", std::process::id()));
+    let scratch =
+        skein_scratch::paths::package().join("../../target").join(format!("provider-world-{}", std::process::id()));
     std::fs::create_dir_all(&scratch).unwrap();
     std::fs::set_permissions(&scratch, std::fs::Permissions::from_mode(0o700)).unwrap();
     let key = scratch.join("provider.key");

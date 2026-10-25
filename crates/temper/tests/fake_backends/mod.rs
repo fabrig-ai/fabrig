@@ -132,7 +132,7 @@ fn the_serve_child_reads_retained_effective_documents_across_restart() {
         serde_json::json!(["agent", effective.join("agent.json")])
     );
     let adapter = value(&effective.join("agent.json"));
-    let sibling = Path::new(env!("CARGO_BIN_EXE_temper")).parent().expect("temper parent").join("fake-claude");
+    let sibling = skein_scratch::paths::binary("temper").parent().expect("temper parent").join("fake-claude");
     assert_eq!(adapter["programs"]["claude_code"]["path"], sibling.to_str().expect("adapter path"));
     assert_eq!(
         adapter["programs"]["claude_code"]["directory"],

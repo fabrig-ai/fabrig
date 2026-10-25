@@ -94,7 +94,7 @@ fn assert_owned_limits(limits: &serde_json::Value) {
 
 #[test]
 fn the_clusters_description_is_the_labs_canonical_form() {
-    let bytes = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../lab/cluster/experiment.json"))
+    let bytes = std::fs::read(skein_scratch::paths::workspace().join("lab/cluster/experiment.json"))
         .expect("cluster description");
     let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("cluster JSON");
     // Sort explicitly, including if a dependency enables serde_json's preserve_order.

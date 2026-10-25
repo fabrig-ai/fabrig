@@ -14,7 +14,12 @@ pub fn command(listener: TcpListener, script: &str) -> Command {
     // stdin carries the socket only to the shell; dup to 3 clears CLOEXEC,
     // exactly as the box's Given does, before any temper startup opens.
     command
-        .args(["-c", script, "inherited-listener", env!("CARGO_BIN_EXE_temper")])
+        .args([
+            "-c",
+            script,
+            "inherited-listener",
+            skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),
+        ])
         .env_clear()
         .env("LISTEN_FDS", "1")
         .stdin(Stdio::from(OwnedFd::from(listener)))

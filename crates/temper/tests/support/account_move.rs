@@ -35,7 +35,10 @@ fn configure(directory: &Path, llm: SocketAddr) -> oauth::Peer {
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
     // Keep init's LLM registration, charters and worker, with the existing
     // unreachable-forge fixture: this story needs serve alone, not box's demo.
-    let (_, fixture) = super::configuration::documents(directory, env!("CARGO_BIN_EXE_temper"));
+    let (_, fixture) = super::configuration::documents(
+        directory,
+        skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),
+    );
     let fixture: serde_json::Value = serde_json::from_slice(&fixture).expect("fixture JSON");
     for field in ["forges", "identities", "setup", "demo", "webhooks", "workers", "clients"] {
         value["application"][field] = fixture["application"][field].clone();

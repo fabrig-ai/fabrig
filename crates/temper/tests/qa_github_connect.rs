@@ -65,7 +65,7 @@ fn ctl_refuses_a_symlink_even_when_its_target_is_private() {
 fn a_restart_mid_install_ends_the_old_state_and_erases_the_carried_key() {
     // client/forge.md 9.1 and protocol/credentials.md 2.2.
     let scratch = support::Scratch::new("qa-github-interrupted");
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/support/github");
+    let directory = skein_scratch::paths::package().join("tests/support/github");
     let mut cluster = support::cluster::Cluster::read_from(scratch.path(), &directory);
     let [clients] = support::free_addresses(&[]);
     cluster.bind("story.clients", &clients.to_string());

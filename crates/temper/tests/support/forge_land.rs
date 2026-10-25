@@ -35,7 +35,7 @@ fn initialize(paths: &[PathBuf; 3]) {
         fs::create_dir(path).expect("fresh deployment directory");
         fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("private deployment directory");
     }
-    let initialized = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+    let initialized = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(
             ["--config", "--data", "--cache"]
@@ -1816,7 +1816,7 @@ pub fn run_live(
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("box".into())
                 .chain(deployment_flags(plan.paths).into_iter().map(Into::into))
                 .collect(),

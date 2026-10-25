@@ -37,7 +37,7 @@ fn scan(directory: &Path) {
 }
 #[test]
 fn process_and_file_locks_stay_in_their_declared_modules() {
-    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("crates");
+    let crates = skein_scratch::paths::workspace().join("crates");
     for entry in fs::read_dir(crates).expect("crates") {
         let source = entry.expect("crate").path().join("src");
         if source.is_dir() {

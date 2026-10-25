@@ -463,7 +463,7 @@ fn with_bundle_null_gets_serve_the_binarys_own_page_and_files() {
 
 /// A start that must refuse: `temper serve`'s exit code, `None` if it was still running after 30 s, and its stderr.
 fn refusal(directory: &Path) -> (Option<i32>, String) {
-    let mut serve = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+    let mut serve = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("serve")
         .args(support::configuration::flags(directory))
         .current_dir(directory)

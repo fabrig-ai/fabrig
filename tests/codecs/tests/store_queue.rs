@@ -32,9 +32,7 @@ fn queued_and_unqueued_entries_have_v10_golden_bytes_and_round_trip() {
         let value = entry(queued);
         let bytes = records::encode(&value);
         let name = if queued { "merge-queued.bin" } else { "merge-unqueued.bin" };
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../crates/temper-protocol-store/golden")
-            .join(name);
+        let path = skein_scratch::paths::package().join("../../crates/temper-protocol-store/golden").join(name);
         if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
             std::fs::write(&path, &bytes).expect("write queue golden");
         }

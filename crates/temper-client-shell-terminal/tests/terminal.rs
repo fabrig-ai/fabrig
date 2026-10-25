@@ -141,8 +141,7 @@ fn refused_directory() -> temper_client_shell_terminal::terminal::Terminal {
         limits,
         terminal::{Loop, Terminal},
     };
-    let path =
-        std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("refused-directory-{}", std::process::id()));
+    let path = skein_scratch::paths::target_tmp().join(format!("refused-directory-{}", std::process::id()));
     fs::create_dir(&path).expect("world directory");
     fs::set_permissions(&path, fs::Permissions::from_mode(0o750)).expect("group bits set");
     let metadata = fs::metadata(&path).expect("world directory metadata");

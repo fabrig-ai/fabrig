@@ -54,7 +54,7 @@ fn held_listener_stops_serve(listener: &str, expected: &str) {
     std::fs::write(path, serde_json::to_vec(&document).expect("held-listener JSON")).expect("held-listener fixture");
     let ended = support::boxed::run_command(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("serve".into()).chain(support::configuration::flags(scratch.path())).collect(),
             directory: scratch.path().into(),
             environment: Vec::new(),
@@ -2231,7 +2231,7 @@ fn a_mixed_document_exits_1_naming_its_path() {
     let directory = cluster.dir("engine");
     let binary = Binary::start_with_tree(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: vec![
                 "serve".into(),
                 "--config".into(),
@@ -2291,7 +2291,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) {
     worker["name"] = "w1".into();
     worker["secret"] = "secrets/w1.secret".into();
     worker["agent"] = serde_json::json!({
-        "program": env!("CARGO_BIN_EXE_temper"), "configuration": agent_path,
+        "program": skein_scratch::paths::binary("temper"), "configuration": agent_path,
         "arguments": ["agent", agent_path]
     });
     // Derive through the binary's actual agent reader and process preparation.
@@ -3253,7 +3253,7 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
         fs::create_dir(path).expect("empty deployment directories");
         fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("private deployment directories");
     }
-    let mut init = std::process::Command::new(env!("CARGO_BIN_EXE_temper"));
+    let mut init = std::process::Command::new(skein_scratch::paths::binary("temper"));
     init.arg("init");
     for (flag, path) in ["--config", "--data", "--cache"].into_iter().zip(&paths) {
         init.arg(flag).arg(path);
@@ -3293,7 +3293,7 @@ exec "$@"
     arguments.extend([
         hosts.into_os_string(),
         nsswitch.into_os_string(),
-        env!("CARGO_BIN_EXE_temper").into(),
+        skein_scratch::paths::binary("temper").into(),
         "box".into(),
     ]);
     for (flag, path) in ["--config", "--data", "--cache"].into_iter().zip(&paths) {
@@ -3493,7 +3493,7 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
     if let Some(root) = std::env::var_os(CHILD) {
         let root = std::path::Path::new(&root);
         let command = support::boxed::dying_with_test(skein_world::end_to_end::Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("box".into()).chain(support::configuration::flags(root)).collect(),
             directory: root.into(),
             environment: Vec::new(),
@@ -3514,7 +3514,7 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
     }
     let scratch = support::Scratch::new("box-dies-with-test");
     // Init before box.pid exists: a first run requires an empty configuration directory.
-    let output = Command::new(env!("CARGO_BIN_EXE_temper"))
+    let output = Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(support::configuration::flags(scratch.path()))
         .output()

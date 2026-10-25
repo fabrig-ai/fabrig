@@ -13,7 +13,7 @@ fn scratch(name: &str) -> PathBuf {
     root
 }
 fn command(root: &Path, action: &str) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_temper"));
+    let mut command = Command::new(skein_scratch::paths::binary("temper"));
     command.arg(action);
     for name in ["config", "data", "cache"] {
         command.arg(format!("--{name}")).arg(root.join(name));

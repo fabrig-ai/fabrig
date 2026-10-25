@@ -40,7 +40,8 @@ fn configure(directory: &Path) -> oauth::Peer {
     fs::create_dir(directory).expect("deployment");
     let issuer = sign_in::configuration(directory);
     let mut value = document(directory);
-    let (_, fixture) = configuration::documents(directory, env!("CARGO_BIN_EXE_temper"));
+    let (_, fixture) =
+        configuration::documents(directory, skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"));
     let fixture: serde_json::Value = serde_json::from_slice(&fixture).expect("fixture JSON");
     for field in ["forges", "identities", "setup", "demo", "webhooks", "workers", "clients"] {
         value["application"][field] = fixture["application"][field].clone();
@@ -143,7 +144,7 @@ impl Engine {
     fn start_as(directory: &Path, client: &str) -> Self {
         let log = directory.join("qa-serve.log");
         super::write_private(&log, b"");
-        let child = Command::new(env!("CARGO_BIN_EXE_temper"))
+        let child = Command::new(skein_scratch::paths::binary("temper"))
             .arg("serve")
             .args(configuration::flags(directory))
             .current_dir(directory)
@@ -190,7 +191,7 @@ impl Engine {
         self.spawn_input(arguments, None)
     }
     fn spawn_input(&self, arguments: &[&str], input: Option<&[u8]>) -> Running {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_temper"))
+        let mut child = Command::new(skein_scratch::paths::binary("temper"))
             .arg("ctl")
             .arg(&self.client)
             .args(arguments)

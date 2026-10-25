@@ -101,7 +101,7 @@ pub(crate) fn print(tree: &skein_ui::Tree) -> skein_ui_text::Print {
     print
 }
 pub fn golden(name: &str) -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/golden").join(format!("{name}.txt"))
+    skein_scratch::paths::package().join("src/tests/golden").join(format!("{name}.txt"))
 }
 pub fn adoption_form(filled: bool) -> client::forge::Form {
     let mut form = client::forge::form(1);

@@ -357,7 +357,7 @@ fn fake_configured(case: &str) -> Scratch {
     });
     let bin = directory(scratch.path(), "--data").join("qa-bin");
     fs::create_dir_all(&bin).expect("fake git directory");
-    symlink(env!("CARGO_BIN_EXE_temper"), bin.join("git")).expect("shipped fake git");
+    symlink(skein_scratch::paths::binary("temper"), bin.join("git")).expect("shipped fake git");
     scratch
 }
 

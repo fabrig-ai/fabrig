@@ -22,7 +22,7 @@ fn running_card_names_the_change_and_exposes_its_steps() {
     arguments.extend(configuration::flags(scratch.path()));
     let mut boxed = Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments,
             directory: scratch.path().into(),
             environment: Vec::new(),
@@ -65,7 +65,7 @@ fn result_anchor_preserves_the_landed_words_and_task_link() {
     arguments.extend(configuration::flags(scratch.path()));
     let mut boxed = Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments,
             directory: scratch.path().into(),
             environment: Vec::new(),
@@ -108,7 +108,7 @@ fn original_delegate_call_uses_the_ended_task_document() {
     arguments.extend(configuration::flags(scratch.path()));
     let mut boxed = Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments,
             directory: scratch.path().into(),
             environment: Vec::new(),

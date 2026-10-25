@@ -32,7 +32,7 @@ const CLOSING_ANSWER: &[u8] = b"The plan chat is now closed.";
 /// Initialize the shipped document once; only the issuer addresses and LLM endpoint move.
 #[must_use]
 pub fn configuration(directory: &Path) -> oauth::Peer {
-    let initialized = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+    let initialized = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(super::configuration::flags(directory))
         .env_clear()
@@ -184,7 +184,7 @@ pub(super) fn start(directory: &Path) -> skein_world::end_to_end::Binary {
     // A fresh init's demo forge is prepared by box before it starts serve.
     Binary::start(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("box".into()).chain(super::configuration::flags(directory)).collect(),
             directory: directory.into(),
             environment: Vec::new(),

@@ -10,7 +10,7 @@ pub struct Scratch {
 impl Scratch {
     #[must_use]
     pub fn new(name: &str) -> Self {
-        let path = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
+        let path = skein_scratch::paths::target_tmp().join(name);
         if path.exists() {
             fs::remove_dir_all(&path).expect("prior scratch");
         }

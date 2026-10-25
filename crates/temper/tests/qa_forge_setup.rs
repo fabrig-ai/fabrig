@@ -13,7 +13,7 @@ const WITHIN: Duration = Duration::from_secs(10);
 const FILES: [&str; 4] = ["api_token", "git_token", "user", "webhook_secret"];
 
 fn init(directory: &Path) -> (Value, String) {
-    let output = Command::new(env!("CARGO_BIN_EXE_temper"))
+    let output = Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(support::configuration::flags(directory))
         .env_clear()
@@ -149,11 +149,15 @@ fn a_box_on_inits_document_leaves_the_asked_forge_and_cache_absent() {
         "--cache".into(),
         cache.as_os_str().to_owned(),
     ];
-    let output =
-        Command::new(env!("CARGO_BIN_EXE_temper")).arg("init").args(&flags).env_clear().output().expect("init");
+    let output = Command::new(skein_scratch::paths::binary("temper"))
+        .arg("init")
+        .args(&flags)
+        .env_clear()
+        .output()
+        .expect("init");
     assert!(output.status.success());
     let command = skein_world::end_to_end::Command {
-        program: env!("CARGO_BIN_EXE_temper").into(),
+        program: skein_scratch::paths::binary("temper"),
         arguments: std::iter::once("box".into()).chain(flags).collect(),
         directory: scratch.path().into(),
         environment: Vec::new(),
@@ -186,7 +190,7 @@ fn asked_forge_accepts_every_subset_of_missing_files() {
             }
         }
         let command = skein_world::end_to_end::Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("serve".into()).chain(support::configuration::flags(scratch.path())).collect(),
             directory: scratch.path().into(),
             environment: Vec::new(),
@@ -230,7 +234,7 @@ fn an_unasked_owned_forge_refuses_each_missing_file() {
                 fs::copy(scratch.path().join("demo/forge").join(file), target).expect("private fixture file");
             }
         }
-        let ended = Command::new(env!("CARGO_BIN_EXE_temper"))
+        let ended = Command::new(skein_scratch::paths::binary("temper"))
             .arg("serve")
             .args(support::configuration::flags(scratch.path()))
             .env_clear()

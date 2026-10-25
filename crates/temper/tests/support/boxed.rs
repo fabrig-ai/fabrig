@@ -141,7 +141,7 @@ impl Referee<Process> for Judge {
 pub fn run(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
     run_command(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("box".into()).chain(super::configuration::flags(directory)).collect(),
             directory: directory.into(),
             environment: Vec::new(),
@@ -175,7 +175,7 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
         forgejo_at_link: forgejo_at_link.clone(),
         forgejo_pids: forgejo_pids.clone(),
         engine_served: engine_served.clone(),
-        temper_program: std::fs::canonicalize(env!("CARGO_BIN_EXE_temper")).expect("temper path"),
+        temper_program: std::fs::canonicalize(skein_scratch::paths::binary("temper")).expect("temper path"),
         forgejo_program,
         phase: Phase::Linked,
         next_probe: Time::ZERO,
@@ -302,7 +302,7 @@ pub fn run_story<T>(
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
             directory: directory.into(),
             // Init's optional git/claude discovery is exercised without PATH.
@@ -591,7 +591,7 @@ fn run_ctl_peers<T>(
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
             directory: directory.into(),
             // The real repository story needs init to discover system git.
@@ -678,7 +678,7 @@ pub fn dying_with_test(mut command: Command) -> Command {
             command.program.into(),
         ];
         arguments.extend(command.arguments);
-        command.program = env!("CARGO_BIN_EXE_temper").into();
+        command.program = skein_scratch::paths::binary("temper");
         command.arguments = arguments;
     }
     command

@@ -280,7 +280,7 @@ mod memory_figures;
 fn the_web_preset_has_a_literal_price() {
     let actual = limits::worst_case(&limits::client()).expect("priced web preset");
     memory_figures::check(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../temper/tests/figures/memory/client-web"),
+        &skein_scratch::paths::workspace().join("crates/temper/tests/figures/memory/client-web"),
         &limits::memory_terms(&limits::client()).expect("web memory terms"),
         actual,
     );

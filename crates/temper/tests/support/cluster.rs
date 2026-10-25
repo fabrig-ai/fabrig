@@ -64,7 +64,7 @@ impl Cluster {
     /// Reuse the GitHub story's templates with a relay in place of its forge process.
     #[must_use]
     pub(crate) fn github_relay(scratch: &Path, git: std::net::SocketAddr) -> Self {
-        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/support/github");
+        let directory = skein_scratch::paths::package().join("tests/support/github");
         let mut cluster = Self::read_from(scratch, &directory);
         cluster.specs.retain(|spec| spec["name"] != "forge");
         for spec in &mut cluster.specs {
@@ -76,7 +76,7 @@ impl Cluster {
         cluster
     }
     fn description(scratch: &Path) -> Self {
-        Self::description_from(scratch, &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../lab/cluster"))
+        Self::description_from(scratch, &skein_scratch::paths::workspace().join("lab/cluster"))
     }
     pub(crate) fn description_from(scratch: &Path, directory: &Path) -> Self {
         let experiment = directory.canonicalize().expect("description directory");
@@ -88,10 +88,10 @@ impl Cluster {
         assert!(list(&value["dirs"]).is_empty(), "cluster has no run directories");
         let specs = list(&value["processes"]).to_vec();
         let git = scratch.join("git");
-        std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_temper"), &git).expect("fake git link");
+        std::os::unix::fs::symlink(skein_scratch::paths::binary("temper"), &git).expect("fake git link");
         let mut bindings = BTreeMap::from([
             ("artifact.git".into(), git.to_str().expect("git path").into()),
-            ("artifact.temper".into(), env!("CARGO_BIN_EXE_temper").into()),
+            ("artifact.temper".into(), skein_scratch::paths::binary("temper").display().to_string()),
             ("experiment".into(), experiment.to_str().expect("experiment path").into()),
         ]);
         for spec in &specs {

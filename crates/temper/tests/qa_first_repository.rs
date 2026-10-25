@@ -26,7 +26,7 @@ fn generated(root: &Path) {
     let ports = addresses.map(|address| NonZeroU16::new(address.port()).expect("ephemeral port"));
     let answer = temper_init::files(
         &Facts {
-            binary: env!("CARGO_BIN_EXE_temper").as_bytes(),
+            binary: skein_scratch::paths::binary("temper").as_os_str().as_bytes(),
             git: Some(b"/usr/bin/git"),
             claude: None,
             login: Some(b"qa-person"),

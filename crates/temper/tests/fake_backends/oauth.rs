@@ -49,7 +49,7 @@ fn description(directory: &Path) {
 }
 
 fn initialize(directory: &Path) -> (SocketAddr, SocketAddr, SocketAddr) {
-    let initialized = std::process::Command::new(env!("CARGO_BIN_EXE_temper"))
+    let initialized = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(support::configuration::flags(directory))
         .env_clear()

@@ -32,7 +32,7 @@ pub fn configure(directory: &Path, forge: &str, temper: &str, google: &str) {
 
 #[must_use]
 pub fn command(directory: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_temper"));
+    let mut command = Command::new(skein_scratch::paths::binary("temper"));
     command.args(["forge", "sign-in"]).args(configuration::flags(directory)).arg("1").current_dir(directory);
     command
 }

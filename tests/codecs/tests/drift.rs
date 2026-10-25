@@ -1,10 +1,10 @@
 //! The committed codecs and golden bytes against their schemas (skein's codec.md, 6).
 use skein_codegen::{generate, parse};
-use std::{fs, path::Path};
+use std::fs;
 
 #[test]
 fn worker_wire_schema_matches_generated_code_and_goldens() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/temper-protocol-worker-wire");
+    let root = skein_scratch::paths::workspace().join("crates/temper-protocol-worker-wire");
     let source = fs::read_to_string(root.join("schema/worker-wire-v1.schema")).expect("worker wire schema");
     let output = generate(&parse(&source).expect("schema valid"));
     let code = root.join("src/generated/v1.rs");
@@ -28,7 +28,7 @@ fn worker_wire_schema_matches_generated_code_and_goldens() {
 }
 #[test]
 fn client_wire_schema_matches_generated_code_and_goldens() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/temper-client-protocol-wire");
+    let root = skein_scratch::paths::workspace().join("crates/temper-client-protocol-wire");
     let source = fs::read_to_string(root.join("schema/client-wire-v1.schema")).expect("client wire schema");
     let output = generate(&parse(&source).expect("schema valid"));
     let code = root.join("src/generated/v1.rs");
@@ -52,7 +52,7 @@ fn client_wire_schema_matches_generated_code_and_goldens() {
 }
 #[test]
 fn store_schema_matches_generated_code_and_goldens() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/temper-protocol-store");
+    let root = skein_scratch::paths::workspace().join("crates/temper-protocol-store");
     let source = fs::read_to_string(root.join("schema/store-v10.schema")).expect("store schema");
     let output = generate(&parse(&source).expect("schema valid"));
     let code = root.join("src/generated/v10.rs");

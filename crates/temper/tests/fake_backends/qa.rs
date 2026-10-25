@@ -68,7 +68,7 @@ fn flags(config: &Path, data: &Path, cache: &Path) -> Vec<String> {
 fn command(root: &Path, verb: &str, arguments: Vec<String>) -> boxed::Outcome {
     boxed::run_command(
         Command {
-            program: env!("CARGO_BIN_EXE_temper").into(),
+            program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once(OsString::from(verb)).chain(arguments.into_iter().map(OsString::from)).collect(),
             directory: root.into(),
             environment: Vec::new(),

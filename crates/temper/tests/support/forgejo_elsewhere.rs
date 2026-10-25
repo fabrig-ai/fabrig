@@ -211,7 +211,7 @@ fn life(root: &Path, restarted: bool) {
         peer.configure(&config);
     }
     let command = Command {
-        program: env!("CARGO_BIN_EXE_temper").into(),
+        program: skein_scratch::paths::binary("temper"),
         arguments: vec![
             "serve".into(),
             "--config".into(),

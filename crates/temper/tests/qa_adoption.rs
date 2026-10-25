@@ -10,7 +10,8 @@ use skein_lib::Duration;
 fn init_names_a_fixed_listener_and_a_records_only_demo() {
     let scratch = support::Scratch::startup("qa-adoption-init");
     let flags = support::configuration::flags(scratch.path());
-    let output = Command::new(env!("CARGO_BIN_EXE_temper")).arg("init").args(&flags).output().expect("run init");
+    let output =
+        Command::new(skein_scratch::paths::binary("temper")).arg("init").args(&flags).output().expect("run init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     let document_path = flags
         .iter()
@@ -83,7 +84,7 @@ fn old_form_fake_prepare_keeps_its_handover_for_serve() {
 fn occupied_defaults_still_give_adopt_a_distinct_fixed_listener() {
     let scratch = support::Scratch::startup("qa-adoption-fallback");
     let _occupied: Vec<_> = (8367..=8371).filter_map(|port| TcpListener::bind(("127.0.0.1", port)).ok()).collect();
-    let output = Command::new(env!("CARGO_BIN_EXE_temper"))
+    let output = Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(support::configuration::flags(scratch.path()))
         .output()
@@ -194,7 +195,8 @@ fn a_running_box_adopts_every_seeded_repository_before_connecting() {
     // The hook's URL and recorded secret are checked at the protocol peer in setup_adoption.rs.
     let scratch = support::Scratch::startup("qa-adoption-all-repositories");
     let flags = support::configuration::flags(scratch.path());
-    let output = Command::new(env!("CARGO_BIN_EXE_temper")).arg("init").args(&flags).output().expect("run init");
+    let output =
+        Command::new(skein_scratch::paths::binary("temper")).arg("init").args(&flags).output().expect("run init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     let path = scratch.path().join("temper.json");
     let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("document")).expect("JSON");
@@ -243,7 +245,7 @@ fn old_form_one_sided_hook_wiring_is_refused_before_a_fake_connects() {
         ("secret-only", false, true, "application.forges[0].webhook_secret: needs application.webhooks"),
     ] {
         let scratch = support::Scratch::startup(&format!("qa-adoption-{name}"));
-        let output = Command::new(env!("CARGO_BIN_EXE_temper"))
+        let output = Command::new(skein_scratch::paths::binary("temper"))
             .arg("init")
             .args(support::configuration::flags(scratch.path()))
             .output()
@@ -278,7 +280,7 @@ fn old_form_one_sided_hook_wiring_is_refused_before_a_fake_connects() {
 fn the_default_box_prepares_adopts_and_hands_over_the_link() {
     // Only a running box crosses init's document, the handover, Adopt and the seed's real adoption.
     let scratch = support::Scratch::startup("qa-adoption-default-box");
-    let output = Command::new(env!("CARGO_BIN_EXE_temper"))
+    let output = Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
         .args(support::configuration::flags(scratch.path()))
         .output()

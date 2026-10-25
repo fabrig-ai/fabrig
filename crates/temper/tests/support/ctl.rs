@@ -516,7 +516,7 @@ impl Calls {
                 bytes
             }
         };
-        self.spawn(env!("CARGO_BIN_EXE_temper").as_bytes().into(), args, input, started);
+        self.spawn(skein_scratch::paths::binary("temper").as_os_str().as_bytes().into(), args, input, started);
     }
     fn finish(&mut self, now: Time) {
         if self.started.as_ref().is_some_and(|(child, _)| child.finished()) {
@@ -656,7 +656,12 @@ impl Calls {
             Some(Step::Open { directory, until }) => {
                 self.action = Some(Action::Run);
                 let args = super::terminal::open_arguments(Path::new(directory), self.link());
-                self.spawn(env!("CARGO_BIN_EXE_temper").as_bytes().into(), args, Vec::new(), false);
+                self.spawn(
+                    skein_scratch::paths::binary("temper").as_os_str().as_bytes().into(),
+                    args,
+                    Vec::new(),
+                    false,
+                );
                 self.child.as_mut().expect("open child").typing = until.map_or(Input::Hold, Input::After);
             }
             Some(Step::Run(call)) => {

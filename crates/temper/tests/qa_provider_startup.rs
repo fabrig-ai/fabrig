@@ -46,7 +46,7 @@ fn provider(directory: &Path, bits: Option<u32>, secret: bool) {
 
 fn refused(directory: &Path, field: &str) {
     let ended = Command::new("timeout")
-        .args(["10s", env!("CARGO_BIN_EXE_temper"), "serve"])
+        .args(["10s", skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"), "serve"])
         .args(support::configuration::flags(directory))
         .env_clear()
         .env("PATH", "/usr/bin:/bin")

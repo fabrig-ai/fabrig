@@ -19,6 +19,7 @@ skein-shell.workspace = true
 skein-json.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-tls-world.workspace = true
 rustls.workspace = true
 temper-service.workspace = true
