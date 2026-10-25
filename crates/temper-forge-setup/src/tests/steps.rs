@@ -111,8 +111,14 @@ fn flags() -> Box<[Box<[u8]>]> {
 
 #[test]
 fn asked_groups_keep_their_place_and_run_only_their_processes() {
-    for runner in [false, true] {
+    for (runner, number, label) in [
+        (false, 2, b"Forge 2 (Forgejo)".as_slice()),
+        (true, 2, b"Forge 2 (Forgejo)".as_slice()),
+        (true, 13, b"Forge 13 (Forgejo)".as_slice()),
+        (true, u16::MAX, b"Forge 65535 (Forgejo)".as_slice()),
+    ] {
         let mut setup = fixtures::setup();
+        setup.entries[1].forge = number;
         setup.entries[1].asked = true;
         if !runner {
             let Mode::Owned(owned) = &mut setup.entries[1].mode else { panic!("owned") };
@@ -125,7 +131,8 @@ fn asked_groups_keep_their_place_and_run_only_their_processes() {
         }
         assert_eq!(commands.asked.len(), 1);
         let group = &commands.asked[0];
-        assert_eq!((group.forge, group.before), (2, 0));
+        assert_eq!((group.forge, group.before), (number, 0));
+        assert_eq!(group.label.as_ref(), label);
         assert_eq!(group.steps.len(), if runner { 3 } else { 2 });
         assert_eq!(group.steps[0].0, crate::Stage::Prepare);
         let Mode::Owned(owned) = &setup.entries[1].mode else { panic!("owned") };
@@ -146,7 +153,9 @@ fn asked_groups_keep_their_place_and_run_only_their_processes() {
     other.forge = 3;
     other.asked = true;
     setup.entries = Box::new([setup.entries[1].clone(), other]);
-    assert_eq!(steps(&setup, &flags(), Box::new([]), false).asked[0].before, 3);
+    let commands = steps(&setup, &flags(), Box::new([]), false);
+    assert_eq!(commands.asked[0].before, 3);
+    assert_eq!(commands.asked[0].label.as_ref(), b"Forge 3 (Forgejo)");
 }
 
 #[test]

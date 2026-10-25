@@ -77,6 +77,7 @@ fn documents_give_the_box_its_whole_ordered_steps() {
     let serve = serve.listening(Box::new(serve_listeners));
     let demo_group = Group {
         forge: 1,
+        label: b"Playground".as_slice().into(),
         recorded: false,
         before: 0,
         steps: Box::new([(Stage::Run, llm), (Stage::Prepare, prepare1.clone()), (Stage::Run, fake1.clone())]),
@@ -118,6 +119,7 @@ fn documents_give_the_box_its_whole_ordered_steps() {
                     demo_group.clone(),
                     Group {
                         forge: 2,
+                        label: b"Forge 2 (Forgejo)".as_slice().into(),
                         recorded: true,
                         before: 0,
                         steps: Box::new([
@@ -136,6 +138,7 @@ fn documents_give_the_box_its_whole_ordered_steps() {
                 always: Box::new([prepare1.clone(), fake1.clone(), serve.clone()]),
                 asked: Box::new([Group {
                     forge: 2,
+                    label: b"Forge 2 (Forgejo)".as_slice().into(),
                     recorded: true,
                     before: 2,
                     steps: Box::new([
@@ -206,11 +209,14 @@ fn first_steps_precede_fakes_and_both_groups_without_entering_the_playground() {
     assert_eq!(&given.always[..2], &first);
     assert_eq!(&given.always[2..], ordinary.always.as_ref());
     assert_eq!(given.asked.len(), 2);
+    assert_eq!(given.asked[0].label.as_ref(), b"Playground");
+    assert_eq!(given.asked[1].label.as_ref(), b"Forge 3 (Forgejo)");
     assert_eq!(given.asked[0].before, 2, "playground follows the first steps");
     assert_eq!(given.asked[1].before, 4, "owned group also follows the unasked fake's two steps");
     for (given, ordinary) in given.asked.iter().zip(ordinary.asked.iter()) {
         assert_eq!(given.steps, ordinary.steps, "first steps stay outside asked groups");
         assert_eq!(given.forge, ordinary.forge);
         assert_eq!(given.recorded, ordinary.recorded);
+        assert_eq!(given.label, ordinary.label);
     }
 }

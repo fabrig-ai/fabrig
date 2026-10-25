@@ -26,6 +26,8 @@ impl Stage {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Group {
     pub forge: u16,
+    /// Owned opaque bytes the box uses to name the group on the terminal (protocol/setup.md, 7.3).
+    pub label: Box<[u8]>,
     /// `recorded` whether its `started` writes the box's record: an owned forge's does, the demo's does not.
     pub recorded: bool,
     pub before: u32,
@@ -160,8 +162,15 @@ pub fn steps(
                     group.push((Stage::Run, forge(b"run", flags, e.forge, Some(b"runner")))).expect("runner");
                 }
                 if e.asked {
+                    let digits = Decimal::of(u64::from(e.forge));
                     asked
-                        .push(Group { forge: e.forge, recorded: true, before: out.len(), steps: group.into_boxed() })
+                        .push(Group {
+                            forge: e.forge,
+                            label: joined(&[b"Forge ", digits.as_bytes(), b" (Forgejo)"]),
+                            recorded: true,
+                            before: out.len(),
+                            steps: group.into_boxed(),
+                        })
                         .expect("entry capacity");
                 } else {
                     for (_, step) in group.into_boxed() {

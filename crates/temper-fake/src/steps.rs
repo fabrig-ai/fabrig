@@ -77,6 +77,7 @@ pub fn steps(
         asked
             .push(Group {
                 forge: demo.forge(),
+                label: bytes::copy_of(b"Playground"),
                 recorded: false,
                 before: first_len,
                 steps: Box::new([

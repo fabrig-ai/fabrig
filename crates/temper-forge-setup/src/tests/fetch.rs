@@ -556,6 +556,7 @@ fn groups_fetch_before_preparation() {
                 asked: Box::new([Group {
                     recorded: true,
                     forge: 3,
+                    label: b"Forge 3 (Forgejo)".as_slice().into(),
                     before: 3,
                     steps: Box::new([
                         (Stage::Fetch, cmd("fetch", 3, None)),
