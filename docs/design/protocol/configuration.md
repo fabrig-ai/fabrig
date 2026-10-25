@@ -1345,11 +1345,26 @@ ordinary managed entry backed by its separate fake. Program login is the
 ordinary command with its configured fake adapter, not an automatic login.
 The fake program way uses the pinned `fake-claude` executable provisioned
 beside `temper`, resolved to that exact absolute sibling path, and its
-private adapter directory under D'. Enabling that way without the sidecar
-refuses with its path named. Startup builds or fetches nothing and never
-discovers or falls back to a real `claude` from PATH. An older sandbox that
-still names an unsafe real adapter is refused before a fake program login;
-no credential or login state is imported.
+private adapter directory D'/programs. Preparation supplies that path as
+init's program fact; source import checks an existing adapter's bounded
+absolute shape without looking for Claude on PATH. The pure rewrite writes
+the exact sibling and private directory even when the source has no adapter,
+and the ordinary provider configuration offers that adapter. No startup
+path discovers or falls back to a real `claude` from PATH.
+
+Reuse requires agent.json/programs/claude_code/path to equal that sibling.
+A different retained path refuses with that member named and explicit reset
+instructions; no credential or login state is imported. A correct path with
+a missing or nonexecutable sidecar instead refuses with the executable path
+and the provisioning command `cargo build -p temper-fake-claude`, without
+asking for a reset. Startup builds or fetches nothing. A walk that needs a
+fake program story provisions it outside startup, then uses ordinary
+program-login; the product links no fake-adapter story machinery.
+
+The required retained documents are temper.json, agent.json, github.json,
+oauth.json, llm.json and forgejo.json. One validation path checks every
+required file before any child starts. A missing required file refuses by
+name with reset instructions, without generating a replacement on reuse.
 
 ## 13. Settings in the store
 

@@ -1400,14 +1400,20 @@ forge 1's playground, forge 2's GitHub and forge 3's owned configuration.
 Its separate `fake forgejo` long step uses
 `fake forge --document C'/forgejo.json --seed 7`, with its held loopback
 listener before ordinary steps and outside the playground's asked group.
-Its retained token output is D'/forgejo-admin.token, subject to the same
-private-file validation and seed-output reuse as the other peers. The
+The fixed peer prefix order is fake github, fake issuer, fake model,
+then fake forgejo. Its retained token output is D'/forgejo-admin.token,
+subject to the same private-file validation and seed-output reuse as the
+other peers. The
 ordinary managed entry offers the person's admin connect; its empty setup
 directory is valid for that mode. Admission and reconciliation use the
 ordinary configuration checks, without raised budgets or policy limits.
 The program way uses a separately provisioned fake adapter
-(configuration.md, 12.1) and the ordinary program-login mechanism. No product
-path branches on the flag.
+(configuration.md, 12.1) and the ordinary program-login mechanism. Only
+after validating the adapter does the box print the exact program-login
+command for its effective directories; a walker starts the box before using
+it. No product path branches on the flag. Retained M2 deployments may still
+have a manually started issuer: a conflicting issuer listener is a refusal,
+not a reason to bind another port or regenerate the retained document.
 
 ## 8. The configuration
 
