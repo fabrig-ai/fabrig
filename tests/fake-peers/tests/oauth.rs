@@ -14,6 +14,15 @@ fn make(transport: Transport, terms: Option<issuer::Terms>) -> oauth::Peer {
 }
 
 fn make_with_cap(transport: Transport, terms: Option<issuer::Terms>, observations: u32) -> oauth::Peer {
+    make_with_cap_at(transport, terms, observations, SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))
+}
+
+fn make_with_cap_at(
+    transport: Transport,
+    terms: Option<issuer::Terms>,
+    observations: u32,
+    address: SocketAddr,
+) -> oauth::Peer {
     let scheme = if transport == Transport::Plaintext { "http" } else { "https" };
     let document = skein_oauth::Limits {
         document_bytes: 1024,
@@ -51,7 +60,7 @@ fn make_with_cap(transport: Transport, terms: Option<issuer::Terms>, observation
         observation_bytes: 4096,
     };
     oauth::Peer::new(
-        SocketAddr::from((Ipv4Addr::LOCALHOST, 0)),
+        address,
         transport,
         limits,
         issuer::Config {
@@ -256,6 +265,22 @@ fn settle(sim: &mut skein_sim::Sim, pid: skein_sim::Pid, client: skein_sim::Pid,
         sim.assert_quiescent(process);
         sim.assert_no_open_fds(process);
     }
+}
+
+#[test]
+fn an_oauth_peer_answers_on_its_adopted_listener() {
+    let mut sim = skein_sim::Sim::new(23, skein_sim::Config::calm());
+    let (server, client) = (sim.spawn_process(), sim.spawn_process());
+    let (fd, address) = support::held_listener(&mut sim, server);
+    let mut peer = make_with_cap_at(Transport::Plaintext, Some(terms()), 16, address);
+    peer.adopt_listener(fd, address).expect("held listener before the first drive");
+    let reply = fetch(&mut sim, (server, &mut peer), client, &request("GET", "/jwks", ""));
+    assert_eq!(peer.address(), Some(address));
+    assert!(reply.starts_with(b"HTTP/1.1 200"));
+    assert!(peer.observations().iter().any(|record| {
+        matches!(record, oauth::Observation::Document { target, .. } if target.as_ref() == b"/jwks")
+    }));
+    settle(&mut sim, server, client, &mut peer);
 }
 
 #[test]

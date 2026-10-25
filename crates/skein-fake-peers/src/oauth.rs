@@ -90,6 +90,13 @@ pub struct Peer {
 }
 
 impl Peer {
+    /// Adopts a held listener before the first drive, so the face's queued
+    /// Listen claims its address. On refusal the caller keeps the descriptor.
+    /// The peer owns an accepted descriptor through ordinary shutdown.
+    pub fn adopt_listener(&mut self, fd: kernel::Fd, addr: SocketAddr) -> Result<(), kernel::Fd> {
+        self.face.io.adopt_listener(fd, addr).map(|_| ())
+    }
+
     /// Starts a loopback issuer with explicit registration and immutable machine bounds.
     pub fn new(
         address: SocketAddr,
