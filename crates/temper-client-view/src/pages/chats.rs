@@ -57,7 +57,7 @@ pub(crate) fn main(
             if let Address::Chats { start: true, .. } = root.pages().address() {
                 b.focus(0);
             }
-            b.state(State::SubmitsOnEnter);
+            if crate::choice::can_send(root) { b.state(State::SubmitsOnEnter); }
             b.style(crate::look::COMPOSER);
             b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
             b.bind(bindings.insert(Act::ChatWords { words: Box::default() }));
@@ -71,7 +71,7 @@ pub(crate) fn main(
             {
                 b.open(Role::Button);
                 b.name(&words.say(Word::Start, &[]));
-                if chats.start.is_some() || root.forge().demo_starting() || root.forge().demo_failure().is_some() {
+                if !crate::choice::can_send(root) || chats.start.is_some() || root.forge().demo_starting() || root.forge().demo_failure().is_some() {
                     b.state(State::Disabled);
                 }
                 b.bind(bindings.insert(Act::StartChat));
@@ -222,33 +222,33 @@ pub(crate) fn row(
     b.open(Role::Item);
     b.style(crate::look::ROW);
     b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 10, a: line.chip.task, b: 0 });
-    control(
-        b,
-        bindings,
-        Role::Link,
-        &words.say(Word::Chat, &[Hole::Number(line.chip.task)]),
-        Act::Go { address: Address::Chat { task: line.chip.task } },
-    );
+    b.open(Role::Paragraph);
+    b.style(crate::look::META);
+    if let Some(project) = super::project_name(root.pages().me(root.client()), root.forge().demo(), line.project, words) {
+        b.text(Run::Plain, &project);
+        words.text(b, Word::ToolSeparator, &[]);
+    }
+    control(b, bindings, Role::Link, &words.say(Word::Chat, &[Hole::Number(line.chip.task)]),
+        Act::Go { address: Address::Chat { task: line.chip.task } });
+    b.close();
     text(b, Role::Paragraph, line.chip.title.bytes());
     if let Some(me) = root.pages().me(root.client()) {
         status(b, &line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words);
     }
-    text(
-        b,
-        Role::Paragraph,
-        &words.say(
-            Word::ChatbarSpend,
-            &[
-                Hole::Number(line.budget.numbers.spent),
-                Hole::Number(line.budget.numbers.budget),
-                Hole::Number(line.budget.numbers.spent_below),
-            ],
-        ),
-    );
-    if let jig_client::contract::ChipPhase::Owner { details, .. } = line.chip.details.as_ref()
-        && details.live_delegates > 0
-    {
-        text(b, Role::Paragraph, &words.say(Word::ChatDelegates, &[Hole::Number(u64::from(details.live_delegates))]));
+    b.open(Role::Paragraph);
+    b.style(crate::look::DETAILS);
+    let spend = words.say(Word::ChatRowSpend, &[Hole::Number(line.budget.numbers.spent)]);
+    b.name(&spend);
+    b.text(Run::Plain, &spend);
+    if line.ended_at.is_none()
+        && let jig_client::contract::ChipPhase::Owner { details, .. } = line.chip.details.as_ref()
+        && details.live_delegates > 0 {
+        words.text(b, Word::ToolSeparator, &[]);
+        words.text(b, Word::ChatDelegates, &[Hole::Number(u64::from(details.live_delegates))]);
+    }
+    b.close();
+    if line.ended_at.is_some() && line.flags.retention == jig_client::contract::Retention::Kept {
+        text(b, Role::Paragraph, &words.say(Word::ChatKept, &[]));
     }
     b.open(Role::Paragraph);
     b.style(crate::look::TIME);

@@ -82,6 +82,14 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     }
     b.close();
 }
+/// The setup strip and composers read the same account and demo facts.
+pub(crate) fn can_send(root: &Domain) -> bool {
+    let demo_model = match root.demo() {
+        Some((_, halves)) => halves.model,
+        None => false,
+    };
+    demo_model || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
+}
 pub(crate) fn composer(
     b: &mut Builder,
     root: &Domain,
@@ -99,6 +107,17 @@ pub(crate) fn composer(
     let draft = root.pages().choice();
     b.open(Role::Slot);
     b.style(crate::look::CHOICE);
+    if !can_send(root) {
+        bindings.block_submissions();
+        b.open(Role::Paragraph);
+        b.style(crate::look::ACCOUNT_LINE);
+        w.text(b, W::ComposerNoModel, &[]);
+        control(b, bindings, Role::Link, &w.say(W::ConnectModel, &[]),
+            Act::Go { address: Address::ConnectModel { way: None } }, false);
+        b.close();
+        b.close();
+        return;
+    }
     using(b, root, task, w);
     if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client())
         && let Some(project) = draft.project()
@@ -565,6 +584,16 @@ fn using_line(
         line(b, w, word, &[Hole::Name(name)]);
     }
 }
+fn program_name(root: &Domain, provider: Option<u32>, w: &Words) -> Box<[u8]> {
+    if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
+        for offer in &me.providers {
+            if Some(offer.provider) == provider && let Some(program) = offer.programs.get(0) {
+                return shown(if program.bytes() == b"claude_code" { b"Claude Code" } else { program.bytes() }, w);
+            }
+        }
+    }
+    Box::default()
+}
 fn using_account(
     b: &mut Builder,
     root: &Domain,
@@ -577,7 +606,7 @@ fn using_account(
     if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
         for offer in &me.providers {
             if Some(offer.provider) == account.provider {
-                provider_name = Some(provider_shown(root, account.provider, offer.name.bytes(), w));
+                provider_name = Some(crate::accounts::words::provider_words(offer.name.bytes()));
                 break;
             }
         }
@@ -587,11 +616,11 @@ fn using_account(
         return;
     };
     let text = match source.kind {
-        c::OwnerAccountKind::Key => w.say(W::UsingKey, &[Hole::Name(provider_name), Hole::Name(name)]),
-        c::OwnerAccountKind::SignIn => w.say(W::UsingPlan, &[Hole::Name(provider_name), Hole::Name(name)]),
+        c::OwnerAccountKind::Key => w.say(W::UsingKey, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.0)), Hole::Name(name)]),
+        c::OwnerAccountKind::SignIn => w.say(W::UsingPlan, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.1)), Hole::Name(name)]),
         c::OwnerAccountKind::Program => w.say(
             W::UsingProgram,
-            &[Hole::Name(provider_name), Hole::Name(source.name.clone().unwrap_or_default()), Hole::Name(name)],
+            &[Hole::Name(skein_lib::bytes::copy_of(provider_name.1)), Hole::Name(program_name(root, account.provider, w)), Hole::Name(name)],
         ),
         c::OwnerAccountKind::None => w.say(W::UsingModel, &[Hole::Name(name)]),
     };

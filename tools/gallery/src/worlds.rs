@@ -82,14 +82,24 @@ fn frame(w: World, connecting: bool) -> c::Me {
             efforts,
         })
         .expect("model");
+    if matches!(w, FirstRun { step: 5..=9 }) {
+        let mut models = List::with_capacity(2);
+        let mut model = member.models.get(0).expect("demo model").clone();
+        model.name = text("gpt-6-luna");
+        model.provider = Some(18);
+        models.push(model).expect("plan model");
+        models.push(member.models.get(0).expect("demo model").clone()).expect("demo model");
+        member.models = models;
+        template_preview(member);
+    }
     me.providers = providers(w);
     if connecting {
         for index in 0..me.providers.len() {
             let provider = me.providers.get_mut(index).expect("provider index");
-            if provider.name.bytes() == b"OpenAI" {
+            if provider.name.bytes() == b"openai" {
                 provider.name = doc("openai");
                 provider.sign_in = true;
-            } else if provider.name.bytes() == b"Anthropic" {
+            } else if provider.name.bytes() == b"anthropic" {
                 provider.name = doc("anthropic");
             }
         }
@@ -100,29 +110,34 @@ fn frame(w: World, connecting: bool) -> c::Me {
     me.deployment_role = Some(c::HeldRole::Owner);
     me
 }
+fn template_preview(member: &mut c::MeProject) {
+    let template = member.templates.get_mut(0).expect("chat template");
+    template.llm = Some(c::LlmChoice { account: None,
+        main: c::ModelEffort { model: text("gpt-6-luna"), effort: None }, subagents: List::with_capacity(0) });
+}
 fn providers(w: World) -> List<c::ProviderOffer> {
     let mut rows = List::with_capacity(2);
     let names: &[(u32, &str)] = match w {
-        Reference => &[(17, "Anthropic"), (18, "OpenAI")],
-        Solo => &[(17, "Anthropic")],
-        World::Bare => &[(18, "OpenAI")],
-        FirstRun { .. } => &[(17, "Playground"), (18, "OpenAI")],
+        Reference => &[(17, "anthropic"), (18, "openai")],
+        Solo => &[(17, "anthropic")],
+        World::Bare => &[(18, "openai")],
+        FirstRun { .. } => &[(17, "Playground"), (18, "openai")],
     };
     for (number, name) in names {
         let mut programs = List::with_capacity(1);
-        if *name == "Anthropic" {
+        if *name == "anthropic" {
             programs.push(text("Claude Code")).expect("program");
         }
         rows.push(c::ProviderOffer {
             provider: *number,
             name: doc(name),
             key_bytes: 4096,
-            sign_in: *name == "OpenAI" && w == Reference,
+            sign_in: *name == "openai" && w == Reference,
             key: true,
             programs,
             programs_cut: false,
             none: false,
-            signed_in_plan: *name != "Playground",
+            signed_in_plan: *name == "openai",
             manage_usage: None,
         })
         .expect("provider");
@@ -259,7 +274,7 @@ fn forges(world: World) -> Box<[u8]> {
     }
     let limits = temper_client_domain::forge::wire_limits(&limits().forge).expect("wire limits");
     let mut rows = List::with_capacity(3);
-    if matches_demo(world) {
+    if matches_demo(world) && world != (FirstRun { step: 7 }) {
         rows.push(
             w::ForgeRow::new(
                 &limits,
@@ -286,6 +301,16 @@ fn forges(world: World) -> Box<[u8]> {
             .expect("demo forge"),
         )
         .expect("one forge");
+    }
+    if world == Solo || world == Reference {
+        rows.push(w::ForgeRow::new(&limits, w::ForgeRowParts {
+            number: 2, kind: w::Kind::Github, mode: w::Mode::Managed,
+            connection: w::Connection::Connected(w::Connected::new(&limits,
+                w::ConnectedParts { id: 2, login: b"temper".as_slice().into() }).expect("connected forge")),
+            offer: w::Offer::NotOffered, first: None, installations: List::with_capacity(0),
+            ended: None, app: None, web: None, repositories: List::with_capacity(0),
+            owned: None, admin: false, ended_stop: None,
+        }).expect("personal forge")).expect("forge row");
     }
     if let FirstRun { step } = world {
         rows.push(
@@ -469,6 +494,8 @@ fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
             v1::DemoAnswerParts {
                 state: if matches!(w, FirstRun { step: 0 }) {
                     v1::DemoState::NotStarted
+                } else if w == (FirstRun { step: 7 }) {
+                    v1::DemoState::Ended
                 } else {
                     v1::DemoState::Running
                 },
@@ -584,6 +611,9 @@ fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
         (Reference, false) | (Solo, true) => &[1],
         (Reference, true) => &[3, 2],
         (Solo, false) => &[6, 10],
+        (FirstRun { step: 2 | 3 }, false) => &[1],
+        (FirstRun { step: 4..=6 }, false) => &[4, 1],
+        (FirstRun { step: 7 }, true) => &[1, 4],
         (FirstRun { .. } | World::Bare, _) => &[],
     };
     let mut rows = List::with_capacity(u32::try_from(numbers.len()).expect("small chats"));
@@ -950,6 +980,17 @@ fn document(w: World, number: u64) -> c::Task {
     if f.proposal {
         t.proposals = List::with_capacity(1);
         t.proposals.push(PROPOSAL).expect("proposal");
+    }
+    if w == (FirstRun { step: 7 }) && (number == 1 || number == 4) {
+        t.chip.phase = c::Phase::Ended;
+        t.waits_on = c::WaitsOn::Nothing;
+        t.last_activity = offset(w, 19);
+        t.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Cancelled {
+            by: c::OwnerRequester::Deployment { project: PROJECT },
+            reason: doc("The playground ended when your forge connected."),
+            result: None, at: offset(w, 19),
+        })));
+        t.acts.clear();
     }
     t.activity = activity(w, number).rows.len().into();
     finish_document(t)
@@ -1583,7 +1624,7 @@ fn facts(w: World, number: u64) -> TaskFacts {
             proposal: false,
             activity_at: 1_792_702_860_000_000_000,
         },
-        (FirstRun { step: 3 | 4 }, 1) => TaskFacts {
+        (FirstRun { step: 3..=7 }, 1) => TaskFacts {
             title: "Add CSV export to widget",
             brief: "Add CSV export to widget",
             charter: 1,
@@ -1603,7 +1644,7 @@ fn facts(w: World, number: u64) -> TaskFacts {
             proposal: false,
             activity_at: 1_792_703_040_000_000_000,
         },
-        (FirstRun { step: 3 | 4 }, 2) => TaskFacts {
+        (FirstRun { step: 3..=7 }, 2) => TaskFacts {
             title: "Export widget's table as CSV",
             brief: "",
             charter: 1,
@@ -1623,7 +1664,7 @@ fn facts(w: World, number: u64) -> TaskFacts {
             proposal: false,
             activity_at: 1_792_703_040_000_000_000,
         },
-        (FirstRun { step: 3 | 4 }, 3) => TaskFacts {
+        (FirstRun { step: 3..=7 }, 3) => TaskFacts {
             title: "Export widget's table as CSV",
             brief: "Export widget's table as CSV",
             charter: 2,
@@ -1645,7 +1686,7 @@ fn facts(w: World, number: u64) -> TaskFacts {
             proposal: false,
             activity_at: 1_792_702_980_000_000_000,
         },
-        (FirstRun { step: 4 }, 4) => TaskFacts {
+        (FirstRun { step: 4..=7 }, 4) => TaskFacts {
             title: "Add a dark theme to widget",
             brief: "Add a dark theme to widget",
             charter: 1,
@@ -1707,14 +1748,14 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
             events.push(tools_line(&[("delegate", 1)], &[2], false, 3)).expect("world activity");
             events.push(tools_line(&[("wait", 1)], &[], false, 4)).expect("world activity");
         }
-        (FirstRun { step: 3 | 4 }, 1) => {
+        (FirstRun { step: 3..=7 }, 1) => {
             events.push(agent_line("I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge.", 2, Some(1))).expect("world activity");
             events.push(tools_line(&[("delegate", 1)], &[2], false, 3)).expect("world activity");
             events.push(tools_line(&[("wait", 1)], &[], false, 4)).expect("world activity");
             events.push(agent_line("CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.", 5, Some(1))).expect("world activity");
             events.push(tools_line(&[("wait", 1)], &[], false, 6)).expect("world activity");
         }
-        (FirstRun { step: 4 }, 4) => {
+        (FirstRun { step: 4..=7 }, 4) => {
             events.push(agent_line("I would give widget a dark theme that follows the system's preference, with its colours as variables in one place so both themes stay in step. I am the scripted model and play this from a script, so nothing is changed: connect a model from Accounts to have the work done.", 2, Some(1))).expect("world activity");
         }
         _ => {}
@@ -1725,8 +1766,8 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
         (Solo, 10) => &[-14, -12],
         (Solo, 9) => &[-21, -15, -14],
         (FirstRun { step: 2 }, 1) => &[1, 1, 1],
-        (FirstRun { step: 3 | 4 }, 1) => &[1, 1, 1, 4, 4],
-        (FirstRun { step: 4 }, 4) => &[5],
+        (FirstRun { step: 3..=7 }, 1) => &[1, 1, 1, 4, 4],
+        (FirstRun { step: 4..=7 }, 4) => &[5],
         _ => &[],
     };
     let mut rows = List::with_capacity(events.len());
@@ -1776,9 +1817,9 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 number: 1,
                 place: 1,
                 uses: None,
-                plan: true,
+                plan: false,
                 provider: Some(17),
-                provider_name: Some(doc("Anthropic")),
+                provider_name: Some(doc("anthropic")),
                 manage_usage: None,
                 display: doc("Claude"),
                 holder: c::OwnerAccountHolder::Party(73),
@@ -1806,7 +1847,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 uses: None,
                 plan: then != Then::KeyReady,
                 provider: Some(18),
-                provider_name: Some(doc("OpenAI")),
+                provider_name: Some(doc("openai")),
                 manage_usage: None,
                 display: doc(if matches!(then, Then::SignInReady | Then::Declined | Then::Renewed) {
                     "pat@example.com"
@@ -1851,9 +1892,9 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 number: 1,
                 place: 1,
                 uses: None,
-                plan: true,
+                plan: false,
                 provider: Some(17),
-                provider_name: Some(doc("Anthropic")),
+                provider_name: Some(doc("anthropic")),
                 manage_usage: None,
                 display: doc("Claude"),
                 holder: c::OwnerAccountHolder::Party(73),
@@ -1866,10 +1907,10 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
             let mut sources = List::with_capacity(2);
             sources
                 .push(c::OwnerAccountSource {
-                    name: Some(Box::from("playground".as_bytes())),
+                    name: Some(Box::from(if matches!(w, FirstRun { step: 5..=9 }) { "sam@example.com" } else { "playground" }.as_bytes())),
                     place: 1,
                     number: 1,
-                    kind: c::OwnerAccountKind::Key,
+                    kind: if matches!(w, FirstRun { step: 5..=9 }) { c::OwnerAccountKind::SignIn } else { c::OwnerAccountKind::Key },
                     state: c::OwnerAccountState::Granted,
                     usable: true,
                     expiring: false,
@@ -1881,10 +1922,10 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 number: 1,
                 place: 1,
                 uses: None,
-                plan: false,
+                plan: matches!(w, FirstRun { step: 5..=9 }),
                 provider: Some(if matches!(w, FirstRun { step: 5..=9 }) { 18 } else { 17 }),
-                provider_name: Some(doc(if matches!(w, FirstRun { step: 5..=9 }) { "OpenAI" } else { "Playground" })),
-                manage_usage: None,
+                provider_name: Some(doc(if matches!(w, FirstRun { step: 5..=9 }) { "openai" } else { "Playground" })),
+                manage_usage: if matches!(w, FirstRun { step: 5..=9 }) { Some(Box::from(b"https://chatgpt.com/settings/usage".as_slice())) } else { None },
                 display: doc(if matches!(w, FirstRun { step: 5..=9 }) { "ChatGPT" } else { "Scripted model" }),
                 holder: c::OwnerAccountHolder::Party(73),
                 sources,
@@ -1932,7 +1973,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
             .push(c::PayerReadiness {
                 provider: provider.provider,
                 payer: c::OwnerAccountUse::Party(73),
-                readiness: if w == World::Bare || matches_demo(w) && provider.provider == 18 {
+                readiness: if w == World::Bare || matches!(w, FirstRun { step: 0..=4 }) && provider.provider == 18 {
                     c::Readiness::Unavailable
                 } else {
                     c::Readiness::Usable

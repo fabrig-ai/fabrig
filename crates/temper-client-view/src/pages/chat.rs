@@ -51,7 +51,18 @@ pub(crate) fn main(
         b.style(look::CHATBAR);
         b.open(Role::Slot);
         heading(b, &title, task.chip.title.bytes());
-        if let Some(me) = root.pages().me(root.client()) {
+        if let Some(result) = &task.result {
+            let clock = end_clock(task, result, words, times);
+            let name = match clock {
+                Some(clock) => words.say(Word::TimeClosed, &[Hole::Name(clock)]),
+                None => words.say(Word::ChatClosed, &[]),
+            };
+            b.open(Role::Status);
+            b.style(look::STATUS_QUIET);
+            b.name(&name);
+            b.text(Run::Plain, &name);
+            b.close();
+        } else if let Some(me) = root.pages().me(root.client()) {
             super::chats::status(
                 b,
                 &task.chip,
@@ -426,7 +437,6 @@ fn spend(b: &mut Builder, task: &c::Task, words: &Words) {
             &[
                 Hole::Number(task.budget.numbers.spent),
                 Hole::Number(task.budget.numbers.budget),
-                Hole::Number(task.budget.numbers.spent_below),
             ],
         ),
     );
@@ -455,7 +465,7 @@ fn composer(
         b.open(Role::TextArea);
         b.name(&words.say(Word::Message, &[]));
         b.placeholder(&words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]));
-        b.state(State::SubmitsOnEnter);
+        if crate::choice::can_send(root) { b.state(State::SubmitsOnEnter); }
         b.style(look::COMPOSER);
         b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));
         b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
@@ -464,7 +474,11 @@ fn composer(
         b.style(look::HINT);
         words.text(b, Word::ChatSendHint, &[]);
         b.close();
-        control(b, bindings, Role::Button, &words.say(Word::Send, &[]), Act::Send);
+        b.open(Role::Button);
+        b.name(&words.say(Word::Send, &[]));
+        if !crate::choice::can_send(root) { b.state(State::Disabled); }
+        b.bind(bindings.insert(Act::Send));
+        b.close();
         if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
             && let Some(outcome) = &chat.outcome
             && !super::chats::accepted(outcome)

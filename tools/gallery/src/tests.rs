@@ -66,6 +66,10 @@ enum Part {
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds { name: "chat-first-run-7-T1", heading: "T1 · Add CSV export to widget",
+        parts: &[Part::Named { role: Role::Status, name: "Closed 21:19" }] },
+    Holds { name: "chats-first-run-5", heading: "Chats",
+        parts: &[Part::Named { role: Role::Link, name: "Manage usage" }] },
     Holds {
         name: "welcome-paste-expired",
         heading: "Connect a model",
@@ -297,7 +301,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
-                description: "forge 3 · Forgejo · Connected as temper\nwork/hello · project Playground",
+                description: "forge 3 · Forgejo · Connected as temper\nwork/hello · project Default",
             },
             Part::Absent { role: Role::Heading { level: 2 }, name: "The playground" },
         ],
@@ -631,17 +635,18 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 10] = [
-    ("chat-solo-T10", Role::Paragraph, "0 spent · of 40 · delegates spent 0"),
-    ("chat-reference-T1", Role::Paragraph, "6 spent · of 100 · delegates spent 0"),
-    ("chat-solo-T6", Role::Paragraph, "1 spent · of 40 · delegates spent 0"),
-    ("chat-first-run-2-T1", Role::Paragraph, "0 spent · of 20 · delegates spent 0"),
-    ("chat-first-run-3-T1", Role::Paragraph, "0 spent · of 20 · delegates spent 0"),
-    ("chat-first-run-4-T4", Role::Paragraph, "0 spent · of 20 · delegates spent 0"),
-    ("chat-closing", Role::Paragraph, "1 spent · of 40 · delegates spent 0"),
-    ("chat-rejecting", Role::Paragraph, "0 spent · of 40 · delegates spent 0"),
-    ("chats-reference", Role::Paragraph, "6 spent · of 100 · delegates spent 0"),
-    ("chats-solo", Role::Paragraph, "1 spent · of 40 · delegates spent 0"),
+const SPENDS: [(&str, Role, &str); 11] = [
+    ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
+    ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
+    ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
+    ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
+    ("chat-first-run-2-T1", Role::Paragraph, "0 spent · of 20"),
+    ("chat-first-run-3-T1", Role::Paragraph, "0 spent · of 20"),
+    ("chat-first-run-4-T4", Role::Paragraph, "0 spent · of 20"),
+    ("chat-closing", Role::Paragraph, "1 spent · of 40"),
+    ("chat-rejecting", Role::Paragraph, "0 spent · of 40"),
+    ("chats-reference", Role::Paragraph, "6 spent"),
+    ("chats-solo", Role::Paragraph, "1 spent"),
 ];
 #[test]
 fn each_chat_reads_its_allotment() {
