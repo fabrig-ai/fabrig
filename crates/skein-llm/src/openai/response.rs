@@ -123,6 +123,7 @@ pub enum Part {
 pub enum Output {
     Part(Part),
     TextDelta { index: u32, content_index: u32, text: Box<[u8]> },
+    ToolStart { index: u32, id: Box<[u8]>, name: Box<[u8]> },
     ArgumentsDelta { index: u32, delta: Box<[u8]> },
     ReasoningDelta { index: u32, summary_index: u32, text: Box<[u8]> },
     Completed { stop: Stop, usage: Usage },
@@ -343,6 +344,10 @@ impl StreamDecoder {
                         return Err(DecodeError::limit(crate::Cap::Strings, limits.strings));
                     }
                 }
+                if id.is_empty() || call_id.is_empty() || name.is_empty() {
+                    return Err(DecodeError::Malformed);
+                }
+                let start = Output::ToolStart { index, id: call_id.clone(), name: name.clone() };
                 let bytes = received_length(long, arguments.len());
                 let mut input = List::with_capacity(limits.input);
                 let too_large = bytes > u64::from(limits.input);
@@ -355,6 +360,10 @@ impl StreamDecoder {
                     .push((index, Opened::Tool { id, call_id, name, input, bytes, too_large }))
                     .or(Err(DecodeError::limit(crate::Cap::OutputItems, limits.output_items)))?;
                 self.ready(out);
+                out.push(start);
+                if bytes != 0 {
+                    out.push(Output::ArgumentsDelta { index, delta: arguments });
+                }
             }
             Event::TextDelta { index, content_index, text } => {
                 self.delta(index, b"message", text.len(), limits)?;
@@ -447,7 +456,18 @@ impl StreamDecoder {
         let state = mem::replace(slot, Opened::Emitted);
         let (mut prepared, items) = match state {
             Opened::Active { id, kind, items } => (prepare(item, &id, &kind, long, limits, self.reasoning)?, items),
-            Opened::Tool { id, .. } => (prepare(item, &id, b"function_call", long, limits, self.reasoning)?, None),
+            Opened::Tool { id, call_id, name, .. } => {
+                match &item {
+                    Item::FunctionCall { call_id: completed_id, name: completed_name, .. }
+                    | Item::CutCall { call_id: completed_id, name: completed_name, .. } => {
+                        if *completed_id != call_id || *completed_name != name {
+                            return Err(DecodeError::Malformed);
+                        }
+                    }
+                    Item::Message { .. } | Item::Opaque { .. } => return Err(DecodeError::Malformed),
+                }
+                (prepare(item, &id, b"function_call", long, limits, self.reasoning)?, None)
+            }
             Opened::Ready(_) | Opened::Emitted => return Err(DecodeError::Malformed),
         };
         if prepared.reasoning {
@@ -728,6 +748,7 @@ pub fn decode_event(value: &Json, limits: &Limits) -> Result<Event, DecodeError>
             let item = json::value_at(tokens, json::required(tokens, b"item")?)?;
             if json::text_ref(json::value_at(item, json::required(item, b"type")?)?)? == b"function_call"
                 && json::field(item, b"call_id")?.is_some()
+                && json::field(item, b"name")?.is_some()
             {
                 return Ok(Event::ToolAdded {
                     index: index(tokens)?,

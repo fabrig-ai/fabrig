@@ -225,6 +225,7 @@ fn event_bytes(event: &client::Event) -> Option<u64> {
         client::Event::Block { block, .. } => block_bytes(block),
         client::Event::Delta { delta, .. } => match delta {
             skein_llm::Delta::Text { text, .. } | skein_llm::Delta::Reasoning { text, .. } => bytes(text),
+            skein_llm::Delta::ToolStart { id, name, .. } => bytes(id)?.checked_add(bytes(name)?),
             skein_llm::Delta::ToolArguments { delta, .. } => bytes(delta),
         },
         client::Event::Failed { detail, .. } => bytes(detail),

@@ -683,8 +683,22 @@ fn an_oversized_call_completes_within_the_declared_bound() {
         }
     }
     world.assert_once();
-    assert!(world.seen.iter().any(|event| matches!(event, client::Event::Completed { completion, .. }
-        if matches!(completion.content.as_ref(), [Block::Oversize { bytes: 128, .. }]))));
+    let block = world
+        .seen
+        .iter()
+        .find_map(|event| match event {
+            client::Event::Completed { completion, .. } => completion.content.first(),
+            client::Event::Delta { .. }
+            | client::Event::Block { .. }
+            | client::Event::Failed { .. }
+            | client::Event::Cancelled { .. }
+            | client::Event::Reusable
+            | client::Event::Close
+            | client::Event::Closed => None,
+        })
+        .unwrap();
+    skein_llm_world::assert_tool_stream(&world.seen, 0, block);
+    assert!(matches!(block, Block::Oversize { bytes: 128, .. }));
     world.request(client::Request::Close);
     world.settle();
     drop(world);

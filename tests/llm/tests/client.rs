@@ -1064,3 +1064,174 @@ fn an_error_body_read_as_it_arrives_is_the_same_whatever_its_cuts() {
         assert!(world.seen.iter().any(|event| matches!(event, client::Event::Failed { failure: Failure::Unavailable, detail, .. } if detail.as_ref() == b"error body cut: abcd")));
     }
 }
+
+#[test]
+fn named_parallel_calls_start_before_each_fragment_and_initial_arguments() {
+    for initial in ["", "{"] {
+        let head = format!(
+            r#"{{"type":"response.output_item.added","output_index":0,"item":{{"id":"item_a","type":"function_call","call_id":"call_a","name":"a","arguments":"{initial}"}}}}"#
+        );
+        let first = if initial.is_empty() { "{" } else { "" };
+        let fragment =
+            format!(r#"{{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{first}"}}"#);
+        let docs = [
+            head.as_str(),
+            fragment.as_str(),
+            r#"{"type":"response.output_item.added","output_index":1,"item":{"id":"item_b","type":"function_call","call_id":"call_b","name":"b"}}"#,
+            r#"{"type":"response.function_call_arguments.delta","output_index":1,"delta":"{\"b\":"}"#,
+            r#"{"type":"response.function_call_arguments.delta","output_index":0,"delta":"\"a\":"}"#,
+            r#"{"type":"response.function_call_arguments.delta","output_index":1,"delta":"2}"}"#,
+            r#"{"type":"response.function_call_arguments.delta","output_index":0,"delta":"1}"}"#,
+            r#"{"type":"response.output_item.done","output_index":1,"item":{"id":"item_b","type":"function_call","call_id":"call_b","name":"b","arguments":"{\"b\":2}"}}"#,
+            r#"{"type":"response.output_item.done","output_index":0,"item":{"id":"item_a","type":"function_call","call_id":"call_a","name":"a","arguments":"{\"a\":1}"}}"#,
+            TERMINAL,
+        ];
+        let mut world = World::new(
+            call(1),
+            limits(),
+            response(200, "Content-Type: text/event-stream\r\n", &events(&docs), true),
+            9,
+        );
+        world.request(client::Request::Start);
+        world.run();
+        world.assert_once();
+        let completion = world
+            .seen
+            .iter()
+            .find_map(|event| match event {
+                client::Event::Completed { completion, .. } => Some(completion),
+                client::Event::Delta { .. }
+                | client::Event::Block { .. }
+                | client::Event::Failed { .. }
+                | client::Event::Cancelled { .. }
+                | client::Event::Reusable
+                | client::Event::Close
+                | client::Event::Closed => None,
+            })
+            .expect("both calls complete");
+        assert_eq!(completion.stop, Stop::ToolUse);
+        assert_eq!(completion.content.len(), 2);
+        for (index, block) in completion.content.iter().enumerate() {
+            skein_llm_world::assert_tool_stream(&world.seen, u32::try_from(index).unwrap(), block);
+        }
+        if !initial.is_empty() {
+            assert!(matches!(&world.seen[0], client::Event::Delta { delta: Delta::ToolStart { index: 0, .. }, .. }));
+            assert!(
+                matches!(&world.seen[1], client::Event::Delta { delta: Delta::ToolArguments { index: 0, delta }, .. } if delta.as_ref() == b"{")
+            );
+        }
+    }
+}
+
+#[test]
+fn arguments_without_an_open_function_call_fail_without_a_start() {
+    for docs in [
+        vec![r#"{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{}"}"#],
+        vec![
+            skein_llm_world::TEXT_ADDED,
+            r#"{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{}"}"#,
+        ],
+    ] {
+        let mut world = World::new(
+            call(1),
+            limits(),
+            response(200, "Content-Type: text/event-stream\r\n", &events(&docs), false),
+            3,
+        );
+        world.request(client::Request::Start);
+        world.run();
+        world.assert_once();
+        assert!(
+            world.seen.iter().any(|event| matches!(event, client::Event::Failed { failure: Failure::Protocol, .. }))
+        );
+        assert!(
+            !world
+                .seen
+                .iter()
+                .any(|event| matches!(event, client::Event::Delta { delta: Delta::ToolStart { .. }, .. }))
+        );
+    }
+}
+
+#[test]
+fn incomplete_responses_heads_keep_their_argument_deltas_unnamed() {
+    for fields in ["", r#","call_id":"c""#, r#","name":"a""#] {
+        let head = format!(
+            r#"{{"type":"response.output_item.added","output_index":0,"item":{{"id":"i","type":"function_call"{fields}}}}}"#
+        );
+        let docs = [
+            head.as_str(),
+            r#"{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{}"}"#,
+            r#"{"type":"response.output_item.done","output_index":0,"item":{"id":"i","type":"function_call","call_id":"c","name":"a","arguments":"{}"}}"#,
+            TERMINAL,
+        ];
+        let mut world = World::new(
+            call(1),
+            limits(),
+            response(200, "Content-Type: text/event-stream\r\n", &events(&docs), false),
+            3,
+        );
+        world.request(client::Request::Start);
+        world.run();
+        world.assert_once();
+        assert!(world.seen.iter().any(|event| matches!(event, client::Event::Completed { .. })));
+        assert!(world.seen.iter().any(|event| matches!(event, client::Event::Delta { delta: Delta::ToolArguments { delta, .. }, .. } if delta.as_ref() == b"{}")));
+        assert!(
+            !world
+                .seen
+                .iter()
+                .any(|event| matches!(event, client::Event::Delta { delta: Delta::ToolStart { .. }, .. }))
+        );
+    }
+}
+
+#[test]
+fn invalid_tool_identity_fails_before_a_start_in_both_dialects() {
+    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+        for (id, name, expected) in [
+            (String::new(), "read".to_owned(), Failure::Protocol),
+            ("call".to_owned(), String::new(), Failure::Protocol),
+            ("x".repeat(33), "read".to_owned(), Failure::Limit { which: skein_llm::Cap::Strings, bound: 32 }),
+            ("call".to_owned(), "x".repeat(33), Failure::Limit { which: skein_llm::Cap::Strings, bound: 32 }),
+        ] {
+            let mut input = call(1);
+            let docs = if provider == skein_llm::Provider::Anthropic {
+                input.endpoint = skein_llm::Endpoint::anthropic();
+                input.credential = Some(skein_llm::Credential::anthropic(b"fake-token".as_slice().into()));
+                input.prompt.affinity = None;
+                input.prompt.max_output_tokens = Some(4096);
+                vec![r#"{"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{}}}"#.to_owned(), format!(r#"{{"type":"content_block_start","index":0,"content_block":{{"type":"tool_use","id":"{id}","name":"{name}","input":{{}}}}}}"#)]
+            } else {
+                vec![format!(
+                    r#"{{"type":"response.output_item.added","output_index":0,"item":{{"type":"function_call","id":"i","call_id":"{id}","name":"{name}"}}}}"#
+                )]
+            };
+            let mut bounds = skein_llm_world::limits_for(provider);
+            bounds.strings = 32;
+            let docs: Vec<_> = docs.iter().map(String::as_str).collect();
+            let mut world = World::new(
+                input,
+                bounds,
+                response(200, "Content-Type: text/event-stream\r\n", &events(&docs), false),
+                3,
+            );
+            world.request(client::Request::Start);
+            world.run();
+            world.assert_once();
+            assert!(
+                world
+                    .seen
+                    .iter()
+                    .any(|event| matches!(event, client::Event::Failed { failure, .. } if *failure == expected)),
+                "{provider:?}: {:?}",
+                world.seen
+            );
+            assert!(
+                !world
+                    .seen
+                    .iter()
+                    .any(|event| matches!(event, client::Event::Delta { delta: Delta::ToolStart { .. }, .. }))
+            );
+        }
+    }
+}

@@ -170,9 +170,26 @@ pub struct Completion {
 /// fragments within an item. Tool arguments may be incomplete JSON until done.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Delta {
-    Text { index: u32, content_index: u32, text: Box<[u8]> },
-    ToolArguments { index: u32, delta: Box<[u8]> },
-    Reasoning { index: u32, summary_index: u32, text: Box<[u8]> },
+    Text {
+        index: u32,
+        content_index: u32,
+        text: Box<[u8]>,
+    },
+    /// A tool call opened: its identity, before any of its arguments' deltas.
+    ToolStart {
+        index: u32,
+        id: Box<[u8]>,
+        name: Box<[u8]>,
+    },
+    ToolArguments {
+        index: u32,
+        delta: Box<[u8]>,
+    },
+    Reasoning {
+        index: u32,
+        summary_index: u32,
+        text: Box<[u8]>,
+    },
 }
 /// A local admission or receiving cap named in a failure (llm.md, section 2.5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

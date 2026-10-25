@@ -1124,6 +1124,7 @@ fn sse_event(
                         dialect::Output::Progress => {}
                         dialect::Output::Part(_)
                         | dialect::Output::TextDelta { .. }
+                        | dialect::Output::ToolStart { .. }
                         | dialect::Output::ArgumentsDelta { .. }
                         | dialect::Output::ReasoningDelta { .. }
                         | dialect::Output::Completed { .. }
@@ -1305,6 +1306,10 @@ fn output(
         dialect::Output::TextDelta { index, content_index, text } => {
             client.asked = false;
             above.push(Event::Delta { owner: client.owner, delta: Delta::Text { index, content_index, text } });
+        }
+        dialect::Output::ToolStart { index, id, name } => {
+            client.asked = false;
+            above.push(Event::Delta { owner: client.owner, delta: Delta::ToolStart { index, id, name } });
         }
         dialect::Output::ArgumentsDelta { index, delta } => {
             client.asked = false;

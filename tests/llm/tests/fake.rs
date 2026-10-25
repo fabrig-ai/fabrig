@@ -629,6 +629,7 @@ fn scripted_provider_output_cuts_complete_and_are_refused_in_history() {
         world.start();
         world.run();
         let answer = completion(&world);
+        skein_llm_world::assert_tool_stream(&world.seen, 0, &answer.content[0]);
         assert_eq!(answer.stop, skein_llm::Stop::MaxTokens);
         let [Block::Cut { id, name, arguments }] = answer.content.as_ref() else {
             panic!("one cut outcome: {answer:?}")
@@ -1474,4 +1475,24 @@ fn the_stream_opened_by_a_piece_reports_the_replys_usage() {
     assert_eq!(usage.input, Some(0));
     assert_eq!(usage.input, completion(&world).usage.input);
     assert_eq!(usage.cache_write, completion(&world).usage.cache_write);
+}
+
+#[test]
+fn ordinary_responses_call_streams_identity_and_one_whole_arguments_delta() {
+    let mut world = Exchange::new(input(skein_llm::Provider::OpenAiCodex, 1), limits(), scripts());
+    world.start();
+    world.run();
+    let answer = completion(&world);
+    skein_llm_world::assert_tool_stream(&world.seen, 0, &answer.content[0]);
+    let deltas = world
+        .seen
+        .iter()
+        .filter(|event| matches!(event, client::Event::Delta { delta: skein_llm::Delta::ToolArguments { .. }, .. }))
+        .count();
+    assert_eq!(deltas, 1);
+    let wire = String::from_utf8_lossy(&world.responses);
+    let added = wire.find("response.output_item.added").unwrap();
+    let delta = wire.find("response.function_call_arguments.delta").unwrap();
+    let done = wire.find("response.output_item.done").unwrap();
+    assert!(added < delta && delta < done);
 }

@@ -16,6 +16,7 @@ pub(crate) enum Decoder {
 pub(crate) enum Output {
     Part(Result<Block, Error>),
     TextDelta { index: u32, content_index: u32, text: Box<[u8]> },
+    ToolStart { index: u32, id: Box<[u8]>, name: Box<[u8]> },
     ArgumentsDelta { index: u32, delta: Box<[u8]> },
     ReasoningDelta { index: u32, summary_index: u32, text: Box<[u8]> },
     Completed { stop: Stop, usage: Usage },
@@ -188,6 +189,7 @@ fn codex_outputs(
             openai::Output::TextDelta { index, content_index, text } => {
                 Output::TextDelta { index, content_index, text }
             }
+            openai::Output::ToolStart { index, id, name } => Output::ToolStart { index, id, name },
             openai::Output::ArgumentsDelta { index, delta } => Output::ArgumentsDelta { index, delta },
             openai::Output::ReasoningDelta { index, summary_index, text } => {
                 Output::ReasoningDelta { index, summary_index, text }
@@ -213,6 +215,7 @@ fn anthropic_outputs(raw: &mut Queue<anthropic::Output>, limits: &openai::Limits
             anthropic::Output::TextDelta { index, content_index, text } => {
                 Output::TextDelta { index, content_index, text }
             }
+            anthropic::Output::ToolStart { index, id, name } => Output::ToolStart { index, id, name },
             anthropic::Output::ArgumentsDelta { index, delta } => Output::ArgumentsDelta { index, delta },
             anthropic::Output::ReasoningDelta { index, summary_index, text } => {
                 Output::ReasoningDelta { index, summary_index, text }

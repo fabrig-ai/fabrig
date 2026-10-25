@@ -136,7 +136,13 @@ came, so a completion's blocks follow its calls and texts, not its
 reasoning's segments. Each item is within the reasoning limit; the run's
 items together are within the completion's share of reasoning, output
 items × reasoning, which the receiving reservation already holds, and
-their replay values within one block's retained tokens (section 4.2). Tool arguments are incomplete JSON until the whole call
+their replay values within one block's retained tokens (section 4.2). Each
+tool call opened with an ID and name gives one `Delta::ToolStart` before
+its `ToolArguments`, with the call ID and tool name its completed
+block carries. Responses heads missing either identity field give no start;
+their argument deltas remain unnamed. Non-empty initial Responses arguments
+follow the start as an argument delta; Anthropic start input is a placeholder
+and gives none. Tool arguments are incomplete JSON until the whole call
 block arrives. A local size limit is a failure, not a
 provider token-limit stop. A tool call past the input limit is the one
 exception: a per-call outcome (section 2.4). A Responses reasoning item past
@@ -238,8 +244,9 @@ pub struct Usage {
   replaces each in its history, as its own policy decides, with a note
   and an error result for instance, so the history it sends stays
   replayable.
-- **Deltas** of an oversized or cut call's arguments still go up as they
-  come: they are for display, never a call.
+- **Deltas** of an oversized or cut call include its `ToolStart`, before
+  its argument deltas, with the same ID and name as its outcome block.
+  Arguments still go up as they come: they are for display, never a call.
 
 ### 2.5 Failures
 

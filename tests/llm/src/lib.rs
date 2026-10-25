@@ -428,3 +428,54 @@ pub fn run_call(input: Call, bounds: client::Limits, source: Vec<u8>, seed: u64)
 pub fn credential_of(input: &Call) -> &Credential {
     input.credential.as_ref().expect("fixture credential")
 }
+
+/// Checks one named tool stream against its completed call or per-call outcome.
+pub fn assert_tool_stream(events: &[client::Event], index: u32, block: &skein_llm::Block) {
+    let (id, name, arguments) = match block {
+        skein_llm::Block::ToolCall { id, name, arguments, .. } | skein_llm::Block::Cut { id, name, arguments } => {
+            (id, name, Some(arguments))
+        }
+        skein_llm::Block::Oversize { id, name, .. } => (id, name, None),
+        skein_llm::Block::Text { .. }
+        | skein_llm::Block::Refusal { .. }
+        | skein_llm::Block::ToolResult { .. }
+        | skein_llm::Block::Dropped { .. }
+        | skein_llm::Block::Reasoning { .. } => panic!("expected a tool outcome"),
+    };
+    let mut starts = 0;
+    let mut joined = Vec::new();
+    let mut fragments = 0;
+    for event in events {
+        match event {
+            client::Event::Delta {
+                delta: skein_llm::Delta::ToolStart { index: actual, id: actual_id, name: actual_name },
+                ..
+            } if *actual == index => {
+                starts += 1;
+                assert_eq!(starts, 1, "one start per call");
+                assert_eq!(actual_id, id);
+                assert_eq!(actual_name, name);
+            }
+            client::Event::Delta { delta: skein_llm::Delta::ToolArguments { index: actual, delta }, .. }
+                if *actual == index =>
+            {
+                assert_eq!(starts, 1, "identity precedes every fragment");
+                fragments += 1;
+                joined.extend_from_slice(delta);
+            }
+            client::Event::Delta { .. }
+            | client::Event::Block { .. }
+            | client::Event::Completed { .. }
+            | client::Event::Failed { .. }
+            | client::Event::Cancelled { .. }
+            | client::Event::Reusable
+            | client::Event::Close
+            | client::Event::Closed => {}
+        }
+    }
+    assert_eq!(starts, 1);
+    assert!(fragments > 0, "the provider streamed arguments");
+    if let Some(arguments) = arguments {
+        assert_eq!(joined.as_slice(), arguments.as_ref());
+    }
+}

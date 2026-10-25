@@ -447,6 +447,28 @@ fn anthropic_event(
     Ok(None)
 }
 
+fn openai_part_events(part: &api::Part, finish: api::Finish) -> u32 {
+    match part {
+        api::Part::ToolCall { .. } if finish != api::Finish::Length => 3,
+        api::Part::ToolCall { .. }
+        | api::Part::Text { .. }
+        | api::Part::Opaque { .. }
+        | api::Part::ToolOutput { .. } => 2,
+    }
+}
+
+pub(crate) fn terminal_sequence(provider: Provider, answer: &api::Answer) -> Result<u32, Error> {
+    let mut sequence = 1_u32;
+    for part in &answer.parts {
+        let count = match provider {
+            Provider::Anthropic => 3,
+            Provider::OpenAi => openai_part_events(part, answer.finish),
+        };
+        sequence = sequence.checked_add(count).ok_or(Error::TooLarge)?;
+    }
+    Ok(sequence)
+}
+
 fn openai_event(
     answer: &api::Answer,
     sequence: u32,
@@ -457,9 +479,18 @@ fn openai_event(
     if sequence == 0 {
         return Ok(Some((bytes::copy_of(b"response.created"), openai::Event::Created { echo: None })));
     }
-    let index = sequence.saturating_sub(1).div_euclid(2);
-    let done = sequence.saturating_sub(1).rem_euclid(2) == 1;
-    if let Some(part) = answer.parts.get(usize::try_from(index).expect("u32 fits usize")) {
+    let mut remaining = sequence.saturating_sub(1);
+    let mut selected = None;
+    for (index, part) in answer.parts.iter().enumerate() {
+        let count = openai_part_events(part, answer.finish);
+        if remaining < count {
+            selected = Some((u32::try_from(index).or(Err(Error::TooLarge))?, part));
+            break;
+        }
+        remaining = remaining.checked_sub(count).ok_or(Error::TooLarge)?;
+    }
+    if let Some((index, part)) = selected {
+        let done = remaining != 0;
         let id = identifier(call, index);
         let (id, kind, item) = match part {
             api::Part::Text { text } => (
@@ -506,7 +537,7 @@ fn openai_event(
                         },
                     )));
                 }
-                if answer.finish == api::Finish::Length {
+                if remaining == 1 {
                     return Ok(Some((
                         bytes::copy_of(b"response.function_call_arguments.delta"),
                         openai::Event::ArgumentsDelta { index, delta: arguments.clone() },
@@ -521,8 +552,7 @@ fn openai_event(
             (bytes::copy_of(b"response.output_item.added"), openai::Event::Added { index, id, kind })
         }));
     }
-    let count = u32::try_from(answer.parts.len()).or(Err(Error::TooLarge))?.checked_mul(2).ok_or(Error::TooLarge)?;
-    if sequence == count.saturating_add(1) {
+    if remaining == 0 {
         return Ok(Some((
             bytes::copy_of(match answer.finish {
                 api::Finish::Length | api::Finish::ContentFilter => b"response.incomplete",
@@ -637,5 +667,77 @@ fn nibble(byte: u8) -> Option<u8> {
         b'0'..=b'9' => byte.checked_sub(b'0'),
         b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const LIMITS: openai::Limits = openai::Limits {
+        request: 8192,
+        retained: 8192,
+        strings: 2048,
+        depth: 16,
+        tokens: 1024,
+        output_items: 16,
+        tools: 16,
+        history_items: 16,
+        metadata: 2048,
+        receiving: 1_048_576,
+        skip: 8192,
+        input: 2048,
+        reasoning: 2048,
+        answer: 4096,
+        detail_bytes: 256,
+    };
+
+    #[test]
+    fn responses_calls_add_a_whole_argument_delta_between_head_and_done() {
+        let answer = api::Answer {
+            parts: Box::new([
+                api::Part::Text { text: bytes::copy_of(b"before") },
+                api::Part::ToolCall {
+                    id: bytes::copy_of(b"call"),
+                    name: bytes::copy_of(b"read"),
+                    arguments: bytes::copy_of(br#"{"x":1}"#),
+                },
+                api::Part::Text { text: bytes::copy_of(b"after") },
+            ]),
+            finish: api::Finish::ToolCalls,
+            usage: api::Usage::NONE,
+        };
+        for (sequence, expected) in [
+            b"response.created".as_slice(),
+            b"response.output_item.added",
+            b"response.output_item.done",
+            b"response.output_item.added",
+            b"response.function_call_arguments.delta",
+            b"response.output_item.done",
+            b"response.output_item.added",
+            b"response.output_item.done",
+            b"response.completed",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let (name, event) =
+                openai_event(&answer, u32::try_from(sequence).expect("tiny cursor"), 7, UsageFields::ALL, &LIMITS)
+                    .expect("valid answer")
+                    .expect("event");
+            assert_eq!(name.as_ref(), expected);
+            if sequence == 4 {
+                assert_eq!(event, openai::Event::ArgumentsDelta { index: 1, delta: bytes::copy_of(br#"{"x":1}"#) });
+            }
+        }
+        assert_eq!(terminal_sequence(Provider::OpenAi, &answer), Ok(8));
+        assert_eq!(openai_event(&answer, 9, 7, UsageFields::ALL, &LIMITS), Ok(None));
+        let cut = api::Answer { finish: api::Finish::Length, ..answer };
+        assert_eq!(terminal_sequence(Provider::OpenAi, &cut), Ok(7));
+        let (name, event) = openai_event(&cut, 4, 7, UsageFields::ALL, &LIMITS).expect("valid cut").expect("delta");
+        assert_eq!(name.as_ref(), b"response.function_call_arguments.delta");
+        assert_eq!(event, openai::Event::ArgumentsDelta { index: 1, delta: bytes::copy_of(br#"{"x":1}"#) });
+        let (name, _) = openai_event(&cut, 5, 7, UsageFields::ALL, &LIMITS).expect("next part").expect("head");
+        assert_eq!(name.as_ref(), b"response.output_item.added");
     }
 }

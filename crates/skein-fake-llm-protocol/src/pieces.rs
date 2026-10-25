@@ -245,16 +245,11 @@ fn hold(provider: documents::Provider) -> Option<Outgoing> {
 
 pub(super) fn terminal(server: &mut Server, env: &Env<Limits>) -> Result<Option<Outgoing>, documents::Error> {
     let Some(answer) = &server.answer else { return Ok(None) };
-    let per_part = match server.route {
-        skein_llm::Provider::Anthropic => 3_u32,
-        skein_llm::Provider::OpenAi | skein_llm::Provider::OpenAiCodex => 2,
+    let provider = match server.route {
+        skein_llm::Provider::Anthropic => documents::Provider::Anthropic,
+        skein_llm::Provider::OpenAi | skein_llm::Provider::OpenAiCodex => documents::Provider::OpenAi,
     };
-    let count = u32::try_from(answer.parts.len()).or(Err(documents::Error::TooLarge))?;
-    let terminal = count
-        .checked_mul(per_part)
-        .ok_or(documents::Error::TooLarge)?
-        .checked_add(1)
-        .ok_or(documents::Error::TooLarge)?;
+    let terminal = documents::terminal_sequence(provider, answer)?;
     if server.sequence < terminal {
         return Ok(None);
     }

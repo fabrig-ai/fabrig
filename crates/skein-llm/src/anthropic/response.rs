@@ -74,6 +74,7 @@ pub enum Part {
 pub enum Output {
     Part(Part),
     TextDelta { index: u32, content_index: u32, text: Box<[u8]> },
+    ToolStart { index: u32, id: Box<[u8]>, name: Box<[u8]> },
     ArgumentsDelta { index: u32, delta: Box<[u8]> },
     ReasoningDelta { index: u32, summary_index: u32, text: Box<[u8]> },
     Completed { stop: Stop, usage: Usage },
@@ -198,28 +199,7 @@ impl StreamDecoder {
                 self.usage = usage;
                 self.usage.reasoning = None;
             }
-            Event::Added { index, block } => {
-                if let Some(part) = self.pending.take() {
-                    self.emit(part, limits, out)?;
-                }
-                if !self.started || self.ending || self.active.is_some() || index != self.next {
-                    return Err(DecodeError::Malformed);
-                }
-                let thinking = match &block {
-                    BlockStart::Thinking { .. } | BlockStart::Redacted { .. } => true,
-                    BlockStart::Text { .. } | BlockStart::ToolCall { .. } | BlockStart::Opaque { .. } => false,
-                };
-                if !thinking {
-                    self.emit_reasoning(out);
-                }
-                if !thinking || self.reasoning.is_none() {
-                    self.blocks = self.blocks.checked_add(1).ok_or(DecodeError::Malformed)?;
-                }
-                if self.blocks > limits.output_items {
-                    return Err(DecodeError::limit(crate::Cap::OutputItems, limits.output_items));
-                }
-                self.active = Some(self.start(block, limits)?);
-            }
+            Event::Added { index, block } => self.add(index, block, limits, out)?,
             Event::Delta { index, delta } => {
                 self.check_active(index)?;
                 let len = match &delta {
@@ -342,6 +322,42 @@ impl StreamDecoder {
             return Err(DecodeError::limit(crate::Cap::Answer, limits.answer));
         }
         out.push(Output::Part(part));
+        Ok(())
+    }
+    fn add(
+        &mut self,
+        index: u32,
+        block: BlockStart,
+        limits: &Limits,
+        out: &mut Queue<Output>,
+    ) -> Result<(), DecodeError> {
+        if let Some(part) = self.pending.take() {
+            self.emit(part, limits, out)?;
+        }
+        if !self.started || self.ending || self.active.is_some() || index != self.next {
+            return Err(DecodeError::Malformed);
+        }
+        let thinking = match &block {
+            BlockStart::Thinking { .. } | BlockStart::Redacted { .. } => true,
+            BlockStart::Text { .. } | BlockStart::ToolCall { .. } | BlockStart::Opaque { .. } => false,
+        };
+        if !thinking {
+            self.emit_reasoning(out);
+        }
+        if !thinking || self.reasoning.is_none() {
+            self.blocks = self.blocks.checked_add(1).ok_or(DecodeError::Malformed)?;
+        }
+        if self.blocks > limits.output_items {
+            return Err(DecodeError::limit(crate::Cap::OutputItems, limits.output_items));
+        }
+        let active = self.start(block, limits)?;
+        match &active {
+            Active::ToolCall { id, name, .. } => {
+                out.push(Output::ToolStart { index, id: id.clone(), name: name.clone() });
+            }
+            Active::Text { .. } | Active::Thinking { .. } | Active::Opaque { .. } => {}
+        }
+        self.active = Some(active);
         Ok(())
     }
     fn start(&mut self, block: BlockStart, limits: &Limits) -> Result<Active, DecodeError> {

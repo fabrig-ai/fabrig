@@ -433,6 +433,7 @@ fn oversized_arguments_complete_and_truncated_http_fails_once() {
         "{:?}",
         world.seen
     );
+    skein_llm_world::assert_tool_stream(&world.seen, 0, &completion(&world).content[0]);
     let wire = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: 900\r\n\r\nevent: message_start\ndata: {".to_vec();
     let mut world = World::new(anthropic_call(1), limits(), wire, 2);
     world.request(client::Request::Start);

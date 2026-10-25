@@ -329,6 +329,7 @@ fn dispatch_without_next(world: &mut World, source: &[u8], activity: u64) -> boo
             dialect::Output::Part(Err(error)) => panic!("expected a valid part, got {error:?}"),
             dialect::Output::Part(Ok(_))
             | dialect::Output::TextDelta { .. }
+            | dialect::Output::ToolStart { .. }
             | dialect::Output::ArgumentsDelta { .. }
             | dialect::Output::ReasoningDelta { .. }
             | dialect::Output::Progress => {}

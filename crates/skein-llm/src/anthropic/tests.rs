@@ -34,9 +34,16 @@ fn feed(decoder: &mut StreamDecoder, value: &[u8], limits: &Limits, out: &mut Qu
     let event = event(value, limits).expect("valid bounded event");
     decoder.event(event, limits, Wall::EPOCH, out);
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the helper distinguishes tool heads from progress-only inputs")]
 fn progress(decoder: &mut StreamDecoder, value: &[u8], limits: &Limits, out: &mut Queue<Output>) {
+    let expected = match event(value, limits).expect("valid event") {
+        Event::Added { index, block: super::BlockStart::ToolCall { id, name, .. } } => {
+            Output::ToolStart { index, id, name }
+        }
+        _ => Output::Progress,
+    };
     feed(decoder, value, limits, out);
-    assert_eq!(out.pop(), Some(Output::Progress));
+    assert_eq!(out.pop(), Some(expected));
     assert_eq!(out.len(), 0);
 }
 fn failure(out: &mut Queue<Output>, expected: Failure) {
@@ -44,6 +51,7 @@ fn failure(out: &mut Queue<Output>, expected: Failure) {
         Output::Failed { failure, .. } => assert_eq!(failure, expected),
         Output::Part(_)
         | Output::TextDelta { .. }
+        | Output::ToolStart { .. }
         | Output::ArgumentsDelta { .. }
         | Output::ReasoningDelta { .. }
         | Output::Completed { .. }
@@ -184,6 +192,10 @@ fn tool_fragments_replace_start_placeholder_and_keep_malformed_json() {
             bytes: 8,
             cut: false,
         }))
+    );
+    assert_eq!(
+        out.pop(),
+        Some(Output::ToolStart { index: 1, id: bytes::copy_of(b"call2"), name: bytes::copy_of(b"Write") })
     );
     progress(&mut decoder, br#"{"type":"content_block_stop","index":1}"#, &LIMITS, &mut out);
     feed(&mut decoder, br#"{"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{}}"#, &LIMITS, &mut out);
@@ -382,6 +394,7 @@ fn signed_thinking_extension_head_survives_fragments_and_terminal() {
         Some(
             Output::Part(_)
             | Output::TextDelta { .. }
+            | Output::ToolStart { .. }
             | Output::ArgumentsDelta { .. }
             | Output::ReasoningDelta { .. }
             | Output::Failed { .. }
@@ -573,6 +586,7 @@ fn output_cap_cuts_the_last_tool_block_with_or_without_block_stop() {
             Some(
                 Output::Part(_)
                 | Output::TextDelta { .. }
+                | Output::ToolStart { .. }
                 | Output::ArgumentsDelta { .. }
                 | Output::ReasoningDelta { .. }
                 | Output::Failed { .. }

@@ -88,6 +88,11 @@ fn historical_messages_captures_flow_through_the_actual_shared_client() {
         world.run();
         world.assert_once();
         let completion = completion(&world);
+        if scenario == "parallel-tool-calls" {
+            for (index, block) in completion.content.iter().enumerate() {
+                skein_llm_world::assert_tool_stream(&world.seen, u32::try_from(index).unwrap(), block);
+            }
+        }
         assert_eq!(completion.usage.input, Some(expected_input), "known captured input accounting");
         assert_eq!(completion.usage.output, Some(expected_output), "known captured output accounting");
         assert_eq!(completion.usage.cache_read, Some(0));

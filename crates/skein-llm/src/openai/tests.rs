@@ -226,6 +226,7 @@ fn synthetic_parallel_tools_reasoning_and_message_heads_keep_order() {
             | Output::Failed { .. }
             | Output::Progress
             | Output::TextDelta { .. }
+            | Output::ToolStart { .. }
             | Output::ArgumentsDelta { .. }
             | Output::ReasoningDelta { .. } => None,
         })
@@ -1056,6 +1057,8 @@ fn unfinished_native_call_keeps_its_identity_and_arguments_at_the_output_cap() {
             call_id.as_ref() == b"c" && name.as_ref() == b"read" && input.as_ref() == br#"{"x":"#,
         _ => false,
     }));
+    assert_eq!(trace.first(), Some(&Output::ToolStart { index: 0, id: owned(b"c"), name: owned(b"read") }));
+    assert_eq!(trace.get(1), Some(&Output::ArgumentsDelta { index: 0, delta: owned(br#"{"x":"#) }));
     assert_eq!(trace.last(), Some(&Output::Completed { stop: Stop::MaxTokens, usage: Usage::NONE }));
 }
 
@@ -1651,4 +1654,74 @@ fn a_failed_response_reads_back_as_written() {
     };
     let encoded = crate::openai::encode_failed(&error, &LIMITS).expect("bounded failed response");
     assert_eq!(decode_event(&value(&encoded), &LIMITS), Ok(Event::Failed { error }));
+}
+
+#[test]
+fn initial_arguments_and_a_preceding_block_fit_three_outputs() {
+    let events = [
+        Event::Added { index: 0, id: owned(b"r"), kind: owned(b"reasoning") },
+        Event::Done {
+            index: 0,
+            item: Item::Opaque {
+                value: value(br#"{"id":"r","type":"reasoning","summary":[],"encrypted_content":"opaque"}"#),
+            },
+        },
+        Event::ToolAdded {
+            index: 1,
+            id: owned(b"item"),
+            call_id: owned(b"call"),
+            name: owned(b"read"),
+            arguments: owned(b"{}"),
+        },
+    ];
+    let mut decoder = StreamDecoder::new(crate::Provider::OpenAiCodex, &LIMITS);
+    let mut out = Queue::with_capacity(super::MAX_OUT);
+    for (index, event) in events.into_iter().enumerate() {
+        decoder.event(event, &LIMITS, Wall::EPOCH, &mut out);
+        if index < 2 {
+            assert_eq!(out.pop(), Some(Output::Progress));
+        }
+    }
+    assert_eq!(out.len(), 3);
+    assert!(match out.pop() {
+        Some(Output::Part(Part::Opaque { .. })) => true,
+        _ => false,
+    });
+    assert_eq!(out.pop(), Some(Output::ToolStart { index: 1, id: owned(b"call"), name: owned(b"read") }));
+    assert_eq!(out.pop(), Some(Output::ArgumentsDelta { index: 1, delta: owned(b"{}") }));
+}
+
+#[test]
+fn a_completed_call_cannot_change_its_opened_identity() {
+    for (call_id, name) in [(b"other".as_slice(), b"read".as_slice()), (b"call".as_slice(), b"other".as_slice())] {
+        let trace = stream(
+            &[
+                Event::ToolAdded {
+                    index: 0,
+                    id: owned(b"i"),
+                    call_id: owned(b"call"),
+                    name: owned(b"read"),
+                    arguments: Box::new([]),
+                },
+                Event::Done {
+                    index: 0,
+                    item: Item::FunctionCall {
+                        id: owned(b"i"),
+                        call_id: owned(call_id),
+                        name: owned(name),
+                        arguments: owned(b"{}"),
+                    },
+                },
+            ],
+            &LIMITS,
+        );
+        assert!(match trace.last() {
+            Some(Output::Failed { failure: Failure::Protocol, .. }) => true,
+            _ => false,
+        });
+        assert!(!trace.iter().any(|output| match output {
+            Output::Part(_) => true,
+            _ => false,
+        }));
+    }
 }
