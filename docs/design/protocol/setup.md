@@ -1226,14 +1226,37 @@ temper box
   per-pipe assembly and retained chunks, formatter overlap, legacy handoff,
   control replies and io operations, within the existing startup accounting.
 
-  The machine emits typed Starting, Stopping and Stopped facts, without
-  words or wall time. A pure terminal formatter receives the host's supplied
-  wall time and step names. Starting names always steps; Stopping is emitted
-  once on the first requested stop, and Stopped after actual settlement.
+  The machine emits typed terminal facts, without words or wall time:
+  Starting for an always step; a requested group's starting, started, failed
+  and stopped; a step's restart or the box's give up; Stopping and Stopped.
+  Group facts identify the group, and failure facts retain the exact step
+  identity and structured reason (exit code, signal, not started, or record
+  not written). A restart also carries the chosen backoff duration. Labels
+  and step names are looked up by identity, never copied into policy facts.
+  Numeric pipe replies keep their existing WHY and settlement semantics.
+
+  A requested group's starting is emitted once when an accepted start
+  begins its work; repeated asks that only repeat a pipe reply emit no new
+  lifecycle notice. Its failed and stopped notices follow actual group
+  settlement, as their pipe replies do. A restart notice is emitted when
+  the exit selects its backoff, before its timer fires. Giving up is emitted
+  once when decided, before failure teardown, and is not repeated when the
+  final outcome is collected. An exit during an intentional stop emits
+  neither restart nor give up. Retry preparation failures name the actual
+  once step that failed. A delay is written in seconds, preserving a
+  fractional part when the configured millisecond delay is not whole seconds.
+
+  A pure terminal formatter receives the host's supplied wall time, step
+  names and group labels, and owns every lifecycle word. Starting names
+  always steps; Stopping is emitted once on the first requested stop, and
+  Stopped after actual settlement.
   Timestamping starts once the first visible block is admitted, and survives
   serve restarts; a refused URL or legacy handoff does not start it. A line's
   completion wall time is retained across output backpressure, rather than
-  replaced with its later write time.
+  replaced with its later write time. Policy facts retain their decision's
+  supplied wall time across order and terminal queues. Their admission and
+  item-size bounds include labels and the longest failure/restart line; the
+  startup footprint counts every owned label and the new fact state.
 - **Its logs,** `<data>/box/logs/`, mode 0700, made as needed: one file
   per step, its name with each space a `-` and `.log` after it
   (`serve.log`, `prepare-3.log`), mode 0600, holding every line the
@@ -1271,9 +1294,11 @@ temper box
   run in order, and `asked` a list of `Group { forge, before, steps, recorded, label }`,
   each dormant until asked (7.1), `recorded` whether its `started`
   writes the box's record: an owned forge's does, the demo's does not.
-  `label` is the words the terminal names it by (7.2), bytes the box
-  does not read: `Playground` for the demo's, `Forge N (Forgejo)` for
-  an owned forge's. `before` is its place in the order:
+  `label: Box<[u8]>` is the words the terminal names it by (7.2),
+  owned opaque bytes passed from the setup/fake constructor into the box's
+  layout and written verbatim: `Playground` for the demo's,
+  `Forge N (Forgejo)` for an owned forge's. The box never infers a label
+  from arguments; it adds no label field to a wire reply or stored record. `before` is its place in the order:
   the index in `always` it runs just before (its length puts it last).
   Each step carries its `Stage`, whose word its `step` lines carry, and
   its listeners, the socket addresses the box holds and gives it (7.1). The
@@ -2870,6 +2895,15 @@ relies on.
   pipe with interposed diagnostics. It observes complete ordered blocks,
   then asks for stop and drains all owned resources; it uses no backend,
   download or sleep. Exhaustive saturation cases stay in simulated tests.
+  Pure policy tests pin group identities and structured failure reasons,
+  exact retry delays, window reset and give up at decision time. Formatter
+  tests use fixed wall values and supplied labels, including labels whose
+  bytes cannot be inferred from arguments. Host tests pin labelled group
+  start, started, failed/retry and stopped against unchanged numeric pipe
+  replies, intentional-stop exits, repeated asks, failure teardown ordering,
+  and no duplicate final give up. A failed requested group leaves serve
+  usable. Held output acknowledgements preserve facts' source wall values
+  and the existing complete sign-in blocks.
 - **The setup host's handover at runtime** (5.1), in temper-service's
   step tests: at `started`, `TakeOver` when the handover is present, its
   record kept before removal, then `Reconcile` and the connect, the row
@@ -3121,7 +3155,7 @@ it checks of this document:
   `forge-setup 3` and `wait forges --until settled`: forge 3 reads
   "Connected as temper", `work/hello` made and adopted into the new
   project `hello`, project 2. That connect ends the playground at
-  runtime (8.4): the box's stderr says `box: forge 1's group stopped`
+  runtime (8.4): the box's terminal says `Playground: stopped`
   once, no list shows forge 1, the playground's chat reads cancelled by
   the deployment, `Ended with the playground`, the deployment holds no
   account of the demo's provider, and `demo-start` is answered not
