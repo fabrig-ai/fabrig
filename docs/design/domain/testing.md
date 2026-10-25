@@ -1388,6 +1388,19 @@ section 8; testing-strategy.md, 2.9).
     (../protocol/configuration.md, section 3), its `api` and `git` the relay's two
     loopback listeners, `web` null, and the forge component's and the
     resources' polling their defaults but `log_poll`, 15 s.
+  - **Offline startup admission:** `startup.rs` renders these same GitHub
+    templates with synthetic ready captures and uses the live story's pure
+    engine shaper for both supported owners, distinct API/git sockets and
+    the live polling defaults. Actual engine and worker preparation must
+    admit without a relay, credentials or processes. The shared landing
+    helper for this and the fake process story clears only unused goal
+    projection grants: both stories make a chat's change, no tracked goal.
+    Task ceiling and role-authority grants, the enforced CI/up-to-date/
+    exact-head gate rule, metadata and all capacities stay, including
+    `core.policy_bytes=4096`. The pure service startup regression keeps the
+    original overbroad seed's named refusal and the narrowed seed's admission
+    for both owners. This is offline coverage; the historical live failure's
+    exact stderr is unavailable, and it establishes no live proof.
   - **The relay,** the test's, between temper and github.com: plaintext
     HTTP/1.1 from the engine and the worker's git on loopback, verified
     TLS to `api.github.com` and `github.com` by skein's TLS client on the

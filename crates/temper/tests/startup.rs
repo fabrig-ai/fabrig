@@ -1608,7 +1608,7 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
 }
 
 #[test]
-fn the_live_github_configuration_names_its_seed_policy_refusal_for_both_owners() {
+fn the_live_github_configuration_passes_startup_admission_for_both_owners() {
     use std::{os::unix::ffi::OsStrExt, path::Path};
     use support::live_github::{configure_engine, document};
 
@@ -1616,7 +1616,7 @@ fn the_live_github_configuration_names_its_seed_policy_refusal_for_both_owners()
     let api = "127.0.0.1:31001".parse().expect("synthetic API socket");
     let git = "127.0.0.1:31002".parse().expect("synthetic git socket");
     let workers = "127.0.0.1:31003".parse().expect("synthetic worker socket");
-    for (owner, policy_bytes) in [("freeekanayaka", 4299), ("fabrig-ai", 4167)] {
+    for owner in ["freeekanayaka", "fabrig-ai"] {
         let scratch = support::Scratch::startup(&format!("live-github-admission-{owner}"));
         let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &templates);
         for (name, value) in [
@@ -1655,20 +1655,9 @@ fn the_live_github_configuration_names_its_seed_policy_refusal_for_both_owners()
             .collect();
             let (directories, _) = temper::directories::resolve(&args, &[], b"/").expect("member directories");
             let bytes = fs::read(config.join("temper.json")).expect("rendered configuration");
-            let result = temper::envelope_in(&directories, &bytes);
-            if member == "engine" {
-                let why = result.expect_err("full live-shaped seed policy exceeds its unchanged allowance");
-                eprintln!("{owner}/{member}: {why}");
-                assert_eq!(
-                    why,
-                    format!(
-                        "temper serve: engine.projects[0].policy.bytes: {policy_bytes} bytes, past core.policy_bytes of 4096\n"
-                    )
-                );
-            } else {
-                let (memory, operations) = result.expect("live-shaped worker admission");
-                eprintln!("{owner}/{member}: startup admission passed; memory={memory}, operations={operations}");
-            }
+            let (memory, operations) =
+                temper::envelope_in(&directories, &bytes).unwrap_or_else(|why| panic!("{owner}/{member}: {why}"));
+            eprintln!("{owner}/{member}: startup admission passed; memory={memory}, operations={operations}");
         }
         scratch.remove();
     }

@@ -255,7 +255,7 @@ fn a_joined_policy_past_its_bytes_returns_problems_before_construction() {
 }
 
 #[test]
-fn live_github_owner_names_exceed_the_joined_seed_policy_allowance() {
+fn live_github_seed_policy_admission_checks_both_projection_shapes() {
     // Reuse the source seed policy; only files' names become this pure fixture's keys.
     let template = include_str!("../../../temper/tests/support/github/engine.json")
         .replace("{{", "{")
@@ -280,6 +280,9 @@ fn live_github_owner_names_exceed_the_joined_seed_policy_allowance() {
             format!("engine.projects[0].policy.bytes: {policy_bytes} bytes, past core.policy_bytes of 4096\n")
                 .as_bytes()
         );
+        // Only unused goal-projection grants change; task authority, landing checks and limits stay.
+        let narrowed = fixtures::with(&document, b"engine.projects[0].policy.projections", b"[]");
+        assert_eq!(started(&narrowed).as_ref(), b"", "{owner}: narrowed seed policy admits");
     }
 }
 
