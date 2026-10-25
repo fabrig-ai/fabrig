@@ -1608,6 +1608,58 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
 }
 
 #[test]
+fn checked_in_deployment_profiles_pass_startup_admission() {
+    let mut profiles = vec![
+        "docs/examples/owned.json".to_owned(),
+        "crates/temper-init/template/temper.json".to_owned(),
+        "lab/live-0a/temper.json".to_owned(),
+        "lab/live-0b/temper.json".to_owned(),
+    ];
+    for family in ["chat-change", "chat-change-killed", "chat-change-smoke", "cluster", "cluster-web", "look-live"] {
+        for name in ["engine.json", "w1.json", "w2.json"] {
+            profiles.push(format!("lab/{family}/{name}"));
+        }
+    }
+    let mut failures = String::new();
+    for (index, relative) in profiles.iter().enumerate() {
+        let scratch = support::Scratch::startup(&format!("deployment-profile-{index}"));
+        let profile = match relative.as_str() {
+            "docs/examples/owned.json" => support::owned::bounded(scratch.path()),
+            "crates/temper-init/template/temper.json" => support::owned::bounded_template(scratch.path()),
+            _ => support::owned::deployment_profile(scratch.path(), relative),
+        };
+        let turn = profile.agent.limits.bodies.turn_body;
+        let record = size_of::<temper_engine_domain::Record>();
+        match profile.admission() {
+            Ok(_) => eprintln!("{relative}: startup admission passed; T={turn}, Record={record}"),
+            Err(why) => {
+                writeln!(
+                    failures,
+                    "{relative}: T={turn}, Record={record}\n{}",
+                    String::from_utf8_lossy(&temper_service::startup::lines(&why))
+                )
+                .expect("diagnostic");
+            }
+        }
+        if relative.starts_with("lab/live-0") {
+            let document: serde_json::Value = serde_json::from_slice(&profile.document).expect("profile JSON");
+            let required = u64::from(turn) + u64::try_from(record).expect("Record size");
+            for field in ["root.loads.bytes", "root.loads.reply_bytes"] {
+                let actual = document["application"]["limits"]["overrides"][field].as_u64().expect("loads bound");
+                eprintln!("{relative}: {field} actual={actual}, turn + Record floor={required}");
+                let fits = if relative == "lab/live-0a/temper.json" { actual == required } else { actual >= required };
+                if !fits {
+                    writeln!(failures, "{relative}: {field} {actual}, turn + Record floor {required}")
+                        .expect("diagnostic");
+                }
+            }
+        }
+        scratch.remove();
+    }
+    assert!(failures.is_empty(), "{failures}");
+}
+
+#[test]
 fn turn_bounds() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     for (deployment, agent) in [

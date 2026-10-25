@@ -712,6 +712,22 @@ impl Bounded {
         )
         .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))))
     }
+    /// Admission without constructing a service, for both split and standalone profiles.
+    pub fn admission(&self) -> Result<temper_service::startup::Requirements, temper_service::startup::Problems> {
+        let value: serde_json::Value = serde_json::from_slice(&self.document).expect("profile JSON");
+        let accounts = value.get("engine").map(|_| self.accounts());
+        temper_service::startup::memory_requirements(
+            &self.document,
+            &jig_protocol_config::Directories::working(),
+            &self.files,
+            &self.agent,
+            &self.seeds,
+            accounts.as_ref(),
+            self.forges(),
+            value.get("engine").map(|_| &self.setup),
+        )
+    }
+
     #[must_use]
     pub fn memory_terms(&self) -> temper_service::startup::MemoryTerms {
         temper_service::startup::memory_terms(
@@ -841,6 +857,106 @@ pub fn bounded_template(directory: &Path) -> Bounded {
             trust_root_bytes: 65_536,
         },
     )
+}
+
+/// Checked-in lab profile with local destinations and synthetic named files.
+/// Numeric allowances and policies are left exactly as shipped.
+#[must_use]
+pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let source = root.join(relative);
+    let render = |path: &Path| {
+        let text = fs::read_to_string(path).expect("profile source");
+        let text = text.replace("{{", "{").replace("}}", "}");
+        let mut text = text;
+        for name in ["box", "engine", "w1", "w2", "forge", "llm"] {
+            text = text.replace(&format!("{{proc.{name}.dir}}"), directory.to_str().expect("fixture path"));
+        }
+        for (name, value) in [
+            ("{port.forgejo}", "3000"),
+            ("{proc.forge.ready.address}", "127.0.0.1:3000"),
+            ("{proc.llm.ready.address}", "127.0.0.1:9000"),
+            ("{proc.engine.ready.workers}", "127.0.0.1:7000"),
+            ("{artifact.temper}", "/fixture/temper"),
+            ("{artifact.git}", "/fixture/git"),
+            ("{program.forgejo}", "/fixture/forgejo"),
+            ("{program.forgejo-runner}", "/fixture/runner"),
+        ] {
+            text = text.replace(name, value);
+        }
+        serde_json::from_str::<serde_json::Value>(&text).expect("rendered profile JSON")
+    };
+    let value = render(&source);
+    let mut agent = render(&source.parent().expect("profile family").join("agent.json"));
+    // Keep every Smith profile/model declaration; only destinations are local.
+    for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
+        endpoint["address"] = "127.0.0.1:9000".into();
+        endpoint["transport"] = "plaintext".into();
+        let endpoint = endpoint.as_object_mut().expect("endpoint");
+        endpoint.remove("server_name");
+        endpoint.remove("trust_der");
+    }
+    let agent_path = directory.join("agent.json");
+    fs::write(&agent_path, serde_json::to_vec(&agent).expect("agent JSON")).expect("local agent");
+    let agent = agent::read(&agent_path).expect("actual Smith metadata");
+    let document = serde_json::to_vec(&value).expect("profile JSON");
+    let (files, setup, forges) = if value.get("engine").is_some() {
+        let named =
+            temper_service::named(&document, &jig_protocol_config::Directories::working()).unwrap_or_else(|why| {
+                panic!("{relative}: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
+            });
+        let setup = checked_setup(&document, &named);
+        let mut forges = skein_lib::List::with_capacity(u32::try_from(named.forges.len()).expect("forges"));
+        for forge in &named.forges {
+            forges
+                .push(temper_service::ForgeRuntime {
+                    number: forge.number,
+                    address: "127.0.0.1:3000".parse().expect("fake forge"),
+                    transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
+                    trust_roots: 0,
+                    trust_root_bytes: 0,
+                })
+                .expect("forge count");
+        }
+        (named.files, setup, forges.into_boxed())
+    } else {
+        let part = temper_service::startup::worker_part(&document, &jig_protocol_config::Directories::working())
+            .unwrap_or_else(|why| {
+                panic!("{relative}: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
+            });
+        (
+            part.files,
+            temper_forge_setup::check::Checked {
+                fetch_bytes: 0,
+                records_only: Box::new([]),
+                setup: temper_forge_setup::setup::Setup { entries: Box::new([]) },
+                limits: temper_forge_setup::limits::small(),
+            },
+            Box::<[temper_service::ForgeRuntime]>::default(),
+        )
+    };
+    let mut entries = skein_lib::List::with_capacity(u32::try_from(files.len()).expect("named files"));
+    for file in files {
+        let bytes = if file.path.ends_with(b".user") || file.path.ends_with(b"/user") {
+            b"42".as_slice()
+        } else {
+            b"fixture".as_slice()
+        };
+        entries.push((file.path, skein_lib::Secret::new(bytes.into()))).expect("named file count");
+    }
+    Bounded {
+        document,
+        agent,
+        setup,
+        forges,
+        files: temper_service::settings::Files { entries },
+        seeds: temper_service::settings::Seeds {
+            deployment: [7; 16],
+            installation: [8; 16],
+            seed: 7,
+            crypto: skein_lib::Secret::new(Box::new([9; 32])),
+        },
+    }
 }
 
 fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: temper_service::ForgeRuntime) -> Bounded {
