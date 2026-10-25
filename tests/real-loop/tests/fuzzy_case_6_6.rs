@@ -15,6 +15,8 @@ fn a_kit_change_releases_the_apps_waiting_repin_without_relay_without_the_a3_a4_
         case::scripts::step_6_6, case::scripts::step_6_6_rules, case::acts::step_6_6,
     );
     for (at, called) in ran.calls().iter().enumerate() {
+        println!("call {at}: exit={:?}\nstdout: {}\nstderr: {}", called.exit,
+            String::from_utf8_lossy(&called.stdout), String::from_utf8_lossy(&called.stderr));
         assert_eq!(called.exit, Some(Exit::Code(0)), "call {at}: {}\n{}",
             String::from_utf8_lossy(&called.stderr), String::from_utf8_lossy(&called.stdout));
     }

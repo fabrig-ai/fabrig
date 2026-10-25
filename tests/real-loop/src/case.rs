@@ -1238,21 +1238,13 @@ pub fn fixture_6_6() -> forge::Fixture {
         setup: || waiting_setup(waiting::APP_ID, waiting::APP),
         extra_setups: || Box::new([waiting_setup(waiting::KIT_ID, waiting::KIT)]),
         configure: |value, agent, forge| {
-            (landing::fixture().configure)(value, agent, forge);
+            (fixture().configure)(value, agent, forge);
             let mut kit_rule = value["application"]["landing"]["projects"][0]["rules"][0].clone();
             kit_rule["pattern"]["segments"][3] = "kit".into();
             value["application"]["landing"]["projects"][0]["rules"].as_array_mut().expect("rules").push(kit_rule);
             // Two enforced rules each contribute CI, up-to-date and exact-head
             // blocking review: 2 * 3 = 6 requirements. Both repos are hooked.
             value["engine"]["limits"]["overrides"]["authority.requirements"] = 6.into();
-            // Deployment depth five leaves director four, A1 three and each
-            // procedure two for its coder/reviewer. Landing's depth four
-            // refuses A1's requested three, leaving the story without A1.
-            value["engine"]["rules"]["ceiling"]["delegation"]["depth"] = 5.into();
-            for project in value["engine"]["projects"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["delegation"]["depth"] = 5.into();
-                project["policy"]["roles"][0]["authority"]["delegation"]["depth"] = 5.into();
-            }
             // Eight tasks, two batch members, one dependency. The deepest child
             // has three requester ancestors + its terminal result = four joins;
             // repin has two ancestors + dependency + result = four as well.
@@ -1263,8 +1255,6 @@ pub fn fixture_6_6() -> forge::Fixture {
             // also cover the maximum requester ancestry. Two adopted repositories
             // and two checkout repositories fit the existing small capacities.
             value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
-            value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 512.into();
-            value["engine"]["templates"][0]["contract"]["report"]["words"] = 128.into();
             // The coder's write + finish and each owner's delegate + wait share
             // one completion, serialized by the existing single call slot.
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
