@@ -121,7 +121,9 @@ fn a_stale_unread_terminal_cannot_fail_a_later_preparation() {
     let (mut driver, first, stale) = unread_preparation(true);
     driver.settle();
     let fresh = driver.last_assignment();
-    driver.send(protocol::turn(CHANNEL, fresh.task, fresh.attempt, 1, 1, None, b"fresh window"));
+    // Acknowledge the offered messages so parking waits for the next wake.
+    let read = fresh.messages.last().map(|message| message.number);
+    driver.send(protocol::turn(CHANNEL, fresh.task, fresh.attempt, 1, 1, read, b"fresh window"));
     driver.settle();
     driver.answer(CHANNEL, fresh.task, fresh.attempt, 1, tasks::End::Parked, engine::Parts::none());
     driver.settle();
