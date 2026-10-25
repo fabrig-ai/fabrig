@@ -1038,11 +1038,18 @@ merge, kind 4, on a pattern of landing branches (jig's
 
 | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
 |---|---|---|---|---|---|
-| 1, CI passed | none | CI passed at the head; for a repository without CI, every one of its checks passed at exactly the head | CI pending or unknown; a check with no verdict at the head | CI failed; a check failed; a repository with neither CI nor checks | guarded |
+| 1, CI passed | none | CI passed at the head; for a repository without CI, every one of its checks passed at exactly the head; no CI verdict is needed for the explicit adoption choice to land without CI described below | CI pending or unknown; a check with no verdict at the head | CI failed; a check failed; a repository with neither CI nor checks unless explicitly adopted to land without CI as described below | guarded |
 | 2, up to date | none | the head contains the base's tip | the comparison unread or failed | the head lacks the base's tip | observed, freshness 0 |
 | 3, a gate | its number; `exact` or `clean` (8.3) | its verdict, at the head or, where `clean`, at a head the change's clean updates led through, approves | no such verdict yet, or one pending | such a verdict asks for changes | guarded |
 | 4, an approval | a role; how many people; `exact` or `clean` | that many distinct people holding the role in the project approved the pull request at the head, or where `clean` at a head its clean updates led through | fewer have; the reviews too many to read whole | one of them asked for changes at such a head | guarded |
 
+- **The explicit choice to land without CI** is offered at GitHub
+  adoption only when Actions is on, there is no workflow and the landing
+  branch has no required checks (`../draft/github.md`, 10.3). Choosing it
+  adopts with CI off and allows adoption without replacement checks. Otherwise a
+  repository without CI names the checks that stand for it. Neither this
+  choice nor replacement checks waive a landing rule or required checks;
+  CI pending or unknown on a repository adopted with CI on remains a wait.
 - **Judged at the merge's head.** The core asks the forge for each
   verdict as it checks the merge (jig's `domain/root.md`, section 9),
   and the forge answers from the fresh reads its step made for that

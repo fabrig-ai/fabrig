@@ -280,7 +280,13 @@ What the adoption names there: the repository's role (owned, where
 temper pushes and lands; a fork of an upstream; or context, read only),
 its landing branch, temper's branch prefix (`temper/` by default),
 whether it is the project's home, and whether it runs CI or the checks
-its changes are gated on without it. The merge style is the forge's for
+its changes are gated on without it. For GitHub with Actions on, no
+workflow and no required checks, before confirmation it says "No CI
+found: Actions is on, but this repository has no workflow and no required
+checks." It offers **Land without CI**, which adopts with CI off and
+without replacement checks, or **Name the checks that stand for CI**,
+which gates changes on those checks. The choice does not waive required
+checks or other landing rules (`../domain/forge.md`, 8.7). The merge style is the forge's for
 the repository, which the form shows before the adoption is confirmed:
 on GitHub the first the repository allows of merge, squash and rebase,
 on Forgejo its default (`../domain/forge.md`, what adoption says of the

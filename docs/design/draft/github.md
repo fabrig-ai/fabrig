@@ -600,6 +600,12 @@ token makes an App:
   panel says why (section 18).
 - **Archived** repositories adopt as context only. **Actions off:** the
   adoption names the checks that stand for CI.
+- **Actions on, no workflow:** when adoption finds no workflow and no
+  required checks, it says "No CI found: Actions is on, but this repository
+  has no workflow and no required checks." It asks: **Land without CI**,
+  or **Name the checks that stand for CI**. "Land without CI" adopts with
+  CI off; naming checks makes those checks the gates in place of CI. This
+  choice does not waive required checks or any other landing rule.
 - **Outside contributions** stay participating objects
   (`../domain/forge.md`, section 13). A first-time contributor's CI
   waits for a maintainer's approval on GitHub, which temper shows as a
