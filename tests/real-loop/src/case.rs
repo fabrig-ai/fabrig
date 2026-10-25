@@ -1244,6 +1244,9 @@ pub fn fixture_6_6() -> forge::Fixture {
             // Two enforced rules each contribute CI, up-to-date and exact-head
             // blocking review: 2 * 3 = 6 requirements. Both repos are hooked.
             value["engine"]["limits"]["overrides"]["authority.requirements"] = 6.into();
+            // Configuring-3's new admission check measures this two-repository
+            // project policy at 4398 bytes, above the landing fixture's 4096.
+            value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
             // Eight tasks, two batch members, one dependency. The deepest child
             // has three requester ancestors + its terminal result = four joins;
             // repin has two ancestors + dependency + result = four as well.
