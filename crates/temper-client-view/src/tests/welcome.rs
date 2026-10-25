@@ -861,12 +861,12 @@ fn ready_draws_a_misconfigured_sign_in_with_retry() {
         jig_client::contract::OwnerAccountEnd::Failed {
             failure: jig_client::contract::OwnerAccountFailure::Misconfigured,
         },
-        "OpenAI refused temper's sign-in. Check the configuration's registration.",
+        "OpenAI refused temper’s sign-in. Check the configuration’s registration.",
         false,
     );
 }
 
-fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
+pub(super) fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
     let mut rows = forge::first_rows(forge::connected(), forge::made());
     let mut parts = rows.get(0).unwrap().clone().into_parts();
     parts.repositories = skein_lib::List::with_capacity(1);
@@ -941,6 +941,28 @@ fn the_setup_card_names_only_the_configured_model_ways() {
             let card = String::from_utf8(f::node_text(view.tree(), at).into_vec()).unwrap();
             assert!(card.contains(expected), "{card}");
             assert_eq!(card.matches("Your model:").count(), 1);
+            let block = view
+                .tree()
+                .nodes()
+                .iter()
+                .position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_SETUP_DESCRIPTION))
+                .unwrap();
+            let lines: Vec<_> = view
+                .tree()
+                .nodes()
+                .iter()
+                .enumerate()
+                .skip(block + 1)
+                .take(usize::try_from(view.tree().nodes()[block].size).unwrap() - 1)
+                .filter(|(_, n)| n.role == Role::Paragraph)
+                .map(|(at, n)| {
+                    assert_eq!(n.role, Role::Paragraph);
+                    f::node_text(view.tree(), at)
+                })
+                .collect();
+            assert_eq!(lines.len(), 2);
+            assert!(lines[0].starts_with(b"Your forge:"));
+            assert_eq!(String::from_utf8_lossy(&lines[1]).trim_start(), expected);
             if !signin {
                 assert!(!card.contains("ChatGPT"));
             }

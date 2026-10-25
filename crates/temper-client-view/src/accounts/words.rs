@@ -247,7 +247,7 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::DeploymentPays, "Deployment work".as_bytes()),
     (Word::OwnPays, "Your own work".as_bytes()),
     (Word::PlanPays, "Your own work, and projects where you’re the only member".as_bytes()),
-    (Word::MisconfiguredPlan, "OpenAI refused temper's sign-in. Check the configuration's registration.".as_bytes()),
+    (Word::MisconfiguredPlan, "OpenAI refused temper’s sign-in. Check the configuration’s registration.".as_bytes()),
     (Word::HeldPlan, "Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.".as_bytes()),
     (Word::DeclinedPlan, "You signed in without plan usage.".as_bytes()),
     (Word::SteppedAside, "The playground’s scripted model stepped aside.".as_bytes()),
@@ -467,7 +467,7 @@ const ENDS: &[EndWords] = &[
     EndWords { literals: &[b"Signed in to ", b" as ", b""], indices: &[0, 1] },
     EndWords {
         literals: &[
-            b"That's ",
+            "That’s ".as_bytes(),
             b" again. To add another account, sign out of ",
             b" in your browser first, then Continue with ",
             b".",

@@ -271,7 +271,7 @@ fn renewed_sign_in_explains_the_same_account_on_connect_model() {
         &mut front,
         &mut root,
         source,
-        "That's your ChatGPT account again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
+        "That’s your ChatGPT account again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
     );
 }
 
@@ -344,7 +344,7 @@ fn misconfigured_sign_in_explains_registration_on_connect_model() {
         &mut front,
         &mut root,
         source,
-        "OpenAI refused temper's sign-in. Check the configuration's registration.",
+        "OpenAI refused temper’s sign-in. Check the configuration’s registration.",
     );
 }
 
@@ -473,7 +473,7 @@ fn accounts_renewed_sign_in_explains_adding_another_account() {
     made(&mut front, &mut root, source, false);
     account_ending(
         &root,
-        "That's your ChatGPT account again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
+        "That’s your ChatGPT account again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
     );
 }
 
@@ -509,7 +509,7 @@ fn accounts_renewed_without_plan_usage_offers_sign_in_and_key() {
 fn accounts_misconfigured_sign_in_explains_registration() {
     let (mut front, mut root, source) = row_sign_in();
     account_event(&mut front, &mut root, a::Event::SignInFailed { source, failure: a::Failure::Misconfigured });
-    account_ending(&root, "OpenAI refused temper's sign-in. Check the configuration's registration.");
+    account_ending(&root, "OpenAI refused temper’s sign-in. Check the configuration’s registration.");
 }
 
 // client/README.md 5.5 Each state: a row's Failed SignInAgain names ChatGPT and sign-out.

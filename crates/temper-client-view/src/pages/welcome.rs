@@ -87,12 +87,16 @@ fn card(b: &mut Builder, w: &Words, title: Word) {
 }
 fn setup_description(b: &mut Builder, root: &Domain, w: &Words) {
     use temper_client_domain::pages::accounts::{self, Way};
+    b.open(Role::Slot);
+    b.style(look::WELCOME_SETUP_DESCRIPTION);
     b.open(Role::Paragraph);
     w.text(b, Word::WelcomeSetupDescription, &[]);
+    b.close();
     if let Some(me) = root.pages().me(root.client()) {
         let ways =
             accounts::ways(&me.providers, root.forge().demo_provider(), jig_client::contract::AccountHolder::Own);
         if !ways.is_empty() {
+            b.open(Role::Paragraph);
             w.text(b, Word::WelcomeYourModel, &[]);
         }
         let mut written = false;
@@ -125,6 +129,7 @@ fn setup_description(b: &mut Builder, root: &Domain, w: &Words) {
         }
         if written || key_written {
             w.text(b, Word::WelcomeModelEnd, &[]);
+            b.close();
         }
     }
     b.close();
@@ -176,7 +181,7 @@ pub(crate) fn main(
         Step::Forge { forge: forge_choice } => {
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeForgeTitle);
             paragraph(b, w, Word::WelcomeForgeLead, look::WELCOME_LEAD);
-            crate::forge::connect::welcome(b, root, w, bindings, forge, forge_choice);
+            crate::forge::connect::welcome(b, root, w, bindings, forge, forge_choice, sign_in);
         }
         Step::Model { .. } => {
             if let Some(row) = crate::forge::connect::personal(root) {
@@ -225,6 +230,7 @@ fn legacy_ready(
     bindings: &mut Bindings,
     accounts: &mut crate::accounts::Bindings,
     forge: &mut crate::forge::bindings::Bindings,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     use crate::forge::connect;
     use skein_ui::phrases::Hole;
@@ -240,7 +246,7 @@ fn legacy_ready(
             root.forge().demo(),
         );
         if row.first.is_some() && ready == temper_client_domain::forge::connect::Shown::Ready(row.number) {
-            connect::ready_card(b, root, w, bindings, forge, row);
+            connect::ready_card(b, root, w, bindings, forge, row, sign_in);
         } else if row.first.is_some() && ready == temper_client_domain::forge::connect::Shown::SettingUp(row.number) {
             connect::setting_up(b, root, w, forge, row);
         } else if row.first.is_none()
@@ -362,11 +368,11 @@ fn ready(
         forge::connect,
     };
     let Some(row) = connect::personal(root) else {
-        legacy_ready(b, root, w, bindings, accounts, forge);
+        legacy_ready(b, root, w, bindings, accounts, forge, sign_in);
         return;
     };
     let Some((org, repository, project)) = ready_target(root, row) else {
-        legacy_ready(b, root, w, bindings, accounts, forge);
+        legacy_ready(b, root, w, bindings, accounts, forge, sign_in);
         return;
     };
     let adopted = connect::adopted_project(root, row);

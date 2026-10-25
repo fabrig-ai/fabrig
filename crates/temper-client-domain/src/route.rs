@@ -3,9 +3,26 @@ use crate::ChatsFilter;
 use crate::{Action, Address, Domain, Event, Fact, Limits, Place, Request, forge, owner::Owner};
 use skein_lib::{Env, Queue};
 pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, out: &mut Queue<Request>) {
+    // Like accepted owned setup, a successful picker adoption advances the shown welcome.
+    let mut adopted_in_welcome = false;
+    if let Address::Welcome { step: crate::Step::Forge { .. } } = root.pages.address()
+        && let forge::Event::Answered { request, answer: forge::Answer::Adopted(adopted) } = &event
+        && let Some(picker) = root.forge.picker(adopted.forge)
+        && let Some(adoption) = &picker.adoption
+        && adoption.request == *request
+        && adoption.outcome.is_none()
+    {
+        adopted_in_welcome = true;
+    }
     let mut child = Queue::with_capacity(forge::max_out(&env.limits.forge));
     forge::step(&mut root.forge, &Env { now: env.now, wall: env.wall, limits: env.limits.forge }, event, &mut child);
     route_forge(root, env, &mut child, out);
+    if adopted_in_welcome {
+        out.push(Request::Show {
+            address: Address::Welcome { step: crate::Step::Model { way: None } },
+            replace: false,
+        });
+    }
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {

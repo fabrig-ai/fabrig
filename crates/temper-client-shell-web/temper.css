@@ -839,8 +839,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-welcome-step[aria-current] { border-color: var(--temper-accent); color: var(--temper-accent-dark); font-weight: 700; }
 .temper-welcome-lead { margin: 12px 0 24px; color: var(--temper-muted); }
 .temper-welcome-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.temper-welcome-card { border: 1px solid var(--temper-line); border-radius: 9px; background: var(--temper-paper); padding: 22px; display: flex; flex-direction: column; align-items: flex-start; }
+.temper-welcome-card { border: 1px solid var(--temper-line); border-radius: 5px; background: var(--temper-paper); padding: 15px 18px; display: flex; flex-direction: column; align-items: flex-start; }
 .temper-welcome-card > button, .temper-welcome-card > a { margin-top: auto; display: inline-flex; border: 1px solid var(--temper-accent); border-radius: 5px; padding: 7px 11px; background: var(--temper-paper); color: var(--temper-accent-dark); }
+.temper-welcome-setup-description { margin: 0 0 12px; }
+.temper-welcome .temper-welcome-setup-description > p { margin: 0; }
 .temper-welcome-muted, .temper-welcome-after { color: var(--temper-muted); }
 .temper-welcome-after { margin-top: 20px; }
 .temper-welcome p.temper-welcome-tiny { font-size: 11px; }
@@ -851,7 +853,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-welcome .temper-welcome-status > p { margin: 0; color: var(--temper-muted); font-size: 11px; }
 .temper-welcome-status > .temper-flow-done::first-letter { color: var(--temper-green); }
 .temper-repository-private { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 2px 6px; border-radius: 3px; background: #f3f1eb; color: #6d695f; font-size: 10px; font-weight: 600; }
-.temper-repository-choice { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; padding: 7px 0; }
+.temper-repository-choice { display: flex; align-items: center; gap: 8px; grid-column: 1 / -1; padding: 7px 10px; border: 1px solid #e8e4dc; border-radius: 5px; background: var(--temper-paper); font: 11px var(--temper-mono); }
+.temper-repository-choice.temper-repository-selected { border-color: #ba694e; background: var(--temper-accent-pale); }
 .temper-flow-card .temper-repository-choice > input[type=radio] { display: block; width: auto; margin: 0; padding: 0; border: 0; background: transparent; accent-color: var(--temper-accent); }
 .temper-repository-choice > label { margin: 0; color: var(--temper-ink); font: 11px var(--temper-mono); }
 

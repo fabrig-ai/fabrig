@@ -71,6 +71,7 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     forge: &mut ForgeBindings,
     choice: Option<Choice>,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
@@ -116,7 +117,7 @@ pub(crate) fn main(
         }
         Shown::Ready(number) => {
             if let Some(row) = connect::row(number, root.forges(), root.forge().demo()) {
-                ready_card(b, root, w, bindings, forge, row);
+                ready_card(b, root, w, bindings, forge, row, sign_in);
             }
         }
     }
@@ -161,12 +162,13 @@ pub(crate) fn welcome(
     bindings: &mut Bindings,
     forge: &mut ForgeBindings,
     choice: Option<Choice>,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     if let Some(row) = personal(root) {
         if row.admin {
             match connect::step(Some(Choice::Forge(row.number)), root.forges(), root.forge().demo()) {
                 Shown::Details(_) => admin_details(b, root, w, forge, row),
-                Shown::Ready(_) => ready_card(b, root, w, bindings, forge, row),
+                Shown::Ready(_) => ready_card(b, root, w, bindings, forge, row, sign_in),
                 Shown::SettingUp(_) => setting_up(b, root, w, forge, row),
                 Shown::Choose => {}
             }
@@ -174,7 +176,7 @@ pub(crate) fn welcome(
             && let Connection::Connected { .. } = row.connection
         {
             if forge::forges::accepted(row) {
-                ready_card(b, root, w, bindings, forge, row);
+                ready_card(b, root, w, bindings, forge, row, sign_in);
             } else {
                 setting_up(b, root, w, forge, row);
             }
@@ -654,6 +656,7 @@ pub(crate) fn ready_card(
     bindings: &mut Bindings,
     forge: &mut ForgeBindings,
     row: &Row,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     if row.admin {
         admin_ready(b, root, w, bindings, row);
@@ -701,6 +704,9 @@ pub(crate) fn ready_card(
                     Control::PrimaryLink { name: &open, to: bindings.insert(Act::OpenProject { project }) },
                 );
             }
+        }
+        if !pending && adopted_project(root, row).is_some() {
+            super::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
         }
         setup_ending(b, root, w, forge, row);
     } else if row.kind == Kind::GitHub {
@@ -1183,6 +1189,9 @@ fn github_choices(
                     let name = forge::words::full_name(&repository.owner.login, &repository.name);
                     b.open(Role::Slot);
                     b.style(look::REPOSITORY_CHOICE);
+                    if picker.chosen == u32::try_from(index).expect("bounded page") {
+                        b.style(look::REPOSITORY_SELECTED);
+                    }
                     b.open(Role::Choice);
                     b.name(&name);
                     let index = u32::try_from(index).expect("bounded page");

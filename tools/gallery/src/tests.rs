@@ -551,7 +551,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[Part::Named {
             role: Role::Status,
-            name: "That's pat@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
+            name: "That’s pat@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.",
         }],
     },
     Holds {

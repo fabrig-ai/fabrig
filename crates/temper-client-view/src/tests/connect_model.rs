@@ -361,9 +361,9 @@ fn renewed_sign_ins_explain_how_to_add_another_account() {
         let root = ending(c::OwnerAccountEnd::Renewed { account: 1, declined: false }, display);
         let text = words(&root);
         assert!(text.contains(if display.is_empty() {
-            "That's your ChatGPT account again."
+            "That’s your ChatGPT account again."
         } else {
-            "That's alice@example.com again."
+            "That’s alice@example.com again."
         }));
         assert!(text.contains("sign out of ChatGPT in your browser first, then Continue with ChatGPT."));
         assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Button, b"Continue with ChatGPT").is_some());
@@ -395,7 +395,7 @@ fn other_sign_in_endings_keep_their_words_and_offer_another_sign_in() {
         (E::Refused { refusal: R::Held { provider: PROVIDER } }, "Another person here holds that ChatGPT account."),
         (
             E::Failed { failure: F::Misconfigured },
-            "OpenAI refused temper's sign-in. Check the configuration's registration.",
+            "OpenAI refused temper’s sign-in. Check the configuration’s registration.",
         ),
         (E::Failed { failure: F::SignInAgain }, "Needs sign-in"),
         (E::Failed { failure: F::MissingScope { scope: 19 } }, "Missing required scope 19"),

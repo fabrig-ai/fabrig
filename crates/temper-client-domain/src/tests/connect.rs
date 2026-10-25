@@ -1182,3 +1182,61 @@ fn refused_picker_reads_keep_no_access_and_not_found_words_without_rows() {
         assert_eq!(forge::words::app_refusal(answer, 2).unwrap().as_ref(), words);
     }
 }
+
+#[test]
+fn github_adoption_advances_only_the_welcome() {
+    for welcome in [true, false] {
+        let (mut root, me, _, out) = picker_opened();
+        let (attempt, _, _) = sent(out);
+        reply(&mut root, attempt, reachable_page());
+        if welcome {
+            event(
+                &mut root,
+                Event::Went {
+                    place: Place::Address(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(2)) } }),
+                },
+            );
+        }
+        let (attempt, _, _) = sent_project(picker_act(&mut root, forge::picker::Act::Adopt));
+        project_reply(
+            &mut root,
+            attempt,
+            c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project: 7 })),
+        );
+        let (attempt, _, _) = sent(banner_project(&mut root, me, b"first"));
+        let outcome = w::Outcome::Adopted(
+            w::Adopted::new(
+                &w::CEILINGS,
+                w::AdoptedParts {
+                    forge: 2,
+                    repository: 7,
+                    owner: b"acme".as_slice().into(),
+                    name: b"first".as_slice().into(),
+                    role: w::Role::Owned,
+                    home: true,
+                    kinds: w::Kinds::new(&w::CEILINGS, w::KindsParts { skein_bools: [true; 9] }).unwrap(),
+                    protection: w::Protection::Unknown,
+                },
+            )
+            .unwrap(),
+        );
+        let out = reply(&mut root, attempt, outcome);
+        let mut moves = 0_u32;
+        for request in &out {
+            if let Request::Show { address, replace } = request {
+                assert!(welcome);
+                assert_eq!(address, &Address::Welcome { step: Step::Model { way: None } });
+                assert!(!replace);
+                moves = moves.checked_add(1).unwrap();
+            }
+        }
+        assert_eq!(moves, u32::from(welcome));
+        if !welcome {
+            assert_eq!(root.pages().address(), &Address::ConnectForge { forge: Some(Choice::Forge(2)) });
+        }
+        let Some(forge::Answer::Adopted(_)) = &root.forge().picker(2).unwrap().adoption.as_ref().unwrap().outcome
+        else {
+            panic!("successful adoption remains available to Ready")
+        };
+    }
+}

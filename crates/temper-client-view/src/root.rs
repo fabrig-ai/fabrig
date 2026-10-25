@@ -215,7 +215,15 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             view.limits.tree.text_per_node,
         );
     } else if let temper_client_domain::Address::ConnectForge { forge } = root.pages().address() {
-        forge::connect::main(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge, *forge);
+        forge::connect::main(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            &mut view.forge,
+            *forge,
+            &view.forge_sign_in,
+        );
     } else if *root.pages().address() == temper_client_domain::Address::Forges {
         forge::forges::main(
             &mut builder,

@@ -1500,9 +1500,14 @@ fn github_picker_accounts_rows_pages_and_name_are_bound() {
     assert!(has_state(view.tree(), Role::Choice, b"acme", State::Selected));
     node(view.tree(), Role::Choice, b"other");
     assert!(has_state(view.tree(), Role::Choice, b"acme/first", State::Selected));
+    let first = node(view.tree(), Role::Choice, b"acme/first");
+    let first_row = view.tree().nodes().iter().find(|n| Some(n.id) == parent(view.tree(), first)).unwrap();
+    assert!(first_row.styles.as_slice().contains(&crate::look::REPOSITORY_CHOICE));
+    assert!(first_row.styles.as_slice().contains(&crate::look::REPOSITORY_SELECTED));
     let second = node(view.tree(), Role::Choice, b"acme/second");
     let at = view.tree().nodes().iter().position(|n| n.id == second).unwrap() - 1;
     assert!(view.tree().nodes()[at].styles.as_slice().contains(&crate::look::REPOSITORY_CHOICE));
+    assert!(!view.tree().nodes()[at].styles.as_slice().contains(&crate::look::REPOSITORY_SELECTED));
     let subtree = &view.tree().nodes()[at..at + usize::try_from(view.tree().nodes()[at].size).unwrap()];
     assert!(
         subtree.iter().any(|n| n.role == Role::Text && n.styles.as_slice().contains(&crate::look::REPOSITORY_PRIVATE))
@@ -1517,6 +1522,9 @@ fn github_picker_accounts_rows_pages_and_name_are_bound() {
     let action = crate::act(&mut view, second, Act::Toggle).unwrap();
     drive(&mut root, d::Event::Act { action });
     let view = f::browser_page_view(&root);
+    let selected = node(view.tree(), Role::Choice, b"acme/second");
+    let selected_row = view.tree().nodes().iter().find(|n| Some(n.id) == parent(view.tree(), selected)).unwrap();
+    assert!(selected_row.styles.as_slice().contains(&crate::look::REPOSITORY_SELECTED));
     let name = node(view.tree(), Role::TextField, b"Into a new project, named");
     assert_eq!(
         view.tree().nodes().iter().find(|n| n.id == name).unwrap().value.as_ref().unwrap().text.as_ref(),
@@ -2268,6 +2276,32 @@ fn owned_fetch_steps_draw_both_pins_or_keep_the_unpinned_words() {
                     &[expected, "Preparing", "Starting Forgejo and its runner", "Connecting", "Making"],
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn owned_ready_offers_the_forgejo_link_after_the_project() {
+    for facts_present in [true, false] {
+        let root = f::forge_root(
+            Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
+            super::welcome::owned_adopted_rows(),
+        );
+        let mut view = f::view_of(f::browser_words());
+        if facts_present {
+            let mut facts = crate::forge_sign_in::Forges::new();
+            facts.read("3 forgejo http://127.0.0.1:3000 owned");
+            view.forge_sign_in(facts);
+        }
+        f::build(&mut view, &root);
+        let link = f::find(view.tree(), Role::Link, "Open Forgejo ↗".as_bytes());
+        assert_eq!(link.is_some(), facts_present);
+        if let Some(link) = link {
+            assert_eq!(
+                crate::href(&mut view, link).as_deref(),
+                Some(b"http://127.0.0.1:3000/user/oauth2/temper".as_slice())
+            );
+            words_in_order(view.tree(), &["Open Shop", "Open Forgejo ↗"]);
         }
     }
 }

@@ -311,6 +311,10 @@ pub const REPOSITORY_PRIVATE: Style = Style { owner: owner(), token: 152 };
 pub const REPOSITORY_CHOICE: Style = Style { owner: owner(), token: 153 };
 /// Ready's project button and optional Forgejo link.
 pub const WELCOME_ACTIONS: Style = Style { owner: owner(), token: 154 };
+/// The selected repository row in the first-run picker.
+pub const REPOSITORY_SELECTED: Style = Style { owner: owner(), token: 155 };
+/// The setup card's forge and model lines in one compact block.
+pub const WELCOME_SETUP_DESCRIPTION: Style = Style { owner: owner(), token: 156 };
 /// Native browser elements for the admin group and Model’s definition list.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
@@ -479,6 +483,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-repository-private",
         b"temper-repository-choice",
         b"temper-welcome-actions",
+        b"temper-repository-selected",
+        b"temper-welcome-setup-description",
     ],
     regions: &[b"temper-link"],
 };

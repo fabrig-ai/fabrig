@@ -528,7 +528,7 @@ fn sign_in_end_words(mut doc: c::OwnerAccounts, end: c::OwnerAccountEnd) -> Vec<
         for run in &node.text {
             words.extend_from_slice(&run.text);
         }
-        if words.starts_with(b"Signed in") || words.starts_with(b"That's") {
+        if words.starts_with(b"Signed in") || words.starts_with("That’s".as_bytes()) {
             return words;
         }
     }
@@ -546,7 +546,7 @@ fn a_completed_sign_in_names_the_plan_and_display() {
 }
 #[test]
 fn a_renewed_sign_in_explains_how_to_add_another_account() {
-    assert_eq!(sign_in_end_words(card_document(b"openai", b"alice@example.com", c::OwnerAccountKind::SignIn), c::OwnerAccountEnd::Renewed { account: 1, declined: false }), b"That's alice@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.");
+    assert_eq!(sign_in_end_words(card_document(b"openai", b"alice@example.com", c::OwnerAccountKind::SignIn), c::OwnerAccountEnd::Renewed { account: 1, declined: false }), "That’s alice@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.".as_bytes());
 }
 #[test]
 fn a_sign_in_end_keeps_the_number_when_its_account_has_not_arrived() {
@@ -1119,7 +1119,7 @@ fn each_account_state_draws_its_words_and_state_controls() {
         (c::OwnerAccountState::SignInAgain, "Signed out of ChatGPT.", Some(b"Continue with ChatGPT".as_slice())),
         (
             c::OwnerAccountState::Misconfigured,
-            "OpenAI refused temper's sign-in. Check the configuration's registration.",
+            "OpenAI refused temper’s sign-in. Check the configuration’s registration.",
             None,
         ),
         (
