@@ -17,10 +17,25 @@ fn the_digest_is_the_sha256_prefix() {
 fn the_printed_part_without_digest_is_the_bytes_digested() {
     let task = fixtures::goal(fixtures::TASK, fixtures::waiting_on_me());
     let printed = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task.clone()));
+    assert_eq!(printed.status, 0);
     assert_eq!(
         Digest::of(&fixtures::json_without_digest(&printed.stdout)),
         digest::part(&Part::Task(&task), &fixtures::limits())
     );
+    let before = fixtures::printed_digest(&printed.stdout);
+    assert_eq!(before, Digest::of(&fixtures::json_without_digest(&printed.stdout)).hex());
+
+    let mut changed = task.clone();
+    changed.activity = changed.activity.checked_add(1).expect("next task activity");
+    let printed = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(changed.clone()));
+    assert_eq!(printed.status, 0);
+    assert_eq!(
+        Digest::of(&fixtures::json_without_digest(&printed.stdout)),
+        digest::part(&Part::Task(&changed), &fixtures::limits())
+    );
+    let after = fixtures::printed_digest(&printed.stdout);
+    assert_eq!(after, Digest::of(&fixtures::json_without_digest(&printed.stdout)).hex());
+    assert_ne!(before, after);
 }
 #[test]
 fn a_tasks_page_has_the_watch_windows_subject_bytes() {
@@ -39,6 +54,16 @@ fn a_digest_moves_when_a_task_fact_changes() {
         digest::part(&Part::Task(&task), &fixtures::limits()),
         digest::part(&Part::Task(&changed), &fixtures::limits())
     );
+}
+#[test]
+fn a_direct_historical_task_prints_its_task_subject_digest() {
+    let task = fixtures::ended_task(jig_client::contract::Phase::Done);
+    let printed = fixtures::read_answer(
+        fixtures::TASK_JSON_CALL,
+        fixtures::historical_task_result(task.clone(), jig_client::contract::Ending::Done),
+    );
+    assert_eq!(printed.status, 0);
+    assert_eq!(fixtures::printed_digest(&printed.stdout), digest::part(&Part::Task(&task), &fixtures::limits()).hex());
 }
 
 #[test]

@@ -32,6 +32,24 @@ pub(crate) fn json_without_digest(bytes: &[u8]) -> Box<[u8]> {
     out.put(b"}").expect("closing object");
     out.finish()
 }
+pub(crate) fn printed_digest(bytes: &[u8]) -> [u8; 16] {
+    let marker = b",\"digest\":\"";
+    let mut at = None;
+    for (index, window) in bytes.windows(marker.len()).enumerate().rev() {
+        if window == marker {
+            at = Some(index);
+            break;
+        }
+    }
+    let start = at.expect("printed digest").checked_add(marker.len()).expect("bounded JSON");
+    let end = start.checked_add(16).expect("bounded digest");
+    let digest: [u8; 16] = bytes.get(start..end).expect("printed digest digits").try_into().expect("sixteen digits");
+    for digit in digest {
+        assert!(digit.is_ascii_digit() || (b'a'..=b'f').contains(&digit), "lowercase hex digit");
+    }
+    assert_eq!(bytes.get(end..).expect("digest closure"), b"\"}", "digest is last");
+    digest
+}
 
 pub(crate) fn limits() -> crate::jig::Limits {
     crate::limits::tools()
