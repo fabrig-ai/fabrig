@@ -40,6 +40,8 @@ pub struct Joint {
     pub runs_answered: u32,
     reply_pieces: Option<&'static [&'static [u8]]>,
     held_reply: Option<HeldReply>,
+    hold_demo_read: bool,
+    held_demo_reads: VecDeque<(ClientId, Event)>,
     pub park_runs: bool,
     settles_with_a_deadline_armed: bool,
     keyed_fault: Option<RequestEnvelope>,
@@ -104,6 +106,36 @@ pub fn first_run_projects(config: &mut engine::Config, limits: &mut engine::Limi
     config.core.defaults.policies.insert(1, policy).expect("first-run policy");
 }
 impl Joint {
+    /// Hold the next demo read's encoded answer, including its original client and read token.
+    /// Arming again lets a story hold a newer answer behind the older one.
+    pub fn hold_next_demo_read(&mut self) {
+        assert!(!self.hold_demo_read, "the next demo read is already armed");
+        self.hold_demo_read = true;
+    }
+
+    /// Queue the oldest held answer unchanged; the normal client pump delivers it.
+    pub fn release_demo_read(&mut self) -> bool {
+        let Some(answer) = self.held_demo_reads.pop_front() else { return false };
+        self.callbacks.push(answer);
+        true
+    }
+
+    /// The scripted setup host failed to create the requested first repository.
+    pub fn fail_first_repository(&mut self, forge: u16) {
+        assert!(self.set_ups.iter().any(|(number, _)| *number == forge), "setup must reach the host first");
+        self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::FirstFailed {
+            forge,
+            step: temper_engine_domain_forge::CreateStep::Repository,
+        })));
+        self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+            forge,
+            state: temper_engine_domain_forge::Connection::SetUpFailed {
+                why: b"making the repository".as_slice().into(),
+            },
+        })));
+        self.engine.settle();
+    }
+
     /// The GitHub first run: real project/adoption engine, fixed reachable page.
     #[must_use]
     pub fn github_fixture(seed: u64) -> (Self, crate::app::Root) {
@@ -667,6 +699,8 @@ impl Joint {
             runs_answered: 0,
             reply_pieces: None,
             held_reply: None,
+            hold_demo_read: false,
+            held_demo_reads: VecDeque::new(),
             park_runs: false,
             settles_with_a_deadline_armed: program,
             keyed_fault: None,
@@ -940,6 +974,10 @@ impl Joint {
                 }
                 .into(),
             ));
+            if self.hold_demo_read {
+                self.hold_demo_read = false;
+                self.held_demo_reads.push_back(self.callbacks.pop().expect("just queued demo answer"));
+            }
             return true;
         }
         false

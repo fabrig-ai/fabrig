@@ -50,6 +50,7 @@ enum WelcomeForge {
     Connected,
     Owned,
     Demo { running: bool, github: bool },
+    DemoWithProjects,
 }
 #[must_use]
 pub fn program_fixture(seed: u64) -> (Joint, Root) {
@@ -118,6 +119,8 @@ fn fixture_root(
     forge: WelcomeForge,
     program: bool,
 ) -> (Joint, Root) {
+    let surviving_projects = forge == WelcomeForge::DemoWithProjects;
+    let forge = if surviving_projects { WelcomeForge::Demo { running: true, github: false } } else { forge };
     let welcome = forge != WelcomeForge::None;
     let forge_setup = matches!(forge, WelcomeForge::Owned | WelcomeForge::Demo { github: false, .. });
     let mut limits = if tools { temper_client_tools::limits::client() } else { fixtures::domain_limits() };
@@ -181,6 +184,9 @@ fn fixture_root(
             }]);
         }
         let mut engine_limits = engine_limits();
+        if surviving_projects {
+            demo_surviving_projects(&mut config, &mut engine_limits);
+        }
         // Restore one deployment account and leave the requested room for party accounts.
         engine_limits.documents.lines = engine_limits.documents.lines.max(own_accounts);
         engine_limits.accounts.accounts = own_accounts + 1;
@@ -390,6 +396,34 @@ pub fn demo_fixture(seed: u64, state: &temper_client_protocol_wire::v1::DemoStat
         WelcomeForge::Demo { running: *state == temper_client_protocol_wire::v1::DemoState::Running, github: false },
         false,
     )
+}
+
+/// The playground plus two real projects; ordinary demo fixtures keep their single project.
+#[must_use]
+pub fn demo_fixture_with_projects(seed: u64) -> (Joint, Root) {
+    fixture_root(seed, false, 2, None, false, WelcomeForge::DemoWithProjects, false)
+}
+
+fn demo_surviving_projects(config: &mut engine::Config, limits: &mut engine::Limits) {
+    let policy = config.core.seed_projects[0].policy.clone();
+    let mut projects = std::mem::take(&mut config.core.seed_projects).into_vec();
+    for number in [2, 3] {
+        projects.push(jig_domain_core::SeedProject {
+            number,
+            name: format!("Project {number}").into(),
+            policy: policy.clone(),
+        });
+    }
+    config.core.seed_projects = projects.into_boxed_slice();
+    let identity = config.core.owners[0].identity.clone();
+    config.core.owners =
+        [1, 2, 3].map(|project| jig_domain_people::InitialOwner { project, identity: identity.clone() }).into();
+    limits.authority.projects = 3;
+    limits.forge.judge_projects = 3;
+    limits.people.projects = 4; // Three projects and the deployment roster.
+    limits.people.holdings = 4;
+    limits.people.initial_owners = 3;
+    limits.documents.lines = limits.documents.lines.max(3);
 }
 
 /// `NotStarted` beside an unconnected pasted GitHub App, before any installation.
