@@ -47,21 +47,22 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
             task(b"Task 2")
                 .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }])),
         ),
-        Step::Address(b"/tasks/2".as_slice().into()),
+        // A press finishes before its effects show (skein's browser.md, 6).
         see(heading(1, change)),
+        Step::Address(b"/tasks/2".as_slice().into()),
         see(heading(2, b"Its tasks")),
         // 3: task::a_delegates_page_shows_its_brief_run_and_report follows a plan to its agent.
         see(Find::exactly_named(Role::TreeItem, b"Task 3")),
         see(plan_agent()),
         press(plan_agent()),
-        Step::Address(b"/tasks/3".as_slice().into()),
         see(heading(1, agent)),
+        Step::Address(b"/tasks/3".as_slice().into()),
         see(Find::exactly_named(Role::Region, b"Task brief")),
         // 4: task::a_delegates_page_shows_its_brief_run_and_report and
         // b2::roadmap_b2_through_the_task_pages return through the lineage.
         press(task(b"Task 2")),
-        Step::Address(b"/tasks/2".as_slice().into()),
         see(heading(2, b"Its tasks")),
+        Step::Address(b"/tasks/2".as_slice().into()),
         // 5: b2::roadmap_b2_through_the_task_pages starts a fresh client at a delegate's address.
         Step::Person(PersonStep::Go { address: b"/tasks/3".as_slice().into() }),
         see(heading(1, agent)),

@@ -111,6 +111,7 @@ fn new_chat_focus_and_filter_survive_reload_and_back() {
         Step::Focused(Find::exactly_named(Role::TextArea, b"Start a chat")),
         Step::Address(b"/chats?at=start".as_slice().into()),
         press(Role::Button, b"Live"),
+        see(Find::exactly_named(Role::Paragraph, b"No live chats.")),
         Step::Address(b"/chats?state=live".as_slice().into()),
         Step::Person(PersonStep::Reload),
         see(Find::exactly_named(Role::Button, b"Live")),
