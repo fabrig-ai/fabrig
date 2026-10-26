@@ -95,14 +95,18 @@ pub(crate) struct Outboxed {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Handoff {
     Uncommitted,
-    /// Restored entries enter the client only at SettleOutbox.
+    /// Restored entries enter the client only at `SettleOutbox`.
     Restored,
     Ready,
     Handed,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum RestorePhase { Cold, Restoring, Active }
+enum RestorePhase {
+    Cold,
+    Restoring,
+    Active,
+}
 
 /// Volatile connection, retained setup answer and the last failure's step.
 pub(crate) type ConnectionState = (crate::Connection, Option<(Token, crate::SetUpAnswer)>, Option<crate::FailedStep>);
@@ -669,7 +673,9 @@ impl Domain {
     /// The next child timer, if one is armed.
     #[must_use]
     pub fn next_deadline(&self) -> Option<skein_lib::Time> {
-        if self.restore_phase == RestorePhase::Restoring { return None; }
+        if self.restore_phase == RestorePhase::Restoring {
+            return None;
+        }
         self.client.next_deadline()
     }
 
@@ -694,7 +700,9 @@ impl Domain {
     /// Whether a child call or a newly committed entry may be sent.
     #[must_use]
     pub fn is_ready(&self) -> bool {
-        if self.restore_phase == RestorePhase::Restoring { return false; }
+        if self.restore_phase == RestorePhase::Restoring {
+            return false;
+        }
         if self.stopping {
             return self.client.is_ready();
         }
@@ -1384,7 +1392,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
 
 /// Drive one child call after prior saves have committed.
 pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if d.restore_phase == RestorePhase::Restoring && !d.stopping { return; }
+    if d.restore_phase == RestorePhase::Restoring && !d.stopping {
+        return;
+    }
     if d.stopping {
         skein_forge_client::resume(&mut d.client, &child_env(env), &mut d.client_out);
         drain(d, env, out);
@@ -1413,7 +1423,9 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 /// Expire one client timer.
 pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if d.restore_phase == RestorePhase::Restoring && !d.stopping { return; }
+    if d.restore_phase == RestorePhase::Restoring && !d.stopping {
+        return;
+    }
     if d.stopping {
         skein_forge_client::fire(&mut d.client, &child_env(env), &mut d.client_out);
         drain(d, env, out);
@@ -4300,7 +4312,9 @@ fn deleting_entry(d: &Domain, task: u64, resource: &skein_forge_client::Resource
 }
 
 fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
-    if d.restore_phase != RestorePhase::Active { d.restore_phase = RestorePhase::Restoring; }
+    if d.restore_phase != RestorePhase::Active {
+        d.restore_phase = RestorePhase::Restoring;
+    }
     match record {
         Stored::Application { token, until, outcome } => d.application.restore(token, until, outcome),
         Stored::Call { key, answer } => {
@@ -4335,7 +4349,10 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         }
         Stored::Entry { entry, held } => {
             d.entries
-                .insert(entry.number, Outboxed { entry, held, handoff: if held { Handoff::Handed } else { Handoff::Restored } })
+                .insert(
+                    entry.number,
+                    Outboxed { entry, held, handoff: if held { Handoff::Handed } else { Handoff::Restored } },
+                )
                 .expect("restored entry within limits");
         }
         Stored::Binding { address, subject } => {
