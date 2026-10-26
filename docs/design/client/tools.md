@@ -183,6 +183,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `run N` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
 | `setting charter N [--revision R]`, `setting template\|policy N`, `setting rules` | one setting's value whole, as the newest reads it, or a charter as held revision R reads it; with `--json`, the value in the form `change-settings` takes | `setting{kind, number, revision}` |
+| `setting landing-rule N [--project P]`, `setting forge-charter` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of project P's, or the forge's charter; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `change-settings` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
 | `revision R` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `setting`), removed or reset; a revision forgotten past the history names the oldest kept | `revision{n}` |
 | `proposal tN/K\|pN/K` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision; a decided or withdrawn proposal retains its state | `proposal{proposer, number}` |
 | `revisions [--before R]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
@@ -273,13 +274,22 @@ agent must name.
   setting, each `{"setting": SETTING, "set": VALUE}`,
   `{"setting": SETTING, "edit": "removed"}` or
   `{"setting": SETTING, "edit": "reset"}`. SETTING is
-  `{"kind": "charter"|"template"|"policy", "number": N}` or
-  `{"kind": "rules"}`; VALUE is exactly the `value` member `setting … --json`
-  prints. Decoded bounded (6.4): the file's size, the item count and every
+  `{"kind": "charter"|"template"|"policy", "number": N}`,
+  `{"kind": "rules"}`, `{"kind": "landing-rule", "number": N}` for the
+  deployment's, `{"kind": "landing-rule", "project": P, "number": N}`
+  for project P's, or `{"kind": "forge-charter"}`; VALUE is exactly the
+  `value` member `setting … --json` prints: for a landing rule, section
+  3's rule member as `temper.json` wrote it (`../protocol/configuration.md`,
+  13.2), for the forge's charter a charter's number. Decoded bounded (6.4): the file's size, the item count and every
   value's bounds are jig's (`ChangeSettings`' own, and the limits the engine's
   `me` gives where it gives them). Past a bound it is refused before anything
   is sent, naming the item and the bound. Unknown members are refused,
-  naming them. These tools select deployment settings only.
+  naming them. jig's kinds are the deployment's; a landing rule names
+  its scope, the deployment's or a project's, and a set that touches a
+  project's needs an owner of it (jig's `domain/people.md`, 5.1).
+  `proposal` prints the values of temper's items from the forge's
+  `ProposalItems` read, and `settings` lists temper's settings with
+  jig's, by the names above.
 - **The arguments are jig's,** named as its operations name them, with
   the revisions they need (jig's `client/domain/contract.md`, 5.2): a
   proposal by its proposer and number, `t41/3` for task 41's third,

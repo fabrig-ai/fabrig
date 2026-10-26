@@ -1044,6 +1044,7 @@ and its hold (2.5) follow.
 | each forge's connection, its mode, installations and actions (5.4, 5.5) | temper's `Forges` page; the deployment's part | `../protocol/forge.md`, at start, connecting at runtime, a forge stopped, GitHub's installations and the setup's host; `../protocol/credentials.md`, the forges' records |
 | the browser's steps of a connect (9.1) | none of jig's: temper's routes on the clients' listener | `../protocol/forge.md`, the setup's host |
 | the demo: its project, forge, repository and suggested requests | the deployment's read, `Demo` (`README.md`, 4.6), for the demo's banner and the chats page | `../protocol/setup.md`, 8.4 |
+| temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { proposer, number }`, beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
 
 ### 9.1 The browser's steps, on the clients' listener
 

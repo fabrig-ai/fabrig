@@ -1499,20 +1499,28 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   check of references, once jig's kinds may name a charter (section
   11); until then a change of charters that would leave it unoffered is
   accepted, and the forge's next change is held, saying so.
-- **Told in the same decision.** Once a change is committed, the forge
-  hears its kinds' new values and replaces its rules, the deployment's
-  or the project's, whole; each live change into a repository it serves
-  is stepped after the commit, so a gate a rule added is asked for and
-  one it dropped no longer waited on (`../domain/forge.md`, 8.3). At a
-  start the forge hears the current values before its records
-  (`../domain/forge.md`, section 16).
+- **Kept by the forge,** in its family `Setting` (`store.md`, section
+  2), written in jig's decisions (jig's `domain/engine.md`, 17.5): the
+  stock defaults of its kinds the binary gave it at the last start, each
+  setting's current change, and the items of pending proposals of
+  settings that name its kinds. jig keeps only their states and sizes.
+  Once a change is committed, the forge saves its items and replaces
+  its rules, the deployment's or the project's, whole; each live change
+  into a repository it serves is stepped after the commit, so a gate a
+  rule added is asked for and one it dropped no longer waited on
+  (`../domain/forge.md`, 8.3). At a start the forge is given the stock
+  defaults, tells jig which changed, and holds the current values
+  before its other records (`../domain/forge.md`, section 16).
+- **Read from the forge.** A client reads a landing rule's value, the
+  forge's charter, and a pending proposal's items of temper's kinds
+  through the forge's family (`../client/forge.md`, section 9); jig's
+  documents give their states and sizes alone.
 - **Never pinned.** Every merge is judged by the rules as they are
   then, whatever revision its change was made in: what work may do is
   always current (`../draft/configuring.md`, section 4).
-- **The forge's charter is read when a change is made.** The root reads
-  it through the core, by kind, scope and number, as it reads a charter
-  (jig's `domain/engine.md`, 17.5), and grants the change's procedure
-  delegation to that charter. The change keeps it: its producing, its
+- **The forge's charter is read when a change is made.** The forge
+  reads its own kind 3, as it holds it, and the root grants the
+  change's procedure delegation to that charter. The change keeps it: its producing, its
   repairs, its resolutions and its agents' and checks' gates run under
   the charter it was made with, and a newer forge's charter reaches the
   changes made after it (`../domain/root.md`, section 6).
@@ -1573,9 +1581,11 @@ into the binary.
   family proposes and an owner accepts (jig's `domain/engine.md`, 17.6).
 - **Built at each start** by `temper-service`'s `stock` module, as
   typed values, the instructions held in the binary; `Service` passes
-  them, with the three kinds' declarations (number, scope, the forge's
-  connector, the bounds above), to jig's builder in place of the
-  document's members, and makes the engine as today.
+  jig's kinds' defaults, with the three kinds' declarations (number,
+  scope, the forge's connector, the bounds above), to jig's builder in
+  place of the document's members, and temper's kinds' defaults (kind 1
+  rule 1, kind 3) to the forge (jig's `domain/engine.md`, 17.5), and
+  makes the engine as today.
 - **The stock charters' models are the document's:** a charter names
   configured models, and the binary knows none, so it gives every model
   `engine.llm` configures, the demo's among them where the demo is
