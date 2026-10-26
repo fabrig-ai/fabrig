@@ -637,11 +637,14 @@ never renames or reuses one on its own. An account has:
   after any change of a record's form (below), once, before the first
   release. Each part keeps its bound, so the record's worst case is
   the generated one's. From the first release skein keeps each
-  version's text and its patches (codec.md, section 12), so a record
-  an owner's store keeps is patched with the store's records (jig's
-  `protocol/store.md`, 10.2), and the owner's open hands the component
-  records of the current version only. A record kept in private files
-  is read by the current version alone (section 7).
+  version's text and its patches (codec.md, section 12), so an owner
+  whose store keeps records patches them with the store's own records,
+  by skein's patch set, and hands the component records of the current
+  version only; where it holds one inside a record of its own, its field
+  is a `secret N holds skein-oauth SavedToken` (codec.md, section 3),
+  and the owner still decodes and checks it with `decode_record`. A
+  record kept in private files is read by the current version alone
+  (section 7).
 
 **Loading a private record.** At the start, an account kept in private
 files opens its private directory, making it if absent, then loads its

@@ -1,6 +1,6 @@
 # Codecs from schemas
 
-Provisional, 2026-10-06, revised 2026-10-25. How an application protocol
+Provisional, 2026-10-06, revised 2026-10-26. How an application protocol
 built on skein encodes its records, and how its kept records follow its
 schemas from one version to the next. A schema says each record's fields
 and their bounds. skein's generator turns it into plain Rust codecs,
@@ -158,7 +158,9 @@ enum Form {
   `bytes N`, and its owner decodes what it holds as before. They let a
   patch of the held type reach the field wherever it is kept (section
   11). From the baseline on (section 11), a field of a stored family
-  whose bytes are a record or pieces says so.
+  whose bytes are a record or pieces says so. A `secret N` may say so
+  too, `secret N holds skein-oauth SavedToken`, and stays a secret: never
+  printed, its bytes reaching a patch as a held field's do.
 - **A record marked `versioned`** starts with its family's version, a
   `u16`. A reader of bytes kept elsewhere learns from it which code reads
   them.
@@ -330,7 +332,7 @@ type        = "u8" | "u16" | "u32" | "u64" | "bool" | "duration"
             | "bytes" bound [held]
             | "list" bound type | "option" type
             | word                        # a declaration declared before
-held        = "holds" family word | "pieces" word
+held        = "holds" family word | "pieces" word   ; after a bytes or a secret bound
 ```
 
 - **Tokens:** words of ASCII letters, digits, `_` and `-`; the marks
