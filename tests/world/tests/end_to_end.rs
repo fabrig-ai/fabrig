@@ -3,7 +3,7 @@
 use skein_io::kernel::{Complete, Exit, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
 use skein_shell::Clock;
-use skein_world::end_to_end::{Binary, Command, Containment, Mode, StartError};
+use skein_world::end_to_end::{Binary, Cleanup, Command, Containment, Mode, StartError};
 use skein_world::{Host, Referee, real};
 use skein_world_tests::hosted::{Act, Script};
 
@@ -769,11 +769,29 @@ enum SupervisedTrigger {
 struct SupervisedJudge {
     trigger: SupervisedTrigger,
     grace: Duration,
+    cleanup: Cleanup,
     term_at: Option<Time>,
     kill_at: Option<Time>,
     next: Option<Time>,
     saw_retained_exit: bool,
     saw_grace: bool,
+    failure: Option<&'static str>,
+}
+
+impl SupervisedJudge {
+    fn new(trigger: SupervisedTrigger, grace: Duration, cleanup: Cleanup) -> Self {
+        Self {
+            trigger,
+            grace,
+            cleanup,
+            term_at: None,
+            kill_at: None,
+            next: None,
+            saw_retained_exit: false,
+            saw_grace: false,
+            failure: None,
+        }
+    }
 }
 
 impl Referee<Process> for SupervisedJudge {
@@ -806,8 +824,6 @@ impl Referee<Process> for SupervisedJudge {
     }
 
     fn observe(&mut self, now: Time, procs: &[Process]) {
-        #[cfg(target_os = "macos")]
-        let _ = now;
         let Process::Child(child) = &procs[0] else { panic!("binary observer") };
         if child.exit_status().is_some() && !child.tree_status().live_pids.is_empty() {
             assert!(child.counts().is_none(), "a living tree retains its keeper after leader exit");
@@ -818,6 +834,29 @@ impl Referee<Process> for SupervisedJudge {
                 self.saw_grace = true;
                 assert!(child.tree_status().killed_pids.is_empty(), "the keeper leaves escalation to its referee");
             }
+        }
+        // Once a required window closes or the tree settles, later iterations
+        // cannot supply its missing observation. Keep that verdict permanent.
+        if self.failure.is_none() {
+            self.failure = if self.kill_at.is_some() && self.cleanup != Cleanup::Kill {
+                Some("waiting for TERM-only cleanup: the referee unexpectedly escalated to KILL")
+            } else if self.cleanup == Cleanup::Kill
+                && !self.saw_grace
+                && self.term_at.is_some_and(|at| now >= at.saturating_add(self.grace))
+            {
+                Some(
+                    "waiting for a live retained leader exit during TERM grace: the grace window closed before it was observed",
+                )
+            } else if child.counts().is_some() && !self.passed() {
+                Some(
+                    "waiting for a retained leader exit and the expected cleanup: the supervised tree has already settled",
+                )
+            } else {
+                None
+            };
+        }
+        if let Some(why) = self.overdue(now) {
+            panic!("supervised referee failed: {why}");
         }
         self.next = if child.counts().is_some() {
             None
@@ -841,11 +880,14 @@ impl Referee<Process> for SupervisedJudge {
         self.next
     }
     fn overdue(&self, _now: Time) -> Option<String> {
-        None
+        self.failure.map(String::from)
     }
     fn passed(&self) -> bool {
-        if self.kill_at.is_some() {
-            self.saw_grace && self.saw_retained_exit
+        if self.failure.is_some() {
+            return false;
+        }
+        if self.cleanup == Cleanup::Kill {
+            self.kill_at.is_some() && self.saw_grace && self.saw_retained_exit
         } else {
             match self.trigger {
                 #[cfg(target_os = "linux")]
@@ -859,7 +901,15 @@ impl Referee<Process> for SupervisedJudge {
 }
 
 fn supervised_run(mode: &str, containment: Containment, trigger: SupervisedTrigger) -> real::Outcome<Process> {
-    supervised_run_with_grace(mode, containment, trigger, Duration::from_millis(20))
+    let cleanup = match trigger {
+        SupervisedTrigger::Never => Cleanup::None,
+        #[cfg(target_os = "linux")]
+        SupervisedTrigger::Ready | SupervisedTrigger::StderrOverflow | SupervisedTrigger::LeaderExit => {
+            Cleanup::Terminate
+        }
+        SupervisedTrigger::Bound => Cleanup::Terminate,
+    };
+    supervised_run_with_grace(mode, containment, trigger, WORLD_PATIENCE, cleanup)
 }
 
 fn supervised_run_with_grace(
@@ -867,22 +917,35 @@ fn supervised_run_with_grace(
     containment: Containment,
     trigger: SupervisedTrigger,
     grace: Duration,
+    cleanup: Cleanup,
 ) -> real::Outcome<Process> {
     use skein_world::end_to_end::Expectation;
     let binary = Binary::start_contained(fixture(mode), Mode::Pipes, 4096, Expectation::Supervise, containment)
         .expect("a supervised fixture starts");
-    let judge = SupervisedJudge {
-        trigger,
-        grace,
-        term_at: None,
-        kill_at: None,
-        next: None,
-        saw_retained_exit: false,
-        saw_grace: false,
-    };
-    let mut world = real::World::new(judge);
+    let mut world = real::World::new(SupervisedJudge::new(trigger, grace, cleanup));
     world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
     world.run(&Clock::new(), WORLD_PATIENCE)
+}
+
+#[test]
+#[should_panic(
+    expected = "waiting for a live retained leader exit during TERM grace: the grace window closed before it was observed"
+)]
+fn a_supervised_referee_fails_at_early_escalation_instead_of_idling() {
+    let binary = Binary::start_contained(
+        fixture("never"),
+        Mode::Pipes,
+        4096,
+        skein_world::end_to_end::Expectation::Supervise,
+        Containment::Group,
+    )
+    .expect("a supervised fixture starts");
+    let mut judge = SupervisedJudge::new(SupervisedTrigger::Bound, Duration::from_millis(20), Cleanup::Kill);
+    // Force the first act to escalate, before any retained-exit observation.
+    judge.term_at = Some(Time::ZERO);
+    let mut world = real::World::new(judge);
+    world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
+    let _ = world.run(&Clock::new(), WORLD_PATIENCE);
 }
 
 // The detached descendant is retained by Linux's tree keeper.
@@ -901,15 +964,9 @@ fn a_retained_exit_observation_records_grace_before_the_next_act() {
             let Process::Child(child) = &procs[0] else { panic!("binary observer") };
             if !self.checked && child.exit_status().is_some() && !child.tree_status().live_pids.is_empty() {
                 // Sample the retained exit at the start of a grace, with no subsequent act.
-                let mut probe = SupervisedJudge {
-                    trigger: SupervisedTrigger::LeaderExit,
-                    grace: Duration::from_millis(20),
-                    term_at: Some(now),
-                    kill_at: None,
-                    next: None,
-                    saw_retained_exit: false,
-                    saw_grace: false,
-                };
+                let mut probe =
+                    SupervisedJudge::new(SupervisedTrigger::LeaderExit, Duration::from_millis(20), Cleanup::Terminate);
+                probe.term_at = Some(now);
                 probe.observe(now, procs);
                 assert!(probe.saw_retained_exit, "observe records the exit while its keeper is retained");
                 assert!(probe.saw_grace, "observe records the live un-killed tree inside the grace");
@@ -928,15 +985,7 @@ fn a_retained_exit_observation_records_grace_before_the_next_act() {
         }
     }
     let judge = Observed {
-        judge: SupervisedJudge {
-            trigger: SupervisedTrigger::LeaderExit,
-            grace: Duration::from_millis(20),
-            term_at: None,
-            kill_at: None,
-            next: None,
-            saw_retained_exit: false,
-            saw_grace: false,
-        },
+        judge: SupervisedJudge::new(SupervisedTrigger::LeaderExit, WORLD_PATIENCE, Cleanup::Terminate),
         checked: false,
     };
     let binary = Binary::start_contained(
@@ -949,7 +998,7 @@ fn a_retained_exit_observation_records_grace_before_the_next_act() {
     .expect("a supervised fixture starts");
     let mut world = real::World::new(judge);
     world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+    let outcome = world.run(&Clock::new(), WORLD_PATIENCE);
     assert!(tree_child(&outcome).counts().is_some(), "the retained tree drains");
 }
 
@@ -996,7 +1045,7 @@ fn whole_tree_term_reaches_detached_descendants_before_the_leader_exits() {
     use skein_world::end_to_end::Cleanup;
     for containment in [Containment::Walk, Containment::Best] {
         for mode in ["supervise-term", "supervise-grandchild"] {
-            let outcome = supervised_run_with_grace(mode, containment, SupervisedTrigger::Ready, WORLD_PATIENCE);
+            let outcome = supervised_run(mode, containment, SupervisedTrigger::Ready);
             let child = tree_child(&outcome);
             assert_eq!(child.tree_status().cleanup(), Cleanup::Terminate);
             assert!(child.tree_status().terminated_pids.contains(&descendant(child.stderr())));
@@ -1022,7 +1071,13 @@ fn whole_tree_term_reaches_detached_descendants_before_the_leader_exits() {
 fn a_supervised_tree_honors_grace_after_leader_exit_then_reports_forced_kill() {
     use skein_world::end_to_end::Cleanup;
     for containment in [Containment::Walk, Containment::Best] {
-        let outcome = supervised_run("supervise-ignore", containment, SupervisedTrigger::Ready);
+        let outcome = supervised_run_with_grace(
+            "supervise-ignore",
+            containment,
+            SupervisedTrigger::Ready,
+            Duration::from_millis(20),
+            Cleanup::Kill,
+        );
         let child = tree_child(&outcome);
         let pid = descendant(child.stderr());
         assert_eq!(child.tree_status().live_at_leader_exit, Some(vec![pid]));
@@ -1051,13 +1106,21 @@ fn a_supervised_never_ending_leader_receives_the_referees_term_bound() {
 #[test]
 fn supervised_tree_signals_leave_an_existing_unrelated_child_running() {
     for containment in [Containment::Walk, Containment::Best] {
-        let mut unrelated = std::process::Command::new("sleep").arg("60").spawn().expect("an unrelated child starts");
-        let outcome = supervised_run("supervise-ignore", containment, SupervisedTrigger::Ready);
-        assert!(unrelated.try_wait().expect("inspect the unrelated child").is_none());
-        assert!(!tree_child(&outcome).tree_status().terminated_pids.contains(&unrelated.id()));
-        assert!(!tree_child(&outcome).tree_status().killed_pids.contains(&unrelated.id()));
-        unrelated.kill().expect("the unrelated owner ends its child");
-        unrelated.wait().expect("the unrelated owner reaps its child");
+        for (mode, grace, cleanup) in [
+            ("supervise-term", WORLD_PATIENCE, Cleanup::Terminate),
+            ("supervise-ignore", Duration::from_millis(20), Cleanup::Kill),
+        ] {
+            let mut unrelated =
+                std::process::Command::new("sleep").arg("60").spawn().expect("an unrelated child starts");
+            let outcome = supervised_run_with_grace(mode, containment, SupervisedTrigger::Ready, grace, cleanup);
+            let child = tree_child(&outcome);
+            assert_eq!(child.tree_status().cleanup(), cleanup, "both TERM and forced KILL exercise isolation");
+            assert!(unrelated.try_wait().expect("inspect the unrelated child").is_none());
+            assert!(!child.tree_status().terminated_pids.contains(&unrelated.id()));
+            assert!(!child.tree_status().killed_pids.contains(&unrelated.id()));
+            unrelated.kill().expect("the unrelated owner ends its child");
+            unrelated.wait().expect("the unrelated owner reaps its child");
+        }
     }
 }
 
@@ -1074,18 +1137,12 @@ fn supervised_tree_signals_stay_inside_their_own_delegated_cgroup() {
         return;
     };
     let pidfd = second.descriptors()[0];
-    let mut world = real::World::new(SupervisedJudge {
-        trigger: SupervisedTrigger::Ready,
-        grace: Duration::from_millis(20),
-        term_at: None,
-        kill_at: None,
-        next: None,
-        saw_retained_exit: false,
-        saw_grace: false,
-    });
+    let mut world =
+        real::World::new(SupervisedJudge::new(SupervisedTrigger::Ready, Duration::from_millis(20), Cleanup::Kill));
     world.spawn_with_fds(first.descriptors(), || Process::Child(first));
     let outcome = world.run(&Clock::new(), Duration::from_secs(2));
     assert_eq!(tree_child(&outcome).counts().expect("the first tree settled").method, Method::Cgroup);
+    assert_eq!(tree_child(&outcome).tree_status().cleanup(), Cleanup::Kill, "forced KILL exercises cgroup isolation");
     assert_eq!(skein_shell::poll_child(pidfd, false).expect("the second leader remains owned"), None);
     second.signal_tree(Signal::Terminate);
     let mut world = real::World::new(TreeJudge { end: false, sent: false });
@@ -1125,15 +1182,15 @@ fn capture_run(command: Command, limit: usize, trigger: SupervisedTrigger, force
 
     let binary = Binary::start_with_tree(command, Mode::Pipes, limit, Expectation::Supervise, force_walk)
         .expect("a supervised capture starts");
-    let mut world = real::World::new(SupervisedJudge {
-        trigger,
-        grace: Duration::from_millis(20),
-        term_at: None,
-        kill_at: None,
-        next: None,
-        saw_retained_exit: false,
-        saw_grace: false,
-    });
+    let (grace, cleanup) = match trigger {
+        #[cfg(target_os = "linux")]
+        SupervisedTrigger::StderrOverflow => (Duration::from_millis(20), Cleanup::Kill),
+        SupervisedTrigger::Never => (WORLD_PATIENCE, Cleanup::None),
+        #[cfg(target_os = "linux")]
+        SupervisedTrigger::Ready | SupervisedTrigger::LeaderExit => (WORLD_PATIENCE, Cleanup::Terminate),
+        SupervisedTrigger::Bound => (WORLD_PATIENCE, Cleanup::Terminate),
+    };
+    let mut world = real::World::new(SupervisedJudge::new(trigger, grace, cleanup));
     world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
     world.run(&Clock::new(), Duration::from_secs(2))
 }
