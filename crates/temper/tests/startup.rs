@@ -1677,6 +1677,10 @@ fn the_live_github_configuration_passes_startup_admission_for_both_owners() {
     }
 }
 
+// These profiles declare less than their worst case on main. A profile leaves
+// this list once its declarations cover its worst case.
+const MAIN_DECLARATION_SHORTFALLS: &[&str] = &["lab/live-0a/temper.json", "lab/live-0b/temper.json"];
+
 #[test]
 fn checked_in_deployment_profiles_pass_startup_admission() {
     let mut profiles = vec![
@@ -1693,18 +1697,31 @@ fn checked_in_deployment_profiles_pass_startup_admission() {
     let mut failures = String::new();
     for (index, relative) in profiles.iter().enumerate() {
         let scratch = support::Scratch::startup(&format!("deployment-profile-{index}"));
-        let mut profile = match relative.as_str() {
+        let profile = match relative.as_str() {
             "docs/examples/owned.json" => support::owned::bounded(scratch.path()),
             "crates/temper-init/template/temper.json" => support::owned::bounded_template(scratch.path()),
             _ => support::owned::deployment_profile(scratch.path(), relative),
         };
-        if relative.starts_with("lab/") && !relative.starts_with("lab/live-") {
-            f10_profile_totals(relative, &mut profile);
-        }
         let turn = profile.agent.limits.bodies.turn_body;
         let record = size_of::<temper_engine_domain::Record>();
         match profile.admission() {
-            Ok(_) => eprintln!("{relative}: startup admission passed; T={turn}, Record={record}"),
+            Ok(required) => {
+                let document: serde_json::Value = serde_json::from_slice(&profile.document).expect("profile JSON");
+                let engine = document
+                    .get("engine")
+                    .map_or(0, |engine| engine["memory_bytes"].as_u64().expect("engine declaration"));
+                let workers: Vec<_> = document["workers"]
+                    .as_array()
+                    .expect("workers")
+                    .iter()
+                    .map(|worker| worker["memory_bytes"].as_u64().expect("worker declaration"))
+                    .collect();
+                eprintln!(
+                    "{relative}: startup admission passed; engine required={} declared={engine}; worker required={} declared={workers:?}; T={turn}, Record={record}",
+                    required.engine_bytes, required.worker_bytes
+                );
+                declaration_shortfalls(relative, &profile.document, &required, &mut failures);
+            }
             Err(why) => {
                 writeln!(
                     failures,
@@ -1715,13 +1732,6 @@ fn checked_in_deployment_profiles_pass_startup_admission() {
             }
         }
         if relative.starts_with("lab/live-0") {
-            let required = profile.admission().expect("live profile derivation");
-            let terms = profile.memory_terms();
-            eprintln!(
-                "F10 {relative} current: engine_total={} worker_total={} engine_terms={:?} worker_terms={:?}",
-                required.engine_bytes, required.worker_bytes, terms.engine, terms.worker
-            );
-            profile_memory_budget(relative, "current", &profile.document, &required, false);
             let document: serde_json::Value = serde_json::from_slice(&profile.document).expect("profile JSON");
             let required = u64::from(turn) + u64::try_from(record).expect("Record size");
             for field in ["root.loads.bytes", "root.loads.reply_bytes"] {
@@ -2042,69 +2052,38 @@ fn box_logs_must_hold_one_whole_record_and_tails_at_least_one_line() {
     }
 }
 
-// Both variants use the owning startup/store derivations on the same final dependency pins.
-fn f10_profile_totals(relative: &str, profile: &mut support::owned::Bounded) {
-    let candidate = profile.document.clone();
-    for baseline in [true, false] {
-        let mut document: serde_json::Value = serde_json::from_slice(&candidate).expect("profile JSON");
-        if baseline {
-            if let Some(engine) = document.get_mut("engine") {
-                engine["limits"]["overrides"]["core.call_answer_bytes"] = 2048.into();
-                engine["limits"]["overrides"]["core.policy_bytes"] = 4096.into();
-            }
-            if let Some(workers) = document.get_mut("workers").and_then(serde_json::Value::as_array_mut) {
-                for worker in workers {
-                    worker["limits"]["overrides"]["core.call_answer_bytes"] = 2048.into();
-                }
-            }
-        }
-        profile.document = serde_json::to_vec(&document).expect("profile variant");
-        let required = profile.admission().unwrap_or_else(|why| {
-            panic!("{relative}: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
-        });
-        let terms = profile.memory_terms();
-        assert_eq!(terms.engine.iter().map(|(_, bytes)| bytes).sum::<u64>(), required.engine_bytes);
-        assert_eq!(terms.worker.iter().map(|(_, bytes)| bytes).sum::<u64>(), required.worker_bytes);
-        let variant = if baseline { "baseline" } else { "candidate" };
-        profile_memory_budget(relative, variant, &profile.document, &required, true);
-        eprintln!(
-            "F10 {relative} {variant}: engine_total={} worker_total={} engine_terms={:?} worker_terms={:?}",
-            required.engine_bytes, required.worker_bytes, terms.engine, terms.worker
-        );
-        if document.get("engine").is_some() {
-            let store = temper_service::store_limits(&profile.document, &jig_protocol_config::Directories::working())
-                .expect("owning store admission");
-            eprintln!("F10 {relative} {variant}: store_limits={:?}", store.store);
-        }
-    }
-    profile.document = candidate;
-}
-
-// Requirements derive structure without checking declarations. Touched labs must fit;
-// the separately owned live-profile deficit is measured for comparison before landing.
-fn profile_memory_budget(
+// Admission derives a component's worst case without reading its
+// declaration; a checked-in profile must declare at least that much.
+fn declaration_shortfalls(
     relative: &str,
-    variant: &str,
-    bytes: &[u8],
+    document: &[u8],
     required: &temper_service::startup::Requirements,
-    enforce: bool,
+    failures: &mut String,
 ) {
-    let document: serde_json::Value = serde_json::from_slice(bytes).expect("profile JSON");
-    let engine =
-        document.get("engine").map_or(0, |engine| engine["memory_bytes"].as_u64().expect("engine declaration"));
-    let worker = document.get("workers").and_then(serde_json::Value::as_array).map_or(0, |workers| {
-        workers.first().map_or(0, |worker| worker["memory_bytes"].as_u64().expect("worker declaration"))
-    });
-    for (component, required, declared) in
-        [("engine", required.engine_bytes, engine), ("worker", required.worker_bytes, worker)]
-    {
-        let slack = i128::from(declared) - i128::from(required);
-        eprintln!("F10 budget {relative} {variant} {component}: required={required} declared={declared} slack={slack}");
-        if enforce {
-            assert!(
-                required <= declared,
-                "{relative} {variant} {component}: required {required} exceeds declared {declared}"
-            );
+    let document: serde_json::Value = serde_json::from_slice(document).expect("profile JSON");
+    let mut components = Vec::new();
+    if let Some(engine) = document.get("engine") {
+        components.push((
+            "engine".to_owned(),
+            required.engine_bytes,
+            engine["memory_bytes"].as_u64().expect("engine declaration"),
+        ));
+    }
+    for (index, worker) in document["workers"].as_array().expect("workers").iter().enumerate() {
+        components.push((
+            format!("worker[{index}]"),
+            required.worker_bytes,
+            worker["memory_bytes"].as_u64().expect("worker declaration"),
+        ));
+    }
+    for (component, required, declared) in components {
+        if declared < required && !MAIN_DECLARATION_SHORTFALLS.contains(&relative) {
+            writeln!(
+                failures,
+                "{relative}: {component} required={required} declared={declared} shortfall={}",
+                required - declared
+            )
+            .expect("diagnostic");
         }
     }
 }
