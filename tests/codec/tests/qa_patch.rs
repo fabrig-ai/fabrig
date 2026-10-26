@@ -525,9 +525,9 @@ fn existing_story_goldens_pass_through_written_dispatch() {
     let mut patcher = Patcher::new(CAPACITY);
     patcher.keep(include_bytes!("../schema/every-v1.schema")).unwrap();
     patcher.keep(include_bytes!("../schema/every-v2.schema")).unwrap();
-    let plan = patcher.plan(patches::P0001.as_bytes()).unwrap().unwrap();
+    let plan = patcher.plan(patches::PATCHES.first().expect("fixture patch").as_bytes()).unwrap().unwrap();
     let base = skein_scratch::paths::package();
-    let mut goldens = std::fs::read_dir(base.join("patches/golden/0001"))
+    let mut goldens = std::fs::read_dir(base.join("patches/golden/0001/every"))
         .unwrap()
         .map(|entry| entry.unwrap().path())
         .collect::<Vec<_>>();

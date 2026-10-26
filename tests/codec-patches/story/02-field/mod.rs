@@ -6,11 +6,18 @@ pub use context::Context;
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
-pub const PATCHES: &[&str] = &[include_str!("0001.patch")];
+pub const PATCHES: &[&str] = &[r"patch 1
+owner skein 1
+
+family shelf 1 to 2
+add Book.pages u16 0
+"];
 
 pub mod kept {
     pub mod label {
-        pub const TEXTS: &[&str] = &[include_str!("../schema/kept/label-v1.schema")];
+        pub const TEXTS: &[&str] = &[r"family label 1
+record Label { text: text 16 }
+"];
         pub mod v1 {
             pub mod label {
                 use skein_codec::schema::FieldIx;
@@ -19,8 +26,18 @@ pub mod kept {
         }
     }
     pub mod shelf {
-        pub const TEXTS: &[&str] =
-            &[include_str!("../schema/kept/shelf-v1.schema"), include_str!("../schema/kept/shelf-v2.schema")];
+        pub const TEXTS: &[&str] = &[
+            r"family shelf 1
+record Book { title: text 32, year: u16 }
+enum Format { paper, audio, ebook }
+record Shelf { books: list 8 Book, format: Format }
+",
+            r"family shelf 2
+record Book { title: text 32, year: u16, pages: u16 }
+enum Format { paper, audio, ebook }
+record Shelf { books: list 8 Book, format: Format }
+",
+        ];
         pub mod v1 {
             pub mod book {
                 use skein_codec::schema::FieldIx;
@@ -81,13 +98,11 @@ mod tests {
 
     #[test]
     fn current() {
-        skein_codegen::patch::current(&owner()).map_err(|error| error.to_string()).expect("patches are current");
+        assert_eq!(skein_codegen::patch::current(&owner()), Ok(()), "run skein-codegen patch for this owner");
     }
 
     #[test]
     fn p0001_goldens() {
-        skein_codegen::patch::goldens(&owner(), 1, super::written)
-            .map_err(|error| error.to_string())
-            .expect("patch 0001 goldens");
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 1, super::written), Ok(()), "patch 0001 goldens");
     }
 }

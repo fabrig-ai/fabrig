@@ -170,7 +170,7 @@ mod tests {
         );
         text(root, "patches/0001.patch", FIELD, "asked.patch");
         text(root, "schema/kept/shelf-v2.schema", FIELD, "shelf-v2.schema");
-        text(root, "patches/mod.rs", FIELD, "mod.rs");
+        text(root, "patches/mod.rs", FIELD, "asked-mod.rs");
         assert_eq!(patch::check(root, &baseline), Ok(vec![unplanned]));
         assert!(!root.join("patches/golden/0001").exists(), "an unplanned patch writes no goldens");
         author(root, "patches/0001.patch", FIELD, "0001.patch");

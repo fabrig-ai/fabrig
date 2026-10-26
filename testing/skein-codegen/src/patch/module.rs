@@ -69,12 +69,7 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
         writeln!(out, "mod p{number:04};").expect("String write");
     }
     out.push_str("\nuse skein_codec::patch::{Build, Halt, Old, Site};\nuse skein_codec::value::Node;\n\n");
-    text_array(
-        &mut out,
-        "",
-        "PATCHES",
-        &krate.patches.keys().map(|number| format!("{number:04}.patch")).collect::<Vec<_>>(),
-    );
+    text_array(&mut out, "", "PATCHES", &krate.patches.values().map(String::as_str).collect::<Vec<_>>());
     out.push_str("\npub mod kept {\n");
     let mut aliases = BTreeMap::new();
     for (number, source) in &krate.patches {
@@ -90,7 +85,7 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
             &mut out,
             "        ",
             "TEXTS",
-            &versions.values().map(|text| format!("../{}", text.path.display())).collect::<Vec<_>>(),
+            &versions.values().map(|text| text.source.as_str()).collect::<Vec<_>>(),
         );
         for (version, text) in versions {
             let schema = schema::parse(text.source.as_bytes())
@@ -132,18 +127,24 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
 }
 
 /// Arrays use the workspace's 120-column rustfmt layout, including the trailing comma only when expanded.
-fn text_array(out: &mut String, indent: &str, name: &str, paths: &[String]) {
-    let items = paths.iter().map(|path| format!("include_str!(\"{path}\")")).collect::<Vec<_>>();
+fn text_array(out: &mut String, indent: &str, name: &str, texts: &[&str]) {
+    let items = texts.iter().map(|text| raw_string(text)).collect::<Vec<_>>();
     let prefix = format!("{indent}pub const {name}: &[&str] =");
     let array = format!("&[{}];", items.join(", "));
     let line = format!("{prefix} {array}");
-    if line.len() <= 120 {
+    // rustfmt keeps one multiline literal inline when its first line fits;
+    // multiple multiline literals expand to one item per line.
+    let flat = items.len() == 1 || !array.contains('\n');
+    let line_width = line.lines().next().map_or(0, str::len);
+    let array_width = array.lines().next().map_or(0, str::len);
+    if flat && line_width <= 120 {
         writeln!(out, "{line}").expect("String write");
-    } else if indent
-        .len()
-        .checked_add(4)
-        .and_then(|width| width.checked_add(array.len()))
-        .is_some_and(|width| width <= 120)
+    } else if flat
+        && indent
+            .len()
+            .checked_add(4)
+            .and_then(|width| width.checked_add(array_width))
+            .is_some_and(|width| width <= 120)
     {
         writeln!(out, "{prefix}\n{indent}    {array}").expect("String write");
     } else {
@@ -153,6 +154,15 @@ fn text_array(out: &mut String, indent: &str, name: &str, paths: &[String]) {
         }
         writeln!(out, "{indent}];").expect("String write");
     }
+}
+
+/// Use the fewest hashes that cannot close within the source text.
+fn raw_string(text: &str) -> String {
+    let mut hashes = String::new();
+    while text.contains(&format!("\"{hashes}")) {
+        hashes.push('#');
+    }
+    format!("r{hashes}\"{text}\"{hashes}")
 }
 
 fn declarations(schema: &schema::Schema, out: &mut String) -> Result<(), Error> {
@@ -219,9 +229,9 @@ fn dispatch(krate: &Crate, out: &mut String) -> Result<(), Error> {
 
 fn tests(krate: &Crate, out: &mut String) {
     // The test finds its crate when it runs (testing-strategy.md, 8).
-    out.push_str("\n#[cfg(test)]\nmod tests {\n    use std::path::PathBuf;\n\n    fn owner() -> PathBuf {\n        skein_scratch::paths::package()\n    }\n\n    #[test]\n    fn current() {\n        skein_codegen::patch::current(&owner()).map_err(|error| error.to_string()).expect(\"patches are current\");\n    }\n");
+    out.push_str("\n#[cfg(test)]\nmod tests {\n    use std::path::PathBuf;\n\n    fn owner() -> PathBuf {\n        skein_scratch::paths::package()\n    }\n\n    #[test]\n    fn current() {\n        assert_eq!(skein_codegen::patch::current(&owner()), Ok(()), \"run skein-codegen patch for this owner\");\n    }\n");
     for number in krate.patches.keys() {
-        write!(out, "\n    #[test]\n    fn p{number:04}_goldens() {{\n        skein_codegen::patch::goldens(&owner(), {number}, super::written)\n            .map_err(|error| error.to_string())\n            .expect(\"patch {number:04} goldens\");\n    }}\n").expect("String write");
+        write!(out, "\n    #[test]\n    fn p{number:04}_goldens() {{\n        assert_eq!(skein_codegen::patch::goldens(&owner(), {number}, super::written), Ok(()), \"patch {number:04} goldens\");\n    }}\n").expect("String write");
     }
     out.push_str("}\n");
 }
@@ -231,6 +241,41 @@ mod tests {
     use super::module_text;
     use crate::patch::{Error, files::Crate, text::PatchText};
     use std::{fs, path::PathBuf};
+
+    #[test]
+    fn raw_strings_preserve_quotes_hashes_backslashes_and_newlines() {
+        for (text, expected) in [
+            ("plain\\text\n", "r\"plain\\text\n\""),
+            ("a\"b", "r#\"a\"b\"#"),
+            ("a\"#b\"##c\n", "r###\"a\"#b\"##c\n\"###"),
+        ] {
+            assert_eq!(super::raw_string(text), expected);
+        }
+    }
+
+    #[test]
+    fn text_arrays_follow_the_120_column_layout() {
+        for (text, expected) in [
+            ("short".to_owned(), "        pub const TEXTS: &[&str] = &[r\"short\"];\n".to_owned()),
+            ("x".repeat(82), format!("        pub const TEXTS: &[&str] =\n            &[r\"{}\"];\n", "x".repeat(82))),
+            (
+                "x".repeat(110),
+                format!("        pub const TEXTS: &[&str] = &[\n            r\"{}\",\n        ];\n", "x".repeat(110)),
+            ),
+            ("line\n".to_owned(), "        pub const TEXTS: &[&str] = &[r\"line\n\"];\n".to_owned()),
+            (
+                format!("{}\nnext\n", "x".repeat(82)),
+                format!("        pub const TEXTS: &[&str] =\n            &[r\"{}\nnext\n\"];\n", "x".repeat(82)),
+            ),
+        ] {
+            let mut out = String::new();
+            super::text_array(&mut out, "        ", "TEXTS", &[&text]);
+            assert_eq!(out, expected);
+        }
+        let mut out = String::new();
+        super::text_array(&mut out, "", "PATCHES", &["first\n", "second\n"]);
+        assert_eq!(out, "pub const PATCHES: &[&str] = &[\n    r\"first\n\",\n    r\"second\n\",\n];\n");
+    }
 
     fn fixture() -> PathBuf {
         let root = std::env::temp_dir().join(format!("skein-codegen-t2-spelled-{}", std::process::id()));

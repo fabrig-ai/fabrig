@@ -60,12 +60,12 @@ mod tests {
 
     const V1: &str = include_str!("../schema/every-v1.schema");
     const V2: &str = include_str!("../schema/every-v2.schema");
-    const PATCH: &str = patches::P0001;
+    const PATCH: &str = patches::PATCHES.first().expect("fixture patch");
     // Six records and seven enum variants, each with smallest and full goldens.
     const GOLDENS: usize = 26;
     // One held field and one written score in each of Every's two goldens.
     const EVERY_GOLDENS: u32 = 2;
-    const GOLDEN_DIRECTORY: &str = "patches/golden/0001";
+    const GOLDEN_DIRECTORY: &str = "patches/golden/0001/every";
 
     fn kept() -> (Patcher, [u16; 2]) {
         // Two kept versions, one plan; text fits the longest input, records fit

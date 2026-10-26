@@ -266,7 +266,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
     Err(Halt::NoSite(Site::new(1, 0)))
 }
 ";
-        const CONTEXT: &str = "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug, Default)]\npub struct Context {}\n";
+        const CONTEXT: &str = "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (codec.md, 11.5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n";
         let root =
             crate_files("generated", &[("schema/shelf-v2.schema", WRITTEN), ("schema/kept/shelf-v1.schema", V1)]);
         let base = landed(&[("schema/kept/shelf-v1.schema", V1)]);

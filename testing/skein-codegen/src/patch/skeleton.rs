@@ -8,7 +8,7 @@ use super::{
     text::{Line, PatchText},
 };
 
-pub(crate) const CONTEXT: &str = "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug, Default)]\npub struct Context {}\n";
+pub(crate) const CONTEXT: &str = "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (codec.md, 11.5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n";
 
 pub(crate) fn skeleton_text(number: u32, patch: &PatchText, existing: Option<&str>) -> Result<String, Error> {
     let names = function_names(patch)?;
@@ -79,7 +79,7 @@ pub fn every_score(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -
         assert_eq!(skeleton_text(1, &PatchText::read(PATCH).expect("patch"), None).expect("skeleton"), SKELETON);
         assert_eq!(
             CONTEXT,
-            "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug, Default)]\npub struct Context {}\n"
+            "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (codec.md, 11.5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n"
         );
     }
 
