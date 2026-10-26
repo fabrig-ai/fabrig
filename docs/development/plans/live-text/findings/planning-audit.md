@@ -217,5 +217,5 @@ checked with `rg`. The session files cite these entries by number.
   test files (`tests/core/src/protocol.rs`, `tests/core/src/
   agents_tools.rs`, `tests/ops/src/conformance/scripts.rs`,
   `testing/jig-test-service/src/tests/fixtures.rs`: `CallName`,
-  `CallNameParts`, `CEILINGS`); temper none. The director accepted the repins' share
+  `CallNameParts`, `CEILINGS`); temper none. The repins' share was accepted
   (decisions.md, Design questions, 4).

@@ -203,7 +203,7 @@ Test shape: unit, `crates/smith-domain-run/src/tests.rs`, reusing
   neighbour runs in 0.073 s).
 Proof: process layer, `tests/agent-process`:
   `a_child_usage_line_tells_the_budget_record_naming_its_call`, run once
-  through `heavy cargo nextest run -p smith-agent-process-world -E
+  through `cargo nextest run -p smith-agent-process-world -E
   'test(a_child_usage_line_tells_the_budget_record_naming_its_call)'`;
   it shows that the values the model was told are a record's, named by
   its call; a pass is the test passing, under 1 second. The parent has
@@ -239,7 +239,7 @@ Scope: the recommendation decisions.md, 5.8 asks for, now that the
   `crates/smith-local-shell/src/local_settings.rs:120`.
 Needs: session 13's `budget` and `parallel-children` steps, recorded.
 Files: `docs/development/benchmarks/sub-agents-by-default.md` (new,
-  Markdown only), landed with `land --docs` in a commit carrying `Step:
+  Markdown only), landed in a commit carrying `Step:
   smith-07.13`. The report raises the recommendation as its question for
   the user (development.md, 10.4); the supervisor records the user's
   answer in decisions.md, section 10, item 7.
@@ -328,10 +328,10 @@ else (main):
 ## Done when
 
 - A sub-agent's usage line tells the `budget` record that names its
-  call: `heavy cargo nextest run -p smith-agent-process-world -E
+  call: `cargo nextest run -p smith-agent-process-world -E
   'test(a_child_usage_line_tells_the_budget_record_naming_its_call)'`
   passes.
-- The return step's snapshot exists and rounds up: `heavy cargo nextest
+- The return step's snapshot exists and rounds up: `cargo nextest
   run -p smith-domain-run -E
   'test(a_child_closed_after_its_last_charge_tells_the_budget_of_its_return)
   | test(a_snapshot_rounds_used_time_up_to_a_whole_millisecond)'` passes.

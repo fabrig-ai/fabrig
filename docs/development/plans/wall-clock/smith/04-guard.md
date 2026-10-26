@@ -258,5 +258,5 @@ Removes: nothing.
 ## Done when
 
 - `cd ~/src/rust/smith && rg -n 'pub struct Guard' crates/smith-domain-session/src/llm.rs` prints one line.
-- `cd ~/src/rust/smith && heavy cargo nextest run -p smith-protocol-llm-world -p smith-session-world -E 'test(a_request_one_byte_past_the_line_fails_unsent) | test(the_guards_refusal_compacts_the_window_once) | test(a_guarded_request_past_the_line_is_refused_by_the_world)'` runs three tests per dialect row, and they pass.
-- `cd ~/src/rust/smith && heavy cargo nextest run --profile fuzzy -p smith-session-world -E 'test(drawn_ratios_and_rendered_sizes_send_nothing_past_the_line)'` passes.
+- `cd ~/src/rust/smith && cargo nextest run -p smith-protocol-llm-world -p smith-session-world -E 'test(a_request_one_byte_past_the_line_fails_unsent) | test(the_guards_refusal_compacts_the_window_once) | test(a_guarded_request_past_the_line_is_refused_by_the_world)'` runs three tests per dialect row, and they pass.
+- `cd ~/src/rust/smith && cargo nextest run --profile fuzzy -p smith-session-world -E 'test(drawn_ratios_and_rendered_sizes_send_nothing_past_the_line)'` passes.

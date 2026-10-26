@@ -519,7 +519,7 @@ Reversible, and none a product decision; the widest in reach:
      - What the run counts for: benchmarks.md 16.5, "A run whose verdict is 2 measured nothing whole: its summary is not committed, and its attempts are spent", and "A smith arm is run once to a verdict of 0 or 1." The stopped run reached neither, so a new run repeats no verdict and no stop (rule 9's last sentence holds).
      - Rule 9 now reads "a request the provider never answered (a failure whose `evidence` is `maybe_sent`, benchmarks.md 8.2, such as a timeout waiting for the response head)" beside "the provider's capacity or a server error". It applies to every live command left in the run, 07.1 to 11.2 included. Stopped again, the step stops on a question, which the supervisor sends to the designer.
      - The incomplete report's lines (RT 1.34, holds=false) are not the baseline's verdict, and nothing is read from them. The baseline's failed criteria go to the designer when the new run's verdict is 0 or 1 (06's "Choices").
-     - Unchanged: 06.1's Shape, steps 1 to 5, on a worktree at `origin/main`; the small `parity-change` run; no attempt rerun; the `Live:` trailer counts every attempt the step ran, the 60 already run included (rule 10); the worktree's target stays until each heavy task started from it has ended.
+     - Unchanged: 06.1's Shape, steps 1 to 5, on a worktree at `origin/main`; the small `parity-change` run; no attempt rerun; the `Live:` trailer counts every attempt the step ran, the 60 already run included (rule 10); the worktree's target stays until each command started from it has ended.
 
 114. **06.1 goes on while the designer answers the baseline's misses** (design gap (interim), smith 06.1's block of 2026-10-16T23:20:46Z).
      Interim ruling 114, on a design gap whose question is already with the designer. 06's "Choices this plan makes" says: "The supervisor still sends the baseline's failed criteria to the designer at once (development.md 5.1, 10.4); 07 starts on 06.1's landing, unless the designer's answer says otherwise." The supervisor sent them at 2026-10-16T23:13:54Z, in the run's `question.md` (FT, RT and RC: whether 07 to 10 aim at each), to a fresh designer.
@@ -558,7 +558,7 @@ Reversible, and none a product decision; the widest in reach:
      README rule 18 gains a sentence, the second sighting of the 15:08 steer's point 1 (07.1's `src/tests/window.rs` types one eight-line setup in four tests): "When two tests of a file open with the same three lines or more, those lines are written once, as a named function of that file that takes what differs."
 
 118. **smith 08's outside-choice names in the session's record** (plan defect, smith 08.1's block of 2026-10-17T03:34:48Z).
-     Ruling 118. A plan defect: 08.1's Shape gave the transcript's version 5 the allowed names (ruling 116) but missed that the channel's codec encodes the session's `record::Turn`, whose `NotRun::OutsideChoice` holds `ToolChoice::Only(Box<[Token]>)`. The design says what a told turn holds, in its own words: "A historical call holds no ticket that means something only inside the session that made it" (domain/session.md, section 3), and transcript.md 2, "not run, with why: outside the tool choice, naming the calls that were allowed". The implementer's proposal is approved:
+     Ruling 118. A plan defect: 08.1's Shape gave the transcript's version 5 the allowed names (ruling 116) but missed that the channel's codec encodes the session's `record::Turn`, whose `NotRun::OutsideChoice` holds `ToolChoice::Only(Box<[Token]>)`. The design says what a told turn holds, in its own words: "A historical call holds no ticket that means something only inside the session that made it" (domain/session.md, section 3), and transcript.md 2, "not run, with why: outside the tool choice, naming the calls that were allowed". The author's proposal is approved:
 
      - The session's `NotRun::OutsideChoice` holds the allowed names, in `smith-domain`'s shape (`choice: Option<Box<[Box<[u8]>]>>`, `None` no call allowed), never tickets.
      - The root resolves the names when it narrows the choice (`route.rs:741`, from the peer's descriptors, as `retained_choice`, `peer.rs:359-378`, does today). The session keeps them beside its ticketed `choice`, which `chosen` (`session.rs:2144`) still reads; `choice_bytes` (`:753-760`) counts their bytes; `answer_unchosen` (`:2132-2142`) copies them. The session's own `None` (final turn, compaction) answers `None`.
@@ -641,7 +641,7 @@ Reversible, and none a product decision; the widest in reach:
      - Its 46 polls beside another call waited 43 ms in all; its parent's 31 waited 48.0 s. That is cause 4, removed as session.md 5 says.
      - The parent's code is 08.1's, byte for byte. As 08.1's arm it made 63.2 responses an attempt at a median $1.510; here, 52.4 at $1.291.
 
-     **How it lands.** `smith/09-polls.md` ("Stopped and kept") gives the cause, as written, for the commit body. `c94fcaaa` is rebased onto `origin/main`. Since `c36fa508`, main has moved by Markdown only, so the run stands (README rule 11), and the body names `2318318b` and `c36fa508`. The rest of 09.1's Proof is unchanged: `Change-Summary:`, the criteria, projection and stop lines, and rule 13's counts. The gate runs once, at `land`.
+     **How it lands.** `smith/09-polls.md` ("Stopped and kept") gives the cause, as written, for the commit body. `c94fcaaa` is rebased onto `origin/main`. Since `c36fa508`, main has moved by Markdown only, so the run stands (README rule 11), and the body names `2318318b` and `c36fa508`. The rest of 09.1's Proof is unchanged: `Change-Summary:`, the criteria, projection and stop lines, and rule 13's counts. The gate runs once, at the merge.
 
      **The design** (16.6, new): "The cause may be noise rather than the change. The answer then shows, from the run's attempts, that the move lies in work the change does not alter … An interval that holds 1 is no such showing … The projection keeps the ratio as measured."
 
@@ -681,14 +681,14 @@ Reversible, and none a product decision; the widest in reach:
      - median spend $1.491 against $1.518 and $1.798;
      - median task wall 578 s against 506 s and 590 s.
 
-     **How it lands.** `smith/10-ranged-reads.md` ("Stopped and kept") gives the cause, as written, for the commit body. `817e42df` is rebased onto `origin/main`. Since `e2624ff4`, main has moved by Markdown only, so the run stands (README rule 11), and the body names `d6b81c63` and `e2624ff4`. The rest of 10.1's Proof is unchanged: `Change-Summary:`, the criteria, projection and stop lines, rule 13's counts and the fresh tokens per arm. The gate runs once, at `land`.
+     **How it lands.** `smith/10-ranged-reads.md` ("Stopped and kept") gives the cause, as written, for the commit body. `817e42df` is rebased onto `origin/main`. Since `e2624ff4`, main has moved by Markdown only, so the run stands (README rule 11), and the body names `d6b81c63` and `e2624ff4`. The rest of 10.1's Proof is unchanged: `Change-Summary:`, the criteria, projection and stop lines, rule 13's counts and the fresh tokens per arm. The gate runs once, at the merge.
 
      **11.1 starts as planned** once 10.1 lands (11-closing.md, Needs). RT's projection, 1.513, lies within the baseline's interval [1.149, 1.636]. 16.6 says: "A plan's position within the baseline's interval is within what it already measures as noise, and goes on." A `parity-change` run is "a step's evidence for landing, never a verdict: the plan's `parity` runs judge it". A miss at 11.1 is answered by `smith-11.s1` from 11.1's own attempts (16.5; 11-closing.md).
 
      **`smith-11.s1`,** if it changes what the model is sent, starts from 10.1's projections as measured. It stops on an RC ratio above 0.952 or an RT ratio above 1.081 (`smith/11-closing.md`).
 
      **Not taken:**
-     - **Dropped.** The implementer read the stop as the step's failure. 16.6 asks for the move's cause, and the move past the bound is 09.1's ratio, carried. A drop would leave shell.md 6.6's topic 2 unbuilt.
+     - **Dropped.** The author read the stop as the step's failure. 16.6 asks for the move's cause, and the move past the bound is 09.1's ratio, carried. A drop would leave shell.md 6.6's topic 2 unbuilt.
      - **Reworked.** The words did what topic 2 asks, and no wording answers a projection the step did not move. A new commit's run would start at the same 0.936.
 
      **Deferred, with its `later.md` row** (the projection's row, amended). 09.1's code is the third code measured twice: $1.798 in its own run, $1.518 as 10.1's parent. Of 10.1's RC projection, 1.821, a factor 1.485 is the three codes measured twice; of RT's 1.513, a factor 1.199. The revision of 16.6 stays where the row puts it.

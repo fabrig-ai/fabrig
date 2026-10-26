@@ -2,7 +2,7 @@
 
 How work reaches main. Work happens on branches; main moves only by
 landing a branch that passed every check below, or that changes only
-documentation, with `land` (agents' `roles/owners.md`, 4.4).
+documentation.
 
 For the product, see [local-host settings and commands](local-host.md).
 The root package builds `src/main.rs`; its end-to-end and live targets live
@@ -21,13 +21,9 @@ cargo nextest run --workspace
 cargo nextest run --workspace --profile fuzzy
 ```
 
-`land` runs it through `heavy --gate` on the branch's tip, rebased on
-`origin/main`, so that what is checked is what main becomes, then pushes
-the tip to `origin`'s `main` (development.md, section 9.1).
-
 A branch that changes only Markdown files (the documents under `docs/`,
 `AGENTS.md`) skips the four checks, since nothing it touches is built or
-tested, and lands with `land --docs`. Doc comments in `.rs` files are not
+tested, and may be merged without those checks. Doc comments in `.rs` files are not
 documentation in this sense: they are code, and clippy checks them.
 
 Dependencies on skein use `https://github.com/fabrig-dev/skein.git` without
@@ -137,9 +133,9 @@ it is complete,** by the kind of proof its kind of change needs:
   does not change.
 - **Every smith landing that changes code runs `smoke-tools` live,**
   with the cheapest model and effort, whatever the change touched: once,
-  through `heavy --gate`, on the branch rebased on `origin/main` just
-  before `land`, and once more only if it fails (`benchmarks.md`, section
-  11.5). A rebase inside `land` does not run it again. A Markdown-only
+  on the branch rebased on `origin/main` just
+  before merging, and once more only if it fails (`benchmarks.md`, section
+  11.5). A rebase does not run it again. A Markdown-only
   landing skips it. It takes about ten seconds and ten thousand tokens. A
   red smoke stops the line: nothing else lands until it is green again.
 

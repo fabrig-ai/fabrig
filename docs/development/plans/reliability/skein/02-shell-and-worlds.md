@@ -60,7 +60,7 @@ session.
 ## Rules that bind it
 
 - **skein never names smith's code** (development.md, 3.1): before
-  `land`, `git diff origin/main -- crates testing tests | rg -c '^\+.*smith'`
+  merging, `git diff origin/main -- crates testing tests | rg -c '^\+.*smith'`
   prints nothing; documents may name smith as the feature's reason.
 - **The only `unsafe` a service runs is the ring adapter's** (shell.md,
   1; `skein-shell/src/lib.rs`): `tcgetattr`, `tcsetattr`, `TIOCGWINSZ`
@@ -225,10 +225,10 @@ pub fn terminal_modes(fd: Fd) -> Result<Modes, kernel::Error>;
 
 - `SIGWINCH` is watched: `rg -n 'SIGWINCH' crates/skein-shell/src`
   prints a line.
-- The three end-to-end stories pass: `heavy cargo nextest run -p
+- The three end-to-end stories pass: `cargo nextest run -p
   skein-world-tests --test end_to_end -E
   'test(/key_at_a_time|modes_are_found_again|size_change/)'`.
-- The scenario passes on both backends: `heavy cargo nextest run -p
+- The scenario passes on both backends: `cargo nextest run -p
   skein-conformance-ring -p skein-conformance-sim -E
   'test(window_on_a_descriptor)'`.
 - `Done::ServiceSignal` is gone: `rg -n 'Done::ServiceSignal' crates

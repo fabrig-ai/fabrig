@@ -38,7 +38,7 @@ with at most two closing `parity` runs.
 A dependency is named by capability, with its increment in brackets. A
 session starts when what it needs at its start has landed; an increment
 that needs more waits, and the session does its other increments
-meanwhile (implementer.md, section 8.7).
+meanwhile (the implementation rules, section 8.7).
 
 ### smith (`smith/`)
 
@@ -88,17 +88,17 @@ runs, 34 h if 11.2 and its answering step run, besides the code.
 
 ## Rules of this plan
 
-What development.md, implementer.md, smith's `AGENTS.md` and smith's
+What development.md, the implementation rules, smith's `AGENTS.md` and smith's
 `workflow.md` do not already say. Each applies to every session, until
 the run ends.
 
 1. **Splits.** A Size line is a guide. Past 1.5 times its Size line or
-   600 production lines, whichever is smaller, the implementer splits
+   600 production lines, whichever is smaller, the author splits
    the increment at a point that lands alone, and lands that part; the
    count is `code-organization.md`'s, section 8. The rest becomes the
    session's next free item number. Its report says `Split: <step>,
    <what>`, and the coordinator runs `plan set <step> note="split from
-   <old> by the implementer"`. Lines under rule 3 count like any other.
+   <old> by the author"`. Lines under rule 3 count like any other.
    Two exceptions: 07.1, 08.1, 09.1 and
    10.1 never split, since each part would change what the model is
    sent without its own `parity-change` run: past 1.5 times its Size,
@@ -111,7 +111,7 @@ the run ends.
    to a signature, a variant or a struct whose fields the Shape changes
    (a new field set to the value the story already implies: `guard:
    None`, a limit's shipped value: the value that keeps the test's
-   present behaviour), in any file. This replaces implementer.md 8.2's
+   present behaviour), in any file. This replaces the implementation rules's
    line limits for these edits only. No test is renamed but where a
    Shape renames it; an expected value changes only where the Shape
    changes what it counts, and the commit body lists each such test.
@@ -120,20 +120,19 @@ the run ends.
    sections of skein's `programming-model.md` and `testing-strategy.md`
    its increments follow: read only those.
 5. **Diagnosis.** A step whose Scope is to find a cause carries `Budget:
-   <N> runs, <M> minutes`; past it, the implementer stops and reports.
+   <N> runs, <M> minutes`; past it, the author stops and reports.
    Outside such a step, at most 6 runs with diagnostics in place for one
-   failing test, then it asks; a run is one `heavy` call that runs the
+   failing test, then it asks; a run executes the
    failing test, and the report gives the count. A diagnostic is a
-   `dbg!` line, and none other is written; none lands: before `land`,
+   `dbg!` line, and none other is written; none lands: before merging,
    `git diff origin/main...HEAD | grep -nE '^\+.*\bdbg!'` prints
    nothing.
-6. **Dependents' tests.** Once before `land`, after the last edit: `heavy
-   cargo nextest run --workspace -E 'rdeps(<crate>) or rdeps(<crate>)'`,
+6. **Dependents' tests.** Once before merging, after the last edit: `cargo nextest run --workspace -E 'rdeps(<crate>) or rdeps(<crate>)'`,
    one `rdeps` for each crate the increment changed. A failure only on a
    timeout is left to the gate; any other is fixed first. A landing that
    changes no crate skips it. Its times are the ones the test ceilings
-   are read from, in place of implementer.md 8.2's "last focused run".
-7. **Words and lint exceptions never land.** Once before `land`, on the
+   are read from, in place of the implementation rules's "last focused run".
+7. **Words and lint exceptions never land.** Once before merging, on the
    rebased branch:
 
    ```
@@ -148,8 +147,8 @@ the run ends.
    that changes code:
 
    ```
-   heavy cargo run -p smith-bench -- build HEAD
-   heavy --gate cargo run -p smith-bench -- probe probes/smoke-tools --arm <the directory build printed>
+   cargo run -p smith-bench -- build HEAD
+   cargo run -p smith-bench -- probe probes/smoke-tools --arm <the directory build printed>
    ```
 
    It runs once, and passes when the probe exits 0; a failure runs it
@@ -168,9 +167,9 @@ the run ends.
    third failure being a question, and the line goes on. If `main`'s
    fails too, the coordinator escalates it as `infrastructure`, and no
    smith step lands until `main`'s passes.
-9. **Live runs.** Every live command goes through `heavy --gate`. A
+9. **Live runs.** Every live command goes. A
    `suite` runs in one call, unsplit, whatever its attempts. Each commit
-   a command names (`HEAD`, `--parent`) is built first: `heavy cargo run
+   a command names (`HEAD`, `--parent`) is built first: `cargo run
    -p smith-bench -- build <commit>`. A command stopped by the provider,
    that is, one that ends before its last attempt because an attempt met
    the provider's capacity or a server error, or a request the provider
@@ -252,7 +251,7 @@ the run ends.
     `~/.codex` read only, the access token only. No code of smith or
     `smith-bench`, and no test, writes to `~/.codex`, `~/.claude`, or
     smith's own `$XDG_CONFIG_HOME/smith` and `$XDG_STATE_HOME/smith` (not
-    `smith-bench`'s); no agent signs in. Before `land`, `git diff
+    `smith-bench`'s); no agent signs in. Before merging, `git diff
     origin/main...HEAD | grep -nE '^\+.*(\.codex|\.claude|XDG_(CONFIG|STATE)_HOME)'`
     prints nothing, or the commit body names each line it prints and why
     it writes nothing there.
@@ -268,7 +267,7 @@ the run ends.
     `crates/smith-local-shell/src/role.rs` (08.1, 09.1, 10.1),
     `benchmarks/src/summary.rs`, `parity.rs` and `result.rs` (01, 02),
     `benchmarks/src/agent/smith/events/` (01.2, 03.1, 03.3) and
-    `Cargo.lock`. Conflicts are implementer.md 8.5's.
+    `Cargo.lock`. Conflicts are the implementation rules's.
 18. **One behaviour per test.** A test whose cases expect different
     outcomes is several tests: each its own test, named for what it
     shows in about eight words, with its expected value as a literal. A
@@ -352,7 +351,7 @@ Each command runs once, on `main` (`~/src/rust/smith`, after `git -C
 2. **smith is on par with Codex at the plan's final `main`:**
 
    ```
-   cd ~/src/rust/smith && run=$(ls benchmarks/summaries/parity-*.json | grep -v '/parity-change-' | sort -t- -k3 | tail -n1) && sha=$(jq -r .parity.smith_commit "$run") && test -z "$(git log "$sha"..origin/main --grep='^Plan: wall-clock$' --format=%h -- crates src tests benchmarks/src)" && heavy cargo run -q -p smith-bench -- parity "$run" --commit "$sha"
+   cd ~/src/rust/smith && run=$(ls benchmarks/summaries/parity-*.json | grep -v '/parity-change-' | sort -t- -k3 | tail -n1) && sha=$(jq -r .parity.smith_commit "$run") && test -z "$(git log "$sha"..origin/main --grep='^Plan: wall-clock$' --format=%h -- crates src tests benchmarks/src)" && cargo run -q -p smith-bench -- parity "$run" --commit "$sha"
    ```
 
    exits 0, offline. It reads the newest committed `parity` summary,
@@ -365,7 +364,7 @@ Each command runs once, on `main` (`~/src/rust/smith`, after `git -C
 4. **Each change to what the model is sent has its report:**
 
    ```
-   cd ~/src/rust/smith && for f in $(git log origin/main --grep='^Plan: wall-clock$' --format='%(trailers:key=Change-Summary,valueonly)' | grep .); do test -f "$f" && heavy cargo run -q -p smith-bench -- change "$f" || echo "missing or refused: $f"; done
+   cd ~/src/rust/smith && for f in $(git log origin/main --grep='^Plan: wall-clock$' --format='%(trailers:key=Change-Summary,valueonly)' | grep .); do test -f "$f" && cargo run -q -p smith-bench -- change "$f" || echo "missing or refused: $f"; done
    ```
 
    prints no `missing or refused` line (`change` exits 0 when its

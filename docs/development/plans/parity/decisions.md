@@ -357,7 +357,7 @@ it. To veto one, say which; the alternative is named.
     user's decision 4.5 (the threshold).
 
 Still with the user from the reliability plan, unchanged by this one:
-borrowing another CLI's login (its 10.2), the smoke before `land` (its
+borrowing another CLI's login (its 10.2), the smoke before merging (its
 10.4), the skein pin tags (its 10.5), and local `sub_agents` on by
 default (its 10.7).
 
@@ -489,15 +489,8 @@ changes what section 8.4 holds.
      - 11.1's Files now name `crates/smith-host-domain/src/process.rs` (`Event`).
      - If clippy reports `large_enum_variant` on a further enum that holds `process::Event`, `channel::Up` or `TurnValue` inline after `Turn` gains `jobs`, give it the same line, with the same reason, and list it in the commit body under "Lint exceptions by ruling 102:"; any other enum's lint is a question.
 
-103. **the line resumes; kache gc by hand below 40 GB** (infrastructure, smith 03's block of 2026-10-14T10:45:23Z).
-     Ruling 103. The line resumes: the disk has 64 GB available, above development.md 11.4's 40 GB below which new starts are held. kache's store had grown to 135.2 GiB against its 74.5 GiB cap because its timed eviction (`kache-gc.timer`, every 30 minutes) fails on a race, "Running eviction...Error: No such file or directory (os error 2)", and the daemon's own GC request times out; two hand runs of `kache gc` at 10:46 and 10:48 took it to 67.0 GiB.
-
-     - Until the run ends, the coordinator runs `kache gc` itself whenever its disk check (development.md 11.4) reads below 40 GB, before it holds any start; if that run ends with "No such file or directory", it runs `kache gc` once more. It logs each run's line from `kache stats` ("Store: …") in `log.md`.
-     - It still removes the `target/` of a session that is not running when that is not enough, as 11.4 allows.
-     - Nothing else changes: the 40 GB and 15 GB thresholds stay, and the user's primary checkouts are not touched.
-
 104. **05.1's Files take the adapter's model counts** (cross-session scope, smith 05's block of 2026-10-14T10:55:33Z).
-     Ruling 104. Yes: 05.1 changes the six count assertions in `benchmarks/tests/smith_adapter.rs` from 2 to 3, because 05.1's Shape says "`MODELS` gains `codex/gpt-6.1-sol`" and these tests count the models and allowances that the startup derivation renders from the presets. The session file missed them; 05.1's Files now name them, so implementer.md 8.2's limit of 4 does not apply to them.
+     Ruling 104. Yes: 05.1 changes the six count assertions in `benchmarks/tests/smith_adapter.rs` from 2 to 3, because 05.1's Shape says "`MODELS` gains `codex/gpt-6.1-sol`" and these tests count the models and allowances that the startup derivation renders from the presets. The session file missed them; 05.1's Files now name them, so the implementation rules's limit of 4 does not apply to them.
 
      - The six lines: `smith_adapter.rs:686-687`, `:765-766` and `:853-854`, each `assert_eq!(local.models.len(), 2);` or `assert_eq!(allowances.len(), 2);`, become `3`. The tests' names, inputs and other assertions stay as they are.
      - A further assertion, in any file, that counts the presets' rendered models or their allowances and expects the count before `gpt-6.1-sol`, takes the count after it; list each in the commit body under "Users outside Files:".
@@ -523,17 +516,9 @@ changes what section 8.4 holds.
 
      - 02.1 runs README rule 8's smoke on its corrected arm as written: once, and once more on a failure. A second failure stops 02.1 on a question; it does not stop the line.
      - The shipped memory and every other preset stay as they are.
-     - The one-line change to smith's product resolver (a file trace only when `trace.path` is set) is a small fix outside Files (implementer.md 8.2): name it in the commit body with the text of benchmarks.md section 6 it follows ("one event destination"), and the test that covers it.
+     - The one-line change to smith's product resolver (a file trace only when `trace.path` is set) is a small fix outside Files (the implementation rules): name it in the commit body with the text of benchmarks.md section 6 it follows ("one event destination"), and the test that covers it.
      - README rule 8 now says, until the run ends: a second failure refused at setup, before any model request, on a branch that changes `benchmarks/src/agent/smith/` or `benchmarks/agents/smith/`, while `main`'s last landed smoke passed, stops its step on a question, and the line goes on. Every other second failure stops the line, as before.
      - The two refused attempts count in the step's `Live:` trailer (rule 10).
-
-108. **a session's target goes after each landing; 6 sessions below 60 GB** (infrastructure, smith 03's block of 2026-10-14T12:34:13Z).
-     Ruling 108. The line resumes once a disk check reads 40 GB or more (it read 48 GB at 12:44), under two rules that bound the sessions' build output, until the run ends. The cause is not kache: a session's `target/` grows to 17–21 GB over a few increments (`target/debug/deps` alone is 20 GB in smith 03's), not the 1–8 GB that development.md 11.4 assumes, and eight of them outgrow what kache's eviction frees between wake-ups. A fresh `target/` is 8–9 GB (smith 05's and 07's).
-
-     - **After each landing,** the coordinator removes that session's `target/` before its next increment starts, and when a session yields, hands over or ends. kache refills it from its store: "it gains most when worktrees are new" (development.md 11.3). The implementer is told this once, so that it does not wait for a warm `target/`.
-     - **While a disk check reads below 60 GB,** at most 6 sessions run at once; at 60 GB or more, 8 again. Below 40 GB new starts are held, and below 15 GB the line stops, as 11.4 says.
-     - Ruling 103's `kache gc` below 40 GB stays.
-     - Nothing outside the run's own directories is removed by the run: the user's checkouts and `~/src/rust/smith-benchmark-2026-10-08/` stay unless the user says otherwise.
 
 109. **the queue restarted after the full disk** (infrastructure, smith 07's block of 2026-10-14T12:38:47Z).
      Ruling 109. The queue is back and the line resumes, under ruling 108's limits. pueued stopped at 12:33:21 because it could not save its state on the full disk ("Failed to write temp file while saving state. No space left on device"), and systemd gave up after six restarts. Its state file was whole (3,589 tasks); the supervisor removed the empty `state.json.partial`, restarted the service, and ran `plan check --fix`, which started the lanes.
@@ -551,10 +536,9 @@ changes what section 8.4 holds.
      - A further per-step overcount (the pathname copies you name) may be tightened only where a heap test like your saturated eight-listing check shows the bytes; no preset or expected value changes. If the three stories that fail now (`smith_exec_ephemeral_removes_its_private_files_after_a_failed_answer`, `smith_exec_json_ends_accepted_with_its_events_and_exit_0`, `slash_effort_reaches_the_next_request`) still refuse at startup after that, stop on a question with the remaining bytes, and change nothing else.
      - Each `machine::Limits` literal and destructuring outside Files takes the new field set from the tools' `tool_payload` (README rule 3; `service.rs`, `tests/host/src/inline.rs` among them); list each in the commit body under "Users outside Files:".
 
-111. **kache gc below 80 GB; one behaviour per test is rule 16** (steer of the 18:42 check).
+111. **One behaviour per test is rule 16** (steer of the 18:42 check).
      From the check of 2026-10-14T18:42Z, two standing rules, until the run ends:
 
-     - **kache gc below 80 GB,** amending ruling 103's 40 GB. The 18:21 timed gc left kache's store at 66.9 GiB; by 18:40 it read 133.6 GiB against its 74.5 GiB cap, and the disk fell from 135 GB to 69 GB by 18:42, 3.5 to 7 GB a minute. The supervisor ran `kache gc` at 18:5x: "Evicted 1665 entries", store 67.0 GiB, disk 69 GB to 132 GB. The coordinator runs `kache gc` at every disk check that reads below 80 GB (each wake-up, each start, each target removal), once more if it ends with "No such file or directory", and logs its `Store:` line beside the disk check. Ruling 108's removals and caps, the 40 GB hold, the 15 GB stop and the 30-minute `kache-gc.timer` stay.
      - **One behaviour per test** is README rule 16: the steer of 17:44's point 1, after a third finding (`benchmarks/tests/parity.rs`, 04.4: `a_ratio_just_below_its_margin_holds_and_just_above_fails`, five rows and three outcomes; `missing_reference_passes_and_smith_lower_bounds_are_incomplete`, three verdicts; landed before the steer, and left as they are).
 
 112. **calibration reads only deciding checks: 04.s1, then 04.6 afresh** (plan defect, smith 04's block of 2026-10-14T18:51:38Z).
@@ -575,7 +559,7 @@ changes what section 8.4 holds.
      - No probe's prompt, seed, checks or deciding list changes.
 
 115. **main fails the smoke: the smith line holds for 08.s1** (plan defect, smith 07's block of 2026-10-14T19:22:27Z).
-     Ruling 115. `main` fails the smoke itself, so 07.2's two refusals are not 07.2's: the smith line holds for `smith-08.s1`, the repair, and resumes when 08.s1 lands with its smoke passing. On `main` at `25388ac8` the smoke's own configuration is refused at setup, before any model request: "service.worst_case=2147712231 bytes; declared.memory=2147462772 bytes", 249,459 bytes over. 07.2's branch is 227,196 bytes over, less than `main`. No smoke ran on `main` as landed: 08.3's (`probes-smoke-tools-4c0cbee6-20261014T185826Z`) ran on a tree without 07.1 (`bde09510`), and 04.s1's (`probes-smoke-tools-c81471d4-20261014T190644Z`) on a tree without 08.3 (`257a41bd`); README rule 8 says "A rebase inside `land` does not run it again". Ruling 114 rested on the premise that the smoke passes on `main`, and it does not.
+     Ruling 115. `main` fails the smoke itself, so 07.2's two refusals are not 07.2's: the smith line holds for `smith-08.s1`, the repair, and resumes when 08.s1 lands with its smoke passing. On `main` at `25388ac8` the smoke's own configuration is refused at setup, before any model request: "service.worst_case=2147712231 bytes; declared.memory=2147462772 bytes", 249,459 bytes over. 07.2's branch is 227,196 bytes over, less than `main`. No smoke ran on `main` as landed: 08.3's (`probes-smoke-tools-4c0cbee6-20261014T185826Z`) ran on a tree without 07.1 (`bde09510`), and 04.s1's (`probes-smoke-tools-c81471d4-20261014T190644Z`) on a tree without 08.3 (`257a41bd`); README rule 8 says "A rebase at the merge does not run it again". Ruling 114 rested on the premise that the smoke passes on `main`, and it does not.
 
      - **Until 08.s1 lands,** no smith landing that changes code runs the smoke or lands, except 08.s1. Smith sessions go on with their increments up to the smoke, and hold there, their worktrees committed. Landings that skip the smoke under rule 8 (Markdown only; only `benchmarks/tasks/`, `benchmarks/suites/`, `benchmarks/summaries/` or `benchmarks/baselines/`; skein) go on.
      - **08.s1** closes the larger gap: every probe task's overrides, `smoke-tools`' included, within the shipped `declared.memory`, as ruling 114 says, with no preset, `declared.memory` or expected value changed. Its smoke must pass on its branch. Its search starts with the combination of 07.1 and 08.3, which each passed the smoke alone. If no overcount closes the gap, 08.s1 stops on a question with the term and its bytes, and the line stays held.
@@ -1036,8 +1020,8 @@ changes what section 8.4 holds.
 132. **03.s1's dependents: a panic outside its increment, rerun once** (process, smith 03's block of 2026-10-14T22:58:44Z).
      A process ruling: the panic is not 03.s1's, and 03.s1 does not fix it. `a_second_run_resumes_the_chat_from_its_files` (`tests/end-to-end/end_to_end.rs:151`) passed in 72 logs of this run since 05.3 last changed `crates/smith-local-domain/src/domain.rs` (`d6ebc102`, 18:14Z), and failed in one, 03.s1's dependents run of 22:57Z, with "Load has one terminal: phase Done, requested true" (`domain.rs:606`). 03.s1 changes only `benchmarks/`. So:
 
-     1. smith 03 reruns its dependents command once, as it ran at 22:57Z, on the saved commit `33346dbc`. If it passes, 03.s1 goes on as its session file says (the smoke, then `land`), and its commit body names the 22:57Z panic and its log, `logs/smith-03/03.s1-dependents.log`, in one line. `probe_command`'s "source repository is dirty" failure of the same run needs nothing more: the saved commit made the tree clean.
-     2. If the same test fails again with the same panic, 03.s1 stops and reports a block (kind: process) that quotes the second panic's lines; it changes nothing in `smith-local-domain`. Any other failure is reported as implementer.md 8.7 says.
+     1. smith 03 reruns its dependents command once, as it ran at 22:57Z, on the saved commit `33346dbc`. If it passes, 03.s1 goes on as its session file says (the smoke, then merging), and its commit body names the 22:57Z panic and its log, `logs/smith-03/03.s1-dependents.log`, in one line. `probe_command`'s "source repository is dirty" failure of the same run needs nothing more: the saved commit made the tree clean.
+     2. If the same test fails again with the same panic, 03.s1 stops and reports a block (kind: process) that quotes the second panic's lines; it changes nothing in `smith-local-domain`. Any other failure is reported as the implementation rules says.
      3. Until the run's end, any session whose gate or dependents run fails only on this test, with this panic, reruns that command once in the same way, and names the panic in its commit body or report in one line; a second failure is a block, as in point 2. The supervisor then opens a step for it. later.md records the panic.
 
 133. **12.1's setup refusal: 04.s4 gives setup 900 s, then 12.1 once more** (plan defect, smith 12's block of 2026-10-15T00:09:52Z).
@@ -1085,14 +1069,14 @@ changes what section 8.4 holds.
      Ruling 140: a harness defect, outside 06.2's Files, fixed as a step of its own, as the report proposes. The design names binary arms as an experiment's own kind: "An arm is a binary, a configuration override or an agent. Two arms make an experiment: a **fix** (before and after)" (benchmarks.md 3). `task_requests` prepares override arms only (`probe.rs:316-323`), so `check_requests` refuses any suite of binary arms (`batch.rs:283-291`); no suite on `main` has one, and 06.2's `role` is the plan's only user.
 
      1. **`smith-03.s3`, "A suite's binary arms are prepared",** is a new step in session 03 (`smith/03-results.md`, 03.s3), needing nothing, and checked by this ruling: it starts `ready`. `prepare` resolves each binary arm once with `archived` and gives each build the run's own face check; `task_requests` runs one execution per binary arm, as per override arm, with `identity.arm` the arm's name. Its test: `a_suite_with_two_binary_arms_prepares_each_arm_by_its_name`, 30 requests for 06.2's shape, with `ArmRef::Built` fixtures. Its proof: that test and the smoke (rule 8). No live suite.
-     2. **Who:** by default 06.2's implementer (w38), which found the defect, in session 03's worktree (`wt/smith-03`, clean since 03.s2) reset to `origin/main`, landing 03.s3 on its own. A fresh implementer instead if w38's context is past the limit.
+     2. **Who:** by default 06.2's author (w38), which found the defect, in session 03's worktree (`wt/smith-03`, clean since 03.s2) reset to `origin/main`, landing 03.s3 on its own. A fresh author instead if w38's context is past the limit.
      3. **06.2 waits for 03.s3,** then rebases `parity/smith-06-2` on `main` and runs its proof as written, its arms as built: before `894d132f`, after `a29a4ac5`. The suite's 30 attempts and $3 are 06.2's, unchanged; 03.s3 adds its one smoke attempt.
      4. **Unchanged:** `check_requests`, override and agent arms, 06.2's Shape, Test shape and Don't. A further caller of `task_requests` the change reaches: adapt it, and list it in the commit body.
 
 141. **06.2's comparison reports no difference: it lands** (plan defect, smith 06's block of 2026-10-15T05:56:50Z).
      Ruling 141: a plan defect, not a design gap; the stop condition is not met, and 06.2 lands. 06.2's Proof stops "If the summary reports a difference (benchmarks.md 9: …)". benchmarks.md 9 says: "A difference is reported per task and metric when the 95% bootstrap interval of the ratio of the arms' medians, resampled with the run's seed, excludes 1, and the effect exceeds the task's minimum detectable effect … Otherwise the summary says none was detected, not that the arms are equal." The plan's parenthetical quoted only the first half. Backoff's time ratio is 1.0917 [1.0049, 1.2343] against a minimum detectable effect of 0.1418, so its effect, 0.0917, is under it, and the summary reports `detected: false` for all six comparisons. The role's proof is the comparison itself, in the commit body (benchmarks.md 4.2: "names the `compare` suite in place of a probe … whose comparison goes in its commit body"), as decisions.md 6.1 asks.
 
-     1. **06.2 goes on** to the smoke (rule 8), the gate and `land`, with the frozen summary `role-aac2639e-20261015T051741Z` and its six comparisons in the commit body, each with its ratio, interval and minimum detectable effect, and the line "no difference detected (benchmarks.md 9); backoff's time interval excludes 1 with its effect under its minimum detectable effect". No suite runs again and the role is not edited.
+     1. **06.2 goes on** to the smoke (rule 8), the gate and merge, with the frozen summary `role-aac2639e-20261015T051741Z` and its six comparisons in the commit body, each with its ratio, interval and minimum detectable effect, and the line "no difference detected (benchmarks.md 9); backoff's time interval excludes 1 with its effect under its minimum detectable effect". No suite runs again and the role is not edited.
      2. **The plan's condition** now quotes benchmarks.md 9 whole, and names the comparison's `detected` flag as its check (`benchmarks/src/stats.rs:320`).
      3. **Unchanged:** 06.2's Shape, Test shape, Don't; the arms (before `894d132f`, after `a29a4ac5`); 11.2's Needs.
 
@@ -1119,7 +1103,7 @@ changes what section 8.4 holds.
      5. **Unchanged:** 11.3's Files, Shape and Don't; `rerun_failed` 0; README rules 9, 10 and 17.
 
 145. **12.3 lands without timeout's calibration** (cross-session scope, smith 12's block of 2026-10-15T11:42:35Z).
-     Ruling 145: `tool-output/timeout` stays uncalibrated in this run, as the implementer proposed. 12.3 lands the four blocks that passed 10 of 10 (`test-output`, `quote`, `utf-8`, `process-tree`) with their summaries, and runs no further `timeout` attempt. Its one attempt made no shell call while `shell` was offered: the model's choice. By benchmarks.md 3.2 that is a model deviation ("A failed deciding check is the model's when it judges what the prompt asks of the model: … how many calls of a tool it makes where the prompt prescribes the number"; a contract that applies "only once their condition arises" is "not exercised"). The harness counted it smith's and stopped. That is a harness defect outside 12.3's Files, and 12.4 does not rest on it: a graded task "decides on its end, its grader, its protected files and its tree's end" (3.2), not on event checks. `later.md` takes the defect and the prompt's wording lead, in the commit this ruling lands with. 12.3's Don't stands: its report names `timeout` as the probe left.
+     Ruling 145: `tool-output/timeout` stays uncalibrated in this run, as the author proposed. 12.3 lands the four blocks that passed 10 of 10 (`test-output`, `quote`, `utf-8`, `process-tree`) with their summaries, and runs no further `timeout` attempt. Its one attempt made no shell call while `shell` was offered: the model's choice. By benchmarks.md 3.2 that is a model deviation ("A failed deciding check is the model's when it judges what the prompt asks of the model: … how many calls of a tool it makes where the prompt prescribes the number"; a contract that applies "only once their condition arises" is "not exercised"). The harness counted it smith's and stopped. That is a harness defect outside 12.3's Files, and 12.4 does not rest on it: a graded task "decides on its end, its grader, its protected files and its tree's end" (3.2), not on event checks. `later.md` takes the defect and the prompt's wording lead, in the commit this ruling lands with. 12.3's Don't stands: its report names `timeout` as the probe left.
 
 146. **12.4 holds two closing runs, and 12.s1 changes the role's words between them** (design gap, smith 12's block of 2026-10-15T15:32:18Z).
      Ruling 146: the designer's answer, smith 7c345bd0 (benchmarks.md 16.5, shell.md 6.6), 98416739 and 96969b99 (12-milestones.md: 12.4 holds two closing runs; 12.s1 drafted), whose text follows; the supervisor names `smith-12.s1` as drafted there, with its ready check's corrections, and schedules it after 12.4's first summary and before its second run.
@@ -1158,7 +1142,7 @@ changes what section 8.4 holds.
           its verdict (section 9): they alarm on the drift of the smith that
           ships, on par or not."
 
-        So the implementer's proposal holds in part. The summary lands as
+        So the author's proposal holds in part. The summary lands as
         evidence, with no rerun and no change to a margin or a pin. It does
         not end the plan by itself, because a cause can be named now (item
         3).

@@ -137,7 +137,7 @@ Test shape: `crates/smith-domain-run/src/tests.rs`, beside the room's
   `the_compaction_material_is_the_summary_instruction_and_the_markers`
   (982). In `smith-events`' tests: `a_stream_of_version_two_is_refused`.
   Under 20 ms each.
-Proof: process: smith's `check`, `heavy cargo run -q -p smith -- check -m codex/gpt-6.1-sol -c 'accounts.codex.source="borrow"' -c "accounts.codex.file=\"$HOME/.codex/auth.json\""`,
+Proof: process: smith's `check`, `cargo run -q -p smith -- check -m codex/gpt-6.1-sol -c 'accounts.codex.source="borrow"' -c "accounts.codex.file=\"$HOME/.codex/auth.json\""`,
   prints `run.compaction_material` with 982, and the smoke (README, rule
   8) passes on version 3: the check's `run.compaction_material` line and
   the smoke's summary line go in the commit body.
@@ -194,7 +194,7 @@ Test shape: `crates/smith-domain-session/src/tests.rs`, beside the test
   ms each.
 Proof: process: smith's `check` (03.1's command) passes, and prints
   `session.history_bytes` (6,331,914 at the base); the two memory tests'
-  printed totals (`heavy cargo nextest run -p smith-local-shell -p
+  printed totals (`cargo nextest run -p smith-local-shell -p
   smith-agent-shell -E 'test(/fit/)' --no-capture`), run once on
   `origin/main` and once on `HEAD`, go in the commit body.
 Don't: lower `conversations`, `jobs` or any part to fit; derive
@@ -239,4 +239,4 @@ Removes: `threshold::reached`.
 
 - `cd ~/src/rust/smith && rg -n 'pub const VERSION: u64 = 3' crates/smith-events/src/lib.rs` prints one line.
 - `cd ~/src/rust/smith && rg -n 'threshold_bytes|fn reached' crates tests benchmarks/src` prints nothing.
-- `cd ~/src/rust/smith && heavy cargo run -q -p smith -- check -m codex/gpt-6.1-sol -c 'accounts.codex.source="borrow"' -c "accounts.codex.file=\"$HOME/.codex/auth.json\""` exits 0.
+- `cd ~/src/rust/smith && cargo run -q -p smith -- check -m codex/gpt-6.1-sol -c 'accounts.codex.source="borrow"' -c "accounts.codex.file=\"$HOME/.codex/auth.json\""` exits 0.

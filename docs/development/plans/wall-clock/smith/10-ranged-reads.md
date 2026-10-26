@@ -67,8 +67,8 @@ Shape: `TASK_ROLE`'s second paragraph takes the words above; the role
 Test shape: the existing `the_task_role_is_within_four_kibibytes`
   (`role.rs:27`) and `each_tool_the_task_role_names_is_one_of_smiths_own`
   (`:32`) hold; no new test.
-Proof: live, through the stop: `heavy cargo run -p smith-bench -- build
-  HEAD` and `build origin/main`, then `heavy --gate cargo run -p
+Proof: live, through the stop: `cargo run -p smith-bench -- build
+  HEAD` and `build origin/main`, then `cargo run -p
   smith-bench -- suite parity-change --arm <HEAD's dir> --parent-arm
   <origin/main's dir> --baseline-run <the file README rule 13's first
   command prints> --landed <each file its second prints>`: 40 attempts,

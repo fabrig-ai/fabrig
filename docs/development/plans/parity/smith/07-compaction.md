@@ -75,7 +75,7 @@ calibration proves it.
 Scope: session.md 5 and 8.2; llm.md 2.2 and 3 (findings K1).
 Needs: smith 08's vocabulary [08.1] (07.3's control is this increment's
   parent, and must write the events the harness reads); skein 01's prefix
-  [skein 01.1], repinned in this increment's first commit (`heavy cargo update -p skein-fake-llm-domain`, or the
+  [skein 01.1], repinned in this increment's first commit (`cargo update -p skein-fake-llm-domain`, or the
   package of skein's git source that moves it).
 Files: `Cargo.lock`; `crates/smith-domain-session/src/session.rs`
   (`:2186`, `:2201`; `answer_unchosen`, `:2102`, which makes
@@ -204,7 +204,7 @@ Shape: `SUMMARY` and `PREAMBLE` rewritten to say, in that order, what
     are.
 Test shape: `the_summary_instruction_and_its_preamble_fit_smiths_own_part`
   (their bytes within the bound the profile measures), under 20 ms.
-Proof: live, once each, through `heavy --gate`, on the branch rebased
+Proof: live, once each, on the branch rebased
   on 04.s3, with the version 3 arm already built (`8a5bb9ec`: 04.s3
   changes only `benchmarks/`, so it is not rebuilt), and the control
   07.1's parent:

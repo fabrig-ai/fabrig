@@ -95,7 +95,7 @@ Shape: `Provider::OpenAi` (new): the public Responses route.
   no `OpenAi` call is admitted before 02.3, and `live.rs` has no suite for
   the route (decision 10). The README lists the route.
   Transitional, ended by 02.3: admission refuses a call on `OpenAi` as
-  `Error::Unsupported`. `heavy cargo check --workspace --all-targets`
+  `Error::Unsupported`. `cargo check --workspace --all-targets`
   ends clean.
   Downstream (smith), each exhaustive `Provider` match, by path and
   symbol: `crates/smith-protocol-llm/src/framing.rs` `prompt_allowance`;

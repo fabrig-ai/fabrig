@@ -230,7 +230,7 @@ Refs: smith `main` = `30259d8`, spike tip = `bench/smith-codex-2026-10-08` (`bf9
   - **Optional:** one ordered request-and-fact queue, only if a host needs exact interleaving.
 - **Contracts:** `protocol/agent.md` §5 (one drain, two sinks, each counting its loss); `protocol/channel.md` §7 (projected only while admitted and before the answer). `domain/run.md` §11 is unchanged.
 - **Layer:** `smith-agent-service`, `smith-protocol-channel`.
-- **Tests:** agent-process world with a scripted host that delays acknowledgements during a fact-heavy run with sub-agents. Assert: complete trace (or loss counted at the trace sink only), channel loss counted, the scheduler parks, and the answer unchanged ("facts change nothing"). The fuzzy suite sweeps window sizes. Delete the private-field unit tests.
+- **Tests:** agent-process world with a scripted host that delays acknowledgements during a fact-run with sub-agents. Assert: complete trace (or loss counted at the trace sink only), channel loss counted, the scheduler parks, and the answer unchanged ("facts change nothing"). The fuzzy suite sweeps window sizes. Delete the private-field unit tests.
 - **Benchmark:** "Read these 20 files and report their first lines" with sub-agents. Assert trace loss 0 and channel loss reported.
 - **Questions:** Hold facts until the channel can project them, or drop and count at the channel (my recommendation, per channel.md §7)?
 

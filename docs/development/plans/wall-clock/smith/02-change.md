@@ -107,7 +107,7 @@ Test shape: `benchmarks/tests/overrides/suite.rs` (its suite tests are
   `a_parent_given_to_another_suite_is_refused`,
   `a_change_suite_declaring_arms_is_refused`,
   `the_change_suites_reference_is_its_parent`. Under 20 ms each.
-Proof: offline, `heavy cargo run -q -p smith-bench -- check` validates
+Proof: offline, `cargo run -q -p smith-bench -- check` validates
   `parity-change.toml`; the suite runs live first at 06.1, at one
   attempt per task (02's "Choices").
 Don't: run Codex in a change suite, or name the arms' commits in the
@@ -241,7 +241,7 @@ Test shape: `benchmarks/tests/parity.rs`:
   `a_change_run_below_its_attempts_exits_two_whatever_its_stop`. Each builds its
   baseline and landed inputs from the recorded files, with literal
   statistics. Under 20 ms each.
-Proof: offline, those tests and `heavy cargo run -q -p smith-bench --
+Proof: offline, those tests and `cargo run -q -p smith-bench --
   check`; live first at 06.1, at one attempt per task, against the
   plan's baseline (02's "Choices").
 Don't: read the baseline from `baselines/`; pool a change run with a
@@ -256,4 +256,4 @@ Removes: nothing.
 ## Done when
 
 - `cd ~/src/rust/smith && test -f benchmarks/suites/parity-change.toml && rg -n '^change = true' benchmarks/suites/parity-change.toml` prints one line.
-- `cd ~/src/rust/smith && heavy cargo nextest run -p smith-bench -E 'test(a_change_report_takes_its_parent_by_commit_whatever_the_names) | test(a_projection_just_above_the_baselines_upper_bound_stops) | test(a_change_suite_runs_a_change_and_its_parent)'` runs three tests, and they pass.
+- `cd ~/src/rust/smith && cargo nextest run -p smith-bench -E 'test(a_change_report_takes_its_parent_by_commit_whatever_the_names) | test(a_projection_just_above_the_baselines_upper_bound_stops) | test(a_change_suite_runs_a_change_and_its_parent)'` runs three tests, and they pass.

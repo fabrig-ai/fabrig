@@ -3,20 +3,19 @@
 2026-10-19. smith at `c241a7a4` (its code as at `origin/main` `137a1cb4`),
 skein at `50f7436` (its fake LLM's files as at `origin/main` `49725ec`),
 each in a scratch worktree under `~/src/rust/tmp/plan/live-text-scratch/`.
-Each command run once, through `heavy` where it compiles or tests, nothing
+Each command run once where it compiles or tests, nothing
 live. Test builds unoptimized, as the gate builds them.
 
 ## 1. smith's base times
 
 ```
-$ heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo nextest run --workspace --no-run >/dev/null 2>&1; cargo nextest run --workspace --profile fuzzy --no-run >/dev/null 2>&1; for i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep -E "^ +Summary"; cargo nextest run --workspace --profile fuzzy 2>&1 | grep -E "^ +Summary"; done'
+$ sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo nextest run --workspace --no-run >/dev/null 2>&1; cargo nextest run --workspace --profile fuzzy --no-run >/dev/null 2>&1; for i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep -E "^ +Summary"; cargo nextest run --workspace --profile fuzzy 2>&1 | grep -E "^ +Summary"; done'
      Summary [  11.404s] 2356 tests run: 2356 passed, 0 skipped
      Summary [  11.148s] 43 tests run: 43 passed, 0 skipped
      Summary [  10.062s] 2356 tests run: 2356 passed, 0 skipped
      Summary [  11.429s] 43 tests run: 43 passed, 0 skipped
      Summary [  11.282s] 2356 tests run: 2356 passed, 0 skipped
      Summary [  12.762s] 43 tests run: 43 passed, 0 skipped
-heavy: task 28 (gate) exit 0, waited 0s, ran 206s, log ~/src/rust/tmp/logs/20261019T064352-28.log
 ```
 
 Focused median 11.28 s of the 15 s budget; fuzzy median 11.43 s of 60 s.
@@ -49,7 +48,7 @@ change, takes 5.266 s of it.
 ## 3. skein's base times
 
 ```
-$ heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo nextest run --workspace --no-run >/dev/null 2>&1; cargo nextest run --workspace --profile fuzzy --no-run >/dev/null 2>&1; for i in 1 2 3; do echo "== focused $i"; cargo nextest run --workspace --status-level pass --final-status-level none 2>&1; echo "== fuzzy $i"; cargo nextest run --workspace --profile fuzzy --status-level pass --final-status-level none 2>&1; done'
+$ sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo nextest run --workspace --no-run >/dev/null 2>&1; cargo nextest run --workspace --profile fuzzy --no-run >/dev/null 2>&1; for i in 1 2 3; do echo "== focused $i"; cargo nextest run --workspace --status-level pass --final-status-level none 2>&1; echo "== fuzzy $i"; cargo nextest run --workspace --profile fuzzy --status-level pass --final-status-level none 2>&1; done'
 == focused 1
      Summary [   6.612s] 2859 tests run: 2859 passed, 0 skipped
 == fuzzy 1
@@ -82,7 +81,7 @@ since nextest drops the space before a four-digit index):
 ## 4. The agent's memory at the base
 
 ```
-$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && heavy -- cargo nextest run -p smith-agent-shell -E 'test(product_values_pass_every_startup_check_and_fit_complete_memory)' --no-capture 2>&1 | grep PRODUCT_COMPLETE
+$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && cargo nextest run -p smith-agent-shell -E 'test(product_values_pass_every_startup_check_and_fit_complete_memory)' --no-capture 2>&1 | grep PRODUCT_COMPLETE
 PRODUCT_COMPLETE service=1721347653 startup_header=22966 shell=398848 complete=1721769467 memory=2214592512
 ```
 
@@ -93,7 +92,7 @@ sets the floor at 490,000,000.
 ## 5. smith's fuzzy times by package
 
 ```
-$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo nextest run --workspace --profile fuzzy --no-run >/dev/null 2>&1; for i in 1 2 3; do echo "== fuzzy $i"; cargo nextest run --workspace --profile fuzzy --status-level pass --final-status-level none 2>&1; done'
+$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo nextest run --workspace --profile fuzzy --no-run >/dev/null 2>&1; for i in 1 2 3; do echo "== fuzzy $i"; cargo nextest run --workspace --profile fuzzy --status-level pass --final-status-level none 2>&1; done'
      Summary [  11.042s] 43 tests run: 43 passed, 0 skipped
      Summary [  11.036s] 43 tests run: 43 passed, 0 skipped
      Summary [  11.025s] 43 tests run: 43 passed, 0 skipped
@@ -107,7 +106,7 @@ median 17.205 s.
 ## 6. The channel's generated code at the pin
 
 ```
-$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && heavy -- sh -c 'rev=$(grep -A2 "name = \"skein-codegen\"" Cargo.lock | sed -n "s/.*#\([0-9a-f]\{7\}\).*/\1/p"); echo "rev=$rev"; cargo run -q --manifest-path ~/.cargo/git/checkouts/skein-336d5ae5eecfa0f9/$rev/Cargo.toml --target-dir target/codegen -p skein-codegen -- crates/smith-channel/schema/channel-v2.schema <scratch>/gen && cmp <scratch>/gen/v2.rs crates/smith-channel/src/generated/v2.rs && echo "v2.rs identical"'
+$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && sh -c 'rev=$(grep -A2 "name = \"skein-codegen\"" Cargo.lock | sed -n "s/.*#\([0-9a-f]\{7\}\).*/\1/p"); echo "rev=$rev"; cargo run -q --manifest-path ~/.cargo/git/checkouts/skein-336d5ae5eecfa0f9/$rev/Cargo.toml --target-dir target/codegen -p skein-codegen -- crates/smith-channel/schema/channel-v2.schema <scratch>/gen && cmp <scratch>/gen/v2.rs crates/smith-channel/src/generated/v2.rs && echo "v2.rs identical"'
 rev=93052c6
 v2.rs identical
 ```
@@ -122,7 +121,7 @@ The output cut to the lines that matter, the other `Updating` lines and
 the test's panic report left out:
 
 ```
-$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && heavy -- sh -c 'cargo update -p skein-lib 2>&1 | tail -2; cargo nextest run -p smith-bench -E "test(a_replay_arm_runs_through_the_probe_command_and_prints_one_line)" --no-capture 2>&1 | tail -3; cargo nextest run --workspace --no-fail-fast 2>&1 | grep -E "^ +(FAIL|SIGSEGV|TIMEOUT)|Summary"; git checkout Cargo.lock'
+$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && sh -c 'cargo update -p skein-lib 2>&1 | tail -2; cargo nextest run -p smith-bench -E "test(a_replay_arm_runs_through_the_probe_command_and_prints_one_line)" --no-capture 2>&1 | tail -3; cargo nextest run --workspace --no-fail-fast 2>&1 | grep -E "^ +(FAIL|SIGSEGV|TIMEOUT)|Summary"; git checkout Cargo.lock'
     Updating skein-world v0.0.0 (https://github.com/forgetic/skein.git#93052c6b) -> #aba0c6f2
 note: pass `--verbose` to see 16 unchanged dependencies behind latest
 assertion `left == right` failed:  source repository is dirty; commit or isolate changes before building an arm
@@ -135,7 +134,7 @@ the uncommitted `Cargo.lock`: the test builds an arm from the tree, and
 refuses a dirty one. On the clean base it passes:
 
 ```
-$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && heavy -- cargo nextest run -p smith-bench -E 'test(a_replay_arm_runs_through_the_probe_command_and_prints_one_line)'
+$ cd ~/src/rust/tmp/plan/live-text-scratch/smith-base && cargo nextest run -p smith-bench -E 'test(a_replay_arm_runs_through_the_probe_command_and_prints_one_line)'
         PASS [   0.436s] (1/1) smith-bench::probe_command a_replay_arm_runs_through_the_probe_command_and_prints_one_line
      Summary [   0.437s] 1 test run: 1 passed, 300 skipped
 ```
@@ -152,7 +151,7 @@ module standing in for its crate, with `todo!()` bodies and stand-ins
 for the types each crate has now:
 
 ```
-$ cd <scratch>/sketch && heavy -- sh -c 'cargo clippy --all-targets -q -- -D warnings && echo clippy-ok'
+$ cd <scratch>/sketch && sh -c 'cargo clippy --all-targets -q -- -D warnings && echo clippy-ok'
 clippy-ok
 ```
 

@@ -176,7 +176,7 @@ first, ordinary, window, ordinary, window; the next activation's history
 starts at place 5). Ceilings: unit 20 ms, world 0.5 s.
 Proof: unit with real files, the store being where the choice is made:
 `a_chat_resumes_from_its_last_window_and_keeps_earlier_files`, run once
-with `heavy cargo nextest run -p smith-local-shell -E 'test(a_chat_resumes_from_its_last_window)'`.
+with `cargo nextest run -p smith-local-shell -E 'test(a_chat_resumes_from_its_last_window)'`.
 It passes when the load holds only the window turn and the earlier files
 remain; on the parent a chat holding a window turn after its first fails
 to load (`StoreFailure::Read`). Under 1 s. No probe shows it live.
@@ -359,7 +359,7 @@ fn a_compaction_counts_as_a_turn_and_as_spend_and_keeps_the_system_text() {
 Proof: world, the real run, sessions and tools against the fake provider;
 the process layer adds the store and the binaries, which compaction does
 not touch. `a_compaction_counts_as_a_turn_and_as_spend_and_keeps_the_system_text`,
-run once with `heavy cargo nextest run -p smith-agent-world -E 'binary(compaction)'`:
+run once with `cargo nextest run -p smith-agent-world -E 'binary(compaction)'`:
 it passes when the run is accepted with a window turn after the first,
 counted and charged, and one system text throughout; on the parent no
 turn after the first opens a window. Under 0.5 s. `history/small-window`
@@ -428,7 +428,7 @@ Test shape: unit (`smith-protocol-llm/src/tests.rs`, like `:124`):
 `:6`): `a_compactions_owed_results_are_cut_and_its_history_is_unchanged`.
 Ceilings: unit 20 ms, world 0.5 s.
 Proof: world, `a_compactions_owed_results_are_cut_and_its_history_is_unchanged`,
-run once with `heavy cargo nextest run -p smith-protocol-llm-world -E 'test(owed_results)'`:
+run once with `cargo nextest run -p smith-protocol-llm-world -E 'test(owed_results)'`:
 every owed result ends within the room with its marker and the messages
 before them are byte-identical to the ordinary prompt's; on the parent
 they render whole. Under 0.5 s. Live: `history/small-window`, as 08.6.
@@ -478,7 +478,7 @@ whose draws include completions of `calls_per_response` calls at their
 caps near the threshold.
 Ceilings: world 0.5 s, fuzzy 5 s.
 Proof: world, `a_history_at_its_message_bound_compacts_instead_of_ending`,
-run once with `heavy cargo nextest run -p smith-session-world -E 'test(history_at_its)'`:
+run once with `cargo nextest run -p smith-session-world -E 'test(history_at_its)'`:
 it passes when the session compacts and goes on; on the parent it ends
 `TranscriptFull`. Under 0.5 s. No probe shows it live: by derivation the
 check fires first (`window-first`).
@@ -635,7 +635,7 @@ design asks" quotes it, and 08.6 carries it.
 
 ## Done when
 
-- The tests this session names pass, run once: `heavy cargo nextest run
+- The tests this session names pass, run once: `cargo nextest run
   -p smith-local-shell -p smith-session-world -p smith-agent-world -p
   smith-protocol-llm-world -E 'test(a_chat_resumes_from_its_last_window) |
   binary(compaction) | test(owed_results)'`.

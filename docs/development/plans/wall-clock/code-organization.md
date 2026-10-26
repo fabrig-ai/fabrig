@@ -63,7 +63,7 @@ temper are read only.
 - **Ceilings per test** (development.md, section 5.6): a unit test under
   20 ms, a focused world test under 0.5 s, a fuzzy test about 5 s, read
   from the times nextest prints in the step's dependents' run (README,
-  rule 6), in place of implementer.md 8.2's "last focused run".
+  rule 6), in place of the implementation rules's "last focused run".
 - **Budgets:** 15 s focused and 60 s fuzzy (smith `workflow.md`, section
   2), which the gate enforces. Aim for the whole run to add at most 1 s
   to the focused suite and 5 s to the fuzzy one; the hourly checks follow
@@ -147,7 +147,7 @@ Don't line add their own.
   memory accounting, facts, tests and docs outside `docs/design/`, in the
   same increment.
 - No edit to jig, temper or skein, and no edit to `docs/design/` or to
-  this plan by an implementer.
+  this plan by an author.
 - No live call in a test of the suite.
 - No reading of, or writing to, the user's `~/.codex`, `~/.claude`,
   `$XDG_CONFIG_HOME/smith` or `$XDG_STATE_HOME/smith` from a test.

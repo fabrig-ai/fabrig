@@ -46,7 +46,7 @@ from it; none changes code.
   summary:
 
   ```
-  s=<its summary>; for a in smith codex; do d=$(jq -r --arg a "$a" '[.groups[] | select(.agent == $a) | .configuration_sha256] | unique | .[0]' "$s"); heavy cargo run -q -p smith-bench -- baseline "$s" "parity-$a" --group "$a" "$d" gpt-6.1-sol high; done
+  s=<its summary>; for a in smith codex; do d=$(jq -r --arg a "$a" '[.groups[] | select(.agent == $a) | .configuration_sha256] | unique | .[0]' "$s"); cargo run -q -p smith-bench -- baseline "$s" "parity-$a" --group "$a" "$d" gpt-6.1-sol high; done
   ```
 
 ## Rules that bind it

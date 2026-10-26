@@ -49,7 +49,7 @@ skein only; smith takes it at its repin (smith 02.1).
 
 - **Users outside Files** (README, rule 6): `Event::Call`'s new field
   and the new variants reach every match in skein; adapt each.
-- **Dependents' tests** (implementer.md 8.1, step 5): the fake crates'
+- **Dependents' tests** (the implementation rules, step 5): the fake crates'
   dependents are `tests/llm` and `tests/llm-connection`.
 - **One behaviour per test** (testing-strategy.md, section 10).
 

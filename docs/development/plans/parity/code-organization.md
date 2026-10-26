@@ -133,7 +133,7 @@ Don't line add their own.
   memory accounting, facts, tests and docs outside `docs/design/`, in the
   same increment.
 - No edit to jig or temper, and no edit to `docs/design/` or to this plan
-  by an implementer.
+  by an author.
 - No live call in a test of the suite.
 - No reading of, or writing to, the user's `~/.codex`, `~/.claude`,
   `$XDG_CONFIG_HOME/smith` or `$XDG_STATE_HOME/smith` from a test.
@@ -148,7 +148,7 @@ Don't line add their own.
   `benchmarks/src/run.rs` and others): aim for growth of at most 100
   lines per increment; an increment that needs more moves its concern
   into a module of its own, and says so in its commit body.
-- **A test function:** aim for at most 40 lines; past it, the implementer
+- **A test function:** aim for at most 40 lines; past it, the author
   moves the setup into a named helper of its file.
 - **An increment:** its Size line is a guide; the README's rule 1 says
   when to split.

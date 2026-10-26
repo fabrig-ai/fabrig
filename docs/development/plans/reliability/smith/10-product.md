@@ -609,8 +609,7 @@ Test shape: offline in `benchmarks/tests/smith_adapter.rs`:
 `an_exec_arm_borrows_the_login_file_without_copying_it`,
 `an_exec_arm_refused_by_check_is_a_setup_refusal`,
 `an_exec_arm_classifies_exit_5_as_needs_input`; 0.5 s each.
-Proof: live, `heavy cargo run -p smith-bench -- build HEAD`, then `heavy
---gate cargo run -p smith-bench -- probe PROBE --arm <the printed
+Proof: live, `cargo run -p smith-bench -- build HEAD`, then `cargo run -p smith-bench -- probe PROBE --arm <the printed
 directory>`, one attempt each, for PROBE `probes/failures/one-turn`,
 `probes/failures/bad-setting`, `probes/failures/unknown-model`,
 `probes/failures/derived-limit` and `probes/first-request/headless`:
@@ -724,8 +723,7 @@ Test shape: unit: each `/` line, the renderer per record kind. World, in
 `smith_on_a_terminal_signs_in_and_commits_in_place`,
 `a_second_smith_resumes_the_chat_from_its_files`,
 `an_interrupt_cancels_the_run`. Ceilings: 20 ms, 0.5 s, 2 s.
-Proof (10.24's, decisions.md 13.113): live, `heavy cargo run -p smith-bench -- build HEAD`, then `heavy
---gate cargo run -p smith-bench -- probe probes/first-request --arm <the
+Proof (10.24's, decisions.md 13.113): live, `cargo run -p smith-bench -- build HEAD`, then `cargo run -p smith-bench -- probe probes/first-request --arm <the
 printed directory>`, one attempt typed at `smith --trace` on a
 pseudo-terminal: it passes. No before: the parent passes it through `smith local`. At most
 $0.20 and 5 minutes; once. `follow-up` (smith 00.14) is not its proof.
@@ -1085,7 +1083,7 @@ failed, `RunFailed` (shell.md, 4.3).
 
 ## Done when
 
-- The commands' end-to-end tests: `heavy cargo nextest run -p smith
+- The commands' end-to-end tests: `cargo nextest run -p smith
   --test end_to_end -E
   'test(/smith_check|smith_exec|smith_login|smith_on_a_terminal|exits_|terminal_modes/)'`
   passes, with the twelve tests of those names that 10.3 to 10.14 add

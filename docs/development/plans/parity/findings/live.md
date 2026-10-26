@@ -29,7 +29,7 @@ designer (skein's development.md, section 4.1).
 
 ### L1 smith on `gpt-6.1-sol`
 
-- **What ran:** `heavy --gate` task 3613 (log
+- **What ran:** the live run (log
   `~/src/rust/tmp/logs/20261014T080456-3613.log`), the archived arm
   `~/.local/state/smith-bench/arms/8a9747fa…/smith` (`8a9747fa`, binary
   SHA-256 `c2c3fe9e…`), with private `XDG_CONFIG_HOME`, `XDG_STATE_HOME`

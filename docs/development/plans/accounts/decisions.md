@@ -3,7 +3,7 @@
 The decisions this plan rests on, numbered. The supervisor's rulings
 during the run follow them, from 101. Then the design's questions with
 their answers, and the choices left to the user. The user is away, and
-the director acts for them. The planner took each decision below as the
+their decisions are recorded here. The planner took each decision below as the
 planner's, choosing the most reversible option where the choice could
 be the user's (development.md, 10.4).
 
@@ -23,7 +23,7 @@ be the user's (development.md, 10.4).
    program, the live suite on smith's own accounts and the benchmarks'
    logins. Its outline and the gaps found so far are in
    `findings/next/`. Only this plan's STATUS rows are `ready`. The
-   director decided it (the inbox's question 1, 2026-10-19).
+   decision was recorded (the inbox's question 1, 2026-10-19).
 
 2. **The withdrawn forms stay.** The designer's call C1: skein keeps the
    Codex route with its account id and Anthropic's bearer route; smith
@@ -76,14 +76,14 @@ be the user's (development.md, 10.4).
 9. **The OpenAI public route's codes are the design's.** No OpenAI API
    key is on the machine, and llm.md 4.8 states the codes. The fake LLM
    renders them as stated, and `later.md` keeps the capture for when the
-   user has a key. The director decided it (question 2).
+   user has a key. It was decided (question 2).
 
 10. **No live suite and no process tier.** This plan's behaviour is a
     route's rendering, a codec's version and a component's events: the
     worlds and the fakes prove each. The live suite on smith's own
     accounts is `accounts-sources`' (smith testing.md, 2.3 and 4), and
     the Claude Code probe it rests on ran at planning
-    (`findings/next/probe-claude.md`; the director, question 3).
+    (`findings/next/probe-claude.md`; question 3).
 
 11. **The licence** (the designer's call C2). One `LICENSE` file at
     each repository's root, MIT's text, with the line `Copyright (c)
@@ -225,8 +225,8 @@ be the user's (development.md, 10.4).
 ## Design questions
 
 Questions 6 to 16 of the inbox
-(`~/src/rust/tmp/director/inbox/accounts-planner.md`, 2026-10-19),
-relayed by the director to the accounts' designer, who settled each as
+(2026-10-19),
+relayed in the decision to the accounts' designer, who settled each as
 recommended: skein `d4ef1680` (6, 9 to 12), `378fd8cf` (15) and
 `49725eca` (16), smith `137a1cb4` (6 to 8, 13, 14). The design at those
 commits is this plan's.
@@ -505,7 +505,7 @@ commits is this plan's.
      the three new `ClientLimits` fields in smith-local-service
      `src/credentials/tests.rs` and smith-local-shell
      `src/credentials/product.rs` (`client_limits`). A further smith user of a
-     skein change at or before `$c` that `heavy cargo check --workspace
+     skein change at or before `$c` that `cargo check --workspace
      --all-targets` finds is repaired in the same commit and listed in its
      body; past about 200 lines besides `Cargo.lock`, it is a question.
 
@@ -572,9 +572,9 @@ commits is this plan's.
      that ran it. Its deadline, `clock.now().now.saturating_add(Duration::from_millis(5))`,
      is taken before `real::World::new(Judge)` and `world.spawn`, so a setup
      slower than 5 ms leaves no keep time after the last word: a wall-clock
-     bound, which implementer.md, 8.5, retries once ("If the gate fails only
+     bound, which the implementation rules, retries once ("If the gate fails only
      on a timeout (a suite's global timeout, or a test's wall-clock bound),
-     in tests outside your session's files, `land` again once without
+     in tests outside your session's files, rerun the gate once without
      asking"). The README's "Rules of this plan" now says so for this test
      (ruling 116), and `later.md` holds its fix. Before landing again,
      08.1 takes ruling 115: its decision-8 helper counts an empty issued id
@@ -950,8 +950,8 @@ commits is this plan's.
      A further user of what 07.1 or 07.2 changes is refreshed the same way
      and listed in the commit body.
 
-129. **The order toward the repins** (director's request of 2026-10-19T17:22Z).
-     The director reports that forge-kit's temper 02.1 waits on this run's
+129. **The order toward the repins** (request of 2026-10-19T17:22Z).
+     The report says that forge-kit's temper 02.1 waits on this run's
      `smith-repin` and `jig-repin`, and asks that the steps on their path go
      first, the plan's dependencies unchanged. The README now says:
      - The closing repins gain `jig-repin.s1`, which the README already plans
@@ -978,7 +978,7 @@ commits is this plan's.
      is handled as the rejected one was" was a plan defect, now amended to
      "reaches no event downstream":
      - Decision 16 itself says the repins "keep today's behaviour", and the
-       director kept it as "map ... the refused notice onto today's outcomes"
+       decision kept it as "map ... the refused notice onto today's outcomes"
        (decisions.md, For the user, C). Today a refused completion raises no
        notice at all: before smith 02.2 (92192967), `Failure::Refused` sat
        with `Overloaded` and `Unavailable` in the arm that pushes none.
@@ -1123,7 +1123,7 @@ commits is this plan's.
      A bounded diagnosis, in the repin's session, with this budget: 45 minutes
      and at most 10 focused runs of
      `tests/client-browser/tests/browser_tier.rs`'
-     `under_a_prefix_the_inbox_s_links_carry_the_prefix`, through `heavy`, with
+     `under_a_prefix_the_inbox_s_links_carry_the_prefix`, with
      the browser profile the gate runs (`cargo nextest run --profile browser`,
      filtered to the one test); no full gate meanwhile.
 
@@ -1137,9 +1137,9 @@ commits is this plan's.
      3. The outcome:
         - a cause in jig's code (a translation, route or fixture that smith's or
           skein's new behaviour breaks): fix it as an edit that follows the
-          repin's Shape (implementer.md, 8.5: "the behaviour your Shape adds
+          repin's Shape (the implementation rules: "the behaviour your Shape adds
           explains it"), name the cause and the fix in the commit body, and
-          `land` once;
+          the gate once;
         - a cause in smith or skein: stop and report it by repository, path and
           symbol, with the focused run's evidence; the ruling that answers adds
           the fix upstream;
@@ -1206,7 +1206,7 @@ commits is this plan's.
      is denied. Nothing else in 11.1 moved.
 
      Checked: the re-check's prototype in a scratch worktree at skein e07d306,
-     through `heavy`: `cargo clippy -p skein-fake-peers -p skein-oauth-world
+    : `cargo clippy -p skein-fake-peers -p skein-oauth-world
      -p skein-llm-world --all-targets -- -D warnings` failed on
      `type_complexity` at that helper and was clean with the alias; nextest
      default over skein-fake-peers, skein-oauth-world,
@@ -1282,7 +1282,7 @@ commits is this plan's.
      the closing `jig-repin` and every jig landing would meet too.
 
      1. **A second budget, for the cause in jig's client:** 60 minutes and 20
-        focused runs, through `heavy`, of `under_a_prefix_the_inbox_s_links_
+        focused runs, of `under_a_prefix_the_inbox_s_links_
         carry_the_prefix` (alone, or with the browser profile's other tests
         for load, which counts as one run), on jig's `origin/main` or the
         repin's tree, whichever reproduces it more often. Look where the
@@ -1293,11 +1293,11 @@ commits is this plan's.
      2. **A cause found in jig:** fix it in its own commit, on jig's
         `origin/main` (Step: jig-repin.s1, its subject naming the race), with
         a test below the browser that fails without the fix where the order
-        can be forced (a world's or a unit's, under 0.1 s), and `land` it
-        first; then rebase the repin onto it and `land` the repin. The fix is
+        can be forced (a world's or a unit's, under 0.1 s), and merge it
+        first; then rebase the repin onto it and merge the dependency update. The fix is
         outside the repin's line count.
      3. **The budget spent without a cause:** rebase the repin onto jig's
-        `origin/main` and `land` it under the README's "A known timing
+        `origin/main` and merge it under the README's "A known timing
         flake", as amended: a gate that fails only in this story, at its wait
         for `Cancelled`, is landed again, at most twice more on the same tree,
         each failed gate's log named in the commit body; another failure, or a
@@ -1377,7 +1377,7 @@ commits is this plan's.
      skein-10.s1 is skein's, so `smith-repin` waits on it as on every skein step; no closing repin has landed, so none is added again. jig's `classify` (`crates/jig-protocol-accounts/src/translate.rs`) already lacks `Busy` and `NotGranted`, and `AnotherSubject` is a third: `jig-repin` takes all three, `AnotherSubject` as sign in again (decision 16), as 10.1's Downstream says.
 
 145. **jig's client race to later.md** (steer of 2026-10-19T21:14:02Z).
-     jig-repin.s1 spent ruling 139's second budget without a cause: its commit 1b0fdc68 records 20 focused browser runs through `heavy`, all passed (`client-race-{1..20}.log`), and a first gate after the rebase that failed only the same wait for `Cancelled` (`logs/20261019T201905-140.log`); it landed under the README's "A known timing flake" as ruling 139 amended it. Ruling 139, outcome 3, leaves the race to `later.md`: its row now names the story, the symptom, where to look first, and when it is taken up, as jig's (development.md, section 5.7); the designer's next landing adds it to jig's `STATUS.md`. The README's flake rule for that story stands until the race's fix lands.
+     jig-repin.s1 spent ruling 139's second budget without a cause: its commit 1b0fdc68 records 20 focused browser runs all passed (`client-race-{1..20}.log`), and a first gate after the rebase that failed only the same wait for `Cancelled` (`logs/20261019T201905-140.log`); it landed under the README's "A known timing flake" as ruling 139 amended it. Ruling 139, outcome 3, leaves the race to `later.md`: its row now names the story, the symptom, where to look first, and when it is taken up, as jig's (development.md, section 5.7); the designer's next landing adds it to jig's `STATUS.md`. The README's flake rule for that story stands until the race's fix lands.
 
 146. **Landed tests short of the rules, to later.md** (steer of 2026-10-19T22:41:55Z).
      The hourly check of 2026-10-19T22:27:32Z found tests and code that skein 10.2 (f715e00) and smith 05.2 (9bd292ba) landed short of the README's "A test helper is written once" and "A test's outcome is named, and its sizes derived" (rulings 110, 125, 134), in files no step left in this plan touches: skein-10.s1 changes only `read_locked`'s `None` arm and adds one test, and the repins change the repositories downstream. They are not rewritten in this run; `later.md` holds them, for the next plan that changes those crates. The steer of this check sends the sizes rule again to 10.s1's test and to every repin's test lines.
@@ -1395,14 +1395,14 @@ commits is this plan's.
 
      Checked at origin/main: smith `tests/local-process/src/process.rs:128 let response_bytes = limits.uri_bytes + 6 * limits.document.string_bytes + 267;`, `tests/protocol-llm/tests/adapter_boundary.rs:204 fn overloaded_status(configuration: &Configuration) -> u16 {`; jig `git grep -l 'const DIALECT: u32 = 1;'` → the four files named in the row; skein `crates/skein-oauth-accounts/src/shared_tests.rs:225 fn no_record_under_the_lock_fails_the_held_grant()`.
 
-149. **hearth-repin waits on the director** (process, hearth repin's block of 2026-10-20T00:42:26Z).
+149. **hearth-repin waits on a decision** (process, hearth repin's block of 2026-10-20T00:42:26Z).
      The gate after c4d0231 times out on x1 as before: 498 of 2150 tests had run at 15.017 s, with load 4.61 when the gate started, and the eight it stopped were hearth-tree-world tests at 0.1 s to 4.6 s. c4d0231 trimmed one test, but hearth's default suite as a whole takes about 23 s on x1 (22.6 s to 25.4 s on `origin/main`, by ruling 147's diagnosis), while hearth's own landings pass that gate at 6.5 s to 8.8 s on another machine. The suite's cost on x1 belongs to hearth's own work, not to this run. The repin itself changes `Cargo.lock` alone, and its build and clippy pass.
 
-     The director, who directs hearth's work and the machines, decides between two courses:
+     There are two courses:
      - (a) hearth's own work brings the default suite within its 15 s on x1;
-     - (b) the repin's commit lands where hearth's gate is run, with `land`, its trailers unchanged.
+     - (b) the repin's commit lands where hearth's gate is run, its trailers unchanged.
 
-     Until the director answers, hearth-repin holds 014bea9a and runs no gate, and the budget does not change. The supervisor relays the answer in a steer.
+     Until this is decided, hearth-repin holds 014bea9a and runs no gate, and the budget does not change. The supervisor relays the answer in a steer.
 
 150. **The downstream repin's landed findings, to later.md** (hourly check of 2026-10-20T00:38:41Z).
      The hourly check of 2026-10-20T00:38:41Z found the closing repin of the repository downstream of jig's repin short of the README's rules (110, 125, 134) in its landed tests, and one behaviour change no decision covers: its startup check of an agent's endpoint now matches the name alone, dropping the account match, with no question, while its problem text and tests still say "under the same name and account". No step is left in this run, so ruling 146's `later.md` row gains the tests, and a row of its own records the dropped match for that repository's next plan that changes its startup checks; both go to its `STATUS.md` with the designer's next landing (development.md, section 5.7).
@@ -1419,36 +1419,36 @@ commits is this plan's.
      Checked: skein `rg -lw 'access_token|AccessToken' … testing/skein-fake-peers/src/llm.rs testing/skein-fake-peers/tests/llm.rs` → `crates/skein-llm/README.md`; `testing/skein-fake-peers/tests/oauth.rs:276 access_token: bytes::copy_of(ACCESS),`, `git log -1 --format='%h %(trailers:key=Step,valueonly)' 21ad555` → `21ad555 skein-11.1`; `rg -c 'self\.identity\(' crates/skein-oauth/src/machine.rs` → 1; `rg -c -w verify_id_token crates/skein-oauth/src/machine/` → `crates/skein-oauth/src/machine/fetch.rs:1`; `crates/skein-llm-connection/src/boundary.rs:73 pub enum Refusal {`. smith `crates/smith-protocol-llm/src/component.rs:553 connection::Refusal::Endpoint => Error::Invalid,`; the corrected smith 03 command prints nothing (exit 1).
 
 152. **The test-time aims: skein missed under load, smith met** (done when of 2026-10-20T00:55:14Z).
-     The Done when's test-time aims (README, Done when, item 4), measured on x1, the run done either way. skein (e880245, logs in its done-when worktree; heavy "load 7.42 7.88 6.58 on 8 cores as it starts alone"): the median sums are focused 20.83 s against its aim of 16 and fuzzy 21.06 s against 19, both missed; the three runs gave focused 21.07, 20.83, 15.53 and fuzzy 21.06, 21.09, 16.31, so the third met both, which points at the machine's load (the owners experiment's builds and an index worker ran beside the gate). The three slowest of the aim's packages in each median run:
+     The Done when's test-time aims (README, Done when, item 4), measured on x1, the run done either way. skein (e880245, logs in its done-when worktree; "load 7.42 7.88 6.58 on 8 cores as it starts alone"): the median sums are focused 20.83 s against its aim of 16 and fuzzy 21.06 s against 19, both missed; the three runs gave focused 21.07, 20.83, 15.53 and fuzzy 21.06, 21.09, 16.31, so the third met both, which points at the machine's load (the owners experiment's builds and an index worker ran beside the gate). The three slowest of the aim's packages in each median run:
      - focused (focused-2): `skein-llm-world` `thirty_two_unknown_arrays_exercise_the_compact_record_bound` 1.883 s; `skein-tls-world` `failures_and_closes_in_every_state` 1.138 s; `skein-tls-world` `room_granted_late_and_a_slow_reader_hold_the_stream_below` 0.574 s;
      - fuzzy (fuzzy-1): `skein-llm-world` `selective_known_events_ignore_seeded_extensions_and_field_order` 8.260 s; `skein-tls-world` `exchanges_swept` 5.745 s; `skein-llm-connection-world` `close_and_abort_cross_racing_call_terminals_without_spin_or_repeated_events` 2.485 s.
 
-     smith: the first run measured no focused suite: the command wrote its logs into the worktree, and `smith-bench::probe_command` `a_replay_arm_runs_through_the_probe_command_and_prints_one_line` failed on the dirty tree ("source repository is dirty") in all three. Run again once at cbc22fe0 with the logs outside the worktree (logs/done-when-aims-smith/; heavy "load 12.67 10.76 8.54"), both checks printed nothing and the medians met both aims: focused 59.81 s of 60, fuzzy 78.17 s of 79. The README's item 4 now writes its logs outside the worktree.
+     smith: the first run measured no focused suite: the command wrote its logs into the worktree, and `smith-bench::probe_command` `a_replay_arm_runs_through_the_probe_command_and_prints_one_line` failed on the dirty tree ("source repository is dirty") in all three. Run again once at cbc22fe0 with the logs outside the worktree (logs/done-when-aims-smith/; "load 12.67 10.76 8.54"), both checks printed nothing and the medians met both aims: focused 59.81 s of 60, fuzzy 78.17 s of 79. The README's item 4 now writes its logs outside the worktree.
 
      skein's miss goes to the user as "For the user", E, and to `later.md` for skein's next plan that changes those worlds, to be measured again on an unloaded x1 first. No budget changes, and no step is added to this run.
 
 ## For the user
 
 The choices below have long-term consequences; each is the planner's,
-and the user, or the director, may veto it before the run:
+and the user may veto it before the run:
 
 - **A. The licence's copyright line** (11): `Copyright (c) 2026 Free
   Ekanayaka`, in skein and smith. A veto names the holder.
-  Decision: keep, by director, 2026-10-19.
+  Decision: keep, 2026-10-19.
 - **B. smith's fault names** (3): `Declined` for the model's own
   refusal, `Refused` and `Limited` for an account's. A veto keeps
   `Refused` for the model and names the account's `AccountRefused`.
-  Decision: keep, by director, 2026-10-19.
+  Decision: keep, 2026-10-19.
 - **C. The repins' defaults downstream** (16): jig's and the
   downstream repository's repins map the driver's new failures and the
   refused notice onto today's outcomes, and keep sending the withdrawn
   grant, until their own part of LLM accounts. A veto makes the mapping
   a question for jig's designer, and the jig repin waits for it.
-  Decision: keep, by director, 2026-10-19.
+  Decision: keep, 2026-10-19.
 - **D. No live check of this plan's routes** (9, 10): the public route
   and Anthropic's key route are proven against the fake only, until
   `accounts-sources`' live suite and a capture with an OpenAI key.
-  Decision: keep, by director, 2026-10-19.
+  Decision: keep, 2026-10-19.
 - **E. skein's test-time aims missed on x1** (152): the Done when
   medians were focused 20.83 s against 16 and fuzzy 21.06 s against 19,
   with load 7.4 on 8 cores when the gate started; the third run, 15.53 s

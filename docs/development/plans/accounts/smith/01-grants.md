@@ -69,7 +69,7 @@ Shape: `LICENSE` is MIT's text, `Copyright (c) 2026 Free Ekanayaka`.
 Test shape: none beyond the check below.
 Proof: unit, no test fn (manifests only): `cargo metadata
   --format-version 1 --no-deps | jq -e '[.packages[].license] |
-  all(. == "MIT")'`, then `heavy cargo check --workspace
+  all(. == "MIT")'`, then `cargo check --workspace
   --all-targets`; under 60 s.
 Don't: give `benchmarks/tasks/` a licence; add one per crate.
 Size: about 40 lines.

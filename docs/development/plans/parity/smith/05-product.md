@@ -128,7 +128,7 @@ Removes: the silent wait.
 
 ## Done when
 
-- `heavy cargo nextest run -p smith -E 'test(exec_in_a_repository_without_a_commit_exits_two_with_its_line)'`
+- `cargo nextest run -p smith -E 'test(exec_in_a_repository_without_a_commit_exits_two_with_its_line)'`
   passes, once.
 - `rg -n 'gpt-6.1-sol' crates/smith-local-shell/src/presets.rs benchmarks/agents/models.toml`
   prints a line from each.

@@ -42,7 +42,7 @@ target. The session writes no production code.
 
 ## Rules that bind it
 
-- **Live runs** (README, rule 9): each suite in one `heavy --gate` call,
+- **Live runs** (README, rule 9): each suite in one call,
   unsplit; a run stopped by the provider runs once more after 60 s.
 - **The live budget** (rule 10): print the run's total before each
   command; 12.3 runs only what leaves 128 attempts under 680 (ruling 143).
@@ -62,8 +62,8 @@ Needs: smith 01's graded tasks [01.1, 01.2, 01.3]; smith 02's pins
   smith 03's retried failures [03.s1]; smith 04's setup deadline [04.s4];
   smith 03's verified section [03.s2].
 Files: `benchmarks/summaries/parity-*.json`.
-Shape: no code. `heavy cargo run -p smith-bench -- build HEAD`, then
-  `heavy --gate cargo run -p smith-bench -- suite parity --arm <dir>`,
+Shape: no code. `cargo run -p smith-bench -- build HEAD`, then
+  `cargo run -p smith-bench -- suite parity --arm <dir>`,
   then `cargo run -q -p smith-bench -- parity <its summary> --commit
   <SHA>`, where `<SHA>` is the full 40-hex `git rev-parse HEAD`, taken
   before the summary is committed (a short SHA or `HEAD` exits 2,
@@ -109,8 +109,8 @@ Files: `benchmarks/suites/compaction.toml` (`repetitions = 10`;
   02.1 left it; `max_tokens = 24000000`, from 12000000, since an attempt
   uses about 689K tokens and 20 need about 13.8M; `max_wall_seconds =
   7200`, from 3600), `benchmarks/summaries/compaction-*.json`.
-Shape: no code. `heavy cargo run -p smith-bench -- build HEAD` gives
-  `<dir>`; `heavy --gate cargo run -p smith-bench -- suite compaction
+Shape: no code. `cargo run -p smith-bench -- build HEAD` gives
+  `<dir>`; `cargo run -p smith-bench -- suite compaction
   --arm <dir>` with the arms `80-percent` and `60-percent`. The suite
   writes no summary (only `parity` and `calibrate` do), so then
   `cargo run -q -p smith-bench -- summarise
@@ -135,8 +135,7 @@ Files: `benchmarks/tasks/probes/tool-output/task.toml`,
   `benchmarks/tasks/probes/process-tree/task.toml` (their blocks),
   `benchmarks/summaries/`.
 Shape: no code. For each probe, in that order, while the run's total
-  (README, rule 10) plus 12 stays at most 552 attempts (ruling 143): `heavy --gate
-  cargo run -p smith-bench -- calibrate <probe> --arm <dir>`, with no
+  (README, rule 10) plus 12 stays at most 552 attempts (ruling 143): `cargo run -p smith-bench -- calibrate <probe> --arm <dir>`, with no
   control (their controls predate the product face, as 04.6's), each
   block written by `calibrate`.
 Test shape: none.

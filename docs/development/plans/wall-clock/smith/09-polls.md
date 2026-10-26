@@ -173,8 +173,8 @@ Test shape: `tests/tools/tests/jobs.rs`, beside
   In the machine's tests:
   `a_hastened_read_answers_at_once`. Unit tests under 20 ms; world tests
   under 0.5 s.
-Proof: live, through the stop: `heavy cargo run -p smith-bench -- build
-  HEAD` and `build origin/main`, then `heavy --gate cargo run -p
+Proof: live, through the stop: `cargo run -p smith-bench -- build
+  HEAD` and `build origin/main`, then `cargo run -p
   smith-bench -- suite parity-change --arm <HEAD's dir> --parent-arm
   <origin/main's dir> --baseline-run <the file README rule 13's first
   command prints> --landed <each file its second prints>`: 40 attempts,

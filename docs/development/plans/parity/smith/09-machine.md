@@ -77,7 +77,7 @@ Shape: a rename, and nothing else. The script kinds named `Job` in
   `tests/agent/src/script.rs:16` and `tests/protocol-llm/src/script.rs:16`
   stay.
 Test shape: none new; every test keeps its name and its expected values.
-Proof: unit, the crates' tests as they stand (`heavy cargo nextest run
+Proof: unit, the crates' tests as they stand (`cargo nextest run
   -p smith-domain-tools -p smith-domain-session`).
 Don't: change behaviour.
 Size: a rename, not counted (README, rule 1).
@@ -197,5 +197,5 @@ pub enum JobEnd {
 ## Done when
 
 - `rg -n '\bstruct Job\b' crates/smith-domain-tools/src` prints nothing.
-- `heavy cargo nextest run -p smith-machine-world -E 'binary(jobs) or binary(listing)'`
+- `cargo nextest run -p smith-machine-world -E 'binary(jobs) or binary(listing)'`
   passes, once.

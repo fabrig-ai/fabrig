@@ -75,7 +75,7 @@ gives the worlds a person and referees that check it.
 - code-organization.md's "Don't" list: "no type beside an existing one
   for the same thing: change the type in place, and its users in the same
   increment". `domain.rs` (1,803 lines on `main`) must not grow: before
-  each `land`, `git diff --numstat origin/main --
+  each merge, `git diff --numstat origin/main --
   crates/smith-local-domain/src/domain.rs` shows no more lines added than
   removed. New logic goes in `person.rs`.
 
@@ -144,7 +144,7 @@ Test shape: `smith-local-protocol/src/terminal.rs`'s tests (`:131`), one
   `running` (`parent_tests.rs:10`). Unit tests under 20 ms.
 Proof: process layer: `tests/local-process/tests/simulation.rs`'s
   `a_store_failure_stops_the_chat_and_tells_the_person` passes in both
-  placements, its words now rendered from `Failure::Store`: `heavy cargo
+  placements, its words now rendered from `Failure::Store`: `cargo
   nextest run -p smith-local-protocol -p smith-local-world -p
   smith-local-process-world`, once, under 10 seconds. No probe shows
   notices live; none is run.
@@ -204,8 +204,8 @@ Test shape: `tests/local/tests/person.rs`, new; reference:
   `Person::drawn(seed)`, `slow_store` on seeds divisible by 3, about
   5 s. World tests under 0.5 s.
 Proof: world layer, the highest a referee has: the three negatives fail
-  their histories and the sweep passes: `heavy cargo nextest run -p
-  smith-local-world`, then `heavy cargo nextest run -p smith-local-world
+  their histories and the sweep passes: `cargo nextest run -p
+  smith-local-world`, then `cargo nextest run -p smith-local-world
   -p smith-local-process-world --profile fuzzy`, once each, under 20
   seconds.
 Don't: add the waiting, unread-report or liveness rules (05.13, 05.14);
@@ -282,10 +282,10 @@ Test shape: unit tests in `person.rs`'s tests (`:144`), one per cell of
 Proof: process layer, a plain defect:
   `a_follow_up_sent_as_the_run_finishes_is_read_once_in_both_placements`
   fails on the parent, which drops the follow-up at the answer, and
-  passes on the increment: `heavy cargo nextest run -p
+  passes on the increment: `cargo nextest run -p
   smith-local-process-world`, once, under 10 seconds. Live:
   `first-request` (interactive, calibrated) shows the first line
-  travelling in its start: `heavy --gate cargo run -p smith-bench -- fix
+  travelling in its start: `cargo run -p smith-bench -- fix
   probes/first-request --parent <the increment's parent>`, both commits
   built first (README, rule 3), one attempt per arm. It passes when the
   increment's arm passes its deciding checks; at most $0.20 and 15
@@ -326,7 +326,7 @@ Test shape: in `tests/local/tests/messages.rs`, written like 05.13's
   under 0.5 s.
 Proof: world layer, a plain defect:
   `no_waiting_notice_shows_while_a_sent_line_is_unread` fails on the
-  parent and passes on the increment: `heavy cargo nextest run -p
+  parent and passes on the increment: `cargo nextest run -p
   smith-local-world -p smith-local-process-world`, once, under 10
   seconds. No probe shows it live (benchmarks.md, 11.1).
 Don't: delay or reword the notice.
@@ -368,8 +368,7 @@ turn 1's save in flight; it fails on `main` (no completion follows).
 Start from `tests/host/tests/simulation.rs:704` or
 `tests/agent/tests/brief.rs:484`. Under 0.5 s.
 Proof: that story, once, failing on the parent and passing on the step;
-then `follow-up/chat` once, 12 attempts, on the step's arm through `heavy
---gate` (README rules 1 and 3), its counts in the commit body.
+then `follow-up/chat` once, 12 attempts, on the step's arm  (README rules 1 and 3), its counts in the commit body.
 Don't: widen `unacknowledged_bytes` or drop the hold; add a timeout,
 retry or delay; change 00.14's task, prompt, cues or checks. If the
 reproduction shows the hold is not the cause, stop and ask with it.
@@ -533,7 +532,7 @@ None: shell.md, 4.1 settles the end of input; decisions.md, 12.19 lines lost.
   prints nothing (6 on `main`).
 - `rg -n 'SaveState is emitted only while starting or running' crates/smith-local-domain/src`
   prints nothing (1 on `main`).
-- `heavy cargo nextest run -p smith-local-domain -p smith-local-protocol -p smith-local-world -p smith-local-process-world`
+- `cargo nextest run -p smith-local-domain -p smith-local-protocol -p smith-local-world -p smith-local-process-world`
   passes (138 tests in 0.5 s on `main`).
-- `heavy cargo nextest run -p smith-local-world -p smith-local-process-world --profile fuzzy`
+- `cargo nextest run -p smith-local-world -p smith-local-process-world --profile fuzzy`
   passes, each test under about 5 s (0.07 s and 2.5 s on `main`).

@@ -98,7 +98,7 @@ Only what is left on `main`:
 - **Credentials are borrowed, access-only:** "never a copy of a refresh
   token" (benchmarks.md, 1 and 10); attempts write only under
   `$XDG_STATE_HOME/smith-bench/`, through `guard::Guard`.
-- **A live run is a Proof's, run once** through `heavy --gate`, within the
+- **A live run is a Proof's, run once** within the
   Proof line's bound. Each failed attempt is classified in the commit body
   (a smith defect, a model deviation, a task the tier cannot do).
 
@@ -139,7 +139,7 @@ Only what is left on `main`:
 Scope: four commands that build an arm, prepare the requests, run them and print what happened (benchmarks.md, 4.2, 5.1, 9 and 11.5): `probe`, `calibrate`, `fix`, `suite`; the README's command section, run notes removed.
 Needs: nothing.
 Files: `benchmarks/src/probe.rs` (new), `src/main.rs`, `src/fix.rs` (`run` :146, `calibrate` :181), `src/batch.rs` (`probe_suite` :318), `src/run/outcomes.rs` (`Neutral::task` :35), `src/lib.rs`, `benchmarks/README.md`; tests `tests/probe_command.rs` (new), `tests/common/mod.rs`, `tests/smith_adapter.rs` (fixtures moved), `tests/probes.rs` (:164).
-Shape: the commands, each run from a worktree with no uncommitted change as `heavy --gate cargo run -p smith-bench -- <command>`, after the arm is built in the build lane with `heavy cargo run -p smith-bench -- build <commit>`, which prints the arm's directory as its last line; `--commit`, `--control` and `--parent` reuse the arm `build` archived for their commit, so that no arm build holds the gate lane:
+Shape: the commands, each run from a worktree with no uncommitted change as `cargo run -p smith-bench -- <command>`, after the arm is built in the build lane with `cargo run -p smith-bench -- build <commit>`, which prints the arm's directory as its last line; `--commit`, `--control` and `--parent` reuse the arm `build` archived for their commit, so that no arm build holds the gate lane:
   `probe PROBE [--agent smith|codex] [--attempts N] [--commit COMMIT | --arm DIRECTORY]`;
   `calibrate PROBE [--attempts N] [--passes N] [--control COMMIT] [--commit COMMIT | --arm DIRECTORY]`;
   `fix PROBE --parent COMMIT [--commit COMMIT]`;
@@ -162,7 +162,7 @@ Test shape: `tests/probe_command.rs`. Reuse `unexecuted_arm` and `unissued_auth`
       assert!(text.ends_with(" spend=-"), "{text}");
   }
   ```
-Proof: process layer, `a_replay_arm_runs_through_the_probe_command_and_prints_one_line`; then live, once: `heavy cargo run -p smith-bench -- build HEAD`, then `heavy --gate cargo run -p smith-bench -- probe probes/smoke-tools --arm <the printed directory>`, at most 2 attempts, $0.02 and 5 minutes. A pass is exit 0 with a line `verdict=pass`.
+Proof: process layer, `a_replay_arm_runs_through_the_probe_command_and_prints_one_line`; then live, once: `cargo run -p smith-bench -- build HEAD`, then `cargo run -p smith-bench -- probe probes/smoke-tools --arm <the printed directory>`, at most 2 attempts, $0.02 and 5 minutes. A pass is exit 0 with a line `verdict=pass`.
 Also (decisions.md, 13.14): `arm::build` (`src/arm.rs:343`) holds an exclusive lock, `std::fs::File::lock` on `<state root>/build.lock`, from `prepare_clone` to `archive`, so that two builds in the build lane never share the clone or `build-target` at once; a second build waits for the first. Test: `tests/probe_command.rs`, `a_build_waits_while_another_holds_the_build_lock` (the test holds the lock, a build in a thread has not started its clone after 100 ms, and finishes once the lock is released), at most 40 lines, under 2 s, or, if the build cannot run offline in a test, a unit test in `arm.rs` that `build` refuses to start while `try_lock` on the file fails. Files: `src/arm.rs`.
 Don't: write into the checkout; read a login outside the adapters' converter; build a commit other than the one named.
 Size: at most 500 lines.
@@ -177,7 +177,7 @@ Shape: from the spike's `~/src/rust/smith-benchmark-2026-10-08/tasks/`: `seed/` 
   `compare.toml`: tier `working`, `interleaved`, 5 repetitions, both fixtures, smith (`compare` pin, naming `first-request.json`) and Codex (`standard`).
 Test shape: `tests/offline.rs`, beside `check_benchmark_tree`'s tests. Tests: `fixtures_freeze_their_seeds_and_keep_graders_outside_them`, `the_compare_suite_names_both_fixtures_and_both_agents`, and in `src/validate.rs`'s tests a synthetic fixture whose grader is `sh -c 'test -f solved'`: `validate_reports_a_seed_its_grader_passes`, `validate_reports_a_reference_its_grader_fails`. Ceilings 20 ms; the synthetic grader tests 0.5 s.
 Also (decisions.md, 13.17): `benchmarks/agents/models.toml`'s `[working.codex]` gets `model = "gpt-6-astra"` and `effort = "high"` (decisions.md, 12.17), its comment replaced by "Pinned by decisions.md 12.17; the user may veto it before session 12 runs (decisions.md, section 10, item 6)." The offline check's admission (`validate_suite`, `validate_agent`, `models.lookup`) is unchanged. `[working.anthropic]` stays empty.
-Proof: process layer, once: `heavy cargo run -p smith-bench -- validate`, at most 5 minutes; a pass is exit 0 with both fixtures' seeds failing and references passing. Not live: `compare` runs at the working tier, pinned here and run by session 12 (decisions.md, 12.17).
+Proof: process layer, once: `cargo run -p smith-bench -- validate`, at most 5 minutes; a pass is exit 0 with both fixtures' seeds failing and references passing. Not live: `compare` runs at the working tier, pinned here and run by session 12 (decisions.md, 12.17).
 Don't: run a grader inside the focused suite; put a grader's or reference's file in a seed.
 Size: at most 200 lines, the fixtures' own code excepted.
 Removes: nothing.
@@ -239,7 +239,7 @@ Needs: smith 05's lines carried and held [05.13]: carried, held until read, unre
 Files: `tasks/probes/follow-up/` (new), `suites/probes.toml`, `summaries/`; tests `tests/probes.rs`.
 Shape: base: a greeting, then a file asked for through the shell, sent `when = { tool-call = { tool = "finish" } }`; `eof`: two lines, then end of input (`input_end = "after-last-cue"`); `chat`: three exchanges, each sent on `wait`. Checks: `exit-code` 0; `handled-once`; `chat`, `completion-per-exchange`; the passive message terminals.
 Test shape: `tests/probes.rs`; reuse `common::events::{balanced, record}` (`tests/common/events.rs:74`, `:7`). Tests: `follow_up_sends_its_request_on_finish`, `follow_up_eof_ends_input_after_its_second_line`, `follow_up_chat_judges_one_completion_per_exchange`. Ceilings 20 ms.
-Proof: live, once per variant: `heavy --gate cargo run -p smith-bench -- calibrate PROBE --control <05.13's parent>`, for PROBE `probes/follow-up`, `probes/follow-up/eof` and `probes/follow-up/chat`, at most 12 attempts each, $3 and 30 minutes for the three; calibrated at 10 passes, the control failing.
+Proof: live, once per variant: `cargo run -p smith-bench -- calibrate PROBE --control <05.13's parent>`, for PROBE `probes/follow-up`, `probes/follow-up/eof` and `probes/follow-up/chat`, at most 12 attempts each, $3 and 30 minutes for the three; calibrated at 10 passes, the control failing.
 Don't: judge the terminal's words; read standard output.
 Size: at most 40 lines.
 Removes: nothing.
@@ -250,7 +250,7 @@ Needs: smith 08's compaction into a new window, admitted against the window (08.
 Files: `tasks/probes/history/` (new), `suites/probes.toml`, `summaries/`; tests `tests/probes.rs`.
 Shape: a seed of small files whose values sum, read one call at a time, at least four times `small-window`'s window in total; `small-window` sets `window` (and the derived limits follow); checks: `conversation-opened` of kind `compaction` at least once, `prompt-within-window`, the answer's sum; `request_bytes` and prompt tokens stay in the attempt's records.
 Test shape: `tests/probes.rs`. Tests: `history_reads_one_file_per_completion_to_its_sum`, `small_window_requires_a_compaction_and_no_prompt_past_its_window`. Ceilings 20 ms.
-Proof: live, once: `heavy --gate cargo run -p smith-bench -- calibrate probes/history/small-window --control <08.6's parent>`, at most 12 attempts, $10 and 45 minutes; calibrated at 10 passes, the control failing. `history` itself runs once, within the same bound: `probe probes/history`.
+Proof: live, once: `cargo run -p smith-bench -- calibrate probes/history/small-window --control <08.6's parent>`, at most 12 attempts, $10 and 45 minutes; calibrated at 10 passes, the control failing. `history` itself runs once, within the same bound: `probe probes/history`.
 Don't: shrink the window below what the system text and tools need.
 Size: at most 40 lines.
 Removes: nothing.
@@ -261,7 +261,7 @@ Needs: smith 10's `borrow` and the harness on `smith exec` [10.7, 10.15], whose 
 Files: `tasks/probes/credentials/` (new), `suites/probes.toml`, `summaries/`; tests `tests/probes.rs`.
 Shape: a one-line task answered with a token from the seed; checks: `end` completed, `answer`, `login-unchanged` (its digest unchanged by smith's run).
 Test shape: `tests/probes.rs`. Test: `credentials_decides_on_the_login_digest_and_the_answer`. Ceiling 20 ms.
-Proof: live, once: `heavy --gate cargo run -p smith-bench -- calibrate probes/credentials`, at most 12 attempts, $0.50 and 10 minutes; calibrated at 10 passes. No control: 10.7's parent has no `borrow` source and refuses the setting as setup (benchmarks.md, 4.2).
+Proof: live, once: `cargo run -p smith-bench -- calibrate probes/credentials`, at most 12 attempts, $0.50 and 10 minutes; calibrated at 10 passes. No control: 10.7's parent has no `borrow` source and refuses the setting as setup (benchmarks.md, 4.2).
 Don't: write, refresh or copy the login.
 Size: at most 30 lines.
 Removes: nothing.
@@ -272,7 +272,7 @@ Needs: session 13's last step landed; this session's `suite` command (00.27) and
 Files: `src/agent/smith/{legacy.rs,faces.rs,prepare.rs,observe.rs,observe/,settings.rs,directories.rs,mod.rs}`, `src/agent/mod.rs` (:145), `src/run.rs` (:644, :777, :848), `src/run/cache.rs` (:52), `src/credential.rs`, `src/guard.rs`, `src/result.rs` (:14, :67), `agents/smith/` (`faces.toml`, `legacy.json`, `smoke.pin.toml`, `standard.pin.toml`), `baselines/`, `summaries/`, `README.md`; tests `tests/legacy.rs`, `tests/smith_adapter.rs` (:8, :131, :276, :368), `tests/codex_adapter.rs` (:370), `tests/fuzzy_parsers.rs` (:44), `tests/offline.rs` (:60), `tests/smith_producer.rs`, `tests/recorded/`.
 Shape: `faces.toml` keeps its two `events` entries as `commit`, `shape`, `receiving`; `FaceSince { commit, shape: events::Shape, receiving }`; `Prepared.face` is an `events::Shape`; `Observing { prepared, observer: events::Observer }`; `settings.rs` renders the one event-era layout, today's `LocalReserved`, without a shape parameter; the converter writes the access-only record only; `agents/smith/legacy.json` becomes `smoke.json`. `SmithFace` keeps `Events`, and `RESULT_VERSION` is 2. The three terminal tests at `smith_adapter.rs:131`, `:276` and `:368` replay `common::events::bytes(&balanced())` in place of the Debug recording.
 Test shape: `tests/offline.rs`: `committed_summaries_and_baselines_parse_at_result_version_two`; the prompt test at :60 renamed `a_prompt_at_the_terminal_line_bound_is_refused`, unchanged. Ceilings 20 ms.
-Proof: live, once each, after `heavy cargo run -p smith-bench -- build HEAD`, through `heavy --gate cargo run -p smith-bench --`: `suite smoke --arm <the printed directory>` (at most $0.50, 15 minutes), then `suite probes --arm <the printed directory>` (at most $10, 120 minutes); then `summarise` and `baseline` as `benchmarks/README.md` spells them. A pass is both suites run with no harness error or setup refusal; a probe's failure is recorded in its summary, and a smith defect stops the increment on a question. Deterministic: `committed_summaries_and_baselines_parse_at_result_version_two`.
+Proof: live, once each, after `cargo run -p smith-bench -- build HEAD`, through `cargo run -p smith-bench --`: `suite smoke --arm <the printed directory>` (at most $0.50, 15 minutes), then `suite probes --arm <the printed directory>` (at most $10, 120 minutes); then `summarise` and `baseline` as `benchmarks/README.md` spells them. A pass is both suites run with no harness error or setup refusal; a probe's failure is recorded in its summary, and a smith defect stops the increment on a question. Deterministic: `committed_summaries_and_baselines_parse_at_result_version_two`.
 Don't: keep a type or a file for pre-events binaries; drop the terminal's one-line prompt bound while `smith local` is the invocation.
 Size: at most 150 lines added; about 3,000 removed.
 Removes: `legacy.rs`, `observe/checks.rs`, `observe/health.rs` and the Debug usage code in `observe.rs`; `Face::Legacy`, `Observer::Legacy`, `FactShape`, `TokenShape`, `guard::UNUSABLE_REFRESH`, `SmithFace::Legacy`; the settings shapes `LocalJson`, `LocalDeclared`, `LocalPriced`, `LocalDelegating`; `faces.toml`'s eight `legacy` entries; `tests/legacy.rs`, `tests/recorded/smith-legacy/`, `tests/recorded/smith-current/`, `tests/recorded/tasks/smith-legacy/` and the legacy cases of the tests above; the README's legacy paragraphs.
@@ -304,7 +304,7 @@ No `unsafe`, no dependency, no skein change. Tests
 name it by `env!("CARGO_BIN_EXE_test-peer")`.
 Test shape: the two tests keep their names, steps and assertions; only
 their program changes.
-Proof: unit, `heavy cargo nextest run -p smith-bench -E 'test(a_replay_arm_runs_through_the_probe_command_and_prints_one_line) | test(a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup)'`, once; and `git grep -n python origin/main -- benchmarks crates tests src` prints nothing once it lands.
+Proof: unit, `cargo nextest run -p smith-bench -E 'test(a_replay_arm_runs_through_the_probe_command_and_prints_one_line) | test(a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup)'`, once; and `git grep -n python origin/main -- benchmarks crates tests src` prints nothing once it lands.
 Don't: add a dependency; change what either test checks.
 Size: at most 80 lines of production code.
 
@@ -417,19 +417,19 @@ None (benchmarks.md, 11.1; shell.md, 4.1; events.md, 3.8 settle them).
 
 ## Done when
 
-- `heavy cargo run -p smith-bench -- check` exits 0 and counts at least
+- `cargo run -p smith-bench -- check` exits 0 and counts at least
   one summary and one baseline, and `ls benchmarks/suites` prints
   `calibrate.toml`, `compare.toml`, `probes.toml`, `smoke.toml` and
   session 12's suites only (on 2026-10-12: 11 suites, no summary or
   baseline).
-- `heavy cargo run -p smith-bench -- validate` exits 0.
+- `cargo run -p smith-bench -- validate` exits 0.
 - `rg -il legacy benchmarks` and `find benchmarks -iname '*legacy*'` print
   nothing (on 2026-10-12: 29 files and 5 paths).
 - This prints nothing (on 2026-10-12: 20):
   ```sh
   rg -P -c 'smith00-|phase ?[0-9]|checkpoint|(?<!md |section |sections )\b(0[0-9]|1[0-3])\.[0-9]{1,2}\b' benchmarks/README.md
   ```
-- `heavy cargo nextest run -p smith-bench` passes. Aim for under 10 s
+- `cargo nextest run -p smith-bench` passes. Aim for under 10 s
   serially (8.25 s on 2026-10-12): 00.21 reads it once, adding `--profile
   measure -j 1`, and past it makes its slowest test cheaper.
 - 00.14, 00.16 and 00.30 record calibrations: `git log origin/main --format=%B -E

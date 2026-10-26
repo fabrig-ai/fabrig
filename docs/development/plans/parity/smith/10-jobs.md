@@ -389,5 +389,5 @@ pub enum Wait { Default, Asked(Duration) }
 
 ## Done when
 
-- `heavy cargo nextest run -p smith-tools-world -p smith-session-world -p smith-run-world -E 'binary(jobs)'`
+- `cargo nextest run -p smith-tools-world -p smith-session-world -p smith-run-world -E 'binary(jobs)'`
   passes, once.

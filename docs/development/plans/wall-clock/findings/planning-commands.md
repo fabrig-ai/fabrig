@@ -1,7 +1,7 @@
 # The plan's commands, run once at the base
 
 2026-10-16, smith `4ddb9b67` (`origin/main`; the plan's files untracked
-beside it). Each command run once from `~/src/rust/smith`, through `heavy`
+beside it). Each command run once from `~/src/rust/smith`
 where it compiles or tests, nothing live.
 
 ## 1. The size count (`code-organization.md`, section 8)
@@ -44,7 +44,7 @@ form the run writes.
 **Item 2** (the newest `parity` summary's verdict). The shell part picks
 `benchmarks/summaries/parity-87a8d1e8-20261015T170125Z.json`, `sha` =
 `87a8d1e8f430a7d32e559c284a0d5218aae1db4c`, and `test -z` holds (no
-wall-clock commit). `heavy cargo run -q -p smith-bench -- parity <run>
+wall-clock commit). `cargo run -q -p smith-bench -- parity <run>
 --commit <sha>`: exit 1.
 
 ```
@@ -98,10 +98,10 @@ file`, 09's `Hasten`, 10's `a window from where a search found them`
 (each exit 1). Each file each names exists.
 
 Passing at the base already, so they decide nothing alone:
-- 02's `heavy cargo nextest run -p smith-bench -E 'test(/change/) | test(/projection/)'`:
+- 02's `cargo nextest run -p smith-bench -E 'test(/change/) | test(/projection/)'`:
   exit 0, 6 landed tests match (`..._changes_a_protected_path_...`,
   `..._digests_changed`, and others).
-- 04's `heavy cargo nextest run -p smith-protocol-llm-world -p smith-session-world -E 'test(/line/)'`:
+- 04's `cargo nextest run -p smith-protocol-llm-world -p smith-session-world -E 'test(/line/)'`:
   exit 0, 6 landed tests match (`deadline`, `lines`). The default profile
   skips `fuzzy_*` binaries (`.config/nextest.toml`), so 04.2's
   `drawn_ratios_and_rendered_sizes_send_nothing_past_the_line`, in
@@ -112,9 +112,9 @@ Passing at the base already, so they decide nothing alone:
 
 ## 6. smith's `check` (03.1, 03.2 and 03's "Done when")
 
-`heavy cargo run -q -- check`: exit 101, `cargo run could not determine
+`cargo run -q -- check`: exit 101, `cargo run could not determine
 which binary to run` (the default members hold `smith`, `smith-agent`,
-`smith-bench`, `test-peer`). `heavy cargo run -q -p smith -- check`: exit
+`smith-bench`, `test-peer`). `cargo run -q -p smith -- check`: exit
 2, `smith: built-in settings: model: required value is absent` (no user
 layer on this machine). With the model alone, `accounts.codex.source` is
 absent (exit 2); with `source = "borrow"` and no file, it reads the
@@ -124,7 +124,7 @@ The command that exits 0, reading the Codex login read only and calling
 nothing:
 
 ```
-heavy cargo run -q -p smith -- check -m codex/gpt-6.1-sol -c 'accounts.codex.source="borrow"' -c "accounts.codex.file=\"$HOME/.codex/auth.json\""
+cargo run -q -p smith -- check -m codex/gpt-6.1-sol -c 'accounts.codex.source="borrow"' -c "accounts.codex.file=\"$HOME/.codex/auth.json\""
 ```
 
 Exit 0 (one warning: the `anthropic` account not signed in). With a login
@@ -132,11 +132,11 @@ file that does not exist it exits 3, the credentials only, and prints the
 same limits. It prints `run.room = 153600 tokens` and
 `session.history_bytes = 6331914 bytes`; no `run.compaction_material`;
 `formats {"channel":2,"charter":2,"chat_store":1,"check":1,"events":2,"transcript":4}`.
-heavy shows the last lines only: the whole report is in its log.
+shows the last lines only: the whole report is in its log.
 
 ## 7. The memory margins (03.2)
 
-`heavy cargo nextest run -p smith-local-shell -p smith-agent-shell -E 'test(/fit/)' --no-capture`:
+`cargo nextest run -p smith-local-shell -p smith-agent-shell -E 'test(/fit/)' --no-capture`:
 exit 0. The filter matches 5 tests, the two named among them
 (`settings::tests::the_default_inline_product_parts_fit_two_gibibytes`,
 `config::tests::product_values_pass_every_startup_check_and_fit_complete_memory`),
@@ -159,7 +159,7 @@ to `PRODUCT_TOTAL`; below that, it would lower it.
 
 ## 8. `smith-bench`'s check (01's "Done when", 02.1, 02.3)
 
-`heavy cargo run -q -p smith-bench -- check`: exit 0, `checked 19 tasks,
+`cargo run -q -p smith-bench -- check`: exit 0, `checked 19 tasks,
 9 suites, 3 configuration pins, 15 summaries, 2 baselines`.
 
 ## 9. The transcript generator (08.1)
@@ -168,7 +168,7 @@ From `docs/development/plans/parity/smith/11-offered.md`:
 
 ```
 rev=$(grep -A2 'name = "skein-codegen"' Cargo.lock | grep -o '#[0-9a-f]*' | tr -d '#' | head -1)
-heavy cargo run -q --manifest-path ~/.cargo/git/checkouts/skein-336d5ae5eecfa0f9/${rev:0:7}/testing/skein-codegen/Cargo.toml -- crates/smith-transcript/schema/transcript-v5.schema crates/smith-transcript/src/generated
+cargo run -q --manifest-path ~/.cargo/git/checkouts/skein-336d5ae5eecfa0f9/${rev:0:7}/testing/skein-codegen/Cargo.toml -- crates/smith-transcript/schema/transcript-v5.schema crates/smith-transcript/src/generated
 ```
 
 `rev` = `e30fe586ff941471e2c05264353abc8eb63dc635` (source
@@ -207,7 +207,7 @@ The memory tests: `crates/smith-local-shell/src/settings/tests.rs:498`
 A scratch crate (`cargo new --lib`, edition 2024, rustc 1.95.0 as smith's),
 the sketches verbatim with stubs for `skein_llm::Prompt`, `Failure`,
 `Measure<T>`, `Criterion`, `Projection`, `Stop`, and one caller of
-`guard::measure` so that it is not dead. `heavy cargo clippy -- -D warnings`:
+`guard::measure` so that it is not dead. `cargo clippy -- -D warnings`:
 
 - **As written:** both compile, exit 0, no lint.
 - **`Purpose` keeping its derive on `main`:** 6 errors, E0204 (`Copy`

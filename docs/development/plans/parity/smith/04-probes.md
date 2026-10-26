@@ -141,7 +141,7 @@ Shape: `Suite` gains `[repetitions_by_task]`, a table from a task's name
   150,000,000 tokens; a run that stops on either says so).
 Test shape: `a_suite_gives_one_task_its_own_repetitions`,
   `the_parity_suite_runs_58_attempts_interleaved`. Under 20 ms each.
-Proof: unit, those tests; `heavy cargo run -p smith-bench -- check`
+Proof: unit, those tests; `cargo run -p smith-bench -- check`
   exits 0.
 Don't: rerun a failed attempt in `parity`.
 Size: 60 lines.
@@ -199,7 +199,7 @@ Test shape: `benchmarks/tests/parity.rs`, on summaries built in the test:
       assert_eq!(verdict.verdict.code(), 1);
   }
   ```
-Proof: unit, those tests; then, once, `heavy cargo run -q -p smith-bench
+Proof: unit, those tests; then, once, `cargo run -q -p smith-bench
   -- parity benchmarks/tests/recorded/parity/on-par.json --commit <the commit
   that file names>`: five criterion lines and exit 0 (process). The
   file, committed here, is the summary `parity_passes_when_every_criterion_is_below_its_margin`
@@ -236,7 +236,7 @@ Needs: smith 02's product pins and one face [02.1, 02.2]; smith 03's
   summary version 3 [03.1]; 04.1; 04.s1 (ruling 112); 08.s1 (ruling 114).
 Files: `benchmarks/tasks/probes/first-request/task.toml` (the block),
   `benchmarks/summaries/` (its summary).
-Shape: no new code. Build the arm, then `heavy --gate cargo run -p
+Shape: no new code. Build the arm, then `cargo run -p
   smith-bench -- calibrate probes/first-request --arm <dir>`, with no
   control: the behaviour it guards was in place before the first product
   face (`0d5604f9`), the oldest binary the harness runs after 02.2, so no
@@ -410,7 +410,7 @@ Shape: the prepared request's `setup_deadline_seconds` becomes 900, from
   `parity-1ea86da7-20261014T230756Z` attempt 49. Before the change,
   measure that setup once: unbundle the seed that `seed/bundle.toml`
   names, from `~/.local/state/smith-bench/bundles/`, into a scratch
-  directory, and run `/usr/bin/time -f %e heavy cargo build --offline
+  directory, and run `/usr/bin/time -f %e cargo build --offline
   --locked --workspace --all-targets` there with `CARGO_TARGET_DIR` an
   empty scratch directory. Its seconds go in the commit body. Past 450 s,
   stop on a question instead of landing.
@@ -480,5 +480,5 @@ pub fn recompute(rows: &[AttemptRow], seed: u64, priced_at: &str) -> Result<Pari
 ## Done when
 
 - The README's "Done when" item 4 prints at least 1 (`first-request`).
-- `heavy cargo nextest run -p smith-bench -E 'binary(parity)'` passes,
+- `cargo nextest run -p smith-bench -E 'binary(parity)'` passes,
   once.

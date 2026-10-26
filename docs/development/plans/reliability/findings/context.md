@@ -240,7 +240,7 @@ Refs: smith code is cited at `bench/smith-codex-2026-10-08` (spike tip; none of 
     - `list`: 64 entries or 4 KiB.
   - Nothing is ever dropped, summarized or elided. Measured final contexts: root about 76 K tokens; children up to about 63 K; Codex root 125 K.
   - As history approaches the model's window, the session does not know it. It ends at whichever cliff comes first, and every cliff is terminal:
-    - (a) More than 256 blocks across the prompt fails with `Limit`. Checked in `crates/smith-protocol-llm/src/prompt.rs:328-338`, `skein-llm/src/translate.rs:70-75`, and `openai/request.rs:50`; `parts` is set at `config.rs:334`. A read-heavy child reached 169 blocks in 22 turns (`iteration3-07_shell_cwd-smith-1`, owner 4294967296), so this cliff arrives well before 1 MiB in tool-heavy conversations.
+    - (a) More than 256 blocks across the prompt fails with `Limit`. Checked in `crates/smith-protocol-llm/src/prompt.rs:328-338`, `skein-llm/src/translate.rs:70-75`, and `openai/request.rs:50`; `parts` is set at `config.rs:334`. A read-child reached 169 blocks in 22 turns (`iteration3-07_shell_cwd-smith-1`, owner 4294967296), so this cliff arrives well before 1 MiB in tool-conversations.
     - (b) 256 messages ends the session as `TranscriptFull` (`config.rs:368`; `boundary.rs:338-339`).
     - (c) More than 1 MiB of request bytes fails with `Limit`.
     - (d) 32 MiB of session bytes (`limits.rs:66`).
@@ -351,7 +351,7 @@ Refs: smith code is cited at `bench/smith-codex-2026-10-08` (spike tip; none of 
 
 ## Cross-theme dependencies
 
-- **Request envelope (1 MiB, `cfb7408`):** C7's window-aware admission and C8's compaction change what the envelope must hold. The 256-block `parts` limit is a separate cliff that arrives first in tool-heavy conversations. WebSocket incremental transport (C2) would decouple request size from history size.
+- **Request envelope (1 MiB, `cfb7408`):** C7's window-aware admission and C8's compaction change what the envelope must hold. The 256-block `parts` limit is a separate cliff that arrives first in tool-conversations. WebSocket incremental transport (C2) would decouple request size from history size.
 - **Delegation, sub-agents and turn budgets (`44e5120`, `5848e59`):** synchronous delegation leaves parents idle long enough to risk cache expiry (C5 TTL, P3). Children are the main context-isolation tool (C7). Compaction completions consume turns and spend (C8). The child system text puts the brief first (C3 ordering note).
 - **Tools theme:** per-result bounds (4 KiB read windows, shell head and tail) set both context growth and turn count (C7, C9).
 - **Interactive and waiting (spike 1, `6136dc4`/`8e83931`):** host messages and nudges are new user messages. They are the trigger for C4's possible per-turn miss, and the idle times between them exceed cache retention.

@@ -87,7 +87,7 @@ Shape: `Turn` gains `jobs: u32` after `spent`; `Outcome` gains the
 
   ```
   rev=$(grep -A2 'name = "skein-codegen"' Cargo.lock | grep -o '#[0-9a-f]*' | tr -d '#' | head -1)
-  heavy cargo run -q --manifest-path ~/.cargo/git/checkouts/skein-336d5ae5eecfa0f9/${rev:0:7}/testing/skein-codegen/Cargo.toml -- crates/smith-transcript/schema/transcript-v4.schema crates/smith-transcript/src/generated
+  cargo run -q --manifest-path ~/.cargo/git/checkouts/skein-336d5ae5eecfa0f9/${rev:0:7}/testing/skein-codegen/Cargo.toml -- crates/smith-transcript/schema/transcript-v4.schema crates/smith-transcript/src/generated
   ```
 
   which writes `src/generated/v4.rs` and `golden/v4/`; `v3`'s files go.
@@ -151,7 +151,7 @@ Test shape: `job_running_passes_on_a_shell_call_answered_running`,
   `completion_during_job_fails_when_the_session_only_waited`,
   `job_terminal_fails_on_a_job_told_twice`, on recorded or edited traces.
   Under 20 ms each.
-Proof: live, once each, through `heavy --gate`, arms built first:
+Proof: live, once each, arms built first:
   `calibrate probes/tool-output/background --control <11.2's parent>
   --arm <dir>` (the control fails `job-running`; at most 14 attempts);
   then `suite repository-check --arm <dir>` (10 attempts), its summary

@@ -449,7 +449,7 @@ accepted after several tool calls; it fails on `main` (exit 1 or a
 failure shown). Under 0.5 s.
 Proof: a story the diagnostics point to, once, failing on the parent;
 then `history` once and `parallel-children/reviews` once (12), live,
-through `heavy --gate`, their counts in the commit body.
+their counts in the commit body.
 Don't: widen a grace or a deadline to hide it; add a retry or delay. If
 no world reproduces it, stop and ask with the diagnostics.
 Size: README rule 9's.
@@ -561,7 +561,7 @@ Files: `tests/local-process/src/process.rs`,
 `tests/protocol-llm/tests/component_peer.rs:37`.
 Shape: none.
 Test shape: the worlds' stories, unchanged; ceilings unchanged.
-Proof: world, `heavy cargo nextest run -p smith-local-process-world -p
+Proof: world, `cargo nextest run -p smith-local-process-world -p
 smith-real-world -p smith-protocol-llm-world`, once: the three packages
 pass with no test skipped, at shipped times under skein's teardown
 invariant. Under 2 minutes.
@@ -817,4 +817,4 @@ They check, in order: no flag records where the agent's teardown is
 fixed text or a debug rendering (06.2, 06.9); no world shortens a keep or
 a close (06.10); the detail is kept (06.12); graces and the watchdog are
 derived (06.3, 06.6). The named tests of each Proof pass in the gate,
-which `land` runs.
+which runs at the merge.

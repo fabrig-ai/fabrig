@@ -155,7 +155,7 @@ Don't line add their own.
   same increment.
 - No edit to the repositories downstream of smith outside the closing
   repins, and no edit to `docs/design/` or to this plan by an
-  implementer.
+  author.
 - No credential value in a log, an observation, a `Debug` or a test's
   expected output; tests read routes, schemes and indices.
 - No reading of, or writing to, the user's `~/.codex`, `~/.claude`,
@@ -177,7 +177,7 @@ Don't line add their own.
   `component.rs`, and others): aim for growth of at most 100 lines per
   increment; an increment that needs more moves its concern into a module
   of its own, and says so in its commit body.
-- **A test function:** aim for at most 40 lines; past it, the implementer
+- **A test function:** aim for at most 40 lines; past it, the author
   moves the setup into a named helper of its file.
 - **An increment's size,** in hand-written production lines (tests,
   generated code and goldens aside), at its end, by file, against its

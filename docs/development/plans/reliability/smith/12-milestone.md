@@ -71,8 +71,8 @@ nothing in smith.
 
 ## Rules that bind it
 
-- **Live runs go through `heavy --gate`** (README, rule 3): a `suite`
-  runs whole, in one call, with `--arm <the directory>` that `heavy cargo
+- **Live runs go** (README, rule 3): a `suite`
+  runs whole, in one call, with `--arm <the directory>` that `cargo
   run -p smith-bench -- build HEAD` printed (smith 00.27).
 - **It fixes nothing in smith.** A failure is a finding: the step's
   report names it, with the attempt's archive path. Edits stay in
@@ -240,7 +240,7 @@ Test shape: `benchmarks/src/tests.rs`, registered in
   `a_when_asked_name_must_name_an_existing_task`. The task's manifest,
   digest and hidden files: `every_catalogue_manifest_is_checked_offline`
   (tests/offline.rs:23). Each under 20 ms.
-Proof: process, `heavy cargo run -p smith-bench -- validate
+Proof: process, `cargo run -p smith-bench -- validate
   fixtures/03-planner` (the spelling is 00.13's), once: the grader fails
   on the seed and passes on the reference; and once on the reference
   with its scheduling replaced by sorting the selected names (kept in
@@ -256,7 +256,7 @@ Scope: `repository/shell-cwd` (benchmarks.md, 3.1, 5.2, 10 and 11.4).
   Its bundle, `$XDG_STATE_HOME/smith-bench/bundles/shell-cwd-56c0c59/`:
   smith `56c0c59` (branch `bench/repository-seed/07_shell_cwd`), skein
   `f5fca44` from the local skein repository, every crate vendored by
-  `cargo vendor`, built offline once through `heavy`. `tasks/repository/shell-cwd/`:
+  `cargo vendor`, built offline once. `tasks/repository/shell-cwd/`:
   `task.toml` (the spike's prompt, joined; `deadline_seconds = 1200`, the
   spike's); `seed/bundle.toml`; `grader/`, the spike's
   `repository/grading/oracle.rs` as a crate with path dependencies on
@@ -292,7 +292,7 @@ Test shape: `benchmarks/tests/offline.rs`, registered in
       assert_eq!(checked, Ok(smith_bench::BundleCheck::Absent));
   }
   ```
-Proof: process, `heavy --gate cargo run -p smith-bench -- validate
+Proof: process, `cargo run -p smith-bench -- validate
   repository/shell-cwd` (the spelling is 00.13's; the gate lane is the
   idle machine its budgets need), once: on the seed the oracle passes its
   3 controls and fails 13 of 14 features, so the grade fails; on the
@@ -319,8 +319,8 @@ Needs: smith 00, 03 to 08, 10 and 13's steps landed or dropped (`plan
   [00.21]; smith 00's one command per probe run [00.27].
 Files: `benchmarks/summaries/<run>.json` (new). Shape: none, a run.
 Test shape: none new; tests/offline.rs:28 reads the summary.
-Proof: live, `heavy --gate cargo run -p smith-bench -- suite smoke --arm
-  <dir>`, then `suite probes --arm <dir>`, and `heavy cargo run -p
+Proof: live, `cargo run -p smith-bench -- suite smoke --arm
+  <dir>`, then `suite probes --arm <dir>`, and `cargo run -p
   smith-bench -- summarise <runs> probes small single <seed> <baseline>`; once,
   within the budget table. A pass: the summary committed, and no
   calibrated probe printed as `Regression`.
@@ -377,7 +377,7 @@ Needs: 12.9; 12.1; smith 00's fixtures 01 and 02 [00.13]; smith 00's
   same `main`.
 Files: `benchmarks/summaries/<run>.json` (new). Shape: none, a run.
 Test shape: none new; tests/offline.rs:28 reads the summary.
-Proof: live, `heavy --gate cargo run -p smith-bench -- suite compare
+Proof: live, `cargo run -p smith-bench -- suite compare
   --include fixtures/03-planner --arm <dir>`, one call of 30 attempts, then
   `summarise <runs> compare working interleaved <seed>`; once, within the
   budget table. A pass: ten attempts per fixture summarised, and for
@@ -399,7 +399,7 @@ Needs: 12.2; 12.10; smith 00's one command per probe run [00.27];
   answered.
 Files: `benchmarks/summaries/<run>.json` (new). Shape: none, a run.
 Test shape: none new; tests/offline.rs:28 reads the summary.
-Proof: live, `heavy --gate cargo run -p smith-bench -- suite repository
+Proof: live, `cargo run -p smith-bench -- suite repository
   --arm <dir>`, one call of six attempts, then `summarise
   <runs> repository working single <seed>`; once, within the budget
   table; each attempt's hard deadline is 1,200 s, then at most 180 s of
@@ -425,7 +425,7 @@ Needs: smith 00's `history` probe and `small-window` [00.16], with smith
 Files: `benchmarks/suites/compaction.toml`, `benchmarks/summaries/<run>.json`
   (new). Shape: none, a run.
 Test shape: none new; tests/offline.rs:28 reads the suite and summary.
-Proof: live, `heavy --gate cargo run -p smith-bench -- suite compaction
+Proof: live, `cargo run -p smith-bench -- suite compaction
   --arm <dir>`, one call of ten attempts, then `summarise <runs> compaction small interleaved <seed>`;
   once, within the budget table. A pass: both arms summarised and
   compared.
@@ -484,7 +484,7 @@ Scope: `docs/development/benchmarks/smith-codex-<date>.md` in smith, the
 Needs: the summaries of 12.3 to 12.6 on `main`.
 Files: the report (new). Shape: Markdown, in the style of
   `docs/development/`. Test shape: none, Markdown only.
-Proof: none beyond `land --docs` (development.md, 9.4); the report names
+Proof: none for Markdown-only changes; the report names
   each summary it draws on by path, and `git ls-files
   benchmarks/summaries` lists each.
 Don't: copy the 2026-10-08 report onto `main`; rank the agents; cite a
@@ -630,7 +630,7 @@ pub fn seed_source(task: &Task, task_directory: &Path, bundles: &Path) -> Result
   -C ~/src/rust/smith log origin/main --grep "^Step: smith-12.<k>$"
   --name-only --format= | rg -c '^benchmarks/summaries/'` prints at
   least 1.
-- The offline tier reads them: `heavy cargo nextest run -p smith-bench
+- The offline tier reads them: `cargo nextest run -p smith-bench
   --test offline`, in a smith checkout at `origin/main`, passes (today 2
   tests pass).
 - The report and its erratum are on `main`: `rg -c 'Erratum'

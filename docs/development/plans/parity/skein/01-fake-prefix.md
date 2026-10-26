@@ -23,7 +23,7 @@ and only a marked query's tools and system text, as Anthropic's does."
 
 - **No smith edit** from this session; smith 07.1 repins.
 - **Dependents' tests** (smith README, rule 6), in skein:
-  `heavy cargo nextest run --workspace -E 'rdeps(skein-fake-llm-domain)'`.
+  `cargo nextest run --workspace -E 'rdeps(skein-fake-llm-domain)'`.
 
 ## Increments
 
@@ -47,4 +47,4 @@ Removes: the choice in an automatic query's prefix.
 
 ## Done when
 
-- `heavy cargo nextest run -p skein-fake-llm-domain` passes, once.
+- `cargo nextest run -p skein-fake-llm-domain` passes, once.

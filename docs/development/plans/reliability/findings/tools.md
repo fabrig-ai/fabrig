@@ -357,7 +357,6 @@ This covers stale and read-only build-cache artifacts, and a CPU limit set throu
   - Baseline Codex runs failed `cargo test` with "output file …libfixture-….rmeta is not writeable" (`runs/baseline-01_backoff-codex-*/agent/events.jsonl`).
   - The harness then detached hard links and chmodded the warm cache for both agents (`benchmark.py:65-73`).
 - **Root cause (inferred, well supported):**
-  - The user's `~/.cargo/config.toml` sets `rustc-wrapper = "kache"`. Read-only, multiply-linked artifacts are what such a cache produces, and warm-up ran with that configuration.
   - So neither failure is about Smith's or Codex's sandbox. Agent builds inherit the operator's tool configuration files, which environment variables can only partly override.
   - `CARGO_BUILD_JOBS=2` stands in for a resource limit the machine lacks.
 - **Spike change:** only the user's settings file (not in the repository).

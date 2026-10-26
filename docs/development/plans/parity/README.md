@@ -31,7 +31,7 @@ defects. Its last step is a `parity` run on its final `main`.
 A dependency is named by capability, with its increment in brackets. A
 session starts when what it needs at its start has landed; an increment
 that needs more waits, and the session does its other increments
-meanwhile (implementer.md, section 8.7).
+meanwhile (the implementation rules, section 8.7).
 
 ### smith (`smith/`)
 
@@ -82,20 +82,20 @@ landings wait behind them).
 
 ## Rules of this plan
 
-What development.md, implementer.md, smith's and skein's `AGENTS.md` and
+What development.md, the implementation rules, smith's and skein's `AGENTS.md` and
 smith's `workflow.md` do not already say. Each applies to every session,
 until the run ends.
 
 1. **Splits** (the reliability retrospective's lesson 1). A Size line is
    a guide. Past 1.5 times its Size line or 700 production lines,
-   whichever is smaller, the implementer splits the increment at a point
+   whichever is smaller, the author splits the increment at a point
    that lands alone, and lands that part. The count is the lines added by
    `git diff --numstat origin/main...HEAD`, without `src/generated/`,
    golden files, and test code (`tests/`, `benchmarks/tests/`, any
    `tests.rs`, any `src/tests/`). The rest becomes the session's next free
    item number. Its report says `Split: <step>, <what>`, and the
    coordinator runs `plan set <step> note="split from <old> by the
-   implementer"`. It asks only when no such point exists. This replaces
+   author"`. It asks only when no such point exists. This replaces
    "at most" in every Size line. A Size of "none" (a step with no code)
    and 09.1's rename are not counted.
 2. **At most 8 increments a session.** A step the supervisor adds to a
@@ -107,27 +107,27 @@ until the run ends.
    already implies: `after: None`, `Yield::Never`, a limit's shipped
    value), in any file, with no line limit. No test is renamed and no
    expected value changes; the commit body lists each file under "Users
-   outside Files:". This extends implementer.md 8.2 for these two cases.
+   outside Files:". This extends the implementation rules for these two cases.
 4. **Reading** (lesson 5). Each session file's "Read first" names, by
    number, the sections of skein's `programming-model.md` and
    `testing-strategy.md` its increments follow: read only those.
 5. **Diagnosis** (lesson 6). A step whose Scope is to find a cause
-   carries `Budget: <N> runs, <M> minutes`; past it, the implementer stops
+   carries `Budget: <N> runs, <M> minutes`; past it, the author stops
    and reports. Outside such a step, at most 6 runs with diagnostics in
    place for one failing test, then it asks; a step's `Budget:` counts
    double (ruling 143). A diagnostic is a line added
-   only to find a cause; none lands: before `land`, `git diff
+   only to find a cause; none lands: before merging, `git diff
    origin/main...HEAD | grep -nE '^\+.*\bdbg!'` prints nothing, and the
-   implementer removes any other such line it added.
-6. **Dependents' tests** (lesson 7). Once before `land`, after the last
-   edit: `heavy cargo nextest run --workspace -E 'rdeps(<crate>) or
+   author removes any other such line it added.
+6. **Dependents' tests** (lesson 7). Once before merging, after the last
+   edit: `cargo nextest run --workspace -E 'rdeps(<crate>) or
    rdeps(<crate>)'`, one `rdeps` for each crate the increment changed. A
    failure only on a timeout is left to the gate; any other is fixed
    first. This is the one exception to "whole suites only in land's
    gate"; a Proof or a Done when that names `-p` packages runs those
-   packages' tests, as implementer.md 8.3 allows.
+   packages' tests, as the implementation rules allows.
 7. **Words and lint exceptions never land** (lesson 8). Once before
-   `land`, on the rebased branch:
+   merging, on the rebased branch:
 
    ```
    git diff origin/main -- . ':!docs' | grep -inE '^\+.*\b(actually|genuine|immutable|canonical|verified|qualified|robust|properly|python3)\b|^\+.*#\[(allow|expect)\('
@@ -143,15 +143,15 @@ until the run ends.
    carry on `main`.
 8. **The smoke on every smith landing that changes code** (smith
    `workflow.md`, section 5): `smoke-tools`, live, on the branch rebased
-   on `origin/main` just before `land`:
+   on `origin/main` just before merging:
 
    ```
-   heavy cargo run -p smith-bench -- build HEAD
-   heavy --gate cargo run -p smith-bench -- probe probes/smoke-tools --arm <the directory build printed>
+   cargo run -p smith-bench -- build HEAD
+   cargo run -p smith-bench -- probe probes/smoke-tools --arm <the directory build printed>
    ```
 
    It runs once; a failure, for any reason, runs it once more. A rebase
-   inside `land` does not run it again. Its summary line goes in the
+   at the merge does not run it again. Its summary line goes in the
    commit body. A landing that changes only Markdown, or only files under
    `benchmarks/tasks/`, `benchmarks/suites/`, `benchmarks/summaries/` or
    `benchmarks/baselines/`, skips it, and so does a skein landing. A
@@ -168,13 +168,12 @@ until the run ends.
    on (decisions.md, rulings 107 and 125). If `main`'s is refused too,
    the line stops (ruling 115). A step's corrected arm takes the smoke
    afresh, as this rule says, once the step's ruling allows it.
-9. **Live runs** (lesson 10). Every live command goes through `heavy
-   --gate`. A `suite` runs in one call, unsplit, whatever its attempts. A
+9. **Live runs** (lesson 10). Every live command goes . A `suite` runs in one call, unsplit, whatever its attempts. A
    `probe` runs at most 12 attempts a call; a `calibrate`, at most 12 on
    its arm, plus at most 2 on its control (it stops the control at its
    first failure, and the arm at its tenth pass or once ten are out of
    reach). Each commit a command names (`HEAD`, `--control`, `--parent`)
-   is built first: `heavy cargo run -p smith-bench -- build <commit>`. A
+   is built first: `cargo run -p smith-bench -- build <commit>`. A
    command stopped by the provider, that is, one that ends before its
    last attempt because an attempt met the provider's capacity or a
    server error, runs once more, from the start, as a new run, after 60
@@ -190,7 +189,7 @@ until the run ends.
     its spend. Each landing that ran anything live ends its trailers with
     `Live: <attempts> attempts, $<notional> notional`, counting every
     attempt its step ran, smokes and failed runs included. Before each
-    live command other than the smoke, the implementer prints the run's
+    live command other than the smoke, the author prints the run's
     landed total:
 
     ```
@@ -312,8 +311,8 @@ Each command runs once, on `main` (`~/src/rust/smith`, after `git -C
    failed, naming the criteria (ruling 146). It reads the newest committed `parity` summary,
    checks that no code commit of the plan landed after its smith arm, and
    recomputes the verdict.
-3. **The smoke passes on `main`:** `heavy cargo run -p smith-bench --
-   build HEAD`, then `heavy --gate cargo run -p smith-bench -- suite smoke
+3. **The smoke passes on `main`:** `cargo run -p smith-bench --
+   build HEAD`, then `cargo run -p smith-bench -- suite smoke
    --arm <the directory build printed>` exits 0, once.
 4. **The plan's calibrations are in their task files:**
 

@@ -92,7 +92,7 @@ Test shape: `benchmarks/tests/smith_adapter.rs`:
   `a_task_without_a_budget_renders_the_products_defaults`. Under 0.5 s
   each. Tests that name the removed functions are removed with them
   (rule 3).
-Proof: live, once: the smoke (rule 8), then `heavy --gate cargo run -p
+Proof: live, once: the smoke (rule 8), then `cargo run -p
   smith-bench -- probe probes/first-request --attempts 1 --arm <dir>`: it
   passes with its own `instructions = ""`. At most 2 attempts beyond the
   smoke, 5 minutes.
@@ -119,7 +119,7 @@ Shape: `Shape` keeps the product's faces only (`Exec`, `Chat`); a binary
   refused at setup as `Refused(setup)`, naming it.
 Test shape: `a_binary_older_than_the_product_face_is_refused` (under 20
   ms); the native-face tests are removed (rule 3).
-Proof: unit, that test; then `heavy cargo run -p smith-bench -- check`
+Proof: unit, that test; then `cargo run -p smith-bench -- check`
   exits 0, once.
 Don't: keep a reader of an earlier face for summaries or baselines.
 Size: 60 lines added; the rest removes code.
@@ -147,7 +147,7 @@ Test shape: `a_codex_binary_whose_digest_differs_from_its_pin_is_refused`,
   `the_codex_pin_names_only_the_keys_an_attempt_must_own`,
   `codex_writable_roots_hold_the_attempts_caches`,
   `codex_trusts_the_attempt_root`. Under 20 ms each.
-Proof: live, once: `heavy --gate cargo run -p smith-bench -- probe
+Proof: live, once: `cargo run -p smith-bench -- probe
   probes/smoke-tools --agent codex --attempts 1 --arm <dir>` passes: its
   `[[outcome]]` checks pass (its event checks read smith's stream and are
   not judged for Codex), Codex run from the package. At most 2 attempts, 3 minutes.
@@ -161,4 +161,4 @@ Removes: `features.multi_agent`, `agents.max_threads`,
 
 - `rg -n 'first-request.json|smoke.json|LocalTrace|multi_agent|max_threads' benchmarks`
   prints nothing.
-- `heavy cargo run -p smith-bench -- check` exits 0 on `main`.
+- `cargo run -p smith-bench -- check` exits 0 on `main`.

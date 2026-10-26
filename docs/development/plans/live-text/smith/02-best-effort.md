@@ -68,7 +68,7 @@ Files: `Cargo.lock` (the repin); the A30 sites, `tests/agent/src/
   `src/profile/validate.rs`, `src/profile/effective/list.rs`,
   `src/profile/tests.rs`, `src/live.rs`, `src/service.rs`);
   `tests/agent-process` (`src/world.rs`, `src/fake.rs`, `tests/live.rs`).
-Shape: first, its own commit: `heavy cargo update -p
+Shape: first, its own commit: `cargo update -p
   skein-lib` moves the pin to skein's `origin/main`; each
   irrefutable `let provider::Request::Reply { .. }` becomes a `let ..
   else { panic!(..) }` that prints what came, a `match` such as

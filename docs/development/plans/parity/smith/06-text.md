@@ -139,7 +139,7 @@ Proof: live, once: build 06.1's parent and 06.2, write `suites/role.toml`
   (tasks `fixtures/01-backoff`, `fixtures/02-line-decoder` and
   `fixtures/03-planner`, interleaved, 5 per arm, no rerun, two `binary`
   arms naming those commits, `reference` the parent's arm, smith's
-  `standard` pin, no Codex), then `heavy --gate cargo run -p smith-bench
+  `standard` pin, no Codex), then `cargo run -p smith-bench
   -- suite role`; commit its summary, and put its comparisons in the
   commit body. 30 attempts, $3, about 90 minutes. If the summary reports
   a difference (benchmarks.md 9: its interval "excludes 1, and the effect
@@ -200,6 +200,6 @@ these; where a line below and the text above differ, the line below holds.
 
 ## Done when
 
-- `heavy cargo nextest run -p smith-local-shell -E 'test(task_role)'`
+- `cargo nextest run -p smith-local-shell -E 'test(task_role)'`
   passes, once.
 - `ls benchmarks/summaries/role-*.json` lists one summary.

@@ -58,7 +58,7 @@ service with its profile. jig and temper are read only.
 
 - **Ceilings per test** (development.md, section 5.6): a unit test under
   20 ms, a focused world test under 0.5 s, a fuzzy test about 5 s, read
-  as implementer.md 8.2 says.
+  as the implementation rules says.
 - **Budgets:** 15 s focused and 60 s fuzzy, in each repository (its
   `workflow.md`, section 2). The aims are the README's Pulse.
 - **One behaviour per test** (testing-strategy.md, section 10).
@@ -131,7 +131,7 @@ Don't line add their own.
   removes its code, tests and docs outside `docs/design/` in the same
   increment.
 - No edit to jig or temper, and no edit to `docs/design/` or to this plan
-  by an implementer. skein's increments change skein only; smith's change
+  by an author. skein's increments change skein only; smith's change
   smith only.
 - No live call in a test of the suite.
 
@@ -161,4 +161,4 @@ Don't line add their own.
   test modules (`tests.rs`, `src/tests/`), the test packages (`tests/`),
   schemas, goldens and Markdown. Each landing's report gives that count,
   and the count by file (`--numstat` without the `awk`) when it passes
-  the Size line (development.md 5.3; implementer.md 8.6).
+  the Size line (development.md 5.3; the implementation rules).

@@ -63,7 +63,7 @@ Shape: `LICENSE`'s first line is `MIT License`, then the MIT text with
 Test shape: none; the metadata query of the Proof is the check.
 Proof: unit, no test fn (the increment adds no code): `cargo metadata
   --no-deps --format-version 1 | jq -r '.packages[] | select(.license
-  != "MIT") | .name'` prints nothing, under 10 s; `heavy cargo check
+  != "MIT") | .name'` prints nothing, under 10 s; `cargo check
   --workspace --all-targets` passes.
 Don't: no `license` spelled per member, no `license-file`, no member
   left out, no `Cargo.lock` change. The root `Cargo.toml` is a hotspot

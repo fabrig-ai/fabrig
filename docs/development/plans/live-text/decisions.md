@@ -227,26 +227,26 @@ plan's run.
    facts'; the service reads it and the stories assert it; the event
    stream does not change in this plan. (b) A field now, the events'
    version 4. (c) Folded into `loss.channel`.
-   Answer: (a), by the director, 2026-10-19.
+   Answer: (a), 2026-10-19.
 2. **fake-llm.md 2.2's "the peer as a process of its own ... refuses a
    script with one at its start".** No such process exists: the byte
    peer is hosted by the worlds and by temper's real loop. (a)
    `Peer::release(name)`, fed to its domain at its next iteration, and
    no refusal; later.md names it. (b) `Peer` refuses a script with a
    hold, and the real loop cannot drive holds.
-   Answer: (a), by the director, 2026-10-19.
+   Answer: (a), 2026-10-19.
 3. **Main conversation only: for which consumer?** (llm.md 6; events.md
    3.5 and 8.) (a) The rule is the channel's: the event sink keeps every
    conversation's deltas, and only the main conversation's ordinary
    completions become pieces. (b) Literal: sub-agents and compactions
    lose `text.delta` too.
-   Answer: (a), by the director, 2026-10-19.
+   Answer: (a), 2026-10-19.
 4. **smith's host API change reaches the tools plan's closing repins**
    (A32): the start's new field at 5 struct literals, and `OpenEvent`'s
    new variant in both `worker_route.rs`. (a) Accept: those repins take
    `live: None` and an arm that ignores pieces. (b) Fence smith's steps
    after them.
-   Answer: (a), by the director, 2026-10-19.
+   Answer: (a), 2026-10-19.
 5. **A reply scripted whole** (fake-llm.md 2.2, "a reply scripted whole
    is one piece", each piece a delta; A6). (a) It keeps its base bytes
    in both dialects: one delta in Anthropic's, and in OpenAI's the whole
@@ -256,7 +256,7 @@ plan's run.
    smith world on OpenAI (`tests/agent-process/src/fake.rs`) a
    `TextArrived` fact and a `text.delta` event per reply, through smith's
    repin and jig's and temper's next.
-   Answer: (a), by the director, 2026-10-19: Anthropic's worlds still
+   Answer: (a), 2026-10-19: Anthropic's worlds still
    cover the delta path for a whole reply.
 
 ## For the designer
@@ -327,33 +327,33 @@ answers it.
 1. skein's script gives a reply in pieces as one `Line::Pieces`, the
    turn's first line, with a named hold before any piece; `Line::Text`
    stays one piece (1.1).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 2. A held reply writes the dialect's keep-alive once, not periodically,
    so a hold past the client's idle deadline times out, and a world
    settles while a reply is held (1.3).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 3. A release that comes before its hold is reached changes nothing, and
    one release frees every call held at its name (1.5).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 4. The start's ask is `live: Option<LiveAsk>` in smith's host API, and
    `live: None` is "no ask" downstream (2.1).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 5. The live record is a required kind of version 3 (2.3).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 6. The live bytes not projected are counted in the agent's channel half
    and reach no event (2.7; answer 1).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 7. The event stream keeps every conversation's `text.delta`; pieces come
    only from the main conversation's ordinary completions (3.1; answer
    3).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 8. A delta that comes after its turn is told, the event sink's
    backpressure included, is dropped and counted, never sent (3.5).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 9. No repin of jig or temper in this plan: the tools plan's closing
    repins take `live: None`, the ignored piece and, in jig, four
    `smith_channel::v3` paths (2.2; answer 4).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 10. `live_interval` is a policy value with its default, and no shell
     setting until shell.md 6.5 names one (3.6).
-    Decision: accepted, by director, 2026-10-19.
+    Decision: accepted, 2026-10-19.

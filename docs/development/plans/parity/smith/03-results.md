@@ -138,7 +138,7 @@ Test shape: `a_summary_keeps_each_attempts_row`,
   `the_reference_arm_is_the_codex_arm_whatever_the_names`,
   `a_suite_without_codex_compares_against_its_named_reference`,
   `a_summary_of_another_version_is_refused_by_name`. Under 20 ms each.
-Proof: unit, those tests; `heavy cargo run -p smith-bench -- check` exits
+Proof: unit, those tests; `cargo run -p smith-bench -- check` exits
   0.
 Don't: keep a reader of version 2.
 Size: 120 lines.
@@ -371,4 +371,4 @@ verdict, and owns nothing of it.
 ## Done when
 
 - `rg -n 'prices.toml' benchmarks` prints nothing.
-- `heavy cargo nextest run -p smith-bench` passes, once.
+- `cargo nextest run -p smith-bench` passes, once.

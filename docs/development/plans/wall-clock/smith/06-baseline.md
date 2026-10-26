@@ -46,7 +46,7 @@ and changes no code.
 
 ## Rules that bind it
 
-- **Live runs** (README, rule 9): each suite in one `heavy --gate` call,
+- **Live runs** (README, rule 9): each suite in one call,
   unsplit; no attempt rerun; a run stopped by the provider runs once
   more, from the start.
 - **The live record** (README, rule 10): the step's `Live:` trailer.
@@ -64,19 +64,19 @@ Needs: smith 01's pricing, rows and ten attempts [01.1, 01.2, 01.3];
   03.2]; smith 04's guard [04.1].
 Files: `benchmarks/summaries/parity-*.json`.
 Shape: no code. On a worktree at `origin/main`:
-  1. `heavy cargo run -p smith-bench -- build HEAD` gives `<dir>`;
-  2. `heavy --gate cargo run -p smith-bench -- suite parity --arm <dir>`;
+  1. `cargo run -p smith-bench -- build HEAD` gives `<dir>`;
+  2. `cargo run -p smith-bench -- suite parity --arm <dir>`;
      it prints `summary <run> attempts=68 verdict=…`, and its summary is
      `benchmarks/summaries/<run>.json`;
-  3. `heavy cargo run -q -p smith-bench -- parity <its summary> --commit
+  3. `cargo run -q -p smith-bench -- parity <its summary> --commit
      <SHA>`, where `<SHA>` is the full 40-hex `git rev-parse HEAD`, taken
      before the summary is committed. On an exit of 2, the summary is not
      committed, and the step stops on a question;
-  4. on 0 or 1, commit the summary; `heavy cargo run -p smith-bench --
+  4. on 0 or 1, commit the summary; `cargo run -p smith-bench --
      build HEAD` gives `<dir2>`, the same code at the summary's commit;
-     then `heavy --gate cargo run -p smith-bench -- suite parity-change
+     then `cargo run -p smith-bench -- suite parity-change
      --arm <dir2> --parent-arm <dir> --attempts 1 --baseline-run
-     benchmarks/summaries/<its file>`: 8 attempts. It passes when it exits 2 and `heavy cargo run -q -p
+     benchmarks/summaries/<its file>`: 8 attempts. It passes when it exits 2 and `cargo run -q -p
      smith-bench -- change <its small summary>` prints a line for each
      of FT, FC, RT, RC and O and exits 0; anything else stops the step
      on a question. Its summary is not committed;

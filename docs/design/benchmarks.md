@@ -245,7 +245,7 @@ adapter's among that adapter's tests.
   that run can tell the change's expected effect from none, with 16.6's
   report; any other names the counts it targets (16.6).
 - **Every smith landing that changes code runs `smoke-tools` live,**
-  once, on its branch rebased on `origin/main` just before `land`
+  once, on its branch rebased on `origin/main` just before merging
   (`docs/development/workflow.md`, section 5). A red smoke stops the line
   until it is green again.
 - **A parent that cannot run live.** When a parent fails the probe for a

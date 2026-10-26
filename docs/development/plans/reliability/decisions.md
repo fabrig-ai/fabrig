@@ -352,7 +352,7 @@ None of these blocks step 3. Each is hard to undo once built on.
 3. ~~The event stream is a public, versioned contract (8.4).~~ Withdrawn
    by the user's pre-release ruling: the stream is versioned and documented,
    and changes with smith, like every other format.
-4. **The per-merge smoke runs before `land`, not on the landed tip**
+4. **The per-merge smoke runs before merging, not on the landed tip**
    (12.3, 2026-10-12). It changes the user's rule of 2026-10-10 ("on the
    tip that becomes main"). The alternative, `smoke-tools` inside
    `scripts/check.sh`, smokes the landed tip but puts credentials and
@@ -554,10 +554,10 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    10, item 5).
 3. **The per-merge smoke** follows smith's `workflow.md`, section 5, as
    amended in `564d4408`: `smoke-tools`, live, once, on the branch rebased
-   on `origin/main` just before `land`, and once more only if it fails.
+   on `origin/main` just before merging, and once more only if it fails.
    It is not in `scripts/check.sh`: the gate stays deterministic, needs no
    credentials, and does not fail when a provider is at capacity. The
-   first run smoked "the tip that becomes main"; `land` now owns the last
+   first run smoked "the tip that becomes main"; the merge requires the last
    rebase, so that tip cannot be smoked before it lands. Why: one smoke
    per landing keeps the user's rule (2026-10-10) at its cost of about ten
    seconds and a cent.
@@ -581,7 +581,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
 6. **Old numbers stay.** Sessions and increments keep their first-run
    numbers (`smith-06.4`), so commits, smith's `docs/design/STATUS.md`
    and the first run's records stay mapped. A session with more than
-   five increments left is not split: its implementer hands over between
+   five increments left is not split: its author hands over between
    increments (development.md, section 7.3). New increments take the next
    unused number of their session; session 13 is new.
 7. **No global fence.** The first run's "phase 4 waits for phase 3" is
@@ -591,7 +591,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    are never edited by it (the user, 2026-10-09), so it repins neither.
    jig moves its pins, and its Cargo URLs, when it takes smith's `main`
    (the workspace's `AGENTS.md`).
-9. **Every landing pushes,** through `land`, to GitHub (the user,
+9. **Every landing pushes,**, to GitHub (the user,
    2026-10-12, in the workspace's `AGENTS.md`).
 10. **The rulings of section 11** bind the sessions they name, as the
     plan does. A ruling that the design has taken in names the section.
@@ -723,7 +723,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    `operations`, and with it `flights` and `worst_case`. `limits.rs`
    joins 02.6's Files. How it is counted, an independent slot as
    `Usage` has or a place among the stream's `PER_ENTITY` operations, is
-   the implementer's choice, named in the commit body; the memory test
+   the author's choice, named in the commit body; the memory test
    that attains `worst_case` stays green, with no new test of its own.
 3. **A lookup the Shape needs, in another crate** (block of
    2026-10-12T13:26:20Z, smith 04.7). 04.7's Shape gives `header(&[Limit],
@@ -828,7 +828,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    by `llm.rs:365`; `llm.rs:156` answers an announced socket with
    `Abort` when stopping or full, and `oauth.rs:171` does the same. io.md
    asks for `Reject`. A step not in the plan, in a new session file,
-   `skein/07-fake-peers.md`, so that a new implementer takes it and skein
+   `skein/07-fake-peers.md`, so that a new author takes it and skein
    02.6 goes on. smith 05.12 then repins skein at exactly that commit:
    skein's `main` between smith's pin (30dc6f7) and now changed only
    Markdown, and a precise pin keeps skein 02.6's new io records out of
@@ -838,7 +838,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    production lines before restored windows, the memory allowance and
    the world's support, past README rule 9's 600: `compaction.rs` 283,
    `window.rs` 104, the service's response joining 118, the session's
-   call sites 50. Ruling: the implementer's split. 08.6 keeps the domain
+   call sites 50. Ruling: the author's split. 08.6 keeps the domain
    and root mechanism and its agent-world proof; 08.10, the next unused
    number of session 08, takes the service's compaction conversation in
    the stream, with a unit proof. Between the two, the stream tells a
@@ -910,7 +910,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
 21. **A landed step is checked on its own branch** (block of
    2026-10-12T14:58:25Z, smith 12.9). development.md 7.3 checks a landed
    step with `git status --porcelain` printing nothing, and 8.6 tells the
-   implementer to "send the report and go on": by the coordinator's
+   author to "send the report and go on": by the coordinator's
    check, smith 12's worktree held 12.10's work, and 12.9 (09d029e7, on
    `origin/main` with its `Step` trailer) waited. Ruling: 12.9 is
    `landed`; README rule 10 runs the porcelain check only while the
@@ -920,7 +920,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    2026-10-12T15:02:53Z). `smith-bench` picks a face as the newest
    `faces.toml` entry whose commit is an ancestor of the built arm
    (`benchmarks/src/agent/smith/faces.rs:162`), and 03.9's own commit is
-   not known before `land` rebases it. Pinning the new face to 03.9's
+   not known before merging rebases it. Pinning the new face to 03.9's
    landed commit in a following step would leave a window in which other
    sessions' smokes build arms with 03.9 under the old face, and fail.
    Ruling: the new entry is pinned to a commit already on `origin/main`,
@@ -949,7 +949,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    the leftover child (`smith agent .../agent.json`), 10.1 asked again for
    a second print, the product's buffered stderr, before the kit's
    cleanup. Each such print is a question under development.md 8.2, and
-   none of them lands. README rule 11 lets an implementer add them in its
+   none of them lands. README rule 11 lets an author add them in its
    worktree, for at most three runs per failure, and remove them before
    its commit.
 26. **smith 08.6 at up to 700 lines** (block of 2026-10-12T15:16:15Z,
@@ -971,9 +971,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    line between `Plan: reliability` and `Step: smith-12.1`, so git reads
    only the last paragraph as trailers and `plan status` does not count
    it. The commit stays (no force-push); the coordinator keeps 12.1
-   `landed`, and every implementer checks both trailers before `land`.
-   For the retrospective: `land` could refuse a branch whose tip lacks
-   the `Plan` or `Step` trailer during a run.
+   `landed`, and every author checks both trailers before merging.
 29. **smith 10.1 takes 06.4's read-right fix, and 1,050 lines** (block of
    2026-10-12T15:30:57Z). 10.1's diagnostic (README rule 11) found the
    local process adapter ignoring `Request::Read`, the defect 13.18 gave
@@ -1054,7 +1052,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    rest of that sentence, "so the second reaches the local domain before
    any terminal of the cancel". The terminal sends both signals in one
    pass while the provider holds its response open; no skein change. If
-   the two arrive as one `Shutdown`, the implementer stops and asks,
+   the two arrive as one `Shutdown`, the author stops and asks,
    adding no delay or timing to separate them.
 36. **A drawn person's later Waiting cue moves to the answer** (block of
    2026-10-12T16:03:59Z, smith 05.14). The fuzzy sweep
@@ -1073,13 +1071,13 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
 37. **03.8's queued signals: find the order before changing them**
    (block of 2026-10-12T16:06:54Z, smith 03.8). With 13.35's two
    `Signal::Terminate` in one pass, both dropped stories cancelled and
-   answered instead of dropping. The implementer's reading, standard
+   answered instead of dropping. The author's reading, standard
    signals coalescing, does not hold in this world: at smith's skein pin
    (26502c96) the simulation queues each signal in order
    (`skein-sim/src/sim.rs:317-321`, a `VecDeque`), and the kit's
    `kernel::Signal` has only `Terminate` and `Kill`
    (`skein-io/src/kernel.rs:537`), so "Interrupt then Terminate" is not
-   on offer. Ruling: the implementer's other proposal, README rule 11's
+   on offer. Ruling: the author's other proposal, README rule 11's
    diagnostic (at most three runs, removed before the commit), naming
    when each `Shutdown` reaches the local domain against the cancel's
    terminals. A cause in 03.8's Files is fixed in 03.8; a cause in skein
@@ -1089,7 +1087,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    `a_store_failure_completes_as_host_store_with_its_turn` failed three
    times as its fixture was rewritten (the scripted finish, then `wait`,
    each answering before the failed turn was durable), and the
-   implementer stopped under rule 11 to ask for a fourth run. Rule 11
+   author stopped under rule 11 to ask for a fourth run. Rule 11
    (13.25) bounds diagnostics: prints and assertion messages added to
    find a cause, never committed. A run after a change to the
    increment's own code, tests or fixtures, with no such line in place,
@@ -1122,7 +1120,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    configured model of 16,384 tokens, so its system alone fails the
    check and the first `Complete` is withheld. The story is about root
    memory with a maximum brief and paths, not about the window. Ruling:
-   the implementer's option A, a plan defect of the kind 13.20 met in
+   the author's option A, a plan defect of the kind 13.20 met in
    an expected value, here in a fixture's input: that story alone takes
    a 65,536-token charter and configured-model window, through a
    constructor parameter or helper; its history, wire, output and
@@ -1137,7 +1135,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    (`~/.local/bin/codex`, a symlink into
    `~/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/`),
    and the harness also refuses an arm whose executable is not a regular
-   file. Ruling: the implementer's proposal, in a place session 12 shares:
+   file. Ruling: the author's proposal, in a place session 12 shares:
    the official release asset for 0.160.0
    (`https://github.com/openai/codex/releases/download/rust-v0.160.0/codex-x86_64-unknown-linux-musl.tar.gz`,
    200 on 2026-10-12T16:29Z), unpacked to
@@ -1188,14 +1186,14 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    Codex's outcome, and the missing attempts run in one more call, an
    exception to session 13's rule 1 ("once") because the defect was the
    supervisor's.
-45. **The Pulse words are checked before `land`** (the check of
+45. **The Pulse words are checked before merging** (the check of
    2026-10-12T16:36:04Z). A Pulse word reached `main` a second time:
    `immutable` in `benchmarks/README.md` (00.27, the check of 15:32:00Z,
    reworded by 00.s1), then three times in 10.1 (8d9d5408:
    `crates/smith-local-protocol/src/store/boundary.rs:32` and `:43`,
    `src/tests/store.rs:59`). The words are the plan's (README, "Pulse"),
    and only `plan pulse` read them, after the landing. README rule 12
-   has each implementer run one `git diff | grep` before `land`; the
+   has each author run one `git diff | grep` before merging; the
    words already on `main` from the first run stay. smith 10 rewords
    10.1's three lines in its next landing, saying what the code does
    (a turn is stored only where none is, `Expect::Absent`).
@@ -1257,7 +1255,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    gives `Fault.model: u32` "by its index in the charter's models", but
    `Charter` holds main's `llm` apart from `models`, the sub-agents'
    choices (`smith-domain-run/src/charter.rs:66-70`), and valid charters
-   have `models` empty. Ruling: the implementer's numbering, 0 for
+   have `models` empty. Ruling: the author's numbering, 0 for
    `llm` and k + 1 for `models[k]`, read and written through one lookup
    on `Charter` (at most 20 lines, README rule 8) so that the offset
    lives in one place; the parent resolves endpoint and name from it.
@@ -1304,7 +1302,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    production lines before its last mechanical fixes, past README rule
    9's 700: two 21-variant cap vocabularies, four total cap
    translations, typed limits, phases and status, and the event failure
-   metadata kept. Ruling: the implementer's split. 06.7 lands the typed
+   metadata kept. Ruling: the author's split. 06.7 lands the typed
    limit, phase and status with their mirrors, and its Removes; 06.13,
    the next unused number of session 06 (06.11 landed in the first run),
    adds the last completion's model (13.49's numbering, `Peer`'s index,
@@ -1347,7 +1345,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    `AGENTS.md`. session.md, 8.1: "Where a declared window would not hold
    that material, the derivation lowers the material's bounds, never the
    window." A smith defect the probe found; pinning `guide` at 1,024 in
-   the probe, the implementer's proposal, would hide it. A step not in
+   the probe, the author's proposal, would hide it. A step not in
    the plan, 04.s1, in session 04's file; 00.16's `small-window`
    calibration waits for it and is its live proof, within 00.16's
    original bound ($10, 45 minutes); `history` runs meanwhile.
@@ -1355,7 +1353,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    wire** (block of 2026-10-12T17:52:19Z, smith 00.16). 13.54 has earlier
    faces read `aborted` as absent; the codec's field is `bool`, so absence
    needs `Option<bool>`, and writing `false` for an old arm would claim
-   what it never said. Ruling: the implementer's shape. `smith-events`'
+   what it never said. Ruling: the author's shape. `smith-events`'
    `SessionEnded.aborted` becomes `Option<bool>`; the current reader
    requires the field and yields `Some`; a historical layout, selected by
    the harness's face entry pinned to 8d2ec9b8, yields `None`; the
@@ -1369,7 +1367,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    `charter::check_window_parts` (:297); a static cap in the profile alone
    still refuses charters that would fit with a smaller guide, against
    04.s1's "a run is refused only where no material bound can fit".
-   Ruling: the implementer's proposal: the profile caps `guide` at its
+   Ruling: the author's proposal: the profile caps `guide` at its
    host share, and admission derives a per-run guide bound from the
    charter's measured bytes left in `host_part`, kept private in `Run`
    and used at `prepare::request` and in the guide's retention.
@@ -1411,7 +1409,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    `pidfd_open` and fails on any other error; `EINVAL` (22) is what
    `pidfd_open` returns for a PID that names a thread rather than a
    process. The first occurrence in this run's gate logs. Ruling: one
-   retry of `land`, as development.md 8.5 allows for a timeout. A second
+   gate retry, as development.md 8.5 allows for a timeout. A second
    occurrence in any session's gate makes it a skein step (skein-world
    treating `EINVAL` as it treats `ESRCH`) and a repin.
 61. **06.12 counts the detail it keeps** (block of 2026-10-12T18:23:33Z,
@@ -1420,7 +1418,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    conversation's last detail and answers with it". The session's worst
    case (`smith-domain-session/src/limits.rs:150-154`) and the root's
    queued run-output payload (`smith-domain/src/limits.rs:116-120`) do not
-   count a kept `failure_bytes`. Ruling: the implementer's proposal: at
+   count a kept `failure_bytes`. Ruling: the author's proposal: at
    most 5 lines in the session's `limits.rs` count one kept
    `failure_bytes` per session, and at most 3 in the root's include it in
    the run-output payload's maximum; no limit, derivation or ceiling
@@ -1459,7 +1457,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    arm 13.63 gave 05.s1, running `history` once and
    `parallel-children/reviews` once (12); its Proof is a story the
    diagnostics point to, failing on the parent, then both probes once
-   live. 06.s1 needs nothing; session 06's implementer takes it after
+   live. 06.s1 needs nothing; session 06's author takes it after
    06.12. 13.62's and 13.63's instructions to 05.s1 lapse.
 65. **smith-04.s2: a timed-out command's terminal says `timed_out`**
    (block of 2026-10-12T18:45:57Z, smith 13.5). 13.5's `tool-output`
@@ -1477,7 +1475,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    (`6e64b9d9`) holds 744 production lines before its resolver entry,
    check reporting and tests, past README rule 9's 700: presets 107,
    models 127, the configuration document 121, the local part 185, and
-   the rest. Ruling: the implementer's split. 10.13 lands the presets and
+   the rest. Ruling: the author's split. 10.13 lands the presets and
    the native agent value with its typed refusals, the golden and the
    Haiku test (unit Proof); 10.17, the next unused number of session 10
    (10.11 and 10.12 landed in the first run), takes the full run's
@@ -1505,7 +1503,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    empty directory `/tmp/.git`, owned by the run's user and made at
    2026-10-12T18:56:39Z, put every scratch directory under `/tmp` inside
    a "repository" by those checks. The supervisor removed it (`rmdir`, it
-   was empty) at 19:03:19Z. 06.12 runs `land` once more. What made it is
+   was empty) at 19:03:19Z. 06.12 runs the gate once more. What made it is
    not known (04.s2's live run aborted at about that time); if it comes
    back, the session whose run made it gets a step.
 69. **Session 04's check count reads names, not files** (block of
@@ -1553,7 +1551,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    728 production lines, past README rule 9's 700, before the resolver's
    entry, composition, limits and reporting: native trust arrays, custom
    presets' inheritance, shared setting-name quoting and local limit
-   assembly took them. Ruling: the implementer's split. 10.17 lands the
+   assembly took them. Ruling: the author's split. 10.17 lands the
    trust arrays, inheritance and the run's models and accounts (13.69)
    with a unit Proof; 10.18 takes the rest with the end-to-end process
    Proof. For the retrospective: 10.13's Size line was 500 for what took
@@ -1564,7 +1562,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    signal while closing aborts, as 06.5 does"; the spawned product's
    `SessionEnded` is built in `crates/smith-local-service/src/stream.rs`
    (`Spawned::up`) with `aborted: false` always, and that file is not in
-   06.8's Files. Ruling: the implementer's proposal: `stream.rs` joins
+   06.8's Files. Ruling: the author's proposal: `stream.rs` joins
    06.8's Files for at most 25 production lines, keeping the close's
    state, writing `aborted: true` and the `teardown_aborted` notice when
    a signal aborts it; the stream's other contents unchanged.
@@ -1593,7 +1591,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    both calls answered `NotRun::Stopped`; 08.9's Scope, from the
    designer's 13.5x answer (session.md 8.1: "Every call is run and
    answered"), removes that refusal, so the search has no boundary.
-   Ruling: the implementer's patch: the search and its refused-turn
+   Ruling: the author's patch: the search and its refused-turn
    control go, the story starts at its old lower boundary (twice
    `delegated_result_bytes`), and its name and every later check (child
    answers, cancel, late records, tickets, uncharged bytes) stay; the
@@ -1653,7 +1651,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    fixes the run's `models` at 2 and `Config::validate` allows that plus
    main, so 10.18's composition story fails `Invalid::Models`.
    limits.md: "Every limit is derived, layer by layer". Ruling: the
-   implementer's repair: `crates/smith-agent-service/src/profile.rs`'s
+   author's repair: `crates/smith-agent-service/src/profile.rs`'s
    `derive_domain` sets the run's `models` to the selected configuration's
    model count less main, with checked arithmetic and a typed overflow;
    no new declaration, override or standard value. The file joins 10.18's
@@ -1667,7 +1665,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    kept as one block (skein-07.s4) is refused before the transcript sees
    it. limits.md 3.2 and 3.3 (the designer's a55b0681): a completion's
    reasoning at skein's share, one block possibly holding it all.
-   Ruling: the implementer's proposal: the replay's raw cap is the
+   Ruling: the author's proposal: the replay's raw cap is the
    checked share, output items x reasoning; the per-string and per-block
    retained-token and depth bounds stay; a completion's ownership is
    priced as one share plus each block's envelope, not a share per block;
@@ -1692,7 +1690,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    to 19,817,472), and `benchmarks/tests/smith_producer.rs`'s
    `the_published_face_preserves_the_native_control_producers_joint_bounds`
    compares the newest face entry with them. 04.s3's own commit is not
-   known before `land` rebases it. Ruling: as 13.22 did, a new
+   known before merging rebases it. Ruling: as 13.22 did, a new
    `benchmarks/agents/smith/faces.toml` entry with the new bounds, pinned
    to 04.s3's parent on `origin/main`, which stays an ancestor through
    any rebase; the bounds only grow, so an arm between that parent and
@@ -1703,7 +1701,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    721 production lines (decoder 166, driver and file owner 334, the
    shell's credential inspection 160, other files 61), past README rule
    9's 700, with an estimate of 1,000 to 1,100 for its whole Scope.
-   Ruling: the implementer's split, not a ceiling: 10.7 lands the decoder
+   Ruling: the author's split, not a ceiling: 10.7 lands the decoder
    and the driver with a unit Proof; 10.19 takes the credential
    inspection, composition and `smith check` with 10.7's world test. 10.9
    may go on meanwhile (development.md 8.7).
@@ -1738,7 +1736,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    benchmarks.md section 9: a baseline is a suite's results for one agent
    configuration and tier; the probes suite holds six smith pins, other
    efforts and Codex, and `baseline` refuses a summary whose groups
-   differ. The implementer proposed filtering the summary's JSON by hand
+   differ. The author proposed filtering the summary's JSON by hand
    in its logs. Ruling: the alternative: `smith-bench baseline` gains a
    selector of one group (agent, configuration digest, model), at most 40
    production lines with a unit test, so each committed baseline is
@@ -1806,7 +1804,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    "no request" by `observed_no_request` (:89-98), which wants
    `stream-whole`, a check that story waives; and `probe::judgment` calls
    every `Refused` incomplete. A harness defect in session 00's own code.
-   Ruling: the implementer's fix: the dispatcher counts a passed explicit
+   Ruling: the author's fix: the dispatcher counts a passed explicit
    startup-refusal story (its no-run, end, exit, last-line and tree checks)
    as zero provider requests, judgment tells an expected startup refusal
    from a setup failure, with a focused regression; `batch.rs` and
@@ -1840,7 +1838,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    2026-10-13T00:11:30Z). 10.5's draft holds 662 production lines, 38
    short of README rule 9's 700, with the resource composition, `-o`'s
    durable output and `--ephemeral`'s cleanup still to write. Ruling: the
-   implementer's boundary: 10.5 keeps the command, startup and headless
+   author's boundary: 10.5 keeps the command, startup and headless
    rendering with its process Proof; 10.20 takes `-o` and `--ephemeral`
    with their accounting and tests.
 102. **smith 10.5 lands whole, at up to 950 lines** (block of
@@ -1892,7 +1890,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
 107. **smith 10.20 splits; 10.22 takes `--ephemeral`'s cleanup** (block of
    2026-10-13T03:31:43Z). 10.20's candidate (`c61212fa`) holds 738
    production lines, past README rule 9's 700, with its ownership review,
-   compiler fixes and tests still to do. Ruling: the implementer's split:
+   compiler fixes and tests still to do. Ruling: the author's split:
    10.20 lands `-o`'s durable output with its failure policy; 10.22 takes
    `--ephemeral`'s private files and their known-name cleanup. Each has
    its own process Proof.
@@ -1942,7 +1940,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    accounts' removal** (block of 2026-10-13T07:15:16Z). 10.6's candidate
    (`95b4f6d1`) holds 727 production lines with only the native driver's
    routing and the registration module, the rest of its Scope unstarted.
-   Ruling: the implementer's split: 10.6 lands the driver's private-file
+   Ruling: the author's split: 10.6 lands the driver's private-file
    and sign-in routing with its tests, removing nothing; 10.23 takes the
    registration from settings, `smith login`, the legacy migration and
    removal, and both live-arm moves, with 10.6's process Proof; it stops
@@ -1953,7 +1951,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    view and the store's selection with their routing (428), the entered
    parser (90) and a screen draft (190), with startup, the commands'
    execution, the named stories, the harness and the Proof unstarted.
-   Ruling: the implementer's split, as 13.112's: 10.8 lands the sink's
+   Ruling: the author's split, as 13.112's: 10.8 lands the sink's
    typed, bounded, best-effort view and the store's selection of one chat
    at idle, with their routing and unit tests, and a unit Proof of them;
    10.24 takes the rest of 10.8's Scope, starting from its preserved
@@ -1975,7 +1973,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    2026-10-13T11:17:11Z, smith 08.s1). session.md 8.2 has the compaction
    on a model change run "with the window's own model, when the agent's
    configuration declares it"; the session's `record::Opening` carries
-   only the charter's main `Spec` and prices. Ruling: the implementer's
+   only the charter's main `Spec` and prices. Ruling: the author's
    proposal, as the plan's Shape: `record::Opening` gains
    `window_llm: Option<Llm>`, a session-owned model with its declared
    window, output and prices, filled by the run's root from its existing
@@ -1988,7 +1986,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    (block of 2026-10-13T11:18:46Z, smith 08.s1). The run's root's
    `ConfiguredModel` holds a model's window, output and allowances but
    not its prices, which 13.115's `window_llm` needs; and effort is
-   unrestricted settings text with no type. Ruling: the implementer's
+   unrestricted settings text with no type. Ruling: the author's
    proposals, as the plan's Shape. `ConfiguredModel` gains the model's
    prices, filled from the prices resolved at startup, and the root's
    lookup yields `window_llm` from it. The charter's `effort` is an
@@ -2002,7 +2000,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    records (events.md, 3.4 and 3.5); the agent service's
    `responses::Book` keeps the charter's opening model and asserts every
    request matches it, and `FactKind::CompactionStarted` carries only the
-   opener and the window. Ruling: the implementer's first option, as the
+   opener and the window. Ruling: the author's first option, as the
    plan's Shape: `FactKind::CompactionStarted` carries the compaction's
    model identity (model, window, output, effort), the window's own on a
    model change and the current one otherwise; `Book` opens that
@@ -2024,7 +2022,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    "with `Terminal::attached`"; that constructor needs one duplex
    pseudo-terminal descriptor, which the simulated world does not have,
    and skein's world has no pseudo-terminal attachment. Ruling: the
-   implementer's proposal, as the plan's Test shape: the four world
+   author's proposal, as the plan's Test shape: the four world
    stories run through the existing scripted `Terminal` with an
    interactive launch flag of the test world (not a product flag), on
    the same local host, domain, parser and root as the product; the
@@ -2035,7 +2033,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    2026-10-13T12:32:39Z). 10.24 reached 715 production lines after
    rebasing onto 08.s1 (47e99f6e) and starting the next charter's model
    and effort, which the designer's ruling of 11:05:21Z added to its
-   Scope. Ruling: the implementer's split. 10.24 lands the interactive
+   Scope. Ruling: the author's split. 10.24 lands the interactive
    product, `/new`, `/resume` and `/quit`, its four world and three
    end-to-end stories, the Chat face and its live Proof; it parses
    `/model` and `/effort` as local commands and answers them with a
@@ -2054,7 +2052,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    among them, and prices each slot so, though the screen shows only
    deltas, tools, notices and the response's metadata (shell.md, 4.1:
    "the records it shows"). Fixing it took 10.24 to 723 lines. Ruling:
-   the implementer's prerequisite, as a step not in the plan, 10.s4, in
+   the author's prerequisite, as a step not in the plan, 10.s4, in
    session 10's file: the sink's view queues a projection of each record
    the screen shows, never a prompt, and the footprint prices the view
    from the projection's bound; 10.24 needs it and keeps 700 once the
@@ -2223,7 +2221,7 @@ broken provider. In the design: protocol/events.md 3.1, 3.10.
    the repository task's "large effects only" and name no threshold;
    session 12's Questions to raise propose "an effect is large when the
    arms' ranges of a metric do not overlap; the report states nothing
-   else as a difference". Ruling: that, as the implementer reads it: for
+   else as a difference". Ruling: that, as the author reads it: for
    each permitted cross-agent metric (task and process wall, each token
    field under both conventions, commonly priced spend), the observed
    minimum and maximum over each arm's three attempts; disjoint ranges

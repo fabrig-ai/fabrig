@@ -98,7 +98,7 @@ Test shape: unit, `src/shared_tests.rs`, over 09.3's helpers, each under
   answer (busy, slow, newer, none, another subject, after a cancel, a
   removal or an abort), and the world's referee holds one `Unlock` per
   `Held` before `Closed`, none after it, one terminal per request,
-  `Closed` once and last. It runs as `heavy cargo nextest run
+  `Closed` once and last. It runs as `cargo nextest run
   --profile fuzzy -p skein-oauth-accounts-world -E
   'binary(=fuzzy_shared)'`: 64 seeds, the loop's bound, about 5 s of
   the profile's 60. The file opens as `tests/fuzzy_world.rs` does,

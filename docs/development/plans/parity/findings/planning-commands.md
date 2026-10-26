@@ -1,7 +1,7 @@
 # Planning: the commands run at the base
 
 2026-10-14. Each command the plan prescribes that can run before its
-sessions land, run once by the planner through `heavy` (development.md,
+sessions land, run once by the planner (development.md,
 5.4), at smith `b7da2b25` (code; `72311b8e` adds Markdown only) and skein
 `63fff2d`, in the scratch worktrees `~/src/rust/tmp/design/smith-parity-scratch`
 and `skein-parity-scratch`. Each entry: the command, its exit status, its
@@ -11,38 +11,35 @@ that names code an earlier session lands is the supervisor's ready check's
 
 ## Run, and what they printed
 
-1. `heavy cargo nextest run -p smith-bench` (03's Done when): exit 0.
+1. `cargo nextest run -p smith-bench` (03's Done when): exit 0.
    `Summary [1.030s] 152 tests run: 152 passed, 0 skipped`.
-2. `heavy cargo run -q -p smith-bench -- check` (01, 02, 03.2, 04.3):
+2. `cargo run -q -p smith-bench -- check` (01, 02, 03.2, 04.3):
    exit 0. `checked 19 tasks, 6 suites, 9 configuration pins, 42
    summaries, 11 baselines`.
-3. `heavy cargo run -q -p smith-bench -- validate fixtures/01-backoff
+3. `cargo run -q -p smith-bench -- validate fixtures/01-backoff
    fixtures/02-line-decoder fixtures/03-planner repository/shell-cwd`
    (01.1's and 01.2's Proofs, 01's Done when): exit 0, 116 s.
    `fixtures/01-backoff seed=failed reference=passed`, the same for the
    other three.
-4. `heavy cargo nextest run --workspace -E 'rdeps(smith-bench) or
+4. `cargo nextest run --workspace -E 'rdeps(smith-bench) or
    rdeps(smith-charter)'` (README rule 6's form): exit 0. `Summary
    [3.668s] 1409 tests run: 1409 passed, 0 skipped`.
 5. The interface sketches (03, 04, 08, 09, 10), as a scratch crate
-   `sketches/` against `smith-domain-tools` and `smith-events`: `heavy
-   cargo clippy -p parity-sketches -- -D warnings`: exit 0. `Finished
+   `sketches/` against `smith-domain-tools` and `smith-events`: `cargo clippy -p parity-sketches -- -D warnings`: exit 0. `Finished
    dev profile`.
 6. `rg -L '^deciding' benchmarks/tasks -g task.toml` (01.3, as first
    written): exit 0, but it printed every `deciding` line: `-L` is rg's
    `--follow`. Fixed to `rg --files-without-match '^deciding'
    benchmarks/tasks -g task.toml`: exit 0, it lists the four graded tasks
    only, so 01.3 now needs 01.1 and 01.2.
-7. `heavy env XDG_CONFIG_HOME=… XDG_STATE_HOME=… cargo run -q --bin smith
+7. `env XDG_CONFIG_HOME=… XDG_STATE_HOME=… cargo run -q --bin smith
    -- check --json exec -m codex/gpt-6-luna --effort low .` (05.1's Proof,
    as first written, with luna for sol): exit 2. `smith: built-in
    settings: accounts.codex.source: required value is absent`. Fixed:
-   05.1's Proof is its unit tests, findings L1 its live evidence. (With
-   `XDG_CONFIG_HOME` set on `heavy` itself, pueue found no configuration:
-   such a variable goes on the command inside `heavy`.)
-8. `heavy cargo run -q -p skein-codegen -- …` (11.1, as first written):
+   05.1's Proof is its unit tests, findings L1 its live evidence.
+8. `cargo run -q -p skein-codegen -- …` (11.1, as first written):
    exit 101, `package(s) skein-codegen not found in workspace`. Fixed to
-   the Cargo.lock-pinned checkout: `heavy cargo run -q --manifest-path
+   the Cargo.lock-pinned checkout: `cargo run -q --manifest-path
    ~/.cargo/git/checkouts/skein-336d5ae5eecfa0f9/74b7fda/testing/skein-codegen/Cargo.toml
    -- crates/smith-transcript/schema/transcript-v3.schema <scratch dir>`:
    exit 0, and its `v3.rs` equals `crates/smith-transcript/src/generated/v3.rs`
@@ -64,7 +61,7 @@ that names code an earlier session lands is the supervisor's ready check's
 12. README rule 10's total: exit 0, `0 attempts, $0.00`.
 13. README rule 7's Pulse-word check, on the plan's branch: exit 1,
     nothing printed (the branch changes Markdown only).
-14. skein 01's Done when, `heavy cargo nextest run -p
+14. skein 01's Done when, `cargo nextest run -p
     skein-fake-llm-domain`: exit 0. `Summary [0.012s] 15 tests run: 15
     passed, 0 skipped`.
 15. 02's Done when, `rg -n 'first-request.json|smoke.json|LocalTrace|multi_agent|max_threads'
@@ -93,8 +90,8 @@ that names code an earlier session lands is the supervisor's ready check's
     descends from it. 04.6 and 12.3 calibrate with no control
     accordingly, under the design landing `72311b8e`.
 
-21. `heavy cargo nextest run -p smith-machine-world -E 'binary(jobs) or
-    binary(listing)'` (09's Done when) and `heavy cargo nextest run -p
+21. `cargo nextest run -p smith-machine-world -E 'binary(jobs) or
+    binary(listing)'` (09's Done when) and `cargo nextest run -p
     smith-bench -E 'binary(parity)'` (04's): exit 94, `operator didn't match
     any binary names`: nextest refuses a binary name that matches no test
     file, and `tests/jobs.rs` and `benchmarks/tests/parity.rs` are 09.2's
@@ -109,7 +106,7 @@ that names code an earlier session lands is the supervisor's ready check's
     `git diff --numstat origin/main...HEAD`: exit 0, nothing (no commit
     yet on the plan's branch).
 23. The interface sketches after the corrections (`Parity.smith_commit`
-    added, and the cancel pair of 10.2 and 10.3): `heavy cargo clippy -p
+    added, and the cancel pair of 10.2 and 10.3): `cargo clippy -p
     parity-sketches -- -D warnings`: exit 0, `Finished dev profile`.
 
 ## Not run at the base

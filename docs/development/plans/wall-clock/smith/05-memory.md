@@ -116,4 +116,4 @@ Removes: `fuzzy_memory.rs`'s `unreachable!` for `Request::Job`.
 
 ## Done when
 
-- `cd ~/src/rust/smith && heavy cargo nextest run -p smith-agent-world --test memory_returns` passes.
+- `cd ~/src/rust/smith && cargo nextest run -p smith-agent-world --test memory_returns` passes.

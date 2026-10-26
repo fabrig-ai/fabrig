@@ -120,12 +120,11 @@ changes the harness only where a check is stricter than its design.
 
    Model deviations, tasks the tier cannot do and attempts not exercised
    never stop a step: short of the count, it lands as not calibrated.
-2. **Batches.** One batch per variant, at most 12 attempts per `heavy
-   --gate` call, so that other sessions' gates run between calls. Tier
+2. **Batches.** One batch per variant, at most 12 attempts per call. Tier
    `small`, `gpt-6-luna` at low effort unless the task names an effort.
    Never change the model, the effort, the budgets or the deciding checks
    to pass, and write no new task version in this plan. Each step builds
-   its arm once, `heavy cargo run -p smith-bench -- build HEAD`, and gives
+   its arm once, `cargo run -p smith-bench -- build HEAD`, and gives
    each command below, Codex's included, `--arm <dir>`, the directory it
    printed, so that nothing builds in the gate lane.
 3. **Evidence is the summary and the commit body.** One summary per
@@ -203,16 +202,16 @@ Test shape: `benchmarks/tests/large_write_probe.rs`; reuse
   }
   ```
 Proof: live, once, on the increment's branch, after its tests pass:
-  - `heavy --gate cargo run -p smith-bench -- calibrate
+  - `cargo run -p smith-bench -- calibrate
     probes/large-write/oversized --passes 1 --arm <dir>`: at most 12
     attempts, $0.50 and 20 minutes; it stops at its first exercised pass,
     the third of the variant, which calibrates it;
-  - `heavy --gate cargo run -p smith-bench -- probe probes/large-write
+  - `cargo run -p smith-bench -- probe probes/large-write
     --agent codex --attempts 1 --arm <dir>`: one attempt, $0.25 and 5
     minutes; a pass is its outcome checks passing. The normal half does not run on smith;
   - before: findings S4, and the tests of smith 04.10, 09.13 and skein
     04.3;
-  - the summary: `heavy cargo run -p smith-bench -- summarise <the
+  - the summary: `cargo run -p smith-bench -- summarise <the
     batch's runs directory> calibrate small single <seed>`.
   Together: 13 attempts, $0.75, 25 minutes. Proven on calibration: smith
   00.26, 04.3, 04.10, 09.13; skein 04.3. With no third exercised pass,
@@ -243,7 +242,7 @@ Shape: no new code: the task, the pin and the calibration suite are on
   `agents/smith/cache-reuse.pin.toml`, `suites/probes.toml`).
 Test shape: none new: `tests/cache_probes.rs` stands. A check corrected
   under rule 1 adds one test there that fails on `main`, under 20 ms.
-Proof: live, once each: `heavy --gate cargo run -p smith-bench --
+Proof: live, once each: `cargo run -p smith-bench --
   calibrate PROBE --arm <dir>` for PROBE `probes/cache-reuse`,
   `probes/cache-reuse/children` and `probes/cache-reuse/crossing`, then
   `probe probes/cache-reuse --agent codex --attempts 1 --arm <dir>`. A triplet passes
@@ -274,7 +273,7 @@ Shape: no new code: `tasks/probes/budget/task.toml`,
   `agents/smith/budget.pin.toml`, `suites/probes.toml` are on `main`.
 Test shape: none new: `tests/probes.rs` and `tests/events.rs` stand; a
   corrected check adds one test that fails on `main`, under 20 ms.
-Proof: live, once per variant: `heavy --gate cargo run -p smith-bench --
+Proof: live, once per variant: `cargo run -p smith-bench --
   calibrate probes/budget/<variant> --arm <dir>`, for `starvation`,
   `wrap-up`, `child-quota` and `spend`. 48 attempts, $3, 60 minutes.
   Before: findings D2, D3, D4 and D6, and the guarded increments' tests. Proven, by variant:
@@ -297,7 +296,7 @@ Shape: no new code: the tasks, `agents/smith/parallel.pin.toml` and
   `suites/probes.toml` are on `main`.
 Test shape: none new: `tests/parallel_probes.rs` stands; a corrected
   check adds one test that fails on `main`, under 20 ms.
-Proof: live, once per variant: `heavy --gate cargo run -p smith-bench --
+Proof: live, once per variant: `cargo run -p smith-bench --
   calibrate PROBE --arm <dir>` for PROBE `probes/parallel-read`,
   `probes/parallel-children` and `probes/parallel-children/reviews`. 36
   attempts, $2.50, 45 minutes. Before: findings S9, and the
@@ -322,7 +321,7 @@ Shape: no new code: the tasks and `suites/probes.toml` are on `main`.
 Test shape: none new: `tests/tool_output_probes.rs`, `path_probes.rs`
   and `process_tree_probe.rs` stand; a corrected check adds one test that
   fails on `main`, under 20 ms.
-Proof: live, once per variant: `heavy --gate cargo run -p smith-bench --
+Proof: live, once per variant: `cargo run -p smith-bench --
   calibrate PROBE --arm <dir>` for PROBE `probes/tool-output/<variant>`
   (`test-output`, `quote`, `utf-8`, `timeout`), `probes/paths`,
   `probes/paths/single` and `probes/process-tree`; then `probe PROBE
@@ -350,7 +349,7 @@ Files: smith `benchmarks/summaries/`. Only for a
 Shape: no new code: the task and `suites/probes.toml` are on `main`.
 Test shape: none new: `tests/slow_completion_probe.rs` stands; a
   corrected check adds one test that fails on `main`, under 20 ms.
-Proof: live, once: `heavy --gate cargo run -p smith-bench -- calibrate
+Proof: live, once: `cargo run -p smith-bench -- calibrate
   probes/slow-completion --arm <dir>`. 12 attempts, $4, 120 minutes; the
   task's deadline is 900 s per attempt. A pass: the answer accepted, no phase
   timed out while events arrived, no reasoning-size failure, a call over
@@ -371,7 +370,7 @@ Files: smith `benchmarks/summaries/`. Only for a
 Shape: no new code: `budget-told` is smith 00.17's.
 Test shape: none new: `tests/budget_visibility.rs` stands; a corrected
   check adds one test that fails on `main`, under 20 ms.
-Proof: live, once: `heavy --gate cargo run -p smith-bench -- calibrate
+Proof: live, once: `cargo run -p smith-bench -- calibrate
   probes/budget/visibility --arm <dir>`. 12 attempts, $0.75, 15 minutes.
   Before: findings D4, and smith 07.9's tests. Proven on calibration:
   smith 07.9.
@@ -423,7 +422,7 @@ fn protocol_verdict(refused: usize, bound: u64, evidence: &mut Vec<String>) -> M
 - Each has one `Calibrated:` and one `Proven:` line: `git -C ~/src/rust/smith
   log origin/main --grep '^Step: smith-13\.' --format=%B | rg -c
   '^(Calibrated|Proven): '` prints 14 (today nothing).
-- The batches' summaries are committed: `heavy cargo run -p smith-bench
+- The batches' summaries are committed: `cargo run -p smith-bench
   -- check`, run in a smith checkout at `origin/main`, prints at least
   20 summaries (today "checked 12 tasks, 11 suites, 8 configuration
   pins, 0 summaries, 0 baselines").
@@ -431,7 +430,7 @@ fn protocol_verdict(refused: usize, bound: u64, evidence: &mut Vec<String>) -> M
   --name-only origin/main benchmarks/tasks/probes/large-write/` prints
   its `seed` and `task.toml` only (today also `oversized-v8.toml` and
   `v9`).
-- The corrected check is in place: `heavy cargo nextest run -p
+- The corrected check is in place: `cargo nextest run -p
   smith-bench -E 'test(oversized_write_without_a_call_past_the_bound_is_not_exercised)'`
   passes 1 test.
 - Each step committed its summaries: `git -C ~/src/rust/smith log

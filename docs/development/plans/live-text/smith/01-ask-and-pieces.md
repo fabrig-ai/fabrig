@@ -56,7 +56,7 @@ Pieces partway through a reply wait for skein 01 (session 02).
 
 - **Users outside Files** (README, rule 6): the start's literals (A28)
   and every match on `OpenEvent` (A29) change with the type.
-- **Lint exceptions never land** (README, rule 5); `land` refuses the
+- **Lint exceptions never land** (README, rule 5); the project refuses the
   Pulse's words.
 - **The memory margin** (README, rule 4): each increment reports
   `PRODUCT_COMPLETE`.

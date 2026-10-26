@@ -355,7 +355,7 @@ settles `chat` under `mode` `agent`.
 
 ## Done when
 
-- The product writes a stream with the inline kind: `heavy cargo nextest
+- The product writes a stream with the inline kind: `cargo nextest
   run -p smith-local-process-world -E 'test(/inline_chat|dropped|interrupt_mid_turn/)'`
   passes.
 - The local host counts no fact unwritten: `rg -c agent_facts_not_written
@@ -364,6 +364,6 @@ settles `chat` under `mode` `agent`.
   prints at least one golden.
 - 03.7's Proof is recorded in its commit body: `git log origin/main
   --grep='Step: smith-03.7' --format=%B | rg -c '^Proof: world'` prints 1.
-- A spawned agent's end is typed in the product's stream: `heavy cargo
+- A spawned agent's end is typed in the product's stream: `cargo
   nextest run -p smith-local-process-world -E 'test(/agent_ended|forced_exit/)'`
   passes.

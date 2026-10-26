@@ -501,7 +501,7 @@ pub memory: u64,
 
 ## Done when
 
-- The agent's header carries its limits: `heavy cargo nextest run -p
+- The agent's header carries its limits: `cargo nextest run -p
   smith --test end_to_end -E 'test(effective_limits)'` passes.
 - No empty header is written: `rg -c 'limits: List::with_capacity\(0\)'
   crates/smith-agent-shell/src/agent_shell.rs` prints nothing.
@@ -510,10 +510,10 @@ pub memory: u64,
 - No transitional memory: `rg -c 'memory: None|Option<u64>' crates/smith-agent-service/src/profile/quantities.rs`
   prints nothing, and `rg -c '1_099_511_627_776|8_796_093_022_208|1_u64 << 40' crates tests`
   prints nothing.
-- The standard profile fits: `heavy cargo nextest run -p smith-agent-shell
+- The standard profile fits: `cargo nextest run -p smith-agent-shell
   -E 'test(product_values_pass_every_startup_check_and_fit_complete_memory)'`
   passes, and `rg -c '"tool_payload":40960' crates/smith-agent-shell/src/config.rs`
   prints nothing (its document's overrides are gone; 1 on `main`).
-- The product's header carries its local limits: `heavy cargo nextest run
+- The product's header carries its local limits: `cargo nextest run
   -p smith-local-process-world -E 'test(the_products_header_carries_its_local_limits)'`
   passes.

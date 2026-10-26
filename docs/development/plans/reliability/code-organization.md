@@ -204,7 +204,7 @@ increment adds its own in its Don't line.
   host, no static endpoint cache key, no hand-rolled run loop beside
   skein's `drive`: the first run removed them, and none comes back.
 - No edit to jig or temper, and no edit to `docs/design/` or to this
-  plan by an implementer.
+  plan by an author.
 - No live call in a test of the suite: live runs are probes, through
   `smith-bench`, and the live suite's own profile (workflow.md, section 4).
 - No reading of, or writing to, the user's `~/.codex`, `~/.claude`,

@@ -75,7 +75,7 @@ this order, the sessions others wait on:
 9. smith 10, then smith 12, then smith 13 when it opens.
 
 **Sessions with more than five increments** (00, 04, 06, 10, 12, 13) are not
-split: their implementers hand over between increments (development.md,
+split: their authors hand over between increments (development.md,
 section 7.3).
 
 ## Rules of this plan
@@ -85,12 +85,12 @@ do not already say.
 
 1. **The smoke on every smith landing that changes code** (smith
    `workflow.md`, section 5): `smoke-tools`, live, once, on the branch
-   rebased on `origin/main` just before `land`, through `heavy --gate`,
+   rebased on `origin/main` just before merging,
    and once more only if it fails:
 
    ```
-   heavy cargo run -p smith-bench -- build HEAD
-   heavy --gate cargo run -p smith-bench -- probe probes/smoke-tools --arm <the directory build printed>
+   cargo run -p smith-bench -- build HEAD
+   cargo run -p smith-bench -- probe probes/smoke-tools --arm <the directory build printed>
    ```
 
    Its summary line goes in the commit body and in the report's
@@ -112,10 +112,10 @@ do not already say.
    its Proof line says so: where a calibrated probe guards it. Every other
    Proof is a named test at the layer its Proof line gives. Never build a
    probe, a script or a manifest that the Proof line does not name.
-3. **Live runs go through `heavy --gate`,** at most 12 attempts per call,
+3. **Live runs go,** at most 12 attempts per call,
    so that other sessions' gates interleave; a `suite` (00.21's, 12's)
    runs in one call, unsplit (decisions.md, 12.24). Each commit a command
-   names (`HEAD`, `--control`, `--parent`) is first built: `heavy cargo
+   names (`HEAD`, `--control`, `--parent`) is first built: `cargo
    run -p smith-bench -- build <commit>`. Probes run on the small tier,
    `gpt-6-luna` at low effort (`benchmarks/agents/models.toml`), unless
    the probe names an effort.
@@ -157,7 +157,7 @@ do not already say.
 8. **Users the Files line misses** (decisions.md, 13.1). When an
    increment changes a type, a variant or a signature in place, as its
    Shape or its Removes line says, and the change breaks code outside its
-   Files and Users lines, the implementer updates that code in the same
+   Files and Users lines, the author updates that code in the same
    increment, without asking, when each edit is one of these:
    - a match arm for a new variant, doing what that match already does
      for the variants it does not handle;
@@ -228,18 +228,18 @@ do not already say.
     on"), and the step is `landed`. This replaces 7.3's third check for
     this run.
 11. **Diagnostics never committed** (decisions.md, 13.25). To find the
-    cause of a failure in its own increment, an implementer may add a
+    cause of a failure in its own increment, an author may add a
     print or an assertion message in any file of its worktree, run the
     failing test at most three times in all for that failure, and remove
     every such line before it commits; `git diff origin/main` shows none of
-    them at `land`. Nothing else is wanted: no scripts, no repeated runs,
+    them at the merge. Nothing else is wanted: no scripts, no repeated runs,
     no observers (development.md 8.2). Past three runs, it stops and asks.
     The three count runs made with such lines in place, for one failure;
     a run after a change to the increment's code, tests or fixtures, with
     none in place, is ordinary work, and is not counted (decisions.md,
     13.38).
-12. **The Pulse words never land** (decisions.md, 13.45). Before `land`,
-    on its rebased branch, an implementer runs, once:
+12. **The Pulse words never land** (decisions.md, 13.45). Before merging,
+    on its rebased branch, an author runs, once:
 
     ```
     git diff origin/main -- . ':!docs' | grep -inE '^\+.*\b(actually|genuine|immutable|canonical|verified|qualified|robust|properly|python3)\b'
@@ -348,8 +348,8 @@ step lands.
    origin/main --format='%(trailers:key=Step,valueonly)' | grep -c
    '^smith-13\.'` prints 7 or more, and `git log origin/main --format=%B
    --grep='^Step: smith-13\.' | grep -c '^Calibrated: '` prints 7.
-4. **The smoke suite passes on `main`:** `heavy cargo run -p smith-bench
-   -- build HEAD`, then `heavy --gate cargo run -p smith-bench -- suite
+4. **The smoke suite passes on `main`:** `cargo run -p smith-bench
+   -- build HEAD`, then `cargo run -p smith-bench -- suite
    smoke --arm <directory>` exits 0, once.
 5. **Both gates pass within their budgets:** in each repository, `git log
    origin/main --format='%(trailers:key=Gate-Result,valueonly)' | grep -m1 .`

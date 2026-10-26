@@ -152,14 +152,13 @@ downstream repin.
   - smith 01.2: `plan await coordinator live-text/smith-01.2`;
   - smith 01.3: `plan await coordinator live-text/smith-01.3`.
   No other step waits for live text; a conflict with its landings is a
-  rebase, as `land` and the implementer's card say.
+  rebase, by merging the project changes.
 - **smith takes skein twice** (decisions.md, 13). smith 01.3 repins
   skein at its start, in a commit of its own, to the later of skein
   01.5's and 02.3's landings (ruling 113: 02.1 leaves `Provider::OpenAi`'s
   measure and prepare `Unsupported`, which 02.3 fills): `c=$(git -C ~/src/rust/skein log
   origin/main -E --all-match --grep='^Plan: accounts$'
-  --grep='^Step: skein-0(1\.5|2\.3)$' -1 --format=%H)`, then `heavy
-  cargo update -p skein-llm --precise $c` and `heavy cargo check
+  --grep='^Step: skein-0(1\.5|2\.3)$' -1 --format=%H)`, then `cargo update -p skein-llm --precise $c` and `cargo check
   --workspace --all-targets`, the commit's body naming `$c`. That
   commit repairs what every skein step at or before `$c` broke: skein
   01's and 02's, and those of skein 03 to 09 that landed first, each
@@ -236,7 +235,7 @@ downstream repin.
   fails now and then as "did not panic" (once in its 26 runs in this
   run's gate logs, to skein-08.1's of 15:02): its 5 ms deadline is taken
   before `real::World::new` and `spawn`. A gate that fails only there is
-  a timeout's failure (implementer.md, 8.5): `land` again once without
+  a timeout's failure: rerun the gate once without
   asking; a second failure on the same tree is a question. Its fix is
   `later.md`'s. Until its race's fix lands, jig's
   `tests/client-browser/tests/browser_tier.rs`
@@ -341,7 +340,7 @@ nothing, or what its item says.
    machine. In each, three runs of each suite:
 
    ```
-   heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace --status-level pass --final-status-level none > focused-$i.log 2>&1; cargo nextest run --workspace --profile fuzzy --status-level pass --final-status-level none > fuzzy-$i.log 2>&1; done'
+   sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace --status-level pass --final-status-level none > focused-$i.log 2>&1; cargo nextest run --workspace --profile fuzzy --status-level pass --final-status-level none > fuzzy-$i.log 2>&1; done'
    ```
 
    with each log written outside the worktree, whose tree a test of

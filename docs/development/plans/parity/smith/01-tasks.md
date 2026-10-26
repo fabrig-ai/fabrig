@@ -92,7 +92,7 @@ Test shape: `benchmarks/tests/offline.rs`, beside its task-manifest tests
       }
   }
   ```
-Proof: process: `heavy cargo run -p smith-bench -- validate
+Proof: process: `cargo run -p smith-bench -- validate
   fixtures/01-backoff fixtures/02-line-decoder fixtures/03-planner` exits
   0 (each grader fails on the seed and passes on the reference, and each
   reference passes its protected and outcome checks), once, within 10
@@ -124,7 +124,7 @@ Test shape: `a_repository_attempt_compares_protected_files_with_its_bundle`
   over `tests/recorded/bundles/tiny` (unchanged: `[]`; a changed
   `Cargo.toml`: `["Cargo.toml"]`), `the_seed_snapshot_comes_from_the_copied_source`
   (unit, in `run.rs`'s tests). Under 0.5 s each.
-Proof: process: `heavy cargo run -p smith-bench -- validate
+Proof: process: `cargo run -p smith-bench -- validate
   repository/shell-cwd` exits 0, once, within 20 minutes.
 Don't: change the bundle, its manifest's digest or the grader.
 Size: 150 lines.
@@ -145,7 +145,7 @@ Shape: `judge` decides an attempt on its task's `deciding` checks only; a
 Test shape: `benchmarks/tests/outcomes.rs`: `an_unavailable_passive_check_outside_deciding_decides_nothing`,
   `a_graded_attempt_passes_on_end_grade_protected_and_tree`,
   `a_task_without_deciding_checks_is_refused`. Each under 20 ms.
-Proof: unit, the three tests; then `heavy cargo run -p smith-bench --
+Proof: unit, the three tests; then `cargo run -p smith-bench --
   check` exits 0 on `main`'s tasks, once.
 Don't: waive a passive check to make an attempt pass.
 Size: 100 lines.
@@ -194,7 +194,7 @@ Removes: nothing.
 
 ## Done when
 
-- `heavy cargo run -p smith-bench -- check` exits 0 on `main`.
-- `heavy cargo run -p smith-bench -- validate fixtures/01-backoff
+- `cargo run -p smith-bench -- check` exits 0 on `main`.
+- `cargo run -p smith-bench -- validate fixtures/01-backoff
   fixtures/02-line-decoder fixtures/03-planner repository/shell-cwd` exits
   0, once.

@@ -246,7 +246,7 @@ Shape: `NotRun` gains `AfterFailedWrite { call: u16 }`, the failed
   `block` moves them unchanged; `retained_choice` goes when nothing else
   calls it. Default: `Narrowed` gains the names beside `choice`; another
   representation that keeps the told turn free of tickets is the
-  implementer's to choose, named in the commit body. The descriptions and `TASK_ROLE` take the
+  author's to choose, named in the commit body. The descriptions and `TASK_ROLE` take the
   words above; the goldens' expected texts change with them (README,
   rule 3). `resolve.rs:86` gives `role_bound` the role's own length,
   `TASK_ROLE.len()` as a `u32`, in place of `TASK_ROLE_BOUND`, which
@@ -276,8 +276,8 @@ Test shape: `crates/smith-domain-session/src/tests.rs`, beside
   `a_call_not_run_after_a_failed_write_names_it`,
   `a_resumed_outside_choice_call_renders_as_it_was_told`. Unit tests
   under 20 ms; world tests under 0.5 s.
-Proof: live, through the stop: `heavy cargo run -p smith-bench -- build
-  HEAD` and `build origin/main`, then `heavy --gate cargo run -p
+Proof: live, through the stop: `cargo run -p smith-bench -- build
+  HEAD` and `build origin/main`, then `cargo run -p
   smith-bench -- suite parity-change --arm <HEAD's dir> --parent-arm
   <origin/main's dir> --baseline-run <the file README rule 13's first
   command prints> --landed <each file its second prints>`: 40 attempts,

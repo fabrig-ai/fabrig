@@ -8,7 +8,7 @@ All 30 fixture candidates passed their graders but failed the protected-tests ch
 
 ## Method
 
-The Rust `smith-bench` harness follows [benchmarks.md](../../design/benchmarks.md), sections 2, 3.1, 4.1, 5.2–5.4, 6.1, 8–10 and 11.5. Fresh seeded repositories, identical task prompts, hidden graders after tree exit, pinned configurations and interleaved comparisons replace the spike's external harness. Repository attempts and grading ran serially on the idle gate lane on debian-16gb-hel1-1. Live suites ran whole through `heavy --gate`; builds and summaries through `heavy`. Setup and grading are outside task/process timers; agent-issued builds remain inside them.
+The Rust `smith-bench` harness follows [benchmarks.md](../../design/benchmarks.md), sections 2, 3.1, 4.1, 5.2–5.4, 6.1, 8–10 and 11.5. Fresh seeded repositories, identical task prompts, hidden graders after tree exit, pinned configurations and interleaved comparisons replace the spike's external harness. Repository attempts and grading ran serially on the idle gate lane on debian-16gb-hel1-1. Live suites ran whole; builds and summaries. Setup and grading are outside task/process timers; agent-issued builds remain inside them.
 
 | Item | This milestone |
 |---|---|

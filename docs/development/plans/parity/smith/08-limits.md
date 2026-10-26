@@ -57,7 +57,7 @@ what a model is sent.
 ## Rules that bind it
 
 - **Formats move once** (README, rule 12): 08.1 moves the vocabulary; a
-  version's sweep is implementer.md 8.2's.
+  version's sweep is the implementation rules's.
 - **Users outside Files** (rule 3), for every `Limits` literal that gains
   a field (the audit lists them: `findings/planning-audit.md`, tools and
   machine, point 5).

@@ -132,7 +132,7 @@ Test shape: `benchmarks/src/tests/comparison.rs`, beside
   `codex_responses_are_priced_from_their_usage_records`, on
   `repository_threads()`. Under 20 ms each.
 Proof: process, the smoke (README, rule 8), summarised once, not
-  committed: `heavy cargo run -q -p smith-bench -- summarise <the
+  committed: `cargo run -q -p smith-bench -- summarise <the
   probe's run directory> smoke working single <its seed>`, then `jq -c
   '.attempts[] | {task, priced_usd}' <that summary>`; the line goes in
   the commit body, and nothing else is wanted.
@@ -205,8 +205,8 @@ Test shape: `benchmarks/tests/parity.rs`, beside
   `a_parity_run_of_five_shell_cwd_attempts_is_incomplete`,
   `a_suite_run_below_its_attempts_is_summarised_as_small`. Under 20 ms
   each.
-Proof: live, once: `heavy cargo run -p smith-bench -- build HEAD`, then
-  `heavy --gate cargo run -p smith-bench -- suite parity --arm <dir>
+Proof: live, once: `cargo run -p smith-bench -- build HEAD`, then
+  `cargo run -p smith-bench -- suite parity --arm <dir>
   --attempts 1`: 8 attempts, about 40 minutes, to a verdict of 2
   (incomplete, as one attempt per task is). Its exit, `jq -c
   '.attempts[] | {task, arm, priced_usd, responses, peak_rss_scope}'
@@ -224,4 +224,4 @@ Removes: the literal 29 in `parity.rs`.
 
 - `cd ~/src/rust/smith && rg -n '"repository/shell-cwd" = 10' benchmarks/suites/parity.toml` prints one line.
 - `cd ~/src/rust/smith && rg -n '29\.0' benchmarks/src/parity.rs` prints nothing.
-- `cd ~/src/rust/smith && heavy cargo run -q -p smith-bench -- check` exits 0.
+- `cd ~/src/rust/smith && cargo run -q -p smith-bench -- check` exits 0.

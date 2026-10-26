@@ -22,7 +22,7 @@ jig's and temper's parts are later plans (`later.md`).
   (2, 3, 9.1), `docs/design/domain/run.md` (11: a piece is never a
   fact). Each session's "Read first" names its sections.
 - **`decisions.md`:** sections 1 to 5 are this plan's choices, then the
-  design questions with the director's answers, what goes to the
+  design questions with the answers, what goes to the
   designer, and what the user may veto.
 - **`code-organization.md`:** crates, modules, tests, fixtures, owners,
   the "Don't" list and size limits.
@@ -36,7 +36,7 @@ jig's and temper's parts are later plans (`later.md`).
 A dependency is named by capability, with its increment in brackets. A
 session starts when what it needs at its start has landed; an increment
 that needs more waits, and the session does its other increments
-meanwhile (implementer.md, section 8.7).
+meanwhile (the implementation rules, section 8.7).
 
 ### skein (`skein/`)
 
@@ -69,11 +69,11 @@ builds on. No file this plan changes is in either run's Files (A9).
 
 ## Rules of this plan
 
-What development.md, implementer.md, skein's and smith's `AGENTS.md` and
+What development.md, the implementation rules, skein's and smith's `AGENTS.md` and
 their `workflow.md` do not already say.
 
 1. **The repin.** smith 02.1's first commit moves smith's skein pin from
-   `93052c6b` to skein's `origin/main` with `heavy cargo update -p
+   `93052c6b` to skein's `origin/main` with `cargo update -p
    skein-lib`, which moves every skein crate (one git
    source), and adapts only what the move breaks (A30). No other smith
    step moves the pin. Moved to skein's code at this plan's start, the
@@ -92,10 +92,10 @@ their `workflow.md` do not already say.
    line, once, after its last edit:
 
    ```
-   heavy cargo nextest run -p smith-agent-shell -E 'test(product_values_pass_every_startup_check_and_fit_complete_memory)' --no-capture 2>&1 | grep PRODUCT_COMPLETE
+   cargo nextest run -p smith-agent-shell -E 'test(product_values_pass_every_startup_check_and_fit_complete_memory)' --no-capture 2>&1 | grep PRODUCT_COMPLETE
    ```
 
-5. **Lint exceptions never land.** Once before `land`, on the rebased
+5. **Lint exceptions never land.** Once before merging, on the rebased
    branch, in the repository it changes:
 
    ```
@@ -103,8 +103,7 @@ their `workflow.md` do not already say.
    ```
 
    prints nothing. Each it prints is removed and its lint fixed.
-6. **Users outside Files: the sites the audit found.** implementer.md
-   8.2's edits outside Files cover them; these are where they fall, so
+6. **Users outside Files: the sites the audit found.** the implementation rules's edits outside Files cover them; these are where they fall, so
    that none is a question: in skein, each match on the fake LLM's
    `Event` and `Request` and each `Event::Call` built (A1 to A3, A8);
    in smith, the start's struct literals (A28), each match on
@@ -138,12 +137,12 @@ their `workflow.md` do not already say.
 **OpenAI, through the user's Codex login,** for smith's `smoke-tools`
 only (smith `workflow.md`, section 5): smith reads `~/.codex/auth.json`
 read only, the access token only, and no agent signs in. Each smith
-landing that changes code runs it once, through `heavy --gate` on the
+landing that changes code runs it once on the
 branch rebased on `origin/main`, and once more only if it fails:
 
 ```
-heavy cargo run -p smith-bench -- build HEAD
-heavy --gate cargo run -p smith-bench -- probe probes/smoke-tools --arm <the directory build printed>
+cargo run -p smith-bench -- build HEAD
+cargo run -p smith-bench -- probe probes/smoke-tools --arm <the directory build printed>
 ```
 
 Five smith landings, two attempts each at most: 10 attempts, about
@@ -249,7 +248,7 @@ nothing, or what its item says.
    suite:
 
    ```
-   heavy --gate -- sh -c 'for i in 1 2 3; do cargo nextest run --workspace --status-level pass --final-status-level none > focused-$i.log 2>&1; cargo nextest run --workspace --profile fuzzy --status-level pass --final-status-level none > fuzzy-$i.log 2>&1; done'
+   sh -c 'for i in 1 2 3; do cargo nextest run --workspace --status-level pass --final-status-level none > focused-$i.log 2>&1; cargo nextest run --workspace --profile fuzzy --status-level pass --final-status-level none > fuzzy-$i.log 2>&1; done'
    ```
 
    then, with `P` the package list of the repository's `aims` line,
