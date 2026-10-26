@@ -475,7 +475,7 @@ the client's last state, and a start builds a new client.
   start; a merge answered `Queued` ends there (7.7). The client starts
   no other read of its own meanwhile: no listing, no poll, no find.
 - **`Settled { left }`** once every entry it sent has its outcome, at
-  once if none lacked one; or at its bound, twice `lifetime` and
+  once if none lacked one; or at its bound, twice the sum of `lifetime` and
   `clock_margin` after `Settle` (the write's lifetime, then its proving
   read's), `left` naming each entry still without its outcome. The next
   start finds those by their attempts (section 8).
