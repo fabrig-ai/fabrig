@@ -444,7 +444,14 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   kind, its resource the pull request, and its words the merge commit's
   id as text: in lowercase hexadecimal, as a delegate's commits are
   (below), shortened to its first digits, as a short id is, when the
-  task's contract bounds its words under the id's 40 or 64. A result's
+  task's contract bounds its words under the id's 40 or 64. Where the
+  bound leaves room, a line follows the id: the pull request in the
+  forge's words (`../client/README.md`, 4.1) and its address on the
+  forge (`../client/forge.md`, 9.2), `pull request #7 of acme/app on
+  github.com: https://github.com/acme/app/pull/7`, so that the run that
+  asked for it hears which pull request landed, since jig gives a
+  parent a result's words and never its resource. A client reads the id
+  from the first line. A result's
   words are text that summarises it (jig's `domain/tasks.md`, section 3,
   and `client/domain/contract.md`, 5.3), never the commit's bytes; the
   whole id stays the change's and its pull request's (`forge.md`, 8.2).

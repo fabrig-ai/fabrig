@@ -899,8 +899,10 @@ digest: task 7c1e09a2b44f0d13
   agent may need the id), after its pull request, the result's resource
   in the forge's words: `result: Landed · pull request #7 of
   acme/app on github.com · merge commit 3f2a9c1…` (forty characters),
-  then the call that reads its panel, `change N`; a change's words that
-  are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
+  then the call that reads its panel, `change N`; the id is the words'
+  first line, and their second, the same pull request with its address
+  (`../domain/root.md`, section 6), prints as `pull request: ADDRESS`;
+  a change's words that are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
   as they are; a connector's its summary and its part in the forge's
   words; a failed or cancelled task's its reason, if it gave one. Words
   of more than one line go on the lines after it, each indented two

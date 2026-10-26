@@ -173,6 +173,28 @@ protection; `read_settings`, the repository's settings;
 `read_collaborators`, its collaborators; `read_permission`, a user's
 permission on it.
 
+Their input is flat, each member declared by name in the read's schema,
+so that a run writes a call from its tools alone:
+
+- **`repository`,** one of the project's repositories as `owner/name`,
+  resolved as `change`'s is and refused as it is, naming the project's
+  repositories where none fits; left out where the project has one.
+- **The read's own members,** beside it: `read_branch` `branch`;
+  `read_branches` `prefix`; `read_pull` `number`; `read_pull_for` `head`
+  and `base`, branch names; `read_pull_files` `number`, `head` and
+  `page`; `read_reviews` `number` and `page`; `read_remarks` `number`,
+  `review` and `page`; `read_statuses` `commit` and `page`;
+  `read_checks` `commit`; `read_compare` `before` and `after`;
+  `read_file` `head`, `path` and `max_bytes`; `read_job` `head`, `run`,
+  `job`, `attempt` and `max_bytes`; `read_items` `since`, `page` and
+  `item_kind` (`issue` or `pull`); `read_item` `number` and `after`;
+  `read_protection` `branch`; `read_settings` none;
+  `read_collaborators` `page`; `read_permission` `user`, a forge user's
+  id. A commit or a head is its id, 40 or 64 lowercase hexadecimal
+  digits; `page` is from 1, and 1 when left out; `since` is a time in
+  nanoseconds, 0 when left out; `after` a comment's id, 0 when left
+  out; `max_bytes`, the read's limit when left out.
+
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
