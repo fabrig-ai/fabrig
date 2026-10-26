@@ -77,8 +77,9 @@ application root            routes between the core and every connector
   | keep this effect under this key, or under this proposal; drop it | — (part of the decision) |
   | make this outbox entry (the journal released it) | made, with what it made; failed; uncertain |
   | judge this requirement for this effect's state | met; wait, for what; refuse, on which fact |
-  | judge these items of your kinds of settings, for the revision they would make (section 17) | accept; refuse, why |
-  | your kinds' settings now: at a start, and in each change's decision | — (part of the decision) |
+  | judge these items of your kinds of settings, for the revision they would make (section 17) | accept; refuse, why; leaves it as it is |
+  | keep these items' values: a change committed, a removal, a reset; a proposal's items made, accepted, ended | — (part of the decision) |
+  | the application's defaults of your kinds, at a start | which differ, with their sizes |
   | a procedure task: made with its parameters; activated; a message; closing; what its step made, with the revisions it names; a step refused, and why | a step's decision: effects, batches, amendments, cancels, proposals, messages, a hold, a result |
   | project this goal: its state, its plan, its milestones | the projection's effects |
   | release what this closing task held | the release's effects |
@@ -788,10 +789,11 @@ or a change, the revisions, the proposals and their sizes, never the
 bytes.
 
 - **Its defaults at each start,** before its records (section 14): the
-  application's, which it compares with those it stored, saving the new
-  ones and telling the core which settings' defaults changed and their
-  sizes, for the release's revision. A default past its kind's bounds,
-  or a stored value it cannot read, refuses the start, naming it.
+  application's, which it compares with those it stored, telling the
+  core which settings' defaults differ and their sizes; it saves the new
+  ones in the decision that makes the release's revision. A default
+  past its kind's bounds, a stored value it cannot read, or one of a
+  kind no longer declared, refuses the start, naming it.
 - **Judged in the change's decision.** A change naming items of its
   kinds reaches it as a hand-off within the decision's step, as a
   requirement's verdict does (section 7): the items, each its kind,
@@ -802,8 +804,8 @@ bytes.
   it is. A judge reads only its own state, and decides what the items
   mean in its system's terms.
 - **Kept in the same decision.** Once the change is committed, it saves
-  its items' values as the current changes, or erases the changes reset
-  or removed, and acts on them from then on. A proposal of settings
+  its items' values as the current changes, a removal as a change with
+  no value, or erases the changes reset, and acts on them from then on. A proposal of settings
   naming its kinds hands it its items' values to keep, checked against
   the kinds' bounds, in the decision that makes the proposal; it erases
   them when the proposal is withdrawn or rejected, and an acceptance

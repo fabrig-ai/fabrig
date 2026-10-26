@@ -977,7 +977,7 @@ party reads is therefore never lost by a crash.
 | `tasks{query}`: a task query's page (6.1) | live state, then the store's indexes of ended tasks |
 | a project; its spend, a page; its notes, a page | live state; the store; the notes child |
 | the deployment | live state |
-| `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it; `revision{n}`: a revision's record and its items, as it set them; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../domain/engine.md`, 17.7) |
+| `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../domain/engine.md`, 17.7) |
 | an application's read, naming its owner, its scope and its window (7.5) | its owner, the connector, through the engine's root |
 
 - **An ended task is a finished read.** Opening its task or tree watch
@@ -1024,7 +1024,9 @@ party reads is therefore never lost by a crash.
     items, each a setting by kind, scope and number and what became of
     it, set with the value whole, removed, or reset; an item's value
     past the single read's bound comes with its size instead, as too
-    large, read whole by `setting{…}` while its revision is held;
+    large, read whole by `setting{…}` while its revision is held; an
+    item of an application's kinds with its size alone, its value not
+    kept past its revision (`../../domain/engine.md`, 17.5);
   - *forgotten,* a revision made but erased past the history
     (`../../domain/engine.md`, 17.7), naming the oldest kept;
   - *unknown,* past the newest;

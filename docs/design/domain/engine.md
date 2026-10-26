@@ -438,12 +438,15 @@ next only once the root says this one is done (root.md, section 8).
    accounts. The core's limits bound what is live (tasks.md,
    section 11), so what is loaded fits; a live set past limits lowered
    since refuses the start, saying which. A live task names its
-   revision, which is held (17.3). Once all of it is restored, new
-   defaults make the release's revision, checked against the limits
-   with the live tasks' revisions held (17.7).
-2. **Each connector's records,** connector by connector: the root hands
-   it its kinds' current settings (17.5), then loads that connector's
-   live ranges and restores them into it (connectors.md, section 14).
+   revision, which is held (17.3).
+2. **Each connector's records,** connector by connector: it is given
+   the application's defaults of its kinds and says which differ from
+   those it stored (17.5); then the root loads that connector's live
+   ranges and restores them into it (connectors.md, section 14). Once
+   every connector has, new defaults, jig's and the connectors', make
+   the release's revision in one decision, with the connectors' new
+   defaults saved in it, checked against the limits with the live
+   tasks' revisions held (17.7).
 3. **The runs adopted.** Every task claimed or running names its attempt
    and the kind of host it was placed on. Claims placed in the engine
    died with it, and are settled at once as lost, or as not started if
@@ -1944,24 +1947,32 @@ judges and keeps it within the change's decision.
   counts toward *empty* (17.2). A set commits only when every connector
   it names accepts.
 - **Kept in the same decision.** Once a change commits, each connector
-  saves its items' values as their settings' changes, or erases the
-  changes of those reset or removed, and acts on them from then on, its
+  saves its items' values as their settings' changes, a removal as a
+  change with no value, so that a removed setting is never taken for
+  one following its default, and erases the changes of those reset;
+  it acts on them from then on, its
   state running ahead of the commit as every child's does (5.1). A
   proposal of settings naming its kinds hands the connector its items'
   values in the decision that makes the proposal, which the connector
   checks against its kinds' bounds alone and keeps; the decision that
   withdraws or rejects it erases them, and the one that accepts it
-  turns them into the changes.
+  turns them into the changes, with the same edits a party's change
+  makes.
 - **At each start,** before its records are restored (section 6, step
   2), each connector is given its kinds' defaults by the application,
-  compares them with those it stored, saves the new ones, and tells the
-  core which of its settings' defaults changed and their sizes, so that
-  a changed default no change is over joins the release's revision
-  (17.7). A stored value it cannot read refuses the start, naming it,
-  as a record it cannot read does; a default past its kind's bounds
-  refuses it, naming the kind. Nothing is judged again: a stored value
-  was judged when its change was made, and the defaults are the
-  application's own.
+  compares them with those it stored, and tells the core which of its
+  settings' defaults differ and their sizes, so that a changed default
+  no change is over joins the release's revision (17.7), the decision
+  in which the connector saves the new ones. A stored value it cannot
+  read refuses the start, naming it, as a record it cannot read does; a
+  default past its kind's bounds refuses it, naming the kind; and a
+  stored setting, the core's or the connector's, of a kind the
+  application no longer declares, or past its kind's values per scope,
+  refuses it, naming the kind, scope and number. A release that drops a
+  kind, from the baseline on, erases both owners' records of it by its
+  patches (`../protocol/store.md`, section 10). Nothing is judged
+  again: a stored value was judged when its change was made, and the
+  defaults are the application's own.
 - **Read by the application.** The root, and through it the
   application's own children and clients, read a value from the
   connector that owns its kind, by kind, scope and number: the newest,
@@ -2009,7 +2020,8 @@ Its code comes after the rest (`../STATUS.md`).
   becomes of it (set, removed, reset), what it is now (its value, and
   whether it follows its default or the change of which revision, or
   that it is not offered) and what it would be (the value set, none, or
-  its default's). A reviewer never compares against a later revision
+  its default's), an application's items with their sizes alone, the
+  application serving their values (17.5). A reviewer never compares against a later revision
   than the proposal's; once decided or withdrawn, a proposal carries its
   items alone, and an accepted one names the revision it made
   (`../client/domain/contract.md`, 5.1).
@@ -2028,14 +2040,17 @@ Its code comes after the rest (`../STATUS.md`).
   its number, the revision it was made against, when, who decided it (a
   party, the release, the first start), the proposal it came from,
   whether it moved running work, and its items with the values they
-  set; each charter version a held revision reads and the newest does
+  set, an application's items with their sizes alone; each charter
+  version a held revision reads and the newest does
   not; and pending proposals' sets. The tasks family keeps each
   task's revision, live and ended, and each claim's.
 - **History** is the revision records, kept for every revision held
   and for the latest ones within the history limit (17.8); the decision
   that makes a revision, or that ends the last holder of one, erases
   those that fall out. Restoring a version
-  proposes its items again, against the newest. History is read from
+  proposes its items again, against the newest; an application's items,
+  whose past values are not kept, are left out of it, and the
+  restore says so. History is read from
   the store, a revision by its number and the records a page at a
   time, newest first, each with what it changed; a revision erased is
   answered as forgotten, naming the oldest kept
