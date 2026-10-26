@@ -531,14 +531,19 @@ impl World {
         self.machine.close(root);
     }
 
-    /// An operator's rewrite of a file at the deployment's top, such as
-    /// `active` named back to the generation before (store.md 2, "Strays").
-    pub fn rewrite(&mut self, name: &[u8], bytes: &[u8]) {
+    /// Rewrite any file beneath the root: an operator's rewrite of `active`
+    /// (store.md 2, "Strays"), or a test laying kept bytes in place of the store's.
+    pub fn rewrite(&mut self, path: &[u8], bytes: &[u8]) {
+        use skein_fake_machine::How;
         let root = self.machine.reopen_root(0);
-        self.machine.remove(root, name, false).expect("rewritten file stands");
-        self.machine.sync(root);
+        let split = path.iter().rposition(|b| *b == b'/');
+        let (parent, name) = split.map_or((b".".as_slice(), path), |at| (&path[..at], &path[at + 1..]));
+        let parent = self.machine.open(root, parent, How::DirectoryNoFollow).expect("rewritten parent stands");
+        self.machine.remove(parent, name, false).expect("rewritten file stands");
+        self.machine.sync(parent);
+        self.machine.close(parent);
         self.machine.close(root);
-        self.lay(&[skein_fake_machine::Item::file(name, bytes)]);
+        self.lay(&[skein_fake_machine::Item::file(path, bytes)]);
     }
 
     #[must_use]

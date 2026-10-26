@@ -400,14 +400,26 @@ pub fn first() -> Box<[Write]> {
 
 #[must_use]
 pub fn turn_commit(number: u64, task: u64, turn_number: u32, bytes: &[u8]) -> Box<[Write]> {
-    let core::Record::Core(core::CoreRecord::RunProof(mut proof)) = run_proof(task) else {
+    record_turn_commit(number, turn(task, 1, turn_number, bytes))
+}
+
+#[must_use]
+pub fn record_turn_commit(number: u64, turn: core::TurnRecord) -> Box<[Write]> {
+    let core::Record::Core(core::CoreRecord::RunProof(mut proof)) = run_proof(turn.task) else {
         unreachable!("run fixture")
     };
-    proof.turn = Some(core::TurnProof { turn: turn_number, cumulative: 0, read: None });
+    proof.attempt = turn.attempt;
+    if let Some(window) = &mut proof.window {
+        window.attempt = turn.attempt;
+        if turn.opens_window {
+            window.turn = turn.turn;
+        }
+    }
+    proof.turn = Some(core::TurnProof { turn: turn.turn, cumulative: turn.spent, read: turn.read });
     Box::new([
         Write::Save(header(number)),
         Write::Save(core::Record::Core(core::CoreRecord::RunProof(proof))),
-        Write::Save(core::Record::Core(core::CoreRecord::Turn(turn(task, 1, turn_number, bytes)))),
+        Write::Save(core::Record::Core(core::CoreRecord::Turn(turn))),
     ])
 }
 
