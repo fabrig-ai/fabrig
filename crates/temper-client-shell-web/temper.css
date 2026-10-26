@@ -1043,6 +1043,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-chat .temper-kind-proposal > a { font-weight: 600; }
 @media (max-width: 760px) { .temper-chat .temper-turn > .temper-kind-proposal { margin-left: 70px; } }
 @media (max-width: 430px) {
+  .temper-main:not(.temper-chat) > .temper-chatbar { height: 37px; padding: 0 16px; }
   .temper-main:not(.temper-chat) > .temper-chatbar [role=status],
   .temper-main:not(.temper-chat) > .temper-chatbar > div:last-child { display: none; }
   .temper-chat .temper-turn > .temper-kind-proposal { margin-left: 0; }
