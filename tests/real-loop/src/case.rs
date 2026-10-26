@@ -1,7 +1,7 @@
 //! The reference case's cast, accounts and first kit tree (domain/testing.md, 5.3).
 use crate::{fixtures, forge, landing};
 use serde_json::{Value, json};
-use skein_fake_forge_domain::{self as domain, api};
+use skein_fake_forge_domain::api;
 
 pub mod acts;
 pub mod oracle;
@@ -245,20 +245,32 @@ pub fn kit_tree() -> Box<[api::File]> {
     tree.into_boxed_slice()
 }
 
+// The seeded first repository's object spelling; derived again in the test below.
+const DRAFT_COMMIT: &str = "910a2dec89025cc1000000000000000100000000000000000000000000000000";
+
 #[must_use]
 pub fn draft_commit() -> String {
-    // State::new uses this configuration and seed. repository stores the first
-    // tree without a timestamp; real-loop wall skew cannot change its identity.
-    let config = temper_fake_git_hosted::fixtures::CONFIG;
-    let mut domain = domain::Domain::new(&config, fixtures::SEED);
-    let first = domain::repository(&mut domain, &config, (fixture().setup)());
-    let object = skein_fake_forge_protocol::routes::object(first);
-    let mut words = String::new();
-    for byte in object.bytes {
-        use std::fmt::Write;
-        write!(words, "{byte:02x}").expect("commit hex");
+    DRAFT_COMMIT.into()
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+    use skein_fake_forge_domain as domain;
+
+    #[test]
+    fn draft_identity_matches_the_seeded_repository() {
+        let config = temper_fake_git_hosted::fixtures::CONFIG;
+        let mut domain = domain::Domain::new(&config, fixtures::SEED);
+        let first = domain::repository(&mut domain, &config, (fixture().setup)());
+        let object = skein_fake_forge_protocol::routes::object(first);
+        let mut words = String::new();
+        for byte in object.bytes {
+            use std::fmt::Write;
+            write!(words, "{byte:02x}").expect("commit hex");
+        }
+        assert_eq!(draft_commit(), words);
     }
-    words
 }
 
 #[must_use]

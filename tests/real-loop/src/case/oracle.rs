@@ -52,7 +52,16 @@ impl Told {
         credential: Option<u32>,
         messages: &[skein_fake_llm_domain::api::Message],
     ) -> Option<Self> {
-        let agent = cued(system)?;
+        Some(Self::with_agent(cued(system)?, system, model, credential, messages))
+    }
+
+    fn with_agent(
+        agent: Agent,
+        system: &[u8],
+        model: &[u8],
+        credential: Option<u32>,
+        messages: &[skein_fake_llm_domain::api::Message],
+    ) -> Self {
         let mut words = system.to_vec();
         words.push(b'\n');
         for message in messages {
@@ -67,14 +76,14 @@ impl Told {
                 }
             }
         }
-        Some(Self {
+        Self {
             system: system.into(),
             history: messages.into(),
             agent,
             words: words.into_boxed_slice(),
             model: model.into(),
             credential,
-        })
+        }
     }
 }
 impl Observed {
@@ -3256,7 +3265,7 @@ mod plan_tests {
         ]
     }
     fn told(agent: Agent, history: &[Message]) -> Told {
-        Told::new(agent.cue(), b"fake", None, history).expect("agent cue")
+        Told::with_agent(agent, agent.cue(), b"fake", None, history)
     }
     fn met() -> Observed {
         let mut documents = BTreeMap::new();
@@ -3830,7 +3839,7 @@ mod misread_tests {
         ]
     }
     fn told(agent: Agent, history: &[Message]) -> Told {
-        Told::new(agent.cue(), b"fake", None, history).expect("agent cue")
+        Told::with_agent(agent, agent.cue(), b"fake", None, history)
     }
     fn rows(task: u64, lines: &[Value]) -> Value {
         Value::Array(
@@ -4675,7 +4684,7 @@ mod direction_tests {
         ]
     }
     fn told(agent: Agent, history: &[Message]) -> Told {
-        Told::new(agent.cue(), b"fake", None, history).expect("agent cue")
+        Told::with_agent(agent, agent.cue(), b"fake", None, history)
     }
     fn journal(task: u64, attempts: usize, first: u64) -> Value {
         let lines = if attempts == 0 {
@@ -5806,7 +5815,7 @@ mod batch_tests {
         ]
     }
     pub(super) fn told(agent: Agent, history: &[Message]) -> Told {
-        Told::new(agent.cue(), b"fake", None, history).expect("agent cue")
+        Told::with_agent(agent, agent.cue(), b"fake", None, history)
     }
     pub(super) fn journal(task: u64, lines: &[Value]) -> Value {
         let rows: Vec<_> = lines
@@ -8655,7 +8664,7 @@ mod red_tests {
         ]
     }
     fn told(agent: Agent, history: &[Message]) -> Told {
-        Told::new(agent.cue(), b"fake", None, history).expect("cue")
+        Told::with_agent(agent, agent.cue(), b"fake", None, history)
     }
     fn journal(task: u64, lines: &[Value]) -> Value {
         let rows: Vec<_> = lines
@@ -8865,8 +8874,9 @@ mod red_tests {
     }
     #[test]
     fn missing_reversed_extra_or_premature_merges_fail() {
+        let fixture = met();
         for mutation in 0..6 {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             match mutation {
                 0 => {
                     bad.kit.records.remove(0);
@@ -8892,36 +8902,38 @@ mod red_tests {
     }
     #[test]
     fn each_head_must_have_passed_ci_before_its_own_merge() {
+        let fixture = met();
         for at in [3, 5] {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             if let Observation::Reported { state, .. } = &mut bad.kit.records[at] {
                 *state = api::Check::Failed;
             }
             rejects(&bad, RED_LANDING);
-            let mut bad = met();
+            let mut bad = fixture.clone();
             bad.kit.records.swap(at, at + 1);
             rejects(&bad, RED_LANDING);
         }
         for read in [Read::RedChangeEnded, Read::RedRepairEnded] {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             bad.documents.get_mut(&read).expect("task")["task"]["result"]["value"]["change"]["words"]["bytes"] =
                 json!("wrong commit");
             rejects(&bad, RED_LANDING);
         }
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.kit.main.clear();
         rejects(&bad, RED_LANDING);
     }
     #[test]
     fn only_a_deployment_repair_with_no_agent_delegation_is_accepted() {
+        let fixture = met();
         for read in [Read::RedRepairPending, Read::RedRepairEnded] {
             for requester in [json!({"task":RED_OWNER}), json!({"deployment":{"project":99}}), Value::Null] {
-                let mut bad = met();
+                let mut bad = fixture.clone();
                 bad.documents.get_mut(&read).expect("task")["task"]["requester"] = requester;
                 rejects(&bad, RED_DEPLOYMENT);
             }
         }
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.told.push(told(
             Agent::RedOwner,
             &tool(
@@ -8932,40 +8944,43 @@ mod red_tests {
             ),
         ));
         rejects(&bad, RED_DEPLOYMENT);
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.documents.get_mut(&Read::RedChangePaused).expect("a4")["task"]["chip"]["phase"] = json!("ended");
         rejects(&bad, RED_DEPLOYMENT);
     }
     #[test]
     fn another_deployment_repair_or_a_partial_task_list_fails() {
-        let mut bad = met();
+        let fixture = met();
+        let mut bad = fixture.clone();
         let extra = bad.documents[&Read::RedRootsPending]["tasks"]["rows"][0].clone();
         bad.documents.get_mut(&Read::RedRootsPending).expect("pending")["tasks"]["rows"]
             .as_array_mut()
             .expect("live")
             .push(extra);
         rejects(&bad, RED_DEPLOYMENT);
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.documents.get_mut(&Read::RedRootsPending).expect("pending")["tasks"]["more"] = json!(true);
         rejects(&bad, RED_DEPLOYMENT);
     }
     #[test]
     fn a1_must_hear_the_actual_landed_result_once() {
-        let mut bad = met();
+        let fixture = met();
+        let mut bad = fixture.clone();
         bad.told.pop();
         rejects(&bad, RED_RESULT);
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.told
             .push(told(Agent::RedOwner, &[input(&format!("Result from task {RED_CHANGE}:\n{}", direction_commit(7)))]));
         rejects(&bad, RED_RESULT);
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.told.last_mut().expect("result").history.last_mut().expect("message").parts =
             input("Result from task 3: not a merge").parts;
         rejects(&bad, RED_RESULT);
     }
     #[test]
     fn a_batched_timer_reply_must_precede_the_report_within_the_same_query() {
-        let mut observed = met();
+        let fixture = met();
+        let mut observed = fixture.clone();
         let mut batched = observed.told[2].clone();
         // The subscription reply and A1's report are now in the same query;
         // the next query still supplies unsubscribe's successful result.
@@ -8982,40 +8997,42 @@ mod red_tests {
 
     #[test]
     fn timer_requires_its_returned_number_armed_read_and_removal() {
+        let fixture = met();
         for path in [
             "/task/chip/task",
             "/task/subscriptions/entries/0/number",
             "/task/subscriptions/entries/0/kind/timer/at",
             "/task/subscriptions/entries/0/kind/timer/period",
         ] {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             *bad.documents.get_mut(&Read::RedTimerArmed).expect("timer").pointer_mut(path).expect("field") = json!(99);
             rejects(&bad, RED_INTERIM);
         }
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.documents.get_mut(&Read::RedDirectorEnded).expect("director")["task"]["subscriptions"] =
             bad.documents[&Read::RedTimerArmed]["task"]["subscriptions"].clone();
         rejects(&bad, RED_INTERIM);
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.told.remove(2);
         rejects(&bad, RED_INTERIM);
     }
     #[test]
     fn each_agents_attempts_must_be_complete_and_without_failure() {
+        let fixture = met();
         for (read, task, _) in red_tasks().into_iter().filter(|(_, task, _)| *task != RED_CHANGE && *task != RED_REPAIR)
         {
             for end in [json!({"failed":{}}), json!("refused"), Value::Null] {
-                let mut bad = met();
+                let mut bad = fixture.clone();
                 bad.documents.get_mut(&read).expect("task")["activity"] = journal(
                     task,
                     &[json!({"run_began":{"attempt":1}}), json!({"run_ended":{"attempt":1,"end":end,"spent":1}})],
                 );
                 rejects(&bad, RED_ATTEMPTS);
             }
-            let mut bad = met();
+            let mut bad = fixture.clone();
             bad.documents.get_mut(&read).expect("task")["activity"]["cut"] = json!(true);
             rejects(&bad, RED_ATTEMPTS);
-            let mut bad = met();
+            let mut bad = fixture.clone();
             bad.documents.get_mut(&read).expect("task")["activity"]["rows"].as_array_mut().expect("rows").pop();
             if task == RED_DIRECTOR {
                 bad.documents.get_mut(&Read::RedTimerArmed).expect("timer")["activity"]["rows"]
@@ -9028,6 +9045,7 @@ mod red_tests {
     }
     #[test]
     fn each_task_identity_and_each_held_checkpoint_is_required() {
+        let fixture = met();
         for (read, _, parent) in red_tasks() {
             for path in [
                 "/task/chip/task",
@@ -9039,7 +9057,7 @@ mod red_tests {
                 if parent == 0 && path == "/task/requester/task" {
                     continue;
                 }
-                let mut bad = met();
+                let mut bad = fixture.clone();
                 *bad.documents.get_mut(&read).expect("task").pointer_mut(path).expect("identity") = Value::Null;
                 rejects(&bad, RED_DEPLOYMENT);
             }
@@ -9051,19 +9069,20 @@ mod red_tests {
                 "/task/chip/details/owner/details/observation/work",
                 "/task/chip/details/owner/phase/active/running/attempt",
             ] {
-                let mut bad = met();
+                let mut bad = fixture.clone();
                 *bad.documents.get_mut(&read).expect("writing").pointer_mut(path).expect("field") = Value::Null;
                 rejects(&bad, RED_DEPLOYMENT);
             }
         }
         for path in ["/live_after", "/ended/rows/after"] {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             *bad.documents.get_mut(&Read::RedRootsEnded).expect("roots").pointer_mut(path).expect("field") = json!(99);
             rejects(&bad, RED_DEPLOYMENT);
         }
     }
     #[test]
     fn only_unspent_uncommitted_rechecks_followed_by_a_finished_attempt_are_allowed() {
+        let fixture = met();
         for (read, task, _) in red_tasks().into_iter().filter(|(_, task, _)| *task != RED_CHANGE && *task != RED_REPAIR)
         {
             let mut lines = vec![
@@ -9075,7 +9094,7 @@ mod red_tests {
             if task == RED_DIRECTOR {
                 lines.push(json!({"words":{"message":RED_PERSON_MESSAGE,"words":RED_MESSAGE}}));
             }
-            let mut accepted = met();
+            let mut accepted = fixture.clone();
             accepted.documents.get_mut(&read).expect("task")["activity"] = journal(task, &lines);
             if task == RED_DIRECTOR {
                 accepted.documents.get_mut(&read).expect("director")["task"]["activity"] = json!(5);
@@ -9727,7 +9746,8 @@ mod cap_tests {
     }
     #[test]
     fn opening_requires_the_span_inheritance_and_begin_before_the_wall() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         for (read, path) in [
             (Read::CapHeldWait, "/task/chip/phase"),
             (Read::CapHeldWait, "/task/chip/task"),
@@ -9739,14 +9759,14 @@ mod cap_tests {
             field(&mut passing, read, path, CAP_OPENING);
         }
         for read in [Read::CapHeld, Read::CapA5Writing] {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             let rows = bad.documents.get_mut(&read).expect("doc")["activity"]["rows"].as_array_mut().expect("rows");
             for row in rows {
                 row["event"]["owner"]["source"]["at"] = json!(deadline() + 1);
             }
             rejects(&bad, CAP_OPENING);
         }
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.told.push(told(
             Agent::CapSubowner,
             &tool("timer", "subscribe", &json!({"kind":"timer","at":deadline()+1}), "Subscription 1 added"),
@@ -9755,7 +9775,8 @@ mod cap_tests {
     }
     #[test]
     fn opening_requires_the_parked_journals_complete_successful_delegation() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         for suffix in [
             "source/task",
             "source/line/turn/attempt",
@@ -9777,7 +9798,8 @@ mod cap_tests {
     }
     #[test]
     fn the_deadline_hold_is_an_unadmitted_rail_wake() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         for path in ["/task/chip/task", "/task/chip/phase", "/task/hold/owner/reason", "/task/hold/owner/revision"] {
             field(&mut passing, Read::CapHeld, path, CAP_ADMISSION);
         }
@@ -9786,7 +9808,7 @@ mod cap_tests {
             json!({"turn":{"attempt":2}}),
             json!({"run_ended":{"attempt":2,"end":"failed"}}),
         ] {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             bad.documents.get_mut(&Read::CapHeld).expect("held")["activity"]["rows"]
                 .as_array_mut()
                 .expect("rows")
@@ -9796,24 +9818,26 @@ mod cap_tests {
     }
     #[test]
     fn the_escalation_waits_at_each_holder_and_is_told_once() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         for read in [Read::CapHeld, Read::CapPassed] {
             field(&mut passing, read, "/task/hold/owner/escalation/waiting/holder/task", CAP_ESCALATION);
         }
         for agent in [Agent::CapOwner, Agent::CapDirector] {
-            let mut missing = met();
+            let mut missing = fixture.clone();
             missing
                 .told
                 .retain(|t| !(t.agent == agent && user_words(t).any(|w| contains(w, "Held task needs a decision"))));
             rejects(&missing, CAP_ESCALATION);
-            let mut duplicate = met();
+            let mut duplicate = fixture.clone();
             duplicate.told.push(told(agent, &[input("Held task needs a decision")]));
             rejects(&duplicate, CAP_ESCALATION);
         }
     }
     #[test]
     fn the_director_changes_the_next_revision_deadline_and_instructions() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         for read in [Read::CapReleased, Read::CapSubownerEnded] {
             for path in [
                 "/task/spec_revision/value",
@@ -9824,17 +9848,18 @@ mod cap_tests {
                 field(&mut passing, read, path, CAP_AMENDMENT);
             }
         }
-        let mut bad = met();
+        let mut bad = fixture.clone();
         bad.told.retain(|t| !(t.agent == Agent::CapDirector && contains(&t.words, "Done: task")));
         rejects(&bad, CAP_AMENDMENT);
     }
     #[test]
     fn release_precedes_the_next_run_and_report_and_carries_the_split() {
-        let mut held = met();
+        let fixture = met();
+        let mut held = fixture.clone();
         held.documents.get_mut(&Read::CapReleased).expect("release")["task"]["hold"] =
             json!({"owner":{"reason":"deadline"}});
         rejects(&held, CAP_RELEASE);
-        let mut before = met();
+        let mut before = fixture.clone();
         let rows = before.documents.get_mut(&Read::CapSubownerEnded).expect("A1")["activity"]["rows"]
             .as_array_mut()
             .expect("rows");
@@ -9845,13 +9870,14 @@ mod cap_tests {
             }
         }
         rejects(&before, CAP_RELEASE);
-        let mut no_split = met();
+        let mut no_split = fixture.clone();
         no_split.told.retain(|t| !(t.agent == Agent::CapSubowner && contains(&t.system, CAP_SPLIT)));
         rejects(&no_split, CAP_RELEASE);
     }
     #[test]
     fn a5_must_still_write_and_finish_exactly_its_one_attempt_across_the_cap() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         field(&mut passing, Read::CapA5Ended, "/task/authority/authority/deadline", CAP_RUNNING);
         for path in [
             "/task/chip/task",
@@ -9861,14 +9887,14 @@ mod cap_tests {
             field(&mut passing, Read::CapA5Writing, path, CAP_RUNNING);
         }
         for (began, ended) in [(deadline() + 1, deadline() + 2), (BUILT, deadline() - 1)] {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             let rows =
                 bad.documents.get_mut(&Read::CapA5Ended).expect("a5")["activity"]["rows"].as_array_mut().expect("rows");
             rows[0]["event"]["owner"]["source"]["at"] = json!(ended);
             rows[2]["event"]["owner"]["source"]["at"] = json!(began);
             rejects(&bad, CAP_RUNNING);
         }
-        let mut second = met();
+        let mut second = fixture.clone();
         second.documents.get_mut(&Read::CapA5Ended).expect("a5")["activity"]["rows"]
             .as_array_mut()
             .expect("rows")
@@ -9880,17 +9906,19 @@ mod cap_tests {
     }
     #[test]
     fn both_inbox_reads_are_complete_and_empty() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         for read in [Read::CapInboxHeld, Read::CapInboxHeldAfter, Read::CapInboxEnded, Read::CapInboxEndedAfter] {
             field(&mut passing, read, "/needs/cut", CAP_INBOX);
-            let mut bad = met();
+            let mut bad = fixture.clone();
             bad.documents.get_mut(&read).expect("inbox")["needs"]["rows"] = json!([{"question":1}]);
             rejects(&bad, CAP_INBOX);
         }
     }
     #[test]
     fn both_inbox_continuations_must_be_exhausted() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         for read in [Read::CapInboxHeldAfter, Read::CapInboxEndedAfter] {
             field(&mut passing, read, "/needs/after", CAP_INBOX);
         }
@@ -9898,6 +9926,7 @@ mod cap_tests {
     #[test]
     fn every_decision_requires_its_successful_tool_exchange() {
         use skein_fake_llm_domain::api::Part;
+        let fixture = met();
         for (agent, name, promise) in [
             (Agent::CapSubowner, b"delegate".as_slice(), CAP_OPENING),
             (Agent::CapOwner, b"delegate".as_slice(), CAP_OPENING),
@@ -9905,7 +9934,7 @@ mod cap_tests {
             (Agent::CapDirector, b"amend".as_slice(), CAP_AMENDMENT),
             (Agent::CapDirector, b"release".as_slice(), CAP_RELEASE),
         ] {
-            let mut bad = met();
+            let mut bad = fixture.clone();
             for query in bad.told.iter_mut().filter(|q| q.agent == agent) {
                 let ids: BTreeSet<_> = query
                     .history
@@ -9935,19 +9964,21 @@ mod cap_tests {
     }
     #[test]
     fn older_pages_must_be_complete_and_preserve_the_first_attempt() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         {
             let read = Read::CapDirectorFirst;
             field(&mut passing, read, "/cut", CAP_ATTEMPTS);
             field(&mut passing, read, "/before", CAP_ATTEMPTS);
-            let mut bad = met();
+            let mut bad = fixture.clone();
             bad.documents.get_mut(&read).expect("first")["rows"].as_array_mut().expect("rows").pop();
             rejects(&bad, CAP_ATTEMPTS);
         }
     }
     #[test]
     fn every_cast_member_has_a_done_report_and_complete_attempt_history() {
-        let mut passing = met();
+        let fixture = met();
+        let mut passing = fixture.clone();
         for (read, _, _, _) in cap_tasks() {
             for path in
                 ["/task/chip/task", "/task/project", "/task/result/value/report/bytes", "/task/result/ending/task/done"]
@@ -9955,7 +9986,7 @@ mod cap_tests {
                 field(&mut passing, read, path, CAP_CHECKPOINT);
             }
             field(&mut passing, read, "/activity/cut", CAP_ATTEMPTS);
-            let mut bad = met();
+            let mut bad = fixture.clone();
             bad.documents.get_mut(&read).expect("task")["activity"]["rows"][0]["event"]["owner"]["source"]["line"]["run_ended"]
                 ["end"] = json!({"failed":{"class":"agent"}});
             rejects(&bad, CAP_ATTEMPTS);
