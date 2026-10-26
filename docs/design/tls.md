@@ -380,12 +380,19 @@ independence.
   nothing of, read with plain `read` calls. getrandom's
   `linux_disable_fallback` feature would make that an error instead;
   skein does not set it.
-- **None on the portable target:** built for `wasm32-unknown-unknown`,
-  where a playground's world links skein-tls and makes no connection
-  (testing.md, 10), skein-tls registers getrandom's `custom` backend,
-  under that target alone, as a source that panics, naming itself. A
-  world draws only from its seed, so a draw there is a bug, found at
-  once.
+- **Refused on the portable target:** built for
+  `wasm32-unknown-unknown`, where a playground's world links skein-tls
+  and makes no connection (testing.md, 10), skein-tls makes no client
+  configuration, no session and no signature: each refuses, as a
+  configuration the provider refuses does, so no path of a world
+  reaches ring's randomness. A world draws only from its seed, so
+  reaching TLS there is a bug, found at once. ring itself still needs a
+  source to build on that target, and takes the browser's, its
+  `wasm32_unknown_unknown_js` feature, set by skein-tls on that target
+  alone: getrandom 0.2 would take that before any source registered in
+  its place, so the refusal is skein-tls's, one level up. rustls's
+  `std`, whose clock that target lacks, is native only, and a peer's
+  TLS server with it (fake-forge.md, 5).
 - **No clock:** rustls asks a time provider for the time it checks
   certificates against. Each connection's configuration carries one that
   answers the `env.wall` of the step that started its handshake, read

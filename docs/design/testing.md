@@ -439,11 +439,11 @@ A playground runs a service's simulated world in a browser
   they are tests', and native.
 - **Fenced by target:** what reads the system is under `cfg(unix)` where
   it sits, never behind a feature (shell.md, 14).
-- **No entropy there.** A world draws every choice from its seed and runs
-  in plaintext; on this target `skein-tls` registers a source of
-  entropy that panics, naming itself (tls.md, 4), so a path that reaches
-  for the host's entropy fails at once rather than drawing from the
-  page.
+- **No TLS there.** A world draws every choice from its seed and runs
+  in plaintext; on this target `skein-tls` refuses every configuration,
+  session and signature (tls.md, 4), so no path of a world reaches
+  ring's randomness, and one that tries fails at once. The peers serve
+  plaintext alone there.
 - **Checked in the gate** with clippy's lints as errors on this target,
   over every crate of the list above: a native item reached from the
   portable face fails the build, and a fence that leaves code dead warns.
