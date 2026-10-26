@@ -1361,6 +1361,11 @@ one that stands; an older build's is moved aside (section 2). Each
 - `Set`: "This build's patches do not plan, and this start has changed
   nothing in `<deployment>`. The build is wrong: start the build before it
   again."
+- `InFlight`: "`<deployment>` holds effects its last run sent and did not
+  settle, in records this build's patches change, and this start has
+  changed nothing in it. Start the build before it again, let it settle
+  them, and stop it: a stop settles what it sent first. Then start this
+  build." The shell names each effect after it, from its key (10.3).
 - `Check { why: Large }`: "The check before the switch found a patched record
   too large for a commit alone in the copy of the store this start patched in
   `<deployment>`, and the generation it patched from stays active, unchanged.
@@ -1403,6 +1408,7 @@ pub enum OpenRefusal {
     Patch { owner: Owner, patch: u32, key: Box<[u8]>, halt: Halt }, // a record the patch refused (10.2)
     Set { owner: Owner, patch: u32 },                          // a patch set that does not plan (10.3)
     Check { why: Check },                                      // the check before the switch (10.2, step 5)
+    InFlight { owner: Owner, family: &'static str, count: u32, keys: Box<[Box<[u8]>]> }, // effects a pending patch reshapes (10.3)
 }
 pub enum Older { Unrecorded, Layout(Family), Directory, Unleveled }
 pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
@@ -1579,6 +1585,7 @@ pub struct KeptFamily {
     pub map: KeptMap,
     pub keys: &'static [Keys],            // its records' keys, and no other's
     pub frames: Option<&'static str>,     // the declaration it is in transcripts' frames, where their machine starts
+    pub flights: &'static [Keys],         // ranges whose every record is an effect in flight, its key naming it
 }
 pub struct Keys {
     pub from: &'static [u8],              // inclusive
@@ -1665,6 +1672,29 @@ impl PatchSets {
   step 4); a set whose `fresh` is `None` marks nothing, and a patch's
   other marks are its owner's alone. A patch may carry a mark and change
   no family.
+- **Effects in flight** (temper's `draft/upgrades.md`, section 8) are
+  the application's to show and the plan's to refuse. A connector that
+  keeps an effect's sent attempt keeps, beside its outbox entry, a
+  record of its own in a range that holds nothing else, its key naming
+  the effect and its task: written in the commit that records the
+  attempt, kept while the effect is unresolved (uncertain, retried,
+  settled at a restart), and erased in the one that settles it for good
+  or holds it for a person (`../domain/connectors.md`, 4.2 and 4.3);
+  its set names those ranges (`KeptFamily::flights`). The plan reads
+  them in `A`, for each family a pending patch changes (its blocks name
+  it), in the plan's order, before anything is written: the first
+  family with a record there refuses the start, `InFlight` with the
+  family, how many it holds and their first keys, at most 64, since the
+  patch would reshape what the next start must recover in its old
+  shape. The shell names each key it was given (temper's: the entry and
+  its task) and how many more there are. A family is the patch's unit,
+  so an application whose records are one family refuses any patch of
+  its own while one effect is in flight.
+  A family no pending patch changes keeps its effects, which the new
+  version recovers as after any stop (`../domain/engine.md`, section 6,
+  step 5). Every stop settles first, so the ranges are empty after one
+  that settled, and the refusal meets a crash or a stop past its bound.
+  A set with no such range never refuses.
 - **One machine per kept family,** a `Patcher` (skein's `codec.md`,
   11.4 and 11.6), made at the plan, on the patch path alone, with its
   capacity from the family's limits and texts, each kept text kept and
@@ -1731,7 +1761,7 @@ pub struct Counts { pub records: u64, pub commits: u64 }
   These shells are temper's store shell, engine, store route, accounts
   and clients, and its domain world's driver; and jig's test service,
   test stores and accounts worlds. Sets' new fields (`PatchSet::fresh`,
-  `KeptFamily::frames`) reach no shell downstream, since none builds a
+  `KeptFamily::frames`, `KeptFamily::flights`) reach no shell downstream, since none builds a
   set before the baseline; reads patched as they are read add no
   variant. The closed window is the core's (`../domain/engine.md`,
   section 6), and reaches temper's sources as no change.
@@ -1904,7 +1934,10 @@ Each within jig's suites' budgets.
 - **Generations and patching,** in the store's world: a fixture owner's
   patch sets over a store at an older level, patched, checked, opened
   `pending`, switched only when its root asks, never before, and a
-  root that ends before asking leaving the old generation active; each
+  root that ends before asking leaving the old generation active; a
+  fixture family's flight range holding a record under a pending patch
+  refused `InFlight`, naming it, before any write, and the same record
+  under a patch of another family patched past it; each
   refusal before any
   write; a second start refused `Busy` while one holds the lock; the
   copy's secrets private; a cut at every write, sync and rename of the
@@ -2027,8 +2060,6 @@ Each within jig's suites' budgets.
   to it (section 2, 5.3, 10.1 to 10.4). Still open:
   - values nested in another owner's family as they run across owners'
     levels (skein's `codec.md`, section 13);
-  - effects in flight that a patch changes (temper's
-    `draft/upgrades.md`, section 8): the plan refuses none yet;
   - pieces held by a frame's turn (smith's `Found.hits`, `pieces Hit`)
     are copied, not opened, so a smith patch that changes `Hit` is
     refused `Pieces` until they open (skein's `codec.md`, 11.3 and
