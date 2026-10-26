@@ -1480,7 +1480,7 @@ for its kind, its user's login and its installations. Its nodes:
 
 | Outcome | The form says |
 |---|---|
-| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It is the project's home." if so; "temper may: KINDS." in the forge's words; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "Branch protection could not be read." if unknown; "It merges by STYLE."; then each rule as `forge.md`, 5.1 words it, on Forgejo its branch protection alone |
+| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It is the project's home." if so; "temper may: KINDS." in the forge's words; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `forge.md`, 5.1 words it, on Forgejo its branch protection alone |
 | refused by the core | jig's words for its refusal |
 | no such forge | "No forge F is configured." |
 | not connected | "Forge F is not connected.", linked to the forges' page (3.5) |

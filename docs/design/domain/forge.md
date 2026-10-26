@@ -211,7 +211,8 @@ temper-engine-domain-forge              the connector's top: resources and holds
   read gives reads alone; no permission refuses the adoption as
   forbidden. Forgejo refuses protection reads to a writer who is not an
   admin (skein's `forge.md`, section 9): adoption records
-  protection as unknown, never as absent. On GitHub temper's user is
+  protection as unknown, never as absent, and its words say why
+  (`../client/README.md`, 4.7). On GitHub temper's user is
   its App's bot, its permission the installation's on that repository,
   and protection the rules GitHub applies to the branch (4.4). A write
   the forge refuses narrows what temper may do there, for every later

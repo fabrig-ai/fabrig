@@ -984,9 +984,11 @@ may change with them.
   link down past its deadline (section 12), ADDRESS as `address` holds
   it.
 - **`adopt`:** adopted exits 0, with branch protection unknown or not
-  (`README.md`, 4.7, prints "Branch protection could not be read."
-  then); unknown past the retention exits 1; each other outcome there,
-  not found, no access and refused among them, exits 2, in its words.
+  (`README.md`, 4.7, prints "temper's forge user may not read the
+  branch protection: the forge shows it to repository administrators
+  only." then); unknown past the retention exits 1; each other outcome
+  there, not found, no access and refused among them, exits 2, in its
+  words.
 
 ### 6.4 Bounded
 
