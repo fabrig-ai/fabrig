@@ -1106,8 +1106,8 @@ may change with them.
   bound) is another ask, refused as a key conflict.
 - **A name the client holds already** is answered `Held`, nothing sent
   (jig's `client/domain/client.md`, section 6). A call sends what
-  DIRECTORY kept, and waits for each answer, before it sends its own
-  (8.2), so it meets `Held` only past that, or for a name another
+  DIRECTORY kept again before it sends its own (8.2), so it meets
+  `Held` for a name a kept request of its party still holds, or another
   party's parked request holds (8.2); it exits 1.
 - **Names are the party's.** Agents sharing a party give their names a
   prefix of their own; the guide says so (11.5).
@@ -1222,10 +1222,16 @@ as the terminal's host is:
 2. open DIRECTORY and check its address (8.1); for a call that sends,
    take its lock (8.3) and load the small store's records;
 3. start the tools' root, sign in with the token, wait for `me`;
-4. send what the store kept for `me`'s party, each answered as a line
-   on stderr, `kept: ...`, a restored proposal's without its recipient
-   (6.1); the step ends once each is answered and its record erased, so
-   that the store keeps nothing of the party's when the call is sent;
+4. send what the store kept for `me`'s party again, each answered as a
+   line on stderr, `kept: ...`, a restored proposal's without its
+   recipient (6.1), and its record erased once its answer is durable;
+   the step ends once each is sent, not answered, so that a kept request
+   the engine does not answer (busy past its retries, a bound full)
+   holds no other act: the call's own local keys are drawn past those
+   the kept requests hold, and the call goes on beside them. One still
+   unanswered when the call ends stays kept, named on stderr: `kept:
+   adopt, key NAME, first sent T, unanswered: it clears when the
+   engine answers it, or past its retention; pending lists it`;
 5. run the call: a read answered, an act's answer durable, a wait's
    condition met or its timeout;
 6. print the result on stdout, close the stream, exit with the call's
