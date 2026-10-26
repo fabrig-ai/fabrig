@@ -35,6 +35,9 @@ pub struct KeptFamily {
     pub keys: &'static [Keys],
     /// The declaration used as a transcript frame root.
     pub frames: Option<&'static str>,
+    /// Ranges whose every record is an effect in flight, its key naming
+    /// it (store.md 10.3), in `Keys`' form. Empty: none.
+    pub flights: &'static [Keys],
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Keys {

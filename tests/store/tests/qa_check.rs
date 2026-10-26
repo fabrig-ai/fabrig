@@ -445,7 +445,14 @@ fn bounded_sets(families: usize, name_bytes: usize) -> PatchSets {
         let text: &'static str =
             Box::leak(format!("family {name} 1\nversioned record Empty {{ n: u64 }}\n").into_boxed_str());
         let texts = Box::leak(vec![text].into_boxed_slice());
-        kept.push(KeptFamily { frames: None, name, texts, map: jig_protocol_store::KeptMap::Store, keys: &[] });
+        kept.push(KeptFamily {
+            flights: &[],
+            frames: None,
+            name,
+            texts,
+            map: jig_protocol_store::KeptMap::Store,
+            keys: &[],
+        });
     }
     let kept = Box::leak(kept.into_boxed_slice());
     let sets = Box::leak(vec![PatchSet { families: kept, ..*application }, *upstream].into_boxed_slice());

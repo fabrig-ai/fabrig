@@ -8,6 +8,7 @@ use skein_lib::{Duration, Token};
 
 pub const SEED: u64 = 118;
 const TURN: KeptFamily = KeptFamily {
+    flights: &[],
     name: "fixture-turn",
     texts: &[fixture::patches::kept::fixture_turn::TEXTS[0]],
     map: KeptMap::Store,

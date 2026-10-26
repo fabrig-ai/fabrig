@@ -1409,8 +1409,14 @@ fn assert_page_rows(store: &mut Store, last: u64) {
 // component-v3.schema bounds: 64 counts, each family at most 64 bytes.
 const MANIFEST_FAMILIES: usize = 64;
 const MANIFEST_NAME: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab";
-const MANIFEST_FAMILY: crate::KeptFamily =
-    crate::KeptFamily { frames: None, name: MANIFEST_NAME, map: crate::KeptMap::Store, texts: &[], keys: &[] };
+const MANIFEST_FAMILY: crate::KeptFamily = crate::KeptFamily {
+    flights: &[],
+    frames: None,
+    name: MANIFEST_NAME,
+    map: crate::KeptMap::Store,
+    texts: &[],
+    keys: &[],
+};
 const MANIFEST_SET: crate::PatchSet = crate::PatchSet {
     fresh: None,
     owner: crate::Owner::Application,

@@ -126,6 +126,10 @@ fn level_and_patch_refusals_say_the_designs_words() {
             "- `Patch`: \"",
         ),
         (OpenRefusal::Set { owner: crate::Owner::Application, patch: 2 }, "- `Set`: \""),
+        (
+            OpenRefusal::InFlight { owner: crate::Owner::Application, family: "fixture", count: 0, keys: Box::new([]) },
+            "- `InFlight`: \"",
+        ),
     ] {
         says(refusal, start, "\"");
     }

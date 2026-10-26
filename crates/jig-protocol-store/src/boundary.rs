@@ -288,6 +288,9 @@ pub enum OpenRefusal {
     /// The check before the switch failed (10.2, step 5); the generation
     /// patched from stays active, unchanged.
     Check { why: Check },
+    /// Effects a pending patch reshapes (store.md 10.3): the first family
+    /// in the plan's order, its count, and its first keys, at most 64.
+    InFlight { owner: crate::Owner, family: &'static str, count: u32, keys: Box<[Box<[u8]>]> },
 }
 /// A refusal whose fix moves the generations (store.md 2), `why` saying
 /// which version or build.
@@ -307,6 +310,11 @@ macro_rules! older {
         ]
     };
 }
+
+const IN_FLIGHT_WORDS: &[&str] = &[
+    "",
+    " holds effects its last run sent and did not settle, in records this build's patches change, and this start has changed nothing in it. Start the build before it again, let it settle them, and stop it: a stop settles what it sent first. Then start this build.",
+];
 
 impl OpenRefusal {
     /// The refusal's text in pieces, in order: the deployment's directory goes
@@ -375,6 +383,7 @@ impl OpenRefusal {
                 ". The build is wrong: start the build before it again.",
             ],
             Self::Check { why } => why.words(),
+            Self::InFlight { .. } => IN_FLIGHT_WORDS,
             Self::OlderBuild { why: Older::Unrecorded } => older!("made before its families' layouts were recorded"),
             Self::OlderBuild { why: Older::Layout(family) } => match family {
                 Family::Settings => older!("whose settings family's layout differs from this build's"),

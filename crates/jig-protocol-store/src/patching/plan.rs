@@ -1,5 +1,6 @@
 //! Order across owners, using four explicit stack frames (protocol/store.md 10.3).
 use super::sets::{Owner, PatchSet, PatchSets};
+use alloc::boxed::Box;
 use skein_codec::patch::{Header, header};
 use skein_lib::List;
 
@@ -382,4 +383,117 @@ fn holds(sets: &PatchSets) -> Result<(), Unplanned> {
         }
     }
     Ok(())
+}
+
+/// The read-only part of planning, before cleanup or closing A (store.md
+/// 10.3). Only a patch's own blocks select families; held-value walks do not.
+pub(crate) fn flights(
+    store: &mut crate::Store,
+    plan: &Plan,
+    machines: &super::machines::Machines,
+) -> Result<(), crate::OpenRefusal> {
+    let sets = store.patch_sets;
+    for &step in plan.steps() {
+        for ix in 0..machines.len() {
+            let machine = machines.get(super::machines::FamilyIx(ix));
+            if machine.block(step).is_none() {
+                continue;
+            }
+            let family = sets
+                .sets
+                .get(machine.set)
+                .expect("machine's set")
+                .families
+                .get(machine.family)
+                .expect("machine's family");
+            if family.flights.is_empty() {
+                continue;
+            }
+            let FlightKeys { count, keys } =
+                flight_keys(store, step.owner, family).ok_or(crate::OpenRefusal::Failed)?;
+            if count != 0 {
+                return Err(crate::OpenRefusal::InFlight { owner: step.owner, family: family.name, count, keys });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// store.md 10.3 bounds the keys named in a refusal independently of the count.
+const FLIGHT_KEYS: u32 = 64;
+struct FlightKeys {
+    count: u32,
+    keys: Box<[Box<[u8]>]>,
+}
+fn flight_keys(store: &mut crate::Store, owner: Owner, family: &super::sets::KeptFamily) -> Option<FlightKeys> {
+    use crate::{KeptMap, pages};
+    let rows = match family.map {
+        KeptMap::Store => store.stores.store.len(),
+        KeptMap::Secrets => store.stores.secrets.len(),
+    };
+    let mut count = 0_u32;
+    let mut keys = List::<Box<[u8]>>::with_capacity(FLIGHT_KEYS);
+    for keys_range in family.flights {
+        let range = pages::kept_interval(store, owner, family.map, keys_range)?;
+        let mut cursor = None;
+        // One row per page keeps the read's transient room independent of
+        // the number named. Each nonterminal page must consume a record.
+        for _ in 0..=rows {
+            let page = pages::walk_map(store, family.map, core::slice::from_ref(&range), cursor.as_ref(), 1)?;
+            if page.rows.is_empty() && page.next.is_some() {
+                return None;
+            }
+            for row in page.rows {
+                count = count.saturating_add(1);
+                if keys.len() < FLIGHT_KEYS {
+                    let key = if owner == Owner::Application {
+                        match family.map {
+                            KeptMap::Store => crate::keys::of_application(&row.row.key)?,
+                            KeptMap::Secrets => crate::secrets::of_application(&row.row.key)?,
+                        }
+                    } else {
+                        row.row.key.as_ref()
+                    };
+                    keys.push(skein_lib::bytes::copy_of(key)).expect("at most the first 64 keys");
+                }
+            }
+            cursor = page.next;
+            if cursor.is_none() {
+                break;
+            }
+        }
+        if cursor.is_some() {
+            return None;
+        }
+    }
+    Some(FlightKeys { count, keys: keys.into_boxed() })
+}
+
+/// Named keys coexist with a one-row memory page and its exclusive cursors.
+/// This is an alternative to copying, walking and checking, not resident state.
+pub(crate) fn flights_worst_case(limits: &crate::Limits, sets: &PatchSets) -> Option<u64> {
+    let mut peak = 0_u64;
+    for set in sets.sets {
+        for family in set.families {
+            if family.flights.is_empty() {
+                continue;
+            }
+            let map = match family.map {
+                super::sets::KeptMap::Store => &limits.store,
+                super::sets::KeptMap::Secrets => &limits.secrets,
+            };
+            let key = u64::from(map.key).checked_add(1)?;
+            let named = List::<Box<[u8]>>::worst_case(FLIGHT_KEYS)?
+                .checked_add(u64::from(FLIGHT_KEYS).checked_mul(u64::from(map.key))?)?;
+            // The caller's range and cursor (3 keys); walk_map's range,
+            // last and row cursor (4); load/past and the lookahead row (5).
+            // Exclusive cursors can be one byte longer than stored keys.
+            let page = List::<crate::pages::WalkRow>::worst_case(1)?
+                .checked_add(List::<skein_kv::Row>::worst_case(1)?)?
+                .checked_add(u64::from(map.page.bytes).checked_mul(2)?)?
+                .checked_add(key.checked_mul(12)?)?;
+            peak = peak.max(named.checked_add(page)?);
+        }
+    }
+    Some(peak)
 }

@@ -73,11 +73,10 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
             } else if header.commits != last {
                 refuse(store, owner, OpenRefusal::Numbers { store: last, header: header.commits }, above);
             } else {
-                if compared == format::Compared::Behind {
-                    match pending(store, found_levels, binary) {
-                        Ok(pending) => store.directory.patch = Some(Box::new(pending)),
-                        Err(why) => return refuse(store, owner, why, above),
-                    }
+                if compared == format::Compared::Behind
+                    && let Err(why) = pending(store, found_levels, binary)
+                {
+                    return refuse(store, owner, why, above);
                 }
                 restore_installation(store, owner, last, above, below);
             }
@@ -99,7 +98,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     }
 }
 
-fn pending(store: &Store, found: plan::Levels, binary: plan::Levels) -> Result<Pending, OpenRefusal> {
+fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Result<(), OpenRefusal> {
     let plan = match plan::plan(&store.patch_sets, &found, &binary) {
         Ok(plan) => plan,
         Err(why) => return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch }),
@@ -108,7 +107,11 @@ fn pending(store: &Store, found: plan::Levels, binary: plan::Levels) -> Result<P
         Ok(machines) => machines,
         Err(why) => return Err(OpenRefusal::Set { owner: why.owner, patch: why.patch }),
     };
-    Ok(Pending { plan, machines, found })
+    let flights = plan::flights(store, &plan, &machines);
+    // Retain the plan on refusal too: its machines and named flight keys
+    // belong to the patching peak, including the step that planned them.
+    store.directory.patch = Some(Box::new(Pending { plan, machines, found }));
+    flights
 }
 
 fn check_layouts(store: &mut Store, owner: Token) -> Result<(), OpenRefusal> {

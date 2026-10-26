@@ -521,6 +521,7 @@ pub(crate) fn worst_case(limits: &Limits, sets: &crate::PatchSets) -> Option<u64
     walking
         .max(copying)
         .max(checking)
+        .max(super::plan::flights_worst_case(limits, sets)?)
         .checked_add(List::<Counted>::worst_case(crate::component_v3::CEILINGS.manifest_counts)?)?
         .checked_add(manifest)?
         .checked_add(super::machines::worst_case(sets, super::machines::Rooms::of(limits))?)?

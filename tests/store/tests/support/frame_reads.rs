@@ -22,6 +22,7 @@ pub(crate) const SETS: PatchSets = PatchSets {
             patches: jig::PATCHES,
             fresh: None,
             families: &[KeptFamily {
+                flights: &[],
                 name: "fixture-frame",
                 texts: jig::kept::fixture_frame::TEXTS,
                 map: KeptMap::Store,
@@ -35,6 +36,7 @@ pub(crate) const SETS: PatchSets = PatchSets {
             patches: smith::PATCHES,
             fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
+                flights: &[],
                 name: "fixture-turn",
                 texts: smith::kept::fixture_turn::TEXTS,
                 map: KeptMap::Store,

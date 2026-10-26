@@ -12,6 +12,7 @@ use skein_codec::value::{Node, Value};
 use skein_lib::{Writer, bytes};
 
 const LABEL: KeptFamily = KeptFamily {
+    flights: &[],
     frames: None,
     name: "fixture-label",
     map: KeptMap::Store,
@@ -19,6 +20,7 @@ const LABEL: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
+    flights: &[],
     frames: None,
     name: "fixture-shelf",
     map: KeptMap::Store,
@@ -30,6 +32,7 @@ const SHELF: KeptFamily = KeptFamily {
     }],
 };
 const TOKEN: KeptFamily = KeptFamily {
+    flights: &[],
     frames: None,
     name: "fixture-token",
     texts: app::kept::fixture_token::TEXTS,
@@ -37,6 +40,7 @@ const TOKEN: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
 const NOTE: KeptFamily = KeptFamily {
+    flights: &[],
     frames: None,
     name: "fixture-note",
     map: KeptMap::Store,
@@ -579,7 +583,14 @@ fn an_identity_walk_of_another_owners_holder_is_allowed() {
         owner: Owner::Application,
         name: "holder",
         patches: &[],
-        families: &[KeptFamily { frames: None, map: KeptMap::Store, name: "holder", texts: &[HOLDER], keys: &[] }],
+        families: &[KeptFamily {
+            flights: &[],
+            frames: None,
+            map: KeptMap::Store,
+            name: "holder",
+            texts: &[HOLDER],
+            keys: &[],
+        }],
     };
     let sets = PatchSets { sets: &[HOLDER_SET, JIG] };
     let found = plan::binary(&PatchSets { sets: &[HOLDER_SET] });
@@ -609,8 +620,15 @@ fn two_families_holding_each_other_refuse_the_plan() {
             name: "cycle",
             patches: &[PATCH],
             families: &[
-                KeptFamily { frames: None, map: KeptMap::Store, name: "cycle-a", texts: &[A], keys: &[] },
-                KeptFamily { frames: None, map: KeptMap::Store, name: "cycle-b", texts: &[B1, B2], keys: &[] },
+                KeptFamily { flights: &[], frames: None, map: KeptMap::Store, name: "cycle-a", texts: &[A], keys: &[] },
+                KeptFamily {
+                    flights: &[],
+                    frames: None,
+                    map: KeptMap::Store,
+                    name: "cycle-b",
+                    texts: &[B1, B2],
+                    keys: &[],
+                },
             ],
         }],
     };
@@ -627,6 +645,7 @@ pub(super) const SMITH: PatchSet = PatchSet {
     fresh: Some(jig_test_patches_smith::FRESH),
     patches: jig_test_patches_smith::patches::PATCHES,
     families: &[KeptFamily {
+        flights: &[],
         name: "fixture-turn",
         texts: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS,
         map: KeptMap::Store,

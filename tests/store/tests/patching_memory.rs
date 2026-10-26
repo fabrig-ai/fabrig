@@ -81,17 +81,10 @@ fn observe(step: Step) {
 fn a_whole_patching_open_stays_within_its_priced_peak() {
     let records = Records::story();
     let mut source = records.committed(920, BASE);
-    let items: Vec<_> = source
-        .contents()
-        .into_iter()
-        .map(|(path, bytes)| match bytes {
-            Some(bytes) => skein_fake_machine::Item::file(&path, &bytes).mode(0o600),
-            None => skein_fake_machine::Item::directory(&path).mode(0o700),
-        })
-        .collect();
+    let items = image(&mut source);
     let mut peaks = [0; 2];
     for sets in [BASE, SETS] {
-        let phases = measured(&items, &limits(), sets);
+        let phases = measured(&items, &limits(), sets, true);
         for (index, phase) in phases.into_iter().enumerate() {
             let name = if index == 0 { "serving" } else { "patching" };
             eprintln!("{name}: measured {} / priced {} bytes over {} steps", phase.peak, phase.bound, phase.steps);
@@ -105,12 +98,13 @@ fn measured(
     items: &[skein_fake_machine::Item],
     limits: &jig_protocol_store::Limits,
     sets: jig_protocol_store::PatchSets,
+    opens: bool,
 ) -> [Phase; 2] {
     PRICING.with_borrow_mut(|pricing| *pricing = (*limits, sets));
     let mut world = World::unopened_observed(920, *limits, Some(observe));
     world.lay(items);
     world.patch_sets(sets);
-    assert!(world.open().is_some(), "measured open: {:?}", world.refusal());
+    assert_eq!(world.open().is_some(), opens, "measured open: {:?}", world.refusal());
     let phases = MEASURING.with_borrow(|slot| slot.as_ref().expect("measured").phases);
     MEASURING.with_borrow_mut(|slot| *slot = None);
     phases
@@ -120,17 +114,31 @@ fn measured(
 fn the_fresh_closing_walk_stays_within_its_priced_peak() {
     use jig_store_world::patches::{FRESH_AFTER, FRESH_WINDOWS, fresh_committed, fresh_limits};
     let mut source = fresh_committed(920, FRESH_WINDOWS, false);
-    let items: Vec<_> = source
+    let items = image(&mut source);
+    let phases = measured(&items, &fresh_limits(), FRESH_AFTER, true);
+    for (name, phase) in ["fresh serving", "fresh patching"].into_iter().zip(phases) {
+        assert!(phase.steps > 0);
+        eprintln!("{name}: measured {} / priced {} bytes over {} steps", phase.peak, phase.bound, phase.steps);
+    }
+}
+
+fn image(world: &mut World) -> Vec<skein_fake_machine::Item> {
+    world
         .contents()
         .into_iter()
         .map(|(path, bytes)| match bytes {
             Some(bytes) => skein_fake_machine::Item::file(&path, &bytes).mode(0o600),
             None => skein_fake_machine::Item::directory(&path).mode(0o700),
         })
-        .collect();
-    let phases = measured(&items, &fresh_limits(), FRESH_AFTER);
-    for (name, phase) in ["fresh serving", "fresh patching"].into_iter().zip(phases) {
-        assert!(phase.steps > 0);
-        eprintln!("{name}: measured {} / priced {} bytes over {} steps", phase.peak, phase.bound, phase.steps);
-    }
+        .collect()
+}
+
+#[test]
+fn a_flight_refusal_stays_within_the_planning_peak() {
+    use jig_store_world::patches::flights::{self, CHANGES_FLIGHT, NAMED};
+    let mut source = flights::committed(NAMED + 1);
+    let phases = measured(&image(&mut source), &limits(), CHANGES_FLIGHT, false);
+    let phase = phases[1];
+    assert!(phase.steps > 0, "the refusal is charged to patch planning");
+    eprintln!("flight planning: measured {} / priced {} bytes over {} steps", phase.peak, phase.bound, phase.steps);
 }

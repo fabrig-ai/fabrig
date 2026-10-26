@@ -6,6 +6,7 @@ use jig_test_patches_jig::{self as upstream, patches as jig};
 use skein_lib::Secret;
 use std::collections::BTreeMap;
 const LABEL: KeptFamily = KeptFamily {
+    flights: &[],
     frames: None,
     name: "fixture-label",
     map: KeptMap::Store,
@@ -13,6 +14,7 @@ const LABEL: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
+    flights: &[],
     frames: None,
     name: "fixture-shelf",
     map: KeptMap::Store,
@@ -24,6 +26,7 @@ const SHELF: KeptFamily = KeptFamily {
     }],
 };
 const TOKEN: KeptFamily = KeptFamily {
+    flights: &[],
     frames: None,
     name: "fixture-token",
     texts: app::kept::fixture_token::TEXTS,
@@ -31,6 +34,7 @@ const TOKEN: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
 const NOTE: KeptFamily = KeptFamily {
+    flights: &[],
     frames: None,
     name: "fixture-note",
     map: KeptMap::Store,
@@ -337,6 +341,7 @@ pub const FRESH_AFTER: PatchSets = PatchSets {
             patches: jig::PATCHES,
             fresh: None,
             families: &[KeptFamily {
+                flights: &[],
                 name: "fixture-frame",
                 texts: jig::kept::fixture_frame::TEXTS,
                 map: KeptMap::Store,
@@ -350,6 +355,7 @@ pub const FRESH_AFTER: PatchSets = PatchSets {
             patches: jig_test_patches_smith::patches::PATCHES,
             fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
+                flights: &[],
                 name: "fixture-turn",
                 texts: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS,
                 map: KeptMap::Store,
@@ -437,3 +443,5 @@ pub fn fresh_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
     world.crash(seed);
     world
 }
+
+pub mod flights;
