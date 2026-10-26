@@ -131,6 +131,12 @@ policy. Read the reusable policy, if your deployment offers it:
 temper ctl me setting policy 1 --json
 ```
 
+A deployment can start with `engine.projects` and
+`application.landing.projects` both empty. Its first owners own the
+deployment. To make a project with a ceiling beyond the stock's, an
+owner raises the rules and policy 1 together in one settings change,
+then makes the project from policy 1.
+
 The deployment rules supply ceilings, period spend, per-run spend
 floor and cap, and requirements. Read them with `setting rules` as
 shown above. The setting kinds you can name are `charter N`,

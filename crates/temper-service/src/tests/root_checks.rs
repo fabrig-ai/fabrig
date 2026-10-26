@@ -58,6 +58,12 @@ fn the_fixture_document_starts() {
     assert_eq!(&*root(&root_limits()), b"");
 }
 #[test]
+fn a_document_seeding_no_project_starts() {
+    let document = fixtures::with(&fixtures::document(), b"engine.projects", b"[]");
+    let document = fixtures::with(&document, b"application.landing.projects", b"[]");
+    assert_eq!(&*started(&document), b"");
+}
+#[test]
 fn engine_slots_above_0_refuse_the_start() {
     assert_eq!(
         &*started(&engine_with(r#""fleet.engine_slots":1"#)),

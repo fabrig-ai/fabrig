@@ -222,6 +222,9 @@ impl Domain {
             );
         }
         for owner in &config.core.owners {
+            if owner.project == people::DEPLOYMENT {
+                continue;
+            }
             assert!(
                 seed_policy(&config.core.seed_projects, owner.project).is_some(),
                 "bootstrap owner names configured policy"
@@ -1050,6 +1053,9 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         }
     }
     for (index, owner) in config.core.owners.iter().enumerate() {
+        if owner.project == people::DEPLOYMENT {
+            continue;
+        }
         let mut named = false;
         for earlier in config.core.owners.iter().take(index) {
             named |= earlier.project == owner.project;

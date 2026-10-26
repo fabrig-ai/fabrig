@@ -229,6 +229,102 @@ fn a_stored_project_policy_at_the_byte_bound_is_admitted() {
     assert_eq!(restarted.root.restore_failure(), None);
 }
 
+fn deployment_without_projects() -> Driver {
+    let mut config = walking::config(SEED);
+    let llm = jig_protocol_config::Llm {
+        endpoints: Box::new([]),
+        models: walking::models(),
+        descriptions: Box::new([None]),
+        providers: Box::new([]),
+    };
+    config.core.defaults = temper_service::stock::defaults(&llm);
+    config.core.connectors = Box::new([1]);
+    config.core.seed_projects = Box::new([]);
+    config.core.owners[0].project = people::DEPLOYMENT;
+    let mut limits = walking::limits();
+    // Stock policy 1 holds ten grants and three executor kinds.
+    limits.authority.grants = 16;
+    limits.authority.executors = 4;
+    limits.documents.grants = 16;
+    limits.documents.executors = 4;
+    limits.notes.scopes = 32;
+    limits.tasks.charters = 2;
+    limits.journal.writes = walking::writes(&limits);
+    let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    driver
+}
+
+#[test]
+fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
+    let mut driver = deployment_without_projects();
+    let llm = jig_protocol_config::Llm {
+        endpoints: Box::new([]),
+        models: walking::models(),
+        descriptions: Box::new([None]),
+        providers: Box::new([]),
+    };
+    let defaults = temper_service::stock::defaults(&llm);
+    let mut rules = defaults.rules;
+    let mut policy = defaults.policies.get(&POLICY_NUMBER).expect("stock policy 1").clone();
+    let widened = authority::Tools(1023);
+    assert_ne!(policy.policy.ceiling.tools, widened);
+    rules.ceiling.tools = widened;
+    policy.policy.ceiling.tools = widened;
+    policy.policy.roles[0].authority.tools = widened;
+    driver.send(Event::Party(PartyInput::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(30)),
+        sign_in: driver.session(),
+        key: [30; 16],
+        digest: [30; 32],
+        change: Box::new(s::Change {
+            against: 1,
+            items: Box::new([
+                s::Item { setting: s::Setting::Rules, edit: s::Edit::Set(s::Value::Rules(Box::new(rules))) },
+                s::Item {
+                    setting: s::Setting::Policy(POLICY_NUMBER),
+                    edit: s::Edit::Set(s::Value::Policy(Box::new(policy))),
+                },
+            ]),
+            running: s::Running::Stays,
+        }),
+    }));
+    driver.settle();
+    assert_eq!(head(&driver).number, 2, "the deployment owner changed both settings");
+    driver.send(Event::Party(PartyInput::Ask {
+        reply_to: ReplyTo::new(Token::new(31)),
+        sign_in: driver.session(),
+        key: [31; 16],
+        models: Box::new([]),
+        ask: people::Ask::MakeProject { name: "First project".into(), policy: POLICY_NUMBER },
+    }));
+    driver.settle();
+    assert!(driver.delivered.iter().any(|delivery| matches!(
+        delivery,
+        Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::ProjectMade { project: 1 }), .. }
+    )));
+    let Some(Record::Core(core::Record::People(people::Stored::Policy { value, .. }))) =
+        driver.store.rows.get(&Key::Core(core::Key::People(people::Key::Policy(1))))
+    else {
+        panic!("the first project's policy is committed")
+    };
+    assert_eq!(value.ceiling.tools, widened.0);
+    let ask = walking::chat(1, b"Use the widened tools");
+    driver.send(Event::Party(PartyInput::Ask {
+        reply_to: ReplyTo::new(Token::new(32)),
+        sign_in: driver.session(),
+        key: [32; 16],
+        models: Box::new([]),
+        ask,
+    }));
+    driver.pump(); // An admitted agent task awaits a worker's capacity.
+    let task = driver.task(1).expect("the first project admits its owner's task");
+    assert_eq!(task.project, 1);
+    assert_eq!(task.authority.tools.0, widened.0);
+}
+
 fn started(history: u32) -> Driver {
     let mut limits = walking::limits();
     limits.settings.history = history;
