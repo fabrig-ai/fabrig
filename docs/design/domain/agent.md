@@ -372,8 +372,8 @@ run starts fresh, its brief carrying the tail.
 | a repair (forge.md, 8.4) | none | the workspace's, from the change's branch, its brief carrying why; `finish` with a change | its new head passes its checks and is pushed |
 | resolving a conflict (forge.md, 8.4) | none | the workspace's, from a merge in progress; `finish` with a change | the merge is resolved, checked and pushed |
 | a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
-| a chat | its person's words; its delegates' results | most; `deliver` mid-run; `wait` | its person closes it |
-| a coordinator | questions, results, overlapping landings; proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`; `wait` | its goal's report is written |
+| a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
+| a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`; `wait` | its goal's report is written |
 | the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
 
 The change's agents run under the forge's charter; designed, not built,
@@ -381,6 +381,8 @@ the one the change was made with, kept on it whatever later changes of
 settings make the forge's charter (`../protocol/configuration.md`,
 13.2).
 
+The change's agents ask no one: they take no messages and send none
+(8.2).
 
 ### 8.1 The configuring agent
 
@@ -427,6 +429,40 @@ a person says they work into a proposal of settings
   "Tell temper how you work".
 - **Its tests** are `testing.md`, 6.4's: scripted runs in the engine's
   domain world for its flows, and one process story through ctl.
+
+### 8.2 Asking before the work
+
+A person who wants to agree a plan before anything is changed: the
+reference case's green light (`../draft/reference-case.md`, 4.1), and
+rung B0 of `../draft/v0.1.0.md`.
+
+- **The work that waits asks; a change never does.** A change is
+  decided work, asked for once what to change is agreed. Its agents,
+  the table's first four rows, hold no Message family in their
+  authority, so they ask no one; and a message sent to a change's task
+  is answered at once that a change takes none, naming its requester,
+  so that no sender waits on silence (forge.md, 8.1).
+- **The chat delegates the work as a goal** when its person asks to
+  agree it first: a delegate under charter 1, its instructions the
+  person's words, holding the authority to call `change` and to ask;
+  never `change` itself, which would start the work at once. The stock
+  chat's instructions say so (`../protocol/configuration.md`, 13.4).
+- **The goal asks its requester,** the chat, with `message` in the
+  question form, before it calls `change`, and waits. jig puts the
+  question in the inbox of the chat's person, since the person requested
+  the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
+  section 6). The chat cannot ask its own person: it says in its reply
+  that a question waits for them.
+- **The person answers in the inbox,** `temper ctl answer N M TEXT`
+  (`../client/tools.md`, 5.3) or the inbox's page. The chat, woken by
+  the answer, relays it to the goal as the answer to the question's
+  number, and says so. The goal then calls `change` with what was
+  agreed, waits for its result and reports; the chat says what landed.
+- **Nothing is changed before the answer:** no change task, branch or
+  pull request exists until the goal calls `change`.
+- **Its stories:** `fuzzy_green_light` on fakes (testing.md, 2.4), and
+  rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
+
 ## 9. The world
 
 smith's worlds test the agent itself (smith's documents, each section

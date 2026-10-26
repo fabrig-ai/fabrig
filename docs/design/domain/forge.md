@@ -862,6 +862,12 @@ branch. Its parameters:
 A chat asks for one with `change`, giving the words alone, and the root
 fills in the rest from the project (`agent.md`, 4.3.1).
 
+A change asks no one. What to change is agreed before it is asked for,
+by a goal that asks first where its person wants to agree a plan
+(`agent.md`, 8.2). Its agents hold no Message family, and a message sent
+to its task is answered at once that a change takes none, naming the
+change's requester.
+
 A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
 
