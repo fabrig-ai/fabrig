@@ -98,6 +98,9 @@ pub(crate) fn store(
 ) {
     match store {
         Store::Switched => {
+            if domain.core.stopping() {
+                return;
+            }
             crate::domain::write(domain, decision, Write::Wires);
             held(decision, Output::ToChild(crate::Released::RestartDone(core::RestartStep::Switch)));
         }
