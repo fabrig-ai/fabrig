@@ -292,7 +292,6 @@ impl Peers {
                 to: ReplyTo::new(token),
                 call: core::SettledCall {
                     serial: 0,
-                    name: call.name.clone(),
                     tool: call.tool.clone(),
                     answer: core::SettledAnswer::Host { error: false, body: call.input.clone() },
                 },
@@ -307,9 +306,9 @@ impl Peers {
             root::Event::Core(core::Event::SettledCall {
                 to: ReplyTo::new(token),
                 key,
+                name: call.name.clone(),
                 call: core::SettledCall {
                     serial: 0,
-                    name: call.name.clone(),
                     tool: call.tool.clone(),
                     answer: core::SettledAnswer::Host { error: false, body: call.input.clone() },
                 },

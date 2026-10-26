@@ -24,7 +24,6 @@ pub(crate) struct Assignment {
 #[derive(Debug)]
 pub(crate) struct ReadCall {
     pub(crate) to: Token,
-    pub(crate) name: Box<[u8]>,
     pub(crate) tool: Box<[u8]>,
 }
 

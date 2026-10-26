@@ -133,7 +133,6 @@ fn a_runs_read_is_answered_while_an_unrelated_commit_is_in_flight() {
     let right = world.host_call(b"read-now", b"read", b"{}", false);
     let answer = core::SettledCall {
         serial: 0,
-        name: b"read-now".as_slice().into(),
         tool: b"read".as_slice().into(),
         answer: core::SettledAnswer::Host { error: false, body: b"fresh result".as_slice().into() },
     };
@@ -160,9 +159,9 @@ fn a_runs_write_answer_waits_for_an_unrelated_commit_in_flight() {
     world.send(root::Event::Core(core::Event::SettledCall {
         to: ReplyTo::new(right),
         key,
+        name: b"write-held".as_slice().into(),
         call: core::SettledCall {
             serial: 0,
-            name: b"write-held".as_slice().into(),
             tool: b"write".as_slice().into(),
             answer: core::SettledAnswer::Host { error: false, body: b"done".as_slice().into() },
         },

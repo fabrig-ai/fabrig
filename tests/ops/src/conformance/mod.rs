@@ -608,8 +608,8 @@ impl Application for Ops {
                 vec![Input::Event(peers.protocol.answer(to, key, &part, false))]
             }
             root::Output::Now(core::Now::NoteBusy { to, key }) => vec![Input::Event(peers.protocol.busy(to, key))],
-            root::Output::Now(core::Now::SettledCallRefused { to, key, name, tool }) => {
-                vec![Input::Event(peers.protocol.refused(to, key, name, tool))]
+            root::Output::Now(core::Now::SettledCallRefused { to, key, name: _, tool }) => {
+                vec![Input::Event(peers.protocol.refused(to, key, tool))]
             }
             root::Output::ReadResult { payload, outcome } => {
                 peers.read_results.push(payload);

@@ -43,20 +43,15 @@ pub(super) fn encode_settled_call(
     value: &domain::SettledCall,
     limits: &Limits,
 ) -> Result<wire::SettledCall, wire::Problem> {
-    let domain::SettledCall { serial, name, tool, answer } = value;
+    let domain::SettledCall { serial, tool, answer } = value;
     wire::SettledCall::new(
         &limits.core,
-        wire::SettledCallParts {
-            serial: *serial,
-            name: name.clone(),
-            tool: tool.clone(),
-            answer: encode_settled_answer(answer, limits)?,
-        },
+        wire::SettledCallParts { serial: *serial, tool: tool.clone(), answer: encode_settled_answer(answer, limits)? },
     )
 }
 pub(super) fn decode_settled_call(value: wire::SettledCall, limits: &Limits) -> domain::SettledCall {
-    let wire::SettledCallParts { serial, name, tool, answer } = value.into_parts();
-    domain::SettledCall { serial, name, tool, answer: decode_settled_answer(answer, limits) }
+    let wire::SettledCallParts { serial, tool, answer } = value.into_parts();
+    domain::SettledCall { serial, tool, answer: decode_settled_answer(answer, limits) }
 }
 
 pub(super) fn encode_call_key(value: &domain::CallKey, limits: &Limits) -> Result<wire::CallKey, wire::Problem> {

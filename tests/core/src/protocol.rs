@@ -34,12 +34,9 @@ impl Stand {
         if let tools::Decoded::NotMine = decoded {
             return None;
         }
-        let Some(name) = jig_protocol_charter::call_key(&call.name) else {
+        let Some(name) = jig_protocol_charter::call_key(&call.name, attempt.raw()) else {
             return Some(unreadable(to, call, &tools::Problem { field: b"name", why: tools::Why::Malformed }));
         };
-        if name.activation != attempt.raw() {
-            return Some(unreadable(to, call, &tools::Problem { field: b"name", why: tools::Why::Range }));
-        }
         let key = core::CallKey {
             task: run.raw(),
             attempt: attempt.raw(),
@@ -68,12 +65,11 @@ impl Stand {
         let rendered = tools::render(part);
         let call = core::SettledCall {
             serial: 0,
-            name,
             tool,
             answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
         };
         Some(if durable {
-            root::Event::Core(core::Event::SettledCall { to, key, call })
+            root::Event::Core(core::Event::SettledCall { to, key, name, call })
         } else {
             root::Event::CallAnswered { to, call }
         })
@@ -86,7 +82,6 @@ fn unreadable(to: ReplyTo, call: &fleet::Call, problem: &tools::Problem) -> root
         to,
         call: core::SettledCall {
             serial: 0,
-            name: call.name.clone(),
             tool: call.tool.clone(),
             answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
         },

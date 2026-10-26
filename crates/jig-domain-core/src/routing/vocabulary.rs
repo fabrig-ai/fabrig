@@ -451,8 +451,8 @@ pub enum Event {
     ApplicationFinished { request: Token, outcome: Result<Token, people::Again> },
     /// A connector's final projection write has settled, or its project has no home there.
     ProjectionSettled { goal: u64, connector: u16 },
-    /// A protocol-rendered answer, with opaque workspace evidence preserved verbatim.
-    SettledCall { to: ReplyTo, key: CallKey, call: crate::SettledCall },
+    /// A protocol-rendered answer; its live reply address is never retained (store.md, 5.1).
+    SettledCall { to: ReplyTo, key: CallKey, name: Box<[u8]>, call: crate::SettledCall },
     /// A connector owns the decoded effect under this transient owner.
     EffectStart { owner: Token, connector: u16, origin: crate::EffectOrigin },
     /// Connector handoffs and outbox outcomes in the core vocabulary.

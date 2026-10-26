@@ -35,8 +35,7 @@ fn both_shipped_profiles_round_trip_the_settled_call_sum() {
                 part: core::CallPart::Unavailable,
                 settled: Some(core::SettledCall {
                     serial: 1,
-                    name: Box::from(b"n".as_slice()),
-                    tool: vec![3; 16_383].into_boxed_slice(),
+                    tool: vec![3; 16_384].into_boxed_slice(),
                     answer: answer.clone(),
                 }),
             });

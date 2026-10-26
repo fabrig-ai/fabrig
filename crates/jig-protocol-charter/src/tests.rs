@@ -85,7 +85,24 @@ fn call_name() -> Box<[u8]> {
 
 #[test]
 fn a_call_key_reads_completion_and_position() {
-    assert_eq!(crate::call_key(&call_name()), Some(crate::CallKey { activation: 7, completion: 3, position: 2 }));
+    assert_eq!(crate::call_key(&call_name(), 7), Some(crate::CallKey { activation: 7, completion: 3, position: 2 }));
+}
+
+#[test]
+fn settled_call_keys_round_trip_at_the_integer_bounds() {
+    for key in [
+        crate::CallKey { activation: 0, completion: 0, position: 0 },
+        crate::CallKey { activation: u64::MAX, completion: u32::MAX, position: u32::MAX },
+        crate::CallKey { activation: u64::MAX, completion: 0, position: u32::MAX },
+        crate::CallKey { activation: 0, completion: u32::MAX, position: 0 },
+    ] {
+        assert_eq!(crate::call_key(&crate::call_name(&key), key.activation), Some(key));
+    }
+}
+
+#[test]
+fn a_call_name_for_another_attempt_has_no_key() {
+    assert_eq!(crate::call_key(&call_name(), 8), None);
 }
 
 #[test]
@@ -94,7 +111,7 @@ fn a_call_name_with_trailing_bytes_has_no_key() {
     let mut writer = skein_lib::Writer::new(17);
     writer.put(&bytes).expect("room for the name");
     writer.put(&[0]).expect("room for a trailing byte");
-    assert_eq!(crate::call_key(&writer.finish()), None);
+    assert_eq!(crate::call_key(&writer.finish(), 7), None);
 }
 
 fn result_bytes(form: wire::Form, label: Option<Box<[u8]>>, fields: skein_lib::List<wire::Field>) -> Box<[u8]> {

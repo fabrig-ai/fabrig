@@ -72,11 +72,15 @@ fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it
     let evidence = Box::<[u8]>::from(&b"\x01opaque delivery evidence\x00"[..]);
     let settled = core::SettledCall {
         serial: 0,
-        name: b"call-name".as_slice().into(),
         tool: b"deliver".as_slice().into(),
         answer: core::SettledAnswer::Delivery { outcome: core::DeliveryOutcome::Delivered, evidence: evidence.clone() },
     };
-    world.send(root::Event::Core(core::Event::SettledCall { to: ReplyTo::new(right), key, call: settled }));
+    world.send(root::Event::Core(core::Event::SettledCall {
+        to: ReplyTo::new(right),
+        key,
+        name: b"call-name".as_slice().into(),
+        call: settled,
+    }));
     assert_eq!(world.host_answers.len(), 1);
     let saved = world.host_answers[0].1.clone();
     assert_ne!(saved.serial, 0);
@@ -96,7 +100,7 @@ fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it
     world.grant_account(1);
     let read = world.say(74);
     assert!(!world.assigned.as_ref().expect("resumed chat").answered.is_empty(), "{:?}", world.trace);
-    assert_eq!(world.assigned.as_ref().expect("resumed chat").answered.as_ref(), [saved]);
+    assert_eq!(world.assigned.as_ref().expect("resumed chat").answered.as_ref(), [core::Settled { key, call: saved }]);
     world.turn(1, 1, Some(read), b"answers carried by this turn");
     assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::Call(key)))));
     world.end(tasks::End::Parked, 1);
@@ -284,9 +288,9 @@ fn settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes() {
         world.send(root::Event::Core(core::Event::SettledCall {
             to: ReplyTo::new(right),
             key,
+            name: name.into(),
             call: core::SettledCall {
                 serial: 0,
-                name: name.into(),
                 tool: b"read".as_slice().into(),
                 answer: core::SettledAnswer::Host { error: true, body: b"exact original".as_slice().into() },
             },
@@ -299,9 +303,9 @@ fn settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes() {
     world.send(root::Event::Core(core::Event::SettledCall {
         to: ReplyTo::new(right),
         key,
+        name: b"first".as_slice().into(),
         call: core::SettledCall {
             serial: 0,
-            name: b"first".as_slice().into(),
             tool: b"read".as_slice().into(),
             answer: core::SettledAnswer::Host { error: false, body: b"different rendering".as_slice().into() },
         },
@@ -312,9 +316,9 @@ fn settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes() {
     world.say(79);
     let answers = &world.assigned.as_ref().expect("resumed answers").answered;
     assert_eq!(answers.len(), 2);
-    assert_eq!(answers[0].name.as_ref(), b"first");
-    assert_eq!(answers[1].name.as_ref(), b"second");
-    assert!(answers[0].serial < answers[1].serial);
+    assert_eq!(answers[0].key, key);
+    assert_eq!(answers[1].key, core::CallKey { completion: 2, ..key });
+    assert!(answers[0].call.serial < answers[1].call.serial);
 }
 
 fn a_woken_chats_start_carries_its_waiting_words_oldest_first() {

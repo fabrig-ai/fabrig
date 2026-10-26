@@ -762,12 +762,7 @@ fn a_settled_call_reads_back() {
         let core::CoreRecord::Call(mut row) = fixtures::calls::call(core::CallPart::Unavailable) else {
             panic!("call fixture")
         };
-        row.settled = Some(core::SettledCall {
-            serial: 1,
-            name: Box::from(b"call".as_slice()),
-            tool: Box::from(b"tool".as_slice()),
-            answer,
-        });
+        row.settled = Some(core::SettledCall { serial: 1, tool: Box::from(b"tool".as_slice()), answer });
         core_round_trip(core::CoreRecord::Call(row));
     }
 }

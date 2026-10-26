@@ -253,7 +253,6 @@ pub fn channel_records() -> Box<[(crate::Delivery, host::LinkDown)]> {
                 writes: true,
                 call: core::SettledCall {
                     serial: 1,
-                    name: b"opaque call".as_slice().into(),
                     tool: b"tool".as_slice().into(),
                     answer: core::SettledAnswer::Host { error: true, body: b"refused".as_slice().into() },
                 },

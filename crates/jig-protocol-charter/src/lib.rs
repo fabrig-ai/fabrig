@@ -19,7 +19,7 @@ pub use boundary::{
     Budget, ChangeRule, Charter, Contract, Conventions, FieldRule, ItemRule, Items, Llm, Model, Prices, Reserve,
     Section, TextRule, Tool, ToolEffect, VerdictRule, WorkspaceTools,
 };
-pub use call::{CallKey, call_key};
+pub use call::{CallKey, call_key, call_name};
 pub use charter::charter;
 pub use encode::{EndpointName, encode};
 pub use identity::run_identity;

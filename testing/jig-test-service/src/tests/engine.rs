@@ -228,15 +228,17 @@ fn a_call_is_decoded_and_one_that_does_not_is_answered_an_error() {
 }
 
 fn encoded_assignment(
-    workers: &crate::workers::Workers,
-    config: &jig_protocol_config::Engine,
-    values: &crate::values::Values,
     attempt: u64,
+    answered: Box<[core::Settled]>,
 ) -> (jig_domain_host::Assignment, Box<[Option<GrantValue>]>) {
-    let mut assignment = fixtures::assignment(config);
+    let config = fixtures::config();
+    let workers = fixtures::workers(&config);
+    let values = fixtures::values();
+    let mut assignment = fixtures::assignment(&config);
     assignment.attempt = attempt;
+    assignment.answered = answered;
     let event = workers
-        .encoded_assignment(skein_lib::Time::ZERO, skein_lib::Token::new(17), assignment, values)
+        .encoded_assignment(skein_lib::Time::ZERO, skein_lib::Token::new(17), assignment, &values)
         .expect("assignment encoded");
     let jig_protocol_engine_workers::Event::Down {
         channel,
@@ -252,10 +254,7 @@ fn encoded_assignment(
 }
 #[test]
 fn an_assignment_leaves_with_its_charter_encoded_and_grants_filled() {
-    let config = fixtures::config();
-    let workers = fixtures::workers(&config);
-    let values = fixtures::values();
-    let (assignment, grants) = encoded_assignment(&workers, &config, &values, 3);
+    let (assignment, grants) = encoded_assignment(3, Box::default());
     let decoded = smith_protocol_channel::decode_charter(
         &assignment.assignment.charter,
         &jig_protocol_charter::limits(),
@@ -351,11 +350,8 @@ fn application_grants_keep_the_two_newest_generations_per_number() {
 
 #[test]
 fn the_run_s_identity_is_shared_by_a_conversation_s_attempts() {
-    let config = fixtures::config();
-    let workers = fixtures::workers(&config);
-    let values = fixtures::values();
     for attempt in [3, 4, 9] {
-        let (assignment, _) = encoded_assignment(&workers, &config, &values, attempt);
+        let (assignment, _) = encoded_assignment(attempt, Box::default());
         assert_eq!(assignment.assignment.attempt, skein_lib::Token::new(attempt));
         assert_eq!(assignment.assignment.identity, IDENTITY);
     }
@@ -443,7 +439,7 @@ fn decode_call(tools: &mut crate::tools::Tools, input: &[u8]) -> jig_test_domain
     )
 }
 #[test]
-fn a_call_s_terminal_is_rendered_back_with_its_name() {
+fn a_calls_terminal_keeps_its_live_address_only_for_settlement() {
     let config = fixtures::config();
     let mut tools = tools(&config);
     let key = core::CallKey { task: 2, attempt: 3, completion: 7, position: 2 };
@@ -456,15 +452,15 @@ fn a_call_s_terminal_is_rendered_back_with_its_name() {
             assert_eq!(to.into_token(), skein_lib::Token::new(11));
             (call, false)
         } else {
-            let jig_test_domain::Event::Core(core::Event::SettledCall { to, key: named, call }) = event else {
+            let jig_test_domain::Event::Core(core::Event::SettledCall { to, key: named, name, call }) = event else {
                 panic!("rendered call route");
             };
             assert_eq!(to.into_token(), skein_lib::Token::new(11));
             assert_eq!(named, key);
+            assert_eq!(name, fixtures::call(b"").name);
             (call, true)
         };
         assert_eq!(seen, durable);
-        assert_eq!(call.name, fixtures::call(b"").name);
         assert_eq!(call.tool.as_ref(), b"cancel");
         assert_eq!(call.answer, core::SettledAnswer::Host { error: false, body: b"Done".as_slice().into() });
     }
@@ -544,4 +540,30 @@ fn program_names_share_the_wire_and_domain_bounds() {
         assert_eq!(jig_domain_host::SourceName::new(value).is_some(), admitted);
         assert_eq!(jig_domain_accounts::SourceName::new(value).is_some(), admitted);
     }
+}
+
+#[test]
+fn a_replayed_call_uses_its_original_key_for_the_name() {
+    let key = core::CallKey { task: 2, attempt: 1, completion: 7, position: 2 };
+    let answered = Box::new([core::Settled {
+        key,
+        call: core::SettledCall {
+            serial: 1,
+            tool: b"cancel".as_slice().into(),
+            answer: core::SettledAnswer::Host { error: false, body: b"Done".as_slice().into() },
+        },
+    }]);
+    let (assignment, _) = encoded_assignment(3, answered);
+    assert_eq!(
+        assignment.answered.as_ref(),
+        [jig_domain_host::AnsweredCall {
+            name: jig_protocol_charter::call_name(&jig_protocol_charter::CallKey {
+                activation: key.attempt,
+                completion: key.completion,
+                position: key.position,
+            }),
+            tool: b"cancel".as_slice().into(),
+            answer: jig_domain_host::SettledAnswer::Host { error: false, body: b"Done".as_slice().into() },
+        }]
+    );
 }

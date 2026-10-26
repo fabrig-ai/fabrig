@@ -5,14 +5,20 @@ use crate::{CallKey, CallRecord, Core, CoreRecord, Held, Limits, Now, Record, Re
 use alloc::boxed::Box;
 use skein_lib::{Queue, ReplyTo};
 
-/// The original host call and the answer given to its agent.
+/// The original host tool and answer; its name is its key's (store.md, 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettledCall {
     /// Core-issued order of this settled answer; the protocol supplies zero.
     pub serial: u64,
-    pub name: Box<[u8]>,
     pub tool: Box<[u8]>,
     pub answer: SettledAnswer,
+}
+
+/// A settled answer and its original key, carried together on replay (store.md, 5.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Settled {
+    pub key: CallKey,
+    pub call: SettledCall,
 }
 
 /// An answer is opaque conversation data, including replay evidence for delivery.
@@ -39,17 +45,12 @@ impl SettledCall {
             SettledAnswer::Host { body, .. } => body.len(),
             SettledAnswer::Delivery { evidence, .. } => evidence.len(),
         };
-        u64::try_from(self.name.len())
-            .ok()?
-            .checked_add(u64::try_from(self.tool.len()).ok()?)?
-            .checked_add(u64::try_from(answer).ok()?)
+        u64::try_from(self.tool.len()).ok()?.checked_add(u64::try_from(answer).ok()?)
     }
 
     #[must_use]
     pub fn valid(&self, limits: &Limits) -> bool {
-        !self.name.is_empty()
-            && !self.tool.is_empty()
-            && u64::try_from(self.name.len()).expect("length fits u64") <= limits.fleet.call_name_bytes
+        !self.tool.is_empty()
             && match self.owned_bytes() {
                 Some(bytes) => bytes <= u64::from(limits.call_answer_bytes),
                 None => false,
@@ -69,46 +70,48 @@ impl Core {
     }
     /// Settled answers after the last committed turn, in their commit order.
     #[must_use]
-    pub fn settled_calls(&self, task: u64, attempt: u64) -> Box<[SettledCall]> {
+    pub fn settled_calls(&self, task: u64, attempt: u64) -> Box<[Settled]> {
         let mut rows = skein_lib::List::with_capacity(self.call_settled.len());
         let mut after = 0;
         for _ in 0..self.call_settled.len() {
-            let mut next: Option<&SettledCall> = None;
+            let mut next: Option<(CallKey, &SettledCall)> = None;
             for (key, call) in &self.call_settled {
                 if key.task == task
                     && key.attempt < attempt
                     && call.serial > after
                     && match next {
-                        Some(old) => call.serial < old.serial,
+                        Some((_, old)) => call.serial < old.serial,
                         None => true,
                     }
                 {
-                    next = Some(call);
+                    next = Some((*key, call));
                 }
             }
-            let Some(call) = next else { break };
+            let Some((key, call)) = next else { break };
             after = call.serial;
-            rows.push(call.clone()).expect("settled names bound their answers");
+            rows.push(Settled { key, call: call.clone() }).expect("settled keys bound their answers");
         }
         rows.into_boxed()
     }
 }
 
-pub(crate) fn settle(core: &mut Core, limits: &Limits, to: ReplyTo, key: CallKey, mut call: SettledCall) -> Requests {
+pub(crate) fn settle(
+    core: &mut Core,
+    limits: &Limits,
+    to: ReplyTo,
+    key: CallKey,
+    name: Box<[u8]>,
+    mut call: SettledCall,
+) -> Requests {
     let mut out = Queue::with_capacity(3);
     if !call.valid(limits) || !core.call_parts.contains_key(&key) {
-        out.push(Request::Now(Box::new(Now::SettledCallRefused { to, key, name: call.name, tool: call.tool })));
+        out.push(Request::Now(Box::new(Now::SettledCallRefused { to, key, name, tool: call.tool })));
     } else {
         let settled = match core.call_settled.get(&key) {
             Some(old) => old.clone(),
             None => {
                 let Some(serial) = crate::fresh(&mut core.counters, crate::Family::Call) else {
-                    out.push(Request::Now(Box::new(Now::SettledCallRefused {
-                        to,
-                        key,
-                        name: call.name,
-                        tool: call.tool,
-                    })));
+                    out.push(Request::Now(Box::new(Now::SettledCallRefused { to, key, name, tool: call.tool })));
                     out.push(Request::Decided);
                     return Requests::Out(out);
                 };
@@ -131,9 +134,12 @@ pub(crate) fn settle(core: &mut Core, limits: &Limits, to: ReplyTo, key: CallKey
 #[must_use]
 pub fn conversation_worst_case(limits: &Limits) -> Option<u64> {
     let each = u64::try_from(size_of::<SettledCall>()).ok()?.checked_add(u64::from(limits.call_answer_bytes))?;
-    skein_lib::Map::<CallKey, SettledCall>::worst_case(limits.call_records)?.checked_add(
-        u64::from(limits.call_records)
-            .checked_mul(each)?
-            .checked_mul(u64::from(limits.tasks.tasks).checked_mul(2)?.checked_add(4)?)?,
-    )
+    let replay = u64::try_from(size_of::<Settled>()).ok()?.checked_add(u64::from(limits.call_answer_bytes))?;
+    // Assignment copies carry their full keys. The four scratch copies retain
+    // tool and answer alone; a settling input can also own its live address.
+    let copies =
+        replay.checked_mul(u64::from(limits.tasks.tasks).checked_mul(2)?)?.checked_add(each.checked_mul(4)?)?;
+    skein_lib::Map::<CallKey, SettledCall>::worst_case(limits.call_records)?
+        .checked_add(u64::from(limits.call_records).checked_mul(copies)?)?
+        .checked_add(limits.fleet.call_name_bytes)
 }

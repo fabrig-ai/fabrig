@@ -33,12 +33,9 @@ impl Stand {
     }
 
     pub fn decode(&mut self, to: ReplyTo, run: Token, attempt: Token, call: &fleet::Call, wall: Wall) -> root::Event {
-        let Some(name) = jig_protocol_charter::call_key(&call.name) else {
+        let Some(name) = jig_protocol_charter::call_key(&call.name, attempt.raw()) else {
             return problem(to, call, protocol::Problem { field: b"name", why: protocol::Why::Malformed });
         };
-        if name.activation != attempt.raw() {
-            return problem(to, call, protocol::Problem { field: b"name", why: protocol::Why::Range });
-        }
         let key = core::CallKey {
             task: run.raw(),
             attempt: attempt.raw(),
@@ -88,35 +85,34 @@ impl Stand {
         let rendered = protocol::render(part);
         let call = core::SettledCall {
             serial: 0,
-            name,
             tool,
             answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
         };
         if durable {
-            root::Event::Core(core::Event::SettledCall { to, key, call })
+            root::Event::Core(core::Event::SettledCall { to, key, name, call })
         } else {
             root::Event::CallAnswered { to, call }
         }
     }
 
     pub fn busy(&mut self, to: ReplyTo, key: core::CallKey) -> root::Event {
-        let (name, tool) = self.calls.remove(&key).expect("protocol note envelope");
-        answered(to, name, tool, true, b"busy".as_slice().into())
+        let (_, tool) = self.calls.remove(&key).expect("protocol note envelope");
+        answered(to, tool, true, b"busy".as_slice().into())
     }
 
-    pub fn refused(&mut self, to: ReplyTo, key: core::CallKey, name: Box<[u8]>, tool: Box<[u8]>) -> root::Event {
+    pub fn refused(&mut self, to: ReplyTo, key: core::CallKey, tool: Box<[u8]>) -> root::Event {
         self.calls.remove(&key);
-        answered(to, name, tool, true, b"unavailable".as_slice().into())
+        answered(to, tool, true, b"unavailable".as_slice().into())
     }
 }
 
 fn problem(to: ReplyTo, call: &fleet::Call, why: protocol::Problem) -> root::Event {
     let rendered = protocol::problem(&call.tool, &why);
-    answered(to, call.name.clone(), call.tool.clone(), rendered.error, rendered.text)
+    answered(to, call.tool.clone(), rendered.error, rendered.text)
 }
-fn answered(to: ReplyTo, name: Box<[u8]>, tool: Box<[u8]>, error: bool, body: Box<[u8]>) -> root::Event {
+fn answered(to: ReplyTo, tool: Box<[u8]>, error: bool, body: Box<[u8]>) -> root::Event {
     root::Event::CallAnswered {
         to,
-        call: core::SettledCall { serial: 0, name, tool, answer: core::SettledAnswer::Host { error, body } },
+        call: core::SettledCall { serial: 0, tool, answer: core::SettledAnswer::Host { error, body } },
     }
 }

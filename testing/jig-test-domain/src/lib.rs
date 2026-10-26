@@ -128,7 +128,7 @@ pub struct Assignment {
     /// Whole words and prior committed conversation offered to the worker.
     pub messages: Box<[tasks::Word]>,
     pub transcript: Box<[Box<[u8]>]>,
-    pub answered: Box<[core::SettledCall]>,
+    pub answered: Box<[core::Settled]>,
     /// The selected account and application credential grants.
     pub grants: Box<[jig_domain_accounts::Grant]>,
 }

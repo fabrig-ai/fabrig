@@ -93,14 +93,19 @@ pub(crate) fn assignment(
     )?;
     let encoded = charter::encode(value, &domain.charter_endpoints, &env.limits.charter)?;
     let mut answered = List::with_capacity(env.limits.core.call_records);
-    for value in domain.core.settled_calls(task, attempt) {
+    for core::Settled { key, call: value } in domain.core.settled_calls(task, attempt) {
         let answer = match value.answer {
             core::SettledAnswer::Host { error, body } => host::SettledAnswer::Host { error, body },
             core::SettledAnswer::Delivery { outcome, evidence } => {
                 host::SettledAnswer::Delivery { outcome: delivery(outcome), evidence }
             }
         };
-        answered.push(host::AnsweredCall { name: value.name, tool: value.tool, answer }).ok()?;
+        let name = charter::call_name(&charter::CallKey {
+            activation: key.attempt,
+            completion: key.completion,
+            position: key.position,
+        });
+        answered.push(host::AnsweredCall { name, tool: value.tool, answer }).ok()?;
     }
     let mut start_messages = List::with_capacity(env.limits.core.tasks.run_inbox);
     for word in messages {
@@ -335,7 +340,6 @@ pub(crate) fn read_answer(
 ) {
     let answer = domain.payload(crate::boundary::Payload::Settled(core::SettledCall {
         serial: 0,
-        name: call.name,
         tool: call.tool,
         answer: core::SettledAnswer::Host { error, body },
     }));
@@ -344,18 +348,16 @@ pub(crate) fn read_answer(
 
 pub(crate) use crate::message_refusals::{message_read, refusal_names, refusals};
 
-#[expect(clippy::too_many_arguments, reason = "route the owners read and authenticated caller envelope")]
 pub(crate) fn connector_read(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     task: u64,
-    name: Box<[u8]>,
     tool: Box<[u8]>,
     read: jig_ops_domain_observability::Read,
     work: &mut Queue<Work>,
 ) {
-    let binding = crate::domain::ReadCall { to: to.into_token(), name, tool };
+    let binding = crate::domain::ReadCall { to: to.into_token(), tool };
     let number = jig_ops_domain_connectors::number(Connector::Observability);
     let description = crate::translate::read_description(number, &read);
     let mut findings =

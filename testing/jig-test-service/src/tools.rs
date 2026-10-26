@@ -26,12 +26,9 @@ impl Tools {
         }
     }
     pub fn decode(&mut self, to: ReplyTo, run: Token, attempt: Token, call: &fleet::Call) -> root::Event {
-        let Some(name) = jig_protocol_charter::call_key(&call.name) else {
+        let Some(name) = jig_protocol_charter::call_key(&call.name, attempt.raw()) else {
             return invalid(to, call, b"name", kit::Why::Malformed);
         };
-        if name.activation != attempt.raw() {
-            return invalid(to, call, b"name", kit::Why::Range);
-        }
         let key = core::CallKey {
             task: run.raw(),
             attempt: attempt.raw(),
@@ -61,12 +58,11 @@ impl Tools {
         let rendered = kit::render(part);
         let call = core::SettledCall {
             serial: 0,
-            name,
             tool,
             answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
         };
         Some(if durable {
-            root::Event::Core(core::Event::SettledCall { to, key, call })
+            root::Event::Core(core::Event::SettledCall { to, key, name, call })
         } else {
             root::Event::CallAnswered { to, call }
         })
@@ -93,7 +89,6 @@ fn invalid(to: ReplyTo, call: &fleet::Call, field: &'static [u8], why: kit::Why)
         to,
         call: core::SettledCall {
             serial: 0,
-            name: call.name.clone(),
             tool: call.tool.clone(),
             answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
         },
@@ -206,18 +201,7 @@ pub(super) fn charter(
     }
     let mut answered = List::with_capacity(u32::try_from(value.answered.len()).ok()?);
     for call in value.answered {
-        answered
-            .push(host::AnsweredCall {
-                name: call.name,
-                tool: call.tool,
-                answer: match call.answer {
-                    core::SettledAnswer::Host { error, body } => host::SettledAnswer::Host { error, body },
-                    core::SettledAnswer::Delivery { outcome, evidence } => {
-                        host::SettledAnswer::Delivery { outcome: delivery(outcome), evidence }
-                    }
-                },
-            })
-            .ok()?;
+        answered.push(replay(call)).ok()?;
     }
     let mut grants = List::with_capacity(u32::try_from(value.grants.len()).ok()?);
     for grant in value.grants {
@@ -245,6 +229,24 @@ pub(super) fn charter(
         answered: answered.into_boxed(),
         messages: messages.into_boxed(),
     })
+}
+fn replay(value: core::Settled) -> jig_domain_host::AnsweredCall {
+    use jig_domain_host as host;
+    let core::Settled { key, call } = value;
+    host::AnsweredCall {
+        name: jig_protocol_charter::call_name(&jig_protocol_charter::CallKey {
+            activation: key.attempt,
+            completion: key.completion,
+            position: key.position,
+        }),
+        tool: call.tool,
+        answer: match call.answer {
+            core::SettledAnswer::Host { error, body } => host::SettledAnswer::Host { error, body },
+            core::SettledAnswer::Delivery { outcome, evidence } => {
+                host::SettledAnswer::Delivery { outcome: delivery(outcome), evidence }
+            }
+        },
+    }
 }
 fn declarations(timeout: skein_lib::Duration, families: u64) -> Option<Box<[jig_protocol_charter::Tool]>> {
     let mut tools = skein_lib::List::with_capacity(u32::try_from(kit::declarations().len()).ok()?);

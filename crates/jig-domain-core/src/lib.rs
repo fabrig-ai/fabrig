@@ -91,7 +91,7 @@ pub use routing::{
 };
 pub use sibling_routes::{MadeRoute, PersonMessage, SentRoute};
 mod conversation;
-pub use conversation::{DeliveryOutcome, SettledAnswer, SettledCall, conversation_worst_case};
+pub use conversation::{DeliveryOutcome, Settled, SettledAnswer, SettledCall, conversation_worst_case};
 pub mod charters;
 pub mod fleet_needs;
 pub mod settings;

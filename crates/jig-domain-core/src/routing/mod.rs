@@ -507,7 +507,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
             application_routes::finished(core, env, work, request, outcome)
         }
         Event::ProjectionSettled { goal, connector } => route_projection_settled(core, env, goal, connector),
-        Event::SettledCall { to, key, call } => crate::conversation::settle(core, &env.limits, to, key, call),
+        Event::SettledCall { to, key, name, call } => {
+            crate::conversation::settle(core, &env.limits, to, key, name, call)
+        }
         Event::EffectStart { owner, connector, origin } => crate::effects::start(core, env, owner, connector, origin),
         Event::EffectConnector(event) => crate::effects::connector(core, env, work, event),
         Event::SubscribeTopic { to, key, connector, topic, resources } => {

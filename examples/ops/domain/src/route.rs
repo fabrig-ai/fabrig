@@ -172,8 +172,8 @@ fn event_in(
             let answer = domain.payload(Payload::Settled(call));
             work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
         }
-        Event::ConnectorRead { to, task, name, tool, read } => {
-            crate::assemble::connector_read(domain, env, to, task, name, tool, read, work);
+        Event::ConnectorRead { to, task, name: _, tool, read } => {
+            crate::assemble::connector_read(domain, env, to, task, tool, read, work);
         }
         Event::Effect { to, key, effect, deadline, proposal } => {
             let owner = domain.token();
