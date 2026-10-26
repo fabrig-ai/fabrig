@@ -63,7 +63,9 @@ desktop browsers are well supported (the user, 10-26).
 - **The frame around the client** is the page's own, not the client's:
   what this is ("temper's playground: a scripted model and forge,
   running in your browser"), the world's controls (pause, speed, reset,
-  the story), the world's time, temper's version, the way to the real
+  the story), the world's time, how big and how quick the world is
+  (its memory's high water and its longest slice, which the world says:
+  skein's `playground.md`, 5), temper's version, the way to the real
   thing (the download), and the session's log. It has temper's look and
   a mockup of its own, which the user chooses as every page's.
 - **A pace a person can follow.** A story's replies and CI take time,
@@ -262,8 +264,9 @@ desktop browsers are well supported (the user, 10-26).
   finding.
 - **In a browser, outside the gate:** the browser tier walks story A on
   the built playground in headless Chromium (`client/browser.md`,
-  section 4), and measures the download, the memory's high water and a
-  slice's latency, reported against their bars.
+  section 4), and measures the download from the bundle's files (raw
+  and compressed), and the memory's high water and the longest slice
+  from what the frame shows, reported against their bars.
 - **By hand, before the release:** Firefox and Safari on a desktop,
   walking story A.
 
