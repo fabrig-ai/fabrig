@@ -642,15 +642,18 @@ section 8 give them. temper's sit beside them:
   - **The forges' secrets from a schema:** temper's family
     `temper-secrets` (`temper-protocol-records`, `schema/secrets-v1.schema`),
     a versioned record per row of jig's secrets' store under temper's tag
-    (credentials.md, 2.1): an enum of records, one per item (the four
+    (credentials.md, 2.1): an enum of records, one per item (the three
     tokens and the webhook's secret each a `secret N`; the user and the
     app's id `u64`s, big-endian as every schema's; the app's slug a
     `text N`; its key a `secret N` holding its DER; the accepted
-    installations a list; the origin its kind and address), and the
-    pasted bundle a carried value's, a list of items. The hand-written
-    envelope and its little-endian numbers go. temper's set names the
-    family at the baseline, `map: Secrets`, its keys temper's numbers
-    below 2^63 (jig's `protocol/store.md`, section 9).
+    installations a list; the origin its kind and address). The
+    hand-written envelope and its little-endian numbers go. temper's set
+    names the family at the baseline, `map: Secrets`, its keys temper's
+    numbers below 2^63 (jig's `protocol/store.md`, section 9). A pasted
+    bundle is a carried value, jig's from 2^63 up, kept only until the
+    request that carries it is used (credentials.md, 2.2): its form is
+    `temper-secrets`' `Pasted`, versioned, and one of another version is
+    refused by name and pasted again, never patched.
   - **temper's store says what it holds** (store.md, section 4): a
     retained refusal `holds jig-store-people Refusal`; each list of
     answers' items, comments, reviews, statuses, remarks and files its
@@ -659,7 +662,7 @@ section 8 give them. temper's sit beside them:
     `pieces`, its bytes moving in place where they must.
   - **An effect's key is an identity, never patched:** kept as written,
     in the store and in the forge's markers, compared byte for byte.
-    Its first byte is its version (skein's `forge-client.md`, 7.4); from
+    Its first byte is its version (skein's `forge-client.md`, 7.1); from
     the first release the connector reads every version it has written,
     and a purpose's tag keeps its meaning for good, a new meaning taking
     a new tag (forge.md, section 4). The marker's wrapper and the bot's
@@ -670,11 +673,15 @@ section 8 give them. temper's sit beside them:
     preparation writes it before the engine starts, so it follows the
     forge's own upgrade, whose going back is its dump (setup.md, 6.3).
     The worker's secret and digest (hex digits and a newline), the demo
-    model's key, the box's started markers (an empty file each) and the
-    admin token's handover are fixed forms, never versioned: a change is
-    a new file name. The engine writes no small file before its start's
-    wires are durable (jig's `protocol/store.md`, 5.3), so going back
-    finds them as they were.
+    model's key, the forge's sign-in client secret (setup.md, 6.8), the
+    box's started markers (an empty file each) and the admin token's
+    handover are fixed forms, never versioned: a change is a new file
+    name, read beside the old one for as long as a release may find it.
+    The engine writes no small file before its start's wires are durable
+    (jig's `protocol/store.md`, 5.3), so going back finds the engine's
+    as they were; the preparation's `state` and an owned Forgejo's data
+    are the forge's, and going back past a preparation that migrated it
+    needs its dump (`draft/upgrades.md`, 3.2 and 11).
   - **Golden bytes** pin each fixed form, each schema's records and the
     key's frame and marker, so a change fails a test naming it.
 
