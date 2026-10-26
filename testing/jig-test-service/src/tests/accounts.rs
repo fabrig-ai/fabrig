@@ -123,7 +123,10 @@ fn signed_out(events: &mut Queue<root::Event>, old: u32) -> Option<bool> {
 }
 
 fn carry_llm_key(engine: &mut crate::Engine, value: &[u8]) -> u64 {
-    let _later = engine.store.secrets(Token::new(123), store::Secrets::Carry { kind: jig_protocol_store::CarriedKind::Key, value: Secret::new(value.into()) });
+    let _later = engine.store.secrets(
+        Token::new(123),
+        store::Secrets::Carry { kind: jig_protocol_store::CarriedKind::Key, value: Secret::new(value.into()) },
+    );
     // The start's mark may still have a terminal here. Preserve unrelated
     // answers and take only this explicit carry's terminal.
     for _ in 0..engine.store.above.len() {
