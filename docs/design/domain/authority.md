@@ -416,7 +416,9 @@ deployment's rules       the most any project may have; requirements on effects
   the only spend beyond a budget, bounded by the turns and bytes a run
   may keep unacknowledged (hosts.md, 6.4) at its models' prices.
 - **Time is a deadline.** A task past its deadline is held, and its
-  requester told; its delegates' deadlines are no later than its own.
+  requester told. A task parked when its wall passes is made due then, so
+  the hold doesn't wait for its next word; one running finishes its run
+  first. Its delegates' deadlines are no later than its own.
 - **Load is not spend.** A connector's requests to its system are its
   load (connectors.md, section 13).
 

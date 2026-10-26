@@ -234,3 +234,47 @@ fn a_proposed_delegate_keeps_its_span() {
     let tasks::ProposalAction::Batch(batch) = &proposal.action else { panic!("proposed batch") };
     assert_eq!(batch[0].deadline, tasks::Deadline::Span(f::SPAN));
 }
+
+#[test]
+fn a_parked_delegate_past_its_wall_is_held_and_its_creator_told() {
+    use jig_core_world::fixtures::{delegate, member, run_with_deadline};
+    use jig_domain_core as core;
+    use jig_test_domain as root;
+    use skein_lib::Time;
+    let mut world = run_with_deadline(313, Some(CREATOR_WALL));
+    let creator = world.assignments[0];
+    let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"parked span");
+    child.deadline = tasks::Deadline::Span(f::SPAN);
+    f::clock(&mut world, 10);
+    let child = delegate(&mut world, creator, 1, child);
+    assert_eq!(world.assigned.as_ref().expect("delegate running").task, child);
+    world.end(tasks::End::Parked, 0);
+    assert_eq!(live_row(&world, child).phase, tasks::Phase::Active(tasks::Active::Idle));
+    let deadline = live_row(&world, child).authority.budget.deadline.expect("span wall");
+    world.fire_due(Time::from_nanos(deadline.as_nanos()), deadline);
+    assert_eq!(live_row(&world, child).phase, tasks::Phase::Active(tasks::Active::Idle));
+    let past = Wall::from_nanos(deadline.as_nanos() + 1);
+    world.fire_due(Time::from_nanos(past.as_nanos()), past);
+    assert!(matches!(live_row(&world, child).phase, tasks::Phase::Held { why: tasks::Hold::Deadline, .. }));
+    world.fire_due(Time::from_nanos(past.as_nanos() + 1), past);
+    assert!(matches!(live_row(&world, child).escalation,
+        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(task), .. } if task == creator.0));
+    let notices = world
+        .inbound
+        .iter()
+        .filter(|word| matches!(word.kind, tasks::MessageKind::Escalation { task, .. } if task == child))
+        .count();
+    assert_eq!(notices, 1, "the requester hears the deadline hold once");
+    let activity: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(row))) if row.task == child => Some(row),
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .collect();
+    assert!(!activity.iter().any(|row| matches!(row.line, tasks::Line::Turn { .. })));
+    assert_eq!(activity.iter().filter(|row| matches!(row.line, tasks::Line::RunBegan { .. })).count(), 1);
+    assert_eq!(world.assignments.iter().filter(|(task, _)| *task == child).count(), 1);
+}

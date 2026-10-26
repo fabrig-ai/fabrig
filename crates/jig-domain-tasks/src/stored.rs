@@ -1088,7 +1088,7 @@ pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
                     kept: record(domain, number).expect("restored live task").turn,
                 });
             }
-            Phase::Active(Active::BackingOff { .. }) => publish(domain, env, number, out),
+            Phase::Active(Active::Idle | Active::BackingOff { .. }) => publish(domain, env, number, out),
             Phase::Closing(closing) => match closing.stage {
                 Stage::Run { attempt } => {
                     out.push(Request::Adopt {
@@ -1119,7 +1119,7 @@ pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
                 | Was::Active(Active::Idle | Active::Due | Active::Preparing | Active::BackingOff { .. })
                 | Was::Closing(Closing { stage: Stage::Delegates | Stage::Releases | Stage::Settled, .. }) => {}
             },
-            Phase::Waiting | Phase::Active(Active::Idle) => {}
+            Phase::Waiting => {}
             Phase::Ended(_) => unreachable!("ended record not restored into live arena"),
         }
     }

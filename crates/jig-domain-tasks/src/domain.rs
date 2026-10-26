@@ -773,6 +773,16 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             Phase::Active(Active::Due | Active::Idle) if crate::person::pending(&task.record) => {
                 out.push(Request::PersonStallDue { task: number });
             }
+            Phase::Active(Active::Idle)
+                if match task.record.authority.budget.deadline {
+                    Some(wall) => env.wall > wall,
+                    None => false,
+                } =>
+            {
+                task.record.phase = Phase::Active(Active::Due);
+                publish(domain, env, number, out);
+                activate(domain, number, out);
+            }
             Phase::Active(Active::BackingOff { .. }) => {
                 task.record.phase = crate::run::ends::for_record(&task.record)
                     .amended(task.record.executor, Phase::Active(Active::Due));
@@ -1053,15 +1063,27 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     }
     task.observed_hold = held;
     let escalation = crate::escalation::begin(&mut task.record);
+    // Admission permits equality with the wall. Wake just after it, without
+    // another alarm or a durable deadline carrier (domain/authority.md, 7).
+    #[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
+    let wall = match task.record.authority.budget.deadline {
+        Some(wall) => match wall.as_nanos().checked_add(1) {
+            Some(nanos) => Some(Wall::from_nanos(nanos)),
+            None => None,
+        },
+        None => None,
+    };
     let until = match task.record.phase {
         Phase::Active(Active::Due | Active::Idle) if crate::person::pending(&task.record) => {
             Some(task.record.person_wait.expect("active person wait").deadline)
         }
-        Phase::Active(Active::BackingOff { until }) => Some(until),
+        Phase::Active(Active::Idle) => wall,
+        Phase::Active(Active::BackingOff { until }) => Some(match wall {
+            Some(wall) => until.min(wall),
+            None => until,
+        }),
         Phase::Waiting
-        | Phase::Active(
-            Active::Idle | Active::Due | Active::Preparing | Active::Claimed { .. } | Active::Running { .. },
-        )
+        | Phase::Active(Active::Due | Active::Preparing | Active::Claimed { .. } | Active::Running { .. })
         | Phase::Closing(_)
         | Phase::Held { .. }
         | Phase::Ended(_) => None,
