@@ -211,7 +211,7 @@ impl SeenFence {
         let records = store.rows.values().chain(store.pending.iter().flat_map(|pending| {
             pending.writes.iter().filter_map(|write| match write {
                 root::Write::Save(record) => Some(record),
-                root::Write::Erase(_) | root::Write::CopySettingsRevision(_) => None,
+                root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) => None,
             })
         }));
         for record in records {
@@ -478,7 +478,8 @@ impl Observer {
             | root::Event::WatchApplication { .. }
             | root::Event::ReadApplication { .. }
             | root::Event::Stop
-            | root::Event::RestartBegin
+            | root::Event::Switched
+            | root::Event::RestartBegin { .. }
             | root::Event::RestartDone(_)
             | root::Event::Timer(_)
             | root::Event::Core(_)

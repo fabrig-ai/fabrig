@@ -508,7 +508,8 @@ impl Clients {
             | root::Event::Application { .. }
             | root::Event::WriterRead { .. }
             | root::Event::ConnectorTimer { .. }
-            | root::Event::RestartBegin
+            | root::Event::Switched
+            | root::Event::RestartBegin { .. }
             | root::Event::RestartDone(..)
             | root::Event::Timer(..)
             | root::Event::Credential { .. }
@@ -538,7 +539,7 @@ impl Clients {
                         endings.push(number).expect("bounded commit writes");
                     }
                 }
-                root::Write::Save(_) | root::Write::CopySettingsRevision(_) => {}
+                root::Write::Wires | root::Write::Save(_) | root::Write::CopySettingsRevision(_) => {}
             }
         }
         if !endings.is_empty() {
@@ -628,7 +629,8 @@ impl Clients {
             | root::Event::Stop
             | root::Event::WriterRead { .. }
             | root::Event::ConnectorTimer { .. }
-            | root::Event::RestartBegin
+            | root::Event::Switched
+            | root::Event::RestartBegin { .. }
             | root::Event::RestartDone(..)
             | root::Event::Timer(..)
             | root::Event::Credential { .. }
