@@ -187,11 +187,11 @@ the service. Changes to startup inputs need a restart, including
 adding models or providers, changing workers or host capability,
 and increasing capacity limits. These are not extra setting kinds.
 
-The first start records revision 1. A later start with changed
-defaults can record a new revision by **the release**. A stored
-change still wins over a default changed at that later start.
-Editing the configuration does not undo an accepted stored change;
-reset the setting when you want to return it to its default.
+The first start records revision 1. A later start whose defaults
+changed records a revision of its own. A stored change still wins over
+a default changed at that later start. Editing the configuration does
+not undo an accepted stored change; reset the setting when you want to
+return it to its default.
 
 ## What it cannot do yet
 

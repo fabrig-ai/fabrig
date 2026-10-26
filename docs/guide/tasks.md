@@ -17,7 +17,6 @@ You start a chat; an agent can create delegate tasks to carry out
 parts of its work. Delegates form a tree. Follow **Its tasks** from
 the parent to see live work and ended delegates. The page of ended
 work is bounded: use the offered next controls when there is more.
-An ended delegate page need not show every task that has ended.
 
 These examples use `me` as your client directory and task 41 as the
 work you want to follow. Replace the project and task numbers with
@@ -89,10 +88,10 @@ temper ctl me message 41 investigate --key investigate-41
 ```
 
 An ordinary reply leaves the chat open. A run can park, showing
-**waiting on your words**, and a later message can start another run.
-Parking resets the run's retry counters; the ordinary reply is not a
-task result. Follow the offered **Older** control to read earlier
-text when the conversation window does not include it all.
+**waiting on your words**, and a later message can start another run. A
+park is not a failure, and an ordinary reply is not the task's result.
+Follow the offered **Older** control to read earlier text when the
+conversation window does not include it all.
 
 You can send words while work runs. They reach the agent at a turn
 boundary, so a message steers its next turn rather than changing the
@@ -201,5 +200,5 @@ A chat does not deliver a repository change itself: ask it for the
 change and follow the delegated task. There is no guarantee that a
 final summary arrives before Close cancels the run after its grace.
 
-Read a closed chat in the client. Do not rely on `temper ctl` to read
-every closed transcript: that path is not established for ended chats.
+Read a closed chat in the client: `temper ctl me chat 41` may not show
+a chat that has ended.

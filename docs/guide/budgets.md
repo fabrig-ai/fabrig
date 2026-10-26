@@ -164,23 +164,15 @@ change can change later run behavior. These settings changes do not
 refill a particular task's allotment and do not extend the budget
 already sent to a running agent.
 
-Task funding, run limits and release are separate matters. Accepting
-an offered authority amendment is different from changing settings.
-Neither changing a setting nor releasing a hold is a way to refill
-an already running task. The current task amendment form and ctl
-amendment command have no spend amount or general authority input.
-
 ## What it cannot do yet
 
 There is no calendar-aware weekly budget recipe. Project periods
 and pools exist, but a period amount does not by itself mean an
 amount per week.
 
-There is no amount you can type in the task amendment form or ctl to
-top up an arbitrary task. You can decide a concrete offered proposal;
-that does not establish a general Add budget journey from every
-exhausted task to a new allowance.
+There is no amount you can type, in the client or with `temper ctl`, to
+give a task more budget: you can accept a proposal that offers more, as
+"Giving work more" says.
 
-No configured currency convention is established here. Numeric
-model prices do not establish a currency or an invoiced monetary
-guarantee. Treat spend as deployment units.
+Spend has no currency. A model's prices turn its usage into units, and
+temper does not say what a unit costs you.
