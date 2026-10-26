@@ -264,7 +264,7 @@ agent must name.
 | `decide N --hold R release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |
 | `propose-settings FILE [REASON] --against R` | proposes the whole settings set to the deployment owners; FILE or `-` shares the change-settings format and bounds; the optional reason is forwarded unchanged | `Propose` settings | yes |
 | `change-settings FILE --against R [--running stays\|moves]` | changes the settings in one decision: FILE (or `-`) holds the items; R is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
-| `move-to-newest R` | moves every live agent task on held revision R that may move to the newest, each at its next run; answered how many moved and how many could not, which finish on R | `MoveToNewest` | yes |
+| `move-to-newest R` | moves every live agent task on held revision R that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
 | `release N --hold R [--again]` | lifts a hold | `Release` | |
 | `stop N` | cancels a task's run, the task held | `Stop` | |
 | `cancel N [--grace D] REASON` | cancels a task and its tree | `Cancel` | |
@@ -845,10 +845,11 @@ digest: task 7c1e09a2b44f0d13
   (section 15). With none, no line.
 - **Its settings revision,** for an agent task, after its instructions:
   `settings: revision 7`, the revision its runs read their charter
-  from (jig's `domain/engine.md`, 17.3); then ` · its run on 6` while a
-  live run was prepared under an older one, and ` · newest 9` when the
-  newest is another, which `move-to-newest 7` would move it to. A
-  procedure's or a person's task prints no line.
+  from, jig's `Task.settings.task` (jig's `domain/engine.md`, 17.3);
+  then ` · its run on 6` while a live run was prepared under another,
+  and ` · newest 9` when the newest is another, which `move-to-newest
+  7` moves it to if the newest offers its charter and allows its LLM
+  choice (17.4). A procedure's or a person's task prints no line.
 - **Its dependencies,** when it has any, after its instructions: a
   line `dependencies:`, then one indented line per dependency, in the
   document's order: `task M`, its state as a tree's chip says it, or an
@@ -1514,13 +1515,15 @@ Settings inventory, a setting, a revision and revision history each have
 one named ctl process story in text and JSON. An owner's change has one
 story: read the current revision, change a charter, read its full value
 and revision back, and refuse a stale request naming the newest revision.
-Running work keeps its revision, one story: a goal's delegate waiting
-under revision R; an owner's `change-settings` of its charter's
-instructions makes R+1; `task N` prints `settings: revision R · newest
-R+1`, `settings` counts one live task on R, and `setting charter C
+Running work keeps its revision, one story: a goal made by ctl, the
+deployment's only live agent task, parked between two runs under
+revision R; an owner's `change-settings` of its charter's instructions
+makes R+1; `task N` prints `settings: revision R · newest R+1`,
+`settings` counts one live task on R, and `setting charter C
 --revision R` prints the old instructions; `move-to-newest R` answers
-one moved; the delegate's next run reads R+1's instructions, as the
-fake LLM's request shows, and R is no longer held. What jig's worlds
+one moved and none that could not; the goal's next run, woken by a
+message, reads R+1's instructions, as the fake LLM's request shows, and
+R is no longer held. What jig's worlds
 show of revisions (a restart with R held, a removed charter's task
 finishing on R, the bound reached) is not repeated here.
 
