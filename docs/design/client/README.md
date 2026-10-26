@@ -762,13 +762,11 @@ keeps (`../protocol/configuration.md`, section 2).
     the demo's read names it, which the start's first act makes
     (`../draft/first-run.md`, 2.4); until then the chats page shows the
     demo's start under way, as in that project.
-    *"Set up temper"* opens its Forge step. Its card's model sentence
-    reads the offered `me.providers` ways, excluding the playground's
-    provider: "your PLAN plan" for a sign-in, "your PLAN subscription"
-    for a program's login, and "an PROVIDER API key" per key provider,
-    in 5.5's provider and plan words. Key providers join with " or ";
-    the other alternatives join with ", or ". No model sentence is
-    drawn with no offered way.
+    *"Set up temper"* opens its Forge step. Its card names the forge
+    and the model in short, in fixed words, as its mockup does: "Your
+    forge: GitHub or Forgejo" and "Your model: ChatGPT or Claude", the
+    forges and the plans v0.1.0 supports (the user, 2026-10-26), not
+    the offered `me.providers` ways.
   - *Forge* is `ConnectForge`'s Choose, less a configured admin
     Forgejo's card and A Forgejo elsewhere, and Details (`forge.md`,
     5.4), its choice in the welcome's address (`browser.md`, 2.3);
@@ -1915,10 +1913,9 @@ The words for each offered source are:
   Any other provider's plan reads as its name. jig configures no plan's
   display name yet (jig's `protocol/configuration.md`, section 3), so
   the plan is branded by its provider until it does.
-- **The welcome's model sentence** uses these provider and plan names
-  for each offered way (3.5, The welcome), grouping all key providers
-  into one alternative. It reflects the deployment's catalogue rather
-  than assuming OpenAI's two ways.
+- **The welcome's model sentence** names the plans v0.1.0 supports,
+  "ChatGPT or Claude", in fixed words rather than the offered ways
+  (3.5, The welcome; the user, 2026-10-26).
 - **The ways,** on `ConnectModel`'s Choose (3.5) and in the banner, one for
   each source a configured provider offers, in provider number order,
   but the demo's provider (`Demo.provider`, 4.8), whose account is the
@@ -2204,9 +2201,8 @@ no retirement fact; a running playground keeps its project and words:
   (`../draft/first-run.md`, 2.3).
 - **The welcome** (`welcome.html`; `../draft/first-run.md`, 2.3): its
   steps' words, their order and their acts are its mockup's
-  (`mockups/welcome.html`, at the states its worlds list). Beyond them:
-  the set up card's model sentence follows the default document's
-  providers and their ways (5.5, The ways); a move is a link
+  (`mockups/welcome.html`, at the states its worlds list), the set up
+  card's model sentence among them (5.5). Beyond them: a move is a link
   (`browser.md`, 2.3); the foot's "‹ Back" goes to its step's Choose
   inside a choice, otherwise to the step before, and its "Try the
   playground instead" shows while the demo is answered (4.8) and no
