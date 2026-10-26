@@ -684,19 +684,54 @@ fn accept_sends_the_existing_id_without_a_value_and_prints_its_next_call() {
     }
 }
 #[test]
-fn accept_names_an_installation_github_does_not_have() {
-    let mut root = f::signed_in(f::PARTY);
-    let call = root.submit(ACCEPT);
-    let limits = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).expect("limits");
-    root.adoption_answer(
-        call,
-        w::Outcome::ForgeRefused(
-            w::ForgeRefused::new(&limits, w::ForgeRefusedParts { reason: w::ForgeReason::NotFound }).expect("refusal"),
+fn a_stopped_accept_prints_its_reason_and_keeps_the_json_reason() {
+    for (why, text, expected_json) in [
+        (
+            w::ForgeReason::NotFound,
+            b"GitHub has no installation 22 of this App\n".as_slice(),
+            br#"{"forge_refused":{"reason":"not_found"}}"#.as_slice(),
         ),
-    );
-    let printed = root.answer(call).expect("refused");
-    assert_eq!(printed.status, 2);
-    assert_eq!(printed.stderr.as_ref(), b"GitHub has no installation 22 of this App\n");
+        (
+            w::ForgeReason::NoAccess,
+            b"GitHub refused the App's read of installation 22\n",
+            br#"{"forge_refused":{"reason":"no_access"}}"#,
+        ),
+        (
+            w::ForgeReason::Unreachable,
+            b"GitHub did not answer: try again\n",
+            br#"{"forge_refused":{"reason":"unreachable"}}"#,
+        ),
+        (
+            w::ForgeReason::TooLarge,
+            b"temper's accepted installation set is full\n",
+            br#"{"forge_refused":{"reason":"too_large"}}"#,
+        ),
+        (
+            w::ForgeReason::InvalidAnswer,
+            b"GitHub answered what temper did not expect\n",
+            br#"{"forge_refused":{"reason":"invalid_answer"}}"#,
+        ),
+    ] {
+        for json in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let call = root.submit_prepared(f::call(ACCEPT), json, None);
+            let limits = temper_client_domain::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+            root.adoption_answer(
+                call,
+                w::Outcome::ForgeRefused(
+                    w::ForgeRefused::new(&limits, w::ForgeRefusedParts { reason: why.clone() }).expect("refusal"),
+                ),
+            );
+            let printed = root.answer(call).expect("refused");
+            assert_eq!(printed.status, 2);
+            assert!(printed.stdout.is_empty());
+            if json {
+                assert_eq!(printed.stderr.as_ref(), expected_json);
+            } else {
+                assert_eq!(printed.stderr.as_ref(), text);
+            }
+        }
+    }
 }
 
 #[test]

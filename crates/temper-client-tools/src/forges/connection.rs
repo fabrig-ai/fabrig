@@ -387,16 +387,7 @@ fn text(pending: &Pending, answer: &Answer, kept: bool, limits: &Limits, out: &m
             out.number(*installation);
             out.put(b"\n");
         }
-        Answer::ForgeRefused(why) => {
-            if *why == w::ForgeReason::NotFound {
-                out.put(b"GitHub has no installation ");
-                out.number(pending.installation.expect("accept request"));
-                out.put(b" of this App\n");
-            } else {
-                out.put(forge_reason(why));
-                out.put(b"\n");
-            }
-        }
+        Answer::ForgeRefused(why) => accept_refusal(pending, why, out),
         Answer::Connecting => {
             out.put(b"connecting\n");
             if !install && !manifest && pending.first.is_none() {
@@ -564,16 +555,24 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
     }
 }
 
-fn forge_reason(why: &w::ForgeReason) -> &'static [u8] {
+fn accept_refusal(pending: &Pending, why: &w::ForgeReason, out: &mut Text) {
     match why {
-        w::ForgeReason::NoSuchForge => b"no such forge",
-        w::ForgeReason::NotFound => b"not found",
-        w::ForgeReason::NoAccess => b"no access",
-        w::ForgeReason::Refused => b"refused",
-        w::ForgeReason::InFlight => b"in flight",
-        w::ForgeReason::TooLarge => b"too large",
-        w::ForgeReason::Unreachable => b"unreachable",
-        w::ForgeReason::InvalidAnswer => b"invalid answer",
+        w::ForgeReason::NotFound | w::ForgeReason::NoAccess => {
+            out.put(if *why == w::ForgeReason::NotFound {
+                b"GitHub has no installation "
+            } else {
+                b"GitHub refused the App's read of installation "
+            });
+            out.number(pending.installation.expect("accept request"));
+            out.put(if *why == w::ForgeReason::NotFound { b" of this App\n" } else { b"\n" });
+        }
+        w::ForgeReason::Unreachable => out.put(b"GitHub did not answer: try again\n"),
+        // The refusal carries its reason alone, not the deployment's configured capacity.
+        w::ForgeReason::TooLarge => out.put(b"temper's accepted installation set is full\n"),
+        w::ForgeReason::InvalidAnswer => out.put(b"GitHub answered what temper did not expect\n"),
+        w::ForgeReason::NoSuchForge => out.put(b"no such forge\n"),
+        w::ForgeReason::Refused => out.put(b"refused\n"),
+        w::ForgeReason::InFlight => out.put(b"in flight\n"),
     }
 }
 

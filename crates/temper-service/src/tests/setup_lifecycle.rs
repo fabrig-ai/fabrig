@@ -1776,23 +1776,91 @@ fn a_stateless_accept_of_a_missing_installation_answers_not_found_without_handin
     public::accept(service.engine.as_mut().unwrap(), 1, Token::new(91), core::num::NonZeroU64::new(22).unwrap());
     let mut face = Face::new();
     face.sent(&mut service);
-    let token = *service.engine.as_ref().unwrap().setup.runs.first().unwrap().0;
-    lifecycle::stopped(
-        service.engine.as_mut().unwrap(),
-        token,
-        reconcile::Failure {
-            forge: 1,
-            step: reconcile::Stage::Installation,
-            subject: b"22".as_slice().into(),
-            why: reconcile::Why::Missing,
-        },
-    );
+    face.reply_status(&mut service, b"404 Not Found", b"{}");
     assert_eq!(
         accept_answer(&mut service),
         Some(domain::AcceptAnswer::ForgeRefused(domain::AdoptionRefusal::NotFound))
     );
     assert!(service.engine.as_ref().unwrap().forge.accepted.is_empty());
     assert_eq!(accept_answer(&mut service), None);
+}
+
+fn assert_accept_stop(service: &mut crate::Service, why: domain::AdoptionRefusal, kept: &[u64]) {
+    assert_eq!(accept_answer(service), Some(domain::AcceptAnswer::ForgeRefused(why)));
+    assert_eq!(values(service).as_ref(), kept, "a stopped accept keeps the old set");
+    let engine = service.engine.as_ref().unwrap();
+    assert!(engine.forge.accepted.is_empty(), "no set handed down on Stop");
+    assert!(engine.setup.writes.is_empty());
+    assert!(engine.setup.public.is_empty(), "the caller ends");
+    assert_eq!(accept_answer(service), None, "only one terminal answer");
+}
+#[test]
+fn a_stateless_accept_of_a_refused_read_answers_no_access() {
+    for status in [b"401 Unauthorized".as_slice(), b"403 Forbidden"] {
+        let mut service = service(8, Duration::from_secs(3600));
+        app(&mut service);
+        accepted(&mut service, &[11]);
+        public::accept(service.engine.as_mut().unwrap(), 1, Token::new(91), core::num::NonZeroU64::new(22).unwrap());
+        let mut face = Face::new();
+        face.sent(&mut service);
+        face.reply_status(&mut service, status, b"{}");
+        assert_accept_stop(&mut service, domain::AdoptionRefusal::NoAccess, &[11]);
+    }
+}
+#[test]
+fn a_stateless_accept_with_an_unsigned_app_key_answers_no_access() {
+    let mut service = service(8, Duration::from_secs(3600));
+    app(&mut service);
+    accepted(&mut service, &[11]);
+    // A valid DER envelope whose contents cannot sign: the host answers Unsigned.
+    row(&mut service, Item::AppKey, &[0x30, 0]);
+    public::accept(service.engine.as_mut().unwrap(), 1, Token::new(91), core::num::NonZeroU64::new(22).unwrap());
+    for _ in 0_u32..8 {
+        advance(service.engine.as_mut().unwrap());
+    }
+    assert_accept_stop(&mut service, domain::AdoptionRefusal::NoAccess, &[11]);
+}
+#[test]
+fn a_stateless_accept_past_its_deadline_answers_unreachable() {
+    let mut service = service(8, Duration::from_secs(3600));
+    app(&mut service);
+    accepted(&mut service, &[11]);
+    public::accept(service.engine.as_mut().unwrap(), 1, Token::new(91), core::num::NonZeroU64::new(22).unwrap());
+    let mut face = Face::new();
+    face.sent(&mut service);
+    service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(3600));
+    for _ in 0_u32..8 {
+        face.turn(&mut service);
+    }
+    assert_accept_stop(&mut service, domain::AdoptionRefusal::Unreachable, &[11]);
+}
+#[test]
+fn a_stateless_accept_when_the_accepted_set_is_full_answers_too_large() {
+    let mut service = service(8, Duration::from_secs(3600));
+    app(&mut service);
+    let limit = service.engine.as_ref().unwrap().forge_records.bounds.installations;
+    let mut ids = List::with_capacity(limit);
+    for id in 1..=u64::from(limit) {
+        ids.push(id).unwrap();
+    }
+    assert!(!ids.as_slice().contains(&22), "the fixture installation is new");
+    accepted(&mut service, ids.as_slice());
+    public::accept(service.engine.as_mut().unwrap(), 1, Token::new(91), core::num::NonZeroU64::new(22).unwrap());
+    let mut face = Face::new();
+    face.sent(&mut service);
+    face.reply(&mut service, br#"{"id":22,"app_id":7,"account":{"id":122,"login":"account-fixture","type":"Organization"},"target_type":"Organization","created_at":"1970-01-01T00:00:00Z","suspended_at":null}"#);
+    assert_accept_stop(&mut service, domain::AdoptionRefusal::TooLarge, ids.as_slice());
+}
+#[test]
+fn a_stateless_accept_of_an_unexpected_installation_answers_invalid_answer() {
+    let mut service = service(8, Duration::from_secs(3600));
+    app(&mut service);
+    accepted(&mut service, &[11]);
+    public::accept(service.engine.as_mut().unwrap(), 1, Token::new(91), core::num::NonZeroU64::new(22).unwrap());
+    let mut face = Face::new();
+    face.sent(&mut service);
+    face.reply(&mut service, br#"{"id":23,"app_id":7,"account":{"id":122,"login":"account-fixture","type":"Organization"},"target_type":"Organization","created_at":"1970-01-01T00:00:00Z","suspended_at":null}"#);
+    assert_accept_stop(&mut service, domain::AdoptionRefusal::InvalidAnswer, &[11]);
 }
 
 #[test]
