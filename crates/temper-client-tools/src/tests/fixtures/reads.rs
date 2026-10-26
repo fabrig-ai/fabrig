@@ -21,6 +21,36 @@ pub(crate) const ENDED_CALL: &[&str] = &[TASKS_CALL[0], TASKS_CALL[1], "shop", "
 pub(crate) const TURN_CALL: &[&str] = &["turn", TASK_CALL[1], "3.7"];
 pub(crate) const ACTIVITY_CALL: &[&str] = &["activity", TASK_CALL[1]];
 pub(crate) const CHAT_CALL: &[&str] = &["chat", TASK_CALL[1]];
+/// Two distinct kept turns make losing either conversation entry observable.
+pub(crate) const KEPT_TURNS: &[&[u8]] = &[b"First kept turn", b"Second kept turn"];
+pub(crate) fn kept_conversation() -> c::ReadResult {
+    let mut rows = List::with_capacity(u32::try_from(KEPT_TURNS.len()).expect("two turns"));
+    for (index, words) in KEPT_TURNS.iter().enumerate() {
+        let mut blocks = List::with_capacity(TURN_BLOCKS);
+        blocks.push(c::Block::Text(turn_words(words))).expect("one text block");
+        let c::ReadResult::Value(c::ReadValue::Turn(turn)) = turn_blocks(blocks) else {
+            panic!("decoded turn fixture")
+        };
+        rows.push(c::ActivityLine {
+            position: u64::try_from(index).expect("two positions").checked_add(1).expect("nonzero position"),
+            at: Wall::EPOCH,
+            event: c::Activity::Turn {
+                name: c::TurnName {
+                    attempt: ATTEMPT,
+                    number: TURN.checked_add(u32::try_from(index).expect("two turns")).expect("next turn"),
+                },
+                turn: turn.turn,
+            },
+        })
+        .expect("two kept turns");
+    }
+    c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+        cut: false,
+        rows,
+        before: None,
+        after: None,
+    })))
+}
 pub(crate) const RUN_CALL: &[&str] = &["run", TASK_CALL[1]];
 pub(crate) const INBOX_CALL: &[&str] = &["inbox"];
 pub(crate) const COMPOSITE_CALL: &[&str] = &[TASK_CALL[0], TASK_CALL[1], "--tree", "--activity", ONE_ROW, "--run"];

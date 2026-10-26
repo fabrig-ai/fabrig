@@ -8,6 +8,89 @@ fn a_task_read_prints_its_document() {
     assert_eq!((answer.status, answer.stdout), (0, fixtures::golden("task_goal_waiting")));
 }
 #[test]
+fn a_closed_chat_reads_its_kept_conversation() {
+    use jig_client::contract as c;
+    for json in [false, true] {
+        for end_first in [false, true] {
+            let argv = fixtures::extended(fixtures::CHAT_CALL, if json { &["--json"] } else { &[] });
+            let (mut root, call) = fixtures::read_call(argv.as_slice());
+            if end_first {
+                root.end(call, &fixtures::run_watch(), c::WatchEnd::SubjectEnded);
+                assert!(root.answer(call).is_none(), "activity still pending");
+            }
+            root.serve(call, fixtures::kept_conversation());
+            if !end_first {
+                assert!(root.answer(call).is_none(), "run slot still pending");
+                root.end(call, &fixtures::run_watch(), c::WatchEnd::SubjectEnded);
+            }
+            let answer = root.answer(call).expect("kept conversation answered");
+            assert_eq!(answer.status, 0);
+            assert!(answer.stderr.is_empty());
+            let mut previous = None;
+            for words in fixtures::KEPT_TURNS {
+                let at = skein_lib::bytes::find(&answer.stdout, words).expect("kept turn printed");
+                if let Some(previous) = previous {
+                    assert!(previous < at, "kept turns remain in order");
+                }
+                previous = Some(at);
+            }
+            if json {
+                skein_json::tokenizer::validate(
+                    &answer.stdout,
+                    &skein_json::tokenizer::Limits {
+                        depth: 16,
+                        string: 0,
+                        number: 20,
+                        chunk: 256,
+                        length: u32::try_from(answer.stdout.len()).expect("small conversation"),
+                    },
+                )
+                .expect("one valid JSON document");
+                assert!(skein_lib::bytes::find(&answer.stdout, br#""run":"#).is_none());
+            }
+        }
+    }
+}
+#[test]
+fn a_task_run_read_of_an_ended_task_prints_the_task() {
+    use jig_client::contract as c;
+    for json in [false, true] {
+        let plain = fixtures::extended(fixtures::TASK_CALL, if json { &["--json"] } else { &[] });
+        let argv = fixtures::extended(plain.as_slice(), &["--run"]);
+        let task = fixtures::ended_task(c::Phase::Done);
+        let expected = fixtures::read_answer(plain.as_slice(), fixtures::task_result(task.clone()));
+        for end_first in [false, true] {
+            let (mut root, call) = fixtures::read_call(argv.as_slice());
+            if end_first {
+                root.end(call, &fixtures::run_watch(), c::WatchEnd::SubjectEnded);
+            }
+            root.serve(call, fixtures::task_result(task.clone()));
+            if !end_first {
+                assert!(root.answer(call).is_none(), "run slot still pending");
+                root.end(call, &fixtures::run_watch(), c::WatchEnd::SubjectEnded);
+            }
+            let answer = root.answer(call).expect("ended task answered");
+            assert_eq!(answer.status, 0);
+            assert!(answer.stderr.is_empty());
+            assert_eq!(answer.stdout, expected.stdout);
+        }
+    }
+}
+#[test]
+fn a_chat_read_whose_watch_is_refused_still_fails() {
+    use jig_client::contract as c;
+    for (json, expected) in [(false, b"watch ended\n".as_slice()), (true, b"{\"error\":\"watch ended\"}")] {
+        let argv = fixtures::extended(fixtures::CHAT_CALL, if json { &["--json"] } else { &[] });
+        let (mut root, call) = fixtures::read_call(argv.as_slice());
+        root.serve(call, fixtures::kept_conversation());
+        root.end(call, &fixtures::run_watch(), c::WatchEnd::NotAllowed);
+        let answer = root.answer(call).expect("refusal answered");
+        assert_eq!(answer.status, 2);
+        assert!(answer.stdout.is_empty());
+        assert_eq!(answer.stderr.as_ref(), expected);
+    }
+}
+#[test]
 fn a_proposable_act_says_to_whom() {
     let (mut root, call, mut task) = fixtures::task_read();
     task.acts.get_mut(0).expect("first offer").admission =

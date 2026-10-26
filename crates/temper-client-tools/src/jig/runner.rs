@@ -206,7 +206,7 @@ pub fn told(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>,
             runner.watching = false;
             runner.start(out);
         }
-        Told::Ended { handle, why } => reads::ended(runner, handle, why, out),
+        Told::Ended { handle, why } => reads::ended(runner, client, env, handle, why, out),
         Told::Kept { key, request } => recovery::kept(runner, key, &request, client),
         Told::Dropped { count } => recovery::dropped(runner, count, out),
         Told::Answered { key, outcome } => acts::answered(runner, client, env, key, &outcome, out),
