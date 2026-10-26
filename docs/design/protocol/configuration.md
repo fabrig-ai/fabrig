@@ -1175,18 +1175,6 @@ one owned forge, with its own values (setup.md, 8.1).
   change, so landing can be left unenforced by a change of rules.
   Default: changeable, and said plainly on the review page; jig could
   let an application mark requirements no change removes.
-- **A charter's documents** (`../draft/configuring.md`, section 2: rules
-  reach the runs). A charter of jig's is its instructions as text, with
-  no documents (jig's `domain/engine.md`, 17.1), so a chat, which has
-  no workspace, cannot read the rules a repository holds. Default,
-  asked of jig in the configuring plan's planned implementation, with the configuring
-  agent: a charter may name documents, each a repository, a path
-  and a branch, carried as references jig never reads and pinned with
-  the charter; the forge reads each at its branch's head into the
-  run's brief, as a section of its own (`../domain/agent.md`, 4.1).
-  Until then the configuring agent puts a rule in the charter's own
-  instructions, as the draft does for a rule typed in the chat, and
-  says that a change to the repository's text will not reach it.
 - **A repository renamed or moved after adoption.** Default: its
   resource path, which landing patterns match, and its remote keep the
   owner and name of its adoption; Forgejo redirects the old path, and
@@ -1669,3 +1657,28 @@ side never waits on the part of jig it does not use:
    the run's `settings` tools (`../domain/agent.md`, 4.3), and the
    rules' delegation to charter 3. A deployment made before takes them
    as new defaults, by a revision recorded as the release's.
+
+### 13.7 A charter's documents
+
+The rules a person wrote down reach the runs (`../draft/configuring.md`,
+section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
+
+- **A document** is a branch of an adopted repository, by its resource
+  name (`../domain/forge.md`, section 2: `forge`, the host, the owner,
+  the repository, `branch` and the branch's segments), a path, and
+  optionally a heading. temper's stock charters name none.
+- **The forge gathers each** for a run of the charter, as a brief
+  section of its own (`../domain/root.md`, 7.2): the file at the
+  branch's head when the run is prepared, read as `read_file` reads one
+  (`../domain/forge.md`, section 2), or, with a heading, the lines from
+  that heading to the next of its level or above, within the `document`
+  budget (4,096 bytes in `small`). A repository not adopted, a file or
+  heading not there, or a read that failed, is a section saying so.
+- **In a settings file** (`../client/tools.md`, 5.3), a charter's value
+  carries `"documents": [{"forge": F, "repository": "owner/name",
+  "branch": B, "path": P, "heading": H}]`, `heading` optional, which
+  ctl turns into the branch's resource name and back.
+- **The configuring agent** (`../domain/agent.md`, 8.1) names a
+  document in place of copying its rules into a charter's instructions,
+  when the person points to one in an adopted repository, and says that
+  a change landed there reaches the next run.

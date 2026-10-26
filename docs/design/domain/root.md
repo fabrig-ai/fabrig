@@ -516,6 +516,11 @@ preparing, held until its claim commits:
 - **For a task holding no run branch in its project's adopted home**
   (forge.md, section 11), one section, required: why its runs read the
   home without pushing, bounded by its words.
+- **For each document its charter names** (jig's `domain/engine.md`,
+  17.9; `../protocol/configuration.md`, 13.7), one section, optional,
+  titled by the repository, the path and the heading: the file, or its
+  part, at the branch's head when the run is prepared, within the
+  `document` budget, or why it could not be read.
 - **Planned with the core's.** The brief child places, cuts and orders
   them with the core's sections (jig's `domain/engine.md`, section 9);
   the forge gathers each and keeps it, cut to its allotment, and the root

@@ -110,7 +110,9 @@ makes each call to a forge and hears its deliveries, is
   request, its files and what differs from its base, or, for a
   resolution and a semantic repair, what landed in the base, with the
   files in conflict for a resolution; CI's failures, each with its
-  failed step and the end of that step's output; reviews' remarks.
+  failed step and the end of that step's output; reviews' remarks. And
+  a fourth for any run, a document its charter names, at its branch's
+  head (`../protocol/configuration.md`, 13.7).
 - **Workspace items:** for each repository a run works in (root.md,
   7.1), a checkout: where it starts (a landing branch or the
   repository's default, a branch, saved work, or a merge in progress),

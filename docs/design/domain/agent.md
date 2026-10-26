@@ -105,7 +105,8 @@ engine's routing encodes it (`../protocol/llm.md`, section 5).
   each rendered as one of smith's titled sections, titled by its kind:
   `Task`, `Lineage`, `Dependencies`, `Plan`, `Earlier attempts`,
   `Calls`, `Waiting`, `Notes`, `Transcript tail`, and the forge's
-  `Pull request`, `CI` and `Reviews`. A section its gather could not fill
+  `Pull request`, `CI`, `Reviews` and, for each document the charter
+  names, `Document` (`../protocol/configuration.md`, 13.7). A section its gather could not fill
   says why: its read failed, timed out, or exceeded its limit. smith adds
   the sections about its own mechanics, and each repository's guide.
 
