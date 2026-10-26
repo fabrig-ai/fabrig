@@ -272,10 +272,34 @@ fn check(misses: &mut Vec<Miss>, met: bool, promise: Promise, what: String) {
     }
 }
 fn text<'a>(value: &'a Value, path: &str) -> &'a str {
-    value.pointer(path).and_then(Value::as_str).unwrap_or_default()
+    pointer(value, path).and_then(Value::as_str).unwrap_or_default()
 }
 fn number(value: &Value, path: &str) -> Option<u64> {
-    value.pointer(path).and_then(Value::as_u64)
+    pointer(value, path).and_then(Value::as_u64)
+}
+// Oracle paths have plain tokens: borrow them instead of allocating decoded
+// tokens at each read. Escaped keys keep the JSON pointer decoder's semantics.
+fn pointer<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+    if path.contains('~') {
+        return value.pointer(path);
+    }
+    if path.is_empty() {
+        return Some(value);
+    }
+    let mut at = value;
+    for token in path.strip_prefix('/')?.split('/') {
+        at = match at {
+            Value::Object(members) => members.get(token)?,
+            Value::Array(items) => {
+                if token.starts_with('+') || (token.starts_with('0') && token.len() != 1) {
+                    return None;
+                }
+                items.get(token.parse::<usize>().ok()?)?
+            }
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => return None,
+        };
+    }
+    Some(at)
 }
 fn contains(words: &[u8], needle: &str) -> bool {
     words.windows(needle.len()).any(|part| part == needle.as_bytes())
@@ -526,6 +550,35 @@ mod tests {
     use crate::case::{A_SPEC_PREFIX, A_SPEC_SUFFIX};
     use serde_json::json;
 
+    #[test]
+    fn borrowed_paths_keep_json_pointer_semantics() {
+        let doc = serde_json::json!({"":0,"a/b":{"~key":[null,{"x":"value"}]},
+            "items":[true,{"":2}],"01":"object key","scalar":7});
+        for path in [
+            "",
+            "/",
+            "/01",
+            "/items",
+            "/items/0",
+            "/items/1/",
+            "/items/01",
+            "/items/+1",
+            "/items/-1",
+            "/items/-",
+            "/items/2",
+            "/items/",
+            "/items/18446744073709551616",
+            "/scalar/x",
+            "items/0",
+            "/missing",
+            "/a~1b/~0key/1/x",
+            "/a~1b/~0key/00",
+            "/~2",
+        ] {
+            assert_eq!(super::pointer(&doc, path), doc.pointer(path), "{path}");
+        }
+    }
+
     fn met() -> Observed {
         let mut documents = BTreeMap::new();
         for (read, task, tools, spend, tasks, depth, spent, below, report) in [
@@ -620,9 +673,9 @@ const ACCOUNT_WAIT: Promise =
     Promise::Must("an account's states hold the work they pay for, and name the act they wait for (exact)");
 const SURVIVES: Promise = Promise::Add("no session dies, so nothing has to be recreated afterwards");
 
-fn step_check(misses: &mut Vec<Miss>, step: &'static str, met: bool, promise: Promise, what: &str) {
+fn step_check(misses: &mut Vec<Miss>, step: &'static str, met: bool, promise: Promise, what: impl fmt::Display) {
     if !met {
-        misses.push(Miss { step, promise, what: what.into() });
+        misses.push(Miss { step, promise, what: what.to_string() });
     }
 }
 fn document(observed: &Observed, read: Read) -> &Value {
@@ -1259,11 +1312,11 @@ fn check_activity(observed: &Observed, read: Read) -> Vec<&Value> {
         .get("activity")
         .filter(|value| value.is_object())
         .unwrap_or(document)
-        .pointer("/rows")
+        .get("rows")
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .filter_map(|row| row.pointer("/event/owner/source"))
+        .filter_map(|row| row.get("event")?.get("owner")?.get("source"))
         .collect()
 }
 
@@ -2458,7 +2511,7 @@ pub fn step_5_2(observed: &Observed) -> Vec<Miss> {
                 && number(task, "/project") == Some(PROJECT)
                 && number(task, "/requester/task") == Some(parent),
             DELEGATES_GO_ON,
-            &format!("{read:?} must identify task {expected} under {parent} in project {PROJECT}"),
+            format_args!("{read:?} must identify task {expected} under {parent} in project {PROJECT}"),
         );
     }
     for read in [Read::ImplementerRunning, Read::H1Running] {
@@ -2472,7 +2525,7 @@ pub fn step_5_2(observed: &Observed) -> Vec<Miss> {
                     .is_some_and(|attempt| number(task, "/chip/details/owner/details/attempt") == Some(attempt))
                 && task["result"].is_null(),
             DELEGATES_GO_ON,
-            &format!("{read:?} must show an open attempt writing before B's Stop"),
+            format_args!("{read:?} must show an open attempt writing before B's Stop"),
         );
     }
     pause_stop(observed, &mut misses);
@@ -2628,7 +2681,7 @@ fn pause_children(observed: &Observed, misses: &mut Vec<Miss>) {
                 .zip(stopped)
                 .is_some_and(|(heard, stop)| heard > stop && stop != 0),
             DELEGATES_GO_ON,
-            &format!("B must retain task {child}'s ending after its Stop decision"),
+            format_args!("B must retain task {child}'s ending after its Stop decision"),
         );
     }
 }
@@ -2674,7 +2727,7 @@ fn pause_news(observed: &Observed, misses: &mut Vec<Miss>) {
             "5.2",
             text(task, "/chip/phase") == "ended" && text(task, "/result/value/report/bytes") == expected,
             STOPPED_NEWS,
-            &format!("{label} must finish with its report"),
+            format_args!("{label} must finish with its report"),
         );
     }
     step_check(
@@ -2987,7 +3040,7 @@ pub fn step_5_5(observed: &Observed) -> Vec<Miss> {
                 && text(task, "/chip/phase") == "ended"
                 && text(task, "/result/value/report/bytes") == report,
             PLAN_MESSAGES,
-            &format!("{read:?} must identify the original ended task and report"),
+            format_args!("{read:?} must identify the original ended task and report"),
         );
     }
     plan_authority(observed, &mut misses);
@@ -3209,6 +3262,10 @@ fn plan_note_recalled(observed: &Observed, agent: Agent, note: u64, description:
 
 fn plan_attempts(observed: &Observed, reads: &[Read], task: u64, minimum: usize) -> bool {
     let rows: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
+    plan_attempt_rows(observed, reads, task, minimum, &rows)
+}
+
+fn plan_attempt_rows(observed: &Observed, reads: &[Read], task: u64, minimum: usize, rows: &[&Value]) -> bool {
     let complete = reads.iter().all(|read| pause_activity(observed, *read)["cut"] == false)
         && reads.last().is_some_and(|read| pause_activity(observed, *read)["before"] == Value::Null)
         && reads.first().is_some_and(|read| pause_activity(observed, *read)["after"] == Value::Null);
@@ -3593,7 +3650,7 @@ fn misread_helper(observed: &Observed, misses: &mut Vec<Miss>) {
                 && number(task, "/project") == Some(PROJECT)
                 && number(task, "/requester/task") == Some(MISREAD_DIRECTOR),
             MISREAD_CANCEL,
-            &format!("{read:?} must identify the helper under the director in the project"),
+            format_args!("{read:?} must identify the helper under the director in the project"),
         );
     }
     step_check(
@@ -3657,7 +3714,7 @@ fn misread_timer_and_fresh(observed: &Observed, misses: &mut Vec<Miss>) {
             "5.6",
             number(task, "/chip/task") == Some(MISREAD_DIRECTOR) && number(task, "/project") == Some(PROJECT),
             MISREAD_FRESH_TIMER,
-            &format!("{read:?} must identify the director's original chat"),
+            format_args!("{read:?} must identify the director's original chat"),
         );
     }
     for task in [parked, fresh] {
@@ -4259,7 +4316,7 @@ pub fn step_5_4(observed: &Observed) -> Vec<Miss> {
                 && text(doc, "/result/ending/task/cancelled/reason/bytes") == reason
                 && number(doc, "/chip/details/owner/details/live_delegates") == Some(0),
             DIRECTION_CANCELLED,
-            &format!("task {task}'s subtree must end cancelled by {by} with its reason"),
+            format_args!("task {task}'s subtree must end cancelled by {by} with its reason"),
         );
     }
     step_check(
@@ -4302,7 +4359,7 @@ pub fn step_5_4(observed: &Observed) -> Vec<Miss> {
                 && text(doc, "/chip/phase") == "ended"
                 && text(doc, "/result/value/report/bytes") == report,
             DIRECTION_NEWS,
-            &format!("task {task} must finish its report"),
+            format_args!("task {task} must finish its report"),
         );
     }
     misses
@@ -4330,7 +4387,7 @@ fn direction_identities(observed: &Observed, misses: &mut Vec<Miss>) {
                 && number(doc, "/project") == Some(PROJECT)
                 && number(doc, "/requester/task") == Some(parent),
             DIRECTION_OVERLAP,
-            &format!("{read:?} must identify task {task} under {parent} in project {PROJECT}"),
+            format_args!("{read:?} must identify task {task} under {parent} in project {PROJECT}"),
         );
     }
 }
@@ -4453,7 +4510,7 @@ fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
                 && number(doc, "/hold/owner/revision") == Some(OVERLAP_HOLD_REVISION)
                 && number(doc, "/hold/owner/reason/stopped_by/party") == Some(1),
             DIRECTION_NEWS,
-            &format!("{read:?}: B must remain held at the person's Stop"),
+            format_args!("{read:?}: B must remain held at the person's Stop"),
         );
     }
     let planned = task_document(observed, Read::PlannedRunning);
@@ -4622,12 +4679,12 @@ fn direction_attempts(observed: &Observed, misses: &mut Vec<Miss>) {
         (OVERLAP_OWNER, b_reads.as_slice(), 2),
         (DIRECTION, director_reads.as_slice(), 1),
     ] {
+        let rows: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
         step_check(
             misses,
             "5.4",
-            plan_attempts(observed, reads, task, minimum)
+            plan_attempt_rows(observed, reads, task, minimum, &rows)
                 && {
-                    let rows: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
                     rows.last().is_some_and(|row| number(row, "/position") == Some(1))
                         && rows.windows(2).all(|pair| {
                             number(pair[0], "/position")
@@ -4635,7 +4692,7 @@ fn direction_attempts(observed: &Observed, misses: &mut Vec<Miss>) {
                                 .is_some_and(|(new, old)| new.checked_sub(1) == Some(old))
                         })
                 }
-                && reads.iter().flat_map(|read| check_activity(observed, *read)).all(|row| {
+                && rows.iter().all(|row| {
                     let Some(end) = row.pointer("/line/run_ended") else { return true };
                     matches!(end["end"].as_str(), Some("finished" | "parked"))
                         || (task == OVERLAP_OWNER
@@ -4644,7 +4701,7 @@ fn direction_attempts(observed: &Observed, misses: &mut Vec<Miss>) {
                             && number(end, "/spent") == Some(0))
                 }),
             DIRECTION_NEWS,
-            &format!(
+            format_args!(
                 "task {task}'s complete journal must end every counted attempt without failure or an unexplained refusal"
             ),
         );
@@ -5591,7 +5648,7 @@ fn batch_journal(observed: &Observed, read: Read, task: u64) -> bool {
 }
 fn batch_journal_pages(observed: &Observed, reads: &[Read], task: u64) -> bool {
     let rows: Vec<_> = reads.iter().flat_map(|read| check_activity(observed, *read)).collect();
-    plan_attempts(observed, reads, task, 1)
+    plan_attempt_rows(observed, reads, task, 1, &rows)
         && rows.last().is_some_and(|row| number(row, "/position") == Some(1))
         && rows.windows(2).all(|pair| {
             number(pair[0], "/position")
@@ -5648,14 +5705,14 @@ pub fn step_6_1(observed: &Observed) -> Vec<Miss> {
                 && (parent == 0 || number(doc, "/requester/task") == Some(parent))
                 && text(doc, "/chip/phase") == "ended",
             BATCH_DEPENDENCIES,
-            &format!("{read:?} must identify the ended task {task} under {parent}"),
+            format_args!("{read:?} must identify the ended task {task} under {parent}"),
         );
         step_check(
             &mut misses,
             "6.1",
             batch_done(observed, read, task),
             BATCH_ATTEMPTS,
-            &format!("task {task}'s complete ordered journal must end every attempt successfully or parked"),
+            format_args!("task {task}'s complete ordered journal must end every attempt successfully or parked"),
         );
     }
     let a = task_document(observed, Read::BatchOwnerEnded);
@@ -6431,7 +6488,7 @@ fn blocker_identities(observed: &Observed, misses: &mut Vec<Miss>) {
                 && text(doc, "/chip/phase") == "ended"
                 && doc.pointer("/result/ending/task/done").is_some_and(Value::is_object),
             BLOCKER_DEPENDENCY,
-            &format!("{read:?} must identify done task {task} under {parent}"),
+            format_args!("{read:?} must identify done task {task} under {parent}"),
         );
         if task != BLOCKER_E1 {
             step_check(
@@ -6439,7 +6496,7 @@ fn blocker_identities(observed: &Observed, misses: &mut Vec<Miss>) {
                 "6.2",
                 batch_journal(observed, read, task),
                 BLOCKER_ATTEMPTS,
-                &format!(
+                format_args!(
                     "task {task}'s complete journal must end every attempt, allowing only bounded zero-spend rechecks"
                 ),
             );
@@ -7139,7 +7196,7 @@ fn budget_journal(observed: &Observed, read: Read, task: u64) -> bool {
     }
     let rows = budget_rows(observed, read);
     // Apply 6.1's attempt rule across complete adjoining cursor pages.
-    plan_attempts(observed, &pages, task, 1)
+    plan_attempt_rows(observed, &pages, task, 1, &rows)
         && rows.last().is_some_and(|r| number(r, "/position") == Some(1))
         && rows.windows(2).all(|pair| {
             number(pair[0], "/position")
@@ -7172,14 +7229,14 @@ pub fn step_6_5(observed: &Observed) -> Vec<Miss> {
                 && text(doc, "/chip/phase") == "ended"
                 && doc.pointer("/result/ending/task/done").is_some_and(Value::is_object),
             BUDGET_CHECKPOINT,
-            &format!("{read:?} must identify done task {task} under {parent}"),
+            format_args!("{read:?} must identify done task {task} under {parent}"),
         );
         step_check(
             &mut misses,
             "6.5",
             budget_journal(observed, read, task),
             BUDGET_ATTEMPTS,
-            &format!(
+            format_args!(
                 "task {task}'s whole ordered journal must end all attempts, allowing only unspent uncommitted rechecks"
             ),
         );
@@ -7283,7 +7340,7 @@ fn budget_messages(observed: &Observed, misses: &mut Vec<Miss>) {
             "6.5",
             sent && ordered && recorded && plan_deliveries(observed, receiver, words) == 1,
             BUDGET_MESSAGES,
-            &format!("message {message} must reach {receiver:?} once in the question/answer chain"),
+            format_args!("message {message} must reach {receiver:?} once in the question/answer chain"),
         );
     }
 }
@@ -8302,7 +8359,7 @@ pub fn step_6_4(observed: &Observed) -> Vec<Miss> {
                 && text(doc, "/chip/phase") == "ended"
                 && (parent == 0 || number(doc, "/requester/task") == Some(parent)),
             RED_DEPLOYMENT,
-            &format!("{read:?} identifies ended task {task} under {parent}"),
+            format_args!("{read:?} identifies ended task {task} under {parent}"),
         );
         if task != RED_CHANGE && task != RED_REPAIR {
             step_check(
@@ -8321,7 +8378,7 @@ pub fn step_6_4(observed: &Observed) -> Vec<Miss> {
                     batch_done(observed, read, task)
                 },
                 RED_ATTEMPTS,
-                &format!(
+                format_args!(
                     "task {task}'s complete journal ends every admitted attempt and permits only bounded placement rechecks"
                 ),
             );
@@ -9230,14 +9287,14 @@ pub fn step_6_7(observed: &Observed) -> Vec<Miss> {
                 && doc.pointer("/result/ending/task/done").is_some_and(Value::is_object)
                 && text(doc, "/result/value/report/bytes") == report,
             CAP_CHECKPOINT,
-            &format!("{read:?} must identify done task {task} under {parent} and its report"),
+            format_args!("{read:?} must identify done task {task} under {parent} and its report"),
         );
         step_check(
             &mut misses,
             "6.7",
             batch_journal_pages(observed, &cap_pages(read), task),
             CAP_ATTEMPTS,
-            &format!(
+            format_args!(
                 "task {task}'s complete journal must end every attempt, with only zero-spend uncommitted rechecks: {}",
                 document(observed, read)
             ),
@@ -9263,7 +9320,7 @@ pub fn step_6_7(observed: &Observed) -> Vec<Miss> {
                 && continuation.pointer("/needs/after").is_some_and(Value::is_null)
                 && continuation.pointer("/needs/rows").and_then(Value::as_array).is_some_and(Vec::is_empty),
             CAP_INBOX,
-            &format!("{read:?} and {after:?} must show the person's complete empty inbox: {inbox}; {continuation}"),
+            format_args!("{read:?} and {after:?} must show the person's complete empty inbox: {inbox}; {continuation}"),
         );
     }
     misses
@@ -9328,7 +9385,7 @@ fn cap_opening(observed: &Observed, misses: &mut Vec<Miss>) {
                     && cap_call_part(call, "outcome") == Some(format!("Delegated tasks: {CAP_A5}").as_str())
             }),
         CAP_OPENING,
-        &format!(
+        format_args!(
             "invalid opening: cap={CAP_SECONDS} s, A1 making to a5 begin={elapsed:?} ns; committed delegate calls: {}; held journal: {}",
             committed_delegates.len(),
             document(observed, Read::CapHeld)
@@ -10174,7 +10231,7 @@ fn waiting_identities(observed: &Observed, misses: &mut Vec<Miss>) {
                     doc.pointer("/chip/executor/procedure") == Some(&serde_json::json!({"connector":1,"kind":2}))
                 }),
             WAITING_IDENTITIES,
-            &format!("{read:?}: named task, requester, executor, project and revision"),
+            format_args!("{read:?}: named task, requester, executor, project and revision"),
         );
         step_check(
             misses,
@@ -10197,7 +10254,7 @@ fn waiting_identities(observed: &Observed, misses: &mut Vec<Miss>) {
                     })
                 }),
             WAITING_ATTEMPTS,
-            &format!("{read:?}: done with a complete successful journal and no live delegate"),
+            format_args!("{read:?}: done with a complete successful journal and no live delegate"),
         );
     }
 }
@@ -10483,7 +10540,9 @@ fn waiting_landings(observed: &Observed, misses: &mut Vec<Miss>) {
             "6.6",
             valid,
             WAITING_LANDING,
-            &format!("{repository}: qualified pushed/opened/merged head, latest CI and exact-head reviewer verdict"),
+            format_args!(
+                "{repository}: qualified pushed/opened/merged head, latest CI and exact-head reviewer verdict"
+            ),
         );
         step_check(
             misses,
@@ -10492,7 +10551,7 @@ fn waiting_landings(observed: &Observed, misses: &mut Vec<Miss>) {
                 text(task_document(observed, read), "/result/value/change/words/bytes") == direction_commit(m.5)
             }),
             WAITING_PIN,
-            &format!("{repository}'s terminal result names its actual merge"),
+            format_args!("{repository}'s terminal result names its actual merge"),
         );
     }
     waiting_pin(observed, kit.map(|m| m.5), misses);
