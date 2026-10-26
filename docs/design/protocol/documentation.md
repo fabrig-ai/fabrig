@@ -43,8 +43,10 @@ It builds the draft `../draft/configuring.md`, section 7.
   groups by. The walks are today's guides (`box`, `server`, `forgejo`,
   `github`); the others are written with the parts they describe and
   land with them, so that no topic describes what `main` does not do.
-- **Bounds:** a topic at most 32,768 bytes; at most 64 topics; a
-  topic's examples, in fenced blocks, as a person types them.
+- **Bounds:** a topic at most 32,768 bytes of printable ASCII and line
+  ends, so that its rendered size is known (section 3); a name at most
+  32 bytes; at most 64 topics; a topic's examples, in fenced blocks, as
+  a person types them.
 - **Links** between topics are `temper help NAME` in the text, which
   the site renders as a link and the step test resolves.
 - **Where it lives** is the repository, beside the design (the draft's
@@ -64,16 +66,19 @@ that depends on nothing of temper's and that `temper` and
   step test (section 6) keeps it equal to the directory.
 - **`find(name) -> Option<&Topic>`**, by the exact name.
 - **`page(topic, from, bytes) -> Page`:** the topic's text from byte
-  `from`, cut at the last line end within `bytes`, with `next`, the
-  offset of the rest, or none; `from` past the end, or not at a line's
-  start, is answered from the next line's start. A line longer than
-  `bytes` is cut at a character boundary.
+  `from`, cut at the last line end whose rendered size is within
+  `bytes`, or, for a line longer than that, inside it; with `next`, the
+  exact offset where the page stopped, or none at the end. Sizes are
+  rendered sizes, as the text renders in a JSON string: 2 bytes for
+  `"`, `\` and a line end, 1 for every other byte. A `from` past the
+  end answers an empty page with no `next`.
 - **`search(words, limit) -> Hits`:** the sections in which every word
   appears, case folded on ASCII, in the table's order, then the
-  section's: each hit the topic's name, its title, the section's
-  heading, the section's offset, and its first matching line cut to 120
-  bytes; at most `limit` hits, with whether more matched. Words are
-  split on whitespace, at most 8 of at most 32 bytes each.
+  section's: each hit the topic's name, the section's heading, the
+  section's offset, and the section's first line holding the first
+  word, cut to 120 bytes; at most `limit` hits, with whether more
+  matched. Words are split on whitespace, at most 8 of at most 32 bytes
+  each; more, or longer, is refused naming the bound.
 
 ## 4. `temper help`
 
@@ -82,9 +87,9 @@ that depends on nothing of temper's and that `temper` and
 - `temper help NAME` prints the topic whole, as its file holds it, and
   exits 0; a name that is no topic exits 1, printing `temper: no topic
   NAME; temper help lists them`.
-- `temper help --search WORDS...` prints the hits, a line each: `NAME:
-  HEADING: LINE`, then `and more; narrow the words` when more matched;
-  none exits 1, printing `temper: nothing matches`.
+- `temper help --search WORDS...` prints at most 20 hits, a line each:
+  `NAME: HEADING: LINE`, then `and more; narrow the words` when more
+  matched; none exits 1, printing `temper: nothing matches`.
 - It reads no directory and no configuration: it works before `temper
   init`. `temper --help` stays the commands' usage, and `temper ctl help`
   the guide to ctl's tools (`../client/tools.md`, 11.5).
@@ -102,15 +107,19 @@ that depends on nothing of temper's and that `temper` and
   commit, no record and no check of authority. Documentation is the
   same for every run, so no authority covers or refuses it, and a call
   asked again is answered the same.
-- **Its answer:** for a topic, its name, title, the page and either
-  `next: OFFSET` or `end`; for a search, the hits as `temper help
-  --search` prints them, with their offsets; `no topic NAME`, listing
-  every topic's name, when the name is none. A page is at most
-  `DOC_PAGE`, 1,536 bytes of text, so that a page and its framing fit
-  every shipped agent's `host_reply_bytes` and `core.call_answer_bytes`;
-  the start refuses a configuration whose call answer bound cannot hold
-  one rendered page, naming it, as it refuses other answers that cannot
-  fit (`configuration.md`, section 7).
+- **Its answer,** rendered by `temper-engine-smith` as every answer
+  is, never past `DOC_ANSWER`, 2,048 bytes whole: for a topic, its name
+  and title, a page of at most 1,536 rendered bytes, and either `next:
+  OFFSET` or `end`; for a search, at most 8 hits, each its topic's name,
+  heading, offset and line, with whether more matched; for a name that
+  is no topic, `no topic NAME` and the hits of a search for NAME's
+  words. Each part's bounds (a name's 32 bytes, a heading's 80, a
+  line's 120, a title's 80) make the whole fit `DOC_ANSWER`, which a
+  step test proves at the bounds. The start refuses a configuration
+  whose `core.call_answer_bytes` or local agent's `tool_payload` is
+  below `DOC_ANSWER`, naming it, as it refuses other answers that
+  cannot fit (`configuration.md`, section 7); every shipped profile's
+  are above it.
 - **A read,** which smith may run beside others (smith's
   `domain/run.md`, 5.2).
 
