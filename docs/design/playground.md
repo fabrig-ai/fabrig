@@ -52,8 +52,8 @@ playground is the first user (temper's `docs/design/playground.md`).
 
 | Crate | Where | Holds |
 |---|---|---|
-| `skein-playground` | `crates/` | the visitor, the slices' loop over a world, the session log and its replay feed; on wasm32, the worker's parts: its messages in, its timer and its posts |
-| `skein-ui-web` | `crates/` | gains the bridge's messages, portable, and the worker's platform for the page (ui-web.md, 18) |
+| `skein-playground` | `crates/` | the visitor, the slices' loop over a world, the session log's replay feed; on wasm32, the worker's parts: its messages in, its timer and its posts |
+| `skein-ui-web` | `crates/` | gains the bridge's messages and the session log's format and keeping, portable, and the worker's platform for the page (ui-web.md, 18) |
 | `skein-ui-bundle` | `crates/` | gains a bundle's worker module (section 7) |
 
 - **`skein-playground` depends on** lib, io, http, the simulated world
@@ -182,8 +182,12 @@ on the timer, or after a message:
 - **Its format,** a stored one: a first line naming the format and its
   version, the bundle's digest, the seed and the start; then a line per
   input, its stamp, the input, and the digest of what the world said
-  since the one before. Bodies are base64 (lib.md, 6.1). A log of
-  another format version or another build is refused, naming which.
+  since the one before, each input in a text form of its own (its
+  fields; bodies in base64, lib.md, 6.1), never the bridge's unversioned
+  encoding, so the stored format stands alone. A log of another format
+  version is refused, naming it. The build it names is the bundle's,
+  which a native replay has not: a replay of another build goes on, the
+  digests deciding, and a failure names the build the log came from.
 - **Replayed natively,** a test: the harness's run (world.md, 3) over
   the application's composition built from the same documents, the
   log's seed and start, each input entering at its stamp, and each
