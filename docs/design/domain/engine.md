@@ -464,7 +464,9 @@ next only once the root says this one is done (root.md, section 8).
    lists it, and the claim lost once that run has stopped or once the
    engine's grace has passed with none listing it, so that no next
    attempt starts while it may still write (hosts.md, 6.6; tasks.md,
-   6.3). Nothing new is assigned before every claim loaded has
+   6.3). The fleet holds it in a state of its own (`Event::Cross`, the
+   attempt `Fenced`), and one no worker listed that committed nothing
+   ends not started, as an engine claim does (tasks.md, 5.2). Nothing new is assigned before every claim loaded has
    reached the fleet.
 4. **Read afresh.** Each connector reads, for the live tasks that name
    them, the resources its system owns.
