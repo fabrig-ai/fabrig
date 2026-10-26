@@ -199,22 +199,16 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
   (`../domain/testing.md`, 2.6 and 2.7).
 - **The program backend,** in the real loop: a run on a program's source
   through smith's fake `claude`, calling host tools that the engine
-  decides as a direct run's, its result read the same way; and a limit
-  the fake program reports making the source limited (`../domain/testing.md`,
-  2.4).
+  decides as a direct run's, its result read the same way; a chat, an
+  Open run, replying to two of its person's messages on one program
+  process, parking and resuming by its session (smith's
+  `protocol/programs.md`, 5.9); and a limit the fake program reports
+  making the source limited (`../domain/testing.md`, 2.4).
 - **Notices:** a limited, refused and unauthorized notice from a run,
   each scripted on skein's fake LLM peer, reaching the accounts child
   fenced by its attempt, and one of a fenced attempt dropped
   (`../domain/testing.md`, 2.4).
 - **No token across a domain boundary** (credentials.md, section 7).
-
-At jig f758ea6f and smith 6747e669, regression tests verify the existing
-notice route through the worker, fleet and accounts child, including an
-unknown reset and supplied zero. The composed proof uses the configured
-source. Two sources of one account in that proof wait for a jig repin
-past x1c's removal of configured accounts. Lower harnesses already check
-arbitrary source numbers. Program name conversion and codec agreement are
-tested; successful installation and execution remain an upstream wait.
 
 ## 7. Open questions
 
