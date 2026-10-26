@@ -165,18 +165,11 @@ fn a_second_mark_before_the_next_attempts_first_turn_crosses_it_again() {
     fresh_windows::restart(&mut world, AFTER_SECOND);
     assert!(fresh_windows::proof(&world).crossed);
     assert_eq!(fresh_windows::proof(&world).window, None);
+    let refusals = fixtures::live_row(&world, task).refusals;
     world.advance(GRACE);
-    assert_eq!(fixtures::live_row(&world, task).tries.lost, 2);
-    // This fixture allows one automatic lost retry. Release its second-loss
-    // hold through the person's API, keeping that allowance unchanged.
-    let revision = fixtures::live_row(&world, task).revisions.hold;
-    let sign_in = world.sign_in.expect("signed-in owner");
-    fixtures::ask_as(
-        &mut world,
-        sign_in,
-        88,
-        jig_domain_people::Ask::Release { project: 1, task, revision, again: None },
-    );
+    assert_eq!(fixtures::live_row(&world, task).tries.lost, 1);
+    assert_eq!(fixtures::live_row(&world, task).refusals, refusals + 1);
+    world.advance(Duration::from_millis(100));
     fresh_windows::fresh(&world);
     assert!(fresh_windows::proof(&world).attempt > attempt);
     // engine.md, 16's default: no current window was committed by the
@@ -217,11 +210,15 @@ fn a_crossed_claims_writer_slot_waits_for_the_read_afresh() {
     let (now, wall) = world.clocks();
     world.set_clock(now, wall);
     world.hold_lost_reads = true;
-    fresh_windows::restart(&mut world, AFTER);
+    let hosted = hosting(&world);
+    world.restart_with_patch_sets(SEED, false, AFTER);
+    fresh_windows::hello_hosting(&mut world, Box::new([hosted]));
+    world.grant_account(1);
     let reads = world.systems[0].reads().len();
     let assignments = world.assignments.len();
     assert!(fresh_windows::proof(&world).crossed);
-    world.advance(GRACE);
+    assert_eq!(world.cancellations, [(task, attempt)]);
+    world.end(tasks::End::Failed(tasks::Class::Agent), 0);
     assert_eq!(fixtures::live_row(&world, task).tries.lost, 1);
     assert!(writer_slot(&world, task, attempt).expect("lost run retains its slot").lost);
     assert_eq!(world.pending_lost_reads.len(), 1, "one resource needs a fresh read");

@@ -259,13 +259,16 @@ pub enum Event {
     /// From the parent, a claim restored after restart that an upgrade
     /// across a fresh mark crossed, on a worker (domain/engine.md, 6 step 3
     /// and 7.2): never adopted. Its run is cancelled when a worker lists
-    /// it, and the call ends `Lost` once that run has answered, or once the
-    /// grace has passed with none listing it; whatever else it sends is
-    /// dropped. Refused as `Adopt` is (busy, duplicate).
+    /// it. An answer or an already kept answer ends the call `Lost`. At the
+    /// adrift grace it ends `Lost` if listed or worked, otherwise
+    /// `NotStarted`. A fenced attempt ends `Lost`, as for `Adopt`.
+    /// Other traffic is dropped. Refused as `Adopt` is (busy, duplicate).
     Cross {
         reply_to: ReplyTo,
         run: Token,
         attempt: Token,
+        /// Whether a turn or call was committed for this attempt.
+        worked: bool,
     },
     /// From the parent: cancel the attempt `attempt` of the run `run`. Its
     /// call is still ended by its answer, unless it was never placed.
@@ -558,7 +561,8 @@ pub enum Request {
         answer: Answer,
         payload: Token,
     },
-    /// To the parent, terminal for an engine-hosted adoption with no committed work.
+    /// To the parent, terminal for an engine-hosted adoption with no committed
+    /// work, or a crossed claim never listed and not worked at its grace.
     /// It consumes no try of the task.
     NotStarted {
         to: ReplyTo,

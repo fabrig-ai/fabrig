@@ -532,7 +532,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 }
             }
         },
-        Event::Cross { reply_to, run, attempt } => attempt::cross(domain, env, reply_to, run, attempt, out),
+        Event::Cross { reply_to, run, attempt, worked } => {
+            attempt::cross(domain, env, reply_to, run, attempt, worked, out);
+        }
         Event::Cancel { run, attempt } => attempt::cancel(domain, run, attempt, out),
         Event::Relayed { to, answer } => call::relayed(domain, to, answer, out),
         Event::Acknowledge { run, attempt } => attempt::acknowledge(domain, run, attempt, out),

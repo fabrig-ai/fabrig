@@ -182,19 +182,20 @@ impl Core {
         assert!(self.unreported_restored.insert(task, attempt) == Ok(None), "one restored claim per task");
         let proof = self.proofs.get(&task).expect("restored claim proof");
         let kind = if self.workers_in_process { fleet::HostKind::Engine } else { proof.host };
-        if proof.crossed && kind == fleet::HostKind::Worker {
-            self.adopted.push(fleet::Event::Cross {
-                reply_to: skein_lib::ReplyTo::new(Token::new(task)),
-                run: Token::new(task),
-                attempt: Token::new(attempt),
-            });
-            return;
-        }
         let mut worked = kept > 0;
         for (key, _) in &self.call_parts {
             if key.task == task && key.attempt == attempt {
                 worked = true;
             }
+        }
+        if proof.crossed && kind == fleet::HostKind::Worker {
+            self.adopted.push(fleet::Event::Cross {
+                reply_to: skein_lib::ReplyTo::new(Token::new(task)),
+                run: Token::new(task),
+                attempt: Token::new(attempt),
+                worked,
+            });
+            return;
         }
         let mut grants = List::with_capacity(env.limits.fleet.grants);
         let mut holds = List::with_capacity(env.limits.fleet.grants);

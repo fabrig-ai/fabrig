@@ -257,7 +257,8 @@ pub(super) fn tag_fleet(
                         break;
                     }
                 }
-                let end = if never_reported && proof.turn.is_none() && !committed_call {
+                // The fleet has already classified a crossed claim's end.
+                let end = if !proof.crossed && never_reported && proof.turn.is_none() && !committed_call {
                     tasks::End::Refused
                 } else {
                     tasks::End::Failed(tasks::Class::Lost)

@@ -62,7 +62,7 @@
 //!               replaced            Fenced            withdrawn: replaced
 //!               answer (any)        (gone)            acknowledge; drop; lost
 //!               channel lost        Crossed adrift
-//!               grace (adrift)      (gone)            lost
+//!               grace (adrift)      (gone)            lost if listed or worked; else not started
 //! Handed        acknowledge, on     (gone)            acknowledge
 //!               acknowledge, adrift Acknowledged
 //!               listed              Handed on         (moved)
@@ -165,8 +165,9 @@ pub(crate) enum State {
     Cancelled { to: ReplyTo, at: Where },
     /// Restored across a fresh mark (domain/engine.md, 6 step 3 and 7.2):
     /// never adopted. Its run is cancelled when listed, and the parent's
-    /// call ends lost once it answers or its adrift grace passes.
-    Crossed { to: ReplyTo, at: Where },
+    /// call ends lost once it answers. At its adrift grace, it ends lost if
+    /// a worker listed it or it committed work, otherwise not started.
+    Crossed { to: ReplyTo, at: Where, listed: bool, worked: bool },
     /// Its answer handed to the parent, which has yet to acknowledge it: its
     /// worker keeps it, and its slot.
     Handed { at: Where },
@@ -400,6 +401,7 @@ pub(crate) fn cross(
     to: ReplyTo,
     run: Token,
     attempt: Token,
+    worked: bool,
     out: &mut Queue<Request>,
 ) {
     let names = Names { run, attempt };
@@ -416,7 +418,7 @@ pub(crate) fn cross(
             attempt,
             false,
             Assignment { turns: Token::new(0), answered: Token::new(0) },
-            State::Crossed { to, at },
+            State::Crossed { to, at, listed: false, worked },
         );
         return;
     };
@@ -445,7 +447,7 @@ pub(crate) fn cross(
     entry.state = match mem::replace(&mut entry.state, State::Closed) {
         State::Stray { at, until: _ } => {
             again(at, false, names, &domain.channels, out);
-            State::Crossed { to, at }
+            State::Crossed { to, at, listed: true, worked }
         }
         State::Kept { answer: _, payload, at, until: _ } => {
             let state = forgotten(payload, at, names, &domain.channels, &mut domain.facts, out);
@@ -485,7 +487,7 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
             cancelled(to, at, names, &domain.channels, out)
         }
         State::Cancelled { to, at } => State::Cancelled { to, at },
-        State::Crossed { to, at } => State::Crossed { to, at },
+        State::Crossed { to, at, listed, worked } => State::Crossed { to, at, listed, worked },
         State::Handed { at } => State::Handed { at },
         State::Acknowledged { until } => State::Acknowledged { until },
         State::Stray { at, until: _ } => fenced(at, names, &domain.channels, &mut domain.facts, out),
@@ -602,9 +604,9 @@ pub(crate) fn listed(
             again(on, answered, names, &domain.channels, out);
             State::Cancelled { to, at: on }
         }
-        State::Crossed { to, at: _ } => {
+        State::Crossed { to, at: _, listed: _, worked } => {
             again(on, answered, names, &domain.channels, out);
-            State::Crossed { to, at: on }
+            State::Crossed { to, at: on, listed: true, worked }
         }
         State::Handed { at: _ } => State::Handed { at: on },
         State::Acknowledged { until: _ } => acknowledged(channel, names, &domain.channels, out),
@@ -684,7 +686,7 @@ pub(crate) fn answer(
                 handed(to, answer, payload, on, names, &mut domain.facts, out)
             }
         },
-        State::Crossed { to, at: _ } => {
+        State::Crossed { to, at: _, .. } => {
             out.push(Request::Acknowledge { channel, run, attempt });
             out.push(Request::Drop { payload });
             presumed(to, names, &mut domain.facts, out)
@@ -727,7 +729,7 @@ pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until
             State::Claimed { to, at, workstream, kinds, charter }
         }
         State::Cancelled { to, at: _ } => State::Cancelled { to, at },
-        State::Crossed { to, at: _ } => State::Crossed { to, at },
+        State::Crossed { to, at: _, listed, worked } => State::Crossed { to, at, listed, worked },
         State::Handed { at: _ } => State::Handed { at },
         State::Stray { at: _, until } => State::Stray { at, until },
         State::Kept { answer, payload, at: _, until } => State::Kept { answer, payload, at, until },
@@ -749,8 +751,15 @@ pub(crate) fn expire(domain: &mut Domain, id: Id<Attempt>, out: &mut Queue<Reque
     entry.state = match state {
         State::Adopted { to, until: _ }
         | State::Claimed { to, at: Where::Adrift { .. }, .. }
-        | State::Cancelled { to, at: Where::Adrift { .. } }
-        | State::Crossed { to, at: Where::Adrift { .. } } => presumed(to, names, &mut domain.facts, out),
+        | State::Cancelled { to, at: Where::Adrift { .. } } => presumed(to, names, &mut domain.facts, out),
+        State::Crossed { to, at: Where::Adrift { .. }, listed, worked } => {
+            if listed || worked {
+                presumed(to, names, &mut domain.facts, out)
+            } else {
+                out.push(Request::NotStarted { to, run: names.run, attempt: names.attempt });
+                State::Closed
+            }
+        }
         State::Stray { at, until: Some(_) } => fenced(at, names, &domain.channels, &mut domain.facts, out),
         State::Kept { answer: _, payload, at, until: Some(_) } => {
             forgotten(payload, at, names, &domain.channels, &mut domain.facts, out)
@@ -932,7 +941,7 @@ fn replace(domain: &mut Domain, run: Token, out: &mut Queue<Request>) {
             again(at, false, names, &domain.channels, out);
             superseded(to, at, names, out)
         }
-        State::Cancelled { to, at } | State::Crossed { to, at } => superseded(to, at, names, out),
+        State::Cancelled { to, at } | State::Crossed { to, at, .. } => superseded(to, at, names, out),
         State::Handed { .. }
         | State::Acknowledged { .. }
         | State::Stray { .. }

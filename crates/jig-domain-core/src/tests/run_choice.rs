@@ -956,33 +956,60 @@ fn claim_open(core: &mut Core, limits: &Limits, attempt: u64) {
     core.proofs.insert(OPEN_TASK, proof).unwrap();
 }
 
-#[test]
-fn a_crossed_unreported_claim_before_its_first_turn_is_not_started() {
+fn crossed_claim() -> (Core, Env<Limits>) {
     let (mut core, limits) = ready(false);
     claim_open(&mut core, &limits, OPEN_ATTEMPT);
     core.proofs.get_mut(&OPEN_TASK).unwrap().crossed = true;
-    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    (core, Env { now: Time::ZERO, wall: Wall::EPOCH, limits })
+}
+
+fn crossed_callback(worked: bool) -> (u32, u32, tasks::End) {
+    let (mut core, mut env) = crossed_claim();
     core.adopt(&env, OPEN_TASK, OPEN_ATTEMPT, 0);
-    let cross = core.adopted.pop().unwrap();
-    drop(step(&mut core, &env, Event::Fleet(cross)));
-    env.now = env.now.saturating_add(limits.fleet.grace);
-    env.wall = Wall::from_nanos(limits.fleet.grace.as_nanos());
+    let fleet::Event::Cross { reply_to, run, attempt, .. } = core.adopted.pop().unwrap() else {
+        panic!("crossed claim")
+    };
+    // Exercise the parent's handling of either fleet terminal while its
+    // restored proof is still unworked and no worker has reported it.
+    drop(step(&mut core, &env, Event::Fleet(fleet::Event::Cross { reply_to, run, attempt, worked })));
+    env.now = env.now.saturating_add(env.limits.fleet.grace);
+    env.wall = Wall::from_nanos(env.limits.fleet.grace.as_nanos());
     drop(fire(&mut core, &env, Timer::Fleet));
-    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries.lost, 0);
-    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().refusals, 1);
-    assert_eq!(
-        core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end,
-        tasks::End::Refused
-    );
+    let task = core.tasks.task(OPEN_TASK).unwrap();
+    let proof = core.proofs.get(&OPEN_TASK).unwrap();
+    (task.tries.lost, task.refusals, proof.terminal.as_ref().unwrap().end.clone())
+}
+
+#[test]
+fn a_crossed_claims_lost_callback_is_lost_even_unworked_and_unreported() {
+    assert_eq!(crossed_callback(true), (1, 0, tasks::End::Failed(tasks::Class::Lost)));
+}
+
+#[test]
+fn a_crossed_claims_not_started_callback_is_refused() {
+    assert_eq!(crossed_callback(false), (0, 1, tasks::End::Refused));
+}
+
+#[test]
+fn a_crossed_claim_passes_its_committed_turns_or_calls_to_the_fleet() {
+    let key = CallKey { task: OPEN_TASK, attempt: OPEN_ATTEMPT, completion: 1, position: 0 };
+    let earlier = CallKey { attempt: OPEN_ATTEMPT - 1, ..key };
+    for (kept, call, expected) in [(0, None, false), (1, None, true), (0, Some(key), true), (0, Some(earlier), false)] {
+        let (mut core, env) = crossed_claim();
+        if let Some(call) = call {
+            core.call_parts.insert(call, CallPart::Controlled).unwrap();
+        }
+        core.adopt(&env, OPEN_TASK, OPEN_ATTEMPT, kept);
+        let fleet::Event::Cross { worked, .. } = core.adopted.pop().unwrap() else { panic!("crossed claim") };
+        assert_eq!(worked, expected);
+    }
 }
 
 #[test]
 fn crossed_worker_claims_still_count_toward_restart_admission() {
     for (room, admitted) in [(0, false), (1, true)] {
-        let (mut core, limits) = ready(false);
-        claim_open(&mut core, &limits, OPEN_ATTEMPT);
-        core.proofs.get_mut(&OPEN_TASK).unwrap().crossed = true;
-        core.adopt(&Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, OPEN_TASK, OPEN_ATTEMPT, 0);
+        let (mut core, env) = crossed_claim();
+        core.adopt(&env, OPEN_TASK, OPEN_ATTEMPT, 0);
         core.restart = restart::Restart::Waiting(RestartStep::AdoptRuns);
         // One restored worker claim needs one recovery slot, crossed or not.
         core.restart_attempts = room;
