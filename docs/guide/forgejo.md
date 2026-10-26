@@ -205,9 +205,19 @@ managed, "admin's token kept".
 temper prepares and runs a Forgejo of its own on loopback, with a
 runner, and manages it. The setup entry's `mode` is `owned`, naming
 Forgejo's and the runner's binaries, the forge's directory, its address
-and your account (`docs/design/protocol/setup.md`, the configuration;
-`docs/examples/owned.json` is a whole one). `temper box --config C --data D --cache K`
+and your account (`docs/examples/owned.json` is a whole example). `temper box --config C --data D --cache K`
 runs every step below in order; the box's walk is `temper help box`.
+
+For a fresh box, follow `temper help box`: `temper ctl DIR forge-setup
+3` starts its owned Forgejo and adopts the first repository without a
+browser. Its CI jobs run on the box's runner, on this machine as the
+box's user, with label `temper-host`, without a container. The starter
+workflow only echoes success on pushes to `main` and pull requests;
+your repository's real checks are its own workflow's. With CI on, a
+change waits for a reported pass at its head. Read `temper ctl DIR
+change N` for that CI state, the step, pull request and merge commit.
+
+For an already configured owned forge, the box runs these commands:
 
 1. **`temper forge prepare --config C --data D --cache K 1`** makes the forge's private
    directory and Forgejo's settings; temper's admin, `temper-admin`;

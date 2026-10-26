@@ -641,9 +641,9 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot for each guide call, including the model-choice seam.
-pub(super) const GUIDE_CALLS: u32 = 32;
+pub(super) const GUIDE_CALLS: u32 = 43;
 /// One slot per guide line, including the final line; fewer loses that line.
-const GUIDE_LINES: u32 = 132;
+const GUIDE_LINES: u32 = 160;
 /// One slot per row and form; fewer omits decide's second form.
 pub(super) const TOOL_FORMS: u32 = 58;
 /// Exactly one example exercises each row and form; zero misses it entirely.

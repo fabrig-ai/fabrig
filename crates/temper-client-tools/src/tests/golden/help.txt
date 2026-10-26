@@ -1,7 +1,30 @@
 Agent tools
 
-Sign in with the engine host's link on stdin:
+A box from nothing
+Install temper (its build needs the wasm32-unknown-unknown target); temper help box has the walk.
+  temper box --config C --data D --cache K
+An empty C runs temper init first. Keep the box's terminal and pass its sign-in link on stdin.
+DIRECTORY is ctl's private sign-in and request directory; reuse it for the calls below.
   temper ctl DIRECTORY sign-in -
+  temper ctl DIRECTORY forge-setup 3 --org work --repository hello --project 1
+  temper ctl DIRECTORY import FILE --key box-model-in
+  temper ctl DIRECTORY wait accounts --until usable
+  temper ctl DIRECTORY chat --project 1 TEXT --key box-change
+  temper ctl DIRECTORY wait task 1 --until replied
+  temper ctl DIRECTORY task 1 --tree
+  temper ctl DIRECTORY wait change 2 --until landed
+  temper ctl DIRECTORY change 2
+  temper ctl DIRECTORY export 1 FILE
+Setup prints the adoption and project; use that project, the chat's task and its delegated change's numbers.
+Replace TEXT with one quoted request for a change in work/hello, or - to read it from stdin.
+Instead of import, use connect 1 --key box-login and finish its printed sign-in link, or add-key below.
+A host without a browser imports a login exported elsewhere or adds a private key file.
+A refreshing login has one holder at a time. Export its granted sign_in account to a new private FILE
+before Ctrl-C or SIGTERM stops the box; import removes the spent FILE. Keep C, D and K to resume.
+The forge's diff, reviews, CI runs and logs, and branches are read on the forge with your chosen tools,
+at the ids and links ctl prints. What temper owns there, its branches, pull requests and landing,
+changes only through temper.
+
 Read your party, projects, bounds and request retention:
   temper ctl DIRECTORY me
 Wait, read what needs you, copy an act and its revisions, then act:
@@ -57,19 +80,25 @@ forget without --source removes the whole account; rank without it moves the acc
 connect prints a browser address and wait accounts --until settled, then exits once durable.
 
 Connect an existing GitHub App with its private PEM file:
-  temper ctl DIRECTORY forge-connect 3 github-app 4242 FILE --key app-3
-  temper ctl DIRECTORY wait forges --until connected:3
-Only github-app is offered; github, forgejo and forgejo-admin exit 2 as not offered yet.
+  temper ctl DIRECTORY forge-connect 2 github-app 4242 FILE --key app-2
+  temper ctl DIRECTORY wait forges --until connected:2
+For a shared App, set forge 2's app_read_only to true in C/temper.json before starting the box.
+Its hook is read and left; an unaccepted installation is kept, never uninstalled; the key and grants are checked.
 The private file must be regular, owned by you, with no group or other permissions.
 PEM is 1 to 4090 bytes after one final newline; the carried bundle is at most 4096 bytes.
 It is sent once, never kept or replayed; use the same --key and file to recover a lost answer.
-Install the connected App on another account by opening the printed address on the engine's machine:
-  temper ctl DIRECTORY forge-install 3
-  temper ctl DIRECTORY repositories 3 --page 1
+Read the connected App's installations, then accept one already made, with no browser:
+  temper ctl DIRECTORY forges
+  temper ctl DIRECTORY forge-accept 2 1
+  temper ctl DIRECTORY repositories 2 --installation 1 --page 1
+  temper ctl DIRECTORY adopt --project 1 --forge 2 --owner OWNER --name NAME --landing main --key github-adopt
+Use the installation id from forges and the owner/name from repositories.
+An unaccepted installation says not accepted; read-only mode says kept: the App is read-only.
+Without read-only, reconcile uninstalls a stray once older than an installation link's lifetime: accept it first.
+Or install on another account by opening the printed address on the engine's machine:
+  temper ctl DIRECTORY forge-install 2
   temper ctl DIRECTORY wait forges --until settled
 The tools print links; they never open a browser. A stopped install prints connecting and exits 1.
-Accept an installation already made on GitHub, using its id from forges:
-  temper ctl DIRECTORY forge-accept 3 1
 
 Start the built-in playground, or finish a previous failed start:
   temper ctl DIRECTORY demo-start --key playground
@@ -124,7 +153,7 @@ After a chat asks for a change, follow its change task through landing:
   temper ctl DIRECTORY change 2
 The panel names its pull request, CI at its head, step, holds and merge commit.
 Use change N --json for whole named facts and its digest; --project defaults to task N's project.
-Change the forge only through temper.
+Change temper's branches, pull requests and their landing only through temper.
 A part served there says: Shown on the forge.
 
 Tools:

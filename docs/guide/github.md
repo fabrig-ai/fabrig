@@ -10,10 +10,8 @@ its manifest in your browser, or you make one yourself and paste its id
 and key; both end in the same records, and temper runs them alike. In
 temper's web page, **Connect GitHub** takes the tab to GitHub and
 GitHub brings it back; `temper ctl` and the terminal print each link
-and never open one. The design is
-`docs/design/protocol/setup.md`, connecting GitHub; the page you use is
-the client's **Forges** (`docs/design/client/forge.md`, the deployment's
-page).
+and never open one. For an App and installation that already exist,
+sections 11 and 12 give the path through ctl without a browser.
 
 ## 1. What you need
 
@@ -34,8 +32,10 @@ temper ctl me sign-in -     # paste the sign-in link, then Ctrl-D
 
 ## 2. Add the forge to the configuration
 
-Add a forge of kind `github` to `application.forges`, and its identity
-to `application.identities`. Its addresses are `null`, which are
+A configuration written by `temper init` already has GitHub as forge 2
+and its identity; keep those entries. For another configuration, add a
+forge of kind `github` to `application.forges`, and its identity to
+`application.identities`. Its addresses are `null`, which are
 github.com's; a value is given only to point at a fake, as temper's
 tests do.
 
@@ -126,8 +126,9 @@ or your organization's developer settings:
   during installation** unchecked; temper asks for no user's sign-in.
 - **Setup URL:** temper's setup route, with **Redirect on update**
   checked. GitHub brings your browser there after each install and each
-  change of its repositories; an installation that never comes back
-  through it is a stray, uninstalled at the next reconcile.
+  change of its repositories. Accept an installation that already exists
+  through ctl as in section 12; otherwise one that never comes back
+  through this route is not accepted, and may be uninstalled (section 12).
 
   ```text
   http://127.0.0.1:7100/forges/2/github/setup
@@ -136,7 +137,9 @@ or your organization's developer settings:
 - **Webhook:** keep **Active** checked, with any address that never
   resolves, such as `https://<slug>.invalid/`, and no secret. temper
   sets it to `https://<slug>.invalid/` and reads the App's deliveries
-  from GitHub's log of them, so GitHub needs no address of yours.
+  from GitHub's log of them, so GitHub needs no address of yours. For a
+  shared App, leave its hook to its owner and set read-only mode before
+  connecting (section 11).
 - **Repository permissions:** Contents, Pull requests, Issues and Merge
   queues, read and write; Checks, Commit statuses, Actions,
   Administration and Metadata, read-only; Workflows, no access.
@@ -166,8 +169,8 @@ temper ctl me wait forges --until settled
   paste its key again.", with a link to the App's settings. Grant them
   there; GitHub asks each installation's owner to approve them. This
   build cannot replace the key yet, through **Forges** or `temper ctl`.
-- **Install it** as section 5 says: an App of your own is installed
-  through temper's link, the first account included.
+- **Install it** as section 5 says, or accept an existing installation
+  through ctl as in section 12.
 - **Delete the downloaded file** once the row says connected. temper
   keeps the key; GitHub makes you a new one when you need it (section
   9).
@@ -185,10 +188,11 @@ Pick the account or organization, and **All repositories** or **Only
 select repositories**. GitHub brings you back to temper, and the row
 lists the installation.
 
-- **Only installations made through temper's link are used.** temper's
-  App is public, so anyone may install it from GitHub; an installation
-  made otherwise is listed as a stray, "uninstalled at the next
-  reconcile", and never used.
+- **Only accepted installations are used.** Install through temper's
+  link, or accept an existing installation with `forge-accept` (section
+  12). Others are listed as "not accepted"; read-only mode keeps them
+  (section 11). Otherwise reconcile uninstalls them once older than an
+  installation link's lifetime.
 - **An installation deleted on GitHub** leaves the row; one GitHub
   suspends says "suspended", and its repositories are refused until it
   is resumed.
@@ -275,8 +279,8 @@ holds for temper's App and for an App of your own alike.
 
 - **In jig's secrets' store,** under the forge's number, written and
   read by the engine alone: the App's id, its slug, its key as DER, its
-  bot user's id, the installations accepted through temper's links, and
-  the kind and address the records were made for
+  bot user's id, the installations accepted through temper's links or
+  `forge-accept`, and the kind and address the records were made for
   (`docs/design/protocol/credentials.md`, the records).
 - **Never the PEM.** The key you paste is kept by jig until its run
   ends, the pasted value, then erased; temper keeps it decoded, and no
@@ -293,3 +297,76 @@ holds for temper's App and for an App of your own alike.
 - **`temper ctl` reads a key from a private file:** your own, with no
   group or other permission bits, not a link. It never prints the key,
   and sends it once.
+
+## 11. An App another owns: read-only
+
+For a shared App, such as a probe App or your team's App, set
+`"app_read_only": true` on forge 2 in `C/temper.json` before starting
+the box. Keep the rest of that entry:
+
+```json
+{"number": 2, "kind": "github", "api": null, "transport": null,
+ "git": null, "web": null, "log_origins": null, "app_read_only": true}
+```
+
+temper reads the App's hook and leaves it, never uninstalls an
+installation it did not accept, and changes nothing of the App. Its
+key, id, permissions and events are still checked. This mode protects
+the App; accepted installations still let temper work on repositories.
+
+```sh
+temper ctl DIR forges
+```
+
+An installation not yet accepted is listed by id with
+"not accepted" and "kept: the App is read-only". Accept the one you
+want as in section 12; leave other installations to their owners.
+
+## 12. Accept an installation that exists already
+
+Use this path when the App was installed on GitHub before temper knew
+it. Sign in through ctl with the box's link as in `temper help box`,
+section 3. DIR is that ctl directory. For a shared App, first set
+read-only mode as in section 11. Have its App ID and private PEM key
+file, FILE, owned by you, not a link, with mode 0600.
+
+Run these in order, replacing 12345 with the App ID, 67890 with the
+installation id `forges` prints as "not accepted". Replace `OWNER`
+and `NAME` with the repository owner and name `repositories` prints,
+and project 1 with your project. The key names identify
+these requests; keep each name on a retry, and choose new names for
+new work.
+
+```sh
+chmod 600 FILE
+temper ctl DIR forge-connect 2 github-app 12345 FILE --key github-app
+temper ctl DIR wait forges --until connected:2
+temper ctl DIR forges
+temper ctl DIR forge-accept 2 67890
+temper ctl DIR repositories 2 --installation 67890
+temper ctl DIR adopt --project 1 --forge 2 --owner OWNER --name NAME --landing main --key github-adopt
+```
+
+Connect submits the App's key; the wait reports it connected. That
+alone does not accept installations. `forges` names each installation
+and its id. Accept prints `accepted: installation 67890 on forge 2`,
+then the repository-listing call. It works without a browser, including
+when that installation is accepted already. The repository list prints
+`OWNER/NAME`; follow its next-page call if needed. Adoption prints the adopted repository, with CI on.
+
+Without read-only mode, a stray is uninstalled at the next reconcile
+once older than an installation link's lifetime. Accept it before
+that reconcile, or use `temper ctl DIR forge-install 2` instead and
+complete the installation through its printed browser link. That
+alternative needs a browser; accepting an existing installation does
+not.
+
+Give the model an account as in `temper help box`, section 5, then ask
+for a change in `OWNER/NAME` using the adopted project's number. Follow
+section 6's `chat`, `task --tree`, `wait change` and `change` calls to
+landing. The change prints the pull request's number and address, CI
+at its head, its step and its merge commit. Read the diff, reviews,
+CI runs and logs, and branches there with your chosen tools. What
+temper owns there, its branches, pull requests and landing, changes
+only through temper. Export a moved-in login before stopping the box
+(section 7 of that walk).
