@@ -351,7 +351,7 @@ fleet's a few each, each as long as the scenarios beside it, a few cuts
 each: about what the runtime projects' stories added, a small part of
 the focused suite's 30 seconds. The fuzzy suite gains no sweep: a change
 of settings, and a move, become two more operations its random worlds
-draw, at the cost of the steps they take. Each milestone that adds them
+draw, at the cost of the steps they take. Each change that adds them
 measures both suites before and after on the gate; past a budget, it
 finds the cost first, and if the cover needs more time than the budget
 gives, it says so to the user rather than cutting the cover.

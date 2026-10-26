@@ -197,7 +197,7 @@ Test shape:
   `an_in_process_name_past_its_bound_is_refused`,
   `an_ipv6_socket_address_is_read`,
   `problems_past_the_bound_are_counted`. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-config` once: an
+Proof: unit, `cargo nextest run -p jig-protocol-config` once: an
 operator's mistakes in a document are each named by their path, and the
 digest and secret files' forms read as configuration.md, 10 says; under
 10 s with the build warm. Not higher: no service reads configuration
@@ -240,7 +240,7 @@ Test shape:
   `the_small_profile_fits_the_cores_worst_case`,
   `the_small_profiles_hub_fits_its_worst_case`,
   `a_sum_past_a_u64_is_refused`, `a_sum_within_memory_is_its_total`.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-config -E
+Proof: unit, `cargo nextest run -p jig-protocol-config -E
 'test(profile)'` once: both profiles are accepted by every child's and
 the core's worst case, and a memory below a sum is refused by how much;
 under 10 s with the build warm.
@@ -272,7 +272,7 @@ Test shape: `src/tests/overrides.rs` (new):
 `every_limit_of_the_small_profile_has_a_name` (overrides each field, by
 a list of names written out in the test, with its own value, and expects
 no problem). Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-config -E
+Proof: unit, `cargo nextest run -p jig-protocol-config -E
 'test(overrides)'` once: any limit can be overridden by its name, and an
 override that breaks a worst case is refused naming it; under 10 s with
 the build warm.
@@ -353,7 +353,7 @@ Test shape:
   `files_list_each_digest_as_private`,
   `a_handed_in_file_reads_its_token_and_lapse` (from the designer's
   form). Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-config -E
+Proof: unit, `cargo nextest run -p jig-protocol-config -E
 'test(llm) | test(hosts)'` once: an engine's endpoints, models,
 accounts, workers and listeners parse, every reference is checked, and
 every secret file is named private; under 10 s with the build warm.
@@ -445,7 +445,7 @@ Test shape:
   `two_deployment_providers_are_refused`,
   `a_connector_numbered_as_the_cores_own_is_refused`,
   `each_owner_owns_every_seeded_project`. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-config` once: a
+Proof: unit, `cargo nextest run -p jig-protocol-config` once: a
 whole engine document parses into the core's configuration, and each
 charter whose budget cannot hold its reserve and one most costly
 completion is refused, naming it; under 10 s with the build warm.
@@ -497,7 +497,7 @@ Test shape:
   `an_engine_at_a_public_address_is_refused`,
   `the_small_worker_document_parses_whole`,
   `an_agent_without_a_program_is_refused`. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-config -E
+Proof: unit, `cargo nextest run -p jig-protocol-config -E
 'test(worker)'` once: a worker's document parses, its stop bound is the
 sum channel.md, 10.1 names, and its secret's file is named private;
 under 10 s with the build warm.
@@ -893,7 +893,7 @@ pub fn stop_bound(graces: &Graces, ping: Duration, silence: Duration) -> Option<
 
 ## Done when
 
-1. The crate's tests pass: `heavy cargo nextest run -p
+1. The crate's tests pass: `cargo nextest run -p
    jig-protocol-config` prints no failure.
 2. This crate links no smith, LLM or OAuth crate: `cargo tree -p jig-protocol-config -e normal
    --prefix none | grep -E '^(smith|skein-llm|skein-oauth)'` prints

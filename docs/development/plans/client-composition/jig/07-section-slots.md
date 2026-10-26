@@ -211,7 +211,7 @@ Test shape: `testing/jig-test-view/src/tests.rs`:
   `the_family_page_fills_its_tasks_plan_in_a_section_slot`,
   `a_second_tasks_section_slot_says_it_cannot_be_shown`. Each under
   20 ms.
-Proof: world, `heavy cargo nextest run -p jig-client-world` once: every
+Proof: world, `cargo nextest run -p jig-client-world` once: every
   story on the family's page passes with its section slot.
 Don't: build a node for jig's section outside `jig_view::sections::section`.
 Size: at most 100 lines of production code (test kit code).
@@ -246,7 +246,7 @@ Test shape: `tests/client/tests/stories.rs`:
   is the family's address, `stories.rs:844`; "Cannot show this part" is
   the test view's `Word::Unshowable`, `testing/jig-test-view/src/words.rs:127`.)
   Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-client-world -E
+Proof: world, `cargo nextest run -p jig-client-world -E
   'test(a_family_page_shows_its_tasks_plan)'` once: the story passes
   under the referee, the outline kept with the section inside the main.
 Don't: add a step the story does not need.
@@ -291,5 +291,5 @@ None.
 
 ## Done when
 
-- `heavy cargo nextest run -p jig-client-world -E 'test(a_family_page_shows_its_tasks_plan)'`
+- `cargo nextest run -p jig-client-world -E 'test(a_family_page_shows_its_tasks_plan)'`
   passes on `main`, once.

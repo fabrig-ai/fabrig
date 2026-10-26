@@ -120,7 +120,7 @@ section 7; `llm.md`, 5.4; `client.md`, sections 1 and 8).
   ChaCha20's expected values are the RFCs' literals.
 - "**Shared hotspots with smith's reliability plan** ...
   `crates/skein-shell/` (its terminal modes, skein 02.6 of that plan).
-  `land` rebases each landing on the other's; no session waits for it"
+  Changes are rebased before merging"
   (README, "Rules"). Within this plan, skein 01.1 edits
   `crates/skein-oauth-accounts/src/component.rs:706` and
   `component/sign_in.rs:118-121`, which 02.4 and 02.5 edit too.
@@ -202,13 +202,13 @@ Test shape: `crates/skein-lib/src/tests/base64.rs`, beside the bytes
   (`base64url_mutations_and_claim_shape_errors_are_refused_without_authentication`),
   `tests/ring/tests/files/startup.rs`, `tests/tls/tests/startup.rs`, the
   browser suite.
-Proof: unit and real filesystem, run once with `heavy cargo nextest run
+Proof: unit and real filesystem, run once with `cargo nextest run
   -p skein-oauth -p skein-ring-tests`: the RFC 7636 example's challenge
   (`rfc_7636_example_uses_s256_without_padding`) and the PEM bundles'
   certificates (`pem_takes_der_in_order_and_skips_other_blocks_without_decoding_them`,
   `malformed_certificate_blocks_recover_at_the_next_begin_and_do_not_consume_the_count_bound`)
   come out as the literals they held before the move. Under 30 s. The
-  browser suite runs in `land`'s gate only.
+  browser suite runs in the gate only.
 Don't: change `skein_oauth::SavedToken`, `Granted.token` or any other
   public record to `Secret` (smith's ~15 record sites would break,
   findings/skein.md, section 3); change PEM's accepted inputs (its
@@ -269,7 +269,7 @@ Test shape: `tests/codec/tests/drift.rs` gains
   And `a_credential_encodes_its_secret_as_bytes_and_decodes_back`, the
   bytes written as a literal (`0, 0, 0, 3, b'l', b'l', b'm', 0, 0, 0, 7,`
   then `hunter2`). Each under 20 ms.
-Proof: unit, run once with `heavy cargo nextest run -p skein-codec-tests`:
+Proof: unit, run once with `cargo nextest run -p skein-codec-tests`:
   the three existing schemas' drift tests pass with their committed code
   and goldens untouched, and `git diff --stat origin/main --
   tests/codec/src/generated tests/codec/src/scalars tests/codec/src/lints`
@@ -328,7 +328,7 @@ Test shape: `tests/ring/tests/files/startup.rs` (real files in a
   `private_reads_leave_no_descriptor_open` (the `/proc/self/fd` count, as
   `:28,37`); in `tests/ring/tests/ring.rs`,
   `two_cryptographic_seeds_differ_and_hold_32_bytes`. Each under 20 ms.
-Proof: real filesystem, run once with `heavy cargo nextest run -p
+Proof: real filesystem, run once with `cargo nextest run -p
   skein-ring-tests --test files`: a token file that is group-readable,
   reached through a link, or linked twice is refused unread with the
   cause named, and a private one is read, its bytes returned. Under 30 s.
@@ -395,7 +395,7 @@ Test shape: `crates/skein-lib/src/tests/crypto_rng.rs`. Reference test,
   `crates/skein-oauth-accounts/src/tests.rs`,
   `two_sign_ins_draw_different_states_and_verifiers` and
   `a_verifier_is_43_url_safe_characters`. Each under 20 ms.
-Proof: world, run once with `heavy cargo nextest run -p
+Proof: world, run once with `cargo nextest run -p
   skein-oauth-accounts-world --test sign_in`: a public client's sign-in,
   its state and verifier drawn from a `CryptoRng`, is accepted by the
   fake issuer, which checks the state and S256 over the verifier
@@ -446,7 +446,7 @@ Test shape:
     Closed]`.
   - The existing `Story::Repeated` (a second rejection fails as
     `Expired`, the record kept) runs unchanged. Each test under 0.5 s.
-Proof: world, run once with `heavy cargo nextest run -p
+Proof: world, run once with `cargo nextest run -p
   skein-oauth-accounts-world --test private`:
   `a_record_refused_as_sign_in_again_is_dropped_and_its_replacement_lent`
   shows a revoked refresh token's record dropped, and a record a person
@@ -485,7 +485,7 @@ Test shape: `lints-v1.schema` gains an enumeration with one `boxed`
   `a_boxed_variant_encodes_as_its_unboxed_twin`, the bytes a literal; a
   unit test in `testing/skein-codegen` generates a family of 120 records
   and finds no function past 100 lines. Each under 20 ms.
-Proof: unit, run once with `heavy cargo nextest run -p skein-codegen -p
+Proof: unit, run once with `cargo nextest run -p skein-codegen -p
   skein-codec-tests`; and `git diff --stat --diff-filter=MD origin/main
   -- tests/codec/src/generated tests/codec/src/scalars
   tests/codec/src/secrets tests/codec/golden` prints nothing: no existing
@@ -518,7 +518,7 @@ Shape: a list whose items need no check writes no check loop; a list of
 Test shape: `lints-v1.schema` gains a `list 4 u64` field, a `list 4 u32`
   one, and a record of 30 `bytes 4` fields; the gate's clippy over the
   fixture is the check.
-Proof: unit, `heavy cargo nextest run -p skein-codegen -p
+Proof: unit, `cargo nextest run -p skein-codegen -p
   skein-codec-tests` once; `git diff --stat --diff-filter=MD origin/main
   -- tests/codec/src/generated tests/codec/src/scalars
   tests/codec/src/secrets tests/codec/golden` prints nothing.
@@ -798,7 +798,7 @@ generator from `new` until it is dropped.
    (at the session's start it prints the six copies' lines).
 3. The accounts driver holds no `Rng`: `git -C ~/src/rust/skein grep -n 'Rng'
    origin/main -- crates/skein-oauth-accounts/src` prints only `CryptoRng` lines.
-4. The five increments landed through `land`: `git -C ~/src/rust/skein
+4. The five increments landed: `git -C ~/src/rust/skein
    log --format='%(trailers:key=Step,valueonly)' origin/main` lists
    `skein-02.1` to `skein-02.5`, each commit's `Gate-Result` naming
    `scripts/check.sh passed`.

@@ -6,7 +6,7 @@ From the designer's answer of 2026-10-13 to the supervisor's question
 smith's `tests/end-to-end/end_to_end.rs:487`,
 `smith_check_json_lists_the_effective_limits_by_name`, which must settle
 within 2 s of wall time (`tests/end-to-end/support/mod.rs:631`). Measured
-on carbon-forge through `heavy --gate`, `--profile measure`, unoptimized
+on carbon-forge `--profile measure`, unoptimized
 as smith's gate builds it; the phases timed by prints in a scratch
 checkout, not landed. Two steps, 3 and 4; 3 first.
 
@@ -121,9 +121,9 @@ Test shape: the end-to-end tests unchanged; one local-process test: a
   piped person on a pipe written whole with 60,000 bytes, then ended,
   shows all of them in at most 16 reads.
 Proof: smith's gate (`docs/development/workflow.md`, 1) through
-  `heavy --gate`, its `Gate-Result` naming the test's time in the full
+  the gate, its result naming the test's time in the full
   suite, under 0.4 s; alone, under 0.15 s; `smoke-tools` once before
-  `land` (README, "Live services").
+  merging (README, "Live services").
 Don't: raise the 2 s bound; read the output by an io demand (an exact
   read waits for its count and a line read for its line's end, so a
   prompt with neither would never show); change `Terminal::new`'s pipes

@@ -222,7 +222,7 @@ Tests (`keys.rs`): `encoded_keys_sort_as_the_derived_order`,
 `a_path_past_its_limit_fails_to_decode`. Each under 20 ms; the order test
 draws 500 keys.
 Proof: unit, `keys::encoded_keys_sort_as_the_derived_order`, run once
-with `heavy cargo nextest run -p jig-test-store -E
+with `cargo nextest run -p jig-test-store -E
 'test(encoded_keys_sort_as_the_derived_order)'`: 500 drawn keys of both
 connectors sort the same as bytes and as values; under 20 ms. The joint
 layer is 18.3's.
@@ -341,7 +341,7 @@ Tests (`routes.rs`): `a_commit_routes_connector_records_as_bytes`,
 adapter's under 50 ms each.
 Proof: world,
 `store_adapter::a_crash_keeps_a_durable_turn_and_loses_a_held_one`, run
-once with `heavy cargo nextest run -p jig-core-world --test
+once with `cargo nextest run -p jig-core-world --test
 store_adapter -E
 'test(a_crash_keeps_a_durable_turn_and_loses_a_held_one)'`: the real
 component, routing and stand-in keep the durable turn and lose the one
@@ -429,7 +429,7 @@ uses.) Tests: `a_seen_chat_is_read_back_through_the_store_after_restart`,
 `a_historical_escalation_is_read_through_the_store`. Each under 0.5 s.
 Proof: joint,
 `store::a_crash_after_durability_before_acknowledgement_restores_the_turn`,
-run once with `heavy cargo nextest run -p jig-core-world --test store -E
+run once with `cargo nextest run -p jig-core-world --test store -E
 'test(a_crash_after_durability_before_acknowledgement_restores_the_turn)'`
 (`tests/core/tests/store.rs:116`), now on the real component: the turn
 kept in its transcript's file survives the crash and is readable after
@@ -498,13 +498,13 @@ Ceilings: unchanged, each focused test under 0.5 s and fuzzy test about
 Proof: joint, `fuzzy_snapshot::late_copy_every_snapshot_matches_complete_fresh_state`
 (`tests/conformance/tests/fuzzy_snapshot.rs:27`) on the real store, under
 5 s; and the measure, run once after this increment's change:
-`heavy --gate cargo nextest run -p jig-core-world -p
+`cargo nextest run -p jig-core-world -p
 jig-conformance-world -p jig-client-world --profile measure -j 1` and the
 same with `--ignore-default-filter -E 'binary(/^fuzzy_/)'`, their totals
 and slowest tests written in the commit body beside findings/store.md
 4.4's of 2026-10-11 (core 1.79 s / 1.65 s, conformance 1.56 s / 4.45 s).
 Nothing else is measured. Guide: aim for the gate's focused wall time, as
-`land`'s gate log prints it, at most 1.5 s above 9.0 s; if it is past,
+the gate log prints it, at most 1.5 s above 9.0 s; if it is past,
 profile the slowest and make them cheaper before landing (development.md
 5.3).
 Don't: move `ops`'s worlds off `jig-fake-store` (decision 8); raise a
@@ -634,7 +634,7 @@ most 1 s together, its fuzzy test about 5 s, unoptimized, read once from
 nextest's times in the last focused run.
 Proof: world,
 `crashes::a_crash_at_each_file_operation_of_a_turn_keeps_a_whole_prefix`,
-run once with `heavy cargo nextest run -p jig-store-world --test crashes
+run once with `cargo nextest run -p jig-store-world --test crashes
 -E
 'test(a_crash_at_each_file_operation_of_a_turn_keeps_a_whole_prefix)'`:
 crashed at each of 12 file operations of a commit with a turn, the
@@ -811,7 +811,7 @@ back at a crash.
    'jig-fake-store' -- '*.toml'` prints `Cargo.toml`,
    `testing/jig-conformance/Cargo.toml`, `testing/jig-fake-store/Cargo.toml`
    and `tests/ops/Cargo.toml`, and nothing else.
-4. The store's world runs within its ceilings: `heavy cargo nextest run
+4. The store's world runs within its ceilings: `cargo nextest run
    -p jig-store-world` passes, and the slowest focused test nextest prints
    is under 0.5 s.
 5. jig's gate passed on the last of them: `git -C ~/src/rust/jig log -1

@@ -1,6 +1,6 @@
 # skein's focused suite: where the time goes
 
-The planner's sub-agent's audit, 2026-10-13, at skein `2068257`, each change tried in a scratch tree and measured through `heavy --gate`. Numbers are seconds; "alone" is `-j 1`, "at 8" the gate's eight threads. skein 02.3 takes findings 1 to 5 and 7, and 6's test change.
+The planner's sub-agent's audit, 2026-10-13, at skein `2068257`, each change tried in a scratch tree and measured. Numbers are seconds; "alone" is `-j 1`, "at 8" the gate's eight threads. skein 02.3 takes findings 1 to 5 and 7, and 6's test change.
 Diff of all tried changes: `tried/skein-suite.md` (against skein `2068257`; evidence, not to be applied as is). Before: -j1 log 20261013T210642-97, 8 threads 210521-95. After: 212822-92, ring 213039-101, transcripts 213738-127 (load ~9).
 1. http-world memory an_event_of_a_megabyte_costs_the_same_reader_memory_as_a_small_one: 0.909 s alone / 2.933 s at 8; 1 MiB event at chunk 4 (tests/http/tests/memory.rs:455,457) -> 262k deliveries through Lines::byte (sse/lines.rs:149). Change 1<<20 -> 1<<14, rename. 0.019 s alone. worst_case depends only on chunk and field (sse.rs:100-107); probe small=large=worst 40 at 16 KiB.
 2. llm selective 1 MiB tests: memory.rs:778,785 (0.669, 0.661 alone), selective.rs:30,43 (0.821). 1_048_576 -> 1<<18, expected Oversize 262_144. 2.151 -> 0.491 s alone. Peak 56,125 at every size; 256 KiB still past every limit but skip incl. receiving 123,436 (client.rs:1072). Echo paths 64 KiB each below receiving (echoes never blocks); 1<<19 for echo test if wanted.

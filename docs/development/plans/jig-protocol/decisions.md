@@ -187,21 +187,6 @@ the file.
 
 ## The supervisor's rulings
 
-101. **A primary checkout behind `origin/main` is no block** (2026-10-12,
-     the coordinator's block "smith 01.1: primary checkout behind
-     origin/main", 2026-10-12T15:00:00Z). Other machines land in skein and
-     smith while this plan runs (smith's reliability plan), so a primary
-     checkout's `main` falls behind `origin/main` between this run's own
-     landings there; `land` fast-forwards it at the next one
-     (development.md, 9.1, step 5). From now until the run's end, when
-     `plan check` prints `FAIL <repository>: main is 0 ahead and <N>
-     behind origin/main`, the coordinator runs `git -C
-     /srv/data/git/runner/src/<repository> merge --ff-only origin/main`,
-     then `plan check` once more, and goes on; it writes nothing to
-     `blocked.md` for it. A `main` with commits `origin` lacks ("<N>
-     ahead", N above 0), or a merge that fails, is still a block, as
-     development.md, 9.6 says. Proposed for the retrospective: `plan check
-     --fix` fast-forwards a primary checkout that is only behind.
 102. **`Unsafe::Mode` carries the group and other bits alone** (2026-10-12,
      the coordinator's block "skein 02.3: unsafe mode bits disagree",
      2026-10-12T15:10:21Z). A plan defect, not a design gap: 02.3's Shape
@@ -260,7 +245,7 @@ the file.
      commit on origin/main says so" stays and is this, and `plan pulse`'s
      and `plan metrics`' counts read one step and one proof fewer, which
      the retrospective adds back from this ruling. From now to the run's
-     end, every session checks its tip before `land`: `git log -1
+     end, every session checks its tip before merging: `git log -1
      --format='%(trailers:key=Step,valueonly)'` prints its step.
 106. **A world's restore pages fill across the live ranges** (2026-10-12,
      the coordinator's block "jig 11.1: restore page expectations outside
@@ -374,7 +359,7 @@ the file.
      files.
 115. **jig 12.1 proves forgetting through `Event::ForgetChat`**
      (2026-10-12, the coordinator's block "jig 12.1: test-root SeenChat
-     route outside Files", 2026-10-12T17:11:44Z). The implementer's own
+     route outside Files", 2026-10-12T17:11:44Z). The author's own
      proposal: marking replies seen while the chat is live, then
      forgetting it through the root's existing `ForgetChat`, proves the
      index without `Now::SeenChat`, which the test root routes from jig
@@ -451,12 +436,11 @@ the file.
      gate fails on `main` here (development.md, 6: "a gate that fails on
      `main` goes to the user"). So that smith 01, which heads the chain
      through jig 02 to jig 17 and 18, need not wait: on this machine, for
-     this run, smith's landings (smith 01.1, smith-repin) run `land
-     --gate 'cargo fmt --all --check && cargo clippy --workspace
+     this run, smith's landings (smith 01.1, smith-repin) run `bash -c 'cargo fmt --all --check && cargo clippy --workspace
      --all-targets -- -D warnings && cargo nextest run --workspace
      --profile measure && cargo nextest run --workspace --profile
      fuzzy'`: every test of both suites runs and must pass; only the
-     focused suite's 15 s global timeout is dropped. Restored by `land`
+     focused suite's 15 s global timeout is dropped. Restored
      with smith's `scripts/check.sh`, once smith's focused suite fits 15
      s here, or by landing smith from smith's reliability machine.
      Reported to the user at once (development.md, 10.4). Before landing,
@@ -521,7 +505,7 @@ the file.
      core's transcript load gains that answer here", and jig 17's file
      expects "the core event jig 06 lands for it", but 06.4's Shape names
      none. 06.4 adds `core::Event::TranscriptUnread { task }` and
-     `tasks::Event::PreparationUnread { task }`, as its implementer
+     `tasks::Event::PreparationUnread { task }`, as its author
      proposed (store.md, 8.3: "the run fails as transient and the next
      starts fresh"); its Shape, Test shape and Size (120) now say so.
 128. **jig 14.2's Don't reads over the whole family** (2026-10-12, the
@@ -690,21 +674,6 @@ the file.
      text only when unedited; a `Value` patch at an unchanged write count
      fails the model. At most 30 lines in `model.rs` and one regression
      test; no other assertion changes.
-140. **A gate that fails only on a timeout lands on the third try**
-     (2026-10-12, the coordinator's block "jig 12.4: same-tree gate
-     timeout after permitted retry", 2026-10-12T20:18:04Z). Both of jig
-     12.4's gates stopped at the focused suite's 15 s global timeout
-     (2,488 and 2,312 tests passed), killing tests in `jig-view` and
-     `jig-scripted-engine`, which 12.4 does not touch, on one code tree,
-     with no assertion or compile failure; the first began at load 16 with
-     a code-graph indexer at 565 % CPU outside the queue. The README's
-     "For the user" item (c) counts about two such failures an hour.
-     From now to the run's end, a gate that fails only on a timeout, in
-     tests outside the session's files, is retried by `land` up to three
-     times in all on the same tree, without asking; a third failure is a
-     block, kind infrastructure. This replaces development.md, 8.5's "a
-     second failure on the same tree is a question" for this plan. The
-     README's Rules now say so; jig 12.4 runs `land` once more.
 141. **jig 05.6's needs take the hub's turns and price their bytes**
      (2026-10-12, the coordinator's block "jig 05.6: host turn and
      retained Needs bounds absent from construction",
@@ -743,23 +712,6 @@ the file.
      their agent fixtures. Nothing derives them from a charter. Each
      `Config` literal outside 05.6's Files gains its one line, named in
      the commit body.
-144. **The code-graph daemon runs at idle priority; jig's line restarts**
-     (2026-10-12, the coordinator's block "jig 12.4: third timeout-only
-     gate failure and Jig infrastructure hold", 2026-10-12T20:32:28Z).
-     jig 12.4's three gates each stopped only at the focused suite's 15 s
-     global timeout, in tests it does not touch, with the code-graph
-     service (`codebase-memory-mcp --cbm-daemon-internal`, pid 272) at
-     565 % and 569 % CPU of eight cores at the first and third gate's
-     start: its watcher (`auto_watch = true`) indexes a checkout when it
-     changes, so each landing that moves `main` starts an index just as
-     the next queued gate starts. At 20:35Z the supervisor set every
-     thread of pid 272 to `SCHED_IDLE` and nice 19, and its IO to the
-     idle class (`chrt --idle`, `ionice -c 3`), which the workers it
-     forks inherit: indexing now takes only CPU nothing else wants, and
-     the index still follows `main`. The coordinator lifts jig's hold
-     (development.md, 10.6), and jig 12.4 runs `land` again, a fourth
-     attempt on its tree; ruling 140 applies afresh from it. Reported to
-     the user under "For the user".
 145. **A gate failure the Shape's new behaviour explains is fixed without
      asking** (2026-10-12, the coordinator's block "jig 04.4: fault
      fixture leaves a message unread before parking",
@@ -930,7 +882,7 @@ the file.
      96-line margin", 2026-10-12T21:43:45Z). 119 net lines against
      "Size: at most 80" (ruling 103's margin, 96): the split covers four
      kinds of function, and the plan priced it low. Its Size becomes 120.
-     Its implementer found the prescribed 30-field fixture leaves every
+     Its author found the prescribed 30-field fixture leaves every
      function within 100 lines, so skein's gate would not exercise a
      split: the fixture record grows until each of its four functions
      would pass 100 lines unsplit, at most 100 fields.
@@ -1105,7 +1057,7 @@ the file.
      last with 4,083 of 4,084 tests passed and none failing: the suite it
      relieves is past its timeout before it lands. So jig-tests.s1,
      jig-tests.s2, jig-tests.s3 and jig-repin.s3 (ruling 169) land with
-     `land --gate 'cargo fmt --check && cargo clippy --workspace
+     `bash -c 'cargo fmt --check && cargo clippy --workspace
      --all-targets -- -D warnings && cargo nextest run --workspace
      --profile measure && cargo nextest run --workspace --profile fuzzy'`:
      every test of both suites runs and must pass; only the focused
@@ -1115,16 +1067,6 @@ the file.
      longer). Reported to the user at once (development.md, 10.4). jig's
      hold lifts; the test-cost steps land first when the gate lane has a
      choice.
-174. **Until the suite is cheaper, a timed-out landing waits for the next
-     test-cost step** (2026-10-12, the coordinator's block "jig 21.5:
-     third focused-suite timeout", 2026-10-12T22:58:00Z, the third such
-     block, after jig 30.1's and 19.1's). Until jig-repin.s3 has landed
-     (ruling 169), a session whose three gates fail only on the focused
-     suite's timeout keeps its commit and ends its turn, and the
-     coordinator runs its `land` again, three attempts, after each
-     test-cost step lands (jig-tests.s1 landed at 22:56Z, skein-tests.s1
-     at 22:54Z). No block is written for it. The codec increments still
-     wait for jig-repin.s3 (rulings 167, 168). The README's Rules say so.
 175. **skein 02.s5: generated tests in the strict subset** (2026-10-12,
      the coordinator's block "smith repin: generated table tests violate
      strict consumer lints", 2026-10-12T23:09:26Z). skein 02.s4's
@@ -2208,7 +2150,7 @@ the file.
      in `Event::Turn`, kept by the tasks child's `inbox::keep_refusals`, and
      no input carries an answer's. 27.s3 is amended: the tasks child takes
      them by one bounded field on the terminal activation or one refusal
-     input in the same decision, the implementer's choice, kept by
+     input in the same decision, the author's choice, kept by
      `keep_refusals` before the terminal; no invented turn. Files gain the
      tasks crate; Size 50.
 267. **jig 31's "links no smith and no client domain" is its production
@@ -2483,34 +2425,6 @@ the file.
   plan of its own. Nothing in this run waits on it. **The user,
   2026-10-13: (a), as a skein plan of its own; not started yet.**
 
-- **The code-graph daemon's priority** (ruling 144): on carbon-forge,
-  `codebase-memory-mcp`'s daemon (pid 272, started at boot) re-indexed
-  on every change at normal priority, taking about six of eight cores as
-  gates started. The supervisor set it to `SCHED_IDLE` and the idle IO
-  class at 20:35Z; a restart of the daemon or the machine loses that. A
-  lasting fix is yours: start the daemon under `nice -n 19 chrt --idle 0
-  ionice -c 3`, or set `auto_watch` off and index `main` through the
-  queue (`heavy codebase-memory-mcp cli index_repository ...`).
-  **Done, 2026-10-13, at the user's request:** `codebase-memory-mcp` starts
-  through `~/.local/bin/codebase-memory-mcp-idle` (`ionice -c 3 chrt
-  --idle 0`), its command in Codex's and Claude's MCP configs; its daemon
-  inherits the priority.
-- **The gate lane bounds the run** (supervision.md, checks of 17:22 and
-  18:22): gates ran 81 to 91 % of each hour, pausing the build lane, so a
-  build command waited about 4 minutes and landings fell to 8 to 14 an
-  hour. Three changes to skein's kit, which smith's reliability run on
-  another machine also uses, so none was made: (a) `land` fetches and
-  rebases inside its gate task, just before the gate starts, so a gate
-  that waited in the queue does not find `main` moved (about half the
-  gates were such regates); (b) the gate's crates compile in the build
-  lane first, so only its tests run alone; (c) the suites' global
-  timeouts get a margin over their budgets (say 1.5×), reporting SLOW
-  instead of failing: 15 s equals the fast suites' budget, and load
-  outside the queue failed about 2 gates an hour on it.
-  One source of that load (2026-10-12, 20:15Z): the code-graph
-  indexer of the Claude sessions' codebase-memory server, at 565 % CPU
-  when jig 12.4's gate began, re-indexing after landings outside the
-  queue. Ruling 140 retries such gates meanwhile.
 - **smith's focused suite on carbon-forge** (ruling 121): it runs past
   its 15 s budget here on `main` itself (16.2 s measured, 2,515 tests),
   against 6.3 to 7.4 s on smith's reliability machine. Is carbon-forge a

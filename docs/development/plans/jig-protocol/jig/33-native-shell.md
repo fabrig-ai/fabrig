@@ -182,7 +182,7 @@ fn a_person_signs_in_by_the_printed_link_and_starts_a_chat() {
 
 Ceilings: unit tests under 20 ms each; the story under 0.5 s.
 Proof: joint: `a_person_signs_in_by_the_printed_link_and_starts_a_chat`,
-run once with `heavy cargo nextest run -p jig-client-protocol-world -E
+run once with `cargo nextest run -p jig-client-protocol-world -E
 'test(a_person_signs_in_by_the_printed_link_and_starts_a_chat)'`,
 passes, which shows a person's request crosses both components and both
 wires as bytes and is made once by the real core; under 0.5 s. The
@@ -225,7 +225,7 @@ Drift: `test_client_wire_schema_matches_generated_code_and_goldens`.
 Ceilings as 33.1.
 Proof: joint:
 `a_person_s_part_request_is_answered_from_the_connector_s_outcome`, run
-once with `heavy cargo nextest run -p jig-client-protocol-world -E
+once with `cargo nextest run -p jig-client-protocol-world -E
 'test(a_person_s_part_request_is_answered_from_the_connector_s_outcome)'`:
 a person's request to the test connector crosses as its family's records
 and is answered from the connector's outcome; under 0.5 s.
@@ -266,7 +266,7 @@ Test shape: step tests in `src/tests/clients.rs`:
 `an_erased_sign_in_record_ends_its_stream_once_durable`,
 `the_printed_link_reaches_the_caller_once`,
 `with_no_clients_member_party_outputs_go_to_the_port`. Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-test-service -E
+Proof: unit, `cargo nextest run -p jig-test-service -E
 'test(/clients::/)'`, run once: the clients' listener opens before the
 restart, a kept digest reaches the store's secrets, and the printed link
 reaches the caller once (the six tests); under 0.2 s. The joint and
@@ -317,7 +317,7 @@ fn a_native_client_signs_in_by_the_service_s_link_and_starts_a_chat() {
 Ceilings: unit tests under 20 ms; the world test under 0.5 s.
 Proof: joint over skein's simulated io:
 `a_native_client_signs_in_by_the_service_s_link_and_starts_a_chat`, run
-once with `heavy cargo nextest run -p jig-client-protocol-world --test
+once with `cargo nextest run -p jig-client-protocol-world --test
 native`, which shows the reference service's clients' side and the
 native shell meet over sockets; under 0.5 s. The process layer is jig
 26's.
@@ -359,8 +359,8 @@ negative cases (`tests/referee.rs`):
 (`tests/fuzzy_protocol.rs`): `random_people_over_bytes_keep_the_referee_s_rules`,
 seeds sized to about 3 s. Ceilings: focused stories under 0.5 s each;
 the fuzzy test about 3 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
-'test(a_request_whose_answer_was_lost_is_made_once)'` and `heavy cargo
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
+'test(a_request_whose_answer_was_lost_is_made_once)'` and `cargo
 nextest run -p jig-client-protocol-world --profile fuzzy`, each run
 once: a request whose answer was lost is made once, and drawn people
 over bytes cut at drawn moments keep the referee's rules; under 4 s
@@ -432,10 +432,10 @@ pub struct NativeClient { /* shell, link, root, view, person */ }
 
 ## Done when
 
-- The shell and the world pass: `heavy cargo nextest run -p
+- The shell and the world pass: `cargo nextest run -p
   jig-shell-native -p jig-client-protocol-world -p jig-test-service`
   passes.
-- The world's cost: `heavy --gate cargo nextest run -p
+- The world's cost: `cargo nextest run -p
   jig-client-protocol-world --profile measure -j 1` reports the focused
   tests' sum; the commit body records it (aim: at most 0.8 s).
 - The shell links no engine-side crate: `git grep -n -E

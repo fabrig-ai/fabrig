@@ -79,17 +79,17 @@ Files: `Cargo.lock`; repairs, if any, where jig names smith's or
 Shape: in jig's worktree for this session:
   1. `git fetch origin && git switch -c jig-protocol/jig-02-1
      origin/main`;
-  2. `heavy cargo update -p skein-lib -p smith-charter`, which moves the
+  2. `cargo update -p skein-lib -p smith-charter`, which moves the
      skein and the smith git sources, each with its packages;
-  3. `heavy cargo check --workspace --all-targets`, and each error
+  3. `cargo check --workspace --all-targets`, and each error
      repaired within the Rules' limits;
-  4. `heavy cargo clippy --workspace --all-targets -- -D warnings`, once;
-  5. `land`.
+  4. `cargo clippy --workspace --all-targets -- -D warnings`, once;
+  5. merge.
 Test shape: no test is added. A test changes only where smith's format
   under its version moved (Choices): its golden bytes copied again, its
   expected values those smith's own tests now hold.
 Proof: the gate's (development.md, 5.7: "Its `Proof:` line is the
-  gate's"): jig's `scripts/check.sh`, run by `land`; the commit says
+  gate's"): jig's `scripts/check.sh`; the commit says
   `Proof: gate, scripts/check.sh on skein <revision>, smith <revision>`.
   Nothing else is run.
 Don't: add a workspace dependency; change jig's design or behaviour;

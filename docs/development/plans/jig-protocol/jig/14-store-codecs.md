@@ -243,8 +243,8 @@ Test shape:
   Also `mutated_notes_goldens_never_panic` (100 mutations of each
   `golden/notes/v1/*_full.bin`), and the component's two.
 - Ceilings: unit 20 ms; drift 0.2 s per family; each fuzzy test 1 s.
-Proof: unit and world. `heavy cargo nextest run -p jig-protocol-store -p
-jig-store-codecs-world` and `heavy cargo nextest run -p
+Proof: unit and world. `cargo nextest run -p jig-protocol-store -p
+jig-store-codecs-world` and `cargo nextest run -p
 jig-store-codecs-world --profile fuzzy` once: a notes entry and the format
 row read back as saved, the committed code matches its schema, and no byte
 string panics the decoders. Nothing stores rows yet (jig 15). Bound: 2
@@ -279,7 +279,7 @@ Test shape:
   `an_authority_with_every_grant_kind_reads_back`. The drift and fuzz
   tests gain the tasks family.
 - Ceilings: unit 20 ms; drift 0.3 s; fuzzy 1 s.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit. `cargo nextest run -p jig-protocol-store -p
 jig-store-codecs-world` once: ledgers, slots and authorities read back as
 saved, the code matches its schema. Bound: 1 minute.
 Don't: declare a type the tasks family's rows do not reach once 14.4 has
@@ -310,7 +310,7 @@ Test shape:
   `a_recurring_template_reads_back_one_level_deep`,
   `a_template_member_holding_a_template_is_refused`.
 - Ceilings: unit 20 ms.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit. `cargo nextest run -p jig-protocol-store -p
 jig-store-codecs-world` once: history, milestones and proposals read back
 as saved. Bound: 1 minute.
 Don't: drop a field on the way down, other than the refused template.
@@ -340,7 +340,7 @@ Test shape:
   `an_activity_line_of_each_kind_reads_back`, `each_index_row_reads_back`,
   `a_task_record_at_its_inbox_bound_reads_back`.
 - Ceilings: unit 20 ms.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit. `cargo nextest run -p jig-protocol-store -p
 jig-store-codecs-world` once: each tasks row kind of the fixtures reads
 back as saved. Bound:
 1 minute.
@@ -455,9 +455,9 @@ versioned record Attempt { first: u64 }
 
 ## Done when
 
-- `heavy cargo nextest run -p jig-store-codecs-world --test drift` passes
+- `cargo nextest run -p jig-store-codecs-world --test drift` passes
   once on `main`: the committed code and goldens match the five schemas.
-- `heavy cargo nextest run -p jig-store-codecs-world --profile fuzzy`
+- `cargo nextest run -p jig-store-codecs-world --profile fuzzy`
   passes once, within 5 s of the fuzzy budget.
 - `ls ~/src/rust/jig/crates/jig-protocol-store/schema/` lists the
   component's, the notes' and the tasks' schemas (jig 19 adds the core's

@@ -241,7 +241,7 @@ fn a_start_waits_for_its_charter_to_come_back_decoded() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p jig-test-worker`, run once: a
+Proof: unit, `cargo nextest run -p jig-test-worker`, run once: a
 start waits for its charter to come back decoded, an undecodable charter
 fails it as invalid, and a turn, a result and a channel fact reach the
 hub only as the protocol layer hands them back (the six tests above);
@@ -308,7 +308,7 @@ fn a_lost_link_reaches_the_fleet_as_its_channel_lost() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p jig-test-domain -E
+Proof: unit, `cargo nextest run -p jig-test-domain -E
 'test(/link::/)'`, run once: a worker's hello, its turns with their
 refusals and its loss reach the fleet, and an assignment for a channel
 leaves as the hub's record (the four tests above); under 0.1 s. The
@@ -370,7 +370,7 @@ fn a_failed_commit_releases_nothing_after_it() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p jig-test-service`, run once: a
+Proof: unit, `cargo nextest run -p jig-test-service`, run once: a
 document's mistakes are refused naming their paths, a failed commit
 releases nothing after it, and the system applies an effect and reads it
 back (the eight tests above); under 0.2 s. The joint layer opens at
@@ -431,7 +431,7 @@ Test shape: `a_handed_in_account_is_lent_and_its_value_stays_out_of_the_root`,
 `the_workers_listener_opens_before_the_restart`,
 `a_result_that_does_not_decode_fails_its_attempt_as_invalid`. Under 20
 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-test-service`, run once: a
+Proof: unit, `cargo nextest run -p jig-test-service`, run once: a
 handed-in account is lent with its value kept out of the root, a call is
 decoded or answered an error, an assignment leaves with its charter
 encoded and its grants filled, and an undecodable result fails its
@@ -479,7 +479,7 @@ Test shape: `io_events_reach_only_the_layer_whose_tokens_they_carry`,
 `the_agent_starts_with_no_credential_in_its_environment`,
 `stopped_the_worker_cancels_its_runs_and_never_redials`. Under 20 ms
 each.
-Proof: unit, `heavy cargo nextest run -p jig-test-service`, run once:
+Proof: unit, `cargo nextest run -p jig-test-service`, run once:
 io's events reach only the layer whose tokens they carry, a grant's
 value reaches smith's host half in its envelope, and the agent starts
 with no credential in its environment (the six tests above); under 0.2
@@ -531,7 +531,7 @@ fn a_person_s_chat_runs_on_the_test_worker_and_is_acknowledged_once() {
 Ceiling: under 0.5 s.
 Proof: joint:
 `a_person_s_chat_runs_on_the_test_worker_and_is_acknowledged_once`, run
-once with `heavy cargo nextest run -p jig-channel-world --test channel`,
+once with `cargo nextest run -p jig-channel-world --test channel`,
 passes, which shows a person's chat crosses the engine, the workers'
 channel, the worker, smith's host half and smith's real agent over the
 fake LLM, and back, once; under 0.5 s. The process layer is jig 26's.
@@ -674,7 +674,7 @@ pub enum PartyOutput { /* the root's held and immediate outputs for parties */ }
 
 ## Done when
 
-- The two crates and the world pass: `heavy cargo nextest run -p
+- The two crates and the world pass: `cargo nextest run -p
   jig-test-worker -p jig-test-service -p jig-test-domain -p
   jig-channel-world` passes.
 - smith stays where it may: `git grep -n -E '^smith-' --

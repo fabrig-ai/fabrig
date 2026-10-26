@@ -86,7 +86,7 @@ met everywhere; the worlds; the readers.
   (code-organization.md, section 4): a `_ =>` arm would let the next
   variant pass unseen.
 - "**smith's reliability plan lands in smith and skein from
-  debian-16gb-hel1-1** ... `land` rebases each landing on its landings"
+  debian-16gb-hel1-1** ... Changes are rebased before merging"
   (README, "Rules"): it edits skein's `crates/skein-io/` too.
 - Files already past 800 lines grow by at most this session's Sizes and
   are not split: `crates/skein-io/src/stream.rs`,
@@ -195,9 +195,9 @@ Test shape: the tests below, each in its crate's tests:
   }
   ```
   Ceilings: each unit test under 20 ms.
-Proof: unit, the tests above by name, `heavy cargo nextest run -p
+Proof: unit, the tests above by name, `cargo nextest run -p
   skein-lib -p skein-io -p skein-http -p skein-tls -E 'test(/arriv/)'`,
-  once: each passes; and `heavy cargo clippy --workspace --all-targets
+  once: each passes; and `cargo clippy --workspace --all-targets
   -- -D warnings` exits 0. The world layer is 01.2's.
 Don't: assert a read of what has arrived against a cap; add a `_ =>`
   arm; change what an exact read delivers; make a tokenizer, the
@@ -243,10 +243,10 @@ Test shape: no new world test beyond the one below; the worlds' existing
   the deliveries and the bytes, and `check` asserts, for `Megabyte`,
   1,048,576 bytes in the fixture's pattern and at most 4,096 deliveries
   (one per 256 bytes or more; `Fill(1)` would take 1,048,576).
-Proof: process, `heavy cargo nextest run -p skein-io-world -E
+Proof: process, `cargo nextest run -p skein-io-world -E
   'test(a_megabyte_on_a_real_pipe_arrives_in_few_deliveries)'` once on
   the real ring: it passes, the assertion on the deliveries being the
-  evidence; no count is reported. Then `heavy cargo nextest run -p
+  evidence; no count is reported. Then `cargo nextest run -p
   skein-io-world -p skein-http-world -p skein-tls-world -p
   skein-lib-tests` once, every test passing.
 Don't: draw `Arrived` in a world whose machine must read exactly (the
@@ -300,10 +300,10 @@ Test shape: in each crate's tests, one test per reader that a response
   (skein-llm), `a_token_response_read_as_it_arrives_is_the_same_whatever_its_cuts`
   (skein-oauth-accounts); the error body's cut at `error_bytes` still
   reported when one delivery crosses it.
-Proof: world, `heavy cargo nextest run -p skein-llm -p
+Proof: world, `cargo nextest run -p skein-llm -p
   skein-llm-world -p skein-oauth-accounts -p skein-oauth-accounts-world
   -p skein-tls-world -p skein-oauth-world` once, every test passing
-  (the fake peers' users among them); then skein's gate through `land`.
+  (the fake peers' users among them); then skein's gate.
 Don't: change a reader's limit or its failure; make a reader in 01.1's
   "Choices" list read what has arrived.
 Size: at most 60 lines of production code.
@@ -336,7 +336,7 @@ one for fills and scans.
 
 - `git -C ~/src/rust/skein grep -n 'Arrived {' -- crates/skein-lib/src/stream.rs`
   prints the variant.
-- `heavy cargo nextest run -p skein-io-world -E 'test(a_megabyte_on_a_real_pipe_arrives_in_few_deliveries)'`
+- `cargo nextest run -p skein-io-world -E 'test(a_megabyte_on_a_real_pipe_arrives_in_few_deliveries)'`
   passes in skein's `main`.
 - `git -C ~/src/rust/skein grep -n 'Read::Fill(1)' -- crates/skein-oauth-accounts/src/exchange.rs testing/skein-fake-peers/src/oauth.rs`
   prints nothing, and `git -C ~/src/rust/skein grep -c 'Read::Fill(1)'

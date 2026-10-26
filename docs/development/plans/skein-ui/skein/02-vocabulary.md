@@ -128,7 +128,7 @@ Test shape: `src/tests/tree.rs`, with the fixtures of
   `each_state_and_property_maps_to_its_attribute`, and in
   `src/tests/page.rs` `a_focus_request_focuses_its_node`. Each under
   20 ms.
-Proof: joint, `heavy cargo nextest run -p skein-ui -p skein-ui-text -p
+Proof: joint, `cargo nextest run -p skein-ui -p skein-ui-text -p
   skein-fake-person -p skein-ui-web` once: the view's patches carry the
   new fields into the page part's model, against golden HTML. The text
   shell prints them in skein 05.3.
@@ -160,7 +160,7 @@ Test shape: `src/tests/tree.rs`: `a_count_on_an_item_is_an_assertion`,
   `a_changed_position_is_one_attribute_patch`; mapping rows for the
   three; `src/tests/page.rs`:
   `a_changed_count_sets_each_items_setsize_again`. Each under 20 ms.
-Proof: joint, `heavy cargo nextest run -p skein-ui -p skein-ui-web`
+Proof: joint, `cargo nextest run -p skein-ui -p skein-ui-web`
   once: the properties reach the page part's model. skein 05.3 prints
   them.
 Don't: give spans to the header roles here (02.4 does, with the roles).
@@ -191,7 +191,7 @@ Test shape: two rows added to `each_rule_names_its_first_fault`
   `a_dialogs_cancel_keeps_it_open`:
   `escape_presses_the_dialogs_escape_button`.
   Under 20 ms each.
-Proof: joint, `heavy cargo nextest run -p skein-ui -p skein-ui-web`
+Proof: joint, `cargo nextest run -p skein-ui -p skein-ui-web`
   once: a dialog's cancel presses its Escape node in the page part's
   model. Chromium's Escape is skein 13.3's story.
 Don't: print Escape in the text shell (ui-text.md, 5: not printed).
@@ -243,10 +243,10 @@ Test shape: the golden `roles.txt`, edited by hand with the fixture's
   `src/tests/page/events.rs`,
   `a_select_change_presses_the_option_and_puts_the_choice_back`. Under
   20 ms each.
-Proof: joint, `heavy cargo nextest run -p skein-ui -p skein-ui-text -p
+Proof: joint, `cargo nextest run -p skein-ui -p skein-ui-text -p
   skein-fake-person -p skein-ui-web` once: the golden text page prints
   the select and the headed table, and the page part maps them; and
-  `heavy cargo clippy -p skein-ui-web --target wasm32-unknown-unknown
+  `cargo clippy -p skein-ui-web --target wasm32-unknown-unknown
   -- -D warnings` once, for web.rs.
 Don't: number an option of a disabled select differently (skein 05.2);
   refuse acts by role (skein 03.2).
@@ -270,7 +270,7 @@ Shape: `State::Required`, on a text field, a text area, a select, a
   `(required)` after `(selected)`.
 Test shape: `roles.txt` by hand; `src/tests/tree.rs`:
   `required_on_a_heading_is_an_assertion`. Under 20 ms.
-Proof: joint, `heavy cargo nextest run -p skein-ui -p skein-ui-text -p
+Proof: joint, `cargo nextest run -p skein-ui -p skein-ui-text -p
   skein-ui-web` once: the golden field prints `(required)`, and the page
   part maps it.
 Don't: change the capacity from nine.
@@ -316,6 +316,6 @@ None known.
 ## Done when
 
 `rg -n 'Role::Select|Role::ColumnHeader|Role::RowHeader|State::Required|EntryKind|Rule::EscapeInDialog'
-crates/skein-ui/src` prints lines for each, and `heavy cargo nextest run
+crates/skein-ui/src` prints lines for each, and `cargo nextest run
 -p skein-ui -p skein-ui-text -p skein-fake-person -p skein-ui-web`
 passes.

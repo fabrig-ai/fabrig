@@ -73,11 +73,11 @@ Test shape: the worlds' tests, unchanged;
   `every_transient_history_refusal_is_exact_and_starts_no_provider_or_tool_effect`
   (`smith-agent-world::messages`) under 0.1 s alone (the audit: 1.25 s
   to 0.02 s).
-Proof: world, `heavy --gate cargo nextest run -p smith-agent-world -p
+Proof: world, `cargo nextest run -p smith-agent-world -p
   smith-run-world --profile measure -j 1` once: summed times in the
   report (at this plan's base, alone: `smith-agent-world::messages` 1.45 s,
   `smith-run-world::simulation` 1.09 s, which this increment does not
-  change); `smoke-tools` once before `land`.
+  change); `smoke-tools` once before merging.
 Don't: drop a line a replay or a referee compares.
 Size: test kit only, at most 30 lines.
 Removes: the formatting of unread traces.
@@ -93,11 +93,11 @@ Test shape: `random_outcomes_at_random_caps_fit_their_derived_render_bound`
   `crates/smith-protocol-llm/src/tests.rs`,
   `each_tools_framing_starts_from_the_same_empty_object`, comparing each
   tool's framing with a literal.
-Proof: unit, `heavy --gate cargo nextest run -p smith-protocol-llm -p
+Proof: unit, `cargo nextest run -p smith-protocol-llm -p
   smith-agent-shell --profile measure -j 1` once: summed times in the
   report (the audit: 1.74 s to 0.27 s for the render test; the
   product's start 18.4 ms to 14.3 ms); `smoke-tools` once before
-  `land`.
+  merge.
 Don't: change what a framing holds, or a drawn cap.
 Size: at most 15 lines of production code.
 Removes: the repeated parses.
@@ -111,10 +111,10 @@ Shape: as "Choices": each focused test runs its listed covering seeds
   and asserts every state reached, as now; each sweep, by its old name
   with `_over_many_seeds` appended, runs in the fuzzy file.
 Test shape: as Shape.
-Proof: world, `heavy --gate cargo nextest run -p smith-run-world -p
+Proof: world, `cargo nextest run -p smith-run-world -p
   smith-session-world --profile measure` once, and the same with
   `--profile fuzzy` once: every test passing, both `Summary` lines in the
-  report; `smoke-tools` once before `land`.
+  report; `smoke-tools` once before merging.
 Don't: lose a reached-state assertion; pick seeds without checking they
   reach every state the test names.
 Size: test code only, at most 40 lines.
@@ -144,18 +144,18 @@ Shape: `limits()` and `lower_configuration()` each computed once per
   become N, a size this session names. Where N would pass 64, that test
   keeps 10,000 and the report says so. `calls.rs` derives once per test.
 Test shape: the tests, unchanged in name and assertion.
-Proof: world and unit, `heavy --gate cargo nextest run -p
+Proof: world and unit, `cargo nextest run -p
   smith-agent-process-world -p smith-agent-service -p
   smith-local-process-world --profile measure -j 1` once: summed times in
   the report (at this plan's base, alone: `smith-agent-service` 2.84 s,
   `smith-agent-process-world::stories` 1.09 s); `smoke-tools` once
-  before `land`.
+  before merging.
 Don't: share a fixture a test changes; change a limit the product ships.
 Size: test code only, at most 50 lines.
 Removes: the repeated derivations.
 
 ## Done when
 
-- `heavy --gate cargo nextest run --workspace --profile measure` on
+- `cargo nextest run --workspace --profile measure` on
   smith's `main`: every test passes; its wall and summed times in the
   session's last report.

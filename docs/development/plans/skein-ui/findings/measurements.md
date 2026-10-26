@@ -1,8 +1,8 @@
 # skein-ui: the suites at the base
 
-2026-10-15, on carbon-forge (8 threads, 15 GB), through `heavy --gate`,
+2026-10-15, on carbon-forge (8 threads, 15 GB),
 three runs each in a worktree at `origin/main`: skein `2f282f7`, jig
-`5efac1af8`. Command: `NEXTEST_DOUBLE_SPAWN=0 heavy --gate -- sh -c 'for
+`5efac1af8`. Command: `NEXTEST_DOUBLE_SPAWN=0 sh -c 'for
 i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep Summary; cargo
 nextest run --workspace --profile fuzzy 2>&1 | grep Summary; done'`
 (skein's adds `--profile browser`).

@@ -155,8 +155,8 @@ Test shape: `crates/jig-view/src/tests/page_capacity.rs`:
   `an_arranged_task_page_counts_the_sum_of_its_sections` (the bound with
   every `TaskSection` arranged equals the heading, header and tabs plus
   each section's companion, summed in the test from the companions'
-  literal values at `CLIENT`: the implementer writes the test with a
-  placeholder, runs `heavy cargo nextest run -p jig-view -E
+  literal values at `CLIENT`: the author writes the test with a
+  placeholder, runs `cargo nextest run -p jig-view -E
   'test(an_arranged_task_page_counts_the_sum_of_its_sections)'` once,
   takes the values its failure prints, and names them in the commit
   body) and `no_arrangement_keeps_each_page_bound` (the
@@ -218,7 +218,7 @@ Test shape: `crates/jig-view/src/tests/task_proposals.rs`:
   if it lands first, gives it `&Arrangement::none()` with its other
   callers). Each under 20 ms. A test over the objects is a `for` loop:
   the lints refuse `.iter().any(..)` ("no closures: a for loop").
-Proof: world, `heavy cargo nextest run -p jig-client-world -p
+Proof: world, `cargo nextest run -p jig-client-world -p
   jig-ops-world` once: the stories where a card leaves after its
   source stopped naming it (a proposal accepted in the inbox leaving its
   chat; two tabs deciding one thing) pass, each card seen once by the
@@ -291,7 +291,7 @@ Test shape: `tests/client/tests/stories.rs`:
   it"); "Conversation", "Accept" and
   "Confirm" are the English phrasebook's, `english.rs:470,1164,1258`.)
   Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-client-world -E
+Proof: world, `cargo nextest run -p jig-client-world -E
   'test(arranged)'` once: the story passes under the referee, which
   checks the outline and that the proposal is decided once.
 Don't: give any other client of the world an arrangement.
@@ -342,5 +342,5 @@ impl Conversation {
 
 - `git grep -n 'retained_outside_plan\|b.tree.nodes()' origin/main --
   crates/jig-view/src/pages.rs` prints nothing.
-- `heavy cargo nextest run -p jig-client-world -E 'test(arranged)'`
+- `cargo nextest run -p jig-client-world -E 'test(arranged)'`
   passes on `main`, once.

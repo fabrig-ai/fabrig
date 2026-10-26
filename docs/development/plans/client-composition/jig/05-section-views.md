@@ -165,7 +165,7 @@ Test shape: `crates/jig-view/src/tests/work_pages.rs` (`task_sections`,
   `the_tabs_mark_the_addresss_own_section_current`, and
   `each_task_section_carries_its_region_name` (a table over the six
   sections, the region names as literals). Each under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-client-world -p jig-ops-world`
+Proof: world, `cargo nextest run -p jig-client-world -p jig-ops-world`
   once: every story that visits a task's page passes, the ones that
   press a tab pressing it as a tab.
 Don't: change a section's content, a phrase, or the order of a task's
@@ -297,5 +297,5 @@ and 08 call `sections::section` from the roots' slots.
 - `git grep -n -E 'fn (section|header|tabs)\(' origin/main -- crates/jig-view/src/sections.rs crates/jig-view/src/sections`
   prints `section`, and `header` and `tabs` for the task and the
   project, `header` for the inbox.
-- `heavy cargo nextest run -p jig-view -E 'test(/region_name/)'` passes on
+- `cargo nextest run -p jig-view -E 'test(/region_name/)'` passes on
   `main`, once.

@@ -227,7 +227,7 @@ Test shape:
   does: `the_component_at_its_limits_stays_within_its_worst_case`.
 - Ceilings: step tests under 20 ms; world tests under 0.5 s each, the
   world's focused tests at most 0.6 s in all by the end of this session.
-Proof: world, `heavy cargo nextest run -p jig-engine-workers-world -E
+Proof: world, `cargo nextest run -p jig-engine-workers-world -E
 'test(opening)'` once: each wrong opening ends in its reason before the
 root hears anything, and a worker dialling again replaces its channel;
 under 1 minute with the build warm. Not higher: no joint world composes
@@ -290,7 +290,7 @@ Test shape:
 - `tests/engine-workers/tests/records.rs` (new):
   `each_up_record_reaches_the_root_in_order`,
   `an_undecodable_turn_body_is_refused_as_framing`.
-Proof: world, `heavy cargo nextest run -p jig-engine-workers-world -E
+Proof: world, `cargo nextest run -p jig-engine-workers-world -E
 'test(hello) | test(records)'` once: a worker's hello reaches the root
 before anything else from it, each up record reaches the root as the
 hub's vocabulary in order, and a not-admitted worker is refused with the
@@ -339,7 +339,7 @@ Test shape:
   `a_grant_of_each_table_reaches_the_worker_with_its_value`,
   `an_assignment_drops_the_grant_the_table_no_longer_holds`,
   `a_down_record_for_a_lost_channel_is_dropped`.
-Proof: world, `heavy cargo nextest run -p jig-engine-workers-world -E
+Proof: world, `cargo nextest run -p jig-engine-workers-world -E
 'test(grants) | test(records)'` once: an assignment reaches its worker
 with its start's messages, its identity and the values of the grants the
 tables hold, and a grant the table no longer holds is left out; under 1
@@ -409,8 +409,8 @@ Test shape:
 - `tests/memory.rs` grows: `every_connection_at_its_cap_stays_within_the_worst_case`.
 - Ceilings: world tests under 0.5 s each; the fuzzy test under 3 s; the
   world's focused tests at most 1 s in all.
-Proof: world, `heavy cargo nextest run -p jig-engine-workers-world` once
-(focused), and `heavy cargo nextest run -p jig-engine-workers-world
+Proof: world, `cargo nextest run -p jig-engine-workers-world` once
+(focused), and `cargo nextest run -p jig-engine-workers-world
 --profile fuzzy` once: a silent or stalled worker is lost at its
 deadline and told once, and a stop drains and closes; under 2 minutes
 with the build warm.
@@ -572,9 +572,9 @@ impl Component {
 
 ## Done when
 
-1. The world's focused tests pass: `heavy cargo nextest run -p
+1. The world's focused tests pass: `cargo nextest run -p
    jig-engine-workers-world` prints no failure, and its fuzzy test
-   passes: `heavy cargo nextest run -p jig-engine-workers-world --profile
+   passes: `cargo nextest run -p jig-engine-workers-world --profile
    fuzzy`.
 2. The crate links neither the core nor smith: `cargo tree -p
    jig-protocol-engine-workers -e normal --prefix none | grep -E

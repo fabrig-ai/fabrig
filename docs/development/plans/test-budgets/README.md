@@ -63,7 +63,7 @@ ones before it in its session. Dependencies are by capability.
 | `smith/01-arrived.md` | smith 01: smith reads what has arrived | skein 01's read and readers (01.1, 01.3); skein 02's generated worst cases (02.2) and table items (02.s1, ruling 110); smith 02.1 (the failures here) | |
 | `smith/02-gate.md` | smith 02: smith's gate passes here, its real tier in parallel | nothing | 02.2 to 02.4: 02.1 |
 | `smith/03-tests.md` | smith 03: smith's costliest tests and fixtures | smith 02.1 (the failures here) | |
-| `smith/04-budget.md` | smith 04: smith's 15 s timeout back, here | smith 01, 02, 03 and `smith-repin`; skein 02.1 (`heavy`) | |
+| `smith/04-budget.md` | smith 04: smith's 15 s timeout back, here | smith 01, 02, 03 and `smith-repin`; skein 02.1 | |
 
 ### jig
 
@@ -74,12 +74,12 @@ ones before it in its session. Dependencies are by capability.
 | `jig/03-client.md` | jig 03: the client's worlds and the view | nothing | |
 | `jig/04-rows.md` | jig 04: cases as rows, and the walks over the tree | nothing | |
 | `jig/05-arrived.md` | jig 05: jig takes skein's and smith's changes, and reads what has arrived | smith 01.1; skein 02.2 and 02.s1 (ruling 110) | |
-| `jig/06-budget.md` | jig 06: jig's 15 s timeout back | jig 01 to 05 and `jig-repin`; skein 02.1 (`heavy`) | |
+| `jig/06-budget.md` | jig 06: jig's 15 s timeout back | jig 01 to 05 and `jig-repin`; skein 02.1 | |
 
 ### Repins (development.md, 5.7)
 
 - **`smith-repin`:** after every skein step (skein 01 and 02, 02.5
-  included) and smith 01 to 03: takes skein's `main` (`heavy cargo update
+  included) and smith 01 to 03: takes skein's `main` (`cargo update
   -p skein-lib`), and regenerates smith's families as smith 01.1 does if
   smith's drift tests (`tests/codecs/tests/drift.rs`) then fail.
 - **`jig-repin`:** after `smith-repin`, smith 04 and jig 01 to 05: takes
@@ -109,54 +109,31 @@ ones before it in its session. Dependencies are by capability.
 
 ## Rules of this plan
 
-- **Every session reads,** besides its "Read first": its repository's
-  `AGENTS.md` and workflow, this README and `code-organization.md`.
-- **Times are measured as each Proof says, through `heavy`, once, on
+- **Times are measured as each Proof says, once, on
   the branch,** and reported with the command and the log's path; the
   "before" is the number the session file or `findings/` gives, never
   measured again. Nothing else is measured, and no measurement is
   repeated unless its Proof says so (development.md, 4.5).
 - **Until skein 02.1 lands,** each measuring command in a Proof runs as
-  `NEXTEST_DOUBLE_SPAWN=0 heavy --gate ...`, as the gates will.
+  `NEXTEST_DOUBLE_SPAWN=0 <command>`, as the gates will.
 - **A Proof's time is a guide:** past it, the increment lands and its
   report gives the time; only a failing assertion stops it
   (development.md, 8.8), or a test past twice its ceiling (8.2).
 - **A summed time** is the sum of the `PASS` times in the nextest log
-  `heavy` names: `awk -F'[][]' '/PASS \[/ {s += $2} END {printf "%.1f\n", s}'
+  the command writes: `awk -F'[][]' '/PASS \[/ {s += $2} END {printf "%.1f\n", s}'
   <log>`; a wall time is the log's `Summary` line.
-- **Each increment's report names the suite's focused time** from its
-  landing's `Gate-Result` (its first `Summary`), so the supervisor's
-  hourly check follows the suites toward 12 s.
-- **A commit's last paragraph is its trailers** (ruling 102): `Proof:`,
-  `Plan:` and `Step:`, then `Co-Authored-By:` if any, one per line, with
-  no blank line between them and no other line among them. Other
-  evidence (logs, counts, clippy) goes in the body above, never as a
-  `Key: value` line whose key has a space. Before `land`, `git log -1
-  --format='%(trailers:key=Step,valueonly)' HEAD` must print the step;
-  if it prints nothing, amend the unlanded commit. A landed commit is
-  never rewritten.
-- **The coordinator's check of a landed report** (ruling 104): an
-  implementer goes on after a landing (development.md, 8.6: "After a
-  landing, send the report and go on"), so its worktree may already hold
-  its next increment. Run `git -C <worktree> rev-parse --abbrev-ref HEAD`
-  first. If it prints the landed step's branch, `git status --porcelain`
-  must print nothing, as development.md, 7.3 says; if it prints another
-  branch, `git status --porcelain` is not run for that landing. The
-  other two checks of 7.3 (`merge-base --is-ancestor`, the `Step`
-  trailer) stand for every landing.
 - **smith's gate on carbon-forge** is ruling 121's (decisions.md, 10),
-  with `NEXTEST_DOUBLE_SPAWN=0`, until smith 04.1: `land --gate 'cargo
+  with `NEXTEST_DOUBLE_SPAWN=0`, until smith 04.1: `bash -c 'cargo
   fmt --all --check && cargo clippy --workspace --all-targets -- -D
   warnings && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run --workspace
   --profile measure && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run
   --workspace --profile fuzzy'`.
 - **Every smith landing that changes code runs `smoke-tools` live**
   (smith's workflow.md, 5; "Live services" below), test code included:
-  once through `heavy --gate` before `land`, its run identifier and
+  once before merging, its run identifier and
   verdict in the commit body.
 - **smith's reliability plan lands in smith and skein from
-  debian-16gb-hel1-1** (decisions.md, 11). `land` rebases each landing on
-  its landings; a conflict in a file both changed is resolved by keeping
+  debian-16gb-hel1-1** (decisions.md, 11). Changes are rebased before merging; a conflict in a file both changed is resolved by keeping
   both changes, and one that cannot be is a question. Its sessions edit
   smith's `tests/end-to-end`, `tests/local-process` and `crates/smith-local-*`,
   and skein's `crates/skein-io/`, `crates/skein-shell/` and the kit,
@@ -178,8 +155,7 @@ ones before it in its session. Dependencies are by capability.
 
 - **smith's `smoke-tools`,** for every smith landing that changes code
   (smith 01, 02, 03 and `smith-repin`), as smith's `docs/development/workflow.md`,
-  section 5 requires: the cheapest model and effort, once through `heavy
-  --gate` before `land`, once more only if it fails; about 10,000 tokens a
+  section 5 requires: the cheapest model and effort, once  before merging, once more only if it fails; about 10,000 tokens a
   run, borrowing the user's login as smith's benchmarks do, read only.
   At most 30 runs in the plan.
 - **Nothing else is live:** skein's fake peers serve every other proof.
@@ -217,12 +193,11 @@ budgets: 15 60
    ~/src/rust/<repository> log -1 --grep='^Step: <step>$' --format=%B
    origin/main | grep '^Median:'`).
 5. The double spawn is off in every gate and in the queue: `grep -n
-   NEXTEST_DOUBLE_SPAWN ~/src/rust/{skein,smith,jig}/scripts/check.sh
-   ~/src/rust/skein/scripts/dev/heavy` prints a line in each.
+   NEXTEST_DOUBLE_SPAWN ~/src/rust/{skein,smith,jig}/scripts/check.sh` prints a line in each.
 6. skein's read of what has arrived is built and used:
-   `heavy cargo nextest run -p skein-io-world -E
+   `cargo nextest run -p skein-io-world -E
    'test(a_megabyte_on_a_real_pipe_arrives_in_few_deliveries)'` in skein,
-   and `heavy cargo nextest run -p smith-machine-world -E
+   and `cargo nextest run -p smith-machine-world -E
    'test(a_megabyte_of_output_takes_few_deliveries)'` in smith, each pass
    once on `main`.
 7. The aims stated above are these items; none other is checked.

@@ -241,7 +241,7 @@ Test shape:
   and `testing/jig-scripted-engine/src/tests/owner_deployment.rs`: their
   6 account tests each take the new state names (the expected values
   change because the vocabulary does).
-Proof: world: `heavy cargo nextest run -p jig-core-world --test runs
+Proof: world: `cargo nextest run -p jig-core-world --test runs
 a_run_wait` shows a chat whose account must sign in again never
 assigned, then assigned once the stand-in component grants it; once,
 under 2 s.
@@ -295,7 +295,7 @@ Test shape: `crates/jig-domain-host/src/tests.rs`, unit, under 20 ms:
 `two_grants_of_one_number_in_different_tables_are_admitted`;
 `tests/host/tests/turns.rs`, world, under 0.5 s:
 `a_newer_account_grant_reaches_a_started_agent`.
-Proof: world: `heavy cargo nextest run -p jig-host-world --test turns
+Proof: world: `cargo nextest run -p jig-host-world --test turns
 a_newer_account_grant_reaches_a_started_agent` shows a renewed LLM
 grant handed to the hosted agent; once, under 1 s.
 Don't: let the hub hand an application's grant to its agent; read a
@@ -397,7 +397,7 @@ Test shape:
   a chat is placed, a new generation is granted before the assignment's
   commit is durable, and the host hears the assignment, then the grant
   of the new generation.
-Proof: world: `heavy cargo nextest run -p jig-core-world --test restart
+Proof: world: `cargo nextest run -p jig-core-world --test restart
 a_restart_sends_an_adopted_chat_its_current_grant` shows a chat adopted
 after a restart sent its account's current generation once its worker
 lists it; once, under 1 s.
@@ -446,7 +446,7 @@ Test shape: `tests/accounts/tests/simulation.rs`, under 20 ms each:
 `a_credentials_new_generation_is_granted_on`; `crates/jig-domain-core/src/tests.rs`,
 unit: `a_run_waits_while_a_credential_it_needs_is_unusable`.
 Proof: unit layer here, since no root names a credential before 08.5:
-`heavy cargo nextest run -p jig-domain-core
+`cargo nextest run -p jig-domain-core
 a_run_waits_while_a_credential_it_needs_is_unusable`; 08.5's Proof is at
 the world layer; once, under 1 s.
 Don't: let the child refresh, reject or exhaust a credential; keep a
@@ -504,7 +504,7 @@ fn the_assignment_carries_the_credential_named_by_its_table() {
 shared config whose first connector's resource `FORGE_REPOSITORY` names
 credential `FORGE`; `World::delegate_on_resource(path)` beside
 `delegate`, effects.rs:961.)
-Proof: world: `heavy cargo nextest run -p jig-core-world --test credentials`
+Proof: world: `cargo nextest run -p jig-core-world --test credentials`
 shows a run that needs the forge's credential waiting until the
 application grants it, then assigned with it, a new generation reaching
 it, and an adopted run sent it again; once, under 3 s.
@@ -774,8 +774,8 @@ with `Closed`.
   prints one line (none on 2026-10-12, when the arm is `unreachable!`),
   and `git -C ~/src/rust/jig grep -n 'Now::Grant' -- crates` prints
   nothing.
-- The worlds pass: `heavy cargo nextest run -p jig-accounts-world`
-  passes, and `heavy cargo nextest run -p jig-core-world --test runs
+- The worlds pass: `cargo nextest run -p jig-accounts-world`
+  passes, and `cargo nextest run -p jig-core-world --test runs
   --test restart --test credentials` passes.
 - The gate passed on this session's last landing: `git -C ~/src/rust/jig
   log --format='%(trailers:key=Gate-Result,valueonly)'

@@ -57,7 +57,7 @@ Test shape:
   `a_refused_delegation_reads_back_with_its_problem`,
   `a_recalled_notes_page_reads_back`, `a_settled_call_reads_back`.
 - Ceilings: unit 20 ms.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit. `cargo nextest run -p jig-protocol-store -p
 jig-store-codecs-world` once: each kind of call answer reads back as saved,
 its tasks and notes values decoded by their own families' code. Bound: 1
 minute.
@@ -85,7 +85,7 @@ Test shape:
   `a_goal_projection_reads_back_with_its_phase`,
   `a_turn_reads_back_with_its_bytes`, `both_decision_records_read_back`.
 - Ceilings: unit 20 ms.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit. `cargo nextest run -p jig-protocol-store -p
 jig-store-codecs-world` once: each core row kind of the fixtures reads back
 as saved. Bound: 1
 minute.
@@ -124,7 +124,7 @@ Test shape:
   `a_projects_policy_reads_back`, `each_kind_of_ask_reads_back`,
   `a_read_chat_position_reads_back`.
 - Ceilings: unit 20 ms.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit. `cargo nextest run -p jig-protocol-store -p
 jig-store-codecs-world` once: people's rows read back as saved. Bound: 1
 minute.
 Don't: share a type with the tasks family's schema (no imports); add an
@@ -146,7 +146,7 @@ Test shape:
 - `src/tests/codec.rs`: `an_answered_key_reads_back_with_its_ask_and_outcome`,
   `each_limit_kind_reads_back`, `a_refusal_lacking_a_budget_reads_back`.
 - Ceilings: unit 20 ms.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit. `cargo nextest run -p jig-protocol-store -p
 jig-store-codecs-world` once: each people row kind of the fixtures reads
 back as saved. Bound:
 1 minute.
@@ -236,7 +236,7 @@ Test shape:
   ```
   Also the same test for the tasks, core and people families' `Row`.
 - Ceilings: unit 20 ms; memory 0.5 s.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit. `cargo nextest run -p jig-protocol-store -p
 jig-store-codecs-world` once: a store of another version or deployment is
 refused saying which, and limits a commit could break are refused at start.
 Bound: 1 minute.
@@ -295,7 +295,7 @@ Test shape: `both_shipped_profiles_admit_the_tasks_and_people_families`
   shipped profiles admitted by the whole store is 19.s3's test (the
   designer's answer of 2026-10-13 on 19.s1's core scalars and commit
   bound).
-Proof: unit, `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit, `cargo nextest run -p jig-protocol-store -p
   jig-store-codecs-world` once: the families' test passes.
 Don't: raise a counted list's ceiling; change a profile's limits
   (ruling 235); cap a derived count below what the domain admits.
@@ -356,7 +356,7 @@ Test shape: `both_shipped_profiles_are_admitted_by_the_store` (in
   `sizes::check` passes, printing the largest key, value and commit;
   `a_key_written_twice_in_a_commit_is_one_put_the_last`;
   `a_put_then_an_erase_of_one_key_is_one_erase`.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-store -p
+Proof: unit, `cargo nextest run -p jig-protocol-store -p
   jig-store-codecs-world` once: the profiles' test passes; the report
   names each profile's largest value and commit, which jig 27.3 takes
   into the profiles' store limits.
@@ -366,7 +366,7 @@ Size: at most 120 lines of production code.
 
 ## Done when
 
-- Each increment's tests pass in `heavy cargo nextest run -p jig-protocol-store -p jig-store-codecs-world`.
-- The format row and the sizes are checked at start: `heavy cargo nextest
+- Each increment's tests pass in `cargo nextest run -p jig-protocol-store -p jig-store-codecs-world`.
+- The format row and the sizes are checked at start: `cargo nextest
   run -p jig-protocol-store -E 'test(/format::/)'` passes, running at
   least 7 tests (19.5's `src/tests/format.rs`).

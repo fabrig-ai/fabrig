@@ -414,8 +414,7 @@ numbers, file by file:
 **Resolved.** Building the client, the evidence each merge carried cost
 more machine time than the tests themselves: three serial runs of the
 touched binaries, the workspace's serial totals, and the gate. The
-evidence is now the gate alone, which agents' `land` runs and records in
-the landing's `Gate-Result` trailer (skein's development.md, section 9).
+evidence is now the gate alone.
 The last gated landing, `4e1ab92b`, ran 4,250 focused tests in 15.8 s,
 111 fuzzy ones in 23.2 s and one browser test in 1.3 s, 68 s in all
 (`git log -1 --format=%B 4e1ab92b | grep Gate-Result`). If a later plan
@@ -527,9 +526,8 @@ real side.
   106,267 of them `jig-client-protocol-wire/src/generated/v11.rs`, which
   was 99,451 lines as v7 at `d91a89c`. The goldens are 7,921 files (`find
   . -path ./target -prune -o -path '*/golden/*' -type f -print | wc -l`).
-  Their build cost has not been measured: `cargo build -p
-  jig-client-protocol-wire --timings`, with kache bypassed
-  (`CARGO_BUILD_RUSTC_WRAPPER=`), would.
+  Their build cost has not been measured: `CARGO_BUILD_RUSTC_WRAPPER= cargo build -p
+  jig-client-protocol-wire --timings` would.
 - **The fake store** (`testing/jig-fake-store`, 329 lines) stays for
   `ops` alone: `testing/jig-conformance` implements its `Durable` for it
   (`src/harness.rs:27`), and `tests/ops` uses it. `ops`'s worlds on the

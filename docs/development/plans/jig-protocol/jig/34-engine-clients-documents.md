@@ -76,7 +76,7 @@ fn a_frame_with_two_projects_becomes_its_record() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p jig-protocol-engine-clients`,
+Proof: unit, `cargo nextest run -p jig-protocol-engine-clients`,
 run once: a frame, a task and a chip in each phase become the wire
 records written as literals, and a frame past the wire's bound is
 refused naming it (the four tests); under 0.2 s.
@@ -100,7 +100,7 @@ Test shape: `a_run_writing_with_a_call_becomes_its_run_state`,
 `a_run_text_keeps_its_turn_retry_and_offsets`,
 `an_inbox_with_both_groups_becomes_its_record`,
 `a_deployment_document_becomes_its_record`. Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-engine-clients`,
+Proof: unit, `cargo nextest run -p jig-protocol-engine-clients`,
 run once: a run's state and text, an inbox with both groups and a
 deployment document become their wire records (the four tests); under
 0.2 s.
@@ -134,7 +134,7 @@ Test shape: `an_activity_page_carries_each_turn_s_bytes`,
 `a_history_page_keeps_its_cut_flag`,
 `an_inbox_page_keeps_its_two_groups_apart`,
 `a_notes_page_becomes_its_record`. Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-engine-clients`,
+Proof: unit, `cargo nextest run -p jig-protocol-engine-clients`,
 run once: an activity page carries each turn's bytes, a turn past the
 page crosses as its size, a history page keeps its cut flag, an inbox
 page keeps its two groups apart, and a notes page becomes its record
@@ -161,7 +161,7 @@ Test shape: `a_pending_proposal_becomes_its_owner_record`,
 `a_decided_escalation_keeps_its_decider_and_wall`,
 `a_historical_task_keeps_its_ending`,
 `a_project_document_becomes_its_record`. Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-engine-clients`,
+Proof: unit, `cargo nextest run -p jig-protocol-engine-clients`,
 run once: a pending proposal, a decided escalation, a historical task
 and a project document become their wire records (the four tests); under
 0.2 s.
@@ -171,7 +171,7 @@ Removes: nothing.
 
 ## Done when
 
-- The documents' tests pass: `heavy cargo nextest run -p
+- The documents' tests pass: `cargo nextest run -p
   jig-protocol-engine-clients` passes.
 - The gate passed on this session's last landing: `git -C
   ~/src/rust/jig log --format='%(trailers:key=Gate-Result,valueonly)'

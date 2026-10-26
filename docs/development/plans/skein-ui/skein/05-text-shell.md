@@ -64,7 +64,7 @@ Shape: no production change.
 Test shape: the moved tests (`crates/skein-ui-text/src/tests/terminal.rs:63-166`,
   eight tests, ui-text.md 8's list, a name longer than a node's text
   among them), unchanged but for paths; none new. Under 0.5 s each.
-Proof: world: `heavy cargo nextest run -p skein-ui-text-tests` once:
+Proof: world: `cargo nextest run -p skein-ui-text-tests` once:
   the terminal on the simulated machine reads lines and paces prints.
   Bound: 1 minute.
 Don't: change a test's body beyond paths.
@@ -103,7 +103,7 @@ Test shape: `src/tests/command.rs`: `an_option_is_chosen_by_its_number`,
   `src/tests/command.rs:9`'s, as it is; `label_select(b, disabled)` (a
   select of three options, the second numbered 2) is added to the
   fixtures. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-ui-text` once. Unit is
+Proof: unit, `cargo nextest run -p skein-ui-text` once. Unit is
   the highest layer for the command reader: the terminal world (05.1)
   passes lines through it and chooses nothing.
 Don't: refuse in the command reader what the view refuses for its role
@@ -130,7 +130,7 @@ Test shape: `src/tests/golden/properties.txt`, by hand, from a fixture
   `properties(&mut Builder)` holding each case of ui-text.md 5's
   properties list; `a_secret_never_prints_its_bytes` (the value's bytes
   absent from the print). Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-ui-text` once. Unit is
+Proof: unit, `cargo nextest run -p skein-ui-text` once. Unit is
   the highest layer: no application's view in skein sets these
   properties until skein 13.2, whose pages print through this shell.
 Don't: print a cell's spans, a focus request, an image's source or a
@@ -156,7 +156,7 @@ Test shape: `the_print_of_a_full_page_fits_its_worst_case`: a page at
   builder asserts `Required` only where skein 02.5 allows it); the
   print's lines and bytes at most `worst_case`. Under 20 ms (a small
   fixture's limits).
-Proof: unit, `heavy cargo nextest run -p skein-ui-text -p
+Proof: unit, `cargo nextest run -p skein-ui-text -p
   skein-ui-text-tests` once: a bound of step code, checked where it is
   computed, and the terminal, which sizes its buffers by it, still
   starting.
@@ -196,7 +196,7 @@ None known.
 
 ## Done when
 
-`heavy cargo nextest run -p skein-ui-text -p skein-ui-text-tests`
+`cargo nextest run -p skein-ui-text -p skein-ui-text-tests`
 passes, and `ls crates/skein-ui-text/src/tests/golden` lists
 `every.txt`, `first-line.txt`, `bytes-everywhere.txt` and
 `properties.txt`.

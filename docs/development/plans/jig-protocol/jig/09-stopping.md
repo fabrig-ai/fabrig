@@ -192,7 +192,7 @@ fn a_turn_after_the_stop_is_answered_busy_and_not_committed() {
 (`World::busy_turns` records each `Held::TurnBusy` delivered, beside
 `cancellations` in effects.rs:723; `World::task()` and `World::attempt()`
 read `assigned`.)
-Proof: world: `heavy cargo nextest run -p jig-core-world --test stopping`
+Proof: world: `cargo nextest run -p jig-core-world --test stopping`
 shows each kind of input after the stop answered as the table says, and
 no commit applied after it; once, under 4 s.
 Don't: change the people child's phase (its `ready()` also answers
@@ -233,7 +233,7 @@ Test shape: `tests/core/tests/stopping.rs`, world, under 0.5 s each:
 `a_second_stop_says_drained_no_second_time`;
 `tests/client/src/joint/stories/fault_stories.rs`, joint, under 0.5 s:
 `a_watch_ended_as_the_engine_stops_reaches_the_client_as_stopping`.
-Proof: world: `heavy cargo nextest run -p jig-core-world --test stopping
+Proof: world: `cargo nextest run -p jig-core-world --test stopping
 drained_is_released_once_after_the_last_commit_is_durable` shows, with
 a commit held in the store, `Drained` released only after that commit
 is applied, and once; once, under 1 s.
@@ -263,7 +263,7 @@ Test shape: `tests/conformance/tests/restart.rs`, world, under 0.5 s:
 `a_drained_shutdown_ends_with_nothing_waiting_for_a_commit`;
 `tests/conformance/tests/referee.rs`, under 20 ms:
 `a_commit_after_drained_is_a_violation`.
-Proof: world: `heavy cargo nextest run -p jig-conformance-world --test
+Proof: world: `cargo nextest run -p jig-conformance-world --test
 restart a_drained_shutdown` shows a stop mid-work drained, crashed and
 restarted with the referee finding no commit after `Drained` and each
 party's answer durable; once, under 1 s.
@@ -296,7 +296,7 @@ Test shape: `tests/core/tests/restart.rs` (helpers `hello` line 10,
 `a_restart_with_workers_in_process_settles_their_claims_at_once`,
 `a_restart_with_workers_in_process_assigns_without_a_grace`,
 `a_restart_with_workers_elsewhere_still_waits_for_them`.
-Proof: world: `heavy cargo nextest run -p jig-core-world --test restart
+Proof: world: `cargo nextest run -p jig-core-world --test restart
 a_restart_with_workers_` shows a worker's claim settled at once and its
 task assigned again without waiting the grace when workers are in
 process, and adopted within the grace when they are not; once, under
@@ -375,11 +375,11 @@ pub struct Config {
 
 ## Done when
 
-- A stopped core takes no commit and says drained once: `heavy cargo
+- A stopped core takes no commit and says drained once: `cargo
   nextest run -p jig-core-world --test stopping` passes.
-- The referee holds a drained shutdown: `heavy cargo nextest run -p
+- The referee holds a drained shutdown: `cargo nextest run -p
   jig-conformance-world --test restart a_drained_shutdown` passes.
-- In-process workers' claims settle at once: `heavy cargo nextest run
+- In-process workers' claims settle at once: `cargo nextest run
   -p jig-core-world --test restart a_restart_with_workers_` passes.
 - The gate passed on this session's last landing: `git -C ~/src/rust/jig
   log --format='%(trailers:key=Gate-Result,valueonly)'

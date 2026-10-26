@@ -40,7 +40,7 @@ with the repin.
   (`tests/store-codecs/tests/drift.rs`, `tests/client-wire/tests/drift.rs`,
   `tests/client-wire/tests/test_client_wire.rs`), and for
   `crates/jig-protocol-worker-wire` skein's generator from skein's
-  checkout at the same commit: `heavy cargo run -q --manifest-path
+  checkout at the same commit: `cargo run -q --manifest-path
   ~/src/rust/skein/Cargo.toml -p skein-codegen --
   <jig>/crates/jig-protocol-worker-wire/schema/worker-wire-v2.schema
   <jig>/crates/jig-protocol-worker-wire/src/generated`; the golden
@@ -72,14 +72,13 @@ with the repin.
 Scope: skein 02.2 in jig's families; skein 01 and smith 01.1 in jig's
   graph.
 Needs: smith 01.1 and skein 02.2 landed.
-Files: `Cargo.lock`: `heavy cargo update -p smith-charter` (one package
-  moves its whole git source, development.md, 5.7, step 1), then `heavy
-  cargo update -p skein-lib --precise <the skein commit smith's
+Files: `Cargo.lock`: `cargo update -p smith-charter` (one package
+  moves its whole git source, development.md, 5.7, step 1), then `cargo update -p skein-lib --precise <the skein commit smith's
   Cargo.lock then holds>` (the `#` part of the `source` line under
   `name = "skein-lib"` in `~/src/rust/smith/Cargo.lock`), so that smith's crates build in jig's graph on
   the skein they were built on; the generated families,
   `crates/*/src/generated/*.rs` and `testing/*/src/generated/*.rs`; what
-  `heavy cargo check --workspace --all-targets` then names, within 5.7's
+  `cargo check --workspace --all-targets` then names, within 5.7's
   limits: among it, smith's transcript records gained `model` and
   `effort` since jig's pin (smith `dfc0fe57` to `main`), which jig builds
   by literal in two tests, `crates/jig-protocol-transcript/src/tests.rs:42-50`
@@ -116,12 +115,12 @@ Shape: no hand edit of generated code; the drift tests pass with
 Test shape: none new; the drift tests, unchanged, and the golden files,
   unchanged (`git diff --stat origin/main -- '*/golden/*'` prints
   nothing).
-Proof: unit and world, `heavy --gate cargo nextest run -p
+Proof: unit and world, `cargo nextest run -p
   jig-protocol-store -p jig-client-protocol-world -p jig-view --profile
   measure -j 1` once: summed times in the report (at this plan's base,
   alone: 2.72 s, 1.76 s and 4.69 s; the audit: client-protocol −0.51 s,
   `jig-view` −0.40 s, from the generated worst cases); then jig's gate
-  through `land`.
+ .
 Don't: move a package of another source; edit a generated file, a
   schema or a golden by hand.
 Size: `Cargo.lock` and generated code; at most 200 other lines
@@ -150,7 +149,7 @@ Test shape: one test per reader, each giving the same input whole and a
   (client link), `a_body_of_unknown_length_read_as_it_arrives_is_the_same_whatever_its_cuts`
   (native shell), `a_chunked_request_body_read_as_it_arrives_is_the_same_whatever_its_cuts`
   (engine clients).
-Proof: world, `heavy --gate cargo nextest run -p
+Proof: world, `cargo nextest run -p
   jig-client-protocol-world -p jig-engine-clients-world -p
   jig-shell-native -p jig-protocol-client-link -p
   jig-protocol-engine-clients --profile measure` once: every test

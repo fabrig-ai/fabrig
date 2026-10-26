@@ -132,11 +132,6 @@ your best judgement").
     section not shown. It is the smallest change that lets the test
     family name two tasks; every literal of `Item` sets `None` but the
     story's.
-17. **Sessions:** ten, each of three or four increments, cut so that an
-    implementer stays under its 200,000-token handover; the domain's
-    sections (jig 03, 04) and jig 01 start at once; the view's sections
-    wait for both sides (jig 05 needs 02.3 and 03.2).
-
 ## Rulings
 
 (The supervisor's, from 101, during the run.)
@@ -158,7 +153,7 @@ your best judgement").
      - `configure_arrangement` keeps client.md 5.1's refusals ("refuses a list longer than its kind's sections, naming one twice, or naming `Settings` with one of its five"), checking the length first; the lints refuse `matches!`, `Iterator::any` and `filter`, `Option::is_some_and`, slicing that may panic and `as` casts, and `list.get(..i)` with `contains` and an exhaustive `match` passed.
      - `Arrangement::none()` and `Domain::arrangement()` carry `#[must_use]`.
      - Each new test of 04.1 and 04.2 is its own `#[test]`, outside the group at `tests/pages.rs:1262`, so that the Done-when filter `test(/arrange/)` names it; 04.2's third test is `an_arranged_task_section_its_document_does_not_offer_is_not_shown`.
-     Checked: `git show origin/main:crates/jig-domain-client/src/domain.rs | grep -n -E '^pub struct Domain|^    pub fn new|^    pub fn configure_navigation'` prints 48, 97, 162; `pages.rs` lines 23 and 25 read `section: crate::address::TaskSection` and `section: crate::address::ProjectSection`; `tests/pages.rs:1262` is `#[test] fn frame_navigation_and_non_work_pages_follow_owner_facts`, which calls the plain fn at `:76`. The ready check built 04.1's sketch with these fixes under `heavy cargo clippy ... -- -D warnings`, and its two tests passed at 2 ms each.
+     Checked: `git show origin/main:crates/jig-domain-client/src/domain.rs | grep -n -E '^pub struct Domain|^    pub fn new|^    pub fn configure_navigation'` prints 48, 97, 162; `pages.rs` lines 23 and 25 read `section: crate::address::TaskSection` and `section: crate::address::ProjectSection`; `tests/pages.rs:1262` is `#[test] fn frame_navigation_and_non_work_pages_follow_owner_facts`, which calls the plain fn at `:76`. The ready check built 04.1's sketch with these fixes under `cargo clippy ... -- -D warnings`, and its two tests passed at 2 ms each.
 
 103. **jig 05's Shapes against main** (ready check of jig-05.1).
      jig/05-section-views.md amended against origin/main 98c6e80dc, for 05.1 (the ready check of jig-05.1), with two notes for 05.3:
@@ -176,7 +171,7 @@ your best judgement").
      - `Print` derives `Debug` (`missing_debug_implementations`).
      - Each golden read by `include_bytes!` carries `#[expect(clippy::disallowed_macros, reason = "…")]` (`clippy.toml:93`), as `crates/jig-view/src/tests/markdown.rs:2` does.
      - 09.1's Files add `tests/boundary/src/tests/graph.rs:138-151` (`client_step` names `jig-shell-text`) and an `assert!(client_step("jig-shell-text"))` beside `:177`.
-     Checked: `git show origin/main:clippy.toml | sed -n 93p` prints `{ path = "core::include_bytes", reason = "data comes in events and limits" },`; `tree.rs:362-368`'s `bound` returns `None` when `id == NodeId(0)`; `graph.rs:138-151`'s `client_step` lists ten crates, no `jig-shell-text`; `diff.rs:334` is `pub fn diff(old: &Tree, new: &mut Tree, limits: &Limits, next_id: &mut u32, out: &mut Queue<Patch>)`. The ready check built 09.1's skeleton, fixtures and reference test with the fn-pointer fixture, and `heavy cargo clippy -p jig-shell-text --all-targets` was clean.
+     Checked: `git show origin/main:clippy.toml | sed -n 93p` prints `{ path = "core::include_bytes", reason = "data comes in events and limits" },`; `tree.rs:362-368`'s `bound` returns `None` when `id == NodeId(0)`; `graph.rs:138-151`'s `client_step` lists ten crates, no `jig-shell-text`; `diff.rs:334` is `pub fn diff(old: &Tree, new: &mut Tree, limits: &Limits, next_id: &mut u32, out: &mut Queue<Patch>)`. The ready check built 09.1's skeleton, fixtures and reference test with the fn-pointer fixture, and `cargo clippy -p jig-shell-text --all-targets` was clean.
 
 105. **jig 09.1: the shell's name in the renderer's bound, interim** (design gap, jig 09's block of 2026-10-14T13:55:46Z).
      Interim, until the designer's answer (development.md, 10.4): what bounds the shell's name in the renderer's print is a design gap (view.md 15.1: "Its output is bounded: the most lines and bytes the view's largest tree prints, counted from the view's limits"; 15.3: TITLE is "the shell's name when there is none"), and it is the designer's. jig 09.1 goes on with the work that does not rest on the answer: the role renderer (`render`, the role table of view.md 15.3, the numbers of 15.4), `src/tests/fixtures.rs`, the two goldens and the four tests, the boundary test. `render` takes the name as `&[u8]`, as the plan's Shape gives it. What rests on the answer, and waits for it: how `worst_case` and `Print::new` count the name's bytes, and any check of the name in `Settings` or `Terminal::new` (jig 10). 09.1 does not land before the answer; with its other work done, it waits for the final unblock, which says how the name is counted.
@@ -190,7 +185,7 @@ your best judgement").
      bound, 2026-10-14T13:55:46Z", from the designer.
 
 
-     Reading 1, the implementer's proposal, holds. The shell's name is at most
+     Reading 1, the author's proposal, holds. The shell's name is at most
      a node's text, `limits.text_per_node` bytes; `Terminal::new` refuses a
      longer one; the renderer's bound stays counted from the view's limits
      alone. No signature of jig 09 changes: `render(tree, name, print)`,
@@ -299,9 +294,6 @@ your best judgement").
      its object or a line deciding it (section 9), stays there, on a page
      that shows the plan beside it too, and is never owed."
 
-110. **jig-06.1 landed at cdfce095a without parsed Step and Plan trailers** (process, jig 06's block of 2026-10-14T14:42:10Z).
-     jig-06.1 is landed at cdfce095a, and nobody rewrites it (implementer's card 8.4: a landed commit missing its body is never rewritten). Its last paragraph's lines were joined by a literal `\n`, so git parses one trailer, `Proof: unit, test(arranged), three arranged page tests passed\nPlan: client-composition\nStep: jig-06.1`, and no `Plan` or `Step` key; its `Gate-Tree` and `Gate-Result` trailers parse. For this commit only, the coordinator's landed check (development.md, 7.3, step 2) takes `git log -1 --format=%B cdfce095a | grep -c 'Step: jig-06.1'` printing 1 in place of the `%(trailers:key=Step,valueonly)` check; the other two checks stand. This ruling records cdfce095a as the commit of the plan client-composition's step jig-06.1, for the metrics (development.md, 15.2) that count steps by their `Plan` and `Step` trailers. From now on, a commit's paragraphs and trailers are written with real newlines: `git commit -F <file>`, or one `-m` per paragraph; a `\n` inside one `-m` stays two characters.
-
 111. **jig 10.3: the terminal's pipes through World::run_with_inputs** (plan defect, jig 10's block of 2026-10-14T14:48:28Z).
      Neither a skein change nor a hosted child: skein-world already gives a test the simulator. `World::run_with_inputs` (skein `testing/skein-world/src/world.rs:369` at jig's pin 74b7fdaf3: `pub fn run_with_inputs<F>(self, inputs: F) -> Outcome<P, M>` where `F: FnMut(&mut Sim, &[Pid], &[P])`) calls its closure on each iteration, before the processes' turns. 10.3's `run` (`tests/client-protocol/src/native/world.rs:199-228`) calls it in place of `world.run()`; in the closure it opens the client process's two pipes once (`Sim::open_inherited_read`, `open_inherited_write`, skein-sim `processes.rs:268,273`), hands them to the client through a `Cell<Option<(Fd, Fd)>>` field that the client takes on its next iterate and gives to `Terminal::adopt` (that field carries `#[expect(clippy::disallowed_types, reason = "…")]`, since `clippy.toml:35` refuses `Cell`), and writes the person's lines and reads the pages with `Sim::peer_feed`, `peer_drain` and `peer_close` (`processes.rs:296,306,316`). The client's `next_deadline` includes `Terminal::next_deadline` (an idle world with nothing due fails), and the client closes both descriptors before it settles (`assert_no_open_fds`). skein stays read only and its pin unchanged; the session file's "10.3 stops and asks" is answered by this; 10.3's Test shape, Proof and Size are unchanged.
 
@@ -332,7 +324,7 @@ your best judgement").
      jig/08-ops.md amended against origin/main 52af9057a, for 08.2 and 08.1 (the ready check of jig-08.2; 08.1's Needs, jig 07.1 and 07.3, have landed):
      - 08.2: `configure_arrangement` is `examples/ops/domain-client/src/domain.rs:198-204`; `compose` is `examples/ops/view/src/limits.rs:46-53`, its `Arrangement::none()` at `:49`; `arrangement` is re-exported at `examples/ops/view/src/lib.rs:16`. The joint world's second ops client, `tests/ops/src/joint/fixture.rs:87-100`, configures the arrangement after `:95`, its bounds at `:65-78` as `app.rs`'s `view_bounds`; without it the joint world shows the arranged page with only the address's own section, and `tests/ops/tests/fuzzy_joint.rs` still passes. `frame::navigation` takes `observability::NAV`, as `root.rs:91` passes it to `jig_view::jig`. ops's main calls `jig_view::pages::excess` after its sections, as jig's task page does (`crates/jig-view/src/pages.rs:121`): `excess` (`:56`) becomes `pub`, so the arranged page keeps the "more rows" and refusal status jig's page shows.
      - 08.1: `examples/ops/domain-client/src/limits.rs` joins its Files, as at jig 07.3 (2954c546c): `:18-19` `checked_mul(4)` becomes `checked_mul(5)`, and `:59-61` `observability_payload` takes `List::<Section>::worst_case(1)`. `route.rs` changes at `:285-288` only. The lead's plan shows on both incident pages, as the lead's chip does (examples.md 8: "its chip, its report and its proposals as jig's cards, and its plan as jig's plan section, in a section slot"): after `show_incident`'s chip (`observability.rs:87`) and `native_incident`'s (`:430`); the domain's `sections` names a native `Value::Incident`'s lead as `objects` does (`observability/documents.rs:186-190`), its match naming each `Value` variant. The section slot counts at `examples/ops/view/src/limits.rs:40`.
-     - Both sketches, so corrected, pass `heavy cargo clippy -p jig-ops-domain-client -p jig-ops-view -p jig-ops-world --all-targets -- -D warnings`, and the three packages' 94 tests pass at the 1,024-node world bound. temper uses none of ops's crates. A further user found of a changed name is listed in the commit body.
+     - Both sketches, so corrected, pass `cargo clippy -p jig-ops-domain-client -p jig-ops-view -p jig-ops-world --all-targets -- -D warnings`, and the three packages' 94 tests pass at the 1,024-node world bound. temper uses none of ops's crates. A further user found of a changed name is listed in the commit body.
 
 117. **jig 08.2 finds and fixes the joint world's missing acknowledgement** (cross-session scope, jig 08's block of 2026-10-14T16:17:55Z).
      jig 08 finds and fixes the joint world's missing acknowledgement within 08.2, and keeps ruling 116's arrangement in the joint client (`tests/ops/src/joint/fixture.rs`). On main, the fuzzy suite passed in each gate before 08.2 (the last, 09.3's: "109 tests / 15.527 s"); with 08.2's arrangement, `p_acceptance_survives_its_durable_decision_commit` fails at `tests/ops/src/joint/front.rs:855`, where `protocol.check()` runs after `engine.drain()` and before the crash count is read (`:856-861`). So the failure is 08.2's to explain. In order, each once, logged under `logs/jig-08/`:
@@ -422,10 +414,10 @@ your best judgement").
      Checked once, on a scratch copy of be4741f95 (removed since), with
      `Referee::restarted` clearing `consumed` and `cold` calling it (6 lines):
 
-     - `heavy cargo nextest run -p jig-ops-world --profile fuzzy
+     - `cargo nextest run -p jig-ops-world --profile fuzzy
        p_acceptance_survives_its_durable_decision_commit`: "PASS [ 0.711s]"
        (log `logs/20261014T162902-86.log`);
-     - `heavy cargo nextest run -p jig-ops-world --profile fuzzy`: "22 tests
+     - `cargo nextest run -p jig-ops-world --profile fuzzy`: "22 tests
        run: 22 passed" (log `logs/20261014T162912-86.log`).
 
 119. **jig 08.1's Shapes against main** (ready check of jig-08.1).

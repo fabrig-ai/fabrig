@@ -65,7 +65,7 @@ client's and the protocol's; `ops`'s; the boundary's rules.
 - **`jig-domain-core` becomes an explicit workspace member** (today
   `crates/jig-core` is a member only as a path dependency,
   `Cargo.toml:96`).
-- **The lock moves for jig's own packages only:** `heavy cargo check
+- **The lock moves for jig's own packages only:** `cargo check
   --workspace --all-targets` rewrites their entries; no `cargo update`.
 - **Markdown outside `docs/design/` and `docs/development/plans/`** that
   names a renamed crate moves with it, in the same increment
@@ -130,7 +130,7 @@ Shape: the table in the sketch below, rows 01.1. The core's family, in
   each of the eight on `skein-lib`.
 Test shape: no new test. The boundary's tests keep their names and
   rules, their strings renamed. Each focused test keeps its ceiling.
-Proof: the gate (`land` runs `scripts/check.sh`), which builds and runs
+Proof: the gate (`scripts/check.sh`), which builds and runs
   each world on the new names; and, once before the commit, `git grep -n
   -P 'jig[-_](core([-_](accounts|authority|brief|fleet|notes|people|tasks|views))?|host)(?![-_a-z0-9])'
   -- ':!docs/design' ':!docs/development/plans'`, which prints nothing,
@@ -300,7 +300,7 @@ Test shape: `tests/boundary/src/tests/graph.rs`. Each new rule has a
   `a_native_shell_naming_the_store_is_reported` (`jig-shell-native` on
   `jig-protocol-store`). Each under 20 ms, as the manifest tests run
   today.
-Proof: unit, run once with `heavy cargo nextest run -p jig-boundary`:
+Proof: unit, run once with `cargo nextest run -p jig-boundary`:
   the workspace passes each rule, and each fixture's planted breach is
   reported with its manifest's path and dependency. Under 1 minute.
 Don't: change the vocabulary's word list or `names.rs`; drop or weaken
@@ -398,10 +398,10 @@ code-organization.md, section 3 names them; jig 01 owns the rules
    nothing.
 3. `jig-domain-core` is a member: `git -C ~/src/rust/jig grep -n
    '"crates/jig-domain-core"' Cargo.toml` prints its `members` line.
-4. The rules hold: `heavy cargo nextest run -p jig-boundary` passes, and
+4. The rules hold: `cargo nextest run -p jig-boundary` passes, and
    `git -C ~/src/rust/jig grep -n jig-inline-agent -- tests` prints
    nothing.
-5. The four increments landed through `land`: `git -C ~/src/rust/jig log
+5. The four increments landed: `git -C ~/src/rust/jig log
    --format='%(trailers:key=Step,valueonly)' origin/main` lists
    `jig-01.1` to `jig-01.4`, each commit's `Gate-Result` naming
    `scripts/check.sh passed`.

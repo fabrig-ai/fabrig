@@ -203,6 +203,6 @@ None known.
 
 ## Done when
 
-`heavy cargo nextest run -p skein-ui-example-view -p
-skein-ui-example-server -p skein-ui-web-tests` passes, and `heavy cargo
+`cargo nextest run -p skein-ui-example-view -p
+skein-ui-example-server -p skein-ui-web-tests` passes, and `cargo
 build -p skein-ui-example-view --target wasm32-unknown-unknown` passes.

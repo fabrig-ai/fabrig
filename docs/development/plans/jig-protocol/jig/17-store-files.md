@@ -242,7 +242,7 @@ Tests (`directory.rs`): `opening_on_a_directory_makes_the_stores_directory_first
 `the_sweep_keeps_a_digest_whose_service_remains`,
 `a_secrets_request_debug_shows_lengths_not_bytes`. Each under 20 ms.
 Proof: unit, `secrets::the_sweep_erases_a_digest_whose_sign_in_is_gone`,
-run once with `heavy cargo nextest run -p jig-protocol-store -E
+run once with `cargo nextest run -p jig-protocol-store -E
 'test(the_sweep_erases_a_digest_whose_sign_in_is_gone)'`: with sign-ins
 4 and 5 kept as secrets and only sign-in 4 in the store, the core's
 restore past people's families leaves sign-in 4's value and erases 5's;
@@ -321,7 +321,7 @@ Tests (`frames.rs`): `a_frame_decodes_to_the_turn_it_encoded`,
 `a_failed_sync_fails_the_commit_and_those_behind`. Each under 20 ms.
 Proof: unit,
 `transcripts::a_turn_is_written_and_synced_before_its_commit`, run once
-with `heavy cargo nextest run -p jig-protocol-store -E
+with `cargo nextest run -p jig-protocol-store -E
 'test(a_turn_is_written_and_synced_before_its_commit)'`: skein-kv
 beneath the component has no commit 2 until the test answers the frame's
 write and sync, and then has it with the task's place moved by the
@@ -370,7 +370,7 @@ Test shape: `src/tests/transcripts.rs`; fixtures as 17.2, plus
 `a_read_never_passes_the_committed_length`,
 `a_frame_failing_its_checksum_reads_as_unread`. Each under 20 ms.
 Proof: unit, `transcripts::a_read_never_passes_the_committed_length`,
-run once with `heavy cargo nextest run -p jig-protocol-store -E
+run once with `cargo nextest run -p jig-protocol-store -E
 'test(a_read_never_passes_the_committed_length)'`: with a frame written
 past the committed length (a commit that never reached skein-kv), a
 window read hands up the committed turns alone; under 20 ms.
@@ -421,7 +421,7 @@ Test shape: `src/tests/transcripts.rs`; fixtures as above, plus
 `open_queues_attempts_whose_transcript_place_is_gone`. Each under 20 ms.
 Proof: unit,
 `transcripts::open_cuts_a_claimed_tasks_file_to_its_committed_length`,
-run once with `heavy cargo nextest run -p jig-protocol-store -E
+run once with `cargo nextest run -p jig-protocol-store -E
 'test(open_cuts_a_claimed_tasks_file_to_its_committed_length)'`: a run
 proof's task with a committed length of 63 and a file of 120 gets `Cut {
 length: 63 }` and a sync before `Opened`; under 20 ms.
@@ -452,7 +452,7 @@ Test shape: `src/tests/reads.rs`; fixtures as above. Tests:
 `a_turn_read_past_the_waiting_limit_is_busy`,
 `an_unread_frame_gives_a_reply_without_its_turn`. Each under 20 ms.
 Proof: unit, `reads::a_reply_that_was_a_turn_joins_that_turn`, run once
-with `heavy cargo nextest run -p jig-protocol-store -E
+with `cargo nextest run -p jig-protocol-store -E
 'test(a_reply_that_was_a_turn_joins_that_turn)'`: a reply's activity
 line naming attempt 1, turn 2 comes back with that turn's record as
 `related`, after the test answers the frame's read; under 20 ms.
@@ -513,7 +513,7 @@ Test shape: `src/tests/reads.rs`:
   `an_activity_row_keeps_its_turn` and
   `a_turn_of_another_line_is_unknown`; the client world's stories keep
   their turns, now from the page. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-store -E
+Proof: unit, `cargo nextest run -p jig-protocol-store -E
   'test(an_activity_page_joins_each_turn_in_one_walk)'` once: the page's
   three turns come as their rows' `related` after three frame reads;
   under 20 ms; and `-p jig-client-world` once, its count of tests and
@@ -666,10 +666,10 @@ requests come from jig 31's clients' component, never from the root.
 
 1. The five increments are on `origin/main`: `git -C ~/src/rust/jig log
    origin/main --format=%b | grep -c '^Step: jig-17\.'` prints 5.
-2. The files' tests pass: `heavy cargo nextest run -p jig-protocol-store
+2. The files' tests pass: `cargo nextest run -p jig-protocol-store
    -E 'test(/tests::(directory|secrets|frames|transcripts)::/)'` passes,
    running at least 30 tests.
-3. No turn's bytes go to the map: `heavy cargo nextest run -p
+3. No turn's bytes go to the map: `cargo nextest run -p
    jig-protocol-store -E 'test(=tests::transcripts::a_turns_save_puts_no_turn_row_in_the_map)'`
    passes.
 4. jig 16's transitional arms are gone: the test

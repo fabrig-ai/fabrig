@@ -91,12 +91,12 @@ Shape: `let mut disk = Filesystem::for_user(skein_shell::effective_user());`;
 Test shape: the seven tests, unchanged in name and expectation;
   `a_window_size_change_reaches_the_status_line` passes in the six runs
   of the Proof.
-Proof: world, `heavy --gate cargo nextest run -p
+Proof: world, `cargo nextest run -p
   smith-local-process-world -p smith --profile measure` once, every test
-  passing; then `heavy --gate bash -c 'for i in 1 2 3 4 5 6; do cargo
+  passing; then `bash -c 'for i in 1 2 3 4 5 6; do cargo
   nextest run -p smith --profile measure -E "binary(end_to_end)" || exit
   1; done'` once (six runs of `end_to_end` at 8 threads, where the window
-  story failed), all passing; `smoke-tools` once before `land`.
+  story failed), all passing; `smoke-tools` once before merging.
 Don't: change a referee's rule, a token store's check, or the fake
   disk's default for other worlds.
 Size: test code only, at most 25 lines.
@@ -105,7 +105,7 @@ Removes: nothing.
 ### 02.2 smith on skein `2068257`; nextest without its double spawn; rustls as it ships
 Scope: `findings/cost-smith.md`, 1; testing-strategy.md, 8.
 Needs: 02.1.
-Files: `Cargo.lock` (`heavy cargo update -p skein-lib --precise
+Files: `Cargo.lock` (`cargo update -p skein-lib --precise
   206825786a507cf5498c21ee3f1c2cbe79fc33da`, a commit of its own, first;
   if `tests/codecs/tests/drift.rs` then fails, smith's families
   regenerate as smith 01.1's Files say, golden files unchanged);
@@ -115,9 +115,9 @@ Files: `Cargo.lock` (`heavy cargo update -p skein-lib --precise
 Shape: `export NEXTEST_DOUBLE_SPAWN=0` before the first `cargo nextest`
   of `scripts/check.sh`; the profile as skein's `Cargo.toml:105-111`.
 Test shape: none new.
-Proof: process, the focused time in `land`'s `Gate-Result` (decisions.md,
+Proof: process, the focused time in the `Gate-Result` (decisions.md,
   10's gate), against 21.0 s at this plan's base
-  (`findings/measurements.md`, 1); `smoke-tools` once before `land`.
+  (`findings/measurements.md`, 1); `smoke-tools` once before merging.
 Don't: move a package of another source; change smith's source.
 Size: `Cargo.lock`, a profile, one line.
 Removes: nothing.
@@ -142,11 +142,11 @@ Shape: one function in `smith-real-world`, `pub fn loopback() -> Ipv4Addr`,
 Test shape: `smith-real-world`'s unit test
   `two_processes_never_share_a_loopback_address` (two ids, two addresses;
   the address within 127/8); the stories, unchanged.
-Proof: process, `heavy --gate cargo nextest run -p smith -p
+Proof: process, `cargo nextest run -p smith -p
   smith-real-world -p smith-local-process-world --profile measure` three
   times in one gate task: every test passing each time; the three walls
   in the report (the audit: 2.6 s of wall for these stories, 61 tests);
-  `smoke-tools` once before `land`.
+  `smoke-tools` once before merging.
 Don't: change a story, a fake's behaviour, or what the product is told
   beyond its addresses.
 Size: at most 60 lines of test kit.
@@ -161,9 +161,9 @@ Shape: one override, `priority = 20`, for the focused tests that took
   more than 1 s in this increment's first run below, named in a filter,
   above the worlds' `priority = 10`.
 Test shape: none.
-Proof: process, `heavy --gate cargo nextest run --workspace --profile
+Proof: process, `cargo nextest run --workspace --profile
   measure` once before the change (it names the tests) and once after:
-  the two walls in the report; `smoke-tools` once before `land`.
+  the two walls in the report; `smoke-tools` once before merging.
 Don't: change a test or a timeout.
 Size: at most 8 lines.
 Removes: nothing.
@@ -173,5 +173,5 @@ Removes: nothing.
 - `grep -n NEXTEST_DOUBLE_SPAWN ~/src/rust/smith/scripts/check.sh` prints
   the export, and `grep -c real-local ~/src/rust/smith/.config/nextest.toml`
   prints 0.
-- `heavy --gate cargo nextest run --workspace --profile measure` on
+- `cargo nextest run --workspace --profile measure` on
   smith's `main`, on carbon-forge: every test passes.

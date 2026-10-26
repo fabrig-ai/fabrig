@@ -239,7 +239,7 @@ fn the_token_leaves_only_after_its_digest_is_kept() {
 ```
 
 Proof: world: `the_token_leaves_only_after_its_digest_is_kept`, run once
-with `heavy cargo nextest run -p jig-engine-clients-world --test
+with `cargo nextest run -p jig-engine-clients-world --test
 sign_in`, passes, showing a native client's token is handed out only
 once its digest is durable; the joint layer is jig 33's, whose world
 needs jig 32. Under 0.2 s for the file.
@@ -277,7 +277,7 @@ Test shape: step tests, one per ask family:
 `a_third_exchange_past_the_client_s_bound_is_busy`. Expected values
 written as the joint world's tests have them for the same values
 (`tests/client/src/joint/wire/asks.rs`'s tests). Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-engine-clients`,
+Proof: unit, `cargo nextest run -p jig-protocol-engine-clients`,
 run once: each ask family's record reaches the core as its ask, one that
 does not translate reaches no core, and a third exchange past the
 client's bound is answered busy (the six tests); under 0.2 s.
@@ -312,7 +312,7 @@ Test shape: `a_made_chat_is_answered_done_with_its_task`,
 `an_application_outcome_is_carried_under_its_family`,
 `a_lost_connection_drops_the_answer_and_nothing_else`. Under 20 ms
 each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-engine-clients`,
+Proof: unit, `cargo nextest run -p jig-protocol-engine-clients`,
 run once: a made chat is answered done with its task, a moved hold
 refused with its facts, busy answered and not kept, and an ended sign-in
 answered signed out (the six tests); under 0.2 s.
@@ -433,7 +433,7 @@ Test shape: `a_read_is_answered_only_once_held_is_released`,
 `a_read_signed_out_is_answered_signed_out`,
 `an_application_read_is_routed_and_answered_under_its_family`. Under
 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-engine-clients`,
+Proof: unit, `cargo nextest run -p jig-protocol-engine-clients`,
 run once: a read is answered only once `Held::Read` is released, a
 cursor round-trips to its position, and one that does not decode is
 answered unknown (the five tests); under 0.2 s.
@@ -476,7 +476,7 @@ Test shape: the core's `an_own_subject_names_the_sign_ins_party`,
   `two_parties_frames_stay_two_subjects`,
   `an_own_subject_of_an_ended_sign_in_is_refused_signed_out`; the joint
   world's watch rows without a party.
-Proof: unit, `heavy cargo nextest run -p jig-domain-core -E
+Proof: unit, `cargo nextest run -p jig-domain-core -E
   'test(an_own_subject_after_a_restart)'` once: the restored core admits
   the frame's watch and delivers that party's frame; under 20 ms; and
   `-p jig-core-world -p jig-client-world` once.
@@ -539,7 +539,7 @@ fn a_delivery_is_marked_taken_only_once_written() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p jig-engine-clients-world
+Proof: world, `cargo nextest run -p jig-engine-clients-world
 --test stream`, run once: a stream opens with its hello, a slow reader
 gets the next delivery only after the last, and a stream cut mid-event
 ends its watches (the seven tests); under 0.3 s.
@@ -578,7 +578,7 @@ Test shape: `signing_out_erases_the_digest_and_refuses_the_token`,
 `after_stop_a_sign_in_and_a_sign_out_are_answered_not_ready` (the
 digest kept, the link still live),
 `close_ends_each_stream_then_says_closed`. Under 20 ms each.
-Proof: world, `heavy cargo nextest run -p jig-engine-clients-world
+Proof: world, `cargo nextest run -p jig-engine-clients-world
 --test closing`, run once: signing out erases the digest and refuses the
 token, a provider's identity signs in as the link does, and a close ends
 each stream, then says closed (the six tests); under 0.2 s. The joint
@@ -711,14 +711,14 @@ pub struct Served { pub family: Option<u16>, pub first: u32, pub last: u32 }
 
 ## Done when
 
-- The component's tests pass: `heavy cargo nextest run -p
+- The component's tests pass: `cargo nextest run -p
   jig-protocol-engine-clients -p jig-engine-clients-world` passes.
 - It links no smith and no client domain: `git grep -n -E
   '^(smith-|jig-domain-client|jig-view)' --
   crates/jig-protocol-engine-clients/Cargo.toml` prints nothing.
 - No cookie and no page: `git grep -n -i -E 'set-cookie|text/html' --
   crates/jig-protocol-engine-clients/src` prints nothing.
-- The translation has no wildcard: `heavy cargo clippy -p
+- The translation has no wildcard: `cargo clippy -p
   jig-protocol-engine-clients --all-targets -- -D warnings` passes with
   the workspace's `wildcard_enum_match_arm` denied.
 - The gate passed on this session's last landing: `git -C ~/src/rust/jig

@@ -215,7 +215,7 @@ Test shape:
   `the_link_at_its_limits_stays_within_its_worst_case`, as
   `tests/host/tests/memory.rs:1-14`.
 - Ceilings: step tests under 20 ms; world tests under 0.5 s each.
-Proof: world, `heavy cargo nextest run -p jig-worker-link-world -E
+Proof: world, `cargo nextest run -p jig-worker-link-world -E
 'test(dialling)'` once: a worker refused for any reason, or unreachable,
 dials again after a jittered backoff that doubles, and starts over after
 a proved channel; under 1 minute with the build warm. Not higher: the
@@ -284,7 +284,7 @@ Test shape:
   `grant_values_reach_the_layer_before_the_assignment`,
   `an_undecodable_assignment_is_refused_as_framing`,
   `a_transcript_piece_that_does_not_split_is_refused_as_invalid`.
-Proof: world, `heavy cargo nextest run -p jig-worker-link-world -E
+Proof: world, `cargo nextest run -p jig-worker-link-world -E
 'test(link) | test(records)'` once: the hello goes first on every
 channel, records cross both ways as the hub's vocabulary, and a grant's
 value reaches the layer before the root hears its name; under 1 minute
@@ -345,7 +345,7 @@ Test shape:
   `a_busy_turn_kept_meanwhile_is_not_asked_again`,
   `a_loss_drops_every_busy_turn`,
   `the_hub_never_hears_a_turn_busy`.
-Proof: world, `heavy cargo nextest run -p jig-worker-link-world -E
+Proof: world, `cargo nextest run -p jig-worker-link-world -E
 'test(relays) | test(busy)'` once: a relay answered on a later channel
 reaches its run once, a cancelled one never goes again, and a turn
 answered busy is asked again after a jittered backoff until it is kept;
@@ -407,8 +407,8 @@ Test shape:
 - `tests/memory.rs` grows: `relays_and_busy_turns_at_their_limits_stay_within_the_worst_case`.
 - Ceilings: world tests under 0.5 s each; the fuzzy test under 3 s; the
   world's focused tests at most 1 s in all by 24.4.
-Proof: world, `heavy cargo nextest run -p jig-worker-link-world` once,
-and `heavy cargo nextest run -p jig-worker-link-world --profile fuzzy`
+Proof: world, `cargo nextest run -p jig-worker-link-world` once,
+and `cargo nextest run -p jig-worker-link-world --profile fuzzy`
 once: past the grace the root is told once, within it nothing is, and
 facts give way to turns at the cap; under 2 minutes with the build warm.
 Don't: arm a timer in the hub's place for anything but the grace,
@@ -475,7 +475,7 @@ Test shape:
   `another_payload_version_worker_redials_after_application`.
 - Ceilings: under 0.5 s each; this increment's tests at most 0.3 s in
   all.
-Proof: joint, `heavy cargo nextest run -p jig-worker-link-world -E
+Proof: joint, `cargo nextest run -p jig-worker-link-world -E
 'test(joined) | test(agreement)'` once: a worker dials the engine's
 side, is admitted, takes an assignment with its grants' values, and its
 turn crosses and is kept once across a cut and a redial; under 1 minute
@@ -641,10 +641,10 @@ impl Component {
 
 ## Done when
 
-1. The world's focused and fuzzy tests pass: `heavy cargo nextest run -p
-   jig-worker-link-world` and `heavy cargo nextest run -p
+1. The world's focused and fuzzy tests pass: `cargo nextest run -p
+   jig-worker-link-world` and `cargo nextest run -p
    jig-worker-link-world --profile fuzzy` print no failure.
-2. The two sides meet: `heavy cargo nextest run -p jig-worker-link-world
+2. The two sides meet: `cargo nextest run -p jig-worker-link-world
    -E 'test(joined) | test(agreement)'` passes.
 3. The crate links neither the core nor smith: `cargo tree -p
    jig-protocol-worker-link -e normal --prefix none | grep -E

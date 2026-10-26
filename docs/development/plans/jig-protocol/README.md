@@ -146,8 +146,6 @@ ones before it in its session. Dependencies are by capability: "skein
 
 - **jig 01 runs alone.** No other jig session starts before it has
   landed whole: it renames the crates every jig session touches.
-- **Every session reads,** besides its "Read first": its repository's
-  `AGENTS.md` and workflow, this README and `code-organization.md`.
 - **A durable record's codec follows its record.** Once jig 14 or jig 19 has
   landed a family's codec, an increment of any session that changes a
   durable record of that family changes its schema, its generated codec
@@ -171,8 +169,7 @@ ones before it in its session. Dependencies are by capability: "skein
 - **Shared hotspots with smith's reliability plan,** if it runs at the
   same time on another machine: skein's `crates/skein-io/src/kernel.rs`,
   `crates/skein-io/src/file*.rs` and `crates/skein-shell/` (its terminal
-  modes, skein 02.6 of that plan). `land` rebases each landing on the
-  other's; no session waits for it.
+  modes, skein 02.6 of that plan). Changes are rebased before merging.
 - **The design's crate names follow jig 01.** Once jig 01 has landed
   whole, the supervisor wakes the designer (`plan wake designer`) to
   rename the crates in jig's design documents (`docs/design/README.md`,
@@ -263,25 +260,6 @@ ones before it in its session. Dependencies are by capability: "skein
   boxes and unboxes it in its translation. It marks no other variant, and
   adds no allowance to a generated file. Before `jig-repin.s1`, such an
   increment commits on its branch and waits for it.
-- **A gate that fails only on a timeout is retried twice** (decisions.md,
-  ruling 140). When `land`'s gate fails only on a suite's global timeout
-  or a test's wall-clock bound, in tests outside the session's files, the
-  session runs `land` again, up to three attempts in all on the same
-  tree, without asking. A third such failure is a block, kind
-  infrastructure. This replaces development.md, 8.5's "a second failure
-  on the same tree is a question" for this plan; any other failure is as
-  8.5 says.
-- **A gate failure the Shape explains is fixed without asking**
-  (decisions.md, ruling 145). When the gate fails, other than on a
-  timeout, in a test outside the increment's Files because the
-  behaviour the Shape adds reaches that test's fixture or story (a new
-  control pressed, a message now judged again), the session fixes the
-  fixture or the story's inputs under ruling 114 (at most 20 lines,
-  every test's name and expected value kept), names in its commit body
-  the Shape's words that explain it, and runs `land` again. This
-  replaces development.md, 8.5's "stop on a question" for that case
-  only; a failure the Shape does not explain, or a fix past ruling
-  114's limits, is still a question.
 - **A codec checks fields and counts; sums are the domain's**
   (decisions.md, rulings 135 and 154). In jig 14, 19 and 30, a codec's
   `limits` maps the domain's limits to the generated `Limits`, each
@@ -293,11 +271,6 @@ ones before it in its session. Dependencies are by capability: "skein
   test under `src/generated/`, which no session edits, lands when it runs
   within 200 ms; past that it is a question. Hand-written tests keep
   their increments' ceilings.
-- **Until the suite is cheaper, a timed-out landing waits** (decisions.md,
-  ruling 174). Until jig-repin.s3 has landed, a session whose three gates
-  fail only on the focused suite's timeout keeps its commit and ends its
-  turn; the coordinator runs its `land` again (three attempts) after each
-  test-cost step of `tests-cost.md` lands. No block is written for it.
 - **The client wire's translations land at their count** (decisions.md,
   ruling 194). In jig 31, 32, 34 and 35, an increment whose production
   code is only translations between the client contract's types and the
@@ -408,7 +381,7 @@ ones before it in its session. Dependencies are by capability: "skein
 - **smith's `smoke-tools`,** for smith 01 and `smith-repin` only, as
   smith's `docs/development/workflow.md`, section 5 requires of every
   smith landing that changes code: the cheapest model and effort, once
-  before `land`, once more only if it fails; about 10,000 tokens a run,
+  before merging, once more only if it fails; about 10,000 tokens a run,
   borrowing the same login as smith's benchmarks do.
 - **Nothing else is live:** skein's fake LLM peer serves every other
   proof.
@@ -431,13 +404,13 @@ from skein's other packages (`90326012`).
 Scope: `Cargo.lock` moves the skein source to skein 02.s1's commit:
   `skein-codegen` and the ten skein packages `cargo update` moves with it
   (ruling 147).
-Shape: `heavy cargo update -p skein-codegen --precise <skein 02.s1's
+Shape: `cargo update -p skein-codegen --precise <skein 02.s1's
   commit>`; `git diff origin/main -- Cargo.lock` changes skein entries
   only, no smith entry. Where a drift test
   (`tests/store-codecs/tests/drift.rs`) then reports generated code
   changed, the files are written again by the drift test's own
   environment variable; their golden bytes do not move.
-Proof: gate, `scripts/check.sh`, run by `land`.
+Proof: gate, `scripts/check.sh`.
 Don't: move a smith package; edit `Cargo.lock`, a schema or a generated
   file by hand. If `cargo update` moves a smith package, stop and
   report.
@@ -486,8 +459,7 @@ budgets: 15 60
    -- '*.toml'` prints nothing.
 4. jig's own worlds run on the real store: `git -C ~/src/rust/jig grep -n
    jig-fake-store -- tests/core tests/conformance` prints nothing.
-5. The process proof passes once: `cd ~/src/rust/jig && heavy --gate
-   scripts/proof-one-process.sh` exits 0 (jig 26 records its output in the
+5. The process proof passes once: `cd ~/src/rust/jig && scripts/proof-one-process.sh` exits 0 (jig 26 records its output in the
    run's logs).
 6. The live proof ran once within its budget: `ls
    ~/src/rust/tmp/jig/jig-protocol/logs/jig-26/proof-live.log` lists the

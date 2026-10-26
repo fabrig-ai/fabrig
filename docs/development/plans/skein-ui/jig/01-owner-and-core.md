@@ -85,7 +85,7 @@ Test shape: `crates/jig-view/src/tests/owner.rs`, reusing
   ```
   Also: `an_application_number_maps_to_itself_and_back`,
   `a_number_past_jig_names_no_owner`. Each under 20 ms.
-Proof: world. `heavy cargo nextest run -p jig-client-world -E
+Proof: world. `cargo nextest run -p jig-client-world -E
   'test(/stories/)'` passes once: the client's world builds every jig
   page and routes every binding through the opaque owner. Bound: 2
   minutes.
@@ -110,7 +110,7 @@ Shape: `State::Provisional` removed; the text shell's state list loses
   already a status in words (`turns.rs:56-57, 83-84`).
 Test shape: the golden `roles.txt` line 74 loses ` (provisional)`,
   edited by hand; no new test.
-Proof: unit, `heavy cargo nextest run -p jig-shell-text`: the golden
+Proof: unit, `cargo nextest run -p jig-shell-text`: the golden
   page prints every state but provisional. The highest layer for a
   removed variant that nothing sets.
 Don't: change the capacity of eight or nine states (skein 02 adds
@@ -143,7 +143,7 @@ Shape: `pub mod ui;` in `lib.rs`, whose root re-exports the items
   "owner" where they say "domain" (`tree.rs:199`, `builder.rs:214`,
   `diff.rs:86`, `render.rs:4, 36`).
 Test shape: the moved tests, unchanged but for paths; no new test.
-Proof: world. The client's world and `ops`'s pass once: `heavy cargo
+Proof: world. The client's world and `ops`'s pass once: `cargo
   nextest run -p jig-client-world -p jig-ops-world`. Bound: 3 minutes.
 Don't: change a moved file's code beyond paths and doc comments.
 Size: about 40 lines of production code, plus paths.

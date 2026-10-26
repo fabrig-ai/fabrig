@@ -96,7 +96,7 @@ capability.
 - **This plan runs no repin of smith or of the repository downstream of
   jig** (decisions.md, 3). The coordinator adds no repin step, and the
   supervisor adds none; jig repins skein inside jig 04 and jig 05.
-- **jig moves skein only, never smith** (decisions.md, 4): `heavy cargo
+- **jig moves skein only, never smith** (decisions.md, 4): `cargo
   update -p skein-lib`, with jig 04's `--precise` to skein 01.3's
   landing (its file); a failure inside a smith crate is a question.
 - **Nothing changes skein-ui, skein-ui-text or skein-fake-person
@@ -118,7 +118,7 @@ capability.
   absorbs (testing-strategy.md, 8), and skein 13.5's one build of the
   example's module with the `web` profile, outside the gate; the
   browser tier's module is built with the dev profile.
-- **A browser story's Proof** is `heavy --gate scripts/check.sh` once in
+- **A browser story's Proof** is `scripts/check.sh` once in
   the increment's committed worktree, which builds the bundle and the
   server and runs the browser suite; nothing else is run for it.
 - **Test time** (findings/measurements.md, on carbon-forge at the base):
@@ -132,8 +132,7 @@ capability.
   - Each landing's report names its suites' times from its
     `Gate-Result` line, and nothing else is measured. An aim exceeded
     is a guide missed: the landing stands, and the session's next
-    increment first makes the slowest tests cheaper, found by `heavy
-    --gate -- cargo nextest run --workspace --profile measure -j 1`
+    increment first makes the slowest tests cheaper, found by `cargo nextest run --workspace --profile measure -j 1`
     once, until its own gate's time is back under the aim; after a
     session's last increment the supervisor decides. Never: raising a
     `global-timeout`, a slow period or a per-test ceiling, or moving a
@@ -167,7 +166,7 @@ capability.
   126, 137 lines: 1,920 at its landing), 13.1 (ruling 127: the
   closing warning and native dialogs), 13.2 (ruling 130: `keys`,
   about 40 lines), 14.4 (its back-forward cache restore, an
-  implementer.md 8.2 small fix, +8) and skein-14.s2 (ruling 131: a
+  author.md 8.2 small fix, +8) and skein-14.s2 (ruling 131: a
   scope resolved in the current document, at most 80 lines) add what
   their rulings name: 2,042 lines on skein's `main` at `b4c7740`; its
   split is a `later.md` row. The pulse lists it; the supervisor reads
@@ -232,12 +231,12 @@ budgets: 15 60
    -n -e wasm32-unknown-unknown -e 'profile browser' origin/main --
    scripts/check.sh` prints lines for each.
 6. The browser tier passes once, on `main`, in a worktree of skein at
-   `origin/main`: `heavy --gate scripts/check.sh` exits 0.
+   `origin/main`: `scripts/check.sh` exits 0.
 7. The plan's commits: `git -C ~/src/skein log origin/main
    --grep='^Plan: skein-ui$' --format=%s` and the same in jig list one
    or more commits for each session.
 8. The test-time aims, measured once in a worktree of each repository at
-   `origin/main`: `NEXTEST_DOUBLE_SPAWN=0 heavy --gate -- sh -c 'for i
+   `origin/main`: `NEXTEST_DOUBLE_SPAWN=0 sh -c 'for i
    in 1 2 3; do cargo nextest run --workspace 2>&1 | grep Summary;
    cargo nextest run --workspace --profile fuzzy 2>&1 | grep Summary;
    done'`, and for skein the browser profile once more: the medians

@@ -187,7 +187,7 @@ Test shape: host: `src/tests/history.rs`:
   `Done`, a `Trouble::Dialog` naming `confirm: Delete it?`, the heading
   `Answer: false`). Step tests under 20 ms; each story about 3 s; each
   real test about 2 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the stories and the
+Proof: live, `scripts/check.sh` once: the stories and the
   kit's tests pass, `a_reload_keeps_a_pending_add_made_once` among
   them, unchanged. Bound: 15 minutes.
 Don't: navigate the page on a plain press of a link (ui-web.md, 7);
@@ -293,7 +293,7 @@ Test shape: view: `an_empty_title_is_refused_in_words`,
   node of role `Date` and an `Input` of `2026-10-15` give
   `Request::Keys` with `10152026`). The fact above. Step tests under
   20 ms; the story about 3 s; the fact about 2 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the story, the
+Proof: live, `scripts/check.sh` once: the story, the
   golden pages and the facts pass. Bound: 15 minutes.
 Don't: check a field's words in the shell (the view's, ui.md 6); set a
   field's value by a page call (`Runtime.evaluate`,
@@ -326,7 +326,7 @@ Test shape: view: `clearing_words_asks_in_a_dialog`,
   dialog gone, the words still in the title, the focus on it, by the
   harness's `Focused` step). Step tests under 20 ms; the story about
   3 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the story passes.
+Proof: live, `scripts/check.sh` once: the story passes.
   Bound: 15 minutes.
 Don't: close the `<dialog>` by the browser's own cancel (ui-web.md, 7).
 Size: about 120 lines.
@@ -367,7 +367,7 @@ Test shape: view: `the_chart_draws_as_its_golden_scene` (through
   `task` bar at its point; the list shows only tasks, as the choice
   `Tasks` does) and `the_charts_fallback_is_read_by_its_name`. Step
   tests under 20 ms; each story about 3 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the two stories
+Proof: live, `scripts/check.sh` once: the two stories
   pass. Bound: 15 minutes.
 Don't: put a word only in the scene (its fallback says it).
 Size: about 200 lines.
@@ -406,8 +406,8 @@ Test shape: host: `src/tests/page.rs`:
   typing them; the
   note added with the body's words). Step tests under 20 ms; the story
   about 3 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the story passes;
-  and `heavy cargo build -p
+Proof: live, `scripts/check.sh` once: the story passes;
+  and `cargo build -p
   skein-ui-example-shell-web --target wasm32-unknown-unknown --profile
   web` once, its module's bytes written to `size.txt`. Bound: 10
   minutes.
@@ -427,6 +427,6 @@ Removes: nothing.
 
 ## Done when
 
-`heavy --gate scripts/check.sh` passes once with the stories of 13.1 to
+`scripts/check.sh` passes once with the stories of 13.1 to
 13.5 in its browser suite, and `wc -l < examples/ui/shell-web/grow.js`
 prints at most 10.

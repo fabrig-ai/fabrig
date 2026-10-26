@@ -98,7 +98,7 @@ Test shape: in `testing/jig-test-service/src/tests/`:
   `a_roots_step_count_moves_with_an_input_and_not_with_an_idle_iterate`.
   In `tests/channel`: the stories, unchanged, and
   `a_grant_value_planted_in_a_root_s_state_is_caught` unchanged.
-Proof: world, `heavy --gate cargo nextest run -p jig-channel-world
+Proof: world, `cargo nextest run -p jig-channel-world
   --profile measure -j 1 -E 'binary(channel)'` once: every test passes;
   the binary's summed time and
   `a_resumed_run_is_sent_only_its_current_window`'s, in the report (the
@@ -158,7 +158,7 @@ Removes: the bitwise loop, and re-reading applied frames.
 
 ## Done when
 
-- `heavy --gate cargo nextest run -p jig-channel-world --profile measure
+- `cargo nextest run -p jig-channel-world --profile measure
   -j 1 -E 'binary(channel)'` on jig's `main`: every test passes, summed
   at most 3.5 s (6.83 s in the audit before; its three changes, with jig
   01.2's, reached 2.72 s).

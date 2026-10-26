@@ -3,7 +3,7 @@
 The planner's sub-agent's audit, 2026-10-13, at jig `d91a89c45`:
 `jig-view`, `jig-test-view`, `jig-client-world`, `jig-client-protocol-world`,
 `jig-ops-view`, `jig-ops-world`. Medians of 30 alternating runs, before
-and after, through `heavy --gate`; the machine's speed drifted (one
+and after; the machine's speed drifted (one
 binary's floor 1.4 to 3.3 ms within minutes). Tried changes:
 `tried/jig-client.md` (evidence, not to be applied as is). jig 03 takes
 findings 1 and 2; finding 3 is skein 02.2's and jig 05.1's.

@@ -83,7 +83,7 @@ backends, then io.
 
 - "**Shared hotspots with smith's reliability plan,** if it runs at the
   same time on another machine: skein's `crates/skein-io/src/kernel.rs`,
-  `crates/skein-io/src/file*.rs` and `crates/skein-shell/` ... `land`
+  `crates/skein-io/src/file*.rs` and `crates/skein-shell/` ... The merge
   rebases each landing on the other's; no session waits for it" (README,
   "Rules"). That plan's skein session adds a kernel `Window` record to
   the same matches 03.1 extends: resolve its arms beside `Truncate`'s.
@@ -142,7 +142,7 @@ Files:
     `tests/io/tests/memory.rs:221-265`, `tests/ring/src/lib.rs:172-177`;
     `tests/sim/tests/{files,invariants}.rs`.
   - Lines are findings/skein.md's, at skein `5c9eedd`, code unchanged at
-    `917ea21`; `heavy cargo check --workspace --all-targets` lists any
+    `917ea21`; `cargo check --workspace --all-targets` lists any
     match they miss.
 Shape:
   - `OpenHow::Write`, documented "An existing regular file, to read and
@@ -239,8 +239,7 @@ Test shape:
   - skein-io, `src/tests/kernel.rs`'s tables (`:297-319`): Truncate's row
     of errors, and `a_truncate_past_i64_max_is_an_invalid_record`.
   - Each under 20 ms; the conformance runs under 0.5 s each.
-Proof: world (simulated io) and the real kernel, run once with `heavy
-  cargo nextest run -p skein-conformance-sim -p skein-conformance-ring
+Proof: world (simulated io) and the real kernel, run once with `cargo nextest run -p skein-conformance-sim -p skein-conformance-ring
   -p skein-fake-machine`: the scenario's rules hold on the ring and over
   the simulator's calm and chaotic seeds, and a cut the file was not
   synced after is undone by a crash. Under 1 minute.
@@ -302,7 +301,7 @@ Test shape: `crates/skein-io/src/tests/file.rs`, its `io()` (`:17-19`),
   `a_cut_of_a_file_io_does_not_hold_fails_not_found`,
   `a_cut_past_its_deadline_waits_for_its_truncate_then_times_out`; each
   under 20 ms.
-Proof: unit, run once with `heavy cargo nextest run -p skein-io --lib
+Proof: unit, run once with `cargo nextest run -p skein-io --lib
   file`: a writer's `OpenWrite` and `Cut` reach the kernel as the `Write`
   open and a `Truncate` and are told back as `Opened` with the length,
   `Cut`, or `Failed`. Under 30 s. Not a world: io's worlds hold no file
@@ -347,7 +346,7 @@ Test shape: step tests
   is there whenever its open was answered, and the record whenever its
   store was; `make_root` on the real kernel: a nested absent path made
   and opened, a file in its way refused.
-Proof: unit, `heavy cargo nextest run -p skein-io -p skein-io-world -p
+Proof: unit, `cargo nextest run -p skein-io -p skein-io-world -p
   skein-oauth-accounts-world` once: the new story, run before the
   change, loses the root at the power loss after the make, and passes
   after it; each test under 20 ms.
@@ -376,7 +375,7 @@ Test shape: `a_killed_childs_unread_output_is_settled` (a hosted child
   closes the child; the world settles); and
   `a_childs_own_exit_with_unread_output_is_caught` (a child exits with a
   code, its output unread: the assertion's message). Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p skein-sim-tests --test
+Proof: unit, `cargo nextest run -p skein-sim-tests --test
   processes` once.
 Don't: count a closed pipe as read; loosen the check for a child that
   exited with a code.
@@ -408,7 +407,7 @@ Test shape: `a_power_loss_drops_hosted_children_and_restarts_the_roots`
   `a_power_loss_needs_every_roots_factory` (a process the world started
   without a factory is still refused).
   Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p skein-world-tests --test
+Proof: unit, `cargo nextest run -p skein-world-tests --test
   hosted` once; `-p skein-io-world --test cuts` unchanged.
 Don't: restart a hosted child from the world; drop a hosted child on a
   kill of another process.
@@ -508,13 +507,13 @@ cancelled.
 
 ## Done when
 
-1. Both backends hold the scenario: `heavy cargo nextest run -p
+1. Both backends hold the scenario: `cargo nextest run -p
    skein-conformance-ring -p skein-conformance-sim -E
    'test(a_write_open_finds_what_exists_and_truncate_sets_its_length)'`
    runs two tests and passes.
-2. A crash keeps an unsynced cut's old length: `heavy cargo nextest run
+2. A crash keeps an unsynced cut's old length: `cargo nextest run
    -p skein-fake-machine -E 'test(/a_cut_/)'` passes two tests.
-3. The two increments landed through `land`: `git -C ~/src/rust/skein
+3. The two increments landed: `git -C ~/src/rust/skein
    log --format='%(trailers:key=Step,valueonly)' origin/main` lists
    `skein-03.1` and `skein-03.2`, each commit's `Gate-Result` naming
    `scripts/check.sh passed`.

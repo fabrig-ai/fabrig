@@ -81,8 +81,8 @@ addresses (decision 4).
   (development.md, 5.7).
 - "**Every smith landing that changes code runs `smoke-tools` live,**
   with the cheapest model and effort, whatever the change touched: once,
-  through `heavy --gate`, on the branch rebased on `origin/main` just
-  before `land`, and once more only if it fails" (smith's
+  on the branch rebased on `origin/main` just
+  before merging, and once more only if it fails" (smith's
   `workflow.md`, section 5). This plan's README lists no live service for
   smith 01; smith's workflow rules here, and the report names the smoke's
   completions.
@@ -98,8 +98,7 @@ Needs: skein 01's `Addr` and `Limits::names`, skein 02's `CryptoRng`
   `Ask::Truncate`, `OpenWrite` and `Cut`: skein 01, 02 and 03 landed,
   each increment of them, on skein's `origin/main`.
 Files: `Cargo.lock`, and the sites findings/skein.md counted, at smith
-  `2a800ea2` (smith's `main` moves under its reliability plan; `heavy
-  cargo check --workspace --all-targets` lists the sites at the
+  `2a800ea2` (smith's `main` moves under its reliability plan; `cargo check --workspace --all-targets` lists the sites at the
   session's start, and the list below is where to look first):
   - io's address records (4): `crates/smith-local-shell/src/local_auth.rs:214`
     (`Listen`), `crates/smith-local-shell/src/local_auth_http.rs:112`
@@ -132,18 +131,18 @@ Files: `Cargo.lock`, and the sites findings/skein.md counted, at smith
 Shape: in the worktree `plan worktree smith 01` made:
   1. `git fetch origin && git switch -c jig-protocol/smith-01-1
      origin/main`;
-  2. `heavy cargo update -p skein-lib`, which moves the skein git
+  2. `cargo update -p skein-lib`, which moves the skein git
      source, each skein package with it;
-  3. `heavy cargo check --workspace --all-targets`, and each error
+  3. `cargo check --workspace --all-targets`, and each error
      repaired as the Choices say;
-  4. `heavy cargo clippy --workspace --all-targets -- -D warnings`, once;
-  5. the smoke, as the Rules quote smith's workflow; then `land`.
+  4. `cargo clippy --workspace --all-targets -- -D warnings`, once;
+  5. the smoke, as the Rules quote smith's workflow; then merging.
 Test shape: no test is added or changed but where a repaired match sits
   in a test. smith's codec drift tests (`tests/codecs/tests/drift.rs`)
   run unchanged in the gate: they show skein's generator still writes
   smith's code byte for byte (no smith schema has a `secret` field).
 Proof: the gate's (development.md, 5.7: "Its `Proof:` line is the
-  gate's"): smith's `scripts/check.sh`, run by `land`; the commit says
+  gate's"): smith's `scripts/check.sh`; the commit says
   `Proof: gate, scripts/check.sh on skein <revision>`. Evidence: the
   smoke's summary line, or, while smith 00.27 has not landed, "smoke:
   not run, before smith-00.27" (smith's reliability plan, README rule 1).

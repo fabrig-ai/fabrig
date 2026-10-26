@@ -87,7 +87,7 @@ Test shape: `chromium_computes_each_roles_accessible_role` (a snapshot,
   each element's computed role compared with `mapping::accessible`, each
   differing row named); `chromium_chooses_an_option_by_the_kits_keys`.
   About 2 s each.
-Proof: live, `heavy --gate scripts/check.sh` once: the two tests pass
+Proof: live, `scripts/check.sh` once: the two tests pass
   against the local Chromium. Bound: 15 minutes.
 Don't: change the face to fit a fact without fixing the table.
 Size: about 60 lines of production code, 150 of tests.
@@ -128,7 +128,7 @@ Test shape: host: `src/tests/restart.rs`:
   `a_fourth_panic_in_a_minute_says_the_application_failed`,
   `a_panic_past_the_minute_reloads_again`; story `a_panic_reloads_then_says_it_failed`.
   Step tests under 20 ms; the story about 3 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the story passes;
+Proof: live, `scripts/check.sh` once: the story passes;
   and `grep -c 'set_onbeforeunload(None)'
   crates/skein-ui-web/src/restart/web.rs` prints 1, once. No story
   checks the cleared warning: the example's test address panics at
@@ -165,7 +165,7 @@ Shape: `stories::write_refused(setup, address, script, absent,
   reading its list gives too: `loaded` comes first (ui-web.md 14.2,
   skein `1ff0531`).
 Test shape: story `a_refused_write_makes_no_note`. About 3 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the story passes.
+Proof: live, `scripts/check.sh` once: the story passes.
   Bound: 15 minutes.
 Don't: read the server's memory or logs: the second person's page is
   the record.
@@ -196,7 +196,7 @@ Shape: `stories::typing_while_patched(setup, field, second, arrives,
 Test shape: stories `typing_in_the_title_survives_a_note_arriving`
   and `back_and_forward_move_between_the_list_and_a_note`. About 3 s
   each.
-Proof: live, `heavy --gate scripts/check.sh` once: the two stories
+Proof: live, `scripts/check.sh` once: the two stories
   pass. Bound: 15 minutes.
 Don't: pause by a fixed sleep: each person awaits what it sees.
 Size: about 120 lines.
@@ -227,6 +227,6 @@ None known.
 
 ## Done when
 
-`heavy --gate scripts/check.sh` passes once with `browser_facts` and
+`scripts/check.sh` passes once with `browser_facts` and
 `browser_stories` in its browser suite, and `rg -n 'pub fn' testing/skein-fake-person-browser/src/stories.rs`
 prints the four stories.

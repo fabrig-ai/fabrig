@@ -42,8 +42,7 @@ and people, durably and within the authority each task was given.
 - skein's foundation, which jig follows: `programming-model.md`,
   `testing-strategy.md` and `notes.md`.
 
-Before changing code, read [`AGENTS.md`](AGENTS.md). `main` moves only
-through agents' `land`, which runs the gate, `scripts/check.sh`.
+Before changing code, read [`AGENTS.md`](AGENTS.md).
 
 ## The family
 

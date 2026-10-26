@@ -22,7 +22,7 @@ jig's view on skein-ui (jig's `client/domain/view.md`, 2), at skein's
 
 ## Rules that bind it
 
-- **jig moves skein only** (decisions.md, 4): `heavy cargo update -p
+- **jig moves skein only** (decisions.md, 4): `cargo update -p
   skein-lib`, never smith; a `cargo check` failing inside a smith crate
   stops the increment with a question.
 - **A repin's size:** at most 200 lines besides `Cargo.lock` (`git diff
@@ -43,7 +43,7 @@ Scope: development.md 5.7.
 Needs: every skein increment of this plan on skein's `origin/main`;
   jig 04.3.
 Files: `Cargo.lock` (the repin commit, alone, first); then each file
-  `heavy cargo check --workspace --all-targets` names. Expected, from
+  `cargo check --workspace --all-targets` names. Expected, from
   the searches at the base:
   - each literal of skein-ui's `Limits` in jig, given `scene_marks` and
     `scene_bytes` from jig's own constructors (`rg -n 'markdown_depth'
@@ -65,8 +65,8 @@ Files: `Cargo.lock` (the repin commit, alone, first); then each file
 Shape: no change of code but these repairs.
 Test shape: none new; tests adapted as above, each named in the commit
   body with the skein commit whose rule it follows.
-Proof: the gate: `heavy --gate scripts/check.sh` in the increment's
-  committed worktree, once, through `land`. Bound: 15 minutes.
+Proof: the gate: `scripts/check.sh` in the increment's
+  committed worktree, once. Bound: 15 minutes.
 Don't: move smith; add an arm with `_ =>` over skein-ui's enums.
 Size: at most 200 lines besides `Cargo.lock`, by the command above.
 Removes: nothing.
@@ -84,7 +84,7 @@ Removes: nothing.
   page ends signed out, while the referee's sign-in receipt armed the
   Online deadline (`tests/client/src/harness/referee.rs:194`). The
   repin brings skein-fake-person's new draws (`83a0cec`, `561d1ae`).
-  Reproduce it with that seed, at most 3 runs through `heavy`, find
+  Reproduce it with that seed, at most 3 runs find
   which side is wrong (jig's client losing a sign-in pressed while its
   sign-out is in flight, or the referee arming Online for a sign-in the
   page then lost), and raise it as a question with the trace. Do not

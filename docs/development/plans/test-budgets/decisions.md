@@ -27,7 +27,7 @@ the file.
 3. **Measured on carbon-forge,** the slowest machine (the user,
    2026-10-13, jig's `jig-protocol/decisions.md`, "For the user": "15 s
    focused and 60 s fuzzy hold on carbon-forge"). Every time in this plan
-   is carbon-forge's, through `heavy`, unoptimized as the gate builds.
+   is carbon-forge's, unoptimized as the gate builds.
 4. **Algorithms first** (the user, 2026-10-13: "exploring how to make
    test runs more efficient (e.g. detecting+converting O(N) code to O(1)
    and things like that)"). The planner's audit (`findings/cost-*.md`)
@@ -54,9 +54,9 @@ the file.
    process costs about half. Measured on this plan's base, paired in the
    gate lane: 992 of jig's unit tests in 1.117 s and 0.951 s with it,
    0.493 s and 0.501 s without (`findings/measurements.md`, 3). Each
-   repository's `scripts/check.sh` and skein's `heavy` set
+   repository's `scripts/check.sh` set
    `NEXTEST_DOUBLE_SPAWN=0`; until skein 02.1 lands, each Proof's
-   measuring command sets it in front of `heavy` (README, "Rules"), so
+   measuring command sets it for the command (README, "Rules"), so
    every increment is measured as the gate will run it.
 7. **The read of what has arrived** (the user, 2026-10-13: option (a)
    of "A raw reader over io takes a byte per iteration", jig's
@@ -84,14 +84,14 @@ the file.
    code still runs `smoke-tools` once. Listed for the user's veto.
 10. **smith's gate here** (jig's `jig-protocol/decisions.md`, ruling 121):
     smith lands on carbon-forge without the focused suite's timeout, with
-    `land --gate 'cargo fmt --all --check && cargo clippy --workspace
+    `bash -c 'cargo fmt --all --check && cargo clippy --workspace
     --all-targets -- -D warnings && NEXTEST_DOUBLE_SPAWN=0 cargo nextest
     run --workspace --profile measure && NEXTEST_DOUBLE_SPAWN=0 cargo
     nextest run --workspace --profile fuzzy'`, until smith 04.1 restores
     its timeout; from then smith lands here with `scripts/check.sh`.
 11. **smith's reliability plan lands in smith and skein meanwhile,** from
     debian-16gb-hel1-1. This plan's smith sessions rebase on it through
-    `land`; neither waits for the other. Its sessions add tests to the
+    merging; neither waits for the other. Its sessions add tests to the
     suite this plan makes cheaper, measured on a machine about 1.7 to 2
     times faster (smith's focused suite: 9.2 to 9.8 s in that machine's
     gates; here 16.5 s in the `measure` profile on smith `6449a197`, 21.0
@@ -119,7 +119,7 @@ the file.
      generator's change fails three drift tests unless all four regenerate.
      They regenerate, once, with the drift test's own variable
      (`SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codec-tests --test
-     drift`, through `heavy`); nothing in them is edited by hand, and the
+     drift`); nothing in them is edited by hand, and the
      golden `.bin` files stay unchanged. 02.2's Files now names the four
      families. Generated code counts toward neither the Size nor the
      20-line allowance outside Files (development.md, 8.2).
@@ -152,7 +152,7 @@ the file.
      `later.md`. No kit mechanism is added.
 104. **A landed report's worktree may hold the next increment**
      (process, skein 02's block of 2026-10-13T23:54:49Z). After skein
-     `c57966cd2` (skein-02.2) landed, its implementer went on to 02.3 on
+     `c57966cd2` (skein-02.2) landed, its author went on to 02.3 on
      `test-budgets/skein-02-3`, as development.md, 8.6 says ("After a
      landing, send the report and go on"), and the coordinator's
      `git status --porcelain` (7.3) printed 02.3's fourteen files.

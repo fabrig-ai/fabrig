@@ -158,7 +158,7 @@ Test shape: no new test: the domain's, the view's and the worlds' tests
   `an_application_page_shows_no_task_after_a_task_page` (go to a task,
   then `Place::Elsewhere`: `shown_task()` is `None`, where the address
   still names the task). Under 20 ms.
-Proof: joint, `heavy cargo nextest run -p jig-client-world -p
+Proof: joint, `cargo nextest run -p jig-client-world -p
   jig-ops-world` once: the client's world (the real domain and view, the
   scripted engine), the joint world (the engine's real domain) and
   `ops`'s client world pass unchanged, every page opening and showing
@@ -287,5 +287,5 @@ sections to the same list.
 
 - `git grep -n 'domain.address' origin/main -- crates/jig-domain-client/src/pages/task.rs crates/jig-domain-client/src/pages/project.rs crates/jig-domain-client/src/pages/deployment.rs`
   prints nothing.
-- `heavy cargo nextest run -p jig-domain-client -E 'test(/no_two_(windows|reads)_of_a_page_share/)'`
+- `cargo nextest run -p jig-domain-client -E 'test(/no_two_(windows|reads)_of_a_page_share/)'`
   passes on `main`, once.

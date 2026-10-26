@@ -819,8 +819,7 @@ tested in skein, and in a browser on skein's UI example (skein's
   skein's (section 18).
 - **The browser tier:** a suite of its own, `--profile browser`, run by
   `scripts/browser.sh` after it builds jig's test application's bundle
-  with skein's bundler, a slow tier outside jig's gate (agents'
-  `docs/design/landing-flow.md`, 4), within its budget (a rule: its
+  with skein's bundler, a slow tier outside jig's gate, within its budget (a rule: its
   profile's global timeout, `../../development/workflow.md`, section 2).
   Each test starts one server (the application's binary; for jig, the
   reference `jig-test`, serving its bundle and the mapping at `/jig`)

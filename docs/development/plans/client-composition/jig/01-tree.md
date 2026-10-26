@@ -101,7 +101,7 @@ Test shape: in `testing/jig-test-view/src/tests.rs`, one test,
   reference is `Owner::Application { number: 9 }` (no connector of the
   test application has 9) is filled with the test view's unshowable
   words. Every other test changes only its owner's spelling.
-Proof: world, `heavy cargo nextest run -p jig-client-world -p jig-ops-world`
+Proof: world, `cargo nextest run -p jig-client-world -p jig-ops-world`
   once: the client's and `ops`'s worlds pass, every slot of theirs still
   filled by its owner (their stories and referee). About 2 minutes
   with the build (an estimate, not a bound).
@@ -308,5 +308,5 @@ None: the design settles each.
 
 - `git grep -n -E 'Owner::(Side|Other)\b' origin/main -- '*.rs'` prints
   nothing.
-- `heavy cargo nextest run -p jig-view -p jig-fake-person -p jig-test-view`
+- `cargo nextest run -p jig-view -p jig-fake-person -p jig-test-view`
   passes on `main`, once.

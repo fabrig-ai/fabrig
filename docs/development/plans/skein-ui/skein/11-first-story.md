@@ -104,7 +104,7 @@ Test shape: `src/tests.rs`, the kit's events scripted as literals:
   `a_press_becomes_the_kits_press_at_the_centre`,
   `an_input_into_a_field_holding_words_fails_naming_it`. Each under
   20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-fake-person-browser`
+Proof: unit, `cargo nextest run -p skein-fake-person-browser`
   once; 11.4's story runs it against Chromium.
 Don't: send script to the page (browser.md, 4).
 Size: about 300 lines.
@@ -142,7 +142,7 @@ Test shape: `tests/ui-web/tests/browser_harness.rs`:
   its glue a literal module that throws at `init`: the outcome names
   the exception); `the_harness_reads_the_listening_line`. About 1 s
   each. Step test in `src/tests.rs`: `the_listening_line_gives_the_address`.
-Proof: live (a local Chromium and the real server): `heavy sh -c 'cargo
+Proof: live (a local Chromium and the real server): `sh -c 'cargo
   build -p skein-ui-example-server && cargo nextest run -p
   skein-ui-web-tests --profile browser'` once. Bound: 2 minutes.
 Don't: copy the `Rig` into the harness whole: take what the harness
@@ -188,7 +188,7 @@ Test shape: `crates/skein-ui-web/src/tests/fetch.rs`:
   `MacIntel`, `iPhone`, `iPad` give `Meta`; `Linux x86_64`, `Win32`,
   the empty text and `None` give `Control`). Each under 20 ms. The
   shell has no host test: it is built for wasm32 only.
-Proof: the wasm32 build with the lints: `heavy cargo clippy -p
+Proof: the wasm32 build with the lints: `cargo clippy -p
   skein-ui-example-shell-web -p skein-ui-web --target
   wasm32-unknown-unknown -- -D warnings` once; 11.4 runs it.
 Don't: write `unsafe`; inline a script or a style.
@@ -230,7 +230,7 @@ Test shape: `browser_example.rs`: `a_person_opens_the_example_and_sees_its_headi
   }
   ```
   About 2 s.
-Proof: live, the gate: `heavy --gate scripts/check.sh` in the
+Proof: live, the gate: `scripts/check.sh` in the
   increment's committed worktree, once: the wasm32 builds, the bundle
   and the browser suite with the story pass. Bound: 15 minutes.
 Don't: skip the story without a bundle; build the gate's module with
@@ -285,6 +285,6 @@ None known.
 
 ## Done when
 
-`heavy --gate scripts/check.sh` passes in a worktree of skein at
+`scripts/check.sh` passes in a worktree of skein at
 `origin/main` once, and `git grep -n 'wasm32-unknown-unknown\|profile
 browser' origin/main -- scripts/check.sh` prints both.

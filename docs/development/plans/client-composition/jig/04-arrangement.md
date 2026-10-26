@@ -204,5 +204,5 @@ None.
 
 ## Done when
 
-- `heavy cargo nextest run -p jig-domain-client -E 'test(/arrange/)'`
+- `cargo nextest run -p jig-domain-client -E 'test(/arrange/)'`
   passes on `main`, once.

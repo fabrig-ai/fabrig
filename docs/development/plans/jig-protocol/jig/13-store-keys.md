@@ -137,8 +137,8 @@ Test shape:
 - `tests/boundary`: the crate is checked by the protocol rule jig 01 wrote;
   no new test name.
 - Ceiling: unit 20 ms.
-Proof: unit. `heavy cargo nextest run -p jig-domain-core
-restore_admission` and `heavy cargo nextest run -p jig-boundary` once: a
+Proof: unit. `cargo nextest run -p jig-domain-core
+restore_admission` and `cargo nextest run -p jig-boundary` once: a
 record's key comes from the domain, and the new crate links no smith or
 application crate. No higher layer reads the boundary yet (jig 15 does).
 Bound: 1 minute.
@@ -202,7 +202,7 @@ Test shape:
   `own_keys_sort_as_bytes_as_they_derive`, `a_key_with_bytes_left_over_does_not_decode`,
   `a_key_past_its_limit_is_none`, `an_application_key_carries_tag_two_and_strips_back`.
 - Ceiling: unit 20 ms each (2,000 pairs).
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store` once: on
+Proof: unit. `cargo nextest run -p jig-protocol-store` once: on
 generated keys, bytes sort as the domain's keys do and decode back to them.
 Bound: 1 minute.
 Don't: use skein's generator for keys (store.md 4.1: "Written out, not
@@ -236,7 +236,7 @@ Test shape:
   `a_shorter_pattern_sorts_before_its_extension`. The reference test of
   13.2 now draws from every child.
 - Ceiling: unit 20 ms each.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store` once: on
+Proof: unit. `cargo nextest run -p jig-protocol-store` once: on
 generated keys of all four children, bytes sort as they derive and decode
 back. Bound: 1 minute.
 Don't: escape a pattern's segments differently from `KeyWriter::bytes`.
@@ -302,7 +302,7 @@ Test shape:
   `each_fixed_scope_holds_the_keys_it_admits_and_no_others` (parties 1 and 2,
   each scope this increment maps), `no_restart_interval_holds_a_turn_terminal_or_note`.
 - Ceiling: unit 20 ms each.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store intervals`
+Proof: unit. `cargo nextest run -p jig-protocol-store intervals`
 once: on 2,000 generated keys, each key a range admits lies in its
 intervals and no key in them is refused by it. Bound: 1 minute.
 Don't: map a scope whose keys need the owner's record; read the store.
@@ -331,7 +331,7 @@ Test shape:
   `the_census_holds_the_keys_it_admits_and_no_others`,
   `a_partys_updates_interval_holds_no_other_partys_rows`.
 - Ceiling: unit 20 ms each.
-Proof: unit. `heavy cargo nextest run -p jig-protocol-store intervals`
+Proof: unit. `cargo nextest run -p jig-protocol-store intervals`
 once: on generated keys, each indexed scope's and the census's intervals
 hold the keys the domain's predicates admit and no others. Bound: 1 minute.
 Don't: map needs groups (jig 12: never stored).
@@ -596,5 +596,5 @@ pub fn delegates(requester: u64) -> skein_kv::Range { todo!() }
   nothing.
 - `git -C ~/src/rust/jig grep -n -E 'smith|jig-ops|jig-test' --
   crates/jig-protocol-store/Cargo.toml` prints nothing.
-- `heavy cargo nextest run -p jig-protocol-store -p jig-boundary` passes
+- `cargo nextest run -p jig-protocol-store -p jig-boundary` passes
   once on `main` after 13.5.

@@ -32,7 +32,7 @@ last the budget's.
 - "**A test is a process.** nextest runs each test in a process of its
   own ... The gate, and every command the machine's queue runs, starts
   nextest without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`, set by each
-  repository's `scripts/check.sh` and by `heavy`)" (testing-strategy.md,
+  repository's `scripts/check.sh`)" (testing-strategy.md,
   8, as revised).
 - "A test is cheaper by its algorithm first: a fixture built once per
   test, not per case; a lookup by key, not a scan" (testing-strategy.md,
@@ -40,11 +40,9 @@ last the budget's.
 
 ## Choices this plan makes
 
-- **Double spawn off in two places:** each repository's
+- **Double spawn off in the gate:** each repository's
   `scripts/check.sh` exports `NEXTEST_DOUBLE_SPAWN=0` before its first
-  `cargo nextest`, so a gate run by hand costs what `land`'s does; and
-  skein's kit, `scripts/dev/heavy`, exports it for every command it
-  queues, so a measurement through the queue costs what the gate's does.
+  `cargo nextest`, so a gate run by hand costs what the merge's does.
   smith's and jig's `check.sh` are their sessions' (smith 02.1, jig
   01.1). cargo's `[env]` does not reach `cargo nextest`
   (`findings/cost-jig-units.md`, 1).
@@ -83,26 +81,21 @@ last the budget's.
   (testing-strategy.md, 8, "A tool is not the code under test")"
   (code-organization.md, section 4).
 - "**smith's reliability plan lands in smith and skein from
-  debian-16gb-hel1-1** ... `land` rebases each landing on its landings"
+  debian-16gb-hel1-1** ... Changes are rebased before merging"
   (README, "Rules"): its machine uses the same kit, `scripts/dev/`.
 
 ## Increments
 
-### 02.1 nextest without its double spawn, in skein's gate and the queue
+### 02.1 nextest without its double spawn, in skein's gate
 Scope: testing-strategy.md, 8 ("The gate runs nextest without its double
   spawn").
 Needs: nothing.
-Files: `scripts/check.sh`; `scripts/dev/heavy` (the environment of the
-  command it queues).
+Files: `scripts/check.sh`.
 Shape: `export NEXTEST_DOUBLE_SPAWN=0` in `scripts/check.sh`, before its
-  first `cargo nextest`, with a comment naming testing-strategy.md, 8;
-  `heavy` passes `NEXTEST_DOUBLE_SPAWN=0` in the queued command's
-  environment unless the caller set it.
-Test shape: none new; `heavy test-plan` (the kit's own tests, development.md,
-  3.6) passes.
-Proof: process, the focused time in `land`'s `Gate-Result`, against
-  11.405 s (skein `b5d3a2c`'s); nothing runs before `land` but `heavy
-  test-plan` once.
+  first `cargo nextest`, with a comment naming testing-strategy.md, 8.
+Test shape: none new.
+Proof: process, the focused time in the `Gate-Result`, against
+  11.405 s (skein `b5d3a2c`'s).
 Don't: change a profile's `global-timeout` here (02.5's); set it in
   `.config/nextest.toml` or `~/.cargo/config.toml`.
 Size: at most 10 lines.
@@ -142,7 +135,7 @@ Test shape: in `testing/skein-codegen/src/tests.rs`:
   ceiling, and equal at `CEILINGS` to the old functions' values, taken
   from a run on `main` before the change and written as literals).
   `tests/codec`'s golden `.bin` files are unchanged.
-Proof: unit, `heavy cargo nextest run -p skein-codegen -p
+Proof: unit, `cargo nextest run -p skein-codegen -p
   skein-codec-tests` once, every test passing, with the golden files
   unchanged (`git diff --stat origin/main -- tests/codec` names only
   generated `.rs` files and `tests/worst.rs`).
@@ -189,13 +182,13 @@ Shape:
     capacity 300 for `<[u64; 8], [u64; 8]>` only, up to 64 for the others.
 Test shape: the tests named, each keeping its assertions; no new test.
   Ceilings: each under 0.25 s alone.
-Proof: unit and world, `heavy --gate cargo nextest run -p
+Proof: unit and world, `cargo nextest run -p
   skein-http-world -p skein-llm-world -p skein-json-world -p
   skein-lib-tests -p skein-ring-tests -p skein-llm --profile measure -j 1
   -E 'binary(memory) | binary(selective) | binary(transcripts) |
   binary(ring) | binary(files) | test(/native_function_arguments/)'`
   once: each named test's time against `findings/cost-skein.md`'s
-  "before", in the report; then `heavy cargo nextest run -p
+  "before", in the report; then `cargo nextest run -p
   skein-http-world -p skein-json-world --profile fuzzy` once, passing
   (the transcripts are shared with the fuzzy suite).
 Don't: change a limit the code under test ships with, a reference
@@ -219,7 +212,7 @@ Test shape: `crates/skein-lib/src/tests/bytes.rs`:
   position of a 64-byte haystack of two symbols, `find_from` and `count`
   with caps 1, 2 and 64, against a naive reference in the test); the
   existing tests unchanged.
-Proof: unit, `heavy cargo nextest run -p skein-lib -E 'test(/bytes/)'`
+Proof: unit, `cargo nextest run -p skein-lib -E 'test(/bytes/)'`
   once, passing; smith's gain arrives with its repin (the audit
   estimates about 2.4 s of smith's summed time,
   `findings/cost-smith.md`, 4, finding 7).
@@ -237,8 +230,7 @@ Files: `.config/nextest.toml` (the default profile's `global-timeout`,
   and its header comment, "within 30 seconds").
 Shape: `global-timeout = "15s"`, the header back to "within 15 seconds".
 Test shape: none.
-Proof: process, on the branch, rebased on `origin/main`: `heavy --gate
-  cargo nextest run --workspace` three times, one after another; the
+Proof: process, on the branch, rebased on `origin/main`: `cargo nextest run --workspace` three times, one after another; the
   three `Summary` times in the report, and their median in the commit
   body as a line `Median: <seconds> s`, at most 12.0. Past 12.0 s, it
   lands nothing and reports the three times, the twenty slowest tests of
@@ -253,7 +245,7 @@ Removes: the doubled timeout.
 - `grep -n 'global-timeout = "15s"' ~/src/rust/skein/.config/nextest.toml`
   prints the default profile's line.
 - `grep -n NEXTEST_DOUBLE_SPAWN ~/src/rust/skein/scripts/check.sh
-  ~/src/rust/skein/scripts/dev/heavy` prints a line in each.
+  ` prints a line in each.
 - `git -C ~/src/rust/skein log -1 --grep='^Step: skein-02.5$'
   --format='%(trailers:key=Gate-Result,valueonly)' origin/main` names
   `scripts/check.sh passed`.

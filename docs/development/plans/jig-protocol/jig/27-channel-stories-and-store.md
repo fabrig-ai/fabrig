@@ -109,7 +109,7 @@ Shape: the answer's validated refused names reach the tasks child in the
 same decision as its terminal activation, as a turn's do, so they are
 committed with the answer. The tasks child takes them by one bounded
 field on the terminal activation, or one refusal input admitted in the
-same decision before the terminal, the implementer's choice, kept by the
+same decision before the terminal, the author's choice, kept by the
 existing `inbox::keep_refusals` (ruling 266).
 Test shape: a row in the core's routing tests: an answer with a refused
 name commits the refusal with its terminal; 27.1's
@@ -179,8 +179,7 @@ fn an_answer_acknowledged_twice_is_caught() {
 }
 ```
 
-Proof: joint, `heavy cargo nextest run -p jig-channel-world` and `heavy
-cargo nextest run -p jig-channel-world --profile fuzzy`, each run once:
+Proof: joint, `cargo nextest run -p jig-channel-world` and `cargo nextest run -p jig-channel-world --profile fuzzy`, each run once:
 each focused story keeps the referee's rules, the referee catches its
 two planted breaches, and drawn worlds keep its rules; under 4.5 s
 together.
@@ -245,7 +244,7 @@ World (`tests/channel.rs`):
 0.5 s.
 Proof: joint:
 `a_shutdown_mid_run_drains_with_nothing_waiting_for_a_commit`, run once
-with `heavy cargo nextest run -p jig-channel-world -E
+with `cargo nextest run -p jig-channel-world -E
 'test(a_shutdown_mid_run_drains_with_nothing_waiting_for_a_commit)'`,
 which shows a drained engine leaves no commit waiting and the worker's
 turn kept for after the restart; under 0.5 s.
@@ -280,7 +279,7 @@ Test shape: step tests: `a_store_refusal_at_open_ends_the_start`,
 `a_commit_reaches_the_store_and_its_answer_the_journal`. World:
 `a_restart_reads_back_only_what_was_durable`. Ceilings as above.
 Proof: joint: `a_restart_reads_back_only_what_was_durable`, run once
-with `heavy cargo nextest run -p jig-channel-world -E
+with `cargo nextest run -p jig-channel-world -E
 'test(a_restart_reads_back_only_what_was_durable)'`: an engine killed
 and restarted on the real store reads back the commits that were durable
 before the kill and none it held; under 0.5 s.
@@ -291,10 +290,10 @@ Removes: the store's port (`Engine::store_requests`,
 
 ## Done when
 
-- The service and the world pass: `heavy cargo nextest run -p
-  jig-test-service -p jig-channel-world` passes, and `heavy cargo nextest
+- The service and the world pass: `cargo nextest run -p
+  jig-test-service -p jig-channel-world` passes, and `cargo nextest
   run -p jig-channel-world --profile fuzzy` passes.
-- The world's cost, measured once after 27.1: `heavy --gate cargo nextest
+- The world's cost, measured once after 27.1: `cargo nextest
   run -p jig-channel-world --profile measure -j 1` and the same with
   `--ignore-default-filter -E 'binary(/^fuzzy_/)'`; the commit body of
   27.1 records both sums (aim: at most 0.8 s and 4 s).

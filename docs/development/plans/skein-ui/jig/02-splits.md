@@ -69,7 +69,7 @@ Shape: `ui/binding.rs`: `Binding { owner: ui::Owner, token: Token }`,
   `JigMeaning`, `Entry`, `JigBindings`, `decode`,
   `jig_bindings_worst_case`.
 Test shape: the moved tests; no new test.
-Proof: world. `heavy cargo nextest run -p jig-client-world -E
+Proof: world. `cargo nextest run -p jig-client-world -E
   'test(/acts|stories/)'` passes once: acts decode through the split
   bindings. Bound: 2 minutes.
 Don't: change `JigBindings`' API.
@@ -107,8 +107,8 @@ Shape: `ui::Limits` (fields as at the base) and `ui::worst_case(&Limits)
 Test shape: `crates/jig-view/src/tests/limits.rs` (new):
   `jig_worst_case_adds_the_page_scratch_to_skein_uis` with literal
   limits from `ui/tests/fixtures.rs`; the moved tests.
-Proof: world. `heavy cargo nextest run -p jig-client-world -E
-  'binary(memory)'` passes once (its two tests), and `heavy cargo
+Proof: world. `cargo nextest run -p jig-client-world -E
+  'binary(memory)'` passes once (its two tests), and `cargo
   nextest run --profile fuzzy -p jig-client-world -E
   'binary(fuzzy_memory)'` passes once: the client's world checks the
   most each part held against `jig_worst_case`. Bound: 2 minutes each.
@@ -143,7 +143,7 @@ Test shape: `ui/tests/outline.rs`, one test per rule, as rows of one
   table test `each_rule_names_its_first_fault`, each row a tree built
   with the fixture's builder and its expected `Fault` as a literal; and
   `a_page_with_form_search_and_a_dialog_is_whole`. Each under 20 ms.
-Proof: world. `heavy cargo nextest run -p jig-client-world -p
+Proof: world. `cargo nextest run -p jig-client-world -p
   jig-ops-world -E 'test(/referee|stories/)'` passes once: every page
   of jig's and `ops`'s worlds keeps skein-ui's outline. Bound: 3
   minutes.
@@ -176,7 +176,7 @@ Shape: `ui::phrases::{PhraseId, HoleKind, Hole, …, Phrasebook, Saying,
   today (`None` for a partial book), kept beside jig's tables.
 Test shape: the moved tests, the chip's renamed: the span test at
   `tests/phrases.rs:92` becomes the reference hole's, so no new test.
-Proof: world. `heavy cargo nextest run -p jig-client-world -E
+Proof: world. `cargo nextest run -p jig-client-world -E
   'test(/stories/)'` passes once: every page says its phrases through
   the split machinery. Bound: 2 minutes.
 Don't: change a phrase's text; move `phrases/jig.rs` or `english.rs`.

@@ -116,8 +116,7 @@ jig 02 take the result.
 - "**Shared hotspots with smith's reliability plan,** if it runs at the
   same time on another machine: skein's `crates/skein-io/src/kernel.rs`,
   `crates/skein-io/src/file*.rs` and `crates/skein-shell/` (its terminal
-  modes, skein 02.6 of that plan). `land` rebases each landing on the
-  other's; no session waits for it" (README, "Rules"). Here also
+  modes, skein 02.6 of that plan). Changes are rebased before merging" (README, "Rules"). Here also
   `records.rs`, `layer.rs` and `limits.rs`, where that plan adds io's
   `Window`.
 - "**A file:** at most 800 lines, generated code excepted. A file of at
@@ -214,7 +213,7 @@ Files:
     (`pub mod joined;`); `tests/io/src/referee.rs` (one `Expect`
     variant); new `tests/io/tests/joined.rs`.
   - Lines are findings/skein.md's, at skein `5c9eedd`; `917ea21` changed
-    Markdown only. `heavy cargo check --workspace --all-targets` lists any
+    Markdown only. `cargo check --workspace --all-targets` lists any
     site they miss.
   - Shared hotspots: `crates/skein-oauth-accounts/src/component.rs` and
     `component/sign_in.rs` (skein 02.4 and 02.5 edit them);
@@ -328,7 +327,7 @@ Test shape:
     `Outcome.logs`, never the simulator's trace, which is empty.
 Proof: world, `tests/io/tests/joined.rs`: `a_connect_to_an_unbound_name_is_refused`
   and `a_closing_listener_refuses_its_waiting_connectors`, run once with
-  `heavy cargo nextest run -p skein-io-world --test joined`: an owner
+  `cargo nextest run -p skein-io-world --test joined`: an owner
   hears `Refused` for a name nobody holds, and a connector waiting on a
   listener that closes is refused, with the simulator's trace empty.
   Under 1 s.
@@ -403,7 +402,7 @@ Test shape: step tests in `src/tests/joined.rs`:
   7 bytes, so each move is cut), `a_joined_reader_that_does_not_demand_stops_its_peer`,
   `an_abort_is_heard_as_reset_by_the_joined_peer`; each under 0.5 s.
 Proof: world, `bytes_go_both_ways_over_a_joined_pair_under_small_intakes`,
-  run once with `heavy cargo nextest run -p skein-io-world --test
+  run once with `cargo nextest run -p skein-io-world --test
   joined`: each owner receives what the other sent, in order, over a
   pair joined in one io, under intakes that cut each move, with the
   simulator's trace empty. Under 1 s.
@@ -444,7 +443,7 @@ Test shape: step tests in `src/tests/joined.rs`:
   `a_joined_close_the_peer_never_ends_meets_its_deadline`,
   `joined_closes_and_aborts_at_random_moments_settle`; each under 0.5 s.
 Proof: world, `a_response_in_the_middle_of_an_upload_reaches_the_joined_peer`,
-  run once with `heavy cargo nextest run -p skein-io-world --test
+  run once with `cargo nextest run -p skein-io-world --test
   joined`: the uploading peer reads the response and hears `End`, no
   `Reset`, after the other end closed gracefully mid-upload. Under 1 s.
 Don't: give a joined end a retry deadline; reach the simulator.
@@ -482,10 +481,10 @@ Test shape:
   - Ceilings: focused under 0.5 s each; the joined world's tests together at most
     about 1 s focused and 5 s fuzzy (development.md, 5.3).
 Proof: world, `the_same_owners_read_the_same_over_either_pair`, run once
-  with `heavy cargo nextest run -p skein-io-world --test joined`: owners
+  with `cargo nextest run -p skein-io-world --test joined`: owners
   running one set of plans read the same bytes, ends and failures over a
   loopback pair and over a joined pair. Under 1 s. The ring test runs in
-  `land`'s gate; nothing else is run for the proof.
+  the gate; nothing else is run for the proof.
 Don't: add a way to fault a joined pair (io.md, 10 leaves it open).
 Size: no production code; a bug the sweep finds is fixed here in at most
   100 lines of production code, or is a question.
@@ -620,11 +619,11 @@ io's ready list.
    crates/skein-io/src/kernel.rs` prints one line, and `git -C
    ~/src/rust/skein grep -n -E 'impl (From|FromStr)' origin/main --
    crates/skein-io/src` prints nothing.
-2. The joined worlds pass: `heavy cargo nextest run -p skein-io-world
-   --test joined --test ring --test memory` passes, and `heavy cargo
+2. The joined worlds pass: `cargo nextest run -p skein-io-world
+   --test joined --test ring --test memory` passes, and `cargo
    nextest run -p skein-io-world --profile fuzzy --test fuzzy_joined`
    passes.
-3. The four increments landed through `land`: `git -C ~/src/rust/skein
+3. The four increments landed: `git -C ~/src/rust/skein
    log --format='%(trailers:key=Step,valueonly)' origin/main` lists
    `skein-01.1` to `skein-01.4`, each commit's `Gate-Result` naming
    `scripts/check.sh passed`.

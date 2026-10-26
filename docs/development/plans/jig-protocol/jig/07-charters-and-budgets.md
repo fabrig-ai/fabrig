@@ -172,7 +172,7 @@ Test shape:
   `World::configured` (effects.rs:175) asserts that its setup's chat is
   assigned; the first story builds with `World::configured_unassigned`,
   the same setup without that assertion (at most 15 lines, beside it).
-Proof: world: `heavy cargo nextest run -p jig-core-world --test runs
+Proof: world: `cargo nextest run -p jig-core-world --test runs
 a_chat_whose_spend` shows a chat below the floor never assigned and held
 for its budget, and one at the floor assigned; once, under 2 s.
 Don't: link smith from the core; add a `Finding` variant; change any
@@ -274,7 +274,7 @@ Test shape:
   and the chat's delegation kinds, `accounts.accounts: 2`);
   `World::grant_account(account)` and `World::delegate_agent(charter,
   words)` (in `tests/core/src/effects.rs`, beside `delegate`, line 961).
-Proof: world: `heavy cargo nextest run -p jig-core-world --test charters`
+Proof: world: `cargo nextest run -p jig-core-world --test charters`
 shows a delegate on charter 2 assigned with charter 2's instructions and
 account while the chat runs on charter 1, and a task on charter 2
 restored after a restart; once, under 3 s.
@@ -309,7 +309,7 @@ Test shape: `tests/core/tests/charters.rs`, world, under 0.5 s each:
 `a_goal_naming_an_unoffered_charter_is_refused_not_offered`;
 `crates/jig-domain-core/src/tests/frame_facts.rs`, unit:
 `the_frame_offers_both_charters_for_goals`.
-Proof: world: `heavy cargo nextest run -p jig-core-world --test charters
+Proof: world: `cargo nextest run -p jig-core-world --test charters
 a_goal_` shows a person's goal on charter 2 admitted and run under it,
 and one on charter 9 refused *not offered*; once, under 2 s.
 Don't: offer a charter the role's delegation kinds exclude (the
@@ -345,7 +345,7 @@ Test shape: `tests/core/tests/charters.rs`, world, under 0.5 s each:
 `a_charter_for_workers_never_runs_in_the_engines_slots`,
 `a_charter_for_the_engine_never_runs_on_a_worker`,
 `a_restart_settles_an_engine_charters_claim_at_once`.
-Proof: world: `heavy cargo nextest run -p jig-core-world --test charters
+Proof: world: `cargo nextest run -p jig-core-world --test charters
 a_charter_for_` shows each charter placed only on its kind of host;
 once, under 2 s.
 Don't: let a root choose kinds; change ops's charter (its fixture's one
@@ -530,10 +530,10 @@ pub struct RunAsk {
   'settings\.(charter|run|account)\b|settings\.account_' -- crates
   testing tests examples ':!tests/fleet'` prints nothing (34 lines on
   2026-10-12; `tests/fleet` has a `Settings` of its own).
-- A run below its floor is held, one at it assigned: `heavy cargo
+- A run below its floor is held, one at it assigned: `cargo
   nextest run -p jig-core-world --test runs a_chat_whose_spend` passes.
 - A delegate, a goal and a restored task run under their own charter,
-  each charter only on its hosts: `heavy cargo nextest run -p
+  each charter only on its hosts: `cargo nextest run -p
   jig-core-world --test charters` passes.
 - The gate passed on this session's last landing: `git -C ~/src/rust/jig
   log --format='%(trailers:key=Gate-Result,valueonly)'

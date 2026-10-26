@@ -378,10 +378,10 @@ records change independently of the core's; and a revision on each task's
 record and claim changes the tasks family's schema. Until the first
 release, each family's version keeps its current number, and its schema,
 generated code and one set of golden bytes change in place. Versions
-move at a release, not when a milestone lands (skein's `codec.md`,
+move at a release, not when a change lands (skein's `codec.md`,
 section 5). The settings' first version defines every record of 17.7,
 charter versions
-and pending proposals' sets among them, whichever milestone first
+and pending proposals' sets among them, whichever change first
 writes them. As every family's: each record stored at the top is
 versioned; a bytes field that holds a record or pieces of one says so;
 the keys' root type is jig's own and explicit. A store of an earlier
@@ -1860,7 +1860,7 @@ section 2).
   transition) is the core's tests' (`../domain/engine.md`, 7.2), in its
   world, whose store closes the window by the walk itself: smith's
   fixture turn kept at one text, and a patch marked fresh that changes
-  no family. The QA of each milestone is an independent tester's from this
+  no family. The independent testing of each change is an independent tester's from this
   design, committed as `qa_*` tests the gate skips.
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
@@ -1993,7 +1993,7 @@ section 2).
     patched store;
   - schemas for the secrets' records, so that a patch can name them
     (section 9);
-  - keys a patch moves (10.3), left to a later mission: a line for them
+  - keys a patch moves (10.3), left to later work: a line for them
     in skein's patch text, and the key function's answer up and back;
   - the free space checked before the copy (10.2);
   - the layouts of skein's and smith's families recorded, so that

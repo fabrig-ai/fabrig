@@ -23,15 +23,9 @@ NEXTEST_DOUBLE_SPAWN=0 cargo nextest run --workspace
 NEXTEST_DOUBLE_SPAWN=0 cargo nextest run --workspace --profile fuzzy
 ```
 
-agents' `land` (agents' `roles/owners.md`, 4.4) does
-it all from a clean worktree on the branch: it rebases on `origin/main`,
-runs the gate through the machine's queue, records its result in the tip
-commit's trailers, and pushes the tip to `origin`'s `main`, which only
-fast-forwards. The local `main` follows.
-
 A branch that changes only Markdown files (the documents under `docs/`,
 `AGENTS.md`) skips the gate, since nothing it touches is built or tested,
-and lands with `land --docs`. Doc comments in `.rs` files are not
+and may be merged without those checks. Doc comments in `.rs` files are not
 documentation in this sense: they are code, and clippy checks them.
 
 ## 2. The three test suites
@@ -56,8 +50,7 @@ hold in jig.
 - **The browser suite** is Chromium against `jig-test`, run with `--profile
   browser`, within **120 seconds** (60 seconds before the user's doubling of
   10-22, provisional). Missing Chromium or a bundle fails and names its
-  setup command. It is a slow tier, outside the gate (agents'
-  `docs/design/landing-flow.md`, 4): `scripts/browser.sh` builds and
+  setup command. It is a slow tier, outside the gate: `scripts/browser.sh` builds and
   bundles the test application, then runs it, and takes nextest's
   arguments, so that one test runs alone (`scripts/browser.sh -E
   'test(=NAME)'`).
@@ -68,7 +61,7 @@ compression (a guide, `docs/design/protocol/browser.md`, 4.2: past it,
 what grew is reported). Reproduce its build and size with:
 
 ```sh
-heavy sh -c 'cargo build --target wasm32-unknown-unknown --profile web -p jig-client-test-shell-web && stat -c %s target/wasm32-unknown-unknown/web/jig_client_test_shell_web.wasm'
+sh -c 'cargo build --target wasm32-unknown-unknown --profile web -p jig-client-test-shell-web && stat -c %s target/wasm32-unknown-unknown/web/jig_client_test_shell_web.wasm'
 ```
 
 Tests cost what they check, with unoptimized test builds except for the

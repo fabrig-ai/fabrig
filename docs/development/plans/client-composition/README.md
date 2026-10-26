@@ -88,7 +88,7 @@ ones before it in its session. Dependencies are by capability.
   1 s, findings/measurements.md). A share passed is a guide missed:
   the landing stands, and the session's next increment, if it has one,
   makes its tests cheaper first (fixtures built once; `--profile
-  measure -j 1` once, through `heavy --gate`, to find the cost); after
+  measure -j 1` once, to find the cost); after
   a session's last increment, the report says so and the supervisor
   decides. Never: raising a `global-timeout`, a slow period or a
   per-test ceiling, or moving a focused test to the fuzzy suite
@@ -146,7 +146,7 @@ budgets: 15 60
    `git -C ~/src/rust/jig grep -n 'pub fn section(' origin/main --
    crates/jig-view/src/sections.rs` prints one line.
 5. client.md 17's two new stories and the text shell's pass, once, on
-   `main`, in a worktree at `origin/main`: `heavy cargo nextest run -p
+   `main`, in a worktree at `origin/main`: `cargo nextest run -p
    jig-client-world -p jig-ops-world -p jig-client-protocol-world -p
    jig-shell-text -E 'test(arranged) | test(a_family_page_shows_its_tasks_plan)
    | test(/at_the_text_shell|terminal|p_accepts/) | binary(text_pages) |
@@ -155,12 +155,11 @@ budgets: 15 60
    --grep='^Plan: client-composition$' --format=%s` lists one or more
    commits for each session, jig 01 to 10.
 7. The aim, about 12 s for the focused suite on carbon-forge (decisions.md,
-   8): in a worktree at `origin/main`, `NEXTEST_DOUBLE_SPAWN=0 heavy
-   --gate -- sh -c 'for i in 1 2 3; do cargo nextest run --workspace
+   8): in a worktree at `origin/main`, `NEXTEST_DOUBLE_SPAWN=0 sh -c 'for i in 1 2 3; do cargo nextest run --workspace
    2>&1 | grep Summary; done'`, once: the median of the three `Summary`
    times. An aim: past 12.0 s the supervisor records the median, and
    the three slowest tests by name from one run of
-   `NEXTEST_DOUBLE_SPAWN=0 heavy --gate cargo nextest run --workspace
+   `NEXTEST_DOUBLE_SPAWN=0 cargo nextest run --workspace
    --profile measure -j 1` in the same worktree, in decisions.md's
    rulings, for the user; the run is done either way.
 8. No budget was raised: `git -C ~/src/rust/jig diff 2ae75cac2

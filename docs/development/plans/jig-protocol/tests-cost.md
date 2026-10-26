@@ -19,7 +19,7 @@ goes.
 Test shape: the boundary's tests keep their rules and failure text; a
 fixture test plants a forbidden word in a schema and in a source past
 a part's byte split, each reported with its path.
-Proof: `heavy cargo nextest run -p jig-boundary` once: every part under
+Proof: `cargo nextest run -p jig-boundary` once: every part under
 0.3 s, the vocabulary tests under 2 s together.
 Don't: drop a word or a rule; read a file twice in one test; change
 `forbidden_words`.
@@ -71,7 +71,7 @@ dimension still refused one under; `family_terminals.rs:88-92` builds
 its words and limits once, outside the loop.
 Test shape: the existing tests, unchanged in name and expectation; one
 unit test that a built text node holds room for one run.
-Proof: `heavy cargo nextest run -p jig-view -p jig-test-view` once: the
+Proof: `cargo nextest run -p jig-view -p jig-test-view` once: the
 slowest under 0.15 s.
 Don't: change a phrase, a limit's value or a worst case's result.
 
@@ -122,7 +122,7 @@ Shape: the generated golden and bound table tests use only what the
   bounds, the linear generator.
 Test shape: skein's gate's clippy checks one generated family under the
   root `clippy.toml`; a planted failing case is named in its failure.
-Proof: skein's gate; then, once, `heavy cargo clippy -p
+Proof: skein's gate; then, once, `cargo clippy -p
   jig-protocol-store --all-targets -- -D warnings` on jig's regenerated
   families and the same on smith's three, both exiting 0.
 Don't: add an allowance; change an encoding, a golden value or a public
@@ -144,7 +144,7 @@ Test shape: a generated `new` and `decode` given limits past a ceiling
 Proof: skein's gate; then, once, smith's
   `smith_check_json_lists_the_effective_limits_by_name` near its 1,010 ms
   on smith's `main`, within its 2,000 ms bound, with smith's families
-  regenerated (`heavy --gate cargo nextest run -p smith --profile measure
+  regenerated (`cargo nextest run -p smith --profile measure
   -E 'test(smith_check_json_lists_the_effective_limits_by_name)'` in a
   worktree under `wt/`).
 Don't: change an encoding, a golden value, or the `min` clamp.
@@ -182,7 +182,7 @@ unoptimized test builds" names the exception (testing-strategy.md, 8, "A
 tool is not the code under test").
 Test shape: none new; the boundary's and the drift tests' names and
 failures unchanged.
-Proof: `heavy cargo nextest run -p jig-boundary -p jig-store-codecs-world
+Proof: `cargo nextest run -p jig-boundary -p jig-store-codecs-world
 -p jig-client-wire-world` once: each vocabulary part under 0.1 s, each
 drift test under 0.3 s; the next gate's focused time in its `Gate-Result`.
 Expected: about 8 s of the gate's 97 s of test time (the boundary's

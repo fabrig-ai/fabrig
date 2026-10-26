@@ -169,7 +169,7 @@ fn a_call_key_reads_completion_and_position() {
 }
 ```
 
-Proof: unit: `heavy cargo nextest run -p jig-protocol-charter` shows names
+Proof: unit: `cargo nextest run -p jig-protocol-charter` shows names
 and results smith's encoders made read back, and malformed ones
 refused; this layer because no root hands a key or a result out
 before 10.3; once, under 1 s.
@@ -229,7 +229,7 @@ fn a_call_missing_a_required_field_names_it() {
 }
 ```
 
-Proof: unit: `heavy cargo nextest run -p jig-protocol-tools` shows each
+Proof: unit: `cargo nextest run -p jig-protocol-tools` shows each
 core tool's call decoded, each problem named, each part rendered; this
 layer because the worlds route through it from 10.3; once, under 1 s.
 Don't: link smith; depend on `jig-protocol-charter` (the routing maps a
@@ -299,7 +299,7 @@ fn a_call_whose_input_does_not_decode_is_answered_an_error_and_commits_nothing()
 (the expected words are `jig_protocol_tools::problem`'s rendering of
 `Problem { field: b"target", why: Why::Missing }` for the tool `message`:
 10.2 fixes its wording, and this literal follows it.)
-Proof: world: `heavy cargo nextest run -p jig-core-world --test host_tools`
+Proof: world: `cargo nextest run -p jig-core-world --test host_tools`
 shows a run's `message` and `delegate` calls decoded outside the root,
 decided, and answered in rendered words, and an undecodable input
 answered an error with no commit; once, under 3 s.
@@ -370,7 +370,7 @@ each: `an_ops_call_that_does_not_decode_is_answered_naming_the_field`,
 `examples/ops/domain/src/tests.rs`: `a_tool_mutation_and_its_rendered_reply_share_one_commit`
 becomes `a_tool_mutation_and_its_reply_part_share_one_commit` (the part,
 not the rendered bytes, is the root's).
-Proof: world: `heavy cargo nextest run -p jig-ops-world --test stories
+Proof: world: `cargo nextest run -p jig-ops-world --test stories
 the_alert_storm` shows the storm's reads, delegation, proposal and
 decision decoded and rendered outside `ops`'s root; once, under 5 s.
 Don't: let `ops`'s root call a decoder or a renderer of a call;
@@ -414,7 +414,7 @@ Test shape: `crates/jig-domain-core/src/tests.rs`, unit, under 20 ms:
 `tests/ops/tests/stories.rs`, world, under 0.5 s each:
 `a_run_whose_result_does_not_decode_fails_its_attempt_as_invalid`,
 `a_stale_attempts_answer_is_fenced_before_its_result_is_read`.
-Proof: world: `heavy cargo nextest run -p jig-ops-world --test stories
+Proof: world: `cargo nextest run -p jig-ops-world --test stories
 a_run_whose_result_does_not_decode` shows a scripted agent's malformed
 result read outside the root and its attempt failed as invalid; once,
 under 1 s.
@@ -579,12 +579,12 @@ pub fn result(bytes: &[u8]) -> Result<RunResult, Unreadable> {
   examples/ops/domain testing/jig-test-domain
   ':!examples/ops/domain/src/tests.rs'` prints nothing (3 lines on
   2026-10-12).
-- `jig-protocol-tools` links no smith: `heavy cargo nextest run -p
+- `jig-protocol-tools` links no smith: `cargo nextest run -p
   jig-boundary` passes.
-- The readers and the tools pass alone: `heavy cargo nextest run -p
+- The readers and the tools pass alone: `cargo nextest run -p
   jig-protocol-charter -p jig-protocol-tools` passes.
-- Calls decode outside the roots: `heavy cargo nextest run -p
-  jig-core-world --test host_tools` and `heavy cargo nextest run -p
+- Calls decode outside the roots: `cargo nextest run -p
+  jig-core-world --test host_tools` and `cargo nextest run -p
   jig-ops-world --test stories` pass.
 - The gate passed on this session's last landing: `git -C ~/src/rust/jig
   log --format='%(trailers:key=Gate-Result,valueonly)'

@@ -181,7 +181,7 @@ fn a_person_s_chat_is_answered_by_the_in_process_worker() {
 
 Ceilings: the step test under 20 ms; the story under 0.5 s.
 Proof: joint: `a_person_s_chat_is_answered_by_the_in_process_worker`,
-run once with `heavy cargo nextest run -p jig-one-process-world -E
+run once with `cargo nextest run -p jig-one-process-world -E
 'test(a_person_s_chat_is_answered_by_the_in_process_worker)'`, which
 shows the engine and worker meet over an in-process name and a native
 client over loopback, under 0.5 s; the process layer is 26.5.
@@ -211,7 +211,7 @@ Test shape: step: `the_worker_goes_on_while_the_engine_drains`,
 `the_service_ends_once_io_holds_nothing`. World:
 `a_signal_mid_run_drains_then_ends_the_worker_with_nothing_waiting`,
 `the_next_start_settles_the_worker_s_claims_at_once`. Ceilings as 26.1.
-Proof: joint, `heavy cargo nextest run -p jig-one-process-world -E
+Proof: joint, `cargo nextest run -p jig-one-process-world -E
 'test(a_signal_mid_run_drains_then_ends_the_worker_with_nothing_waiting)
 | test(the_next_start_settles_the_worker_s_claims_at_once)'`, run once:
 a signal mid-run drains the engine, then ends the worker with nothing
@@ -242,7 +242,7 @@ Test shape: focused: `a_kill_before_a_commit_loses_nothing_a_person_saw`,
 `a_power_loss_mid_run_restarts_and_adopts_nothing_from_the_dead_worker`.
 Fuzzy: `drawn_kills_and_drains_keep_the_conformance_rules`, seeds sized
 to about 2.5 s. Ceilings: focused under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-one-process-world
+Proof: joint, `cargo nextest run -p jig-one-process-world
 --profile fuzzy`, run once: kills and drains at drawn moments keep the
 conformance referee's rules over what crossed bytes and the durable
 rows; under 3 s.
@@ -277,7 +277,7 @@ Test shape: unit tests in `src/tests.rs`:
 `serve_without_a_configuration_path_is_a_usage_error`,
 `a_configuration_file_past_its_bound_is_refused`,
 `a_secret_file_readable_by_others_refuses_the_start`. Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-test --lib`, run once: a
+Proof: unit, `cargo nextest run -p jig-test --lib`, run once: a
 start without a configuration path, with a configuration file past its
 bound, or with a secret file others may read is refused (the three tests
 above); under 0.1 s. The process layer is 26.5, next.
@@ -308,7 +308,7 @@ Shape: on a deployment's first start (`configuration.md`, 8: the store
 Test shape: `a_first_start_opens_each_seeded_projects_period` (a chat
   requested first is funded); `a_later_start_says_no_period` (the
   store's period stands, no `Event::Period` said). Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-test-service` once.
+Proof: unit, `cargo nextest run -p jig-test-service` once.
 Don't: keep a calendar or arm a deadline (later.md); say a period at a
   later start; take a budget past the policy's `period_spend`.
 Size: at most 80 lines of production code.
@@ -343,7 +343,7 @@ Shape: `tests/support/mod.rs`: `scratch()`, `configuration(..)`,
 `agent_configuration(..)`, `start(..) -> Binary`, `printed_link(..)`.
 Test shape: one test, `a_killed_jig_test_restarts_and_the_work_is_found`,
 under 60 s.
-Proof: process: `heavy --gate scripts/proof-one-process.sh`, run once,
+Proof: process: `scripts/proof-one-process.sh`, run once,
 its output kept in `<run>/logs/jig-26/proof-one-process.log`; it shows a
 native client's chat answered by smith's real agent process through the
 real binary, and the work found after a kill; bound 2 minutes. Nothing
@@ -437,10 +437,9 @@ pub struct Host { /* jig_test_service::Service, standard output */ }
 
 ## Done when
 
-- The world passes: `heavy cargo nextest run -p jig-one-process-world -p
+- The world passes: `cargo nextest run -p jig-one-process-world -p
   jig-test-service -p jig-test` passes.
-- The process proof passes once: `heavy --gate
-  scripts/proof-one-process.sh` exits 0; its log is in
+- The process proof passes once: `scripts/proof-one-process.sh` exits 0; its log is in
   `<run>/logs/jig-26/`.
 - The live proof ran once within its budget: `ls
   ~/src/rust/tmp/jig/jig-protocol/logs/jig-26/proof-live.log` lists the
@@ -449,7 +448,7 @@ pub struct Host { /* jig_test_service::Service, standard output */ }
   the completions spent (at most 5) and the wall time (at most 5
   minutes).
 - Neither proof is in the suites: `cargo nextest list --workspace` names
-  no test of the binaries `process` or `live` (run through `heavy`).
+  no test of the binaries `process` or `live` (run).
 - Nothing wrote to the user's login: `git status` is clean outside the
   session's files, and `scripts/proof-live.sh` contains no write to a
   path under `~/.codex` (`grep -n codex scripts/proof-live.sh` shows

@@ -184,7 +184,7 @@ Test shape:
   `Activity` row but those an `Update` names.
 - Ceilings: unit 20 ms, world 0.5 s.
 Proof: world. `cargo nextest run -p jig-core-world --test reads` once,
-through `heavy`: a person's updates page from the store newest first,
+: a person's updates page from the store newest first,
 across a restart, with the transport reading only the party's `Update`
 rows and what they name. Bound: 1 minute.
 Don't: index a need; change `Position::Inbox` for the needs groups; erase
@@ -227,7 +227,7 @@ Test shape:
 - Ceilings: unit 20 ms, world 0.5 s.
 Proof: world. `cargo nextest run -p jig-core-world --test reads` and
 `cargo nextest run -p jig-domain-core conversation_cursor` once, through
-`heavy`: a person pages their conversations forward and back from the
+: a person pages their conversations forward and back from the
 store across a restart. Bound: 1 minute.
 Don't: write a conversation row for a task that is not a chat (as
 `chat_requester` says).
@@ -281,7 +281,7 @@ Test shape:
 - Ceilings: unit 20 ms, world 0.5 s.
 Proof: world. `cargo nextest run -p jig-core-world --test restart --test
 reads` and `cargo nextest run -p jig-conformance-world` once, through
-`heavy`: after a restart, a person's inbox shows the same unread results
+: after a restart, a person's inbox shows the same unread results
 and chat counts while the census reads only the ended tasks it names.
 Bound: 2 minutes.
 Don't: keep `inbox_restore_key`; read `Live` rows twice at restart.
@@ -326,7 +326,7 @@ Test shape:
   `a_newer_goal_sorts_first_within_its_project`.
 - Ceilings: unit 20 ms, world 0.5 s.
 Proof: world. `cargo nextest run -p jig-tasks-world --test lifecycle` and
-`cargo nextest run -p jig-core-world --test reads` once, through `heavy`: a
+`cargo nextest run -p jig-core-world --test reads` once: a
 project's ended goals page newest first, each with its subtree's counts,
 and the transport joins nothing below them. Bound: 1 minute.
 Don't: join a subtree for a goals row.
@@ -366,7 +366,7 @@ Test shape:
   `a_subtree_history_reads_each_delegates_rows_found_by_index`.
 - Ceilings: world 0.5 s.
 Proof: world. `cargo nextest run -p jig-tasks-world --test lifecycle` and
-`cargo nextest run -p jig-core-world --test reads` once, through `heavy`: a
+`cargo nextest run -p jig-core-world --test reads` once: a
 person reads a goal's ended delegates and its subtree's history from the
 store, found by index. Bound: 1 minute.
 Don't: write a `Delegate` row for a task made by a person or the
@@ -526,6 +526,6 @@ pub struct Census {
   crates tests testing examples` prints nothing.
 - `git -C ~/src/rust/jig grep -n -E 'ConversationNewest|EndedDelegate|Goal \{
   project' -- crates/jig-domain-tasks/src/boundary.rs` prints the keys.
-- `heavy cargo nextest run -p jig-domain-tasks -p jig-domain-core -p
+- `cargo nextest run -p jig-domain-tasks -p jig-domain-core -p
   jig-tasks-world -p jig-core-world -p jig-conformance-world -p
   jig-ops-world` passes once on `main` after 12.5.

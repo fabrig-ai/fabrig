@@ -93,7 +93,7 @@ Test shape: `src/tests/scene.rs`: `a_mark_past_scene_marks_refuses_the_scene`,
       assert_eq!(scene.marks().len(), 0);
   }
   ```
-Proof: unit, `heavy cargo nextest run -p skein-ui -p skein-ui-text -p
+Proof: unit, `cargo nextest run -p skein-ui -p skein-ui-text -p
   skein-fake-person` once: the scene's tests pass and the crates whose
   `Limits` it changed build. Unit is the highest layer: no drawing code
   calls it until skein 13.4; skein 09.2 draws it as SVG.
@@ -221,6 +221,6 @@ None known.
 
 ## Done when
 
-`heavy cargo nextest run -p skein-ui -p skein-ui-tests` passes, and
+`cargo nextest run -p skein-ui -p skein-ui-tests` passes, and
 `ls crates/skein-ui/src/tests/golden/scene.txt tests/ui/tests/memory.rs`
 lists both.

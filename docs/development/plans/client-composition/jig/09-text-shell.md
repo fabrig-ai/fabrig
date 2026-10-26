@@ -213,7 +213,7 @@ Test shape: `tests/client/tests/text_pages.rs`:
   and `each_page_not_about_the_work_prints_as_its_golden_text` (a table
   over the five, each row labelled with its page). Each under 0.5 s; the
   table's rows under 0.5 s each.
-Proof: world, `heavy cargo nextest run -p jig-client-world -E
+Proof: world, `cargo nextest run -p jig-client-world -E
   'binary(text_pages)'` once: jig's pages, as the client's world shows
   them, print as their golden text.
 Don't: generate a golden file by a test or a script. Each file is
@@ -275,5 +275,5 @@ and `Refusal`; jig 10 uses them by name.
 
 ## Done when
 
-- `heavy cargo nextest run -p jig-shell-text -p jig-client-world -E
+- `cargo nextest run -p jig-shell-text -p jig-client-world -E
   'package(jig-shell-text) | binary(text_pages)'` passes on `main`, once.

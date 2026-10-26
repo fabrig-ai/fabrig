@@ -1,12 +1,12 @@
 # client-composition: the suites at the plan's base
 
 Measured once by the planner, 2026-10-14, on carbon-forge (8 threads), at
-jig `2ae75cac2`, through the gate lane, alone (`heavy: load 0.88 0.72
+jig `2ae75cac2`, through the gate lane, alone (load 0.88 0.72
 0.69 on 8 cores as it starts alone`). The test binaries were built first,
 then each suite ran three times:
 
 ```sh
-NEXTEST_DOUBLE_SPAWN=0 heavy --gate -- <script>
+NEXTEST_DOUBLE_SPAWN=0 <script>
 # the script: cargo nextest run --workspace --no-run; then
 #   3 × cargo nextest run --workspace
 #   3 × cargo nextest run --workspace --profile fuzzy

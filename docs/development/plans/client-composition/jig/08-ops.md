@@ -156,7 +156,7 @@ Test shape: `examples/ops/view/src/tests.rs`:
   `only_a_restart_excuses_a_taken_delivery` (a consumed delivery fails
   `check` until `acknowledged`; another fails it until `restarted`,
   after which `acknowledgements()` is still 1), under 5 ms.
-Proof: world, `heavy cargo nextest run -p jig-ops-world` once: `ops`'s
+Proof: world, `cargo nextest run -p jig-ops-world` once: `ops`'s
   stories that visit a task's plan and panels pass on the arranged page,
   the referee holding it to the outline.
 Don't: build tabs on the arranged page (every section is shown); build a
@@ -194,7 +194,7 @@ Test shape: `tests/ops/tests/client_stories.rs`:
   }
   ```
   Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-ops-world -E
+Proof: world, `cargo nextest run -p jig-ops-world -E
   'test(/p_accepts/)'` once: P accepts the restart from the incident's
   page, through jig's plan section in its slot.
 Don't: change `accept_restart`'s steps.
@@ -221,6 +221,6 @@ pub enum Request {
 
 ## Done when
 
-- `heavy cargo nextest run -p jig-ops-world` passes on `main`, once.
+- `cargo nextest run -p jig-ops-world` passes on `main`, once.
 - `git grep -n 'configure_arrangement' origin/main -- tests/ops examples/ops`
   prints the constructor's call.

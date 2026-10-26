@@ -908,7 +908,7 @@ Consequences for the plan:
 
 - `.config/nextest.toml:7-10` default profile: `default-filter = "not binary(/^fuzzy_/)"`, `global-timeout = "15s"`, `slow-timeout = { period = "500ms" }`; `:14-16` override `kind(test)` priority 10 (worlds first); `:18-21` `fuzzy`: `binary(/^fuzzy_/)`, `60s`, slow `5s`; `:26-28` `measure`: `1h`, slow `60s`, no budget. The 15 s budget is the whole workspace's default suite; every new protocol world's focused tests share it (workflow.md `docs/development/workflow.md:36-41`, `:68-73`: raising a budget is a decision, not a fix). A process-layer proof (`jig-test` binary + fake LLM peer, "about a minute", development.md 5.5) cannot sit in the default suite: it is a script in the run's `logs/` or, once needed twice, a script under `scripts/` (development.md 5.5, "A script needed twice is kept").
 - `scripts/check.sh:7-13`: `cargo fmt --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo nextest run --workspace`; `cargo nextest run --workspace --profile fuzzy`. No `cargo doc`, no wasm32 build, no per-crate target check, no process test. `scripts/` holds only `check.sh`.
-- Gate rules: jig `AGENTS.md:3-8` (land only via skein's `land`; tests of touched crates through `heavy`), `:9-12` (15 s / 60 s budgets).
+- Gate rules: jig `AGENTS.md:3-8` (tests of touched crates), `:9-12` (15 s / 60 s budgets).
 
 ### 5.5 Files over 800 lines (size limit: development.md 5.2, "a file of at most 800 lines … unless an increment says otherwise")
 
@@ -942,7 +942,7 @@ Among crates the plan touches (the core's boundary and routing for store/stoppin
 
 ## 6. The old draft plan
 
-Paths without a prefix are under `/srv/data/git/runner/src/plans/jig-protocol-implementation/`. The prefix `jig:` means `/srv/data/git/runner/src/jig/`, at `main` 2fae240a. The plan was drafted on 2026-10-10 against jig `0679f66` and skein's and smith's `design/jig-standalone` branches. Since then: jig dropped its inline agent (91f8bfec). It repinned skein to 30dc6f7 and smith to 2a800ea2, which is smith's origin/main, through GitHub URLs (0e952778; jig:Cargo.toml:67-72). It revised the design to use only smith's agents (c135dc24), designed the store (9a9aed35), and added handed-in LLM accounts and excluded the browser (2fae240a). jig has also gained `scripts/check.sh`, and `land` now pushes (9af61c4c; jig:AGENTS.md:3-6).
+Paths without a prefix are under `/srv/data/git/runner/src/plans/jig-protocol-implementation/`. The prefix `jig:` means `/srv/data/git/runner/src/jig/`, at `main` 2fae240a. The plan was drafted on 2026-10-10 against jig `0679f66` and skein's and smith's `design/jig-standalone` branches. Since then: jig dropped its inline agent (91f8bfec). It repinned skein to 30dc6f7 and smith to 2a800ea2, which is smith's origin/main, through GitHub URLs (0e952778; jig:Cargo.toml:67-72). It revised the design to use only smith's agents (c135dc24), designed the store (9a9aed35), and added handed-in LLM accounts and excluded the browser (2fae240a). jig has also gained `scripts/check.sh` (9af61c4c; jig:AGENTS.md:3-6).
 
 ### 6.1 README, code organization, decisions, sessions 01–11
 
@@ -961,7 +961,7 @@ Paths without a prefix are under `/srv/data/git/runner/src/plans/jig-protocol-im
   - jig 34 is no longer a placeholder: store.md is designed and the store is in scope (README.md:158; STATUS.md:55).
 - **Rules:**
   - The preconditions (Chromium, wasm32, wasm-bindgen) no longer apply (README.md:195-197).
-  - `land --local` with an ad-hoc `--gate` is replaced by plain `land` with `scripts/check.sh` (README.md:214-220).
+  - The gate is `scripts/check.sh` (README.md:214-220).
   - The repins by smith 01/05 and jig 02/11 (README.md:221-223) shrink to "skein builds, smith repins, then jig repins".
   - Of the six reference-service ports (README.md:232-243): the store port, the secrets port, the accounts-driver port and the scripted-agents port are stale. Keep only the parties port and the system port.
   - The "ops debts" list (README.md:250-255) still names the inline agent and `Content::Call`.
@@ -1044,7 +1044,7 @@ Missing:
 
 **Stale:**
 - §2 (decisions.md:48-52): the home.
-- §3 (decisions.md:59-67): `land --local`, and jig having no gate.
+- §3 (decisions.md:59-67): jig now has a gate.
 - §4 (decisions.md:71-74): the client plan has closed.
 - §8 (decisions.md:113-131): two skein revisions through smith 01/05.
   - jig is already on smith's main.
@@ -1202,9 +1202,7 @@ Paths below are relative to `/srv/data/git/runner/src/plans/jig-protocol-impleme
   - It is still owed (`protocol/README.md:375-378`).
   - The hub today still bounces messages: `crates/jig-host/src/boundary.rs:118,219,338,545` (`Bounced`, `Bounce`). The design replaces bounces with refusals carried with turns and answers (`channel.md:220-229`).
 - **"jig 11" for in-process addresses** (23, 24, 26) waits on skein's joined sockets, which are designed but not built.
-- **Landing** with `land --local` / `land --gate` (`README.md:214-220`; `decisions.md:57-67`) is stale:
-  - jig `AGENTS.md:3-5` says `land` pushes, with `scripts/check.sh` as the gate.
-  - smith has a gate script (smith `564d4408`).
+- **The gates** are `scripts/check.sh` in jig and smith (smith `564d4408`).
 - **The reference service's ports** for the store, the secrets and the accounts driver (`decisions.md:133-170`; `code-organization.md:195-205`) are stale. See 25, 28, 29 and 34.
 - **`code-organization.md`:**
   - Still usable: the component layout (`:130-145`), the codec-crate layout (`:147-160`), the reference service's layout (`:166-178`), the port and secret-value naming (`:189-212`) and the crate-graph roles (`:88-124`).
@@ -1437,7 +1435,7 @@ Paths below are relative to `/srv/data/git/runner/src/plans/jig-protocol-impleme
 - **1 Scope** (`decisions.md:37-44`): the store is now in scope (`store.md`); the browser's shells are out (`STATUS.md:103-108`). smith's asks (`:27-36`) are mostly gone:
   - the completion's contract is "not asked" (`protocol/README.md:344-346`);
   - run text, the next channel version and the LLM close are "later" (`:347-359`).
-- **3 Landing**: `land --local`, and jig and smith without a gate (`:59-67`), are replaced by `land` pushing through `scripts/check.sh` (jig `AGENTS.md:3-5`; smith `564d4408`).
+- **3 Checks**: jig and smith now have `scripts/check.sh` gates (smith `564d4408`).
 - **5 Renames**: the `jig-inline-agent` row (`code-organization.md:34`) is gone. The rest stand (`README.md:637-650`).
 - **8 Repins in two skein revisions** (`:115-131`): jig is now on GitHub's `main`. The skein work they assumed is still unbuilt (see above), so the repin sequence must be re-derived.
 - **9 Reference service and its ports** (`:135-170`) is overturned:

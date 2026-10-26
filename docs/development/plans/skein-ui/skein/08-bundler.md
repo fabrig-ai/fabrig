@@ -222,5 +222,5 @@ None known.
 
 ## Done when
 
-`heavy cargo nextest run -p skein-ui-bundle` passes, and `rg -n
+`cargo nextest run -p skein-ui-bundle` passes, and `rg -n
 'opt-level = 3' Cargo.toml` prints the bundler's profile line.

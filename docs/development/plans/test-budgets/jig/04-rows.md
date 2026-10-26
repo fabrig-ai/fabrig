@@ -39,7 +39,7 @@ needing nothing outside jig.
 - **A row keeps its old test's name as its label,** its inputs and its
   expected value as literals.
 - **Only rows of one behaviour fold,** each under 1 ms of work alone; the
-  groups below are the audit's. A group the implementer finds is two
+  groups below are the audit's. A group the author finds is two
   behaviours stays two tests, and its report says so.
 - **The generated golden tables are not this session's:** skein 02.2
   makes them 1,024 cases, and jig 05.1 regenerates.
@@ -76,7 +76,7 @@ Shape: per behaviour, one `#[test]` named for it (for example
 Test shape: as Shape; one planted failing row per crate, run once, then
   removed (the report names the test and the label the failure
   printed).
-Proof: unit, `heavy --gate cargo nextest run -p jig-protocol-store -p
+Proof: unit, `cargo nextest run -p jig-protocol-store -p
   jig-protocol-client-wire --profile measure` once: the test count and
   summed time in the report, against 502 tests at this plan's base (the
   audit: about 125 of the store's tests become about 15).
@@ -96,7 +96,7 @@ Files: `crates/jig-protocol-client-link/src/tests/pages.rs:4-213` (21
   `crates/jig-protocol-engine-clients/src/tests/documents.rs:5-` (10).
 Shape: as 04.1.
 Test shape: as 04.1.
-Proof: unit, `heavy --gate cargo nextest run -p jig-protocol-client-link
+Proof: unit, `cargo nextest run -p jig-protocol-client-link
   -p jig-protocol-config -p jig-protocol-engine-clients --profile measure`
   once: the test count and summed time in the report, against 341 tests
   at this plan's base.
@@ -118,7 +118,7 @@ Shape: `compare(scenario, seed)` runs one baseline through
   with the seed its three tests used.
 Test shape: as Shape; `a_forked_snapshot_replays_to_the_durable_rows`
   unchanged. 25 tests become 9.
-Proof: world, `heavy --gate cargo nextest run -p jig-conformance-world
+Proof: world, `cargo nextest run -p jig-conformance-world
   --profile measure -E 'binary(snapshot)'` once: the test count (9) and
   summed time in the report (the audit: 2.54 s to 1.79 s summed at 8
   threads).
@@ -136,7 +136,7 @@ Shape: `walk_directory(name, at_root)` is false for a name starting with
 Test shape: `walk_fixture_skips_build_and_hidden_directories` gains rows
   for `golden` at any depth and `target-x` at the root, and keeps
   `targets` below the root walked.
-Proof: unit, `heavy --gate cargo nextest run -p jig-boundary --profile
+Proof: unit, `cargo nextest run -p jig-boundary --profile
   measure -j 1` once: its summed time in the report, against 1.42 s at
   this plan's base (`findings/measurements.md`, 5).
 Don't: skip a directory other than `golden` and the root's `target*`;

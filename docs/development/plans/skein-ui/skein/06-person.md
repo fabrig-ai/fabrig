@@ -64,7 +64,7 @@ Test shape: `src/tests.rs`: `a_press_on_a_check_is_a_toggle`,
   crate's fixtures, in `src/tests.rs` or a new `src/tests/fixtures.rs`).
   Each under 20 ms. 06.3 replaces the check-or-choice match with
   `takes`.
-Proof: unit, `heavy cargo nextest run -p skein-fake-person` once. Unit
+Proof: unit, `cargo nextest run -p skein-fake-person` once. Unit
   is the highest layer until skein 13.4, whose view tests toggle the
   example's choice group through the tree face (13.4 needs skein 06.3).
 Don't: decide by the node's name or states.
@@ -95,7 +95,7 @@ Test shape: a table test `each_role_has_its_own_name`: one row per
   `a_sweep_acts_on_every_bound_node_and_reaches_fields_composers_and_history`,
   asserts that the nodes pressed, written, submitted and toggled
   together are the bound set. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-fake-person` once. Unit
+Proof: unit, `cargo nextest run -p skein-fake-person` once. Unit
   is the highest layer: no fuzzy world in skein runs the random person;
   an application's does.
 Don't: give a drawing a random act.
@@ -118,7 +118,7 @@ Shape: `allows` is: the node is in the face's subtree, bound, not
 Test shape: `typing_into_a_button_fails_as_unexpected`,
   `pressing_an_option_of_a_disabled_select_fails`,
   `a_drawing_takes_only_its_drawing_act`. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-fake-person` once; skein
+Proof: unit, `cargo nextest run -p skein-fake-person` once; skein
   13.4's view tests run the face over the example's choices.
 Don't: refuse what the view takes, or take what it refuses: one table.
 Size: about 20 lines.
@@ -145,5 +145,5 @@ None known.
 
 ## Done when
 
-`heavy cargo nextest run -p skein-fake-person` passes, and `rg -n 'fn
+`cargo nextest run -p skein-fake-person` passes, and `rg -n 'fn
 passive' testing/skein-fake-person` prints nothing.

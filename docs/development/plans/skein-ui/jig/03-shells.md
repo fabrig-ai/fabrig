@@ -63,7 +63,7 @@ Test shape: `ui/tests/tree.rs` (moved there by jig 01.3): a table test
   `bind_takes_only_the_roles_a_person_acts_on`, a row per role with its
   expected outcome as a literal, using `std::panic::catch_unwind` per
   row. Under 20 ms.
-Proof: world. `heavy cargo nextest run -p jig-client-world -p
+Proof: world. `cargo nextest run -p jig-client-world -p
   jig-ops-world -p jig-client-protocol-world` passes once: no view of
   jig's or of its examples binds another role. Bound: 4 minutes.
 Don't: refuse acts in `View::act` (skein 03.2).
@@ -90,7 +90,7 @@ Test shape: the goldens unchanged (`tests/golden/roles.txt:1` and
   `bytes.txt:1` print `== TITLE == `); `src/tests.rs`'s status test
   takes its region from the fixture; one new
   `no_status_region_ends_the_first_line_after_its_space`.
-Proof: world. `heavy cargo nextest run -p jig-client-world -p
+Proof: world. `cargo nextest run -p jig-client-world -p
   jig-client-protocol-world -E 'binary(text_pages) |
   test(/at_the_text_shell/) |
   test(a_terminal_in_front_of_the_native_client_starts_a_chat)'` passes
@@ -109,7 +109,7 @@ Shape: imports from `jig_view::ui` of what jig 01.3 moved there (`Act`,
   imports); its tests' owners
   `ui::Owner { number: 1 }`; doc comments cite skein's `ui.md`, 17.1.
 Test shape: the crate's tests, unchanged but for paths.
-Proof: world. `heavy cargo nextest run -p jig-client-world -p
+Proof: world. `cargo nextest run -p jig-client-world -p
   jig-ops-world -E 'test(/stories/)'` passes once. Bound: 3 minutes.
 Don't: change its behaviour (skein 06 does).
 Size: about 10 lines, plus paths.
@@ -124,5 +124,5 @@ None known.
 `rg -n 'JigRegion' crates/jig-shell-text/src` and `rg -n
 'Owner::(Jig|Application)' crates/jig-shell-text/src
 testing/jig-fake-person/src` print nothing,
-and `heavy cargo nextest run -p jig-shell-text -p jig-fake-person`
+and `cargo nextest run -p jig-shell-text -p jig-fake-person`
 passes with the goldens unchanged.

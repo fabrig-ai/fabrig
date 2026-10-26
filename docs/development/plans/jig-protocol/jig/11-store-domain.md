@@ -179,7 +179,7 @@ Test shape:
   Focused ceiling 0.5 s. The existing restart, store and conformance
   stories run unchanged.
 Proof: world. `cargo nextest run -p jig-core-world --test restart` passes
-once, through `heavy`, with the rank sort gone: it shows a restarted engine
+once, with the rank sort gone: it shows a restarted engine
 answering as before when the worlds read only `RestoreRange::LIVE`, in its
 order. No joint layer exists for the store yet (jig 18 builds it). Bound:
 1 minute.
@@ -234,7 +234,7 @@ Test shape:
   `Key::ClosedLedger(Funder::Task(0))` and `Key::DecidedProposal(0)`.
 - Ceilings: unit 20 ms, world 0.5 s.
 Proof: world. `cargo nextest run -p jig-tasks-world --test person --test
-funding --test restart` once, through `heavy`: a restarted tasks child
+funding --test restart` once: a restarted tasks child
 holds no closed period and no decided proposal, and its funders' table has
 room for a new period after earlier ones closed. Bound: 1 minute.
 Don't: keep a closed ledger in `domain.funding`; read a `ClosedLedger` or
@@ -309,7 +309,7 @@ Test shape:
   iteration over `store.rows` for these scopes (its `page` keeps the scan
   for the other scopes until jig 12 and jig 16).
 Proof: world. `cargo nextest run -p jig-core-world --test reads` once,
-through `heavy`: a person reads a question, an escalation and a task's
+: a person reads a question, an escalation and a task's
 proposal after the task ended, each found by key. Bound: 1 minute.
 Don't: change `Scope`, `Read` or `Position`; scan a family in the
 transport's new arms; add a line to the answering task's activity.
@@ -380,7 +380,7 @@ Test shape:
   `a_fill_below_the_mark_admits_a_chat_again`.
 - Ceilings: unit 20 ms, world 0.5 s.
 Proof: world. `cargo nextest run -p jig-core-world --test store` once,
-through `heavy`: a person's new chat is answered busy while the store
+: a person's new chat is answered busy while the store
 reports itself full, and the chat already running answers its next turn.
 Bound: 1 minute.
 Don't: refuse a turn, an answer, a call or a connector's event for fill;
@@ -409,7 +409,7 @@ Test shape:
 - `crates/jig-view/src/tests/owner_deployment.rs`:
   `the_deployment_page_shows_the_store_fill_against_its_mark`.
 - Ceiling: unit 20 ms.
-Proof: unit. The two tests above, run once through `heavy`: the owner's
+Proof: unit. The two tests above, run once: the owner's
 deployment page shows the fill and the mark. The client's joint world
 already carries the deployment document; its existing deployment tests
 pass unchanged. Bound: 1 minute.
@@ -608,5 +608,5 @@ pub struct StoreFill {
   rows.
 - `git -C ~/src/rust/jig grep -n 'Fill { bytes' --
   crates/jig-domain-core/src/routing/vocabulary.rs` prints one line.
-- `heavy cargo nextest run -p jig-domain-tasks -p jig-domain-core -p
+- `cargo nextest run -p jig-domain-tasks -p jig-domain-core -p
   jig-tasks-world -p jig-core-world` passes once on `main` after 11.5.

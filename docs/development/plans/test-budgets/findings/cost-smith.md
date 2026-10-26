@@ -1,7 +1,7 @@
 # smith's focused suite: where the time goes, and why it fails here
 
 The planner's sub-agent's audit, 2026-10-13, at smith `0305f2fd`
-(`origin/main`), measured through `heavy --gate` with `--profile
+(`origin/main`), measured with `--profile
 measure` at 8 threads unless it says otherwise. Tried changes:
 `tried/smith-parallel-and-uid.md` and `tried/smith-skein-base64.md`
 (evidence, not to be applied as is). smith 02 takes A to C and the

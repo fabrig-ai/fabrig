@@ -68,7 +68,7 @@ Test shape: `page_capacity.rs:505-535` unchanged; one test,
   public `*_nodes` function's value at `CLIENT` (the tests' client
   limits) and `slot_nodes` 0, written as literals taken from a run of the
   old code on `main` before the change and named in the commit body.
-Proof: unit, `heavy --gate cargo nextest run -p jig-view -p
+Proof: unit, `cargo nextest run -p jig-view -p
   jig-test-view -p jig-client-world --profile measure -j 1` once before
   and once after: summed times in the report (the audit, with 03.2: about
   1.1 s of the gate's summed time from this increment).
@@ -96,6 +96,6 @@ Removes: the binary search for well-formed languages.
 
 ## Done when
 
-- `heavy --gate cargo nextest run -p jig-view --profile measure -j 1` on
+- `cargo nextest run -p jig-view --profile measure -j 1` on
   jig's `main`: every test passes, summed at most 4.3 s (4.69 s at this
   plan's base, `findings/measurements.md`, 2).

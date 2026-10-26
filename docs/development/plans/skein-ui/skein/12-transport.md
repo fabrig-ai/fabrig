@@ -63,7 +63,7 @@ time; a hidden tab lets it go after a minute (ui-web.md, 10).
   '\.(write|remove|send)\(' examples/ui/shell-web/src` prints nothing.
 - **Each story starts from skein 11's,** in `tests/ui-web/tests/
   browser_example.rs`, one test per story, each aiming at 3 s; its
-  Proof is `heavy --gate scripts/check.sh` once in the increment's
+  Proof is `scripts/check.sh` once in the increment's
   committed worktree, which builds the bundle and the server and runs
   the browser suite; nothing else.
 - **The server makes an add once per key,** checked by a step test of
@@ -93,7 +93,7 @@ Shape: `platform::Platform { fn read_all(&self) -> Vec<Record>; fn
 Test shape: `src/tests/store.rs`: `records_are_base64_under_the_prefix`
   (the platform's raw text literal), `a_write_past_the_bound_is_refused`,
   `records_of_another_prefix_are_not_read`. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-ui-web` once; the shell
+Proof: unit, `cargo nextest run -p skein-ui-web` once; the shell
   writes through it in 12.3, whose story runs it in Chromium.
 Don't: use `localStorage` (ui-web.md, 10: session storage).
 Size: about 120 lines.
@@ -125,7 +125,7 @@ Test shape: `src/tests/transport.rs`: `writes_go_before_exchanges`
   `a_refused_write_fails_every_exchange_of_its_step`,
   `a_refused_write_cancels_the_navigation`,
   `the_navigation_goes_after_the_writes`. Each under 20 ms.
-Proof: unit over the fake platform, `heavy cargo nextest run -p
+Proof: unit over the fake platform, `cargo nextest run -p
   skein-ui-web` once, the layer ui-web.md 14 names for it; 12.3's story
   runs it in Chromium.
 Don't: send an exchange before the step's writes are done.
@@ -172,7 +172,7 @@ Test shape: view step tests `an_add_is_written_before_it_is_sent`,
   `StopServer`; a note added, its exchange failing; `StartServer`; the
   page reloaded; one note of that title on the list, all in one
   `run`). Step tests under 20 ms; the story about 3 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the story shows the
+Proof: live, `scripts/check.sh` once: the story shows the
   transport and the store in Chromium keeping an add across a reload.
   Bound: 15 minutes.
 Don't: send an add that was not written.
@@ -215,7 +215,7 @@ Test shape: `src/tests/fetch.rs`: `a_piece_past_its_bound_comes_in_parts`;
   `live_from_the_lists_answer_until_the_stream_ends`; story
   `a_note_added_in_one_page_shows_in_another` (two people). Step tests
   under 20 ms; the story about 3 s.
-Proof: live, `heavy --gate scripts/check.sh` once: the two-person
+Proof: live, `scripts/check.sh` once: the two-person
   story passes. Bound: 15 minutes.
 Don't: hold two streams at once.
 Size: about 300 lines.
@@ -261,7 +261,7 @@ None known.
 
 ## Done when
 
-`heavy cargo nextest run -p skein-ui-web -p skein-ui-example-view -p
-skein-ui-example-server` passes, and `heavy --gate scripts/check.sh` passes once with
+`cargo nextest run -p skein-ui-web -p skein-ui-example-view -p
+skein-ui-example-server` passes, and `scripts/check.sh` passes once with
 `a_reload_keeps_a_pending_add_made_once` and
 `a_note_added_in_one_page_shows_in_another` in its browser suite.

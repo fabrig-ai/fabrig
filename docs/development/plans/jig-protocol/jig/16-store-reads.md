@@ -187,7 +187,7 @@ Tests: `an_ended_task_read_joins_its_terminal_and_ancestry`,
 `a_page_stops_before_the_row_past_its_joins`. Each under 20 ms.
 Proof: unit,
 `reads::an_ended_task_read_joins_its_terminal_and_ancestry`, run once
-with `heavy cargo nextest run -p jig-protocol-store -E
+with `cargo nextest run -p jig-protocol-store -E
 'test(an_ended_task_read_joins_its_terminal_and_ancestry)'`: a read of
 an ended delegate comes back with its goal as its ancestor and its
 terminal as its related record; under 20 ms. The joint layer (the core
@@ -241,7 +241,7 @@ records naming their positions (`with_question_lines`, `with_hold`,
 of test (16.1's reference test is the pattern).
 Proof: unit,
 `reads::a_task_proposal_reads_its_proposers_history_row_by_key`, run
-once with `heavy cargo nextest run -p jig-protocol-store -E
+once with `cargo nextest run -p jig-protocol-store -E
 'test(a_task_proposal_reads_its_proposers_history_row_by_key)'`: with
 five history rows, the read returns the one revision the proposer's
 `proposal_rows` names; under 20 ms.
@@ -292,7 +292,7 @@ bool)`, `notes_entry_in(scope, name, description)` with its line. Tests:
 20 ms.
 Proof: unit,
 `reads::activity_reads_newest_first_from_the_records_last_position`, run
-once with `heavy cargo nextest run -p jig-protocol-store -E
+once with `cargo nextest run -p jig-protocol-store -E
 'test(activity_reads_newest_first_from_the_records_last_position)'`:
 with positions 1 to 5 and a page of 2, the rows are 5 then 4 and the
 cursor names 4; under 20 ms.
@@ -355,7 +355,7 @@ task)`, `delegate(requester, task)`. Tests:
 `a_subtree_history_page_moves_from_one_task_to_the_next`. Each under
 20 ms.
 Proof: unit, `reads::inbox_results_read_newest_first_within_the_group`,
-run once with `heavy cargo nextest run -p jig-protocol-store -E
+run once with `cargo nextest run -p jig-protocol-store -E
 'test(inbox_results_read_newest_first_within_the_group)'`: three results
 and two replies for Alice at distinct times, read as `Group::Results`,
 come back newest first, results only, each with its ended task as owner;
@@ -441,7 +441,7 @@ the documents (`reads.rs:387-411`, `reads/rows.rs`); the routing hands
 
 1. The four increments are on `origin/main`: `git -C ~/src/rust/jig log
    origin/main --format=%b | grep -c '^Step: jig-16\.'` prints 4.
-2. The reads' tests pass: `heavy cargo nextest run -p jig-protocol-store
+2. The reads' tests pass: `cargo nextest run -p jig-protocol-store
    -E 'test(/tests::reads/)'` passes, running at least 25 tests.
 3. Each of the 17 scopes has its arm in the component's reads:
    `git -C ~/src/rust/jig grep -n -E 'Scope::(Task|Proposal|Escalation|Question|PersonTask|Result|Reply|Turn|EndedDelegates|History|Activity|Inbox|Conversations|Goals|Notes|ScopedNotes|Spend)' -- 'crates/jig-protocol-store/src/reads*'`

@@ -188,7 +188,7 @@ fn a_keyed_request_past_its_bound_is_refused_naming_it() {
 }
 ```
 
-Proof: unit and world, `heavy cargo nextest run -p
+Proof: unit and world, `cargo nextest run -p
 jig-protocol-client-wire -p jig-client-wire-world`, run once:
 `client_wire_schema_matches_generated_code_and_goldens` passes, which
 shows the committed code and goldens are what the schema generates; the
@@ -246,7 +246,7 @@ Test shape: as 30.1. Tests: `a_page_one_row_past_its_limit_is_refused`,
 `a_cursor_past_its_bound_is_refused`,
 `an_activity_line_carries_its_turn_bytes_unchanged`,
 `each_read_none_round_trips_unchanged`. Ceilings as 30.1.
-Proof: unit and world, `heavy cargo nextest run -p
+Proof: unit and world, `cargo nextest run -p
 jig-protocol-client-wire -p jig-client-wire-world`, run once: a page or
 a cursor past its bound is refused and each read's answer round-trips
 unchanged (the four tests above, under 0.1 s), and the drift test passes
@@ -279,7 +279,7 @@ Test shape: as 30.1. Tests:
 `a_task_one_byte_past_its_text_bound_is_refused`,
 `a_run_state_without_writing_or_call_round_trips`,
 `a_chip_with_each_phase_round_trips_unchanged`. Ceilings as 30.1.
-Proof: unit and world, `heavy cargo nextest run -p
+Proof: unit and world, `cargo nextest run -p
 jig-protocol-client-wire -p jig-client-wire-world`, run once: a frame, a
 run state and a chip in each phase round-trip unchanged and a task one
 byte past its bound is refused (the four tests, under 0.1 s), and the
@@ -327,8 +327,8 @@ Test shape: as 30.1. Tests:
 `an_open_for_a_tree_carries_its_window`,
 `each_watch_end_but_dropped_round_trips`,
 `a_deployment_document_past_its_rows_is_refused`. Ceilings as 30.1.
-Proof: unit and world, `heavy cargo nextest run -p
-jig-protocol-client-wire -p jig-client-wire-world` and `heavy cargo
+Proof: unit and world, `cargo nextest run -p
+jig-protocol-client-wire -p jig-client-wire-world` and `cargo
 nextest run -p jig-client-wire-world --profile fuzzy`, each run once:
 the hello, a stream event at its ceiling and the remaining documents
 round-trip unchanged (the five tests), the drift test passes, and no
@@ -360,7 +360,7 @@ Test shape: as 30.1. Tests:
 `a_kept_record_of_another_family_version_is_refused`,
 `a_draft_at_its_ceiling_round_trips_unchanged`,
 `a_table_entry_never_sent_round_trips_with_no_wall`. Ceilings as 30.1.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-client-wire`, run
+Proof: unit, `cargo nextest run -p jig-protocol-client-wire`, run
 once: a kept record of another version is refused, and a draft and a
 request-table entry round-trip unchanged (the three tests); under 0.1 s.
 Don't: keep a secret in the small store.
@@ -517,7 +517,7 @@ pub const VERSION: u32 = 1;
 
 ## Done when
 
-- The crate builds and its tests pass: `heavy cargo nextest run -p
+- The crate builds and its tests pass: `cargo nextest run -p
   jig-protocol-client-wire -p jig-client-wire-world` passes.
 - Its schema generates its committed code: the drift test
   `client_wire_schema_matches_generated_code_and_goldens` passes in the

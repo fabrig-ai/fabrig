@@ -187,7 +187,7 @@ Test shape:
   `a_grant_refused_as_closed_is_cancelled`,
   `a_sign_in_visit_is_asserted_never_to_come` (`#[should_panic]` with
   its reason's text). Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-accounts` once:
+Proof: unit, `cargo nextest run -p jig-protocol-accounts` once:
 each of the child's requests reaches the driver's vocabulary, and each
 driver event the engine can meet reaches the child in its class; under
 10 s with the build warm. Not higher: 21.3 runs it over the real driver.
@@ -241,7 +241,7 @@ Test shape:
   `tests/protocol-accounts/tests/memory.rs`, with skein-world's counting
   allocator, from 21.3 on; a unit test here checks `worst_case` answers
   `None` for zero accounts).
-Proof: unit, `heavy cargo nextest run -p jig-protocol-accounts` once:
+Proof: unit, `cargo nextest run -p jig-protocol-accounts` once:
 two generations per account at most, each gone at its expiry, and no
 value in any `Debug` output; under 10 s with the build warm.
 Don't: grow the table; arm a timer.
@@ -298,7 +298,7 @@ Test shape:
   `the_table_at_its_limits_stays_within_its_worst_case`.
 - Ceilings: each world test under 0.5 s; the world's focused tests at
   most 1 s in all.
-Proof: world, `heavy cargo nextest run -p jig-protocol-accounts-world`
+Proof: world, `cargo nextest run -p jig-protocol-accounts-world`
 once: an account the child wants is granted by skein's driver from the
 fake issuer, its value sits in the table and the child hears only the
 name, and a rejected generation is refreshed and lent again; under 1
@@ -352,7 +352,7 @@ Test shape:
 
   Others: `a_rejected_handed_in_token_fails_as_sign_in_again`,
   `the_driver_never_writes_a_handed_in_accounts_file`.
-Proof: world, `heavy cargo nextest run -p jig-protocol-accounts-world -E
+Proof: world, `cargo nextest run -p jig-protocol-accounts-world -E
 'test(handed_in)'` once: a handed-in account is lent until it lapses,
 the child hears it expiring once, and then sign in again; under 1 minute
 with the build warm.
@@ -382,7 +382,7 @@ Test shape: `tests/protocol-accounts/tests/failures.rs` (new):
 `a_damaged_record_file_fails_as_unloaded_naming_the_file`,
 `a_close_during_an_exchange_drains_it`; each written as 21.3's
 reference test, its `Heard` list a literal. Each under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-protocol-accounts-world -E
+Proof: world, `cargo nextest run -p jig-protocol-accounts-world -E
 'test(failures)'` once: each failure the fake issuer or the disk makes
 reaches the child in the class llm.md, 5.2 gives it; under 1 minute with
 the build warm.
@@ -526,9 +526,9 @@ pub fn hand_in(
 
 ## Done when
 
-1. The translation and table pass: `heavy cargo nextest run -p
+1. The translation and table pass: `cargo nextest run -p
    jig-protocol-accounts` prints no failure.
-2. The world's stories pass: `heavy cargo nextest run -p
+2. The world's stories pass: `cargo nextest run -p
    jig-protocol-accounts-world` prints no failure.
 3. No wildcard arm in the translation: `git grep -n -E '^\s*_ =>'
    crates/jig-protocol-accounts/src/translate.rs` prints nothing.

@@ -66,7 +66,7 @@ Test shape: in `testing/skein-browser/src/` step tests:
   `tests/browser/src/tests.rs`: `a_find_by_words_asks_without_a_name`
   (the fake browser sees `queryAXTree` with the role and no name).
   Each under 20 ms; the world test under 0.5 s.
-Proof: world. `heavy cargo nextest run -p skein-browser-world` once:
+Proof: world. `cargo nextest run -p skein-browser-world` once:
   the kit's machine world against the fake browser finds by words.
   Real Chromium is 07.3's.
 Don't: add a pattern beyond words (browser.md, 11).
@@ -89,7 +89,7 @@ Test shape: `a_point_outside_the_box_is_hidden` (step test, refused
   `Hidden` before any mouse event); `a_press_at_a_point_hits_there`
   (world: the fake browser records the hit test's point). Each under
   20 ms or 0.5 s.
-Proof: world. `heavy cargo nextest run -p skein-browser-world` once:
+Proof: world. `cargo nextest run -p skein-browser-world` once:
   the fake browser's hit test at the point. Real Chromium is 07.3's.
 Don't: dispatch a mouse event on a refused press (the referee's rule,
   browser.md 9).
@@ -111,7 +111,7 @@ Test shape: `chromium_finds_a_sentence_by_a_few_of_its_words`,
   `chromium_presses_an_svg_shape_through_its_figure_at_a_point`, each
   as the existing scenarios are written (`browser_real.rs:590-632`).
   About 1 s each.
-Proof: live (a local Chromium): `heavy cargo nextest run -p
+Proof: live (a local Chromium): `cargo nextest run -p
   skein-browser-world --profile browser` once; the two scenarios pass
   with the kit's earlier six. Bound: 2 minutes.
 Don't: skip on a missing Chromium (it fails, naming it).
@@ -138,6 +138,6 @@ None known.
 
 ## Done when
 
-`heavy cargo nextest run -p skein-browser-world` passes, and
-`heavy cargo nextest run -p skein-browser-world --profile browser`
+`cargo nextest run -p skein-browser-world` passes, and
+`cargo nextest run -p skein-browser-world --profile browser`
 passes once.

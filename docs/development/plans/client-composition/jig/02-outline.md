@@ -192,7 +192,7 @@ Test shape: `crates/jig-view/src/tests/frame_facts.rs`: its tests build
   `the_navigation_landmark_ends_with_the_applications_slot` and
   `the_needs_part_says_nothing_is_known_before_the_frame`. Each under
   20 ms.
-Proof: world, `heavy cargo nextest run -p jig-client-world -p jig-ops-world`
+Proof: world, `cargo nextest run -p jig-client-world -p jig-ops-world`
   once: the stories that read the link's state (`tests/client/tests/shell.rs`,
   the fault stories) pass with the link in the banner, and every story
   that presses "Sign out", follows a needs link or goes to a task by
@@ -283,7 +283,7 @@ Shape: `Seen::Outline { fault: jig_view::outline::Fault }`; in the
 Test shape: `tests/client/tests/referee.rs`, beside the test at `:424`
   that feeds `Observation::Shown` by hand:
   `a_tree_breaking_the_outline_fails_the_referee`. Under 0.5 s.
-Proof: world and joint, `heavy cargo nextest run -p jig-client-world -p
+Proof: world and joint, `cargo nextest run -p jig-client-world -p
   jig-ops-world` once: the client's world, the joint world and `ops`'s
   client world pass with the check on every changed tree; the report
   names the focused suite's time from the landing's `Gate-Result`.
@@ -346,7 +346,7 @@ None.
 
 ## Done when
 
-- `heavy cargo nextest run -p jig-view -E 'test(each_of_jigs_pages_keeps_the_outline)'`
+- `cargo nextest run -p jig-view -E 'test(each_of_jigs_pages_keeps_the_outline)'`
   passes on `main`, once.
 - `git grep -n 'outline::check' origin/main -- tests/client/src/harness`
   prints the world's line.

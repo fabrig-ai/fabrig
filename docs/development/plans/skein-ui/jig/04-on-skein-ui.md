@@ -15,7 +15,7 @@ sees changes.
 ## Rules that bind it
 
 - **jig moves skein only, to skein 01's last landing** (decisions.md,
-  4): `heavy cargo update -p skein-lib --precise "$(git -C ~/src/skein
+  4): `cargo update -p skein-lib --precise "$(git -C ~/src/skein
   log origin/main --grep='^Plan: skein-ui$' --grep='^Step: skein-01.3$'
   --all-match --format=%H -1)"` (`Step: skein-01.3` alone also matches
   another plan's step, skein `4f77de8`), rerun after each skein
@@ -68,7 +68,7 @@ Shape: no change of behaviour. Paths, and what skein-ui keeps private
   `cargo fmt`.
 Test shape: none new but the helper; jig-view's generic tests went to
   skein with skein 01.1.
-Proof: joint. `heavy cargo nextest run -p jig-client-world -p
+Proof: joint. `cargo nextest run -p jig-client-world -p
   jig-ops-world -p jig-client-protocol-world` passes once: jig's pages
   build, diff and decode on skein's crate. Bound: 4 minutes.
 Don't: move smith; keep `src/ui/`.
@@ -88,7 +88,7 @@ Shape: jig's settings, `skein_ui_text::Settings { name, longest,
   interval, status: Some(JigRegion::Link.region()) }`, made where they
   are made today.
 Test shape: none new; the golden tests went with skein 01.2.
-Proof: world. `heavy cargo nextest run -p jig-client-world -p
+Proof: world. `cargo nextest run -p jig-client-world -p
   jig-client-protocol-world -E 'binary(text_pages) |
   test(/at_the_text_shell|terminal/)'` passes once: jig's pages print
   through skein's shell as before. Bound: 2 minutes.
@@ -106,9 +106,9 @@ Files: `testing/jig-fake-person/` removed; `Cargo.toml`; `tests/client`
   `"skein-fake-person"`.
 Shape: paths only.
 Test shape: none new.
-Proof: world. `heavy cargo nextest run -p jig-client-world -p
+Proof: world. `cargo nextest run -p jig-client-world -p
   jig-ops-world -p jig-client-protocol-world` passes once, and the
-  fuzzy suite's client sweeps: `heavy cargo nextest run -p
+  fuzzy suite's client sweeps: `cargo nextest run -p
   jig-client-world --profile fuzzy`. Bound: 5 minutes.
 Don't: change a story.
 Size: paths only; `cargo fmt` after the renames.

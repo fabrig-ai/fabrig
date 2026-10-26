@@ -159,7 +159,7 @@ Test shape:
   (:63-71) keeps reading `contexts[&1].inbox`. No new test there.
 - `crates/jig-domain-brief/src/planned.rs`: `a_required_inbox_is_kept_whole`
   (:257-269) goes with the section.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test runs`,
+Proof: world, `cargo nextest run -p jig-core-world --test runs`,
 once: a chat woken by a person's words starts with those words in its
 start, oldest first, and with no more than the run's inbox; under 0.5 s
 per scenario.
@@ -231,7 +231,7 @@ Test shape:
   declared beside `mod revisions;` (`crates/jig-domain-tasks/src/tests.rs:22`):
   `next_waiting_merges_words_and_decisions_in_number_order`. Under
   20 ms.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test runs`,
+Proof: world, `cargo nextest run -p jig-core-world --test runs`,
 once: a person's second words reach a run whose inbox holds one only
 after the run reads the first; under 0.5 s per scenario.
 Don't: drop a waiting message; relay a message twice to one attempt;
@@ -330,7 +330,7 @@ Test shape:
   Under 0.5 s.
 - `tests/tasks/src/referee.rs`: the rule "no committed message is lost"
   gains "none taken while refused".
-Proof: world, `heavy cargo nextest run -p jig-tasks-world --test inbox`,
+Proof: world, `cargo nextest run -p jig-tasks-world --test inbox`,
 once: a message a run refused stays in its task's inbox after a later
 turn whose fence passes it, and after a restart; under 0.5 s per test.
 Don't: take a message at an answer; keep refusals past their attempt.
@@ -390,7 +390,7 @@ Test shape:
 - `tests/tasks/tests/inbox.rs`:
   `a_persons_words_left_unread_wake_the_task_as_its_run_ends`
   (tasks.md, 12). Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test runs -E 'test(runs_scenarios)'`,
+Proof: world, `cargo nextest run -p jig-core-world --test runs -E 'test(runs_scenarios)'`,
 once: a person's words a run refused, or left unread as it parked, start
 the chat's next run; under 0.5 s.
 Don't: wake a task on a kind its policy does not wake on; re-judge

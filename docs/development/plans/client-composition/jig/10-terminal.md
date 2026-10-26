@@ -131,7 +131,7 @@ Test shape: `crates/jig-shell-text/src/tests/terminal.rs`, on a raw
   name of `text_per_node + 1` bytes gives `None`, and with one of
   `text_per_node` bytes a terminal). Each under 0.5 s.
 Proof: world, on skein's simulated machine: the tests above, once,
-  `heavy cargo nextest run -p jig-shell-text`; 10.3 runs it in front of
+  `cargo nextest run -p jig-shell-text`; 10.3 runs it in front of
   the real native client.
 Don't: put the input in raw mode; sign anyone in or out.
 Size: at most 250 lines of production code.
@@ -170,7 +170,7 @@ Test shape: `tests/client/tests/stories.rs`:
   the steps of `signing_in_and_starting_a_chat` (`:7`, after its sign-in
   steps) and `a_held_chat_is_released` (`:53`, seed 11). Under 0.5 s
   each.
-Proof: world, `heavy cargo nextest run -p jig-client-world -E
+Proof: world, `cargo nextest run -p jig-client-world -E
   'test(/at_the_text_shell/)'` once: each act of both stories is a line
   a terminal reads back as that act.
 Don't: change the stories' steps; play any other story at the text
@@ -215,8 +215,7 @@ Test shape: `tests/client-protocol/tests/native.rs`:
   holds the chat's number). Under 0.5 s.
 Proof: world, the highest the protocol world reaches (the real native
   client and reference service on skein's simulated machine; a real
-  process waits for `ops` standalone): this test, once, `heavy
-  cargo nextest run -p jig-client-protocol-world -E 'test(terminal)'`:
+  process waits for `ops` standalone): this test, once, `cargo nextest run -p jig-client-protocol-world -E 'test(terminal)'`:
   lines in on a pipe, pages out on another, through the real native
   client and the reference service.
 Don't: add a fuzzy test.
@@ -234,7 +233,7 @@ Test shape: `tests/ops/tests/client_stories.rs`:
   `p_accepts_the_restart_from_the_incidents_page_at_the_text_shell`:
   08.3's story, its client marked `at_text_shell`, seed 504, once.
   Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-ops-world -E
+Proof: world, `cargo nextest run -p jig-ops-world -E
   'test(at_the_text_shell)'` once.
 Don't: give `ops` a command or a loop of its own (its loop over a real
   terminal waits for `ops` standalone, later.md).
@@ -293,12 +292,12 @@ world's `at_text_shell`.
 
 - If the terminal cannot share the kernel by tagging its operations (an
   io operation's token above bit 62 in the native shell's io, say), the
-  implementer stops and asks: the fix may belong in the native shell or
+  author stops and asks: the fix may belong in the native shell or
   upstream, and is not this plan's to choose.
 
 ## Done when
 
-- `heavy cargo nextest run -p jig-shell-text -p jig-client-world -p
+- `cargo nextest run -p jig-shell-text -p jig-client-world -p
   jig-ops-world -p jig-client-protocol-world -E
   'package(jig-shell-text) | test(/text_shell|terminal/)'` passes on
   `main`, once.

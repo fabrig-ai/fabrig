@@ -58,7 +58,7 @@ fn a_frame_record_becomes_the_contract_s_frame() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p jig-protocol-client-link`, run
+Proof: unit, `cargo nextest run -p jig-protocol-client-link`, run
 once: a frame record and a chip in each phase become the contract's
 types, a run's text keeps its retry and offsets, and a task one row past
 the client's limit is refused (the four tests); under 0.2 s.
@@ -94,7 +94,7 @@ Test shape: `an_activity_page_decodes_each_turn`,
 `an_undecodable_turn_crosses_up_as_such`,
 `a_page_keeps_its_two_cursors_as_bytes`,
 `a_historical_task_keeps_its_ending`. Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-client-link`, run
+Proof: unit, `cargo nextest run -p jig-protocol-client-link`, run
 once: an activity page decodes each turn, an undecodable turn crosses up
 as such, a page keeps its two cursors as bytes, and a historical task
 keeps its ending (the four tests); under 0.2 s.
@@ -104,7 +104,7 @@ Removes: nothing.
 
 ## Done when
 
-- The documents' tests pass: `heavy cargo nextest run -p
+- The documents' tests pass: `cargo nextest run -p
   jig-protocol-client-link` passes.
 - The gate passed on this session's last landing: `git -C
   ~/src/rust/jig log --format='%(trailers:key=Gate-Result,valueonly)'

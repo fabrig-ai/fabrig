@@ -106,8 +106,8 @@ Test shape: `src/tests.rs`: `a_report_raised_in_a_turn_waits_for_that_turn`
   }
   ```
   Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-ui-web` once, and the
-  wasm32 build `heavy cargo build -p skein-ui-web --target
+Proof: unit, `cargo nextest run -p skein-ui-web` once, and the
+  wasm32 build `cargo build -p skein-ui-web --target
   wasm32-unknown-unknown` once. The reference shell runs it in skein
   11.3.
 Don't: add a part's platform half here.
@@ -241,7 +241,7 @@ Test shape: `src/tests/page.rs`: a table test `each_event_gives_its_act`
   `a_shortcut_with_no_modifier_gives_none_while_a_field_has_focus`. Each
   under 20 ms.
 Proof: unit on the host, and the wasm32 build with the lints:
-  `heavy cargo clippy -p skein-ui-web --target wasm32-unknown-unknown
+  `cargo clippy -p skein-ui-web --target wasm32-unknown-unknown
   -- -D warnings` once. Its first run in a browser is skein 11.4's
   story, which connects it.
 Don't: write `unsafe` or a `js_sys::eval`; set `innerHTML`; decide a
@@ -312,6 +312,6 @@ impl<'a> Page<'a> {
 
 ## Done when
 
-`heavy cargo nextest run -p skein-ui-web` passes, and `heavy cargo
+`cargo nextest run -p skein-ui-web` passes, and `cargo
 clippy -p skein-ui-web --target wasm32-unknown-unknown -- -D warnings`
 passes once.

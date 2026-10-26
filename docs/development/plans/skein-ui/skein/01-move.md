@@ -64,8 +64,8 @@ Shape: `lib.rs` is jig's `crates/jig-view/src/ui.rs` with `#![cfg_attr(not(test)
   no_std)]`, `#![forbid(unsafe_code)]`, `extern crate alloc;` and the
   crate doc citing `ui.md`; depends on `skein-lib` only.
 Test shape: the moved tests; none new.
-Proof: unit, and the wasm32 build: `heavy cargo nextest run -p
-  skein-ui` and `heavy cargo build -p skein-ui --target
+Proof: unit, and the wasm32 build: `cargo nextest run -p
+  skein-ui` and `cargo build -p skein-ui --target
   wasm32-unknown-unknown` pass once (the crate builds for wasm32 as
   lib, codec and HTTP do: findings/toolchain.md, 2). Nothing above
   calls it in skein until skein 09.1 and 10.1; jig 04 connects it.
@@ -84,7 +84,7 @@ Files: new `crates/skein-ui-text/` from jig's `crates/jig-shell-text/`,
 Shape: as jig's at the copy, its `Settings` with `status`.
 Test shape: the moved tests and goldens (`src/tests/golden/roles.txt`,
   `bytes.txt`), byte for byte.
-Proof: unit: `heavy cargo nextest run -p skein-ui-text` passes once,
+Proof: unit: `cargo nextest run -p skein-ui-text` passes once,
   the goldens unchanged. The terminal's test on skein-sim is the
   highest layer in skein until skein 05.1 moves it to `tests/ui-text`.
 Don't: change a golden.
@@ -104,7 +104,7 @@ Files: new `testing/skein-fake-person/` from jig's
   `testing/skein-fake-channel/` has.
 Shape: as jig's at the copy.
 Test shape: the moved tests.
-Proof: unit: `heavy cargo nextest run -p skein-fake-person` passes once.
+Proof: unit: `cargo nextest run -p skein-fake-person` passes once.
   Its first caller in skein is the example's view tests (skein 10.3).
 Don't: change its behaviour (skein 06).
 Size: about 1,255 lines moved.
@@ -117,6 +117,6 @@ Removes: nothing in skein.
 
 ## Done when
 
-`heavy cargo nextest run -p skein-ui -p skein-ui-text -p
+`cargo nextest run -p skein-ui -p skein-ui-text -p
 skein-fake-person` passes, and `rg -n -i 'jig' crates/skein-ui
 crates/skein-ui-text testing/skein-fake-person` prints nothing.

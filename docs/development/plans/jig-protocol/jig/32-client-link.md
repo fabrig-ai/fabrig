@@ -161,7 +161,7 @@ fn busy_is_handed_up_as_again_with_no_answer() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p jig-protocol-client-link`, run
+Proof: unit, `cargo nextest run -p jig-protocol-client-link`, run
 once: a send becomes one post with its key, and each answer (done, busy,
 signed out, a failed exchange, an attempt past its deadline, an
 undecodable final answer) is handed up as the domain's (the seven
@@ -194,7 +194,7 @@ Test shape: `a_read_is_answered_once_with_its_value`,
 `a_read_with_no_answer_is_unreachable`,
 `a_value_past_the_client_s_limits_is_unreachable_and_reported`. Under
 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-client-link`, run
+Proof: unit, `cargo nextest run -p jig-protocol-client-link`, run
 once: a read is answered once with its value, a signed-out one as signed
 out, and one with no answer or past the client's limits as unreachable
 (the four tests); under 0.2 s.
@@ -245,7 +245,7 @@ fn silence_past_twice_the_heartbeat_drops_each_watch() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p jig-protocol-client-link`, run
+Proof: unit, `cargo nextest run -p jig-protocol-client-link`, run
 once: the stream's body cut at each byte reads the same events, silence
 past twice the heartbeat drops each watch, and malformed base64 drops
 the stream (the six tests); under 0.3 s for the file.
@@ -272,7 +272,7 @@ Test shape: `a_draft_round_trips_through_the_small_store`,
 `a_record_of_another_store_version_is_dropped_and_told`,
 `a_step_s_writes_leave_before_its_exchanges`,
 `a_failed_write_withholds_the_step_s_exchanges`. Under 20 ms each.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-client-link`, run
+Proof: unit, `cargo nextest run -p jig-protocol-client-link`, run
 once: a draft and a request-table entry round-trip through the small
 store, and a failed write withholds the step's exchanges (the five
 tests); under 0.2 s.
@@ -387,14 +387,14 @@ pub enum Fact { UndecodableAnswer, UndecodableDocument, UndecodableEvent, Stream
 
 ## Done when
 
-- The component's tests pass: `heavy cargo nextest run -p
+- The component's tests pass: `cargo nextest run -p
   jig-protocol-client-link` passes.
 - It names no engine-side crate: `git grep -n -E
   '^(jig-domain-(core|people|tasks|fleet|views|host)|jig-protocol-engine)'
   -- crates/jig-protocol-client-link/Cargo.toml` prints nothing.
 - No wasm32: `git grep -n -i wasm -- crates/jig-protocol-client-link`
   prints nothing.
-- The translation has no wildcard: `heavy cargo clippy -p
+- The translation has no wildcard: `cargo clippy -p
   jig-protocol-client-link --all-targets -- -D warnings` passes.
 - The gate passed on this session's last landing: `git -C ~/src/rust/jig
   log --format='%(trailers:key=Gate-Result,valueonly)'

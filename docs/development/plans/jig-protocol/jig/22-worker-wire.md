@@ -267,7 +267,7 @@ Test shape:
 
 - Ceilings: step tests under 20 ms each; the drift test under 0.1 s;
   the fuzzy test under 2 s.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-worker-wire -p
+Proof: unit, `cargo nextest run -p jig-protocol-worker-wire -p
 jig-worker-wire-world` once: the hello and the credential cross bytes
 and back with their bounds kept, and the committed code matches the
 schema; under 10 s with the build warm. Not higher: no component speaks
@@ -383,7 +383,7 @@ Test shape:
   `the_schema_lists_every_up_kind_from_the_initiator`.
 - `tests/worker-wire/tests/fuzzy_records.rs` gains the six records in
   its `check!` list; its time stays under 2 s.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-worker-wire -p
+Proof: unit, `cargo nextest run -p jig-protocol-worker-wire -p
 jig-worker-wire-world` once: each up record crosses bytes and back at
 its smallest and fullest, and the drift test passes with the new
 goldens; under 10 s with the build warm.
@@ -470,7 +470,7 @@ Test shape:
   test searches the formatted record for `TOKEN_ONE`'s bytes and expects
   none, and for `len: 9` and expects it.
 - The fuzzy list gains the eight records.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-worker-wire -p
+Proof: unit, `cargo nextest run -p jig-protocol-worker-wire -p
 jig-worker-wire-world` once, as 22.2: each down record crosses bytes and
 back, and no grant's value appears in a record's `Debug`; under 10 s
 with the build warm.
@@ -523,7 +523,7 @@ Test shape:
   `the_largest_assignment_body_matches_a_measured_fullest_assignment`,
   `sizes_past_a_ceiling_give_no_codec_limits`,
   `a_cap_past_a_u32_is_none`.
-Proof: unit, `heavy cargo nextest run -p jig-protocol-worker-wire` once:
+Proof: unit, `cargo nextest run -p jig-protocol-worker-wire` once:
 each cap equals the sum written out by hand for a small `Sizes`, and
 each largest body equals a fullest record's measured bytes; under 10 s
 with the build warm.
@@ -733,7 +733,7 @@ pub fn worker_cap(sizes: &Sizes) -> Option<WorkerCap> { todo!() }
 
 ## Done when
 
-1. The schema, its generated code and goldens agree: `heavy cargo
+1. The schema, its generated code and goldens agree: `cargo
    nextest run -p jig-worker-wire-world -E 'test(drift)'` passes.
 2. Every kind of channel.md, 5.1 and 5.2 is in the table: `grep -c
    'KindRule { kind:' crates/jig-protocol-worker-wire/src/kinds.rs`

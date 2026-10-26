@@ -38,15 +38,14 @@ puts the 15 s timeout back. One increment.
 Scope: workflow.md, 2; jig-protocol's ruling 249 ("then its budget goes
   back").
 Needs: jig 01, 02, 03, 04 and 05 and `jig-repin` landed; skein 02.1
-  (`heavy` sets `NEXTEST_DOUBLE_SPAWN=0`).
+  (with `NEXTEST_DOUBLE_SPAWN=0`).
 Files: `.config/nextest.toml` (the default profile's `global-timeout`).
 Shape: `global-timeout = "15s"`; the header comment already says "within
   15 seconds".
 Test shape: none.
-Proof: process, on the branch, rebased on `origin/main`: `heavy --gate
-  cargo nextest run --workspace` three times, one after another
+Proof: process, on the branch, rebased on `origin/main`: `cargo nextest run --workspace` three times, one after another
   (`scripts/check.sh` sets `NEXTEST_DOUBLE_SPAWN=0`; these runs get it
-  from `heavy`); the three `Summary` times in the report, and their
+  from the test run); the three `Summary` times in the report, and their
   median in the commit body as a line `Median: <seconds> s`, at most
   12.0. Past 12.0 s, it lands nothing and reports the three
   times, the twenty slowest tests of the median run with their times,

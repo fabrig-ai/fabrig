@@ -217,7 +217,7 @@ Test shape:
   `people.sign_in_lifetime` and asks once more. Under 0.5 s.
 - `tests/core/tests/joint_clock.rs`: `World::advance` firing
   `Timer::People` changes no test there; the gate shows it.
-Proof: world, `heavy cargo nextest run -p jig-conformance-world --test scenarios -E 'test(a_sign_in_past_its_lifetime_is_answered_signed_out)'`,
+Proof: world, `cargo nextest run -p jig-conformance-world --test scenarios -E 'test(a_sign_in_past_its_lifetime_is_answered_signed_out)'`,
 once: a party whose sign-in expired in the conformance world is answered
 signed out; under 0.5 s. (The step test shows the reply's number; the
 conformance world is the highest layer that runs the people child's
@@ -329,7 +329,7 @@ Test shape:
   `a_rejected_escalation_still_held_offers_not_waiting`, beside
   `leaving_an_escalation_held_closing_a_chat_and_marking_it_seen_are_admitted`
   (:611), with `sign_in` (:520) and `ask_now` (:538). Under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test refusals`,
+Proof: world, `cargo nextest run -p jig-core-world --test refusals`,
 once: a person deciding an escalation that a release ended is told it no
 longer waits for them, and one decided by another is told by whom; three
 tests, each under 0.5 s.
@@ -406,7 +406,7 @@ Test shape:
   `a_procedure_step_proposing_what_nobody_may_accept_is_refused` and
   `core_new_refuses_party_words_beyond_a_runs_message`
   (`#[should_panic]`). Each under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test refusals -E 'test(a_run_proposing_an_effect_nobody_may_accept_is_refused)'`,
+Proof: world, `cargo nextest run -p jig-core-world --test refusals -E 'test(a_run_proposing_an_effect_nobody_may_accept_is_refused)'`,
 once: a run asking for what nobody may accept is told no proposal could
 be accepted, and the store is unchanged; under 0.5 s.
 Don't: refuse a proposal already pending; add a refusal for the party's
@@ -475,7 +475,7 @@ Test shape:
 - `crates/jig-domain-people/src/tests.rs` (1,592 lines; new test in a
   new module `crates/jig-domain-people/src/tests/marked_chats.rs`):
   `marked_chats_lists_only_that_persons_positions`. Under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test activity`,
+Proof: world, `cargo nextest run -p jig-core-world --test activity`,
 once: a person who has read an ended chat's replies and then its result
 no longer sees the chat, and a restart finds neither its row nor its
 read position; under 0.5 s per test.
@@ -530,7 +530,7 @@ Test shape:
   0.5 s.
 - `crates/jig-domain-core/src/tests/read_filters.rs`:
   `a_read_before_the_people_child_is_ready_stays_unknown`. Under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test reads`,
+Proof: world, `cargo nextest run -p jig-core-world --test reads`,
 once: a person whose sign-in ended is told so on their next read; under
 0.5 s per test.
 Don't: answer `SignedOut` for a party who is signed in but may not see
@@ -633,7 +633,7 @@ Test shape:
   Under 0.5 s.
 - `crates/jig-view/src/tests/`: `a_service_frame_offers_no_sign_out`.
   Under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-client-world --test shell -E 'test(a_person_signs_out_from_the_frame_and_sees_the_sign_in_page)'`,
+Proof: world, `cargo nextest run -p jig-client-world --test shell -E 'test(a_person_signs_out_from_the_frame_and_sees_the_sign_in_page)'`,
 once: a person presses "Sign out" and sees the sign-in page; under
 0.5 s. (No process layer exists before jig 33.)
 Don't: let the client domain hold or clear a secret or a cookie; show

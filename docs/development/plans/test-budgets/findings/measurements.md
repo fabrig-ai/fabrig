@@ -1,7 +1,7 @@
 # The suites at this plan's base
 
 Measured by the planner on carbon-forge (i5-8265U, 4 cores, 8 threads,
-15 GB), 2026-10-13, through `heavy --gate`, unoptimized as each gate
+15 GB), 2026-10-13, unoptimized as each gate
 builds, at skein `2068257`, smith `0305f2fd` (`origin/main`) and jig
 `d91a89c45`. Other sessions ran beside the queue during these runs (load
 averages of 7 to 13 as the gate tasks started), so single numbers vary

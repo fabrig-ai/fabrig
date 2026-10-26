@@ -265,7 +265,7 @@ Test shape:
   answers counted.
 - `crates/jig-domain-fleet/src/tests.rs`: the helper `hello()` gains
   `bounds`; no new test (05.6 judges them).
-Proof: world, `heavy cargo nextest run -p jig-host-world --test turns -E 'test(an_answer_is_sent_again_after_a_hello_until_acknowledged)'`,
+Proof: world, `cargo nextest run -p jig-host-world --test turns -E 'test(an_answer_is_sent_again_after_a_hello_until_acknowledged)'`,
 once: an answer made while the link was down reaches the engine after
 the next hello, the hello first, and is kept until acknowledged; under
 0.5 s. (The hub world is the highest layer with a hub; jig's channel
@@ -386,7 +386,7 @@ Test shape:
   0.5 s.
 - `crates/jig-domain-host/src/tests.rs` (408 lines):
   `a_grant_keeps_its_table_through_the_start`. Under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-host-world --test turns`,
+Proof: world, `cargo nextest run -p jig-host-world --test turns`,
 once: an agent starts with the messages and identity its assignment
 named, and a start carrying more messages than the run's inbox is
 refused; under 0.5 s per test. (The hub world is the highest layer with
@@ -542,7 +542,7 @@ Test shape:
   replacement.
 - `crates/jig-domain-fleet/src/tests.rs`: the bounce tests
   (:798-815) go with `Event::Bounced`.
-Proof: world, `heavy cargo nextest run -p jig-host-world --test turns`,
+Proof: world, `cargo nextest run -p jig-host-world --test turns`,
 once: a message the agent refused crosses inside the run's next turn, or
 its answer when no turn follows, and again after a hello; under 0.5 s per
 test.
@@ -646,7 +646,7 @@ Test shape:
   `World::host_call` (`tests/core/src/effects.rs:1239`) as the pattern
   for feeding the fleet: `a_rejected_grant_reaches_the_accounts_child`.
   Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test effects -E 'test(a_rejected_grant_reaches_the_accounts_child)'`,
+Proof: world, `cargo nextest run -p jig-core-world --test effects -E 'test(a_rejected_grant_reaches_the_accounts_child)'`,
 once: a host's notice that a provider rejected a grant reaches the
 accounts child through the fleet instead of crashing the core; under
 0.5 s.
@@ -696,7 +696,7 @@ Test shape:
   `cut` on the stream that crosses a dropped stretch.
 - `tests/views/tests/completion_retry.rs`:
   `a_dropped_fact_marks_the_watched_turn_cut`. Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-views-world --test completion_retry`,
+Proof: world, `cargo nextest run -p jig-views-world --test completion_retry`,
 once: a watcher sees a run's text resume past a dropped stretch, marked
 cut; under 0.5 s per test.
 Don't: route text through the hub or the fleet (later.md); change
@@ -848,7 +848,7 @@ Test shape:
   Under 20 ms.
 - `crates/jig-view/src/tests/owner_deployment.rs`:
   `an_agent_shortfall_refusal_is_worded`. Under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-fleet-world --test host_kinds -E 'test(a_worker_refused_for_its_agent_hosts_nothing)'`,
+Proof: world, `cargo nextest run -p jig-fleet-world --test host_kinds -E 'test(a_worker_refused_for_its_agent_hosts_nothing)'`,
 once: a worker whose agent cannot hold a charter's model is turned away
 and no run is placed on it; under 0.5 s.
 Don't: let the fleet read a charter's bytes or a model's prices; check

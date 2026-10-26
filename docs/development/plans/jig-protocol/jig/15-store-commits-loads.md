@@ -197,7 +197,7 @@ Tests: `an_empty_store_opens_with_its_format_row_due`,
 `a_header_without_its_format_row_refuses_as_format`,
 `a_header_equal_to_the_last_commit_opens_with_it`. Each under 20 ms.
 Proof: unit, `open::a_store_of_another_deployment_refuses_to_open`, run
-once with `heavy cargo nextest run -p jig-protocol-store -E
+once with `cargo nextest run -p jig-protocol-store -E
 'test(a_store_of_another_deployment_refuses_to_open)'`: a store whose
 format row names deployment `[9; 16]` beside a header of 19.5's
 `DEPLOYMENT` is refused as `Deployment`; under 20 ms. No layer above
@@ -269,7 +269,7 @@ Tests: `a_first_commit_puts_the_format_row_with_its_header`,
 `a_journal_bound_past_the_queue_is_refused_at_start`. Each under 20 ms.
 Proof: unit,
 `commits::a_first_commit_puts_the_format_row_with_its_header`, run once
-with `heavy cargo nextest run -p jig-protocol-store -E
+with `cargo nextest run -p jig-protocol-store -E
 'test(a_first_commit_puts_the_format_row_with_its_header)'`: after
 commit 1, skein-kv beneath the component holds the format row with the
 header's id, and the component answered `Committed { number: 1, .. }`;
@@ -363,7 +363,7 @@ Tests: `the_core_restore_hands_up_header_people_then_live_tasks`,
 tests ask 2 rows.
 Proof: unit,
 `restore::ended_tasks_history_and_notes_are_never_read_at_start`, run
-once with `heavy cargo nextest run -p jig-protocol-store -E
+once with `cargo nextest run -p jig-protocol-store -E
 'test(ended_tasks_history_and_notes_are_never_read_at_start)'`: with an
 ended task, a history row and a notes entry committed beside live rows,
 the core's restore hands up the live rows only; under 20 ms.
@@ -449,7 +449,7 @@ Tests (`pages.rs`): `a_notes_page_stops_at_the_askers_rows_with_a_cursor`,
 `a_historical_escalation_is_answered_with_its_decision`. Each under
 20 ms.
 Proof: unit, `pages::a_page_keeps_the_prefix_within_the_decoded_bytes`,
-run once with `heavy cargo nextest run -p jig-protocol-store -E
+run once with `cargo nextest run -p jig-protocol-store -E
 'test(a_page_keeps_the_prefix_within_the_decoded_bytes)'`: three rows
 whose second passes the asker's decoded bound come back as the first
 alone with a cursor naming it; under 20 ms.
@@ -538,7 +538,7 @@ to the root, and stops the engine on `Failed` or `Corrupt`.
 
 1. The four increments are on `origin/main`: `git -C ~/src/rust/jig log
    origin/main --format=%b | grep -c '^Step: jig-15\.'` prints 4.
-2. The component's tests of this session pass: `heavy cargo nextest run
+2. The component's tests of this session pass: `cargo nextest run
    -p jig-protocol-store -E 'test(/tests::(open|commits|restore|pages|gets)::/)'`
    passes, running at least 30 tests.
 3. No arm in the component is unreachable: `git -C ~/src/rust/jig grep

@@ -172,7 +172,7 @@ Test shape:
 - `crates/jig-domain-core/src/tests.rs`'s two `RunProof` literals
   (:458, :1722) name `conversation: 1`, their claims' attempt; no test
   asserts zero.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test runs`,
+Proof: world, `cargo nextest run -p jig-core-world --test runs`,
 once: a chat's first, second and third runs name one conversation's
 first attempt, the first run's own; under 0.5 s per scenario.
 Don't: keep zero as a sentinel for "from the task's first turn"; read the store from the core.
@@ -239,7 +239,7 @@ Test shape:
   and `a_fresh_start_after_a_transient_failure_names_its_own`, with
   `World::retry_due` (`tests/core/src/effects.rs:1258`). Each under
   0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test runs`,
+Proof: world, `cargo nextest run -p jig-core-world --test runs`,
 once: a chat's resumed runs carry the first run's attempt as their
 conversation, and a fresh start its own; under 0.5 s per scenario. (The
 identity's bytes are shown by `jig-protocol-charter`'s unit tests; the
@@ -301,7 +301,7 @@ Test shape:
 - `crates/jig-domain-core/src/tests/activity.rs` (`RunProof` at :68,
   :220): `a_proof_whose_window_passes_its_turn_is_refused_at_restore`.
   Under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test restart -E 'test(a_restart_keeps_the_window_a_turn_opened)'`,
+Proof: world, `cargo nextest run -p jig-core-world --test restart -E 'test(a_restart_keeps_the_window_a_turn_opened)'`,
 once: a task whose run took a window turn keeps that window across an
 engine restart; under 0.5 s.
 Don't: read a turn's body to find a window; erase earlier windows'
@@ -373,7 +373,7 @@ Test shape:
   Under 0.5 s.
 - `tests/core/tests/runs.rs`: `a_transcript_read_as_unread_fails_the_run_and_the_next_starts_fresh`
   (ruling 127). Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test runs -E 'test(runs_scenarios)'`,
+Proof: world, `cargo nextest run -p jig-core-world --test runs -E 'test(runs_scenarios)'`,
 once: a chat that compacted resumes with its window turn first and none
 of the turns before it; under 0.5 s.
 Don't: send a run an earlier window's turns; drop the calls committed
@@ -432,7 +432,7 @@ Test shape:
   Under 0.5 s.
 - `crates/jig-domain-fleet/src/tests.rs`: `free_kind_follows_the_placement_rule`.
   Under 20 ms.
-Proof: world, `heavy cargo nextest run -p jig-core-world --test restart -E 'test(a_restart_settles_an_engine_claim_of_a_both_kinds_charter_at_once)'`,
+Proof: world, `cargo nextest run -p jig-core-world --test restart -E 'test(a_restart_settles_an_engine_claim_of_a_both_kinds_charter_at_once)'`,
 once: a run claimed for the engine's slot of a charter both kinds may
 run is settled at once by a restart instead of waiting a worker's
 grace; under 0.5 s.

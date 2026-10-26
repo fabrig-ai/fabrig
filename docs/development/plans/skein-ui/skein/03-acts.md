@@ -85,7 +85,7 @@ Test shape: `src/tests/look.rs`, a table test
   }
   ```
   Under 20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-ui -E 'test(/look/)'`
+Proof: unit, `cargo nextest run -p skein-ui -E 'test(/look/)'`
   once. Its first users are skein 09.2 (classes in SVG) and skein 09.3
   (classes and `data-region`), which connect it.
 Don't: hold a look's files, pictures or drawing code here (ui-web.md,
@@ -129,7 +129,7 @@ Test shape: `src/tests/view.rs`: a table test
   fixture page; and `an_option_of_a_disabled_select_takes_no_press`,
   `a_disabled_button_takes_no_press`,
   `drawing_data_past_its_bound_is_dropped`. Each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p skein-ui -p skein-ui-text -p
+Proof: unit, `cargo nextest run -p skein-ui -p skein-ui-text -p
   skein-fake-person` once: the view refuses as ui.md 6 says, and the
   text shell's and the fake person's tests, over the builder's new
   `bind`, still pass. The first shell that reports acts to it in a
@@ -186,5 +186,5 @@ None known.
 ## Done when
 
 `rg -n 'fn takes|fn check' crates/skein-ui/src/binding.rs
-crates/skein-ui/src/look.rs` prints one line each, and `heavy cargo
+crates/skein-ui/src/look.rs` prints one line each, and `cargo
 nextest run -p skein-ui` passes.

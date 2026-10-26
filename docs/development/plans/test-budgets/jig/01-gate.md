@@ -22,7 +22,7 @@ Two increments, neither needing anything outside jig.
 
 - "The gate, and every command the machine's queue runs, starts nextest
   without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`, set by each
-  repository's `scripts/check.sh` and by `heavy`)" (testing-strategy.md,
+  repository's `scripts/check.sh`)" (testing-strategy.md,
   8).
 - "**Fixtures once.** Build a phrasebook, configuration or worst-case
   size once per test process or world when it is a fixture, then share
@@ -50,7 +50,7 @@ Two increments, neither needing anything outside jig.
   a size its session file names with the reason the assertion holds at
   it" (code-organization.md, section 4).
 - "`NEXTEST_DOUBLE_SPAWN=0` is set in each repository's
-  `scripts/check.sh` and in skein's `heavy`, and nowhere else in code"
+  `scripts/check.sh`, and nowhere else in code"
   (code-organization.md, section 1).
 - Shared files: jig 04.2 folds the cases of
   `crates/jig-protocol-config/src/tests/overrides.rs` after 01.2 adds
@@ -68,8 +68,8 @@ Files: `scripts/check.sh`; `docs/development/workflow.md`, section 2
 Shape: `export NEXTEST_DOUBLE_SPAWN=0` before the first `cargo nextest`
   in `scripts/check.sh`, with a comment naming testing-strategy.md, 8.
 Test shape: none.
-Proof: process, the focused time in `land`'s `Gate-Result`, against
-  15.041 s (jig `2048f39b7`'s); nothing runs before `land`.
+Proof: process, the focused time in the `Gate-Result`, against
+  15.041 s (jig `2048f39b7`'s); nothing runs before merging.
 Don't: change `.config/nextest.toml` (jig 06.1's).
 Size: at most 5 lines.
 Removes: nothing.
@@ -106,7 +106,7 @@ Test shape: `crates/jig-protocol-config`'s tests unchanged; one test in
   a document with three core overrides that together pass the core's
   bound gives three `What::Override` problems, at the three members'
   paths, in their order. The reference service's tests unchanged.
-Proof: unit and world, `heavy --gate cargo nextest run -p
+Proof: unit and world, `cargo nextest run -p
   jig-protocol-config -p jig-test-service -p jig-one-process-world
   --profile measure -j 1` once: every test passes; the one-process
   world's summed time in the report (the audit: its power-loss test 0.81
