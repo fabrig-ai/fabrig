@@ -473,6 +473,9 @@ over skein's harness.
   harness (skein's `ui-web.md`, 14.2), Chromium from
   `SKEIN_TEST_CHROMIUM`, the person's downloads into the scratch
   directory.
+- **The client first:** a page's load comes before the client in it
+  starts, so the first save waits for the client's main region, which
+  it draws once its recorder hears the keys.
 - **Each step once the page is still.** A save (Alt+Shift+S) is the walk
   so far, a whole recording. The page is still when a save half a second
   after another holds no report the other lacks but dues, no exchange
@@ -524,6 +527,10 @@ over skein's harness.
   which must not collide when several record at once, and a fixed start
   for its clock and the browser's, so that a recording made again
   differs from the last only where the client does.
+- **A longer walk for `again`:** skein's harness ends its whole run at
+  40 seconds, which holds the box's start and every step's saves;
+  `welcome-set-up`'s fits in about 10. A journey that doesn't would need
+  the harness's horizon set by its setup, skein's.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
 - **Real accounts:** a recording against a box with real accounts would
