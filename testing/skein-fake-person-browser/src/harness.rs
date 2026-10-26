@@ -15,9 +15,9 @@ use std::fmt::Write as _;
 use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt, path::PathBuf};
 
 const POLL: Duration = Duration::from_millis(10);
-const SERVER: Token = Token::new(10);
-const PROCESS: Token = Token::new(11);
-const BROWSER: Token = Token::new(12);
+pub(crate) const SERVER: Token = Token::new(10);
+pub(crate) const PROCESS: Token = Token::new(11);
+pub(crate) const BROWSER: Token = Token::new(12);
 const SNAPSHOT: Token = Token::new(u64::MAX - 3);
 const IMAGE: Token = Token::new(u64::MAX - 2);
 const ROOT: Token = Token::new(u64::MAX - 1);
@@ -186,6 +186,7 @@ impl Harness {
     }
 }
 pub(crate) mod capacity;
+pub(crate) mod closing;
 mod lines;
 mod peers;
 pub use lines::printed;
@@ -228,10 +229,8 @@ struct Runtime {
     server_pipes: Vec<Token>,
     output: Vec<u8>,
     lines: Vec<Opened>,
-    children: Vec<Token>,
     closed: u32,
     spawned: u32,
-    server_child: Option<Token>,
     server_state: ServerState,
     stderr: Vec<u8>,
     server_stderr: Vec<u8>,
@@ -246,7 +245,7 @@ struct Runtime {
     capturing: u8,
     snapshot: String,
     screenshot: Option<PathBuf>,
-    closing: bool,
+    closing: closing::Closing,
 }
 impl Runtime {
     fn origins(setup: &Harness) -> Vec<crate::origins::Pages> {
@@ -355,10 +354,8 @@ impl Runtime {
             server_pipes: Vec::new(),
             output: Vec::new(),
             lines: Vec::new(),
-            children: Vec::new(),
             closed: 0,
             spawned: 0,
-            server_child: None,
             server_state: ServerState::Running,
             stderr: Vec::new(),
             server_stderr: Vec::new(),
@@ -372,7 +369,7 @@ impl Runtime {
             capturing: 0,
             snapshot: String::new(),
             screenshot: None,
-            closing: false,
+            closing: closing::Closing::new(),
         }
     }
     fn ask(&mut self, request: Request) {
@@ -406,7 +403,7 @@ impl Runtime {
         let closing = format!(
             "\nclosing {}: closed {} of {} spawned, io empty {}, ring empty {}, submits empty {}, origins closed {}, \
              peers empty {peers_empty}",
-            self.closing,
+            self.closing.active(),
             self.closed,
             self.spawned,
             self.io.is_empty(),
@@ -508,12 +505,11 @@ impl Runtime {
         let Some(event) = request::route(&mut self.exchanges, event).and_then(|event| self.origin_event(event)) else {
             return;
         };
+        self.closing.io_event(&event, &mut self.requests);
         match event {
-            io::Event::Spawned { owner, child, pipes } => {
-                self.children.push(child);
+            io::Event::Spawned { owner, pipes, .. } => {
                 self.spawned += 1;
                 if owner == SERVER {
-                    self.server_child = Some(child);
                     self.server_pipes = pipes.into_vec();
                     for pipe in self.server_pipes.clone() {
                         self.read_server(pipe);
@@ -554,11 +550,8 @@ impl Runtime {
                 browser::up(&mut self.browser, &self.benv, below, &mut self.events, &mut self.down);
             }
             io::Event::Exited { owner, exit } => {
-                if !(self.closing || owner == SERVER && self.server_state == ServerState::Stopping) {
+                if !(self.closing.active() || owner == SERVER && self.server_state == ServerState::Stopping) {
                     self.fail(0, 0, format!("child {owner:?} exited: {exit:?}"));
-                }
-                if owner == SERVER {
-                    self.children.retain(|child| Some(*child) != self.server_child);
                 }
                 if owner == PROCESS {
                     if let Some(pipes) = self.pipes {
@@ -576,7 +569,6 @@ impl Runtime {
                 if owner == PROCESS || owner == SERVER {
                     self.closed += 1;
                     if owner == SERVER {
-                        self.server_child = None;
                         self.server_state = ServerState::Stopped;
                     }
                 }
@@ -647,6 +639,7 @@ impl Runtime {
                 write!(self.snapshot, "\ncapture refused: {why:?}").expect("string write");
                 self.capturing = 3;
             }
+            Event::Closed { owner } => self.closing.browser_closed(*owner, &mut self.requests),
             Event::Downloaded { .. }
             | Event::Warned { .. }
             | Event::Found { .. }
@@ -658,8 +651,7 @@ impl Runtime {
             | Event::Address { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
-            | Event::Looked { .. }
-            | Event::Closed { .. } => {}
+            | Event::Looked { .. } => {}
         }
     }
     fn failure_page(&self) -> Token {
@@ -676,7 +668,7 @@ impl Runtime {
         }
     }
     fn close(&mut self) {
-        self.closing = true;
+        let close = self.closing.begin(!self.startup.is_empty());
         for pages in &mut self.origins {
             pages.stop();
         }
@@ -687,27 +679,21 @@ impl Runtime {
             command.stop();
         }
         self.close_root(0);
-        if self.startup.is_empty() {
-            self.ask(Request::Close { entity: BROWSER });
+        if let Some(close) = close {
+            self.ask(close);
         } else {
             self.startup.clear();
             self.close_root(1);
         }
-        for child in &self.children {
-            self.requests.push_back(io::Request::Signal {
-                child: *child,
-                signal: kernel::Signal::Terminate,
-                to: kernel::Target::Child,
-            });
-        }
     }
+
     fn server_action(&mut self, action: ServerAction, setup: &Harness) {
         match action {
             ServerAction::Stop => {
                 assert!(self.server_state == ServerState::Running, "server running before stop");
                 self.server_state = ServerState::Stopping;
                 self.requests.push_back(io::Request::Signal {
-                    child: self.server_child.expect("server is running"),
+                    child: self.closing.server_child().expect("server is running"),
                     signal: kernel::Signal::Terminate,
                     to: kernel::Target::Child,
                 });
@@ -946,7 +932,7 @@ impl Runtime {
             self.benv.wall = time.wall;
             self.ienv.now = time.now;
             self.ienv.wall = time.wall;
-            let stop_peers = self.closing
+            let stop_peers = self.closing.active()
                 && self.closed == self.spawned
                 && self.io.is_empty()
                 && self.requests.is_empty()
@@ -965,9 +951,10 @@ impl Runtime {
                     format!("lent peer startup deadline: {}", peers.waiting())
                 };
                 self.fail(0, 0, report);
-                if !self.closing {
+                if !self.closing.active() {
                     self.close();
                 }
+                self.closing.force(&mut self.requests);
                 if time.now >= deadline {
                     break;
                 }
@@ -994,7 +981,7 @@ impl Runtime {
             if began && self.outcome.is_none() {
                 self.play(people, &mut faces, &mut done, time.now, setup);
             }
-            if self.outcome.is_some() && !self.closing {
+            if self.outcome.is_some() && !self.closing.active() {
                 if matches!(self.outcome, Some(Outcome::Failed { .. }))
                     && self.opened.iter().any(|open| *open)
                     && self.capturing == 0
@@ -1006,7 +993,7 @@ impl Runtime {
                 }
             }
             self.flush(started, time.now, time.wall);
-            if self.closing
+            if self.closing.active()
                 && self.closed == self.spawned
                 && self.origins.iter().all(crate::origins::Pages::is_closed)
                 && self.io.is_empty()
@@ -1021,6 +1008,7 @@ impl Runtime {
         self.report()
     }
     fn flush(&mut self, started: bool, now: Time, wall: Wall) {
+        self.closing.advance(&mut self.requests);
         while let Some(down) = self.down.pop() {
             let [commands, replies, errors] = self.pipes.expect("browser spawned");
             let (pipe, down) = match down {

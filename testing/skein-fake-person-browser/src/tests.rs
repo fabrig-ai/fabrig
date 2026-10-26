@@ -450,6 +450,7 @@ fn native_keys_validate_a_field_already_holding_a_value() {
     );
 }
 
+mod closing;
 mod origins;
 #[test]
 fn an_origin_page_names_the_server_s_address() {

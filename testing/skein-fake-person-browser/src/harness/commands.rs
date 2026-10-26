@@ -378,14 +378,14 @@ impl super::Runtime {
         now: Time,
     ) {
         for (index, face) in faces.iter_mut().enumerate() {
-            if !self.closing
+            if !self.closing.active()
                 && self.commands[index].as_ref().is_some_and(|previous| previous.settled)
                 && let Some(command) = self.pending_commands[index].take()
             {
                 self.command_action(index, super::CommandAction::Run(command), face, people[index].at(), now);
             }
             let Some(command) = &mut self.commands[index] else { continue };
-            if self.closing {
+            if self.closing.active() {
                 command.wait = None;
             }
             let name = command.name.clone();
