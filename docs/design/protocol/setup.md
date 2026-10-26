@@ -340,7 +340,7 @@ otherwise nothing but the setup host runs it or writes what it makes.
 | `Manifest { forge, target }` | GitHub | Connect, managed | 5.1 |
 | `Convert { forge, code, state }` | GitHub | the redirect back | 5.2 |
 | `Install { forge }` | GitHub | Install the App, or Install on another account | 5.4 |
-| `Accept { forge, installation, state }` | GitHub | the setup route's visit | 5.4 |
+| `Accept { forge, installation, state? }` | GitHub | the setup route's visit; the owner's accept of a stray (17.4) | 5.4 |
 | `Reconcile { forge }` | GitHub | after each connect | 5.6 |
 | `Paste { forge, app }` | GitHub | Connect with a pasted App; Replace | 5.8 |
 

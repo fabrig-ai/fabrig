@@ -326,16 +326,20 @@ skein-io socket
 - **The accepted installations** are the forge's `Accepted` row: the
   whole list, at most `forges.installations` ids, within the
   component's `installations`. One is accepted when the person comes
-  back through the setup URL with a state of temper's (`Accept`, 2.6).
+  back through the setup URL with a state of temper's (`Accept`, 2.6),
+  or when the deployment's owner accepts one that exists already,
+  through the tools, with no state (`setup.md`, 17.4).
   The routing hands the list over with `Request::Installations { forge,
   accepted }` at start, after an `Accept`'s `Done` and after a deletion;
   the component reads the installations and mints a token for each one
   accepted (skein's `forge-connection.md`, 4.4 and 5.1).
 - **`Event::Installation { forge, installation, account, change }`,**
   an `account` being its id and login:
-  - `Created`: nothing, unless accepted at the setup URL. One never
-    accepted is a stray: shown on the deployment's page, and uninstalled
-    by reconcile after `setup.state_life_ms` (skein's `forge-setup.md`).
+  - `Created`: nothing, unless accepted, at the setup URL or by the
+    owner's accept. One never accepted is a stray: shown on the
+    deployment's page, and uninstalled by reconcile after
+    `setup.state_life_ms` (skein's `forge-setup.md`), unless the App is
+    read-only (`setup.md`, 17.7).
   - `Deleted`: the `Accepted` row is rewritten without it and kept, then
     `Request::Installations`. The git identity's value loses that
     account's token (2.5). Every adoption on the account is marked
@@ -434,7 +438,7 @@ Run's start, and the page shows it as busy, try again (skein's
 | `Manifest { forge, target }` | GitHub's Connect, always for `Personal`: the App is the person's, public, and installs on any account GitHub offers them (setup.md, 17.2) | a fresh state, the form's target and the manifest; it ends `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (client/forge.md, 9.1) |
 | `Convert { forge, code, state }` | GitHub's redirect back | the code exchanged for the App's id, slug and key, the conversion's webhook secret and OAuth pair never kept; the bot user found; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
 | `Install { forge }` | Install the App, or Install on another account | a fresh state, and the install link (`Link`) |
-| `Accept { forge, installation, state }` | the setup URL's visit | the installation checked, and added to `Accepted` |
+| `Accept { forge, installation, state? }` | the setup URL's visit, with its state; the owner's accept of a stray, with none (`setup.md`, 17.4) | the installation checked, and added to `Accepted` |
 | `Paste { forge, app }` | a pasted App's Connect; Replace on GitHub, with the kept id | the pasted key (skein's `Pasted`, read once, never written) decoded to DER, `GET /app` matching the id, the bot user found, the App's hook set to `https://<slug>.invalid/`, the permissions and events checked as reconcile checks them; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
 | `Reconcile { forge }` | after each GitHub `Connected` | the App's permissions, events, installations and key checked; it repairs only its hook's address (5.1) |
 | `Reachable { forge, installation?, page }` | the picker, on every kind | the repositories the picker lists, paged by number from 1, at most `reachable` rows (temper's `picker.page`), `more` set when the page is full: on GitHub one accepted installation's, `installation` its id; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the admin's token sees, by id ascending, refused `Missing` or `NotAdmin` as reconcile's first step; an `installation` not in `Accepted` stops `Installation` (`Missing`), and one given for a Forgejo stops `Installation` (`Unexpected`); it ends `Done(Reachable { rows, more })`, each row the repository's id, its owner's `{ id, login }`, its name and whether it is private; it writes nothing (`../domain/forge.md`, 4.3) |

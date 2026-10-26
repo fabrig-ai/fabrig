@@ -1367,9 +1367,13 @@ for its kind, its user's login and its installations. Its nodes:
   GitHub (`../protocol/setup.md`, 17.4). Its outcome: *accepted*,
   `AcceptedInstallation`, with the installation's id, once it is kept,
   and the same when it was accepted already; *forge refused*,
-  `ForgeRefused` with `not found`, GitHub having no such installation of
-  the App; *forge refused*, `ForgeRefusal`, as `Install`'s; or
-  *unknown*.
+  `ForgeRefusal`, as `Install`'s, before any run; *unknown*; or, its run
+  stopped, *forge refused*, `ForgeRefused`, with the reason nearest the
+  stop: `not found`, GitHub having no such installation of the App;
+  `no access`, GitHub refusing the App's key or its read; `unreachable`,
+  GitHub down or past the run's deadline; `too large`, the accepted set
+  full (`forges.installations`); `invalid answer` otherwise. The forge's
+  row is unchanged by a stopped `Accept`.
 - **`ForgeRefusal`,** a `Connect`'s, an `Install`'s or an `Accept`'s, by the root
   before any run: `role`, the sender not the deployment's owner; `no
   such forge`; `not taken`, the forge's kind or mode does not take the
@@ -3591,9 +3595,10 @@ does for the client:
     the forge's row as the last connect's end, never in the answer;
   - *a link:* the address to open, printed and never opened (6.5);
   - *forgotten:* the admin's token erased;
-  - *accepted:* an installation kept by `Accept`, with its id;
+  - *accepted:* an installation kept by `Accept`, with its id; an
+    `Accept` that stops answers *forge refused* with its reason (4.6);
   - *a page:* the picker's (4.4);
-  - *refused:* `Connect`'s and `Install`'s as `ForgeRefusal` (4.6) has
+  - *refused:* `Connect`'s, `Install`'s and `Accept`'s as `ForgeRefusal` (4.6) has
     them: the role; no such forge; the forge's kind or mode does not
     take it (a Forgejo's install, a forget on a forge not managed, a
     replacement on a managed or owned forge); busy, since a forge runs
