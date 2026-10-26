@@ -23,7 +23,7 @@ step() {
 # The browser in the binary is a person's build; the gate's are without it (client/browser.md, 2.6).
 export TEMPER_BUNDLE=none
 
-python3 -I -B -m unittest discover -s lab/tests/unit -v
+# The lab is parked (docs/design/draft/qa-lab.md): its tests are outside the gate.
 if grep -rnE '\b(task|watching|join|number|delegate|digest)\([0-9]+\)|calls\(\)\[[0-9]+\]' tests/real-loop/tests; then
     echo 'A setup written once, and rows carry data: name real-loop call positions.' >&2
     exit 1

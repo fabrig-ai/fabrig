@@ -3,8 +3,8 @@
 **Parked** with the lab, 2026-10-26 (the user, 10-26): it was
 `../qa.md` until then. QA after landing (agents'
 `docs/design/qa-flow.md`) runs without the lab, and temper's binding
-for it is now `../qa.md`. Kept, with the experiments in `lab/` that the
-gate still tests, until the lab's future is settled.
+for it is now `../qa.md`. Kept, with its experiments in `lab/`, until
+the lab's future is settled; their unit tests are outside the gate.
 
 2026-10-20, with decision 253, revised 2026-10-24. temper's
 binding to the lab, in a repository of its own (the lab's `lab.md`):
