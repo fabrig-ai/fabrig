@@ -827,6 +827,14 @@ These per-tool declarations change within the existing call envelope.
 | `note`, `recall` | writes a note in a scope; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
 
+**A run's reads are not recorded.** A connector's read and the
+`settings` family's reads decide nothing: checked against the task's
+tools, served from the state as it stands, their answer leaves through
+the journal's door for outputs that decide nothing (root.md, section
+3), and no call record keeps it. A read asked again under its name is
+read again, and may see what changed since. A proposal of settings is a
+decided call, as every other is.
+
 **Calls are named, and decided once.** Every call names its task's
 attempt and the run's own name for it. The core commits a call that
 changes state together with its part of the answer, and answers a call
