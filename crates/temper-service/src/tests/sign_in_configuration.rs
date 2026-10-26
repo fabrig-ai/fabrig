@@ -172,6 +172,38 @@ fn forge_sign_in_is_optional_and_joins_the_provider_client() {
     assert!(parse(&input(SIGN_IN), &jig).0.unwrap().sign_in.unwrap().forges.is_empty());
 }
 #[test]
+fn forge_sign_in_callback_uses_the_owned_public_origin_or_git_without_one() {
+    for (public, callback, accepted) in [
+        (Some("https://git.example.com"), "https://git.example.com/user/oauth2/temper/callback", true),
+        (Some("https://git.example.com"), "http://127.0.0.1:9/user/oauth2/temper/callback", false),
+        (Some("https://git.example.com:8443"), "https://git.example.com:8443/user/oauth2/temper/callback", true),
+        (Some("https://git.example.com:443"), "https://git.example.com/user/oauth2/temper/callback", true),
+        (Some("https://git.example.com"), "https://git.example.com/user/oauth2/temper/callback/extra", false),
+        (None, "http://127.0.0.1:9/user/oauth2/temper/callback", true),
+        (None, "https://git.example.com/user/oauth2/temper/callback", false),
+    ] {
+        let mut jig = jig();
+        provider(&mut jig);
+        jig.clients.provider.as_mut().unwrap().clients[0].redirect_uri = callback.as_bytes().into();
+        let public = public.map_or(String::new(), |public| format!(r#", "public":{public:?}"#));
+        let setup = format!(
+            r#""setup":[{{"forge":1,"directory":"forge-1",
+            "bot":{{"login":"temper","email":"temper@example.com"}},"orgs":[],
+            "mode":{{"owned":{{"forgejo":"forgejo","runner":null,"listen":{{"socket":"127.0.0.1:9"}},
+                "person":{{"login":"sam","email":"sam@example.com"}}{public}}}}}}}]"#
+        );
+        let doc = with_forges(r#"[{"forge":1,"client":"forgejo"}]"#).replace(r#""setup":[]"#, &setup);
+        let (members, problems) = parse(&doc, &jig);
+        assert_eq!(members.is_some(), accepted, "{callback}: {:?}", startup::lines(&problems));
+        if accepted {
+            assert!(problems.is_empty());
+            assert_eq!(members.unwrap().forges[0].git.as_ref(), b"http://127.0.0.1:9");
+        } else {
+            assert_eq!(startup::lines(&problems).as_ref(), b"application.sign_in.forges[0].client: invalid form\n");
+        }
+    }
+}
+#[test]
 fn forge_sign_in_refusals_name_the_forge_or_client() {
     for (rows, member) in [
         (r#"[{"forge":99,"client":"forgejo"}]"#, "forges[0].forge"),
@@ -273,6 +305,13 @@ fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
     bundle.page = b"<head></head>".as_slice().into();
     bundle.fill_forge_sign_in(Some(sign_in), &members.forges, &setup, 65_536).unwrap();
     assert!(bundle.page.ends_with(b" owned\"></head>"));
+    for (port, origin) in [(443, "https://git.example.com"), (8443, "https://git.example.com:8443")] {
+        let Mode::Owned(owned) = &mut setup.entries[0].mode else { unreachable!() };
+        owned.public = Some(temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port });
+        bundle.page = b"<head></head>".as_slice().into();
+        bundle.fill_forge_sign_in(Some(sign_in), &members.forges, &setup, 65_536).unwrap();
+        assert_eq!(bundle.page.as_ref(), format!("<head><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; {origin} owned\"></head>").as_bytes());
+    }
     let before = bundle.page.clone();
     assert!(bundle.fill_forge_sign_in(Some(sign_in), &members.forges, &setup, 1).is_none());
     assert_eq!(bundle.page, before);

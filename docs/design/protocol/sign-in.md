@@ -402,9 +402,11 @@ the issuer at start, and draws the authorization's page.
 - **From temper:** on the Forges page, a Forgejo that signs in through
   temper has "Open Forgejo ↗" (`../client/forge.md`, 5.4), to
   Forgejo's own route that starts a sign-in with the temper source,
-  `ROOT/user/oauth2/temper`, in a new tab. Forgejo sends the browser to
-  temper's `/oauth/authorize`, temper answers at once, and Forgejo opens
-  signed in. No click.
+  `ROOT/user/oauth2/temper`, in a new tab. ROOT is the forge's browser
+  origin: its owned setup's `public` when present, else its `git` URL
+  (`configuration.md`, section 3; `setup.md`, 6.2). Forgejo sends the
+  browser to temper's `/oauth/authorize`, temper answers at once, and
+  Forgejo opens signed in. No click.
 - **At Forgejo first:** Forgejo's sign-in page offers "Sign in with
   temper". Signed in to temper, one click; signed out, temper's sign-in
   page says "to continue to" the forge, Google follows, then Forgejo,
@@ -492,7 +494,8 @@ by the client, not by a route:
   `temper-sign-in` meta (section 7), one `<meta
   name="temper-forge-sign-in" content="NUMBER CLIENT ROOT MODE">` for
   each forge of `sign_in.forges` (9.7): its number, its client's id, its
-  `git` URL and `owned` or `other`, space-separated, attribute-escaped.
+  browser origin (9.1) and `owned` or `other`, space-separated,
+  attribute-escaped.
   The web shell gives them to the view with the ways; the signed-out
   note and "to continue to" read them, as "Open Forgejo ↗" reads the
   forge's row.
@@ -587,8 +590,11 @@ section 3), and temper's `application.sign_in.forges`:
 - **`sign_in.forges`:** a list, absent for none (`configuration.md`,
   section 3): each `{"forge", "client"}`, `forge` a Forgejo of `forges`,
   `client` one of the provider's clients, whose `redirect_uri` is exactly
-  the forge's `git` URL's `/user/oauth2/temper/callback`; each forge and
-  each client at most once. Otherwise the start is refused at its path.
+  the forge's browser origin's `/user/oauth2/temper/callback`: its owned
+  setup's `public` when present, else its `git` URL (9.1). Server-to-server
+  API calls keep the configured `api` and transport; git uses `git`. Each
+  forge and each client at most once. Otherwise the start is refused at
+  its path.
   With a provider and no `sign_in.forges`, nothing of temper's names
   the provider's clients.
 

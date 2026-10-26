@@ -580,6 +580,40 @@ fn forge_sign_in_refuses_without_openssl_a_named_forge_or_a_provider() {
 }
 
 #[test]
+fn forge_sign_in_prints_the_owned_command_with_public_forge_and_temper_origins() {
+    use support::forge_sign_in;
+    let scratch = support::Scratch::new("forge_sign_in_public");
+    let directory = scratch.path();
+    let _programs = support::owned::scripted(directory);
+    forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
+    let path = directory.join("temper.json");
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    value["application"]["setup"][0]["mode"]["owned"]["public"] = "https://git.example.com".into();
+    value["application"]["clients"]["public"] = "https://temper.example.com".into();
+    value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
+        "https://git.example.com/user/oauth2/temper/callback".into();
+    support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    let output = forge_sign_in::command(directory).output().expect("sign-in command");
+    forge_sign_in::success(&output);
+    let command = format!(
+        "'{}' --work-path '{}' --config '{}' admin auth add-oauth --name temper --provider openidConnect --key 'forgejo' --secret \"$(cat '{}')\" --auto-discover-url 'https://temper.example.com/.well-known/openid-configuration'\n\n# Forgejo app.ini settings:\n",
+        directory.join("forgejo").display(),
+        directory.join("forge-1/forgejo").display(),
+        directory.join("forge-1/forgejo/app.ini").display(),
+        directory.join("forgejo.secret").display()
+    );
+    let expected = [
+        command.as_bytes(),
+        temper_forge_setup::sign_in::SETTINGS,
+        b"\n# Once the source works, [service] ENABLE_INTERNAL_SIGNIN = false makes it the web's only sign-in.\n",
+    ]
+    .concat();
+    assert_eq!(output.stdout, expected);
+    assert!(output.stderr.is_empty());
+    scratch.remove();
+}
+
+#[test]
 fn forge_sign_in_prints_the_owned_command_without_its_private_secret() {
     use support::forge_sign_in;
     let scratch = support::Scratch::new("forge_sign_in_prints");

@@ -363,6 +363,19 @@ fn a_connected_forge_in_the_page_facts_opens_through_temper() {
     assert!(f::find(view.tree(), Role::Link, "Open Forgejo ↗".as_bytes()).is_none());
 }
 
+#[test]
+fn an_owned_forge_opens_at_the_public_origin_in_the_page_facts() {
+    let root = root(Address::Forges, cf::connected());
+    let mut view = f::view_of(f::browser_words());
+    let mut facts = crate::forge_sign_in::Forges::new();
+    facts.read("3 forgejo https://git.example.com owned");
+    assert_eq!(facts.number(3).unwrap().name(&f::browser_words()).as_ref(), b"Forgejo on this machine");
+    view.forge_sign_in(facts);
+    f::build(&mut view, &root);
+    let link = f::find(view.tree(), Role::Link, "Open Forgejo ↗".as_bytes()).expect("forge sign-in link");
+    assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"https://git.example.com/user/oauth2/temper".as_slice()));
+}
+
 fn owned_row(mode: w::Mode, connection: w::Connection, runner: Option<&[u8]>) -> w::ForgeRow {
     let mut parts = cf::row(HERE, w::Kind::Forgejo, mode, connection, w::Offer::Offered).into_parts();
     if parts.mode == w::Mode::Owned {

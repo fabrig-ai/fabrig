@@ -372,18 +372,21 @@ fn forge_metas(
         }
         let forge = forge?;
         let mut mode = b"other".as_slice();
+        let mut public = None;
         for entry in &setup.entries {
             if entry.forge == row.forge
-                && let temper_forge_setup::setup::Mode::Owned(_) = &entry.mode
+                && let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode
             {
                 mode = b"owned";
+                public = owned.public.as_ref();
                 break;
             }
         }
         meta_put(writer, &mut length, measuring, b"<meta name=\"temper-forge-sign-in\" content=\"")?;
         let number = skein_lib::Decimal::of(u64::from(row.forge));
         meta_put(writer, &mut length, measuring, number.as_bytes())?;
-        for value in [&row.client, &forge.git] {
+        let origin = crate::startup::application::forge_origin(&forge.git, public);
+        for value in [&row.client, &origin] {
             meta_put(writer, &mut length, measuring, b" ")?;
             for byte in value {
                 meta_put(writer, &mut length, measuring, attribute(byte))?;

@@ -108,6 +108,27 @@ pub struct Forge {
     pub user: User,
     pub identity: u32,
 }
+/// The forge's browser origin (protocol/sign-in.md, 9.1 and 9.7).
+pub(crate) fn forge_origin(git: &[u8], public: Option<&temper_forge_setup::setup::Origin>) -> Box<[u8]> {
+    let Some(public) = public else { return bytes::copy_of(git) };
+    let port = skein_lib::Decimal::of(u64::from(public.port));
+    let mut parts = List::with_capacity(4);
+    parts.push(b"https://".as_slice()).expect("four origin pieces");
+    parts.push(public.host.as_ref()).expect("four origin pieces");
+    if public.port != 443 {
+        parts.push(b":".as_slice()).expect("four origin pieces");
+        parts.push(port.as_bytes()).expect("four origin pieces");
+    }
+    let mut length = 0_usize;
+    for part in &parts {
+        length = length.checked_add(part.len()).expect("bounded origin");
+    }
+    let mut out = skein_lib::Writer::new(length);
+    for part in &parts {
+        out.put(part).expect("measured origin");
+    }
+    out.finish()
+}
 /// How a forge's account id is supplied.
 #[derive(Debug, PartialEq, Eq)]
 pub enum User {
@@ -820,7 +841,7 @@ pub fn parse(
         }
     }
     if let Some(sign_in) = &sign_in {
-        sign_in::check_forges(&sign_in.forges, forges.as_slice(), jig, problems);
+        sign_in::check_forges(&sign_in.forges, forges.as_slice(), jig, document, setup_at, problems);
     }
     github_listener(&forges, clients.as_ref(), &path, problems);
     let demo = demo::parse(document, demo_at, setup_at, &forges, directories, problems);

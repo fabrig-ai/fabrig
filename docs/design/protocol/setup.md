@@ -953,10 +953,14 @@ owned, on temper's host, before `temper serve`:
 3. **It prints,** never running them: the `add-oauth` command
    (`sign-in.md`, 9.5) with the client's id, the secret file's absolute
    path in `--secret "$(cat PATH)"`, never the secret's bytes, and the
-   discovery document's URL at the public origin, or the listener's with
-   none; for an owned Forgejo, with the binary and its `--work-path` and
-   `--config`; and Forgejo's settings of `sign-in.md`, 9.4, which an owned
-   Forgejo's `app.ini` already holds (6.2), and a managed one's owner
+   discovery document's URL at temper's public origin, or its listener's
+   with none. The source's callback is the forge's browser origin's
+   `/user/oauth2/temper/callback`: its owned setup's `public` when present,
+   else its `git` URL (`sign-in.md`, 9.1 and 9.7), matching Forgejo's
+   `ROOT_URL` (6.2). For an owned Forgejo, the command has the binary and
+   its `--work-path` and `--config`; and Forgejo's settings of
+   `sign-in.md`, 9.4, which an owned Forgejo's `app.ini` already holds
+   (6.2), and a managed one's owner
    writes.
 
 Then `temper serve`, and the printed command, once, on Forgejo's host.
