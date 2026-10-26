@@ -689,6 +689,57 @@ section 8 give them. temper's sit beside them:
   runner's files, which their own upgrade carries), the fake backends'
   sandbox, the standalone reconcile's files until it goes (setup.md,
   6.5), logs, caches and worker roots.
+- **The baseline is v0.1.0's store** (`draft/v0.1.0.md`, section 6): its
+  disk format (skein-kv's frames and snapshot, the transcripts'
+  framing, the deployment's layout) every later build reads as it finds
+  it, and its records every later build patches by itself as it starts
+  (`draft/upgrades.md`, section 3). So the tag's commit makes, in one
+  set across skein, smith, jig and temper:
+  - **every stored family's text kept:** each owner's crate run once
+    with `--baseline` (skein's `codec.md`, 12.1), its current texts its
+    first kept versions, its level 0, no patch: skein-oauth's
+    `skein-oauth`; smith-transcript's turn family; jig's store families
+    (the core, tasks, people, notes, accounts, settings, the component's
+    and `jig-store-secrets`) and `jig-accounts`; temper's `temper-store`
+    and `temper-secrets`. No version moves at it;
+  - **the real patch sets:** each owner's `PatchSet` from its crate's
+    generated module, its families with their maps, key ranges, roots,
+    the frames' families, smith's fresh word and temper's `Flight`
+    range, handed by `temper-service`'s store shell in place of
+    `PatchSets::NONE` (jig's `protocol/store.md`, 10.3). A store v0.1.0
+    makes records every owner at level 0; one from a build before it,
+    level none, is refused as older, made again (jig's
+    `protocol/store.md`, 5.3);
+  - **the gate's check from then on:** each repository's gate runs the
+    patch command's check over each owner crate (skein's `codec.md`,
+    12.7), so a stored change with no patch, an edited kept text or a
+    landed patch changed fails it;
+  - **the baseline's golden store,** made by the tag's binary from a
+    story (a project, a person and an account, a goal's change landed,
+    a chat paused, a task mid-run, a forge's records and secrets): the
+    deployment's data directory whole, its store, secrets and
+    transcripts, with its configuration and small files, kept for good
+    beside the one-process world (`../domain/testing.md`, 2.5), never
+    regenerated. Every later build starts on it and asserts what draft
+    13 asks: identities and counters, policies, kept outcomes, old turns
+    read in the current version (`draft/upgrades.md`, section 13).
+- **Before the tag:** every stored record with its kept form, a
+  delivery's evidence among them (jig's `protocol/store.md`, section
+  16, still open); the golden store's story and its later builds'
+  assertion, as a test; the rehearsal below. The patch command's
+  modules and the sets built from them exist only once `--baseline` has
+  run (skein's `codec.md`, 12.1 and 12.3), and its check reports every
+  family unkept until then (12.7), so the sets, their handing and the
+  gates' check are the tag's set's, with the kept texts.
+- **The baseline rehearsed before the tag:** that set made on a branch
+  that never lands, from the day's schemas, its sets handed to the
+  one-process world over a store a story made: the plan accepts every
+  real set (at most 64 families, names at most 64 bytes, key ranges
+  disjoint and each family's own, holds acyclic, one frames' family per
+  slot, the manifest within its bound), a start at level 0 opens, a
+  start of the build before is refused as older, and nothing is
+  patched. What it finds is fixed on `main` before the tag, so the
+  tag's set only repeats it.
 
 ## 10. Secrets
 
