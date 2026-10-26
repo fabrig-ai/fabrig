@@ -1930,7 +1930,8 @@ fn pending_state_and_wires_have_their_exact_resident_price() {
     // levels, the check's counts and the explicit switch's stage and owner.
     // Rebased store.md 5.3 adds secrets/skein_oauth/smith_transcript hashes (96 bytes);
     // the removed settled_call_name bound and alignment save 8: Store 4,008 -> 4,096.
-    assert_eq!(size_of::<Store>(), 4_096);
+    // engine.md 17.2/17.7/17.8 adds revision/version bounds to settings, tasks and fleet (24 bytes).
+    assert_eq!(size_of::<Store>(), 4_120);
     assert_eq!(size_of::<crate::codec::component::Layouts>(), 320);
     // store.md 9: typed SecretValue makes each SecretRow 64 rather than 32 bytes.
     assert_eq!(size_of::<crate::SecretRow>(), 64);
@@ -1945,6 +1946,8 @@ fn pending_state_and_wires_have_their_exact_resident_price() {
     // 64 family names * 64), plus the 5,464-byte encoded manifest.
     assert_eq!(crate::patching::switch::worst_case(), Some(17_928));
     // Baseline 581,544,799,687,077 + rebased Store 88 + two SecretRows * 32
+    // + revision/version bounds 24 + task/run settings revision fields in generated
+    // row, decoded/joined task and commit/frame carriers 268,452,352 (engine.md 17.2)
     // + wires 16 + pending 17,928 + Mark 16.
-    assert_eq!(crate::worst_case(&fixtures::store_limits()), Some(581_544_799_705_189));
+    assert_eq!(crate::worst_case(&fixtures::store_limits()), Some(581_545_068_157_565));
 }
