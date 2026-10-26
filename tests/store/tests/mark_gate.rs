@@ -1,6 +1,6 @@
 //! Secrets and people's orphan cleanup wait for this start's durable mark (store.md 5.3).
 use jig_domain_core as core;
-use jig_protocol_store::{Event, Request, Restore, SecretOwner, Secrets, Write};
+use jig_protocol_store::{Event, Request, Restore, SecretOwner, SecretValue, Secrets, Write};
 use jig_store_world::{
     World,
     patches::{BASE, SETS},
@@ -12,6 +12,7 @@ const SEED: u64 = 963;
 const OWNER: Token = Token::new(964);
 const VALUE: &[u8] = b"private fixture";
 const SECRET: u64 = 7;
+const SIGN_IN_DIGEST: [u8; 32] = [17; 32];
 // One terminal page of the fixture's empty People range.
 const PAGE_ROWS: u32 = 2;
 const PAGE_BYTES: u64 = 2048;
@@ -35,8 +36,12 @@ fn seeded() -> World {
     world.patch_sets(BASE);
     world.open().expect("initial open");
     world.mark().expect("previous start mark");
-    for owner in [SecretOwner::Source, SecretOwner::SignIn] {
-        world.secret(Secrets::Keep { owner, number: SECRET, value: Secret::new(VALUE.into()) });
+    for (owner, value) in [
+        (SecretOwner::Source, SecretValue::Record(Secret::new(VALUE.into()))),
+        // Unexpired: the deferred sweep must remove it as an orphan.
+        (SecretOwner::SignIn, SecretValue::Digest { expiry: u64::MAX, digest: SIGN_IN_DIGEST }),
+    ] {
+        world.secret(Secrets::Keep { owner, number: SECRET, value });
     }
     world.crash(SEED);
     world
@@ -75,7 +80,9 @@ fn secrets_wait_for_the_mark() {
             "an accepted mark is still gated until Committed"
         );
         let events = world.request(read(SecretOwner::Source));
-        assert!(matches!(events.as_slice(), [Event::Secret { value: Some(value), .. }] if value.expose() == VALUE));
+        assert!(
+            matches!(events.as_slice(), [Event::Secret { value: Some(SecretValue::Record(value)), .. }] if value.expose() == VALUE)
+        );
         assert!(
             matches!(world.request(read(SecretOwner::SignIn)).as_slice(), [Event::Secret { value: None, .. }]),
             "the deferred sweep removed the orphan"
