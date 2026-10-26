@@ -35,6 +35,9 @@ journeys, 10 what is open.
   again (sections 4 and 8). The view may rename, restyle or move a
   control and the journey holds. The first replay proves itself against
   the live page's prints.
+- **Recorded again by a command** while its acts hold: `again NAME`
+  walks them on a fresh fake box in headless Chromium, as the browser
+  tier drives it, and adds the result; no person walks it (8.1).
 - **Printed as static pages** by `temper-client-journeys`, under
   `docs/design/client/journeys/`: a page per mark, one tag per line, the
   acted control leading to the next page, the shell's stylesheets
@@ -88,9 +91,10 @@ journeys, 10 what is open.
   `page(bounds, primary) -> Page<'static>`, which the shell's start and
   the replay call.
 - **An act's event,** `Host::event_of(&self, node, act) ->
-  Option<Event>`, the event the view makes of an act on a node
-  (`temper_client_view::event`), without giving it; the host's own act
-  gives what it returns. With the view's tree, `Host::tree(&self) ->
+  Option<Event>`, the event the view makes of an act on a node, without
+  giving it: `temper_client_view::event(&View, node, act)` reads the
+  view and changes nothing, so that the recorder and the replay may ask
+  it of any node. The host's own act gives what it returns. With the view's tree, `Host::tree(&self) ->
   &Tree`, it is where an act is read and its node found again (3.3).
 
 ## 3. The recording
@@ -113,16 +117,22 @@ journeys, 10 what is open.
 - **Two keys,** read by their `code` on the document before the page
   sees them, so that the page never does: Alt+Shift+M marks the page
   as it is drawn, with no act, for a state the page reaches by itself,
-  such as a setup's progress; Alt+Shift+S ends the recording with its
-  end mark and saves it through the browser's download, as
-  `journey.recording`, from a link never added to the document. After
-  the save the recorder keeps nothing more.
+  such as a setup's progress; Alt+Shift+S saves the recording as it is
+  then, closed by an end mark of the page as drawn, through the
+  browser's download, as `journey.recording`, from a link never added to
+  the document. The recorder goes on after a save, so that each save is
+  a whole recording and a later one holds more; the person saves once,
+  at the walk's end, and `again` saves as it goes (8.1). This departs
+  from the draft, whose save ends the recording: what the person does is
+  the same. A key's turn that gives the host nothing, a save's, is not
+  kept.
 - **One load of the page.** A recording starts with the page, at the
-  printed link's first page, and ends at its save. A departure ends it
-  too: when a report's duties ask to `navigate` or `replace`, the
+  printed link's first page, and is whole at each save. A departure ends
+  it: when a report's duties ask to `navigate` or `replace`, the
   recorder keeps them, marks the end as the page is drawn then, and
   saves, before the shell carries the departure out; the rest of that
-  turn is not kept. A reload starts a new recording.
+  turn is not kept, and the recorder keeps nothing more. A reload starts
+  a new recording.
 
 ### 3.2 The file
 
@@ -256,8 +266,11 @@ workspace beside the gallery (`browser.md`, section 7):
 - `cargo run -p temper-client-journeys` reprints every journey from its
   recording. A stale one is named with its turn and line, its print
   left as it was, and the program exits 1 once the others are printed.
-- It reads no configuration, environment, clock or network, and starts
-  no server. Its paths are its manifest's, as the gallery's are.
+- `cargo run -p temper-client-journeys -- again NAME` records the
+  journey NAME again while its acts hold (8.1).
+- `add` and the reprint read no configuration, environment, clock or
+  network, and start no server; `again` alone does. Its paths are its
+  manifest's, as the gallery's are.
 
 ### 5.2 What it writes
 
@@ -298,8 +311,11 @@ Under `docs/design/client/journeys/`:
   exactly.
 - **Linked:** each control on a mark's page of which the view makes the
   act's event carries the next page's name,
-  `data-journey-next="02.html"`, and `journey.js` follows it on a
-  click: a press on any of them would have led there. Any other press, link or submit shows a note that the journey
+  `data-journey-next="02.html"`, and, for an act other than a press, the
+  act, `data-journey-act="submit"` or `"toggle"`: the act on any of them
+  would have led there. `journey.js` follows a press's on a click, a
+  submit's on its form's submit (Enter in its field), and a toggle's on
+  its change; a click into a field to type in it never follows. Any other press, link or submit shows a note that the journey
   goes no further there, as the mockups' acts that lead to no drawn
   state do. What the browser does alone works as on the live page:
   hover, focus, a disclosure, typing, a narrower window.
@@ -343,11 +359,27 @@ python3 -m http.server 8766
 - **No request lands as it is:** the same tests fail while
   `overlay.css` holds any byte, and for a journey whose `README.md` is
   missing or empty (section 7).
+- **The links by act,** in the print's unit tests: a press's control,
+  a submit's field and a toggle's box, each with its attributes.
+- **`again`'s walk, natively,** in the journey module's tests and the
+  host's world, with no browser: a recording's walk read as its steps
+  (a run of typing one step, a drawing refused); a save replayed to its
+  end finding the control of a step's event by its role, name and
+  order; a still page told from a moving one by two saves; and the
+  check refusing a new walk whose events or key marks differ.
+- **`again`'s browser half has no story of its own,** as the recorder's
+  keys have none: its first run, a journey recorded again, proves it,
+  and skein's browser tier proves the kit's letter with Alt and its
+  downloads (skein's `browser.md`, section 9). No default test starts a
+  browser or a box.
 - **The recording bundle stays built:** the gate's browser-target
   check builds the shell with `loopback-navigation` and `record` too.
 - **The recorder's keys and download** have no browser story: the first
   journey's recording proves them, and the browser tier proves only
-  what a browser alone shows (`browser.md`, section 4).
+  what a browser alone shows (`browser.md`, section 4). That a save
+  leaves the recording going on is the recorder's, tested natively: two
+  saves of one walk, the first a whole recording that the second
+  extends.
 - **Their cost:** the journeys' reprint together at most 1 s of the
   default suite, as the gallery's states (`browser.md`, 7.3); no fuzzy
   test.
@@ -380,8 +412,10 @@ python3 -m http.server 8766
   dropped and by which commit. Nothing is built on the branch, so
   moving it breaks no one, and its one name leaves no copies behind. A
   conflict is a line of a request's that `main` reprinted since: the
-  script stops with the rebase in progress, and the person settles it,
-  then runs it again.
+  script stops with the rebase in progress, naming the request; the
+  person settles it and finishes the rebase (`git rebase --continue`),
+  then runs the script again, which refuses while a rebase is in
+  progress.
 - **Never landed:** the journeys' test refuses a request's pages, which
   differ from the reprint, and its overlay (section 6), so `main`'s
   overlay stays empty.
@@ -402,14 +436,60 @@ changes, or what the client can do on a page (an event no control
 gives); never for a change to the view or the look alone, which a
 reprint carries, since its acts are events, not controls.
 
-- **Recorded again, on a fresh fake box** (3.5), with the recording
-  bundle, by the same acts, then `add NAME FILE`.
-- **By a person, for now:** skein's browser driver, `skein-browser`,
-  presses no modifier chord and takes no download, so an agent records
-  only through Chromium's DevTools protocol directly (section 10).
+- **While its acts hold,** `again NAME` records it again (8.1). No
+  person walks it.
+- **When the walk itself changes** (a step gone, another added), the
+  journey is walked anew in a browser on a fresh fake box (3.5), from
+  its `README.md` and the change that moved it, then added (`add NAME
+  FILE`). The README changes with it, and its new pages are read as new.
 - **A new recording reads anew:** its times are the new walk's, and so
   are the fake box's loopback ports wherever a page shows one, so the
-  print's diff holds those as well as what changed.
+  print's diff holds those as well as what changed (section 10).
+
+### 8.1 Again
+
+`cargo run -p temper-client-journeys -- again NAME`, in
+`tools/journeys`, its walk's logic in the journey module beside the
+recorder and the replay, natively:
+
+- **The walk** is the journey's recording read as its steps, in order:
+  each act with its value and event, each key's mark, and the end. A run
+  of `input` acts on one control is one step, the run's last value and
+  event. A `drawing` act is no person's to give: such a journey is
+  refused, and walked anew.
+- **A fresh fake box** (3.5): `temper box --fake-backends`, built from
+  the checkout with the recording bundle (`scripts/bundle.sh --loopback
+  --record`), every directory fresh in a scratch directory of its own;
+  its printed sign-in link opened.
+- **Headless Chromium, as the browser tier drives it** (`browser.md`,
+  4): skein's browser kit through the fake person's browser face and
+  harness (skein's `ui-web.md`, 14.2), Chromium from
+  `SKEIN_TEST_CHROMIUM`, the person's downloads into the scratch
+  directory.
+- **Each step once the page is still.** A save (Alt+Shift+S) is the walk
+  so far, a whole recording. The page is still when a save half a second
+  after another holds no report the other lacks and no exchange asked
+  but not heard. Then:
+  - **an act:** the still save is replayed natively to its end
+    (section 4); the first node of which the view makes the step's event
+    names its control by its role, its accessible name and its order
+    among the page's controls with both, and the face finds that control
+    on the live page and acts on it as a person: a press, a submit, a
+    toggle, or the field's value selected and the step's value typed;
+  - **a key's mark:** Alt+Shift+M;
+  - **the end:** the still save is the new recording.
+
+  A step whose event no control gives within 10 seconds of the page
+  being still stops `again`: its acts no longer hold.
+- **The check, then `add`:** the new recording's walk is the old one's,
+  the same events in order and the key marks in their places, or
+  `again` refuses, naming the first step that differs, and the journey
+  is walked anew. Then `add NAME FILE`, its first replay proving it
+  (4.3), its README left as it was.
+- **What it reads and starts:** the environment's Chromium, the clock
+  and the loopback network; the box and Chromium, both stopped at its
+  end, its scratch directory removed unless it failed, which it then
+  names with what failed.
 
 ## 9. The journeys
 
@@ -428,13 +508,6 @@ reprint carries, since its acts are events, not controls.
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.
-- **Recording by an agent** (section 8): a landing that changes the
-  client's exchange on a recorded walk stops until the journey is
-  recorded again, which an agent can't do with the kit's driver. Its
-  shape would be `skein-browser` gaining modifier chords and a download
-  directory, then the recorder walking a stale recording's acts itself
-  (by role, name and order, through skein's fake person in Chromium),
-  so that the person only watches.
 - **A new recording's noise:** fixed loopback ports for the fake box,
   which must not collide when several record at once, and a fixed start
   for its clock and the browser's, so that a recording made again
