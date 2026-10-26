@@ -489,7 +489,8 @@ generation `active` names: the store's open answers that a generation
 is pending, and the script asks, after the connectors' records (step
 2) and before the runs adopted (step 3), for one step more,
 `RestartStep::Switch`, which the root serves by asking the store to
-switch. Every start takes that step, pending or not: once the store is
+switch. Every engine's start takes that step, pending or not (a worker
+alone keeps no store): once the store is
 active the root commits the start's wires (`../protocol/store.md`, 5.3),
 the start's mark, and only once it is durable are secrets served, runs
 adopted and connectors let reach their systems. Before it the restores may commit, as they do at any start

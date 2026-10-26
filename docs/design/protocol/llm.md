@@ -1,6 +1,6 @@
 # LLM calls and accounts in the engine
 
-Provisional, 2026-10-10, revised 2026-10-24. How a host that runs agents
+Provisional, 2026-10-10, revised 2026-10-26. How a host that runs agents
 in its own process makes their LLM calls, and how every engine that runs
 agents carries out its LLM accounts: the completions
 `smith-inline-agent`'s runs ask for, in the engine or on a worker whose
@@ -193,10 +193,13 @@ engine's protocol layer
 
 ### 5.1 skein's driver
 
-- **One driver per engine,** `skein-oauth-accounts`, made at startup
-  (skein's `oauth.md`, 6.2) with each signed-in source as one of its
-  accounts: the source's record, read from the secrets' store before the
-  loop (`store.md`, section 9); its LLM provider's registration, with the
+- **One driver per engine,** `skein-oauth-accounts`, made at the
+  restart's switch step, once the start's wires are durable
+  (`store.md`, 5.3 and section 10, step 4; `../domain/engine.md`,
+  section 6), never before, since a refresh rotates a token beyond the
+  process; with each signed-in source as one of its accounts: the
+  source's record, read from the secrets' store; its LLM provider's
+  registration, with the
   client id the provider issued at its first sign-in; its token
   endpoint's address and transport; and the owner's store as its keeper
   (skein's `oauth.md`, 6.4). A registration is public: the engine holds
@@ -205,7 +208,9 @@ engine's protocol layer
   the driver, within its limit; a sign-out or a removal takes one out
   (skein's `oauth.md`, 6.2). Every signed-in source is wanted once the
   restart has restored the core's records (`../domain/engine.md`,
-  section 6, item 1), and until the close, so the driver refreshes each
+  section 6, item 1), the accounts child naming its sources then as
+  now, and a want before the driver is made waits for it; and until the
+  close, so the driver refreshes each
   before it lapses whether or not a run holds it, and an idle source
   keeps its refresh token (`../domain/providers.md`, 2.3).
 - **What it does, and jig does not:** sign-in, with its loopback
