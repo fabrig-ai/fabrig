@@ -177,7 +177,7 @@ pub(crate) fn send(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     out.push(Request::Call { call: token, repository, op });
 }
 fn next(c: &mut Calls, outbox: &crate::outbox::Outbox, env: &Env<Limits>) -> Option<Id<Call>> {
-    let waiting = !(c.keep.is_empty() && c.slow.is_empty());
+    let waiting = !(crate::outbox::stop::active(outbox) || c.keep.is_empty() && c.slow.is_empty());
     let first = if env.now >= c.budget.ends { 0 } else { c.budget.first };
     let share = env.limits.rate.saturating_sub(env.limits.reserve);
     if !waiting || first < share {

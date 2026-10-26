@@ -209,3 +209,21 @@ fn a_write_refused_while_settling_is_not_sent_again() {
         assert_eq!(h.settled.as_deref(), Some([].as_slice()));
     }
 }
+
+#[test]
+fn a_proving_read_uses_the_reserve_while_background_calls_are_held() {
+    let (mut h, write) = sent_merge();
+    h.env.limits.reserve = 99;
+    // Background work was queued before the stop; it cannot consume its share now.
+    crate::calls::queue(
+        &mut h.domain.calls,
+        crate::calls::Owner::Repository(super::REPO),
+        super::REPO,
+        Op::Read(Read::Items { since: at(100), page: 1, kind: None }),
+        crate::Priority::Slow,
+    );
+    h.step(Event::Settle);
+    h.answer(write, Ok(Answer::Merged([4; 32])));
+    let proof = h.one();
+    assert_eq!(proof.op, Op::Read(Read::Pull { number: 9 }));
+}
