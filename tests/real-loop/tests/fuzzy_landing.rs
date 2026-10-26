@@ -15,8 +15,9 @@ fn a_chat_lands_its_change_on_the_forge() {
     // Sign-in and adoption precede the chat; its replied wait precedes the tree read.
     const CHAT: usize = 2;
     const TREE: usize = 4;
-    // The final call waits for the parent chat to finish its reply after landing.
+    // The reply follows landing; the final watch also joins the chat's close.
     const REPLIED: usize = 6;
+    const CHAT_ENDED: usize = 7;
     let ran = run_forge(
         landing::fixture(),
         |at| landing::scripts(at, u64::from(forge::ID), landing::README),
@@ -44,10 +45,16 @@ fn a_chat_lands_its_change_on_the_forge() {
                 call(D1, argv!["task", task(CHAT), "--tree", "--json"]),
                 call(D1, argv!["wait", "task", delegate(TREE), "--until", "ended"]),
                 call(D1, argv!["wait", "task", task(CHAT), "--since", digest(TREE), "--until", "replied"]),
+                // A replied watch accepts closing before the run has ended.
+                // Finish the requesting chat before service teardown.
+                call(D1, argv!["wait", "task", task(CHAT), "--until", "ended", "--json"]),
             ]
         },
     );
     assert_eq!(ran.calls()[REPLIED].exit, Some(Exit::Code(0)), "{:?}", ran.calls()[REPLIED]);
+    assert_eq!(ran.calls()[CHAT_ENDED].exit, Some(Exit::Code(0)), "{:?}", ran.calls()[CHAT_ENDED]);
+    let chat: Value = serde_json::from_slice(&ran.calls()[CHAT_ENDED].stdout).expect("chat ended");
+    assert_eq!(chat["task"]["result"]["value"]["report"]["bytes"], "The change landed.", "{chat}");
     assert!(ran.forge().merged_green() && ran.forge().main_file(b"README.md").ends_with(landing::EDIT));
 }
 
