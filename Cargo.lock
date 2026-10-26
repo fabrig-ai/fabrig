@@ -3077,6 +3077,7 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-world",
  "jig-client-protocol-wire",
+ "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-people",
