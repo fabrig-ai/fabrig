@@ -73,7 +73,8 @@ that depends on nothing of temper's and that `temper` and
   `"`, `\` and a line end, 1 for every other byte. A `from` past the
   end answers an empty page with no `next`.
 - **`search(words, limit) -> Hits`:** the sections in which every word
-  appears, case folded on ASCII, in the table's order, then the
+  appears, a topic's head (its title, kind line and summary) being a
+  section of its own, headed by its title, at offset 0, case folded on ASCII, in the table's order, then the
   section's: each hit the topic's name, the section's heading, the
   section's offset, and the section's first line holding the first
   word, cut to 120 bytes; at most `limit` hits, with whether more
