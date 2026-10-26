@@ -1,7 +1,8 @@
 # Journeys
 
 Provisional, 2026-10-26, from the user's draft
-(`../draft/look-recording.md`). A journey is a walk through the
+(`../draft/look-recording.md`), revised the same day to its second
+pass. A journey is a walk through the
 browser's client (`browser.md`) recorded on a fresh `temper box
 --fake-backends`, then replayed natively through the shipped host and
 printed as the client's own pages, linked so that the same clicks walk
@@ -25,26 +26,30 @@ journeys, 10 what is open.
   the same host, built natively (section 2).
 - **Recorded in a browser,** in a bundle built for it alone, on a fresh
   fake box: the facts the host starts from, then turn by turn the
-  clocks, each report and what the host asked after it, each act as its
-  control's role, name and order, and a mark for each page the person
-  saw (section 3).
-- **Replayed, it must ask what it asked.** A client that asks otherwise
-  would be answered what it never asked: the journey is stale, and is
-  recorded again (sections 4 and 8). The first replay proves itself
-  against the live page's prints.
+  clocks, each report and what the host asked after it, each act as the
+  event the view makes of it, never its control's words or place, and a
+  mark for each page the person saw (section 3).
+- **Replayed, it must ask what it asked,** and a control on the page
+  must give each recorded event. A client that asks otherwise would be
+  answered what it never asked: the journey is stale, and is recorded
+  again (sections 4 and 8). The view may rename, restyle or move a
+  control and the journey holds. The first replay proves itself against
+  the live page's prints.
 - **Printed as static pages** by `temper-client-journeys`, under
   `docs/design/client/journeys/`: a page per mark, one tag per line, the
   acted control leading to the next page, the shell's stylesheets
-  linked from the checkout, then an empty `overlay.css`. No browser, no
-  box, the same bytes every time (section 5).
+  linked from the checkout, then an empty `overlay.css`; beside them the
+  journey's `README.md`, its description. No browser, no box, the same
+  bytes every time (section 5).
 - **Kept current by a test** that reprints every committed journey and
   fails while a byte differs, naming the command that reprints, so a
-  landing that changes a recorded page carries its new print
-  (section 6).
+  landing that changes a recorded page carries its new print. It also
+  fails while `overlay.css` holds anything (section 6).
 - **The look is tuned on the print:** rules in the overlay, markup in
-  place, the diff the request; a landing moves them into the shell's
-  stylesheets and the view, reprints, and empties the overlay
-  (section 7).
+  place, each request a commit on the person's branch `look-requests`,
+  kept on `main` by `scripts/look-refresh.sh` and never landed. A
+  landing that carries a request's name moves it into the shell's
+  stylesheets and the view, and reprints (section 7).
 - **Fake only.** A recording keeps what the page was given as it was,
   the fake box's dummies included; none is made against real accounts
   (3.5).
@@ -82,8 +87,11 @@ journeys, 10 what is open.
   the prefix `temper`) is one function of the host module's,
   `page(bounds, primary) -> Page<'static>`, which the shell's start and
   the replay call.
-- **The view's tree,** `Host::tree(&self) -> &Tree`, is where an act's
-  control is read and found again (3.3).
+- **An act's event,** `Host::event_of(&self, node, act) ->
+  Option<Event>`, the event the view makes of an act on a node
+  (`temper_client_view::event`), without giving it; the host's own act
+  gives what it returns. With the view's tree, `Host::tree(&self) ->
+  &Tree`, it is where an act is read and its node found again (3.3).
 
 ## 3. The recording
 
@@ -126,7 +134,7 @@ comment, no blank.
 
 | Record | Fields | Where |
 |---|---|---|
-| `journey` | `1`, the format's version | the first line |
+| `journey` | `2`, the format's version | the first line |
 | `seed` | the platform's seed | the start's facts, in this order |
 | `clocks` | now and wall, in nanoseconds | |
 | `primary` | `control` or `meta` | |
@@ -146,7 +154,7 @@ comment, no blank.
   `heard failed EXCHANGE`, `heard opened`, `heard refused STATUS`,
   `heard piece BYTES`, `heard ended`; `carried WRITES`, then one line
   per carried report, `written KEY`, `unwritten KEY` or `lost
-  EXCHANGE`; `act ROLE NAME ORDER ACT [VALUE]` (3.3).
+  EXCHANGE`; `act ACT [VALUE] EVENT NAME` (3.3).
 - **The asks:** `exchange ID BOUND METHOD PATH BODY`, then its headers
   as `NAME VALUE` pairs on the same line; `open PIECE PATH` and its
   headers; `close`; `save KEY VALUE`; `erase KEY`; `writes N`, when not
@@ -154,18 +162,27 @@ comment, no blank.
 - **A committed recording's marks hold no html:** `add` drops it once
   the first replay has proved itself (4.3).
 
-### 3.3 An act's control
+### 3.3 An act's event
 
-- **Its role, name and order,** read from `Host::tree` before the act is
-  given to the host: the node's role, as skein's fake person names it,
-  with `-` for a space (`button`, `text-field`); its accessible name,
-  the node's name or else its subtree's text, as the fake person reads
-  it; and its order, from 1, among the tree's nodes with that role and
-  exactly that name, in tree order (`act button "Choose" 2 press`;
-  the welcome's "Set up temper" is a link, `act link "Set up temper" 1
-  press`).
 - **The act** is skein-ui's: `press`, `submit`, `toggle`, `input` with
   its value, or `drawing` with its bytes.
+- **Its event** is the one the view makes of it, read through
+  `Host::event_of` before the act is given: for a press, the client's
+  action, such as a `Go` to an address, in the domain's own names. It is
+  kept as the domain `Event`'s Debug print, compact, as bytes, which the
+  replay compares and nothing parses. Not the control's role, words or
+  place, so that the view may rename, restyle or move it and the
+  recording holds; a change to the domain's names, or to how Rust prints
+  them, stales it (section 8).
+- **The control's accessible name follows,** for a reader: the node's
+  name, or else its subtree's text, as skein's fake person reads it. It
+  is never checked.
+- **An act the view makes no event of** is given to the host, which
+  does nothing with it, and kept nowhere: no line, no mark.
+- The welcome's "Set up temper" is kept as `act press "Act { action:
+  Pages(Go { address: ... }) }" "Set up temper"`; a typed secret's event
+  shows its length alone (`AccountKey { value: Secret { len: 12 } }`),
+  its value being the act's (3.5).
 
 ### 3.4 Marks
 
@@ -199,9 +216,10 @@ is not designed (section 10).
 `journey::Replay`, native, starts the host from the recording's facts
 as the shell's start does (`Host::new`, `forge_sign_in`, `start`) and
 the page by `host::page`. For each turn it sets the clocks, gives each
-report through `Host::report`, an act to the node its control names on
-the page at that point, and draws at the turn's end. At each mark it
-yields the page and, for an act's mark, the node acted on.
+report through `Host::report`, an act to the first node, in tree order,
+on the page at that point of which the view makes the same event
+(3.3), and draws at the turn's end. At each mark it yields the page
+and, for an act's mark, every node on it that gives the act's event.
 
 ### 4.2 The check
 
@@ -212,7 +230,7 @@ yields the page and, for an act's mark, the node acted on.
   what it never asked.
 - **Stale** is where the replay stops: at the first duty or deadline
   that differs, a departure asked or not asked among them, or at an
-  act whose control is not on the page. It names the turn, the
+  act whose event no control on the page gives. It names the turn, the
   recorded line and what the host asked instead.
 - **Patches are not compared:** they are what the print shows.
 
@@ -245,9 +263,11 @@ workspace beside the gallery (`browser.md`, section 7):
 
 Under `docs/design/client/journeys/`:
 
-- **A journey's directory,** `NAME/`: its `recording`, and a page for
-  each mark, `01.html` onwards, in the marks' order, replaced whole at
-  each print.
+- **A journey's directory,** `NAME/`: its `recording`; its
+  `README.md`, the journey's description, what it walks and what each
+  mark shows, which `add` and the reprint leave as they find it; and a
+  page for each mark, `01.html` onwards, in the marks' order, replaced
+  whole at each print.
 - **Beside the journeys:** `skein-ui.css`, skein-ui-bundle's own
   (`skein_ui_bundle::STYLESHEET`, skein's `ui-web.md`, section 12), and
   `journey.js`, the program's, both written at each print; and
@@ -256,8 +276,8 @@ Under `docs/design/client/journeys/`:
 - **Generated:** the pages, `skein-ui.css` and `journey.js` are
   generated files, owned by `scripts/regenerate.sh`, which rewrites them
   by the reprint, so that a rebase that conflicts in them is resolved
-  by reprinting (agents' `landing-flow.md`, 3). A recording and the
-  overlay are sources, never regenerated. A stale journey fails the
+  by reprinting (agents' `landing-flow.md`, 3). A recording, a README
+  and the overlay are sources, never regenerated. A stale journey fails the
   reprint, and so the regeneration: such a landing stops until the
   journey is recorded again (section 8).
 
@@ -276,9 +296,10 @@ Under `docs/design/client/journeys/`:
   skein's `dom::print` escapes `<`, `>`, `"` and `&` in text and
   attribute values alike, so the tags of `Page::html()` are found
   exactly.
-- **Linked:** the control acted on at a mark carries the next page's
-  name, `data-journey-next="02.html"`, and `journey.js` follows it on a
-  click. Any other press, link or submit shows a note that the journey
+- **Linked:** each control on a mark's page of which the view makes the
+  act's event carries the next page's name,
+  `data-journey-next="02.html"`, and `journey.js` follows it on a
+  click: a press on any of them would have led there. Any other press, link or submit shows a note that the journey
   goes no further there, as the mockups' acts that lead to no drawn
   state do. What the browser does alone works as on the live page:
   hover, focus, a disclosure, typing, a narrower window.
@@ -309,13 +330,19 @@ python3 -m http.server 8766
 - **The seam, in `temper-client-shell-web`,** natively, in the host's
   world of `tests/host.rs` (the platform's reports given by the test):
   a walk recorded by `journey::Recorder` and replayed; the file's lines
-  read back to the records written, each escape among them; stale at a
-  changed ask, a changed deadline and a control gone; and the proof
-  refusing a mark whose html differs.
+  read back to the records written, each escape among them, and another
+  version unreadable; stale at a changed ask, a changed deadline and an
+  event no control gives; a control's recorded name changed, holding;
+  an act with no event, kept nowhere; and the proof refusing a mark
+  whose html differs.
 - **The print, in `tools/journeys`' own tests:** every committed
   journey reprinted into a scratch directory equals its directory and
   the files beside it, byte for byte; one that differs or is stale
-  fails, naming `cargo run -p temper-client-journeys`.
+  fails, naming `cargo run -p temper-client-journeys`. A reprint keeps a
+  journey's README.
+- **No request lands as it is:** the same tests fail while
+  `overlay.css` holds any byte, and for a journey whose `README.md` is
+  missing or empty (section 7).
 - **The recording bundle stays built:** the gate's browser-target
   check builds the shell with `loopback-navigation` and `record` too.
 - **The recorder's keys and download** have no browser story: the first
@@ -337,21 +364,46 @@ python3 -m http.server 8766
   position among its siblings.
 - **The diff is the request:** the overlay's rules and the pages'
   changes, under `docs/design/client/journeys/`.
-- **Done** is a landing that moves the overlay's rules into `temper.css`
-  or `task-pages.css` and the markup's changes into the view, reprints,
-  and empties the overlay. The reprint then equals the edited pages,
-  compared as text, not as pictures; where it does not, the landing
-  says why. What the edits imply beyond the pages recorded (the same
-  part in a state no journey reaches) is the view's and `temper.css`'s
-  for every state, and the mockups follow (`mockups/README.md`, 1).
+- **Requests stack** on a branch of the person's own, `look-requests`,
+  one commit each, named by a `Look-request: NAME` trailer (NAME
+  `[a-z0-9][a-z0-9-]*`), which a rebase keeps. A later request is drawn
+  on the pages the earlier ones ask for. They are done in order, each
+  read by its name on the branch as it is then, as its own commit's
+  diff.
+- **Kept on `main`:** `scripts/look-refresh.sh`, run by the person in
+  their checkout with `look-requests` checked out and clean, fetches
+  `main` alone, rebases the branch on `origin/main`, drops each request
+  whose name a commit on `main` carries in that trailer, and pushes it
+  with `--force-with-lease`, its lease the branch as the checkout last
+  knew it, so that a branch moved from another checkout is refused,
+  never overwritten. It says, for each request, whether it was kept or
+  dropped and by which commit. Nothing is built on the branch, so
+  moving it breaks no one, and its one name leaves no copies behind. A
+  conflict is a line of a request's that `main` reprinted since: the
+  script stops with the rebase in progress, and the person settles it,
+  then runs it again.
+- **Never landed:** the journeys' test refuses a request's pages, which
+  differ from the reprint, and its overlay (section 6), so `main`'s
+  overlay stays empty.
+- **Done** is a landing, carrying the request's trailer in commits of
+  its own (never the request's commit itself), that moves the overlay's
+  rules into `temper.css` or `task-pages.css` and the markup's changes
+  into the view, and reprints. The reprint then equals the request's
+  pages, compared as text, not as pictures; where it does not, the
+  landing says why, and the later requests take it as it is. What the
+  edits imply beyond the pages recorded (the same part in a state no
+  journey reaches) is the view's and `temper.css`'s for every state, and
+  the mockups follow (`mockups/README.md`, 1).
 
 ## 8. A recording gone stale
 
+A recording goes stale only when the client's exchange with the engine
+changes, or what the client can do on a page (an event no control
+gives); never for a change to the view or the look alone, which a
+reprint carries, since its acts are events, not controls.
+
 - **Recorded again, on a fresh fake box** (3.5), with the recording
-  bundle, by the same acts, then `add NAME FILE`. The browser and the
-  box are needed only when the client's exchange with the engine
-  changes, never for a change to the view or the look alone, which a
-  reprint carries.
+  bundle, by the same acts, then `add NAME FILE`.
 - **By a person, for now:** skein's browser driver, `skein-browser`,
   presses no modifier chord and takes no download, so an agent records
   only through Chromium's DevTools protocol directly (section 10).
@@ -363,7 +415,7 @@ python3 -m http.server 8766
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | on a fresh `temper box --fake-backends`, as `../../guide/box.md` walks it: the printed sign-in link opened, the welcome drawn, "Set up temper" pressed | `01.html`, the welcome as it was when "Set up temper" was pressed, which leads to `02.html`, the Forge step's choices as they were when the recording ended |
+| `welcome-set-up` | on a fresh `temper box --fake-backends`, as `../../guide/box.md` walks it: the printed sign-in link opened, the welcome drawn, "Set up temper" pressed | `01.html`, the welcome as it was when "Set up temper" was pressed, which leads to `02.html`, the Forge step's choices as they were when the recording ended; its `README.md` says so |
 
 ## 10. Open questions
 
@@ -383,10 +435,12 @@ python3 -m http.server 8766
   directory, then the recorder walking a stale recording's acts itself
   (by role, name and order, through skein's fake person in Chromium),
   so that the person only watches.
-- **Later, if wanted:** fixed loopback ports for the fake box, so that a
-  new recording differs from the last only where the client does; and
-  the one-tag-per-line print as skein-ui-web's, for another
-  application's journeys.
+- **A new recording's noise:** fixed loopback ports for the fake box,
+  which must not collide when several record at once, and a fixed start
+  for its clock and the browser's, so that a recording made again
+  differs from the last only where the client does.
+- **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
+  for another application's journeys.
 - **Real accounts:** a recording against a box with real accounts would
   need its secrets kept out (the printed link's, a typed key's); not
   designed.
