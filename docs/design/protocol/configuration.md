@@ -1655,7 +1655,12 @@ side never waits on the part of jig it does not use:
    of them (13.5) moves with it. Its seeded project 1 names `policy: 1`
    in place of an inline policy, so the stock reaches a fresh
    deployment's first chat; the interim inline copy with tools 513, and
-   the test that holds it equal to the stock, go with it. A deployment whose document carried
+   the test that holds it equal to the stock, go with it. A document may
+   seed no project at all, its first owners the deployment's alone, as
+   jig's seed allows; a world or a person that needs a wider project
+   raises the rules and policy 1 with one change of settings, then makes
+   it, or widens an existing project's ceiling within the new rules
+   (jig's `domain/authority.md`, section 6). A deployment whose document carried
    the stock values starts on the same settings, and makes no
    revision.
 2. **temper's kinds,** on jig's application settings (jig's
