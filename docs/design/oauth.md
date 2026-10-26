@@ -1,6 +1,6 @@
 # OAuth client
 
-Provisional, 2026-10-09, revised 2026-10-24. `skein-oauth` is a bounded,
+Provisional, 2026-10-09, revised 2026-10-26. `skein-oauth` is a bounded,
 sans-IO OAuth client for one exchange at a time. It prepares
 authorization-code sign-in, refresh and revocation requests, accepts the
 resulting HTTP answers, and hands token records to its caller. It knows no
@@ -624,6 +624,24 @@ never renames or reuses one on its own. An account has:
   hands in a fresh one.
 - **Nothing else is kept:** a sign-in's state, nonce, code and verifier,
   the issuer's keys, and the client secret, live only in the exchange.
+- **The record's form is a schema's.** A kept record is the versioned
+  record `SavedToken` of skein-oauth's family, `skein-oauth`, in
+  `schema/oauth-v3.schema` beside the crate, its codec generated (codec.md,
+  section 4) in place of today's hand-written one, before the first
+  release and at the version it has, 3 (codec.md, section 5): the
+  version first, then the key, the generation, the expiry, the access
+  token, the refresh token and the metadata, each `option` where today
+  an empty field means none, and the fields version 3 added. The magic
+  goes, since the version leads; a record of the hand-written form, or
+  of version 2, is unreadable, and its account signs in again, as
+  after any change of a record's form (below), once, before the first
+  release. Each part keeps its bound, so the record's worst case is
+  the generated one's. From the first release skein keeps each
+  version's text and its patches (codec.md, section 12), so a record
+  an owner's store keeps is patched with the store's records (jig's
+  `protocol/store.md`, 10.2), and the owner's open hands the component
+  records of the current version only. A record kept in private files
+  is read by the current version alone (section 7).
 
 **Loading a private record.** At the start, an account kept in private
 files opens its private directory, making it if absent, then loads its
@@ -932,6 +950,10 @@ configuration, counted once.
   needs the issuer.
 
 ## 7. Open questions
+
+- **A private file's record of an older version.** Default: unreadable,
+  and its account signs in again (6.4); skein-oauth could patch it as it
+  loads, with its own patch set, as jig patches transcripts as read.
 
 - **A `localhost` redirect and IPv6.** The listener binds 127.0.0.1 only. A
   browser that resolves `localhost` to `::1` and does not fall back would
