@@ -324,6 +324,7 @@ The operations as the client sends them are
 |---|---|---|
 | `Create`, a batch | member, within their role's authority and their pool (authority.md, 8.4); its dependencies and inputs within their reach, and a holder for its escalations (below) | its tasks, with their dependencies, checked whole and made at once (tasks.md, section 4), each with the fields it names (tasks.md, section 3); the party their requester and their funder; a budget given `AsAllowed` resolved, and what was given answered (authority.md, section 7) |
 | `Propose`, an action | member; a batch or an amendment beyond their authority, of a kind a role the project's policy names may accept | a proposal of theirs, waiting for that role (tasks.md, section 9), its number answered |
+| `Restore`, a version of the settings, in the deployment's scope | a role in the deployment or a project; a revision the history keeps | a proposal of the settings as that revision left them, against the newest, waiting for the owners of its items (engine.md, 17.10) |
 | `Propose`, a change of settings, in the deployment's scope | a role in the deployment or a project; the revision they saw; an owner who may accept each item (engine.md, 17.6) | a proposal of settings, waiting for those owners, its number answered |
 | `Withdraw` | their own pending proposal | withdrawn (tasks.md, section 9) |
 | `Message` | the task in their tree, or maintainer | words in its inbox (tasks.md, 8.1), their message number answered |

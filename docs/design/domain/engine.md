@@ -2049,17 +2049,16 @@ Its code comes after the rest (`../STATUS.md`).
   its number, the revision it was made against, when, who decided it (a
   party, the release, the first start), the proposal it came from,
   whether it moved running work, and its items with the values they
-  set, an application's items with their sizes alone; each charter
+  set and what each replaced (17.10), an application's items with
+  their sizes alone; each charter
   version a held revision reads and the newest does
   not; and pending proposals' sets. The tasks family keeps each
   task's revision, live and ended, and each claim's.
 - **History** is the revision records, kept for every revision held
   and for the latest ones within the history limit (17.8); the decision
   that makes a revision, or that ends the last holder of one, erases
-  those that fall out. Restoring a version
-  proposes its items again, against the newest; an application's items,
-  whose past values are not kept, are left out of it, and the
-  restore says so. History is read from
+  those that fall out. A version is restored by a proposal of the
+  settings as it left them (17.10). History is read from
   the store, a revision by its number and the records a page at a
   time, newest first, each with what it changed; a revision erased is
   answered as forgotten, naming the oldest kept
@@ -2166,3 +2165,37 @@ are when the run is prepared.
   section saying so, never a run held: the documents are optional.
 - **No authority** is asked of the run: the charter's owners chose its
   documents, as they chose its instructions.
+
+### 17.10 Restoring a version
+
+"Restore this version" makes a new proposal of the settings as a
+revision left them, never a silent rollback (temper's draft
+`configuring.md`, 3.3).
+
+- **Each item records what it replaced:** in a revision's record, beside
+  what the item set, the setting as it was before: its value whole, that
+  it followed its default, that it was removed, or that it was not
+  offered. A release's revision records the defaults it replaced so.
+  An application's items record their sizes alone (17.5).
+- **The settings as revision R left them** differ from the newest only
+  in the settings a later revision changed, each as the earliest of
+  those revisions found it: its record says what each item replaced.
+  So a restore of R reads the records after R, all within the history,
+  since history keeps the latest ones, and R the oldest it may name.
+- **`Restore { revision, reason }`,** a party's request in the
+  deployment's scope (people.md, 5.1), proposes, against the newest, one
+  item per setting a later revision changed: *set* to the value it
+  replaced, *reset* where it followed its default or was not offered,
+  *removed* where it was removed. It is a proposal of settings like any
+  (17.6), reviewed against the newest and decided by the owners of its
+  items; the owner who asked for it accepts it like any other. Its
+  reason says "restores revision R", and its items leave out each
+  setting of an application's kinds a later revision changed, whose
+  past values are not kept, which the answer names.
+- **Its decision loads the records after R** before it decides, as a
+  read loads a revision (`../client/domain/contract.md`, section 6),
+  within the journal's room for one read; a restore of a revision
+  erased is refused as forgotten, naming the oldest kept, and one of the
+  newest as empty.
+- **Bounded** as any proposal of settings: its set is one item per
+  setting at most, a whole set (17.8).

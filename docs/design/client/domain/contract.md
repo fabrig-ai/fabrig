@@ -218,6 +218,7 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a new completed answer (3.1; `../../domain/people.md`, section 6) |
 | `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, or an application's kind, scope and number) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
 | `MoveToNewest` | the deployment, its scope (7.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../domain/engine.md`, 17.4); a revision not held refused as unknown; the newest answered with none moved, nothing written |
+| `Restore` | the deployment, its scope (7.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its number answered, with the settings of an application's kinds it leaves out (`../../domain/engine.md`, 17.10); forgotten, naming the oldest kept; empty, for the newest |
 | `MakeProject` | the deployment, its scope (7.5); the new project's name (`../../domain/core.md`, 6.1); the number of a policy among the settings, the newest's (`../../domain/engine.md`, 17.1) | a project, its policy a copy of that one, its maker its owner and only party (`../../domain/people.md`, 5.2), its number answered; the maker's `me` gains it. Not among a compound request's operations (3.4) |
 | the project's own | notes, by the revision recalled; its name (`../../domain/core.md`, 6.1); the policy, its templates' overrides among them (3.6); roles; a party's pool; services, a service's credential answered once; as `../../domain/people.md`, 5.1 and 5.2 | the note or the project changed |
 | adopting a resource | the application's own request (3.3), its form the application's; the engine's root makes the people request on the party's behalf | the project changed |
@@ -1022,7 +1023,8 @@ party reads is therefore never lost by a crash.
     who decided it, a party, the release or the first start, the
     proposal it came from, whether it moved running work) and its
     items, each a setting by kind, scope and number and what became of
-    it, set with the value whole, removed, or reset; an item's value
+    it, set with the value whole, removed, or reset, and what it
+    replaced (`../../domain/engine.md`, 17.10); an item's value
     past the single read's bound comes with its size instead, as too
     large, read whole by `setting{…}` while its revision is held; an
     item of an application's kinds with its size alone, its value not
