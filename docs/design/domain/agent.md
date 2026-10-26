@@ -277,10 +277,12 @@ sees. `goal` takes the words alone, and whether the goal is an advisor,
 and the root builds the one delegate from the run's own, then decides
 it as any `delegate`:
 
-- **the delegate:** under the run's charter (a chat's, charter 1), the
-  words as its instructions and brief, tracked at the run's own
-  priority, or last among the project's goals where the run is
-  untracked, with a report's contract bounded as the run's own results
+- **the delegate:** under the run's charter (a chat's, charter 1),
+  whose instructions stay its instructions, the words its brief; tracked
+  at the run's own priority, or last among the project's goals where the
+  run is untracked: one past the largest tracked priority in the
+  project, saturating, or 0 with none (the lower first, jig's
+  `domain/tasks.md`, section 3), with a report's contract bounded as the run's own results
   are (4.4): the work a person asked for, which plans, asks its
   requester with `message` where its words say to (8.2), calls `change`
   for each change, and reports. The contract bounds the result, not
