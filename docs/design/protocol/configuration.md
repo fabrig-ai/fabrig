@@ -397,7 +397,8 @@ host's half reports it (`llm.md`, 5.5).
   task's chosen model is checked with its run's check
   (`../domain/authority.md`, 8.3).
 - **A charter's documents:** at most `tasks.charter_documents` per
-  charter (`../domain/engine.md`, 17.9), each priced within a charter's
+  charter (`../domain/engine.md`, 17.9; 2 in Small, whose brief holds 4
+  sections in all), each priced within a charter's
   part of the worst case at its bounds: a name at jig's pattern bounds,
   a path's 256 bytes and a heading's 80. The connector that gathers
   them prices their sections within its brief budgets.

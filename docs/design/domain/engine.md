@@ -2173,13 +2173,21 @@ documents, which every run of the charter reads in its brief, as they
 are when the run is prepared.
 
 - **A document** is a resource by its name, a branch of a connector's
-  (authority.md, section 4), a path within it of at most 256 bytes,
-  and, optionally, a heading of at most 80 bytes, the part of the file
-  to read. A charter names at most `tasks.charter_documents` of them
-  (4 in Small). jig never reads one: it checks only that the name is
-  well formed and its first segment a connector's (17.1, *shape*), and
-  keeps the documents with the charter, versioned and pinned with it
-  (17.3), so a run reads the documents its revision's charter names.
+  (authority.md, section 4): the connector's number and the branch's
+  segments within the authority's pattern bounds; a path within it of
+  at most 256 bytes; and, optionally, a heading of at most 80 bytes,
+  the part of the file to read. A charter names at most
+  `tasks.charter_documents` of them (2 in Small). jig never reads one:
+  it checks only that the connector is registered and the bounds hold
+  (17.1, *shape*), and keeps the documents with the charter, versioned
+  and pinned with it (17.3), so a run reads the documents its
+  revision's charter names.
+- **Planned with the brief:** the core binds each document to a
+  section's token in the plan it hands the root, optional, after its own
+  sections and before the task's resources' (section 9), and the root
+  gives each document to its connector before the gather. A start whose
+  brief's sections cannot hold the core's own most and a charter's
+  documents is refused, naming both limits.
 - **Gathered for each run** as a brief section of the connector that
   owns the resource (section 9; connectors.md, section 9): the file at
   the branch's head as the connector finds it when it gathers the
