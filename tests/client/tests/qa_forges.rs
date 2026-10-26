@@ -609,8 +609,25 @@ fn elsewhere_welcome_after_restart_connects_retries_and_opens_its_new_project() 
         why: None,
         stop: None,
     })));
-    follow(&mut world, client, vec![see(Role::Link, b"Open hello")]);
-    assert!(text(&world, client).contains("runners labelled linux-arm"));
+    // Adoption advances welcome to Model (client/README.md, 3.5); the durable
+    // runner label belongs to this forge's Ready (client/forge.md, 5.4).
+    follow(
+        &mut world,
+        client,
+        vec![
+            see(Role::Heading { level: 1 }, b"Connect a model"),
+            PersonStep::Go { address: at(OWNED) },
+            see(Role::Heading { level: 2 }, b"Connected as qa-bot (id 1), managed."),
+            see(
+                Role::Paragraph,
+                "Made work/hello, and its project hello. Its CI runs on your forge’s runners labelled linux-arm; with none, a change’s checks wait.".as_bytes(),
+            ),
+            PersonStep::Go { address: Address::Welcome { step: Step::Ready } },
+            see(Role::Heading { level: 1 }, b"work/hello is ready"),
+            see(Role::Paragraph, b"Project hello, with work/hello"),
+            see(Role::Link, b"Open hello"),
+        ],
+    );
     admin_private(&mut world, client);
     let open = node(&world, client, Role::Link, b"Open hello").id;
     world.act(client, open, Act::Press);
