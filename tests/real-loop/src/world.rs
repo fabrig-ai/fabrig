@@ -347,6 +347,8 @@ struct Children {
     terminals: Vec<usize>,
     calls: Vec<[CallRecords; 2]>,
     differing_calls: [usize; 2],
+    lock_change: bool,
+    last_setup: bool,
     locks: std::rc::Rc<std::cell::RefCell<crate::calls::recorded::LockChanges>>,
 }
 /// All retained attempts for one (call, setup), compared only when invalidated.
@@ -363,6 +365,7 @@ impl Children {
             self.terminals.clear();
             self.calls.clear();
             self.differing_calls = [0; 2];
+            self.lock_change = false;
             self.locks.borrow_mut().clear();
         }
         for (offset, proc) in children[self.seen..].iter().enumerate() {
@@ -399,7 +402,13 @@ impl Children {
     }
     fn lock_changed(&mut self, children: &[Proc], caller: &Caller) -> bool {
         let mut locks = self.locks.borrow_mut();
-        for (call, setup) in locks.invalidated.drain(..) {
+        let setup = caller.setup();
+        // Without an invalidation, neither the records nor the caller's lock
+        // tuples changed; only leaving setup can change the answer.
+        if locks.invalidated.is_empty() && self.last_setup == setup {
+            return self.lock_change;
+        }
+        while let Some((call, setup)) = locks.invalidated.pop() {
             let phase = usize::from(setup);
             let records = &mut self.calls[call][phase];
             let differs = records.positions.len() > 1
@@ -418,7 +427,10 @@ impl Children {
         }
         // Historical disagreements persist after the queue drains. Setup records
         // cease to count when the caller reuses their positions for the story.
-        locks.changed(caller) || self.differing_calls[0] != 0 || caller.setup() && self.differing_calls[1] != 0
+        self.last_setup = setup;
+        self.lock_change =
+            locks.changed(caller) || self.differing_calls[0] != 0 || setup && self.differing_calls[1] != 0;
+        self.lock_change
     }
     fn finish(&mut self, children: &[Proc]) {
         // The referee owns the queue's heap. Hosts must release their subscriptions
@@ -929,6 +941,20 @@ mod tests {
         children.apply(&procs, &mut caller);
         assert_eq!(caller.calls[0].locked, None, "the retained attempt replaces the killed one");
         assert!(!children.lock_changed(&procs, &caller), "the removed attempt cannot keep the judge awake");
+    }
+
+    #[test]
+    fn removing_all_killed_attempts_clears_the_cached_answer() {
+        let mut caller = caller();
+        let mut procs = vec![ctl(false), ctl(false)];
+        lock_event(&mut procs, 1, Some(1), None);
+        let mut children = super::Children::default();
+        children.apply(&procs, &mut caller);
+        assert!(children.lock_changed(&procs, &caller));
+
+        procs.clear();
+        children.apply(&procs, &mut caller);
+        assert!(!children.lock_changed(&procs, &caller), "no attempt remains to disagree with the caller");
     }
 
     #[test]
