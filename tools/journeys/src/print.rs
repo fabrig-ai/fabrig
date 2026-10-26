@@ -70,10 +70,11 @@ fn lines(html: &str) -> String {
 }
 
 /// The files beside the journeys, written at each print (client/journeys.md, 5.2):
-/// `journey.js`, and `overlay.css` made empty when missing and never written otherwise.
+/// `skein-ui.css`, `journey.js`, and `overlay.css` made empty when missing and never written otherwise.
 /// # Errors
-/// Returns a filesystem error when the script or a missing overlay cannot be written.
+/// Returns a filesystem error when the stylesheet, script or a missing overlay cannot be written.
 pub fn beside(journeys: &Path) -> io::Result<()> {
+    fs::write(journeys.join("skein-ui.css"), skein_ui_bundle::STYLESHEET)?;
     fs::write(journeys.join("journey.js"), SCRIPT)?;
     match fs::OpenOptions::new().write(true).create_new(true).open(journeys.join("overlay.css")) {
         Ok(_) => Ok(()),

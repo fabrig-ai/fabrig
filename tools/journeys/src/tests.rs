@@ -98,17 +98,21 @@ fn the_stylesheets_resolve_in_the_checkout() {
 }
 
 #[test]
-fn beside_keeps_an_overlay_and_writes_the_script() {
+fn beside_writes_the_kits_and_the_journeys_files_and_keeps_an_overlay() {
     let scratch = Scratch::new("temper-client-journeys-beside");
     beside(scratch.path()).expect("write beside the journeys");
     let overlay = scratch.path().join("overlay.css");
     let script = scratch.path().join("journey.js");
+    let stylesheet = scratch.path().join("skein-ui.css");
     assert_eq!(fs::read(&overlay).expect("empty overlay"), b"");
     assert_eq!(fs::read_to_string(&script).expect("script"), SCRIPT);
+    assert_eq!(fs::read(&stylesheet).expect("stylesheet"), skein_ui_bundle::STYLESHEET);
     let rule = b"#app { color: red; }\n";
     fs::write(&overlay, rule).expect("person's overlay");
     fs::write(&script, "old script").expect("old script");
+    fs::write(&stylesheet, "old stylesheet").expect("old stylesheet");
     beside(scratch.path()).expect("rewrite beside the journeys");
     assert_eq!(fs::read(&overlay).expect("kept overlay"), rule);
     assert_eq!(fs::read_to_string(&script).expect("rewritten script"), SCRIPT);
+    assert_eq!(fs::read(&stylesheet).expect("rewritten stylesheet"), skein_ui_bundle::STYLESHEET);
 }
