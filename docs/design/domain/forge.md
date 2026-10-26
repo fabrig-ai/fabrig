@@ -868,9 +868,12 @@ by a goal that asks first where its person wants to agree a plan
 Message family. It takes no questions, answers or words either, and says
 so rather than drop one: at its next step, a question in its inbox is
 answered, in the answer form to the question's number, that a change
-takes no questions and that its requester is task R; words are answered
-with words saying the same, to their sender; each reply commits with the
-step that takes what it answers, so a retried step answers once. Its
+takes no questions and that its requester is task R; a task's words are
+answered with words saying the same, to that task; each reply commits
+with the step that takes what it answers, so a retried step answers
+once. A party's words stay unanswered, since a procedure's step
+messages tasks alone (jig's `domain/tasks.md`, 8.5): they are taken and
+dropped, and the change's page says that a change takes no words. Its
 amendments and cancels are its own (8.2, 8.6).
 
 A goal across repositories is several change tasks, ordered by their
