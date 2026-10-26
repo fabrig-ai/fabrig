@@ -668,7 +668,10 @@ containment (section 6).
 ### 2.5 The one-process world
 
 `tests/one-process`, after jig's (jig's `protocol/service.md`, sections 8
-and 10).
+and 10). Its composition is `temper-playground`'s, the world the
+playground runs in a browser (`../playground.md`, 3), which this world
+composes with its harness: the referee, the fake person and the
+terminal client, the captures and the faults.
 
 - **What runs,** on skein's simulator and skein's fake machine:
   - `temper-service`'s system module, the engine's and one worker's
@@ -1891,9 +1894,10 @@ its own:
   and both transports; over `skein-fake-checkout`, the fake forge's
   domain, protocol layer and peer, and `skein-http`, each in skein's
   `crates/` (skein's `testing.md`, section 6). Its hosted half,
-  `testing/temper-fake-git-hosted`: the program as skein's world hosts
-  it, from the world's `Inherited`, with the fixtures and scenarios the
-  worlds share.
+  `crates/temper-fake-git-hosted`: the program as skein's simulated
+  world hosts it, from the world's `Inherited`, which the playground
+  ships; the fixtures and scenarios the worlds share stay with the
+  tests.
 - **Checked:** the core's step tests, by a scripted remote: each call
   missed and replayed, a replay that asks out of order, each write made
   once, the listener found from the URL and from `.git/temper-remote`,
@@ -2374,7 +2378,8 @@ crates/temper/tests/live.rs         the live tier (2.7), nextest profile live
 tests/client-browser                temper-client-browser-world: the browser tier (../client/browser.md, section 4), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser
 crates/temper-client-shell-terminal/tests  the terminal's machine world (../client/README.md, section 10)
 crates/temper-fake-git              the fake git program's core: temper fake git (4.3)
-testing/temper-fake-git-hosted      the fake git program hosted by skein's world, with its fixtures (4.3)
+crates/temper-fake-git-hosted       the fake git program hosted by skein's simulated world (4.3), which the playground ships; its fixtures with the tests
+crates/temper-playground            the world's composition, the playground's and the one-process world's (../playground.md, 3)
 testing/temper-github-app           the App on the fake GitHub layer's first fixed key, its records, seeded in jig's secrets' store before a start (2.4)
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
@@ -2385,6 +2390,7 @@ tests/system                        the composed system world (2.1)
 tests/conformance                   the engine root on jig's conformance harness
 tests/client                        temper-client-world: temper's client with skein's fake person, joined to the engine's root (2.1, 6.3)
 tests/one-process                   the one-process world (2.5)
+tests/playground                    the playground's stories walked natively through the client's host, and a session log replayed (../playground.md, 9)
 tests/real-loop                     the real-loop world (2.4), in the focused suite
 tests/*/*/tests/*.rs                a world's focused tests
 tests/*/*/tests/fuzzy_*.rs          its fuzzy tests: random worlds, domains driven at random
@@ -2411,7 +2417,7 @@ scripts/after-landing.sh            the process tier, after each landing (paused
   the conformance (`testing/skein-forge-conformance`). Reconcile's world is
   in skein's `forge-setup.md`, section 7. temper's fake git program,
   its core in `crates/temper-fake-git` and its hosted half in
-  `testing/temper-fake-git-hosted`, sits on the fake forge (4.3).
+  `crates/temper-fake-git-hosted`, sits on the fake forge (4.3).
 - **Machine worlds live beside what they test:** the forge component's is
   in skein's `forge-connection.md`, section 10; the git component's is in
   `tests/worker/protocol-git` (../protocol/git.md, section 9); the terminal's

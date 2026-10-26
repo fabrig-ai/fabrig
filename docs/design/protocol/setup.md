@@ -2354,6 +2354,16 @@ them as it does any Forgejo.
   | `repositories` | a list of `{"name", "landing", "ci"}`, each with `id` and `tree` optional | as `fake.repositories` are; `ci` `{"path", "green"}`, or null for every head passing: `path` a file's path in the repository, relative, none of the seed's, and `green` non-empty text, both within the domain's content limits; `id` and `tree` as `../domain/testing.md`, 4.2, gives them |
 
   The box's derivation gives `cued` none, `tls` and each `ci` null.
+
+  Both documents may also hold `pace`, here alone and never in a
+  deployment's document, so that a person can follow a story at its
+  speed (`../playground.md`, 5.1): the LLM's `{"reply_ms"}`, a u32 of
+  milliseconds before each reply's first piece, skein's injected latency
+  with its least and its most alike (skein's `fake-llm.md`); the forge's
+  `{"ci_ms"}`, a u32 of milliseconds from a head's push to its CI's
+  verdict, the `Checks` latency with its least and its most alike
+  (skein's `fake-forge.md`, 2.3). Each at most 60000; absent, 0, as the
+  box's fakes and the QA loop's run.
 - **Its outputs,** in a document's form, where the box's fakes read the
   files `temper init` and the preparation drew: the fake writes each
   file the document names before it binds, so that each exists before

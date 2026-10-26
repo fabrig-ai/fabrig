@@ -183,6 +183,9 @@ forge, temper adds:
   from a command line), and `mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and
   reconciled to what temper draws, with a `STATUS.md` of their own.
+- **`playground.md`:** the box's playground run whole in a visitor's
+  browser: the world's composition, its stories as data, the page and
+  its frame, how it is served, bounded and tested.
 - **`qa.md`:** temper's binding for QA after landing (agents'
   `docs/design/qa-flow.md`): whom a pass plays, its box and rungs, its
   hands, its reads of the forge, and what makes a finding.

@@ -127,6 +127,13 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
     (`README.md`, 4.6);
   - `limits`: the client's limits in a browser, derived as the
     terminal's are (`README.md`, section 2), and their sum.
+- **The feature `playground`** builds the shell for the playground in
+  the browser (`../playground.md`, 6): skein's worker platform where the
+  shipped shell holds the browser's (skein's `ui-web.md`, 18), a type the
+  feature chooses, the rest of the loop unchanged; the starter, which
+  starts the world's worker and takes the printed link from what the
+  world prints; the frame; and the failure page with the session's log.
+  The shipped bundle holds none of it.
 - **It decides nothing.** What a page shows and does is the domain's
   and the view's, step code under the subset; the shell orders the
   platform's work (jig's `protocol/browser.md`, 3.1).
