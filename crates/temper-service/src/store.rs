@@ -68,6 +68,22 @@ pub(crate) fn admit(
     forge: &forge::Limits,
     profile: &protocol::Limits,
 ) -> Result<protocol::Limits, Refusal> {
+    let limits = layout(root, forge, profile)?;
+    check_read_page(&limits).ok_or(Refusal::ReadPage { read: max_read(&limits), page: limits.store.page.bytes })?;
+    match protocol::sizes::whole(max_whole(&limits)) {
+        Ok(()) => {}
+        Err(why) => return Err(Refusal::Map(why)),
+    }
+    Ok(limits)
+}
+
+/// Size the records before agent metadata is read. Driver admission follows the
+/// agent's decoded read-row checks, which can require more room than a frame.
+pub(crate) fn layout(
+    root: &root::Limits,
+    forge: &forge::Limits,
+    profile: &protocol::Limits,
+) -> Result<protocol::Limits, Refusal> {
     let arithmetic = Refusal::Map(protocol::sizes::SizeRefusal::Ceiling);
     let core = root::core_limits(root);
     let mut kv = profile.store;
@@ -99,7 +115,7 @@ pub(crate) fn admit(
         let frame = protocol::sizes::frame(&core, transcript).ok_or(arithmetic)?;
         return Err(Refusal::Page { transcript, frame, page: kv.page.bytes, ceiling: profile.store.page.bytes });
     }
-    let limits = protocol::Limits {
+    Ok(protocol::Limits {
         core,
         store: kv,
         secrets: kv,
@@ -110,13 +126,7 @@ pub(crate) fn admit(
         files: profile.files,
         reads: core.load_slots.checked_add(core.tasks.tasks).ok_or(arithmetic)?,
         orphan_erases: profile.orphan_erases,
-    };
-    check_read_page(&limits).ok_or(Refusal::ReadPage { read: max_read(&limits), page: limits.store.page.bytes })?;
-    match protocol::sizes::whole(max_whole(&limits)) {
-        Ok(()) => {}
-        Err(why) => return Err(Refusal::Map(why)),
-    }
-    Ok(limits)
+    })
 }
 
 // protocol/store.md, 4; jig owns current full-frame sizing.

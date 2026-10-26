@@ -94,6 +94,23 @@ fn startup_names_map_sizing_without_inventing_a_records_bound() {
 }
 
 #[test]
+fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
+    let mut engine = fixtures::engine();
+    engine.limits.root.loads.transcript_bytes = 1_000_000;
+    engine.limits.root.loads.read_bytes = 1_000_000;
+    let root = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store).unwrap_err();
+    let crate::store::Refusal::ReadPage { read, page } = refused else {
+        panic!("the driver's page is the only refusal: {refused:?}");
+    };
+    assert!(read < page);
+
+    let mut problems = Problems::empty();
+    crate::startup::checks::records(&engine.jig, &engine.limits, &[], &mut problems);
+    assert!(problems.is_empty(), "record sizing must leave the driver's check to store admission: {problems:?}");
+}
+
+#[test]
 fn startup_names_a_store_driver_read_below_its_page() {
     let found = crate::startup::checks::store_refusal(crate::store::Refusal::ReadPage { read: 99, page: 100 });
     assert_eq!(

@@ -1102,7 +1102,7 @@ pub fn records(
 pub(crate) fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> Result<u32, crate::store::Refusal> {
     let root = limits::engine(&jig.limits, own)
         .ok_or(crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling))?;
-    Ok(crate::store::admit(&root, &root.forge, &jig.limits.store)?.secrets.value)
+    Ok(crate::store::layout(&root, &root.forge, &jig.limits.store)?.secrets.value)
 }
 
 pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {
