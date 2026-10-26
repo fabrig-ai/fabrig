@@ -1,6 +1,6 @@
 # Testing temper
 
-Provisional, 2026-10-03, revised 2026-10-24. How temper is tested. The
+Provisional, 2026-10-03, revised 2026-10-26. How temper is tested. The
 strategy is skein's `docs/foundation/testing-strategy.md`: the tiers,
 faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
@@ -690,7 +690,37 @@ and 10).
     start settles the worker's claims at once;
   - the service is killed, or the machine's power lost, at a drawn
     moment, then started again on the same disk, an adoption pending
-    among what it finds.
+    among what it finds;
+  - **through an upgrade** (`draft/upgrades.md`, section 13): a project,
+    a person and an account; a goal's change landed; a chat paused and a
+    task mid-run on the in-process worker; a forge write left uncertain
+    by a fault; then a settled stop, and a start of the same build
+    handed fixture patch sets (jig's `jig-test-patches-smith`, its mark
+    `fresh-windows`, and a fixture owner of temper's whose family the
+    store does not hold; `temper-service`'s store takes them by its test
+    seam, as jig's `Store::with_patch_sets`): patched in a copy,
+    restored before the switch, switched, its wires committed, and on.
+    Before every real patch set is empty (the first release), these are
+    the only patches there are; no fixture names a family of temper's or
+    jig's;
+  - the same start rehearsed first (jig's `protocol/store.md`, 10.5),
+    reporting each patch and the restores whole and leaving the
+    directory as it was, then made; and a start that fails before its
+    wires, gone back from (`Store::back`), the build before it opening
+    the generation as it was;
+  - power lost at a drawn moment of that start, from the copy to the
+    wires' commit: the next start finds one whole generation and goes
+    on as above.
+
+  The upgrade's referee: the history before the stop equals the history
+  after, record by record (people, projects, accounts, tasks live and
+  ended, landings, kept outcomes, each forge's records), but for what
+  the patches and the mark say (the windows closed, the claims crossed
+  and settled, the start's wires); no forge write made twice, by the
+  fake forge's ledger; a request sent again under its key answered from
+  its record; every number given after it above every number kept; the
+  mid-run task's next attempt fresh, with the closed window's tail, and
+  the paused chat resumed.
 - **Faults:** kills and power loss at drawn submissions; the fake
   forge's and the fake LLM's faults, drawn from the seed; the forge's
   refusals and failures as the fake git program prints them. Joined
@@ -714,6 +744,17 @@ and 10).
 
 `crates/temper/tests/process.rs`, after jig's reference binary's (jig's
 `protocol/service.md`, section 8): temper as it ships, as processes.
+
+- **The upgrade's commands,** through the real binary, whose patch sets
+  are empty until the first release: `temper versions`' lines;
+  `temper upgrade --check` over a stopped deployment's copy, saying the
+  restores pass, nothing patched, the workers may stay, the copy left as
+  it was; `temper upgrade --back` refused, with no previous generation,
+  in its words; and a start's exit and words when the store refuses.
+  The drill with a binary that patches, stop, start the new one, go
+  back, with an owned Forgejo's migration, waits for a release to pair
+  with (`draft/upgrades.md`, section 13); the one-process world runs its
+  steps on fixture sets until then (2.5).
 
 - **What runs:**
   - the real `temper` binary: `temper forge prepare`, `temper forge run`
