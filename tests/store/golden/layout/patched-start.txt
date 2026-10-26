@@ -13,9 +13,7 @@ f 0644 generations/2/manifest
 d 0700 generations/2/secrets
 f 0600 generations/2/secrets/log-00000000000000000001
 f 0600 generations/2/secrets/log-00000000000000000004
-f 0600 generations/2/secrets/log-00000000000000000006
 d 0700 generations/2/store
 f 0600 generations/2/store/log-00000000000000000001
 f 0600 generations/2/store/log-00000000000000000002
-f 0600 generations/2/store/log-00000000000000000007
 d 0700 transcripts

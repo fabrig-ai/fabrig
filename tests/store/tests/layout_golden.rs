@@ -24,7 +24,9 @@ fn patched_start() -> World {
     // transcripts' contents have their own framing golden.
     let mut world = patches::Records::story().committed(SEED, patches::BASE);
     world.patch_sets(patches::SETS);
-    world.open().expect("patched start opens");
+    // protocol/store.md, 10.2 steps 6 and 7: the manifest is written at the switch.
+    // Step 8 keeps the opened copy: switching never reopens its stores.
+    world.open_switched().expect("patched start opens and switches");
     world
 }
 
