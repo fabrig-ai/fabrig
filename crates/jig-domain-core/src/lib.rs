@@ -922,7 +922,8 @@ fn valid_proof(proof: &RunProof, expected: &RestoringProof, result_bytes: u32) -
         None => 0,
     };
     if let Some(window) = proof.window
-        && ((window.attempt, window.turn) < (proof.conversation, 1)
+        && (window.turn == 0
+            || (window.attempt, window.turn) < (proof.conversation, 1)
             || (window.attempt, window.turn) > (proof.attempt, last_turn))
     {
         return false;

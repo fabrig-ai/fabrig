@@ -371,6 +371,7 @@ pub fn run_proof(task: u64) -> core::Record {
         conversation: 1,
         credentials: Box::new([]),
         window: Some(core::CurrentWindow { attempt: 1, turn: 1, closed: false }),
+        crossed: false,
         host: jig_domain_fleet::HostKind::Worker,
         offered: None,
         outstanding: Box::new([]),

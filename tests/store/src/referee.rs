@@ -8,16 +8,19 @@ pub struct Violation(pub &'static str);
 pub struct Referee;
 
 impl Referee {
-    /// After switching across a fresh mark, each retained window is closed.
+    /// After a fresh switch, every claim is crossed and every window closed.
     ///
     /// # Errors
-    /// Returns a violation for any open run-proof window.
+    /// Returns a violation for any uncrossed proof or open window.
     pub fn fresh_windows(restored: &Restored) -> Result<(), Violation> {
         for record in restored.rows.values() {
-            if let core::Record::Core(core::CoreRecord::RunProof(proof)) = record
-                && proof.window.is_some_and(|window| !window.closed)
-            {
-                return Err(Violation("a fresh switch closes every live window"));
+            if let core::Record::Core(core::CoreRecord::RunProof(proof)) = record {
+                if !proof.crossed {
+                    return Err(Violation("a fresh switch crosses every claim"));
+                }
+                if proof.window.is_some_and(|window| !window.closed) {
+                    return Err(Violation("a fresh switch closes every live window"));
+                }
             }
         }
         Ok(())

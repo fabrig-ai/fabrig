@@ -663,6 +663,10 @@ pub struct RunProof {
     /// The current window's first turn: the last committed turn of this
     /// conversation that opened a window, by attempt and turn.
     pub window: Option<CurrentWindow>,
+    /// An upgrade across a fresh mark crossed this claim: the restart never
+    /// adopts it (domain/engine.md, 6 step 3 and 7.2). A claim's preparation
+    /// writes its own proof, never crossed.
+    pub crossed: bool,
     /// Host selected for this claim; engine claims cannot survive a restart.
     pub host: jig_domain_fleet::HostKind,
     /// Highest inbox message offered to this attempt in an assignment or committed relay.
@@ -743,6 +747,7 @@ impl RunProof {
             account_failure: None,
             account_terminal: false,
             window: None,
+            crossed: false,
             host,
             offered,
             outstanding: Box::new([]),

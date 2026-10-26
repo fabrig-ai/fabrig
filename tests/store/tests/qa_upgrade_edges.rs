@@ -166,13 +166,20 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
 }
 
 #[test]
-fn fresh_closing_changes_only_the_open_window_flag() {
+fn fresh_closing_changes_only_the_crossed_and_window_flags() {
     const WINDOWS: &[bool] = &[true, true, false];
-    let mut world = patches::fresh_committed(SEED, WINDOWS);
+    let mut world = patches::fresh_committed(SEED, WINDOWS, false);
     let last = world.open().expect("old generation opens");
-    let already_closed = patches::fresh_proof(TASK + 1, true, true);
+    let core::Record::Core(core::CoreRecord::RunProof(mut already_closed)) = patches::fresh_proof(TASK + 1, true, true)
+    else {
+        panic!("fixture run proof");
+    };
+    already_closed.crossed = false;
     world
-        .commit(Box::new([Write::Save(root::header(last + 1)), Write::Save(already_closed)]))
+        .commit(Box::new([
+            Write::Save(root::header(last + 1)),
+            Write::Save(core::Record::Core(core::CoreRecord::RunProof(already_closed))),
+        ]))
         .expect("already closed proof committed");
     let before: Vec<_> = (0..WINDOWS.len())
         .map(|index| {
@@ -192,6 +199,7 @@ fn fresh_closing_changes_only_the_open_window_flag() {
         if let Some(window) = &mut proof.window {
             window.closed = true;
         }
+        proof.crossed = true;
         assert_eq!(world.get(original.key()), expected, "identity and every other field survive closing");
     }
     // Opening the retained generation proves it still owns the open window.

@@ -381,19 +381,20 @@ pub fn fresh_limits() -> jig_protocol_store::Limits {
     limits
 }
 
-/// Five windows force two closing pages at the world's four-put journal.
-/// A sixth proof has none; every task has two committed fixture turns.
+/// Six proofs force two crossing pages at the world's four-put journal.
+/// Five have windows; every task has two committed fixture turns.
 pub const FRESH_WINDOWS: &[bool] = &[true, true, true, true, true, false];
 pub const FRESH_SAID: &[u8] = b"said";
 pub const FRESH_REPLAY: &[u8] = b"replay";
 
 #[must_use]
-pub fn fresh_proof(task: u64, window: bool, closed: bool) -> jig_domain_core::Record {
+pub fn fresh_proof(task: u64, window: bool, crossed: bool) -> jig_domain_core::Record {
     let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(mut proof)) = root::run_proof(task) else {
         panic!("proof fixture")
     };
     proof.turn = Some(jig_domain_core::TurnProof { turn: 2, cumulative: 0, read: None });
-    proof.window = window.then_some(jig_domain_core::CurrentWindow { attempt: 1, turn: 1, closed });
+    proof.window = window.then_some(jig_domain_core::CurrentWindow { attempt: 1, turn: 1, closed: crossed });
+    proof.crossed = crossed;
     jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof))
 }
 
@@ -411,7 +412,7 @@ pub fn fixture_turn(version: u16, said: &[u8], replay: &[u8], tokens: u32) -> Bo
 }
 
 #[must_use]
-pub fn fresh_committed(seed: u64, windows: &[bool]) -> World {
+pub fn fresh_committed(seed: u64, windows: &[bool], crossed: bool) -> World {
     let mut world = World::unopened_observed(seed, fresh_limits(), None);
     world.patch_sets(FRESH_BEFORE);
     world.open().expect("fresh fixture open");
@@ -427,10 +428,10 @@ pub fn fresh_committed(seed: u64, windows: &[bool]) -> World {
             number += 1;
             world.commit(root::turn_commit(number, task, turn, &bytes)).expect("fixture turn committed");
         }
-        // Keep the last turn proof and remove only the designated window.
+        // Keep the last turn proof with the designated window and crossing state.
         number += 1;
         world
-            .commit(Box::new([Write::Save(root::header(number)), Write::Save(fresh_proof(task, *window, false))]))
+            .commit(Box::new([Write::Save(root::header(number)), Write::Save(fresh_proof(task, *window, crossed))]))
             .expect("proof committed");
     }
     world.crash(seed);

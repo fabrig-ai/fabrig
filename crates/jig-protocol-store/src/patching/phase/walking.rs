@@ -169,7 +169,7 @@ fn interval(store: &Store, walking: &Walking) -> Option<skein_kv::Range> {
 }
 /// No request is issued here. Each iteration consumes a row, a range, a
 /// family or a plan step; commits and sites leave through the step's outputs.
-/// Closing additionally consumes at most all map rows and one load per row
+/// Crossing additionally consumes at most all map rows and one load per row
 /// plus the final empty page. Three turns per row/page/commit cover that walk;
 /// commits yield and resume after `through`, including unchanged proofs.
 fn drive(store: &mut Store, walking: &mut Walking, above: &mut Queue<Event>) -> Option<bool> {
@@ -192,7 +192,7 @@ fn drive(store: &mut Store, walking: &mut Walking, above: &mut Queue<Event>) -> 
         .checked_add(2)?
         .checked_mul(3)?;
     if walking.step().is_none() {
-        return if walking.pending.plan.close() { close(store, walking, turns) } else { Some(true) };
+        return if walking.pending.plan.close() { cross(store, walking, turns) } else { Some(true) };
     }
     for _ in 0..turns {
         let step = walking.step().expect("Patched yields before advancing to the next step");
@@ -274,14 +274,15 @@ fn drive(store: &mut Store, walking: &mut Walking, above: &mut Queue<Event>) -> 
     }
     None
 }
-/// After the last Patched, close windows in the copy, without a patch event.
-fn close(store: &mut Store, walking: &mut Walking, turns: usize) -> Option<bool> {
+/// After the last Patched, cross every claim and close its window in the copy,
+/// without a patch event (protocol/store.md 10.2, step 4).
+fn cross(store: &mut Store, walking: &mut Walking, turns: usize) -> Option<bool> {
     for _ in 0..turns {
         if !append(store, walking)? {
             return Some(false);
         }
         if let Some(row) = walking.page.pop() {
-            close_row(store, walking, row)?;
+            cross_row(store, walking, row)?;
             continue;
         }
         if !walking.ops.is_empty() {
@@ -290,7 +291,7 @@ fn close(store: &mut Store, walking: &mut Walking, turns: usize) -> Option<bool>
         if walking.loaded && !walking.more {
             return Some(true);
         }
-        // A page with no open windows makes no commit but still advances.
+        // A page with only crossed proofs and no open windows advances without a commit.
         if let Some(through) = walking.through.take() {
             walking.cursor = Some(through);
         }
@@ -313,7 +314,9 @@ fn close(store: &mut Store, walking: &mut Walking, turns: usize) -> Option<bool>
     }
     None
 }
-fn close_row(store: &Store, walking: &mut Walking, row: pages::WalkRow) -> Option<()> {
+/// Write only the crossed mark and any window's closed flag; skip a proof
+/// already crossed with no open window.
+fn cross_row(store: &Store, walking: &mut Walking, row: pages::WalkRow) -> Option<()> {
     // The same keyed Load refusal as the following check, including a value
     // that decodes but whose record does not belong at this key.
     walking.refusal = Some(OpenRefusal::Check { why: crate::Check::Load { key: row.row.key.clone() } });
@@ -340,10 +343,13 @@ fn close_row(store: &Store, walking: &mut Walking, row: pages::WalkRow) -> Optio
         | Record::Accounts(_) => return None,
     };
     walking.refusal = None;
-    if let Some(window) = &mut proof.window
-        && !window.closed
-    {
+    let mut changed = !proof.crossed;
+    proof.crossed = true;
+    if let Some(window) = &mut proof.window {
+        changed |= !window.closed;
         window.closed = true;
+    }
+    if changed {
         let value = codec::encode(&Record::Core(CoreRecord::RunProof(proof)), &store.codec, &store.names)?;
         walking.deferred = Some(Put { key: row.row.key, value, cursor: row.cursor });
     } else {

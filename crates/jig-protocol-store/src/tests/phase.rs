@@ -1608,10 +1608,11 @@ fn a_restart_row_at_the_deployments_lowered_limit_loads() {
     assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
 }
 
-// Three open windows take two commits with two-put closing pages. The last
-// two rows exercise skipping a windowless proof and an already closed one.
+// Two open windows, an uncrossed closed window and a windowless proof
+// take two two-put commits. The fifth, already crossed and closed, is skipped.
 const FRESH_TASKS: u64 = 5;
-fn fresh_record(task: u64, closed: bool) -> jig_domain_core::Record {
+const FRESH_CLOSED_TASK: u64 = 3;
+fn fresh_record(task: u64, crossed: bool) -> jig_domain_core::Record {
     use jig_domain_core::{CoreRecord, Record};
     let Record::Core(CoreRecord::RunProof(mut proof)) = jig_store_world::root::run_proof(task) else {
         panic!("run fixture")
@@ -1619,8 +1620,10 @@ fn fresh_record(task: u64, closed: bool) -> jig_domain_core::Record {
     if task == FRESH_TASKS.checked_sub(1).expect("windowless task") {
         proof.window = None;
     } else {
-        proof.window.as_mut().expect("window fixture").closed = closed || task == FRESH_TASKS;
+        proof.window.as_mut().expect("window fixture").closed =
+            crossed || task == FRESH_CLOSED_TASK || task == FRESH_TASKS;
     }
+    proof.crossed = crossed || task == FRESH_TASKS;
     Record::Core(CoreRecord::RunProof(proof))
 }
 fn fresh_baseline() -> Vec<Item> {
@@ -1708,6 +1711,7 @@ fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
         panic!("proof fixture")
     };
     expected.window.as_mut().expect("window").closed = true;
+    expected.crossed = true;
     let record = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(expected));
     assert_eq!(
         proof_bytes(&mut store, FRESH_PROOF_TASK),
@@ -1775,10 +1779,10 @@ fn proof_bytes(store: &mut Store, task: u64) -> Box<[u8]> {
     .expect("proof key");
     fixtures::get_kv(store, &key).expect("proof row")
 }
-fn assert_fresh_proofs(store: &mut Store, closed: bool) {
+fn assert_fresh_proofs(store: &mut Store, crossed: bool) {
     for task in 1..=FRESH_TASKS {
         let expected =
-            crate::codec::encode(&fresh_record(task, closed), &store.codec, &store.names).expect("proof encoding");
+            crate::codec::encode(&fresh_record(task, crossed), &store.codec, &store.names).expect("proof encoding");
         assert_eq!(proof_bytes(store, task), expected, "task {task}");
     }
 }

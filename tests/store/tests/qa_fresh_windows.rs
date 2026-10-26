@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 const SEED: u64 = 719;
 const TURNS_PER_TASK: usize = 2; // patches::fresh_committed writes two turns.
 const COMMITS_PER_TASK: u64 = 4; // live row, two turns, final proof.
-const CLOSING_PAGES: usize = 2; // Five windows at the fixture's four writes per page.
+const CLOSING_PAGES: usize = 2; // Six proofs at the fixture's four writes per page.
 const PENDING_PATCHES: usize = 2; // The two header-only patches below.
 const SEAL_COMMITS: u64 = 1; // store.md 10.2, step 4.
 
@@ -55,10 +55,10 @@ const CUSTOM_MARKED: PatchSets = PatchSets {
 fn proof(world: &mut World, task: u64) -> core::Record {
     world.get(core::Key::Core(core::CoreKey::RunProof(task)))
 }
-fn proofs(world: &mut World, closed: bool) {
+fn proofs(world: &mut World, crossed: bool) {
     for (index, window) in patches::FRESH_WINDOWS.iter().enumerate() {
         let task = root::LIVE + u64::try_from(index).expect("task index");
-        assert_eq!(proof(world, task), patches::fresh_proof(task, *window, closed), "task {task}");
+        assert_eq!(proof(world, task), patches::fresh_proof(task, *window, crossed), "task {task}");
     }
 }
 fn transcripts(world: &mut World) -> BTreeMap<Vec<u8>, Option<Vec<u8>>> {
@@ -72,7 +72,7 @@ fn open(world: &mut World, sets: PatchSets) -> u64 {
 #[test]
 fn pending_marks_close_windows_without_family_changes() {
     for sets in [FOLLOWED, LAST_MARKED, CUSTOM_MARKED] {
-        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
         open(&mut world, sets);
         proofs(&mut world, true);
         assert_eq!(world.patched().len(), PENDING_PATCHES, "the closing walk answers no Patched");
@@ -88,7 +88,7 @@ fn pending_marks_close_windows_without_family_changes() {
 #[test]
 fn absent_other_and_other_owners_words_leave_windows_open() {
     for sets in [WITHOUT_WORD, ANOTHER_WORD, OTHER_OWNER] {
-        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
         open(&mut world, sets);
         proofs(&mut world, false);
     }
@@ -96,7 +96,7 @@ fn absent_other_and_other_owners_words_leave_windows_open() {
 
 #[test]
 fn applied_mark_does_not_close_a_later_window() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     let last = open(&mut world, MARKED);
     world
         .commit(Box::new([
@@ -114,7 +114,7 @@ fn applied_mark_does_not_close_a_later_window() {
 
 #[test]
 fn closing_preserves_proofs_transcripts_and_the_generation_before() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     let source = patches::source(&mut world);
     let frames = transcripts(&mut world);
     open(&mut world, patches::FRESH_AFTER);
@@ -131,7 +131,7 @@ fn closing_preserves_proofs_transcripts_and_the_generation_before() {
 
 #[test]
 fn rollback_and_forward_repeat_the_close_from_untouched_proofs() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     let frames = transcripts(&mut world);
     open(&mut world, patches::FRESH_AFTER);
     world.rewrite(b"active", b"1\n");
@@ -155,23 +155,20 @@ fn contains(bytes: &[u8], record: &[u8]) -> bool {
 
 #[test]
 fn closing_pages_have_own_commits_before_the_seal() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     world.trace_writes();
     let last = open(&mut world, FOLLOWED);
     let mut closing = Vec::new();
     for (index, has_window) in patches::FRESH_WINDOWS.iter().enumerate() {
-        if !has_window {
-            continue;
-        }
         let task = root::LIVE + u64::try_from(index).expect("task index");
-        let bytes = encoded(&patches::fresh_proof(task, true, true));
+        let bytes = encoded(&patches::fresh_proof(task, *has_window, true));
         let writes: Vec<_> = world.written().iter().filter(|(_, write)| contains(write, &bytes)).collect();
         assert_eq!(writes.len(), 1, "task {task} written once by the close");
         closing.push(writes[0].0);
     }
     closing.sort_unstable();
     closing.dedup();
-    // Five open windows at fresh_limits' four writes per page require two commits.
+    // Six proofs at fresh_limits' four writes per page require two commits.
     assert_eq!(closing.len(), CLOSING_PAGES);
     let header = encoded(&root::header(last));
     let seal: Vec<_> = world.written().iter().filter(|(_, write)| contains(write, &header)).collect();
@@ -186,35 +183,55 @@ fn closing_pages_have_own_commits_before_the_seal() {
 }
 
 #[test]
-fn closed_and_absent_windows_make_no_closing_commit() {
+fn uncrossed_closed_and_absent_windows_are_written_crossed() {
     const WINDOWS: &[bool] = &[false, false, false, false, true, true];
-    let mut world = patches::fresh_committed(SEED, WINDOWS);
+    let mut world = patches::fresh_committed(SEED, WINDOWS, false);
     let mut last = open(&mut world, patches::FRESH_BEFORE);
     for (index, window) in WINDOWS.iter().enumerate() {
         let task = root::LIVE + u64::try_from(index).expect("task index");
         last += 1;
+        let core::Record::Core(core::CoreRecord::RunProof(mut kept)) = patches::fresh_proof(task, *window, true) else {
+            panic!("proof fixture");
+        };
+        kept.crossed = false;
         world
-            .commit(Box::new([Write::Save(root::header(last)), Write::Save(patches::fresh_proof(task, *window, true))]))
-            .expect("already closed fixture");
+            .commit(Box::new([
+                Write::Save(root::header(last)),
+                Write::Save(core::Record::Core(core::CoreRecord::RunProof(kept))),
+            ]))
+            .expect("uncrossed, already closed fixture");
     }
     world.crash(SEED);
-    assert_eq!(open(&mut world, FOLLOWED), last + 1, "only the seal commits");
+    world.trace_writes();
+    assert_eq!(
+        open(&mut world, FOLLOWED),
+        last + u64::try_from(CLOSING_PAGES).expect("closing pages") + SEAL_COMMITS,
+        "uncrossed closed and windowless proofs are written, then the seal"
+    );
     for (index, window) in WINDOWS.iter().enumerate() {
         let task = root::LIVE + u64::try_from(index).expect("task index");
-        assert_eq!(proof(&mut world, task), patches::fresh_proof(task, *window, true));
+        let expected = patches::fresh_proof(task, *window, true);
+        assert_eq!(proof(&mut world, task), expected);
+        let bytes = encoded(&expected);
+        assert_eq!(
+            world.written().iter().filter(|(_, write)| contains(write, &bytes)).count(),
+            1,
+            "task {task} crossed once"
+        );
     }
 }
 
 #[test]
 fn power_loss_at_each_closing_commit_and_seal_recovers_whole() {
-    let mut traced = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+    let mut traced = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     traced.trace_writes();
     let last = open(&mut traced, patches::FRESH_AFTER);
     let closed: Vec<_> = patches::FRESH_WINDOWS
         .iter()
         .enumerate()
-        .filter(|(_, window)| **window)
-        .map(|(index, _)| encoded(&patches::fresh_proof(root::LIVE + u64::try_from(index).expect("task"), true, true)))
+        .map(|(index, window)| {
+            encoded(&patches::fresh_proof(root::LIVE + u64::try_from(index).expect("task"), *window, true))
+        })
         .chain(std::iter::once(encoded(&root::header(last))))
         .collect();
     let writes: Vec<_> = traced
@@ -241,7 +258,7 @@ fn power_loss_at_each_closing_commit_and_seal_recovers_whole() {
     cuts.sort_unstable();
     cuts.dedup();
     for cut in cuts {
-        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
         let frames = transcripts(&mut world);
         let source = patches::source(&mut world);
         world.trace_writes();
@@ -264,7 +281,7 @@ fn power_loss_at_each_closing_commit_and_seal_recovers_whole() {
 
 #[test]
 fn serving_shell_answers_sites_for_closed_window_reads() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     open(&mut world, patches::FRESH_AFTER);
     let frames = transcripts(&mut world);
     let mut reads = vec![
@@ -289,7 +306,7 @@ fn serving_shell_answers_sites_for_closed_window_reads() {
 
 #[test]
 fn patched_frame_charge_holds_at_bound_and_refuses_one_below() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     open(&mut world, patches::FRESH_AFTER);
     let patched = patches::fixture_turn(
         2,
@@ -321,8 +338,8 @@ fn patched_frame_charge_holds_at_bound_and_refuses_one_below() {
 }
 
 #[test]
-fn closing_changes_only_the_flag_in_a_populated_proof() {
-    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+fn closing_changes_only_the_two_flags_in_a_populated_proof() {
+    let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     let last = open(&mut world, patches::FRESH_BEFORE);
     let core::Record::Core(core::CoreRecord::RunProof(mut kept)) = patches::fresh_proof(root::LIVE, true, false) else {
         panic!("proof fixture");
@@ -342,6 +359,7 @@ fn closing_changes_only_the_flag_in_a_populated_proof() {
     world.crash(SEED);
     open(&mut world, FOLLOWED);
     kept.window.as_mut().expect("kept window").closed = true;
+    kept.crossed = true;
     assert_eq!(proof(&mut world, root::LIVE), core::Record::Core(core::CoreRecord::RunProof(kept)));
 }
 
@@ -378,8 +396,9 @@ fn closing_follows_every_owners_last_patch_page() {
     let closed_rows: Vec<_> = patches::FRESH_WINDOWS
         .iter()
         .enumerate()
-        .filter(|(_, window)| **window)
-        .map(|(index, _)| encoded(&patches::fresh_proof(root::LIVE + u64::try_from(index).expect("task"), true, true)))
+        .map(|(index, window)| {
+            encoded(&patches::fresh_proof(root::LIVE + u64::try_from(index).expect("task"), *window, true))
+        })
         .collect();
     let first_close = world
         .written()
@@ -398,7 +417,7 @@ fn closing_follows_every_owners_last_patch_page() {
 
 #[test]
 fn power_loss_around_switch_recovers_all_windows_closed() {
-    let mut traced = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+    let mut traced = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
     traced.trace_writes();
     open(&mut traced, patches::FRESH_AFTER);
     let rename = traced.changes().iter().rfind(|(_, change)| *change == Change::Rename).expect("switch rename").0;
@@ -409,7 +428,7 @@ fn power_loss_around_switch_recovers_all_windows_closed() {
         .expect("switch sync")
         .0;
     for cut in [rename, rename + 1, sync, sync + 1] {
-        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS);
+        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
         let frames = transcripts(&mut world);
         world.trace_writes();
         world.cut_at(cut);

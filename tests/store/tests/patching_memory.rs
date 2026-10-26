@@ -119,7 +119,7 @@ fn measured(
 #[test]
 fn the_fresh_closing_walk_stays_within_its_priced_peak() {
     use jig_store_world::patches::{FRESH_AFTER, FRESH_WINDOWS, fresh_committed, fresh_limits};
-    let mut source = fresh_committed(920, FRESH_WINDOWS);
+    let mut source = fresh_committed(920, FRESH_WINDOWS, false);
     let items: Vec<_> = source
         .contents()
         .into_iter()

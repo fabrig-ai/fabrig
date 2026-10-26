@@ -66,6 +66,7 @@ fn turn_commit(task: u64, turn: u32, bytes: &[u8]) -> Box<[root::Write]> {
             conversation: 1,
             credentials: Box::new([]),
             window: Some(core::CurrentWindow { attempt: 1, turn: 1, closed: false }),
+            crossed: false,
             host: HostKind::Worker,
             offered: None,
             outstanding: Box::new([]),
@@ -166,6 +167,7 @@ fn the_walks_closed_proof_restores_until_the_next_attempt() {
     let closed = f::proof(&world).clone();
     let mut expected = original;
     expected.window.as_mut().expect("parked window").closed = true;
+    expected.crossed = true;
     assert_eq!(closed, expected, "the mirror reads the component's own bytes");
     let limits = jig_core_world::world::limits().core;
     let mut engine =
