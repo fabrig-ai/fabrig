@@ -1,5 +1,10 @@
 # Connect GitHub
 
+Kind: walk
+
+Connect temper to GitHub through a GitHub App, temper's own or one you
+make, and install it on the accounts whose repositories it works on.
+
 temper works on GitHub through a GitHub App. temper makes the App from
 its manifest in your browser, or you make one yourself and paste its id
 and key; both end in the same records, and temper runs them alike. In
@@ -144,11 +149,12 @@ or your organization's developer settings:
 Create it. Note its App ID on its page, and generate a private key:
 GitHub downloads it as a `.pem` file. On **Forges**, choose **Connect**,
 then **Connect an App of your own**: its id, and the key's text pasted
-as GitHub gives it. No webhook secret is asked. Or:
+as GitHub gives it. No webhook secret is asked. Or, with your App ID
+in place of `12345`:
 
 ```sh
 chmod 600 <slug>.private-key.pem
-temper ctl me forge-connect 2 github-app <id> <slug>.private-key.pem --key github-app
+temper ctl me forge-connect 2 github-app 12345 <slug>.private-key.pem --key github-app
 temper ctl me wait forges --until settled
 ```
 

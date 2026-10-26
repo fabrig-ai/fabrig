@@ -1,5 +1,10 @@
 # Run temper on a server
 
+Kind: walk
+
+Run temper as a long-lived deployment on a server, behind a TLS proxy,
+with Google sign-in, an owned Forgejo and its workers on another host.
+
 This walk sets temper up as a long-lived deployment that people reach
 by name: `temper serve` as an engine alone, with an owned Forgejo beside
 it, both on loopback behind a TLS proxy; people signing in with Google;
@@ -140,20 +145,20 @@ by itself. `/etc/caddy/Caddyfile`:
 
 ```
 git.example.com {
-	reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:3000
 }
 
 temper.example.com {
-	# The printed link's route is the host's alone.
-	@link path /jig/v1/sign-in/link /jig/v1/sign-in/link/*
-	respond @link 403
-	reverse_proxy 127.0.0.1:8367 {
-		# jig's stream, unbuffered, its read longer than its heartbeat.
-		flush_interval -1
-		transport http {
-			read_timeout 10m
-		}
-	}
+    # The printed link's route is the host's alone.
+    @link path /jig/v1/sign-in/link /jig/v1/sign-in/link/*
+    respond @link 403
+    reverse_proxy 127.0.0.1:8367 {
+        # jig's stream, unbuffered, its read longer than its heartbeat.
+        flush_interval -1
+        transport http {
+            read_timeout 10m
+        }
+    }
 }
 ```
 
@@ -187,8 +192,8 @@ temper.example.com {
      on the tunnel's interface alone;
    - on `worker`: `127.0.0.1:8369` to `10.88.0.1:8369`, and
      `127.0.0.1:3000` to `10.88.0.1:3000`.
-3. **The worker's secret and its digest,** as `docs/guide/box.md`,
-   step 3 makes them: the secret in the worker's data,
+3. **The worker's secret and its digest,** as step 3 of `temper help box`
+   makes them: the secret in the worker's data,
    `secrets/w1.secret`; its digest in the engine's,
    `/var/lib/temper/data/secrets/w1.digest`.
 4. **The worker alone,** a unit on `worker` running `temper serve` on

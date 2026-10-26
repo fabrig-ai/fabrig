@@ -1,5 +1,10 @@
 # Connect Forgejo
 
+Kind: walk
+
+Connect temper to a Forgejo as its bot, in one of three modes:
+connected, managed or owned.
+
 temper works on a Forgejo in one of three modes. Each ends with temper
 connected as its bot, a Forgejo user of its own; they differ in who
 makes that bot and what temper keeps.
@@ -13,7 +18,7 @@ makes that bot and what temper keeps.
 The design is `docs/design/protocol/setup.md`; the page you use is the
 client's **Forges** (`docs/design/client/forge.md`, the deployment's
 page). A local owned forge, from a checkout to a first change, is the
-box's walk, `docs/guide/box.md`.
+box's walk, `temper help box`.
 
 ## 1. Add the forge to the configuration
 
@@ -211,7 +216,7 @@ runner, and manages it. The setup entry's `mode` is `owned`, naming
 Forgejo's and the runner's binaries, the forge's directory, its address
 and your account (`docs/design/protocol/setup.md`, the configuration;
 `docs/examples/owned.json` is a whole one). `temper box --config C --data D --cache K`
-runs every step below in order; the box's walk is `docs/guide/box.md`.
+runs every step below in order; the box's walk is `temper help box`.
 
 1. **`temper forge prepare --config C --data D --cache K 1`** makes the forge's private
    directory and Forgejo's settings; temper's admin, `temper-admin`;

@@ -1,5 +1,11 @@
 # Start a local temper box
 
+Kind: walk
+
+Run temper, an owned Forgejo and its runner on one machine, on
+loopback, from a checkout of temper, then adopt a repository and ask
+for work.
+
 This walk starts from a checkout of temper. Everything is on loopback.
 The example's rule covers acme/widget alone. Its charters are short texts
 to edit in `owned/charters/` before asking for work.
@@ -186,7 +192,7 @@ box: fake model http://ADDR
 box: fake forgejo http://ADDR
 box: model key FILE
 box: Forgejo elsewhere admin token file FILE
-box: program login: TEMPER program-login --config … --data … --cache … NAME (the name the Model step shows)
+box: program login: TEMPER program-login --config ... --data ... --cache ... NAME (the name the Model step shows)
 box: GitHub own App id 1, key file FILE
 ```
 
@@ -201,7 +207,7 @@ temper**. On **Forge**, take one path:
 
 - **Connect GitHub**: follow the fake's App creation and installation
   pages back to temper, then choose `fake-person/widget` to start in.
-- **Use an App of your own ›**: give **App id** `1`, paste the key
+- **Use an App of your own**: give **App id** `1`, paste the key
   file's text into **Private key**, then choose **Connect the App**.
   Follow the installation link, then choose `fake-person/widget`.
 - **Forgejo on this machine**: choose **Choose**, fill in the first
@@ -226,5 +232,5 @@ On **Model**, take one path:
   keep the printed effective directory flags.
 
 A program's account reaches **Ready**, but temper currently refuses
-its first chat: “A chat can't stay open through a program yet.” This is
+its first chat: "A chat can't stay open through a program yet." This is
 temper's current behaviour, not a limit of the fake.
