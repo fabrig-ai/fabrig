@@ -170,11 +170,14 @@ on the timer, or after a message:
 - **The page keeps the log,** in its memory, not the worker's, so a
   worker's panic leaves it whole: each input it sent, with the stamp the
   worker answered, and a digest of what the world said between two
-  inputs: its fetch reports, the lines it printed and its stop, folded
-  in the order posted, never its clock, whose messages depend on the
-  pace. A slice enters its inputs before it steps and posts after, so
-  what the page folds between two stamps is what the world made
-  between their steps, whatever the slices. Bounded, the application's
+  inputs: its fetch reports in their order, the lines it printed in
+  theirs, folded apart, and its stop, the three hashed together; never
+  its clock, whose messages depend on the pace. A slice enters its
+  inputs before it steps and posts after, so what the page folds
+  between two stamps is what the world made between their steps,
+  whatever the slices; but how a slice interleaves reports and lines
+  depends on where it ends, so their interleaving is not checked, only
+  each stream's order. Bounded, the application's
   parameter: past it, the log stops and says it was cut, and a replay
   runs to the cut.
 - **Offered as a file** on a failure, or by a key the page's frame
