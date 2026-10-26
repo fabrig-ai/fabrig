@@ -25,10 +25,13 @@ impl Live {
     fn start_with(text: &str, permission: bool) -> Self {
         let root = std::env::var_os("SMITH_LIVE").filter(|value| !value.is_empty()).expect("$SMITH_LIVE unset");
         let root = smith_bench::guard::write_path(std::path::Path::new(&root)).expect("guarded $SMITH_LIVE");
-        let configuration = guarded_configuration(&root.join("programs/claude"));
+        let configuration = std::env::var_os("SMITH_LIVE_CLAUDE")
+            .filter(|value| !value.is_empty())
+            .map_or_else(|| root.join("programs/claude"), std::path::PathBuf::from);
+        let configuration = guarded_configuration(&configuration);
         assert!(
             std::fs::symlink_metadata(&configuration).is_ok(),
-            "no record in `$SMITH_LIVE/programs/claude`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude`"
+            "no configured Claude directory: set SMITH_LIVE_CLAUDE or prepare $SMITH_LIVE/programs/claude"
         );
         let probe = Probe::new();
         let mcp = if permission { prompt_server(&probe) } else { r#"{"mcpServers":{}}"#.into() };
@@ -351,5 +354,5 @@ fn the_real_program_uses_the_prompt_tool_shape() {
 
 fn guarded_configuration(configuration: &std::path::Path) -> std::path::PathBuf {
     smith_bench::guard::write_path(configuration)
-        .unwrap_or_else(|reason| panic!("$SMITH_LIVE/programs/claude: {reason}"))
+        .unwrap_or_else(|reason| panic!("guarded Claude configuration directory: {reason}"))
 }
