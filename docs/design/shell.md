@@ -185,6 +185,41 @@ Each lands in skein, with its design, before its smith consumer
   richer terminal). The line-mode chat (4.1) leaves the terminal in its
   own line mode.
 
+### 2.5 The hosted face
+
+A host that embeds the agent, rather than spawning `smith-agent`, hands
+it everything: an application's world, natively or in a browser's Web
+Worker (skein's `world.md` and `playground.md`), hosts it so. That
+part of `smith-agent-shell` reads nothing of the system, and builds for
+`wasm32-unknown-unknown`, the portable target of skein's `shell.md`,
+section 14.
+
+- **Portable:** `Agent::new`, the configuration's decoding and checks
+  from its bytes, the derived limits, `Resources`, and the `Agent`
+  adapter with its `iterate`: what the host gives is all it uses. The
+  configuration comes as a value or as bytes, and its roots, its
+  descriptors, its seed and its process ID as values.
+- **No current directory and no name resolution.** A root the
+  configuration names is one the host supplied, matched by its name as
+  given, never made absolute against a current directory; an endpoint
+  is the address the configuration gives, never a name to resolve. A
+  root the host did not supply is refused at `Agent::new`, naming it,
+  rather than opened.
+- **Native, under `cfg(unix)`:** `run` and everything it reads (the
+  configuration's file, trust roots, the system's seed, termination
+  signals, the current executable, the kernel); a program's sign-in
+  (protocol/programs.md), with its directories, its owner and its
+  command; the effective user; the relay's `main`; and a trace or a
+  root opened by path. A host that gives no trace and no programs, as a
+  world does, reaches none of it.
+- **Fenced by target, not by feature,** at the coarsest grain that holds
+  each item, as skein's shell is; `libc` and skein's native shell
+  exports are named only there.
+- **No consumer changes** for a host: `smith-agent` and the worlds take
+  the same `Agent`.
+- **Checked** in smith's gate: clippy over `smith-agent-shell` and what
+  it depends on in smith for `wasm32-unknown-unknown`, warnings denied.
+
 ## 3. The root package
 
 ### 3.1 The manifest
@@ -1426,6 +1461,10 @@ before the user's doubling of 10-22, provisional)
     refused;
   - `smith login` on a `program` account, against the fake program;
   - `smith-agent`, spawned by a host in the test's loop.
+- **The hosted face** (2.5): an agent hosted with roots supplied and
+  no current directory runs its story as before; a configuration naming
+  a root the host did not supply is refused at `Agent::new`, naming it;
+  and the portable target is checked by clippy in the gate.
 
 ## 11. Open questions
 
