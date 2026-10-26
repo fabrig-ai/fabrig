@@ -588,7 +588,10 @@ files: at a first preparation, and for a runner older than its pin
    the setup reaches Forgejo; `admin_token` made again when missing,
    which it is once the engine has taken it (6.5), under a fresh suffix,
    for temper's admin, which Forgejo's command line cannot make twice:
-   an admin a person deleted fails the preparation, naming it; nothing
+   an admin a person deleted fails the preparation, naming it; the
+   person's two header files made again, each alone, when missing, as
+   on a forge prepared before they were (a person who revokes a token
+   deletes its file, and the next start mints a new one); nothing
    else. It takes Forgejo's lock alone, so a box restarts a Forgejo,
    after its preparation, while the runner runs.
 3. **An upgrade:** a recorded Forgejo older than the pin is dumped
@@ -1212,10 +1215,11 @@ temper box
   - for an asked group, named by its label (7.3): `<label>: starting`
     at its `start`, then `<label>: started`, `<label>: failed, <WHY>` and
     `<label>: stopped` as the pipe says them; its `step` lines are the
-    client's row's alone; an owned forge's `started` is followed by its
-    hands (`../qa.md`, 4): `<label>: api http://ADDRESS/api/v1` and
-    `<label>: person LOGIN, read header PATH, write header PATH`, the
-    files' paths and never their contents;
+    client's row's alone; each start of an owned forge, an asked
+    group's `started` or the box's own start of one that starts with it,
+    is followed by its hands (`../qa.md`, 4): `<label>: api
+    http://ADDRESS/api/v1` and `<label>: person LOGIN, read header PATH,
+    write header PATH`, the files' paths and never their contents;
   - a long step's exit, `<WHY>; restarting in <n> s`, and the box's give
     up, `<WHY>; giving up`, `<WHY>` in `failed`'s words (7.1);
   - `Stopping` at a first termination signal, and `Stopped` once every
@@ -3065,6 +3069,11 @@ conformance's `facts.txt`. What reconcile relies on, and the deliveries,
 are skein's: `forge-setup.md`, section 8 and `forge.md`, section 9. What
 the preparation relies on stays here:
 
+- **Forgejo's API takes the person's tokens** before the person's first
+  password change, and after it: a token is the person's until it is
+  revoked, whatever the password (`api-token-of-a-user-whose-password-must-change-is-taken`,
+  `api-token-survives-a-password-change`), recorded at the pin before the
+  header files are relied on;
 - **Forgejo's command line** (6.3):
   - `admin user create --random-password` prints `generated random
     password is '<password>'` on its first line
@@ -3292,12 +3301,12 @@ Each is intended; what it needs is named with it.
   limits, the memory bound. Default: 8.3's working minimum, refined once
   a first run works.
 - **Overrides of `app.ini`.** Default: none; the settings are temper's.
-- **A token for the person's scripts and agents.** Default: none; the
-  person makes one on Forgejo's web, with the scopes they choose. A QA
-  harness playing the person makes one so, with read scopes alone, for
-  the agent it runs (`../client/tools.md`, section 10); never the
-  preparation's `admin_token`, which the engine's setup host alone takes
-  (section 9).
+- **A token for the person's scripts and agents.** Settled: the
+  preparation makes two, the person's read and write header files
+  (6.3, 6.5), which the box names (7.2); the person may make others on
+  Forgejo's web, with the scopes they choose; never the preparation's
+  `admin_token`, which the engine's setup host alone takes (section
+  9).
 - **The set up's intent across a restart** (6.7). Default: in memory
   alone, so a restart before the first repository is made loses it,
   and "New repository" makes it; a kept intent would be a stored
