@@ -124,19 +124,10 @@ OWNER/NAME." Do so on Forgejo, and add its webhook if you use them.
 
 ### Replace a token
 
-Make the new token on Forgejo. On **Forges**, choose **Replace** and
-paste it, or write a tokens file naming `api`, `git` or both:
-
-```sh
-chmod 600 tokens
-temper ctl me forge-replace 1 tokens --key forgejo-replace
-rm tokens
-```
-
-The new token must answer as the forge's user. temper erases the old
-once it keeps the new: then delete the old token on Forgejo. A token
-Forgejo refuses under a running engine stops the forge, "Stopped: WHY",
-with **Replace**; the engine and every other forge run on.
+temper cannot replace a forge's token yet; neither **Forges** nor
+`temper ctl` offers it in this build. A token Forgejo refuses under a
+running engine stops the forge, "Stopped: WHY"; the engine and every
+other forge run on.
 
 ## 3. Managed: paste a site admin's token
 

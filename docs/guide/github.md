@@ -164,8 +164,8 @@ temper ctl me wait forges --until settled
 - **An App lacking a permission or event** connects, and the row says
   "temper's App lacks WHAT: grant them in the App's settings, then
   paste its key again.", with a link to the App's settings. Grant them
-  there; GitHub asks each installation's owner to approve them. Then
-  choose **Replace** and paste the key again.
+  there; GitHub asks each installation's owner to approve them. This
+  build cannot replace the key yet, through **Forges** or `temper ctl`.
 - **Install it** as section 5 says: an App of your own is installed
   through temper's link, the first account included.
 - **Delete the downloaded file** once the row says connected. temper
@@ -266,24 +266,10 @@ origins (`docs/design/protocol/configuration.md`, the limits).
 
 ## 9. Replace the App's key
 
-On GitHub, open the App's settings, linked from the forge's row, and
-generate a new private key. On **Forges**, choose **Replace** and paste
-the new key's text, or:
-
-```sh
-chmod 600 <slug>.private-key.pem
-temper ctl me forge-replace 2 <slug>.private-key.pem --key github-key
-```
-
-- **The key must be the same App's.** A key of another App is refused,
-  named on the row, and the forge stays as it was.
-- **temper erases its old key** once it keeps the new. GitHub accepts
-  the old key until you delete it: delete it in the App's settings once
-  the row says connected, then delete the downloaded file.
-- **A key GitHub refuses** stops the forge: "Stopped: WHY", with
-  **Replace**. The engine and every other forge run on.
-
-This holds for temper's App and for an App of your own alike.
+temper cannot replace an App's key yet; neither **Forges** nor
+`temper ctl` offers it in this build. A key GitHub refuses stops the
+forge: "Stopped: WHY". The engine and every other forge run on. This
+holds for temper's App and for an App of your own alike.
 
 ## 10. What temper keeps, and where
 
