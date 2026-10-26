@@ -147,7 +147,7 @@ class LauncherTests(unittest.TestCase):
             return types.SimpleNamespace(returncode=codes.get(verb, 0), stdout=output)
         namespace['run'] = run
         namespace['sys'] = types.SimpleNamespace(
-            argv=[str(path), str(path), '/invented/skein'], path=[], stderr=Mock())
+            argv=[str(path), str(path), '/invented/lab'], path=[], stderr=Mock())
         namespace['os'] = types.SimpleNamespace(X_OK=1, access=lambda *args: True,
                                                 environ={'CARGO_TARGET_DIR': target})
         scratch = Mock()
@@ -172,6 +172,8 @@ class LauncherTests(unittest.TestCase):
             ['git', 'status', '--porcelain'], ['git', 'rev-parse', 'HEAD'],
             ['heavy', 'cargo', 'build', '--release', '-p', 'temper'],
             ['heavy', 'scripts/bundle.sh', '--release', '/invented/scratch/bundle']])
+        self.assertEqual([call[0] for call in calls if len(call) > 1 and
+                          call[1] in ('subject', 'validate', 'judge')], ['/invented/lab'] * 3)
         self.assertEqual(calls[4][1:], [
             'subject', '--repository', str(ROOT.parent), '--commit', 'commit-C',
             '--exclude', 'lab', '--artifact', 'temper=/invented/scratch/temper',

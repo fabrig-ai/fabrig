@@ -10,12 +10,17 @@ import unittest
 
 # Canonical scene writer is part of the explicitly permitted public surface.
 import sys
-sys.path.insert(0, str(Path('/home/free/src/rust/tmp/owners/qa-b-m3/skein-qa/scripts/lab')))
+command = os.environ.get('TEMPER_LAB')
+if not command:
+    raise RuntimeError('TEMPER_LAB must name an executable lab command')
+LAB = Path(command).resolve()
+if not LAB.is_file() or not os.access(LAB, os.X_OK):
+    raise RuntimeError(f'TEMPER_LAB: expected an executable at {LAB}')
+RUNNER = LAB.parent
+sys.path.insert(0, str(RUNNER))
 from runner.canonical import record_bytes
 
 ROOT = Path(__file__).resolve().parents[3]
-QA = Path('/home/free/src/rust/tmp/owners/qa-b-m3/qa')
-SKEIN = Path('/home/free/src/rust/tmp/owners/qa-b-m3/skein-qa')
 DIGEST = '0123456789abcdef'
 CSS = b':root { --temper-line: #112233; }\n'
 
@@ -23,8 +28,7 @@ CSS = b':root { --temper-line: #112233; }\n'
 class LookExperiment(unittest.TestCase):
     def setUp(self):
         os.umask(0o077)
-        (QA / 'tmp').mkdir(mode=0o700, parents=True, exist_ok=True)
-        self.temp = tempfile.TemporaryDirectory(prefix='temper-look-', dir=QA / 'tmp')
+        self.temp = tempfile.TemporaryDirectory(prefix='temper-look-')
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
         self.scratch = self.base / 'tmp'
@@ -179,7 +183,7 @@ class LookExperiment(unittest.TestCase):
         for experiment in ['look', 'look-planted']:
             with self.subTest(experiment=experiment):
                 scenes = sorted((ROOT / 'lab' / experiment / 'scenes').glob('*.json'))
-                result = subprocess.run([SKEIN / 'scripts/lab/look/capture', '--browser', browser,
+                result = subprocess.run([RUNNER / 'look/capture', '--browser', browser,
                     '--chromium', chromium, '--fonts', '/home/free/src/rust/tmp/lab/browser/fonts',
                     '--mockups', ROOT / 'docs/design/client/mockups', '--page', self.base,
                     '--ready-seconds', '1', '--out', out, *scenes], cwd=self.base,
@@ -225,14 +229,14 @@ class LookExperiment(unittest.TestCase):
                 staged, page = self.stage(files, experiment, target=experiment + '-page')
                 self.assertEqual(staged.returncode, 0, staged.stderr.decode())
                 out = self.base / (experiment + '-capture')
-                result = subprocess.run([SKEIN / 'scripts/lab/look/capture', '--browser', browser,
+                result = subprocess.run([RUNNER / 'look/capture', '--browser', browser,
                     '--chromium', chromium, '--fonts', '/home/free/src/rust/tmp/lab/browser/fonts',
                     '--mockups', mockups, '--page', page, '--ready-seconds', '3', '--out', out, scene_path],
                     cwd=self.base, env=dict(os.environ, TMPDIR=str(self.scratch)),
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=240)
                 self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
                 for kind in ['structure', 'style']:
-                    checked = subprocess.run([SKEIN / 'scripts/lab/look/check', kind, '--capture', out, scene_path],
+                    checked = subprocess.run([RUNNER / 'look/check', kind, '--capture', out, scene_path],
                                              cwd=self.base, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
                     lines = [json.loads(line) for line in checked.stdout.splitlines()]
                     if experiment == 'look':

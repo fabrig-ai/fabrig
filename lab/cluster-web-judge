@@ -1,5 +1,5 @@
 #!/bin/sh
-# Keep Python isolated, as skein's look/capture launcher does.
+# Keep Python isolated, as the lab's look/capture launcher does.
 umask 077
 exec python3 -I -B -S - "$0" "$@" <<'PYTHON'
 """Build one committed cluster-web subject and judge the browser smoke."""
@@ -23,13 +23,12 @@ def run(argv, repository, *, capture=True):
 
 def main():
     if len(sys.argv) != 3:
-        print('usage: lab/cluster-web-judge SKEIN', file=sys.stderr)
+        print('usage: lab/cluster-web-judge LAB', file=sys.stderr)
         return 2
     repository = Path(sys.argv[1]).resolve().parent.parent
     sys.path.insert(0, str(repository / 'lab'))
     from look_pack import pack
-    skein = Path(sys.argv[2]).resolve()
-    lab = skein / 'scripts' / 'lab' / 'lab'
+    lab = Path(sys.argv[2]).resolve()
     if not lab.is_file() or not os.access(lab, os.X_OK):
         print(f'cluster-web-judge: expected an executable at {lab}', file=sys.stderr)
         return 2
