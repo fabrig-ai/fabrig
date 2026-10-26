@@ -3549,7 +3549,8 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
             .stderr(Stdio::null())
             .spawn()
             .expect("wrapped box");
-        fs::write(root.join("box.pid"), box_process.id().to_string()).expect("box pid");
+        fs::write(root.join("box.pid.tmp"), box_process.id().to_string()).expect("box pid");
+        fs::rename(root.join("box.pid.tmp"), root.join("box.pid")).expect("publish box pid");
         let _ended = box_process.wait().expect("box wait");
         return;
     }
