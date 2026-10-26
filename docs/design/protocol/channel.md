@@ -1,6 +1,6 @@
 # jig's channel
 
-Provisional, 2026-10-10, revised 2026-10-23. The channel between an
+Provisional, 2026-10-10, revised 2026-10-26. The channel between an
 engine and each of its workers: the contract of `../domain/hosts.md`,
 section 2, carried as frames of skein's framed channel (skein's
 `channel.md`) with records generated from schemas (skein's `codec.md`).
@@ -413,6 +413,14 @@ holds, and neither of its components reads them.
   any part crosses. Until the first release the version stays fixed
   while these encodings change in place, so the engine and its workers
   come from the same build (skein's `codec.md`, section 5).
+- **Kept, they say what they hold.** Where jig's records keep one (a
+  run's saved work, a delivery's evidence), its field holds the
+  application's type by a family word jig reserves, `application`:
+  `evidence: bytes N holds application Evidence`. jig names no
+  application's family; the application's patch set says which of its
+  families is the one the word means (`store.md`, 10.3,
+  `PatchSet::payload`), and keeps that family's texts from the first
+  release, so its patches reach these fields in jig's records.
 
 ### 6.3 Host tools' calls
 

@@ -467,6 +467,19 @@ schema remains v4. These are the versions the format row requires.
 - **Golden bytes** in one set per family, for its current schema until
   the first release (skein's `codec.md`, section 5); a fuzz target per
   family's decoder; bounds at their limit and one past it.
+- **What jig's records hold, said** (skein's `codec.md`, section 3), in
+  place before the first release, in one change, since each word moves
+  its family's layout and makes older stores again (5.3): the core's
+  `TaskBytes`, `PhaseBytes`, `ChangeBytes` and `EndBytes` hold the tasks
+  family's `TaskProblem`, `PhaseRecord`, `ChangeRecord` and `EndRecord`,
+  and its `NoteBytes` the notes family's `Row`; people's and tasks'
+  packed lists say their `pieces` (each pattern's segments, a
+  delegation's kinds, grants, requirements, permissions, parameters,
+  numbers, dependencies, verdicts and their field rules); a delivery's
+  evidence and a run's saved work hold the application's (`channel.md`,
+  6.2). A settled call's `name` is jig's own record, `CallName {
+  activation: u64, completion: u32, position: u32 }`, decoded where it
+  crosses the channel, so the core keeps none of smith's channel bytes.
 
 ### 5.2 The application's records
 
@@ -1625,6 +1638,7 @@ pub struct PatchSet {
     pub families: &'static [KeptFamily],
     pub patches: &'static [&'static str], // `patches::PATCHES`, in number order
     pub fresh: Option<&'static str>,      // the mark across which windows start fresh, as its owner spells it
+    pub payload: Option<&'static str>,    // the application's: its family that jig's `holds application` means
 }
 pub enum KeptMap { Store, Secrets }       // the map its records live in (section 9)
 pub struct KeptFamily {
@@ -1720,6 +1734,15 @@ impl PatchSets {
   step 4); a set whose `fresh` is `None` marks nothing, and a patch's
   other marks are its owner's alone. A patch may carry a mark and change
   no family.
+- **Held across owners by role.** A field of jig's that holds the
+  application's values names the family word `application`
+  (`channel.md`, 6.2), never an application's family; the plan reads
+  it as the family the application's set names, `PatchSet::payload`,
+  before it makes its machines, so a held field of jig's is patched by
+  the application's patches as any held field is (below), and a set
+  whose `application` holds meet no such family is refused, `Set` with
+  patch 0. Only the application's set may name one; jig's, smith's and
+  skein's say `None`.
 - **Effects in flight** (temper's `draft/upgrades.md`, section 8) are
   the application's to show and the plan's to refuse. A connector that
   keeps an effect's sent attempt keeps, beside its outbox entry, a
@@ -2167,13 +2190,6 @@ Each within jig's suites' budgets.
     are copied, not opened, so a smith patch that changes `Hit` is
     refused `Pieces` until they open (skein's `codec.md`, 11.3 and
     section 13);
-  - the channel's records the core keeps as bytes, a settled call's
-    `name` and a delivery's `evidence` (core-v6), which from the
-    baseline say what they hold (skein's `codec.md`, section 3): smith's
-    channel records are versioned with the channel whole, not each, so
-    they take a word only once smith keeps them as a family of its own,
-    or jig keeps them in its own vocabulary (smith's
-    `protocol/transcript.md`, section 12);
   - the core's records walked by a smith patch: the core's `Row` reaches
     `TurnRecord`, which holds smith's turn, so each smith patch runs the
     core's identity plan over every core record, though no row in the
