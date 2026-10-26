@@ -355,6 +355,22 @@ Designed, not built (`../protocol/configuration.md`, section 13).
   the rules cover is stepped. At a start the root hands the forge
   temper's stock defaults of its kinds, and the core the forge's answer
   of which differ (jig's `domain/root.md`, section 8).
+- **Typed at the entrance.** No domain decodes a value (section 11): an
+  item of temper's kinds crosses jig as bytes, the encoding of
+  `temper-client-protocol-wire`'s `LandingRule` or a charter's number,
+  and the protocol layer decodes it where it decodes the request that
+  carries it, a party's change or proposal of settings as the clients'
+  component hands it in (5.1), a run's `propose_settings` as
+  `temper-engine-smith` decodes the call (5.2). The root receives jig's
+  request, bytes and all, with the typed values beside it, keeps them in
+  flight for the request's decision (section 2), and gives the forge the
+  typed values where the core hands it the items; a reset's and an
+  accepted proposal's values are those the forge holds already. A value
+  that does not decode is refused at the entrance as out of shape,
+  naming the item, before the core sees the request. The forge's family
+  `Setting` keeps the typed values, encoded by `temper-protocol-store`
+  as every family of the forge's is (`../protocol/store.md`, section
+  2).
 - **The root routes, never judges** (section 11): what a landing rule
   means and whether it is well formed is the forge's.
 - **The forge's charter is the forge's own value,** read from its kind
