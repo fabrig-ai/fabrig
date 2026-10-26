@@ -1813,7 +1813,8 @@ Until held charter versions are implemented, a settings change is refused as ful
   move.
 - **An owner moves running work later** with `MoveToNewest` (people.md,
   5.1), naming a revision: every live agent task on it that may move moves, in
-  one decision, and the answer counts those that could not. It is what
+  one decision, and the answer counts those moved and those that could
+  not. It is what
   a change refused as full offers.
 - **What a task may do is never pinned.** Its authority is the rules',
   its project's policy's and its chain's as they stand (authority.md,

@@ -217,7 +217,7 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
 | `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a new completed answer (3.1; `../../domain/people.md`, section 6) |
 | `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, or an application's kind, scope and number) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
-| `MoveToNewest` | the deployment, its scope (7.5); a revision held | every live task on it that may move set to the newest revision in one decision, the count of those that could not answered (`../../domain/engine.md`, 17.4) |
+| `MoveToNewest` | the deployment, its scope (7.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../domain/engine.md`, 17.4) |
 | `MakeProject` | the deployment, its scope (7.5); the new project's name (`../../domain/core.md`, 6.1); the number of a policy among the settings, the newest's (`../../domain/engine.md`, 17.1) | a project, its policy a copy of that one, its maker its owner and only party (`../../domain/people.md`, 5.2), its number answered; the maker's `me` gains it. Not among a compound request's operations (3.4) |
 | the project's own | notes, by the revision recalled; its name (`../../domain/core.md`, 6.1); the policy, its templates' overrides among them (3.6); roles; a party's pool; services, a service's credential answered once; as `../../domain/people.md`, 5.1 and 5.2 | the note or the project changed |
 | adopting a resource | the application's own request (3.3), its form the application's; the engine's root makes the people request on the party's behalf | the project changed |
@@ -600,12 +600,15 @@ served is held, kept and unsent, for its owner's version (client.md,
     and phase, pending or done, with when and by whom each was added
     after the task was made, and whether they keep it
     (`../../domain/tasks.md`, 5.7); the proposals waiting in its subtree; how
-    far its activity has committed; for an agent task, the settings
-    revision it records and, while a live run was prepared under an
-    older one, the run's, with the newest's number beside them, so that
-    a party sees which charter version its runs read and whether a move
-    (`../../domain/engine.md`, 17.4) would change it; and the acts the
-    party may make on it, with what each would do (5.3, 5.4);
+    far its activity has committed; for an agent task, `Task.settings:
+    Option<TaskSettings>`, `TaskSettings { task: u32, run: Option<u32>,
+    newest: u32 }`: the settings revision it records, its live run's
+    while that run was prepared under another, and the newest's number,
+    so that a party sees which charter version its runs read and what a
+    move would change, when the task may move
+    (`../../domain/engine.md`, 17.3 and 17.4); none for a procedure's or
+    a person's task; and the acts the party may make on it, with what
+    each would do (5.3, 5.4);
   - *a task line:* one record for every list of tasks (6.1): the task's
     chip; its project and its requester; tracked and priority, label
     and flags; when it last changed, its last activity, and when it
