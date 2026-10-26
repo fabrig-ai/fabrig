@@ -214,7 +214,9 @@ deployment's rules       the most any project may have; requirements on effects
     section 12), and names the models its tasks may use. Its owners edit
     it whole, within the deployment's rules, refused past them: the way a
     rule widened by a change of settings (engine.md, 17.2) reaches a
-    project made before it, which otherwise keeps its copy;
+    project made before it, which otherwise keeps its copy. A ceiling
+    below a role's authority is refused whole, naming the role: its
+    owners narrow the role first;
   - its spend per period, from which every root task's budget is carved;
   - its roles: for each, the authority a party in it has, the spend a
     party in it may allot per period, and the kinds of proposal it may
