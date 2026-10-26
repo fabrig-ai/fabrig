@@ -473,13 +473,21 @@ schema remains v4. These are the versions the format row requires.
   `TaskBytes`, `PhaseBytes`, `ChangeBytes` and `EndBytes` hold the tasks
   family's `TaskProblem`, `PhaseRecord`, `ChangeRecord` and `EndRecord`,
   and its `NoteBytes` the notes family's `Row`; people's and tasks'
-  packed lists say their `pieces` (each pattern's segments, a
-  delegation's kinds, grants, requirements, permissions, parameters,
-  numbers, dependencies, verdicts and their field rules); a delivery's
-  evidence and a run's saved work hold the application's (`channel.md`,
-  6.2). A settled call's `name` is jig's own record, `CallName {
-  activation: u64, completion: u32, position: u32 }`, decoded where it
-  crosses the channel, so the core keeps none of smith's channel bytes.
+  packed lists say their `pieces`: each pattern's segments, a resource
+  name's path and an adoption's options (`Segment`), a delegation's
+  kinds (`Executor`), an authority's note resources (`ResourceScope`),
+  grants (`Grant`), requirements, permissions, parameters, numbers and
+  a note change's references (`Number64`), dependencies, verdicts, and
+  a verdict's, a result's and a verdict message's fields (`FieldRule`,
+  `ResultField`). A settled call's `name` is jig's own record,
+  `CallName { activation: u64, completion: u32, position: u32 }`:
+  decoded from smith's call name where it crosses the channel, in the
+  protocol layer, and encoded back where it is sent again (a replay, the
+  in-process hub), so neither the core nor the store holds smith's
+  codec or its bytes. A word makes a patch reach the field; a patch that
+  converts a piece's items, not copies them, is still refused when
+  planned (skein's `codec.md`, 11.3; section 16). A delivery's evidence
+  stays opaque (section 16).
 
 ### 5.2 The application's records
 
@@ -1653,7 +1661,6 @@ pub struct PatchSet {
     pub families: &'static [KeptFamily],
     pub patches: &'static [&'static str], // `patches::PATCHES`, in number order
     pub fresh: Option<&'static str>,      // the mark across which windows start fresh, as its owner spells it
-    pub payload: Option<&'static str>,    // the application's: its family that jig's `holds application` means
 }
 pub enum KeptMap { Store, Secrets }       // the map its records live in (section 9)
 pub struct KeptFamily {
@@ -1749,15 +1756,6 @@ impl PatchSets {
   step 4); a set whose `fresh` is `None` marks nothing, and a patch's
   other marks are its owner's alone. A patch may carry a mark and change
   no family.
-- **Held across owners by role.** A field of jig's that holds the
-  application's values names the family word `application`
-  (`channel.md`, 6.2), never an application's family; the plan reads
-  it as the family the application's set names, `PatchSet::payload`,
-  before it makes its machines, so a held field of jig's is patched by
-  the application's patches as any held field is (below), and a set
-  whose `application` holds meet no such family is refused, `Set` with
-  patch 0. Only the application's set may name one; jig's, smith's and
-  skein's say `None`.
 - **Effects in flight** (temper's `draft/upgrades.md`, section 8) are
   the application's to show and the plan's to refuse. A connector that
   keeps an effect's sent attempt keeps, beside its outbox entry, a
@@ -2204,7 +2202,20 @@ Each within jig's suites' budgets.
   - pieces held by a frame's turn (smith's `Found.hits`, `pieces Hit`)
     are copied, not opened, so a smith patch that changes `Hit` is
     refused `Pieces` until they open (skein's `codec.md`, 11.3 and
-    section 13);
+    section 13); so are jig's own packed lists (5.1), whose words make
+    a copying patch reach them and a converting one refuse;
+  - a delivery's evidence (core-v6's `SettledAnswerDelivery.evidence`),
+    which the core keeps as bytes and hands down again at a later
+    attempt's assignment: temper's is smith's channel record of the
+    delivery's reply (temper's `protocol/channel.md`, section 2), which
+    smith versions with its channel whole. From the baseline a change of
+    it would leave kept evidence a new worker refuses. Options: smith
+    keeps its channel's records as a family of its own, which the field
+    holds through the application, by a family word the application's
+    set resolves (jig never names temper); or the application keeps the
+    evidence in its own family, as its settings' values are, and the
+    core keeps its number. Default: open until the baseline's checklist;
+    nothing before it moves a version;
   - the core's records walked by a smith patch: the core's `Row` reaches
     `TurnRecord`, which holds smith's turn, so each smith patch runs the
     core's identity plan over every core record, though no row in the
