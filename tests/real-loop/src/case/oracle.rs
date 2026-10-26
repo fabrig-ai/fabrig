@@ -4433,7 +4433,7 @@ fn direction_commit(commit: u64) -> String {
     hex
 }
 fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
-    use super::{B_FILE, OVERLAP_HOLD_REVISION, OVERLAP_LANDING_MESSAGE, OVERLAP_OWNER, OVERLAP_SUBSCRIPTION, PLANNED};
+    use super::{B_FILE, OVERLAP_HOLD_REVISION, OVERLAP_OWNER, OVERLAP_SUBSCRIPTION, PLANNED};
     let held = task_document(observed, Read::DirectionBHeld);
     let pending = task_document(observed, Read::DirectionBPending);
     for (read, doc) in [(Read::DirectionBHeld, held), (Read::DirectionBPending, pending)] {
@@ -4508,7 +4508,7 @@ fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
             && news.first().is_some_and(|row| {
                 let words = text(row, "/line/heard/words");
                 let suffix = landing.get(..8).map(|head| format!(" -> {head}"));
-                number(row, "/line/heard/number") == Some(OVERLAP_LANDING_MESSAGE)
+                direction_news_identity(&rows, row)
                     && number(row, "/line/heard/from/task") == Some(OVERLAP_OWNER)
                     && number(row, "/line/heard/hits") == Some(1)
                     && number(row, "/line/heard/kind/news/subscription") == Some(OVERLAP_SUBSCRIPTION)
@@ -4531,6 +4531,30 @@ fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
         DIRECTION_NEWS,
         "B's complete journal must show its two non-overlapping attempts",
     );
+}
+
+// Fresh numbers are shared with other notices. Identify B's news by the same
+// immutable event in both reads, and reject another copy anywhere in its journal.
+fn direction_news_identity(rows: &[&Value], news: &Value) -> bool {
+    let Some(message) = number(news, "/line/heard/number") else { return false };
+    if message == 0 {
+        return false;
+    }
+    let words = text(news, "/line/heard/words");
+    let mut identities = 0;
+    let mut landings = 0;
+    for row in rows {
+        if number(row, "/line/heard/number") == Some(message) {
+            if *row != news {
+                return false;
+            }
+            identities += 1;
+        }
+        if row.pointer("/line/heard/kind/news").is_some() && text(row, "/line/heard/words") == words {
+            landings += 1;
+        }
+    }
+    identities == 1 && landings == 1
 }
 
 fn direction_messages(observed: &Observed, misses: &mut Vec<Miss>) {
@@ -4624,6 +4648,8 @@ mod direction_tests {
     use crate::case::*;
     use serde_json::json;
     use skein_fake_llm_domain::api::{Message, Part, Role};
+
+    const OVERLAP_LANDING_MESSAGE: u64 = 18;
 
     fn input(words: &str) -> Message {
         Message { role: Role::User, parts: Box::new([Part::Text { text: words.as_bytes().into() }]) }
@@ -4860,6 +4886,35 @@ mod direction_tests {
     #[test]
     fn new_direction_and_deferred_overlap_meet_the_checkpoint() {
         assert_met(&step_5_4(&met()));
+    }
+    #[test]
+    fn overlap_news_identity_is_read_from_both_journals() {
+        for message in [19, 42] {
+            let mut observed = met();
+            for read in [Read::DirectionBPending, Read::DirectionBEnded, Read::DirectionBFirst] {
+                let doc = observed.documents.get_mut(&read).expect("B's journal");
+                let page = if read == Read::DirectionBFirst { doc } else { &mut doc["activity"] };
+                for row in page["rows"].as_array_mut().expect("rows") {
+                    let Some(number) = row.pointer_mut("/event/owner/source/line/heard/number") else { continue };
+                    if *number == OVERLAP_LANDING_MESSAGE {
+                        *number = json!(message);
+                    }
+                }
+            }
+            assert_met(&step_5_4(&observed));
+            observed.documents.get_mut(&Read::DirectionBPending).expect("pending")["activity"]["rows"][0]["event"]["owner"]
+                ["source"]["line"]["heard"]["number"] = json!(message + 1);
+            assert!(!step_5_4(&observed).is_empty(), "the two reads must name the same event");
+        }
+    }
+    #[test]
+    fn overlap_news_rejects_another_landing_notice_in_the_complete_journal() {
+        let mut observed = met();
+        let page = observed.documents.get_mut(&Read::DirectionBFirst).expect("B's earlier journal");
+        let mut duplicate = page["rows"][0]["event"]["owner"]["source"]["line"].clone();
+        duplicate["heard"]["number"] = json!(OVERLAP_LANDING_MESSAGE + 1);
+        page["rows"][1]["event"]["owner"]["source"]["line"] = duplicate;
+        assert!(!step_5_4(&observed).is_empty(), "the landing must reach B once in its whole journal");
     }
     #[test]
     fn complete_single_page_journals_keep_the_same_checks() {

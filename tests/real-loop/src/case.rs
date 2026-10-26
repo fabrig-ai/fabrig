@@ -717,7 +717,6 @@ pub const OVERLAP_HOLD_REVISION: u64 = 1;
 pub const DEFERRED_NOTE_NUMBER: u64 = 9;
 pub const DIRECTION_PERSON_MESSAGE: u64 = 7;
 pub const DIRECTION_AMENDMENT_MESSAGE: u64 = 8;
-pub const OVERLAP_LANDING_MESSAGE: u64 = 18;
 pub const OVERLAP_SUBSCRIPTION: u64 = 5;
 pub const OVERLAP_RECHECK_ATTEMPT: u64 = 3;
 pub const DIRECTION_PERSON: &str = "@case_direction Delegate A and B as owners on kit and wait for my direction.";
