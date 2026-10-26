@@ -5,13 +5,13 @@ pub mod turn_bounds;
 #[must_use]
 pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     let agent = serde_json::json!({
-        "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":600,"read_window":256,
+        "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
             "policy":{"max_turns":5,"group_stop":10,"inbox":8,"unacknowledged":8}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":"127.0.0.1:0","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
             "identity":"plain","connect":1000,"handshake":1000,
-            "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":1024,"reasoning_item":64,"head":60000,"idle":30000}]}],
+            "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");
@@ -24,7 +24,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
     value["workers"][0]["agent"]["arguments"] = serde_json::json!(["agent", directory.join("agent.json")]);
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 598.into();
+    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();

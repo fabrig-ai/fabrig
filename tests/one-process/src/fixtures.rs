@@ -214,7 +214,7 @@ pub(crate) fn agent_profile() -> smith_agent_service::profile::Profile {
     let mut profile = smith_agent_process_world::profile();
     profile.policy.host_tools =
         u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
-    profile.declared.tool_payload = 1400;
+    profile.declared.tool_payload = 2048;
     profile.declared.read_window = 256;
     profile.declared.conversations = 1;
     profile.declared.calls_per_response = 1;

@@ -243,7 +243,13 @@ pub fn store_limits(
     let mut parsed =
         load(document, directories, false)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     if !parsed.workers.is_empty() {
-        parsed.compose(agent.ok_or(problem(indexed(0).member(b"agent"), What::Agent))?)?;
+        let agent = agent.ok_or(problem(indexed(0).member(b"agent"), What::Agent))?;
+        parsed.compose(agent)?;
+        let mut problems = Problems::empty();
+        checks::agent_answer(agent, &mut problems);
+        if !problems.is_empty() {
+            return Err(problems);
+        }
     }
     let root = engine_limits(&mut parsed.engine.limits, &parsed.application.limits)?;
     let store = checked_store(&root, &parsed.engine.limits.store, None)?;
@@ -268,6 +274,7 @@ fn engine_limits(
     jig.clients.wire.keyed_value_some = crate::limits::client_value_bytes(jig, own);
     let root = crate::limits::engine_candidate(jig, own);
     let mut problems = Problems::empty();
+    checks::call_answer(Path::root().member(b"engine"), jig.core.call_answer_bytes, &mut problems);
     checks::engine_envelope(&root, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
@@ -290,6 +297,7 @@ impl Parsed {
         if let Err(what) = self.engine_call_answer.compose(&mut self.engine.limits, agent) {
             problems.push(call_input_path(Path::root().member(b"engine")), what);
         }
+        checks::call_answer(Path::root().member(b"engine"), self.engine.limits.core.call_answer_bytes, &mut problems);
         for (index, worker) in self.workers.iter_mut().enumerate() {
             if let Err(what) = self
                 .worker_call_answers
@@ -299,6 +307,7 @@ impl Parsed {
             {
                 problems.push(call_input_path(indexed(index)), what);
             }
+            checks::call_answer(indexed(index), worker.limits.core.call_answer_bytes, &mut problems);
         }
         if problems.is_empty() { Ok(()) } else { Err(problems) }
     }
@@ -821,6 +830,7 @@ fn checked_start(
     read_instructions(&mut core, files);
     if let Some(agent) = agent {
         checks::admission(&core, &parsed.engine, agent, &mut problems);
+        checks::agent_answer(agent, &mut problems);
     }
     if !problems.is_empty() {
         return Err(problems);
@@ -1069,10 +1079,14 @@ pub fn worker_alone(
 }
 
 fn check_worker_part(part: &mut WorkerPart, files: &settings::Files, agent: &settings::Agent) -> Result<(), Problems> {
-    if let Err(what) = part.call_answer.compose(&mut part.worker.jig.limits, agent) {
-        return Err(problem(call_input_path(indexed(0)), what));
-    }
     let mut problems = Problems::empty();
+    if let Err(what) = part.call_answer.compose(&mut part.worker.jig.limits, agent) {
+        problems.push(call_input_path(indexed(0)), what);
+    }
+    checks::call_answer(indexed(0), part.worker.jig.limits.core.call_answer_bytes, &mut problems);
+    if !problems.is_empty() {
+        return Err(problems);
+    }
     for file in &part.files {
         match files.contents(&file.path) {
             Some(bytes) if bytes.len() <= usize::try_from(file.max).expect("file bound") => {}
@@ -1082,6 +1096,7 @@ fn check_worker_part(part: &mut WorkerPart, files: &settings::Files, agent: &set
     }
     checks::worker(&crate::worker_settings::root_limits(&part.worker, agent, &part.limits), &mut problems);
     checks::turns(None, core::slice::from_ref(&part.worker.jig), &part.limits, Some(agent), &mut problems);
+    checks::agent_answer(agent, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }

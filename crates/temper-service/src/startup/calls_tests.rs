@@ -187,6 +187,188 @@ fn call_input_lines(path: &str, bytes: u32, input: u32, ask: u32, reply: u32) ->
     )
 }
 
+fn answer_floor_line(path: &str, bytes: u32) -> String {
+    format!("{path}: {bytes} bytes, short of temper's documentation answer (read_docs), 2048 bytes\n")
+}
+
+fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 4] {
+    let directories = config::Directories::working();
+    [
+        startup(
+            input,
+            &directories,
+            &fixtures::files(),
+            agent,
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        )
+        .err()
+        .unwrap(),
+        store_limits(input, &directories, Some(agent)).unwrap_err(),
+        memory_requirements(
+            input,
+            &directories,
+            &fixtures::files(),
+            agent,
+            &fixtures::seeds(),
+            None,
+            fixtures::forge_runtime(),
+            None,
+        )
+        .unwrap_err(),
+        memory_terms(
+            input,
+            &directories,
+            &fixtures::files(),
+            agent,
+            &fixtures::seeds(),
+            None,
+            fixtures::forge_runtime(),
+            None,
+        )
+        .unwrap_err(),
+    ]
+}
+
+fn worker_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
+    let directories = config::Directories::working();
+    [
+        worker_alone(
+            worker_part(input, &directories).unwrap(),
+            &fixtures::files(),
+            agent,
+            fixtures::worker_runtime(),
+            7,
+        )
+        .err()
+        .unwrap(),
+        memory_requirements(
+            input,
+            &directories,
+            &fixtures::files(),
+            agent,
+            &fixtures::seeds(),
+            None,
+            List::with_capacity(0),
+            None,
+        )
+        .unwrap_err(),
+        memory_terms(
+            input,
+            &directories,
+            &fixtures::files(),
+            agent,
+            &fixtures::seeds(),
+            None,
+            List::with_capacity(0),
+            None,
+        )
+        .unwrap_err(),
+    ]
+}
+
+fn core_answer_floor(engine: bool) {
+    let agent = fixtures::startup_agent();
+    let input = if engine { document(Some(2047), Some(2048)) } else { document(Some(2048), Some(2047)) };
+    let path = if engine {
+        "engine.limits.overrides.core.call_answer_bytes"
+    } else {
+        "workers[0].limits.overrides.core.call_answer_bytes"
+    };
+    let expected = call_input_lines(path, 2047, 2048, 4096, 65_536) + &answer_floor_line(path, 2047);
+    for found in standalone_refusals(&input, &agent) {
+        assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
+    }
+    let service = startup(
+        &document(Some(2048), Some(2048)),
+        &config::Directories::working(),
+        &fixtures::files(),
+        &agent,
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .unwrap();
+    assert_eq!(service.engine.as_ref().unwrap().env.limits.call_answer_bytes, 2048);
+}
+
+#[test]
+fn the_engines_call_answer_bound_must_hold_the_documentation_answer() {
+    core_answer_floor(true);
+}
+
+#[test]
+fn a_workers_call_answer_bound_must_hold_the_documentation_answer() {
+    core_answer_floor(false);
+    let agent = fixtures::startup_agent();
+    let expected = call_input_lines("workers[0].limits.overrides.core.call_answer_bytes", 2047, 2048, 4096, 65_536)
+        + &answer_floor_line("workers[0].limits.overrides.core.call_answer_bytes", 2047);
+    for found in worker_refusals(&worker_document(Some(2047)), &agent) {
+        assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
+    }
+    let service = worker_alone(
+        worker_part(&worker_document(Some(2048)), &config::Directories::working()).unwrap(),
+        &fixtures::files(),
+        &agent,
+        fixtures::worker_runtime(),
+        7,
+    )
+    .unwrap();
+    assert!(service.engine.is_none());
+}
+
+#[test]
+fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
+    let mut agent = fixtures::startup_agent();
+    agent.tool_payload = 2047;
+    let expected = answer_floor_line("workers[0].agent.profile.declared.tool_payload", 2047);
+    for found in standalone_refusals(&document(Some(2048), Some(2048)), &agent) {
+        assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
+    }
+    for found in worker_refusals(&worker_document(Some(2048)), &agent) {
+        assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
+    }
+    agent.tool_payload = 2048;
+    let directories = config::Directories::working();
+    startup(
+        &document(Some(2048), Some(2048)),
+        &directories,
+        &fixtures::files(),
+        &agent,
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .unwrap();
+    worker_alone(
+        worker_part(&worker_document(Some(2048)), &directories).unwrap(),
+        &fixtures::files(),
+        &agent,
+        fixtures::worker_runtime(),
+        7,
+    )
+    .unwrap();
+}
+
+#[test]
+fn an_engine_without_a_local_agent_still_needs_the_documentation_answer_bound() {
+    let input = fixtures::engine_alone_document();
+    let short =
+        core::str::from_utf8(&input).unwrap().replace("core.call_answer_bytes\":2048", "core.call_answer_bytes\":2047");
+    let mut agent = fixtures::startup_agent();
+    agent.tool_payload = 1;
+    let expected = answer_floor_line("engine.limits.overrides.core.call_answer_bytes", 2047);
+    for found in standalone_refusals(short.as_bytes(), &agent) {
+        assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
+    }
+    let found = store_limits(short.as_bytes(), &config::Directories::working(), None).unwrap_err();
+    assert_eq!(core::str::from_utf8(&lines(&found)).unwrap(), expected);
+}
+
 #[test]
 fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
     let directories = config::Directories::working();
@@ -318,20 +500,22 @@ fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
     let input = fixtures::engine_alone_document();
     let directories = config::Directories::working();
     let mut agent = fixtures::startup_agent();
-    agent.tool_payload = 4096;
-    let checked = checked_start(
-        &input,
-        &directories,
-        &fixtures::files(),
-        Some(&agent),
-        &fixtures::seeds(),
-        None,
-        fixtures::forge_runtime(),
-        None,
-    )
-    .unwrap();
-    assert_eq!(checked.engine.jig.limits.core.call_answer_bytes, 2048);
-    assert_eq!(store_limits(&input, &directories, Some(&agent)).unwrap().store.core.call_answer_bytes, 2048);
+    for payload in [1, 2047, 2048, 4096, u32::MAX] {
+        agent.tool_payload = payload;
+        let checked = checked_start(
+            &input,
+            &directories,
+            &fixtures::files(),
+            Some(&agent),
+            &fixtures::seeds(),
+            None,
+            fixtures::forge_runtime(),
+            None,
+        )
+        .unwrap();
+        assert_eq!(checked.engine.jig.limits.core.call_answer_bytes, 2048);
+        assert_eq!(store_limits(&input, &directories, Some(&agent)).unwrap().store.core.call_answer_bytes, 2048);
+    }
 }
 
 #[test]

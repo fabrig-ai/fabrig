@@ -16,13 +16,13 @@ pub const AGENT: &[u8] = b"/real-loop/temper-agent";
 pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde_json::Value, serde_json::Value) {
     let program = std::str::from_utf8(AGENT).expect("agent program");
     let agent = serde_json::json!({
-        "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":600,"read_window":256,
+        "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
             "policy":{"max_turns":5,"group_stop":10,"inbox":8,"unacknowledged":8}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":llm.to_string(),"transport":"plaintext",
             "identity":"plain","connect":1000,"handshake":1000,
-            "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":1024,"reasoning_item":64,"head":60000,"idle":30000}]}],
+            "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");
@@ -35,7 +35,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
     value["workers"][0]["agent"]["arguments"] = serde_json::json!(["agent", directory.join("agent.json")]);
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
-    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 598.into();
+    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 2046.into();
     // A minimal positive wait parks the scripted run and settles its withheld turn.
     value["engine"]["charters"][0]["waiting_ms"] = 1.into();
     // The close story exercises the grace transition without a five-second real wait.

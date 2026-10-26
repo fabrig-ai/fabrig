@@ -509,7 +509,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
             "tool_payload",
             600,
             Some(
-                "engine.limits: needs 4096-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\n",
+                "engine.limits: needs 4096-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n",
             ),
         ),
     ] {
@@ -534,7 +534,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
     assert_eq!(
         temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("old tuple refused"),
-        "temper serve: engine.charters[0].turns: needs 8 turns; the agent's profile.policy.max_turns allows 5\n"
+        "temper serve: engine.charters[0].turns: needs 8 turns; the agent's profile.policy.max_turns allows 5\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
     );
     // The selected charter's number identifies its path, even when it is not its index.
     let config_path = scratch.path().join("temper.json");
