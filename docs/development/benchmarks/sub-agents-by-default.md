@@ -24,4 +24,4 @@ Neither recorded step nor its summaries identifies a run with a child opening in
 
 Risks left: children run synchronously; a writing child runs alone; work beside sub-agents is not planned. Sequential delegation and the stalled review limit the evidence for making delegation the default. The recommendation rests on these counts and requests no further runs.
 
-A yes first needs the designer to change shell.md, section 6.4's `sub_agents` row, then an implementation change to the default at `crates/smith-local-shell/src/local_settings.rs:120`. The supervisor records the user's answer in decisions.md, section 10, item 7.
+A yes first needs the designer to change shell.md, section 6.4's `sub_agents` row, then an implementation change to the default at `crates/smith-local-shell/src/local_settings.rs:120`.

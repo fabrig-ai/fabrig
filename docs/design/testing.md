@@ -513,8 +513,7 @@ Every world checks what the strategy lists (testing-strategy.md, section
 
 ### 6.1 The suites
 
-The strategy's two suites (testing-strategy.md, section 8) make the gate,
-run by the commands in `docs/development/workflow.md`:
+The strategy's two suites (testing-strategy.md, section 8) make the gate:
 - **focused tests:** the step tests; each world's scenarios, referee
   tests, replay, facts changing nothing and memory at the worst case; the
   real loop; the end-to-end tests against fakes; and the benchmark

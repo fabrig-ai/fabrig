@@ -68,10 +68,9 @@ Codex, the comparison's verdict, is section 16.
 - **To find what the tests missed:** passive checks on every attempt hold
   smith's evidence to its contracts (section 11.2).
 
-They are not tests (section 12) and not the merge gate: no check of
-`docs/development/workflow.md` runs an agent. Nor are they a ranking: a
-comparison states an effect with its interval, or that none was
-detected.
+They are not tests (section 12) and not the merge gate: no gate check
+runs an agent. Nor are they a ranking: a comparison states an effect
+with its interval, or that none was detected.
 
 ## 3. What is measured
 
@@ -213,20 +212,17 @@ Only the offline tier is a test (section 14). The others are runs of
 `smith-bench`, by choice. Each tier is a suite file (section 5.3).
 
 The costs are estimates for planning, not gates. The offline tier's
-tests are held to the workspace's suite budgets (smith's
-`docs/development/workflow.md`, section 2), as every focused test is.
+tests are held to the workspace's suite budgets, as every focused test is.
 A test sits with what it tests: a parser's beside the parsers, an
 adapter's among that adapter's tests.
 
 ### 4.2 A fix and its probe
 
 - **Proof comes before the merge.** A change merges, and counts as done,
-  only with its proof in its commit body (`docs/development/workflow.md`,
-  section 5). Evidence is never left "pending".
+  only with its proof in its commit body. Evidence is never left "pending".
 - **Every improvement names the probe that guards it** in its commit
-  body, except one whose effect does not depend on a model
-  (`docs/development/workflow.md`, section 5), which names its counting
-  test instead. A probe comes with the runs the harness prints ready for
+  body, except one whose effect does not depend on a model, which names
+  its counting test instead. A probe comes with the runs the harness prints ready for
   it:
   - **after,** on the change, passing;
   - **before,** on its parent, failing, wherever the parent can run the
@@ -245,9 +241,8 @@ adapter's among that adapter's tests.
   that run can tell the change's expected effect from none, with 16.6's
   report; any other names the counts it targets (16.6).
 - **Every smith landing that changes code runs `smoke-tools` live,**
-  once, on its branch rebased on `origin/main` just before merging
-  (`docs/development/workflow.md`, section 5). A red smoke stops the line
-  until it is green again.
+  once, on its branch rebased on `origin/main` just before merging. A red
+  smoke stops the line until it is green again.
 - **A parent that cannot run live.** When a parent fails the probe for a
   reason unrelated to the change (for example, its limits refuse what the
   provider sends today), the before is the closest evidence that exists:

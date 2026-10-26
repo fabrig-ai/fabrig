@@ -38,8 +38,7 @@ each run its instructions, tools, budget and what counts as done.
 - skein's foundation, which smith follows: `programming-model.md`,
   `testing-strategy.md` and `notes.md`.
 
-Before changing code, read [`AGENTS.md`](AGENTS.md) and
-[`docs/development/workflow.md`](docs/development/workflow.md).
+Before changing code, read [`AGENTS.md`](AGENTS.md).
 
 ## Live tests
 

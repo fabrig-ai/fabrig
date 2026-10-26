@@ -165,7 +165,7 @@ These benchmarks grant smith `sub_agents=true`, 4096 turns, 1200 s, $1000 notion
 | Experiment | Run or reason it did not run | User decision / deferred item |
 |---|---|---|
 | Compaction threshold | Small-window v1, 65536-token window; two override arms, 4/5 (80%) and 3/5 (60%); five each, interleaved once | User decision pending; shipped 80% and task/summary/pending-host-message contents stand. Supervisor recommended retaining them at 00:52:04 UTC; malformed-after-compaction reliability work remains |
-| New-window contents | No landed setting for a contents override; no arm ran | No contents-policy comparison; provider-native compaction remains deferred in `later.md` |
+| New-window contents | No landed setting for a contents override; no arm ran | No contents-policy comparison; provider-native compaction remains deferred |
 | Affinity | First two configuration arms unavailable: domain owns affinity and configuration refuses affinity headers; third routing/reasoning-state arm not built | Decisions 4.4: routing extras require material measured gain; extras/WebSocket remain deferred |
 | Cache lifetime | Anthropic-only experiment belongs to next pass; idle-gap delay not supplied | No TTL decision; longer lifetime remains unmeasured |
 | Edit format | Each dialect currently has one format; no alternative-setting arm | Decision 7.4 needs measurement before choosing; dialect alternatives remain deferred |
@@ -214,7 +214,7 @@ Seeded compaction audit IDs 02/06/08 remain in the summary; this experiment requ
 
 ## What waits for the next pass
 
-[later.md](../plans/reliability/later.md): Claude Code (outside this plan), smith on Anthropic, cache-lifetime/idle-gap, next versions of uncalibrated probes, and the deferred affinity, edit-format and compaction items above.
+Claude Code (outside this plan), smith on Anthropic, cache-lifetime/idle-gap, next versions of uncalibrated probes, and the deferred affinity, edit-format and compaction items above.
 
 ## Erratum to the 2026-10-08 report
 

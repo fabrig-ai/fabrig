@@ -49,7 +49,7 @@ Four kinds of debt came with it.
 - **Why it matters.** The risk sits where the fakes meet providers, and
   no deterministic test can see it.
 - **Pays it back:**
-  - **A change is proven before it merges** (workflow.md, section 6):
+  - **A change is proven before it merges**:
     `smoke-tools` live on every merge, and each improvement's probe
     before and after;
   - **the fakes take their shapes from real captures,** such as response

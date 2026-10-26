@@ -1,14 +1,13 @@
 # Agent guidance for smith
 
 - Land on main with `land`: it rebases on `origin/main`, runs
-  `scripts/check.sh`, the checks in `docs/development/workflow.md`,
-  section 1, and pushes. A
-  Markdown-only change lands with `land --docs`, as that document
-  specifies. Rust doc comments do not skip the checks.
+  `scripts/check.sh`, and pushes. A
+  Markdown-only change lands with `land --docs`.
+  Rust doc comments do not skip the checks.
 - The focused suite takes at most 30 seconds (15 seconds before the user's
   doubling of 10-22, provisional) and the fuzzy suite at most 120 seconds
   (60 seconds before the user's doubling of 10-22, provisional). Measure
-  worlds on an idle machine with the workflow's serial profile; keep
+  worlds on an idle machine; keep
   additions within those budgets.
 - smith follows skein's `docs/foundation/programming-model.md`,
   `testing-strategy.md` and `notes.md`. Read the first two's section 1

@@ -220,7 +220,7 @@ Each lands in skein, with its design, before its smith consumer
   packages of their own.
 - **Bare commands keep their meaning.** `default-members` lists every
   member, so a bare `cargo build` or `cargo test` covers the workspace.
-  The gate names `--workspace` (workflow.md, section 1).
+  The gate names `--workspace`.
 - **Glue.** `main.rs`:
   1. parses its arguments into a command (2.3);
   2. reads the settings and runs `smith check`'s checks, refusing with
