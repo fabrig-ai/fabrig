@@ -896,10 +896,12 @@ digest: task 7c1e09a2b44f0d13
   `Failed`, `Cancelled` (cancelled or withdrawn), `Ended`), then ` · ` and its
   words. A landed change's words are its merge commit, whole, as the
   engine's landing words give it (the card shows seven characters; an
-  agent may need the id), after its pull request, the result's resource
-  in the forge's words: `result: Landed · pull request #7 of
-  acme/app on github.com · merge commit 3f2a9c1…` (forty characters),
-  then the call that reads its panel, `change N`; a change's words that
+  agent may need the id), after its pull request, the result's
+  resource: `result: Landed · pull request #7 · merge commit 3f2a9c1…`
+  (forty characters), the pull request by its number, as the result's
+  settled resource gives it (its repository and host too where the
+  resource is a path, `README.md`, 4.1), then the call that reads its
+  panel, `change N`, where its address is; a change's words that
   are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
   as they are; a connector's its summary and its part in the forge's
   words; a failed or cancelled task's its reason, if it gave one. Words
