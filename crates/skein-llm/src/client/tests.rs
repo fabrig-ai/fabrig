@@ -429,3 +429,99 @@ fn a_malformed_message_fails_without_counting_activity() {
     assert_eq!(world.client.activity(), 0);
     assert_eq!(world.failure().0, Failure::Protocol);
 }
+
+fn provider_call(provider: Provider) -> Call {
+    let mut input = call();
+    input.endpoint = match provider {
+        Provider::OpenAiCodex => Endpoint::codex(),
+        Provider::OpenAi => Endpoint::openai(),
+        Provider::Anthropic => Endpoint::anthropic(),
+    };
+    if provider != Provider::OpenAiCodex {
+        input.credential = Some(Credential::key(bytes::copy_of(b"key")));
+    }
+    input
+}
+
+#[test]
+fn an_owned_measurement_preserves_provider_bytes_lengths_and_policy() {
+    for provider in [Provider::OpenAiCodex, Provider::OpenAi, Provider::Anthropic] {
+        for enabled in [false, true] {
+            for encoding in [Encoding::Identity, Encoding::Gzip] {
+                let mut input = provider_call(provider);
+                input.endpoint.encoding = encoding;
+                let mut bounds = limits();
+                let admitted = bounds;
+                let expected = measure(&input.prompt, input.credential.as_ref(), &input.endpoint, &bounds).unwrap();
+                let rendered = match provider {
+                    Provider::OpenAiCodex | Provider::OpenAi => {
+                        translate::encode_request(provider, &input.prompt, &bounds.native()).unwrap()
+                    }
+                    Provider::Anthropic => {
+                        anthropic::encode_request(&input.prompt, bounds.declared_output_tokens, &bounds.native())
+                            .unwrap()
+                    }
+                };
+                let checked = measure_request(input, &bounds, enabled).unwrap();
+                assert_eq!(checked.measured(), expected);
+                assert_eq!(checked.drop_reasoning, enabled);
+                // Changing the caller's copy cannot change the admitted request.
+                bounds.request = 0;
+                bounds.drop_reasoning = !enabled;
+                let prepared = Client::prepare_measured(checked).unwrap();
+                assert_eq!(prepared.limits, admitted);
+                assert_eq!(prepared.measured(), expected);
+                assert_eq!(rendered.len(), usize::try_from(expected.body).unwrap());
+                let actual = prepared.upload.as_ref().unwrap();
+                if expected.compressed == 0 {
+                    assert_eq!(actual, &rendered, "{provider:?}/{enabled}/{encoding:?}");
+                } else {
+                    let mut room = bytes::zeroed(usize::try_from(expected.compressed).unwrap());
+                    let end = skein_http::gzip::encode(&rendered, &mut room).unwrap();
+                    assert_eq!(prepared.upload_end, end);
+                    assert_eq!(actual, &room, "{provider:?}/{enabled}/{encoding:?}");
+                }
+                assert!(
+                    measure_request(provider_call(provider), &bounds, enabled).is_err(),
+                    "a new input uses its own limits"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn owned_measurement_preserves_admission_refusals() {
+    for provider in [Provider::OpenAiCodex, Provider::OpenAi, Provider::Anthropic] {
+        for enabled in [false, true] {
+            for fault in 0_usize..6 {
+                let mut input = provider_call(provider);
+                let mut bounds = limits();
+                match fault {
+                    0 => bounds.request = 1,
+                    1 => input.credential.as_mut().unwrap().value = bytes::copy_of(b"bad\r\nvalue"),
+                    2 => input.credential.as_mut().unwrap().value = Box::new([]),
+                    3 => input.prompt.model = Box::new([]),
+                    4 => bounds.depth = 0,
+                    5 => bounds.http.headers = 0,
+                    _ => unreachable!(),
+                }
+                let expected = measure(&input.prompt, input.credential.as_ref(), &input.endpoint, &bounds).err();
+                assert!(expected.is_some(), "{provider:?}/{fault} refuses");
+                assert_eq!(measure_request(input, &bounds, enabled).err(), expected, "{provider:?}/{fault}/{enabled}");
+            }
+        }
+    }
+}
+
+#[test]
+fn the_encoder_checks_written_bytes_against_the_measurement() {
+    for provider in [Provider::OpenAiCodex, Provider::OpenAi, Provider::Anthropic] {
+        for difference in [-1_i32, 1_i32] {
+            let mut checked = measure_request(provider_call(provider), &limits(), false).unwrap();
+            checked.measured.body = checked.measured.body.checked_add_signed(difference).unwrap();
+            let failed = std::panic::catch_unwind(|| Client::prepare_measured(checked));
+            assert!(failed.is_err(), "{provider:?}/{difference}: an incorrect measure must fail at the writer");
+        }
+    }
+}

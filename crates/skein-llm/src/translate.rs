@@ -22,8 +22,18 @@ pub(crate) fn measure_request(provider: Provider, prompt: &Prompt, limits: &open
 }
 
 /// Writes directly into the reserved body; schemas, text and replay stay borrowed.
+#[cfg(test)]
 pub(crate) fn encode_request(provider: Provider, prompt: &Prompt, limits: &openai::Limits) -> Result<Box<[u8]>, Error> {
     let length = measure_request(provider, prompt, limits)?;
+    encode_measured_request(prompt, limits, length)
+}
+
+/// Writes the body held by the client's owned measurement witness.
+pub(crate) fn encode_measured_request(
+    prompt: &Prompt,
+    limits: &openai::Limits,
+    length: u32,
+) -> Result<Box<[u8]>, Error> {
     let mut out = writer::Encoder::write(length, &writer::Limits { depth: limits.depth, length: limits.request });
     write_request(&mut out, prompt)?;
     Ok(out.finish())

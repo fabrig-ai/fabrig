@@ -33,10 +33,7 @@ pub(crate) struct Waiting {
     call: Token,
     endpoint: u32,
     order: u64,
-    prompt: Prompt,
-    credential: Option<Credential>,
-    drop_reasoning: bool,
-    measured: llm::client::Measured,
+    request: llm::client::MeasuredRequest,
     reservation: u64,
     stage: Stage,
     deadlines: crate::deadlines::Table,
@@ -213,14 +210,8 @@ impl Component {
         credential: Option<Credential>,
         drop_reasoning: Option<bool>,
     ) -> Result<llm::client::Client, Refusal> {
-        self.measure_start(endpoint, &prompt, credential.as_ref())?;
-        let destination = self.endpoints.get(endpoint).expect("measured endpoint");
-        let input = Call { owner: call, prompt, credential, endpoint: destination.llm.clone() };
-        let enabled = match drop_reasoning {
-            Some(enabled) => enabled,
-            None => destination.limits.drop_reasoning,
-        };
-        match llm::client::Client::prepare_with_reasoning_drop(input, &destination.limits, enabled) {
+        let request = self.measure_start(call, endpoint, prompt, credential, drop_reasoning)?;
+        match llm::client::Client::prepare_measured(request) {
             Ok(client) => Ok(client),
             Err(error) => Err(Refusal::Client(error)),
         }
@@ -228,10 +219,12 @@ impl Component {
 
     fn measure_start(
         &self,
+        call: Token,
         endpoint: u32,
-        prompt: &Prompt,
-        credential: Option<&Credential>,
-    ) -> Result<llm::client::Measured, Refusal> {
+        prompt: Prompt,
+        credential: Option<Credential>,
+        drop_reasoning: Option<bool>,
+    ) -> Result<llm::client::MeasuredRequest, Refusal> {
         match self.lifecycle {
             Lifecycle::Live => {}
             Lifecycle::Closing | Lifecycle::Aborting => return Err(Refusal::Closed),
@@ -241,22 +234,27 @@ impl Component {
         if self.outstanding() >= self.limits.calls {
             return Err(Refusal::Calls { bound: self.limits.calls });
         }
-        if let Some(credential) = credential {
+        if let Some(credential) = credential.as_ref() {
             match llm::client::check_credential(credential, &destination.credential) {
                 Ok(()) => {}
                 Err(error) => return Err(Refusal::Client(error)),
             }
         }
-        let measured = match llm::client::measure(prompt, credential, &destination.llm, &destination.limits) {
-            Ok(measured) => measured,
+        let enabled = match drop_reasoning {
+            Some(enabled) => enabled,
+            None => destination.limits.drop_reasoning,
+        };
+        let input = Call { owner: call, prompt, credential, endpoint: destination.llm.clone() };
+        let request = match llm::client::measure_request(input, &destination.limits, enabled) {
+            Ok(request) => request,
             Err(error) => return Err(Refusal::Client(error)),
         };
         let reservation =
-            llm::client::reservation(measured, &destination.limits).expect("admitted largest reservation");
+            llm::client::reservation(request.measured(), &destination.limits).expect("admitted largest reservation");
         if reservation > self.limits.memory {
             return Err(Refusal::Memory { reservation, bound: self.limits.memory });
         }
-        Ok(measured)
+        Ok(request)
     }
 
     /// Bytes currently granted to waiting and running calls.
@@ -327,18 +325,11 @@ impl Component {
         }
     }
 
-    fn prepare_waiting(&self, waiting: Waiting) -> Prepared {
-        let destination = self.endpoints.get(waiting.endpoint).expect("admitted endpoint");
-        let input = Call {
-            owner: waiting.call,
-            prompt: waiting.prompt,
-            credential: waiting.credential,
-            endpoint: destination.llm.clone(),
-        };
+    fn prepare_waiting(waiting: Waiting) -> Prepared {
+        let measured = waiting.request.measured();
         let prepared =
-            llm::client::Client::prepare_with_reasoning_drop(input, &destination.limits, waiting.drop_reasoning)
-                .expect("measurement made every preparation refusal");
-        assert_eq!(prepared.measured(), waiting.measured, "admitted lengths encode identically");
+            llm::client::Client::prepare_measured(waiting.request).expect("measurement made every preparation refusal");
+        assert_eq!(prepared.measured(), measured, "admitted lengths encode identically");
         Prepared {
             client: prepared,
             call: waiting.call,
@@ -694,25 +685,23 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<IoRequest>,
     ) {
-        let measured = match self.measure_start(endpoint, &prompt, credential.as_ref()) {
-            Ok(measured) => measured,
+        let request = match self.measure_start(call, endpoint, prompt, credential, Some(drop_reasoning)) {
+            Ok(request) => request,
             Err(why) => {
                 up.push(Event::Refused { call, why });
                 return;
             }
         };
         let destination = self.endpoints.get(endpoint).expect("admitted endpoint");
-        let reservation = llm::client::reservation(measured, &destination.limits).expect("measured largest call fits");
+        let reservation =
+            llm::client::reservation(request.measured(), &destination.limits).expect("measured largest call fits");
         let mut table = crate::deadlines::Table::new(deadlines, env.now);
         table.arm(crate::deadlines::Phase::Waiting, env.now, self.limits.idle_keep);
         let waiting = Waiting {
             call,
             endpoint,
             order: self.arrival,
-            prompt,
-            credential,
-            drop_reasoning,
-            measured,
+            request,
             reservation,
             stage: Stage::Memory,
             deadlines: table,
@@ -860,7 +849,7 @@ impl Component {
         let reusable = self.reusable_connection(endpoint);
         let prepared = if reusable.is_some() || !self.connections.is_full() {
             let waiting = self.waiting.get_mut(index).expect("waiting index").take().expect("waiting call");
-            Some(self.prepare_waiting(waiting))
+            Some(Self::prepare_waiting(waiting))
         } else {
             None
         };

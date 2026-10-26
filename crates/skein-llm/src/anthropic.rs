@@ -7,6 +7,7 @@ mod response;
 
 pub use crate::openai::{DecodeError, Failure, Json, Limits, ProviderError, RateLimit, Stop, Usage, classify};
 pub use peer::{Mark, Request, decode_request, encode_event};
+pub(crate) use request::encode_measured_request;
 pub use request::{encode_request, measure_request};
 pub use response::{
     BlockStart, Delta, Event, MAX_OUT, Output, Part, StreamDecoder, UsagePatch, decode_error, decode_event,

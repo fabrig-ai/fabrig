@@ -331,6 +331,31 @@ pub struct Measured {
     pub compressed: u32,
 }
 
+/// An owned request and the exact configuration under which it was admitted.
+/// Only `measure_request` constructs it; preparation consumes it without
+/// accepting replacement input, endpoint, limits or reasoning policy.
+#[expect(missing_debug_implementations, reason = "the measured request owns bearer credentials")]
+pub struct MeasuredRequest {
+    input: Call,
+    limits: Limits,
+    drop_reasoning: bool,
+    measured: Measured,
+}
+
+impl MeasuredRequest {
+    /// The lengths reserved before the body is encoded.
+    #[must_use]
+    pub const fn measured(&self) -> Measured {
+        self.measured
+    }
+}
+
+/// Checks and measures an owned request once, retaining its admission inputs.
+pub fn measure_request(input: Call, limits: &Limits, drop_reasoning: bool) -> Result<MeasuredRequest, Error> {
+    let measured = measure(&input.prompt, input.credential.as_ref(), &input.endpoint, limits)?;
+    Ok(MeasuredRequest { input, limits: *limits, drop_reasoning, measured })
+}
+
 /// Validate exactly the preparation entrance, without allocating its body.
 /// The borrowed prompt and credential remain the owner's while it waits.
 pub fn measure(
@@ -446,17 +471,30 @@ impl Client {
     /// the typed limit failure even when the endpoint default permits dropping.
     /// Stored endpoint bounds remain unchanged for connection reuse.
     pub fn prepare_with_reasoning_drop(input: Call, limits: &Limits, enabled: bool) -> Result<Client, Error> {
-        check_preparation(limits)?;
+        let request = measure_request(input, limits, enabled)?;
+        Self::prepare_measured(request)
+    }
+
+    /// Consumes the checked request, retaining its input and configuration.
+    /// The encoder finishes only when its writer filled exactly the measured
+    /// body; the resulting lengths come from those bytes and a fresh head check.
+    pub fn prepare_measured(request: MeasuredRequest) -> Result<Client, Error> {
+        let MeasuredRequest { input, limits, drop_reasoning: enabled, measured } = request;
+        let limits = &limits;
         let provider = input.endpoint.provider;
         let affinity = input.prompt.affinity;
-        let length = match provider {
+        let rendered = match provider {
             Provider::OpenAiCodex | Provider::OpenAi => {
-                translate::measure_request(provider, &input.prompt, &limits.native())?
+                translate::encode_measured_request(&input.prompt, &limits.native(), measured.body)?
             }
-            Provider::Anthropic => {
-                anthropic::measure_request(&input.prompt, limits.declared_output_tokens, &limits.native())?
-            }
+            Provider::Anthropic => anthropic::encode_measured_request(
+                &input.prompt,
+                limits.declared_output_tokens,
+                &limits.native(),
+                measured.body,
+            )?,
         };
+        let length = u32::try_from(rendered.len()).expect("an encoded request fits its measured bound");
         let compressed = compressed(&input.endpoint, length, limits);
         let head = measure_headers(
             &input.endpoint,
@@ -467,14 +505,6 @@ impl Client {
             content_length(length, compressed),
         )?;
         let measured = Measured { head, body: length, compressed };
-        let rendered = match provider {
-            Provider::OpenAiCodex | Provider::OpenAi => {
-                translate::encode_request(provider, &input.prompt, &limits.native())?
-            }
-            Provider::Anthropic => {
-                anthropic::encode_request(&input.prompt, limits.declared_output_tokens, &limits.native())?
-            }
-        };
         // The compressed copy takes the room its bound reserved beside the
         // rendered body, which is dropped once it is compressed.
         let (body, end) = match coding(compressed) {

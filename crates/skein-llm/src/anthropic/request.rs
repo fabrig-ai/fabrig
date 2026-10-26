@@ -9,6 +9,16 @@ use skein_json::{Document, Kind, writer};
 /// Encode the request under the endpoint's nonzero declared output ceiling.
 pub fn encode_request(prompt: &Prompt, declared_output: u32, limits: &openai::Limits) -> Result<Box<[u8]>, Error> {
     let length = measure_request(prompt, declared_output, limits)?;
+    encode_measured_request(prompt, declared_output, limits, length)
+}
+
+/// Writes the body held by the client's owned measurement witness.
+pub(crate) fn encode_measured_request(
+    prompt: &Prompt,
+    declared_output: u32,
+    limits: &openai::Limits,
+    length: u32,
+) -> Result<Box<[u8]>, Error> {
     let bounded = writer::Limits { depth: limits.depth, length: limits.request };
     let mut out = writer::Encoder::write(length, &bounded);
     write_request(&mut out, prompt, declared_output, limits)?;

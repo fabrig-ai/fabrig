@@ -43,7 +43,18 @@ pub fn worst_case(limits: &Limits, endpoints: &List<crate::Endpoint>) -> Option<
         .checked_add(Queue::<Box<[u8]>>::worst_case(limits.io.sends)?)?;
     let mut largest = 0_u64;
     let mut scratch = 0_u64;
+    let mut waiting_endpoint = 0_u64;
     for endpoint in endpoints {
+        let mut owned = u64::try_from(endpoint.llm.authority.len())
+            .ok()?
+            .checked_add(u64::try_from(endpoint.llm.target.len()).ok()?)?
+            .checked_add(u64::try_from(size_of_val(endpoint.llm.headers.as_ref())).ok()?)?;
+        for header in &endpoint.llm.headers {
+            owned = owned
+                .checked_add(u64::try_from(header.name.len()).ok()?)?
+                .checked_add(u64::try_from(header.value.len()).ok()?)?;
+        }
+        waiting_endpoint = waiting_endpoint.max(owned);
         let mut client = endpoint.limits;
         client.http.request = match skein_llm::client::request_head(&endpoint.llm, &endpoint.credential, &client) {
             Ok(head) => head,
@@ -72,6 +83,8 @@ pub fn worst_case(limits: &Limits, endpoints: &List<crate::Endpoint>) -> Option<
         .checked_add(Slab::<Connection>::worst_case(limits.connections)?)?
         .checked_add(List::<Option<Id<Connection>>>::worst_case(limits.connections)?)?
         .checked_add(List::<Option<crate::component::Waiting>>::worst_case(limits.calls)?)?
+        // Each owned measurement retains its endpoint until preparation.
+        .checked_add(waiting_endpoint.checked_mul(u64::from(limits.calls))?)?
         .checked_add(List::<crate::Endpoint>::worst_case(limits.endpoints)?)
 }
 

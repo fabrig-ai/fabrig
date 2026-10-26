@@ -912,3 +912,41 @@ fn a_whole_deadline_wait_fails_with_an_empty_report() {
     };
     assert_eq!(report, skein_llm::Report::none());
 }
+
+#[test]
+fn measured_admission_keeps_each_providers_lengths_and_refusals() {
+    use skein_llm::{Endpoint as WireEndpoint, Provider};
+    for provider in [Provider::OpenAiCodex, Provider::OpenAi, Provider::Anthropic] {
+        let mut destination = endpoint();
+        destination.llm = match provider {
+            Provider::OpenAiCodex => WireEndpoint::codex(),
+            Provider::OpenAi => WireEndpoint::openai(),
+            Provider::Anthropic => WireEndpoint::anthropic(),
+        };
+        destination.limits.http.request =
+            skein_llm::client::request_head(&destination.llm, &destination.credential, &destination.limits).unwrap();
+        let bounds = destination.limits;
+        let wire = destination.llm.clone();
+        let mut endpoints = List::with_capacity(1);
+        endpoints.push(destination).unwrap();
+        let pool = Component::new(endpoints, &limits()).unwrap();
+        for enabled in [false, true] {
+            for bad_credential in [false, true] {
+                let mut value = credential();
+                if provider != Provider::OpenAiCodex {
+                    value.account_id = Box::new([]);
+                }
+                if bad_credential {
+                    value.value = bytes::copy_of(b"bad\r\nvalue");
+                }
+                let input = prompt();
+                let expected = skein_llm::client::measure(&input, Some(&value), &wire, &bounds);
+                let actual = pool.admit_with_reasoning_drop(Token::new(7), 0, input, Some(value), enabled);
+                match expected {
+                    Ok(measured) => assert_eq!(actual.unwrap().measured(), measured),
+                    Err(error) => assert_eq!(actual.err(), Some(Refusal::Client(error))),
+                }
+            }
+        }
+    }
+}
