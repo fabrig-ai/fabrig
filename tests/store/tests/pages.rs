@@ -48,6 +48,7 @@ fn a_secret_kept_survives_a_crash() {
     assert!(matches!(events.as_slice(), [Event::Kept { .. }]));
     world.crash(18);
     world.reopen();
+    world.mark().expect("restart mark before serving secrets");
     let events = world.secret(Secrets::Get { owner: SecretOwner::Application, number: 1 });
     let [Event::Secret { value: Some(jig_protocol_store::SecretValue::Application(secret)), .. }] = events.as_slice()
     else {

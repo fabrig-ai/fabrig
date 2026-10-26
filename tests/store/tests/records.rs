@@ -48,6 +48,7 @@ fn a_kept_record_survives_a_crash_at_each_step() {
         let kept = matches!(world.secret(replace(2, Some(1))).as_slice(), [Event::Kept { .. }]);
         world.crash(u64::from(cut));
         world.reopen();
+        world.mark().expect("restart mark");
         let found = found(&mut world);
         if kept {
             assert_eq!(found, Some(SecretValue::Record(record(2))), "kept only once durable, cut {cut}");
@@ -78,6 +79,7 @@ fn a_replace_with_a_stale_digest_is_refused_and_never_written() {
     }
     world.crash(18);
     world.reopen();
+    world.mark().expect("restart mark");
     assert_eq!(found(&mut world), Some(SecretValue::Record(record(1))));
 }
 
@@ -91,5 +93,6 @@ fn a_replace_states_the_record_on_its_way_not_the_durable_one() {
     );
     world.crash(18);
     world.reopen();
+    world.mark().expect("restart mark");
     assert_eq!(found(&mut world), Some(SecretValue::Record(record(4))));
 }

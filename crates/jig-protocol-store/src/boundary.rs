@@ -574,6 +574,10 @@ pub enum Event {
     Unread {
         owner: Token,
     },
+    /// A secrets request refused until this start's mark is durable (store.md 5.3).
+    SecretsNotReady {
+        owner: Token,
+    },
     Kept {
         owner: Token,
     },
