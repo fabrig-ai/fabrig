@@ -770,9 +770,9 @@ keeps (`../protocol/configuration.md`, section 2).
     the other alternatives join with ", or ". No model sentence is
     drawn with no offered way.
   - *Forge* is `ConnectForge`'s Choose, less a configured admin
-    Forgejo's card, and Details (`forge.md`, 5.4),
-    its choice in the welcome's address (`browser.md`, 2.3); inside a
-    choice, the foot's one "‹ Back" returns to Forge's Choose. The
+    Forgejo's card and A Forgejo elsewhere, and Details (`forge.md`,
+    5.4), its choice in the welcome's address (`browser.md`, 2.3);
+    inside a choice, the foot's one "‹ Back" returns to Forge's Choose. The
     welcome has no "‹ All forges"; `ConnectForge` keeps it. A forge
     already setting up, connecting or connected is no choice: the
     step says it, "FORGE · CONNECTION",

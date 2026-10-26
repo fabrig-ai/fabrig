@@ -507,13 +507,15 @@ and `connect-forge.html`.
     HOST is `row.web` when present, otherwise "forge N". The legacy
     managed object configuration has `admin` false and offers no card.
     It is Connect a forge's alone: the welcome's Forge step leaves it
-    out, and offers GitHub, Forgejo on this machine and A Forgejo
-    elsewhere, as its mockup draws them (the user, 2026-10-26, a
-    stop-gap: 10). An address that names the forge still opens its
-    Details there;
-  - *A Forgejo elsewhere,* always: "Your own Forgejo server. temper
-    connects as its admin, or with its bot’s tokens." · "Needs a change
-    to temper’s configuration and a restart".
+    out, and offers GitHub and Forgejo on this machine, as its mockup
+    draws them (the user, 2026-10-26, a stop-gap: 10). An address that
+    names the forge still opens its Details there;
+  - *A Forgejo elsewhere,* always on Connect a forge: "Your own Forgejo
+    server. temper connects as its admin, or with its bot’s tokens." ·
+    "Needs a change to temper’s configuration and a restart". The
+    welcome's Forge step leaves it out too, since v0.1.0 supports the
+    owned mode alone (the user, 2026-10-26, a stop-gap: 10); an address
+    that names it still opens its Details there.
 - **Details** are the choice's, under its level-2 heading, after "‹ All
   forges", a link back to Choose:
   - *GitHub,* an App of the person's own, by "Use an App of your own
@@ -1270,7 +1272,8 @@ made by the forge connector from what it keeps of the change
   GitHub gives them and retire the restore. A change to skein's
   builder and page, not temper's.
 - **The welcome's forge choices** (5.4). Default, a stop-gap: Connect
-  a forge's, less a configured admin Forgejo's card. The user's
+  a forge's, less a configured admin Forgejo's card and A Forgejo
+  elsewhere, which v0.1.0 offers on Connect a forge alone. The user's
   direction (2026-10-26) is that the welcome's items be fixed rather
   than taken from the configuration; its shape is open.
 - **A browser on another machine** for GitHub's connect. Default: the
