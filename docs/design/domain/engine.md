@@ -2010,6 +2010,11 @@ Its code comes after the rest (`../STATUS.md`).
   (out of shape, judged, full) leaves the proposal pending, and the
   accepter is told why. Its revision records the proposal and its
   accepter.
+- **Its proposer hears the outcome** as every proposer does, a message
+  in its inbox or the party's updates (tasks.md, section 9): accepted,
+  naming the revision it made; rejected, with the accepter's reason;
+  withdrawn as stale, naming the newest. A run that proposed reads it
+  as any message, and may propose again.
 - **Stale is withdrawn.** The decision that makes a revision withdraws
   each pending proposal of settings made against an older one, as no
   longer applying (tasks.md, section 9), and its proposer hears so; a
