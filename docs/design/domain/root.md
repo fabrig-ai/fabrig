@@ -285,7 +285,7 @@ forge's number:
 | The core asks | The root |
 |---|---|
 | describe, keep or drop an effect; judge a requirement | gives it to the forge (5.5) |
-| judge items of temper's kinds of settings; tell their new values | gives them to the forge (5.6) |
+| judge items of temper's kinds of settings; keep their values; which of their defaults differ | gives them to the forge (5.6) |
 | the holdings of a task, of a delegate batch, of a procedure's batch | has the forge name the branches each task will hold, before the core admits the batch |
 | take or hand down a hold; end a topic | gives it to the forge |
 | a claim | claims the forge's writer slots for the attempt's branches in the claim's decision, and starts the run through the fleet, with its grants, once the claim commits (7.1) |
