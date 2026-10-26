@@ -548,7 +548,7 @@ fn each_secret_kind_is_kept_and_got_intact() {
         .expect("carried kind");
     }
     for (owner, number, request, expected) in rows.into_boxed() {
-        let mut store = fixtures::opened();
+        let mut store = marked();
         ask(&mut store, request);
         assert_eq!(get(&mut store, owner, number), Some(expected));
     }
@@ -595,7 +595,7 @@ fn an_owners_other_value_kinds_are_refused_before_writing() {
                 holds: [0; 32],
             },
         ] {
-            let mut store = fixtures::opened();
+            let mut store = marked();
             assert!(ask(&mut store, request).is_empty(), "{owner:?} {value:?}");
             assert_eq!(store.phase, Phase::Stopped);
             assert_eq!(store.stores.secrets.last(), 0);
@@ -605,7 +605,7 @@ fn an_owners_other_value_kinds_are_refused_before_writing() {
 #[test]
 fn keep_cannot_write_a_carried_or_held_number() {
     for number in [CARRIED, crate::HELD, u64::MAX] {
-        let mut store = fixtures::opened();
+        let mut store = marked();
         let request =
             Secrets::Keep { owner: SecretOwner::Application, number, value: SecretValue::Application(record(1)) };
         assert!(ask(&mut store, request).is_empty());
@@ -616,7 +616,7 @@ fn keep_cannot_write_a_carried_or_held_number() {
 #[test]
 fn adopt_of_another_carried_kind_is_stale_without_writing() {
     for kind in [CarriedKind::Value, CarriedKind::Moved] {
-        let mut store = fixtures::opened();
+        let mut store = marked();
         ask(&mut store, Secrets::Carry { kind, value: record(1) });
         let events = adopt_llm_key(&mut store, CARRIED, None);
         let [Event::Stale { owner: OWNER }] = &*events else { panic!("stale without writing") };
@@ -640,7 +640,7 @@ fn an_invalid_jig_envelope_fails_the_read_and_stops() {
             replaces: None,
         },
     ] {
-        let mut store = fixtures::opened();
+        let mut store = marked();
         lay(&mut store, SecretOwner::Source, 1, Box::from(b"not an envelope".as_slice()));
         let events = ask(&mut store, request);
         let [Event::Corrupt { owner: OWNER }] = &*events else { panic!("corrupt read terminal") };
@@ -650,7 +650,7 @@ fn an_invalid_jig_envelope_fails_the_read_and_stops() {
 }
 #[test]
 fn an_applications_own_row_stays_its_exact_bytes() {
-    let mut store = fixtures::opened();
+    let mut store = marked();
     let bytes = b"application family bytes, without a jig envelope";
     lay(&mut store, SecretOwner::Application, CARRIED - 1, Box::from(bytes.as_slice()));
     assert_eq!(
@@ -660,7 +660,7 @@ fn an_applications_own_row_stays_its_exact_bytes() {
 }
 #[test]
 fn replaces_digest_is_the_payloads_hash_before_decoding() {
-    let mut store = fixtures::opened();
+    let mut store = marked();
     replace(&mut store, 1, None);
     let payload = record(1);
     let row = crate::secrets::codec::encode(SecretValue::Record(payload.clone()), u32::MAX).expect("record envelope");
@@ -700,14 +700,14 @@ const DIGEST_ROW_BYTES: u32 = 2 + 8 + 32;
 const RECORD_ROW_BYTES: u32 = 2 + 1 + 4 + 48;
 #[test]
 fn a_secret_row_fits_its_exact_map_value_bound() {
-    let mut store = fixtures::opened();
+    let mut store = marked();
     store.limits.secrets.value = RECORD_ROW_BYTES;
     let events = replace(&mut store, 1, None);
     let [Event::Kept { owner: OWNER }] = &*events else { panic!("exact row bound fits") };
 }
 #[test]
 fn a_secret_row_past_the_map_value_bound_stops() {
-    let mut store = fixtures::opened();
+    let mut store = marked();
     store.limits.secrets.value = RECORD_ROW_BYTES - 1;
     assert!(replace(&mut store, 1, None).is_empty());
     assert_eq!(store.phase, Phase::Stopped);
@@ -718,7 +718,7 @@ fn a_secret_row_past_the_map_value_bound_stops() {
 fn a_credential_replace_states_the_original_payloads_digest() {
     const EXPIRY: u64 = 17;
     const DIGEST: [u8; 32] = [23; 32];
-    let mut store = fixtures::opened();
+    let mut store = marked();
     ask(
         &mut store,
         Secrets::Keep {

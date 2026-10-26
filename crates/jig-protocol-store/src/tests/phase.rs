@@ -1928,7 +1928,12 @@ fn pending_state_and_wires_have_their_exact_resident_price() {
     // Store gains the 16-byte static wires slice and the 16-byte Mark
     // (8-byte discriminant, 8-byte commit number; store.md 5.3). Pending retains before/after
     // levels, the check's counts and the explicit switch's stage and owner.
-    assert_eq!(size_of::<Store>(), 4_008);
+    // Rebased store.md 5.3 adds secrets/skein_oauth/smith_transcript hashes (96 bytes);
+    // the removed settled_call_name bound and alignment save 8: Store 4,008 -> 4,096.
+    assert_eq!(size_of::<Store>(), 4_096);
+    assert_eq!(size_of::<crate::codec::component::Layouts>(), 320);
+    // store.md 9: typed SecretValue makes each SecretRow 64 rather than 32 bytes.
+    assert_eq!(size_of::<crate::SecretRow>(), 64);
     assert_eq!(size_of::<crate::directory::Directory>(), 280);
     assert_eq!(size_of::<Opening>(), 88);
     assert_eq!(size_of::<Patching>(), 168);
@@ -1939,6 +1944,7 @@ fn pending_state_and_wires_have_their_exact_resident_price() {
     // Retained and encoded counts: two * (64 Count carriers * 32 +
     // 64 family names * 64), plus the 5,464-byte encoded manifest.
     assert_eq!(crate::patching::switch::worst_case(), Some(17_928));
-    // Baseline 581,544,799,687,077 + wires 16 + pending 17,928 + Mark 16.
-    assert_eq!(crate::worst_case(&fixtures::store_limits()), Some(581_544_799_705_037));
+    // Baseline 581,544,799,687,077 + rebased Store 88 + two SecretRows * 32
+    // + wires 16 + pending 17,928 + Mark 16.
+    assert_eq!(crate::worst_case(&fixtures::store_limits()), Some(581_544_799_705_189));
 }
