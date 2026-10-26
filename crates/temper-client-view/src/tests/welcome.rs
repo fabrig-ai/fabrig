@@ -11,6 +11,51 @@ use temper_client_domain::{self as d, Address, Step, pages};
 use temper_client_protocol_wire::v1 as w;
 
 const HERE: u16 = 3;
+/// The fake box's Forgejo elsewhere (temper-fake's `managed()`):
+/// configured as its admin, not connected, with no `web`.
+const ADMIN: u16 = 4;
+fn rows_with_an_admin_forgejo() -> skein_lib::List<w::ForgeRow> {
+    let mut rows = skein_lib::List::with_capacity(3);
+    for row in &forge::rows(w::Connection::NotSetUp, w::Offer::Offered) {
+        rows.push(row.clone()).unwrap();
+    }
+    let mut parts =
+        forge::row(ADMIN, w::Kind::Forgejo, w::Mode::Managed, w::Connection::NotConnected, w::Offer::NotOffered)
+            .into_parts();
+    parts.admin = true;
+    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    rows
+}
+fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
+    let choices = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICES)).unwrap();
+    tree.nodes()
+        .iter()
+        .filter(|n| forge::parent(tree, n.id) == Some(choices.id))
+        .map(|n| n.name.as_deref().unwrap())
+        .collect()
+}
+
+#[test]
+fn the_welcome_leaves_a_configured_admin_forgejo_to_connect_a_forge() {
+    for (address, cards) in [
+        (
+            Address::Welcome { step: Step::Forge { forge: None } },
+            ["GitHub", "Forgejo on this machine", "A Forgejo elsewhere"].as_slice(),
+        ),
+        (
+            Address::ConnectForge { forge: None },
+            ["GitHub", "Forgejo on this machine", "Forgejo at forge 4", "A Forgejo elsewhere"].as_slice(),
+        ),
+    ] {
+        let view = f::page_view(&f::forge_root(address.clone(), rows_with_an_admin_forgejo()));
+        assert_eq!(
+            choice_cards(view.tree()),
+            cards.iter().map(|name| name.as_bytes()).collect::<Vec<_>>(),
+            "{address:?}"
+        );
+    }
+}
+
 fn model_view(rows: skein_lib::List<w::ForgeRow>) -> crate::View {
     f::page_view(&f::forge_root(Address::Welcome { step: Step::Model { way: None } }, rows))
 }

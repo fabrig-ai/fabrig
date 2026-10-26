@@ -200,6 +200,11 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
             && let Some(row) = connect::row(number, root.forges(), root.forge().demo())
             && row.admin
         {
+            // The welcome draws its mockup's three choices; a configured admin
+            // Forgejo's card is Connect a forge's alone (client/forge.md, 5.4).
+            if let Place::Welcome = place {
+                continue;
+            }
             flow::choice(
                 b,
                 &admin_host(w, row),

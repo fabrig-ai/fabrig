@@ -1237,7 +1237,7 @@ fn new_first_rows() -> List<w::ForgeRow> {
     rows
 }
 
-fn parent(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Option<skein_ui::NodeId> {
+pub(super) fn parent(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Option<skein_ui::NodeId> {
     let index = tree.nodes().iter().position(|n| n.id == id).unwrap();
     tree.nodes()[..index]
         .iter()

@@ -534,15 +534,7 @@ fn admin_private(world: &mut Pages, client: ClientId) {
 fn elsewhere_welcome_after_restart_connects_retries_and_opens_its_new_project() {
     let mut world = admin_world();
     let client = open(&mut world, Address::Welcome { step: Step::Forge { forge: None } });
-    follow(
-        &mut world,
-        client,
-        vec![
-            see(Role::Region, b"GitHub"),
-            see(Role::Region, b"Forgejo at https://git.example.org"),
-            see(Role::Region, b"A Forgejo elsewhere"),
-        ],
-    );
+    follow(&mut world, client, vec![see(Role::Region, b"GitHub"), see(Role::Region, b"A Forgejo elsewhere")]);
     let names = world
         .tree(client)
         .nodes()
@@ -552,15 +544,18 @@ fn elsewhere_welcome_after_restart_connects_retries_and_opens_its_new_project() 
         .collect::<Vec<_>>();
     assert!(
         names.iter().position(|n| *n == b"GitHub").expect("GitHub card")
-            < names.iter().position(|n| *n == b"Forgejo at https://git.example.org").expect("configured admin card")
-    );
-    assert!(
-        names.iter().position(|n| *n == b"Forgejo at https://git.example.org").expect("configured admin card")
             < names.iter().position(|n| *n == b"A Forgejo elsewhere").expect("add another forge card")
     );
-    let link = node(&world, client, Role::Link, b"Connect as its admin").id;
-    world.act(client, link, Act::Press);
-    follow(&mut world, client, vec![see(Role::TextField, "The site admin’s token".as_bytes())]);
+    assert!(!names.contains(&b"Forgejo at https://git.example.org".as_slice()));
+    // Enter by address: the welcome draws no admin card (client/forge.md, 5.4).
+    follow(
+        &mut world,
+        client,
+        vec![
+            PersonStep::Go { address: Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(OWNED)) } } },
+            see(Role::TextField, "The site admin’s token".as_bytes()),
+        ],
+    );
     admin_input(&mut world, client, b"Runner label", b"linux-arm");
     admin_input(&mut world, client, "The site admin’s token".as_bytes(), ADMIN_TOKEN);
     admin_private(&mut world, client);
