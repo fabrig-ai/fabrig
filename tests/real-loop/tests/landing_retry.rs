@@ -12,6 +12,7 @@ const RETRY: &[u8] = b"producer-retry-ready";
 const PARKED: usize = 4;
 const RESUMED: usize = 6;
 const CHANGE_HELD: usize = 7;
+const CHAT_LANDED: usize = 9;
 
 fn fixture() -> forge::Fixture {
     forge::Fixture {
@@ -102,6 +103,9 @@ fn a_retried_producer_finishes_its_existing_change() {
             calls::call(D1, argv!["task", "2", "--json"]),
             calls::release_hold(RETRY),
             calls::call(D1, argv!["wait", "task", "2", "--until", "ended"]),
+            // Landing wakes the requesting chat. Finish its existing reply before
+            // teardown can abort that activation's workspace preparation.
+            calls::call(D1, argv!["wait", "task", "1", "--until", "ended", "--json"]),
             calls::call(D1, argv!["task", calls::number(PRODUCER), "--json"]),
         ]
     });
@@ -117,6 +121,8 @@ fn a_retried_producer_finishes_its_existing_change() {
         |value: &Value| value["chip"]["details"]["owner"]["details"]["attempt"].as_u64().expect("activation attempt");
     assert!(attempt(&resumed) > attempt(&parked), "a new activation after the parked one");
     assert_ne!(document(&ran, CHANGE_HELD)["chip"]["phase"], "ended", "finish barrier keeps the change unlanded");
+    let chat = document(&ran, CHAT_LANDED);
+    assert_eq!(chat["result"]["value"]["report"]["bytes"], "The change landed.", "{chat}");
     let produced = document(&ran, ran.calls().len() - 1);
     assert_eq!(produced["chip"]["task"], PRODUCER, "the finished producer: {produced}");
     assert!(
