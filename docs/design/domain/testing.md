@@ -424,6 +424,22 @@ in the lower world that owns it, never here.
   (testing-strategy.md, 2.8 and section 6), with the lower worlds'
   outside expectations; real deadlines bound waits, and the fake peers
   stay available until their clients have settled.
+- **A story ends what it starts.** Its last call returns only once every
+  activation the story started or woke has ended: a chat whose reply it
+  read, a change it landed, a delegate it waited on, joined by `wait
+  task N --until ended` where a reply alone leaves a run closing. When
+  that call returns, before the service is told to stop, the judge
+  checks the story's completion obligations against the engine's and the
+  worker's state at that instant: no task has an attempt due,
+  preparing, claimed or running, none is closing, no assignment is
+  pending, and no agent or git child of the worker's is alive. A task
+  parked between runs is no obligation. A story that means to leave work
+  in flight declares each leftover, by its task and state, with its
+  reason (GitHub's push-only story leaves its change's procedure due;
+  the bounds story its live delegates); an undeclared obligation fails
+  the story, and so does a declared leftover that isn't there.
+  Teardown's own check stays beside it: no child is killed but those a
+  story asks for.
 - **The forge and git:** skein's forge peer (skein's `fake-forge.md`,
   section 5), which the one-process world hosts too, serves the fake forge on a
   loopback listener, its git route among its routes, which the fake
