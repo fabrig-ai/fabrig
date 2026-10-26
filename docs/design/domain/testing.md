@@ -705,22 +705,41 @@ and 10).
     jig's;
   - the same start rehearsed first (jig's `protocol/store.md`, 10.5),
     reporting each patch and the restores whole and leaving the
-    directory as it was, then made; and a start that fails before its
-    wires, gone back from (`Store::back`), the build before it opening
-    the generation as it was;
+    directory as it was, then made; and a start failed by the world
+    after `Switched` and before its wires are durable, gone back from
+    (`Store::back`), the build before it opening the generation as it
+    was;
+  - the stop unsettled instead, the service killed with the forge write
+    in flight: the upgrade's start patches (no fixture changes temper's
+    family), and the new build recovers the write as after any stop,
+    made once;
   - power lost at a drawn moment of that start, from the copy to the
     wires' commit: the next start finds one whole generation and goes
     on as above.
 
-  The upgrade's referee: the history before the stop equals the history
-  after, record by record (people, projects, accounts, tasks live and
-  ended, landings, kept outcomes, each forge's records), but for what
-  the patches and the mark say (the windows closed, the claims crossed
-  and settled, the start's wires); no forge write made twice, by the
-  fake forge's ledger; a request sent again under its key answered from
-  its record; every number given after it above every number kept; the
-  mid-run task's next attempt fresh, with the closed window's tail, and
-  the paused chat resumed.
+  The upgrade's referee compares the history at the stop with the
+  history once the start's wires are durable, before anything acts:
+  record by record (people, projects, accounts, tasks live and ended,
+  landings, kept outcomes, each forge's records, each forge's secrets),
+  equal but for what the patches and the mark say (windows closed,
+  claims crossed), what any restore writes (expired rows erased, the
+  accounts' wants, the release's settings revision) and the wires. Then,
+  as the world goes on: the crossed claims settled; no forge write made
+  twice, by the fake forge's ledger, kept across the service's
+  restarts; a request sent again under its key answered from its record;
+  every number given above every number kept; the mid-run task's next
+  attempt fresh, with the closed window's tail; the paused chat resumed.
+
+  The world's seams for it: `temper-service`'s store takes patch sets
+  by a test seam; a fault the world injects between `Switched` and the
+  wires' commit; the fake forge's ledger outliving a restart. Of the
+  draft's section 13, the faults below the store (a full disk, a short
+  write, a failed sync, a malformed or refused record, a limit too
+  small, an effect in flight in a patched family) are jig's store
+  world's (jig's `protocol/store.md`, section 14); the golden stores of
+  each release and the engine alone (its workers kept across the
+  engine's upgrade) wait for a first release, whose binary makes the
+  one and whose wires can differ for the other.
 - **Faults:** kills and power loss at drawn submissions; the fake
   forge's and the fake LLM's faults, drawn from the seed; the forge's
   refusals and failures as the fake git program prints them. Joined
