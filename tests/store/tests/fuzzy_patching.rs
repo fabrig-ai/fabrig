@@ -51,10 +51,12 @@ fn check_fresh(world: &mut World, rows: &[jig_domain_core::Record], seed: u64, c
     use jig_domain_core::{CoreRecord, Record};
     for row in rows {
         let mut expected = row.clone();
-        if let Record::Core(CoreRecord::RunProof(proof)) = &mut expected
-            && let Some(window) = &mut proof.window
-        {
-            window.closed = true;
+        if let Record::Core(CoreRecord::RunProof(proof)) = &mut expected {
+            // store.md 10.2, step 4: every proof crosses, including one without a window.
+            proof.crossed = true;
+            if let Some(window) = &mut proof.window {
+                window.closed = true;
+            }
         }
         assert_eq!(world.get(expected.key()), expected, "seed {seed}, cut {cut}");
     }
