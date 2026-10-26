@@ -21,7 +21,7 @@ it lands and you rebase, they are in scope too.
 
 Shape:
 1. Once, at the start, on your worktree at `origin/main`: the focused
-   measure run, `heavy --gate -- cargo nextest run --workspace --profile
+   measure run, `cargo nextest run --workspace --profile
    measure -j 1`, its log in `logs/jig-14-s2/measure-start.log`. 14.3's
    (`logs/20261017T151241-664.log`) led with 0.312, 0.274, 0.266, 0.260
    and 0.248 s; its 52 tests of 0.1 s or more summed 8.6 s of 37.8 s.
@@ -38,7 +38,7 @@ Shape:
    whichever comes first. In the gate, 1 s of serial test time is about
    0.37 s of wall: 4 s is about 1.5 s.
 
-Proof: land's gate. Aim for its focused suite under 13.3 s, a guide: if it
+Proof: the gate. Aim for its focused suite under 13.3 s, a guide: if it
 is missed, the landing stands and the report names the gate's time and its
 three slowest tests. The report names each test changed with its two
 measure times, and its gate's suite times from `Gate-Result`; nothing else

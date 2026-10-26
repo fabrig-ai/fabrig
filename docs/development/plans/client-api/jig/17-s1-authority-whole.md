@@ -57,7 +57,7 @@ Shape:
   change creating's charters and procedures (`acts/bounds.rs:47-63`,
   the plan's `later.md`).
 
-Proof: land's gate (the three tests above are step tests). The
+Proof: the gate (the three tests above are step tests). The
 repository downstream of jig repins to this step in its own step.
 
 ## Corrections after the ready check (ruling 328)

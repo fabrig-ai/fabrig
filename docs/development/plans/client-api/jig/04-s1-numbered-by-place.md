@@ -34,9 +34,9 @@ Files, at jig `a20cf96c4`:
 Test shape: the people child refuses a made compound answered with
 `first_message: 0` (beside `tests/compound.rs`, under 20 ms); the two
 `operations.rs` tests above, as amended.
-Proof: `heavy cargo nextest run -p jig-core-world -E
+Proof: `cargo nextest run -p jig-core-world -E
 'test(a_compound_closes_a_conversation_moving_one_delegate_and_cancelling_another)'`,
-once. Nothing else is wanted; jig's gate, by `land`.
+once. Nothing else is wanted; jig's gate.
 Size: aim for at most 30 lines, production and tests; past it, report why.
 Don't: change `people::Outcome::Compound`'s fields, its `Copy`, the
 people codec or `people_v3`; number a lone operation differently; name

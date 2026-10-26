@@ -145,7 +145,7 @@ fn hosted_checkout_and_clean_replace_and_remove_real_files() {
     assert!(!disk.exists(b"untracked"), "nested untracked directories removed");
 }
 ```
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test
+Proof: world, `cargo nextest run -p temper-real-loop-world --test
 forge -E 'test(hosted_checkout_and_clean)'`, under 0.5 s. The kernel
 filesystem is the measured boundary; the other three cases are tests.
 Report their measured times, the file/forge verdict and owner-bound
@@ -189,7 +189,7 @@ fn the_landing_grants_name_the_forges_bound_authority() {
     assert!(edit_new(&scripts[1]).ends_with(std::str::from_utf8(EDIT).expect("EDIT")));
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-real-loop-world --lib
+Proof: unit, `cargo nextest run -p temper-real-loop-world --lib
 -E 'test(the_landing_grants)'`, under 20 ms. No landing consumes the
 scripts yet; 13.3 connects this factory to the agent and forge in a
 world proof. The unit test makes this increment usable on its own.
@@ -254,7 +254,7 @@ The second, `a_chat_lands_with_polling_past_its_patience`, uses
 test file. Fresh directories have no kept requests; require stderr to
 contain no kept result. Any future recovery assertion uses 6.1/6.2's
 name/operation/outcome only, and never treats a client failure as exit 2.
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test
+Proof: world, `cargo nextest run -p temper-real-loop-world --test
 forge -E 'test(a_chat_lands_with_polling_past_its_patience)'`, under 1 s.
 This joins the real service, worker, smith agent and cli on the kernel;
 the process tier's owned Forgejo proves the separate real-git boundary.

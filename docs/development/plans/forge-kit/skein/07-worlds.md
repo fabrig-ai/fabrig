@@ -95,9 +95,9 @@ Test shape: 29 focused tests (25 simulation, 2 locate, 1 job_answer,
   No new test or new signature; skein 02.2 owns the fixed byte measure
   of forge.md 3.7 (decisions.md, Design questions 14, answered).
 Proof:
-  world; `heavy cargo nextest run -p skein-forge-client-world` shows
+  world; `cargo nextest run -p skein-forge-client-world` shows
   29 passing tests, including memory; baseline 0.075 s, repeat 0.020 s.
-  world; `heavy cargo nextest run -p skein-forge-client-world --profile fuzzy`
+  world; `cargo nextest run -p skein-forge-client-world --profile fuzzy`
   shows 2 passing tests; baseline 0.258 s, repeat 0.169 s.
   These prove the copied harness itself; the GitHub draft, section 17 (ruling 189), plans to connect the client
   to the component in a separate joint world.
@@ -167,9 +167,9 @@ fn a_held_branch_is_written_again_only_after_remake() {
   The recovery module holds the moved restart body, so world.rs also
   remains below 800 lines. Memory's named test stays unchanged.
 Proof:
-  world; `heavy cargo nextest run -p skein-forge-client-world` shows
+  world; `cargo nextest run -p skein-forge-client-world` shows
   31 passing tests; base form shows 29, 0.020 s; aim below 1 s total.
-  world; `heavy cargo nextest run -p skein-forge-client-world --profile fuzzy`
+  world; `cargo nextest run -p skein-forge-client-world --profile fuzzy`
   shows the same 2 tests, baseline 0.258 s; each below 5 s.
   Parent recovery is this domain harness's behavior under test; the
   added client/component joint is deferred to the GitHub draft, section 17 (ruling 189).
@@ -238,9 +238,9 @@ Test shape: 21 focused + 1 fuzzy at the base, every name retained.
   the Forgejo cap 50, to make three rows require another page.
   No new tests or independent configuration profile in this move.
 Proof:
-  joint; `heavy cargo nextest run -p skein-forge-setup-world` shows
+  joint; `cargo nextest run -p skein-forge-setup-world` shows
   21 passing tests; baseline 0.122 s, repeat 0.075 s, each below 0.5 s.
-  joint; `heavy cargo nextest run -p skein-forge-setup-world --profile fuzzy`
+  joint; `cargo nextest run -p skein-forge-setup-world --profile fuzzy`
   shows 1 passing test; baseline 1.315 s, repeat 0.744 s, below 5 s.
   This is the real reconcile/HTTP/codec/fake joint; a real Forgejo host
   remains the owner's process tier, outside this harness move.
@@ -252,7 +252,7 @@ Removes: downstream configuration parsing/dependencies in the skein copy;
 
 ### 07.4 Add paging and independent-owner setup stories — dropped
 
-Dropped by the director's scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
+Dropped by the scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
 No implementation or proof of this increment runs in forge-kit; its earlier specification remains
 in git history. Every retained move and its inherited coverage still runs.
 
@@ -260,12 +260,12 @@ in git history. Every retained move and its inherited coverage still runs.
 
 From skein, after retained increments 07.1–07.3 (07.4 is dropped):
 
-- `heavy cargo nextest run -p skein-forge-client-world` prints 31 passed;
+- `cargo nextest run -p skein-forge-client-world` prints 31 passed;
   the same command with `--profile fuzzy` prints 2 passed.
-- `heavy cargo nextest run -p skein-forge-setup-world` prints the 21 moved tests passed;
+- `cargo nextest run -p skein-forge-setup-world` prints the 21 moved tests passed;
   the same command with `--profile fuzzy` prints 1 passed.
-- `heavy rg -n '^    "tests/forge/(client|setup)",$' Cargo.toml` prints
+- `rg -n '^    "tests/forge/(client|setup)",$' Cargo.toml` prints
   two member lines.
-- `heavy rg -n -i 'temper' tests/forge/client tests/forge/setup`
+- `rg -n -i 'temper' tests/forge/client tests/forge/setup`
   prints nothing (rg exit 1). This session's portion of README Done when 5;
   its source-form search at the base finds the names the move removes.

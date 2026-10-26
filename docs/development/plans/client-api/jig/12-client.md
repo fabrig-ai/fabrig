@@ -259,7 +259,7 @@ referee test `a_document_older_than_one_told_is_caught`, in
 `tests/client-protocol/tests/client.rs` beside the stories, feeds it two
 documents out of order. Each story under 0.5 s, each unit test under
 20 ms.
-Proof: joint layer, the real engine over HTTP bytes: `heavy cargo
+Proof: joint layer, the real engine over HTTP bytes: `cargo
 nextest run -p jig-client-protocol-world -E
 'test(a_client_signed_in_by_the_printed_link_sees_me_live)'`, once; it
 passes when the client's link goes starting then live and names party 1
@@ -327,7 +327,7 @@ link's `NotKept { attempt }` to its table's final answer with none (its
 A request not kept (the design answer to jig 12.2's question of
 2026-10-16T19:46:42Z; client.md, 11; skein's `lib.md`, 12):
 - The skein move is the first commit, on its own (README, "Pins"):
-  `heavy cargo update -p skein-lib --precise <skein-01.s3's landing>`,
+  `cargo update -p skein-lib --precise <skein-01.s3's landing>`,
   with its one repair, `lines: 0, line_bytes: 0` in the
   `skein_ui_text::Settings` literal at
   `tests/client-protocol/src/native/world.rs:232` (jig `bb977c909`).
@@ -411,7 +411,7 @@ fn a_stop_is_answered_once_after_its_commit_is_durable() {
 story took `Answered` for the key, and `durable_at(party)` the time of
 the `Observed::Durable` whose commit is that party's `Made`.) Each story
 under 0.5 s, each unit test under 20 ms.
-Proof: joint layer: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: joint layer: `cargo nextest run -p jig-client-protocol-world
 -E 'test(a_stop_kept_across_a_reload_is_answered_once)'`, once; it
 passes when the reloaded client is told `Kept` for its key and the
 engine makes the `Stop` once (under 0.5 s). It passes; nothing else is
@@ -467,7 +467,7 @@ in again by a fresh printed link; `made(1)` is 1); unit
 `a_sign_out_answered_not_ready_did_not_reach_the_engine`,
 `a_service_s_sign_in_answered_not_ready_is_sent_again_after_its_backoff`.
 Each story under 0.5 s, each unit test under 20 ms.
-Proof: joint layer: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: joint layer: `cargo nextest run -p jig-client-protocol-world
 -E 'test(a_client_signed_out_with_a_stop_parked_sends_it_once_signed_in_again)'`,
 once; it passes when the parked `Stop` is made once after the second
 sign-in names the same party (under 0.5 s). It passes; nothing else is
@@ -567,7 +567,7 @@ sign-ins, reloads) from the seed against the real engine, the story's
 referee in the loop (testing.md, 4: "A random one, for the fuzzy suite,
 draws its events from the seed"), about 5 s over its seeds. Each story
 under 0.5 s, each unit test under 20 ms.
-Proof: joint layer: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: joint layer: `cargo nextest run -p jig-client-protocol-world
 -E 'test(a_family_request_is_answered_as_its_owner_s_bytes)'`, once; it
 passes when the test connector's outcome comes back as the family's
 bytes (under 0.5 s). It passes; nothing else is wanted.
@@ -618,7 +618,7 @@ story `an_unlinked_client_sees_me_live_against_the_real_core` (tests/client,
 `jig-client-world`, the joint world: a scripted application in front of
 `Client::unlinked`, its `Down` and `Up` carried by the joint front to the
 real core), under 0.5 s.
-Proof: joint layer, the real core: `heavy cargo nextest run -p
+Proof: joint layer, the real core: `cargo nextest run -p
 jig-client-world -E 'test(an_unlinked_client_sees_me_live_against_the_real_core)'`,
 once; it passes when the unlinked client's link goes live with party 1;
 nothing else is wanted. jig 13.4's test root then runs the client's
@@ -629,7 +629,7 @@ Removes: nothing.
 
 ## Interface sketches
 
-Checked at the base with `heavy cargo clippy -p jig-w6-sketch
+Checked at the base with `cargo clippy -p jig-w6-sketch
 --all-targets -- -D warnings` in a scratch crate (session 10's link
 types and session 11's domain types stubbed beside it), passing. The
 client owns the domain, the link and their map; the application owns
@@ -751,9 +751,9 @@ The map in `jig-client`, written once (an algorithm easy to get wrong):
 
 ## Done when
 
-- `heavy cargo nextest run -p jig-client-protocol-world -E
+- `cargo nextest run -p jig-client-protocol-world -E
   'binary(client)'` passes the fourteen tests this session names for that binary, in a worktree at
   `origin/main`.
-- `heavy cargo nextest run -p jig-boundary -E
+- `cargo nextest run -p jig-boundary -E
   'test(client_crate_links_only_its_domain_link_and_foundation)'`
   passes one test.

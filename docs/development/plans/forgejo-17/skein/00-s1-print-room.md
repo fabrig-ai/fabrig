@@ -34,10 +34,10 @@ from limits whose `worst_case` passes a u32, printing a small tree; a
 tree whose own room passes a u32, printed as `NAME: page too long to
 print`, with no number acting. The existing bound tests stay.
 
-Proof: skein's gate, `scripts/check.sh`, which `land` runs, once. On x1
+Proof: skein's gate, `scripts/check.sh`, which runs at the merge, once. On x1
 its browser tier needs `export
 SKEIN_TEST_CHROMIUM=$HOME/.local/opt/chromium-147.0.7727.101/bin/chromium`
-in the shell that runs `land`; a login shell gets it from `~/.profile`.
+in the shell that merges; a login shell gets it from `~/.profile`.
 A failure outside `skein-ui-text` and its users: block, with the log.
 
 Size: at most 80 production lines, by code-organization.md, section 6's

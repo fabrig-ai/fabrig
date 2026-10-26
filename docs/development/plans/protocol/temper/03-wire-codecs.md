@@ -281,7 +281,7 @@ fn worker_wire_schema_matches_generated_code_and_goldens() {
     let code = root.join("src/generated/v1.rs");
     let goldens = root.join("golden/v1");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    let again = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test drift";
+    let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p temper-codecs-world --test drift";
     if write {
         fs::write(&code, &output.rust).expect("write generated code");
         fs::create_dir_all(&goldens).expect("create golden directory");
@@ -341,8 +341,8 @@ file of `dir`, a path from the workspace's root, read as
 `drawn(rng, most) -> Vec<u8>`
 and `mutated(rng, golden) -> Vec<u8>` (one byte flipped, one cut, or one
 inserted), which 03.2, 04 and 06 reuse.
-Proof: world, `heavy cargo nextest run -p temper-protocol-worker-wire -p
-temper-codecs-world` and `heavy cargo nextest run -p temper-codecs-world
+Proof: world, `cargo nextest run -p temper-protocol-worker-wire -p
+temper-codecs-world` and `cargo nextest run -p temper-codecs-world
 --profile fuzzy`, each run once: the drift test passes (the committed
 code and goldens are what the schema generates), the golden and bound
 tests pass, an identity's `Debug` holds no byte of its token, and no
@@ -457,8 +457,8 @@ fn an_adopt_of_another_version_is_refused() {
 ```
 
 (The version is the record's first two bytes, big-endian: `[0, 1]`.)
-Proof: world, `heavy cargo nextest run -p temper-protocol-client-wire -p
-temper-codecs-world` and `heavy cargo nextest run -p temper-codecs-world
+Proof: world, `cargo nextest run -p temper-protocol-client-wire -p
+temper-codecs-world` and `cargo nextest run -p temper-codecs-world
 --profile fuzzy`, each run once: the drift test passes, an adoption of
 another version and fields past their bounds are refused, every outcome
 round-trips unchanged, a core refusal carries jig's bytes unchanged, and
@@ -818,10 +818,10 @@ pub mod temper_protocol_client_wire {
 
 ## Done when
 
-- Both crates build and their tests pass: `heavy cargo nextest run -p
+- Both crates build and their tests pass: `cargo nextest run -p
   temper-protocol-worker-wire -p temper-protocol-client-wire -p
   temper-codecs-world` passes, both drift tests among them.
-- The fuzzy suite's codec tests pass: `heavy cargo nextest run -p
+- The fuzzy suite's codec tests pass: `cargo nextest run -p
   temper-codecs-world --profile fuzzy` passes.
 - Neither crate depends on a domain or jig crate: `grep -nE '^(temper|jig)-'
   crates/temper-protocol-worker-wire/Cargo.toml

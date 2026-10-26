@@ -5,7 +5,7 @@ documentation answers) in `temper-base`; skein 064c55f in `skein-base`. Only thi
 findings file and `temper/05-fakes.md` are deliverables. The scratch worktree
 `scratch-temper-05` (a detached copy of the temper base) held the sketches and
 the repin's base form; it is removed at the end, and its `Cargo.lock` was
-restored after the repin (0 changes). Every command went through `heavy`
+restored after the repin (0 changes). Every command went
 (nextest reports `NEXTEST_DOUBLE_SPAWN=0` from the environment). The queue
 was shared with other drafters, so a time taken while it was loaded says so.
 
@@ -38,47 +38,41 @@ in the base worktrees. Facts at the base that the session file rests on:
 The gate: focused 1879 passed and 1 skipped; fuzzy 50 passed, 1 slow. The 154 tests of the three fake crates are inside the 1879.
 
 ```text
-$ heavy --gate scripts/check.sh
+$ scripts/check.sh
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 734 in the gate lane
      Summary [   6.794s] 1879 tests run: 1879 passed, 1 skipped
         SLOW [> 20.000s] (─────) temper-engine-domain-world::fuzzy_walking fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure
      Summary [  23.936s] 50 tests run: 50 passed (1 slow), 0 skipped
-heavy: task 734 (gate) exit 0, waited 1s, ran 37s, log /srv/data/git/runner/src/tmp/logs/20261019T020151-734.log
 exit 0
 ```
 
 The process tier, run once (the script runs the real-binary tier). Only the passes of 5 s or more are listed; 19 passed, 8 slow.
 
 ```text
-$ TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate scripts/proof-one-process.sh
+$ TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 scripts/proof-one-process.sh
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 778 in the gate lane
     Starting 19 tests across 1 binary (6 binaries skipped via profile.process.default-filter)
         PASS [   5.256s] ( 5/19) temper::process a_push_is_delivered_signed_with_the_secret_reconcile_drew
         PASS [   6.042s] (12/19) temper::process temper_box_restarts_a_killed_forgejo_while_the_engine_serves
         PASS [   5.995s] (13/19) temper::process temper_open_adopts_a_repository_by_commands
      Summary [ 145.440s] 19 tests run: 19 passed (8 slow), 0 skipped
-heavy: task 778 (gate) exit 0, waited 14s, ran 227s, log /srv/data/git/runner/src/tmp/logs/20261019T021141-778.log
 exit 0
 ```
 
 The three crates 05.1 deletes: 154 tests in 0.118 s (the moved tests live in skein: 100 and 56).
 
 ```text
-$ heavy cargo nextest run -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests
+$ cargo nextest run -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 787 in the build lane
     Starting 154 tests across 4 binaries
      Summary [   0.118s] 154 tests run: 154 passed, 0 skipped
-heavy: task 787 (build) exit 0, waited 992s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T023410-787.log
 exit 0
 ```
 
 Test counts of the three crates to delete: the oneline lines are counted per binary (awk, first field): 96 + 55 + 3 = 154; none is fuzzy.
 
 ```text
-$ heavy cargo nextest list -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests --message-format oneline
+$ cargo nextest list -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests --message-format oneline
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 exit 0
 temper-fake-forge-domain 96
@@ -89,7 +83,7 @@ temper-fake-forge-tests::memory 3
 Counts per binary: fake-git 6 + 8 = 14; one-process 4 (lib) + 5 (`one_process`) = 9; its fuzzy binary (4) is outside the default filter.
 
 ```text
-$ heavy cargo nextest list -p temper-fake-git -p temper-one-process-world --message-format oneline
+$ cargo nextest list -p temper-fake-git -p temper-one-process-world --message-format oneline
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 exit 0
 temper-fake-git::check 6
@@ -101,77 +95,64 @@ temper-one-process-world::one_process 5
 The fake-git crate (05.1 renames 7 lines in 2 files; 05.2 swaps its forge handle): 14 tests in 0.021 s.
 
 ```text
-$ heavy cargo nextest run -p temper-fake-git
+$ cargo nextest run -p temper-fake-git
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 812 in the build lane
     Starting 14 tests across 3 binaries
      Summary [   0.021s] 14 tests run: 14 passed, 0 skipped
-heavy: task 812 (build) exit 0, waited 71s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T023522-812.log
 exit 0
 ```
 
 All 13 packages (the 10 users, the three fake crates), default profile: 606 = 452 + 154.
 
 ```text
-$ heavy cargo nextest run -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests -p temper-fake-git -p temper-one-process-world -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world
+$ cargo nextest run -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests -p temper-fake-git -p temper-one-process-world -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 734 in the build lane
      Summary [   2.854s] 606 tests run: 606 passed, 0 skipped
-heavy: task 734 (build) exit 0, waited 1s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T015256-734.log
 ```
 
 Same 13 packages, fuzzy profile: 39 tests (the fake crates have none), 15.543 s.
 
 ```text
-$ heavy cargo nextest run -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests -p temper-fake-git -p temper-one-process-world -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world --profile fuzzy
+$ cargo nextest run -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests -p temper-fake-git -p temper-one-process-world -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 733 in the build lane
     Starting 39 tests across 17 binaries (51 binaries skipped via profile.fuzzy.default-filter)
      Summary [  15.543s] 39 tests run: 39 passed, 0 skipped
-heavy: task 733 (build) exit 0, waited 0s, ran 16s, log /srv/data/git/runner/src/tmp/logs/20261019T015303-733.log
 ```
 
 The 10 users 05.1 changes (the Proof package list): 452 passed, 3.603 s.
 
 ```text
-$ heavy cargo nextest run -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world -p temper-one-process-world -p temper-fake-git
+$ cargo nextest run -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world -p temper-one-process-world -p temper-fake-git
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 820 in the build lane
      Summary [   3.603s] 452 tests run: 452 passed, 0 skipped
-heavy: task 820 (build) exit 0, waited 495s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T024340-820.log
 exit 0
 ```
 
 The same, fuzzy: 39 passed, 27.144 s while the queue was loaded (15.543 s inside the 13-package run above); one test is slow, as at the gate.
 
 ```text
-$ heavy cargo nextest run -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world -p temper-one-process-world -p temper-fake-git --profile fuzzy
+$ cargo nextest run -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world -p temper-one-process-world -p temper-fake-git --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 829 in the build lane
     Starting 39 tests across 17 binaries (47 binaries skipped via profile.fuzzy.default-filter)
         SLOW [> 20.000s] (─────) temper-engine-domain-world::fuzzy_walking fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure
      Summary [  27.144s] 39 tests run: 39 passed (1 slow), 0 skipped
-heavy: task 829 (build) exit 0, waited 16s, ran 29s, log /srv/data/git/runner/src/tmp/logs/20261019T024401-829.log
 exit 0
 ```
 
 Clippy over the 10 users, at the base: clean.
 
 ```text
-$ heavy cargo clippy -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world -p temper-one-process-world -p temper-fake-git --all-targets -- -D warnings
+$ cargo clippy -p temper-conformance-world -p temper-engine-domain-world -p temper-engine-forge-world -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-system-world -p temper-worker-checkout-world -p temper-one-process-world -p temper-fake-git --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 839 in the build lane
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.93s
-heavy: task 839 (build) exit 0, waited 13s, ran 6s, log /srv/data/git/runner/src/tmp/logs/20261019T024445-839.log
 exit 0
 ```
 
 The one-process world, default: 9 tests in 0.953 s. The Adopt story alone is 0.953 s, over the 0.5 s focused ceiling at the base.
 
 ```text
-$ heavy cargo nextest run -p temper-one-process-world
+$ cargo nextest run -p temper-one-process-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 734 in the build lane
     Starting 9 tests across 2 binaries (1 binary skipped via profile.default.default-filter)
         PASS [   0.006s] (1/9) temper-one-process-world::one_process a_secret_in_a_root_fails_the_referee_naming_it
         PASS [   0.006s] (2/9) temper-one-process-world::one_process a_restart_showing_part_of_a_commit_fails_the_referee
@@ -183,32 +164,27 @@ heavy: queued task 734 in the build lane
         PASS [   0.301s] (8/9) temper-one-process-world::one_process a_signal_mid_run_drains_and_the_next_start_settles_the_claims
         PASS [   0.953s] (9/9) temper-one-process-world::one_process an_adopted_repository_gets_its_change_pushed_through_git
      Summary [   0.953s] 9 tests run: 9 passed, 0 skipped
-heavy: task 734 (build) exit 0, waited 1s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T015330-734.log
 ```
 
 The one-process world, fuzzy: 4 tests in 2.139 s.
 
 ```text
-$ heavy cargo nextest run -p temper-one-process-world --profile fuzzy
+$ cargo nextest run -p temper-one-process-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 733 in the build lane
     Starting 4 tests across 1 binary (2 binaries skipped via profile.fuzzy.default-filter)
         PASS [   0.352s] (1/4) temper-one-process-world::fuzzy_one_process a_chat_reads_then_replies_and_waits
         PASS [   1.731s] (2/4) temper-one-process-world::fuzzy_one_process a_merge_in_progress_is_pushed_with_both_parents
         PASS [   2.115s] (3/4) temper-one-process-world::fuzzy_one_process drawn_kills_keep_the_conformance_rules_and_answer_adoptions_once
         PASS [   2.139s] (4/4) temper-one-process-world::fuzzy_one_process drawn_power_losses_keep_the_conformance_rules
      Summary [   2.139s] 4 tests run: 4 passed, 0 skipped
-heavy: task 733 (build) exit 0, waited 0s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T015332-733.log
 ```
 
 The Done-when check at the base: exit 0.
 
 ```text
-$ heavy cargo check --workspace --all-targets
+$ cargo check --workspace --all-targets
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 733 in the build lane
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s
-heavy: task 733 (build) exit 0, waited 0s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T025127-733.log
 exit 0
 ```
 
@@ -226,7 +202,7 @@ exit 0
 Per file (15 of the 63 files shown, counts are matches, so the root `Cargo.toml` shows 6 for 4 lines); the sum of the counts is 174 over 63 files. Outside the three crates the same command prints 139 lines (122 Rust, 13 manifest, 4 in the root).
 
 ```text
-$ heavy rg -n 'temper[-_]fake[-_]forge' Cargo.toml crates testing tests tools -g '*.rs' -g Cargo.toml --count-matches
+$ rg -n 'temper[-_]fake[-_]forge' Cargo.toml crates testing tests tools -g '*.rs' -g Cargo.toml --count-matches
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Cargo.toml:6
 tests/worker/checkout/src/lib.rs:1
@@ -249,7 +225,7 @@ exit 0
 The Done-when item prints nothing afterwards: 10 lines in tests plus `lib.rs:12` (`pub use transport::{Forge, Transport};`), 11 at the base.
 
 ```text
-$ heavy rg -n 'temper_fake_git::Forge|ForgeHost|pub use transport::\{Forge' tests testing crates -g '*.rs'
+$ rg -n 'temper_fake_git::Forge|ForgeHost|pub use transport::\{Forge' tests testing crates -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/one-process/src/forge.rs:11:type Shared = Rc<RefCell<temper_fake_git::Forge>>;
 tests/one-process/src/forge.rs:27:pub(crate) struct ForgeHost {
@@ -267,22 +243,19 @@ tests/one-process/src/referee/forge.rs:71:fn green(forge: &temper_fake_git::Forg
 The three literals of the fixed port in `fixtures.rs` (the Done-when item prints the definition of `FORGE` alone afterwards).
 
 ```text
-$ heavy rg -n '3000' tests/one-process/src/fixtures.rs
+$ rg -n '3000' tests/one-process/src/fixtures.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 121:        "forges":[{"number":1,"kind":"forgejo","api":{"socket":"127.0.0.1:3000"},"transport":"plaintext",
 122:            "git":"http://127.0.0.1:3000","webhook_secret":null,"api_token":"secrets/forge.api-token","user":{"file":"secrets/forge-1.user"},"identity":1}],
 242:            address: ([127, 0, 0, 1], 3000).into(),
-heavy: task 733 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T025132-733.log
 exit 0
 ```
 
 Nothing at the base (exit 1); the users arrive in 05.2.
 
 ```text
-$ heavy rg -n 'skein_fake_peers::forge' testing tests -g '*.rs'
+$ rg -n 'skein_fake_peers::forge' testing tests -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 733 in the build lane
-heavy: task 733 (build) exit 1, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T025130-733.log
 exit 1
 ```
 
@@ -296,7 +269,7 @@ are users 05.1 renames; skein 07, 08 and 09 later move them.
 The Rust users outside the three crates: 35 files (per package in the next block), 122 lines; none under `crates/` or `tools/`.
 
 ```text
-$ heavy rg -l 'temper_fake_forge_(domain|protocol)' crates testing tests tools -g '*.rs' --glob '!testing/temper-fake-forge-*/**' --glob '!tests/fake-forge/**'  # then wc -l; and rg -n ... | wc -l
+$ rg -l 'temper_fake_forge_(domain|protocol)' crates testing tests tools -g '*.rs' --glob '!testing/temper-fake-forge-*/**' --glob '!tests/fake-forge/**'  # then wc -l; and rg -n... | wc -l
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 files: 35
 lines: 122
@@ -305,7 +278,7 @@ lines: 122
 Per package, files and lines: 35 files, 122 lines (7 + 3 + 3 + 30 + 22 + 8 + 23 + 3 + 23).
 
 ```text
-$ heavy rg -c 'temper_fake_forge_(domain|protocol)' crates testing tests tools ... | awk  # per package
+$ rg -c 'temper_fake_forge_(domain|protocol)' crates testing tests tools... | awk  # per package
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 testing/temper-fake-git 2 files 7 lines
 tests/conformance 2 files 3 lines
@@ -321,7 +294,7 @@ tests/worker/checkout 2 files 23 lines
 The manifests: 5 root lines (3 members at 11, 40 and 47; path entries at 64 and 171) and 13 dependency lines in 10 manifests (the three crates' own manifests, lines 56-58 and 67-68 of the output, are left out here).
 
 ```text
-$ heavy rg -n 'temper-fake-forge-(domain|protocol)|fake-forge' Cargo.toml crates testing tests tools -g Cargo.toml
+$ rg -n 'temper-fake-forge-(domain|protocol)|fake-forge' Cargo.toml crates testing tests tools -g Cargo.toml
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Cargo.toml:11:    "testing/temper-fake-forge-protocol",
 Cargo.toml:171:temper-fake-forge-domain = { path = "testing/temper-fake-forge-domain" }
@@ -346,7 +319,7 @@ tests/worker/checkout/Cargo.toml:14:temper-fake-forge-domain.workspace = true
 Only the host imports the crates under local names (`use ... as domain`, `as protocol`); 05.2 deletes that file.
 
 ```text
-$ heavy rg -n 'temper_fake_forge_(domain|protocol) as ' crates testing tests tools -g '*.rs' --glob '!testing/temper-fake-forge-*/**' --glob '!tests/fake-forge/**'
+$ rg -n 'temper_fake_forge_(domain|protocol) as ' crates testing tests tools -g '*.rs' --glob '!testing/temper-fake-forge-*/**' --glob '!tests/fake-forge/**'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/one-process/src/forge.rs:9:use temper_fake_forge_domain as domain;
 tests/one-process/src/forge.rs:10:use temper_fake_forge_protocol as protocol;
@@ -356,7 +329,7 @@ exit 0
 `fake_limits()` is defined in protocol-forge `fixtures.rs` and called at 5 sites: reconcile `world.rs` and `fixtures.rs`, protocol-forge `joint.rs` and `hooks.rs`, and the host (05.2 copies its 17 values into one-process `forge_limits()`). `forge::set` has 2 sites and `forge::transport` 1 (world.rs).
 
 ```text
-$ heavy rg -n 'fake_limits|ForgeHost|forge::(set|transport)\b' tests crates testing -g '*.rs'
+$ rg -n 'fake_limits|ForgeHost|forge::(set|transport)\b' tests crates testing -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/forge-setup/reconcile/src/world.rs:37:        let limits = temper_engine_protocol_forge_world::fixtures::fake_limits();
 tests/forge-setup/reconcile/src/fixtures.rs:79:    let limits = temper_engine_protocol_forge_world::fixtures::fake_limits();
@@ -382,7 +355,7 @@ exit 0
 The `Proc::Forge` and `fake_forge` sites: world.rs 604-605, 671, 676, 683 and 692; referee.rs 266 and 304 (the lines of the output after the first six are cut off here).
 
 ```text
-$ heavy rg -n 'Proc::Forge|fake_forge' tests/one-process/src -g '*.rs'
+$ rg -n 'Proc::Forge|fake_forge' tests/one-process/src -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/one-process/src/world.rs:604:fn fake_forge(inherited: &Inherited) -> Proc {
 tests/one-process/src/world.rs:605:    Proc::Forge(Box::new(SignalHost::new(forge::ForgeHost::new(), Some(inherited.signal))))
@@ -397,7 +370,7 @@ tests/one-process/src/referee.rs:304:                    Proc::Forge(forge) => f
 The fake-git crate's users are the one-process world and the root manifest only. In skein-base, jig, smith and hearth the same search (names `temper_fake_forge`, `temper_fake_git`) finds no file (first lines of the same script).
 
 ```text
-$ heavy rg -n 'temper_fake_git|temper-fake-git' crates testing tests tools Cargo.toml -g '*.rs' -g Cargo.toml --glob '!testing/temper-fake-git/**'
+$ rg -n 'temper_fake_git|temper-fake-git' crates testing tests tools Cargo.toml -g '*.rs' -g Cargo.toml --glob '!testing/temper-fake-git/**'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Cargo.toml:10:    "testing/temper-fake-git",
 Cargo.toml:63:temper-fake-git = { path = "testing/temper-fake-git" }
@@ -427,7 +400,7 @@ tests/one-process/Cargo.toml:19:temper-fake-git.workspace = true
 The sites of fake-git's `Forge` handle (head; the rest are the one-process world's `stories.rs` 163, 176, 191, 195, 220, 235, `referee/forge.rs` 44 and 71, `referee.rs` 269, 285, 311, and the host's `forge.rs` 146 and 172). The fields they use are `domain`, `config`, `now`, `pending` (a push) and, new in 05.2, `hooks` and `next_reply()`; sketch A of skein 05.4 keeps the first four public.
 
 ```text
-$ heavy rg -n 'temper_fake_git::Forge|fake_git::\{[^}]*Forge|\.forge\.borrow|forge\.pending|\.shared' tests testing crates -g '*.rs'
+$ rg -n 'temper_fake_git::Forge|fake_git::\{[^}]*Forge|\.forge\.borrow|forge\.pending|\.shared' tests testing crates -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 testing/temper-fake-git/tests/transcripts.rs:100:    assert!(scenario.transport.forge.borrow().domain.object(1).is_none());
 testing/temper-fake-git/tests/transcripts.rs:313:    scenario.transport.forge.borrow_mut().config.limits.body_bytes = 8192;
@@ -479,7 +452,7 @@ failures are in findings/base-temper-02.md and base-temper-04.md.
 Exit 0: 29 packages locked.
 
 ```text
-$ heavy cargo update -p skein-lib
+$ cargo update -p skein-lib
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
     Updating git repository `https://github.com/forgetic/skein.git`
     Updating crates.io index
@@ -488,14 +461,13 @@ directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
     ... 27 more skein packages, #8a51e10b -> #54c5a8bb
     Updating skein-world v0.0.0 (https://github.com/forgetic/skein.git#8a51e10b) -> #54c5a8bb
 note: pass `--verbose` to see 4 unchanged dependencies behind latest
-heavy: task 834 (build) exit 0, waited 33s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T024433-834.log
 exit 0
 ```
 
 Exit 101: two E0004 on `Op::Lock` in `temper-worker-protocol-git/src/files.rs` (296 and 352), five E0004 in jig's `jig-protocol-store` (`Event::Locked` and `Event::Busy`; jig is pinned at `bbea9408`). Neither is in this session's code: the tools plan's first repin repairs them before temper 01.1, hence before this session. `skein-fake-peers` is already a workspace dependency of the root manifest (line 65).
 
 ```text
-$ heavy cargo check --workspace --all-targets
+$ cargo check --workspace --all-targets
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
 error[E0004]: non-exhaustive patterns: `skein_io::kernel::Op::Lock { .. }` not covered
    --> crates/temper-worker-protocol-git/src/files.rs:296:37
@@ -503,15 +475,15 @@ error[E0004]: non-exhaustive patterns: `skein_io::kernel::Op::Lock { .. }` not c
    --> crates/temper-worker-protocol-git/src/files.rs:352:11
 error: could not compile `temper-worker-protocol-git` (lib) due to 2 previous errors
 error[E0004]: non-exhaustive patterns: `skein_io::file::Event::Locked { .. }` and `skein_io::file::Event::Busy { .. }` not covered
-   --> /kache/.cargo/git/checkouts/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/directory.rs:79:11
+   --> <cargo-checkouts>/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/directory.rs:79:11
 error[E0004]: non-exhaustive patterns: `skein_io::file::Event::Locked { .. }` and `skein_io::file::Event::Busy { .. }` not covered
-   --> /kache/.cargo/git/checkouts/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/directory.rs:102:11
+   --> <cargo-checkouts>/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/directory.rs:102:11
 error[E0004]: non-exhaustive patterns: `skein_io::file::Event::Locked { .. }` and `skein_io::file::Event::Busy { .. }` not covered
-   --> /kache/.cargo/git/checkouts/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/transcripts/cut.rs:143:11
+   --> <cargo-checkouts>/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/transcripts/cut.rs:143:11
 error[E0004]: non-exhaustive patterns: `skein_io::file::Event::Locked { .. }` and `skein_io::file::Event::Busy { .. }` not covered
-   --> /kache/.cargo/git/checkouts/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/transcripts/read.rs:724:11
+   --> <cargo-checkouts>/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/transcripts/read.rs:724:11
 error[E0004]: non-exhaustive patterns: `skein_io::file::Event::Locked { .. }` and `skein_io::file::Event::Busy { .. }` not covered
-   --> /kache/.cargo/git/checkouts/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/transcripts/write.rs:189:22
+   --> <cargo-checkouts>/jig-aba39083bf77fefe/bbea940/crates/jig-protocol-store/src/transcripts/write.rs:189:22
 error: could not compile `jig-protocol-store` (lib) due to 5 previous errors
 exit 101
 ```
@@ -530,7 +502,7 @@ peer: skein 05.4 isn't in the base. The scratch diff, from `git diff --numstat
 Failed: `Op::Bind.addr` and `Done::Bound` are `std::net::SocketAddr` (the kernel's `Addr`), not `skein_io::Addr::Ip` (io's own enum). The sketch uses `SocketAddr` and `.parse()`.
 
 ```text
-$ heavy cargo clippy -p temper-one-process-world --all-targets -- -D warnings   # first attempt
+$ cargo clippy -p temper-one-process-world --all-targets -- -D warnings   # first attempt
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
 error[E0308]: mismatched types
    --> tests/one-process/src/world.rs:131:47
@@ -552,22 +524,19 @@ error[E0308]: mismatched types
 The sketch A compiles under `-D warnings`: exit 0.
 
 ```text
-$ heavy cargo clippy -p temper-one-process-world --all-targets -- -D warnings
+$ cargo clippy -p temper-one-process-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
-heavy: queued task 828 in the build lane
     Checking temper-one-process-world v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-temper-05/tests/one-process)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.19s
-heavy: task 828 (build) exit 0, waited 439s, ran 7s, log /srv/data/git/runner/src/tmp/logs/20261019T024354-828.log
 exit 0
 ```
 
 Not a plan finding: my script ran the repin's `cargo update` in the scratch while this run compiled, so it built against skein 54c5a8bb and failed in smith and jig (the E0004 above). The lock was restored and the run repeated.
 
 ```text
-$ heavy cargo nextest run -p temper-one-process-world --no-capture   # the first attempt after the repin ran in the same scratch
+$ cargo nextest run -p temper-one-process-world --no-capture   # the first attempt after the repin ran in the same scratch
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
-heavy: queued task 835 in the build lane
-heavy: … 14 earlier lines in /srv/data/git/runner/src/tmp/logs/20261019T024436-835.log
+
 error[E0004]: non-exhaustive patterns: `skein_io::file::Event::Locked { .. }` and `skein_io::file::Event::Busy { .. }` not covered
 error[E0004]: non-exhaustive patterns: `skein_io::kernel::Error::Busy` not covered
 error: could not compile `smith-protocol-machine` (lib) due to 2 previous errors
@@ -579,7 +548,7 @@ error[E0004]: non-exhaustive patterns: `skein_io::file::Event::Locked { .. }` an
 Failed at once: the secret list `files()` builds has room for 9 entries (`List::with_capacity(9)`, fixtures.rs:145); the webhook secret file is the 10th. Fixed by capacity 10; 05.2's Shape says so.
 
 ```text
-$ heavy cargo nextest run -p temper-one-process-world --profile fuzzy   # first run of the sketch
+$ cargo nextest run -p temper-one-process-world --profile fuzzy   # first run of the sketch
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
         FAIL [   0.010s] (1/4) temper-one-process-world::fuzzy_one_process a_chat_reads_then_replies_and_waits
   stdout ───
@@ -595,7 +564,7 @@ directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
 With the webhooks section configured, the engine binds `127.0.0.1:0`, `ServiceHost` learns the bound address (one per service start; the signal story restarts the service: two ports), and the Adopt story's domain fires 2 hooks (`HOOKREQ` at Time 0 and one second on) with `hooked: true`. All 10 pass (9 + the new unit test, 0.004 s); the engine started without a `socket_count` refusal. Serial run, queue loaded.
 
 ```text
-$ heavy cargo nextest run -p temper-one-process-world --no-capture
+$ cargo nextest run -p temper-one-process-world --no-capture
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
     Starting 10 tests across 2 binaries (1 binary skipped via profile.default.default-filter)
 HOOKS Some(127.0.0.1:52767)
@@ -617,20 +586,18 @@ exit 0
 The new unit test of 05.2 (the Proof unit line), in the scratch: 1 passed, 0.004 s, under the 20 ms ceiling.
 
 ```text
-$ heavy cargo nextest run -p temper-one-process-world -E 'test(a_port_zero_bind_names_the_hooks_address)'
+$ cargo nextest run -p temper-one-process-world -E 'test(a_port_zero_bind_names_the_hooks_address)'
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
-heavy: queued task 733 in the build lane
     Starting 1 test across 2 binaries (9 tests and 1 binary skipped, including 1 binary via profile.default.default-filter)
         PASS [   0.004s] (1/1) temper-one-process-world world::tests::a_port_zero_bind_names_the_hooks_address
      Summary [   0.004s] 1 test run: 1 passed, 9 skipped
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T025437-733.log
 exit 0
 ```
 
 4 passed in 3.697 s under load; the A/B rounds below show the sketch costs nothing.
 
 ```text
-$ heavy cargo nextest run -p temper-one-process-world --profile fuzzy   # after the capacity fix; the queue was loaded
+$ cargo nextest run -p temper-one-process-world --profile fuzzy   # after the capacity fix; the queue was loaded
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-05
         PASS [   0.735s] (1/4) temper-one-process-world::fuzzy_one_process a_chat_reads_then_replies_and_waits
         PASS [   2.951s] (2/4) temper-one-process-world::fuzzy_one_process a_merge_in_progress_is_pushed_with_both_parents
@@ -643,15 +610,15 @@ exit 0
 Fuzzy time with and without the sketch, alternated twice: base 2.141 s and 2.101 s, scratch 2.177 s and 2.279 s; the webhooks section adds under 0.2 s to the 5 s fuzzy budget.
 
 ```text
-$ heavy cargo nextest run -p temper-one-process-world --profile fuzzy   # base, then scratch, two rounds
+$ cargo nextest run -p temper-one-process-world --profile fuzzy   # base, then scratch, two rounds
 directory: temper-base and scratch-temper-05
-$ heavy cargo nextest run -p temper-one-process-world --profile fuzzy   [temper-base, round 1]
+$ cargo nextest run -p temper-one-process-world --profile fuzzy   [temper-base, round 1]
      Summary [   2.141s] 4 tests run: 4 passed, 0 skipped
-$ heavy cargo nextest run -p temper-one-process-world --profile fuzzy   [scratch-temper-05, round 1]
+$ cargo nextest run -p temper-one-process-world --profile fuzzy   [scratch-temper-05, round 1]
      Summary [   2.177s] 4 tests run: 4 passed, 0 skipped
-$ heavy cargo nextest run -p temper-one-process-world --profile fuzzy   [temper-base, round 2]
+$ cargo nextest run -p temper-one-process-world --profile fuzzy   [temper-base, round 2]
      Summary [   2.101s] 4 tests run: 4 passed, 0 skipped
-$ heavy cargo nextest run -p temper-one-process-world --profile fuzzy   [scratch-temper-05, round 2]
+$ cargo nextest run -p temper-one-process-world --profile fuzzy   [scratch-temper-05, round 2]
      Summary [   2.279s] 4 tests run: 4 passed, 0 skipped
 ```
 

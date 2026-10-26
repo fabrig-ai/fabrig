@@ -197,7 +197,7 @@ or 0.5 s (world):
 `a_forge_panel_on_a_goals_page_says_shown_on_the_forge` (world, the
 story of `client.md`, 10: "a part of the forge's saying 'Shown on the
 forge.'", on a goal whose task document names a forge panel).
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_goals_page_shows_its_plan_with_the_held_task_marked)'`
 (under 0.5 s): temper's task page shows a goal's plan from temper's
 engine root, its held delegate marked.
@@ -242,7 +242,7 @@ Tests, each under 20 ms (unit) or 0.5 s (world):
 `the_release_confirmation_says_what_releasing_does`,
 `a_moved_hold_is_refused_and_the_card_asks_to_look_again`,
 `a_held_task_released_from_a_goals_plan_runs_again` (world).
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_held_task_released_from_a_goals_plan_runs_again)'`
 (under 0.5 s): the engine root's held task has its tries reset after
 the person's release from temper's task page, jig's check holding.
@@ -304,11 +304,11 @@ fn the_adoption_page_is_titled_with_the_project_me_names() {
 ```
 (`fixtures::adoption_page`, a root on the adoption page whose `me`
 names `PROJECT`, is new in `src/tests/fixtures.rs`.)
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_repository_adopted_from_the_navigation_link_is_held_by_the_engine)'`
 (under 0.5 s): the person adopts from the navigation's link on
 temper's page, and temper's engine root holds the repository. And the
-one-process world, once (the default suite, no Forgejo): `heavy cargo
+one-process world, once (the default suite, no Forgejo): `cargo
 nextest run -p temper-one-process-world -E
 'test(an_adopted_repository_gets_its_change_pushed_through_git)'`
 (about 3 s): the adoption through bytes on temper's page. Nothing else
@@ -421,7 +421,7 @@ host, beside `another_partys_kept_work_prints_its_line_once`,
 reloaded with nothing of the page kept, `client.md`, 3.4). The stories
 moved keep their names and expected values, but the addresses and node
 names temper's pages give (an expected literal the Shape renames).
-Proof: the one-process world, once: `heavy cargo nextest run -p
+Proof: the one-process world, once: `cargo nextest run -p
 temper-one-process-world -E
 'test(an_adopted_repository_gets_its_change_pushed_through_git)'`
 (about 3 s): the person adopts on temper's adoption page and gives the

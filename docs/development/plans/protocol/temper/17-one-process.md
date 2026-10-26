@@ -235,7 +235,7 @@ fn each_failure_transcript_s_stderr_classifies_as_the_fake_s() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-fake-git`, run once:
+Proof: world, `cargo nextest run -p temper-fake-git`, run once:
 the fake refuses what the builders did not make, and answers each
 transcript's case with real git's exit, masked stdout and a stderr that
 classifies alike (the six tests above); under 0.2 s.
@@ -290,7 +290,7 @@ fn a_person_signs_in_by_the_printed_link_and_a_chat_is_answered() {
 }
 ```
 
-Proof: joint, `heavy cargo nextest run -p temper-one-process-world`, run
+Proof: joint, `cargo nextest run -p temper-one-process-world`, run
 once: the real service, started from configuration's bytes, prints its
 link, the person signs in by it, and a chat is answered by the
 in-process worker's agent over the fake LLM (the test above); under 1 s.
@@ -333,7 +333,7 @@ fn a_merge_in_progress_is_pushed_with_both_parents() {
 }
 ```
 
-Proof: joint, `heavy cargo nextest run -p temper-one-process-world`, run
+Proof: joint, `cargo nextest run -p temper-one-process-world`, run
 once: an adopted repository's change reaches the fake forge through the
 fake git program, and a resolved merge lands with both parents (the two
 tests above, each under 1 s); the process tier's real git is 15.3's.
@@ -355,7 +355,7 @@ document.
 Files: `crates/temper-service/src/limits.rs`,
 `tests/one-process/src/fixtures.rs`.
 Test shape: no new test; every test's name and expected value kept.
-Proof: joint, `heavy cargo nextest run -p temper-one-process-world
+Proof: joint, `cargo nextest run -p temper-one-process-world
 --ignore-default-filter`, once: the merge story passes with the two
 overrides gone; the gate.
 Don't: change `stdout_bytes`, another profile constant or the
@@ -377,7 +377,7 @@ fixed in the referee; the probe then lands as a story in
 asserted.
 Files: 17's own (ruling 108), `tests/fuzzy_one_process.rs`.
 Test shape: one story, at most 1 s; every existing assertion kept.
-Proof: joint, `heavy cargo nextest run -p temper-one-process-world
+Proof: joint, `cargo nextest run -p temper-one-process-world
 --ignore-default-filter`, once; the gate.
 Don't: loosen a promise of the referee, or make the story pass by
 finishing the chat without its wait; edit production code: a turn the
@@ -459,8 +459,8 @@ fn drawn_kills_keep_the_conformance_rules_and_answer_adoptions_once() {
 }
 ```
 
-Proof: joint, `heavy cargo nextest run -p temper-one-process-world` and
-`heavy cargo nextest run -p temper-one-process-world --profile fuzzy`,
+Proof: joint, `cargo nextest run -p temper-one-process-world` and
+`cargo nextest run -p temper-one-process-world --profile fuzzy`,
 each run once: a drain ends the worker and a restart settles its claims,
 drawn kills and power losses keep jig's conformance rules with each
 adoption answered once and each restart's forge records whole commits,
@@ -600,10 +600,10 @@ pub fn crash(settings: Settings, cut: skein_world::Cut, before: u32) -> Outcome;
 
 ## Done when
 
-- The fake git program and the world pass: `heavy cargo nextest run -p
-  temper-fake-git -p temper-one-process-world` and `heavy cargo nextest
+- The fake git program and the world pass: `cargo nextest run -p
+  temper-fake-git -p temper-one-process-world` and `cargo nextest
   run -p temper-one-process-world --profile fuzzy` pass.
-- The world keeps its share: `heavy --gate cargo nextest run --workspace
+- The world keeps its share: `cargo nextest run --workspace
   --profile measure -j 1 -E 'package(temper-one-process-world) & not
   binary(/^fuzzy_/)'`, then `awk -F'[][]' '/PASS \[/ {s += $2} END
   {printf "%.1f\n", s}' <its log>`, prints at most 1.0; with

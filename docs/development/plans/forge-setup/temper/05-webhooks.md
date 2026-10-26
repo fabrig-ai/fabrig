@@ -64,7 +64,7 @@ Needs: skein 01.2's landing (`sha256::Hmac`, `equal`); temper 04.2, and so 04.1 
 `server::delivery`, and the tool's `deliveries.rs`). client-api's ruling 154 is met (on main at `c36858db7`).
 Files:
 - `Cargo.lock`, the repin's commit, alone: `<sha>` is `git -C ~/src/rust/skein fetch origin && git -C ~/src/rust/skein log
-  origin/main --all-match --grep='^Plan: forge-setup$' --grep='^Step: skein-01.2$' --format=%H -1`; `heavy cargo update -p
+  origin/main --all-match --grep='^Plan: forge-setup$' --grep='^Step: skein-01.2$' --format=%H -1`; `cargo update -p
   skein-lib --precise <sha>`; `grep -o 'git+https://github.com/forgetic/[a-z]*.git#[0-9a-f]*' Cargo.lock | sort -u` then prints
   jig's and smith's unchanged and skein's `<sha>`;
 - new `testing/temper-fake-forge-protocol/src/delivery.rs`; `src/lib.rs:5-50` (`mod delivery`, `Config.hooks: Option<Endpoint>`);
@@ -90,7 +90,7 @@ Test shape: `src/tests/deliveries.rs`, on `fixtures::config()` (`fixtures.rs:6`)
 fake's own bounds. New in `fixtures.rs`: `hooked_config()` (forge 1, host `127.0.0.1:7200`, `FIXTURE_SECRET =
 b"fixture-hook-secret"`) and `Harness::hooked()` (:99 with `hooked: true`). Expected values are literals: the body is 04.2's
 encoding of that push, the signature the output of `printf '%s' '<body>' | openssl dgst -sha256 -hmac fixture-hook-secret`,
-run once by the implementer and pasted beside the body. Reference test:
+run once by the author and pasted beside the body. Reference test:
 ```rust
 #[test]
 fn a_push_hook_is_delivered_as_one_signed_post_to_the_forges_path() {
@@ -109,8 +109,8 @@ Tests (each < 20 ms): the above; `an_issue_hook_is_delivered_under_the_issues_ev
 `a_wiki_hook_is_not_delivered`; `a_hook_with_no_endpoint_is_not_delivered`;
 `the_delivery_signature_is_rfc_4231s_for_its_key_and_data` (case 2, key `Jefe`);
 `a_domain_push_is_delivered_signed_to_the_world` (`Harness::hooked()`: the real fake domain's `Hook` becomes the literals).
-Proof: world, `heavy cargo nextest run -p temper-fake-forge-protocol -E 'test(deliver)'`: the fake domain's push to a hooked
-repository comes out as a request whose signature is `openssl`'s for its body, in under 5 s; and the repin, `heavy cargo check
+Proof: world, `cargo nextest run -p temper-fake-forge-protocol -E 'test(deliver)'`: the fake domain's push to a hooked
+repository comes out as a request whose signature is `openssl`'s for its body, in under 5 s; and the repin, `cargo check
 --workspace --all-targets`, exit 0 with no warning, in under 120 s (48 s at the base). 05.2's joint test connects the bytes.
 Don't: no client or socket machine in the fake; no payload encoder of its own; no hexadecimal or HMAC outside
 `delivery::sign`; no change to `Server` or to `Config`'s other members; no CI or mergeability semantics (06.1).
@@ -151,7 +151,7 @@ Shape (sketch 2):
   `largest_room` within `io.output`) and the tokenizer over the server (`JsonOverServer`: `largest_demand` within `read`). `hooks`
   within the sockets is 05.3's. `hook_http(l)` is
   `skein_http::server::Limits { head: hook_head_bytes, headers, body: hook_body_bytes, read: chunk.max(5), response: 256, send: 1 }`
-  (the implementer checks `server::worst_case` is some); `hook_documents(l)` is `documents(l)` with `json.length =
+  (the author checks `server::worst_case` is some); `hook_documents(l)` is `documents(l)` with `json.length =
   hook_body_bytes`. `worst_case` (:311) adds per connection the server, the tokenizer, the decoder as :329-334 prices it, an
   `Hmac`, a held hint and the socket as :335-338, times `hooks`, and `hook_secret_bytes` per forge.
 - Machine: `Hooks` (`hooks.rs`) holds the listener's token, the waiting `Accepted` socket and a slab of `Hooked`
@@ -212,10 +212,10 @@ domain's hooks through `Service::delivery` to a listener peer); `the_secret_appe
 (`fixtures::token_absent`, :190); `two_deliveries_on_one_connection_are_both_answered_and_hinted`; `a_malformed_head_is_answered_4xx_and_closed` (skein-http's own); each refusal test also asserts the close. `tests/fuzzy_hooks.rs`, about 5 s: `a_delivery_split_at_every_point_is_answered_alike`.
 `temper-service/src/tests/forge.rs`, beside :51: `a_hint_the_root_cannot_take_is_offered_again_next_pass`,
 `a_lost_webhooks_listener_drains_the_service_and_stops_it`.
-Proof: world, `heavy cargo nextest run -p temper-engine-protocol-forge-world -E 'binary(=hooks)'`: scripted deliveries are
+Proof: world, `cargo nextest run -p temper-engine-protocol-forge-world -E 'binary(=hooks)'`: scripted deliveries are
 answered `204`, `400`, `403`, `404`, `405` or `413`, a good one is hinted after its answer, and a lost listener is told, in under
 5 s; joint, the same binary's `a_domain_push_reaches_the_component_as_a_signed_delivery_and_a_hint`: the fake domain's push, signed
-by 05.1's code, is read by the real component into one hint; and `heavy cargo nextest run -p temper-engine-protocol-forge-world
+by 05.1's code, is read by the real component into one hint; and `cargo nextest run -p temper-engine-protocol-forge-world
 --profile fuzzy -E 'binary(=fuzzy_hooks)'` in under 20 s. No process has a listener until 05.3, which runs the shipped binary.
 Don't: no hint from an unverified body; no read of a body for a `404`, `405` or a missing signature (`Discard`); no secret
 outside `Webhooks.secrets`; no external crate; no timer outside `next_deadline` and `fire`; no second held hint on a connection.
@@ -337,7 +337,7 @@ fn temper_serve_answers_a_signed_delivery_204_and_an_unsigned_one_403() {
     scratch.remove();
 }
 ```
-Proof: process, `heavy --gate sh -c 'cargo build -p temper --bin temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper
+Proof: process, `sh -c 'cargo build -p temper --bin temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper
 --profile process -E "test(temper_serve_answers_a_signed_delivery_204_and_an_unsigned_one_403)"'`: the shipped binary on a
 scratch deployment answers the signed delivery `204`, the unsigned one `403`, forge 9 `404`, and drains on a signal with exit 0,
 in under 60 s (about 10 s). A hint is not observable here: the keep ignores a repository it does not hold
@@ -426,7 +426,7 @@ None open. The sockets' constant (answers 30, 42) and the head's bound (answer 4
    same with `'"webhook_secret": ?null'`.
 5. `git grep -n -e '^sha2' -e '^hmac' -e '^subtle' -- crates/temper-engine-protocol-forge/Cargo.toml
    crates/temper-service/Cargo.toml testing/temper-fake-forge-protocol/Cargo.toml` prints nothing.
-6. `heavy cargo nextest run -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world -p temper-fake-forge-protocol -p
+6. `cargo nextest run -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world -p temper-fake-forge-protocol -p
    temper-service -E 'binary(=hooks) + test(hook) + test(hint) + test(deliver)'` passes.
 7. README Done when 4's run (the process tier) covers 05.3's test, and the count of code-organization.md, 6, over each increment's paths, against the Sizes
    above, are in each landing's report.

@@ -158,7 +158,7 @@ fn a_named_key_is_the_first_16_bytes_of_the_salted_digest() {
 The others, each under 20 ms: `the_tools_preset_is_the_terminals_but_its_rows`,
 `the_tools_preset_has_a_worst_case` (`temper_client_domain::worst_case`),
 `a_key_name_is_1_to_64_bytes_of_lower_case_digits_and_hyphens`.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools` (under 1
+Proof: unit, `cargo nextest run -p temper-client-tools` (under 1
 s): the preset is the terminal's but its rows, each ceiling is within
 its client limit, and `src/jig/` names no temper item. Nothing calls it
 yet: temper 03's root takes the preset and the key, the next plan's host
@@ -225,7 +225,7 @@ The others, each under 20 ms: `each_host_tool_parses_into_its_call_and_prints_ba
 `an_unknown_tool_or_argument_is_a_usage_error`, `a_missing_or_repeated_argument_is_a_usage_error`,
 `a_value_outside_its_kind_or_rows_is_a_usage_error` (`--limit 33`), `a_project_is_a_number_or_a_name`,
 `a_second_stdin_is_a_usage_error`, `call_and_json_are_the_hosts_options`.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, `cargo nextest run -p temper-client-tools -E
 'test(each_read_parses_into_its_call_and_prints_back)'` (under 20 ms):
 each read's argv gives its call and prints back unchanged. Nothing calls
 `table::parse` yet: the next plan's host passes it argv; temper 03's
@@ -301,7 +301,7 @@ The others, each under 20 ms:
 `wait_inbox_takes_no_subject_flag` (`--project`, `--kind`, `--root`, `--after`),
 `other_read_flags_are_not_watch_arguments`, `ended_phase_errors_name_until_ended`,
 `since_and_until_parse_together`, `the_rows_repeats_are_within_the_client_limits`.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, `cargo nextest run -p temper-client-tools -E
 'test(a_condition_is_taken_only_where_its_subject_names_it)'` (under 20
 ms): each subject takes 5.4's conditions and no others. Nothing sends an
 act yet: temper 03's root sends it under `key::engine`; temper 04 gives

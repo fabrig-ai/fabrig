@@ -7,7 +7,7 @@
 Three runs of each suite, after one build of each:
 
 ```
-$ cd ~/src/rust/tmp/planning/real-loop-base && heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace >focused-$i.log 2>&1; grep Summary focused-$i.log; cargo nextest run --workspace --profile fuzzy >fuzzy-$i.log 2>&1; grep Summary fuzzy-$i.log; done'
+$ cd ~/src/rust/tmp/planning/real-loop-base && sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace >focused-$i.log 2>&1; grep Summary focused-$i.log; cargo nextest run --workspace --profile fuzzy >fuzzy-$i.log 2>&1; grep Summary fuzzy-$i.log; done'
      Summary [   3.580s] 1861 tests run: 1861 passed, 0 skipped
      Summary [   8.653s] 50 tests run: 50 passed, 0 skipped
      Summary [   2.834s] 1861 tests run: 1861 passed, 0 skipped
@@ -72,7 +72,7 @@ start), with `TEMPER_FORGEJO` (Forgejo 17.0.0) and
 `TEMPER_FORGEJO_RUNNER` (runner 13.2.0) set:
 
 ```
-$ cd ~/src/rust/tmp/planning/real-loop-base && heavy --gate -- sh -c 'export TEMPER_FORGEJO=… TEMPER_FORGEJO_RUNNER=… NEXTEST_DOUBLE_SPAWN=0; scripts/proof-one-process.sh >process-1.log 2>&1; grep Summary process-1.log'
+$ cd ~/src/rust/tmp/planning/real-loop-base && sh -c 'export TEMPER_FORGEJO=… TEMPER_FORGEJO_RUNNER=… NEXTEST_DOUBLE_SPAWN=0; scripts/proof-one-process.sh >process-1.log 2>&1; grep Summary process-1.log'
      Summary [ 152.878s] 19 tests run: 19 passed (8 slow), 0 skipped
 ```
 

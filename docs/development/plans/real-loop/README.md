@@ -146,7 +146,7 @@ plan's own.
   loop is counted apart, with a standing ceiling of 6 s for its sum, in
   place of an aim per plan, and each story at most 1 s. The other worlds
   below the domain keep 4 s"). Each sum adds each test's own time, idle
-  (`--profile measure -j 1` through `heavy --gate`), the median of
+  (`--profile measure -j 1`), the median of
   three runs:
   - the packages `temper-client-shell-terminal`, `temper-client-world`,
     `temper-engine-protocol-forge-world`, `temper-one-process-world` and
@@ -163,10 +163,10 @@ plan's own.
   steps a plan names"), such as temper-13.s1, never by a session's own
   move, cut or merge. Done when 5 gives both sums at the end.
 - **A world failure's cause, within a budget** (ruling 110;
-  implementer.md, 8.7 and 8.8). A focused world test that fails with a
+  the implementation rules and 8.8). A focused world test that fails with a
   symptom its three diagnostic runs did not name gets eight more runs
   and 40 minutes for that symptom, reproduced in its world through
-  `heavy`, diagnostics removed before the commit. A fix within the step's
+  with diagnostics removed before the commit. A fix within the step's
   Files and rulings needs no question; past the budget, or for a fix
   outside them, raise it with the cause found, or each run's finding.
 - **No optimized test builds and no change to Cargo's `[profile.*]`**
@@ -207,15 +207,6 @@ plan's own.
   `Cargo.toml` already uses, never retypes it: Cargo treats two
   spellings of one URL as two sources. Every Cargo line names fabrig-dev
   since temper `5ecc737ca`.
-- **No other process's environment** (the director's rules of
-  2026-10-20T13:04Z and 13:34Z, rulings 144 and 147). No role reads
-  another process's environment (`/proc/*/environ`, `ps e`), and every
-  prompt a role writes for an agent says so. Codex runs under `umask
-  077`, so its logs and reports are private. The run's kit has heavy's
-  fix (skein a46635c8), which leaves credential-shaped names out of
-  queued tasks: `pueue status` and `pueue log` may be read again, though
-  heavy's own output and the log path it prints are the better read.
-
 ## Hotspots
 
 Work that may run alongside this plan: the forge kit (forge-kit's plan,
@@ -277,8 +268,7 @@ agent signs in anywhere.
 
 ## Process tier
 
-In a checkout of temper's `origin/main`, outside its gate: `heavy --gate
-scripts/proof-one-process.sh`, with `TEMPER_FORGEJO` and
+In a checkout of temper's `origin/main`, outside its gate: `scripts/proof-one-process.sh`, with `TEMPER_FORGEJO` and
 `TEMPER_FORGEJO_RUNNER` set. temper 10 adds five tests, about 12 s
 expected (temper 10's table): the tier goes from 152.9 s at the base
 (`findings/base-times.md`) to about 165 s, against its 3 min aim
@@ -361,7 +351,7 @@ says.
    passed (the base's 19 and temper 10's five), under 180 s:
 
    ```
-   heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; scripts/proof-one-process.sh 2>&1 | grep Summary'
+   sh -c 'export NEXTEST_DOUBLE_SPAWN=0; scripts/proof-one-process.sh 2>&1 | grep Summary'
    ```
 
 5. The test-time aims, measured once in a clean checkout of temper's
@@ -372,7 +362,7 @@ says.
    user; the run is done either way.
 
    ```
-   heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace >focused-$i.log 2>&1; cargo nextest run --workspace --profile fuzzy >fuzzy-$i.log 2>&1; done'
+   sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace >focused-$i.log 2>&1; cargo nextest run --workspace --profile fuzzy >fuzzy-$i.log 2>&1; done'
    for k in focused fuzzy; do for i in 1 2 3; do sed -nE 's/^ *PASS \[ *([0-9.]+)s\] \([^)]*\) ([^: ]+)[: ].*/\1 \2/p' $k-$i.log | awk -v run=$k-$i '$2 ~ /^temper(-client-tools|-client-world|-engine-domain-world|-client-shell-cli|-real-loop-world)?$/ {s += $1} END {printf "%s %.2f\n", run, s}'; done; done
    ```
 
@@ -390,7 +380,7 @@ says.
 
    ```
    P='-p temper-client-shell-terminal -p temper-client-world -p temper-engine-protocol-forge-world -p temper-one-process-world -p temper-real-loop-world -p temper-worker-protocol-git-world'
-   heavy -- sh -c "cargo nextest run $P --no-run" && heavy --gate -- sh -c "export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3 4; do cargo nextest run $P --profile measure -j 1 >below-\$i.log 2>&1; done"
+   sh -c "cargo nextest run $P --no-run" && sh -c "export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3 4; do cargo nextest run $P --profile measure -j 1 >below-\$i.log 2>&1; done"
    for i in 2 3 4; do sed -nE 's/^ *PASS \[ *([0-9.]+)s\] \([^)]*\) ([^ ]+) ([^ ]+).*/\1 \2 \3/p' below-$i.log | awk -v run=below-$i '{split($2, b, ":")} b[1] != "temper-real-loop-world" {o += $1; n++; next} {r += $1; m++} $1 > 1 {printf "%s: %s %s %.2f s, past its 1 s\n", run, $2, $3, $1} END {if (!n || !m) {print run ": no test read of the other worlds or of the real loop"; exit 1} printf "%s: the other worlds %.2f s against 4 s, the real loop %.2f s against 6 s\n", run, o, r}'; done
    ```
 

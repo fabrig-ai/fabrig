@@ -214,7 +214,7 @@ highest layer that runs it.
 
 These names are `code-organization.md`'s, section 2, and the README's
 "Needs at start" for this session.
-Where 02.1 landed others, its names win, and the implementer reports the
+Where 02.1 landed others, its names win, and the author reports the
 difference:
 
 - `d::Job { id, run_id, attempt }`, unchanged and `Copy`, as the fake's
@@ -495,7 +495,7 @@ Test shape:
 Proof: the fake service over its HTTP bytes: its server on skein's HTTP
 machine, its domain behind it (`src/tests/fixtures.rs:60-301`). This is
 one layer above the domain's step tests and the routes' table. Run once,
-when the increment is done: `heavy cargo nextest run -p
+when the increment is done: `cargo nextest run -p
 temper-fake-forge-protocol -E
 'test(a_failed_jobs_steps_and_failed_steps_log_are_served_over_http)'`.
 It shows a client that asks Forgejo's routes for job 1 getting its three
@@ -612,7 +612,7 @@ Tests, each under 20 ms:
   }
   ```
 Proof: the fake service over its HTTP bytes, once, when the increment is
-done: `heavy cargo nextest run -p temper-fake-forge-protocol -E
+done: `cargo nextest run -p temper-fake-forge-protocol -E
 'test(a_steps_log_end_is_served_by_a_suffix_range)'`. It shows that
 `Range: bytes=-10` on a failed job's workflow step answers `206` with
 that 88-byte slice's last 10 bytes and `content-range: bytes
@@ -790,7 +790,7 @@ Each runs once, after the session's last landing, in `~/src/rust/temper`:
    testing/temper-fake-forge-protocol/src/tests/response.rs` prints a
    line.
 5. The session's tests pass, in a worktree of temper at `origin/main`:
-   `heavy cargo nextest run -p temper-fake-forge-domain -p
+   `cargo nextest run -p temper-fake-forge-domain -p
    temper-fake-forge-protocol -E
    'test(/three_steps|cancelled|slice_of_its_own|step_past_the_last|latest_attempt|passing_ci_jobs|keep_their_numbers|served_over_http|suffix|empty_log/)'`
    runs 13 tests, and none fails.

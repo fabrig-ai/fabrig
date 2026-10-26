@@ -18,8 +18,8 @@ Files: those of the cause, named in the report; at most 2 crates.
 Test shape: one test that drives the order which reached `close` in
 `Closed`, without a browser and without sleeping (a unit test of
 `client.rs`'s states, or of the harness's), failing before the fix.
-Proof: skein's gate, by `land`; and once, before landing, the browser
-test 20 times: `for i in $(seq 20); do heavy cargo nextest run
+Proof: skein's gate; and once, before landing, the browser
+test 20 times: `for i in $(seq 20); do cargo nextest run
 --profile browser -p skein-ui-web-tests --test browser_harness
 a_request_with_another_host_has_its_status_awaited || break; done`,
 each a pass. Nothing else is wanted.

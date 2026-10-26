@@ -37,15 +37,13 @@ codecs tests on re-recorded literals). Paths are temper's.
 ## 2. `tools/forgejo-conformance`
 
 - **Plain mode:** `TEMPER_FORGEJO=<17.0.0> TEMPER_FORGEJO_RUNNER=<13.2.0>
-  heavy --gate cargo run -p forgejo-conformance -- --scratch
+  cargo run -p forgejo-conformance -- --scratch
   target/forgejo-conformance --out tools/forgejo-conformance`; 38 s in
   the spike. It rewrites `facts.txt` whole (`lib.rs:33-36`).
 - **Component mode:** the same with `--scratch target/forgejo-component
   … --component`; 24 s. It replaces only the `component-` lines
   (`component.rs:19-21`), so it runs after the plain mode.
-- `heavy --gate` refuses a dirty tree (skein's `scripts/dev/heavy:83-86`):
-  the two runs go in one `heavy --gate sh -c '…'`, or a commit sits
-  between them. Scratch must be absent or empty, and not under `/tmp`
+- Scratch must be absent or empty, and not under `/tmp`
   (`testing/temper-throwaway-forgejo/src/instance.rs:248-256`).
 - Without the runner, 6 Actions facts and 2 component facts are
   unchecked, and the six `actions-*` transcripts stay as they were.
@@ -104,14 +102,14 @@ codecs tests on re-recorded literals). Paths are temper's.
     …004, close-issue and reopen-issue …006); :72 …005→…004; :244
     `000c`→`000d` (twice); :250 `"IsErrIssueNotExist"`.
 
-  A fresh recording masks afresh: the run's implementer reads the values
+  A fresh recording masks afresh: the run's author reads the values
   from its own transcripts, as above, never from the decoder.
 - Transcript headers use CRLF; `.gitattributes:1-6` does not cover
   them, and `git diff --check` flags them. Nothing in the gate runs it.
 
 ## 4. `tools/git-transcripts`
 
-- **Command:** `TEMPER_FORGEJO=<binary> heavy --gate cargo run -p
+- **Command:** `TEMPER_FORGEJO=<binary> cargo run -p
   git-transcripts -- --git /usr/bin/git --scratch target/git-transcripts
   --out tools/git-transcripts` (`README.md:6`; `src/main.rs:7-20`).
   Forgejo serves with the recorded git (`lib.rs:79`); Actions is off

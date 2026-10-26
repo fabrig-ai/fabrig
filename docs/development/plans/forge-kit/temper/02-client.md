@@ -47,8 +47,8 @@ repairs what they break (02.1, Shape).
 
 ## Rules that bind it
 
-- The repin is the first commit: `heavy cargo update -p skein-lib`, then
-  `heavy cargo check --workspace --all-targets`. A Cargo.lock conflict takes
+- The repin is the first commit: `cargo update -p skein-lib`, then
+  `cargo check --workspace --all-targets`. A Cargo.lock conflict takes
   `origin/main`'s and runs the update again, never a hand merge.
 - No behaviour change, no raised bound, no loosened assertion. The sole
   allowance exception is the derived owned-example `engine.memory_bytes`
@@ -104,7 +104,7 @@ Shape: seven commits, each builds and passes its crates' tests.
      README's Settled smith adapters rule assigns this repin the three
      Start live:None literals and explicit ignored OpenEvent::Live arms;
      refresh the derived encode_start proof with the landed codec. This
-     follows live-text's director decision and next-repin assignment.
+     follows live-text's decision and next-repin assignment.
      Refresh reached copies/derived values and name them in the commit
      body; keep all bounds, assertions and existing proofs, subject only to
      the derived owned-example allowance correction in commit 3 below.
@@ -255,7 +255,7 @@ Shape: seven commits, each builds and passes its crates' tests.
   `jig-domain-core/src/documents/small.rs::text` and the reached callers and
   application translations; check each discovered name in the frozen sources.
   Budget: 20 minutes and three executable diagnostic attempts through pinned
-  heavy with explicit bash script files; compile/setup failures consume attempts,
+  explicit bash script files; compile/setup failures consume attempts,
   and queue waits grant none. Use retained artifacts and deterministic lower-layer
   probes; no further full process run, recording or gate is authorized by this
   exception. Preserve the original artifacts and implementation checkpoint.
@@ -309,20 +309,20 @@ Shape: seven commits, each builds and passes its crates' tests.
   4031 and 4032 (4047, 4048). Those are the only component-test values that change. If a side
   disagrees otherwise, stop and return the question; never loosen an
   assertion, drop a row or raise a bound.
-Proof: unit; `heavy cargo test --locked --offline -p temper --test startup
+Proof: unit; `cargo test --locked --offline -p temper --test startup
   serve_prepares_once_on_the_owned_example -- --exact --nocapture`: the same
   existing regression passes with only the derived allowance correction,
   no new test or assertion change. Complete the required reverse dependents
   and all remaining joint/process/gate proofs; the scratch diagnostic is not
   a substitute for them.
-Proof: unit; `heavy cargo nextest run -p temper-engine-domain-forge tests::purpose`:
+Proof: unit; `cargo nextest run -p temper-engine-domain-forge tests::purpose`:
   5 passed, each <20 ms (0.002 to 0.003 s in the scratch; the two moved
   ones took 0.004 s and 0.006 s at the base).
-Proof: unit; `heavy cargo nextest run -p temper-engine-domain forge_route::tests`:
+Proof: unit; `cargo nextest run -p temper-engine-domain forge_route::tests`:
   its count at the step's start plus 1 (2 from the base's 1), each <20 ms.
-Proof: unit; `heavy cargo nextest run -p temper-engine-domain-forge`: origin/main's
+Proof: unit; `cargo nextest run -p temper-engine-domain-forge`: origin/main's
   count at the step's start plus 5 (27 from the base's 22, 0.015 s), <1 s.
-Proof: joint; `heavy cargo nextest run -p temper-engine-domain-forge
+Proof: joint; `cargo nextest run -p temper-engine-domain-forge
   -p temper-engine-domain -p temper-engine-smith -p temper-protocol-store
   -p temper-service -p temper-engine-forge-client-world -p temper-engine-forge-world
   -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world
@@ -338,7 +338,7 @@ Proof: joint; the same command with `--profile fuzzy`: its count at the step's
   start, unchanged (39 at the base, 20.410 s, its slowest `fuzzy_walking` 20.4 s); <60 s.
 Proof: process; `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate scripts/proof-one-process.sh` (README, Rules): its count at the step's
+  scripts/proof-one-process.sh` (README, Rules): its count at the step's
   start passed (19 at the base), <5 minutes (145.694 s in `base-runs.md`, 149.083 s alone here). Once: the keys
   at rest and the engine's calls go through the new client. With commit 6,
   each story's `temper serve` stops and exits 0 with none of its tree
@@ -352,7 +352,7 @@ Proof: process; `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-li
   503 and the client sends it again; a story stalled on 503s until its
   deadline is a call the mount never lets go, jig01.s3's finding, never
   a bound to raise.
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at the
+Proof: joint; `scripts/check.sh`: origin/main's focused count at the
   step's start less 69 (the client's 76 out, 7 in: 1810 from the base's 1879) and
   its fuzzy count unchanged (50 at the base; 3.754 s and 16.803 s), clean
   clippy and format, focused <15 s, fuzzy <60 s.
@@ -390,21 +390,21 @@ Removes: `crates/temper-engine-domain-forge-client/`, 7,209 lines at the base
 
 ## Done when
 
-- `heavy cargo check --workspace --all-targets` prints `Finished`, exits 0.
-  The gate (`heavy --gate scripts/check.sh`) is land's.
-- `heavy rg -n 'temper_engine_domain_forge_client|temper-engine-domain-forge-client' Cargo.toml Cargo.lock crates testing tests tools -g '*.rs' -g Cargo.toml -g Cargo.lock`
+- `cargo check --workspace --all-targets` prints `Finished`, exits 0.
+  The gate (`scripts/check.sh`) is required before merging.
+- `rg -n 'temper_engine_domain_forge_client|temper-engine-domain-forge-client' Cargo.toml Cargo.lock crates testing tests tools -g '*.rs' -g Cargo.toml -g Cargo.lock`
   prints nothing (exit 1); at the base it prints the crate and its users.
-- `heavy rg -n 'skein_forge_client( as |::\{.* as )' crates testing tests tools -g '*.rs'`
+- `rg -n 'skein_forge_client( as |::\{.* as )' crates testing tests tools -g '*.rs'`
   prints nothing (exit 1): no alias of the kit's crate.
-- `heavy rg -n 'answer_bytes_unbounded|effect_bytes|client::(answer_bytes|stored_bytes)\b' crates testing tests tools -g '*.rs'`
+- `rg -n 'answer_bytes_unbounded|effect_bytes|client::(answer_bytes|stored_bytes)\b' crates testing tests tools -g '*.rs'`
   prints nothing (exit 1): the old counters are gone.
-- `heavy rg -l 'enum EffectPurpose' crates testing tests tools -g '*.rs'` prints
+- `rg -l 'enum EffectPurpose' crates testing tests tools -g '*.rs'` prints
   one path, under `crates/temper-engine-domain-forge/src/`, and nothing else.
-- `heavy python3 -c 'from pathlib import Path; print("client_copy_absent=" + str(not Path("crates/temper-engine-domain-forge-client").exists()))'`
+- `python3 -c 'from pathlib import Path; print("client_copy_absent=" + str(not Path("crates/temper-engine-domain-forge-client").exists()))'`
   prints `client_copy_absent=True`. At the base it prints False.
-- `heavy cargo nextest run -p temper-engine-domain-forge tests::purpose`
+- `cargo nextest run -p temper-engine-domain-forge tests::purpose`
   shows 5 passed.
-- `heavy rg -n '\.signal\(Signal::Kill\)' crates/temper/tests` prints
+- `rg -n '\.signal\(Signal::Kill\)' crates/temper/tests` prints
   nothing (exit 1): no story ends its binary with a leader's kill. At the
   base it prints `crates/temper/tests/support/mod.rs:396` and
   `crates/temper/tests/support/sign_in.rs:257`.

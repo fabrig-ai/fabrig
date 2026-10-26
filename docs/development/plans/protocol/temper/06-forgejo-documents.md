@@ -275,7 +275,7 @@ fn start_transcripts_decode_to_their_documents() {
 ```
 
 Proof: world (the joint layer needs 13's component),
-`heavy cargo nextest run -p temper-forge-forgejo -p temper-codecs-world`,
+`cargo nextest run -p temper-forge-forgejo -p temper-codecs-world`,
 run once: the six start and resolution transcripts decode to their
 documents, their requests encode as the tool sent them and route back
 to the same request, and the server's answers decode unchanged with
@@ -345,7 +345,7 @@ fn item_transcripts_decode_to_their_documents_and_rows() {
 
 (`forgejo::sha(n)` is the masked id `n` as 40 digits; the values above
 stand for what the transcript shows.)
-Proof: world, `heavy cargo nextest run -p temper-forge-forgejo -p
+Proof: world, `cargo nextest run -p temper-forge-forgejo -p
 temper-codecs-world`, run once: the thirteen item transcripts decode to
 their documents and rows, both sides meet the transcripts' requests, and
 each mutation is malformed naming its field (the five world tests);
@@ -402,7 +402,7 @@ cases `reviews`, `statuses-page-2`, `review-comments`, `branch`,
 `{message, url}`: its rows assert the status, and its error body is
 06.5's; `Permission::Owner` is read from a literal unit document;
 ruling 109). Ceilings as 06.1.
-Proof: world, `heavy cargo nextest run -p temper-forge-forgejo -p
+Proof: world, `cargo nextest run -p temper-forge-forgejo -p
 temper-codecs-world`, run once: eleven transcripts decode, and
 `owner-permission`'s answers `403` (its error body is 06.5's; ruling
 109), both sides meet their requests, mutations are malformed naming their
@@ -463,7 +463,7 @@ table. World tests in
 status in `actions-combined-status`, read by `job_link` against the
 repository's `html_url`, names the run number of `actions-runs` and the
 job's index in `actions-jobs`). Ceilings as 06.1.
-Proof: world, `heavy cargo nextest run -p temper-forge-forgejo -p
+Proof: world, `cargo nextest run -p temper-forge-forgejo -p
 temper-codecs-world`, run once: the transcripts decode, both sides meet
 their requests, and a failing Actions status links its run and job;
 under 2 s.
@@ -536,8 +536,8 @@ fn forgejo_decoders_answer_every_mutated_transcript_without_panicking() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-forge-forgejo -p
-temper-codecs-world` and `heavy cargo nextest run -p temper-codecs-world
+Proof: world, `cargo nextest run -p temper-forge-forgejo -p
+temper-codecs-world` and `cargo nextest run -p temper-codecs-world
 --profile fuzzy -E 'binary(fuzzy_forgejo)'`, each run once: the writes
 meet their transcripts on both sides, each failure transcript names its
 refusal, and no mutated transcript or request panics a decoder; under 6
@@ -1644,13 +1644,13 @@ pub mod failure {
 
 ## Done when
 
-- The crate and its transcript tests pass: `heavy cargo nextest run -p
-  temper-forge-forgejo -p temper-codecs-world` passes, and `heavy cargo
+- The crate and its transcript tests pass: `cargo nextest run -p
+  temper-forge-forgejo -p temper-codecs-world` passes, and `cargo
   nextest run -p temper-codecs-world --profile fuzzy -E
   'binary(fuzzy_forgejo)'` passes.
 - It links skein-lib and skein-json only: `cargo tree --locked -p
   temper-forge-forgejo -e normal --depth 1 --prefix none | sort -u`
-  (no `heavy`: it compiles nothing) prints the crate's own line, a
+  (it compiles nothing) prints the crate's own line, a
   `skein-json` line and a `skein-lib` line, and nothing else.
 - The gate passed on this session's last landing: `git -C
   ~/src/rust/temper log --format='%(trailers:key=Gate-Result,valueonly)'

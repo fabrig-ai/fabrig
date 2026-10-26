@@ -51,7 +51,7 @@ Test shape, in `tests/ui-text/tests/terminal.rs`:
 - `a_line_past_its_bytes_stops_the_terminal`: `#[should_panic(expected =
   "application line within its bytes")]` (a bare `#[should_panic]` fails
   clippy's `should_panic_without_expect`), a 65-byte line at 64.
-Proof: skein's gate, by `land`.
+Proof: skein's gate.
 Don't: change `BATCH`, a refusal, `say`'s prefix or `Terminal::new`'s
 signature; give `line_bytes` a default; name a downstream repository
 (`git -C <worktree> diff origin/main...HEAD | grep -i -w -E

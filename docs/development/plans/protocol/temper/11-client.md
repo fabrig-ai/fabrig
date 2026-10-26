@@ -162,7 +162,7 @@ world.
 - "**Keeping the pins.** Adding to any `Cargo.toml` a crate of jig, smith
   or skein that `Cargo.lock` does not hold yet moves that repository's
   git source to its newest commit ... The increment that adds one then
-  runs, in this order, and commits the lock" the three `heavy cargo
+  runs, in this order, and commits the lock" the three `cargo
   update -p … --precise …` commands (code-organization.md, 3).
   `jig-domain-client` (11.1), `jig-view` (11.2), `jig-client-world` and
   `jig-fake-person` (11.3) are not in temper's lock today: each of those
@@ -241,7 +241,7 @@ fn a_part_of_another_connector_is_reported_unknown() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-client-domain`, run
+Proof: unit, `cargo nextest run -p temper-client-domain`, run
 once: a part of the forge's number given at construction is held by the
 forge's side, another connector's is reported `UnknownConnector`, and
 kept requests come back parked per scope (the seven tests, under 1 s).
@@ -331,7 +331,7 @@ fn each_resource_path_shape_says_its_words() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-client-view`, run once:
+Proof: unit, `cargo nextest run -p temper-client-view`, run once:
 each resource shape, each kind and each part needing a document is
 said in client.md, 4.1 and 4.2's words, and a slot no owner fills says
 it cannot be shown (the six tests, under 1 s). The joint layer needs
@@ -463,7 +463,7 @@ fn signing_in_shows_the_inbox_from_the_engine_root() {
 }
 ```
 
-Proof: joint, `heavy cargo nextest run -p temper-client-world -E
+Proof: joint, `cargo nextest run -p temper-client-world -E
 'test(signing_in_shows_the_inbox_from_the_engine_root)'`, run once: the
 person sees the link live, their name and jig's inbox, built by temper's
 view root from temper's engine root's deliveries, with jig's referee
@@ -558,8 +558,8 @@ fn random_people_and_faults_make_each_request_once() {
 }
 ```
 
-Proof: joint, `heavy cargo nextest run -p temper-client-world` and
-`heavy cargo nextest run -p temper-client-world --profile fuzzy`, each
+Proof: joint, `cargo nextest run -p temper-client-world` and
+`cargo nextest run -p temper-client-world --profile fuzzy`, each
 run once: the four stories pass against temper's engine root, the sweep
 makes each request once (under 1.0 s focused, 5 s fuzzy); and `git grep
 -n -e temper-web- -e temper_web_ -e temper-fake-person -e
@@ -1239,10 +1239,10 @@ pub mod temper_client_view {
 
 ## Done when
 
-- The crates and the world exist and pass: `heavy cargo nextest run -p
+- The crates and the world exist and pass: `cargo nextest run -p
   temper-client-domain -p temper-client-view -p temper-client-world`
   passes.
-- The fuzzy sweep passes: `heavy cargo nextest run -p temper-client-world
+- The fuzzy sweep passes: `cargo nextest run -p temper-client-world
   --profile fuzzy` passes.
 - The roots link no wire, link, smith or engine crate: `grep -hE
   '^(temper|jig|smith)-' crates/temper-client-domain/Cargo.toml
@@ -1252,7 +1252,7 @@ pub mod temper_client_view {
   temper-fake-person -e temper_fake_person -- ':!docs'` prints nothing.
 - The pins held: `grep -oE 'forgetic/(jig|smith|skein)\.git#[0-9a-f]+'
   Cargo.lock | sort -u` prints exactly the three pinned revisions.
-- `tests/client` keeps its share: `heavy --gate cargo nextest run
+- `tests/client` keeps its share: `cargo nextest run
   --workspace --profile measure -j 1 -E 'package(temper-client-world) &
   not binary(/^fuzzy_/)'`, then `awk -F'[][]' '/PASS \[/ {s += $2} END
   {printf "%.1f\n", s}' <its log>`, prints at most 1.0; the same with

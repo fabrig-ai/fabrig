@@ -123,7 +123,7 @@ Beside it:
   (programming-model.md 6.3).
 
 Ceilings: each under 20 ms.
-Proof: unit: these three, focused, in `land`'s gate. Nothing above them on the host: the shell passing `Shell::Browser`
+Proof: unit: these three, focused, in the gate. Nothing above them on the host: the shell passing `Shell::Browser`
 builds for wasm32 alone, and the gate's wasm32 clippy compiles its call. Later, world: the browser suite, `--profile
 browser`, temper 04.2's `a_spent_link_shows_the_signed_out_words`.
 Don't: change `View::new`; carry the shell in the domain; change the terminal's words (README 6.6); add a `Word`.
@@ -268,7 +268,7 @@ In `chats.rs`, `a_chats_row_carries_the_card_token` (its `tree(&line())`); in `c
 `a_chats_card_carries_the_card_token` (`proposal_root()`) and `each_turn_carries_the_turn_token`
 (`tree(&provisional())`: every region `[TURN]`, as many regions as before).
 Ceilings: each under 20 ms.
-Proof: unit: these eight, focused, in `land`'s gate. No golden changes: the terminal prints no token (README 5.1), its
+Proof: unit: these eight, focused, in the gate. No golden changes: the terminal prints no token (README 5.1), its
 goldens print synthetic trees, and the view has none. Nothing on the host reads a class; later, world: the browser
 suite, `--profile browser`, loads `temper.css` in every story from temper 04.1 and fails on a policy violation, such
 as an external origin (decisions.md, For the user 1). No story reads a style (skein's `ui.md` 8); the growth and its
@@ -353,4 +353,4 @@ Each in a worktree of temper at `origin/main`, after `git fetch`:
 - `sh -c 'names=$(git show origin/main:crates/temper-client-shell-web/temper.css | grep -o -E "\.temper-[a-z-]+" | sort
   -u); test -n "$names" || exit 1; for n in $names; do git show origin/main:crates/temper-client-view/src/look.rs |
   grep -q -F "b\"${n#.}\"" || exit 1; done'`: every class `temper.css` names is one the view sets.
-- `heavy cargo nextest run -p temper-client-view -p temper-client-world` exits 0.
+- `cargo nextest run -p temper-client-view -p temper-client-world` exits 0.

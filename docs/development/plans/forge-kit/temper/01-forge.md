@@ -18,7 +18,7 @@ this session starts only after that cross-machine landing.
   `testing-strategy.md` 2.1, 2.4–2.5, 8, 10; temper workflow 1–2.
 - README (sessions, Rules, Done when); code-organization 1–3, 5–8;
   decisions 2–8, 14, 18, 24–25 and Design questions 1, 14, 34;
-  designer `tmp/director/forge-kit-answers-{1,2,3}.md`.
+
 - `skein/01-forge.md`, and skein 02.2/03.1's “temper's side”;
   findings `survey-{01-forge,02-client,03-connection,07-pins}.md`,
   `trace-forge.md`, `base-runs.md`, `base-temper-01.md`.
@@ -45,8 +45,8 @@ The answer-check part of api.rs stays private until temper 02.1 deletes the clie
 
 ## Rules that bind it
 
-- Every increment's **first commit** is its repin: `heavy cargo update -p
-  skein-lib`, then `heavy cargo check --workspace --all-targets`. Repair in
+- Every increment's **first commit** is its repin: `cargo update -p
+  skein-lib`, then `cargo check --workspace --all-targets`. Repair in
   that commit all upstream interface/test changes since the previous pin,
   including skein 10 and 02.2 when present. A lock conflict takes origin/main's
   Cargo.lock and repeats the update. Do not merge it by hand.
@@ -55,7 +55,7 @@ The answer-check part of api.rs stays private until temper 02.1 deletes the clie
   New units <20 ms, focused worlds <0.5 s, fuzzy tests about 5 s.
 - Shared hotspots: Cargo.toml/Cargo.lock; temper-service's forge.rs/settings.rs
   in 01.3; the listener's hooks.rs. Follow README's tools-plan ordering.
-  Gate Proofs are land's gate, `heavy --gate scripts/check.sh`; during the run
+  Gate Proofs are the gate, `scripts/check.sh`; during the run
   do not run a second gate before land. Planning ran each command once.
 
 ## Increments
@@ -101,10 +101,10 @@ Shape: follow README's first-repin jig repair rule when the lock still
 Test shape: **0 tests move in this temper increment**; 76 client tests at the
   base stay, including the two tests::locate Harness tests. Skein 01.1 adds
   its own two pure locate tests. All existing callers' assertions and stored
-  bytes remain; no new test. Count source tests with `heavy cargo nextest list
+  bytes remain; no new test. Count source tests with `cargo nextest list
   -p temper-engine-domain-forge-client -p temper-forge-forgejo
   -p temper-engine-protocol-forge`: 76/84/117 at the base.
-Proof: joint; `heavy cargo nextest run -p temper-engine-domain-forge-client
+Proof: joint; `cargo nextest run -p temper-engine-domain-forge-client
   -p temper-engine-domain-forge -p temper-engine-domain -p temper-engine-smith
   -p temper-protocol-store -p temper-service -p temper-engine-forge-client-world
   -p temper-engine-forge-world -p temper-engine-protocol-forge
@@ -113,7 +113,7 @@ Proof: joint; `heavy cargo nextest run -p temper-engine-domain-forge-client
   -p temper-system-world -p forgejo-conformance`: origin/main's count at the
   step's start passed, the same identities through the cutover (997 at the
   base, 5.821 s), <15 s.
-Proof: joint; `heavy --gate scripts/check.sh`: formatting/clippy clean,
+Proof: joint; `scripts/check.sh`: formatting/clippy clean,
   origin/main's focused and fuzzy counts at the step's start passed, unchanged
   (1879 / 50 at the base, 7.184 / 25.879 s); budgets 15/60 s.
 Don't: move EffectPurpose, change durable bytes, remove admission, or delete
@@ -150,13 +150,13 @@ Test shape: **84 copied dialect tests now leave temper**, names unchanged in
   skein 01.2 (base list: root 37, accounts 9, delivery 15, hooks 7, orgs 7,
   pin 4, tokens 5; base-runs 0.062 s total). Zero new tests; all caller tests
   stay. Codecs' 55 focused/3 fuzzy dialect tests wait until temper 07.
-Proof: joint; `heavy cargo nextest run -p temper -p temper-forge-setup-shell
+Proof: joint; `cargo nextest run -p temper -p temper-forge-setup-shell
   -p temper-fake-forge-protocol -p temper-throwaway-forgejo
   -p temper-codecs-world -p temper-forge-setup-reconcile-world
   -p temper-engine-protocol-forge -p temper-forge-setup -p forgejo-conformance`:
   origin/main's count at the step's start passed, unchanged, with its ignored
   throwaway test (471 and 1 at the base, 0.673 s); same caller identities, <15 s.
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at
+Proof: joint; `scripts/check.sh`: origin/main's focused count at
   the step's start less 84, the unit tests that leave, and its fuzzy count
   passed (1795 / 50 from the base's 1879 / 50), <15 s / <60 s; no budget
   or ignore changes.
@@ -251,19 +251,19 @@ fn temper_word_keeps_the_marker_bytes_and_length() {
   No new world. The fixture uses the shipped Small profile. Existing
   creations_carry_the_key_marker_at_the_head_of_their_body proves component
   wiring over HTTP with b"<!-- temper:key abff -->\\nbody" and cost 1.
-Proof: joint; `heavy cargo nextest run -p temper-engine-protocol-forge
+Proof: joint; `cargo nextest run -p temper-engine-protocol-forge
   -p temper-service -p temper-engine-protocol-forge-world`: origin/main's count
   at the step's start less 3, four deletions and the owner unit (373 from the
   base's 376, 1.600 s); <15 s.
-Proof: world; `heavy cargo nextest run -p temper-engine-protocol-forge-world
+Proof: world; `cargo nextest run -p temper-engine-protocol-forge-world
   --profile fuzzy`: 6 passed in 7.027 s here (7.709 s in base-runs).
   Four fuzzy_machine tests exceed the 5 s aim at the base; preserve them
   and report their streaming-cut cost, with no filtering; suite <60 s.
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at
+Proof: joint; `scripts/check.sh`: origin/main's focused count at
   the step's start less 3 (four component tests leave, the owner unit
   enters) and its fuzzy count passed (1792 / 50 after 01.2's 1795 / 50 on
   the base), <15 s / <60 s.
-Proof: joint; `heavy cargo nextest run -p temper --test startup
+Proof: joint; `cargo nextest run -p temper --test startup
   -E 'test(=serve_prepares_once_on_the_owned_example)'`: the existing
   owned-example startup regression passes once after the complete cutover,
   within the unchanged focused budget. The process proof follows 01.4's
@@ -329,21 +329,21 @@ Test shape: **1 copied pure Host test leaves temper** for skein 01.4,
   user then cap, one connection, same Stopped/Waiting/Ready literals.
   temper-service's a_refused_start_check_stops_the_engine_naming_the_forge
   still reports forge 1 / User / 401.
-Proof: joint; `heavy cargo nextest run -p temper -p temper-forge-setup-shell
+Proof: joint; `cargo nextest run -p temper -p temper-forge-setup-shell
   -p temper-service -p temper-engine-protocol-forge
   -p temper-engine-protocol-forge-world -p forgejo-conformance`: origin/main's
   count at the step's start less 1, the copied test that leaves (479 from
   01.3's 480; 483 at the base, 2.934 s); <15 s. Retain the fuzzy command of 01.3 when these start paths change.
 Proof: process; `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate scripts/proof-one-process.sh` (README Rules): its count at the step's
+  scripts/proof-one-process.sh` (README Rules): its count at the step's
   start passed (19 at the base), <5 minutes; 145.694 s at the base, alone
   (findings/base-runs.md). Once here,
   covering the session's starts, authenticated polling, writes and webhooks.
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at
+Proof: joint; `scripts/check.sh`: origin/main's focused count at
   the step's start less 1 and its fuzzy count (1791 / 50 after 01.3's 1792 /
   50 on the base) passed, clean clippy, focused <15 s/fuzzy <60 s. Signature sketches compile with
-  `heavy cargo clippy -p temper-engine-protocol-forge --all-targets -- -D warnings`;
+  `cargo clippy -p temper-engine-protocol-forge --all-targets -- -D warnings`;
   scratch source/limits and the base repin failure are recorded in findings.
 Don't: delete scheduling with the extracted mapping; hand Host differently
   before temper 03.1; implement renewal or change token/user-agent admission.
@@ -353,12 +353,12 @@ Removes: start_request, drive_starts's dialect mapping, start::Heard,
 
 ## Done when
 
-- `heavy cargo check --workspace --all-targets` prints Finished, exits 0.
-  The session's gate Proof is `heavy --gate scripts/check.sh`: no warnings
+- `cargo check --workspace --all-targets` prints Finished, exits 0.
+  The session's gate Proof is `scripts/check.sh`: no warnings
   or failures, focused <15 s and fuzzy <60 s; land owns that run.
-- `heavy rg -n 'temper_forge_forgejo|temper-forge-forgejo|temper_engine_domain_forge_client::api|client::api|conventions::host' Cargo.toml crates testing tests tools -g '*.rs' -g Cargo.toml`
+- `rg -n 'temper_forge_forgejo|temper-forge-forgejo|temper_engine_domain_forge_client::api|client::api|conventions::host' Cargo.toml crates testing tests tools -g '*.rs' -g Cargo.toml`
   prints nothing (exit 1); it checks current source, including surviving users
   after temper 02/03/07 delete their copies, without naming deleted test files.
-- `heavy python3 -c 'from pathlib import Path; print("dialect_copy_absent=" + str(not Path("crates/temper-forge-forgejo").exists()))'`
+- `python3 -c 'from pathlib import Path; print("dialect_copy_absent=" + str(not Path("crates/temper-forge-forgejo").exists()))'`
   prints `dialect_copy_absent=True`. At the base it prints False, as recorded.
 

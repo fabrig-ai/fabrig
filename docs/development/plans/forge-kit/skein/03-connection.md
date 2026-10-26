@@ -13,7 +13,7 @@ tests, without counting skein-forge's tests again.
 
 - skein `docs/design/forge-connection.md` 2, 3, 5, 6, 7, 8, 10;
   `forge.md` 3.7, 4, 5.1, 6, 8, 11; `tls.md` 2, 3.4; the designer's answers
-  1–6, 13 and 14 (`tmp/director/forge-kit-answers-{1,2}.md`, copied into
+  1–6, 13 and 14 (copied into
   decisions.md), and the TLS name answer (skein 1908a365).
 - skein `docs/foundation/programming-model.md` 4.2, 5.2–5.4, 6.2–6.3, 7,
   9, 10; `testing-strategy.md` 2.1, 2.4–2.5, 3, 4.4, 6–8, 10.
@@ -223,8 +223,8 @@ fn body_room_includes_the_owner_word() {
     }
 }
 ```
-Proof: world, `heavy cargo nextest run -p skein-forge-connection`: 115 passed,
-  <0.5 s total, new units <20 ms; `heavy cargo nextest run -p skein-tls`: all
+Proof: world, `cargo nextest run -p skein-forge-connection`: 115 passed,
+  <0.5 s total, new units <20 ms; `cargo nextest run -p skein-tls`: all
   pass, count unchanged; includes
   creations_carry_the_key_marker_at_the_head_of_their_body through Component
   and HTTP. This is the highest caller until temper 03.1 connects the crate.
@@ -370,7 +370,7 @@ fn the_last_api_token_is_still_issued() {
     assert_eq!(c.open_start(0, &env, &mut io).raw(), LAST_API_OWNER);
 }
 ```
-Proof: world, `heavy cargo nextest run -p skein-forge-connection`: 122 passed,
+Proof: world, `cargo nextest run -p skein-forge-connection`: 122 passed,
   <0.5 s total, new units <20 ms; harnesses observe HTTP requests/refusals.
   The component harness is the highest local caller; temper's next repin
   (temper 03.2 if next) repairs and proves its configuration mapping.
@@ -447,7 +447,7 @@ fn limits_check_admits_one_largest_row_of_every_listing() {
   start_backoff_doubles_to_its_maximum: failed start waits 1,2,4,8,8 s;
   before each deadline no connect, at it one. The original terminal-state matrix
   is separated by03.s1, preserving its inputs and assertions.
-Proof: world, `heavy cargo nextest run -p skein-forge-connection`: 128 passed,
+Proof: world, `cargo nextest run -p skein-forge-connection`: 128 passed,
   <0.5 s total, new units <20 ms; Component/HTTP harness proves calls and
   eviction over bytes. skein 08.1 connects the separate machine world after
   temper 03.1, temper 05.1, skein 05.2 and skein 06.2 supply its dependencies.
@@ -459,11 +459,11 @@ Removes: largest_row's target-layout-dependent size_of row pricing.
 
 Run once from skein's root; base forms and outputs are in base-skein-03.md.
 
-- `heavy cargo nextest run -p skein-forge-connection` prints the03.3 count
+- `cargo nextest run -p skein-forge-connection` prints the03.3 count
   plus03.s1’s relative+1: 129 at the checked source, 112 inherited identities
   +16 original additions (3+7+6) +1 separated terminal test, within the bounds
   above. Recount unrelated additions at start; historical128 proofs stay historical. Pure host vectors belong to skein 01.4; world tests to skein 08.
-- `heavy cargo clippy -p skein-forge-connection --all-targets -- -D warnings`
+- `cargo clippy -p skein-forge-connection --all-targets -- -D warnings`
   exits 0 without warnings.
-- `heavy rg -n -i temper crates/skein-forge-connection` prints nothing
+- `rg -n -i temper crates/skein-forge-connection` prints nothing
   (rg exits 1 for no matches).

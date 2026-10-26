@@ -65,7 +65,7 @@ Test shape: 5 moved tests, names unchanged, no new test:
   cost2/1 item/4 requests; lookup cost4; empty pull NothingToMerge/cost4/no write; jobs cost3, step1/"Run
   build", suffix b"build 3\n". Recorded base rerun: 5/0.010 s (findings/base-skein-08.md).
 Proof:
-joint; `heavy cargo nextest run -p skein-forge-protocol-world`: 5 passed, each <0.5 s; base form --test fake_protocol, 5/0.010 s lighter-load rerun. This proves the moved HTTP/domain joint; no socket behavior changes.
+joint; `cargo nextest run -p skein-forge-protocol-world`: 5 passed, each <0.5 s; base form --test fake_protocol, 5/0.010 s lighter-load rerun. This proves the moved HTTP/domain joint; no socket behavior changes.
 Don't: move or delete these 10 temper-policy tests:
 ```text
 a_change_produced_opened_checked_queued_and_landed
@@ -88,19 +88,19 @@ Removes: nothing in temper; its owner-policy world remains after temper 07.
 
 ### 09.2 The owner, token maps and restart — dropped
 
-Dropped by the director's scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
+Dropped by the scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
 No implementation or proof of this increment runs in forge-kit; its earlier specification remains
 in git history. Every retained move and its inherited coverage still runs.
 
 ### 09.3 The protocol stories — dropped
 
-Dropped by the director's scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
+Dropped by the scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
 No implementation or proof of this increment runs in forge-kit; its earlier specification remains
 in git history. Every retained move and its inherited coverage still runs.
 
 ### 09.4 The three protocol invariants — dropped
 
-Dropped by the director's scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
+Dropped by the scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
 No implementation or proof of this increment runs in forge-kit; its earlier specification remains
 in git history. Every retained move and its inherited coverage still runs.
 
@@ -117,8 +117,8 @@ From skein, after retained09.1. Preserve the five moved tests and their assertio
 focused or fuzzy test is required here. Report moved timings separately against the existing whole-plan
 aims. The owner/stories/invariants are to the GitHub draft, section 17 (ruling 189).
 
-- `heavy cargo nextest run -p skein-forge-protocol-world` prints 5 passed, each <0.5s.
+- `cargo nextest run -p skein-forge-protocol-world` prints 5 passed, each <0.5s.
 - No fuzzy run is required for this five-test moved package.
-- `heavy cargo clippy -p skein-forge-protocol-world --all-targets -- -D warnings` prints Finished without warnings.
-- `heavy rg -n '^    "tests/forge/protocol",$' Cargo.toml` prints exactly one member line.
-- `heavy rg -n -i temper tests/forge/protocol` prints nothing (rg exit1); README Done when5 covers the whole kit.
+- `cargo clippy -p skein-forge-protocol-world --all-targets -- -D warnings` prints Finished without warnings.
+- `rg -n '^    "tests/forge/protocol",$' Cargo.toml` prints exactly one member line.
+- `rg -n -i temper tests/forge/protocol` prints nothing (rg exit1); README Done when5 covers the whole kit.

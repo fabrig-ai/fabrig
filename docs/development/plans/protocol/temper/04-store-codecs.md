@@ -271,7 +271,7 @@ fn every_forge_key_lies_in_the_interval_and_no_core_key_does() {
 (`fixtures::within(interval, tagged)` tags the interval's start with
 `keys::application` and its open end as `[APPLICATION + 1]`, as jig's
 component does (`pages.rs:112-123` at the pin), and compares.)
-Proof: unit, `heavy cargo nextest run -p temper-protocol-store`, run
+Proof: unit, `cargo nextest run -p temper-protocol-store`, run
 once: drawn keys of every family sort as `Key` derives and decode to
 themselves, each malformed key is refused, and the interval holds every
 forge key and no core key, as `Range::contains` says; under 1 s.
@@ -326,7 +326,7 @@ fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-protocol-store -p
+Proof: world, `cargo nextest run -p temper-protocol-store -p
 temper-codecs-world`, run once: each family of the increment
 round-trips unchanged at its fullest, every prefix of a row is refused,
 and the drift test passes; under 3 s.
@@ -382,7 +382,7 @@ fn error_tags_are_numbered_as_the_schema_lists_them() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-protocol-store`, run
+Proof: unit, `cargo nextest run -p temper-protocol-store`, run
 once: every named-call payload, write and proposed effect round-trips
 unchanged, each error keeps its tag, and an answer's piece past its
 limit is refused; under 1 s. The drift test runs in the gate.
@@ -437,7 +437,7 @@ states, one held once, one held twice),
 `an_issue_row_with_its_desired_view_round_trips_unchanged`,
 `every_family_encodes_and_decodes_to_itself` (one row per family, every
 `Stored` variant). Ceilings as 04.2.
-Proof: unit, `heavy cargo nextest run -p temper-protocol-store`, run
+Proof: unit, `cargo nextest run -p temper-protocol-store`, run
 once: every family's fullest row round-trips unchanged, a change held
 twice comes back held twice, and a negative priority keeps its sign;
 under 1 s.
@@ -468,7 +468,7 @@ Test shape: `src/tests/records.rs` and `src/tests/keys.rs`. Tests:
 `an_application_outcome_round_trips_unchanged` (rows: adopted, refused
 by the core with each refusal kind, refused by the forge, unknown), and
 `Application` keys among 04.1's drawn keys. Ceilings as 04.2.
-Proof: unit, `heavy cargo nextest run -p temper-protocol-store`, run
+Proof: unit, `cargo nextest run -p temper-protocol-store`, run
 once: every outcome of a keyed adoption round-trips unchanged and its
 keys sort as `Key` derives; under 1 s.
 Don't: carry jig's refusal as another family's bytes.
@@ -512,8 +512,8 @@ fn a_row_whose_key_disagrees_with_its_record_is_undecodable() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-protocol-store -p
-temper-codecs-world` and `heavy cargo nextest run -p temper-codecs-world
+Proof: world, `cargo nextest run -p temper-protocol-store -p
+temper-codecs-world` and `cargo nextest run -p temper-codecs-world
 --profile fuzzy`, each run once: the sizes are the largest key and row
 under the fixture's limits, a row whose key disagrees with its record is
 refused, and no drawn or mutated row or key panics a decoder; under 6 s
@@ -887,10 +887,10 @@ pub mod temper_protocol_store {
 
 ## Done when
 
-- The crate builds and its tests pass: `heavy cargo nextest run -p
+- The crate builds and its tests pass: `cargo nextest run -p
   temper-protocol-store -p temper-codecs-world` passes, the store's drift
   test among them.
-- Its fuzzy test passes: `heavy cargo nextest run -p temper-codecs-world
+- Its fuzzy test passes: `cargo nextest run -p temper-codecs-world
   --profile fuzzy` passes.
 - It links no root: `sed -n '/^\[dependencies\]/,/^\[/p'
   crates/temper-protocol-store/Cargo.toml | grep -cE '^temper-(engine|worker)-domain[ .=]'`

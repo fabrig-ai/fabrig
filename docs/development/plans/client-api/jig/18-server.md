@@ -252,7 +252,7 @@ test it leaves keeps its three other cases, and passes at the base,
 `logs/w8/base-config-test.txt`),
 `an_engine_clients_member_naming_a_listener_is_refused`,
 `the_server_listens_where_the_application_member_says`. Each under 20 ms.
-Proof: the protocol world reads the new member: `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: the protocol world reads the new member: `cargo nextest run -p jig-client-protocol-world -E
 'test(a_native_client_signs_in_by_the_service_s_link_and_starts_a_chat)'`
 (or the name jig 16 gave it), once (0.14 s at the base): the native
 client reaches the service at the listener `application.server` names.
@@ -327,7 +327,7 @@ Tests, each under 20 ms: `each_path_is_answered_by_its_part_of_the_server`,
 Proof: unit layer here; the process tier serves a real bundle in 18.3,
 which connects this increment's answers to a running `jig-test`. The
 protocol world's mapping answers gain the policy's fields, which its
-native client ignores: `heavy cargo nextest run -p
+native client ignores: `cargo nextest run -p
 jig-client-protocol-world -E 'test(a_request_whose_answer_was_lost_is_made_once)'`,
 once (0.55 s at the base).
 Don't: serve a file whose extension is off the closed list (the bundle
@@ -379,8 +379,8 @@ fn jig_test_serves_its_bundle_s_page_under_the_reference_policy() {
 ```
 (`support::get` is a GET over `std::net::TcpStream` to the link's
 `host:port`; `REFERENCE_POLICY` is the literal of `browser.md`, 12.1).
-Proof: the process layer, once, by the implementer, through the build
-lane: `heavy cargo nextest run -p jig-test --profile process -E
+Proof: the process layer, once, by the author, through the build
+lane: `cargo nextest run -p jig-test --profile process -E
 'test(jig_test_serves_its_bundle_s_page_under_the_reference_policy)'`
 (about 5 s): the running binary answers a path of the reference UI with
 the bundle's page under the reference policy. Nothing else is run.
@@ -391,8 +391,7 @@ Removes: nothing.
 
 ## Interface sketches
 
-Compiled at the base in the scratch crate of jig 17's sketches, `heavy
-cargo clippy -p jig-sketch-w8 --all-targets -- -D warnings`, which
+Compiled at the base in the scratch crate of jig 17's sketches, `cargo clippy -p jig-sketch-w8 --all-targets -- -D warnings`, which
 passed (`logs/w8/sketch-17-18.txt`), with trivial bodies.
 
 ```rust
@@ -472,7 +471,7 @@ Each command runs once, after the session's last increment lands.
   '^jig-18\.' | sort -u | wc -l` prints 3.
 - `git -C ~/src/rust/jig grep -n -E 'clients\.listener|"clients"\]\["listener'
   origin/main -- crates testing tests` prints nothing.
-- In a worktree of jig at `origin/main`, `heavy cargo nextest run -p
+- In a worktree of jig at `origin/main`, `cargo nextest run -p
   jig-test --profile process -E
   'test(jig_test_serves_its_bundle_s_page_under_the_reference_policy)'`
   passes one test.

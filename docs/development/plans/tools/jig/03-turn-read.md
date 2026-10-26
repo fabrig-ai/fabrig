@@ -71,8 +71,8 @@ this turn read and jig 05's deadline spans), including this session's last step,
   smith crate. Only the link decodes smith's bytes, through `jig-protocol-transcript`. Edit no design document or STATUS row.
 - Change the existing enums and every exhaustive consumer in the same increment; add no catch-all, compatibility alias,
   retry loop, watched turn, or second fixture for the same world. The new modules below keep additions out of long files.
-- All cargo commands use `heavy`, unoptimized. Unit tests stay under 20 ms, focused world/joint stories under 0.5 s each;
-  the focused and fuzzy budgets remain `.config/nextest.toml`'s `global-timeout`s, 15 s and 60 s. Run each named proof once, besides land's gate. A proof naming a new
+- All cargo commands run unoptimized. Unit tests stay under 20 ms, focused world/joint stories under 0.5 s each;
+  the focused and fuzzy budgets remain `.config/nextest.toml`'s `global-timeout`s, 15 s and 60 s. Run each named proof once, besides the gate. A proof naming a new
   test becomes executable when its increment builds it; the supervisor checks the sketches at readiness.
 
 ## Increments
@@ -108,7 +108,7 @@ Shape: `pub mod v9`, its existing root re-export, and `VERSION: u32 = 9`; every 
 `family jig-client-wire 9`, which the regeneration carries into `v9.rs` and the goldens. Families keep
 their own versions. Update drift's two input paths, generated-file arm and golden directory, and the fuzzy golden reader.
 Bootstrap the generated filename with the existing generated source so the test runner builds, then regenerate with
-`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test drift -E 'test(=client_wire_schema_matches_generated_code_and_goldens)'`.
+`SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world --test drift -E 'test(=client_wire_schema_matches_generated_code_and_goldens)'`.
 Run the same drift test without the environment variable. No v8 module or translated reader remains. Add no turn fields yet.
 Test shape: the existing drift and wire round trips; in `tests/client-protocol/tests/client.rs`, retain
 `an_engine_outside_jig_s_version_leaves_the_client_out_of_date_sending_nothing`, with its incompatible version explicitly 8:
@@ -116,7 +116,7 @@ Test shape: the existing drift and wire round trips; in `tests/client-protocol/t
 `a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent` serves 9 to 9 where it served 8. `cargo fmt`
 runs after, as it rewraps a `vec![Readout::NotServed { .. }]`.
 Use `fixtures::domain_limits`, `engine_limits` and the existing `Story::serve_jig`; family-version expectations stay intact.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test client -E 'test(=an_engine_outside_jig_s_version_leaves_the_client_out_of_date_sending_nothing)'`.
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test client -E 'test(=an_engine_outside_jig_s_version_leaves_the_client_out_of_date_sending_nothing)'`.
 A v9 client refuses an engine serving v8 and sends nothing; under 0.5 s, above the wire's round trips.
 Don't: change message fields, the store or table versions, smith's transcript version, generator behaviour, or `Cargo.lock`.
 Size: at most 180 hand-written production lines; generated code, goldens and mechanical test imports aside.
@@ -157,7 +157,7 @@ The joint proof adds `a_turn_past_the_read_bound_reports_its_size` to `tests/cor
 `stories::reads::world`, `reads::{ask,latest}` and `effects::World::turn`; one fixture variant in `stories/reads.rs`
 derives limits from its existing builder, admitting a payload larger than the read budget while its owner evidence fits.
 Name both bounds beside that deviation; retain the world's durable-read fence and memory checks. Under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-core-world --test reads -E 'test(=a_turn_past_the_read_bound_reports_its_size)'`.
+Proof: joint, `cargo nextest run -p jig-core-world --test reads -E 'test(=a_turn_past_the_read_bound_reports_its_size)'`.
 The real core and store, on simulated files, answer the payload's size after durability. The public client's turn constructor
 arrives in 03.3; this proof uses the core's already-existing `Read::Turn`.
 Don't: expose failure facts before access checks; turn an absent frame into Gone; build transcript retention;
@@ -231,7 +231,7 @@ fn an_absent_turn_is_unknown_through_the_client() {
 Beside it, `a_committed_turn_is_read_whole_through_the_client`: `Story::reading_chat`, `running_task`, the existing message
 and activity-wait setup, then read the identity the activity supplied. Compare its archive to the page's, including decoded
 parts, spend, read position and time. Share that setup once in this file; no additional seed sweep. Under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test turn_read -E 'test(=a_committed_turn_is_read_whole_through_the_client)'`.
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test turn_read -E 'test(=a_committed_turn_is_read_whole_through_the_client)'`.
 The client reads the real engine/store's committed turn through HTTP bytes; under 0.5 s.
 Don't: add a page, a subject, a client retry, a second turn representation, or a dependency on jig 02; use `Readout::Limit`
 for a turn's document-size refusal (that variant is still the client's full read table and has no size).
@@ -260,7 +260,7 @@ payload at the limit and one byte past it. Use jig 01's v5 golden and existing `
 not TooLarge. In `turn_read.rs`, `an_activity_size_marker_keeps_its_bytes_through_the_client` uses the same committed-turn
 fixture with a named page-budget deviation that fits the marker and owner but excludes the complete turn. Units under 20 ms,
 joint story under 0.5 s. Existing page goldens keep their words.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test turn_read -E 'test(=an_activity_size_marker_keeps_its_bytes_through_the_client)'`.
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test turn_read -E 'test(=an_activity_size_marker_keeps_its_bytes_through_the_client)'`.
 The real store's page marker reaches the application with its payload size, under 0.5 s.
 Don't: replace the marker with a cut, discard bytes on the typed transport, or change the single-read/document limits to
 make this test pass. Do not import a downstream application's rendering or tools.
@@ -286,7 +286,7 @@ Each observes one `Told::Page`, with no second exchange after its terminal, unde
 calls with the source fixture and the page's size with its payload length. Reuse the read-world's role and restart setup
 for access after ending. Gone and Busy remain small core/link terminal tests: use the existing `Loaded::Gone` and occupied
 load-slot paths, without inventing a retained horizon. Malformed frame and malformed smith bytes are already 03.2/03.3's tests.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test turn_read -E 'test(=a_page_sized_turn_is_read_whole_once)'`.
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test turn_read -E 'test(=a_page_sized_turn_is_read_whole_once)'`.
 The application's explicit follow-up read retrieves the same committed turn its page could only size; under 0.5 s.
 Don't: build retention, introduce a second bound to force a fixture, alter the fake LLM/providers, or duplicate fixture
 captures and polls from jig 02. Reconcile any shared helper at rebase; this step waits for no named-send capability.

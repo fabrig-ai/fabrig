@@ -1,14 +1,14 @@
 # Base runs
 
 At temper 27995fb75 and skein d120820, in clean detached worktrees, through
-`heavy`, with `NEXTEST_DOUBLE_SPAWN=0`. temper's run and skein's first run
+directly, with `NEXTEST_DOUBLE_SPAWN=0`. temper's run and skein's first run
 went at the same time (load 12 on 8 cores); skein's fuzzy suite was then
 run again alone, and that rerun is its base.
 
 ## temper, by package
 
 ```
-$ cd ~/src/tmp/planning/temper-base && heavy -- sh ~/src/tmp/planning/base-temper.sh
+$ cd ~/src/tmp/planning/temper-base && sh ~/src/tmp/planning/base-temper.sh
   # for each package p: cargo nextest run -p $p; cargo nextest run -p $p --profile fuzzy
 == temper-forge-forgejo default             Summary [   0.062s] 84 tests run: 84 passed
 == temper-engine-domain-forge-client default Summary [   0.051s] 76 tests run: 76 passed
@@ -30,7 +30,6 @@ $ cd ~/src/tmp/planning/temper-base && heavy -- sh ~/src/tmp/planning/base-tempe
   # the crates above have no fuzzy tests where no fuzzy line is shown (0 tests run)
 == workspace default                        Summary [   5.993s] 1879 tests run: 1879 passed, 1 skipped
 == workspace fuzzy                          Summary [  22.803s] 50 tests run: 50 passed (1 slow)
-heavy: task 732 (build) exit 0, waited 1s, ran 447s
 ```
 
 The package names of the worlds: `tests/engine/protocol-forge` is
@@ -59,34 +58,30 @@ the base. They move as they are in skein 03.4 (decisions.md).
 ## skein, the workspace
 
 ```
-$ cd ~/src/tmp/planning/skein-base && heavy -- sh ~/src/tmp/planning/base-skein.sh
+$ cd ~/src/tmp/planning/skein-base && sh ~/src/tmp/planning/base-skein.sh
   # three times: cargo nextest run --workspace; cargo nextest run --workspace --profile fuzzy
      Summary [  11.476s] 2578 tests run: 2578 passed (1 slow), 0 skipped
      Summary [  10.311s] 2578 tests run: 2578 passed, 0 skipped
      Summary [  11.037s] 2578 tests run: 2578 passed (1 slow), 0 skipped
   # (the fuzzy runs of this pass hit the 60 s budget under temper's run's load; rerun alone below)
-heavy: task 733 (build) exit 0, ran 354s
 ```
 
 The default suite's times are under load; temper's last gate gives skein
 6.66 s alone (findings/survey-06-tests.md).
 
 ```
-$ cd ~/src/tmp/planning/skein-base && heavy -- sh -c 'for i in 1 2 3; do NEXTEST_DOUBLE_SPAWN=0 cargo nextest run --workspace --profile fuzzy --no-fail-fast 2>&1 | grep -E "Summary|FAIL|TIMEOUT|SLOW|TERMINATING"; done'
+$ cd ~/src/tmp/planning/skein-base && sh -c 'for i in 1 2 3; do NEXTEST_DOUBLE_SPAWN=0 cargo nextest run --workspace --profile fuzzy --no-fail-fast 2>&1 | grep -E "Summary|FAIL|TIMEOUT|SLOW|TERMINATING"; done'
      Summary [  26.158s] 104 tests run: 104 passed (2 slow), 0 skipped
      Summary [  35.774s] 104 tests run: 104 passed (5 slow), 0 skipped
      Summary [  39.266s] 104 tests run: 104 passed (5 slow), 0 skipped
   # slow (> 20 s): skein-echo-world::fuzzy_scenarios (2), skein-io-world::fuzzy_scenarios (2), skein-io-world::fuzzy_cuts (1)
-heavy: task 732 (build) exit 0, waited 1s, ran 102s
 ```
 
 ## temper, the process tier
 
 ```
-$ cd ~/src/tmp/planning/temper-base && TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate scripts/proof-one-process.sh
-heavy: load 0.50 4.00 4.47 on 8 cores as it starts alone
+$ cd ~/src/tmp/planning/temper-base && TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 scripts/proof-one-process.sh
      Summary [ 145.694s] 19 tests run: 19 passed (8 slow), 0 skipped
-heavy: task 732 (gate) exit 0, waited 1s, ran 155s
 ```
 
 On the run's machines the binaries are under `$HOME/src/rust/tmp/temper/forgejo/` (README, Rules).
@@ -100,16 +95,16 @@ them, the temper 06 drafter among them, on the same tier:
   `a_running_engine_lends_the_record_temper_sign_in_kept` missed the
   sign-in world's 30 s deadline; 154.170 s, exit 100
   (`findings/base-temper-01.md`).
-- the planner's, `heavy --gate` at load 1.56, 02:05Z to 02:10Z (log
+- the planner's, the gate at load 1.56, 02:05Z to 02:10Z (log
   `~/src/tmp/logs/20261019T020951-750.log`): the first test,
   `a_change_lands_by_deliveries_with_every_poll_raised`, failed at
   5.229 s after its repository stage: skein-world's "binary exited
   while tree processes still ran".
 
-Three later runs at the same base, each in heavy's gate lane (alone in
+Three later runs at the same base, each in the isolated run (alone in
 the queue), passed: 19 of 19 in 149.083 s (`findings/base-temper-02.md`),
 145.248 s (`base-temper-06.md`) and 145.440 s (`base-temper-05.md`). The
 two failures came with drafting agents' builds beside them, before the
 gate lane held the queue; the tier is load-sensitive, and each session runs
-it once, through `heavy --gate`, as its Proof says. Its flakiness under load
+it once, as its Proof says. Its flakiness under load
 goes to the run's supervisor as a known risk (README, Rules).

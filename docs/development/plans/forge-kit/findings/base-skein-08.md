@@ -161,19 +161,18 @@ to their increments; no base count is presented as proof of new behavior.
 ### Base command 1
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world
+$ cargo nextest run -p temper-engine-protocol-forge-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
     Starting 47 tests across 5 binaries (3 binaries skipped via profile.default.default-filter)
      Summary [   0.117s] 47 tests run: 47 passed, 0 skipped
-heavy: task 743 (build) exit 0, waited 11s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011403-743.log
 exit: 0
 ```
 
 ### Base command 2
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy
+$ cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
     Starting 6 tests across 3 binaries (5 binaries skipped via profile.fuzzy.default-filter)
@@ -184,17 +183,15 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   1.878s] (5/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once
         PASS [   1.895s] (6/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_2
      Summary [   1.895s] 6 tests run: 6 passed, 0 skipped
-heavy: task 736 (build) exit 0, waited 2s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T011354-736.log
 exit: 0
 ```
 
 ### Base command 3
 
 ```text
-$ heavy cargo nextest list -p temper-engine-protocol-forge-world
+$ cargo nextest list -p temper-engine-protocol-forge-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
-heavy: task 737 (build) exit 0, waited 5s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011357-737.log
 exit: 0
 ```
 Parsed output counts: fake_protocol=5, hooks=19, machine=14, protocol=9; total47. Full names are in the inventory above.
@@ -202,7 +199,7 @@ Parsed output counts: fake_protocol=5, hooks=19, machine=14, protocol=9; total47
 ### Base command 4
 
 ```text
-$ heavy cargo nextest list -p temper-engine-protocol-forge-world --profile fuzzy
+$ cargo nextest list -p temper-engine-protocol-forge-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
 temper-engine-protocol-forge-world::fuzzy_hooks a_delivery_split_at_every_point_is_answered_alike
@@ -211,14 +208,13 @@ temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_en
 temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_2
 temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_3
 temper-engine-protocol-forge-world::fuzzy_protocol stories_through_cut_streams_answer_each_call_once
-heavy: task 741 (build) exit 0, waited 10s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011402-741.log
 exit: 0
 ```
 
 ### Base command 5
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test machine
+$ cargo nextest run -p temper-engine-protocol-forge-world --test machine
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
     Starting 14 tests across 1 binary
@@ -237,14 +233,13 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.029s] (13/14) temper-engine-protocol-forge-world::machine a_redirect_drops_the_path_and_answers_unavailable
         PASS [   0.021s] (14/14) temper-engine-protocol-forge-world::machine an_idle_connection_closes_and_the_next_call_connects
      Summary [   0.034s] 14 tests run: 14 passed, 0 skipped
-heavy: task 734 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011353-734.log
 exit: 0
 ```
 
 ### Base command 6
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test hooks
+$ cargo nextest run -p temper-engine-protocol-forge-world --test hooks
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
     Starting 19 tests across 1 binary
@@ -268,14 +263,13 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.004s] (18/19) temper-engine-protocol-forge-world::hooks two_deliveries_on_one_connection_are_both_answered_and_hinted
         PASS [   0.020s] (19/19) temper-engine-protocol-forge-world::hooks a_recorded_forgejo_push_signed_by_the_world_is_hinted
      Summary [   0.024s] 19 tests run: 19 passed, 0 skipped
-heavy: task 742 (build) exit 0, waited 10s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T011402-742.log
 exit: 0
 ```
 
 ### Base command 7
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy --test fuzzy_machine
+$ cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy --test fuzzy_machine
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
     Starting 4 tests across 1 binary
@@ -284,27 +278,25 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   1.712s] (3/4) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_2
         PASS [   1.746s] (4/4) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once
      Summary [   1.746s] 4 tests run: 4 passed, 0 skipped
-heavy: task 739 (build) exit 0, waited 7s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T011359-739.log
 exit: 0
 ```
 
 ### Base command 8
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy --test fuzzy_hooks
+$ cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy --test fuzzy_hooks
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
     Starting 1 test across 1 binary
         PASS [   0.189s] (1/1) temper-engine-protocol-forge-world::fuzzy_hooks a_delivery_split_at_every_point_is_answered_alike
      Summary [   0.189s] 1 test run: 1 passed, 0 skipped
-heavy: task 738 (build) exit 0, waited 6s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011358-738.log
 exit: 0
 ```
 
 ### Base command 9
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test fake_protocol
+$ cargo nextest run -p temper-engine-protocol-forge-world --test fake_protocol
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
     Starting 5 tests across 1 binary
@@ -314,17 +306,15 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.009s] (4/5) temper-engine-protocol-forge-world::fake_protocol the_component_starts_and_lists_items_through_the_fakes_bytes
         PASS [   0.010s] (5/5) temper-engine-protocol-forge-world::fake_protocol pull_for_answers_the_open_pull_when_the_lookup_names_a_closed_one
      Summary [   0.010s] 5 tests run: 5 passed, 0 skipped
-heavy: task 735 (build) exit 0, waited 1s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T011353-735.log
 exit: 0
 ```
 
 ### Base command 10
 
 ```text
-$ heavy cargo clippy -p temper-engine-protocol-forge-world --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-protocol-forge-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
-heavy: task 740 (build) exit 0, waited 9s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011401-740.log
 exit: 0
 ```
 
@@ -335,15 +325,14 @@ form finds one. The final no-temper check must have no matches (rg exit1);
 its base form deliberately finds the old names (96 matching lines, exit0).
 
 ```text
-$ heavy rg -n '^    "tests/engine/protocol-forge",$' Cargo.toml
+$ rg -n '^    "tests/engine/protocol-forge",$' Cargo.toml
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 13:    "tests/engine/protocol-forge",
-heavy: task 735 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011757-735.log
 exit: 0
 ```
 
 ```text
-$ heavy rg -n -i temper tests/engine/protocol-forge
+$ rg -n -i temper tests/engine/protocol-forge
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/protocol-forge/tests/fuzzy_machine.rs:2:use temper_engine_domain_forge_client::api::Error;
 tests/engine/protocol-forge/tests/fuzzy_machine.rs:3:use temper_engine_protocol_forge_world::{
@@ -353,7 +342,6 @@ tests/engine/protocol-forge/tests/protocol.rs:4:use temper_engine_domain_forge_c
 tests/engine/protocol-forge/tests/protocol.rs:5:use temper_engine_domain_forge_issues as issues;
 tests/engine/protocol-forge/tests/protocol.rs:6:use temper_engine_protocol_forge_world::{
 tests/engine/protocol-forge/tests/protocol.rs:10:use temper_fake_forge_protocol::Route;
-heavy: task 734 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011757-734.log
 exit: 0
 ```
 
@@ -367,7 +355,7 @@ counts. Qualified import searches below distinguish actual consumers. The
 retired temper.old tree is excluded. The extra mixed_calls search follows.
 
 ```text
-$ heavy --tail 1000 python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 from collections import Counter
 import re, subprocess, json
 root=Path("/srv/data/git/runner/src"); base=root/"tmp/planning/temper-base"; world=base/"tests/engine/protocol-forge"
@@ -391,7 +379,6 @@ for pat in patterns:
   print(json.dumps({"pattern":pat,"repo":repo.name,"lines":len(rows),"files":dict(counts)}))
 '
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: task 733 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011756-733.log
 exit: 0
 ```
 
@@ -555,9 +542,8 @@ exit: 0
 | writer_settings | 3 | 0 | 0 | 0 | 0 |
 
 ```text
-$ heavy rg -n '\bmixed_calls\b' /srv/data/git/runner/src/tmp/planning/temper-base /srv/data/git/runner/src/tmp/planning/skein-base /srv/data/git/runner/src/jig /srv/data/git/runner/src/smith /srv/data/git/runner/src/hearth --glob '*.rs' --glob '!**/temper.old/**'
+$ rg -n '\bmixed_calls\b' /srv/data/git/runner/src/tmp/planning/temper-base /srv/data/git/runner/src/tmp/planning/skein-base /srv/data/git/runner/src/jig /srv/data/git/runner/src/smith /srv/data/git/runner/src/hearth --glob '*.rs' --glob '!**/temper.old/**'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: task 734 (build) exit 1, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012410-734.log
 exit: 1
 ```
 
@@ -719,7 +705,7 @@ A scratch-only dev-dependency supplied temper-engine-forge-client-world::LIMITS.
 ### Initial scratch clippy and correction
 
 ```text
-$ heavy cargo clippy -p temper-engine-protocol-forge-world --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-protocol-forge-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-08
 error: this method could have a `#[must_use]` attribute
    --> tests/engine/protocol-forge/src/joint.rs:139:12
@@ -731,7 +717,6 @@ error: this function could have a `#[must_use]` attribute
 453 + #[must_use]
 454 | pub fn checks(passes: u32) -> raw::Checks {
 error: could not compile `temper-engine-protocol-forge-world` (lib) due to 2 previous errors
-heavy: task 733 (build) exit 101, waited 0s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T011728-733.log
 exit: 101
 ```
 
@@ -739,20 +724,18 @@ The failure identified the two home-forced must_use attributes on newly
 public Joint::busy and joint::checks. Added those attributes; no lint exception.
 
 ```text
-$ heavy cargo clippy -p temper-engine-protocol-forge-world --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-protocol-forge-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-08
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.28s
-heavy: task 733 (build) exit 0, waited 1s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T011827-733.log
 exit: 0
 ```
 
 After adding the final mixed_calls declaration, compiled the same crate again:
 
 ```text
-$ heavy cargo clippy -p temper-engine-protocol-forge-world --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-protocol-forge-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-08
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.87s
-heavy: task 733 (build) exit 0, waited 1s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T012410-733.log
 exit: 0
 ```
 
@@ -766,13 +749,12 @@ The fake retains its already exercised profile; no shipped application profile
 is added. The future flattened Shared is owned by 03.1 and checked again at ready.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test profile_probe
+$ cargo nextest run -p temper-engine-protocol-forge-world --test profile_probe
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-08
     Finished `test` profile [unoptimized + debuginfo] target(s) in 2.98s
     Starting 1 test across 1 binary
         PASS [   0.002s] (1/1) temper-engine-protocol-forge-world::profile_probe the_client_world_limits_admit_the_protocol_fixture
      Summary [   0.002s] 1 test run: 1 passed, 0 skipped
-heavy: task 734 (build) exit 0, waited 0s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T011728-734.log
 exit: 0
 ```
 
@@ -786,14 +768,13 @@ discrepancy; fail if none. The first discrepancy is seed26, as printed.
 No component/fake production behavior was changed for this probe.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test cost_probe --success-output immediate
+$ cargo nextest run -p temper-engine-protocol-forge-world --test cost_probe --success-output immediate
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-08
     Finished `test` profile [unoptimized + debuginfo] target(s) in 4.49s
     Starting 1 test across 1 binary
         PASS [   0.086s] (1/1) temper-engine-protocol-forge-world::cost_probe a_partial_request_can_cost_more_than_the_fake_served
     seed=26 cost=2 served=1 starts=2 result=Err(Timeout)
      Summary [   0.086s] 1 test run: 1 passed, 0 skipped
-heavy: task 733 (build) exit 0, waited 0s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T011538-733.log
 exit: 0
 ```
 
@@ -908,7 +889,7 @@ may consume randoms differently. Nothing is pending the designer.
 ### Recount, including tests
 
 ```text
-$ heavy wc -l tests/engine/protocol-forge/src/{machine,hooks,peer,pipe,joint,fixtures}.rs tests/engine/protocol-forge/tests/{machine,hooks,fuzzy_machine,fuzzy_hooks,fake_protocol}.rs tests/engine/forge/client/src/world.rs tests/engine/forge/client/tests/memory.rs tests/engine/domain/tests/memory.rs
+$ wc -l tests/engine/protocol-forge/src/{machine,hooks,peer,pipe,joint,fixtures}.rs tests/engine/protocol-forge/tests/{machine,hooks,fuzzy_machine,fuzzy_hooks,fake_protocol}.rs tests/engine/forge/client/src/world.rs tests/engine/forge/client/tests/memory.rs tests/engine/domain/tests/memory.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
    320 tests/engine/protocol-forge/src/machine.rs
    243 tests/engine/protocol-forge/src/hooks.rs
@@ -925,7 +906,6 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
    360 tests/engine/forge/client/tests/memory.rs
    325 tests/engine/domain/tests/memory.rs
   3526 total
-heavy: task 733 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014425-733.log
 ```
 
 08.1 retains about2,000 moved lines from the earlier per-file inventory;
@@ -989,11 +969,10 @@ crate wiring; the ready check compiles against the landed dependencies.
 Unchanged World and loss-hook signatures reuse the earlier scratch evidence.
 
 ```text
-$ heavy cargo clippy -p skein-tls-world --all-targets -- -D warnings
+$ cargo clippy -p skein-tls-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-08-revision
     Checking skein-tls-world v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-08-revision/tests/tls)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.99s
-heavy: task 733 (build) exit 0, waited 1s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T015033-733.log
 ```
 
 ```text
@@ -1014,7 +993,7 @@ first runs in08.5; no measured byte margin is invented.
 A local read-only Python check found: 08-machine-world371 lines, increments
 87/62/59/59/41 lines; 09-protocol-world308 lines, increments44/76/49/77.
 All nine have every required field, Proof lines start with their layer and
-heavy command, and new Sizes are at most300 including tests. All53 names
+command, and new Sizes are at most300 including tests. All53 names
 from this finding's moved/retained inventory and all original reference
 signatures remain in the replacement files. The scratch is absent. The
 original08-component-worlds.md is deleted; README/decisions/code-organization

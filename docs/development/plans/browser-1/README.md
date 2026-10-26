@@ -61,8 +61,7 @@ sessions wait on nothing at the start.
 
 **How many at once:** three on hel8 (4 cores, 7 GB, 36 GB free), of
 which at most two are temper's: a temper worktree's target holds about
-10 GB after the suite (skein's about 0.7 GB), and `heavy` queues the
-builds. At the start: skein 01, temper 02 and temper 01. Then temper 03 in the slot temper 01
+10 GB after the suite (skein's about 0.7 GB). At the start: skein 01, temper 02 and temper 01. Then temper 03 in the slot temper 01
 frees (its three increments to temper 02's four), and temper 04 in the
 slot temper 02 frees, once temper 01.2, 02.3 and skein 01.4 have landed.
 skein 01's slot then stays empty: a third temper target would leave
@@ -148,20 +147,20 @@ loopback, with no network.
 skein's browser suite, in a worktree of skein:
 
 ```
-heavy sh -c 'cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web && cargo run -p skein-ui-bundle -- --module target/wasm32-unknown-unknown/debug/skein_ui_example_shell_web.wasm --name skein_ui_example_shell_web --prefix /bundle/ --stylesheet examples/ui/shell-web/notes.css --out target/ui-example-bundle --noscript "Notes needs WebAssembly and scripts." && cargo build -p skein-ui-example-server'
-heavy sh -c 'SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle" cargo nextest run -p skein-ui-web-tests --profile browser -E "test(=back_and_forward_move_between_the_list_and_a_note)"'
+sh -c 'cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web && cargo run -p skein-ui-bundle -- --module target/wasm32-unknown-unknown/debug/skein_ui_example_shell_web.wasm --name skein_ui_example_shell_web --prefix /bundle/ --stylesheet examples/ui/shell-web/notes.css --out target/ui-example-bundle --noscript "Notes needs WebAssembly and scripts." && cargo build -p skein-ui-example-server'
+sh -c 'SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle" cargo nextest run -p skein-ui-web-tests --profile browser -E "test(=back_and_forward_move_between_the_list_and_a_note)"'
 ```
 
 temper's browser suite, from temper 04.1, in a worktree of temper:
 
 ```
-heavy sh -c 'scripts/bundle.sh target/temper-bundle && cargo build -p temper'
-heavy sh -c 'TEMPER_TEST_BUNDLE="$(pwd)/target/temper-bundle" cargo nextest run -p temper-client-browser-world --profile browser -E "test(=<the story>)"'
+sh -c 'scripts/bundle.sh target/temper-bundle && cargo build -p temper'
+sh -c 'TEMPER_TEST_BUNDLE="$(pwd)/target/temper-bundle" cargo nextest run -p temper-client-browser-world --profile browser -E "test(=<the story>)"'
 ```
 
 ## Process tier
 
-`heavy --gate scripts/proof-one-process.sh`, in a checkout of temper's
+`scripts/proof-one-process.sh`, in a checkout of temper's
 `origin/main`, with `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` set:
 temper 01 changes the clients' listener that `temper serve` runs. hel8
 held neither binary at first, and the tier's first test stopped
@@ -239,18 +238,16 @@ skein, for skein's) at `origin/main`, the plan's worktrees removed.
    ready, running or blocked.
 2. Each session file's "Done when" holds, in the sessions table's order.
 3. temper's gate builds the bundle and runs the browser tier:
-   `heavy --gate scripts/check.sh` exits 0; then `heavy sh -c 'test
+   `scripts/check.sh` exits 0; then `sh -c 'test
    "$(cargo nextest list -p temper-client-browser-world --profile
-   browser --message-format oneline | wc -l)" -eq 10'` exits 0 (inside
-   `heavy`, whose own last line would count).
+   browser --message-format oneline | wc -l)" -eq 10'` exits 0.
 4. The process tier: with `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER`
-   exported (Prerequisites, 3), `heavy --gate
-   scripts/proof-one-process.sh` exits 0. At the base it ran 19 tests in
+   exported (Prerequisites, 3), `scripts/proof-one-process.sh` exits 0. At the base it ran 19 tests in
    142.5 s (`findings/base-runs.md`, 10b).
 5. The test-time aims (Pulse), measured once, three runs a profile:
 
    ```
-   heavy --gate -- bash -c 'set -o pipefail; export NEXTEST_DOUBLE_SPAWN=0; for p in default default default fuzzy fuzzy fuzzy; do cargo nextest run --workspace --profile $p 2>&1 | sed -nE "s/^ *PASS \[ *([0-9.]+)s\] \([^)]*\) ([^: ]+)[: ].*/\1 \2/p" | awk "\$2 ~ /^temper(-service|-client-domain|-client-view|-client-shell-terminal|-client-world|-client-browser-world)?\$/ {t += \$1; n += 1} END {if (n == 0) exit 1; print t}" || exit 1; done'
+   bash -c 'set -o pipefail; export NEXTEST_DOUBLE_SPAWN=0; for p in default default default fuzzy fuzzy fuzzy; do cargo nextest run --workspace --profile $p 2>&1 | sed -nE "s/^ *PASS \[ *([0-9.]+)s\] \([^)]*\) ([^: ]+)[: ].*/\1 \2/p" | awk "\$2 ~ /^temper(-service|-client-domain|-client-view|-client-shell-terminal|-client-world|-client-browser-world)?\$/ {t += \$1; n += 1} END {if (n == 0) exit 1; print t}" || exit 1; done'
    ```
 
    prints six sums, and exits non-zero when a run fails or reads no

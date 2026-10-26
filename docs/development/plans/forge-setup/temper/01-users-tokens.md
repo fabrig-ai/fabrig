@@ -135,9 +135,9 @@ fn a_top_level_user_keeps_admin_flag_and_full_name() {
     assert_eq!(fixtures::decode(decoder, body, &limits).document, Ok(Document::User(user)));
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-forge-forgejo -p temper-codecs-world -p temper-fake-forge-protocol`: the site admin's
-recorded `GET /user` reads `is_admin` true; the 7 tests of `tests::accounts` (`heavy cargo nextest run -p temper-forge-forgejo -E
-'test(/tests::accounts::/)' --no-tests=fail`); under 30 s once built; joint, `heavy cargo nextest run
+Proof: unit, `cargo nextest run -p temper-forge-forgejo -p temper-codecs-world -p temper-fake-forge-protocol`: the site admin's
+recorded `GET /user` reads `is_admin` true; the 7 tests of `tests::accounts` (`cargo nextest run -p temper-forge-forgejo -E
+'test(/tests::accounts::/)' --no-tests=fail`); under 30 s once built; joint, `cargo nextest run
 -p temper-engine-protocol-forge-world --test fake_protocol` (`tests/fake_protocol.rs:6`): the real component starts against the
 fake's bytes, reading `GET /user` through the account kind from an answer of four members, and lists; under 30 s. No higher layer
 yet: nothing sends a Put or reaches the boolean arm, and 01.2 connects them.
@@ -162,7 +162,7 @@ masked scheme follows the header's). Conformance: `lib.rs:22-27`, new `setup.rs`
 beside `exchange`), `cases.rs:10-33,43,295` (`Recorder`, `send`, `record`, `flags`: `pub(crate)` or `&mut Secrets`), `facts.rs:44`
 (`case`, `Case` `pub(crate)`). `tests/codecs`: `src/forgejo.rs` (`profile_limits`, `setup_cases`), new
 `tests/forgejo_setup.rs`, `Cargo.toml` (+`temper-service`, `temper-engine-protocol-forge`; regenerate `Cargo.lock`, a client-api
-hotspot, with `heavy cargo check -p temper-codecs-world --tests`; never merge it).
+hotspot, with `cargo check -p temper-codecs-world --tests`; never merge it).
 Shape: `Request::{UserOf, CreateUser}` (Sketches). Targets: `GET /api/v1/users/{login}`; `POST /api/v1/admin/users`
 `{"username","email","password","full_name","must_change_password"}` in that order, all five required by the server side. Both
 answer `Document::User` (the account kind). A password past `string_bytes` is `Malformed::TooLong` naming `password`.
@@ -223,10 +223,10 @@ fn setup_requests_encode_as_the_tool_sent_them() {
 ```
 Proof: process, the record command, after
 `export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64`
-on its own line: `heavy --gate sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance &&
+on its own line: `sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance &&
 cargo run -p forgejo-conformance -- --component --scratch target/forgejo-conformance --out tools/forgejo-conformance'`
 shows 10 `holds` lines of 01.2's facts (counted by the first words of their names, `grep -cE '^holds setup-(create-user|created-user|user-of|a-non-admin|the-admin-token|every-recorded|a-user-made)'`), the 40
-`holds component-` unchanged, and 10 new `setup-user-*` directories; at most 120 s alone, on the committed code (the gate lane refuses a tree with changes); world, `heavy cargo
+`holds component-` unchanged, and 10 new `setup-user-*` directories; at most 120 s alone, on the committed code (the gate lane refuses a tree with changes); world, `cargo
 nextest run -p temper-codecs-world` replays them through both sides; under 30 s built.
 Don't: scan a fresh secret raw or register it after the capture; keep of a recording more than the new `setup-*`
 directories and the `setup-` lines of `facts.txt` (the base's churn, measurements.md 4, is restored with `git checkout`);
@@ -300,7 +300,7 @@ fn a_made_token_holds_its_value_and_shows_only_its_length() {
 ```
 Proof: process, the record command of 01.2 (its `export` line first) shows 15 more `holds` lines, those of 01.3's facts (by the first
 words of their names, as 01.2's are), the 40 `holds component-` (now under the narrow token), and 14 `setup-token-*` and 3 `setup-scope-*`
-directories; at most 150 s alone; world, `heavy cargo nextest run -p temper-codecs-world` replays the tokens'
+directories; at most 150 s alone; world, `cargo nextest run -p temper-codecs-world` replays the tokens'
 transcripts through both sides; under 30 s built.
 Don't: put a credential in a `Request`; put a token's value or its last eight in a fact line, a message or a kept transcript; use the
 bot's password; use the bot's token on a token route.
@@ -392,4 +392,4 @@ fake's (01.3).
 - `test "$(grep -c '^    Put,$' crates/temper-forge-forgejo/src/request.rs)" = 1` (`Method::Put`).
 - `test -z "$(git ls-files 'crates/temper-forge-forgejo/*.rs' 'testing/temper-fake-forge-protocol/*.rs' 'testing/temper-throwaway-forgejo/*.rs' 'tools/forgejo-conformance/*.rs' 'tests/codecs/*.rs' | xargs wc -l | awk '$1 > 800 && $2 != "total"')"`.
 - `test "$(git log origin/main --grep='^Plan: forge-setup$' -p --format= -- '*.rs' | grep -E '^\+' | grep -ciE 'actual|genuine|legacy|compat|workaround')" = 0`.
-- `heavy --gate scripts/check.sh` passes.
+- `scripts/check.sh` passes.

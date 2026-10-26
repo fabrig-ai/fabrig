@@ -267,7 +267,7 @@ where they differ.
   comment naming 16.5, which removes both handlers. The engine reads no
   template for it (`domain/engine.md`, 11.1: "No decision reads one").
 - **16.1, Test shape** gains two focused tests in
-  `tests/client-protocol/src/front/effects.rs`: the implementer's
+  `tests/client-protocol/src/front/effects.rs`: the author's
   `starting_a_chat_assigns_the_chat_templates_label`, and
   `setting_a_goal_assigns_the_goal_templates_label`, each reading the
   expected label from `jig_core_world::fixtures::templates()`.
@@ -471,9 +471,9 @@ the commit body.
   `testing/jig-client-test-protocol-wire/schema/test-client-v1.schema` and
   `testing/jig-test-store/schema/test-connector-v1.schema`. Each is edited
   in place, under its version, as "Choices" says and jig `73de61fc8` did;
-  then `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p
+  then `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p
   jig-client-wire-world --test drift --test test_client_wire` and
-  `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p
+  `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p
   jig-store-codecs-world --test drift` write their `src/generated/` code
   and `golden/` bytes, which land with the schemas.
 - **16.5, the party's proposals stay:** `goal_decide`
@@ -699,7 +699,7 @@ jig 12's file; `start_chat`, `end_chat`, `conversations` and the front's
 `task_queries_read` counter are added there and in the front; the
 button's name is the reference UI's own.) Ceilings: world under 0.5 s,
 joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_person_s_chats_list_live_then_ended_by_last_activity)'` once:
 the live chat lists first, and the ended one appears below it after one
 read of the ended group from the store's index. Bound: 1 s.
@@ -756,7 +756,7 @@ Test shape: `tests/client/tests/stories.rs`:
 goals the first owner set, by `shapes::set_goal`; the fake person moves
 the second up; the engine admits one request; the board's next delivery
 lists it first). Ceilings as 16.1.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(moving_a_goal_up_reorders_the_board_in_one_compound_request)'`
 once: one keyed request is made (`requests_made()` 1), and the board's
 first line becomes the moved goal. Bound: 1 s.
@@ -801,7 +801,7 @@ cancels one and moves the other; one compound request);
 `tests/client-protocol/tests/protocol.rs`: the existing
 `a_person_signs_in_by_the_printed_link_and_starts_a_chat` keeps its
 assertions (`chats_made()` 1). Ceilings as 16.1.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(=a_person_signs_in_by_the_printed_link_and_starts_a_chat)'` once:
 the person's chat is made by a `Create` from the chat template and the
 real engine counts one chat. Bound: 1 s.
@@ -868,7 +868,7 @@ people v3 edited in place. Tag 13, the unread results' index by
 Test shape: tests of what goes are removed with it, or moved to the task
 query's tests where they check a behaviour the query keeps (README,
 Rules); no new test. Ceilings unchanged.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_person_s_chats_list_live_then_ended_by_last_activity) |
 test(moving_a_goal_up_reorders_the_board_in_one_compound_request)'` once:
 both lists still read through task queries with the list code gone.
@@ -960,7 +960,7 @@ Test shape: removed tests' behaviours that the operations keep move to
 them (closing a chat becomes `shapes::close_chat`'s compound in
 `tests/core`'s stories, kept under their names and expected values);
 others are removed. Ceilings unchanged.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(=a_person_signs_in_by_the_printed_link_and_starts_a_chat) |
 test(closing_a_chat_by_shapes_moves_its_delegate_then_cancels_it_after_its_grace)'`
 once: chats are made and closed through the operations with the shape
@@ -975,7 +975,7 @@ Removes: the table's records and the engine's shape asks above,
 ## Interface sketches
 
 Checked at the plan's base: the queries compiled in a scratch crate
-with jig 22's sketch types (`heavy cargo clippy -p w7-sketch
+with jig 22's sketch types (`cargo clippy -p w7-sketch
 --all-targets -- -D warnings` clean); checked again at the ready check.
 The reference UI reaches the contract's types through `jig_client`'s
 re-export of them.

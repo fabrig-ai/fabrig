@@ -3,7 +3,7 @@
 The questions this plan raised and their answers first; then the
 decisions this plan rests on, numbered; the supervisor's rulings during
 the run follow them, from 101; the choices the user may veto close the
-file. The director answered for the user (development.md, 2.7).
+file. The review answered for the user (development.md, 2.7).
 
 This plan is the second part of temper's tools plan
 (`docs/development/plans/tools/`), whose decisions and answers it
@@ -26,7 +26,7 @@ names them.
    main does. The account-first step comes with area 5's tools: a
    `later.md` row, and the item under "Not planned". testing.md 2.4 and
    2.6 and tools.md 11.3 and 11.4 are reworded at the designer's next
-   pass. By the director, 2026-10-19.
+   pass. Decided, 2026-10-19.
 
 2. **The fake LLM's parts from the live-text and accounts plans.**
    testing.md 2.4 names skein's fake LLM with several credentials,
@@ -37,7 +37,7 @@ names them.
    both on skein's main, so the plan awaits no live-text or accounts
    step. The real loop's fake-LLM helper passes the peer's own types
    through, so that their parts are usable once they land, and a
-   `later.md` row names the stories that will use them. By the director,
+   `later.md` row names the stories that will use them. Decided,
    2026-10-19.
 
 3. **A signal to `temper ctl`.** tools.md 8.2 says "the tools catch
@@ -52,7 +52,7 @@ names them.
    more, and exits with 128 + the signal's number (130 for SIGINT, 143
    for SIGTERM), as a shell shows a process the signal killed. tools.md
    8.2 is reworded at the designer's next pass, beside question 1's
-   rewordings. By the director, 2026-10-19.
+   rewordings. Decided, 2026-10-19.
 
 4. **The shared fake forge and the checked world.** In temper 13's
    forge stories, hosted fake git writes into skein's forge peer's shared
@@ -65,7 +65,7 @@ names them.
    says so at the designer's next pass. A `later.md` row asks skein for a
    checked world that knows a shared handle's owner, and the plan's
    landing puts it in skein's `STATUS.md` under "Not planned", so that
-   the forge stories become checked once it lands. By the director,
+   the forge stories become checked once it lands. Decided,
    2026-10-19.
 
 5. **Three failures with no words** (tools.md 6.3): the link down past
@@ -75,7 +75,7 @@ names them.
    did not answer within 30 s`, `temper ctl: DIRECTORY is not signed in`
    and `temper ctl: DIRECTORY does not exist` (temper 05.1, 05.6).
    Answer: as drafted. Only `sign-in` creates DIRECTORY, so an act on a
-   mistyped path never leaves a directory behind. By the director,
+   mistyped path never leaves a directory behind. Decided,
    2026-10-19.
 
 6. **`pending`'s first-sent words** (tools.md 5.6, "wall time"). No tools
@@ -83,7 +83,7 @@ names them.
    `first sent HH:MM UTC` through the tools' `document::utc`
    (`pub(super)`, visible to a sibling `render::pending`), the clock
    words the documents print; JSON keeps jig's integer (temper 05.5).
-   Answer: as drafted. By the director, 2026-10-19.
+   Answer: as drafted. Decided, 2026-10-19.
 
 ### For the designer
 
@@ -192,7 +192,7 @@ pass:
     suite's median is 9.2 s against 8 s, and the suite's wall time is
     one test's, `fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure`
     (`tests/engine/domain`), 7.8 s alone, the median of three
-    (`findings/fuzzy-walking.md`). At the director's request, one step,
+    (`findings/fuzzy-walking.md`). At the request, one step,
     which needs nothing, profiles it and fixes the cause in the code or
     the test (`findings/fuzzy-walking.md`), never by a budget, fewer
     cases than its claim needs, or optimized builds (testing-strategy.md,
@@ -203,8 +203,8 @@ pass:
     6 (`later.md`). temper 14 therefore shards the story into eight tests
     of eight seeds, each under the fuzzy ceiling, with the same seeds and
     the same compare at every iteration, and names the cause in its doc;
-    the CPU it costs is unchanged. Asked of the director (its inbox's
-    question 7, 2026-10-19 12:55Z). Answer: (c), by the director, 2026-10-19: temper
+    the CPU it costs is unchanged. Asked of the review (its inbox's
+    question 7, 2026-10-19 12:55Z). Answer: (c), 2026-10-19: temper
     14 shards the story, and each shard's doc names the cause (the `{:?}`
     of both worlds at every iteration, 493 MB of text, 84% of the time);
     the digest is its own small plan, next, right after this one, starting
@@ -292,13 +292,13 @@ pass:
      - Size: 08.2's 458 lines against ~300 land without asking (development.md, 8.6's rule: within its Files and ruling 104's edit).
 
 110. **temper 06.1: a budget to find why Online is unmet** (plan defect, temper 06's block of 2026-10-19T14:25:21Z).
-     Plan defect: ruling 108 told 06.1 to raise an unmet `Online` rather than find its cause, and implementer.md, 8.7 allows a failing test "at most three times for it, or within the budget a step to find a cause names": 06.1's three runs went to the `Steps(1)` stall. The same block twice (`Online(ClientId(0))` unmet, 14:17:55Z and 14:25:21Z) becomes the README's rule "A world failure's cause, within a budget": eight more runs and 40 minutes per unnamed symptom, in its world through `heavy`, diagnostics removed before the commit; a fix within the step's Files and rulings needs no question.
+     Plan defect: ruling 108 told 06.1 to raise an unmet `Online` rather than find its cause, and the implementation rules allows a failing test "at most three times for it, or within the budget a step to find a cause names": 06.1's three runs went to the `Steps(1)` stall. The same block twice (`Online(ClientId(0))` unmet, 14:17:55Z and 14:25:21Z) becomes the README's rule "A world failure's cause, within a budget": eight more runs and 40 minutes per unnamed symptom, in its world diagnostics removed before the commit; a fix within the step's Files and rulings needs no question.
 
      - **06.1 finds why the agent's link is not shown `Live` by 0.5 s,** within that budget, from now. Where to look first, in this order: whether `root.client().link().state` ever leaves `SignedOut`/`Starting` after `StartUnlinked` and `SignIn { with: With::Transport }` (the person's arm also steps `domain::Event::Start` after them, the agent's `Event::Start` only those two); whether the agent's requests reach the `Joint` as the person's do (`duty` of its `Request::Client`, the front's bind for its `ClientId` and party); whether `build` emits patches when the state changes (the world shows a tree only then, after `take`, in each callback).
      - A fix within 06.1's Files and rulings 103, 107 and 108 lands without a question. Past the budget, or for a fix outside them (jig, the tools' crate beyond `Root::unlinked`), raise it with the cause found, or each run's finding.
 
 111. **temper 08.3: sign-in reads FILE as given** (plan defect, temper 08's block of 2026-10-19T14:35:28Z).
-     Plan defect: tools.md 8.1 says `sign-in` reads the link "from FILE", and a FILE given to a command is the path as given, absolute or relative to the working directory; 05.3's Shape read it by the directory's `FileIo`, whose only root is DIRECTORY's parent, and the kernel resolves every path beneath its root, refusing an absolute one with `Escape`. The fix is session 05's, as the block proposes.
+     Plan defect: tools.md 8.1 says `sign-in` reads the link "from FILE", and a FILE given to a command is the path as given, absolute or relative to the working directory; 05.3's Shape read it y's `FileIo`, whose only root is DIRECTORY's parent, and the kernel resolves every path beneath its root, refusing an absolute one with `Escape`. The fix is session 05's, as the block proposes.
 
      - **A new step, `temper-05.s1`,** `temper/05.s1-file-root.md`: `arguments::file_root` names the directory of the FILE a call reads; the entry point opens it, as `Startup.file_parent`; the host adopts it as a second root of the directory's `FileIo` and loads FILE's leaf beneath it. It runs in session 05 after 05.4; its proof is a unit test, and an absolute FILE on the real kernel is 08.3's sign-in story.
      - **08.3 waits for it,** its Shape kept: `sign-in <scratch>/link`, absolute. Its world gives a call that names a FILE a second startup root, `file_parent`, from `arguments::file_root`; its README Needs and order name the step.
@@ -309,13 +309,13 @@ pass:
      Design answer, temper 2f97ab8bb (testing.md 6.1; the plan's README, Rules and Done when 5; 06, 08, 09 and 13's Questions; later.md; decisions.md, For the user L). Point 5's step is `temper-13.s1` (`temper/13.s1-one-process-cost.md`), its Files the README's Hotspots exception; it measures by instrumentation, since `perf` is not installed and `kernel.perf_event_paranoid` is 3.
 
 
-     1. **`main` does not miss the 4 s.** 6.1's guides sit "within" the suites' rules, which are "wall time on the development machine, run idle" (testing-strategy.md 8). The 5.059 s was measured in the build lane, beside another task. I measured idle through `heavy --gate`, at `94df159d3` (08.2 landed), with four runs after one build. The runs took 4.189, 3.972, 3.845 and 3.908 s; the median of the last three is **3.91 s**. Per world: client 0.92–0.99 s (not 2.0), one-process 1.54–1.67, forge protocol 0.61–0.67, reconcile 0.26–0.30, terminal 0.16, git 0.15–0.18, real loop 0.09–0.10. No test is past its own guide.
-        `heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3 4; do cargo nextest run -p temper-client-shell-terminal -p temper-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-one-process-world -p temper-real-loop-world -p temper-worker-protocol-git-world --profile measure -j 1 >below-$i.log 2>&1; done'`
+     1. **`main` does not miss the 4 s.** 6.1's guides sit "within" the suites' rules, which are "wall time on the development machine, run idle" (testing-strategy.md 8). The 5.059 s was measured in the build lane, beside another task. I measured idle at `94df159d3` (08.2 landed), with four runs after one build. The runs took 4.189, 3.972, 3.845 and 3.908 s; the median of the last three is **3.91 s**. Per world: client 0.92–0.99 s (not 2.0), one-process 1.54–1.67, forge protocol 0.61–0.67, reconcile 0.26–0.30, terminal 0.16, git 0.15–0.18, real loop 0.09–0.10. No test is past its own guide.
+        `sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3 4; do cargo nextest run -p temper-client-shell-terminal -p temper-client-world -p temper-engine-protocol-forge-world -p temper-forge-setup-reconcile-world -p temper-one-process-world -p temper-real-loop-world -p temper-worker-protocol-git-world --profile measure -j 1 >below-$i.log 2>&1; done'`
      2. **testing.md 6.1 now says how the sum is measured and whose it is:**
-        - "each test's own time, run alone on the idle development machine … with `--profile measure -j 1` through `heavy --gate`, the median of three runs. Beside another task, it measures that task."
+        - "each test's own time, run alone on the idle development machine … with `--profile measure -j 1` the median of three runs. Beside another task, it measures that task."
         - "The sum is the worlds' guide, never a landing's. A test within its own guide lands. A plan that adds to these worlds gives the sum at its base and at its end, with the real loop's part apart. When the worlds together pass the sum, their slowest tests are profiled, then made cheaper at the cause the profile shows or moved to the fuzzy suite, by steps a plan names."
         - Reconcile's world joins the list (section 1 places it below the domain, and 08.2 counted it).
-     3. **The sum binds this plan as a guide, and the plan's stories will pass it.** The headroom is 0.09 s, and the plan adds sixteen real-loop and fourteen client stories (README, Pulse). The real loop joined the 4 s on 2026-10-18 (`a1c9f50b8`), and the 4 s stayed. Counting the real loop apart would raise a guide, and "Raising a budget is an explicit decision, not a fix" (testing-strategy.md 8). So it is the user's: decisions.md, For the user L, now with the director. I recommend (b): the real loop is counted apart, its sum is each plan's Pulse aim as the user accepts it (for this plan, C), and the other worlds keep 4 s.
+     3. **The sum binds this plan as a guide, and the plan's stories will pass it.** The headroom is 0.09 s, and the plan adds sixteen real-loop and fourteen client stories (README, Pulse). The real loop joined the 4 s on 2026-10-18 (`a1c9f50b8`), and the 4 s stayed. Counting the real loop apart would raise a guide, and "Raising a budget is an explicit decision, not a fix" (testing-strategy.md 8). So it is the user's: decisions.md, For the user L, now with the review. I recommend (b): the real loop is counted apart, its sum is each plan's Pulse aim as the user accepts it (for this plan, C), and the other worlds keep 4 s.
      4. **Until L is decided** (README, Rules, "The worlds' sum"; 06, 08, 09 and 13's Questions):
         - Each step lands within its own tests' guides.
         - No test is moved, cut or merged for the sum.
@@ -354,14 +354,6 @@ pass:
      - **`park_runs`**: for an assignment that delivers messages (the `More` message, the close's), the Joint first commits one turn whose `read` is the assignment's last message, through `temper_engine_domain_world::protocol::turn` with an opaque body, as `fixtures::replied_chat` already commits one without a codec; then it parks as ruling 113 says. An assignment with no messages parks with no turn. No wait for 06.3: no codec is needed, since nothing decodes the body.
      - **Don't**, now: commit a turn other than the one that reads an assignment's messages, or decode its body.
      - **The `request limit` fix** in `crates/temper-client-tools/src/root.rs` is on `main` already: 05.4's 4445f2d9a adds `client.reclaim` after each routing drain, the same two lines. Rebase 06.2 onto `origin/main` and drop its own copy.
-
-116. **kit 31ae5ab** (kit fix).
-     Kit fix: the run's kit moves from skein 2bd29bd to 31ae5ab, "plan wake starts a fresh designer when none joined". The run met its defect at 2026-10-19T14:27:04Z: the first design question found "no designer recorded" (supervision.md, "Question, … no designer to wake"). `<run>/kit/scripts/dev/test-plan` passed at 31ae5ab.
-
-     It brings 15 earlier skein commits. Those that change what the run's roles meet:
-     - ebf24d5: `land` refuses a branch that adds a test function named with `_and_`. The README's Done when 3 already says no test this plan adds is so named; the plan's `_and_` names (10's `a_persons_change_lands_on_the_forge_and_is_found_after_a_restart`, 13.s1's three stories) name tests already on `main`, which no step renames.
-     - 4134983: `plan check` refuses an adopted retrospective proposal not yet applied; the run is past its check.
-     - 2cedfab, e002687, 0b006b8, baaebb7: the pulse and the metrics read the run differently; no role acts on them during the run.
 
 117. **One behaviour per test: act once, assert after it, bounds named** (steer of 2026-10-19T14:50:52Z).
      Steer of the check of 2026-10-19T14:50:52Z, point 1: the README's rule "One behaviour per test" now also says that a test sets up, acts once, then asserts that behaviour; that nothing is asserted on the way to the step under test; and that a bound has both sides, from named constants. Seen in 05.4's `crates/temper-client-shell-cli/src/tests.rs` (4445f2d9a): `two_writes_get_two_ordered_terminals` asserts `!f.act_sent()` before the step it waits for and then `f.store_count() >= first + 2`, a bound with one side computed by the test; `host_bounds_cover_its_holders` asserts `* 2 + 5` with both numbers unnamed. It applies to the tests each session adds or edits from its next increment. Landed tests are unchanged.
@@ -551,7 +543,7 @@ pass:
      - Any further world of both ends that a later step adds joins the same
        list in that step, named in its commit body; a crate that exists for
        the client alone takes the `temper-client` prefix instead.
-     - 08.3 lands past its Size without asking (implementer.md, "Past the
+     - 08.3 lands past its Size without asking (the implementation rules, "Past the
        Size"); its report gives the count by file.
 
 128. **Session 10's signal check counts matches** (plan defect, temper 10's block of 2026-10-19T16:06:45Z).
@@ -581,7 +573,7 @@ pass:
 
      That rule reads: "A focused world test that fails with a symptom its
      three diagnostic runs did not name gets eight more runs and 40 minutes
-     for that symptom, reproduced in its world through `heavy`, diagnostics
+     for that symptom, reproduced in its world diagnostics
      removed before the commit. A fix within the step's Files and rulings
      needs no question; past the budget, or for a fix outside them, raise it
      with the cause found, or each run's finding." The four runs so far
@@ -602,11 +594,11 @@ pass:
      - 09.4's independent work may go on while a diagnostic run waits in
        the queue, and never instead of the budget.
 
-130. **Real-loop stories kept to smoke** (director's ruling of 2026-10-19).
+130. **Real-loop stories kept to smoke** (ruling of 2026-10-19).
      Reverses: ruling 129 (2026-10-19T16:37Z), its last point: 09.4 has no work left to go on with.
      Amends: `09-loop-stories.md` (intro, Read first, Choices, Rules, 09.2, 09.3, 09.4, the sketches, Done when); `13-landing.md` 13.4 and Done when; `code-organization.md`; README's hotspot row; `08-real-loop.md`, `06-client-stories.md`, `05-ctl.md` where they name 09.4.
 
-     The director's ruling, relaying the user: the real-loop stories "should follow the testing pyramid principles and they are mostly smoke, it's a way to slowly climb up confidence, but extensive behaviour and corner cases should always be testable and tested near where it belongs". The real loop keeps one end-to-end path per feature: S1 drain, S2 chat, S4 close and wait, S5 restart (landed); 09.2's lost answer made once; 09.3's two acts taking the lock in turn; 13.2's forge delivery; 13.4's adopt through ctl; 13.5's chat landing its change.
+     The user's rule: the real-loop stories "should follow the testing pyramid principles and they are mostly smoke, it's a way to slowly climb up confidence, but extensive behaviour and corner cases should always be testable and tested near where it belongs". The real loop keeps one end-to-end path per feature: S1 drain, S2 chat, S4 close and wait, S5 restart (landed); 09.2's lost answer made once; 09.3's two acts taking the lock in turn; 13.2's forge delivery; 13.4's adopt through ctl; 13.5's chat landing its change.
 
      Dropped, each step keeping its code and its lower tests (on temper 58a712d69):
      - 09.2 `a_killed_calls_request_is_answered_by_the_next_act_on_its_directory`, with `calls::{kept, kept_lines, nameless}` and `Arg::Kept`: `tests/client`'s `agent_recovery.rs` (`a_chat_cut_by_a_lost_answer_is_resent_with_its_kept_line`, `..._asked_again_under_its_name_is_made_once`).
@@ -641,7 +633,7 @@ pass:
      The designer's answer, landed in temper 2f71813ad, decides the user's ruling into the design:
 
      Landed in temper `2f71813ad` ("The real loop is smoke; its corner cases
-     are tested below"), with `land --docs`. real-loop's run takes it; no step's
+     are tested below"),. real-loop's run takes it; no step's
      Scope changes beyond ruling 130's.
 
      testing.md 2.4's intro now says: "It is smoke, the testing pyramid's top,
@@ -679,7 +671,7 @@ pass:
      rows (STATUS.md's "The LLM accounts' tests"; later.md's area 5 row).
 
 133. **Named positions, and the gate's check of them** (hourly check of 2026-10-19T16:52:04Z).
-     Reverses: ruling 131 (2026-10-19T16:48Z), its instruction 1's "give it to session 09's implementer, who found the cause": development.md 7.3, step 4 holds.
+     Reverses: ruling 131 (2026-10-19T16:48Z), its instruction 1's "give it to session 09's author, who found the cause": development.md 7.3, step 4 holds.
      Amends: the README's rule "A setup written once, and rows carry data"; `temper/09-loop-stories.md`'s Steps; new `temper/09.s2-named-positions.md`; `temper/09.s1-resume-behind-refusal.md` line 3 (its number, 131).
 
      From the hourly check of 2026-10-19T16:52:04Z, bare numbers in a story's body, sent a second time (08.4's `tools.rs`, 8 hits at temper f4f5e43b3: `grep -rnE '\b(task|watching|join|number)\([0-9]+\)|calls\(\)\[[0-9]+\]' tests/real-loop/tests | wc -l` → 8), become, as development.md 14.4 says:
@@ -797,22 +789,15 @@ pass:
      A further copy of these (another `admit` user, another literal position) is refreshed the same way and listed in the commit body.
 
 139. **temper 13.3's proof after the sign-in fix** (process, temper 13's block of 2026-10-20T11:29:24Z).
-     Ruling 139: the process proof's failure, `native signing failed: Again` at `crates/temper/tests/support/person.rs` in `a_change_lands_by_deliveries_with_every_poll_raised` before any landing turn, has its cause fixed on `origin/main` after 13.3's branch was cut: e9bb42960 "Send a link sign-in answered Again after a backoff" (11:20:10Z, owner work) makes the native process person resend the same link after `Signing::Again`, at 100 ms doubling to 2 s within `START_WITHIN`; 13.3's branch starts at 787649ae4 (11:14:40Z) and lacks it. So no retry without a change: rebase 13.3 onto `origin/main`, which is that change aimed at the cause its log names (implementer 8.8), and run the full process proof once, as 13.3's Proof says. If it fails again on `Again`, or on anything else, block with both logs.
+     Ruling 139: the process proof's failure, `native signing failed: Again` at `crates/temper/tests/support/person.rs` in `a_change_lands_by_deliveries_with_every_poll_raised` before any landing turn, has its cause fixed on `origin/main` after 13.3's branch was cut: e9bb42960 "Send a link sign-in answered Again after a backoff" (11:20:10Z, owner work) makes the native process person resend the same link after `Signing::Again`, at 100 ms doubling to 2 s within `START_WITHIN`; 13.3's branch starts at 787649ae4 (11:14:40Z) and lacks it. So no retry without a change: rebase 13.3 onto `origin/main`, which is that change aimed at the cause its log names (author 8.8), and run the full process proof once, as 13.3's Proof says. If it fails again on `Again`, or on anything else, block with both logs.
 
 140. **13.5 diagnoses the landing's stall within ruling 110's budget** (process, temper 13's block of 2026-10-20T12:25:22Z).
-     Ruling 140: 13.5 diagnoses the stall itself, under the README's rule "A world failure's cause, within a budget" (ruling 110), which answers the question: "A focused world test that fails with a symptom its three diagnostic runs did not name gets eight more runs and 40 minutes for that symptom, reproduced in its world through `heavy`, diagnostics removed before the commit. A fix within the step's Files and rulings needs no question; past the budget, or for a fix outside them, raise it with the cause found, or each run's finding." 13-landing.md's "raise it before changing a fixture" is met: the stall was raised, and the fixture stays as it is until the cause is named.
+     Ruling 140: 13.5 diagnoses the stall itself, under the README's rule "A world failure's cause, within a budget" (ruling 110), which answers the question: "A focused world test that fails with a symptom its three diagnostic runs did not name gets eight more runs and 40 minutes for that symptom, reproduced in its world diagnostics removed before the commit. A fix within the step's Files and rulings needs no question; past the budget, or for a fix outside them, raise it with the cause found, or each run's finding." 13-landing.md's "raise it before changing a fixture" is met: the stall was raised, and the fixture stays as it is until the cause is named.
 
      - The symptom: in `a_chat_lands_its_change_on_the_forge`, the fifth call, `task N --tree --json` for the chat's task, has no exit at the world's deadline, while the delegated task stays `Active(Due)` with its forge `PendingStep` at `Branch` (branch None, CI Unknown) and no coding-agent LLM request comes; adoption printed "Branch protection could not be read."
      - Session 13 has eight more world runs and 40 minutes for it. Its diagnostics may go into any of temper's crates and `tests/real-loop`, and are removed before any commit; skein and jig are read at temper's pins, never edited. Print the peer's observations before `Seen` consumes them, as the session's "keep the trace, the peer's observations and the last stdout" asks.
      - Name which of the three is the first cause: the tree read unanswered, the delegate held at `Branch`, or the protection read the fake forge does not answer; one run's finding for each is enough to order them.
      - A cause whose fix lies inside 13.5's Files (the world's `landing`, `forge`, `calls`) is fixed there and named in the commit body. One outside them (temper-client-tools, temper-service, temper-engine-*, temper-fake-git, skein's fake forge) is raised as a block with the cause found, before any such file is changed; the ruling then adds the step that fixes it.
-
-141. **kit 9ab88f69** (kit fix).
-     Kit fix: the run's kit moves from skein 74e48147 to 9ab88f69, which takes two fixes for defects the run has met, and two changes to owners.md that touch no role of this run:
-     - 88a5e38d "heavy: let a build's load settle before the gate": after the other groups drain, heavy waits up to `HEAVY_SETTLE` (120 s by default) for the one-minute load to fall below the core count. The run met it in 13.4's measure: `logs/temper-13/measure-13-4-1.log:2: heavy: load 8.36 9.94 10.76 on 8 cores as it starts alone`.
-     - 7227d909 "land: report heavy refusals separately from task failures": `land` exits 9 when heavy refuses and nothing ran. The run met it in 13.3: `reports/temper-13-20261020T112900Z.md:7: Heavy's disk-floor refusal was resolved by cargo clean in this worktree.`
-
-     `heavy -- <run>/kit/scripts/dev/test-plan` passed at 9ab88f69 (logs/20261020T123633-3831.log). Gates keep the default settling wait; a `land` exit 9 is a refusal to resolve, never a failed gate to diagnose.
 
 142. **The git stories' shapes, and the gate's check of them** (steer of 2026-10-20T12:27:37Z).
      Amends: new `temper/13.s2-git-test-shapes.md`; `temper/13-landing.md`'s Steps; the README's order of steps.
@@ -830,12 +815,7 @@ pass:
      - `agent::roots` hands every agent one descriptor, `<config's parent>/worker-root`, while the service names each Start directory `<worker root>/workspaces/<directory.root>/<directory.name>` (`temper-service/src/worker.rs`, `start_values`), and the shipped agent adopts supplied descriptors "in Start order" (smith 6747e66, `smith-agent-shell/src/agent_shell.rs`, `Resources::roots`). Without supplied roots it opens the host's path itself (`skein_shell::open_root`). So the world hands the agent a root above the checkout, and the coder's `README.md` is "path not found".
      - 13.5 fixes `agent::{agent, roots}` so that each agent adopts, in Start order, the directory the service names for it, as the shipped agent would open it, and names the fix and the other real-loop stories it touches in the commit body. `temper-service`, smith and skein stay unchanged; a fix that needs one of them, or `skein_world`, is raised as a block with the cause, before it is changed.
      - The fixes inside 13.5's Files made under ruling 140 (the tools' row bound, the delegate decoder, the builder window) stay, each named in the commit body with the run that found it.
-     - The budget starts afresh for what comes after this fix: a further symptom gets the README rule's three diagnostic runs, then eight runs and 40 minutes, through `heavy`, diagnostics removed before the commit. Then 13.5's Proof, clippy, the dependent tests and the three measurements, as its session file says.
-
-144. **No other task's environment** (the director's rule of 2026-10-20T13:04Z).
-     Amends: the README's "Rules of this plan" (new rule "No other task's environment").
-
-     The director's security rule of 2026-10-20T13:04Z, to every owner and supervisor: heavy queues each task on pueue with its caller's whole environment, and `pueue status --json` and `pueue log` print every queued task's environment, other sessions' included; Codex tasks on another machine ran them, and local Claude messaging tokens reached Codex's context. Until o/hygiene's heavy fix lands on this machine, no prompt given to Codex or any other agent may run `pueue status`, `pueue log`, or read another process's environment (`/proc/*/environ`, `ps e`), and every Codex prompt says so; heavy's own output and its log path are read instead. The README's new rule "No other task's environment" holds it for every role of this run and each prompt it writes, until a ruling says the fix is in the run's kit.
+     - The budget starts afresh for what comes after this fix: a further symptom gets the README rule's three diagnostic runs, then eight runs and 40 minutes, diagnostics removed before the commit. Then 13.5's Proof, clippy, the dependent tests and the three measurements, as its session file says.
 
 145. **temper-13.s3 keeps a wake that overtakes a fresh-read chain** (plan defect, temper 13's block of 2026-10-20T13:14:27Z).
      Ruling 145: the cause 13.5 found lies in `temper-engine-domain-forge`, outside its Files, so, as ruling 140 says, this ruling adds the step that fixes it: `temper-13.s3`, "A wake that overtakes a fresh-read chain is kept" (`temper/13.s3-wake-across-fresh-chain.md`), in session 13, before 13.5 goes on.
@@ -850,14 +830,6 @@ pass:
 
      From the hourly check of 2026-10-20T13:33:20Z: 13.s3's commit cf16adacb grows `crates/temper-engine-domain-forge/src/tests.rs` from 785 lines on `main` (`git show origin/main:crates/temper-engine-domain-forge/src/tests.rs | wc -l`) to 828, past the README's `file-lines: 800`. 13.s3's Files gain `src/tests/change.rs`, a module beside `tests/adoption.rs`, `tests/fixtures.rs` and `tests/purpose.rs` (`git ls-tree --name-only origin/main crates/temper-engine-domain-forge/src/tests/`), for this step's tests; any further test the step adds goes there too. Its two tests also take testing-strategy.md, section 10's "A setup written once" (they repeat `fixtures::opening()`, `fixtures::missing_pull` and the Created answer) and "Named fixtures and sizes" (the expected `Wall::from_nanos(130_000_000_000)`), as the steer of this check says.
 
-147. **kit a46635c8** (kit fix).
-     Reverses: ruling 144's "until a ruling says the fix is in the run's kit" (2026-10-20T13:04Z), which has come.
-     Amends: the README's "Rules of this plan": "No other task's environment" becomes "No other process's environment".
-
-     The kit moves from skein 9ab88f69 to a46635c8, "fix(heavy): omit credentials from queued task environments", for the defect the run met in ruling 144: heavy queued each task with its caller's whole environment, and pueue printed it to every client. a46635c8 leaves credential-shaped names (CLAUDE_CODE_*, *TOKEN*, *SECRET*, *PASSWORD*, *PASSWD*, *API_KEY*, *CREDENTIAL*) out of `pueue add`. The kit's heavy already held that blob (98b753b9), patched in place at 13:19:59Z; the kit's HEAD now names it. It changes nothing else the run uses: `git diff --stat 9ab88f69 a46635c8 -- scripts/dev docs/foundation` lists scripts/dev/heavy and scripts/dev/test-plan-numbers.sh only. `kit/scripts/dev/test-plan` failed once in the build lane on time alone ("the process layer ran 88 s, past 40 s and its 5 s margin", after 138 s waiting behind builds, logs/20261020T133850-11.log), and passed run alone in the gate lane (logs/20261020T134046-18.log).
-
-     The director, 2026-10-20T13:34Z, to every owner: the pueue stopgap is lifted; heavy's fix is on all five machines and o/hygiene cleaned pueue of credential-shaped variables. "pueue status and pueue log are allowed again, though heavy's own output and log paths are still the better read. Two rules stand for good: never read another process's environment (/proc/*/environ, ps e), and launch Codex with umask 077 so its logs are private." The README's rule now says that. Each prompt a role writes for an agent keeps the line on other processes' environments; a further copy of the old rule's text (a context file, a prompt) takes the new rule's.
-
 148. **An overtaken chain sends no decision** (plan defect, temper 13's block of 2026-10-20T14:17:29Z).
      Ruling 148: a plan defect in ruling 145's 13.s3 Shape, which let the overtaken chain decide before it stepped again. On `main` at 3d677cddc, `finish_step` calls `decide_step` first and only then, when `pending.woken`, `step_change`: the chain that read the pull Missing sends a Wait, the root's `change_decision` takes it as the due procedure step (jig's `procedure_due` is Some only while a step is Due, and the step's apply sets it Idle), and the fresh chain's Ready finds `procedure_due` None and returns at forge_route.rs's `let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };`.
 
@@ -866,7 +838,7 @@ pass:
      New step `temper-13.s4`, "An overtaken chain sends no decision" (`temper/13.s4-overtaken-chain-sends-nothing.md`): in `crates/temper-engine-domain-forge/src/domain.rs`'s `finish_step`, a woken pending step calls no `decide_step` and starts the next step from Branch; the test `an_overtaking_open_outcome_restarts_the_fresh_chain` in `src/tests/change.rs` asserts no `ChangeDecision` from the overtaken chain and one Ready from the fresh one. Proof: unit; budget three runs and 20 minutes. 13.5 needs it, rebases onto it, and its budget starts afresh. The diagnosis also saw "frozen record count fits" and a 30 s retry, both during the stall the stale Wait made; if either remains after 13.s4, 13.5 reports it with its run, as ruling 140 says.
 
 149. **13.5 diagnoses the review-stage stall within the README's budget** (process, temper 13's block of 2026-10-20T15:12:31Z).
-     Ruling 149: 13.5 diagnoses the review-stage stall itself, under the README's rule "A world failure's cause, within a budget" (ruling 110), which answers the question in its own words: "A focused world test that fails with a symptom its three diagnostic runs did not name gets eight more runs and 40 minutes for that symptom, reproduced in its world through `heavy`, diagnostics removed before the commit. A fix within the step's Files and rulings needs no question; past the budget, or for a fix outside them, raise it with the cause found, or each run's finding." Ruling 148's "13.5 reports it with its run" is met by this block; the symptom is a new one, after 13.s4, with the review rule that 13.5's Scope ("CI, review and land") and "What it waits on" ("three agent spawns (chat, coding, review)") call for.
+     Ruling 149: 13.5 diagnoses the review-stage stall itself, under the README's rule "A world failure's cause, within a budget" (ruling 110), which answers the question in its own words: "A focused world test that fails with a symptom its three diagnostic runs did not name gets eight more runs and 40 minutes for that symptom, reproduced in its world diagnostics removed before the commit. A fix within the step's Files and rulings needs no question; past the budget, or for a fix outside them, raise it with the cause found, or each run's finding." Ruling 148's "13.5 reports it with its run" is met by this block; the symptom is a new one, after 13.s4, with the review rule that 13.5's Scope ("CI, review and land") and "What it waits on" ("three agent spawns (chat, coding, review)") call for.
 
      - The symptom: in `a_chat_lands_its_change_on_the_forge`, with the review rule in `landing::fixture`, the fake forge's observation ceiling panics, "frozen record count fits" (skein-fake-peers `forge/observe.rs`, `Peer::reserve`, at temper's skein pin 9ab88f69), at 9.697 s (logs/20261020T151008-163.log). That assert fires when the peer has recorded `face.limits.observations` requests: it marks a stall in which the client keeps reading the forge, not its cause. The ceiling stays as it is.
      - Session 13 has eight more world runs and 40 minutes for it, from now. Its diagnostics may go into any of temper's crates and `tests/real-loop`, and are removed before any commit; skein and jig are read at temper's pins, never edited. Print the peer's observations before the ceiling stops the run: what the client keeps reading names the stage it waits on.
@@ -890,14 +862,14 @@ pass:
      Reverses: nothing.
      Amends: nothing.
 
-     Done when 5's worlds below the domain, run with ruling 150's six packages at temper 8f2228ce8, four runs after one build through `heavy --gate` (task 93, ran alone for 33 s, logs/20261020T160401-93.log), the last three counted: the other worlds 4.04, 4.09 and 4.02 s, median **4.04 s, past testing.md 6.1's 4 s by 0.04 s**; the real loop 3.23, 3.29 and 3.21 s, median 3.23 s, within its 6 s, so the ceiling does not go to the user; no real-loop story past its 1 s in any run. Each run passed 125 of 125 tests.
+     Done when 5's worlds below the domain, run with ruling 150's six packages at temper 8f2228ce8, four runs after one build (task 93, ran alone for 33 s, logs/20261020T160401-93.log), the last three counted: the other worlds 4.04, 4.09 and 4.02 s, median **4.04 s, past testing.md 6.1's 4 s by 0.04 s**; the real loop 3.23, 3.29 and 3.21 s, median 3.23 s, within its 6 s, so the ceiling does not go to the user; no real-loop story past its 1 s in any run. Each run passed 125 of 125 tests.
 
      The miss is recorded for the user, as the README's Rules ("The worlds' sums below the domain hold no step") and ruling 112 have it: each test within its own guide landed, and only a step the supervisor names makes a test cheaper for a sum. The three slowest of the other worlds' tests, by their median of the three runs:
      1. `temper-one-process-world::one_process an_adopted_repository_gets_its_change_pushed_through_git`, 0.899 s (0.902, 0.899, 0.888), which was 0.87 s at the plan's base (ruling 112's answer, point 1);
      2. `… a_person_signs_in_by_the_printed_link_and_a_chat_is_answered`, 0.264 s;
      3. `… a_signal_mid_run_drains_and_the_next_start_settles_the_claims`, 0.253 s.
 
-     The adoption story alone is 22% of the sum. Work on it belongs to temper's owner, past this run (the director's message of 2026-10-20T10:03Z: new work goes to owners). The run is done either way (Done when 5).
+     The adoption story alone is 22% of the sum. Work on it belongs to temper's owner, past this run (the message of 2026-10-20T10:03Z: new work goes to owners). The run is done either way (Done when 5).
 
 152. **The supervisor's scratch worktrees are removed** (process, the cleanup's block of 2026-10-20T16:06:53Z).
      The supervisor's two ready-check scratch worktrees, wt/temper-09r and wt/temper-10r, held only the checks' sketches (09's at 28aef8f70, 10's at 60e76617d); the steps they checked landed long since (09.1 to 09.3, 10.1 and 10.2). The supervisor saved each diff to tmp/scratch-worktrees/ and removed both with `git worktree remove --force`. wt/ is empty: the release goes on.
@@ -905,7 +877,7 @@ pass:
 ## For the user
 
 The choices below have long-term consequences; each is the planner's,
-and the user, or the director, may veto it before the run:
+and the user, may veto it before the run:
 
 - **A. The process tier's five proofs, the exceptions to the real loop**
   (temper 10; tools.md 11.4; design question 3). The real loop hosts
@@ -921,7 +893,7 @@ and the user, or the director, may veto it before the run:
   (testing.md 2.6). No proof of this plan is on the live tier. A veto
   proves the five by units of `crates/temper` and leaves the executable
   to the tier's existing stories.
-  Decision: accepted, by director, 2026-10-19 (each proof is what only
+  Decision: accepted, 2026-10-19 (each proof is what only
   the executable shows).
 - **B. The forge stories run unchecked** (temper 13; design question
   4). Hosted fake git writes into skein's forge peer's shared handle, so
@@ -931,7 +903,7 @@ and the user, or the director, may veto it before the run:
   13.5's landing), eight tests. Every other real-loop story is checked. They become
   checked once skein's checked world knows a shared handle's owner
   (`later.md`; skein's STATUS.md, "Not planned").
-  Decision: accepted, by director, 2026-10-19 (design question 4).
+  Decision: accepted, 2026-10-19 (design question 4).
 - **C. The real loop's cost** (testing.md 6.1). The plan adds sixteen
   real-loop stories to temper's focused suite, each aiming at 1 s,
   unoptimized; each increment that adds one runs it alone three times
@@ -940,7 +912,7 @@ and the user, or the director, may veto it before the run:
   `fuzzy_landing.rs`), never excepted. The plan's packages go from 9.90 s summed at the base
   to at most 37 s focused, the sum of the Proof bounds; about 20 s is
   expected (README, Pulse).
-  Decision: accepted, by director, 2026-10-19 (the testing vision: the
+  Decision: accepted, 2026-10-19 (the testing vision: the
   real loop over all of temper; a story's cost is cut or moved, never
   excepted).
 - **D. Skein's forge peer, awaited from forge-kit** (1). temper 13
@@ -948,34 +920,34 @@ and the user, or the director, may veto it before the run:
   another machine; the rest of the plan waits for no other plan. A veto builds a
   forge host in temper (the tools plan's draft 07), a second fake forge
   beside skein's.
-  Decision: accepted, by director, 2026-10-19.
+  Decision: accepted, 2026-10-19.
 - **E. The person on Forgejo's web is the box's** (6). The process
   tier's landing keeps the person temper's support makes today; signing
   in on Forgejo's web, changing the password and making a read-only
   token come with the QA loop (`later.md`). A veto needs skein's
   throwaway Forgejo to sign in on the web (a session cookie, the form
   and its CSRF token: a skein plan and a repin) before temper 10.
-  Decision: accepted, by director, 2026-10-19 (the web sign-in comes
+  Decision: accepted, 2026-10-19 (the web sign-in comes
   with the QA loop).
 - **F. One landing in the process tier** (7). The native client's
   landing stays the tier's one landing on real git and CI; the tools'
   landing is the real loop's (temper 13), and the tier's cut act stops
   at the adoption. A veto adds a second landing to the tier, about 86 s
   alone, past its 3 min aim.
-  Decision: accepted, by director, 2026-10-19.
+  Decision: accepted, 2026-10-19.
 - **G. Another party's kept request waits for area 3** (9).
-  Decision: accepted, by director, 2026-10-19.
+  Decision: accepted, 2026-10-19.
 - **H. A wait across an engine restart waits for the faults row** (10).
-  Decision: accepted, by director, 2026-10-19.
+  Decision: accepted, 2026-10-19.
 - **I. `hinted` set short in the stories** (11).
-  Decision: accepted, by director, 2026-10-19.
+  Decision: accepted, 2026-10-19.
 - **J. Sign-out's zero-byte `token`** (14). A veto makes sign-out erase
   the file, a change to jig's native shell and a repin.
-  Decision: accepted, by director, 2026-10-19.
+  Decision: accepted, 2026-10-19.
 - **K. The fuzzy walking story sharded until the state digest lands** (12):
   temper 14 spreads its cost over eight shards, each naming the cause,
   and the digest, the next plan, cures it.
-  Decision: accepted, by director, 2026-10-19 (decision 12).
+  Decision: accepted, 2026-10-19 (decision 12).
 - **L. How testing.md 6.1 counts the real loop** (the designer's answer
   of 2026-10-19). 6.1 counts the real-loop world among the worlds below
   the domain, together at most 4 s (the real loop joined that sum on
@@ -989,7 +961,7 @@ and the user, or the director, may veto it before the run:
   1 s; (c) no sum: the per-test guides and the 15 s rule alone. The
   designer recommends (b). Until it is decided: measured, never moved,
   cut or merged for the sum (README, Rules, "The worlds' sum").
-  Decision: (b), by user, 2026-10-19, as amended by the director: the
+  Decision: (b), by user, 2026-10-19, as amended : the
   real loop is counted apart, with a standing ceiling of 6 s for its
   sum, in place of an aim per plan, and each story at most 1 s. The
   other worlds below the domain keep 4 s. The ceiling is sized to smoke

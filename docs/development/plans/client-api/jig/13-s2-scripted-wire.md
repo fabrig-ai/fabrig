@@ -50,7 +50,7 @@ Files, at jig `795ca6bc3` (follow each by its name):
   but `Refused`, to the wire and back; encoding `Refused` returns an
   `Invalid` of its own (default name `Invalid::EntranceRefusal`), and
   no `FamilyAnswer` decodes to it;
-- each match on a changed enum that `heavy cargo check --workspace
+- each match on a changed enum that `cargo check --workspace
   --all-targets --keep-going --message-format short` names (the crate's
   users: `testing/jig-test-service`, `tests/client-protocol`,
   `tests/client-wire`); list each in the commit body.

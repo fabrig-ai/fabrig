@@ -140,7 +140,7 @@ should move the pin and repair nothing (findings/base-repin.md).
 - **Waiting on a command, on Codex:** the one way to wait on a running
   command is `// @exec: {"yield_time_ms": 300000}`, never repeated
   `write_stdin` polls. In client-api, 4,830 polls cost 21% of the
-  implementers' input.
+  authors' input.
 - **The code graph** is not used for a repository until the supervisor
   has re-indexed it past its `origin/main` (AGENTS.md) and a steer says
   so. Until then, search with `rg` in the worktree.
@@ -293,16 +293,16 @@ browser client decodes, and skein 01 the request table under it.
 **skein's browser suite,** as skein's `scripts/check.sh` builds it:
 
 ```sh
-heavy sh -c 'cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web && cargo run -p skein-ui-bundle -- --module target/wasm32-unknown-unknown/debug/skein_ui_example_shell_web.wasm --name skein_ui_example_shell_web --prefix /bundle/ --stylesheet examples/ui/shell-web/notes.css --out target/ui-example-bundle --noscript "Notes needs WebAssembly and scripts." && cargo build -p skein-ui-example-server'
-heavy sh -c 'SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle" cargo nextest run --workspace --profile browser -E "test(=<name>)"'
+sh -c 'cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web && cargo run -p skein-ui-bundle -- --module target/wasm32-unknown-unknown/debug/skein_ui_example_shell_web.wasm --name skein_ui_example_shell_web --prefix /bundle/ --stylesheet examples/ui/shell-web/notes.css --out target/ui-example-bundle --noscript "Notes needs WebAssembly and scripts." && cargo build -p skein-ui-example-server'
+sh -c 'SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle" cargo nextest run --workspace --profile browser -E "test(=<name>)"'
 ```
 
 **jig's browser suite,** as jig's `scripts/check.sh` builds it (where
 the two differ, `scripts/check.sh` wins):
 
 ```sh
-heavy sh -c 'cargo build --target wasm32-unknown-unknown -p jig-client-test-shell-web && cargo build -p skein-ui-bundle && target/debug/skein-ui-bundle --module target/wasm32-unknown-unknown/debug/jig_client_test_shell_web.wasm --name jig_client_test_shell_web --prefix /bundle/ --stylesheet crates/jig-client-shell-web/jig.css --stylesheet testing/jig-client-test-shell-web/jig_client_test_shell_web.css --pictures jig=crates/jig-client-shell-web/pictures --pictures jig-test=testing/jig-client-test-shell-web/pictures --files testing/jig-client-test-shell-web/files --noscript "jig needs WebAssembly and scripts." --out target/jig-test-bundle && cargo build -p jig-test'
-heavy sh -c 'JIG_TEST_BUNDLE="$(pwd)/target/jig-test-bundle" cargo nextest run --workspace --profile browser -E "test(=<name>)"'
+sh -c 'cargo build --target wasm32-unknown-unknown -p jig-client-test-shell-web && cargo build -p skein-ui-bundle && target/debug/skein-ui-bundle --module target/wasm32-unknown-unknown/debug/jig_client_test_shell_web.wasm --name jig_client_test_shell_web --prefix /bundle/ --stylesheet crates/jig-client-shell-web/jig.css --stylesheet testing/jig-client-test-shell-web/jig_client_test_shell_web.css --pictures jig=crates/jig-client-shell-web/pictures --pictures jig-test=testing/jig-client-test-shell-web/pictures --files testing/jig-client-test-shell-web/files --noscript "jig needs WebAssembly and scripts." --out target/jig-test-bundle && cargo build -p jig-test'
+sh -c 'JIG_TEST_BUNDLE="$(pwd)/target/jig-test-bundle" cargo nextest run --workspace --profile browser -E "test(=<name>)"'
 ```
 
 The bundle's path is absolute: nextest runs each test from its package's
@@ -316,9 +316,8 @@ throwaway Forgejo on loopback; no agent signs in anywhere.
 ## Process tier
 
 In a checkout of each repository's `origin/main`, outside its gate:
-temper `heavy --gate scripts/proof-one-process.sh`, with
-`TEMPER_FORGEJO` set (its stories start a throwaway Forgejo); jig `heavy
---gate scripts/proof-one-process.sh`. This plan adds no process story;
+temper `scripts/proof-one-process.sh`, with
+`TEMPER_FORGEJO` set (its stories start a throwaway Forgejo); jig `scripts/proof-one-process.sh`. This plan adds no process story;
 jig 01.3 and temper 01.1 run one or two of them as their Proofs.
 
 ## Repin
@@ -440,7 +439,7 @@ hearth and temper. Each prints nothing, or what its item says.
     decisions.md's rulings, for the user; the run is done either way.
 
     ```
-    heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep Summary; cargo nextest run --workspace --profile fuzzy 2>&1 | grep Summary; done'
+    sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep Summary; cargo nextest run --workspace --profile fuzzy 2>&1 | grep Summary; done'
     ```
 
 14. Nothing outside these items is checked.

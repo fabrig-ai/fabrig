@@ -116,7 +116,7 @@ fn a_jobs_end_reaches_the_connector_as_a_hint_for_its_commit() {
     assert_eq!(ended, 1, "one job end for the head's one context, none for its pending report");
 }
 ```
-Proof: world, `heavy cargo nextest run -p temper-engine-forge-world --test hooks`: the fake CI's pass of
+Proof: world, `cargo nextest run -p temper-engine-forge-world --test hooks`: the fake CI's pass of
 `temper/51` reaches the connector as one `Commit(head)` hint, and an issue's key as `Item(n)` with `Some(key)`.
 Bound 0.5 s per test. Highest layer that reads these hooks: the fake's protocol layer sends them signed only
 in 05.1, and 05.2 receives them.
@@ -210,10 +210,10 @@ fn a_pull_forgejo_is_checking_waits_by_doubling_reads_then_merges() {
 }
 ```
 Proof:
-- unit, `heavy cargo nextest run -p temper-engine-domain-forge-change -E 'test(/settle_window/)'`: a pending
+- unit, `cargo nextest run -p temper-engine-domain-forge-change -E 'test(/settle_window/)'`: a pending
   mergeability waits to the window's end at second 50 though the stall fell due at 30, and stalls once the
   window has ended. Bound 20 ms per test.
-- world, `heavy cargo nextest run -p temper-engine-forge-world --test settle -E
+- world, `cargo nextest run -p temper-engine-forge-world --test settle -E
   'test(=a_pull_forgejo_is_checking_waits_by_doubling_reads_then_merges)'`: a change on a pull Forgejo checks for
   5 s asks to wait 1, 1, 2 and 4 s, then merges, and no resolution is delegated. Bound 0.5 s. World is the
   highest layer that runs the change procedure; the process tier's hinted story (11.2) connects it to Forgejo.
@@ -397,7 +397,7 @@ pub(crate) fn cap(d: &Domain, env: &Env<Limits>, task: u64, decision: change::De
 
 ## Done when
 
-- `heavy cargo nextest run -p temper-fake-forge-domain -p temper-engine-forge-world
+- `cargo nextest run -p temper-fake-forge-domain -p temper-engine-forge-world
   -p temper-engine-domain-forge-client -p temper-engine-domain-forge -p temper-engine-domain-forge-change
   -p temper-service -p temper-conformance-world` passes (the change crate's two unit tests among them).
 - `git grep -n -e 'Change::Status' -e 'Change::Wiki' -e 'Hook::status' -e 'Hook::wiki' -- crates testing tests tools`
@@ -406,4 +406,4 @@ pub(crate) fn cap(d: &Domain, env: &Env<Limits>, task: u64, decision: change::De
   and exit 1 at the base).
 - `git grep -c 'forge.client.settle_ms' -- crates/temper-service/src/limits/names.rs` prints
   `crates/temper-service/src/limits/names.rs:1` (nothing at the base).
-- `heavy --gate scripts/check.sh` exits 0; this session has no share of the run's suite aim (decisions.md 13).
+- `scripts/check.sh` exits 0; this session has no share of the run's suite aim (decisions.md 13).

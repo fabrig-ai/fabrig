@@ -121,13 +121,13 @@ with no `_and_`. The worlds' limits stay
 Proof: world, the fuzzy profile, no higher: the step changes how the
 domain world's fuzzy tests are cut and scheduled, and nothing above runs
 them. On the increment's commit (the gate lane takes a committed tree):
-- each shard alone, three runs: `heavy cargo nextest run -p
+- each shard alone, three runs: `cargo nextest run -p
   temper-engine-domain-world --profile fuzzy -j 1 -E
   'test(/^fuzzy_walking_shard_/)'`. Each shard's median is under about
   5 s, 1.0 to 1.5 s expected; the commit body gives the eight medians.
 - the fuzzy suite, three gate-lane runs, then the package's summed time:
   ```
-  heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; L=$HOME/src/rust/tmp/temper/real-loop/logs/temper-14; mkdir -p $L; for i in 1 2 3; do cargo nextest run --workspace --profile fuzzy >$L/fuzzy-$i.log 2>&1; grep Summary $L/fuzzy-$i.log; done'
+  sh -c 'export NEXTEST_DOUBLE_SPAWN=0; L=$HOME/src/rust/tmp/temper/real-loop/logs/temper-14; mkdir -p $L; for i in 1 2 3; do cargo nextest run --workspace --profile fuzzy >$L/fuzzy-$i.log 2>&1; grep Summary $L/fuzzy-$i.log; done'
   for i in 1 2 3; do sed -nE 's/^ *PASS \[ *([0-9.]+)s\] \([^)]*\) ([^: ]+)[: ].*/\1 \2/p' ~/src/rust/tmp/temper/real-loop/logs/temper-14/fuzzy-$i.log | awk '$2 == "temper-engine-domain-world" {s += $1} END {printf "%.2f\n", s}'; done
   ```
   The commit body gives the median `Summary` against the base's 8.65 s
@@ -149,7 +149,7 @@ critical path; `[profile.live]`'s stale comment.
   no shard is re-cut without an answer.
 - **The suite's median `Summary` not below 8 s:** raise it with the three
   Summaries and each log's three slowest tests: the suite is then bound
-  by its other tests, a question for the director, not more shards.
+  by its other tests, a question for the review, not more shards.
 - **The package's median sum more than 2.6 s above 11.72 s** (one gate's
   swing of the sums, README Pulse): raise it with the three logs.
 

@@ -272,7 +272,7 @@ fn a_remote_operation_carries_the_token_only_in_its_header() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-worker-protocol-git`,
+Proof: unit, `cargo nextest run -p temper-worker-protocol-git`,
 run once: each command's vector is git.md's, the token rides only in
 `GIT_CONFIG_VALUE_0`, ids convert both ways, and limits that break a
 rule are refused naming it (the eight tests above); under 0.2 s. No
@@ -366,7 +366,7 @@ fn each_failure_transcript_classifies_as_section_six_says() {
 }
 ```
 
-Proof: unit and world, `heavy cargo nextest run -p
+Proof: unit and world, `cargo nextest run -p
 temper-worker-protocol-git -p temper-worker-protocol-git-world`, run
 once: real git 2.53's outputs parse to their values, its failures
 classify as section 6's table says, and no mutation parses to another
@@ -470,7 +470,7 @@ fn a_deadline_kills_the_group_and_ends_timed_out_after_the_close() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-worker-protocol-git`,
+Proof: unit, `cargo nextest run -p temper-worker-protocol-git`,
 run once: a fetch ends fetched, a deadline and a cancel end as git.md, 7
 says and only after the close, a cap breached ends `Broken`, and a git
 below 2.41 refuses the start (the eight tests above); under 0.3 s. The
@@ -542,7 +542,7 @@ fn make_renames_the_old_workspace_aside_and_makes_it_empty() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-worker-protocol-git`,
+Proof: unit, `cargo nextest run -p temper-worker-protocol-git`,
 run once: the start's layout, Make, the scan's outcomes and the sweep's
 steps are git.md's (the six tests above); under 0.3 s.
 Don't: follow a link; remove a tree in one operation; sweep after
@@ -615,8 +615,8 @@ fn a_cancel_racing_the_last_exit_ends_with_whichever_won() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p
-temper-worker-protocol-git-world` and `heavy cargo nextest run -p
+Proof: world, `cargo nextest run -p
+temper-worker-protocol-git-world` and `cargo nextest run -p
 temper-worker-protocol-git-world --profile fuzzy`, each run once: each
 operation ends once with its transcript's outcome, deadlines and cancels
 start nothing after them, and memory stays within `worst_case` (the six
@@ -1197,9 +1197,9 @@ impl ByteRing {
 
 ## Done when
 
-- The crate and its world pass: `heavy cargo nextest run -p
+- The crate and its world pass: `cargo nextest run -p
   temper-worker-protocol-git -p temper-worker-protocol-git-world` and
-  `heavy cargo nextest run -p temper-worker-protocol-git-world --profile
+  `cargo nextest run -p temper-worker-protocol-git-world --profile
   fuzzy` pass.
 - The crate links three crates: `sed -n '/^\[dependencies\]/,/^\[/p'
   crates/temper-worker-protocol-git/Cargo.toml | grep -vE

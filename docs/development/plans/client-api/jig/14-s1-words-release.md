@@ -32,7 +32,7 @@ Ruling 210's point 4 stands; these join its Files, Shape and Tests:
   `MessagePlan.released`, and `apply_message`'s `(u64, Word, bool)` return.
 - Generated: `crates/jig-protocol-store/src/generated/people_v3.rs` and
   12 goldens, `golden/people/v3/{enum_ask_say,enum_operation_message,enum_outcome_said,record_ask_say,record_operation_message,record_outcome_said}_{full,smallest}.bin`:
-  `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-store-codecs-world --test drift`,
+  `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-store-codecs-world --test drift`,
   from a checkout where the schema is edited and the codec users are not
   yet (the lib does not compile between them).
 - Derived value: `crates/jig-protocol-config/src/tests/domain.rs:197`,

@@ -337,7 +337,7 @@ New: `a_mint_with_a_name_past_its_bound_is_refused_as_bound` and
 (unit, `crates/jig-protocol-engine-clients/src/tests/closing.rs`);
 `the_printed_url_carries_the_secret_the_component_gave` (unit,
 `testing/jig-test-service/src/tests/clients.rs`).
-Proof: the protocol world: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: the protocol world: `cargo nextest run -p jig-client-protocol-world
 -E 'test(a_request_whose_answer_was_lost_is_made_once)'`, once: its
 person signs in by the URL the test service printed from `Link { secret
 }` (the world's front signs in with the engine's printed link,
@@ -441,10 +441,10 @@ Tests: `an_accepted_connection_s_call_goes_to_the_mount`,
 `a_link_on_a_non_loopback_listener_refuses_the_start` (moved, its name
 and assertion kept, now on the startup). Unit tests under 20 ms.
 Proof: the protocol world, which runs the real service over simulated io:
-`heavy cargo nextest run -p jig-client-protocol-world -E
+`cargo nextest run -p jig-client-protocol-world -E
 'test(a_request_whose_answer_was_lost_is_made_once)'`, once: a request
 whose answer is lost on the wire is made once, through the server's
-connections (0.55 s at the base). And the one-process world: `heavy cargo nextest
+connections (0.55 s at the base). And the one-process world: `cargo nextest
 run -p jig-one-process-world -E 'test(a_person_s_chat_is_answered_by_the_in_process_worker)'`,
 once (0.32 s at the base; or the name jig 16 gave it, if it renamed a
 chat's test). Nothing else is run for the proof.
@@ -540,7 +540,7 @@ Tests, each under 20 ms: `a_read_post_becomes_the_component_s_read_exchange`,
 `a_heartbeat_is_written_as_a_comment_line`,
 `the_same_routes_answer_under_another_prefix`. The component's unit tests
 keep their names and expected values, moved onto `Exchange::send`.
-Proof: the protocol world: `heavy cargo nextest run -p
+Proof: the protocol world: `cargo nextest run -p
 jig-client-protocol-world -E 'test(a_slow_reader_gets_fewer_deliveries_and_others_are_answered)'`,
 once: a slow reader's stream is paced by the engine end's `StreamTaken`
 and the others are answered (0.31 s at the base). Nothing else is run.
@@ -626,7 +626,7 @@ decodes the answer (`jig-client-protocol-link` or `jig-client`, as jig 12
 placed it), `a_sign_in_answer_with_no_token_leaves_none_held`.
 Proof: unit layer only: no browser exists in jig until jig 19; the
 native path's sign-in through the engine end runs in the protocol world,
-`heavy cargo nextest run -p jig-client-protocol-world -E
+`cargo nextest run -p jig-client-protocol-world -E
 'test(a_request_whose_answer_was_lost_is_made_once)'`, once (0.55 s at
 the base), showing the bearer path unchanged; jig 19.4's first browser
 story connects the cookie.
@@ -705,11 +705,11 @@ Tests: `each_guard_refuses_with_nothing_reaching_the_component`,
 `the_mapping_s_answers_carry_nosniff_and_no_store`; and in
 `jig-client-shell-native`, `the_native_shell_sends_its_engine_s_address_as_host`.
 Each under 20 ms.
-Proof: the protocol world: `heavy cargo nextest run -p
+Proof: the protocol world: `cargo nextest run -p
 jig-client-protocol-world -E 'test(a_native_client_signs_in_by_the_service_s_link_and_starts_a_chat)'`
 (or the name jig 16 gave it), once (0.14 s at the base): the native
 client's `Host` passes the service's allow-list and its chat starts. And
-the engine-clients world, `heavy cargo nextest run -p
+the engine-clients world, `cargo nextest run -p
 jig-engine-clients-world`, once, its tests passing with the peer's `Host`
 changed (37 at the base, `logs/w8/base-jig-worlds.txt`; 17.1 moves five
 to `Mint`, and 17.2 moves one to the startup's tests and two to the
@@ -721,8 +721,7 @@ Removes: the `localhost` defaults named in Files.
 
 ## Interface sketches
 
-Compiled at the base in a scratch crate of jig's workspace with `heavy
-cargo clippy -p jig-sketch-w8 --all-targets -- -D warnings`, which
+Compiled at the base in a scratch crate of jig's workspace with `cargo clippy -p jig-sketch-w8 --all-targets -- -D warnings`, which
 passed (`logs/w8/sketch-17-18.txt`; the component's messages again after the review, `logs/w8/sketch-review.txt`), with bodies that return a trivial
 value; the component's enums there hold only the new variants, the
 base's others elided as below. Names an earlier session of this plan
@@ -921,7 +920,7 @@ Each command runs once, after the session's last increment lands.
   -- crates/jig-protocol-engine-clients/src` prints nothing.
 - `git -C ~/src/rust/jig grep -n -e 'sign-in/provider' -e
   'Request::Provider' origin/main -- crates testing tests` prints nothing.
-- In a worktree of jig at `origin/main`, `heavy cargo nextest run -p
+- In a worktree of jig at `origin/main`, `cargo nextest run -p
   jig-protocol-engine-clients-http` passes 18 tests (17.3's 8, 17.4's 6,
   17.5's 4), `each_guard_refuses_with_nothing_reaching_the_component`
   among them; 17.4's `a_sign_in_answer_with_no_token_leaves_none_held` is

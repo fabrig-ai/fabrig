@@ -16,18 +16,14 @@ cargo nextest run --workspace
 cargo nextest run --workspace --profile fuzzy
 ```
 
-`scripts/check.sh` runs the four, in this order; agents' `land` runs it
-as the gate of a plan's run (agents' `roles/owners.md`, 4.4),
-which lands by pushing instead of merging by hand.
+`scripts/check.sh` runs the four, in this order.
 
 **The browser in the binary is a person's build.** `scripts/check.sh`
 exports `TEMPER_BUNDLE=none`, so the gate builds `temper` without its
 bundle (`docs/design/client/browser.md`, 2.6), as fast as before; its
-browser tier names a bundle of its own. Agents build so too, by
-`TEMPER_BUNDLE=none` set once in their environment (Claude Code's
-settings `env`, Codex's launchers), never in each command. An agent
-whose work wants the browser in the binary, a QA pass in a browser on
-`temper box` or a binary built for a person, builds with
+browser tier names a bundle of its own. Development builds use
+`TEMPER_BUNDLE=none`. A build that needs the browser, such as a QA pass on
+`temper box` or a binary built for a person, uses
 `TEMPER_BUNDLE=embed`. A build with the embed pays its first run once
 (the module and the bundler), then a few seconds more on a build of
 `temper` after an edit to the client's crates, and nothing after any

@@ -41,7 +41,7 @@ Shape:
 Test shape: a world given an override holds a tree in it, and faults on a
 tree in jig's English. Each test under 20 ms (unit) or 0.5 s (world).
 
-Proof: jig's gate, run by `land`.
+Proof: jig's gate.
 
 Size: measure it first, by file, in the first report. Aim at most 400
 production lines added; past 600, block with the count.

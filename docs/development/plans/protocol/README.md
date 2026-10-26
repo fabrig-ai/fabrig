@@ -88,7 +88,7 @@ them wait on them.
 - **The longest chains:** 04 → 08 → 09 → 10 → 12.2 → 15.3 → 16.6 (26
   increments); and 05 → 06 → 13 → 14 → 17 (23).
 - **Session 08 holds nine increments,** copied from jig's reference
-  service; its implementer hands over by context between them (Rules).
+  service; its author hands over by context between them (Rules).
 
 ## Rules of this plan
 
@@ -187,18 +187,7 @@ them wait on them.
   each report names "Size: <increment> <count> of <allowance>"
   (code-organization.md, section 8, which names the count's command;
   decisions.md, ruling 106, which replaced 1.5 and twice).
-- **A gate that fails only on a timeout** (a suite's global timeout or a
-  test's wall-clock bound, in tests outside the session's files): the
-  implementer runs `land` again at most twice on one tree, three
-  attempts in all; the third such failure is a block, kind
-  infrastructure. This replaces development.md, 8.5's and 8.7's one
-  retry for this plan.
-- **`land` exiting 7 on a push race** (decisions.md, ruling 135): when
-  its message names `cannot lock ref` (another push to `main` at the
-  same moment), the implementer waits 60 seconds and runs `land` once
-  more, as development.md, 8.5 does for 6; a second exit 7 is a block,
-  kind infrastructure. Any other exit 7 stops as 8.5 says.
-- **Waiting.** An implementer waits on a running command with one wait
+- **Waiting.** An author waits on a running command with one wait
   of 300,000 ms on its cell, as development.md, 7.4 says for the
   coordinator; it never sends empty input to a running command, and
   never runs `ps` or `pueue status`.
@@ -206,7 +195,7 @@ them wait on them.
   on its branch, writes its checkpoint (the files, fixtures and traps,
   never the standing rules), and hands over.
 - **A commit's last paragraph is its trailers:** `Proof:`, `Plan:` and
-  `Step:`, one per line, no blank line between them. Before `land`,
+  `Step:`, one per line, no blank line between them. Before merging,
   `git log -1 --format='%(trailers:key=Step,valueonly)' HEAD` prints the
   step.
 - **Each report names the suites' times** from its landing's
@@ -222,14 +211,8 @@ them wait on them.
   (`sha256sum -c forgejo-runner-12.13.2-linux-amd64.sha256` in its
   directory). Nothing else is a Forgejo of this plan (code-organization.md,
   section 6).
-- **Disk below 30 GB** (decisions.md, rulings 118 and 128): the
-  coordinator holds new starts, removes the `target/` of sessions not
-  running (development.md, 11.4), runs `kache stats | head -1` once and,
-  when the store is past its cap, `kache gc` once, and logs them; it
-  writes `blocked.md` only if `df -h ~/src` still shows less than 30 GB.
-  Below 15 GB it stops the line (development.md, 11.4, unchanged).
 - **The process and live tiers run only where a Proof line or "Done
-  when" says,** through `heavy --gate`, once; never in the gate.
+  when" says,** once; never in the gate.
 - **A Proof's time bound** is the time nextest's `Summary [ N s]` line
   prints, build time aside; a script's is its own wall time.
 - **A design gap is a question,** with the design's text quoted
@@ -311,7 +294,7 @@ the last step (`plan worktree temper done`), unless it names
 7. **The engine worlds run on jig's real store:** `git grep -n
    jig-fake-store -- '*.toml'` prints nothing.
 8. **The process tier passes:** `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-   heavy --gate scripts/proof-one-process.sh` exits 0, its log naming
+   scripts/proof-one-process.sh` exits 0, its log naming
    each test of `crates/temper/tests/process.rs` passed (10.4's drain,
    15.3's story, 16.4's and 16.6's terminal, 16.5's sign-in).
 9. **The live tier ran within its budget:** `git -C ~/src/rust/temper
@@ -321,8 +304,7 @@ the last step (`plan worktree temper done`), unless it names
 10. **Forgejo's facts are recorded:** `test -s
     tools/forgejo-conformance/facts.txt && grep -E '^fails ' tools/forgejo-conformance/facts.txt`
     prints no line that `decisions.md` does not name in a ruling.
-11. **The new worlds keep their share of the suites:** `heavy --gate
-    cargo nextest run --workspace --profile measure -j 1 -E 'not
+11. **The new worlds keep their share of the suites:** `cargo nextest run --workspace --profile measure -j 1 -E 'not
     binary(/^fuzzy_/) & (package(temper-client-world) |
     package(temper-engine-protocol-forge-world) |
     package(temper-worker-protocol-git-world) |

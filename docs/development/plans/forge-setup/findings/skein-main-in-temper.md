@@ -12,15 +12,15 @@ compiled code and breaks nothing. Checked 2026-10-16.
   rev); Cargo.lock pins them: 29 skein packages at `#8a10437f...`, jig
   `#2900e9b3` (48), smith `#29fa97c9` (28). jig's and smith's crates bring no
   second skein source: the lock holds one skein URL.
-## Commands as run (through heavy)
+## Commands as run (directly)
 
-1. `heavy cargo update -p skein-lib --precise ec686b8a94e39d4579d8b4d80f8c4bda1b5b9c63`:
+1. `cargo update -p skein-lib --precise ec686b8a94e39d4579d8b4d80f8c4bda1b5b9c63`:
    exit 0 (queued 79s, ran 3s). All 29 skein packages moved at once.
    `git diff --stat Cargo.lock`: 29 insertions, 29 deletions, all skein
    `source =` lines. After: 29 packages at `#ec686b8a94e3...`, one source.
-2. `heavy cargo check --workspace --all-targets`: exit 0, 48s, no warnings.
+2. `cargo check --workspace --all-targets`: exit 0, 48s, no warnings.
 3. `git commit -qam 'scratch: skein main'` (345a4bea, not pushed), then
-   `heavy --gate scripts/check.sh`: exit 0, 102s. Stages: fmt, clippy
+   `scripts/check.sh`: exit 0, 102s. Stages: fmt, clippy
    -D warnings, nextest default (1297 run, 1297 passed, 1 skipped, 5.1s),
    nextest fuzzy (46 run, 46 passed, 27s; one slow test, engine-domain-world
    fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure, 21.5s).
@@ -33,7 +33,7 @@ compiled code and breaks nothing. Checked 2026-10-16.
   8a10437f is an ancestor of origin/main.
 - `git diff --name-only 8a10437f origin/main -- crates testing tests Cargo.toml Cargo.lock`
   lists nothing. The 5 commits (ce02728, e6fd9fb, 121daa4, ec686b8, f6c14c0:
-  the forgejo-17 retrospective and director, run kits, and the design of
+  the forgejo-17 retrospective and review, run kits, and the design of
   HMAC-SHA256 and a constant-time comparison in lib) touch only docs/ and
   scripts/dev/. skein's Rust sources are byte-identical at the two revisions.
 - The suspect d21d90d (design of a directory lock, cross-directory renames,

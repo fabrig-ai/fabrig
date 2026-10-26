@@ -84,7 +84,7 @@ repository's tools plan, is the first. Three increments, in order; each lands al
 - **STATUS.md is not this session's** (development.md 3.3). jig's row for `client/domain/client.md` already names "20: the
   one-shot mode … 6: a `Send` carrying a name … : the downstream repository's tools plan"; the designer keeps it.
 - **Exhaustive matches.** Every match over `Outcome`, `RequestRefused` or `Event` is exhaustive, with no wildcard arm.
-- **The lock.** Every cargo command runs through `heavy`. A conflict in `Cargo.lock` is never merged by hand: take
+- **The lock.** Every cargo command runs. A conflict in `Cargo.lock` is never merged by hand: take
   `origin/main`'s and run 02.1's `cargo update` again (development.md 5.7).
 - **The stories' file.** `tests/client-protocol/tests/client.rs` holds 797 lines at f50c3f63, against the 800-line ceiling: the
   named stories go in a module of their own, `tests/client-protocol/tests/client/named.rs`, declared as `client/words.rs` is.
@@ -98,9 +98,9 @@ Needs: skein's given keys, landed (skein 01's last landing, step skein-01.2); ji
 landing).
 Files: `Cargo.lock`; `crates/jig-client-domain/src/requests.rs` (`PendingRequest`, `send`, `restore_record`, `not_kept`, the
 `skein_lib` import); `crates/jig-client-domain/src/tests/requests.rs`. No hotspot.
-Shape: in the step's worktree, `heavy cargo update -p skein-lib --precise <sha>`, `<sha>` the commit that landed skein-01.2 (the
+Shape: in the step's worktree, `cargo update -p skein-lib --precise <sha>`, `<sha>` the commit that landed skein-01.2 (the
 run's ledger); `git diff Cargo.lock | grep -o 'git+https://github.com/forgetic/[a-z]*.git#[0-9a-f]*' | sort -u` shows only
-skein's revision moving; then `heavy cargo check --workspace --all-targets`. `PendingRequest` gains `admission:
+skein's revision moving; then `cargo check --workspace --all-targets`. `PendingRequest` gains `admission:
 RequestAdmission`. `send` matches `self.table.ask(..)`: `Ok(admission)` keeps the request with it; `Err(RequestRefused::Full(_))`
 tells `Outcome::Limit`, as `Err(_)` does today; `Err(RequestRefused::Held(_))` is `unreachable!("a drawn key is never held")`.
 `restore_record` keeps its checks in order (the invalid family, the application key already held, then `self.table.restore(..)`):
@@ -210,7 +210,7 @@ fn a_second_key_naming_a_held_name_is_told_held() {
 `#[path = "client/named.rs"] mod named;`.
 Proof: joint, `a_second_key_naming_a_held_name_is_told_held`, in front of the real engine over HTTP bytes (the protocol world): a
 second application key naming the name the first holds is told held at once; the first is answered, and the engine makes it
-once, under its name. Run in `land`'s gate.
+once, under its name. Run in the gate.
 Don't: add a view word, a `NotSent` variant or a notice for *held* (view.md is design); carry the number on `Up::NotKept` or
 `Down::Save`; change `TABLE_VERSION`, the wire, `Held` or `RequestRecord`; join a named `Send` to another application key's
 request ("Not joined"); name a send in production code.

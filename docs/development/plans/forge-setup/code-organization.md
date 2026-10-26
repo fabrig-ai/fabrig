@@ -173,5 +173,5 @@ No increment:
   ```
 
   Each landing's report gives the number.
-- **The tolerance** is implementer.md's, 8.6; a Size marked "(codec)"
+- **The tolerance** is the implementation rules; a Size marked "(codec)"
   takes its codec tolerance.

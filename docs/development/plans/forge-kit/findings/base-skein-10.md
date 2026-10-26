@@ -153,11 +153,11 @@ skein base (skein 01 creates it); its names are skein 01's sketches, checked in
   Planner's ruling: forge.md 5.3 names it ("a body past the component's `body_bytes_in`, a log read
   through included"), so it stays InvalidAnswer; 10.4's read arm tests the field and its test pins it.
 - `fixtures::Run`'s method names (`known`, `new`, `with`, `begin`, `answer`, `answer_with`, `fail`,
-  `sent`, `tables`) and `dated_response` are sketches; the implementer may rename them when no test
+  `sent`, `tables`) and `dated_response` are sketches; the author may rename them when no test
   changes meaning.
 - The machine world's 42 passes only once skein 08 completes (38 after 08.1 alone, per
   `skein/08-machine-world.md`); the 10.5 Proof says so.
 - `base-skein-01.md`'s cumulative counts (126 after 01.5) are stale: with 01.5 out, skein 01 ends at
   99 and skein 10 adds 28, so the crate holds 127 after skein 10 (before skein 06.3's own tests).
-- Per-test lines are estimates; if an implementer's 10.1 or 10.2 passes about 300, the planner's next
+- Per-test lines are estimates; if an author's 10.1 or 10.2 passes about 300, the planner's next
   split is the harness (Run, 70 lines) as its own increment.

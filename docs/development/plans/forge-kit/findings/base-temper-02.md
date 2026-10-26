@@ -6,7 +6,7 @@ skein 064c55f (docs only here: skein 02.2 is not on origin/main, so the kit's
 `effect_key` and `measure` could not be compiled at the base). Deliverables:
 `temper/02-client.md` and this file. The scratch worktree
 `tmp/planning/scratch-temper-02` (detached at dd12b8ed9) held the sketch; it is removed below.
-Every run went through `heavy`. Outputs are cut to the relevant lines (at most 30
+Every run went. Outputs are cut to the relevant lines (at most 30
 per command); full logs are in `/srv/data/git/runner/src/tmp/logs/`, named by task.
 
 ## What the base showed beyond the prompt
@@ -38,58 +38,52 @@ The client crate exists at the base, so its proofs are run on it directly; the m
 crate (`temper-engine-domain-forge`, which gains `purpose`) is run too.
 
 ```text
-$ heavy cargo nextest list -p temper-engine-domain-forge-client
+$ cargo nextest list -p temper-engine-domain-forge-client
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
 exit 0
 temper-engine-domain-forge-client tests::effect_keys_are_stable_by_purpose_and_separate_deployments
 temper-engine-domain-forge-client tests::projection_history_keys_keep_task_position_and_history_family
 (76 test lines: count of lines starting `temper-engine-domain-forge-client `)
-heavy: task 735 (build) exit 0, waited 91s, ran 6s, log /srv/data/git/runner/src/tmp/logs/20261019T020059-735.log
 exit 0
 ```
 The 2 `EffectPurpose` tests move (names kept); 74 leave with the crate.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge-client
+$ cargo nextest run -p temper-engine-domain-forge-client
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Starting 76 tests across 1 binary
         PASS [   0.007s] (11/76) temper-engine-domain-forge-client tests::effect_keys_are_stable_by_purpose_and_separate_deployments
         PASS [   0.007s] (69/76) temper-engine-domain-forge-client tests::projection_history_keys_keep_task_position_and_history_family
      Summary [   0.084s] 76 tests run: 76 passed, 0 skipped
-heavy: task 743 (build) exit 0, waited 7s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T020122-743.log
 ```
 Base: 76 tests, 0.084 s, every one far under 20 ms.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge-client effect_keys_are_stable_by_purpose_and_separate_deployments projection_history_keys_keep_task_position_and_history_family
+$ cargo nextest run -p temper-engine-domain-forge-client effect_keys_are_stable_by_purpose_and_separate_deployments projection_history_keys_keep_task_position_and_history_family
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 801 in the build lane
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
     Starting 2 tests across 1 binary (74 tests skipped)
         PASS [   0.004s] (1/2) temper-engine-domain-forge-client tests::projection_history_keys_keep_task_position_and_history_family
         PASS [   0.006s] (2/2) temper-engine-domain-forge-client tests::effect_keys_are_stable_by_purpose_and_separate_deployments
      Summary [   0.008s] 2 tests run: 2 passed, 74 skipped
-heavy: task 801 (build) exit 0, waited 544s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T023441-801.log
 exit 0
 ```
 The moved tests' base times: 0.006 s and 0.004 s.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge
+$ cargo nextest run -p temper-engine-domain-forge
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Starting 22 tests across 1 binary
      Summary [   0.015s] 22 tests run: 22 passed, 0 skipped
-heavy: task 811 (build) exit 0, waited 74s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T023521-811.log
 exit 0
 ```
 Base: 22 tests in 0.015 s; 22 + 5 = 27 after.
 
 ```text
-$ heavy cargo nextest list -p temper-engine-domain-forge-client -p temper-engine-domain-forge
+$ cargo nextest list -p temper-engine-domain-forge-client -p temper-engine-domain-forge
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
-heavy: task 810 (build) exit 0, waited 74s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T023521-810.log
 exit 0
 (counts: 76 client lines, 22 domain-forge lines; counted with grep of the package name at the line start)
 ```
@@ -99,78 +93,69 @@ exit 0
 The 15 packages hold the client's users and their worlds; the client crate is not in them.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge -p temper-engine-domain -p temper-engine-smith -p temper-protocol-store -p temper-service -p temper-engine-forge-client-world -p temper-engine-forge-world -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world -p temper-engine-domain-world -p temper-conformance-world -p temper-codecs-world -p temper-client-world -p temper-system-world -p forgejo-conformance
+$ cargo nextest run -p temper-engine-domain-forge -p temper-engine-domain -p temper-engine-smith -p temper-protocol-store -p temper-service -p temper-engine-forge-client-world -p temper-engine-forge-world -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world -p temper-engine-domain-world -p temper-conformance-world -p temper-codecs-world -p temper-client-world -p temper-system-world -p forgejo-conformance
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
      Summary [   4.823s] 921 tests run: 921 passed, 0 skipped
-heavy: task 745 (build) exit 0, waited 1s, ran 6s, log /srv/data/git/runner/src/tmp/logs/20261019T020125-745.log
 ```
 Base: 921 tests in 4.823 s (the slowest, 1.412 s, `held_and_decision_commit_cuts_restore_paged_real_children_and_exact_scripts` in domain-world, is not touched by the increment). After 02.1: 926.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge -p temper-engine-domain -p temper-engine-smith -p temper-protocol-store -p temper-service -p temper-engine-forge-client-world -p temper-engine-forge-world -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world -p temper-engine-domain-world -p temper-conformance-world -p temper-codecs-world -p temper-client-world -p temper-system-world -p forgejo-conformance --profile fuzzy
+$ cargo nextest run -p temper-engine-domain-forge -p temper-engine-domain -p temper-engine-smith -p temper-protocol-store -p temper-service -p temper-engine-forge-client-world -p temper-engine-forge-world -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world -p temper-engine-domain-world -p temper-conformance-world -p temper-codecs-world -p temper-client-world -p temper-system-world -p forgejo-conformance --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Starting 39 tests across 18 binaries (64 binaries skipped via profile.fuzzy.default-filter)
         SLOW [> 20.000s] (─────) temper-engine-domain-world::fuzzy_walking fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure
      Summary [  20.410s] 39 tests run: 39 passed (1 slow), 0 skipped
-heavy: task 737 (build) exit 0, waited 18s, ran 21s, log /srv/data/git/runner/src/tmp/logs/20261019T020229-737.log
 ```
 Base: 39 tests, one of 20.4 s (`fuzzy_walking`), unchanged by the increment.
 
 ```text
-$ heavy --gate scripts/check.sh
+$ scripts/check.sh
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
      Summary [   3.754s] 1879 tests run: 1879 passed, 1 skipped
      Summary [  16.803s] 50 tests run: 50 passed, 0 skipped
-heavy: ran alone for 24s
-heavy: task 743 (gate) exit 0, waited 1s, ran 314s, log /srv/data/git/runner/src/tmp/logs/20261019T020257-743.log
 exit 0
 ```
 The gate runs the focused tier (1879 tests, 1 skipped, 3.754 s) and the fuzzy tier (50 tests, 16.803 s), then clippy and format. After 02.1: 1808 focused, 50 fuzzy.
 
 ```text
-$ TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate scripts/proof-one-process.sh
+$ TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 scripts/proof-one-process.sh
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Starting 19 tests across 1 binary (6 binaries skipped via profile.process.default-filter)
      Summary [ 149.083s] 19 tests run: 19 passed (8 slow), 0 skipped
-heavy: ran alone for 150s
-heavy: task 785 (gate) exit 0, waited 81s, ran 210s, log /srv/data/git/runner/src/tmp/logs/20261019T021710-785.log
 exit 0
 ```
 Base: 19 tests, 149.083 s alone (145.694 s in `base-runs.md`); 8 slow, the longest `a_change_lands_by_deliveries_with_every_poll_raised`. Run once. Flaky under load: temper 01 saw a failure, this run none.
 
 ```text
-$ heavy cargo check --workspace --all-targets
+$ cargo check --workspace --all-targets
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.53s
-heavy: task 802 (build) exit 0, waited 546s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T023443-802.log
 ```
 
 ## Done when, each command at the base
 
-Each runs through `heavy` at the base, where the answer is the opposite of the
+Each runs at the base, where the answer is the opposite of the
 Done-when answer (the crate and its users exist); after 02.1 each prints what the
 session file says. `rg` exit 1 means no match.
 
 ```text
-$ heavy rg -n 'temper_engine_domain_forge_client|temper-engine-domain-forge-client' Cargo.toml Cargo.lock crates testing tests tools -g '*.rs' -g Cargo.toml -g Cargo.lock
+$ rg -n 'temper_engine_domain_forge_client|temper-engine-domain-forge-client' Cargo.toml Cargo.lock crates testing tests tools -g '*.rs' -g Cargo.toml -g Cargo.lock
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-domain/Cargo.toml:22:temper-engine-domain-forge-client.workspace = true
-heavy: task 799 (build) exit 0, waited 540s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T023437-799.log
 exit 0
 (counted from the full log: 227 lines = 193 in .rs, 16 Cargo.lock, 17 in the 15 members' manifests and the root, 1 in the client's own manifest)
 ```
 Base: 227 lines. After 02.1: nothing, exit 1.
 
 ```text
-$ heavy rg -n 'skein_forge_client( as |::\{.* as )' crates testing tests tools -g '*.rs'
+$ rg -n 'skein_forge_client( as |::\{.* as )' crates testing tests tools -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: task 798 (build) exit 1, waited 539s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T023436-798.log
 exit 1
 ```
 Base: no match, exit 1 (the kit is not in temper yet); after 02.1 the same.
 
 ```text
-$ heavy rg -n 'answer_bytes_unbounded|effect_bytes|client::(answer_bytes|stored_bytes)\b' crates testing tests tools -g '*.rs'
+$ rg -n 'answer_bytes_unbounded|effect_bytes|client::(answer_bytes|stored_bytes)\b' crates testing tests tools -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-domain-forge-client/src/lib.rs:40:pub fn effect_bytes(effect: &Effect) -> Option<u64> {
 crates/temper-engine-domain-forge-client/src/lib.rs:41:    bounds::effect_bytes(effect)
@@ -187,25 +172,22 @@ crates/temper-engine-domain-forge/src/lib.rs:277:                Ok(answer) => c
 crates/temper-engine-domain-forge/src/lib.rs:370:            client::effect_bytes(&row.entry.effect)?.checked_add(resource)
 crates/temper-engine-domain-forge/src/lib.rs:372:        Stored::Entry { entry, .. } => client::effect_bytes(&entry.effect),
 crates/temper-engine-domain-forge/src/lib.rs:373:        Stored::Client(row) => client::stored_bytes(row),
-heavy: task 804 (build) exit 0, waited 548s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T023445-804.log
 exit 0
 ```
 Base: 15 lines: the client's 6 (definitions and wrappers) and the 9 callers named in the file's Shape (3 `effect_bytes` + 1 `stored_bytes` + 1 `answer_bytes_unbounded` in domain-forge `lib.rs`, `domain.rs` `keep_named_answer`, `store.rs`, two protocol-forge tests). After 02.1: nothing, exit 1.
 
 ```text
-$ heavy rg -l 'enum EffectPurpose' crates testing tests tools -g '*.rs'
+$ rg -l 'enum EffectPurpose' crates testing tests tools -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-domain-forge-client/src/identity.rs
-heavy: task 805 (build) exit 0, waited 549s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T023446-805.log
 exit 0
 ```
 Base: the client's `identity.rs`. After 02.1: `crates/temper-engine-domain-forge/src/purpose.rs` alone (jig's `EffectPurpose` is in jig, not temper).
 
 ```text
-$ heavy python3 -c 'from pathlib import Path; print("client_copy_absent=" + str(not Path("crates/temper-engine-domain-forge-client").exists()))'
+$ python3 -c 'from pathlib import Path; print("client_copy_absent=" + str(not Path("crates/temper-engine-domain-forge-client").exists()))'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 client_copy_absent=False
-heavy: task 803 (build) exit 0, waited 548s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T023445-803.log
 exit 0
 ```
 Base: False. After 02.1: True.
@@ -221,7 +203,7 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ```
 120 files: 103 `.rs`, 16 `Cargo.toml` (the root and 15 members), `Cargo.lock`. The 15 members: crates temper-engine-domain, -domain-forge, -engine-protocol-forge, -engine-smith, temper-protocol-store, temper-service; tests client, codecs, conformance, system, engine/domain, engine/forge, engine/forge/client, engine/protocol-forge; tools/forgejo-conformance.
 
-Lines per directory, by two counts (no `heavy`: rg and awk only). `crate-name` is a line
+Lines per directory, by two counts (rg and awk only). `crate-name` is a line
 with the crate's name; `alias-path` a line with `<alias>::` that is not `::api` (the files
 alias the crate as `client`, `forge_client` or `d`); `union` is the lines with either:
 
@@ -330,7 +312,7 @@ of 31, one scratch-only test of 15). Callers changed: `domain.rs` (3 calls) and
 `forge_route.rs` (1), 15 insertions and 22 deletions in all.
 
 ```text
-$ heavy cargo clippy -p temper-engine-domain-forge --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-domain-forge --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
 error: use of a disallowed type `alloc::vec::Vec`
  --> crates/temper-engine-domain-forge/src/tests/purpose.rs:6:30
@@ -349,30 +331,27 @@ error: use of a disallowed macro `alloc::vec`
 error: use of a disallowed type `alloc::vec::Vec`
   --> crates/temper-engine-domain-forge/src/tests/purpose.rs:15:32
 error: could not compile `temper-engine-domain-forge` (lib test) due to 8 previous errors
-heavy: task 749 (build) exit 101, waited 306s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T020951-749.log
 ```
 First sketch: the test file used a `Vec` helper and `vec!`. The lib was clean; the 8 errors (2 `Vec` types at lines 6 and 15, 6 `vec!` at 7, 18, 20, 23, 27, 31) were all in `src/tests/purpose.rs`, banned by the lints ("Box<[T]> for owned sequences, skein_lib::List or Queue for bounded ones"). Fixed with `&[u8]` slices, `[u8; N]` consts and `Box::from(&b"ab"[..])`.
 
 ```text
-$ heavy cargo clippy -p temper-engine-domain-forge --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-domain-forge --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.39s
-heavy: task 762 (build) exit 0, waited 18s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T021038-762.log
 ```
 Clean after the fix (the second sketch).
 
 ```text
-$ heavy cargo clippy -p temper-engine-domain-forge -p temper-engine-domain --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-domain-forge -p temper-engine-domain --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
     Checking temper-engine-domain-forge v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-temper-02/crates/temper-engine-domain-forge)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.56s
-heavy: task 800 (build) exit 0, waited 540s, ran 4s, log /srv/data/git/runner/src/tmp/logs/20261019T023437-800.log
 exit 0
 ```
 Clean, with the callers changed and the two moved tests added (an earlier run, before the moved tests, was clean too).
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge tests::purpose
+$ cargo nextest run -p temper-engine-domain-forge tests::purpose
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
     Starting 6 tests across 1 binary (22 tests skipped)
         PASS [   0.002s] (1/6) temper-engine-domain-forge tests::purpose::every_tag_frames_like_the_base_client
@@ -382,7 +361,6 @@ directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
         PASS [   0.003s] (5/6) temper-engine-domain-forge tests::purpose::a_call_key_is_the_framed_forty_four_bytes
         PASS [   0.003s] (6/6) temper-engine-domain-forge tests::purpose::effect_keys_are_stable_by_purpose_and_separate_deployments
      Summary [   0.003s] 6 tests run: 6 passed, 22 skipped
-heavy: task 817 (build) exit 0, waited 48s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T023530-817.log
 exit 0
 ```
 Five real tests plus the scratch-only parity test `every_tag_frames_like_the_base_client`: the vectors equal the base client's bytes for all five tags (Call and ProjectionHistory by literal and by comparison, Step, Projection, Release by comparison). Each test 2 to 3 ms.
@@ -401,33 +379,32 @@ worktree (a `scratch_sizes_of_the_running_measure` test printing `size_of::<api:
 and the rest; not kept):
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge-client scratch_sizes_of_the_running_measure
+$ cargo nextest run -p temper-engine-domain-forge-client scratch_sizes_of_the_running_measure
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
     Starting 1 test across 1 binary (76 tests skipped)
 SIZES summary=96 review=104 status=128 comment=72 remark=56 file=48 commit=32 collaborator=16 string=16 id=8
      Summary [   0.004s] 1 test run: 1 passed, 76 skipped
-heavy: task 796 (build) exit 0, waited 728s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T023430-796.log
 exit 0
 ```
-Against the widths: Summary 96 < 128, Review 104 < 128, Status 128 < 160, Comment 72 < 96, Remark 56 < 64, File 48 < 64; Commit 32, Collaborator 16, the string header 16 and the id 8 equal. So any answer holding a Summary, Review, Status, Comment, Remark or File is priced higher by the kit than by the running `size_of` measure, and the equality the two tests assert fails unless the plans' measure also switches to the widths. Skein 01.3's Don't says "skein 02.2 switches them to the measure (decision 24)"; skein 02.2's Files do not list the plans (`reads/size.rs`, `contents.rs`, `actions.rs`, `reads/done.rs`) and its tests line says only that "their byte expectations take these widths". That is a sequencing or design question; this session names it and settles nothing (the file's Open question: the call sites change, and if the running side then disagrees the implementer stops; no assertion is loosened and no bound raised).
+Against the widths: Summary 96 < 128, Review 104 < 128, Status 128 < 160, Comment 72 < 96, Remark 56 < 64, File 48 < 64; Commit 32, Collaborator 16, the string header 16 and the id 8 equal. So any answer holding a Summary, Review, Status, Comment, Remark or File is priced higher by the kit than by the running `size_of` measure, and the equality the two tests assert fails unless the plans' measure also switches to the widths. Skein 01.3's Don't says "skein 02.2 switches them to the measure (decision 24)"; skein 02.2's Files do not list the plans (`reads/size.rs`, `contents.rs`, `actions.rs`, `reads/done.rs`) and its tests line says only that "their byte expectations take these widths". That is a sequencing or design question; this session names it and settles nothing (the file's Open question: the call sites change, and if the running side then disagrees the author stops; no assertion is loosened and no bound raised).
 
 ## The repin, in its base form (scratch worktree)
 
-The first commit of 02.1 is `heavy cargo update -p skein-lib`, then `heavy cargo check
+The first commit of 02.1 is `cargo update -p skein-lib`, then `cargo check
 --workspace --all-targets`. Skein 02.2 is not on origin/main, so the repin cannot reach it;
 the commands were run in the scratch worktree (with the sketch in it) to see what the
 repin does today. The scratch's `Cargo.lock` was restored afterwards (`git checkout
 Cargo.lock`), and nothing of it is in the plan.
 
 ```text
-$ heavy cargo update -p skein-lib
+$ cargo update -p skein-lib
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
 Updating git repository `https://github.com/forgetic/skein.git`
    064c55f..54c5a8b  HEAD -> origin/HEAD
 Locking 29 packages to latest Rust 1.95 compatible versions
 Updating skein-lib v0.0.0 (https://github.com/forgetic/skein.git#8a51e10b) -> #54c5a8bb
 (the other 28 skein-* packages of that source move with it)
-exit 0; heavy task 832, ran 4s
+exit 0; task 832, ran 4s
 ```
 ```text
 $ git diff --stat -- Cargo.lock
@@ -436,7 +413,7 @@ directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
  1 file changed, 29 insertions(+), 29 deletions(-)
 ```
 ```text
-$ heavy cargo check --workspace --all-targets
+$ cargo check --workspace --all-targets
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-02
 error[E0004]: non-exhaustive patterns: `skein_io::kernel::Op::Lock { .. }` not covered
   --> crates/temper-worker-protocol-git/src/files.rs:296:37   (and :352, two errors)
@@ -445,7 +422,7 @@ error[E0004]: non-exhaustive patterns: `skein_io::file::Event::Locked { .. }` an
   `skein_io::file::Event::Busy { .. }` not covered
   --> jig-protocol-store (jig#bbea9408) src/transcripts/write.rs:189:22   (five errors)
 error: could not compile `jig-protocol-store` (lib) due to 5 previous errors
-exit 101; heavy task 840, ran 39s
+exit 101; task 840, ran 39s
 log: /srv/data/git/runner/src/tmp/logs/20261019T024452-840.log
 ```
 
@@ -476,7 +453,7 @@ What this shows, for the planner (settles nothing):
 2. **The kit's `effect_key` and `measure` were not compiled.** Skein 02.2 is not on
    origin/main at this base; `purpose.rs` was sketched with a stand-in that frames
    exactly as the base client does, and the golden vectors are the base client's bytes.
-   The implementer compiles the one-line replacement against the repinned kit.
+   The author compiles the one-line replacement against the repinned kit.
 3. **A skein 02.3 or 02.4 already on origin/main** changes the repin's repairs only as the
    file's Shape says (a test-order change in the restore tests; framed key fixtures in
    `simulation.rs` and `fuzzy_simulation.rs`). Neither could be run at the base.

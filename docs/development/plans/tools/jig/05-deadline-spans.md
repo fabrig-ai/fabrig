@@ -96,7 +96,7 @@ A pending proposal retains the span, including across restart. Five increments, 
   Jig code, tests and commit bodies name no downstream application. Edit no design document or STATUS row.
 - No forge, fake LLM or provider file is in this session. Reuse the existing worlds, scripted workers and fixtures.
   Keep additions out of the nearly full `tests/client-protocol/tests/client.rs` and the 817-line `tests/core/tests/parties.rs`.
-- All cargo commands use `heavy`, unoptimized; no profile change. Units stay below 20 ms, focused world/joint stories
+- All cargo commands run unoptimized; no profile change. Units stay below 20 ms, focused world/joint stories
   below 0.5 s each; the suite budgets stay 15 s and 60 s. Regeneration changes schemas' outputs, not the generator.
   Proofs naming new code run once when built; readiness checks compile the sketches against their landed prerequisites.
 
@@ -112,7 +112,7 @@ child modules' imports; `src/tests/{format,commits,open,codec}.rs` and codec sub
 Shape: change each family declaration to 4 and `format::current` to `tasks: 4, people: 4`. Update every active
 people_v3/tasks_v3 import and golden reader, including core's embedded-task codec limits. Core remains 3, notes/component 1.
 Bootstrap generated filenames from the old generated modules, then run
-`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-store-codecs-world --test drift`; rerun without the variable.
+`SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-store-codecs-world --test drift`; rerun without the variable.
 Old generated modules/current golden readers go; no record fields change yet. No old-family decoder is retained.
 Test shape: existing codec/drift tests; `src/tests/open.rs` reuses `planted`, `version_put`, `assert_refusal` for
 `a_store_of_another_tasks_version_refuses_naming_tasks` (found 3, wanted 4), plus the equivalent people test.
@@ -123,7 +123,7 @@ people case finds 5, wanted 4, with an arm per family (clippy denies `wildcard_e
 `a_first_commit_puts_the_format_row_with_its_header` expects `tasks: 4, people: 4`; `codec.rs`'s
 `a_people_row_of_another_version_does_not_decode` writes version 5. `memory.rs` and `fuzzy_decode.rs` say core is 3 and
 tasks and people 4.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test client -E 'test(=the_engine_restarting_under_a_pending_stop_answers_it_once)'`;
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test client -E 'test(=the_engine_restarting_under_a_pending_stop_answers_it_once)'`;
 the real engine/store reopens its new family tuple and answers the retained request once, under 0.5 s.
 Don't: move the client wire, core/store component version or pins; change schema fields; retain a migration reader.
 Size: at most 180 production lines; generated files, goldens and mechanical test imports aside.
@@ -162,12 +162,12 @@ Create and Propose. Preserve all other fields. Recompute payload/worst-case acco
 A shipped profile whose `value` a grown row passes (`sizes::check`'s needs over has) takes the growth, needs minus has,
 in `value`, `chunk` and `page.bytes` alike, and the service test's row follows (ruling 118).
 Regenerate store v4 as in 05.1; wire v9 with
-`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test drift`; rerun without the variable.
+`SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world --test drift`; rerun without the variable.
 Test shape: extend existing link `src/tests/create.rs` and fixtures/create.rs, engine-client `src/tests/fixtures/create.rs`,
 and store `src/tests/codec/{record,phase}.rs`: Named with no wall and with a finite wall survives Create, Propose and restore.
 Reuse the drift and `tests/store-codecs/tests/profiles.rs` shipped-profile checks; assert every changed bound still fits,
 reporting needs/has, not assuming unchanged memory. Units under 20 ms; no new test file or fixture family.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test client -E 'test(=a_party_creates_a_batch_whose_as_allowed_task_hears_what_it_was_given)'`;
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test client -E 'test(=a_party_creates_a_batch_whose_as_allowed_task_hears_what_it_was_given)'`;
 the new wire/engine carriers still make both roots and preserve the budget answer, under 0.5 s.
 Don't: add Span before its end-to-end meaning exists; change public Authority/Budget walls, amendments or template configuration.
 Size: at most 280 production lines, including carrier consumers and codecs; generated code and tests aside.
@@ -257,9 +257,9 @@ fn a_span_crosses_the_client_wire_to_task_admission() {
 }
 ```
 
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test deadline_spans -E 'test(=a_span_crosses_the_client_wire_to_task_admission)'`;
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test deadline_spans -E 'test(=a_span_crosses_the_client_wire_to_task_admission)'`;
 the real engine answers a span carried as bytes, under 0.5 s; world,
-`heavy cargo nextest run -p jig-core-world --test deadline_spans -E 'test(=an_aged_span_is_beyond_its_accepter_and_passed_up)'`,
+`cargo nextest run -p jig-core-world --test deadline_spans -E 'test(=an_aged_span_is_beyond_its_accepter_and_passed_up)'`,
 once, under 0.5 s: the aged acceptance is refused, passed up and made with the accepting decision's wall.
 Don't: mutate the saved ask, reset a span on retry, start it at proposal submission, bypass finite authority, or allocate
 a second batch's task numbers on acceptance. Do not change fake LLM/provider scripts to exercise ordinary task creation.
@@ -290,9 +290,9 @@ Reuse 05.3's protocol story in `a_shaped_chat_span_reaches_the_engine`, getting 
 chat template's deadline in a local input copy only; the engine must not expand a template. Also
 `a_shaped_goal_span_beyond_authority_is_not_automatically_proposed`: finite first bound, a Span-shaped Create sent,
 engine Authority with could-be-accepted, no proposal until explicitly sent. Use the world's existing policy fixture.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test deadline_spans -E 'test(=a_shaped_chat_span_reaches_the_engine)'`;
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test deadline_spans -E 'test(=a_shaped_chat_span_reaches_the_engine)'`;
 the clock-free helper reaches the real engine and stores its wall, under 0.5 s; unit,
-`heavy cargo nextest run -p jig-client -E 'test(=a_goal_span_is_within_both_finite_deadline_bounds)'`, once, under 20 ms,
+`cargo nextest run -p jig-client -E 'test(=a_goal_span_is_within_both_finite_deadline_bounds)'`, once, under 20 ms,
 shows the pure draft judgment against both finite bounds; 05.3 and the joint story cover engine authority.
 Don't: supply Wall::EPOCH to keep a signature, keep a compatibility shape, read a clock in fall, or silently drop a span.
 Size: at most 180 production lines, including call sites and the selector-aware judgment; tests aside.
@@ -312,7 +312,7 @@ key and the same name; first answer, one make, identical task number and deadlin
 `a_named_proposal_keeps_its_span_across_client_and_engine_restart`: the pending stored action still has Span, and acceptance
 later starts the full span; `a_changed_template_under_the_same_name_is_a_conflict`: the changed duration is a different
 ask, no second make. Use fixtures::owner_limits and its retention; no wall sleep, seed sweep or new world.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world --test deadline_spans -E 'test(=a_named_span_replayed_after_time_moves_keeps_its_first_task)'`;
+Proof: joint, `cargo nextest run -p jig-client-protocol-world --test deadline_spans -E 'test(=a_named_span_replayed_after_time_moves_keeps_its_first_task)'`;
 the repeated public request crosses HTTP bytes and gets the first durable answer and wall, under 0.5 s.
 Don't: compare only task counts, replace the changed clock with a fixed epoch, reuse an already-built ask as the entire
 reconstruction test, or duplicate 02's unrelated Held matrix. Merge any helper copies introduced by these joint stories.

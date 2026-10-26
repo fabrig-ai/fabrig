@@ -42,7 +42,7 @@ Test shape, in `crates/skein-lib/src/tests/requests.rs`:
   `Erase` and no `Save` (this pins `save = false`).
 - Their `Save` and `Erase` checks are exhaustive `match`es, as
   `final_hands_back_owner_once_and_erases_before_reclaiming`'s.
-Proof: skein's gate, by `land`.
+Proof: skein's gate.
 Don't: change `answered`, `RequestOut`, `RequestAnswered`,
 `RequestProgress` or `tests/lib/src/request_table.rs`; name a downstream
 repository (`git -C <worktree> diff origin/main...HEAD | grep -i -w -E

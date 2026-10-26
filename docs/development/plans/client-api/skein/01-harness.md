@@ -144,7 +144,7 @@ Tests, each under 20 ms: `a_printed_line_names_the_url_to_open_and_its_address`,
 `reopen_goes_to_the_url_the_person_first_opened`,
 `a_second_person_opens_a_line_the_first_did_not`,
 `stdout_is_piped_only_when_the_line_comes_on_it`.
-Proof: the browser suite, which is `land`'s gate here (skein's gate runs
+Proof: the browser suite, which is the gate here (skein's gate runs
 `--profile browser`): the UI example's tier in the address form,
 unchanged, `the_harness_reads_the_listening_line`
 (`tests/ui-web/tests/browser_harness.rs`) and
@@ -212,7 +212,7 @@ Tests: `a_page_of_another_origin_is_opened_by_its_step` (browser, about
 `an_unknown_origin_path_is_404` (unit, under 20 ms, in
 `testing/skein-fake-person-browser/src/tests.rs` on `origins::Pages`
 driven by hand, after `tests/browser/tests/page_server.rs`).
-Proof: the browser suite (`land`'s gate): `a_page_of_another_origin_is_opened_by_its_step`
+Proof: the browser suite (the gate): `a_page_of_another_origin_is_opened_by_its_step`
 shows a person's page at an origin the harness serves; the kit's
 `browser_facts` and `browser_real` tests pass on the moved page server.
 Don't: serve the application's pages; give an origin a policy of its
@@ -274,7 +274,7 @@ other.test`, status `200`, which the UI example's server answers to any
 `trouble_named_by_a_later_step_does_not_fail_the_run`,
 `a_trouble_step_not_met_within_its_bound_fails_naming_its_words`,
 `a_request_step_with_another_status_fails_naming_it` (unit, under 20 ms).
-Proof: the browser suite (`land`'s gate): `a_framed_page_s_refusal_is_awaited_as_trouble`
+Proof: the browser suite (the gate): `a_framed_page_s_refusal_is_awaited_as_trouble`
 shows a policy violation of the server's page, caused by a page of
 another origin, awaited and not failing the story; and
 `the_harness_fails_a_page_whose_module_throws` still fails a story on
@@ -294,7 +294,7 @@ The README's "One test of the browser suite" holds skein's commands and
 the rule for running them; this file keeps no copy. The run's machine
 has the `wasm32-unknown-unknown` target (README, "Prerequisites"); the
 commands the planner could not run at the base are listed in the README
-for the supervisor's ready check. At the base, `heavy cargo nextest list
+for the supervisor's ready check. At the base, `cargo nextest list
 -p skein-ui-web-tests -p skein-browser-world --profile browser` listed
 the browser tests this file names (`the_harness_reads_the_listening_line`,
 `a_reload_keeps_a_pending_add_made_once`,
@@ -305,7 +305,7 @@ the browser tests this file names (`the_harness_reads_the_listening_line`,
 ## Interface sketches
 
 Compiled at the base in a scratch module of `skein-fake-person-browser`
-(the crate taking `skein-http`, as 01.3 does) with `heavy cargo clippy -p
+(the crate taking `skein-http`, as 01.3 does) with `cargo clippy -p
 skein-fake-person-browser --all-targets -- -D warnings`, which passed
 (`logs/w8/sketch-skein-01.txt`); bodies return a trivial value. `Header`
 is `skein_ui_web::transport::Header`, `(Box<[u8]>, Box<[u8]>)`.

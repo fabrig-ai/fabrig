@@ -63,7 +63,7 @@ the steps, the box's environment and the descriptors it opened.
   most `max_out()` orders, into a queue reserved for it. Limits come from `limits::small()`,
   another value named beside it with its reason.
 - **Ceilings are aims:** a test over its ceiling does not fail; a miss is noted in the landing report,
-  read from nextest's `PASS [ t ]` lines in heavy's log.
+  read from nextest's `PASS [ t ]` lines in the test log.
 
 ## Increments
 
@@ -77,7 +77,7 @@ Files: new `crates/temper-box/{Cargo.toml,src/{lib,limits,machine,tests}.rs}` an
 `src/tests/{fixtures,machine,limits,boundary}.rs` (dependencies `temper-forge-setup`, `skein-lib`, `skein-io`,
 `skein-shell`; dev `jig-boundary`; `[lints] workspace = true`); root `Cargo.toml` (**hotspot with temper 07.1
 and 08.1**: `members`, `temper-box = { path = "crates/temper-box" }` in `[workspace.dependencies]`);
-`Cargo.lock` (**hotspot**: origin/main's, then `heavy cargo check -p temper-box --tests`, no `cargo update`).
+`Cargo.lock` (**hotspot**: origin/main's, then `cargo check -p temper-box --tests`, no `cargo update`).
 Users: none (`git grep -n -E 'temper_box|temper-box' -- crates tests testing tools` prints nothing at the base).
 Shape:
 - `limits.rs`, sketch 1. `apply` takes the whole name (`box.backoff_ms`), as temper-service's (limits.rs:259);
@@ -160,7 +160,7 @@ and `the_box_names_only_steps_and_step_of_the_setup`: it reads each `.rs` under 
 excepted: its needle is a string) and, at each `temper_forge_setup`, requires `::` then `steps`, `Step` or a
 `{..}` of those two alone (a bare `use`, an alias or another item is a breach). Loops, no closures (the
 crate's lints). Ceilings: units under 20 ms.
-Proof: unit, `heavy cargo nextest run -p temper-box -E 'test(/tests::(machine|limits|boundary)::/)'`:
+Proof: unit, `cargo nextest run -p temper-box -E 'test(/tests::(machine|limits|boundary)::/)'`:
 the orders of a start, a restart (with its lane), a give-up and a stop as literals, the five limits and
 the box's edges to the setup; 22 pass. Not higher: 12.2 first hosts the machine on io (joint).
 Don't: read a clock, a file or the environment; name a token, a byte or a step in the machine; use `std`.
@@ -254,7 +254,7 @@ hand-fed bytes and `Up` events, literals as in 12.1): `a_line_is_written_with_it
 `only_the_plain_steps_stdout_is_written_as_is`, `a_sink_sends_no_more_than_the_room_it_was_granted`,
 `a_failed_sink_is_reported_once`. Ceilings: units under 20 ms, joint under 0.5 s (the sim's time
 moves by `advance_to`).
-Proof: joint, `heavy cargo nextest run -p temper-box -E 'test(/tests::(host|lines|sink)::/)'`: the
+Proof: joint, `cargo nextest run -p temper-box -E 'test(/tests::(host|lines|sink)::/)'`: the
 machine and host on the real io over the simulator: steps start in order with the box's
 environment, a stop signals each long step twice and leaves no child and no descriptor, a step
 that keeps exiting is given up after five restarts with spawns at least 0.5, 1, 2, 4 and 8 s
@@ -391,7 +391,7 @@ None open. A once step's give-up line is the plan's choice (Choices).
 
 ## Done when
 
-- `heavy cargo nextest run -p temper-box` passes, at least 34 tests, and `heavy cargo nextest run
+- `cargo nextest run -p temper-box` passes, at least 34 tests, and `cargo nextest run
   -p temper-box -E 'test(/tests::boundary::/)'` passes (7.3's test, which the gate runs).
 - `sed -n '/^\[dependencies\]/,/^\[/p' crates/temper-box/Cargo.toml | grep -c '^temper-'` prints 1,
   and `! git grep -n -E 'std::process|try_lock|CommandExt' -- crates/temper-box` succeeds: one

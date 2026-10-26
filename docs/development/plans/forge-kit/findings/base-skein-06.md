@@ -38,35 +38,32 @@ created or queried for status.
 ## Base test runs
 
 ```
-$ heavy cargo nextest run -p temper-throwaway-forgejo
+$ cargo nextest run -p temper-throwaway-forgejo
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
     Starting 13 tests across 2 binaries (1 test skipped)
      Summary [   0.010s] 13 tests run: 13 passed, 1 skipped
-heavy: task 738 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T003857-738.log
 ```
 
 ```
-$ heavy cargo nextest run -p forgejo-conformance
+$ cargo nextest run -p forgejo-conformance
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
     Starting 25 tests across 2 binaries
         PASS [   0.109s] (25/25) forgejo-conformance tests::the_listener_holds_its_answer_until_the_probe_replies
      Summary [   0.114s] 25 tests run: 25 passed, 0 skipped
-heavy: task 739 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T003858-739.log
 ```
 
 ```
-$ heavy cargo nextest run -p temper-codecs-world
+$ cargo nextest run -p temper-codecs-world
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
     Starting 60 tests across 12 binaries (4 binaries skipped via profile.default.default-filter)
      Summary [   0.169s] 60 tests run: 60 passed, 0 skipped
-heavy: task 740 (build) exit 0, waited 1s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T003859-740.log
 ```
 
 ```
-$ heavy cargo nextest run -p temper-codecs-world --profile fuzzy
+$ cargo nextest run -p temper-codecs-world --profile fuzzy
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
     Starting 6 tests across 4 binaries (12 binaries skipped via profile.fuzzy.default-filter)
@@ -74,7 +71,6 @@ $ heavy cargo nextest run -p temper-codecs-world --profile fuzzy
         PASS [   2.745s] (5/6) temper-codecs-world::fuzzy_forgejo forgejo_decoders_answer_every_mutated_transcript_without_panicking
         PASS [   3.243s] (6/6) temper-codecs-world::fuzzy_forgejo forgejo_server_routes_answer_every_mutated_request_without_panicking
      Summary [   3.244s] 6 tests run: 6 passed, 0 skipped
-heavy: task 741 (build) exit 0, waited 1s, ran 4s, log /srv/data/git/runner/src/tmp/logs/20261019T003900-741.log
 ```
 
 The focused conformance listener test costs 0.109 s: it binds a loopback
@@ -88,7 +84,7 @@ recorded events repeatedly; the moved fuzzy workloads keep their 32 response,
 ## Moved-test inventory from nextest list
 
 ```
-$ heavy cargo nextest list -p temper-throwaway-forgejo -p forgejo-conformance -p temper-codecs-world --message-format json
+$ cargo nextest list -p temper-throwaway-forgejo -p forgejo-conformance -p temper-codecs-world --message-format json
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 forgejo-conformance: 25 listed; 0 ignored
 temper-codecs-world::client_wire: 1 listed; 0 ignored
@@ -107,7 +103,7 @@ exit 0
 ```
 
 ```
-$ heavy cargo nextest list -p temper-codecs-world --profile fuzzy --message-format json
+$ cargo nextest list -p temper-codecs-world --profile fuzzy --message-format json
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 temper-codecs-world::fuzzy_client_wire: 1 listed; 0 ignored
 temper-codecs-world::fuzzy_forgejo: 3 listed; 0 ignored
@@ -254,7 +250,7 @@ These select all seven moved focused binaries and the whole moved fuzzy binary;
 no moved test is filtered to change its cost.
 
 ```
-$ heavy cargo nextest run -p temper-codecs-world --test 'forgejo_*'
+$ cargo nextest run -p temper-codecs-world --test 'forgejo_*'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 5.23s
     Starting 55 tests across 7 binaries
@@ -263,7 +259,7 @@ $ heavy cargo nextest run -p temper-codecs-world --test 'forgejo_*'
 ```
 
 ```
-$ heavy cargo nextest run -p temper-codecs-world --test fuzzy_forgejo --profile fuzzy
+$ cargo nextest run -p temper-codecs-world --test fuzzy_forgejo --profile fuzzy
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
     Starting 3 tests across 1 binary
@@ -279,33 +275,27 @@ recording first, then component recording to the same output. No base source
 or committed recording was changed. Runtime output was kept only in scratch.
 
 ```
-$ TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 heavy --gate cargo nextest run -p temper-throwaway-forgejo --run-ignored only
+$ TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 cargo nextest run -p temper-throwaway-forgejo --run-ignored only
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
     Starting 1 test across 2 binaries (13 tests skipped)
      Summary [   7.898s] 1 test run: 1 passed (1 slow), 13 skipped
-heavy: ran alone for 8s
-heavy: task 734 (gate) exit 0, waited 107s, ran 11s, log /srv/data/git/runner/src/tmp/logs/20261019T004116-734.log
 ```
 
 ```
-$ TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate cargo run -p forgejo-conformance -- --scratch /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-instance --out /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-base
+$ TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 cargo run -p forgejo-conformance -- --scratch /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-instance --out /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-base
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.04s
-heavy: ran alone for 106s
-heavy: task 733 (gate) exit 0, waited 0s, ran 108s, log /srv/data/git/runner/src/tmp/logs/20261019T003928-733.log
 ```
 
 ```
-$ TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate cargo run -p forgejo-conformance -- --component --scratch /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-component --out /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-base
+$ TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 cargo run -p forgejo-conformance -- --component --scratch /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-component --out /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-base
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
-heavy: ran alone for 22s
-heavy: task 771 (gate) exit 0, waited 1s, ran 409s, log /srv/data/git/runner/src/tmp/logs/20261019T004233-771.log
 ```
 
 The ordinary run used 106 s alone (108 s including build/driver). The component
-run used 22 s alone; heavy reported 409 s because its exclusive wrapper waited
+run used 22 s alone; reported 409 s because its exclusive wrapper waited
 for a previous queued build to drain before invoking cargo. The 5-minute Proof
 bound is execution, excluding queue/lock waits. Both processes exited 0.
 The opt-in throwaway test was SLOW at 7.898 s because it starts/provisions a
@@ -314,7 +304,7 @@ process; it stays ignored in the focused suite and is never hidden by tuning.
 ## Facts and data at the base
 
 ```
-$ heavy python3 -c 'exec("from pathlib import Path\nfrom collections import Counter\nimport re,hashlib\nroot=Path(\"/srv/data/git/runner/src\")\nbase=root/\"tmp/planning/temper-base/tools/forgejo-conformance\"\nfresh=root/\"tmp/planning/scratch-skein-06/target/conformance-base\"\nfor root in [base,fresh]:\n lines=(root/\"facts.txt\").read_text().splitlines()\n facts=[x for x in lines if x and not x.startswith(\"#\")]\n print(root, dict(Counter(x.split()[0] for x in facts)),len(facts))\n print(\"component facts\",sum(x.split()[1].startswith(\"component-\") for x in facts))\n print(\"data:\",len(list((root/\"transcripts\").iterdir())),\"transcript entries;\",len(list((root/\"transcripts\").rglob(\"request\"))),\"cases;\",len(list((root/\"deliveries\").iterdir())),\"delivery directories\")\n if root==fresh:\n  print(\"\\n\".join(x for x in facts if not x.startswith(\"holds\")))\ndoc=Path(\"/srv/data/git/runner/src/tmp/planning/skein-base/docs/design/forge-setup.md\").read_text().split(\"## 8.\")[1].split(\"## 9.\")[0]\nnames=re.findall(r\"\\x60((?:setup-|delivery-loopback-|api-default-)[^\\x60]+)\\x60\",doc)\ntext=(fresh/\"facts.txt\").read_text()\nmissing=[n for n in names if not re.search(r\"^(holds|fails|unchecked) \"+re.escape(n)+r\"(?::|$)\",text,re.M)]\nprint(\"forge-setup 8:\",len(names),\"named;\",len(missing),\"missing;\",sum(\"holds \"+n+\"\\n\" in text for n in names),\"hold\")\npat=re.compile(rb\"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\")\nfor root in [base,fresh]:\n uuids=[v for p in (root/\"transcripts\").rglob(\"*\") if p.is_file() for v in pat.findall(p.read_bytes()) if not v.startswith(b\"00000000-0000-0000-0000-\")]\n print(root.name,\"unmasked UUID occurrences:\",len(uuids))\n")'
+$ python3 -c 'exec("from pathlib import Path\nfrom collections import Counter\nimport re,hashlib\nroot=Path(\"/srv/data/git/runner/src\")\nbase=root/\"tmp/planning/temper-base/tools/forgejo-conformance\"\nfresh=root/\"tmp/planning/scratch-skein-06/target/conformance-base\"\nfor root in [base,fresh]:\n lines=(root/\"facts.txt\").read_text().splitlines()\n facts=[x for x in lines if x and not x.startswith(\"#\")]\n print(root, dict(Counter(x.split()[0] for x in facts)),len(facts))\n print(\"component facts\",sum(x.split()[1].startswith(\"component-\") for x in facts))\n print(\"data:\",len(list((root/\"transcripts\").iterdir())),\"transcript entries;\",len(list((root/\"transcripts\").rglob(\"request\"))),\"cases;\",len(list((root/\"deliveries\").iterdir())),\"delivery directories\")\n if root==fresh:\n  print(\"\\n\".join(x for x in facts if not x.startswith(\"holds\")))\ndoc=Path(\"/srv/data/git/runner/src/tmp/planning/skein-base/docs/design/forge-setup.md\").read_text().split(\"## 8.\")[1].split(\"## 9.\")[0]\nnames=re.findall(r\"\\x60((?:setup-|delivery-loopback-|api-default-)[^\\x60]+)\\x60\",doc)\ntext=(fresh/\"facts.txt\").read_text()\nmissing=[n for n in names if not re.search(r\"^(holds|fails|unchecked) \"+re.escape(n)+r\"(?::|$)\",text,re.M)]\nprint(\"forge-setup 8:\",len(names),\"named;\",len(missing),\"missing;\",sum(\"holds \"+n+\"\\n\" in text for n in names),\"hold\")\npat=re.compile(rb\"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\")\nfor root in [base,fresh]:\n uuids=[v for p in (root/\"transcripts\").rglob(\"*\") if p.is_file() for v in pat.findall(p.read_bytes()) if not v.startswith(b\"00000000-0000-0000-0000-\")]\n print(root.name,\"unmasked UUID occurrences:\",len(uuids))\n")'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 /srv/data/git/runner/src/tmp/planning/temper-base/tools/forgejo-conformance {'holds': 211, 'fails': 7} 218
 component facts 40
@@ -335,14 +325,12 @@ fails webhook-deliveries: delivery facts failed
 forge-setup 8: 36 named; 0 missing; 36 hold
 forgejo-conformance unmasked UUID occurrences: 4
 conformance-base unmasked UUID occurrences: 0
-heavy: task 807 (build) exit 0, waited 56s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005119-807.log
 ```
 
 ```
-$ heavy sh -c 'awk "/^(holds|fails|unchecked) / {sub(/:.*/, \"\", \$2); print \$1, \$2}" /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-base/facts.txt | LC_ALL=C sort | sha256sum'
+$ sh -c 'awk "/^(holds|fails|unchecked) / {sub(/:.*/, \"\", \$2); print \$1, \$2}" /srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-base/facts.txt | LC_ALL=C sort | sha256sum'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 e8996bbcf191f5f11e955823c061e6ad3bf80c663bf2c0b322563036fcf974ec  -
-heavy: task 806 (build) exit 0, waited 57s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005119-806.log
 ```
 
 The SHA-256 compares sorted **outcome and fact name**, ignoring provenance and
@@ -609,7 +597,7 @@ Multiline Python arguments are rendered below with Bash ANSI quoting so the
 command fits on one physical line while passing exactly the original argument.
 
 ```
-$ heavy python3 -c $'import pathlib,subprocess,re,json\nroot=pathlib.Path("/srv/data/git/runner/src")\nbase=root/"tmp/planning/temper-base"\nrepos=[base,root/"tmp/planning/skein-base",root/"jig",root/"smith",root/"hearth"]\nfor group,rel in [("throwaway","testing/temper-throwaway-forgejo"),("conformance","tools/forgejo-conformance"),("codecs","tests/codecs")]:\n files=[p for p in (base/rel).rglob("*.rs")]\n prod=[]; test=[]\n for p in files:\n  s=p.read_text()\n  if "/tests/" in str(p.relative_to(base/rel)) or p.name=="tests.rs": test.append((p,len(s.splitlines())))\n  else:\n   if "#[cfg(test)]" in s: s=s.split("#[cfg(test)]")[0]\n   prod.append((p,len(s.splitlines())))\n print(group,"source lines",sum(n for p,n in prod),"test lines",sum(n for p,n in test),"max",max((n,p.name) for p,n in prod+test))\nprint("serde files",subprocess.run(["rg","-l","serde",str(base/"tools/forgejo-conformance/src")],text=True,capture_output=True).stdout.count("\\n"))\np=base/"tools/forgejo-conformance"\nprint("data:",len(list((p/"transcripts").rglob("*"))),"entries;",len([x for x in (p/"transcripts").iterdir() if x.is_dir()]),"transcript directories;",len([x for x in (p/"transcripts").rglob("*") if x.is_file()]),"files;",len([x for x in (p/"deliveries").iterdir() if x.is_dir()]),"deliveries")\nfor pat in [r"temper_throwaway_forgejo::",r"Instance::attach",r"Forgejo::from_env",r"tools/forgejo-conformance/(transcripts|deliveries)",r"temper_codecs_world::forgejo",r"forgejo::profile_limits",r"forgejo_conformance::",r"TEMPER_FORGEJO(_RUNNER)?"]:\n row=[]\n for repo in repos:\n  result=subprocess.run(["rg","--glob","*.rs","-n",pat,str(repo)],text=True,capture_output=True)\n  row.append(str(len(result.stdout.splitlines())))\n print(pat,",".join(row),"[temper,skein,jig,smith,hearth]")\nprint("data readers:",subprocess.run(["rg","-l",r"tools/forgejo-conformance",str(base/"tests"),"--glob","*.rs"],text=True,capture_output=True).stdout.replace(str(base)+"/","").strip().replace("\\n",", "))\nprint("downstream profile literals:")\np=base/"crates/temper-service/src/limits.rs"\ns=p.read_text(); print("\\n".join(s.splitlines()[51:86]))\n'
+$ python3 -c $'import pathlib,subprocess,re,json\nroot=pathlib.Path("/srv/data/git/runner/src")\nbase=root/"tmp/planning/temper-base"\nrepos=[base,root/"tmp/planning/skein-base",root/"jig",root/"smith",root/"hearth"]\nfor group,rel in [("throwaway","testing/temper-throwaway-forgejo"),("conformance","tools/forgejo-conformance"),("codecs","tests/codecs")]:\n files=[p for p in (base/rel).rglob("*.rs")]\n prod=[]; test=[]\n for p in files:\n  s=p.read_text()\n  if "/tests/" in str(p.relative_to(base/rel)) or p.name=="tests.rs": test.append((p,len(s.splitlines())))\n  else:\n   if "#[cfg(test)]" in s: s=s.split("#[cfg(test)]")[0]\n   prod.append((p,len(s.splitlines())))\n print(group,"source lines",sum(n for p,n in prod),"test lines",sum(n for p,n in test),"max",max((n,p.name) for p,n in prod+test))\nprint("serde files",subprocess.run(["rg","-l","serde",str(base/"tools/forgejo-conformance/src")],text=True,capture_output=True).stdout.count("\\n"))\np=base/"tools/forgejo-conformance"\nprint("data:",len(list((p/"transcripts").rglob("*"))),"entries;",len([x for x in (p/"transcripts").iterdir() if x.is_dir()]),"transcript directories;",len([x for x in (p/"transcripts").rglob("*") if x.is_file()]),"files;",len([x for x in (p/"deliveries").iterdir() if x.is_dir()]),"deliveries")\nfor pat in [r"temper_throwaway_forgejo::",r"Instance::attach",r"Forgejo::from_env",r"tools/forgejo-conformance/(transcripts|deliveries)",r"temper_codecs_world::forgejo",r"forgejo::profile_limits",r"forgejo_conformance::",r"TEMPER_FORGEJO(_RUNNER)?"]:\n row=[]\n for repo in repos:\n  result=subprocess.run(["rg","--glob","*.rs","-n",pat,str(repo)],text=True,capture_output=True)\n  row.append(str(len(result.stdout.splitlines())))\n print(pat,",".join(row),"[temper,skein,jig,smith,hearth]")\nprint("data readers:",subprocess.run(["rg","-l",r"tools/forgejo-conformance",str(base/"tests"),"--glob","*.rs"],text=True,capture_output=True).stdout.replace(str(base)+"/","").strip().replace("\\n",", "))\nprint("downstream profile literals:")\np=base/"crates/temper-service/src/limits.rs"\ns=p.read_text(); print("\\n".join(s.splitlines()[51:86]))\n'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 throwaway source lines 820 test lines 67 max (268, 'instance.rs')
 conformance source lines 4159 test lines 324 max (568, 'facts.rs')
@@ -621,18 +609,16 @@ Forgejo::from_env 4,0,0,0,0 [temper,skein,jig,smith,hearth]
 tools/forgejo-conformance/(transcripts|deliveries) 5,0,0,0,0 [temper,skein,jig,smith,hearth]
 TEMPER_FORGEJO(_RUNNER)? 15,0,0,0,0 [temper,skein,jig,smith,hearth]
 data readers: tests/engine/protocol-forge/tests/hooks.rs, tests/engine/protocol-forge/src/machine.rs, tests/codecs/src/forgejo.rs
-heavy: task 747 (build) exit 0, waited 80s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T004207-747.log
 ```
 
 ```
-$ heavy python3 -c 'exec("from pathlib import Path\nimport re\nr=Path(\".\")\nthrow=r/\"testing/temper-throwaway-forgejo\"\ntool=r/\"tools/forgejo-conformance\"\ncodecs=r/\"tests/codecs\"\nfor root in [throw,tool]:\n prod=[p for p in (root/\"src\").rglob(\"*.rs\") if p.name!=\"tests.rs\"]\n tests=[p for p in root.rglob(\"*.rs\") if p.name==\"tests.rs\" or \"tests\" in p.relative_to(root).parts]\n print(root, \"production\",sum(len(p.read_text().splitlines()) for p in prod),\"test\",sum(len(p.read_text().splitlines()) for p in tests))\nfiles=[codecs/\"src/forgejo.rs\",*(codecs/\"tests\").glob(\"forgejo_*.rs\"),codecs/\"tests/fuzzy_forgejo.rs\"]\nprint(\"dialect helper and tests\",sum(len(p.read_text().splitlines()) for p in files),\"plus 30 lines of mutation helpers\")\npat=re.compile(rb\"20\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{7}(?:Z|[+-]\\d\\d:\\d\\d)\")\nfor root in [tool,Path(\"/srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-base\")]:\n rows=[(p.name,m.group()) for p in (root/\"transcripts\").rglob(\"response\") if p.parent.name in (\"actions-job-log\",\"actions-job-log-step\") for m in pat.finditer(p.read_bytes())]\n print(root.name,\"seven-fraction log times\",len(rows))\n")'
+$ python3 -c 'exec("from pathlib import Path\nimport re\nr=Path(\".\")\nthrow=r/\"testing/temper-throwaway-forgejo\"\ntool=r/\"tools/forgejo-conformance\"\ncodecs=r/\"tests/codecs\"\nfor root in [throw,tool]:\n prod=[p for p in (root/\"src\").rglob(\"*.rs\") if p.name!=\"tests.rs\"]\n tests=[p for p in root.rglob(\"*.rs\") if p.name==\"tests.rs\" or \"tests\" in p.relative_to(root).parts]\n print(root, \"production\",sum(len(p.read_text().splitlines()) for p in prod),\"test\",sum(len(p.read_text().splitlines()) for p in tests))\nfiles=[codecs/\"src/forgejo.rs\",*(codecs/\"tests\").glob(\"forgejo_*.rs\"),codecs/\"tests/fuzzy_forgejo.rs\"]\nprint(\"dialect helper and tests\",sum(len(p.read_text().splitlines()) for p in files),\"plus 30 lines of mutation helpers\")\npat=re.compile(rb\"20\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{7}(?:Z|[+-]\\d\\d:\\d\\d)\")\nfor root in [tool,Path(\"/srv/data/git/runner/src/tmp/planning/scratch-skein-06/target/conformance-base\")]:\n rows=[(p.name,m.group()) for p in (root/\"transcripts\").rglob(\"response\") if p.parent.name in (\"actions-job-log\",\"actions-job-log-step\") for m in pat.finditer(p.read_bytes())]\n print(root.name,\"seven-fraction log times\",len(rows))\n")'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 testing/temper-throwaway-forgejo production 728 test 168
 tools/forgejo-conformance production 4161 test 324
 dialect helper and tests 2405 plus 30 lines of mutation helpers
 forgejo-conformance seven-fraction log times 9
 conformance-base seven-fraction log times 9
-heavy: task 787 (build) exit 0, waited 2s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005148-787.log
 ```
 
 The source corpus has four unmasked UUID occurrences and nine unquoted log
@@ -651,7 +637,7 @@ crate searches above identify the users that must change. Each function/type
 name from the stale graph was checked again this way in the base.
 
 ```
-$ heavy python3 -c 'exec("from pathlib import Path\nimport re,subprocess\nroot=Path(\"/srv/data/git/runner/src\")\nbase=root/\"tmp/planning/temper-base\"\nrepos=[base,root/\"tmp/planning/skein-base\",root/\"jig\",root/\"smith\",root/\"hearth\"]\nsources=sorted((base/\"testing/temper-throwaway-forgejo/src\").glob(\"*.rs\"))+sorted((base/\"tools/forgejo-conformance/src\").rglob(\"*.rs\"))+[base/\"tests/codecs/src/forgejo.rs\",base/\"tests/codecs/src/lib.rs\"]\nfor source in sources:\n if source.name==\"tests.rs\":continue\n names=sorted(set(re.findall(r\"\\b(?:fn|struct|enum)\\s+([A-Za-z_][A-Za-z_0-9]*)\",source.read_text())))\n rows=[]\n for name in names:\n  counts=[]\n  for repo in repos:\n   result=subprocess.run([\"rg\",\"--glob\",\"*.rs\",\"-l\",r\"\\b\"+name+r\"\\b\",str(repo)],text=True,capture_output=True)\n   if result.returncode not in (0,1):raise RuntimeError(result.stderr)\n   counts.append(len(result.stdout.splitlines()))\n  rows.append(name+\"=\"+\"/\".join(map(str,counts)))\n print(str(source.relative_to(base))+\": \"+\", \".join(rows))\n")'
+$ python3 -c 'exec("from pathlib import Path\nimport re,subprocess\nroot=Path(\"/srv/data/git/runner/src\")\nbase=root/\"tmp/planning/temper-base\"\nrepos=[base,root/\"tmp/planning/skein-base\",root/\"jig\",root/\"smith\",root/\"hearth\"]\nsources=sorted((base/\"testing/temper-throwaway-forgejo/src\").glob(\"*.rs\"))+sorted((base/\"tools/forgejo-conformance/src\").rglob(\"*.rs\"))+[base/\"tests/codecs/src/forgejo.rs\",base/\"tests/codecs/src/lib.rs\"]\nfor source in sources:\n if source.name==\"tests.rs\":continue\n names=sorted(set(re.findall(r\"\\b(?:fn|struct|enum)\\s+([A-Za-z_][A-Za-z_0-9]*)\",source.read_text())))\n rows=[]\n for name in names:\n  counts=[]\n  for repo in repos:\n   result=subprocess.run([\"rg\",\"--glob\",\"*.rs\",\"-l\",r\"\\b\"+name+r\"\\b\",str(repo)],text=True,capture_output=True)\n   if result.returncode not in (0,1):raise RuntimeError(result.stderr)\n   counts.append(len(result.stdout.splitlines()))\n  rows.append(name+\"=\"+\"/\".join(map(str,counts)))\n print(str(source.relative_to(base))+\": \"+\", \".join(rows))\n")'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 exit 0; 26 source-file groups searched; detailed counts below.
 ```
@@ -725,24 +711,21 @@ signature is identical to the base's, already exercised by its process tier.
 No new production type was introduced by a sketch.
 
 ```
-$ heavy cargo clippy -p temper-throwaway-forgejo -p forgejo-conformance --all-targets -- -D warnings
+$ cargo clippy -p temper-throwaway-forgejo -p forgejo-conformance --all-targets -- -D warnings
 # directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-06
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.77s
-heavy: task 757 (build) exit 0, waited 57s, ran 7s, log /srv/data/git/runner/src/tmp/logs/20261019T004227-757.log
 ```
 
 ```
-$ heavy cargo clippy -p temper-throwaway-forgejo -p forgejo-conformance --all-targets -- -D warnings
+$ cargo clippy -p temper-throwaway-forgejo -p forgejo-conformance --all-targets -- -D warnings
 # directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-06
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.34s
-heavy: task 790 (build) exit 0, waited 353s, ran 4s, log /srv/data/git/runner/src/tmp/logs/20261019T005055-790.log
 ```
 
 ```
-$ heavy cargo clippy -p temper-codecs-world --all-targets -- -D warnings
+$ cargo clippy -p temper-codecs-world --all-targets -- -D warnings
 # directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-06
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.92s
-heavy: task 791 (build) exit 0, waited 356s, ran 7s, log /srv/data/git/runner/src/tmp/logs/20261019T005059-791.log
 ```
 
 The codecs clippy also compiled the full limits reference test shown in 06.3.
@@ -750,11 +733,10 @@ The fixture probe below calls the shipped profile and asserts
 `temper_forge_forgejo::limits::check(&limits) == Ok(())`, then prints its values:
 
 ```
-$ heavy cargo run -p temper-codecs-world --example forge_profile
+$ cargo run -p temper-codecs-world --example forge_profile
 # directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-06
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 17.51s
 Limits { json: Limits { depth: 16, string: 16384, number: 32, chunk: 4096, length: 16777216 }, writer: Limits { depth: 16, length: 16777216 }, string_bytes: 512, body_bytes: 16384, inner: 32, target_bytes: 4096 }
-heavy: task 786 (build) exit 0, waited 401s, ran 18s, log /srv/data/git/runner/src/tmp/logs/20261019T005020-786.log
 ```
 
 ## Base forms of the remaining prescribed checks
@@ -766,23 +748,20 @@ commands. The diff compares data against the untouched data in the scratch copy,
 before any recording; the new-home path is the only substitution.
 
 ```
-$ heavy sh -c 'rg -n -i "temper|serde" testing/temper-throwaway-forgejo tools/forgejo-conformance tests/codecs/src/forgejo.rs tests/codecs/tests/forgejo_*.rs tests/codecs/tests/fuzzy_forgejo.rs | wc -l'
+$ sh -c 'rg -n -i "temper|serde" testing/temper-throwaway-forgejo tools/forgejo-conformance tests/codecs/src/forgejo.rs tests/codecs/tests/forgejo_*.rs tests/codecs/tests/fuzzy_forgejo.rs | wc -l'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 307
-heavy: task 798 (build) exit 0, waited 163s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005112-798.log
 ```
 
 ```
-$ heavy sh -c 'rg -n "from_env|TcpStream|thread::sleep" testing/temper-throwaway-forgejo/src | wc -l'
+$ sh -c 'rg -n "from_env|TcpStream|thread::sleep" testing/temper-throwaway-forgejo/src | wc -l'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 4
-heavy: task 799 (build) exit 0, waited 163s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005113-799.log
 ```
 
 ```
-$ heavy sh -c 'for p in transcripts deliveries facts.txt; do diff -qr "$1/$p" "$2/$p" || exit; done' sh /srv/data/git/runner/src/tmp/planning/temper-base/tools/forgejo-conformance /srv/data/git/runner/src/tmp/planning/scratch-skein-06/tools/forgejo-conformance
+$ sh -c 'for p in transcripts deliveries facts.txt; do diff -qr "$1/$p" "$2/$p" || exit; done' sh /srv/data/git/runner/src/tmp/planning/temper-base/tools/forgejo-conformance /srv/data/git/runner/src/tmp/planning/scratch-skein-06/tools/forgejo-conformance
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: task 788 (build) exit 0, waited 16s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005257-788.log
 ```
 
 ## Unsettled items
@@ -840,7 +819,7 @@ missing, duplicate and additional facts; a stable name/outcome change fails the 
 Provenance and volatile reason text are retained in facts.txt but excluded from hashing.
 
 ```
-$ heavy bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh tools/forgejo-conformance/facts.txt
+$ bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh tools/forgejo-conformance/facts.txt
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 timing holds merge-old-head-is-409-head-out-of-date
 timing holds delivery-pull-reads-not-mergeable-while-checked
@@ -849,14 +828,13 @@ timing holds delivery-pull-is-checking-when-its-push-is-delivered
 timing holds webhook-deliveries
 facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0
 d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -
-heavy: task 733 exit 0, ran 0s; 20261019T011605-733.log
 ```
 The fresh file below was reconstructed from this findings file's earlier 218-row
 table, with names/outcomes only. It is evidence about the previously recorded run,
 not a new process run; its reason text was not reconstructed. It gives the same hash.
 
 ```
-$ heavy bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh /srv/data/git/runner/src/tmp/planning/scratch-skein-06-revision/earlier-fresh-facts.txt
+$ bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh /srv/data/git/runner/src/tmp/planning/scratch-skein-06-revision/earlier-fresh-facts.txt
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 timing fails merge-old-head-is-409-head-out-of-date
 timing fails delivery-pull-reads-not-mergeable-while-checked
@@ -865,7 +843,6 @@ timing fails delivery-pull-is-checking-when-its-push-is-delivered
 timing fails webhook-deliveries
 facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0
 d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -
-heavy: task 734 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012255-734.log
 ```
 The cause trace is in cases::failures -> Fixture::put/ready and deliveries::
 Scenario::{take,reread}, scenario, evaluate, pull_pair and roll_up (rg checked).
@@ -881,10 +858,9 @@ it is not an independent fifth server race. Stabilizing them is later.md work.
 ### Paths, environment, pin users and recording bytes
 
 ```
-$ heavy sh -c 'rg -n "env::var|TEMPER_FORGEJO" tools/forgejo-conformance/src testing/temper-throwaway-forgejo/src | wc -l'
+$ sh -c 'rg -n "env::var|TEMPER_FORGEJO" tools/forgejo-conformance/src testing/temper-throwaway-forgejo/src | wc -l'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 8
-heavy: task 734 exit 0, ran 0s; 20261019T011607-734.log
 ```
 The eight lines are five runner variable reads (runner::run/run_with,
 deliveries::record, component::reads::run/actions), two runner-variable reason
@@ -894,13 +870,13 @@ the optional runner is threaded through every one of those paths, including
 delivery CI. Kit test errors explicitly name SKEIN_FORGEJO or SKEIN_FORGEJO_RUNNER.
 
 ```
-$ heavy sh -c 'rg -n "Forgejo::from_env|Instance::attach|TEMPER_FORGEJO|RUNNER_VERSION|::VERSION|names_runner" tools/git-transcripts/src/lib.rs crates/temper/tests/{process.rs,support/owned.rs,support/forgejo.rs} testing/temper-throwaway-forgejo tools/forgejo-conformance/src'
+$ sh -c 'rg -n "Forgejo::from_env|Instance::attach|TEMPER_FORGEJO|RUNNER_VERSION|::VERSION|names_runner" tools/git-transcripts/src/lib.rs crates/temper/tests/{process.rs,support/owned.rs,support/forgejo.rs} testing/temper-throwaway-forgejo tools/forgejo-conformance/src'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 rg: crates/temper/tests/{process.rs,support/owned.rs,support/forgejo.rs}: No such file or directory
 exit 2: sh did not expand Bash braces; corrected below.
 ```
 ```
-$ heavy bash -c 'rg -n "Forgejo::from_env|Instance::attach|TEMPER_FORGEJO|RUNNER_VERSION|::VERSION|names_runner" tools/git-transcripts/src/lib.rs crates/temper/tests/{process.rs,support/owned.rs,support/forgejo.rs} testing/temper-throwaway-forgejo tools/forgejo-conformance/src'
+$ bash -c 'rg -n "Forgejo::from_env|Instance::attach|TEMPER_FORGEJO|RUNNER_VERSION|::VERSION|names_runner" tools/git-transcripts/src/lib.rs crates/temper/tests/{process.rs,support/owned.rs,support/forgejo.rs} testing/temper-throwaway-forgejo tools/forgejo-conformance/src'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 28 matching lines; exit 0; full log 20261019T011836-734.log
 git-transcripts/src/lib.rs:76: Forgejo::from_env
@@ -933,7 +909,7 @@ has no such request. The existing request test grows a head/sent golden using
 transcripts/user: head **254 bytes**, sent **99 bytes**, HTTP/1.1 200 OK.
 
 ```
-$ heavy python3 -c 'from pathlib import Path; import re; b=Path("tools/forgejo-conformance"); ps=[p for d in ("transcripts","deliveries") for p in (b/d).rglob("*") if p.is_file()]; both=[str(p) for p in (b/"transcripts").rglob("request") if b"Range:" in p.read_bytes() and b"Content-Length:" in p.read_bytes()]; print("requests with Range and Content-Length:",len(both)); print("source marker occurrences:",sum(p.read_text().count("temper:key") for p in (b/"src").rglob("*.rs"))); print("corpus files naming temper:",sum(b"temper" in p.read_bytes().lower() for p in ps)); head=(b/"transcripts/user/response").read_bytes().split(b"\r\n\r\n")[0]+b"\r\n"; print("user head:",len(head),"bytes; status:",head.split(b"\r\n")[0]); print("user sent:",len((b/"transcripts/user/request").read_bytes()),"bytes"); root=Path("/srv/data/git/runner/src/tmp/planning/skein-base"); print("corrected corpus path:",(root/"crates/skein-forge/../../tests/forge/conformance").resolve()==root/"tests/forge/conformance")'
+$ python3 -c 'from pathlib import Path; import re; b=Path("tools/forgejo-conformance"); ps=[p for d in ("transcripts","deliveries") for p in (b/d).rglob("*") if p.is_file()]; both=[str(p) for p in (b/"transcripts").rglob("request") if b"Range:" in p.read_bytes() and b"Content-Length:" in p.read_bytes()]; print("requests with Range and Content-Length:",len(both)); print("source marker occurrences:",sum(p.read_text().count("temper:key") for p in (b/"src").rglob("*.rs"))); print("corpus files naming temper:",sum(b"temper" in p.read_bytes().lower() for p in ps)); head=(b/"transcripts/user/response").read_bytes().split(b"\r\n\r\n")[0]+b"\r\n"; print("user head:",len(head),"bytes; status:",head.split(b"\r\n")[0]); print("user sent:",len((b/"transcripts/user/request").read_bytes()),"bytes"); root=Path("/srv/data/git/runner/src/tmp/planning/skein-base"); print("corrected corpus path:",(root/"crates/skein-forge/../../tests/forge/conformance").resolve()==root/"tests/forge/conformance")'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 requests with Range and Content-Length: 0
 source marker occurrences: 13
@@ -941,13 +917,11 @@ corpus files naming temper: 49
 user head: 254 bytes; status: b'HTTP/1.1 200 OK'
 user sent: 99 bytes
 corrected corpus path: True
-heavy: task 733 exit 0, ran 0s; 20261019T012331-733.log
 ```
 ```
-$ heavy sh -c 'rg -o "temper:key" tools/forgejo-conformance/transcripts tools/forgejo-conformance/deliveries | wc -l'
+$ sh -c 'rg -o "temper:key" tools/forgejo-conformance/transcripts tools/forgejo-conformance/deliveries | wc -l'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 29
-heavy: task 733 exit 0, ran 0s; 20261019T012356-733.log
 ```
 The corrected marker inventory is 13 source occurrences and 29 in the corpus,
 not 29 source occurrences. All 49 files containing the old owner's word are
@@ -963,7 +937,7 @@ The five throwaway source files total 728; the 21 recorder source files total
 4,161. tests.rs and all test/helper/data files are excluded.
 
 ```
-$ heavy python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06-revision/measure_moves.py
+$ python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06-revision/measure_moves.py
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 testing/temper-throwaway-forgejo moved 723 new 5 removed 5
 | src/binary.rs | 70 | 2 | 2 |
@@ -993,7 +967,6 @@ tools/forgejo-conformance moved 4071 new 90 removed 90
 | src/tokens.rs | 145 | 7 | 7 |
 | src/users.rs | 123 | 5 | 5 |
 | src/write.rs | 84 | 1 | 1 |
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012254-733.log
 ```
 Columns in those per-file rows are path, unchanged/moved, added/new, deleted.
 The scratch measurement script was:
@@ -1048,7 +1021,7 @@ Private functions are exposed only in the scratch crate to avoid dead code;
 the ready check still compiles against the landed prerequisite crates.
 
 ```
-$ heavy cargo clippy -p forge-session-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-session-sketch --all-targets -- -D warnings
 # directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-06-revision
 exit 101: scratch placeholder/lint errors (std instead of core,
 unimplemented!, missing Debug, wildcard imports, uninhabited error type).
@@ -1059,11 +1032,10 @@ an inhabited Failure placeholder and unreachable signature-only bodies;
 no lint suppression was added. The same command then passed:
 
 ```
-$ heavy cargo clippy -p forge-session-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-session-sketch --all-targets -- -D warnings
 # directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-06-revision
 Checking forge-session-sketch v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.13s
-heavy: task 733 exit 0, ran 1s; 20261019T012055-733.log
 ```
 ### Mask split and remaining coordination
 
@@ -1084,13 +1056,12 @@ are settled; none of the other pending design answers was silently decided.
 ### Revision final checks and cleanup
 
 ```text
-$ heavy python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06-revision/audit_plan.py
+$ python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06-revision/audit_plan.py
 # directory: /srv/data/git/runner/src
 Session: 391 lines; 4 increments; all nine fields present
 Recorder proofs: 2; 06.3 process proofs: 0; comparison commands: 2
 Correct corpus path; obsolete digest absent; balanced fences
 Revision findings command output blocks: at most 30 lines
-heavy: task 733 exit 0, ran 0s; 20261019T012629-733.log
 ```
 
 ```
@@ -1198,7 +1169,7 @@ print('Partial: HTTP/JSON replacements and recording script not included; no ful
 ```
 
 ```
-$ heavy python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06b/measure_moves.py throwaway
+$ python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06b/measure_moves.py throwaway
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 path | moved | new | deleted
 src/binary.rs | 62 | 3 | 10
@@ -1208,11 +1179,10 @@ src/instance.rs | 266 | 3 | 2
 src/lib.rs | 134 | 1 | 1
 TOTAL 715 7 13
 Partial: HTTP/JSON replacements and recording script not included; no full Size established.
-heavy: task 753 (build) exit 0, waited 30s, ran 0s; 20261019T013943-753.log
 ```
 
 ```
-$ heavy python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06b/measure_moves.py conformance
+$ python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06b/measure_moves.py conformance
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 path | moved | new | deleted
 src/cases.rs | 343 | 6 | 6
@@ -1238,13 +1208,12 @@ src/users.rs | 123 | 5 | 5
 src/write.rs | 84 | 1 | 1
 TOTAL 4047 119 114
 Partial: HTTP/JSON replacements and recording script not included; no full Size established.
-heavy: task 752 (build) exit 0, waited 29s, ran 0s; 20261019T013942-752.log
 ```
 
 ### Names and signature check
 
 ```
-$ heavy bash -c 'rg -n "pub fn digest|pub fn (attach|from_path)|digest::digest\(&bytes\)|TEMPER_FORGEJO_RUNNER missing" /srv/data/git/runner/src/tmp/planning/skein-base/crates/skein-lib/src/sha256.rs /srv/data/git/runner/src/tmp/planning/skein-base/crates/skein-io/src/digest.rs /srv/data/git/runner/src/tmp/planning/temper-base/testing/temper-throwaway-forgejo/src /srv/data/git/runner/src/tmp/planning/temper-base/tools/forgejo-conformance/src/deliveries.rs; rg --files /srv/data/git/runner/src/tmp/planning/skein-base/tests /srv/data/git/runner/src/tmp/planning/skein-base/testing | rg "/tests/support/mod.rs$"'
+$ bash -c 'rg -n "pub fn digest|pub fn (attach|from_path)|digest::digest\(&bytes\)|TEMPER_FORGEJO_RUNNER missing" /srv/data/git/runner/src/tmp/planning/skein-base/crates/skein-lib/src/sha256.rs /srv/data/git/runner/src/tmp/planning/skein-base/crates/skein-io/src/digest.rs /srv/data/git/runner/src/tmp/planning/temper-base/testing/temper-throwaway-forgejo/src /srv/data/git/runner/src/tmp/planning/temper-base/tools/forgejo-conformance/src/deliveries.rs; rg --files /srv/data/git/runner/src/tmp/planning/skein-base/tests /srv/data/git/runner/src/tmp/planning/skein-base/testing | rg "/tests/support/mod.rs$"'
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 7 matches; full log 20261019T014027-733.log
 skein-lib/src/sha256.rs:90: pub fn digest(message: &[u8]) -> [u8; 32]
@@ -1254,7 +1223,6 @@ throwaway/src/binary.rs:30: pub fn from_path(binary: &Path)
 throwaway/src/binary.rs:42: for word in skein_io::digest::digest(&bytes).0
 conformance/src/deliveries.rs:264: TEMPER_FORGEJO_RUNNER missing
 skein-base/testing/skein-fake-peers/tests/support/mod.rs
-heavy: task 733 (build) exit 0, waited 0s, ran 0s
 ```
 
 Signature-only traits in scratch's forge-session-sketch check attach/value,
@@ -1264,11 +1232,10 @@ structs stand for the future forge types; Document is this base's actual
 skein-json type. This is not a compiled replacement implementation.
 
 ```
-$ heavy cargo clippy -p forge-session-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-session-sketch --all-targets -- -D warnings
 # directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-06b
 exit 101: 8 disallowed-type errors (Vec/String)
 The scratch crate inherited the step-code clippy.toml, not the host/test rules.
-heavy: task 733 (build) exit 101, ran 1s; 20261019T013948-733.log
 ```
 
 Copied skein-base's tests/clippy.toml into the temporary signature crate,
@@ -1276,21 +1243,19 @@ which models ordinary Rust tools, not a step crate. No lint attribute or
 exception was added, and no production/test type signature was changed.
 
 ```
-$ heavy cargo clippy -p forge-session-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-session-sketch --all-targets -- -D warnings
 # directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-06b
 Checking forge-session-sketch v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.12s
-heavy: task 733 (build) exit 0, ran 1s; 20261019T014058-733.log
 ```
 
 ### Document checks
 
 ```
-$ heavy python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06b/audit_plan.py
+$ python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06b/audit_plan.py
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 exit 1: the audit's substring tests/fixtures.rs also matched the legitimate
 src/forgejo/tests/fixtures.rs reference in 06.3.
-heavy: task 734 (build) exit 1; 20261019T014207-734.log
 ```
 
 The check was corrected to the exact backtick-delimited `tests/fixtures.rs`;
@@ -1300,14 +1265,13 @@ or test run is claimed, and the five stable-fact comparisons were not rerun.
 
 
 ```
-$ heavy python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06b/audit_plan.py
+$ python3 /srv/data/git/runner/src/tmp/planning/scratch-skein-06b/audit_plan.py
 # directory: /srv/data/git/runner/src/tmp/planning/temper-base
 396 lines; four increments; all nine fields present
 Stable-fact commands byte-identical; 06.4 unchanged; two recording proofs
 Review items 1, 3, 4, 5 and smaller items represented
 Review item 2 remains unresolved: both full move Sizes unmeasured
 No new proof/count command added to the session; earlier base runs retained
-heavy: task 733 (build) exit 0, waited 1s, ran 0s; 20261019T014240-733.log
 ```
 
 For clarity, there are two stable-fact command occurrences in the session,

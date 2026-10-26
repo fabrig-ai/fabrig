@@ -153,7 +153,7 @@ Shape, in this order:
    `git -C ~/src/rust/jig show JIG01:Cargo.lock | grep -o
    'git+https://github.com/forgetic/[a-z]*.git#[0-9a-f]*' | sort -u` must
    print the skein and smith lines of the Pins rule; anything else is a
-   question. From temper's root, through `heavy`, run:
+   question. From temper's root, run:
    - `cargo update -p jig-domain-core --precise JIG01`;
    - `cargo update -p skein-lib --precise
      b4c6241aefea0e434b6e1128754168d02bae0706`;
@@ -205,11 +205,11 @@ smith::tools::JobAct::Hasten }, Box::default()).err()` is
 known to change: the rehearsal only compiled. A test that fails is
 adapted under the 5.7 rule and named in the landing's report, with the
 upstream commit it follows.
-Proof: unit, `heavy cargo nextest run -p temper-engine-smith -E
+Proof: unit, `cargo nextest run -p temper-engine-smith -E
 'test(=a_job_request_is_not_a_turn)'`, once. It shows a job's request
 answered as not a turn. Bound: 1 minute with the build.
 Proof: process, the real binaries on the new pins, once through the
-build lane: `heavy sh -c 'cargo build -p temper --bin temper &&
+build lane: `sh -c 'cargo build -p temper --bin temper &&
 NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E
 "test(=temper_open_signs_in_prints_the_inbox_and_exits_on_q) |
 test(=a_native_chat_reaches_the_model)"'`. The first test shows

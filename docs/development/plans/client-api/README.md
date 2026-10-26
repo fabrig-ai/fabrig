@@ -179,7 +179,7 @@ per session are in each file.
   `code-organization.md`, and the rulings of `decisions.md` that name its
   session. Nothing else is read whole.
 - **The process is read in the run's kit** (ruling 331): development.md,
-  implementer.md and testing-strategy.md in
+  the implementation rules and testing-strategy.md in
   `/srv/data/git/runner/src/tmp/temper/client-api/kit/docs/foundation/`,
   not in skein's checkout, which has moved since the run's claim.
 - **No code graph** (ruling 331): its indexes of skein, smith, jig and
@@ -201,7 +201,7 @@ per session are in each file.
     names such as `jig-02.3`); for a whole session, its last step's.
   - jig moves skein once, never smith: jig 12.2's first commit (the
     design answer to jig 12.2's question of 2026-10-16T19:46:42Z, a
-    request not kept) runs `heavy cargo update -p skein-lib --precise
+    request not kept) runs `cargo update -p skein-lib --precise
     <skein-01.s3's landing>` (which holds skein-01.s2's, skein-01.s1's,
     skein 01.3's and forgejo-17's skein step's), in a commit of its own
     with its one repair, `lines: 0, line_bytes: 0` in jig's
@@ -216,12 +216,12 @@ per session are in each file.
     Needs name, never jig's `origin/main`, so that one repin takes as few
     other jig landings as it can. When `git -C ~/src/rust/jig merge-base
     --is-ancestor <that landing> <temper's present jig pin>` succeeds,
-    no repin commit is made. Otherwise: `heavy cargo update -p
-    jig-domain-core --precise <that landing>`, then `heavy cargo update
+    no repin commit is made. Otherwise: `cargo update -p
+    jig-domain-core --precise <that landing>`, then `cargo update
     -p skein-lib --precise <jig's pin of skein, or skein-01.s2's landing
     while that pin does not hold it (below)>`, not run when temper's
     skein already holds that commit ("temper's skein ahead", below), and
-    `heavy cargo update
+    `cargo update
     -p smith-host-protocol --precise <jig's pin of smith>` (each read with
     `git -C ~/src/rust/jig show <that landing>:Cargo.lock | grep -o
     'git+https://github.com/forgetic/[a-z]*.git#[0-9a-f]*' | sort -u`).
@@ -247,7 +247,7 @@ per session are in each file.
     A boundary type of temper's (a field, a variant, a `CoreRange`) that
     carries what jig landed, as jig's reference roots and kit carry it
     (`ops`, `jig-test-service`, `jig_protocol_store`), is such a repair,
-    not implementer.md 8.2's question: carry it losslessly, name each
+    not the implementation rules's question: carry it losslessly, name each
     user in the commit body, and count it in the 200 (rulings 236 and
     237, temper 03.5's blocks of 2026-10-17T08:14:33Z and 08:25:44Z).
     A change jig did not make is still the question.
@@ -340,7 +340,7 @@ per session are in each file.
     `worst_case`'s `(u32, u64)`, both constructors' signatures), and
     `temper-client-shell-terminal` is the one temper crate that names
     `skein-ui-text`, so a move onto it is `Cargo.lock` alone.
-  - **temper's skein ahead** (ruling 154, the director's request of
+  - **temper's skein ahead** (ruling 154, the request of
     2026-10-16T17:16Z): temper's skein may be ahead of this plan's
     target for it (the floor above, skein-01.s2's landing, or jig's
     pin): another temper plan moves it forward, forge-setup's first
@@ -386,7 +386,7 @@ per session are in each file.
     (`crates/temper-engine-domain/src/route/forge_route.rs:1712`,
     `:1725`) take the commit's lowercase hexadecimal digits, 40 when its
     last 12 bytes are zero (a SHA-1 id's padding) and 64 otherwise.
-  - **skein's cap** (ruling 296, the director's request of
+  - **skein's cap** (ruling 296, the request of
     2026-10-17T23:46Z): no skein move of this plan, the closing repin's
     included, takes jig's or temper's skein past skein `2733882` ("Mark
     hearth's render active on debian-8gb-hel1-1"). hearth's `skein_io`
@@ -417,14 +417,14 @@ per session are in each file.
   such a crate compiles `skein-codegen` from skein's `main`, not jig's
   pin.
   - A store family, or the test connector
-    (`testing/jig-test-store/schema/test-connector-v1.schema`): `heavy sh
+    (`testing/jig-test-store/schema/test-connector-v1.schema`): `sh
     -c 'SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-store-codecs-world
     --test drift -E "test(<its drift test>)"'`, the drift tests being
     `the_<family>_familys_code_and_goldens_have_no_drift` and
     `the_test_connectors_code_and_goldens_have_no_drift`
     (`tests/store-codecs/tests/drift.rs`).
   - jig's client wire, and the test client's:
-    `heavy sh -c 'SKEIN_CODEGEN_WRITE=1 cargo nextest run -p
+    `sh -c 'SKEIN_CODEGEN_WRITE=1 cargo nextest run -p
     jig-client-wire-world --test drift --test test_client_wire'`.
 - **The meeting point:** a client increment proves against the real
   engine, in `tests/client-protocol`, the joint world `tests/client`, or
@@ -434,7 +434,7 @@ per session are in each file.
   with each client increment after it.
 - **A joint or process proof that fails** (ruling 229, after rulings 226
   to 228 each counted a proof's runs): reproduce each new failure point
-  in a focused test first (implementer.md, 8.8), log its cause there, and
+  in a focused test first, log its cause there, and
   change only what that log names; then run the proof once. A run that
   fails at a later story point than the run before it is progress: go on
   the same way. A run that fails at the same point as the run before it,
@@ -445,7 +445,7 @@ per session are in each file.
   evidence, under `~/src/rust/tmp/plan/client-api/logs/`, outside the
   plan; nothing asks to read them.
 - **Edits outside an increment's Files** that are no question (temper's
-  protocol plan learned each; they replace implementer.md, 8.2's "it is
+  protocol plan learned each; they replace the implementation rules's "it is
   in your session's own files" for these cases only):
   - an arm each exhaustive match needs for a variant the increment adds,
     in any crate, at most 5 lines per match;
@@ -465,7 +465,7 @@ per session are in each file.
 - **The browser suite is a suite of its own** in jig, from jig 19:
   `--profile browser`, outside the focused and fuzzy suites, Chromium
   only there; its budget is 60 seconds (`global-timeout`).
-- **A browser story's Proof** is `land`'s gate: the implementer runs no
+- **A browser story's Proof** is the gate: the author runs no
   gate of its own for it, and runs a failing story alone with the
   commands of "One test of the browser suite", below.
 - **A Proof's "Bound: N s"** is an aim for the test's time as nextest
@@ -528,8 +528,8 @@ per session are in each file.
     a guide missed: the landing stands, and the session's next increment
     first makes the slowest tests cheaper, found once by the measure run
     of the suite that missed (`.config/nextest.toml`'s two commands):
-    the focused suite's `heavy --gate -- cargo nextest run --workspace
-    --profile measure -j 1`, the fuzzy suite's `heavy --gate -- cargo
+    the focused suite's `cargo nextest run --workspace
+    --profile measure -j 1`, the fuzzy suite's `cargo
     nextest run --workspace --profile measure -j 1 --ignore-default-filter
     -E 'binary(/^fuzzy_/)'` (ruling 109), until its own gate is back
     under the aim; after a session's last increment the
@@ -542,31 +542,15 @@ per session are in each file.
     is an aim, development.md 5.6's ceiling: nothing measures one test,
     and a test the gate's log flags `SLOW` is made cheaper before its
     increment lands.
-- **One land at a time in each repository** (rulings 119 and 127): a
-  session runs `land` only under its repository's lock, held for the
-  whole of `land`, its retries included, since `land` rebases before its
-  queue wait and each landing voids every land of that repository then
-  queued: `flock /srv/data/git/runner/src/tmp/temper/client-api/land-jig.lock
-  land …` in jig, `land-temper.lock` in temper, `land-skein.lock` in
-  skein. The lock replaces ruling 119's poll of the queue, which let two
-  lands through in the gaps between a land's prebuild and its gate, and
-  between its tries. Until `land` holds its repository's lock from its
-  rebase to its push.
-  The lock is taken only as that one command, which frees it when `land`
-  exits: no shell (`flock … bash`) and no other command runs under it.
-  Validation, the memory literal's run (ruling 110) and the focused
-  tests run before it, on the session's own rebase; when `land` stops on
-  the memory literal, `over` is set from its gate log outside the lock,
-  and `flock … land …` runs again (the steer of 2026-10-16T15:30Z).
 - **Every crate's lints in one round** (the steer of 2026-10-16T16:45Z,
   the third sighting: jig 06 and 07, jig 10, jig 03): `--keep-going`
   builds only crates whose dependencies built, so a crate failing under
-  `-D warnings` hides its dependents' lints. After `heavy cargo check
+  `-D warnings` hides its dependents' lints. After `cargo check
   --workspace --all-targets --keep-going --message-format short` passes,
-  the first scoped clippy round caps lints at warnings: `heavy cargo
+  the first scoped clippy round caps lints at warnings: `cargo
   clippy --keep-going -p <crate> … --all-targets -- --cap-lints warn`;
   every warning it prints is fixed, then the same command with `-- -D
-  warnings` runs once to confirm. land's prebuild keeps `-D warnings`.
+  warnings` runs once to confirm. the prebuild keeps `-D warnings`.
 - **Shared files,** which parallel sessions may both change: jig's
   workspace `Cargo.toml` and `Cargo.lock` (jig 01, 10, 11, 12, 16, 17,
   19); `tests/boundary/src/tests/graph.rs` (jig 01, 10 to 13, 16, 17,
@@ -622,7 +606,7 @@ per session are in each file.
   - 09:29Z, point 1 (every session): After adding a variant or a field,
     find every match and literal of the type with `git grep -n '<Type>' --
     crates testing tests examples`, and edit them all. Then build once
-    with `heavy cargo check --workspace --all-targets --keep-going
+    with `cargo check --workspace --all-targets --keep-going
     --message-format short`, which shows every crate's errors in one
     round. Run scoped clippy only after it passes.
   - 09:29Z, point 2 (jig 02 to 09, and 16):
@@ -630,16 +614,16 @@ per session are in each file.
     (`crates/jig-protocol-config/src/tests/domain.rs:166`) pins the small
     profile's memory sum, which moves with every stored record's worst
     case. If your Shape changes a record's or a component's size, run
-    `heavy cargo nextest run -p jig-protocol-config -E
+    `cargo nextest run -p jig-protocol-config -E
     'test(memory_below_the_components_sum_is_refused)'` before land, and
     set `over` to the value it prints. Name the old and new values in your
     report. If another session landed it first, rebase and set it again
     from your own run.
-  - 09:29Z, point 3 (every session): Before `land`, run once in the build
+  - 09:29Z, point 3 (every session): Before merging, run once in the build
     lane the focused tests of each crate your diff changes (`git diff
-    --name-only origin/main...HEAD`): `heavy cargo nextest run
+    --name-only origin/main...HEAD`): `cargo nextest run
     --no-fail-fast -p <crate> -p <crate> …`. Land only when it passes.
-    Never `--workspace` or the fuzzy profile: those stay in land's gate.
+    Never `--workspace` or the fuzzy profile: those stay in the gate.
     After a gate fails on a test, run that test alone before landing
     again.
   - 10:08Z, point 2 (jig 03 to 09, and 16):
@@ -648,7 +632,7 @@ per session are in each file.
     standard profiles' store bounds, which move with every stored record's
     worst case (ruling 112). If your Shape grows a record's or a
     component's worst case, rebase on `origin/main`, then before land run
-    `heavy cargo nextest run -p jig-test-service -E
+    `cargo nextest run -p jig-test-service -E
     'test(both_jig_profiles_have_a_bounded_service)'` with the memory-sum
     test. Raise the bounds (`value`, commit, snapshot) in
     `crates/jig-protocol-config/src/profile/{small,standard}.rs` to what
@@ -674,11 +658,11 @@ per session are in each file.
   - 16:41Z, point 1 (jig): When your validation has passed on a rebase,
     run `flock
     /srv/data/git/runner/src/tmp/temper/client-api/land-jig.lock land …`
-    at once. If main has moved since, rebase, run only `heavy cargo
+    at once. If main has moved since, rebase, run only `cargo
     nextest run -p jig-protocol-config -p jig-test-service -E
     'test(memory_below_the_components_sum_is_refused) |
     test(both_jig_profiles_have_a_bounded_service)'`, set the values it
-    prints, and land: land's prebuild and gate check the rest. Run clippy
+    prints, and land: the prebuild and gate check the rest. Run clippy
     and your focused tests again only after a rebase that conflicted in a
     file you changed, or after a gate that failed on something else.
   - 17:52Z, point 2 (every session): In a new test, build a
@@ -725,7 +709,7 @@ per session are in each file.
     from another value keeps its fields.
   - 21:01Z, point 1 (jig): A .rs file of at most 800 lines at origin/main
     stays at most 800 after your commit: run `git diff --name-only
-    origin/main -- '*.rs' | xargs wc -l` before `land`, and put new code
+    origin/main -- '*.rs' | xargs wc -l` before merging, and put new code
     in a module beside it. Over 800 at jig `795ca6bc3` (the 02:00Z steer,
     point 2): `tests/ops/tests/fuzzy_joint.rs` (805),
     `jig-protocol-engine-clients/src/tests/fixtures.rs` (814),
@@ -796,7 +780,7 @@ per session are in each file.
   - 02:00Z, point 1 (jig): README 23:45Z, point 2 binds every new test
     line: a request id, a duration and a time are consts. jig 03.5 left
     `9100` at `tests/core/tests/parties.rs:795` and `30` at
-    `tests/engine-clients/tests/requests.rs:175`. Before `land`, run
+    `tests/engine-clients/tests/requests.rs:175`. Before merging, run
     `git diff -U0 origin/main -- '*.rs' | grep -nE '^\+ +[0-9]{2,5},$|ask_as\([^)]*, *[0-9]+ *,'`
     and name what it prints for your lines
     (`const READ_PROPOSAL: u64 = 9100;`). The first of you to edit either
@@ -805,12 +789,12 @@ per session are in each file.
     .rs file of at most 800 lines at origin/main stays at most 800 after
     your commit
     (`git diff --name-only origin/main -- '*.rs' | xargs wc -l` before
-    `land`). jig 03.5 left `component.rs` at 808 and
+    the merge). jig 03.5 left `component.rs` at 808 and
     `tests/core/tests/parties.rs` at 816; `tests/ops/tests/fuzzy_joint.rs`
     (805) and `crates/jig-protocol-engine-clients/src/tests/fixtures.rs`
     (814) are over too. The next of you to edit one puts new code in a
     module beside it and brings it to 800 or less; a crossed 800 you
-    cannot avoid is a question before `land`.
+    cannot avoid is a question before merging.
   - 02:00Z, point 3 (jig, tests under `tests/engine-clients/tests/`):
     README 'A test's helpers once': before a helper goes into a test file
     under `tests/engine-clients/tests/`, search
@@ -833,14 +817,14 @@ per session are in each file.
     small fix outside your Files. Base lines elsewhere, seeds and
     expected values keep their literals.
   - 05:20Z, point 1 (every session whose commit changes more than 20
-    files, and jig 13.4): A failed `land` gate shows only its first one
+    files, and jig 13.4): A failed gate shows only its first one
     to five failures: it stops at the first. jig 13.4 ran 19 gates in 46
     minutes, each fixing the next failure, and two fixes were undone by
     later edits. After a failed gate, run the tests of the crates your
-    diff touches, in the build lane, every failure listed: `heavy cargo
+    diff touches, in the build lane, every failure listed: `cargo
     nextest run --no-fail-fast -p <crate> …`, and the same with
     `--profile fuzzy` (the gate's second half). Fix all that fail, then
-    `land` again. `land` is not your test loop. `land`'s gate is
+    the gate again. Use focused tests for diagnosis. the gate is
     unchanged.
   - 06:20Z, point 1 (jig 21.2, 21.3 and 21.4): code-organization.md, 7: a
     test function is at most 40 lines, and a miss is noted in the landing's
@@ -863,7 +847,7 @@ per session are in each file.
     building a whole signed-in world;
     `an_accepted_restart_opens_its_remediation_panels` (over 2 s) repeats
     the steps of p at `tests/ops/tests/fuzzy_joint.rs:100-114`. Before
-    `land`, run `grep 'SLOW \[' <the gate's log>` and name in your report
+    merging, run `grep 'SLOW \[' <the gate's log>` and name in your report
     each test you added that it lists. A test you wrote to find a cause
     stays in the default suite only if it checks what the Proof does not
     and takes under 0.5 s; otherwise it goes, or into a `fuzzy_` binary,
@@ -960,7 +944,7 @@ per session are in each file.
     status, no Sign out button, no navigation), assertions kept, shared
     setup in `tests/fixtures.rs`, and name them in your report.
   - 2026-10-18 20:14Z, point 2 (every temper session, from its next
-    report, until the run's end; ruling 395): Before `land`, run
+    report, until the run's end; ruling 395): Before merging, run
     `git diff --name-only --diff-filter=d origin/main -- '*.rs' | xargs
     -r wc -l`. Your report names, in one line, each file your commit
     leaves over 800 lines, with base and now, even if it was at most 800
@@ -1003,10 +987,10 @@ per session are in each file.
     the gate's time and its time alone. Repair every other test your gate
     flags SLOW (README, 13:34Z point 2).
   - 2026-10-18 14:05Z, point 1 (every temper increment that lands from
-    now, until the run's end; ruling 369, the director's request; it
+    now, until the run's end; ruling 369, the request; it
     replaces the 12:20Z point 2, ruling 347): The whole process tier:
     before landing, run it once, with both exports
-    (temper/05-s1-landing-story.md's Proof): `heavy --gate sh -c 'export
+    (temper/05-s1-landing-story.md's Proof): `sh -c 'export
     NEXTEST_DOUBLE_SPAWN=0 && cargo build -p temper --bin temper && cargo
     nextest run -p temper --profile process --no-fail-fast'`. A failing
     test is the increment's, under ruling 229, except, until temper-05.s2
@@ -1020,7 +1004,7 @@ per session are in each file.
   - 2026-10-18 13:34Z, point 3 (every temper session, until the run's
     end; ruling 363): The owned example: `docs/examples/owned.json` is
     exact (forge-setup `temper-14.1`, `configuration.md` 7). If your
-    change can raise a worst case, run `heavy cargo nextest run -p temper
+    change can raise a worst case, run `cargo nextest run -p temper
     --test startup -E 'test(serve_prepares_once_on_the_owned_example)'`
     before your gate. When a start refuses a memory, raise the named value
     (`engine.memory_bytes`, `workers[0].memory_bytes`) by the shortfall it
@@ -1093,8 +1077,8 @@ copy of the commands.
 last block, builds it:
 
 ```sh
-heavy sh -c 'cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web && cargo run -p skein-ui-bundle -- --module target/wasm32-unknown-unknown/debug/skein_ui_example_shell_web.wasm --name skein_ui_example_shell_web --prefix /bundle/ --stylesheet examples/ui/shell-web/notes.css --out target/ui-example-bundle --noscript "Notes needs WebAssembly and scripts." && cargo build -p skein-ui-example-server'
-heavy sh -c 'SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle" cargo nextest run -p skein-ui-web-tests --profile browser -E "test(<name>)"'
+sh -c 'cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web && cargo run -p skein-ui-bundle -- --module target/wasm32-unknown-unknown/debug/skein_ui_example_shell_web.wasm --name skein_ui_example_shell_web --prefix /bundle/ --stylesheet examples/ui/shell-web/notes.css --out target/ui-example-bundle --noscript "Notes needs WebAssembly and scripts." && cargo build -p skein-ui-example-server'
+sh -c 'SKEIN_UI_EXAMPLE_BUNDLE="$(pwd)/target/ui-example-bundle" cargo nextest run -p skein-ui-web-tests --profile browser -E "test(<name>)"'
 ```
 
 **jig's browser suite** (from jig 19.4 on; the bundler's arguments are
@@ -1102,8 +1086,8 @@ those jig 19.4 writes into jig's `scripts/check.sh`; where the two
 differ once landed, `scripts/check.sh` wins):
 
 ```sh
-heavy sh -c 'cargo build --target wasm32-unknown-unknown -p jig-client-test-shell-web && cargo build -p skein-ui-bundle && target/debug/skein-ui-bundle --module target/wasm32-unknown-unknown/debug/jig_client_test_shell_web.wasm --name jig_client_test_shell_web --prefix /bundle/ --stylesheet crates/jig-client-shell-web/jig.css --stylesheet testing/jig-client-test-shell-web/jig_client_test_shell_web.css --pictures jig=crates/jig-client-shell-web/pictures --pictures jig-test=testing/jig-client-test-shell-web/pictures --files testing/jig-client-test-shell-web/files --noscript "jig needs WebAssembly and scripts." --out target/jig-test-bundle && cargo build -p jig-test'
-heavy sh -c 'JIG_TEST_BUNDLE="$(pwd)/target/jig-test-bundle" cargo nextest run -p jig-client-browser-world --profile browser -E "test(<name>)"'
+sh -c 'cargo build --target wasm32-unknown-unknown -p jig-client-test-shell-web && cargo build -p skein-ui-bundle && target/debug/skein-ui-bundle --module target/wasm32-unknown-unknown/debug/jig_client_test_shell_web.wasm --name jig_client_test_shell_web --prefix /bundle/ --stylesheet crates/jig-client-shell-web/jig.css --stylesheet testing/jig-client-test-shell-web/jig_client_test_shell_web.css --pictures jig=crates/jig-client-shell-web/pictures --pictures jig-test=testing/jig-client-test-shell-web/pictures --files testing/jig-client-test-shell-web/files --noscript "jig needs WebAssembly and scripts." --out target/jig-test-bundle && cargo build -p jig-test'
+sh -c 'JIG_TEST_BUNDLE="$(pwd)/target/jig-test-bundle" cargo nextest run -p jig-client-browser-world --profile browser -E "test(<name>)"'
 ```
 
 `cargo run -p skein-ui-bundle` does not resolve in jig's workspace; the
@@ -1153,9 +1137,9 @@ Each command runs once, after `done.md`, reading `origin/main`.
    examples/ops/client-protocol-wire | wc -l` prints 10.
 4. The naming checks hold and wait for nothing: `git -C ~/src/rust/jig
    grep -n 'PENDING' origin/main -- tests/boundary/src` prints a line
-   with `[]`, and in a worktree of each at `origin/main`, `heavy cargo
+   with `[]`, and in a worktree of each at `origin/main`, `cargo
    nextest run -p jig-boundary -E 'test(client_crates_carry_the_client_prefix)'`
-   (jig) and `heavy cargo nextest run -p temper-client-world -E
+   (jig) and `cargo nextest run -p temper-client-world -E
    'test(client_crates_carry_the_client_prefix)'` (temper) each pass one
    test.
 5. No shape of work on the wire: `git -C ~/src/rust/jig grep -n -E
@@ -1182,7 +1166,7 @@ Each command runs once, after `done.md`, reading `origin/main`.
     step (`.s<k>`) adds a line; a step dropped by a ruling is named in
     decisions.md's rulings instead.
 11. The test-time aims, measured once in a worktree of jig and of temper
-    at `origin/main`. jig: `heavy --gate -- sh -c 'export
+    at `origin/main`. jig: `sh -c 'export
     NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run
     --workspace 2>&1 | grep Summary; cargo nextest run --workspace
     --profile fuzzy 2>&1 | grep Summary; done'`; temper: the same

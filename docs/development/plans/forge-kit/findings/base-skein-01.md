@@ -3,7 +3,7 @@
 2026-10-19. Source: temper `27995fb75`, skein `d120820`.
 Base directories: `/srv/data/git/runner/src/tmp/planning/temper-base` and
 `/srv/data/git/runner/src/tmp/planning/skein-base`. All prescribed cargo,
-count and user-search commands go through heavy. No optimized test build.
+count and user-search commands go directly. No optimized test build.
 The primary checkouts have the same source commits; jig, smith and hearth
 are searched read-only. Only this findings file and skein/01-forge.md persist.
 
@@ -43,33 +43,30 @@ are searched read-only. Only this findings file and skein/01-forge.md persist.
 
 ## Base proofs
 
-Future `heavy cargo nextest run -p skein-forge` has no base crate. Its base
+Future `cargo nextest run -p skein-forge` has no base crate. Its base
 forms are these three source crates, each run once. Future cumulative counts
 are 2 / 86 / 90 / 97 / 120 for 01.1–01.5; the new tests are planned, not run
 at the base. 01.1 moves 0, 01.2 moves 84, 01.3 moves 4, 01.4/01.5 move 0.
 
 ```text
-$ heavy cargo nextest run -p temper-forge-forgejo
+$ cargo nextest run -p temper-forge-forgejo
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
      Summary [   0.048s] 84 tests run: 84 passed, 0 skipped
-heavy: task 748 (build) exit 0, waited 11s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T003922-748.log
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge-client
+$ cargo nextest run -p temper-engine-domain-forge-client
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
      Summary [   0.084s] 76 tests run: 76 passed, 0 skipped
-heavy: task 749 (build) exit 0, waited 9s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T003922-749.log
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge
+$ cargo nextest run -p temper-engine-protocol-forge
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
      Summary [   0.131s] 117 tests run: 117 passed, 0 skipped
-heavy: task 750 (build) exit 0, waited 9s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T003923-750.log
 ```
 
 The earlier whole-plan baseline was 0.062 / 0.051 / 0.149 s respectively
@@ -89,12 +86,11 @@ filtered or made cheaper by this extraction:
 ## Test inventory
 
 ```text
-$ heavy cargo nextest list -p temper-forge-forgejo -p temper-engine-domain-forge-client -p temper-engine-protocol-forge --message-format json
+$ cargo nextest list -p temper-forge-forgejo -p temper-engine-domain-forge-client -p temper-engine-protocol-forge --message-format json
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished test profile [unoptimized + debuginfo]
 "test-count":277
 All three rust-suites have "status":"listed".
-heavy: task 735 (build) exit 0, waited 101s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T004116-735.log
 ```
 
 Parsed from each suite's testcase keys (prefix before the final ::):
@@ -144,7 +140,7 @@ both max_response_items and default_paging_num. Sketch results follow below.
 
 The build lane was paused by exclusive gate task 771 while task 746
 (python3 -, owned by another session) waited for stdin. Our queued script
-attempts 763 and 788 were removed before they ran: heavy queues commands,
+attempts 763 and 788 were removed before they ran: queues commands,
 not shell stdin. Their waiting wrappers exited 1 with "did not finish" (0 s run time).
 Their replacements pass the source with python3 -c and passed.
 No missing run is described as passing. All replacement results appear below.
@@ -152,24 +148,22 @@ No missing run is described as passing. All replacement results appear below.
 ## Clippy at the source base
 
 ```text
-$ heavy cargo clippy -p temper-forge-forgejo -p temper-engine-domain-forge-client -p temper-engine-protocol-forge --all-targets -- -D warnings
+$ cargo clippy -p temper-forge-forgejo -p temper-engine-domain-forge-client -p temper-engine-protocol-forge --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Checking temper-forge-forgejo v0.0.0 (/srv/data/git/runner/src/tmp/planning/temper-base/crates/temper-forge-forgejo)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.10s
-heavy: task 779 (build) exit 0, waited 417s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T004950-779.log
 ```
 
 ## Sketch compile, first pass
 
 ```text
-$ heavy cargo clippy -p skein-forge --all-targets -- -D warnings
+$ cargo clippy -p skein-forge --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-01-forge
 error: mod.rs files are not allowed (forgejo/mod.rs and forgejo/plans/mod.rs)
 error: public pure functions need #[must_use]
 error: non-binding let without a type annotation (signature stubs)
 error: long literal lacking separators (reference test)
 error: could not compile skein-forge (lib test) due to 26 previous errors
-heavy: task 759 (build) exit 101; log tmp/logs/20261019T004922-759.log
 ```
 
 Fixed the plan and sketch: forgejo.rs and forgejo/plans.rs; must_use on
@@ -179,11 +173,10 @@ literal. No lint was suppressed. Recompiled result follows below.
 ## Sketch compile, corrected
 
 ```text
-$ heavy cargo clippy -p skein-forge --all-targets -- -D warnings
+$ cargo clippy -p skein-forge --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-01-forge
 Checking skein-forge v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-01-forge/crates/skein-forge)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.41s
-heavy: task 808 (build) exit 0, waited 57s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T005120-808.log
 ```
 
 ```text
@@ -199,7 +192,7 @@ exit 0; scratch worktree removed
 ## Source counts
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 p=Path('\''crates'\'')
 files=['\''reads.rs'\'','\''reads/done.rs'\'','\''reads/size.rs'\'','\''reading.rs'\'','\''writes.rs'\'','\''contents.rs'\'','\''actions.rs'\'','\''plan.rs'\'','\''tables.rs'\'','\''failure.rs'\'','\''marker.rs'\'','\''hooks/hint.rs'\'']
 total=0
@@ -226,7 +219,6 @@ hooks/hint.rs: 32
 01.3 modules: 3344 plus Fields/Body/Failure/Heard extracted from connection.rs
 01.1: api 417; locate 35 ; sizing helpers 128
 temper-forge-forgejo production 7827
-heavy: task 797 (build) exit 0, waited 190s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005112-797.log
 ```
 
 01.1's measured source slices total 580 lines; its Size rounds to 600.
@@ -239,12 +231,12 @@ the new-line allowance, not the copy's total size, is the increment limit.
 
 ## System-name scan, source form
 
-Future command: heavy rg -n -i temper crates/skein-forge. At the base there
+Future command: rg -n -i temper crates/skein-forge. At the base there
 is no destination, so run on the source regions instead. The expected base
 matches are names to remove, not a failed promise that the base is neutral.
 
 ```text
-$ heavy rg -n -i temper crates/temper-forge-forgejo crates/temper-engine-domain-forge-client/src/api.rs crates/temper-engine-domain-forge-client/src/locate.rs crates/temper-engine-protocol-forge/src
+$ rg -n -i temper crates/temper-forge-forgejo crates/temper-engine-domain-forge-client/src/api.rs crates/temper-engine-domain-forge-client/src/locate.rs crates/temper-engine-protocol-forge/src
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-protocol-forge/src/tests/writes.rs:58:        assert!(bytes::find(&written, br#""body":"<!-- temper:key abff -->\nbody""#).is_some(), "{name}: marked body");
 crates/temper-engine-protocol-forge/src/tests/reads.rs:159:            d::Body::Kept(Box::from(&b"<!-- temper:key 01 -->\ntext"[..])),
@@ -265,7 +257,6 @@ crates/temper-engine-protocol-forge/src/tests.rs:41:        ("no line feed", b"<
 crates/temper-engine-protocol-forge/src/tests.rs:42:        ("leading space", b" <!-- temper:key ab -->\n"),
 crates/temper-engine-protocol-forge/src/tests.rs:43:        ("after text", b"text<!-- temper:key ab -->\n"),
 crates/temper-engine-protocol-forge/src/marker.rs:5:pub const HEAD: &[u8] = b"<!-- temper:key ";
-heavy: task 789 (build) exit 0, waited 418s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005055-789.log
 ```
 
 The complete scan has 111 matching lines; the rest are source imports,
@@ -282,7 +273,7 @@ candidates, not dependencies. The source modules' imports and Cargo edges
 identify the users listed in survey-01/03 and code-organization.md 3.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess
 roots=[Path('\''/srv/data/git/runner/src'\'')/r for r in ['\''temper'\'','\''skein'\'','\''jig'\'','\''smith'\'','\''hearth'\'']]
 base=Path('\''/srv/data/git/runner/src/tmp/planning/temper-base/crates'\'')
@@ -305,7 +296,6 @@ Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 vocabulary-path 58,0,0,0,0 pattern=temper_engine_domain_forge_client::api::
 dialect-path 180,0,0,0,0 pattern=temper_forge_forgejo::
 boundary-and-start 1233,1168,6068,860,1111 pattern=\b(Heard|Body|Fields|Failure|RepositoryEntry|UserEntry|answer_bytes_unbounded|start_request|drive_starts|page_size|largest_row|revision)\b
-heavy: task 796 (build) exit 0, waited 187s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T005108-796.log
 ```
 
 The same run's per-module counts (all moved module names searched; done/size
@@ -328,7 +318,7 @@ The complete symbol inventory and per-symbol counts follow; every moved
 function/type name is extracted from its source, including private helpers.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess
 base=Path("/srv/data/git/runner/src/tmp/planning/temper-base/crates")
 roots=[Path("/srv/data/git/runner/src")/r for r in ["temper","skein","jig","smith","hearth"]]
@@ -356,7 +346,6 @@ vocabulary: Answer=3021,146,2147,937,347; BranchCreation=50,0,0,0,0; Change=391,
 dialect: Access=137,20,1,1,0; AccessToken=19,4,0,18,0; ActionKind=37,0,0,0,0; Actions=23,1,0,0,0; Answer=3021,146,2147,937,347; ApiSettings=88,0,0,0,0; Body=255,620,966,61,11; BodyDecoder=16,0,0,0,0; BodyStep=18,0,0,0,0; Branch=665,9,0,4,26; BranchKind=45,0,0,0,0; BranchProtection=19,0,0,0,0; Branches=189,0,0,0,0; ChangedFile=34,0,0,0,0; CollaboratorPermission=11,0,0,0,0; CombinedStatus=91,0,0,0,0; Comment=326,29,1,0,0; CommitStatus=22,0,0,0,0; Compare=230,0,9,7,1; ContentRange=10,0,0,0,0; Decoder=23,31,5,0,84; DecoderState=33,0,0,0,0; Delivery=793,2,1236,628,6; DeliveryKind=8,0,0,0,0; Document=472,165,994,39,115; Encoded=74,4,30,0,0; Error=1552,3238,63,1129,1057; ErrorBody=14,10,0,19,0; Event=3396,4098,9003,4026,1079; Field=84,135,110,272,227; FileKind=24,6,0,0,0; FileStatus=30,0,0,0,0; Files=114,68,62,114,79; Frame=4,58,217,22,92; Hook=147,0,0,0,0; HookSpec=21,0,0,0,0; Hooks=52,0,0,0,0; Issue=341,0,1,3,0; IssueKind=18,0,0,0,0; IssueState=54,0,0,0,0; Item=372,396,230,108,391; Items=228,2,14,2,38; Job=409,0,0,493,39; JobEnd=21,0,0,210,0; Kind=768,823,921,393,1114; Limits=3099,2301,19363,3286,690; Malformed=276,273,295,251,122; MergeStyle=58,0,0,0,0; Method=180,216,80,1,8; Move=145,29,289,16,0; ObjectFormat=49,0,0,0,0; ObjectId=69,0,0,0,0; Org=97,0,0,0,0; Orgs=16,0,0,0,0; Page=144,204,552,0,15; Pair=11,55,0,0,62; Permission=399,74,15,8,15; Problem=1870,557,14503,1748,0; PullBranch=18,0,0,0,0; PullRequest=26,0,0,0,0; Read=1681,1588,2317,853,326; RefType=25,0,0,0,0; Refusal=503,597,2644,843,171; Repo=113,0,0,54,0; Repository=882,3,0,20,491; Request=4969,2653,6979,2603,869; Review=344,0,21,16,0; ReviewComment=22,0,0,0,0; ReviewEvent=45,0,0,0,0; ReviewKind=23,0,0,0,0; ReviewState=49,0,0,0,0; Reviews=203,0,0,0,0; Route=281,3,181,49,0; Row=304,110,260,0,164; Run=332,237,734,232,103; Sent=59,77,212,57,22; Setup=120,22,21,0,0; SetupKind=127,0,0,0,0; Sort=15,21,0,0,28; Start=340,174,299,457,36; StateFilter=18,0,0,0,0; StatusState=87,0,0,0,0; Step=522,374,914,393,54; StepStatus=74,0,0,0,0; Target=67,169,54,36,188; Team=76,0,0,0,0; TeamSpec=35,0,0,0,0; Units=30,0,0,4,0; Unread=44,61,77,57,33; Unrouted=119,0,0,0,0; UpdateStyle=13,0,0,0,0; User=296,86,10,182,68; Value=438,180,1055,707,939; Walk=34,4,2,0,10; Want=110,20,35,7,37; WriteKind=72,0,0,0,0; access=93,76,85,59,12; access_text=3,0,0,0,0; answer=1802,1119,3156,2065,261; before=824,1032,2444,1020,808; body=1961,1803,1320,516,355; body_first=5,0,0,0,0; branch=1855,36,0,70,38; check=692,493,4162,1056,222; comment=377,38,13,20,10; commit_status=3,0,0,0,0; config=1233,663,819,487,985; content_range=16,0,0,0,0; cut=260,351,2426,345,97; decoder=189,245,14,26,141; deleted=39,0,18,2,1; digit=38,67,26,39,59; document=873,1127,2851,370,431; element=16,266,4,5,26; empty=255,304,410,184,125; encode=1505,188,12132,1190,260; end=629,1508,1480,1277,382; error_decoder=7,0,0,0,0; error_fields=2,0,0,0,0; event=1600,1742,3079,1481,321; events=521,2063,819,588,124; field=2029,1317,12723,1699,997; fields=460,368,4405,1079,447; file=666,1393,663,1296,1127; finish=1243,651,8266,1506,181; finish_pull=2,0,0,0,0; finish_user=2,0,0,0,0; first=979,1288,2499,1298,558; flag=23,35,19,47,1; has_more=8,0,3,0,0; header=176,446,383,226,58; hex=64,65,5,31,136; hook=288,4,10,0,0; hook_forge=5,0,0,0,0; hook_target=6,0,0,0,0; http_date=4,0,0,0,0; issue=392,79,7,16,64; issue_query=2,0,0,0,0; issue_state=2,0,0,0,0; job=395,0,2,928,4; job_link=4,0,0,0,0; joined=84,85,71,38,26; keep_after=8,0,0,0,0; key=2176,1237,5700,749,1927; leap=3,7,6,0,0; member_target=3,0,0,0,0; merge_style=7,0,0,0,0; month_days=4,0,0,0,0; names_forgejo=10,0,0,0,0; names_runner=10,0,0,0,0; new=6624,5903,25717,8095,2337; number=3530,586,8914,870,92; number_value=33,0,2,0,0; numbered=47,15,121,21,0; object=398,144,2261,159,136; optional=42,63,276,49,150; org_name=2,0,0,0,0; org_target=3,0,0,0,0; page=902,890,2232,6,76; parent=450,653,1449,1161,262; permission=259,22,170,6,6; protection=265,1,0,0,0; pull=919,23,1,2,1; pull_branch=3,0,0,0,0; pull_for=4,0,0,0,0; pull_row=2,0,0,0,0; put=1167,574,6451,1218,879; query=141,389,650,303,1; query_value=16,0,0,0,0; read=1660,2553,3196,1799,573; read_route=2,0,0,0,0; refusal=314,325,740,617,21; repo=369,24,3,92,72; repository=2975,6,0,168,1050; repository_fields=2,0,0,0,0; retry_after=23,77,62,142,0; review=437,0,40,80,1; review_text=2,0,0,0,0; route=350,93,572,101,0; route_tail=2,0,0,0,0; run=1565,1745,3738,8284,594; scalar=26,9,22,44,39; segment=92,38,362,1,14; segment_length=4,0,0,0,0; set_id=2,0,0,0,0; settings_fields=2,0,0,0,0; skip_comment=2,0,0,0,0; skipped=63,90,7,26,1; sorting=2,0,0,1,1; specification=32,0,375,28,0; start=787,966,804,1119,317; state=1285,1321,3130,732,147; status=1002,416,525,292,23; status_state=4,0,0,0,0; step=1021,627,2188,1401,212; step_status=2,0,0,0,0; step_status_text=2,0,0,0,0; style=43,42,14,0,27; style_text=2,0,0,0,0; target=415,709,679,99,2374; team=184,0,1,0,0; team_text=3,0,0,0,0; text=1545,2050,4782,3318,1627; to=1127,1756,2915,1109,405; token=1138,1196,2431,619,175; unescape=4,2,0,0,0; unsigned=53,57,8,273,34; update=64,64,137,5,19; update_target=2,0,0,0,0; user=1019,238,25,122,209; value=5072,2074,40952,4667,2621; write=1088,730,453,599,182; zero=32,72,78,109,9
 plans: Asked=165,75,73,220,223; Body=255,620,966,61,11; Classified=5,0,2,0,0; Drop=46,31,80,52,1; Exchange=74,241,155,22,0; Failure=313,518,460,775,113; Fields=14,11,34,17,28; Heard=137,19,184,7,0; Mode=85,82,2,111,368; Plan=89,180,216,12,29; Range=446,35,214,0,136; Repository=882,3,0,20,491; RepositoryEntry=5,0,0,0,0; Rows=155,0,140,0,8; Stage=195,111,273,170,20; Step=522,374,914,393,54; Tables=40,98,0,0,0; UserEntry=5,0,0,0,0; absolute=32,20,22,93,32; add_size=8,14,0,0,0; after=957,867,3867,901,823; answer=1802,1119,3156,2065,261; append=141,306,85,100,30; asked=231,271,518,317,178; at=2108,3340,4977,1890,2688; before_write=5,0,0,0,0; begin=74,29,102,48,7; body=1961,1803,1320,516,355; branch=1855,36,0,70,38; branch_done=2,0,0,0,0; check=692,493,4162,1056,222; check_pull_ids=2,0,0,0,0; check_size=4,0,0,0,0; ci=328,0,0,5,23; classify=16,29,89,4,1; comment=377,38,13,20,10; commit=2110,191,818,159,166; decode=1478,374,10429,1165,94; digit=38,67,26,39,59; done=346,432,392,461,51; drive_starts=2,0,0,0,0; drop_repository=5,0,0,0,0; encode=1505,188,12132,1190,260; error=364,1121,286,618,927; expected=889,960,1065,788,966; files_size=3,0,0,0,0; finish_rows=3,0,0,0,0; heard=193,39,95,33,0; hex=64,65,5,31,136; hint=124,25,34,2,2; id=1791,1876,2231,1178,135; initial=32,26,148,103,9; keep_document=5,0,0,0,0; keep_pull=3,0,0,0,0; keep_repository=7,0,0,0,0; keep_row=2,0,0,0,0; keep_user=23,0,0,0,0; largest_row=2,0,0,0,0; length=542,979,751,863,465; listed_done=2,0,0,0,0; log=183,50,47,43,40; long=94,211,64,127,15; long_body=8,0,0,0,0; lookup=14,14,47,15,17; lookup_row=2,0,0,0,0; marked=16,26,40,8,19; new=6624,5903,25717,8095,2337; next=901,1306,1617,808,429; next_check=11,0,0,0,0; next_permission=3,0,0,0,0; next_side=4,0,0,0,0; optional=42,63,276,49,150; optional_commit=3,0,0,0,0; optional_time=3,0,0,0,0; page_bound=2,0,0,0,0; page_size=28,0,0,0,0; paged=21,0,20,0,1; pending=887,573,1323,369,289; permission=259,22,170,6,6; protection=265,1,0,0,0; provenance=78,0,5,0,4; pull=919,23,1,2,1; pull_done=2,0,0,0,0; pull_status=5,0,0,0,0; push=2677,2058,6136,1938,1316; push_items=2,0,0,0,0; raw=526,423,582,282,61; raw_room=11,0,0,0,0; read=1660,2553,3196,1799,573; remark=33,0,0,0,0; repository=2975,6,0,168,1050; repository_done=2,0,0,0,0; review=437,0,40,80,1; reviewer_write=3,0,0,0,0; reviewers=198,0,0,0,0; revision=495,0,4445,0,959; row=2070,43,6631,20,806; rows=1566,135,6028,29,144; search_done=2,0,0,0,0; send=590,603,1211,144,15; set_pending=6,0,0,0,0; settings=1055,565,599,1557,576; side=102,575,744,41,542; start_request=4,0,0,0,0; state=1285,1321,3130,732,147; status=1002,416,525,292,23; step_name=11,0,0,0,0; summary=110,41,116,197,0; take_cut=4,0,0,0,0; terminal=544,575,802,1645,128; text=1545,2050,4782,3318,1627; tick=96,102,138,28,6; time=243,406,331,685,32; transport=238,163,721,122,17; user=1019,238,25,122,209; validate=6,31,44,80,35; verdict=268,17,492,280,22
 Each tuple: temper,skein,jig,smith,hearth matching lines; includes definitions and unrelated homonyms.
-heavy: task 787 (build) exit 0, waited 1s, ran 25s, log /srv/data/git/runner/src/tmp/logs/20261019T005232-787.log
 ```
 
 ## Verification of the draft
@@ -484,7 +473,7 @@ No qualified old forge-crate paths were found in skein/jig/smith/hearth.
 ### Revised source and user search
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re,subprocess
 root=Path(".")
 p=root/"crates/temper-engine-protocol-forge/src"
@@ -541,7 +530,6 @@ skein qualified old forge paths: 0
 jig qualified old forge paths: 0
 smith qualified old forge paths: 0
 hearth qualified old forge paths: 0
-heavy: task 733 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012147-733.log
 ```
 
 The zero Date matches above were only a candidate break. Following the
@@ -550,22 +538,20 @@ HTTP writer ruled it out for the fake protocol, at the lockfile's skein
 adds Date and refuses an owner-supplied Date field:
 
 ```text
-$ heavy sh -c 'git show 8a51e10b873f39ea699853361408812eb80a5f87:crates/skein-http/src/server/response.rs | rg -n '\''put_date\(&mut head|header.is\(b"date"\)'\'''
+$ sh -c 'git show 8a51e10b873f39ea699853361408812eb80a5f87:crates/skein-http/src/server/response.rs | rg -n '\''put_date\(&mut head|header.is\(b"date"\)'\'''
 Directory: /srv/data/git/runner/src/tmp/planning/skein-base
 161:    put_date(&mut head, wall);
 205:            || header.is(b"date")
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012445-733.log
 ```
 
 ```text
-$ heavy rg -n 'fn a_body_past_body_bytes_is_carried_empty_without_its_key|fixtures::response\(200, format|Op::Read\(Read::Items|pub fn response|HTTP/1.1' tests/engine/protocol-forge/tests/machine.rs tests/engine/protocol-forge/src/fixtures.rs
+$ rg -n 'fn a_body_past_body_bytes_is_carried_empty_without_its_key|fixtures::response\(200, format|Op::Read\(Read::Items|pub fn response|HTTP/1.1' tests/engine/protocol-forge/tests/machine.rs tests/engine/protocol-forge/src/fixtures.rs
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/protocol-forge/src/fixtures.rs:109:pub fn response(code: u16, body: &[u8]) -> Vec<u8> {
 tests/engine/protocol-forge/src/fixtures.rs:110:    let mut bytes = format!("HTTP/1.1 {code} Answer\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
 tests/engine/protocol-forge/tests/machine.rs:133:fn a_body_past_body_bytes_is_carried_empty_without_its_key() {
 tests/engine/protocol-forge/tests/machine.rs:144:                response: Response::Bytes(fixtures::response(200, format!("[{body}]").as_bytes())),
 tests/engine/protocol-forge/tests/machine.rs:148:    world.call(1, fixtures::REPO, Op::Read(Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: None }));
-heavy: task 734 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012446-734.log
 ```
 
 ### New signature compile and focused base check
@@ -585,22 +571,20 @@ HEAD is now at 8938e16 Answer the forge kit planner's other questions
 ```
 
 ```text
-$ heavy cargo clippy -p skein-forge --all-targets -- -D warnings
+$ cargo clippy -p skein-forge --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-01-revision
     Checking skein-forge v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-01-revision/crates/skein-forge)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
-heavy: task 733 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011724-733.log
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge -E 'test(every_failure_of_a_merges_read_is_timeout) | test(host_names_include_only_nondefault_ports_and_bracket_ipv6)'
+$ cargo nextest run -p temper-engine-protocol-forge -E 'test(every_failure_of_a_merges_read_is_timeout) | test(host_names_include_only_nondefault_ports_and_bracket_ipv6)'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
     Starting 2 tests across 1 binary (115 tests skipped)
         PASS [   0.002s] (1/2) temper-engine-protocol-forge tests::host_names_include_only_nondefault_ports_and_bracket_ipv6
         PASS [   0.006s] (2/2) temper-engine-protocol-forge tests::writes::every_failure_of_a_merges_read_is_timeout
      Summary [   0.007s] 2 tests run: 2 passed, 115 skipped
-heavy: task 734 (build) exit 0, waited 0s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T011725-734.log
 ```
 
 ```text
@@ -625,7 +609,7 @@ Only Q34 is pending. The organization/decisions early-wrapper wording
 noted above remains outside this two-file revision's scope.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 p=Path("docs/development/plans/forge-kit/skein/01-forge.md")
 lines=p.read_text().splitlines()
 starts=[i for i,l in enumerate(lines) if l.startswith("### ")]+[lines.index("## Done when")]
@@ -652,7 +636,6 @@ Session: 400 lines; five increments
 ### 01.5 Pure plan tests and the settled differences 112 lines; Size: about 0 lines moved, 220 new.
 Pending only Q34; all nine fields present; no trailing whitespace
 Planned cumulative tests: 2 / 86 / 90 / 99 / 126
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012510-733.log
 ```
 
 Only skein/01-forge.md and this appended findings section were written
@@ -710,7 +693,7 @@ reads/writes payload types. These are named in 01.3's Shape, with the
 diagnostic path's temper repair. No new behaviour or alias was added.
 
 ```text
-$ heavy rg -n -A 3 'Body::Malformed\(temper_forge_forgejo::decode::Malformed::Bound|pub\(crate\) fn before_write' crates/temper-engine-protocol-forge/src/writes.rs crates/temper-engine-protocol-forge/src/failure.rs
+$ rg -n -A 3 'Body::Malformed\(temper_forge_forgejo::decode::Malformed::Bound|pub\(crate\) fn before_write' crates/temper-engine-protocol-forge/src/writes.rs crates/temper-engine-protocol-forge/src/failure.rs
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-protocol-forge/src/failure.rs:76:pub(crate) fn before_write(asked: Asked, error: api::Error) -> api::Error {
 crates/temper-engine-protocol-forge/src/failure.rs-77-    if asked == Asked::BeforeWrite && (error == api::Error::Timeout || error == api::Error::InvalidAnswer) {
@@ -721,11 +704,10 @@ crates/temper-engine-protocol-forge/src/writes.rs:254:                    Body::
 crates/temper-engine-protocol-forge/src/writes.rs-255-                        return Err(self.error(api::Error::TooLarge));
 crates/temper-engine-protocol-forge/src/writes.rs-256-                    }
 crates/temper-engine-protocol-forge/src/writes.rs-257-                    Body::Malformed(_) | Body::Raw { .. } => return Err(self.error(api::Error::Timeout)),
-heavy: task 734 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014413-734.log
 ```
 
 ```text
-$ heavy rg -n 'marker::hex|reads::long|fn remark|reading::remark|fn a_body_past_body_bytes_is_carried_empty_without_its_key|fixtures::response\(200, format|Op::Read\(Read::Items|pub fn response|HTTP/1.1' crates/temper-engine-protocol-forge/src/hooks/connection.rs crates/temper-engine-protocol-forge/src/conventions.rs crates/temper-engine-protocol-forge/src/component/calls.rs crates/temper-engine-protocol-forge/src/reading.rs crates/temper-engine-protocol-forge/src/reads.rs tests/engine/protocol-forge/tests/machine.rs tests/engine/protocol-forge/src/fixtures.rs
+$ rg -n 'marker::hex|reads::long|fn remark|reading::remark|fn a_body_past_body_bytes_is_carried_empty_without_its_key|fixtures::response\(200, format|Op::Read\(Read::Items|pub fn response|HTTP/1.1' crates/temper-engine-protocol-forge/src/hooks/connection.rs crates/temper-engine-protocol-forge/src/conventions.rs crates/temper-engine-protocol-forge/src/component/calls.rs crates/temper-engine-protocol-forge/src/reading.rs crates/temper-engine-protocol-forge/src/reads.rs tests/engine/protocol-forge/tests/machine.rs tests/engine/protocol-forge/src/fixtures.rs
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/protocol-forge/src/fixtures.rs:109:pub fn response(code: u16, body: &[u8]) -> Vec<u8> {
 tests/engine/protocol-forge/src/fixtures.rs:110:    let mut bytes = format!("HTTP/1.1 {code} Answer\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
@@ -738,7 +720,6 @@ crates/temper-engine-protocol-forge/src/component/calls.rs:238:                i
 crates/temper-engine-protocol-forge/src/hooks/connection.rs:199:            *high = marker::hex(byte / 16);
 crates/temper-engine-protocol-forge/src/hooks/connection.rs:200:            *low = marker::hex(byte % 16);
 crates/temper-engine-protocol-forge/src/reading.rs:162:pub fn remark(value: d::ReviewComment) -> api::Remark {
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014413-733.log
 ```
 
 ### Scratch pairs
@@ -760,10 +741,9 @@ and the reads helper split. No 01.5 behaviour was changed. The script and
 its generated copy existed only in the scratch worktree.
 
 ```text
-$ heavy python3 copy01.py
+$ python3 copy01.py
 Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
 Copied 01.1/01.2 prerequisites and the 01.3 move; four source tests retained.
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014102-733.log
 ```
 
 The copy was compiled, not merely counted. The first three clippy attempts
@@ -771,7 +751,7 @@ exposed copy-script errors and the public boundary's lint requirements;
 none was treated as a pass. There was no lint suppression.
 
 ```text
-$ heavy cargo clippy -p skein-forge --all-targets -- -D warnings
+$ cargo clippy -p skein-forge --all-targets -- -D warnings
 Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
 Attempt 1: exit 101; incomplete path substitutions, two substring substitutions,
 missing word on remark, stale multiline page_size/client accesses, test qualifications.
@@ -783,21 +763,18 @@ and a closure in valid_word (replaced with the required for loop).
 log /srv/data/git/runner/src/tmp/logs/20261019T014204-733.log
 Corrected copy:
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.45s
-heavy: task 733 (build) exit 0, waited 1s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T014229-733.log
 ```
 
 ```text
-$ heavy python3 count01.py
+$ python3 count01.py
 Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
 Before formatting: 3228 moved, 271 new (tests included).
 Split reads.rs / keep.rs lines: 606 183
-heavy: task 733 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014247-733.log
 ```
 
 ```text
-$ heavy cargo fmt -p skein-forge
+$ cargo fmt -p skein-forge
 Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014258-733.log
 ```
 
 count01.py runs git diff --no-index --numstat separately for every pair
@@ -819,7 +796,7 @@ root. prior01.3/{lib,forgejo}.rs are snapshots of the prior prerequisite
 state; their unchanged lines are already present, so moved is zero.
 
 ```text
-$ heavy python3 count01.py
+$ python3 count01.py
 Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
 source -> destination: added / removed / moved
 reads.rs -> forgejo/plans/reads.rs: 64 / 253 / 540
@@ -842,7 +819,6 @@ prior01.3/lib.rs -> lib.rs: 2 / 1 / 0
 prior01.3/forgejo.rs -> forgejo.rs: 1 / 0 / 0
 TOTAL: 3206 moved, 300 new (tests included)
 Split reads.rs / keep.rs lines: 604 183
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014341-733.log
 ```
 
 The measured total includes 24 added test/fixture lines (19 + 5), module
@@ -855,15 +831,14 @@ at the step's start and recounts that commit, as README requires.
 The formatted copy's new/changed signatures and all targets compile:
 
 ```text
-$ heavy cargo clippy -p skein-forge --all-targets -- -D warnings
+$ cargo clippy -p skein-forge --all-targets -- -D warnings
 Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
     Checking skein-forge v0.0.0 (/srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b/crates/skein-forge)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.45s
-heavy: task 735 (build) exit 0, waited 1s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T014413-735.log
 ```
 
 ```text
-$ heavy cargo nextest run -p skein-forge
+$ cargo nextest run -p skein-forge
 Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
     Finished `test` profile [unoptimized + debuginfo] target(s) in 2.34s
     Starting 90 tests across 1 binary
@@ -872,14 +847,12 @@ Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
         PASS [   0.002s] (88/90) skein-forge tests::a_full_user_table_keeps_the_most_recent_login_and_replaces_in_place
         PASS [   0.003s] (90/90) skein-forge tests::a_body_without_a_well_formed_marker_has_no_key
      Summary [   0.040s] 90 tests run: 90 passed, 0 skipped
-heavy: task 733 (build) exit 0, waited 0s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T014350-733.log
 ```
 
 ```text
-$ heavy rg -n -i temper crates/skein-forge
+$ rg -n -i temper crates/skein-forge
 Directory: /srv/data/git/runner/.claude/jobs/ae1f7ad0/tmp/scratch-skein-01b
 No matches (expected exit 1).
-heavy: task 733 (build) exit 1, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014610-733.log
 ```
 
 ### Estimates including new tests
@@ -936,7 +909,7 @@ through 01.3, as recorded above. Planned cumulative counts remain
 ### Closing audit and cleanup
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 p=Path("docs/development/plans/forge-kit/skein/01-forge.md")
 lines=p.read_text().splitlines()
 starts=[i for i,l in enumerate(lines) if l.startswith("### ")]+[lines.index("## Done when")]
@@ -968,7 +941,6 @@ Session: 400 lines; five increments
 All nine fields; settled answers; six review corrections; no trailing whitespace
 Planned cumulative tests: 2 / 86 / 90 / 99 / 126
 Planner size ruling remains: 01.4 ~320 new; 01.5 ~1100 new
-heavy: task 733 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014826-733.log
 ```
 
 ```text

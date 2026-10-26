@@ -89,7 +89,7 @@ serving (13.2). Needs at start: temper 12.2, 10.1 and 10.2 (`tier_configuration`
 - **The streams are asserted on real pipes** (12.2's simulator writes no bytes): 13.1 requires each non-empty
   stderr line to start with a step's prefix, `prepare 1: `, `forgejo 1: `, `runner 1: `, `reconcile 1: `,
   `serve: ` or `box: ` (the tier's one forge is number 1, 10.2; the names are 07.1's), and one `runner 1: ` line
-  at least. The implementer reads the first run's stderr to confirm the runner daemon writes one; if it writes
+  at least. The author reads the first run's stderr to confirm the runner daemon writes one; if it writes
   none, that assertion goes and the landing report says so.
 - **The box's binary** is started with `Expectation::Supervise`, a stderr
   bound of 262,144 bytes, not `serve`'s 65,536 (mod.rs:82-94): its stderr
@@ -174,7 +174,7 @@ startup.rs:50, with `temper::run(Command::Box { .. })`); the document from `supp
 &Forge::Unreached)` (mod.rs:19), whose limits are the shipped `small` profile (`temper-service/src/limits.rs:247-257`)
 plus the fixture's overrides (`support/configuration.rs:43-44`); a test that needs another value names it. Ceilings:
 configure rows under 20 ms, the others under 0.5 s; a miss is noted in the landing report, read from nextest's
-`PASS [ t ]` lines in heavy's log. Tests:
+`PASS [ t ]` lines in the test log. Tests:
 1. `box_with_one_path_is_the_box_command`
 2. `box_without_exactly_one_path_prints_the_usage` (none, two; the new `USAGE` as a literal)
 3. `a_box_configuration_that_is_absent_is_refused_naming_it`: `temper box: configuration absent.json: absent\n`
@@ -217,7 +217,7 @@ fn temper_box_prints_the_link_and_a_stop_leaves_no_process() {
 ```
 Proof: process; in one shell, the binaries exported on a line of their own, then the command:
 `export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64`
-`heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process -E "test(=temper_box_prints_the_link_and_a_stop_leaves_no_process)"'`
+`sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process -E "test(=temper_box_prints_the_link_and_a_stop_leaves_no_process)"'`
 exits 0: `temper box` on the owned configuration prints the link and nothing else on stdout, every stderr line
 carries its step's prefix, Forgejo answered 200, SIGTERM ended it with exit 0 and no process left. Bound 120 s (aim
 40 s, read from the test's `PASS [ t ]` line: a miss is noted in the landing report). Process is the highest layer
@@ -268,7 +268,7 @@ fn temper_box_restarts_a_killed_forgejo_while_the_engine_serves() {
     scratch.remove();
 }
 ```
-Proof: process, the same two lines as 13.1 (the export, then `heavy`) with `-E "test(=temper_box_restarts_a_killed_forgejo_while_the_engine_serves)"`
+Proof: process, the same two lines as 13.1 (the export, then the test command) with `-E "test(=temper_box_restarts_a_killed_forgejo_while_the_engine_serves)"`
 exits 0: the kill, a new Forgejo answering and the engine's pid unchanged. Bound 120 s
 (aim 60 s, read from the test's `PASS [ t ]` line: a miss is noted in the landing report). Process is the
 highest layer; the test is itself at it.
@@ -353,11 +353,11 @@ pub fn status(address: SocketAddr, target: &str) -> Option<u16> {
 1. Both increments landed: `git log origin/main --grep='^Plan: forge-setup$'
    --format='%(trailers:key=Step,valueonly,separator=)' | sort -u |
    grep -c '^temper-13\.[12]$'` prints 2.
-2. The focused tests: `heavy cargo nextest run -p temper -E
+2. The focused tests: `cargo nextest run -p temper -E
    'test(/box/)'` ends `13 tests run: 13 passed`.
 3. The process tests, in one shell, the binaries exported first:
    `export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64`
-   then `heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process -E "test(/^temper_box_/)"'`
+   then `sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process -E "test(/^temper_box_/)"'`
    ends `2 tests run: 2 passed`.
 4. The binary starts nothing: `grep -rnE 'Command::new|try_lock|\.exec\(' crates/temper/src` prints nothing.
 5. The usage names the command: `grep -c 'temper box CONFIG.json' crates/temper/src/lib.rs` prints 1.

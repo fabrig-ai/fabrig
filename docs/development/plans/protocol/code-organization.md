@@ -114,12 +114,12 @@ profiles `process` and `live` (10.4).
   that adds one then runs, in this order, and commits the lock:
 
   ```
-  heavy cargo update -p jig-domain-core --precise d91a89c45553f3f259b4d95d34a75164a9715877
-  heavy cargo update -p smith-host-domain --precise dfc0fe5700c628d7bce7da3d2ee918e9c1fbe46d
-  heavy cargo update -p skein-lib --precise b5d3a2c3363dbbd1db8dae933cd87a643a18b3f2
+  cargo update -p jig-domain-core --precise d91a89c45553f3f259b4d95d34a75164a9715877
+  cargo update -p smith-host-domain --precise dfc0fe5700c628d7bce7da3d2ee918e9c1fbe46d
+  cargo update -p skein-lib --precise b5d3a2c3363dbbd1db8dae933cd87a643a18b3f2
   ```
 
-  The check, before `land`: `grep -oE 'forgetic/(jig|smith|skein)\.git#[0-9a-f]+' Cargo.lock | sort -u`
+  The check, before merging: `grep -oE 'forgetic/(jig|smith|skein)\.git#[0-9a-f]+' Cargo.lock | sort -u`
   prints exactly three lines, ending `#d91a89c45553f3f259b4d95d34a75164a9715877`,
   `#dfc0fe5700c628d7bce7da3d2ee918e9c1fbe46d` and
   `#b5d3a2c3363dbbd1db8dae933cd87a643a18b3f2`. (The planner ran these

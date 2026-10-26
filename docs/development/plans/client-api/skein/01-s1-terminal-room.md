@@ -38,7 +38,7 @@ Test shape, in `tests/ui-text/tests/terminal.rs`:
   terminal's `intake: BATCH`, `terminal.rs:77`); `sim.peer_feed` of `p`
   returns 1 (the pipe's one byte), then of `\n` returns 0; once the
   command is popped and the terminal driven, the `\n` fits (returns 1).
-Proof: skein's gate, by `land`.
+Proof: skein's gate.
 Don't: change `BATCH`, a refusal's text or `say`'s prefix; give `lines` a
 default; name a downstream repository (`git -C <worktree> diff
 origin/main...HEAD | grep -i -w -E '^\+.*(jig|temper|smith)'` prints

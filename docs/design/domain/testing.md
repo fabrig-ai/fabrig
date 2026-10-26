@@ -2147,7 +2147,7 @@ by the commands in `docs/development/workflow.md`. In temper:
   suite to make room for them unless the user so decides.
 - **The worlds' sums are measured as the suites' rules are:** each test's
   own time, run alone on the idle development machine (testing-strategy.md,
-  section 8), with `--profile measure -j 1` through `heavy --gate`, the
+  section 8), with `--profile measure -j 1` the
   median of three runs. Beside another task, it measures that task.
 - **The sums are the worlds' guides, never a landing's.** A test within its
   own guide lands. A plan that adds to these worlds gives both default-suite
@@ -2172,7 +2172,7 @@ by the commands in `docs/development/workflow.md`. In temper:
   under the nextest profiles `process` and `live` by
   `scripts/proof-one-process.sh` and `scripts/proof-live.sh`. The gate
   never runs them; `scripts/after-landing.sh` runs the process tier
-  after each landing (agents' `roles/owners.md`, 4.5). After-landing
+  after each landing. After-landing
   is paused since 10-24, on the user's word, while they design how it
   should work: until it lifts, the process tier runs only where an
   owner runs it.
@@ -2236,7 +2236,7 @@ world of temper's on a scripted engine (../client/README.md, section 10).
 
 ### 6.4 Settings in the store
 
-Designed, not built: mission 2 of the configuring plan
+Designed, not built: planned implementation of the configuring plan
 (`../protocol/configuration.md`, section 13; jig's `domain/engine.md`,
 section 17, and its `domain/testing.md`, sections 4 and 9, for jig's
 own). By the pyramid, each behaviour in the lowest world that owns it,
@@ -2259,10 +2259,10 @@ and one smoke above:
   JSON fixture and the lab's documents) takes the stock defaults or a
   settings change in its setup instead; a story that edited a charter in
   its document makes the change it needs. Their times do not change.
-- **Its QA:** mission 2 changes the facts of the forge's world and the
+- **Its QA:** planned implementation changes the facts of the forge's world and the
   engine's domain world (how a merge is judged), so their `qa_*`
-  profiles run before it lands (agents' `roles/owners.md`).
-- **Measured** at mission 2's base and end, by 6.1's rule. Should the
+  profiles run before it lands.
+- **Measured** at planned implementation's base and end, by 6.1's rule. Should the
   smoke miss its 2 s, or the real loop pass its 15 s (13 s before the user's
   increase of 10-24), the plan goes to the user with its numbers; no story
   is cut or moved to fit.

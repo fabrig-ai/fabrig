@@ -36,7 +36,7 @@ Refresh any further reached assertion/count copy and list it in the commit body.
 
 ## Ready check, 2026-10-19T13:20Z
 
-Independent frozen source: skein9fbda6b7076a20b5dcf387bbbc47453a3cea84a0; smith9d4430e956b558571687642291769afd884e520b; jig39c1e4db9dc923b0a2063468fa5533fa3c50113a; hearth61ab3d16477c4dc97b10d4b7dc2ac6e0cddf7ef0; temper79eff1cddcfe45e9584415c5338d8449cd73904e. Source-verified mapping19/83 and inherited prefixes pass; final fixture declarations compiled independently. One pinned-heavy attempt,20261019T131645-824.log,exit0,wait0s/run15s.
+Independent frozen source: skein9fbda6b7076a20b5dcf387bbbc47453a3cea84a0; smith9d4430e956b558571687642291769afd884e520b; jig39c1e4db9dc923b0a2063468fa5533fa3c50113a; hearth61ab3d16477c4dc97b10d4b7dc2ac6e0cddf7ef0; temper79eff1cddcfe45e9584415c5338d8449cd73904e. Source-verified mapping19/83 and inherited prefixes pass; final fixture declarations compiled independently. One  attempt,20261019T131645-824.log,exit0,wait0s/run15s.
 
 Format and checker/package all-target clippy with−Dwarnings pass. Connection5positive/decoy+9negative controls pass; original exactly3diagnostics; recovery6+/7-/2decoys and plan-shapes6+/6- pass. Listing mode absent at this source, so no future API required. Sequential default129PASS/0.102s,fuzzy0,browser0,empty profiles accepted with--no-tests=pass; page/backoff/terminal/eviction4/3/3/13ms. Test16lines, largest checker function39lines, files543/778/126/157; no budget/ceiling relaxation.
 

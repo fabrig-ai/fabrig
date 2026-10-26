@@ -126,9 +126,9 @@ fn attach_reads_the_admin_login_and_id() {
   `transcripts/user` (head through last CRLF; body excluded), fed through the Host capture/decoder
   entry point; expect byte equality, including `HTTP/1.1 200 OK`. Keep this golden inline before
   06.2 exists. Base 13 tests: 0.010 s, <20 ms each; three new fixture tests <0.5 s each.
-Proof: unit; `heavy cargo nextest run -p skein-throwaway-forgejo`
+Proof: unit; `cargo nextest run -p skein-throwaway-forgejo`
   prints 16 passed, 1 skipped; base 13 in 0.010 s, new tests <0.5 s each.
-Proof: process; `SKEIN_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 heavy --gate cargo nextest run -p skein-throwaway-forgejo --run-ignored only`
+Proof: process; `SKEIN_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 cargo nextest run -p skein-throwaway-forgejo --run-ignored only`
   prints 1 passed, 16 skipped: starts, serves its admin and removes scratch. Base 7.898 s; under 15
   s; no runner needed by this existing test.
 Don't: move runner startup here; change the process tier's owner values.
@@ -200,9 +200,9 @@ pub fn run(forgejo: &Forgejo, runner: Option<&Path>,
   is deleted by temper 07. `tools/git-transcripts` uses only 06.1's throwaway interface.
 - The script passes both paths, runs ordinary recording then `--component` with separate empty
   scratches under the given scratch parent, and preserves every failure exit. It adds no gate entry
-  and never nests heavy. The only 06.2 recording is its process Proof, after this copy check. Set
+  and runs directly. The only 06.2 recording is its process Proof, after this copy check. Set
   `FORGE_COPY` to the source checkout at the recorded source commit;
-  `heavy sh -c 'for p in transcripts deliveries facts.txt; do diff -qr "$1/$p" "$2/$p" || exit; done' sh "$FORGE_COPY/tools/forgejo-conformance" tests/forge/conformance`
+  `sh -c 'for p in transcripts deliveries facts.txt; do diff -qr "$1/$p" "$2/$p" || exit; done' sh "$FORGE_COPY/tools/forgejo-conformance" tests/forge/conformance`
   prints nothing and exits 0 before recording. This compares all data bytes, including binary
   provenance, without a fixture rewrite. Document every existing mask: ids/UUIDs by first
   appearance, quoted times, fixed HTTP dates and ports, sorted units, git pkt-line prefixes;
@@ -213,12 +213,12 @@ Test shape: move all 34 library tests unchanged in name (the base's25 plus9from 
   `Fact::line`. No new test kind. Token/tail/password leaks retain the literal `Leak` case/kind;
   masked bytes and content lengths retain their asserted values. Base suite 0.114 s; listener world
   0.109 s (<0.5 s), other tests <20 ms.
-Proof: unit; `heavy cargo nextest run -p forgejo-conformance`
+Proof: unit; `cargo nextest run -p forgejo-conformance`
   prints34passed,0skipped (source-verified library identity count; the historical base's25took0.114s), preserving that workload/time.
-Proof: process; `heavy --gate scripts/proof-forgejo-conformance.sh --forgejo "$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64" --runner "$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64" --scratch target/forgejo-conformance --out tests/forge/conformance`
+Proof: process; `scripts/proof-forgejo-conformance.sh --forgejo "$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64" --runner "$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64" --scratch target/forgejo-conformance --out tests/forge/conformance`
   once: exits 0; 218 facts, all 55 setup and 40 component facts hold. Then compare, as part of this
   Proof (no second recording):
-  `heavy bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh tests/forge/conformance/facts.txt`
+  `bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh tests/forge/conformance/facts.txt`
   prints five `timing <holds|fails> <name>[: reason]` lines, then `facts=218 stable=213 holds=207
   fails=6 timing=5 unchecked=0` and
   `d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -`. Base recordings: 106 s + 22
@@ -354,9 +354,9 @@ fn limits_accept_the_profile_and_reject_each_problem() {
     }
 }
 ```
-Proof: unit; `heavy cargo nextest run -p skein-forge --test 'forgejo_*'`
+Proof: unit; `cargo nextest run -p skein-forge --test 'forgejo_*'`
   prints 61 passed (55 moved + 6 new), preserving the moved tests' times;
-  `heavy cargo nextest run -p skein-forge --test fuzzy_forgejo --profile fuzzy`
+  `cargo nextest run -p skein-forge --test fuzzy_forgejo --profile fuzzy`
   prints 4 passed (3 moved + 1 new). Base forms use temper-codecs-world: 55 passed in 0.134 s and 3
   passed in 2.524 s; new tables <20 ms each, new fuzzy <=1 s, the older moved fuzzy measurements
   stay as recorded. Only pure document tests change here; 06.2 connected the recorder, and 06.4
@@ -417,15 +417,15 @@ fn unquoted_log_times_keep_fraction_width_offset_and_identity() {
     assert_eq!(mask.bytes(raw), b"2020-01-01T00:00:01.0000000+05:30");
 }
 ```
-Proof: process; `heavy --gate scripts/proof-forgejo-conformance.sh --forgejo "$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64" --runner "$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64" --scratch target/forgejo-conformance --out tests/forge/conformance`
+Proof: process; `scripts/proof-forgejo-conformance.sh --forgejo "$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64" --runner "$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64" --scratch target/forgejo-conformance --out tests/forge/conformance`
   records again on both pinned binaries, once, in <=5 minutes of execution. Run 06.2's exact
   comparison after recording: 213 stable outcomes match digest d1f7ba2b…18347d; five timing
   outcomes/reasons print, each holds or fails. Total 218; no unchecked; all 55 setup and 40
   component facts hold.
-Proof: unit; `heavy cargo nextest run -p forgejo-conformance` prints
+Proof: unit; `cargo nextest run -p forgejo-conformance` prints
   the step-start library count plus5 (39from the checked34: two mask tests and three separated negative cases), each new unit<20ms. Historical measurements remain evidence, not a new pass.
-Proof: unit; `heavy cargo nextest run -p skein-forge --test 'forgejo_*'`
-  and `heavy cargo nextest run -p skein-forge --test fuzzy_forgejo --profile fuzzy`
+Proof: unit; `cargo nextest run -p skein-forge --test 'forgejo_*'`
+  and `cargo nextest run -p skein-forge --test fuzzy_forgejo --profile fuzzy`
   still print 61 and 4 passed, with 06.3's times and ceilings.
 Don't: fix the base's Forgejo quirks; mask by replacing the whole body; accept arbitrary UUIDs
   merely because decoding ignores them.
@@ -434,19 +434,19 @@ Removes: the gap for unquoted times, through recording; quoted behavior stays.
 
 ## Done when
 
-- `heavy cargo nextest run -p skein-throwaway-forgejo` prints
-  16 passed, 1 skipped; `heavy cargo nextest run -p forgejo-conformance`
+- `cargo nextest run -p skein-throwaway-forgejo` prints
+  16 passed, 1 skipped; `cargo nextest run -p forgejo-conformance`
   prints39passed (checked34library baseline plus5; retain any further landed identities). Tests needing the pinned Forgejo/runner stay outside the default suites.
-- `heavy cargo nextest run -p skein-forge --test 'forgejo_*'` prints
-  61 passed; `heavy cargo nextest run -p skein-forge --test fuzzy_forgejo --profile fuzzy`
+- `cargo nextest run -p skein-forge --test 'forgejo_*'` prints
+  61 passed; `cargo nextest run -p skein-forge --test fuzzy_forgejo --profile fuzzy`
   prints 4 passed. Moved names and costs match the findings' inventory.
-- `heavy sh -c 'rg -n -i "temper|serde" testing/skein-throwaway-forgejo tests/forge/conformance crates/skein-forge/tests | wc -l'`
+- `sh -c 'rg -n -i "temper|serde" testing/skein-throwaway-forgejo tests/forge/conformance crates/skein-forge/tests | wc -l'`
   prints 0 (README Done when 5, extended to serde).
-- `heavy sh -c 'rg -n "from_env|TcpStream|thread::sleep" testing/skein-throwaway-forgejo/src | wc -l'`
+- `sh -c 'rg -n "from_env|TcpStream|thread::sleep" testing/skein-throwaway-forgejo/src | wc -l'`
   prints 0; environment reads occur only in the opt-in test file.
-- `heavy sh -c 'rg -n "env::var|TEMPER_FORGEJO" tests/forge/conformance/src testing/skein-throwaway-forgejo/src | wc -l'`
+- `sh -c 'rg -n "env::var|TEMPER_FORGEJO" tests/forge/conformance/src testing/skein-throwaway-forgejo/src | wc -l'`
   prints 0; the opt-in test file alone reads SKEIN_FORGEJO(_RUNNER).
-- `heavy bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh tests/forge/conformance/facts.txt`
+- `bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh tests/forge/conformance/facts.txt`
   prints the five timing outcomes/reasons and `facts=218 stable=213 holds=207 fails=6 timing=5
   unchecked=0`, then `d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -`. It reads
   committed facts; no final recording. All 55 setup and 40 component facts hold, covered by the

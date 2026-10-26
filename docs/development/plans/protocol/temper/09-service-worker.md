@@ -258,7 +258,7 @@ fn a_late_older_generation_leaves_the_newest_in_place() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service -p
+Proof: unit, `cargo nextest run -p temper-service -p
 temper-worker-domain -E 'test(/worker_parts|did_not_decode/)'`, run once:
 an engine's items reach the worker's workspace field for field, parts go
 up under their answer's tokens by tag, items that do not decode are
@@ -341,7 +341,7 @@ fn the_agent_runs_as_temper_agent_with_no_credential_in_its_environment() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/tests::worker::/)'`, run once: the credential names
 `PAYLOAD_VERSION`, parts cross both ways under their tokens, an identity
 lands in the identities' table, and an agent starts as `temper agent`
@@ -419,7 +419,7 @@ fn a_clone_reaches_git_with_its_identity_s_newest_value() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/tests::worker_git::/)'`, run once: a clone reaches git with the
 newest identity's header and no token in its arguments, a missing value
 fails `Broken` unspawned, a cancel and a `Done` cross, and the link waits
@@ -485,7 +485,7 @@ fn a_signal_drains_the_engine_then_ends_the_worker_at_once() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/tests::system::/)'`, run once: the worker's hello reaches the
 engine over `workers`, a signal drains the engine and then ends the
 worker, and an unusable git stops the service naming it (the six tests
@@ -941,7 +941,7 @@ pub mod stand_in {
 
 ## Done when
 
-- The service and its users pass: `heavy cargo nextest run -p
+- The service and its users pass: `cargo nextest run -p
   temper-service -p temper-worker-domain -p temper-worker-domain-world -p
   temper-system-world` passes.
 - No payload version is hard-coded: `git grep -n 'payload: 1' --

@@ -6,14 +6,14 @@
 start: the code graph was indexing). Three runs of each suite:
 
 ```
-$ cd ~/src/rust/tmp/jig/tools-base && heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep Summary; cargo nextest run --workspace --profile fuzzy 2>&1 | grep Summary; done'
+$ cd ~/src/rust/tmp/jig/tools-base && sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep Summary; cargo nextest run --workspace --profile fuzzy 2>&1 | grep Summary; done'
      Summary [   6.364s] 4270 tests run: 4270 passed (1 slow), 0 skipped
      Summary [   7.329s] 111 tests run: 111 passed, 0 skipped
      Summary [   5.044s] 4270 tests run: 4270 passed, 0 skipped
      Summary [   6.724s] 111 tests run: 111 passed, 0 skipped
      Summary [   5.232s] 4270 tests run: 4270 passed, 0 skipped
      Summary [   6.379s] 111 tests run: 111 passed, 0 skipped
-$ cd ~/src/rust/tmp/temper/tools-base && heavy --gate -- sh -c '(the same)'
+$ cd ~/src/rust/tmp/temper/tools-base && sh -c '(the same)'
      Summary [   2.738s] 1879 tests run: 1879 passed, 1 skipped
      Summary [   7.038s] 50 tests run: 50 passed, 0 skipped
      Summary [   2.892s] 1879 tests run: 1879 passed, 1 skipped

@@ -72,9 +72,8 @@ Read-only audit, 2026-10-16, temper `main` at `0ff45022e`; paths are temper's; e
 - **A fact** (`facts.rs:156-161`): `add(facts, "writer-protection-reads-are-403", case(out,"writer-branch-protection")?.status ==
   403 && .., "writer protection read was not 403")`; `add` `:35`, `case(out,name)` `:44` reads `transcripts/<case>/response`. A capture
   is `Recorder::send(name, method, target, body, token, range)` (`cases.rs:17-32`: scan, mask, `write::case`).
-- **Record command** (README; forgejo-17 `findings/tools.md:41-44`): `TEMPER_FORGEJO=<v17> TEMPER_FORGEJO_RUNNER=<13.2> heavy --gate
-  cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance`: **38 s**; with
-  `--component` (replaces only `component-` lines, `component.rs:19`, so second) **24 s**; both in one `heavy --gate sh -c` (clean
+- **Record command** (README; forgejo-17 `findings/tools.md:41-44`): `TEMPER_FORGEJO=<v17> TEMPER_FORGEJO_RUNNER=<13.2> cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance`: **38 s**; with
+  `--component` (replaces only `component-` lines, `component.rs:19`, so second) **24 s**; both in one `sh -c` (clean
   tree). Without the runner, 6 Actions and 2 component facts stay unchecked.
 - **A new group** (admin routes, orgs, teams, org hooks, deliveries): append `setup(r)` after `failures` (`cases.rs:48`; masking
   numbers ids and times by first appearance, so an earlier capture renumbers all later ones); admin calls use `send(..,

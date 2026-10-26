@@ -124,7 +124,7 @@ the user's delegation (development.md, 2.2 and 10.4).
     section 5's guides, summing to 3.8 s of the focused suite and 24 s
     of the fuzzy one, within domain/testing.md, 6.1's 4 s and 25 s. The base
     gate ran 682 focused tests in 1.236 s and 31 fuzzy in 7.849 s
-    (`heavy --gate ./scripts/check.sh` at `cc2697cf`, 2026-10-14).
+    (`./scripts/check.sh` at `cc2697cf`, 2026-10-14).
 19. **Sizes:** every increment lands within 1.5 times its Size without
     asking, a codec or document increment within twice it
     (jig-protocol's retrospective, proposal 6, and its rulings 132 to
@@ -147,13 +147,13 @@ the user's delegation (development.md, 2.2 and 10.4).
     number (1), home checked, prefix `temper/`, CI checked.
 24. **The plan's commands, run once at the base** (development.md,
     5.4), on 2026-10-14 at `cc2697cf` with this plan's Markdown on top,
-    through `heavy`:
-    - the gate, `heavy --gate ./scripts/check.sh`: passed, 682 focused
+   :
+    - the gate, `./scripts/check.sh`: passed, 682 focused
       tests in 1.236 s, 31 fuzzy in 7.849 s, 25 s alone;
     - "Done when" 1: `plan: no active run on this machine`, as expected
       before the run; 2: no commit yet carries `Gate-Result:
       scripts/check.sh passed` (temper's last code landing predates
-      `land`'s current trailer), as expected; 3: 22 paths missing, all
+      the current merge trailer), as expected; 3: 22 paths missing, all
       of them, as expected; 4: 133 lines name the web crates, as
       expected; 5: the two Python files, as expected; 6: holds, the
       three pins; 7: 4 manifests name `jig-fake-store`, as expected; 8:
@@ -170,7 +170,7 @@ the user's delegation (development.md, 2.2 and 10.4).
       2.53.0, the version git.md's transcripts name;
     - every interface sketch, compiled under clippy with `-D warnings`
       in a scratch crate of a scratch worktree of temper at `cc2697cf`
-      (`~/src/rust/tmp/plan/temper-sketches`, `heavy cargo clippy -p
+      (`~/src/rust/tmp/plan/temper-sketches`, `cargo clippy -p
       plan-sketches --all-targets -- -D warnings`); the sketches of
       ordinary-Rust code are marked "not compiled" in their files.
 
@@ -195,7 +195,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
 
 102. **05.3 lands as one increment, at most 800 lines** (temper 05.3,
      blocked 2026-10-14T03:57:07Z; plan defect). Its Size is 450, so 675
-     with 1.5 times; the implementer counted about 740 production lines
+     with 1.5 times; the author counted about 740 production lines
      already written (`facts.rs` 490, `runner.rs` 222, about 30 more),
      most of it the 63 facts of forge.md, section 13 that the Shape lists
      one by one. A split into 05.3a and 05.3b, proposed as the
@@ -203,7 +203,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      written, and leave `facts.txt` with six Actions facts unchecked
      between them. The bound is code-organization.md, section 8's count
      on the increment's commit, at most 800; past 800 it splits as the
-     implementer proposed. Its Files, Test shape, Proof (one process run,
+     author proposed. Its Files, Test shape, Proof (one process run,
      63 facts, 83 transcripts) and README's 10 lines are unchanged, and
      06.4's and 14.5's dependencies on 05.3 stay as they are.
 
@@ -239,7 +239,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      05's check `git grep -nE 'Authorization: (token|Basic)
      [0-9A-Za-z+/=]{20,}' -- tools` matched 05.4's test literal
      `Basic d3JpdGVyOnNlY3JldA==` (`writer:secret`, no issued token).
-     The implementer shortened it to `writer:t` and landed it as
+     The author shortened it to `writer:t` and landed it as
      `2838a7a8`, test-only, under `Step: temper-05.4`. That stands. From
      now: a fix that the session's own "Done when" needs, at most 20
      lines, in that session's files, every test's name and expected
@@ -334,19 +334,6 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      with `html_url`'s origin (forge.md, 3.2, 3.5, 9, 13; sessions 06.4,
      13.3, 13.4, 14).
 
-112. **Disk below 40 GB: the cache past its cap** (blocked
-     2026-10-14T05:08:02Z; infrastructure). `df -h ~/src` showed 38 GB
-     after the coordinator removed the finished sessions' `target/`.
-     `kache stats` showed its store at 40.9 GiB of a 23.3 GiB cap (176%),
-     its daemon reporting a version mismatch; its own eviction then
-     brought it to 20.9 GiB, and `kache gc` evicted nothing more. The
-     supervisor removed three idle `target/` directories outside the run
-     (`~/src/rust/temper/target`, `~/src/rust/tmp/plan/temper-protocol/target`,
-     `~/src/rust/tmp/plan/temper-sketches/target`). `df` then showed 53
-     GB, and new starts resumed. If disk falls below 40 GB again, the
-     coordinator runs `kache stats | head -1` once and names the store's
-     size in its block.
-
 113. **The small profile's numbers pass every worst case** (temper 08.1,
      blocked 2026-10-14T05:18:05Z; plan defect). 08.1 takes `small`'s
      constants from the engine worlds' fixtures, with `name_bytes` 256
@@ -358,7 +345,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      `journal.transcript_bytes < row_bound`, and the journal's room for
      deliveries). configuration.md, section 7 fixes no number ("Its
      numbers are constants in `temper-service`'s limits module, each
-     documented with what it bounds"). So the implementer's profile
+     documented with what it bounds"). So the author's profile
      stands: root journal `{commits: 3, held: 1536, writes: 6144,
      deliveries: 512, transcript_bytes: 65536, result_bytes: 2048,
      run_bytes: 16384}`, root loads `{loads: 2, rows: 1, bytes: 65536,
@@ -426,22 +413,6 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      root's part (`store.rs`, `loads.rs` for `Range::Census` only) and
      the engine world's fake census join 08.2a, whose Size is at most
      570 (store/README.md, 5; session 08).
-
-118. **Disk below 40 GB, the second time** (blocked 2026-10-14T07:50:47Z;
-     infrastructure). `kache stats` showed its store at 34.7 GiB of its
-     23.3 GiB cap (149%); the coordinator removed finished sessions'
-     `target/` and disk came back to 50 GB; by 07:52Z the daemon had
-     evicted to 20.9 GiB (90%), its version mismatch of ruling 112 gone.
-     kache keeps its cap, late: between its passes it overshoots by 11 to
-     17 GiB. As a standing rule (README, Rules), below 40 GB the
-     coordinator removes the `target/` of sessions not running, logs
-     `kache stats | head -1`, and blocks only if disk stays below 40 GB.
-     kache's late eviction is a proposal for the retrospective.
-     At 2026-10-14T08:28:33Z disk was 37.6 GB again, the store 37.6 GiB
-     (161%), no idle `target/` left; the supervisor's `kache gc`
-     printed "Evicted 2890 entries to stay under size limit" and disk
-     came back to 51 GB, so the rule adds `kache gc` once when the
-     store is past its cap.
 
 120. **A world-only increment may land the README's 20-line fix**
      (temper 18.1, blocked 2026-10-14T08:35:59Z; plan defect; the second
@@ -599,26 +570,6 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      (decision 9), and no `Secret` is added to it. Sessions 09 and 10
      say so.
 
-128. **New starts hold below 30 GB of disk on x1** (blocked
-     2026-10-14T10:39:14Z; infrastructure; the fifth disk block, after
-     rulings 112 and 118 and the unblocks of 08:29Z and 10:20Z). At
-     10:40Z `du -sh --total ~/.cache/kache wt/*/target` printed 47G:
-     kache 21G (its store 27.9 GiB before the coordinator's `kache gc`,
-     a cap of 23.3 GiB), session 08's `target/` 15G and 09's 12G,
-     beyond development.md, 11.4's "1 to 8 GB"; the rest of the volume
-     holds about 69 GB that is not the run's. With three sessions built
-     out, `df -h ~/src` shows 38 to 44 GB, so the 40 GB hold blocked
-     every 20 to 60 minutes with nothing idle left to remove. A session
-     that ends frees its `target/` (12 to 15 GB) before the next starts;
-     a start at 30 GB, its `target/` grown to 15 GB and kache past its
-     cap by 5 GB, leaves about 10 GB above the stop at 15 GB. So, for
-     this plan on x1, 30 GB replaces 40 GB in development.md, 11.4's
-     hold and in ruling 118's rule (README); the stop at 15 GB, the
-     memory bounds, three sessions at once and kache's cap are
-     unchanged. That x1's run leaves too little disk for three sessions'
-     `target/`, and that 11.4's 1 to 8 GB is now 12 to 15 GB in temper,
-     is a proposal for the retrospective.
-
 129. **A node's text is its text nodes' runs, printed once** (temper
      16.1, blocked 2026-10-14T11:45:30Z; plan defect, read from the
      design). client.md, 6.4 prints "every node in preorder, by its
@@ -674,7 +625,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      with a marker" (`2 × 512 + 21` = 1,045). Session 13's table chose
      `body_bytes` 65,536, `string_bytes` 1,024 and `inner` 64, which make
      `Items`' largest row (`body + body/2 + string + inner × (string +
-     16) + Summary`, the implementer's reading of `limits::largest_row`)
+     16) + Summary`, the author's reading of `limits::largest_row`)
      about 166 KB, past the small client's `answer_bytes` 65,536 (ruling
      113), so its page size is 0. Raising `answer_bytes` to 262,144
      breaks jig's small store preset and still gives a page of 1. So the
@@ -692,7 +643,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      "one io from the engine's limits", refuses every small document:
      jig's small `io.sockets` is 16 (`jig-protocol-config/src/profile/small.rs`),
      the pinned parser has no `io.*` override (`overrides.rs:8-35`), and
-     one process needs at least 24 (the implementer's count: the client
+     one process needs at least 24 (the author's count: the client
      listener and 4 client connections, the worker listener, the accepted
      worker and the worker's link, `slots × 4` agents, `git_component.operations
      × 4`). jig's reference startup composes one process's io from each
@@ -754,18 +705,6 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      reads). One test, `a_refused_directory_exits_one_with_its_line`
      (a directory with group bits set), joins 16.3's Test shape. Saying
      why stays jig's (later.md).
-
-135. **A push that lost a ref-lock race is tried once more** (temper
-     16.3a, blocked 2026-10-14T12:38:18Z; process). `land` exited 7
-     ("fetching or pushing failed") when its push met `cannot lock ref`,
-     another push to `main` at the same moment (here `2dec7fb5`), with
-     the gate passed and nothing wrong in the commit. development.md,
-     8.5 stops on 7, as it should for a failure that needs a person; this
-     one is main moving, as 6 is. As a standing rule (README): on exit 7
-     whose message names `cannot lock ref`, the implementer waits 60
-     seconds and runs `land` once more; a second exit 7 is a block, kind
-     infrastructure. Whether `land` should report this race as 6 is a
-     proposal for the retrospective (skein's kit).
 
 136. **The binary advertises raw message bytes, the domain keeps
      rendered ones** (temper 10.4, blocked 2026-10-14T13:10:30Z; plan
@@ -1014,7 +953,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
         the world's domain state between steps, or from temporary
         `eprintln!` lines at temper's sites above. At most three such
         world runs; if none refuses the gate, the second means follows.
-     2. **One process run** through `heavy --gate`, with temporary
+     2. **One process run** with temporary
         `eprintln!` lines (the task, the site, and at `assemble.rs` the
         section's size and byte count) at temper's sites above and in
         `route/now.rs`'s `Now::RunPreparationFailed` arm, which jig's
@@ -1068,7 +1007,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      31.2 s) printed none of its markers. Ruling 147 left one of its
      candidates unmarked: jig's `route_claim_refused` requests
      `Now::DropAssignment`, not `Now::RunPreparationFailed`. So 15.3
-     makes one more process run through `heavy --gate`, with temporary
+     makes one more process run with temporary
      `eprintln!` lines that print the task, the site, sizes and counts,
      never a section's bytes, at:
      - `route/now.rs`'s `Now::BriefCorePlanned` arm (the count of
@@ -1102,7 +1041,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      `temper-engine-protocol-forge/src/contents.rs`, whose plan rereads
      the pull, lists the files and reads each side, with about a dozen
      `InvalidAnswer` returns. So 15.3 makes one more process run through
-     `heavy --gate`, with temporary `eprintln!` lines at `contents.rs`'s
+     with temporary `eprintln!` lines at `contents.rs`'s
      `heard`, `row`, `done`, `next_side` and `side` returns of
      `InvalidAnswer`, and at the domain client's operation and answer
      check (`temper-engine-domain-forge-client/src/calls.rs`), each
@@ -1257,7 +1196,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      being some, and the view disables Adopt while it is false; a press
      then reaches `act_on` only with a party. Its users are edited by
      ruling 123. Step `temper-17.s3`, session 17's, from `origin/main`
-     before 17.4 lands (session 15's implementer waits on the designer,
+     before 17.4 lands (session 15's author waits on the designer,
      and these files are in no running session's WIP); its session file
      is `temper/17-one-process.md`'s 17.s3. 17.4's power-loss story then
      presses Adopt once it is enabled, its pending-at-cut assertion kept,
@@ -1338,7 +1277,7 @@ The supervisor's rulings follow, numbered from 101 (development.md,
      `eb9ec31f` (`logs/20261014T204556-0.log`), the tree 16.6's WIP
      builds on, and the profile runs one test at a time. `sign_in.rs` is
      16.5's, so in 16.6's Files (ruling 108). So session 16 first runs that
-     test alone once (`heavy --gate cargo nextest run -p temper --profile
+     test alone once (`cargo nextest run -p temper --profile
      process -E 'test(a_running_engine_lends_the_record_temper_sign_in_kept)'`)
      on its WIP: a pass names an interaction with the run before it or
      with 16.6's diff, a failure names 16.6's diff (`git diff origin/main`).

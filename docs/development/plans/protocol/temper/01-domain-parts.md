@@ -182,7 +182,7 @@ fn an_undecodable_call_is_answered_as_an_error_with_no_commit() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-engine-domain-world -E
+Proof: world, `cargo nextest run -p temper-engine-domain-world -E
 'binary(host_calls)'`, run once: a call the routing could not decode
 reaches its run as an error and the store applied nothing for it; the
 resumed run is told nothing of it; a corrected call is decided once (the
@@ -257,7 +257,7 @@ fn a_permanent_preparation_failure_is_reported_as_a_fact_of_its_attempt() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-engine-domain-world -E
+Proof: world, `cargo nextest run -p temper-engine-domain-world -E
 'binary(preparation)'`, run once: a permanent failure's repository and
 reason come out of the root as one fact naming the task and attempt, an
 answer without one gives none, and the retry follows the class (the
@@ -342,7 +342,7 @@ fn a_permanent_preparation_reaches_the_engine_by_its_tag() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-worker-domain-world -p
+Proof: world, `cargo nextest run -p temper-worker-domain-world -p
 temper-system-world -E 'binary(whole) | test(/composed::link::tests::/)'`,
 run once: a save names each repository by its tag and says whether it
 started from saved work, a failed prepare names its repository's tag, and
@@ -505,7 +505,7 @@ impl Protocol {
 
 ## Done when
 
-- The three increments' tests pass: `heavy cargo nextest run -p
+- The three increments' tests pass: `cargo nextest run -p
   temper-engine-domain-world -p temper-worker-domain-world -p
   temper-system-world -E 'binary(host_calls) | binary(preparation) |
   binary(whole) | test(/composed::link::tests::/)'` passes.

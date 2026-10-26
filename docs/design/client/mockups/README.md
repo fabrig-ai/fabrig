@@ -76,7 +76,7 @@ hovering one shows its citation.
   what was configured or written. A page that reads wrong in one world
   assumed another's workflow.
 - **Future** (`future · NEED`, slate, dashed): a piece the engine
-  can't supply yet. NEED names what would: a mission or plan under way,
+  can't supply yet. NEED names what would: implementation work under way,
   a draft, or "not designed". With **Future** off the page shows what
   it shows today in its place, if anything.
 - **The mockups' notes** are slate, never the product's palette: a
@@ -114,10 +114,9 @@ hovering one shows its citation.
 
 ## 5. Keeping them
 
-- **The user draws them,** in a session with Claude (agents'
-  `roles/README.md`, section 3). A change to a drawing lands with its
-  documents' change and its `STATUS.md` rows, through `land --docs`.
-- **UI builds from them** (agents' `roles/ui.md`). A landing that draws
+- **The user draws them,** in a session with Claude. A change to a drawing lands with its
+  documents' change and its `STATUS.md` rows.
+- **The UI is built from them**. A landing that draws
   what a mockup shows removes its `STATUS.md` row, and one that leaves
   part of it adds one. A future piece is built once its need has
   landed: the build moves it into the main drawing and drops its mark.

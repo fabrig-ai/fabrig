@@ -67,11 +67,11 @@ wait for named send or turn read; 15 s binds those sessions as they land.
 - **No speculative fixture rewrite.** Observer snapshots, core startup and
   the drift outlier have no demonstrated avoidable saving of 0.5 s.
 - **Same measurement selection before and after each fix.** Build first
-  with `heavy cargo nextest run --workspace --no-run`; measure committed
+  with `cargo nextest run --workspace --no-run`; measure committed
   trees in the gate lane. For each Proof selection, run once on its
   parent and once on its candidate, using `--profile measure -j 1`.
   Sum nextest's PASS times with the findings' Python command, pointing
-  it at each `heavy` log. Record count, sum, difference, machine, pins,
+  it at each test log. Record count, sum, difference, machine, pins,
   revisions and log paths in the commit. Retain all tests and comparisons;
   report added tests separately. Millisecond-rounded sums and sampled
   estimates are informational; the restored timeout is the gate.
@@ -83,8 +83,8 @@ wait for named send or turn read; 15 s binds those sessions as they land.
 
 - Keep crate/fixture ownership and test observations/settings. Only 04.2
   changes public `Words` access, migrating its consumers. No STATUS.md edits.
-- Every cargo command goes through `heavy`. Measurements use its gate
-  lane; builds use its build lane. Each landing has `land`'s own gate;
+- Every cargo command goes. Measurements use its gate
+  lane; builds use its build lane. Each landing has the gate;
   this session adds no separate whole-gate run.
 - No optimization override, changed opt-level, reduced debug assertions
   or overflow checks, merged test processes, deleted, weakened, merged
@@ -92,7 +92,7 @@ wait for named send or turn read; 15 s binds those sessions as they land.
   No timeout change except the inverse of `0509b985`. Leave workflow.md
   2, tech-debt.md 4, Cargo.toml, filters, slow periods and other budgets
   untouched. A hot leaf crate needs a profile and the user's or
-  director's sign-off beside its override; this session takes none.
+  user's sign-off beside its override; this session takes none.
 
 ## Increments
 
@@ -129,7 +129,7 @@ client world's existing `test::fixture_with` and
 referee. No new test kind or fixture. Pure sizing checks stay under
 20 ms; focused world stories under 0.5 s (development.md 5.6).
 Proof: joint, once before and after, run
-`heavy --gate --tail 4 -- cargo nextest run --profile measure -j 1 -p jig-client-view -p jig-client-world`.
+`cargo nextest run --profile measure -j 1 -p jig-client-view -p jig-client-world`.
 Its existing joint stories run the real view, client and engine with
 simulated I/O, above the sizing tests. Every test passes with unchanged
 checks; the 927-test base cohort sums to 17.768 s. Quote both measured
@@ -202,7 +202,7 @@ pattern; these are ordinary phrase unit tests, each under 20 ms. Retain
 all owner partial-book/refusal checks and the joint world's referees and
 limits; its focused stories stay under 0.5 s.
 Proof: joint, once before and after on this increment's own parent, run
-`heavy --gate --tail 4 -- cargo nextest run --profile measure -j 1 -p jig-client-view -p jig-client-world`.
+`cargo nextest run --profile measure -j 1 -p jig-client-view -p jig-client-world`.
 The real view and client meet the engine above the phrase unit checks.
 Compare the same 927 base tests (17.768 s at the profile base); report
 new tests separately. Quote counts, sums and saving in the commit,
@@ -241,7 +241,7 @@ client-world cohorts, with all queue, store, memory and delivery checks.
 Fixtures retain their limits; no tests added. Unit checks stay under
 20 ms and focused world stories under 0.5 s (development.md 5.6).
 Proof: joint, once before and after, run
-`heavy --gate --tail 4 -- cargo nextest run --profile measure -j 1 -p jig-client -p jig-client-view -p jig-client-world -p jig-client-protocol-world`.
+`cargo nextest run --profile measure -j 1 -p jig-client -p jig-client-view -p jig-client-world -p jig-client-protocol-world`.
 The real client meets the real engine over the protocol world, above
 its unit tests. All tests pass unchanged; this selection at the base
 has 1,042 tests and sums to 22.816 s. Use this increment's own parent
@@ -255,7 +255,7 @@ Removes: repeated wire-limit construction and validation from draining
 and pending-record list replacement; nothing from startup validation.
 
 ### 04.4 Revert ruling 275 and restore the focused 15 s timeout
-Scope: testing-strategy.md 8 and the director's test-cost debt: the
+Scope: testing-strategy.md 8 and the test-cost debt: the
 focused suite's timeout back to 15 s after the fixes at the kept pins.
 Needs: jig on skein's and smith's main; common page bounds reused;
 vocabulary capacity retained with its book; the client's drain bound
@@ -271,16 +271,16 @@ gate, with each test's own process, unchanged filters and settings.
 Proof: joint, the focused suite's real-component worlds with simulated
 I/O, measured at its default parallelism. On the committed parent with
 the Needs present, build once, then run exactly three times
-`heavy --gate --tail 4 -- cargo nextest run --workspace`.
+`cargo nextest run --workspace`.
 Require all tests passing and the median of nextest's three Summary
 times **under 15 s**. Run once
-`heavy --gate --tail 4 -- cargo nextest run --workspace --profile measure -j 1`
+`cargo nextest run --workspace --profile measure -j 1`
 and sum its PASS times. The commit names the three fixes, the machine,
 pins, measured revision, three times, median, test count and serial sum.
 The serial sum accompanies wall time for comparison across machines;
 it is still machine-dependent. Bound: 30 s for each default run under
 the existing timeout, 120 s for the serial diagnostic after building.
-Then make the revert; `land`'s own gate proves the candidate under 15 s.
+Then make the revert; the gate proves the candidate under 15 s.
 If the median misses, leave 30 s in place and raise the measured gap;
 this increment is unfinished, and no repeated unchanged trials or
 alternative timeout are prescribed.
@@ -366,7 +366,7 @@ existing fixture and proof selections. No code was changed in this revision.
   a pinned four-core measurement answers it. Infer no fixed speed ratio
   and add no unapproved machine gate.
 - **A profile isolates unavoidable cost in one hot leaf crate:** raise
-  its stack and cost to the supervisor for the user's or director's
+  its stack and cost to the supervisor for the user's
   sign-off. No override is part of this session.
 
 ## Done when

@@ -1,6 +1,6 @@
 # QA in the lab
 
-2026-10-20, with director decision 253, revised 2026-10-24. temper's
+2026-10-20, with decision 253, revised 2026-10-24. temper's
 binding to skein's lab (skein's `lab.md`): the experiments temper keeps
 in `lab/`, the cluster, seed, charter, tool and checks each runs with,
 what the fakes' scripts must say, the cost classes they name, and the
@@ -563,8 +563,8 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
 
 - **The driver** is Codex `gpt-6.1-sol` at medium effort, in the lab's
   settings and the key (skein's `lab.md`, 2.3 and 6.1).
-- **The director's rule, not new defaults.** `temper-m1`'s three values, the
-  calibration's usage and its spend go to the director before any run
+- **Calibration before use.** `temper-m1`'s three values, the
+  calibration's usage and its spend are reviewed before any run
   under it.
 - **Observed, not capped** (skein's `lab.md`, 6.5): a drive may pass
   `driver_input_tokens` by the turn that reported it, recorded; usage
@@ -584,7 +584,7 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
 - **Eight of fifteen planned;** seven held for attempts after an error
   and one three-seed recheck of H at a subject carrying a product fix.
   Exactly one calibration is authorized; replacing it needs the
-  director's decision. Past fifteen paid driver runs, the director is
+  user's decision. Past fifteen paid driver runs, the user is
   asked first.
 - **Evidence is reused for an identical key alone** (skein's `lab.md`,
   2.3 and 8): H's verdict serves P′ because their experiment, subject
@@ -602,12 +602,11 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
   temper's; `fake`, `temper fake`'s (first-run's) or skein's fakes'.
   Each is fixed with a test in the lowest world that owns the behaviour,
   failing before the fix and passing after, before it lands
-  (`domain/testing.md`; `client/tools.md`, 11.6), by that area's owner
-  through `land`; its recheck is H at a subject that carries it.
-  `experiment` is `lab/`'s, the QA owner's: its fix the corrected
+  (`domain/testing.md`; `client/tools.md`, 11.6); its recheck is H at a subject that carries it.
+  `experiment` is `lab/`'s: its fix the corrected
   digest, its recheck that experiment's verdict. `lab` is skein's
   `scripts/lab/`.
-- **Routed through the director** to the owner of what a finding names;
+- **Findings name the area to fix;**
   the records stay under `~/src/rust/tmp/lab/`, and no issue is written.
 - **A transcript that shows a temper bug** becomes a world's story: its
   calls are `temper ctl`'s (`client/tools.md`, 11.6).
@@ -615,7 +614,7 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
 ### 10.4 The closing note
 
 `campaigns/temper-m1.md`: the runner's tables (skein's `lab.md`, 10.2),
-finished by the owner with each key's verdict; the findings filed and
+finished with each key's verdict; the findings filed and
 closed, each with its reproduction rate; each run's usage and spend,
 known and unknown, overshoots and triages; what the seeds fixed and
 what they did not (skein's `lab.md`, 5.4); the choices M1 ran on (11.2);
@@ -624,16 +623,15 @@ runner, and what to change in them.
 
 ## 11. What M1 waits for, and adopted decisions
 
-### 11.1 Prerequisites and owners
+### 11.1 Prerequisites
 
-These are the experiment contracts and their owners, rather than a claim
+These are the experiment contracts, rather than a claim
 that every row remains unimplemented. Runnable status and evidence are
-recorded with the experiment. Changes in another owner's area arrive
-through the director.
+recorded with the experiment. Changes follow those contracts.
 
 | What | Whose | For |
 |---|---|---|
-| the runner's driver, tool server, checks, judge and findings (skein's `lab.md`, section 10) | QA, in skein | every run |
+| the runner's driver, tool server, checks, judge and findings (skein's `lab.md`, section 10) | skein's lab | every run |
 | `temper fake llm` and `fake forge` with `--document`, `--ready`, `--seed` and `--observations`; `temper fake git` by its name; serve's three directories (`protocol/setup.md`, 8.4; `domain/testing.md`, 4.3; `protocol/configuration.md`, section 12) | first-run | the cluster |
 | the fake LLM's lab form taking cued scripts with tool calls (7.1) | first-run | the story |
 | the fake forge's lab form taking the domain's CI cue (7.2) | first-run | CI by content |
@@ -643,16 +641,16 @@ through the director.
 | the git route's `objects` (skein's `fake-forge.md`, section 4) | skein's fake forge | 8.4 |
 | TLS on the fake LLM with skein's test root, and the root's file to trust | first-run | M1; no plaintext variant |
 | fake forge deliveries across processes to the hook registered on serve's bound webhook address | first-run | M1's story |
-| **Met:** serve reconciles a fresh fake forge from its handover and records at start, and supplies its actual bound webhook address before setup creates hooks; its listeners print `listening <listener> <address>` on stderr (`protocol/README.md`, 15.3). The fake forge's integration into `lab/cluster/` remains the cluster's (`protocol/README.md`, 15.5). | serve's CLI and forge setup owners | delivery readiness; the cluster's fake forge |
-| fake-owned key/token derivation from decimal u64 seeds and 0600 output files named by the experiment; exact interfaces | first-run, director 253's default | seed, setup handover; runner invents no bytes |
+| **Met:** serve reconciles a fresh fake forge from its handover and records at start, and supplies its actual bound webhook address before setup creates hooks; its listeners print `listening <listener> <address>` on stderr (`protocol/README.md`, 15.3). The fake forge's integration into `lab/cluster/` remains the cluster's (`protocol/README.md`, 15.5). | serve's CLI and forge setup | delivery readiness; the cluster's fake forge |
+| fake-owned key/token derivation from decimal u64 seeds and 0600 output files named by the experiment; exact interfaces | first-run, decision 253's default | seed, setup handover; runner invents no bytes |
 | `wait forges --until connected:1` (area 6) | github | the seed, as the demo's |
-| serve's link on its stdout, or a private channel for it | the director (the serve survey) | the seed's sign-in |
+| serve's link on its stdout, or a private channel for it | serve (the serve survey) | the seed's sign-in |
 
 ### 11.2 Decision 253
 
 - **Deliveries:** M1 runs on webhooks. Polling remains only temper's
   own existing fallback. First-run supplies cross-process delivery;
-  serve's owner supplies the bound webhook address and readiness.
+  serve supplies the bound webhook address and readiness.
   Reconcile registers the hook after serve binds.
 - **Lab programs:** `tools/ctl` and `smoke/story` are POSIX sh.
   `checks/end-state` is Python 3.11+ standard library only, beside the
@@ -664,7 +662,7 @@ through the director.
   infer zero from a missing loss record.
 - **TLS:** H and S wait for fake LLM TLS with skein's test root. No
   plaintext variant.
-- **Credentials:** the director's default, supplied by first-run, is
+- **Credentials:** the default, supplied by first-run, is
   decimal u64 `--seed` alone; fakes derive their own key/token bytes
   and write needed outputs to 0600 files the experiment names. The
   runner invents no bytes. Derivation and output interfaces remain

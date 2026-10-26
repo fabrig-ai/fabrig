@@ -123,7 +123,7 @@ Others: `only_acts_and_sign_in_and_out_take_the_lock`,
 `non_loopback_is_refused_before_a_token_is_sent`,
 `unsafe_directories_and_files_are_refused`, `address_is_one_http_line`,
 `the_transport_profile_matches_native`; each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(a_busy_directory_is_retried_at_100_ms_and_refused_past_60_s)'`,
 under 1 s. No world hosts this crate yet; 08's sign-in story checks
 DIRECTORY 0o700 and token/store/address 0o600; 09.3 proves contention.
@@ -157,7 +157,7 @@ fn memory_store_replies_are_in_order_without_file_operations() {
 ```
 Others: `an_exchange_uses_native_http`, `a_closed_stream_settles_its_socket`;
 each under 20 ms, no real socket.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
  'test(memory_store_replies_are_in_order_without_file_operations)'`, under
 1 s. No caller yet; 05.3 connects it to the root, 08 to the real kernel.
 Don't: instantiate `Shell` and discard loaded records; create a dummy directory.
@@ -199,7 +199,7 @@ fn a_read_never_opens_the_store_or_retires_another_stream() {
 Others: `a_read_waits_for_me`, `an_unheard_read_exits_1_at_the_link_deadline`,
 `partial_output_writes_finish_before_exit`, `host_bounds_cover_its_holders`;
 each under 20 ms, virtual time for deadlines.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(a_read_never_opens_the_store_or_retires_another_stream)'`, under
 1 s. 08's sign-in and first chat story connects the host on the real
 ring and checks its exit and resource release; that harness is not built yet.
@@ -247,7 +247,7 @@ Others: `two_writes_receive_two_ordered_terminals`,
 `an_unheard_act_is_kept_after_30_seconds_even_with_a_live_stream`,
 `a_signal_closes_without_erasing_unanswered_work`,
 `a_kept_json_line_is_written_without_a_prefix`; each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(a_new_act_waits_for_the_kept_answers_erase_to_be_stored)'`, under
 1 s. 09.2's lost-answer story checks the durable record and lock release
 after Kill; 09.3's killed-holder story checks the next writer recovers it.
@@ -298,7 +298,7 @@ Others: `sign_in_keeps_token_and_address_before_success`,
 `sign_out_waits_for_the_token_erase`, `a_refused_link_never_prints_its_secret`,
 `pending_ignores_the_stream_record`, `bad_store_bytes_are_refused_without_writes`;
 each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(pending_reads_only_the_store_and_starts_no_client)'`, under 1 s.
 08's sign-in story checks private modes and persisted address on the
 kernel; 09.2 checks pending before and after recovery. No process proof here.
@@ -347,7 +347,7 @@ Others: `a_live_unchanged_wait_passes_30_seconds`,
 `help_opens_nothing_and_uses_the_tools_renderer`,
 `call_stdin_cannot_also_supply_text`, `usage_fails_before_directory_open`;
 each under 20 ms. All 30/60/300 s tests advance virtual time.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(a_stopping_engine_exits_the_wait_only_at_the_link_deadline)'`,
 under 1 s. 08's “one client's wait met by another client's act” proves
 the assembled host; 10.3's `support::ctl` runs the executable for argv,

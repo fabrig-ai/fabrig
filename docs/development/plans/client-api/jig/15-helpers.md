@@ -492,7 +492,7 @@ increment adds `Story::me` and `Story::line` to jig 12's `Story`
 `tests/client-protocol/src/fixtures/queries.rs:7, :27`): the client's `me` handle, and
 a task query's line for one task, watched under a handle of the
 story's. Ceilings: unit under 20 ms, joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_running_chat_reads_as_writing_from_the_engine_s_documents)'`
 once: `facts::chat_status` over the client's latest task document, and
 over its line in a task query's watch, gives `Writing` while the fake
@@ -548,9 +548,9 @@ the real engine): `a_stopped_task_s_hold_reads_in_jig_s_words` (jig
 14.2's `Story::running_task`, stopped; `words` says the task
 document's hold, `Word::hold`, as "stopped by you" in jig's English, a
 literal). Ceilings: unit under 20 ms, joint under 0.5 s.
-Proof: world and joint, `heavy cargo nextest run -p jig-client-world -E
+Proof: world and joint, `cargo nextest run -p jig-client-world -E
 'test(=a_task_page_with_its_conversation_prints_as_its_golden_text)'`
-and `heavy cargo nextest run -p jig-client-protocol-world -E
+and `cargo nextest run -p jig-client-protocol-world -E
 'test(a_stopped_task_s_hold_reads_in_jig_s_words)'`, each once: the
 reference UI's text shell prints the task page's golden unchanged, its
 phases and holds now said by `words`; and the real engine's hold reads
@@ -633,7 +633,7 @@ Also `closing_a_chat_by_shapes_moves_its_delegate_then_cancels_it_after_its_grac
 the configuration's templates from jig 09's default configuration, the
 core's from `jig_core_world::world::limits()`. Ceilings: unit under
 20 ms, joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_chat_made_by_shapes_is_a_conversation_under_the_chat_label) |
 test(closing_a_chat_by_shapes_moves_its_delegate_then_cancels_it_after_its_grace)'`
 once: the engine makes the chat with label 1 and the conversation flag,
@@ -696,7 +696,7 @@ of a compound answered `first_message: 40` read sent with message 41);
 fed from the client's handles while the real engine admits the
 `Message` and the fake worker's turn reads through it). Ceilings: unit
 under 20 ms, joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_person_s_words_read_as_being_sent_then_sent_then_read) |
 test(=a_person_s_words_reach_a_running_run_through_bytes)'` once: the
 words' line moves from being sent to sent with the engine's message
@@ -776,14 +776,13 @@ fn jig_s_check_fails_a_release_naming_a_revision_never_delivered() {
 reference UI, `release`, `HELD_TASK` and `Fault::Check` are added to the
 world.) Limits: the check's own, from the world's (`tests/client/src/test.rs:18`).
 Ceilings: unit under 20 ms, world under 0.5 s.
-Proof: world and joint, `heavy cargo nextest run -p jig-client-world -E
+Proof: world and joint, `cargo nextest run -p jig-client-world -E
 'test(=a_held_chat_is_released) |
 test(=a_proposal_accepted_in_the_inbox_leaves_its_chat_too) |
 test(jig_s_check_fails_a_release_naming_a_revision_never_delivered)'`
 once: the reference UI's stories pass with the check in the referee,
 and a made-up revision fails the world naming the check's fault; and,
-in the joint world (the same crate's `joint`, the real core), `heavy
-cargo nextest run -p jig-client-world --profile fuzzy -E
+in the joint world (the same crate's `joint`, the real core), `cargo nextest run -p jig-client-world --profile fuzzy -E
 'test(=random_people_with_held_commits_and_double_press)'` once: its
 random people decide on real documents with the check in the referee,
 and it passes. Bound: 2 s, and 5 s for the fuzzy story.
@@ -830,7 +829,7 @@ of the test view that leaves the effect out: the referee fails it with
 `a_draft_within_its_offer_answered_proposed_fails_offers_kept`,
 `a_goal_past_the_first_bound_answered_proposed_keeps_the_offer`.
 Ceilings: world under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-client-world -E
+Proof: world, `cargo nextest run -p jig-client-world -E
 'test(the_test_application_s_own_proposal_view_is_held_to_jig_s_check) |
 test(=a_goal_beyond_the_allotment_is_proposed_as_the_confirmation_said)'`
 once: the application's own presentation passes jig's check, and the
@@ -847,7 +846,7 @@ Removes: nothing.
 
 Checked at the plan's base in a scratch crate depending on
 `jig-domain-client` (whose contract jig 11 moves into
-`jig-client-domain`), `skein-lib` and `skein-ui`: `heavy cargo clippy -p
+`jig-client-domain`), `skein-lib` and `skein-ui`: `cargo clippy -p
 w7-sketch --all-targets -- -D warnings` clean, the bodies
 `unreachable!("sketch: ...")` under `#![expect(unused_variables, ..)]`.
 `Ask` is jig 14's sketch's; `Me`, `Offered`, `Effect`, `Creating`,

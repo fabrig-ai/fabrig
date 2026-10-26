@@ -537,7 +537,7 @@ without it.
   build and no bundle; any other value fails the build, naming the two.
   `embed` is for a build whose environment says `none` and wants the
   browser this once. The machine's builds set `none`: the gate's and
-  the agents' (`docs/development/workflow.md`), a machine without the
+  development builds (`docs/development/workflow.md`), a machine without the
   target, an editor's own (rust-analyzer runs build scripts at its
   start). Such a binary serves the page for no bundle (2.2).
 - **The embed needs the wasm32 target.** Before any nested build, the
@@ -593,7 +593,7 @@ without it.
   `/bundle/<digest>/` (`../domain/testing.md`, 2.6). The page for no
   bundle stays proved where it is built, in `temper-service`. The embed
   itself is a person's build, which fails loudly when its steps do; a
-  change to it checks it with `TEMPER_BUNDLE=embed heavy cargo nextest
+  change to it checks it with `TEMPER_BUNDLE=embed cargo nextest
   run -p temper`, which the gate does not run.
 
 ## 4. The browser tier
@@ -723,8 +723,7 @@ real key in that restored form.
 - **A suite of its own,** outside the focused and fuzzy suites
   (`../domain/testing.md`, section 2), in its own crate
   (`tests/client-browser`, `temper-client-browser-world`), run by
-  `scripts/browser.sh`, a slow tier outside temper's gate (agents'
-  `docs/design/landing-flow.md`, 4), with a nextest profile `browser`,
+  `scripts/browser.sh`, a slow tier outside temper's gate, with a nextest profile `browser`,
   one test at a time, on the bundle it builds first, with the dev
   profile.
 - **The tier's bundle** turns on skein-ui-web's

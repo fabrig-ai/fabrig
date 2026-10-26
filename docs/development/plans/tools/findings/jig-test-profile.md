@@ -9,20 +9,18 @@ No source or build setting was changed. The scratch worktree was removed after r
 
 ## 1. Commands and measured times
 
-Every cargo command ran through `heavy`; builds in its build lane, measurements in its gate lane.
+Every cargo command ran; builds in its build lane, measurements in its gate lane.
 `scripts/check.sh`'s focused figure is nextest's `Summary` for `cargo nextest run --workspace`, excluding compilation.
 The default timeout remains 30 s under ruling 275. The existing `measure` profile allows the serial diagnostic to exceed it.
 
 ```text
-$ heavy --help
-usage: heavy [--gate] [--tail N] [--] command...
-$ heavy cargo nextest run --workspace --no-run
+$ cargo nextest run --workspace --no-run
 Finished `test` profile [unoptimized + debuginfo] ... in 1m 37s
-$ heavy --gate --tail 4 -- cargo nextest run --workspace --profile measure -j 1
+$ cargo nextest run --workspace --profile measure -j 1
 Summary [  59.855s] 4270 tests run: 4270 passed, 0 skipped
-$ heavy --gate --tail 4 -- cargo nextest run --workspace
+$ cargo nextest run --workspace
 Summary [   5.146s] 4270 tests run: 4270 passed, 0 skipped   # interrupted run, f50c3f63
-$ heavy --gate --tail 4 -- cargo nextest run --workspace   # three runs at b2d920e4
+$ cargo nextest run --workspace   # three runs at b2d920e4
 Summary [   7.426s] 4270 tests run: 4270 passed (1 slow), 0 skipped
 Summary [   5.447s] 4270 tests run: 4270 passed, 0 skipped
 Summary [   5.546s] 4270 tests run: 4270 passed, 0 skipped
@@ -76,14 +74,14 @@ Thus the earlier finding's 0.27 s maximum is not this run's maximum; shared cost
 $ cat /proc/sys/kernel/perf_event_paranoid; command -v perf gprofng
 3
 /usr/bin/gprofng
-$ heavy sh -c 'cargo nextest list --workspace --message-format json > target/nextest-list.json'
+$ sh -c 'cargo nextest list --workspace --message-format json > target/nextest-list.json'
 Finished `test` profile [unoptimized + debuginfo]
 ```
 
 `perf` is absent, with kernel profiling restricted. GNU **gprofng 2.44** was the installed sampler.
-The saved `heavy.tsv` command ran this once per matching, nonignored testcase from that JSON, with its suite's `cwd`:
+The saved the command log command ran this once per matching, nonignored testcase from that JSON, with its suite's `cwd`:
 `NEXTEST=1 gprofng collect app -p 0.1 -a off -F off -o target/<group>-samples/<n>.er <binary-path> --exact <name> --nocapture`.
-It ran inside one `heavy --gate -- python3 -c ...` job. Output: `PROFILED 1294`, exit 0, 52 s.
+It ran inside one `python3 -c...` job. Output: `PROFILED 1294`, exit 0, 52 s.
 Groups: all focused tests of view, client world and core world, plus five one-process stories and three client-wire drifts.
 Each testcase remained a separate process. `-F off` excludes descendants; no libtest batch or cross-test cache was measured.
 Reports: `gprofng display text -metrics e.totalcpu:i.totalcpu -functions target/<group>-samples/*.er` and `-callers-callees`;

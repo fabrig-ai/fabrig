@@ -283,7 +283,7 @@ largest (section 7).
 
 **`landing`:** the deployment's and the projects' landing rules, the
 root's `LandingPolicy`. Leaving the document: section 13 makes them
-settings in the store, temper's kinds 1 and 2; until mission 2 builds
+settings in the store, temper's kinds 1 and 2; until planned implementation builds
 it, they are configured here.
 
 ```
@@ -1143,7 +1143,7 @@ one owned forge, with its own values (setup.md, 8.1).
 - **A charter an application's setting names** (13.2). The forge's
   charter is a number in bytes jig never reads, so jig's check of
   references cannot hold it, and a change that removes that charter is
-  accepted. Default, asked of jig in the configuring plan's mission 2
+  accepted. Default, asked of jig in the configuring plan's planned implementation
   (jig's hook for an application's kinds): an application's kind may
   declare that its values name a charter, beside the bytes, and jig's
   one check holds the reference as it holds a template's. Until then,
@@ -1157,7 +1157,7 @@ one owned forge, with its own values (setup.md, 8.1).
   reach the runs). A charter of jig's is its instructions as text, with
   no documents (jig's `domain/engine.md`, 17.1), so a chat, which has
   no workspace, cannot read the rules a repository holds. Default,
-  asked of jig in the configuring plan's mission 3, with the configuring
+  asked of jig in the configuring plan's planned implementation, with the configuring
   agent: a charter may name documents, each a repository, a path
   and a branch, carried as references jig never reads and pinned with
   the charter; the forge reads each at its branch's head into the
@@ -1402,7 +1402,7 @@ name with reset instructions, without generating a replacement on reuse.
 
 ## 13. Settings in the store
 
-Designed, not built: mission 2 of the configuring plan builds it
+Designed, not built: planned implementation of the configuring plan builds it
 (`../STATUS.md`). How work is run leaves the document for the store,
 by the rule of `../draft/configuring.md`, 3.1: the document keeps
 what a start needs before it can read its store, and what belongs to
@@ -1574,7 +1574,7 @@ into the binary.
   naming its path and saying where it went: "settings live in the
   store: How work runs". Section 3's `landing` and `charter`, and
   `Config`'s `landing` and `forge_charter` fields, go with them.
-- **Before the baseline** (`../draft/upgrades.md`, 4.1), when mission 2
+- **Before the baseline** (`../draft/upgrades.md`, 4.1), when planned implementation
   is planned to land: the settings change the store's families, so a
   deployment is made again, and nothing is imported. A document `temper
   init` wrote carried the stock values, now the binary's; one an

@@ -184,7 +184,7 @@ the process tier.
   made under `env!("CARGO_TARGET_TMPDIR")`, never under `/tmp`"
   (code-organization.md, 5).
 - "**The process and live tiers run only where a Proof line or 'Done
-  when' says,** through `heavy --gate`, once; never in the gate."
+  when' says,** once; never in the gate."
   (README) and the terminal's machine world's share, "0.3 s and 2 s"
   (code-organization.md, 5).
 
@@ -286,7 +286,7 @@ fn each_fixture_page_prints_as_its_golden_file() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-shell-terminal -E
+Proof: unit, `cargo nextest run -p temper-shell-terminal -E
 'test(/render::/)'`, run once: the seven pages print as their golden
 files, numbers skip disabled and unbound controls, and the first line
 carries the title and the link's state (the six tests, under 0.2 s).
@@ -352,7 +352,7 @@ fn each_command_line_reads_as_its_command() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-shell-terminal -E
+Proof: unit, `cargo nextest run -p temper-shell-terminal -E
 'test(/command::/)'`, run once: each command and each refusal of 6.5
 reads as its row, and lines cut at any byte give the same commands (the
 six tests, under 0.1 s).
@@ -499,7 +499,7 @@ fn random_cuts_and_stdout_delays_lose_no_command_or_change() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-shell-terminal --test
+Proof: world, `cargo nextest run -p temper-shell-terminal --test
 terminal`, run once: prints come at most once a second and at once after
 an act, a print waits for stdout, a command cut at any byte acts once,
 and the end of stdin, an interrupt and `q` close with exit 0 (the eight
@@ -594,7 +594,7 @@ fn temper_open_signs_in_prints_the_inbox_and_exits_on_q() {
 }
 ```
 
-Proof: process, `heavy --gate cargo nextest run -p temper --profile
+Proof: process, `cargo nextest run -p temper --profile
 process -E 'test(temper_open_signs_in_prints_the_inbox_and_exits_on_q)'`,
 run once: the real `temper open` signs in by the link `temper serve`
 printed, prints the inbox with the link live, and exits 0 on `q` with
@@ -622,11 +622,11 @@ src/tests.rs, tests/process.rs, tests/support/sign_in.rs}`; the workspace
 `Cargo.toml` (`[workspace.dependencies]` `smith-local-process-world`);
 `Cargo.lock`. `smith-local-process-world` is not in the lock: this
 increment runs code-organization.md, section 3's three commands, in
-order (`heavy cargo update -p jig-domain-core --precise
-d91a89c45553f3f259b4d95d34a75164a9715877`, `heavy cargo update -p
+order (`cargo update -p jig-domain-core --precise
+d91a89c45553f3f259b4d95d34a75164a9715877`, `cargo update -p
 smith-host-domain --precise dfc0fe5700c628d7bce7da3d2ee918e9c1fbe46d`,
-`heavy cargo update -p skein-lib --precise
-b5d3a2c3363dbbd1db8dae933cd87a643a18b3f2`), and before `land` `grep -oE
+`cargo update -p skein-lib --precise
+b5d3a2c3363dbbd1db8dae933cd87a643a18b3f2`), and before merging `grep -oE
 'forgetic/(jig|smith|skein)\.git#[0-9a-f]+' Cargo.lock | sort -u` prints
 exactly the three pinned revisions. Shared hotspots:
 `crates/temper/src/lib.rs`, `tests/process.rs`, `tests/support/`, the
@@ -699,7 +699,7 @@ fn temper_sign_in_prints_the_visit_and_keeps_the_record() {
 }
 ```
 
-Proof: process, `heavy --gate cargo nextest run -p temper --profile
+Proof: process, `cargo nextest run -p temper --profile
 process -E 'test(/sign_in/)'`, run once: the real binary prints the
 issuer's visit, takes the redirect, keeps the record privately and exits
 0, and a running `temper serve` lends the new record at its next grant
@@ -742,7 +742,7 @@ opened: its policy names the forge's patterns, past what the native
 client takes at temper's pin (client.md, 5.4), and jig's core lists no
 owned resource there (client.md, 4.3).
 Proof: process, `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-heavy --gate scripts/proof-one-process.sh`, run once: its log names the
+scripts/proof-one-process.sh`, run once: its log names the
 story and the terminal's tests passed (the README's "Done when", 8);
 within the `process` profile's `global-timeout`, 10 minutes (10.4).
 Don't: adopt through anything but typed commands; uncheck "It runs CI"
@@ -995,10 +995,10 @@ pub mod limits {
 
 ## Done when
 
-- The crate's tests pass: `heavy cargo nextest run -p
-  temper-shell-terminal` and `heavy cargo nextest run -p
+- The crate's tests pass: `cargo nextest run -p
+  temper-shell-terminal` and `cargo nextest run -p
   temper-shell-terminal --profile fuzzy` pass.
-- The binary's unit tests pass: `heavy cargo nextest run -p temper`
+- The binary's unit tests pass: `cargo nextest run -p temper`
   passes.
 - The step modules keep the subset: `bash -O nullglob -c "grep -nE
   'Vec<|String|format!|std::|\|[a-z_, ]*\||\bloop\b|\bwhile\b'
@@ -1010,9 +1010,9 @@ pub mod limits {
   crates/temper-shell-terminal/src/tests/golden | grep . | sort -u`
   prints `temper-16.1` and `temper-16.6` and nothing else.
 - The process tier passed once: `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-  heavy --gate scripts/proof-one-process.sh` exits 0, its log naming the
+  scripts/proof-one-process.sh` exits 0, its log naming the
   story and `temper_open_adopts_a_repository_by_commands` passed.
-- The terminal's world keeps its share: `heavy --gate cargo nextest run
+- The terminal's world keeps its share: `cargo nextest run
   --workspace --profile measure -j 1 -E 'package(temper-shell-terminal)
   & kind(test) & not binary(/^fuzzy_/)'`, then `awk -F'[][]' '/PASS \[/
   {s += $2} END {printf "%.1f\n", s}' <its log>`, prints at most 0.3;

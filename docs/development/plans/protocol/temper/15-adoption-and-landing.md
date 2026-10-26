@@ -178,7 +178,7 @@ README's budget (domain/testing.md, 2.7).
   real model when `$TEMPER_RUN_LOGS/live-account.json` exists (only while
   `scripts/proof-live.sh` runs), and against skein's fake LLM peer
   otherwise, the same stories and checks; so "first passing against the
-  fake peer" is `heavy --gate cargo nextest run -p temper --profile live`
+  fake peer" is `cargo nextest run -p temper --profile live`
   with no account file. As the README says, 15.4's live run
   (`proof-live.sh`) runs once; its fake-peer run does not count.
 - **`tools/live-login` takes its paths as arguments** (code-organization.md,
@@ -281,7 +281,7 @@ fn jigs_refusal_at_admission_of_a_forge_attempt_is_entrance_refused() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-client-domain -p
+Proof: unit, `cargo nextest run -p temper-client-domain -p
 temper-shell-terminal`, run once: an adoption round-trips as the family's
 record, every outcome decodes to the forge side's answer, jig's refusal
 at admission reaches the side as `EntranceRefused`, a restored record of
@@ -392,7 +392,7 @@ fn the_navigation_slot_links_the_frames_project_or_holds_nothing() {
 (`fixtures::root_in_project` is a client root whose frame names that
 project; `build` returns the view's last tree; `find` a node by role and
 name; `crate::decode` is 11.2's.)
-Proof: unit, `heavy cargo nextest run -p temper-client-domain -p
+Proof: unit, `cargo nextest run -p temper-client-domain -p
 temper-client-view`, run once: the defaults, each rule's refusal, the
 field bound, one request per press, the reset after adoption, the
 out-of-date page, the page's names, the navigation link and each
@@ -459,19 +459,19 @@ fn a_repository_adopted_from_the_navigation_link_is_held_by_the_engine() {
 }
 ```
 
-Proof: joint, `heavy cargo nextest run -p temper-client-world -E
+Proof: joint, `cargo nextest run -p temper-client-world -E
 'binary(adoption)'`, run once: through temper's client and engine roots,
 a repository adopted from the navigation's link is held by the engine
 and its outcome read, three refusals read as the design's sentences, and
 a double press and a reload each adopt once (the six tests above); their
 sum within what is left of `tests/client`'s 1.0 s focused share after
-11.4 (about 1.0 s already): `heavy --gate cargo nextest run -p
+11.4 (about 1.0 s already): `cargo nextest run -p
 temper-client-world --profile measure -j 1`, then `awk -F'[][]' '/PASS \[/
 {s += $2} END {printf "%.1f\n", s}' <its log>` (the README's, Done when
 11), prints at most 1.0.
 Don't: exceed the world's share (code-organization.md, 5: `tests/client`
 1.0 s focused): past it, a story moves to the fuzzy suite
-(`tests/client/tests/fuzzy_adoption.rs`), run by `heavy cargo nextest
+(`tests/client/tests/fuzzy_adoption.rs`), run by `cargo nextest
 run -p temper-client-world --profile fuzzy -E 'binary(fuzzy_adoption)'`.
 Size: world code; production 0 lines.
 Removes: nothing.
@@ -538,7 +538,7 @@ fn a_persons_change_lands_on_the_forge_and_is_found_after_a_restart() {
 ```
 
 Proof: process, `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-heavy --gate scripts/proof-one-process.sh`, run once: the real binary
+scripts/proof-one-process.sh`, run once: the real binary
 with the throwaway Forgejo and the machine's git: the person signs in by
 the printed link, a chat is answered, `acme/widget` is adopted with "It
 runs CI" unchecked and one check, the change lands (its pull request
@@ -637,10 +637,10 @@ fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
 
 Proof: live, two runs, each once:
 `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-heavy --gate cargo nextest run -p temper --profile live` (no account
+cargo nextest run -p temper --profile live` (no account
 file: the fake peer) passes; then
 `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-TEMPER_RUN_LOGS=<run>/logs/temper-15 heavy --gate scripts/proof-live.sh`
+TEMPER_RUN_LOGS=<run>/logs/temper-15 scripts/proof-live.sh`
 passes: the real model answers the chat and its small change's branch
 reaches the run's commit on the throwaway Forgejo, at most 25
 completions and 900 s. As the README says, 15.4's live run
@@ -1256,7 +1256,7 @@ exit "$status"
 
 ## Done when
 
-- The client's side passes: `heavy cargo nextest run -p
+- The client's side passes: `cargo nextest run -p
   temper-client-domain -p temper-client-view -p temper-shell-terminal -p
   temper-client-world` passes.
 - The routing keeps the subset: `grep -nE

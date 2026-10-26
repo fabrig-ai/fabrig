@@ -2954,7 +2954,7 @@ pages are the user's to make: the user works on them from the mockups
 drawn ahead on temper's branch `configuring-mockups`, and the option
 pages once put to the user are withdrawn. Until the user's pages land,
 this section is the draft they start from; the configuring plan builds
-the settings first for `temper ctl` (its mission 2).
+the settings first for `temper ctl` (its planned implementation).
 
 - **Two pages and a card.** `HowWorkRuns`, "How work runs", lists the
   settings in the person's words; `Proposal { proposal }`, under it,
@@ -2992,7 +2992,7 @@ the settings first for `temper ctl` (its mission 2).
     opened, its role, its budget and deadline, and how it closes.
   - *Rules,* what temper holds work to: the deployment's landing rules
     and, for the project chosen, its own, each its branches and what
-    it needs ("Needs CI passed · up to date · the gate heavy --gate · 1
+    it needs ("Needs CI passed · up to date · gate passed · 1
     approval by an owner") and who decides it ("Decided by acme/app's
     owners: Pat, Kim"); the policy new projects start with; and jig's
     rules, "Everywhere, always". A project's people and its own policy
@@ -4245,7 +4245,7 @@ own tests:
   a task query has no revision among its keys (jig's
   `client/domain/contract.md`, 6.1), and nothing says before a move or
   an acceptance how many tasks could not move. Default, asked of jig in
-  the configuring plan's mission 2 (revisions held by tasks, with moves):
+  the configuring plan's planned implementation (revisions held by tasks, with moves):
   a task query keyed by revision, its live group only (a scan, which
   costs live tasks no more than any key), and a proposal's or a move's
   count of tasks that could not move. Until then "Running work" and the

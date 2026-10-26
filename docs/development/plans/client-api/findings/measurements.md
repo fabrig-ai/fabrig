@@ -3,7 +3,7 @@
 Read 2026-10-15 from the `Gate-Result` trailers of the last four code
 landings on each repository's `origin/main` (`git log origin/main
 --format='%h %(trailers:key=Gate-Result,valueonly)'`), each a gate run
-on carbon-forge by `land`. Nothing else was measured.
+on carbon-forge. Nothing else was measured.
 
 | Repository | Landings | Focused suite (s) | Fuzzy suite (s) | Tests (focused / fuzzy) |
 |---|---|---|---|---|

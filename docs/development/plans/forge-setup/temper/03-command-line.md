@@ -43,14 +43,14 @@ decides them.
 ## Rules that bind it
 
 - **The recording** runs only where a Proof says, as one command from a clean tree
-  (commit first: `heavy --gate` refuses changes), once, and once more after a fix aimed
+  (commit first: the source must be committed), once, and once more after a fix aimed
   at a cause its output names; a third failure with one symptom is a question
   (development.md 5.5). The tool alone writes `facts.txt` and the transcripts. A `fails`
   line still exits 0: read `facts.txt`; a fact is a measurement, never adjusted to.
   ```sh
   export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   export TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --scratch target/forgejo-component --out tools/forgejo-conformance --component'
+  sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --scratch target/forgejo-component --out tools/forgejo-conformance --component'
   ```
 - **Only these two binaries.** No secret reaches a fact's text, a URL or a log,
   or an argument but the offline `create-runner-file` fact's (03.3).
@@ -385,10 +385,10 @@ first preparation, the runner's registration file (none) and the scopes.
    lines, both in `crates/temper-forge-forgejo/src/pin.rs`.
 2. `grep -rnE 'fn names_(forgejo|runner)' crates testing tools tests --include='*.rs'` prints two lines, both in `pin.rs`.
 3. `grep -c 'binary.rs' tools/forgejo-conformance/README.md tools/git-transcripts/README.md` prints `0` twice.
-4. `heavy cargo nextest run -p temper-forge-forgejo -p temper-throwaway-forgejo -p forgejo-conformance` exits 0.
+4. `cargo nextest run -p temper-forge-forgejo -p temper-throwaway-forgejo -p forgejo-conformance` exits 0.
 5. After the recording (Rules): `grep -c '^holds cli-' tools/forgejo-conformance/facts.txt` prints 17,
    `grep -c '^holds runner-'` 10, `grep -c '^holds component-'` 40, and
    `grep -E '^fails ' tools/forgejo-conformance/facts.txt | cut -d: -f1` still names the base's four `fails` lines (counts are by prefix: temper 01, 02 and 04 add their own).
 6. `grep -rlE "generated random password is '[^<]|0123456789abcdef0123456789abcdef01234567|fedcba9876543210fedcba9876543210fedcba98" tools/forgejo-conformance/facts.txt tools/forgejo-conformance/transcripts`
    prints nothing.
-7. `heavy --gate scripts/check.sh` exits 0 (`land`'s own gate; 238 s cold at the base, 32 to 48 s warm).
+7. `scripts/check.sh` exits 0 (the gate; 238 s cold at the base, 32 to 48 s warm).

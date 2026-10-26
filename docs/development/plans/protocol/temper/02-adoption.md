@@ -262,7 +262,7 @@ fn a_locate_answers_the_forges_id_for_a_repository_by_name() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-engine-forge-client-world
+Proof: world, `cargo nextest run -p temper-engine-forge-client-world
 -p temper-engine-domain-forge-client -p temper-fake-forge-domain -E
 'binary(locate) | test(/locate::/)'`, run once: a locate by owner and name
 comes back as the id the fake forge gave the repository, a missing one as
@@ -420,7 +420,7 @@ fn an_adoption_naming_a_forge_not_configured_is_refused_as_no_such_forge() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-engine-domain-world -p
+Proof: world, `cargo nextest run -p temper-engine-domain-world -p
 temper-engine-domain-forge -E 'binary(applications) |
 test(/tests::adoption::/)'`, run once: a party's keyed adoption is
 admitted by jig's people child, decided by the forge connector, and
@@ -533,7 +533,7 @@ fn an_adoption_locates_its_repository_before_any_other_read() {
 (`fixtures::adoption()` is the forge crate's test fixture in
 `src/tests/fixtures.rs`, made by 02.2 from tests.rs:241-253's values,
 `forge: 1` and no id since this increment.)
-Proof: world, `heavy cargo nextest run -p temper-engine-domain-world -p
+Proof: world, `cargo nextest run -p temper-engine-domain-world -p
 temper-engine-domain-forge -p temper-engine-forge-world -p
 temper-system-world -p temper-conformance-world -E 'binary(applications)
 | test(/tests::adoption::/) | binary(simulation) | binary(composed)'`,
@@ -610,7 +610,7 @@ fn a_kept_outcome_is_saved_with_the_end_of_its_retention() {
 
 (tests.rs's `env()` at :73-75 has `wall` at 100 s, so the row's `until` is
 160 s.)
-Proof: world, `heavy cargo nextest run -p temper-engine-domain-world -p
+Proof: world, `cargo nextest run -p temper-engine-domain-world -p
 temper-engine-domain-forge -E 'binary(applications) |
 test(/tests::adoption::/)'`, run once: an adoption sent again with its
 key after the engine restarted is answered the outcome it had, with no
@@ -942,7 +942,7 @@ impl Driver {
 
 ## Done when
 
-- The four increments' tests pass: `heavy cargo nextest run -p
+- The four increments' tests pass: `cargo nextest run -p
   temper-engine-domain-world -p temper-engine-domain-forge -p
   temper-engine-domain-forge-client -p temper-engine-forge-client-world
   -p temper-fake-forge-domain -E 'binary(applications) | binary(locate) |

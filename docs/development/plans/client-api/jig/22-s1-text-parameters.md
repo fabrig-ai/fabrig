@@ -40,7 +40,7 @@ has a 32-byte non-UTF-8 parameter is refused `Refusal::Spec`; so is one
 with non-UTF-8 words, and an amendment with either. Each test under
 20 ms.
 
-Proof: jig's gate, run by `land`.
+Proof: jig's gate.
 
 Size: aim at most 30 production lines added; past 60, block with the
 count.

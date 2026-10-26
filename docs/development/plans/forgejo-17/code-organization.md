@@ -148,4 +148,4 @@ No increment:
 
   `tests/` (worlds), generated code, goldens, schemas, transcripts and
   facts are not counted. Each landing's report gives the number
-  (implementer.md, 8.6).
+.

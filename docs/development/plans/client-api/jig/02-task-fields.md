@@ -239,7 +239,7 @@ Proof: joint layer, `tests/core/tests/fields.rs`,
 restarts cold from the store, and the restored record is a kept
 conversation with label 0 whose last activity is 9 s. It runs the real
 core and children on the real store's codecs. Under 0.5 s. Run once,
-`heavy cargo nextest run -p jig-core-world -E
+`cargo nextest run -p jig-core-world -E
 'test(a_chats_flags_and_last_activity_survive_a_cold_restart)'`; it
 passes, and nothing else is wanted.
 
@@ -336,7 +336,7 @@ Proof: joint layer, the existing `projections_scenario_family`
 (`tests/core/tests/projections.rs:332`), unchanged, whose scenario
 `a_delegate_of_a_delegate_ending_feeds_the_whole_plan_once_and_closing_waits_for_its_write`
 (:202) shows a goal's projection still fed by its subtree through
-`goal_of`. Under 0.5 s. Run once, `heavy cargo nextest run -p
+`goal_of`. Under 0.5 s. Run once, `cargo nextest run -p
 jig-core-world -E 'test(projections_scenario_family)'`; it passes, and
 nothing else is wanted. A tracked task that is not a root cannot be made
 above the tasks child before jig 04's amendment tracks one ("tracked and
@@ -465,7 +465,7 @@ once the policy names one"): a member whose role decides no escalations,
 in a project whose policy names no escalation role, asks `StartChat` and
 is answered `Refused(NoEscalationHolder)`; an owner's `ChangePolicy`
 gives the member's role the escalation decision; the member's next
-`StartChat` is answered `Started`. Under 0.5 s. Run once, `heavy cargo
+`StartChat` is answered `Started`. Under 0.5 s. Run once, `cargo
 nextest run -p jig-core-world -E
 'test(a_party_refused_a_root_is_made_once_their_role_holds_it)'`; it
 passes, and nothing else is wanted.
@@ -537,7 +537,7 @@ Proof: joint layer, the existing
 `a_chat_takes_the_most_that_fits_under_its_persons_role`
 (`tests/core/tests/funding.rs:73`), unchanged: a chat made by
 `StartChat` under a role of spend 80 with 10 left in its pool is given 10
-through `as_allowed`, as before. Under 0.5 s. Run once, `heavy cargo
+through `as_allowed`, as before. Under 0.5 s. Run once, `cargo
 nextest run -p jig-core-world -E
 'test(a_chat_takes_the_most_that_fits_under_its_persons_role)'`; it
 passes, and nothing else is wanted.
@@ -550,7 +550,7 @@ Removes: `chat_authority`'s own minimum of pool and role spend.
 ## Interface sketches
 
 Compiled at jig's base `a3b53546` as scratch modules of the crates that
-hold them, `heavy cargo clippy -p jig-domain-tasks -p
+hold them, `cargo clippy -p jig-domain-tasks -p
 jig-domain-authority -p jig-domain-people -p jig-domain-core
 --all-targets -- -D warnings`: passed. Bodies were
 `unreachable!("sketch: body in the increment")`, with a typed `let _: (…)
@@ -684,7 +684,7 @@ and the core calls both and answers the party.
 
 ## Searches at the base
 
-Run once, through `heavy`, at jig's `a3b53546` from a worktree's root;
+Run once, at jig's `a3b53546` from a worktree's root;
 each prints a list of files, generated modules left out (`| grep -v
 /generated/`). Session 03's file cites them by the same numbers. `E` is
 `crates testing tests examples`; `D8` is `crates/jig-domain-people

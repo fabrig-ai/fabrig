@@ -150,7 +150,7 @@ Tests (world, each under 0.5 s):
   words, exit 0;
 - `an_agent_and_a_person_acting_at_once_keep_jigs_check`: a chat each,
   `chats` 2, verdict passed.
-Proof: joint, the client's joint world, once: `heavy cargo nextest run
+Proof: joint, the client's joint world, once: `cargo nextest run
 -p temper-client-world -E 'test(a_chat_the_agent_starts_is_seen_by_the_person)'`
 (under 0.5 s). It shows the tools' root asking temper's engine root
 beside the fake person, under jig's check. Nothing higher: Choice 6.
@@ -194,7 +194,7 @@ Test shape: in `tests/client/tests/agent.rs`, on
   bytes, and none is past the tools' window.
 - `a_chat_page_shows_a_large_turn_by_its_size_and_its_call`. The
   printed `read with:` call names the task and its attempt and turn.
-Proof: joint, once: `heavy cargo nextest run -p temper-client-world -E
+Proof: joint, once: `cargo nextest run -p temper-client-world -E
 'test(a_turn_too_large_for_a_page_is_read_whole_by_its_parts)'`
 (under 0.5 s). It shows jig's read of one turn through the tools,
 whole, from temper's engine. Nothing higher: Choice 6.
@@ -221,7 +221,7 @@ Tests (world, each under 0.5 s):
 - `adopting_a_repository_the_forge_lacks_exits_2_not_found`: "No
   repository acme/none on forge 1 that temper's forge user can see.";
 - `an_adoption_asked_again_under_its_name_gets_the_first_answer`.
-Proof: joint, once: `heavy cargo nextest run -p temper-client-world -E
+Proof: joint, once: `cargo nextest run -p temper-client-world -E
 'test(a_repository_the_agent_adopts_is_held_by_the_engine)'` (under
 0.5 s). It shows the forge family's request from the tools' root,
 adopted by the engine root. Nothing higher: Choice 6.
@@ -269,7 +269,7 @@ Tests (world, each under 0.5 s):
 - `a_name_the_root_holds_already_is_told_held_and_nothing_is_sent`
   (exit 1, `chats` 1, the first call exits 0);
 - `a_call_asked_again_after_its_answer_gets_the_first_answer`.
-Proof: joint, once: `heavy cargo nextest run -p temper-client-world -E
+Proof: joint, once: `cargo nextest run -p temper-client-world -E
 'test(made_once)'` (two stories, each under 0.5 s). It shows a named
 call cut by a lost answer or a restart and asked again, made once,
 under jig's check. Nothing higher: Choice 6.
@@ -307,7 +307,7 @@ Tests (world, each under 0.5 s):
 - `a_held_task_the_agent_releases_from_the_printed_act_runs_again`,
   on `fixtures::goal_with_held_delegate`, with tries reset as in
   `tests/client/tests/task.rs`.
-Proof: joint, once: `heavy cargo nextest run -p temper-client-world -E
+Proof: joint, once: `cargo nextest run -p temper-client-world -E
 'test(the_agent_waits_for_its_chats_reply) |
 test(a_held_task_the_agent_releases_from_the_printed_act_runs_again)'`
 (each under 0.5 s). It shows a wait met by the run's reply, and a

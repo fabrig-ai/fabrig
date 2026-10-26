@@ -164,14 +164,14 @@ Test shape:
       fake.caught(Observed::Durable { number: 2, snapshot: rows }, Promise::Authority);
   }
   ```
-Proof: the conformance world, `heavy cargo nextest run -p
+Proof: the conformance world, `cargo nextest run -p
 jig-conformance-world -E
 'test(every_shared_adversarial_story_runs_on_the_testing_application)'`
 once (`tests/conformance/tests/scenarios.rs:10`): each shared story,
 proposals among them, runs on the testing application's real root over
 the real core and store with the rule on, and none is caught; it passes,
 and nothing else is wanted; under 0.5 s. Then, once each, under the default and
-fuzzy profiles, `heavy cargo nextest run -p jig-core-world -p
+fuzzy profiles, `cargo nextest run -p jig-core-world -p
 jig-one-process-world`: every core-world story runs the referee, which
 panics on a violation (`tests/core/src/world.rs:470`), so they pass. This is the highest layer for a
 referee rule: the referee is the conformance world's. The violation tests
@@ -274,7 +274,7 @@ Test shape:
       fake.caught(Observed::Durable { number: 3, snapshot: rows }, Promise::Ownership);
   }
   ```
-Proof: the conformance world, `heavy cargo nextest run -p
+Proof: the conformance world, `cargo nextest run -p
 jig-conformance-world -E
 'test(every_shared_adversarial_story_runs_on_the_testing_application)'`
 once: the shared stories, `RacingDecisions` among them, run with the rule
@@ -293,7 +293,7 @@ Removes: nothing.
 
 `testing/jig-conformance/src/referee.rs`, the additions (compiled at
 jig's base `a3b53546` as a scratch module of `jig-conformance`, under
-`heavy cargo clippy -p jig-conformance --all-targets -- -D warnings`:
+`cargo clippy -p jig-conformance --all-targets -- -D warnings`:
 passed; only `Revision` compiled, the other additions being comments.
 At jig `e1b483760`, with the fields and variants in (ruling 149), the
 `#[expect(clippy::large_enum_variant)]` on `Observed` is needed: passed). The variants and fields join the existing `Observed`, `Snapshot`

@@ -270,7 +270,7 @@ Test shape:
   (`tests/conformance/tests/fuzzy_scenarios.rs:10`) and the focused
   `every_shared_adversarial_story_runs_on_the_testing_application` take
   it through `ALL`, their names kept. Under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(an_amend_naming_an_old_spec_revision_is_answered_moved)'` once:
 a run's second amendment naming revision 0 is answered moved at
 revision 1 through the real core, store and protocol stand-in; under
@@ -362,7 +362,7 @@ Test shape:
   `a_release_of_an_uncertain_effect_without_again_is_refused`,
   `a_decide_naming_an_old_escalation_revision_is_answered_moved`.
   Under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_release_naming_an_old_hold_revision_is_answered_moved)'` once:
 a run releasing its delegate with the hold's first revision, after a
 second hold, is answered moved and the delegate stays held; under
@@ -454,7 +454,7 @@ Test shape:
   `world.store.rows`, as `a_message_call_is_decoded_decided_and_answered_in_words`
   reads its child's) has in its inbox a `MessageKind::Notice { state:
   NoticeState::Held { revision: 1 }, .. }`. Under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_held_delegates_notice_reaches_its_requester_with_its_hold_revision)'`
 once: the requester's inbox holds the notice with the hold's revision
 through the real tasks child, core and store; under 0.5 s. The rendered
@@ -589,7 +589,7 @@ Test shape:
   `a_propose_call_answers_its_number_and_to_whom`,
   `a_delegate_given_as_allowed_answers_what_it_was_given`,
   `a_delegate_call_answers_its_tasks_spec_revisions`. Under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_delegate_given_as_allowed_answers_what_it_was_given)'` once: a
 run's batch with a budget `AsAllowed` is made and answered with the
 amount its task had left, through the real authority and tasks children;
@@ -678,7 +678,7 @@ Test shape:
   `a_cancel_with_a_grace_asks_the_delegate_to_finish_first`,
   `a_runs_priority_change_without_a_revision_commits_after_a_spec_change`,
   `a_runs_amendment_untracks_its_delegate`. Under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(withdrawing_an_accepted_proposal_answers_already_accepted)'`
 once: a run withdrawing its proposal after a holder accepted it hears
 "Already decided: proposal 3 was accepted", read from the store; under
@@ -692,7 +692,7 @@ Removes: nothing.
 
 Compiled at the base in a scratch module of `jig-domain-core`
 (`src/sketch_w4.rs`), bodies `unreachable!("sketch")` (the subset denies
-`todo!` and `unimplemented!`), under `heavy cargo clippy -p
+`todo!` and `unimplemented!`), under `cargo clippy -p
 jig-domain-core --all-targets -- -D warnings`. `Made`, the new
 `NamedAction` and `CallPart` variants are written as their own types
 there; in the code they are variants of the existing enums. The member

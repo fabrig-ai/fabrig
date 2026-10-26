@@ -129,7 +129,7 @@ Beside it:
 - `each_number_spans_its_types_range`: `u64::MAX` as a task and `u32::MAX` as a project round trip; one more is `Missing`.
 
 Ceilings: each under 20 ms.
-Proof: unit: these seven, focused, in `land`'s gate. Nothing above them is within reach: the codec's first user is
+Proof: unit: these seven, focused, in the gate. Nothing above them is within reach: the codec's first user is
 02.2's shell, which the host does not build. temper 04's `a_non_page_address_opens_the_inbox_at_slash` later reads a
 path through it in a browser. The wasm32 clippy shows that the three crates build for the browser.
 Don't: add a filter, a prefix or a percent-decoder; return `Option`; parse in the shell.
@@ -358,11 +358,11 @@ Each in a worktree of temper at `origin/main`, after `git fetch`:
 - `git show origin/main:crates/temper-client-domain/src/address.rs | grep -q -F 'pub fn print(address: &Address) -> Box<[u8]> {'`
 - `sh -c 'for c in domain view protocol-wire shell-web; do git show origin/main:scripts/check.sh | sed -n
   "/--target wasm32-unknown-unknown/,/-D warnings/p" | grep -q -E -- "-p temper-client-$c( |\$)" || exit 1; done'`
-- `heavy cargo clippy --target wasm32-unknown-unknown -p temper-client-domain -p temper-client-view -p
+- `cargo clippy --target wasm32-unknown-unknown -p temper-client-domain -p temper-client-view -p
   temper-client-protocol-wire -p temper-client-shell-web -- -D warnings` exits 0.
-- `heavy sh -c 'test "$(cargo tree -p temper-client-shell-web -e normal --depth 1 | wc -l)" -eq 1'`: the host has no
+- `sh -c 'test "$(cargo tree -p temper-client-shell-web -e normal --depth 1 | wc -l)" -eq 1'`: the host has no
   dependency of the shell's.
-- `heavy scripts/bundle.sh target/done-02 && ls target/done-02/index.html target/done-02/*/skein-ui.css
+- `scripts/bundle.sh target/done-02 && ls target/done-02/index.html target/done-02/*/skein-ui.css
   target/done-02/*/temper.css target/done-02/*/files/robots.txt`
 - `tr -d '\n' < target/done-02/index.html | grep -q -E 'skein-ui\.css.*temper\.css'`
 - `git show origin/main:scripts/check.sh | grep -q -E '^scripts/bundle\.sh '`

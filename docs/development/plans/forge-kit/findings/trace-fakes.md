@@ -87,7 +87,7 @@ rendered. Say so, or list them as later.
   `thread::sleep(50ms)` in `ready` with the drive's deadline; clippy.toml moves.
 - **S07.2:** rename "temper-admin" and the tokens "temper-admin-a/-b" in cli.rs facts; flags (B3); serde_json (about
   15 files) to skein-json; add `sorted_units` and the git pkt-line masking to the Masking paragraph; README's
-  `heavy --gate cargo run ...` becomes the "script that runs it"; clippy.toml moves; a focused test that no
+  `cargo run...` becomes the "script that runs it"; clippy.toml moves; a focused test that no
   committed transcript holds an unmasked UUID or unquoted time (section 2).
 - **T07:** tools/git-transcripts (lib.rs:76 `Forgejo::from_env()`; cases.rs uses `Account`, `Init`, `Instance`,
   `Outgoing`) moves to skein's throwaway (temper domain/testing.md 2.4 keeps it in temper); crates/temper's process

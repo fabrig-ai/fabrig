@@ -198,7 +198,7 @@ first: 7, last: 7 })` is true and `serves(VersionRange { first: 6,
 last: 6 })` false (7 until 11.3 makes both literals one higher);
 `crates/jig-domain-client/src/tests/hello.rs`'s tests keep their names,
 `served: true` or `false` in place of the range.
-Proof: joint layer over HTTP bytes: `heavy cargo nextest run -p
+Proof: joint layer over HTTP bytes: `cargo nextest run -p
 jig-client-protocol-world -E
 'test(an_engine_outside_the_client_s_versions_shows_out_of_date)'`,
 once; it passes when the page shows "Out of date" from the link's
@@ -328,7 +328,7 @@ requests.rs, limits.rs}`, `src/tests/{fixtures.rs, requests.rs}`;
 jig-client-wire 8`; `TableEntry` gains `asker: u32 number: u64`),
 `src/generated/v7.rs` regenerated as `src/generated/v8.rs`, `src/lib.rs`
 (`pub mod v8`, `VERSION: u32 = 8`), `golden/v7` regenerated as
-`golden/v8` (`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p
+`golden/v8` (`SKEIN_CODEGEN_WRITE=1 cargo nextest run -p
 jig-client-wire-world --test drift`, which the drift test names);
 `tests/client-wire/tests/{drift.rs:7-12, fuzzy_client_wire.rs:721,
 test_client_wire.rs:7}` (the paths); the version sweep, `v7 as w` and
@@ -397,7 +397,7 @@ Tests: `a_request_is_saved_before_it_is_sent_under_its_key`,
 `a_request_past_the_retention_is_answered_unknown`. The wire's
 `client_wire_schema_matches_generated_code_and_goldens` (tests/client-wire)
 and the link's store tests keep their names. Each under 20 ms.
-Proof: joint layer, for the record change: `heavy cargo nextest run -p
+Proof: joint layer, for the record change: `cargo nextest run -p
 jig-client-protocol-world -E
 'test(a_reload_restores_a_pending_request_from_the_small_store_s_bytes)'`,
 once; it passes when the test root's table record, now with its asker
@@ -500,7 +500,7 @@ Removes: nothing.
 
 ## Interface sketches
 
-Checked at the base with `heavy cargo clippy -p jig-w6-sketch
+Checked at the base with `cargo clippy -p jig-w6-sketch
 --all-targets -- -D warnings` in a scratch crate, the contract named at
 its base path `jig_domain_client::contract` (bodies
 `unreachable!("sketch")`, unused parameters prefixed `_`), passing.
@@ -678,6 +678,6 @@ pub fn worst_case(limits: &Limits) -> Option<u64>;
 - `git -C ~/src/rust/jig grep -n -E 'CLIENT_VERSION|VERSION: u32 = '
   origin/main -- crates` prints one line per wire, and
   `crates/jig-client-protocol-wire/src/lib.rs`'s says 8.
-- `heavy cargo nextest run -p jig-boundary -E
+- `cargo nextest run -p jig-boundary -E
   'test(client_domain_crate_links_only_the_foundation)'` passes one
   test, in a worktree at `origin/main`.

@@ -95,8 +95,7 @@ story is a person who opens the printed link and sees their inbox
   newest commit (seen at the base: the lock moved from `f12f29d4` to
   another commit when `skein-ui-bundle` was added). An increment that
   adds one (19.4's `skein-fake-person-browser`, `skein-ui-bundle` and
-  `skein-scratch` among them) holds the pin in the same commit: `heavy
-  cargo update -p skein-lib --precise <jig's skein pin at the session's
+  `skein-scratch` among them) holds the pin in the same commit: `cargo update -p skein-lib --precise <jig's skein pin at the session's
   start>`, after which `grep -o 'skein.git#[0-9a-f]*' Cargo.lock | sort
   -u` prints the one commit it printed before; a failure in a smith
   crate is a question.
@@ -129,7 +128,7 @@ story is a person who opens the printed link and sees their inbox
   browser`, `not binary(/^browser_/)` in the default and fuzzy profiles,
   its `global-timeout` 60 s; nothing raises another profile's budget,
   which README's "Done when", 12 checks.
-- **A browser story's Proof is `land`'s gate:** the implementer runs no
+- **A browser story's Proof is the gate:** the author runs no
   gate of its own for it; a failing story is run alone as the README's
   "One test of the browser suite" says, under that section's rule.
 - **jig never names the repository downstream of it:** the check of
@@ -221,7 +220,7 @@ wasm32 is a question, never dropped from the line. `[profile.web]` with
 `codegen-units = 1`, `panic = "abort"`, `overflow-checks = true`,
 `strip = true`.
 Test shape: no test; the gate's wasm32 clippy is the check.
-Proof: `land`'s gate runs the wasm32 clippy. The run's machine has the
+Proof: the gate runs the wasm32 clippy. The run's machine has the
 `wasm32-unknown-unknown` target (README, "Prerequisites"); the commands
 the planner could not run at the base are listed in the README for the
 supervisor's ready check. Nothing above it exists until 19.4 builds the
@@ -449,7 +448,7 @@ Shape:
   suite", its profile, its 60-second budget, its commands (the block
   above), and the module's size, the guide of `browser.md`, 4.2 ("jig's
   test application's module, built with `web`, at most 4 MiB before
-  compression"): `heavy sh -c 'cargo build --target wasm32-unknown-unknown
+  compression"): `sh -c 'cargo build --target wasm32-unknown-unknown
   --profile web -p jig-client-test-shell-web && stat -c %s
   target/wasm32-unknown-unknown/web/jig_client_test_shell_web.wasm'`,
   once; the number printed is written there and in the landing's report.
@@ -481,7 +480,7 @@ browser story (about 3 s); and a unit test of `Tier`'s configuration in
 test binary, not a `browser_*` one, so the default suite runs it),
 `the_tier_s_configuration_names_the_bundle_and_a_loopback_listener`,
 under 20 ms.
-Proof: `land`'s gate, which builds the bundle and runs the browser suite
+Proof: the gate, which builds the bundle and runs the browser suite
 with this story: the person's page opens the URL `jig-test` printed,
 the sign-in part takes the secret and posts it with the browser header,
 the engine end answers with the cookie, and the inbox shows. A failing
@@ -519,7 +518,7 @@ on `Tier`, each about 3 s:
 `/test/prefixed/inbox`, sees the inbox's heading, and a link of a task
 in it leads to `/test/prefixed/tasks/<n>`, which `Step::Person(Press)`
 then `See` the task's page shows).
-Proof: `land`'s gate runs both stories; one failing is run alone as the
+Proof: the gate runs both stories; one failing is run alone as the
 README's "One test of the browser suite" says.
 Don't: keep the prefixed path in a `web` build; print a place outside
 the prefix.
@@ -635,7 +634,7 @@ wasm32, which the planner's machine lacked; the run's machine has the
 target, README, "Prerequisites", and the commands the planner could not
 run at the base are listed in the README for the supervisor's ready
 check), in two scratch crates of jig's
-workspace with stand-ins for jig 10's and jig 13's types: `heavy cargo
+workspace with stand-ins for jig 10's and jig 13's types: `cargo
 clippy -p jig-sketch-w8 -p jig-sketch-w8-web --all-targets -- -D
 warnings`, which passed (`logs/w8/sketch-19.txt`), with the skein pin
 held as "Choices" says.

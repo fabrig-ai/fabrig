@@ -8,9 +8,9 @@ skein 03.1 is not on origin/main, so the kit's `skein_forge_connection` could no
 compiled at the base). Deliverables: `temper/03-connection.md` and this file. The
 scratch worktree `tmp/planning/scratch-temper-03` (detached at dd12b8ed9) held the
 sketches and the conformance recordings; it is removed at the end (last section).
-Every run went through `heavy`, with unoptimized builds and NEXTEST_DOUBLE_SPAWN=0.
+Every run went with unoptimized builds and NEXTEST_DOUBLE_SPAWN=0.
 Outputs are cut to the relevant lines (at most 30 per command); full logs are in
-`/srv/data/git/runner/src/tmp/logs/`, named by task. heavy reuses task numbers: each
+`/srv/data/git/runner/src/tmp/logs/`, named by task. reuses task numbers: each
 block's log path (the timestamp in its name) is the identity, not the number.
 `$S` below is `/srv/data/git/runner/src/tmp/planning/scratch-temper-03`. A block
 that says "derived" shows a count made from the lines recorded just before it.
@@ -87,10 +87,9 @@ component's start tests moved in temper 01.3 and 01.4) and 3 new ones; none of t
 stays in temper.
 
 ```text
-$ heavy cargo nextest list -p temper-engine-protocol-forge
+$ cargo nextest list -p temper-engine-protocol-forge
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
-heavy: task 736 (build) exit 0, waited 93s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T020105-736.log
 117 tests listed; by module (derived from the listed names):
   connection 20
   contents 23
@@ -104,12 +103,11 @@ The component's tests keep their names: they move with the crate (skein 03.1). M
 above: root 17, connection 20, contents 23, hooks 12, reads 27, writes 18.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge
+$ cargo nextest run -p temper-engine-protocol-forge
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
     Starting 117 tests across 1 binary
      Summary [   0.099s] 117 tests run: 117 passed, 0 skipped
-heavy: task 740 (build) exit 0, waited 0s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T020107-740.log
 PASS [   0.002s] ( 10/117) tests::connection::a_json_upload_sends_its_body_and_content_headers
 PASS [   0.007s] ( 16/117) tests::a_page_is_the_smallest_of_rows_cap_and_answer_room
 PASS [   0.005s] ( 63/117) tests::host_names_include_only_nondefault_ports_and_bracket_ipv6
@@ -121,11 +119,10 @@ Base: 117 tests, 0.099 s. The slowest of the six tests 03.1 names is 17 ms
 (`creations_carry_the_key_marker_at_the_head_of_their_body`), under the 20 ms ceiling.
 
 ```text
-$ heavy cargo nextest run -p temper-service -p temper -p temper-forge-setup-shell -p temper-codecs-world -p temper-one-process-world -p temper-engine-protocol-forge-world -p forgejo-conformance
+$ cargo nextest run -p temper-service -p temper -p temper-forge-setup-shell -p temper-codecs-world -p temper-one-process-world -p temper-engine-protocol-forge-world -p forgejo-conformance
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Starting 435 tests across 34 binaries (10 binaries skipped via profile.default.default-filter)
 Summary [   2.325s] 435 tests run: 435 passed, 0 skipped
-heavy: task 740 (build) exit 0, waited 1s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T020110-740.log
 per package (derived from the PASS lines of the full log, then the last binary id before '::'):
   forgejo-conformance 25
   temper 58
@@ -140,7 +137,7 @@ The seven packages are the users of the crate (section "Users") and the world. 4
 tests to temper-service (section "Sketches"): 440 after it.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy
+$ cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
     Starting 6 tests across 3 binaries (5 binaries skipped via profile.fuzzy.default-filter)
@@ -151,13 +148,12 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   6.055s] (5/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once
         PASS [   6.184s] (6/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_2
      Summary [   6.185s] 6 tests run: 6 passed, 0 skipped
-heavy: task 742 (build) exit 0, waited 1s, ran 7s, log /srv/data/git/runner/src/tmp/logs/20261019T020115-742.log
 ```
 The protocol world's fuzzy tests: 6 tests, 6.185 s (the budget class of about 5 s each is
 the world's own; the base is kept, nothing is made cheaper).
 
 ```text
-$ heavy cargo nextest run -p forgejo-conformance
+$ cargo nextest run -p forgejo-conformance
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
     Starting 25 tests across 2 binaries
@@ -192,7 +188,7 @@ The conformance's own tests: 25 tests, 0.118 s (the base form of the unit tests 
 03.4 keep green; the json module adds 8 of its own, 4 / 1 / 3 over 03.2 / 03.3 / 03.4).
 
 ```text
-$ heavy cargo nextest run -p temper-forge-setup-reconcile-world -p temper-system-world
+$ cargo nextest run -p temper-forge-setup-reconcile-world -p temper-system-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
     Starting 37 tests across 5 binaries (2 binaries skipped via profile.default.default-filter)
@@ -229,13 +225,13 @@ The two worlds that name the protocol world or the settings seam but need no cha
 
 ## Users of what 03.1 changes or moves (counts at the base)
 
-Every command ran through `heavy` from the directory shown. The commands name the
+Every command ran from the directory shown. The commands name the
 crate by its path (`temper_engine_protocol_forge`) because that is what a user writes.
 The raw lists are cut by the 28-line limit; a count marked "derived" is made from the
 raw list by `cut`, `sort` and `uniq -c`.
 
 ```text
-$ heavy rg -c 'temper_engine_protocol_forge\b' --glob '*.rs' .
+$ rg -c 'temper_engine_protocol_forge\b' --glob '*.rs'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./tests/engine/protocol-forge/tests/machine.rs:1
 ./tests/engine/protocol-forge/tests/hooks.rs:1
@@ -271,7 +267,7 @@ files, crates/temper 3 in 3, tests/codecs 3 in 3, forge-setup-shell 2 in 1, the 
 in 2, tests/one-process 1 in 1); the world `tests/engine/protocol-forge` 13 lines in 7 files.
 
 ```text
-$ heavy rg -n 'temper-engine-protocol-forge' --glob '*.toml' --glob '!Cargo.lock' .
+$ rg -n 'temper-engine-protocol-forge' --glob '*.toml' --glob '!Cargo.lock'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./crates/temper/Cargo.toml:23:temper-engine-protocol-forge.workspace = true
 ./tests/codecs/Cargo.toml:12:temper-engine-protocol-forge.workspace = true
@@ -289,7 +285,7 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./crates/temper-engine-protocol-forge/Cargo.toml:2:name = "temper-engine-protocol-forge"
 ```
 ```text
-$ heavy rg -n 'temper-engine-protocol-forge' Cargo.toml   (then:  heavy rg -n 'tests/engine/protocol-forge|protocol-forge' Cargo.toml)
+$ rg -n 'temper-engine-protocol-forge' Cargo.toml   (then:  rg -n 'tests/engine/protocol-forge|protocol-forge' Cargo.toml)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 35:    "crates/temper-engine-protocol-forge",
 89:temper-engine-protocol-forge = { path = "crates/temper-engine-protocol-forge" }
@@ -304,7 +300,7 @@ plus the world (line 18) and the root (member line 35, path line 89). Cargo.lock
 crate on 8 lines (g-f03, derived: `Cargo.lock:8`); it changes only by `cargo update`.
 
 ```text
-$ heavy rg -l 'temper-engine-protocol-forge|temper_engine_protocol_forge' --glob '!*.rs' --glob '!*.toml' --glob '!Cargo.lock' --glob '!docs/**' .
+$ rg -l 'temper-engine-protocol-forge|temper_engine_protocol_forge' --glob '!*.rs' --glob '!*.toml' --glob '!Cargo.lock' --glob '!docs/**'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 exit exit 1 (no file other than .rs, .toml, Cargo.lock and docs names the crate)
 ```
@@ -312,7 +308,7 @@ exit exit 1 (no file other than .rs, .toml, Cargo.lock and docs names the crate)
 The other repositories (counts per file; exit 1 is no match):
 
 ```text
-$ heavy rg -c 'temper_engine_protocol_forge|temper-engine-protocol-forge' .   (in skein-base, jig, smith, hearth)
+$ rg -c 'temper_engine_protocol_forge|temper-engine-protocol-forge'.   (in skein-base, jig, smith, hearth)
 directory: /srv/data/git/runner/src/tmp/planning/skein-base, /srv/data/git/runner/src/{jig,smith,hearth}
 skein-base:   ./docs/design/STATUS.md:1
 jig:          exit exit 1 (no match)
@@ -323,7 +319,7 @@ skein-base names the crate once in docs/design/STATUS.md and hearth once in a pl
 neither is code. No change in jig, smith or hearth.
 
 ```text
-$ heavy rg -n '\b(stored_bytes|effect_bytes|answer_bytes_unbounded|bind_deployment)\b' --glob '*.rs' .
+$ rg -n '\b(stored_bytes|effect_bytes|answer_bytes_unbounded|bind_deployment)\b' --glob '*.rs'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./crates/temper-engine-domain-forge-client/src/domain.rs:52:    pub fn bind_deployment(&mut self, id: [u8; 16], limits: &Limits) -> bool {
 ./crates/temper-engine-domain-forge-client/src/lib.rs:35:pub fn stored_bytes(row: &Stored) -> Option<u64> {
@@ -357,7 +353,7 @@ crate's own tests (`tests/reads.rs`, `tests/contents.rs`), which leave with it. 
 repairs the first three before 03.1 starts, so 03.1's repin repairs none of them.
 
 ```text
-$ heavy rg -n 'settings::Webhooks|hooks::Webhooks|pub use .*Webhooks' --glob '*.rs' .
+$ rg -n 'settings::Webhooks|hooks::Webhooks|pub use.*Webhooks' --glob '*.rs'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./tests/engine/protocol-forge/src/fixtures.rs:223:    settings.webhooks = Some(temper_engine_protocol_forge::hooks::Webhooks {
 ./crates/temper-service/src/tests/fixtures/forge.rs:138:    settings.webhooks = Some(kit::hooks::Webhooks { listener: io::Addr::Ip(([127, 0, 0, 1], 7200).into()), secrets });
@@ -369,7 +365,7 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./crates/temper-service/src/forge.rs:24:    webhooks: Option<settings::Webhooks>,
 ```
 ```text
-$ heavy rg -n 'temper_engine_protocol_forge as|use temper_engine_protocol_forge' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**' --glob '!tests/engine/protocol-forge/**' .
+$ rg -n 'temper_engine_protocol_forge as|use temper_engine_protocol_forge' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**' --glob '!tests/engine/protocol-forge/**'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./crates/temper/src/lib.rs:279:    use temper_engine_protocol_forge::settings::Transport;
 ./crates/temper/src/host.rs:60:                    use temper_engine_protocol_forge::{StartRead, Stopped};
@@ -384,8 +380,8 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./tools/forgejo-conformance/src/component/hosted.rs:13:use temper_engine_protocol_forge::{self as kit, Component, Event, Request, Stopped};
 ```
 ```text
-$ heavy rg -n 'kit::(Shared|Settings|Limits)\b|settings::(Forge|Settings|Transport)\b|Transport::(Plaintext|Tls)' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**' --glob '!tests/engine/protocol-forge/**' .
-directory: /srv/data/git/runner/src/tmp/planning/temper-base   (the second list: heavy rg -c '\bkit::' <four files>)
+$ rg -n 'kit::(Shared|Settings|Limits)\b|settings::(Forge|Settings|Transport)\b|Transport::(Plaintext|Tls)' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**' --glob '!tests/engine/protocol-forge/**'.
+directory: /srv/data/git/runner/src/tmp/planning/temper-base   (the second list: rg -c '\bkit::' <four files>)
 derived per file (lines):
   16 crates/temper-service/src/forge.rs
   11 crates/temper-service/src/startup/application.rs
@@ -422,7 +418,7 @@ component's settings are 7: `forge.rs`, `tests/forge.rs`, `tests/fixtures/forge.
 `fixtures.rs` (derived by reading the paths of the list above).
 
 ```text
-$ heavy rg -n '\bkit\b' crates/temper-service/src/engine.rs   (then:  heavy rg -n '\bforge::' crates/temper-service/src/route.rs)
+$ rg -n '\bkit\b' crates/temper-service/src/engine.rs   (then:  rg -n '\bforge::' crates/temper-service/src/route.rs)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 386:    use temper_engine_protocol_forge as kit;
 392:            kit::Event::Answered(answer) => {
@@ -439,7 +435,7 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
 27:                crate::forge::back(event).expect("the routing hands the root only the component's answers"),
 ```
 ```text
-$ heavy rg -o --no-filename 'temper_engine_protocol_forge::[a-z_]+::[A-Za-z_]+' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**' --glob '!tests/engine/protocol-forge/**' .
+$ rg -o --no-filename 'temper_engine_protocol_forge::[a-z_]+::[A-Za-z_]+' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**' --glob '!tests/engine/protocol-forge/**'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 temper_engine_protocol_forge::settings::Transport
 temper_engine_protocol_forge::limits::http
@@ -453,7 +449,7 @@ temper_engine_protocol_forge::limits::documents
 temper_engine_protocol_forge::settings::Transport
 ```
 ```text
-$ heavy rg -n 'limits::(http|documents|worst_case|hook_http|hook_documents|check|page_size)\b|\bMAX_OUT\b' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**' .
+$ rg -n 'limits::(http|documents|worst_case|hook_http|hook_documents|check|page_size)\b|\bMAX_OUT\b' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 limits:: lines per file, derived (the pattern also matches other crates' own limits::check and limits::http):
 ./tests/engine/protocol-forge/src/protocol.rs:289:        let mut output = Queue::with_capacity(forge::MAX_OUT);
@@ -480,7 +476,7 @@ limits:: lines per file, derived (the pattern also matches other crates' own lim
 ./crates/temper-forge-setup-shell/src/prepare.rs:44:    let mut out = Queue::with_capacity(prepare::MAX_OUT);
 ```
 ```text
-$ heavy rg -n ForgeRuntime --glob '*.rs' .
+$ rg -n ForgeRuntime --glob '*.rs'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./crates/temper/src/lib.rs:278:fn forges(directory: &Path, document: &skein_json::Document) -> Result<List<service::ForgeRuntime>, String> {
 ./crates/temper/src/lib.rs:305:            .push(service::ForgeRuntime {
@@ -498,7 +494,7 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
 ./crates/temper-service/src/tests/fixtures.rs:760:        .push(crate::ForgeRuntime {
 ```
 ```text
-$ heavy rg -n 'forge::(settings|shared|small|prepare|problems|indexed)\(' --glob '*.rs' crates tests tools
+$ rg -n 'forge::(settings|shared|small|prepare|problems|indexed)\(' --glob '*.rs' crates tests tools
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-service/src/limits.rs:255:            forge_component: crate::forge::small(&FORGE),
 crates/temper-service/src/tests/forge.rs:96:        forge::problems(refusal, &mut found);
@@ -511,7 +507,7 @@ crates/temper-service/src/system.rs:54:        let shared = crate::forge::shared
 crates/temper-service/src/system.rs:596:            &crate::forge::shared(&settings.limits, &settings.jig.limits.io),
 ```
 ```text
-$ heavy rg -n 'host:|\.host\b|conventions::|api_token' --glob '*.rs' <five files>   (lines about jig_domain_host cut)
+$ rg -n 'host:|\.host\b|conventions::|api_token' --glob '*.rs' <five files>   (lines about jig_domain_host cut)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/protocol-forge/src/fixtures.rs:100:            host: Box::from(&b"127.0.0.1:3000"[..]),
 tests/engine/protocol-forge/src/fixtures.rs:234:        host: Box::from(b"127.0.0.1:7200".as_slice()),
@@ -529,8 +525,8 @@ fake forge's delivery endpoint and the temper-service `fixtures.rs:544` is a `Fo
 both stay.
 
 ```text
-$ heavy rg -n 'temper/0\.0\.0|USER_AGENT' --glob '*.rs' --glob '*.md' --glob '*.txt' --glob '!docs/**' --glob '!transcripts/**' --glob '!deliveries/**' .
-directory: /srv/data/git/runner/src/tmp/planning/temper-base   (then: heavy rg -n 'the_start_request|User-Agent|user_agent' --glob '*.rs' crates/temper-service crates/temper tests/one-process tests/codecs tools)
+$ rg -n 'temper/0\.0\.0|USER_AGENT' --glob '*.rs' --glob '*.md' --glob '*.txt' --glob '!docs/**' --glob '!transcripts/**' --glob '!deliveries/**'.
+directory: /srv/data/git/runner/src/tmp/planning/temper-base   (then: rg -n 'the_start_request|User-Agent|user_agent' --glob '*.rs' crates/temper-service crates/temper tests/one-process tests/codecs tools)
 ./crates/temper-engine-protocol-forge/src/tests/connection.rs:272:    assert_eq!(h.sent.as_ref(), b"DELETE /api/v1/repos/fixture/specimen/pulls/7/requested_reviewers HTTP/1.1\r\nHost: 127.0.
 ./crates/temper/src/forge.rs:259:        user_agent: conventions::USER_AGENT,
 ./crates/temper-engine-protocol-forge/src/conventions.rs:6:pub const USER_AGENT: &str = "temper/0.0.0";
@@ -543,7 +539,7 @@ to skein as `kit/0.0.0`); `crates/temper/src/forge.rs` is the one other use. Tem
 adds its own wire test (`the_start_request_carries_the_user_agent_and_the_host`, 03.1).
 
 ```text
-$ heavy rg -n '\bUnusable\b' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**' .
+$ rg -n '\bUnusable\b' --glob '*.rs' --glob '!crates/temper-engine-protocol-forge/**'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 derived per file:
   27 crates/temper-service/src/forge.rs
@@ -561,7 +557,7 @@ The kit's `Unusable` is named in `temper-service/src/forge.rs` (27 lines: the `p
 `indexed()`, `prepare`) and its tests (6 lines); the worker-git crate's lines are another type.
 
 ```text
-$ heavy rg -n -i signature --glob '*.rs' tests/engine/protocol-forge crates/temper-service/src crates/temper/tests tests/one-process tests/codecs   (lines of the signature helpers cut)
+$ rg -n -i signature --glob '*.rs' tests/engine/protocol-forge crates/temper-service/src crates/temper/tests tests/one-process tests/codecs   (lines of the signature helpers cut)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/protocol-forge/tests/hooks.rs:32:fn a_wrong_signature_is_answered_403_and_hints_nothing() {
 tests/engine/protocol-forge/tests/hooks.rs:81:fn a_missing_signature_is_answered_403_without_reading_a_body() {
@@ -586,7 +582,7 @@ signature outcome (`a_wrong_signature_is_answered_403_and_hints_nothing`, `a_mis
 both are 403 already. No temper test pins a malformed or uppercase signature, so the answer changes no temper line.
 
 ```text
-$ heavy rg -c 'temper_engine_protocol_forge|\bforge::|\bkit::' --glob '*.rs' tests/engine/protocol-forge
+$ rg -c 'temper_engine_protocol_forge|\bforge::|\bkit::' --glob '*.rs' tests/engine/protocol-forge
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/protocol-forge/tests/protocol.rs:1
 tests/engine/protocol-forge/tests/machine.rs:2
@@ -607,7 +603,7 @@ The world `tests/engine/protocol-forge` stays until temper 07.1 and names the cr
 ### serde_json (03.2 to 03.4)
 
 ```text
-$ heavy rg -c serde_json --glob '*.rs' --glob '*.toml' --glob '!Cargo.lock' .
+$ rg -c serde_json --glob '*.rs' --glob '*.toml' --glob '!Cargo.lock'.
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 derived: files in tools/forgejo-conformance:
   1 tools/forgejo-conformance/Cargo.toml
@@ -631,7 +627,7 @@ derived: files in tools/forgejo-conformance:
 outside the conformance (derived): 29 files, 22 sources in 6 packages and 7 manifests (the root's too)
 ```
 ```text
-$ heavy rg -n 'skein-json|serde_json|skein-forge' tools/forgejo-conformance/Cargo.toml Cargo.toml
+$ rg -n 'skein-json|serde_json|skein-forge' tools/forgejo-conformance/Cargo.toml Cargo.toml
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Cargo.toml:119:serde_json = "=1.0.154"
 Cargo.toml:121:skein-json = { git = "https://github.com/forgetic/skein.git" }
@@ -642,7 +638,7 @@ serde_json stays a workspace dependency (line 119) because the other packages us
 `testing/temper-throwaway-forgejo`: derived, 6 packages); only the conformance's manifest line leaves.
 
 ```text
-$ heavy rg -c 'json!\(' tools/forgejo-conformance/src
+$ rg -c 'json!\(' tools/forgejo-conformance/src
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 json! sites (derived total: 69 in 14 files):
 tools/forgejo-conformance/src/users.rs:1
@@ -661,7 +657,7 @@ tools/forgejo-conformance/src/orgs.rs:2
 tools/forgejo-conformance/src/cases.rs:1
 ```
 ```text
-$ heavy rg -c '\.as_(str|u64|bool|array)\(|is_(string|boolean|null)\(|\["[a-z_.]+"\]|\[[0-9]\]' tools/forgejo-conformance/src
+$ rg -c '\.as_(str|u64|bool|array)\(|is_(string|boolean|null)\(|\["[a-z_.]+"\]|\[[0-9]\]' tools/forgejo-conformance/src
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 read sites (derived total: 347 in 18 files):
 tools/forgejo-conformance/src/facts.rs:75
@@ -678,7 +674,7 @@ tools/forgejo-conformance/src/users.rs:13
 tools/forgejo-conformance/src/fixture.rs:11
 ```
 ```text
-$ heavy sh -c 'echo src=$(find crates/temper-engine-protocol-forge/src ...) tests=... manifest=... files=...'   (non-test, test, manifest lines and file count)
+$ sh -c 'echo src=$(find crates/temper-engine-protocol-forge/src...) tests=... manifest=... files=...'   (non-test, test, manifest lines and file count)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 src=6365 tests=3178 manifest=23 files=32
 ```
@@ -686,12 +682,12 @@ The crate that is deleted: 6365 non-test lines, 3178 test lines, a 23-line manif
 (which skein 03.1 moves at the same sizes; 03.1 here removes them from temper).
 
 ```text
-$ heavy python3 -c 'from pathlib import Path; print("component_copy_absent=" + str(not Path("crates/temper-engine-protocol-forge").exists()))'
+$ python3 -c 'from pathlib import Path; print("component_copy_absent=" + str(not Path("crates/temper-engine-protocol-forge").exists()))'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base   (base form of Done when: the crate exists, so False; after 03.1 it prints True)
 component_copy_absent=False
 ```
 ```text
-$ heavy rg -n '16_384|21\b' --glob '*.rs' crates/temper-service/src/forge.rs crates/temper-service/src/limits.rs   (and: rg -n 'b"temper"|word')
+$ rg -n '16_384|21\b' --glob '*.rs' crates/temper-service/src/forge.rs crates/temper-service/src/limits.rs   (and: rg -n 'b"temper"|word')
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-service/src/limits.rs:200:        run_bytes: 16_384,
 crates/temper-service/src/forge.rs:121:        head_bytes: 16_384,
@@ -707,16 +703,14 @@ size is `skein_forge::marker::length(b"temper", op_bytes)` = `2*op_bytes + 6 + 1
 ## The gate
 
 ```text
-$ heavy --gate scripts/check.sh
+$ scripts/check.sh
 directory: /srv/data/git/runner/src/tmp/planning/temper-base (committed tree)
-heavy: … 1747 earlier lines in /srv/data/git/runner/src/tmp/logs/20261019T021102-774.log
+
      Summary [   6.668s] 1879 tests run: 1879 passed, 1 skipped
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
     Starting 50 tests across 26 binaries (122 binaries skipped via profile.fuzzy.default-filter)
         SLOW [> 20.000s] (─────) temper-engine-domain-world::fuzzy_walking fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure
      Summary [  23.234s] 50 tests run: 50 passed (1 slow), 0 skipped
-heavy: ran alone for 34s
-heavy: task 774 (gate) exit 0, waited 0s, ran 39s, log /srv/data/git/runner/src/tmp/logs/20261019T021102-774.log
 ```
 Gate at the base: 1879 tests passed (1 skipped) in 6.668 s, then the fuzzy profile 50 in
 23.234 s with one slow test (`temper-engine-domain-world` `fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure`,
@@ -736,24 +730,18 @@ at the base (`scripts/` holds check.sh, proof-live.sh and proof-one-process.sh);
 `proof-forgejo-conformance.sh` is skein's.
 
 ```text
-$ heavy --gate cargo run -p forgejo-conformance -- --scratch $S/target/conformance-instance --out $S/target/conformance-out
+$ cargo run -p forgejo-conformance -- --scratch $S/target/conformance-instance --out $S/target/conformance-out
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: load 3.09 2.13 1.89 on 8 cores as it starts alone; busiest: pueue 34.0%, 2.1.303 4.0%, codebase-memory 2.0%
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.12s
      Running `target/debug/forgejo-conformance --scratch /srv/data/git/runner/src/tmp/planning/scratch-temper-03/target/conformance-instance --out /srv/data/git/runner/src/tmp
-heavy: ran alone for 98s
-heavy: task 748 (gate) exit 0, waited 234s, ran 100s, log /srv/data/git/runner/src/tmp/logs/20261019T020811-748.log
 rc=0 wall=336s
 provisioning lines: 8 (HTTP 201 each, cut)
 ```
 ```text
-$ heavy --gate cargo run -p forgejo-conformance -- --component --scratch $S/target/conformance-component --out $S/target/conformance-out
+$ cargo run -p forgejo-conformance -- --component --scratch $S/target/conformance-component --out $S/target/conformance-out
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: load 1.52 1.88 1.82 on 8 cores as it starts alone; busiest: codebase-memory 100.0%, 2.1.303 28.0%, pueue 10.0%
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.13s
      Running `target/debug/forgejo-conformance --component --scratch /srv/data/git/runner/src/tmp/planning/scratch-temper-03/target/conformance-component --out /srv/data/git/r
-heavy: ran alone for 28s
-heavy: task 757 (gate) exit 0, waited 9s, ran 30s, log /srv/data/git/runner/src/tmp/logs/20261019T021002-757.log
 rc=0 wall=41s
 provisioning lines: 6 (HTTP 201 each, cut)
 ```
@@ -761,7 +749,7 @@ Recording: 100 s (alone 98 s); the component mode: 30 s (alone 28 s). The README
 base-skein-06 numbers; both modes are well under 5 min.
 
 ```text
-$ heavy bash -o pipefail -c '<the stable-fact line of skein/06-conformance.md, Proof, line "heavy bash -o pipefail -c 'set -eu; digest=...'">' sh $S/target/conformance-out/facts.txt
+$ bash -o pipefail -c '<the stable-fact line of skein/06-conformance.md, Proof, line "bash -o pipefail -c 'set -eu; digest=...'">' sh $S/target/conformance-out/facts.txt
 directory: /srv/data/git/runner/src/tmp/planning/temper-base   (the full line is /tmp/t03/stable-cmd.txt; it is written in full once, in the session file's Done when)
 timing fails merge-old-head-is-409-head-out-of-date: HTTP 405: "Please try again later"
 timing holds delivery-pull-reads-not-mergeable-while-checked
@@ -772,7 +760,7 @@ facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0
 d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -
 ```
 ```text
-$ heavy bash -o pipefail -c '<the same line>' sh tools/forgejo-conformance/facts.txt
+$ bash -o pipefail -c '<the same line>' sh tools/forgejo-conformance/facts.txt
 directory: /srv/data/git/runner/src/tmp/planning/temper-base   (the committed corpus)
 timing holds merge-old-head-is-409-head-out-of-date
 timing holds delivery-pull-reads-not-mergeable-while-checked
@@ -788,7 +776,7 @@ run (HTTP 405 "Please try again later") and holds in the committed corpus; it is
 check passes either way. A step's Proof therefore reads the counts and the digest, not the timing lines.
 
 ```text
-$ heavy sh -c 'cd tools/forgejo-conformance && diff -rq --exclude=response transcripts "$1"/transcripts; echo "diff exit $?"' sh $S/target/conformance-out
+$ sh -c 'cd tools/forgejo-conformance && diff -rq --exclude=response transcripts "$1"/transcripts; echo "diff exit $?"' sh $S/target/conformance-out
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Files transcripts/merge-conflict/request and /srv/data/git/runner/src/tmp/planning/scratch-temper-03/target/conformance-out/transcripts/merge-conflict/request differ
 Files transcripts/merge-stale-head/request and /srv/data/git/runner/src/tmp/planning/scratch-temper-03/target/conformance-out/transcripts/merge-stale-head/request differ
@@ -801,7 +789,7 @@ At the base a fresh recording's requests differ from the committed transcripts i
 the Proof expects exactly these two names and no other.
 
 ```text
-$ heavy sh c5.sh   (diff -r --exclude=response transcripts, then deliveries, against the fresh recording; cut)
+$ sh c5.sh   (diff -r --exclude=response transcripts, then deliveries, against the fresh recording; cut)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base/tools/forgejo-conformance
 8c8
 < {"Do":"merge","head_commit_id":"000000000000000000000000000000000000000e"}
@@ -845,7 +833,7 @@ diffs `transcripts` only and does not diff `deliveries`; the stable-fact check c
 paths do not exist on this machine.
 
 ```text
-$ heavy --gate scripts/proof-one-process.sh   (TEMPER_FORGEJO and TEMPER_FORGEJO_RUNNER set)
+$ scripts/proof-one-process.sh   (TEMPER_FORGEJO and TEMPER_FORGEJO_RUNNER set)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Starting 19 tests across 1 binary (6 binaries skipped via profile.process.default-filter)
         PASS [  84.971s] ( 1/19) temper::process a_change_lands_by_deliveries_with_every_poll_raised
@@ -853,15 +841,13 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
         FAIL [   4.554s] ( 3/19) temper::process a_persons_change_lands_on_the_forge_and_is_found_after_a_restart
     test a_persons_change_lands_on_the_forge_and_is_found_after_a_restart ... FAILED
     test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 4.55s
-    thread 'a_persons_change_lands_on_the_forge_and_is_found_after_a_restart' (3269679) panicked at /kache/.cargo/git/checkouts/skein-336d5ae5eecfa0f9/8a51e10/testing/skein-world/src/li
+    thread 'a_persons_change_lands_on_the_forge_and_is_found_after_a_restart' (3269679) panicked at <cargo-checkouts>/skein-336d5ae5eecfa0f9/8a51e10/testing/skein-world/src/li
     binary exited while tree processes still ran: [3270296]
      Summary [  93.593s] 3/19 tests run: 2 passed (2 slow), 1 failed, 0 skipped
         FAIL [   4.554s] ( 3/19) temper::process a_persons_change_lands_on_the_forge_and_is_found_after_a_restart
-heavy: ran alone for 95s
-heavy: task 780 (gate) exit 100, waited 225s, ran 102s, log /srv/data/git/runner/src/tmp/logs/20261019T021528-780.log
 ```
 ```text
-$ heavy --gate cargo nextest run -p temper --profile process --no-fail-fast   (the profile the script runs, all 19 tests)
+$ cargo nextest run -p temper --profile process --no-fail-fast   (the profile the script runs, all 19 tests)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Starting 19 tests across 1 binary (6 binaries skipped via profile.process.default-filter)
         PASS [  83.213s] ( 1/19) temper::process a_change_lands_by_deliveries_with_every_poll_raised
@@ -872,18 +858,14 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
     thread 'a_running_engine_lends_the_record_temper_sign_in_kept' (3302309) panicked at crates/temper/tests/support/sign_in.rs:277:9:
     sign-in world deadline; stopped: false; empty hosts: [true, true, false, true, false, false, false]; issuer deadline: None; stderr: 
      Summary [ 174.042s] 19 tests run: 18 passed (8 slow), 1 failed, 0 skipped
-heavy: ran alone for 175s
 ```
 ```text
-$ heavy --gate cargo nextest run -p temper --profile process a_running_engine_lends_the_record_temper_sign_in_kept   (the e1 failure, rerun alone)
+$ cargo nextest run -p temper --profile process a_running_engine_lends_the_record_temper_sign_in_kept   (the e1 failure, rerun alone)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: load 0.30 0.64 0.79 on 8 cores as it starts alone; busiest: 2.1.300 8.0%, 2.1.302 8.0%, codebase-memory 4.0%
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
     Starting 1 test across 1 binary (18 tests and 6 binaries skipped, including 6 binaries via profile.process.default-filter)
         PASS [   0.324s] (1/1) temper::process a_running_engine_lends_the_record_temper_sign_in_kept
      Summary [   0.324s] 1 test run: 1 passed, 18 skipped
-heavy: ran alone for 1s
-heavy: task 733 (gate) exit 0, waited 1s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T033221-733.log
 ```
 Read: the script run failed `a_persons_change_lands_on_the_forge_and_is_found_after_a_restart` (the world's
 "binary exited while tree processes still ran") after 93.6 s of 3 of 19 tests; the `--no-fail-fast` run passed that
@@ -904,7 +886,7 @@ fixture face and the five tests. The tests that need the flat `Shared` (after th
 compiled against skein-json at 8a51e10, the pin of the base.
 
 ```text
-$ heavy cargo nextest run -p temper-service the_component_s_new_refusals a_refusal_naming_a_forge the_start_request_carries
+$ cargo nextest run -p temper-service the_component_s_new_refusals a_refusal_naming_a_forge the_start_request_carries
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
     Finished `test` profile [unoptimized + debuginfo] target(s) in 4.77s
     Starting 3 tests across 1 binary (212 tests skipped)
@@ -912,26 +894,23 @@ directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
         PASS [   0.006s] (2/3) temper-service tests::forge::a_refusal_naming_a_forge_is_indexed_to_the_configured_forge
         PASS [   0.012s] (3/3) temper-service tests::forge::the_start_request_carries_the_user_agent_and_the_host
      Summary [   0.012s] 3 tests run: 3 passed, 212 skipped
-heavy: task 733 (build) exit 0, waited 1s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T025840-733.log
 ```
 ```text
-$ heavy cargo nextest run -p temper-service the_small_profile_keeps_the_body_room the_shared_numbers_are_the_clients
+$ cargo nextest run -p temper-service the_small_profile_keeps_the_body_room the_shared_numbers_are_the_clients
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03   (the second test in its base form)
     Finished `test` profile [unoptimized + debuginfo] target(s) in 4.23s
     Starting 2 tests across 1 binary (215 tests skipped)
         PASS [   0.006s] (1/2) temper-service tests::forge::the_shared_numbers_are_the_clients_plain_numbers
         PASS [   0.008s] (2/2) temper-service tests::forge::the_small_profile_keeps_the_body_room_the_word_derives
      Summary [   0.008s] 2 tests run: 2 passed, 215 skipped
-heavy: task 733 (build) exit 0, waited 1s, ran 4s, log /srv/data/git/runner/src/tmp/logs/20261019T031229-733.log
 ```
 ```text
-$ heavy cargo clippy -p temper-service --all-targets -- -D warnings
+$ cargo clippy -p temper-service --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.13s
-heavy: task 733 (build) exit 0, waited 0s, ran 4s, log /srv/data/git/runner/src/tmp/logs/20261019T031224-733.log
 ```
 ```text
-$ heavy cargo nextest run -p forgejo-conformance json::tests
+$ cargo nextest run -p forgejo-conformance json::tests
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
     Finished `test` profile [unoptimized + debuginfo] target(s) in 2.48s
     Starting 6 tests across 2 binaries (25 tests skipped)
@@ -942,20 +921,18 @@ directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
         PASS [   0.002s] (5/6) forgejo-conformance json::tests::an_object_is_written_compact_in_sorted_key_order
         PASS [   0.002s] (6/6) forgejo-conformance json::tests::a_parsed_body_reads_members_items_and_scalars_by_name
      Summary [   0.003s] 6 tests run: 6 passed, 25 skipped
-heavy: task 733 (build) exit 0, waited 0s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T025921-733.log
 ```
 ```text
-$ heavy cargo clippy -p forgejo-conformance --all-targets -- -D warnings
+$ cargo clippy -p forgejo-conformance --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03   (json.rs whole, with json/tests.rs; the reading half alone: clippy exit 0, 1.72 s)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.76s
-heavy: task 733 (build) exit 0, waited 0s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T025930-733.log
 ```
 The scratch ran h1 to h3 earlier (an earlier sketch of the same modules, since replaced by h4 to h9; their
 outputs are not used above). Tests in the scratch: 3 + 2 = 5 new temper-service tests (212 at the base -> 217).
 The temper-service test count after 03.1 is 217; the crate's 117 are skein's.
 
 ```text
-$ heavy cargo nextest run -p temper-service tests::forge   (base: first two lines; the same in the scratch with the five new tests: last two)
+$ cargo nextest run -p temper-service tests::forge   (base: first two lines; the same in the scratch with the five new tests: last two)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base; /srv/data/git/runner/src/tmp/planning/scratch-temper-03
     Starting 10 tests across 1 binary (202 tests skipped)
      Summary [   0.028s] 10 tests run: 10 passed, 202 skipped
@@ -975,7 +952,7 @@ therefore does not build: converting `fixture.rs` forces every caller in the sam
 by direction, after a first increment for what does not touch the family:
 
 ```text
-$ heavy rg -c '\.(api|get|branch|pull|put)\(' tools/forgejo-conformance/src   (derived per file, summed: 146 lines, 14 files)
+$ rg -c '\.(api|get|branch|pull|put)\(' tools/forgejo-conformance/src   (derived per file, summed: 146 lines, 14 files)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 facts 43, fixture 28, component/writes 22, deliveries 19, cases 12, component/reads 7, runner 7,
 job_clone 5, orgs 2, registration 2, mask 2, users 1, tokens 1, setup 1, hooks 1
@@ -990,19 +967,18 @@ job_clone 5, orgs 2, registration 2, mask 2, users 1, tokens 1, setup 1, hooks 1
   `json::write` (nested), `Put`, `object`, and `serde_json` leaves the manifest.
 
 ```text
-$ heavy cargo nextest run -p forgejo-conformance   (scratch: json.rs whole + has_key + mask.rs::sorted_units on skein-json)
+$ cargo nextest run -p forgejo-conformance   (scratch: json.rs whole + has_key + mask.rs::sorted_units on skein-json)
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
         PASS [   0.002s] (26/33) forgejo-conformance tests::masking_sorts_the_deprecated_units_set_in_every_team
         PASS [   0.104s] (33/33) forgejo-conformance tests::the_listener_holds_its_answer_until_the_probe_replies
      Summary [   0.113s] 33 tests run: 33 passed, 0 skipped
-heavy: task 733 (build) exit 0, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T040324-733.log
 ```
 ```text
-$ heavy cargo nextest run -p forgejo-conformance json::tests   (the 8 module tests; 25 base tests skipped)
+$ cargo nextest run -p forgejo-conformance json::tests   (the 8 module tests; 25 base tests skipped)
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
      Summary [   0.004s] 8 tests run: 8 passed, 25 skipped        (each 0.002 to 0.003 s)
-$ heavy cargo clippy -p forgejo-conformance --all-targets -- -D warnings      -> Finished, exit 0 (1.76 s)
-$ heavy cargo fmt --check -p forgejo-conformance                               -> exit 0 (after `cargo fmt` on the two test lines)
+$ cargo clippy -p forgejo-conformance --all-targets -- -D warnings      -> Finished, exit 0 (1.76 s)
+$ cargo fmt --check -p forgejo-conformance                               -> exit 0 (after `cargo fmt` on the two test lines)
 ```
 The 8 tests split 4 / 1 / 3 over 03.2 / 03.3 / 03.4: 03.2 the first three and
 `an_array_of_strings_is_written_compact_and_escaped`; 03.3 `a_key_is_found_at_any_depth_and_a_value_is_not_a_key`;
@@ -1011,14 +987,13 @@ The 8 tests split 4 / 1 / 3 over 03.2 / 03.3 / 03.4: 03.2 the first three and
 ### The base form of the Done-when commands (not recorded above)
 
 ```text
-$ heavy cargo check --workspace --all-targets
+$ cargo check --workspace --all-targets
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
-heavy: task 733 (build) exit 0, waited 0s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T040131-733.log
 ```
 (0.20 s: the target directory was built by the runs above.)
 ```text
-$ heavy rg -n 'temper_engine_protocol_forge\b|temper-engine-protocol-forge($|[^-])' Cargo.toml Cargo.lock crates testing tests tools -g '*.rs' -g Cargo.toml -g Cargo.lock
+$ rg -n 'temper_engine_protocol_forge\b|temper-engine-protocol-forge($|[^-])' Cargo.toml Cargo.lock crates testing tests tools -g '*.rs' -g Cargo.toml -g Cargo.lock
 directory: /srv/data/git/runner/src/tmp/planning/temper-base          (exit 0; counted per package with -c, 63 lines in 38 files)
 Cargo.lock 8, Cargo.toml 2, crates/temper 4 (4 files), crates/temper-engine-protocol-forge 1 (its manifest's name),
 crates/temper-forge-setup-shell 3 (2), crates/temper-service 19 (12), tests/codecs 5 (4), tests/engine/protocol-forge 14 (8),
@@ -1028,7 +1003,7 @@ The pattern leaves out `_world` and `-world`, so the world's own name does not m
 temper 07.1, but it names the crate (14 lines in 8 files, the manifest included), and 03.1 repoints those
 lines onto `skein_forge_connection`: after 03.1 the command, which searches `tests` too, prints nothing.
 ```text
-$ heavy rg -n 'temper_engine_protocol_forge( as |::\{.* as )' crates testing tests tools -g '*.rs'      (base form of the alias check)
+$ rg -n 'temper_engine_protocol_forge( as |::\{.* as )' crates testing tests tools -g '*.rs'      (base form of the alias check)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base          (6 lines in 6 files)
 crates/temper-service/src/tests/forge.rs:6:use temper_engine_protocol_forge::{self as kit, StartRead, Stopped};
 tools/forgejo-conformance/src/component/hosted.rs:13:use temper_engine_protocol_forge::{self as kit, Component, Event, Request, Stopped};
@@ -1042,20 +1017,19 @@ Lines that use those aliases: `forge.rs` 39, `tests/forge.rs` 19, `tests/fixture
 users are direct paths. About 113 changed lines in the users outside the world, 14 in the world, and the
 construction of `Settings` and `Forge` in 7 files (about 30): about 170 changed lines in all.
 ```text
-$ heavy rg -n 'serde_json|json!' tools/forgejo-conformance -g '*.rs' -g Cargo.toml        (base form: prints the lines)
+$ rg -n 'serde_json|json!' tools/forgejo-conformance -g '*.rs' -g Cargo.toml        (base form: prints the lines)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base          (96 lines in 18 files: 17 sources and the manifest)
 ```
 ```text
-$ heavy rg -c --sort path 'temper/0\.0\.0' crates tests tools -g '*.rs'          (base form of the literal check)
+$ rg -c --sort path 'temper/0\.0\.0' crates tests tools -g '*.rs'          (base form of the literal check)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-protocol-forge/src/conventions.rs:1
 crates/temper-engine-protocol-forge/src/tests/connection.rs:1
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T041300-733.log
 ```
 After 03.1 the same command prints `crates/temper-service/src/forge.rs:1` (the `USER_AGENT` constant) and
 `crates/temper-service/src/tests/forge.rs:1` (the wire test's expected bytes), in that order.
 ```text
-$ heavy rg -n 'conventions::(host|USER_AGENT)' crates tests tools -g '*.rs'       (base form: 6 lines in 4 files)
+$ rg -n 'conventions::(host|USER_AGENT)' crates tests tools -g '*.rs'       (base form: 6 lines in 4 files)
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper/src/forge.rs:258:        host: conventions::host(address, None).expect("checked address"),
 crates/temper/src/forge.rs:259:        user_agent: conventions::USER_AGENT,
@@ -1067,28 +1041,26 @@ crates/temper-service/src/forge.rs:56:        let Some(host) = kit::conventions:
 The two `crates/temper/src/forge.rs` lines are the setup shell's `reconcile_settings`; 03.1 turns them into
 `skein_forge::host::host(address, None)` and `temper_service::USER_AGENT`, so the command prints nothing after it.
 ```text
-$ heavy rg -n '(temper_engine_protocol_forge|skein_forge_connection)( as |::\{.* as )' crates testing tests tools -g '*.rs'
+$ rg -n '(temper_engine_protocol_forge|skein_forge_connection)( as |::\{.* as )' crates testing tests tools -g '*.rs'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base          (the alias check in its final form: 6 lines in 6 files, the same as above)
 crates/temper-service/src/tests/forge.rs:6, tests/fixtures/forge.rs:3, engine.rs:386, route.rs:4, forge.rs:9, hosted.rs:13
 ```
 
-### The repin, in its base form (`heavy cargo update -p skein-lib`)
+### The repin, in its base form (`cargo update -p skein-lib`)
 
 skein 03.1 is not on skein's origin/main (93052c6: no crate with `forge` in its name under `crates/`), so the
 repin cannot reach `skein_forge_connection`. Run in the scratch worktree, as the sibling findings did:
 ```text
-$ heavy cargo update -p skein-lib
+$ cargo update -p skein-lib
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
     Updating git repository `https://github.com/forgetic/skein.git`
    54c5a8b..93052c6  HEAD       -> origin/HEAD
     Updating skein-llm-world v0.0.0 (https://github.com/forgetic/skein.git#8a51e10b) -> #93052c6b
     ... (29 skein packages, all 8a51e10b -> 93052c6b)
-heavy: task 733 (build) exit 0, waited 0s, ran 7s, log /srv/data/git/runner/src/tmp/logs/20261019T040957-733.log
-$ heavy cargo check --workspace --all-targets
+$ cargo check --workspace --all-targets
 error[E0004]: non-exhaustive patterns: `skein_io::kernel::Op::Lock { .. }` not covered
    --> crates/temper-worker-protocol-git/src/files.rs:352:11
 error: could not compile `temper-worker-protocol-git` (lib) due to 2 previous errors
-heavy: task 733 (build) exit 101, waited 0s, ran 13s, log /srv/data/git/runner/src/tmp/logs/20261019T041151-733.log
 ```
 The update exits 0 and the check fails on skein's later kernel (`Op::Lock`, and a second error in the same crate),
 which is the repair of the tools plan's first repin, not of this plan: README Rules say a temper increment repairs
@@ -1100,15 +1072,14 @@ The scratch holds the base form: the base's component omits the user agent from 
 1_048_576 - 192 - 27 = 1_048_357 (27 = Host `forge.example:3000` 18 + token `api-token` 9). After the repin onto
 skein 03.2 the head also counts the 12-byte agent: 1_048_345 and 1_048_346.
 ```text
-$ heavy cargo nextest run -p temper-service a_head_past_the_request_room the_longest_head_of_the_shipped_forge
+$ cargo nextest run -p temper-service a_head_past_the_request_room the_longest_head_of_the_shipped_forge
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-03
     Starting 2 tests across 1 binary (217 tests skipped)
         PASS [   0.007s] (1/2) temper-service tests::forge::a_head_past_the_request_room_is_a_problem_naming_its_members_and_the_forge
         PASS [   0.010s] (2/2) temper-service tests::forge::the_longest_head_of_the_shipped_forge_fits_its_room_to_the_byte
      Summary [   0.011s] 2 tests run: 2 passed, 217 skipped
-heavy: task 733 (build) exit 0, log /srv/data/git/runner/src/tmp/logs/20261019T035540-733.log
-$ heavy cargo clippy -p temper-service --all-targets -- -D warnings          -> Finished, exit 0
-$ heavy cargo fmt --check -p temper-service                                    -> exit 0
+$ cargo clippy -p temper-service --all-targets -- -D warnings          -> Finished, exit 0
+$ cargo fmt --check -p temper-service                                    -> exit 0
 ```
 Shape of the arm in the scratch (`crates/temper-service/src/forge.rs`): `Unusable::Request { forge }` pushes
 `forge_path(u32::from(forge)).member(b"api_token")` with `What::Bound`, then names `forge_component.target_bytes`,
@@ -1147,6 +1118,6 @@ bytes, against `tls.send` 16_384 and `io.output` 1_048_576 (derived by hand from
 ## Scratch removed
 
 The scratch worktree `tmp/planning/scratch-temper-03` (uncommitted: the stand-in variants, the `Request` arm, the
-five scratch tests and `tools/forgejo-conformance/src/json.rs` with its 8 tests) was removed with `heavy git
+five scratch tests and `tools/forgejo-conformance/src/json.rs` with its 8 tests) was removed with `git
 worktree remove --force` from `tmp/planning/temper-base`, whose status is clean (0 changed files). Nothing of it
 is committed or landed; the session file carries the sketches that compiled.

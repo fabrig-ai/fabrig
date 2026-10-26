@@ -26,7 +26,7 @@ client. Its unbounded counter lives in api.rs and private measure.rs;
 ## Base list and test run
 
 ```text
-$ heavy cargo nextest list -p temper-engine-domain-forge-client
+$ cargo nextest list -p temper-engine-domain-forge-client
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
 temper-engine-domain-forge-client tests::effect_keys_are_stable_by_purpose_and_separate_deployments
@@ -34,7 +34,6 @@ temper-engine-domain-forge-client tests::projection_history_keys_keep_task_posit
 temper-engine-domain-forge-client tests::locate::a_locate_past_the_call_bound_is_refused_too_large
 temper-engine-domain-forge-client tests::locate::a_located_repository_zero_is_an_invalid_answer
 76 listed: root 31, keep 19, outbox 24, locate 2
-heavy: task 732 (build) exit 0, waited 1s, ran 0s
 ```
 
 The two purpose tests belong to temper 02.1. All other 74 tests move in
@@ -122,7 +121,7 @@ other module paths are preserved by fixture extraction):
 - `tests::zero_cost_refund_reopens_the_last_reservation`
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge-client
+$ cargo nextest run -p temper-engine-domain-forge-client
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
 Starting 76 tests across 1 binary
@@ -130,7 +129,6 @@ PASS [   0.005s] tests::keep::watch_batches_are_atomic_and_leaving_an_outstandin
 PASS [   0.002s] tests::locate::a_locate_past_the_call_bound_is_refused_too_large
 PASS [   0.002s] tests::locate::a_located_repository_zero_is_an_invalid_answer
 Summary [   0.027s] 76 tests run: 76 passed, 0 skipped
-heavy: task 733 (build) exit 0, waited 1s, ran 0s
 ```
 
 Each test: 0.002–0.005 s; all 76 per-test times sum to 0.196 s, the
@@ -140,12 +138,11 @@ Each test: 0.002–0.005 s; all 76 per-test times sum to 0.196 s, the
 The 0.5 s per-package proof ceiling is not a slice of the whole-suite aim.
 
 ```text
-$ heavy cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Checking skein-lib v0.0.0 (https://github.com/forgetic/skein.git#8a51e10b)
 Checking temper-engine-domain-forge-client v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.87s
-heavy: task 741 (build) exit 0, waited 86s, ran 4s
 ```
 
 ## Signature sketches
@@ -168,13 +165,12 @@ answer 14 supersedes their names, as the follow-up below records.
 No new cross-boundary record is introduced.
 
 ```text
-$ heavy cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02
 error: non-binding `let` without a type annotation
  --> crates/temper-engine-domain-forge-client/src/keep.rs:1302:5
 let _ = env;
 error: could not compile temper-engine-domain-forge-client due to 1 previous error
-heavy: task 749 (build) exit 101, waited 76s, ran 2s
 ```
 
 Corrected the stub to `let _: &Env<Limits> = env;`; no lint exception.
@@ -210,14 +206,13 @@ skein 07.1, rather than asserted unchanged by this session.
 ## Completed follow-up commands
 
 ```text
-$ heavy cargo run -p temper-engine-domain-forge-client --example widths
+$ cargo run -p temper-engine-domain-forge-client --example widths
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02
 Compiling skein-lib v0.0.0 (https://github.com/forgetic/skein.git#8a51e10b)
    Compiling temper-engine-domain-forge-client v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-02/crates/temper-engine-domain-forge-client)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.38s
      Running `target/debug/examples/widths`
 Summary=96 Comment=72 Review=104 Status=128 Remark=56 File=48 Collaborator=16 Commit=32 Slice=16 Writer=16
-heavy: task 769 (build) exit 0, waited 431s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T004934-769.log
 ```
 
 This temporary diagnostic measured the base layouts, not the proposed fixed widths.
@@ -225,13 +220,12 @@ The designer subsequently chose the larger constants below. The example is not a
 planned crate target and was removed after recording its output.
 
 ```text
-$ heavy cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02
 error: use of a disallowed macro `std::println`
  --> crates/temper-engine-domain-forge-client/examples/widths.rs:3:5
 error: use of `println!`
 error: could not compile temper-engine-domain-forge-client (example "widths") due to 2 previous errors
-heavy: task 783 (build) exit 101, waited 424s, ran 4s
 ```
 
 The signature chain itself compiled; all-targets also checked the temporary
@@ -239,14 +233,13 @@ layout-reporting example. Removed that completed diagnostic target instead of
 adding a lint exception. Answer 14 then changed the public counter paths.
 
 ```text
-$ heavy cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02
 error: empty lines after doc comment
  --> crates/temper-engine-domain-forge-client/src/lib.rs:33:1
 error: function `answer_bytes` is never used
  --> crates/temper-engine-domain-forge-client/src/bounds.rs:201:15
 error: could not compile temper-engine-domain-forge-client due to 2 previous errors
-heavy: task 816 (build) exit 101, waited 1s, ran 3s
 ```
 
 Removed the obsolete wrapper's documentation and the now-unused private wrapper.
@@ -257,17 +250,16 @@ Renamed the private flag to identity_used and sealed on Restore/Keep/Make/Remake
 not Restored, matching the designer's landed answer 17.
 
 ```text
-$ heavy cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-domain-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02
 Checking temper-engine-domain-forge-client v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-02/crates/temper-engine-domain-forge-client)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.51s
-heavy: task 786 (build) exit 0, waited 1s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T005202-786.log
 ```
 
 No final sketch warning or failure remains; only this crate was compiled.
 
 ```text
-$ heavy cargo nextest run -p temper-service -E 'test(the_small_profile_passes_each_domains_worst_case)'
+$ cargo nextest run -p temper-service -E 'test(the_small_profile_passes_each_domains_worst_case)'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Compiling temper-service v0.0.0 (/srv/data/git/runner/src/tmp/planning/temper-base/crates/temper-service)
     Finished `test` profile [unoptimized + debuginfo] target(s) in 4.93s
@@ -278,19 +270,17 @@ info: NEXTEST_DOUBLE_SPAWN=0 set, disabling double-spawn for test processes
         PASS [   0.005s] (1/1) temper-service tests::limits::the_small_profile_passes_each_domains_worst_case
 ────────────
      Summary [   0.006s] 1 test run: 1 passed, 211 skipped
-heavy: task 760 (build) exit 0, waited 443s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T004923-760.log
 ```
 
 The selected profile check passed in 0.005 s; 211 other service tests were not
 selected. This is not filtering the client move's proof, which ran all 76 tests.
 
 ```text
-$ heavy -- sh -c 'wc -l crates/temper-engine-domain-forge-client/src/*.rs crates/temper-engine-domain-forge-client/src/tests/*.rs | awk '\''$1 > 800 && $2 != "total"'\'''
+$ sh -c 'wc -l crates/temper-engine-domain-forge-client/src/*.rs crates/temper-engine-domain-forge-client/src/tests/*.rs | awk '\''$1 > 800 && $2 != "total"'\'''
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 850 crates/temper-engine-domain-forge-client/src/api.rs
   1377 crates/temper-engine-domain-forge-client/src/keep.rs
   1079 crates/temper-engine-domain-forge-client/src/outbox.rs
-heavy: task 761 (build) exit 0, waited 446s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T004926-761.log
 ```
 
 Base form of the final file-size check: the future keep/outbox and fixture
@@ -298,7 +288,7 @@ subdirectories do not exist yet, so only the base source and test globs run.
 api splits in 01.1; keep/outbox split in 02.2. These are expected base exceptions.
 
 ```text
-$ heavy rg -n -i 'temper|jig|EffectPurpose' crates/temper-engine-domain-forge-client
+$ rg -n -i 'temper|jig|EffectPurpose' crates/temper-engine-domain-forge-client
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-domain-forge-client/Cargo.toml:2:name = "temper-engine-domain-forge-client"
 crates/temper-engine-domain-forge-client/src/boundary.rs:1://! Values exchanged with the connector top (jig's domain/connectors.md, sections 2–4).
@@ -327,7 +317,6 @@ crates/temper-engine-domain-forge-client/src/identity.rs:85:        EffectPurpos
 crates/temper-engine-domain-forge-client/src/outbox.rs:2://! section 6; jig's domain/connectors.md, section 4.3).
 crates/temper-engine-domain-forge-client/src/lib.rs:2://! (domain/forge.md, sections 5–6; jig's domain/connectors.md, section 4).
 crates/temper-engine-domain-forge-client/src/lib.rs:31:pub use identity::{Config, EffectPurpose, Writer, effect_key};
-heavy: task 762 (build) exit 0, waited 446s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T004926-762.log
 ```
 
 The five jig doc lines, owner-named Cargo package, purpose enum/re-export and
@@ -342,7 +331,7 @@ function/type affected by splitting; generic names also match unrelated code.
 The zero crate-name/path matches outside temper disambiguate those homonyms.
 
 ```text
-$ heavy -- python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess, json
 root=Path("/srv/data/git/runner/src")
 source=root/"tmp/planning/temper-base/crates/temper-engine-domain-forge-client/src"
@@ -371,7 +360,6 @@ skein-base crate-path 0 crate-name 0 Cargo-users 0
 jig crate-path 0 crate-name 0 Cargo-users 0
 smith crate-path 0 crate-name 0 Cargo-users 0
 hearth crate-path 0 crate-name 0 Cargo-users 0
-heavy: task 756 (build) exit 0, waited 71s, ran 8s
 ```
 
 Full symbol-name search: 204 names, including the private split helpers, each
@@ -382,7 +370,7 @@ compiled above. The base's earlier `stored_bytes` and `effect_bytes` users are
 included in these counts. Output numbers are matching source lines, not callers.
 
 ```text
-$ heavy -- python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess, json
 root=Path("/srv/data/git/runner/src")
 source=root/"tmp/planning/temper-base/crates/temper-engine-domain-forge-client/src"
@@ -407,13 +395,12 @@ skein-base {"Alarm": 0, "Attempt": 0, "Budget": 0, "Cached": 0, "Call": 381, "Ca
 jig {"Alarm": 5, "Attempt": 290, "Budget": 814, "Cached": 10, "Call": 732, "Calls": 23, "Condition": 11, "Config": 233, "Delivery": 1236, "Domain": 1474, "Echo": 1, "Effect": 1240, "EffectPurpose": 22, "Entry": 387, "Event": 9003, "Fact": 628, "Fresh": 30, "Inbox": 834, "Keep": 160, "Key": 1768, "Lane": 9, "Limits": 19363, "Listing": 0, "Live": 634, "LiveRecord": 0, "Made": 573, "Outbox": 443, "Outcome": 1721, "Owner": 1247, "Phase": 2048, "Position": 134, "Priority": 113, "Progress": 132, "Recovery": 274, "RecoveryClock": 0, "Repo": 0, "RepositoryRecord": 0, "Request": 6979, "Resource": 813, "Scan": 23, "Shape": 65, "State": 939, "Stored": 1801, "Watch": 510, "What": 534, "Writer": 9915, "Writing": 106, "accepts": 31, "active_repository": 0, "active_resource": 0, "admission": 825, "affected": 4, "answer": 3156, "answer_bytes": 25, "answer_bytes_unbounded": 0, "answer_heap": 0, "answered": 571, "answered_repository": 0, "answered_resource": 0, "background_owed": 0, "backoff": 89, "bind_deployment": 0, "branch_answered": 0, "branch_compared": 0, "branch_created": 0, "branch_found": 0, "branch_observed": 0, "busy": 308, "bytes": 19300, "cached": 80, "cancel": 211, "cancel_entry": 0, "cancel_repository": 0, "cancel_resource": 0, "check_phase": 0, "checks_at_head": 0, "comments_found": 0, "compared": 4, "configured": 507, "connected": 94, "construct": 2, "copied_stamps": 0, "done": 392, "due": 313, "due_repository": 0, "due_resource": 0, "echo": 4, "echo_room": 0, "effect_bytes": 0, "effect_key": 0, "eligible": 146, "entry_resource": 0, "fact": 946, "facts_lost": 13, "failed": 653, "failed_resource": 0, "file_matches": 0, "files": 325, "find": 1077, "finish": 8266, "finished": 108, "fire": 266, "first": 2499, "fresh_done": 0, "has": 1042, "has_repo": 0, "has_room": 6, "hint": 34, "historical": 199, "is_due": 28, "is_echo": 0, "is_full": 7, "is_ready": 34, "is_set": 0, "item_answered": 0, "item_matches": 0, "items_ordered": 0, "key": 5700, "key_echo": 0, "keys": 495, "known_id": 0, "lane": 6, "limited": 135, "listed": 350, "live": 1862, "live_for_entry": 0, "made": 679, "make": 408, "max_out": 444, "merge_verified": 0, "new": 25717, "next": 1617, "next_deadline": 228, "next_id": 0, "not_found": 4, "nudge_resource": 0, "observed_head": 0, "op": 64, "operation": 394, "optional": 276, "original": 772, "pause": 32, "pop_fact": 30, "position": 1529, "prepare_inbox": 0, "priority": 541, "prune_comments": 0, "pull": 1, "pull_answer": 0, "pulled": 0, "pump": 51, "pushed": 0, "queue": 171, "queued": 84, "read": 3196, "reclaim": 172, "recovery": 281, "remaining": 403, "remember": 8, "remove_echo": 0, "remove_live": 0, "remove_repos": 0, "replace": 204, "repos": 0, "repository": 0, "reset": 25, "rest_resource": 0, "restoration_failed": 0, "restore_live": 0, "restore_repository": 0, "restored": 337, "resume": 106, "retain_uncertain": 0, "retry": 666, "reviews_answered": 0, "reviews_found": 0, "reviews_ordered": 0, "rows": 6028, "same_key": 0, "scan_busy": 0, "seeded": 43, "send": 1211, "sent": 423, "settle": 275, "settle_done": 0, "shape": 153, "spend": 1183, "start_fresh": 0, "start_settle": 0, "step": 2188, "stored_bytes": 5, "summary": 116, "unseen": 12, "valid": 296, "valid_deliveries": 0, "valid_participation": 0, "valid_resource": 0, "wait": 191, "wait_read": 0, "window": 1059, "withdraw": 40, "worst_case": 1552, "write": 453, "writer": 19043}
 smith {"Alarm": 60, "Attempt": 37, "Budget": 865, "Cached": 17, "Call": 651, "Calls": 337, "Condition": 0, "Config": 191, "Delivery": 631, "Domain": 506, "Echo": 2, "Effect": 230, "EffectPurpose": 0, "Entry": 126, "Event": 5231, "Fact": 522, "Fresh": 16, "Inbox": 20, "Keep": 41, "Key": 52, "Lane": 20, "Limits": 3323, "Listing": 29, "Live": 102, "LiveRecord": 0, "Made": 15, "Outbox": 0, "Outcome": 1186, "Owner": 23, "Phase": 675, "Position": 8, "Priority": 0, "Progress": 36, "Recovery": 0, "RecoveryClock": 0, "Repo": 57, "RepositoryRecord": 0, "Request": 2625, "Resource": 1, "Scan": 31, "Shape": 114, "State": 634, "Stored": 48, "Watch": 12, "What": 198, "Writer": 1088, "Writing": 4, "accepts": 58, "active_repository": 0, "active_resource": 0, "admission": 267, "affected": 1, "answer": 2186, "answer_bytes": 114, "answer_bytes_unbounded": 0, "answer_heap": 0, "answered": 752, "answered_repository": 0, "answered_resource": 0, "background_owed": 0, "backoff": 37, "bind_deployment": 0, "branch_answered": 0, "branch_compared": 0, "branch_created": 0, "branch_found": 0, "branch_observed": 0, "busy": 76, "bytes": 4723, "cached": 175, "cancel": 247, "cancel_entry": 0, "cancel_repository": 0, "cancel_resource": 0, "check_phase": 0, "checks_at_head": 0, "comments_found": 0, "compared": 11, "configured": 496, "connected": 3, "construct": 5, "copied_stamps": 0, "done": 472, "due": 65, "due_repository": 0, "due_resource": 0, "echo": 9, "echo_room": 0, "effect_bytes": 0, "effect_key": 0, "eligible": 39, "entry_resource": 0, "fact": 674, "facts_lost": 11, "failed": 625, "failed_resource": 0, "file_matches": 0, "files": 597, "find": 217, "finish": 1612, "finished": 57, "fire": 216, "first": 1445, "fresh_done": 0, "has": 681, "has_repo": 0, "has_room": 18, "hint": 2, "historical": 45, "is_due": 79, "is_echo": 0, "is_full": 12, "is_ready": 75, "is_set": 0, "item_answered": 0, "item_matches": 0, "items_ordered": 0, "key": 957, "key_echo": 0, "keys": 39, "known_id": 0, "lane": 6, "limited": 4, "listed": 82, "live": 465, "live_for_entry": 0, "made": 129, "make": 44, "max_out": 204, "merge_verified": 0, "new": 8988, "next": 877, "next_deadline": 211, "next_id": 0, "not_found": 10, "nudge_resource": 0, "observed_head": 0, "op": 403, "operation": 450, "optional": 61, "original": 363, "pause": 18, "pop_fact": 100, "position": 507, "prepare_inbox": 0, "priority": 0, "prune_comments": 0, "pull": 2, "pull_answer": 0, "pulled": 0, "pump": 5, "pushed": 47, "queue": 227, "queued": 129, "read": 1959, "reclaim": 221, "recovery": 54, "remaining": 148, "remember": 5, "remove_echo": 0, "remove_live": 0, "remove_repos": 0, "replace": 252, "repos": 105, "repository": 325, "reset": 4, "rest_resource": 0, "restoration_failed": 0, "restore_live": 0, "restore_repository": 0, "restored": 71, "resume": 235, "retain_uncertain": 0, "retry": 187, "reviews_answered": 0, "reviews_found": 0, "reviews_ordered": 0, "rows": 80, "same_key": 0, "scan_busy": 0, "seeded": 21, "send": 144, "sent": 361, "settle": 479, "settle_done": 0, "shape": 52, "spend": 727, "start_fresh": 0, "start_settle": 0, "step": 1449, "stored_bytes": 0, "summary": 629, "unseen": 1, "valid": 246, "valid_deliveries": 0, "valid_participation": 0, "valid_resource": 0, "wait": 504, "wait_read": 0, "window": 1039, "withdraw": 64, "worst_case": 668, "write": 810, "writer": 2217}
 hearth {"Alarm": 0, "Attempt": 0, "Budget": 49, "Cached": 41, "Call": 92, "Calls": 0, "Condition": 22, "Config": 144, "Delivery": 6, "Domain": 2, "Echo": 0, "Effect": 0, "EffectPurpose": 0, "Entry": 357, "Event": 1079, "Fact": 0, "Fresh": 0, "Inbox": 0, "Keep": 57, "Key": 129, "Lane": 0, "Limits": 690, "Listing": 59, "Live": 140, "LiveRecord": 0, "Made": 177, "Outbox": 0, "Outcome": 397, "Owner": 46, "Phase": 42, "Position": 580, "Priority": 64, "Progress": 66, "Recovery": 0, "RecoveryClock": 0, "Repo": 0, "RepositoryRecord": 0, "Request": 869, "Resource": 0, "Scan": 20, "Shape": 299, "State": 198, "Stored": 13, "Watch": 0, "What": 9, "Writer": 93, "Writing": 20, "accepts": 3, "active_repository": 0, "active_resource": 0, "admission": 4, "affected": 0, "answer": 261, "answer_bytes": 0, "answer_bytes_unbounded": 0, "answer_heap": 0, "answered": 5, "answered_repository": 0, "answered_resource": 0, "background_owed": 0, "backoff": 0, "bind_deployment": 0, "branch_answered": 0, "branch_compared": 0, "branch_created": 0, "branch_found": 0, "branch_observed": 0, "busy": 8, "bytes": 2231, "cached": 33, "cancel": 4, "cancel_entry": 0, "cancel_repository": 0, "cancel_resource": 0, "check_phase": 0, "checks_at_head": 0, "comments_found": 0, "compared": 5, "configured": 12, "connected": 0, "construct": 2, "copied_stamps": 0, "done": 51, "due": 0, "due_repository": 0, "due_resource": 0, "echo": 0, "echo_room": 0, "effect_bytes": 0, "effect_key": 0, "eligible": 2, "entry_resource": 0, "fact": 0, "facts_lost": 0, "failed": 155, "failed_resource": 0, "file_matches": 0, "files": 528, "find": 152, "finish": 181, "finished": 52, "fire": 21, "first": 558, "fresh_done": 0, "has": 133, "has_repo": 0, "has_room": 2, "hint": 2, "historical": 0, "is_due": 5, "is_echo": 0, "is_full": 0, "is_ready": 3, "is_set": 0, "item_answered": 0, "item_matches": 0, "items_ordered": 0, "key": 1927, "key_echo": 0, "keys": 195, "known_id": 0, "lane": 0, "limited": 28, "listed": 157, "live": 157, "live_for_entry": 0, "made": 277, "make": 172, "max_out": 0, "merge_verified": 0, "new": 2337, "next": 429, "next_deadline": 41, "next_id": 0, "not_found": 0, "nudge_resource": 0, "observed_head": 0, "op": 257, "operation": 57, "optional": 150, "original": 15, "pause": 0, "pop_fact": 0, "position": 213, "prepare_inbox": 0, "priority": 17, "prune_comments": 0, "pull": 1, "pull_answer": 0, "pulled": 0, "pump": 0, "pushed": 1, "queue": 37, "queued": 2, "read": 573, "reclaim": 5, "recovery": 0, "remaining": 35, "remember": 0, "remove_echo": 0, "remove_live": 0, "remove_repos": 0, "replace": 70, "repos": 10, "repository": 1050, "reset": 2, "rest_resource": 0, "restoration_failed": 0, "restore_live": 0, "restore_repository": 0, "restored": 0, "resume": 64, "retain_uncertain": 0, "retry": 12, "reviews_answered": 0, "reviews_found": 0, "reviews_ordered": 0, "rows": 144, "same_key": 0, "scan_busy": 0, "seeded": 8, "send": 15, "sent": 45, "settle": 33, "settle_done": 0, "shape": 138, "spend": 0, "start_fresh": 0, "start_settle": 0, "step": 212, "stored_bytes": 0, "summary": 0, "unseen": 0, "valid": 159, "valid_deliveries": 0, "valid_participation": 0, "valid_resource": 0, "wait": 15, "wait_read": 0, "window": 1, "withdraw": 6, "worst_case": 153, "write": 182, "writer": 207}
-heavy: task 787 (build) exit 0, waited 409s, ran 16s, log /srv/data/git/runner/src/tmp/logs/20261019T005038-787.log
 ```
 
 The actual changed public-counter and key calls, including aliases:
 
 ```text
-$ heavy rg -n '(client|forge_client)::(effect_key|effect_bytes|stored_bytes|answer_bytes)\(' crates tests
+$ rg -n '(client|forge_client)::(effect_key|effect_bytes|stored_bytes|answer_bytes)\(' crates tests
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-domain-forge/src/lib.rs:150:    match client::effect_bytes(&effect) {
 crates/temper-engine-domain-forge/src/lib.rs:370:            client::effect_bytes(&row.entry.effect)?.checked_add(resource)
@@ -424,7 +411,6 @@ crates/temper-engine-domain-forge/src/domain.rs:178:                Ok(value) =>
 crates/temper-engine-domain-forge/src/domain.rs:2675:                return client::effect_key(
 crates/temper-engine-domain-forge/src/domain.rs:2682:                return client::effect_key(
 crates/temper-engine-domain-forge/src/domain.rs:2697:    client::effect_key(namespace, &client::EffectPurpose::Projection { goal, part, number }, l.client.op_bytes)
-heavy: task 786 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005230-786.log
 ```
 
 Production calls: effect_key 4 (domain-forge/domain.rs 3, engine-domain's
@@ -435,7 +421,7 @@ its engine restart call. No external caller reaches keep::made or the private
 outbox helpers; their callers are within the client and were compiled together.
 
 ```text
-$ heavy -- sh -c 'rg -l "^temper-engine-domain-forge-client[ .]" --glob Cargo.toml crates testing tests tools | sort; rg -l "^temper-engine-domain-forge-client[ .]" --glob Cargo.toml crates testing tests tools | wc -l'
+$ sh -c 'rg -l "^temper-engine-domain-forge-client[.]" --glob Cargo.toml crates testing tests tools | sort; rg -l "^temper-engine-domain-forge-client[.]" --glob Cargo.toml crates testing tests tools | wc -l'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-domain-forge/Cargo.toml
 crates/temper-engine-domain/Cargo.toml
@@ -453,7 +439,6 @@ tests/engine/protocol-forge/Cargo.toml
 tests/system/Cargo.toml
 tools/forgejo-conformance/Cargo.toml
 15
-heavy: task 732 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005319-732.log
 ```
 
 The 15 consumer manifests and their Rust path changes belong to temper 02,
@@ -464,7 +449,7 @@ not to this skein session. The base code contains 193 crate-name lines;
 
 During drafting, decisions.md recorded the designer's shape answers in skein
 `d9f3e39` and temper `b4cfb999`. Read them with git show and read
-`tmp/director/forge-kit-answers-1.md`; no checkout or base-code change.
+
 Question 14 now defines these fixed list widths (strings additionally count
 their bytes; a non-list value adds no width): Summary/Review 128, Status 160,
 Comment 96, Remark/File 64, Commit 32, Collaborator/list string 16, list id 8.
@@ -549,7 +534,7 @@ each byte cap are checked independently from the nested row ceiling.
 ### Confirmed downstream callers
 
 ```text
-$ heavy rg -n 'effect_bytes|client::stored_bytes|client::answer_bytes|answer_bytes_unbounded|bind_deployment' crates/temper-engine-domain-forge/src/lib.rs crates/temper-engine-domain-forge/src/domain.rs crates/temper-engine-domain/src/restart.rs crates/temper-engine-protocol-forge/src/tests/reads.rs crates/temper-engine-protocol-forge/src/tests/contents.rs
+$ rg -n 'effect_bytes|client::stored_bytes|client::answer_bytes|answer_bytes_unbounded|bind_deployment' crates/temper-engine-domain-forge/src/lib.rs crates/temper-engine-domain-forge/src/domain.rs crates/temper-engine-domain/src/restart.rs crates/temper-engine-protocol-forge/src/tests/reads.rs crates/temper-engine-protocol-forge/src/tests/contents.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-protocol-forge/src/tests/contents.rs:259:            temper_engine_domain_forge_client::answer_bytes_unbounded(&answer),
 crates/temper-engine-protocol-forge/src/tests/reads.rs:489:            temper_engine_domain_forge_client::answer_bytes_unbounded(&answer),
@@ -562,7 +547,6 @@ crates/temper-engine-domain-forge/src/lib.rs:277:                Ok(answer) => c
 crates/temper-engine-domain-forge/src/lib.rs:370:            client::effect_bytes(&row.entry.effect)?.checked_add(resource)
 crates/temper-engine-domain-forge/src/lib.rs:372:        Stored::Entry { entry, .. } => client::effect_bytes(&entry.effect),
 crates/temper-engine-domain-forge/src/lib.rs:373:        Stored::Client(row) => client::stored_bytes(row),
-heavy: task 734 (build) exit 0, waited 1s, ran 0s
 ```
 
 The restart arm calls restart_refuse on false. Its Deployment must still
@@ -573,13 +557,12 @@ helpers and the keep/outbox functions that move or gain Env.
 ### New test command at the base
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge-client -E 'test(measure_)'
+$ cargo nextest run -p temper-engine-domain-forge-client -E 'test(measure_)'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
 Starting 0 tests across 1 binary (76 tests skipped)
 Summary [   0.000s] 0 tests run: 0 passed, 76 skipped
 error: no tests to run
-heavy: task 733 (build) exit 4, waited 1s, ran 0s
 ```
 
 This is the new skein-forge measure proof's base form. None of the twelve
@@ -614,13 +597,12 @@ The first clippy found scratch-scaffolding lint omissions, fixed without
 lint exceptions. Compact error output:
 
 ```text
-$ heavy cargo clippy -p skein-forge-client --all-targets -- -D warnings
+$ cargo clippy -p skein-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-revision
 error: this function could have a #[must_use] attribute (locate bytes/accepts)
 error: usage of wildcard import (measure)
 error: assert without any message (ten width assertions)
 error: could not compile skein-forge (lib) due to 13 previous errors
-heavy: task 733 (build) exit 101, waited 0s, ran 1s
 ```
 
 Added must_use, explicit imports and assertion messages; moved temporary
@@ -628,40 +610,36 @@ imports below module documentation. The next check exposed the remaining
 vocabulary split imports, then passed after their correction:
 
 ```text
-$ heavy cargo clippy -p skein-forge-client --all-targets -- -D warnings
+$ cargo clippy -p skein-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-revision
 error: unused imports: File, Permission, Protection, Review, Settings, Status
 error[E0433]: cannot find type Time in this scope
 error[E0425]: cannot find function accepts in module api (six test calls)
-heavy: task 733 (build) exit 101, waited 1s, ran 1s
 ```
 
 ```text
-$ heavy cargo clippy -p skein-forge-client --all-targets -- -D warnings
+$ cargo clippy -p skein-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-revision
 Checking skein-forge-client v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.24s
-heavy: task 733 (build) exit 0, waited 1s, ran 1s
 ```
 
 The final sketch additionally names the borrowed write/Summary/Pull
 functions and the identity flag, then checks both crates' all-targets:
 
 ```text
-$ heavy cargo clippy -p skein-forge --all-targets -- -D warnings
+$ cargo clippy -p skein-forge --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-revision
 Checking skein-forge v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.04s
-heavy: task 734 (build) exit 0, waited 1s, ran 2s
 ```
 
 ```text
-$ heavy cargo clippy -p skein-forge-client --all-targets -- -D warnings
+$ cargo clippy -p skein-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-revision
 Checking skein-forge v0.0.0
 Checking skein-forge-client v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.72s
-heavy: task 733 (build) exit 0, waited 1s, ran 1s
 ```
 
 Each vocabulary width's assertion compiled. The client's const assertion
@@ -673,13 +651,13 @@ expected values in runtime tests.
 
 ### Fixture sizes after relocation
 
-The first fixture-count attempt passed a heredoc to `heavy -- python3 -`.
+The first fixture-count attempt passed a heredoc to `python3 -`.
 The queued process could not read that input and was terminated (exit 143,
 59 s, no output). Re-ran the same count with the program as a quoted `-c`
 argument; it completed. This is a planning count, not a prescribed proof.
 
 ```text
-$ heavy -- python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re
 p=Path("crates/temper-engine-domain-forge-client/src")
 for name in ["tests.rs","tests/keep.rs","tests/outbox.rs"]:
@@ -699,7 +677,6 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests.rs total 749 fixture 150 purpose 34 remaining 565
 tests/keep.rs total 784 fixture 209 purpose 0 remaining 575
 tests/outbox.rs total 719 fixture 201 purpose 0 remaining 518
-heavy: task 733 (build) exit 0, waited 1s, ran 0s
 ```
 
 The session rounds those remaining files to 570/580/520 with module imports;
@@ -831,12 +808,11 @@ per block. The unfiltered base run remains the move's baseline; scratch
 probes are audit evidence, not a claim that the 114 planned tests exist.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-domain-forge-client
+$ cargo nextest run -p temper-engine-domain-forge-client
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
 Starting 76 tests across 1 binary
 Summary [   0.023s] 76 tests run: 76 passed, 0 skipped
-heavy: task 734 (build) exit 0, waited 1s, ran 0s
 ```
 
 ```text
@@ -855,7 +831,7 @@ The issue probe used version 1, namespace bad, identity a, matching the
 entry's key and configured writer 1, against namespace test.
 
 ```text
-$ heavy cargo nextest run -p skein-forge-client -E 'test(rate_refused_writes_save_a_new_attempt) | test(issue_find_requires_a_believed_key_without_provenance)'
+$ cargo nextest run -p skein-forge-client -E 'test(rate_refused_writes_save_a_new_attempt) | test(issue_find_requires_a_believed_key_without_provenance)'
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-answers2
 Finished `test` profile [unoptimized + debuginfo] target(s) in 1.77s
 Starting 2 tests across 1 binary (76 tests skipped)
@@ -865,7 +841,6 @@ assertion `left == right` failed: a foreign namespace cannot settle
   left: 2
  right: 1
 Summary [   0.006s] 2 tests run: 1 passed, 1 failed, 76 skipped
-heavy: task 733 (build) exit 100, waited 0s, ran 2s
 ```
 
 Then applied the three historical-key checks and framed the existing
@@ -876,43 +851,40 @@ signature stub here: this run does not prove the echo alarm behavior.
 No other admission, attempt, withdrawal or restore production code changed.
 
 ```text
-$ heavy cargo nextest run -p skein-forge-client
+$ cargo nextest run -p skein-forge-client
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-answers2
 Finished `test` profile [unoptimized + debuginfo] target(s) in 1.83s
 Starting 78 tests across 1 binary
 PASS [   0.002s] tests::outbox::issue_find_requires_a_believed_key_without_provenance
 PASS [   0.003s] tests::outbox::rate_refused_writes_save_a_new_attempt
 Summary [   0.024s] 78 tests run: 78 passed, 0 skipped
-heavy: task 734 (build) exit 0, waited 0s, ran 2s
 ```
 
 The 78 are the base's 76 (including its two purpose tests), plus two audit
 probes. This is not the session's 74 moved + 40 new count.
 
 ```text
-$ heavy cargo clippy -p skein-forge-client --all-targets -- -D warnings
+$ cargo clippy -p skein-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-answers2
 Checking skein-lib v0.0.0
 Checking skein-forge-client v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.68s
-heavy: task 733 (build) exit 0, waited 1s, ran 2s
 ```
 
 Added the new recovery.rs reference test verbatim and compiled all targets
 again, checking its placement and access to super::LIMITS:
 
 ```text
-$ heavy cargo clippy -p skein-forge-client --all-targets -- -D warnings
+$ cargo clippy -p skein-forge-client --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-02-answers2
 Checking skein-forge-client v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.56s
-heavy: task 733 (build) exit 0, waited 0s, ran 2s
 ```
 
 ### Name and consumer verification
 
 ```text
-$ heavy rg -n 'fn (sent|listed|comments_found|reviews_found|withdraw|admission)|identity::writer|same_key\(|historical\(|restored once|restore before restored|one stored row|commit order|handed off once|exactly one terminal|Err\(error\) => Err\(error\)' crates/temper-engine-domain-forge-client/src/outbox.rs crates/temper-engine-domain-forge-client/src/keep.rs crates/temper-engine-domain-forge-client/src/calls.rs crates/temper-engine-domain-forge-client/src/identity.rs
+$ rg -n 'fn (sent|listed|comments_found|reviews_found|withdraw|admission)|identity::writer|same_key\(|historical\(|restored once|restore before restored|one stored row|commit order|handed off once|exactly one terminal|Err\(error\) => Err\(error\)' crates/temper-engine-domain-forge-client/src/outbox.rs crates/temper-engine-domain-forge-client/src/keep.rs crates/temper-engine-domain-forge-client/src/calls.rs crates/temper-engine-domain-forge-client/src/identity.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 identity.rs:161:pub(crate) fn historical(d: &Domain, key: &[u8]) -> bool {
 calls.rs:268:let id = d.calls.flights.remove(&token).expect("exactly one terminal per call token");
@@ -929,14 +901,13 @@ keep.rs:375:assert!(!d.keep.ready, "restore before restored");
 keep.rs:399:"one stored row per resource"
 keep.rs:403:assert!(!d.keep.ready, "restore before restored");
 keep.rs:411:"one stored row per repository"
-heavy: task 734 (build) exit 0, waited 0s, ran 0s
 ```
 
 The above excerpt omits the repeated crates/temper-engine-domain-forge-client/src/
 prefix and indentation for readability.
 
 ```text
-$ heavy rg -n 'key:|fn issue|fn post|namespace:' tests/engine/forge/client/tests/simulation.rs tests/engine/forge/client/tests/fuzzy_simulation.rs tests/engine/forge/client/src/world.rs
+$ rg -n 'key:|fn issue|fn post|namespace:' tests/engine/forge/client/tests/simulation.rs tests/engine/forge/client/tests/fuzzy_simulation.rs tests/engine/forge/client/src/world.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/forge/client/src/world.rs:712:            namespace: Box::from(&b"world"[..]),
 tests/engine/forge/client/tests/fuzzy_simulation.rs:18:                        key: Box::new([u8::try_from(entry).expect("world entry bound")]),
@@ -944,7 +915,6 @@ tests/engine/forge/client/tests/simulation.rs:3:fn issue(entry: u64) -> Entry {
 tests/engine/forge/client/tests/simulation.rs:10:                key: Box::from(&b"deployment:goal"[..]),
 tests/engine/forge/client/tests/simulation.rs:21:fn post(entry: u64, number: u64) -> Entry {
 tests/engine/forge/client/tests/simulation.rs:29:                key: Box::new([u8::try_from(entry).expect("test entry bound")]),
-heavy: task 734 (build) exit 0, waited 0s, ran 0s
 ```
 
 ### Counts, command coverage and cleanup
@@ -964,7 +934,7 @@ pending-designer marks. The final check below passed. Four increments:
 it is counted once, not in addition to its table row.
 
 ```text
-$ heavy -- python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re
 p=Path("docs/development/plans/forge-kit/skein/02-client.md")
 s=p.read_text()
@@ -993,7 +963,6 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-forge-kit
 02.4 87 lines; 24 new tests; Size: about 0 lines moved, 160 new; production only.
 400 lines; four increments; client totals 81/84/90/114; 12 dialect tests.
 Required fields, proof layers and counts pass; no pending-designer marks.
-heavy: task 733 (build) exit 0, waited 1s, ran 0s
 ```
 
 ```text
@@ -1090,8 +1059,8 @@ exit 0
 ```
 
 No Proof or Done-when command was added or changed, and no signature sketch
-changed. The recorded heavy base runs and scratch clippy checks above remain
-their evidence; no build, test, heavy command or scratch worktree was run or
+changed. The recorded base runs and scratch clippy checks above remain
+their evidence; no build, test, command or scratch worktree was run or
 created in this pass. A read-only Python document audit passed: 400 lines,
 four complete increments, layer-prefixed proofs, new test counts 7/15/6/24
 (12 of 02.2's 15 belong to the dialect), client totals 81/84/90/114,

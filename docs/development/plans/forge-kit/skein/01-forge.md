@@ -61,8 +61,8 @@ fn locate_bytes_counts_owner_and_name() {
     assert_eq!(crate::locate::bytes(b"ab", b"cde"), Some(5));
 }
 ```
-Proof: unit; `heavy cargo nextest run -p skein-forge` passes 2 tests, <1 s;
-  base form `heavy cargo nextest run -p temper-engine-domain-forge-client`
+Proof: unit; `cargo nextest run -p skein-forge` passes 2 tests, <1 s;
+  base form `cargo nextest run -p temper-engine-domain-forge-client`
   passes 76 in 0.084 s. No caller yet; temper 01.1 connects it, skein 02.1 brings the client.
 Don't: move api::accepts, copy the client Harness, change the byte measure,
   or add an alias at the old path. Question 14's measure belongs to skein 02.2.
@@ -85,8 +85,8 @@ Shape: change crate-root paths to crate::forgejo; preserve module/file names,
 Test shape: all 84 tests move, names unchanged: tests root 37, accounts 9,
   delivery 15, hooks 7, orgs 7, pin 4, tokens 5, at the base. No new tests.
   Their current 0.001–0.008 s per-test times keep the <20 ms ceiling.
-Proof: unit; `heavy cargo nextest run -p skein-forge` passes 86 tests, <1 s;
-  base form `heavy cargo nextest run -p temper-forge-forgejo` passes 84 in 0.048 s.
+Proof: unit; `cargo nextest run -p skein-forge` passes 86 tests, <1 s;
+  base form `cargo nextest run -p temper-forge-forgejo` passes 84 in 0.048 s.
   No caller yet; temper 01.2 connects its component; skein 06.3 adds transcripts.
 Don't: rewrite a moved decoder, split files for neatness, change goldens
   except owner bytes, or bring the HTTP host into the dialect.
@@ -176,8 +176,8 @@ Test shape: 4 moved tests, unchanged names: a_marker_round_trips_its_key_and_kee
   a_full_user_table_keeps_the_most_recent_login_and_replaces_in_place (0.003 s).
   Adapt word arguments and literal marker lengths only; no new tests here.
   The 68 tests::reads/writes/contents and the page-size test remain for 03.1.
-Proof: unit; `heavy cargo nextest run -p skein-forge` passes 90 tests, <1 s;
-  base form `heavy cargo nextest run -p temper-engine-protocol-forge` passes 117 in 0.131 s.
+Proof: unit; `cargo nextest run -p skein-forge` passes 90 tests, <1 s;
+  base form `cargo nextest run -p temper-engine-protocol-forge` passes 117 in 0.131 s.
   No connected component yet; temper 01.3 connects it, skein 03.1 brings its tests.
 Don't: move conventions, Limits/Shared, cost counters or Component, or fix
   skein 10's behaviours here. Keep all plan size_of uses unchanged: reads.rs's
@@ -276,8 +276,8 @@ fn zero_page_cap_is_unanswered() {
     assert_eq!(ended, Some(start::Step::Done(start::Heard::Unanswered)));
 }
 ```
-Proof: unit; `heavy cargo nextest run -p skein-forge` passes 99 tests, <1 s;
-  base protocol suite as in 01.3; `heavy cargo clippy -p skein-forge --all-targets -- -D warnings`
+Proof: unit; `cargo nextest run -p skein-forge` passes 99 tests, <1 s;
+  base protocol suite as in 01.3; `cargo clippy -p skein-forge --all-targets -- -D warnings`
   compiles the sketch. No connected start yet: temper 01.4 is its first user.
 Don't: implement App credentials, renewal, a clock, a timer or TLS;
   change another user's start verdict; log a rendered header.
@@ -286,9 +286,9 @@ Removes: nothing; temper 01.4 removes its start mapping and Host helper.
 
 ## Done when
 
-- `heavy cargo nextest run -p skein-forge` prints 99 passed, 0 failed after
+- `cargo nextest run -p skein-forge` prints 99 passed, 0 failed after
   01.4; skein 06.3 and 10 add theirs later; <1 s here.
-- `heavy cargo clippy -p skein-forge --all-targets -- -D warnings` exits 0,
+- `cargo clippy -p skein-forge --all-targets -- -D warnings` exits 0,
   prints Finished and no warning (base equivalent: the three source crates).
-- `heavy rg -n -i temper crates/skein-forge` prints nothing (exit 1); the
+- `rg -n -i temper crates/skein-forge` prints nothing (exit 1); the
   source-form run and owner-literal locations are in findings/base-skein-01.md.

@@ -1,7 +1,7 @@
 # Base evidence: skein 03, forge connection
 
 2026-10-19. temper `27995fb75`; skein `d120820`. Commands below ran
-through heavy in the named base worktree; scratch-only changes are described
+through in the named base worktree; scratch-only changes are described
 separately. The session copies origin/main at execution time, not this base.
 
 ## Discovery and additional dependencies
@@ -39,15 +39,14 @@ This is a source partition, not a test filter in the resulting crate.
 ## Lists at the base
 
 The JSON output is summarized by module/binary below (no test was filtered out
-of its assigned profile). The raw output is retained in heavy's log.
+of its assigned profile). The raw output is retained in the test log.
 
 ```text
-$ heavy cargo nextest list -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world --message-format json
+$ cargo nextest list -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world --message-format json
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
 Component: root=17, connection=20, hooks=12, reads=27, writes=18, contents=23; total=117
 World default: machine=14, hooks=19, fake_protocol=5, protocol=9; total=47
-heavy: task 735 (build) exit 0, waited 2s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T003855-735.log
 ```
 
@@ -55,10 +54,9 @@ This is the base form of listing skein-forge-connection and
 skein-forge-machine-world; the latter keeps only 32 machine/listener tests; the joint story stays for 07.3.
 
 ```text
-$ heavy cargo nextest list -p temper-engine-protocol-forge-world --profile fuzzy --message-format json
+$ cargo nextest list -p temper-engine-protocol-forge-world --profile fuzzy --message-format json
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 World fuzzy: fuzzy_machine=4, fuzzy_hooks=1, fuzzy_protocol=1; total=6
-heavy: task 738 (build) exit 0, waited 86s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T004127-738.log
 ```
 
@@ -69,23 +67,21 @@ At 03.1 it must retain 117 tests and add 2; 03.2 adds 6, 03.3 adds 6:
 119/125/131. New behavior is not claimed tested at this base.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge
+$ cargo nextest run -p temper-engine-protocol-forge
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
      Summary [   0.082s] 117 tests run: 117 passed, 0 skipped
-heavy: task 734 (build) exit 0, waited 1s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T003854-734.log
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world
+$ cargo nextest run -p temper-engine-protocol-forge-world
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
      Summary [   0.147s] 47 tests run: 47 passed, 0 skipped
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T003854-733.log
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy
+$ cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
         PASS [   0.317s] (1/6) temper-engine-protocol-forge-world::fuzzy_protocol stories_through_cut_streams_answer_each_call_once
@@ -95,7 +91,6 @@ Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
         PASS [   2.525s] (5/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once
         PASS [   2.574s] (6/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_2
      Summary [   2.575s] 6 tests run: 6 passed, 0 skipped
-heavy: task 736 (build) exit 0, waited 2s, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T003855-736.log
 ```
 
 The full-world runs preserve the prompt's base commands. The next two are
@@ -105,15 +100,14 @@ still includes the joint story discovered in the final read, so a subsequent
 command runs 32 focused/5 fuzzy tests; 03.5 adds 4 focused/2 fuzzy tests.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test machine --test hooks
+$ cargo nextest run -p temper-engine-protocol-forge-world --test machine --test hooks
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
      Summary [   0.118s] 33 tests run: 33 passed, 0 skipped
-heavy: task 739 (build) exit 0, waited 87s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T004128-739.log
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy --test fuzzy_machine --test fuzzy_hooks
+$ cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy --test fuzzy_machine --test fuzzy_hooks
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
         PASS [   0.372s] (1/5) temper-engine-protocol-forge-world::fuzzy_hooks a_delivery_split_at_every_point_is_answered_alike
@@ -122,7 +116,6 @@ Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
         PASS [   4.960s] (4/5) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_1
         PASS [   5.166s] (5/5) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once
      Summary [   5.167s] 5 tests run: 5 passed, 0 skipped
-heavy: task 740 (build) exit 0, waited 87s, ran 6s, log /srv/data/git/runner/src/tmp/logs/20261019T004128-740.log
 ```
 
 ### Moved module times
@@ -172,10 +165,9 @@ by its owner before landing the plan.
 Base form of the session's two-package clippy command:
 
 ```text
-$ heavy cargo clippy -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-protocol-forge -p temper-engine-protocol-forge-world --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.84s
-heavy: task 767 (build) exit 0, waited 430s, ran 16s, log /srv/data/git/runner/src/tmp/logs/20261019T004930-767.log
 ```
 
 Base form of the final no-service-name scan. Matches are expected at the
@@ -184,14 +176,13 @@ status 1. This base run is evidence of work to do, not a passing neutrality
 check. There were 195 matching source/manifest lines.
 
 ```text
-$ heavy rg -n -i temper crates/temper-engine-protocol-forge tests/engine/protocol-forge
+$ rg -n -i temper crates/temper-engine-protocol-forge tests/engine/protocol-forge
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/protocol-forge/tests/protocol.rs:2:use temper_engine_domain_forge as top;
 tests/engine/protocol-forge/tests/protocol.rs:3:use temper_engine_domain_forge_change as change;
 tests/engine/protocol-forge/tests/protocol.rs:4:use temper_engine_domain_forge_client as client;
 tests/engine/protocol-forge/tests/protocol.rs:5:use temper_engine_domain_forge_issues as issues;
 [remaining matches omitted]
-heavy: task 768 (build) exit 0, waited 433s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T004933-768.log
 ```
 
 ## Compiled interface sketch
@@ -217,20 +208,18 @@ explicitly. The correction added only the scratch crate's member entry in
 that worktree, then reran the same command.
 
 ```text
-$ heavy cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-03
 error: package ID specification `forge-connection-sketch` did not match any packages
-heavy: task 755 (build) exit 101, waited 70s, ran 0s
 ```
 
 Corrected run, with all declarations included:
 
 ```text
-$ heavy cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-03
 Checking forge-connection-sketch v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-03/crates/forge-connection-sketch)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.98s
-heavy: task 784 (build) exit 0, waited 417s, ran 6s, log /srv/data/git/runner/src/tmp/logs/20261019T005007-784.log
 ```
 
 The scratch worktree was removed after that pass:
@@ -248,12 +237,11 @@ Joint story that 07.3 keeps. The moved crate itself has no filter or ignored
 test. This supersedes the first file-level count, preserving that run as evidence.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test machine --test hooks -E 'not test(=a_domain_push_reaches_the_component_as_a_signed_delivery_and_a_hint)'
+$ cargo nextest run -p temper-engine-protocol-forge-world --test machine --test hooks -E 'not test(=a_domain_push_reaches_the_component_as_a_signed_delivery_and_a_hint)'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
     Starting 32 tests across 2 binaries (1 test skipped)
      Summary [   0.082s] 32 tests run: 32 passed, 1 skipped
-heavy: task 805 (build) exit 0, waited 63s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005118-805.log
 ```
 
 | Exact moved module | Count | Sum | Maximum |
@@ -269,7 +257,7 @@ and conventions searches identify the actual consumers. All five repositories
 were searched. Generated/retired temper.old sources are excluded. Generic
 name scans deliberately include other code so a copy is not missed.
 
-The initial `heavy python3 -` heredoc submissions were unusable: queued jobs
+The initial `python3 -` heredoc submissions were unusable: queued jobs
 do not receive the caller's stdin. The running count job was stopped and its
 queued counterpart removed, then both scripts were resubmitted with `-c`.
 No result from those stdin-based submissions is used as count evidence.
@@ -289,7 +277,7 @@ Tasks removed from list: 764
 The corrected command (output table below regroups its lines):
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess
 root=Path('\''/srv/data/git/runner/src'\'')
 repos=[root/'\''tmp/planning/temper-base'\'',root/'\''tmp/planning/skein-base'\'',root/'\''jig'\'',root/'\''smith'\'',root/'\''hearth'\'']
@@ -300,7 +288,6 @@ for pat in patterns:
   p=subprocess.run(['\''rg'\'','\''-n'\'','\''--glob'\'','\''*.rs'\'','\''--glob'\'','\''!**/temper.old/**'\'',pat,str(repo)],capture_output=True,text=True)
   lines=p.stdout.splitlines(); print(repo.name, len(lines),'\''lines'\'',len({l.split('\'':'\'')[0] for l in lines}),'\''files'\'', '\''exit'\'',p.returncode)'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: task 800 (build) exit 0, waited 134s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T005113-800.log
 ```
 
 | Pattern | temper lines/files | skein lines/files | jig lines/files | smith lines/files | hearth lines/files |
@@ -323,7 +310,7 @@ The four test files total 539 lines; leaving the 14-line Joint story for
 07.3 gives about 525 moved test lines. All counts precede rename edits.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess, collections
 root=Path('\''/srv/data/git/runner/src'\''); base=root/'\''tmp/planning/temper-base'\''
 k=base/'\''crates/temper-engine-protocol-forge/src'\''; w=base/'\''tests/engine/protocol-forge'\''
@@ -346,7 +333,6 @@ component production: 3021 lines; lib.rs=28, component.rs=581, calls.rs=322, con
 component tests: 3178 lines; tests.rs=355, connection.rs=370, contents.rs=708, fixtures.rs=501, hooks.rs=135, reads.rs=658, writes.rs=451
 world support: 728 lines; machine.rs=320, hooks.rs=243, peer.rs=35, pipe.rs=130
 world tests: 539 lines; machine.rs=262, hooks.rs=215, fuzzy_machine.rs=43, fuzzy_hooks.rs=19
-heavy: task 801 (build) exit 0, waited 134s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T005114-801.log
 ```
 
 ### Alias imports and affected owners
@@ -360,7 +346,7 @@ imports/deletion. None of jig/smith/hearth names this component. Skein's four
 USER_AGENT lines are unrelated HTTP-request tests and stay untouched.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import subprocess,collections
 root=Path("/srv/data/git/runner/src")
 for repo in [root/"tmp/planning/temper-base",root/"tmp/planning/skein-base",root/"jig",root/"smith",root/"hearth"]:
@@ -377,7 +363,6 @@ skein-base 4 lines 2 files
 jig 0 lines 0 files
 smith 0 lines 0 files
 hearth 0 lines 0 files
-heavy: task 787 (build) exit 0, waited 2s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005205-787.log
 ```
 
 All terminal commands used for proofs, lists, counts and lint are recorded
@@ -480,20 +465,18 @@ the future paths and real upstream interfaces after their prerequisites.
 The new behavior and 127-test target are not claimed proved by a base run.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge
+$ cargo nextest run -p temper-engine-protocol-forge
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
 Starting 117 tests across 1 binary
 Summary [   0.073s] 117 tests run: 117 passed, 0 skipped
-heavy: task 733 (build) exit 0, waited 0s, ran 1s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T010856-733.log
 ```
 
 ```text
-$ heavy cargo clippy -p temper-engine-protocol-forge --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-protocol-forge --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
-heavy: task 734 (build) exit 0, waited 0s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T010742-734.log
 ```
 
@@ -502,22 +485,21 @@ exit 0 here means matches, not neutrality. At the skein destination its
 required result is no output, rg exit 1.
 
 ```text
-$ heavy rg -n -i temper crates/temper-engine-protocol-forge
+$ rg -n -i temper crates/temper-engine-protocol-forge
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-engine-protocol-forge/Cargo.toml:2:name = "temper-engine-protocol-forge"
 crates/temper-engine-protocol-forge/Cargo.toml:16:temper-forge-forgejo.workspace = true
 crates/temper-engine-protocol-forge/Cargo.toml:17:temper-engine-domain-forge-client.workspace = true
-[remaining matches omitted; complete output is in heavy's log]
-heavy: task 733 (build) exit 0, waited 0s, ran 0s
+[remaining matches omitted; complete output is in the test log]
 Log: /srv/data/git/runner/src/tmp/logs/20261019T010742-733.log
 ```
 
-The following count and consumer search also ran through heavy. Row values
+The following count and consumer search also ran directly. Row values
 are arithmetic from the settled design and adapted fixture, not execution
 of the not-yet-landed measure. Its output is summarized after the command.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess
 root=Path("/srv/data/git/runner/src/tmp/planning/temper-base")
 d=root/"crates/temper-engine-protocol-forge/src"
@@ -542,7 +524,6 @@ Consumer hits: service forge 56/61/84/206/281; binary forge 258/259
 Runtime fixtures: service 763; one-process 243; conformance 124
 Different configuration enum: system composed link 34
 Component fixture: body_bytes 16; shared 46; plaintext 98
-heavy: task 734 (build) exit 0, waited 1s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T010858-734.log
 ```
 
@@ -567,12 +548,11 @@ HEAD is now at d9f3e39 Answer the forge kit planner's shape questions
 ```
 
 ```text
-$ heavy cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-03-revision
 Checking skein-forge v0.0.0 (scratch-only credential declaration)
 Checking forge-connection-sketch v0.0.0 (scratch-only changed declarations)
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.01s
-heavy: task 733 (build) exit 0, waited 1s, ran 4s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T010822-733.log
 ```
 
@@ -590,7 +570,7 @@ exit 0; no output
 ### Final document verification
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re
 root=Path("/srv/data/git/runner/src/tmp/planning/temper-forge-kit")
 p=root/"docs/development/plans/forge-kit/skein/03-connection.md"
@@ -618,7 +598,6 @@ Directory: /srv/data/git/runner/src/tmp/planning/temper-forge-kit
 Session: 308 lines; 3 increments; all fields and 115/121/127 counts present
 No stale host field, credential::Kind or 03.4/03.5; whitespace clean; scratch absent
 Pending behavior remains Design questions 2, 3 and 6; future package checked when ready
-heavy: task 734 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011338-734.log
 ```
 
 ```text
@@ -724,40 +703,36 @@ These runs do not claim to prove the planned 127 tests or their new behavior.
 The 0.084 s component result is a rerun, not a replacement baseline.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge
+$ cargo nextest run -p temper-engine-protocol-forge
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished test profile [unoptimized + debuginfo] in 0.14s
 Starting 117 tests across 1 binary
 Summary [0.084s] 117 tests run: 117 passed, 0 skipped
-heavy: task 733 (build) exit 0, waited 1s, ran 1s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T011706-733.log
 ```
 
 ```text
-$ heavy cargo clippy -p temper-engine-protocol-forge --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-protocol-forge --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished dev profile [unoptimized + debuginfo] in 0.21s
-heavy: task 734 (build) exit 0, waited 1s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T011706-734.log
 ```
 
 ```text
-$ heavy cargo nextest run -p skein-http -E 'test(=tests::server::head::every_rejection_s_answer_fits_the_room_set_aside_and_names_its_status)'
+$ cargo nextest run -p skein-http -E 'test(=tests::server::head::every_rejection_s_answer_fits_the_room_set_aside_and_names_its_status)'
 Directory: /srv/data/git/runner/src/tmp/planning/skein-base
 Starting 1 test across 1 binary (184 tests skipped)
 PASS [0.001s] every_rejection_s_answer_fits_the_room_set_aside_and_names_its_status
 Summary [0.002s] 1 test run: 1 passed, 184 skipped
-heavy: task 735 (build) exit 0, waited 2s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T011707-735.log
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test hooks -E 'test(=a_malformed_head_is_answered_4xx_and_closed)'
+$ cargo nextest run -p temper-engine-protocol-forge-world --test hooks -E 'test(=a_malformed_head_is_answered_4xx_and_closed)'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Starting 1 test across 1 binary (18 tests skipped)
 PASS [0.002s] a_malformed_head_is_answered_4xx_and_closed
 Summary [0.002s] 1 test run: 1 passed, 18 skipped
-heavy: task 736 (build) exit 0, waited 2s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T011941-736.log
 ```
 
@@ -767,7 +742,7 @@ remain those inventoried in the preceding revision; no new downstream API
 variant is introduced by this pass. Output below summarizes the long rg lines.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess
 root=Path("/srv/data/git/runner/src")
 base=root/"tmp/planning/temper-base"
@@ -791,18 +766,16 @@ hooks.rs: OWNER 1<<59; next OWNER+1; guard <1<<60
 hooks/connection.rs: absent event -> None; Refused -> closing; is_ascii_hexdigit
 temper-base 37 consumer files; skein-base 0; jig 0; smith 0
 new names per increment: 2 + 6 + 6; inherited 117 - 4 = 113; totals 115/121/127
-heavy: task 734 (build) exit 0, waited 1s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T011940-734.log
 ```
 
 ```text
-$ heavy rg -n -i temper crates/temper-engine-protocol-forge
+$ rg -n -i temper crates/temper-engine-protocol-forge
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Cargo.toml:2:name = "temper-engine-protocol-forge"
 Cargo.toml:16:temper-forge-forgejo.workspace = true
 Cargo.toml:17:temper-engine-domain-forge-client.workspace = true
 [other matches omitted; base matches are expected, not a passed neutrality check]
-heavy: task 735 (build) exit 0, waited 1s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T011940-735.log
 ```
 
@@ -825,24 +798,22 @@ HEAD is now at 8938e16 Answer the forge kit planner's other questions
 ```
 
 ```text
-$ heavy cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-03-answers-2
 error: type does not implement core::fmt::Debug
 skein-forge/src/lib.rs: Credential
 requested on the command line with -D missing-debug-implementations
-heavy: task 733 (build) exit 101, waited 0s, ran 1s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T011911-733.log
 ```
 
 After adding the derives:
 
 ```text
-$ heavy cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-03-answers-2
 Checking skein-forge v0.0.0
 Checking forge-connection-sketch v0.0.0
 Finished dev profile [unoptimized + debuginfo] in 0.24s
-heavy: task 733 (build) exit 0, waited 1s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T011954-733.log
 ```
 
@@ -872,7 +843,7 @@ or landing ran, and only this session file and its appended findings remain
 changed by this task.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re
 root=Path("/srv/data/git/runner/src/tmp/planning/temper-forge-kit")
 p=root/"docs/development/plans/forge-kit/skein/03-connection.md"
@@ -903,7 +874,6 @@ Session: 365 lines; 3 increments; new production sizes 240/110/60
 Six named 03.2 tests; 113 inherited + 2 + 6 + 6 = 127; proofs 115/121/127
 No pending marks, Host field or answer-2 variants; all required fields present
 Whitespace clean; scratch absent
-heavy: task 733 (build) exit 0, waited 1s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T012236-733.log
 ```
 
@@ -983,23 +953,21 @@ HEAD is now at 25d2551 Have the forge component count a call's cost
 ```
 
 ```text
-$ heavy cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
+$ cargo clippy -p forge-connection-sketch --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-03-recheck
 Checking skein-lib v0.0.0
 Checking skein-io v0.0.0
 Checking forge-connection-sketch v0.0.0
 Finished dev profile [unoptimized + debuginfo] in 0.73s
-heavy: task 751 (build) exit 0, waited 1s, ran 1s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T013323-751.log
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge
+$ cargo nextest run -p temper-engine-protocol-forge
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished test profile [unoptimized + debuginfo] in 0.15s
 Starting 117 tests across 1 binary
 Summary [0.119s] 117 tests run: 117 passed, 0 skipped
-heavy: task 752 (build) exit 0, waited 2s, ran 0s
 Log: /srv/data/git/runner/src/tmp/logs/20261019T013324-752.log
 ```
 
@@ -1025,7 +993,7 @@ The source/count audit uses rg for every added existing name and confirms
 that the new helpers/test have no component definitions at the base.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess
 root=Path("/srv/data/git/runner/src/tmp/planning")
 base=root/"temper-base/crates/temper-engine-protocol-forge/src"
@@ -1057,7 +1025,6 @@ temper-base/crates/temper-engine-protocol-forge/src/start.rs : 36:pub fn heard(s
 skein-base/crates/skein-http/src/tests/server/head.rs : 320:fn every_rejection_s_answer_fits_the_room_set_aside_and_names_its_status() {
 hook, signed_head and Host wiring test are new component names
 Plan totals: 112 + 3 = 115; + 6 = 121; + 6 = 127
-heavy: task 740 (build) exit 0, waited 271s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T013857-740.log
 ```
 
 ### Third revision document check
@@ -1068,7 +1035,7 @@ crate, and all of their base forms were run in earlier evidence above.
 No review item or design answer remains unsettled in this session.
 
 ```text
-$ heavy python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re
 root=Path("/srv/data/git/runner/src/tmp/planning")
 p=root/"temper-forge-kit/docs/development/plans/forge-kit/skein/03-connection.md"
@@ -1101,7 +1068,6 @@ Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Session: 380 lines; increments 03.1–03.3; production new sizes 240/110/60
 112 inherited + 15 new (3+6+6) = 127; Proof totals 115/121/127
 All six corrections and earlier required fixes present; whitespace clean; scratch absent
-heavy: task 741 (build) exit 0, waited 189s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T013858-741.log
 ```
 
 ```text

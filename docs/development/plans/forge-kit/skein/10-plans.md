@@ -118,7 +118,7 @@ fn long_body_revision_has_big_endian_golden() {
         Some(skein_lib::Wall::from_nanos(3))), 0x46c3_95ed_52b0_b56f);
 }
 ```
-Proof: unit; `heavy cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
+Proof: unit; `cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
   passes 8 tests, <1 s; no connected component yet (skein 03.1 brings component tests).
 Don't: change a production file, give Run a cost field, a Component, a socket or a clock,
   rewrite a decoder, change a measurement (skein 02.2, 03.3), verify a signature, or put a
@@ -165,7 +165,7 @@ fn pull_files_stops_at_a_stale_head() {
     assert_eq!(run.sent(), ["GET /api/v1/repos/fixture/specimen/pulls/1"]);
 }
 ```
-Proof: unit; `heavy cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
+Proof: unit; `cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
   passes 17 tests, <1 s; no connected component yet (skein 03.1 connects it); base form is the failure and write tests of findings/base-skein-01.md.
 Don't: change a status, a refusal or a drop, reorder the reviewers, count cost in Run, or
   test through a Component (the 68 component tests are skein 03.1's).
@@ -211,7 +211,7 @@ fn another_word_has_no_key() {
     assert_eq!(crate::marker::decode(b"kit", b"<!-- other:key ab -->\n"), None);
 }
 ```
-Proof: unit; `heavy cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
+Proof: unit; `cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
   passes 30 tests, <1 s; no connected component yet (skein 03.1 connects it); base forms are the hint, marker and writes tests of
   findings/base-skein-01.md. A 2xx that fails here is a plan defect: stop, do not edit it.
 Don't: change a status table, a marker or a hint; touch `classify`'s generic 429; add a
@@ -263,7 +263,7 @@ Test shape: 11 new tests in edges.rs, each <20 ms, each a Run on its call:
   `repository_id_mismatch_is_invalid_answer`: asked 7, answered 8 at resolve and at
   Settings -> InvalidAnswer, no row and no owner in the tables; a write -> Timeout (OpenPull
   before its POST -> Unavailable); Locate -> Located 8.
-Proof: unit; `heavy cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
+Proof: unit; `cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
   passes 41 tests, <1 s; no connected component yet (skein 03.1 connects it); the 30 of 10.1 to 10.3 pass unedited.
 Don't: change skein 02.2's admission, the generic 429, a decoder or a limit; cut a PullFiles or
   Compare side; make Locate check its id; fold the three changes into one commit.
@@ -309,9 +309,9 @@ Test shape: 7 new tests in edges.rs, each <20 ms; no machine test is added or re
   InvalidAnswer;
   `pull_files_without_has_more_is_more_only_when_full`: page size 2, 1 and 2 rows with no
   X-HasMore -> more false and true; an explicit false with 2 rows -> false.
-Proof: unit; `heavy cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
+Proof: unit; `cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'`
   passes 48 tests, <1 s; no connected component yet in skein-forge itself;
-  world; `heavy cargo nextest run -p skein-forge-machine-world` passes the count it had at
+  world; `cargo nextest run -p skein-forge-machine-world` passes the count it had at
   the step's start, each <0.5 s: 33 after skein 08.1, then 38, 40 and 41 after 08.2 to
   08.4 before08.s1 (none added or removed here); include08.s1’s relative+2 once landed. Final machine count43 retains the same scenarios. Only that world scripts an Items head without a Date.
 Don't: put a Date in `response`; add one to the fake's Reply; touch a terminal 404's drop;
@@ -324,10 +324,10 @@ Removes: the differing 404, Date and header behaviours; the undated scripted hea
 
 After skein10.s2, final calls/edges coverage adds its two independent contract tests to the parent-session total (48+2 after10.5). The historical10.1–10.5 Proof counts stay8/17/30/41/48; when a later increment starts after the supplement, include its +2 in the runtime count. Preserve every assertion in findings/plan-shapes.md. The subscription literal has22 names; the landed delivery table has15 rows over13 distinct headers, whose coverage10.s2 preserves without claiming22 mapping rows.
 
-- `heavy cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'` prints the parent-session48 plus skein10.s2’s2
+- `cargo nextest run -p skein-forge -E 'test(/plans::tests::(calls|edges)::/)'` prints the parent-session48 plus skein10.s2’s2
   passed, 0 failed, <1 s in all; each test <20 ms.
-- `heavy cargo nextest run -p skein-forge-machine-world` prints the count skein 08 has
+- `cargo nextest run -p skein-forge-machine-world` prints the count skein 08 has
   reached passed (33 after08.1;43 after08.4 and08.s1, originally41 before the split), 0 failed, each <0.5 s.
-- `heavy cargo clippy -p skein-forge --all-targets -- -D warnings` exits 0, prints Finished
+- `cargo clippy -p skein-forge --all-targets -- -D warnings` exits 0, prints Finished
   and no warning.
-- `heavy rg -n -i temper crates/skein-forge tests/forge/machine` prints nothing (exit 1).
+- `rg -n -i temper crates/skein-forge tests/forge/machine` prints nothing (exit 1).

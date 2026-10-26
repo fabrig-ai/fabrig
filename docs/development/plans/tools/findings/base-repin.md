@@ -45,15 +45,15 @@ Three configurations were measured:
 
 ## Commands
 
-All cargo runs went through `heavy` (build lane), per development.md sections 5.7 and 11.1.
+All cargo runs went (build lane), per development.md sections 5.7 and 11.1.
 
 ```
 $ git -C ~/src/rust/skein fetch
 $ git -C ~/src/rust/jig worktree add --detach <scratch>/base-jig origin/main      # same for temper
-$ heavy cargo update -p skein-io          # in each worktree: moves the whole skein git source
-$ heavy cargo update -p smith-domain      # config B: moves the whole smith git source
-$ heavy cargo check --workspace --all-targets --message-format=short              # first run, jig: stops at jig-protocol-store
-$ heavy cargo check --workspace --all-targets --keep-going --message-format=short # every run after
+$ cargo update -p skein-io          # in each worktree: moves the whole skein git source
+$ cargo update -p smith-domain      # config B: moves the whole smith git source
+$ cargo check --workspace --all-targets --message-format=short              # first run, jig: stops at jig-protocol-store
+$ cargo check --workspace --all-targets --keep-going --message-format=short # every run after
 ```
 
 `--keep-going` was needed: without it cargo stops at the first failing crate. Even with it, a failing crate hides its dependents' errors, so the real total only shows after the earlier layers are fixed. Each layer below was revealed by stubbing the previous layer's errors with the smallest edit that compiles (probe edits, in the scratch worktrees only), and re-running until `cargo check --workspace --all-targets` finished clean. Probes were compile-only: no clippy, no `fmt`, no tests, no wasm32 target run.

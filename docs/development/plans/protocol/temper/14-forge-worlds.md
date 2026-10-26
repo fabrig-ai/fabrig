@@ -312,7 +312,7 @@ fn a_refused_start_check_stops_the_engine_naming_the_forge() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/forge::/)'`, run once: a refused token stops the engine naming
 forge 1, a call reaches the root once, an answer the root refused is
 offered again and one returned in the drain is not, and disagreeing
@@ -411,7 +411,7 @@ fn a_failing_ci_status_links_its_run_number_and_job_index() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-fake-forge-domain -p
+Proof: unit, `cargo nextest run -p temper-fake-forge-domain -p
 temper-engine-forge-client-world -p temper-engine-forge-world`, run
 once: a failing CI status links its run's number and its job's index,
 a run and its jobs are found as Forgejo's routes find them, a log is read
@@ -568,7 +568,7 @@ fn the_component_starts_and_lists_items_through_the_fakes_bytes() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-fake-forge-protocol -p
+Proof: world, `cargo nextest run -p temper-fake-forge-protocol -p
 temper-engine-protocol-forge-world -E 'binary(fake_protocol) |
 package(temper-fake-forge-protocol)'`, run once: the component starts
 against the fake's bytes and lists an issue the fake holds, an unknown
@@ -665,8 +665,8 @@ fn stories_through_cut_streams_answer_each_call_once() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-engine-protocol-forge-world`
-and `heavy cargo nextest run -p temper-engine-protocol-forge-world
+Proof: world, `cargo nextest run -p temper-engine-protocol-forge-world`
+and `cargo nextest run -p temper-engine-protocol-forge-world
 --profile fuzzy -E 'binary(fuzzy_protocol)'`, each run once: the forge
 connector world's six stories end as they end in the direct world, the
 idle cost does not follow history, each request the fake served is in
@@ -756,7 +756,7 @@ Proof: process (a real Forgejo), after `sha256sum -c` in both of the
 README's directories prints `OK`:
 `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v12.13.2/forgejo-runner-12.13.2-linux-amd64
-heavy --gate cargo run -p forgejo-conformance -- --component --scratch
+cargo run -p forgejo-conformance -- --component --scratch
 target/forgejo-conformance --out tools/forgejo-conformance`, run once:
 exit 0, and `grep -cE '^(holds|fails|unchecked) component-'
 tools/forgejo-conformance/facts.txt` prints 39; under 3 minutes. Each
@@ -1377,10 +1377,10 @@ pub fn replace_block(text: &str, prefix: &str, facts: &[Fact]) -> String;
 
 ## Done when
 
-- The session's crates and worlds pass: `heavy cargo nextest run -p
+- The session's crates and worlds pass: `cargo nextest run -p
   temper-service -p temper-fake-forge-domain -p temper-fake-forge-protocol
   -p temper-engine-protocol-forge-world -p temper-engine-forge-world -p
-  temper-engine-forge-client-world` passes, and `heavy cargo nextest
+  temper-engine-forge-client-world` passes, and `cargo nextest
   run -p temper-engine-protocol-forge-world --profile fuzzy -E
   'binary(/^fuzzy_/)'` passes.
 - The routing answers no forge call itself: `git grep -nE
@@ -1389,7 +1389,7 @@ pub fn replace_block(text: &str, prefix: &str, facts: &[Fact]) -> String;
 - The component's facts are recorded: `grep -cE '^(holds|fails|unchecked)
   component-' tools/forgejo-conformance/facts.txt` prints 39, and each
   `fails` line among them is named in a ruling of `decisions.md`.
-- The world keeps its share: `heavy --gate cargo nextest run -p
+- The world keeps its share: `cargo nextest run -p
   temper-engine-protocol-forge-world --profile measure -j 1 -E 'not
   binary(/^fuzzy_/)'`, then `awk -F'[][]' '/PASS \[/ {s += $2} END
   {printf "%.1f\n", s}' <its log>`, prints at most 1.0; the same with

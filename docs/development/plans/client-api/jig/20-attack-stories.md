@@ -103,7 +103,7 @@ skein's stories for a browser shell that one person plays
 
 ## Rules that bind it
 
-- **A browser story's Proof is `land`'s gate:** the implementer runs no
+- **A browser story's Proof is the gate:** the author runs no
   gate of its own for it, and runs a failing story alone as the README's
   "One test of the browser suite" says, under that section's rule.
 - **The browser suite's budget, 60 s, is a rule** (`browser.md`, 15; the
@@ -160,7 +160,7 @@ symbol.
   when"; jig names temper nowhere. The reload order of 20.2 passed in
   real Chromium. Not checked: the wire's, inbox rows' and printed
   link's formats, 20.5's "application failed" words, and 20.1's
-  `Step::Reopen` against skein's `Step`; an implementer who finds one
+  `Step::Reopen` against skein's `Step`; an author who finds one
   off names it in its report.
 
 ## Increments
@@ -200,7 +200,7 @@ Tests: `jig_s_spent_link_story_holds_for_jig_test` (about 3 s); unit
 tests of the kit's script, each under 20 ms, in
 `testing/jig-client-fake-person-browser/src/tests.rs`:
 `the_spent_link_story_reopens_after_seeing_live`.
-Proof: `land`'s gate runs the story: the reference UI shows its sign-in
+Proof: the gate runs the story: the reference UI shows its sign-in
 page after the spent secret is refused.
 Don't: give the kit a type of `jig-test`'s or of the test view's (it is
 an application's tier's kit); open a URL the story makes up.
@@ -255,7 +255,7 @@ Test shape: three stories in `browser_jig_stories.rs`, each about 4 s:
 `jig_s_pending_request_story_holds_for_jig_test`,
 `jig_s_no_warning_story_holds_for_jig_test`,
 `jig_s_restart_story_holds_for_jig_test`.
-Proof: `land`'s gate runs the three; the once of the made request is the
+Proof: the gate runs the three; the once of the made request is the
 protocol world's `a_reload_restores_a_pending_request_from_the_small_store_s_bytes`,
 which this does not run again.
 Don't: wait a fixed time for the server (the steps await what the page
@@ -301,7 +301,7 @@ fn a_page_on_another_port_cannot_make_a_request_as_the_person() {
 Tests: `a_page_on_another_port_cannot_make_a_request_as_the_person`,
 `a_page_of_another_site_cannot_make_a_request_as_the_person`, each about
 4 s; `the_forging_page_posts_to_the_mapping_s_request_route` (unit).
-Proof: `land`'s gate runs both stories: from the same site and from
+Proof: the gate runs both stories: from the same site and from
 another, the person's browser sends the forged requests, Chromium reports
 the refused one, and the person's inbox shows no task named `Forged`.
 Don't: give the forging page the application's policy (it is another
@@ -331,7 +331,7 @@ Test shape: two stories in `browser_attacks.rs`, each about 4 s:
 `a_rebound_host_is_answered_421_and_makes_nothing`,
 `a_framed_page_shows_nothing_of_the_application`; a unit test,
 `the_framing_page_frames_the_application_s_page`, under 20 ms.
-Proof: `land`'s gate runs both: the `421` is awaited and the inbox shows
+Proof: the gate runs both: the `421` is awaited and the inbox shows
 no `Forged`; the framed page's refusal is reported and nothing of the
 application shows in it.
 Don't: send the rebound request from the browser (it cannot set `Host`);
@@ -358,7 +358,7 @@ part's, `browser.md`, 5).
 Test shape: two stories in `browser_skein_stories.rs`, each about 4 s:
 `back_and_forward_move_between_the_inbox_and_a_task`,
 `a_panic_at_start_reloads_then_says_jig_failed`.
-Proof: `land`'s gate runs both.
+Proof: the gate runs both.
 Don't: keep `/test/panic` in a `web` build; call skein's two-person
 stories (`later.md`).
 Size: at most 30 lines. Ruling 393: the back-and-forward story waits
@@ -370,7 +370,7 @@ Removes: nothing.
 
 ## Interface sketches
 
-Compiled at the base, `heavy cargo clippy -p jig-sketch-w8 -p
+Compiled at the base, `cargo clippy -p jig-sketch-w8 -p
 jig-sketch-w8-web --all-targets -- -D warnings`, which passed
 (`logs/w8/sketch-19-20.txt`; again after the review, `logs/w8/sketch-review.txt`), with `Origin` and `Page` stubbed after skein
 01's sketch (they land in skein 01) and trivial bodies.

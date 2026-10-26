@@ -301,7 +301,7 @@ Tests, each under 20 ms:
 `a_chats_member_is_refused_as_unknown_naming_its_path` (the start
 refused with `engine.chats: unknown member`, as jig 09's reader refuses
 it). The engine world's tests keep their names and expected values.
-Proof: the one-process world, once: `heavy cargo nextest run -p
+Proof: the one-process world, once: `cargo nextest run -p
 temper-one-process-world -E
 'test(a_person_signs_in_by_the_printed_link_and_a_chat_is_answered)'`:
 `temper serve`'s system, started from configuration bytes that name
@@ -386,7 +386,7 @@ Tests, each under 20 ms:
 `a_version_not_served_answer_marks_the_form_out_of_date`,
 `an_out_of_date_form_keeps_its_pending_adoption`. The base's family and
 form tests keep their names and expected values.
-Proof: the one-process world, once: `heavy cargo nextest run -p
+Proof: the one-process world, once: `cargo nextest run -p
 temper-one-process-world -E
 'test(an_adopted_repository_gets_its_change_pushed_through_git)'`: a
 person's adoption crosses the collapsed wire as the forge's bytes, the
@@ -548,10 +548,10 @@ world's `documents.lines` set, new beside it.) Tests, each row under
 producer's `task` document read the same way.
 Proof: the world layer only: no page of temper's reads a task line
 before temper 06.4's Chats page, whose joint-world story then runs over
-the same configuration. And, once, the story ruling 163 deferred: `heavy cargo
+the same configuration. And, once, the story ruling 163 deferred: `cargo
 nextest run -p temper-one-process-world -E
 'test(an_adopted_repository_gets_its_change_pushed_through_git)'`.
-And, once, the merge story ruling 216 deferred: `heavy cargo nextest run
+And, once, the merge story ruling 216 deferred: `cargo nextest run
 -p temper-one-process-world --profile fuzzy -E
 'test(a_merge_in_progress_is_pushed_with_both_parents)'`. At jig
 `40d1bec49` with `segments` 8, a scratch run of it passed step 11 and

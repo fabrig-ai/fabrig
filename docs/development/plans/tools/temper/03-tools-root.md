@@ -98,7 +98,7 @@ Shape:
 1. **The pins.**
    - JIG_TOOLS is the ledger's landing commit containing every `jig-02.*`, `jig-03.*` and `jig-05.*` step and proof; the three final landings are its ancestors.
    - `git -C ~/src/rust/jig show JIG_TOOLS:Cargo.lock` names one skein, SKEIN01.
-   - Through `heavy`: `cargo update -p jig-domain-core --precise JIG_TOOLS`.
+   -  `cargo update -p jig-domain-core --precise JIG_TOOLS`.
    - skein (ruling 119): temper's own pin at the step's start stays where it descends from SKEIN01 (at temper e10aa299f,
      `378fd8cfdeb2af90261b8710b60fc91d70131792`, 33 packages, where forge-kit's temper-05.1 moved it from `0db7b1fc`; a
      descendant of SKEIN01, jig 872bfb7c's `93052c6b`): where the jig update moved it,
@@ -108,7 +108,7 @@ Shape:
      `crates/`): `cargo update -p smith-domain --precise <that full hash>`; where cargo calls the name ambiguous, use the
      package spec its error lists.
    - Check `Cargo.lock` with `grep -o 'git+https://github.com/forgetic/[a-z]*.git#[0-9a-f]*' Cargo.lock | sort -u`;
-     one source revision per repository, each the selected one; `heavy cargo check --workspace --all-targets`.
+     one source revision per repository, each the selected one; `cargo check --workspace --all-targets`.
 2. **`Outcome::Held`.** Nothing in temper open sends a name, so it is impossible there. It joins `NotKept`'s arm in
    `confirm.rs` and `pages/chats.rs`, and `Answer::Unknown`'s in `told`.
 3. **The name.** Each `jig_client::Event::Send` literal gives `name: None`.
@@ -125,7 +125,7 @@ Shape:
    78669037184614); the commit body names it.
 7. **Any other break** follows 5.7: adapted as jig's landing adapted its own, named in the report, or raised as a question.
 Test shape: no new test. Existing tests keep their names and expected values (5.7).
-Proof: joint, the gate (`scripts/check.sh` through `land`), whose `tests/one-process` referee speaks wire version 9.
+Proof: joint, the gate (`scripts/check.sh`), whose `tests/one-process` referee speaks wire version 9.
 Don't: give `Held` words or behaviour; send a name; read a turn; hand-edit `Cargo.lock`.
 Size: at most 200 lines besides `Cargo.lock`.
 Removes: temper's jig pin at the step's start, its skein pin where SKEIN01 replaces it, and its older smith revision;
@@ -199,7 +199,7 @@ Test shape:
       assert_eq!(root.answer(b).expect("second answered").status, 0);
   }
   ```
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E 'test(=a_task_read_prints_its_header_fields_and_acts_as_calls)'`
+Proof: unit, `cargo nextest run -p temper-client-tools -E 'test(=a_task_read_prints_its_header_fields_and_acts_as_calls)'`
 (under 1 s): a read through `jig_client::Client`, printed as 6.1. The next plan's stories bring the tools' world.
 Don't: write `temper`, in any case, anywhere under `src/jig/`, comments and strings included (`src/tests/boundary.rs`
 lowercases each file); keep a document across steps; print a float; send anything for a read but its read.
@@ -215,14 +215,14 @@ Files: under `crates/temper-client-tools/`, `src/jig/render/{lists,activity,turn
 `src/tests/jig.rs`, `src/tests/jig/{lists,turn}.rs` (new), `src/tests/fixtures.rs`, goldens.
 Shape:
 - **Lists.**
-  - `inbox` reads needs first (decisions.md, For the user, O, decided by the director, temper 0ecb23bf6): while needs has
+  - `inbox` reads needs first (decisions.md, For the user, O, decided , temper 0ecb23bf6): while needs has
     more, a page is needs alone; once needs ends on a page, updates' first page follows it when both fit in 32 rows, and
     when they do not, the call that reads on starts updates (group byte 1, no jig cursor). `tasks` reads `Read::Tasks`, one group per call
-    (decisions.md, For the user, L, decided by the director, temper 09cfaca18): without `--ended`, the live group, `--after C` its `live`;
+    (decisions.md, For the user, L, decided , temper 09cfaca18): without `--ended`, the live group, `--after C` its `live`;
     with it, the ended group alone, as jig's view reads it (`query.phase = Some(PhaseClass::Ended)`, `live: None`,
     `--after C` its `ended`), the call that reads on keeping `--ended`; `rows.rs`'s `--ended` help reads
     "Only ended tasks". An agent that wants both makes two calls; the printed cursor stays jig's, with no group byte.
-  - `inbox`'s printed cursor (decisions.md, For the user, N, decided by the director, temper ad1b1f80f) is one group byte
+  - `inbox`'s printed cursor (decisions.md, For the user, N, decided , temper ad1b1f80f) is one group byte
     (0 needs, 1 updates), then jig's cursor, whole. The call that reads on stays in needs while needs has more, then
     moves to updates; `--after C` reads C's group, and with `--kind K` a C of the other group (`InboxReadGroup::of`) is
     a usage error, exit 1.
@@ -231,7 +231,7 @@ Shape:
   - `--tree` watches `Subject::Tree { task, window: 32 }`; `--run` watches `Subject::Run { task, turn: None, offset: 0 }`.
     Each is unwatched at its first delivery.
   - `--activity K` reads `Read::Activity` and prints its K latest lines (K at most 32); one that cuts a page prints
-    `read with: activity N` (decisions.md, For the user, P, decided by the director, temper 37c08b325). `run N` is `--run`
+    `read with: activity N` (decisions.md, For the user, P, decided , temper 37c08b325). `run N` is `--run`
     alone.
 - **The conversation.**
   - `chat N` pages through `jig_client::thread::Thread` (`older`, `accept`, `parts`).
@@ -273,7 +273,7 @@ fn a_turn_past_the_read_bound_exits_0_past_the_limit() {
     assert_eq!((printed.status, &*printed.stdout), (0, fixtures::golden("turn_limit")));
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E 'test(/turn/)'` (under 1 s). It shows 5.2's three turn
+Proof: unit, `cargo nextest run -p temper-client-tools -E 'test(/turn/)'` (under 1 s). It shows 5.2's three turn
 forms. The next plan's story "a turn too large for a page read whole" connects it.
 Don't: keep a watch past its first delivery; print more than 32 rows; cut a path.
 Size: at most 380 lines, with the inbox's cursor and first page and a limited activity's reads-on (decisions.md, N, O and P).
@@ -295,7 +295,7 @@ Shape:
 - **Outcomes:**
   - `Done(Made)` prints `done: task 41, chat`.
   - `Done(Proposed)` prints `proposed: t3/17, to <recipient>` (or `p3/17`). A kept line of a restored proposal prints its
-    identity alone, `kept: chat, proposed: t3/17`, with no `to` (decisions.md, For the user, Q, decided by the director,
+    identity alone, `kept: chat, proposed: t3/17`, with no `to` (decisions.md, For the user, Q, decided ,
     temper 37849f0b0).
   - `Done(DecidedFirst)` prints `decided first: by <party>, <decision>, HH:MM`.
   - `Done(Changed)` and `Done(Decided)` print `done: task N, <act>`.
@@ -335,7 +335,7 @@ Test shape:
   `a_named_act_has_no_process_local_fields`, `close_passes_its_reason_or_empty`,
   `client_refusals_exit_1`, `unconfirmed_and_client_key_conflicts_say_tools_bug_and_exit_1`,
   `changed_me_inputs_can_change_a_named_ask`, `proposal_names_preserve_task_or_party`.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E 'test(/held|key|kept/)'` (under 1 s). It shows a name sent
+Proof: unit, `cargo nextest run -p temper-client-tools -E 'test(/held|key|kept/)'` (under 1 s). It shows a name sent
 as the engine key, `Held` exiting 1, and the kept lines. The next plan's stories connect it: "asked again under its named key, made once"
 and "a named key told Held".
 Don't: confirm before sending; send what the offer refuses; print a kept name or key; keep runner records to recover names.

@@ -115,7 +115,7 @@ and jig 04.1, as the session's start does.
 ## Rules that bind it
 
 - **Format versions** (README, Rules): people v3 is jig 02.3's; 9.2
-  edits it in place. Regenerate with `SKEIN_CODEGEN_WRITE=1 heavy cargo
+  edits it in place. Regenerate with `SKEIN_CODEGEN_WRITE=1 cargo
   nextest run -p jig-store-codecs-world --test drift`, once.
 - **No shape of work grows** (code-organization.md, 6): `Settings.chat`,
   `Settings.close_grace`, `OfferedCharter` and `FrameProjectRole.chat_budget`
@@ -226,7 +226,7 @@ Test shape:
   `an_in_process_engine_address_naming_no_listener_is_refused`, :5):
   `a_template_grace_past_the_tasks_limit_refuses_the_service_start`.
 - Ceilings: unit under 20 ms.
-Proof: world. `heavy cargo nextest run -p jig-one-process-world -E
+Proof: world. `cargo nextest run -p jig-one-process-world -E
 'test(a_person_s_chat_is_answered_by_the_in_process_worker)'` once (it
 passes at the base in 0.28 s): the reference service starts from the
 channel world's configuration, which writes `templates` and no `chats`,
@@ -340,7 +340,7 @@ Test shape:
   restart, a `Templates` change naming template 2 is
   `Refusal::Unknown`).
 - Ceilings: unit under 20 ms, world under 0.5 s.
-Proof: world. `heavy cargo nextest run -p jig-core-world -E
+Proof: world. `cargo nextest run -p jig-core-world -E
 'test(a_template_override_survives_a_restart_in_the_projects_policy)'`
 once: an owner's override is committed in the real store's policy row,
 restored, and read back in the project's document; under 0.5 s.
@@ -392,7 +392,7 @@ Test shape:
   (template 2 with priority 5 after 9.2's override, template 1
   unchanged), `a_template_override_marks_the_owners_me`.
 - Ceilings: unit under 20 ms, world under 0.5 s.
-Proof: world. `heavy cargo nextest run -p jig-core-world -E
+Proof: world. `cargo nextest run -p jig-core-world -E
 'test(me_serves_the_projects_templates_merged_with_its_overrides)'`
 once: the owner's `me`, read from the core on the real store, holds
 template 1 as configured and template 2 at the overridden priority;
@@ -446,7 +446,7 @@ Test shape:
   (overrides `"people.operations": 4` with `"tasks.delegates": 4`:
   `What::Operations { operations: 4, delegates: 4, goals: 8 }`).
 - Ceilings: unit under 20 ms.
-Proof: world. `heavy cargo nextest run -p jig-test-service -E
+Proof: world. `cargo nextest run -p jig-test-service -E
 'test(a_service_whose_operations_cannot_close_a_conversation_is_refused)'`
 once: the reference service's start is refused, naming the three
 numbers, before its loop runs; under 0.5 s.
@@ -457,7 +457,7 @@ Removes: nothing.
 
 ## Interface sketches
 
-Compiled at the base under `heavy cargo clippy -p <scratch crate>
+Compiled at the base under `cargo clippy -p <scratch crate>
 --all-targets -- -D warnings`, in a scratch crate of jig with jig 02's
 `Flags` stubbed: checked at the ready check. Bodies are
 `unreachable!("sketch")` but for the algorithm in comments.
@@ -594,7 +594,7 @@ and the store saves them; the core keeps both and merges them only into
   --format=%H -1` prints a commit.
 - `git -C ~/src/rust/jig grep -n -E '"chats"|b"chats"|\bChats\b|close_grace_ms'
   origin/main -- crates testing tests` prints nothing.
-- In a worktree of jig's `origin/main`, once: `heavy cargo nextest run -p
+- In a worktree of jig's `origin/main`, once: `cargo nextest run -p
   jig-protocol-config -p jig-core-world -p jig-test-service -E
   'test(=tests::templates::a_template_grace_past_the_tasks_limit_refuses_the_start) |
   test(=tests::templates::the_chat_and_goal_templates_parse_with_their_defaults) |

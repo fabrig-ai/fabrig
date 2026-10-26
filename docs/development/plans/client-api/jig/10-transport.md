@@ -189,7 +189,7 @@ Tests: `a_sign_in_answer_puts_its_credential_on_each_exchange`,
 move to these; `an_exchange_carries_the_bearer_token` (tests.rs:70)
 stays, its credential given on the request. Each under 20 ms.
 Proof: process layer, the native shell signing in by the printed link
-over real sockets: `heavy sh -c 'cargo build -p jig-test --bin jig-test
+over real sockets: `sh -c 'cargo build -p jig-test --bin jig-test
 && cargo nextest run -p jig-test --profile process -E
 "test(a_killed_jig_test_restarts_and_the_work_is_found)"'`, once; it
 passes when the restarted client's held credential reads the chat again
@@ -293,7 +293,7 @@ here. `an_attempt_past_its_deadline_is_abandoned_and_lost`
 (attempts.rs:73) moves to the shell as
 `an_exchange_past_its_deadline_is_answered_lost`. Each under 20 ms.
 Proof: joint layer over HTTP bytes:
-`heavy cargo nextest run -p jig-client-protocol-world -E
+`cargo nextest run -p jig-client-protocol-world -E
 'test(a_request_whose_answer_was_lost_is_made_once)'`, once; it passes
 when the request whose answer was cut is made once by the real engine
 (under 2 s). It passes; nothing else is wanted. The gate runs the
@@ -344,7 +344,7 @@ and `malformed_base64_drops_the_stream_and_is_reported` (link
 `a_piece_after_the_end_is_dropped`. The link keeps
 `a_heartbeat_comment_keeps_each_watch_alive` (stream.rs:120) as
 `a_heartbeat_keeps_each_watch_alive`. Each under 20 ms.
-Proof: process layer: `heavy sh -c 'cargo build -p jig-test --bin
+Proof: process layer: `sh -c 'cargo build -p jig-test --bin
 jig-test && cargo nextest run -p jig-test --profile process -E
 "test(a_killed_jig_test_restarts_and_the_work_is_found)"'`, once,
 passing with the stream's deliveries read through the mapping over real
@@ -376,7 +376,7 @@ fn client_step_crates_link_no_http_but_the_mapping() {
 
 ## Interface sketches
 
-Checked at the base with `heavy cargo clippy -p jig-w6-sketch
+Checked at the base with `cargo clippy -p jig-w6-sketch
 --all-targets -- -D warnings` in a scratch crate (bodies
 `unreachable!("sketch")`, unused parameters prefixed `_`), passing.
 
@@ -496,7 +496,7 @@ variants of its own; the crate pushes them as the link's `Event`.)
   it; `crates/jig-client-domain` is jig 11's, which runs beside this
   session, and `crates/jig-client` jig 12's, after it, so neither need
   exist when this session ends).
-- `heavy cargo nextest run -p jig-boundary -E
+- `cargo nextest run -p jig-boundary -E
   'test(client_step_crates_link_no_http_but_the_mapping)'` passes one
   test, in a worktree at `origin/main`.
 - `git -C ~/src/rust/jig ls-tree -d --name-only origin/main

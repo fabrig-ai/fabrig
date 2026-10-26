@@ -1702,7 +1702,7 @@ runs it (section 7).
   memory's writer runs (below):
 
   ```sh
-  SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run --locked -p temper --test startup -E 'test(turn_bounds)'
+  SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test startup -E 'test(turn_bounds)'
   ```
 
   jig's store and its KV bounds and the worker wire's ceilings stay as
@@ -1749,7 +1749,7 @@ runs it (section 7).
   Regenerate the two literals and the exact term figures with:
 
   ```sh
-  SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run --locked -p temper --test startup -E 'test(owned_memory_figures)'
+  SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test startup -E 'test(owned_memory_figures)'
   ```
 
   Ordinary runs fail when a declaration leaves the band or an exact term

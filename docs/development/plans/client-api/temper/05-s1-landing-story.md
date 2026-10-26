@@ -1,6 +1,6 @@
 # Supplement temper-05.s1: the process tier's landing story passes again
 
-Added by ruling 347 (the director's request of 2026-10-18, for
+Added by ruling 347 (the request of 2026-10-18, for
 forge-setup's step 11.1 and its Done when 4). Read first: temper's
 `AGENTS.md`, `docs/development/workflow.md`; this plan's README, "Rules
 of this plan" and "Pins"; temper's `docs/design/domain/testing.md`, 2.6.
@@ -8,8 +8,7 @@ of this plan" and "Pins"; temper's `docs/design/domain/testing.md`, 2.6.
 Scope: `a_persons_change_lands_on_the_forge_and_is_found_after_a_restart`
 (`crates/temper/tests/process.rs:68-89`) passes again on `main`. It
 passes at temper `95a172cc5` and fails at `01e467afc`. forge-setup's
-bisect (first parent, one run per commit:
-`~/src/tmp/director/forge-setup-bisect/bisect-results.txt`) names three
+bisect (first parent, one run per commit) names three
 of this run's landings:
 1. `3f8b3df6f` (temper-05.1, "Mount jig clients on temper's own HTTP
    server"): the first run never lands; person step 4 misses
@@ -36,7 +35,7 @@ the design changed what the page shows, with that section quoted in the
 commit body.
 
 Test shape: ruling 229. Reproduce each failure point first in a focused
-test, at the lowest layer that shows it (implementer.md, 8.8), and log
+test, at the lowest layer that shows it, and log
 its cause there. The repair changes only what that log names. The
 focused test stays as the step's test.
 
@@ -45,11 +44,10 @@ TEMPER_FORGEJO=$HOME/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64`
 and `export
 TEMPER_FORGEJO_RUNNER=$HOME/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64`
 (carbon-forge's paths for forge-setup's `~/src/rust/tmp/…`), run the
-story alone: `heavy sh -c 'cargo build -p temper --bin temper &&
+story alone: `sh -c 'cargo build -p temper --bin temper &&
 NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E
 "test(a_persons_change_lands_on_the_forge_and_is_found_after_a_restart)"'`,
-with ruling 229 for the count. Then run the whole tier once, `heavy --gate
-scripts/proof-one-process.sh`, as forge-setup's README, Done when 4 runs
+with ruling 229 for the count. Then run the whole tier once, `scripts/proof-one-process.sh`, as forge-setup's README, Done when 4 runs
 it (within 180 s). Any other test of the tier that fails goes in the report
 with its first failure line, and is not repaired here.
 

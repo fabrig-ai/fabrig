@@ -73,7 +73,7 @@ versioned record Kept { at: duration }
 **jig-protocol-client-wire (J):**
 - Schema in two files, `schema/client-v7.schema` and `client-v7-part1.schema`, concatenated, so the binary cannot regenerate it.
 - Code `src/generated/v7.rs`, goldens `golden/v7` (3032 files), `VERSION: u32 = 7` (lib.rs:12).
-- Drift test `tests/client-wire/tests/drift.rs:14-15`. **Regeneration command:** `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test drift`.
+- Drift test `tests/client-wire/tests/drift.rs:14-15`. **Regeneration command:** `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world --test drift`.
 - jig builds skein-codegen at opt-level 3 (J Cargo.toml:192-193).
 
 ## B. Network libraries (all are step machines with `new / up / down`)

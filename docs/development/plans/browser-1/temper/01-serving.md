@@ -276,7 +276,7 @@ Proof: unit: `the_policy_keeps_a_field_the_answer_already_holds`; the CLI's test
 (`cargo nextest run -p temper-service`); then the one-process world, whose terminal reads `/jig`'s answers with the
 five fields:
 `cargo nextest run -p temper-one-process-world -E 'test(=a_person_signs_in_by_the_printed_link_and_a_chat_is_answered)'`.
-process: at the session's end, `heavy --gate scripts/proof-one-process.sh` in a checkout of temper's `origin/main`
+process: at the session's end, `scripts/proof-one-process.sh` in a checkout of temper's `origin/main`
 (README, "Process tier"), where `temper_open_signs_in_prints_the_inbox_and_exits_on_q` reads them over `temper serve`'s
 listener. The browser's own proof of the policy is temper 04.5's `a_framed_page_shows_nothing`.
 Don't: add an origin or a directive to the policy (browser.md 2.2); add the policy anywhere but `Server::answer`; change

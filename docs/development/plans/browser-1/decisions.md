@@ -2,10 +2,7 @@
 
 The decisions this plan rests on, numbered. The supervisor's rulings
 during the run follow them, from 101. Then the design's questions with
-their answers, and the choices left to the user. The user is away, and
-the director acts for them. The planner took each decision below as the
-planner's, choosing the most reversible option where the choice could
-be the user's (development.md, 10.4).
+their answers, and the choices left to the user.
 
 ## The plan's own
 
@@ -84,14 +81,11 @@ be the user's (development.md, 10.4).
 15. **The tier's crate is `tests/client-browser`,** package
     `temper-client-browser-world`, as jig's tier is named.
     `domain/testing.md`, 7, lists temper's test crates and has no row
-    for it; the designer adds one (`tmp/director/inbox/browser-planner.md`,
-    10).
+    for it; the design gains one.
 
 ## Design questions
 
-Asked of the director, for the designer, on 2026-10-19
-(`tmp/director/inbox/browser-planner.md`), and answered by the director
-the same day. temper's designer amends the design text in one pass,
+Asked and answered on 2026-10-19. temper's designer amends the design text in one pass,
 after moving `testing.md` to `domain/` and `tools.md` to `client/`
 (temper `5587ae49b`); the plan cites the amended sections, and that pass
 fixes this plan's citations if the plan lands first.
@@ -144,16 +138,16 @@ None yet.
 
 ## Answers received
 
-- 2026-10-19, the director: Design questions 1 to 4, each as
+- 2026-10-19: Design questions 1 to 4, each as
   recommended; the citation of decision 10 stands; the real-loop planner
   is told of the configuration fixtures' hotspot (README, Rules).
-- 2026-10-19, the director: Design question 5 as recommended; decision
+- 2026-10-19: Design question 5 as recommended; decision
   13 noted and accepted.
-- 2026-10-19, the director: the process tier runs on hel8, which gets
+- 2026-10-19: the process tier runs on hel8, which gets
   hetzner's pinned Forgejo 17.0.0 and runner 13.2.0 under
   `~/.local/opt`, with `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER` set
   (README, Prerequisites).
-- 2026-10-19, the director: the parts of the pages that no type carries
+- 2026-10-19: the parts of the pages that no type carries
   (`findings/carriers.md`) are not this plan's. The accounts banner and
   the composer's account line go to LLM accounts' part 2, and the
   frame's Board, Changes and Accounts entries to their pages' milestones
@@ -194,21 +188,21 @@ None yet.
      themselves are jig's tests.
    - `a_framed_page_shows_nothing`: only a browser enforces
      `frame-ancestors`.
-   Decision: accepted, by director, 2026-10-19 (each proves only what a
+   Decision: accepted, 2026-10-19 (each proves only what a
    browser alone can; the rest is in the worlds and the real loop).
 
 2. **No repin of smith, jig or hearth** onto skein 01 (decision 5).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 
 3. **The bundle's limits,** 128 files and 16 MiB (decision 6).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 
 4. **The bundle's words and title** (decision 7).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.
 
 5. **Light only** (decision 11).
-   Decision: accepted, by director, 2026-10-19 (dark stays browser.md 5's
+   Decision: accepted, 2026-10-19 (dark stays browser.md 5's
    open question).
 
 6. **Enter sends in the terminal too** (decision 13).
-   Decision: accepted, by director, 2026-10-19.
+   Decision: accepted, 2026-10-19.

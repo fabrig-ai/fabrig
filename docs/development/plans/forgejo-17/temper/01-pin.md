@@ -125,11 +125,10 @@ renamed repository's old path, appended as the last case,
 ## Rules that bind it
 
 - **The recording tools run only where a Shape or Proof below says,**
-  through `heavy --gate`, once. They run once more after each fix aimed
+  once. They run once more after each fix aimed
   at a cause their output names. The third failure with the same
-  symptom is a question (development.md, 5.5). `heavy --gate` refuses a
-  tree with changes: commit before each recording. The conformance's two
-  modes run in one `heavy --gate sh -c '…'`. Transcripts, `facts.txt`
+  symptom is a question (development.md, 5.5).  The conformance's two
+  modes run in one `sh -c '…'`. Transcripts, `facts.txt`
   and `binary.txt` are written by the tools only, never by hand. A
   `fails` line still exits 0: read `facts.txt` after the run (README,
   Rules).
@@ -197,7 +196,7 @@ in place of the trimmed stdout, and `facts.txt`'s `# runner` line
 carries that line, as at the base. The order of work: (1) commit the
 code and its tests; (2) record, as the Proof's first command;
 (3) read `facts.txt` (Proof); (4) run the codecs world in the build
-lane, `heavy cargo nextest run -p temper-codecs-world --no-fail-fast`,
+lane, `cargo nextest run -p temper-codecs-world --no-fail-fast`,
 after each round of literal fixes; (5) commit the recordings and the
 literals; (6) run the process tier.
 Test shape:
@@ -254,7 +253,7 @@ command runs once, from the worktree's root:
    ```sh
    TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 \
    TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 \
-   heavy --gate sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --scratch target/forgejo-component --out tools/forgejo-conformance --component'
+   sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --scratch target/forgejo-component --out tools/forgejo-conformance --component'
    ```
 
    It exits 0. What counts, read after it:
@@ -279,7 +278,7 @@ command runs once, from the worktree's root:
    committed:
 
    ```sh
-   TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process --no-fail-fast -E "not test(/^temper_open_/)"'
+   TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process --no-fail-fast -E "not test(/^temper_open_/)"'
    ```
 
    It exits 0, and its log's nextest `Summary` line reads `4 tests
@@ -401,7 +400,7 @@ Each command runs once, from the worktree's root:
 1. The recording, after the code's commit:
 
    ```sh
-   TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 heavy --gate cargo run -p git-transcripts -- --git /usr/bin/git --scratch target/git-transcripts --out tools/git-transcripts
+   TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 cargo run -p git-transcripts -- --git /usr/bin/git --scratch target/git-transcripts --out tools/git-transcripts
    ```
 
    It exits 0. What counts, read after it:
@@ -415,8 +414,8 @@ Each command runs once, from the worktree's root:
    `?? tools/git-transcripts/transcripts/fetch-renamed/`. Bound: 5
    minutes for the task, the build included.
 2. The tests over the new transcripts, once, after the literals follow:
-   `heavy cargo nextest run -p temper-worker-protocol-git-world -p
-   temper-fake-git -p temper-service` passes. `land`'s gate runs them
+   `cargo nextest run -p temper-worker-protocol-git-world -p
+   temper-fake-git -p temper-service` passes. the gate runs them
    again; nothing else is wanted. Each keeps its ceiling (unit under 20
    ms, focused world under 0.5 s).
 

@@ -146,7 +146,7 @@ test under 20 ms; the world's focused test under 0.1 s (0.04 to 0.05 s at b4c624
 Proof: world, `request_table_follows_the_obligation_model_and_replays` (tests/lib, focused) and its 4,096-round twin in the
 fuzzy suite: the ledger, independent of the table, sees every admission numbered above the last, every refusal `Full`
 exactly where count or bytes do not fit, and a not-kept call hand back its owner only under its admission's own number;
-under 0.1 s and 2 s, in `land`'s gate. Nothing above the table exists in skein: the downstream repository's tools plan
+under 0.1 s and 2 s, in the gate. Nothing above the table exists in skein: the downstream repository's tools plan
 connects it, at its repin onto this landing.
 Don't: change `RequestRecord`, `RequestOut`, `RequestAnswered`, `RequestProgress`, `RequestLimits` or `worst_case`; add a
 field to `Entry` or to `RequestTable`; add `ask_given` (01.2); change `answered`, `fire` or `reclaim`.
@@ -186,7 +186,7 @@ one time in four (`rng.chance(250)`, the name `rng.below(3)`). `Coverage` gains 
 64 rounds. Ceilings as 01.1's.
 Proof: world, `request_table_follows_the_obligation_model_and_replays` and its fuzzy twin, with given keys: the ledger sees
 a given key admitted exactly while no entry holds it, `Held` told before `Full`, a key restored at a restart refusing its
-own name until reclaimed, and an earlier admission's number handing back nothing; under 0.1 s and 2 s, in `land`'s gate.
+own name until reclaimed, and an earlier admission's number handing back nothing; under 0.1 s and 2 s, in the gate.
 Nothing above the table exists in skein: the downstream repository's tools plan's send under a named key connects it.
 Don't: change `ask`, `draws` or `fresh_key`'s bound; move `draws` for a given key; add a type for a given key (it is a
 `RequestKey`) or a field to `RequestRecord` saying how its key was made (a restored record keeps its key, drawn or given).

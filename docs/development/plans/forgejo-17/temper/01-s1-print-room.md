@@ -12,7 +12,7 @@ Files: `Cargo.lock`; `crates/temper-client-shell-terminal/src/tests.rs`.
 Shape:
 1. temper's skein moves to skein-00.s1's landing, `c=$(git -C
    ~/src/rust/skein log origin/main --all-match --grep='^Plan:
-   forgejo-17$' --grep='^Step: skein-' --format=%H -1)`: `heavy cargo
+   forgejo-17$' --grep='^Step: skein-' --format=%H -1)`: `cargo
    update -p skein-lib --precise $c`, which moves the one skein source
    (29 crates) and touches `Cargo.lock` alone. No move when temper's pin
    already holds it (`git -C ~/src/rust/skein merge-base --is-ancestor $c
@@ -24,9 +24,9 @@ Shape:
 
 No other temper code.
 
-Proof: the gate, by `land`; then the full process tier, once:
+Proof: the gate; then the full process tier, once:
 `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
-heavy --gate scripts/proof-one-process.sh` exits 0, and its log's nextest
+scripts/proof-one-process.sh` exits 0, and its log's nextest
 `Summary` line reads `6 tests run: 6 passed`. The landing report names
 its log.
 

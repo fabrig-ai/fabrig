@@ -38,7 +38,7 @@ The JSON listing's selected tests are counted by package. The same command
 also records every moved name below; no filter is used to run the tests.
 
 ```text
-$ heavy cargo nextest list -p temper-forge-setup -p temper-forge-setup-shell -p temper-box -p temper -p temper-forge-setup-reconcile-world --message-format json
+$ cargo nextest list -p temper-forge-setup -p temper-forge-setup-shell -p temper-box -p temper -p temper-forge-setup-reconcile-world --message-format json
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `test` profile [unoptimized + debuginfo]
 test-count: 236
@@ -47,7 +47,7 @@ temper-forge-setup-shell: 24
 temper-box: 35
 temper: 58
 temper-forge-setup-reconcile-world: 21
-exit 0; heavy task 734, ran 1s
+exit 0; task 734, ran 1s
 log: /srv/data/git/runner/src/tmp/logs/20261019T013132-734.log
 ```
 
@@ -71,10 +71,10 @@ and the PASS lines of task 735:
 | the_bots_id_is_written_in_decimal_only_when_the_file_differs | 0.007 s |
 
 ```text
-$ heavy cargo nextest run -p temper-forge-setup -p temper-forge-setup-shell -p temper-box -p temper -p temper-forge-setup-reconcile-world
+$ cargo nextest run -p temper-forge-setup -p temper-forge-setup-shell -p temper-box -p temper -p temper-forge-setup-reconcile-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Summary [   0.989s] 236 tests run: 236 passed, 0 skipped
-exit 0; heavy task 735, ran 2s
+exit 0; task 735, ran 2s
 log: /srv/data/git/runner/src/tmp/logs/20261019T013132-735.log
 ```
 
@@ -90,24 +90,23 @@ setup 90, shell 25, box 35, binary 59, world 21 = 230 focused tests, before
 independent tools-plan changes. Existing test names stay.
 
 ```text
-$ heavy cargo nextest run -p temper-forge-setup-reconcile-world --profile fuzzy
+$ cargo nextest run -p temper-forge-setup-reconcile-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 PASS [   0.493s] temper-forge-setup-reconcile-world::fuzzy_reconcile random_initial_forges_converge_and_a_second_run_writes_only_hook_patches
 Summary [   0.493s] 1 test run: 1 passed, 0 skipped
-exit 0; heavy task 736, ran 8s
+exit 0; task 736, ran 8s
 ```
 ```text
-$ heavy --gate scripts/check.sh
+$ scripts/check.sh
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `dev` profile [unoptimized + debuginfo]
 Summary [   6.770s] 1879 tests run: 1879 passed (1 slow), 1 skipped
 Summary [  26.715s] 50 tests run: 50 passed (1 slow), 0 skipped
-heavy: ran alone for 38s
-exit 0; heavy task 737, ran 43s
+exit 0; task 737, ran 43s
 log: /srv/data/git/runner/src/tmp/logs/20261019T013132-737.log
 ```
 
-The existing gate's slow tests and skip were not changed. The gate is land's
+The existing gate's slow tests and skip were not changed. The gate is the merge's
 during implementation; planning ran it once because development.md 5.4
 requires every prescribed command at the base.
 
@@ -131,23 +130,23 @@ HEAD is now at dd12b8ed9 Check reconcile's given values in temper-forge-setup
 exit 0
 ```
 ```text
-$ heavy cargo update -p skein-lib
+$ cargo update -p skein-lib
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-04
 Updating git repository `https://github.com/forgetic/skein.git`
 Locking 29 packages to latest Rust 1.95 compatible versions
 Updating skein-lib v0.0.0 (#8a51e10b) -> #25d2551e
 All 29 packages of that git source moved together.
-exit 0; heavy task 739, ran 7s
+exit 0; task 739, ran 7s
 ```
 ```text
-$ heavy cargo check --workspace --all-targets
+$ cargo check --workspace --all-targets
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-04
 error[E0004]: non-exhaustive patterns: `skein_io::kernel::Op::Lock { .. }` not covered
   --> crates/temper-worker-protocol-git/src/files.rs:296:37
 error[E0004]: non-exhaustive patterns: `skein_io::kernel::Op::Lock { .. }` not covered
   --> crates/temper-worker-protocol-git/src/files.rs:352:11
 error: could not compile `temper-worker-protocol-git` (lib) due to 2 previous errors
-exit 101; heavy task 734, ran 19s
+exit 101; task 734, ran 19s
 log: /srv/data/git/runner/src/tmp/logs/20261019T013602-734.log
 ```
 
@@ -167,7 +166,7 @@ exit 0; only the scratch's repin was reverted before compiling the base-form ske
 ## Process tier and binary-path correction
 
 ```text
-$ TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate scripts/proof-one-process.sh
+$ TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 scripts/proof-one-process.sh
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Starting 19 tests across 1 binary
 FAIL [   0.036s] temper::process a_change_lands_by_deliveries_with_every_poll_raised
@@ -175,7 +174,7 @@ crates/temper/tests/support/owned.rs:382:5:
 assertion `left == right` failed: temper forge prepare: forge 1: command could not start: Other
 Summary [   0.037s] 1/19 tests run: 0 passed, 1 failed, 0 skipped
 warning: 18/19 tests were not run due to test failure
-exit 100; heavy task 738, ran 10s
+exit 100; task 738, ran 10s
 ```
 
 README spells the binaries under $HOME/src/rust. On this machine the
@@ -195,7 +194,7 @@ The Python commands below are recorded with equivalent ANSI-C shell quoting
 for their multiline -c argument, keeping each command on one physical line.
 
 ```text
-$ heavy python3 -c $'import subprocess\nroots=[("temper","/srv/data/git/runner/src/tmp/planning/temper-base"),("skein","/srv/data/git/runner/src/tmp/planning/skein-base"),("jig","/srv/data/git/runner/src/jig"),("smith","/srv/data/git/runner/src/smith"),("hearth","/srv/data/git/runner/src/hearth")]\nnames=["Reconcile","Need","Event","Reply","Failure","Stage","Why","step","MAX_OUT","hook_url","Limits","Unfit","check","login","email","checked","Checked","Settings","bound","file_path","reconcile_settings","Step","small","apply"]\nprint("symbol temper skein jig smith hearth (matching Rust lines; includes homonyms)")\nfor name in names:\n    counts=[]\n    for label,root in roots:\n        p=subprocess.run(["rg","-n","-w",name,"--glob","*.rs",root],capture_output=True,text=True)\n        counts.append(str(len(p.stdout.splitlines())) if p.returncode in (0,1) else "ERROR:"+p.stderr.strip())\n    print(name+" "+" ".join(counts))\n'
+$ python3 -c $'import subprocess\nroots=[("temper","/srv/data/git/runner/src/tmp/planning/temper-base"),("skein","/srv/data/git/runner/src/tmp/planning/skein-base"),("jig","/srv/data/git/runner/src/jig"),("smith","/srv/data/git/runner/src/smith"),("hearth","/srv/data/git/runner/src/hearth")]\nnames=["Reconcile","Need","Event","Reply","Failure","Stage","Why","step","MAX_OUT","hook_url","Limits","Unfit","check","login","email","checked","Checked","Settings","bound","file_path","reconcile_settings","Step","small","apply"]\nprint("symbol temper skein jig smith hearth (matching Rust lines; includes homonyms)")\nfor name in names:\n    counts=[]\n    for label,root in roots:\n        p=subprocess.run(["rg","-n","-w",name,"--glob","*.rs",root],capture_output=True,text=True)\n        counts.append(str(len(p.stdout.splitlines())) if p.returncode in (0,1) else "ERROR:"+p.stderr.strip())\n    print(name+" "+" ".join(counts))\n'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 symbol temper skein jig smith hearth (matching Rust lines; includes homonyms)
 Reconcile 36 1 0 7 0
@@ -228,7 +227,7 @@ exit 0
 Qualified names, manifests included (rg expression matches the shell prefix too):
 
 ```text
-$ heavy python3 -c $'import subprocess\nroots=[("temper","/srv/data/git/runner/src/tmp/planning/temper-base"),("skein","/srv/data/git/runner/src/tmp/planning/skein-base"),("jig","/srv/data/git/runner/src/jig"),("smith","/srv/data/git/runner/src/smith"),("hearth","/srv/data/git/runner/src/hearth")]\npattern=r"temper_forge_setup|temper-forge-setup"\nfor label,root in roots:\n p=subprocess.run(["rg","-n",pattern,"--glob","*.rs","--glob","Cargo.toml",root],capture_output=True,text=True)\n lines=p.stdout.splitlines(); files={s.split(":")[0] for s in lines}\n print(label+": "+str(len(lines))+" lines / "+str(len(files))+" files")\n if label=="temper":\n  for f in sorted(files):\n   if f.endswith(".rs"):\n    print(f.removeprefix(root+"/")+": "+str(sum(s.startswith(f+":") for s in lines)))\n'
+$ python3 -c $'import subprocess\nroots=[("temper","/srv/data/git/runner/src/tmp/planning/temper-base"),("skein","/srv/data/git/runner/src/tmp/planning/skein-base"),("jig","/srv/data/git/runner/src/jig"),("smith","/srv/data/git/runner/src/smith"),("hearth","/srv/data/git/runner/src/hearth")]\npattern=r"temper_forge_setup|temper-forge-setup"\nfor label,root in roots:\n p=subprocess.run(["rg","-n",pattern,"--glob","*.rs","--glob","Cargo.toml",root],capture_output=True,text=True)\n lines=p.stdout.splitlines(); files={s.split(":")[0] for s in lines}\n print(label+": "+str(len(lines))+" lines / "+str(len(files))+" files")\n if label=="temper":\n  for f in sorted(files):\n   if f.endswith(".rs"):\n    print(f.removeprefix(root+"/")+": "+str(sum(s.startswith(f+":") for s in lines)))\n'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 temper: 81 lines / 35 files
 crates/temper-box/src/host.rs: 1
@@ -263,7 +262,7 @@ src/forge.rs (6) owns reconcile_settings and src/setup.rs (1) calls checked;
 src/box_command.rs (1) uses steps. No setup caller exists in the other repos.
 
 ```text
-$ heavy wc -l crates/temper-forge-setup/src/reconcile.rs crates/temper-forge-setup/src/reconcile/{hooks,orgs,tokens}.rs
+$ wc -l crates/temper-forge-setup/src/reconcile.rs crates/temper-forge-setup/src/reconcile/{hooks,orgs,tokens}.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 340 crates/temper-forge-setup/src/reconcile.rs
   200 crates/temper-forge-setup/src/reconcile/hooks.rs
@@ -276,13 +275,13 @@ exit 0
 ## Completion commands at the unchanged base
 
 ```text
-$ heavy cargo check --workspace --all-targets
+$ cargo check --workspace --all-targets
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 26.01s
-exit 0; heavy task 746, ran 26s
+exit 0; task 746, ran 26s
 ```
 ```text
-$ heavy rg -n 'pub mod reconcile|pub struct (Limits|Unfit)|^pub fn check|^fn (login|email)' crates/temper-forge-setup/src/{lib,limits,setup}.rs
+$ rg -n 'pub mod reconcile|pub struct (Limits|Unfit)|^pub fn check|^fn (login|email)' crates/temper-forge-setup/src/{lib,limits,setup}.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-forge-setup/src/setup.rs:99:fn login(b: &[u8]) -> bool {
 crates/temper-forge-setup/src/setup.rs:110:fn email(b: &[u8]) -> bool {
@@ -293,7 +292,7 @@ crates/temper-forge-setup/src/lib.rs:11:pub mod reconcile;
 exit 0; six source definitions to remove
 ```
 ```text
-$ heavy rg -n 'skein_forge_setup::|pub mod given' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src
+$ rg -n 'skein_forge_setup::|pub mod given' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 no matches
 exit 1; expected at the base, before the kit/mapping exist
@@ -321,12 +320,12 @@ must be checked against the landed crate at readiness, as development.md
 5.4 requires. No plain move was implemented or resketched.
 
 ```text
-$ heavy cargo clippy -p temper-forge-setup -p temper-forge-setup-shell --all-targets -- -D warnings
+$ cargo clippy -p temper-forge-setup -p temper-forge-setup-shell --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-temper-04
 Checking temper-forge-setup v0.0.0
 Checking temper-forge-setup-shell v0.0.0
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.69s
-exit 0; heavy task 745, ran 6s; no warnings
+exit 0; task 745, ran 6s; no warnings
 ```
 ```text
 $ git worktree remove --force /srv/data/git/runner/src/tmp/planning/scratch-temper-04
@@ -337,7 +336,7 @@ exit 0; scratch removed, no output
 ## Corrected process run
 
 ```text
-$ TEMPER_FORGEJO=/srv/data/git/runner/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=/srv/data/git/runner/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate scripts/proof-one-process.sh
+$ TEMPER_FORGEJO=/srv/data/git/runner/src/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=/srv/data/git/runner/src/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 scripts/proof-one-process.sh
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Starting 19 tests across 1 binary
 PASS [  85.951s] temper::process a_change_lands_by_deliveries_with_every_poll_raised
@@ -345,8 +344,7 @@ PASS [   2.087s] temper::process a_prepared_forge_runs_forgejo_and_its_runner_on
 PASS [   7.271s] temper::process a_push_is_delivered_signed_with_the_secret_reconcile_drew
 PASS [   3.766s] temper::process reconcile_converges_an_owned_forgejo_and_a_second_run_writes_nothing
 Summary [ 151.063s] 19 tests run: 19 passed (8 slow), 0 skipped
-heavy: ran alone for 152s
-exit 0; heavy task 737, ran 172s
+exit 0; task 737, ran 172s
 log: /srv/data/git/runner/src/tmp/logs/20261019T013603-737.log
 ```
 
@@ -384,13 +382,13 @@ These fixes change no sketched signature, so the successful scratch clippy
 result remains applicable.
 
 ```text
-$ heavy git diff --numstat origin/main -- crates/temper-forge-setup/src/{lib,check,limits,setup,place,given}.rs crates/temper-forge-setup-shell/src/{reconcile,exchange}.rs crates/temper/src/{setup,forge}.rs
+$ git diff --numstat origin/main -- crates/temper-forge-setup/src/{lib,check,limits,setup,place,given}.rs crates/temper-forge-setup-shell/src/{reconcile,exchange}.rs crates/temper/src/{setup,forge}.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 no output: 0 added production lines at the clean base
-exit 0; heavy task 734, ran 0s
+exit 0; task 734, ran 0s
 ```
 ```text
-$ heavy python3 -c 'from pathlib import Path; root=Path("crates/temper-forge-setup/src"); paths=[root/"reconcile.rs",*[root/"reconcile"/(name+".rs") for name in ("hooks","orgs","tokens")]]; remaining=[str(p) for p in paths if p.exists()]; print("reconcile copies:",len(remaining)); print("\n".join(remaining)); raise SystemExit(bool(remaining))'
+$ python3 -c 'from pathlib import Path; root=Path("crates/temper-forge-setup/src"); paths=[root/"reconcile.rs",*[root/"reconcile"/(name+".rs") for name in ("hooks","orgs","tokens")]]; remaining=[str(p) for p in paths if p.exists()]; print("reconcile copies:",len(remaining)); print("\n".join(remaining)); raise SystemExit(bool(remaining))'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 reconcile copies: 4
 crates/temper-forge-setup/src/reconcile.rs
@@ -405,7 +403,7 @@ pub user fields. Running it at the base exposed that check defect; it was
 corrected before the final draft:
 
 ```text
-$ heavy rg -n -U 'pub\s+use[^;]*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b|(?m:^\s*(pub(\([^)]*\))?\s+)?type\s+\w+\s*=\s*([A-Za-z0-9_]+::)*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b)|skein_forge_setup[^;]*\bas\s+\w+' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src crates/temper/src
+$ rg -n -U 'pub\s+use[^;]*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b|(?m:^\s*(pub(\([^)]*\))?\s+)?type\s+\w+\s*=\s*([A-Za-z0-9_]+::)*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b)|skein_forge_setup[^;]*\bas\s+\w+' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src crates/temper/src
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 crates/temper-forge-setup-shell/src/reconcile.rs:20:    pub user_agent: &'static str,
 crates/temper-forge-setup/src/place.rs:8:    pub user: Box<[u8]>,
@@ -413,7 +411,7 @@ crates/temper-forge-setup/src/check.rs:25:    pub user: User,
 exit 0; false positives, not aliases; replaced by the command below
 ```
 ```text
-$ heavy rg -n -U 'pub\s+use\b[^;]*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b|(?m:^\s*(pub(\([^)]*\))?\s+)?type\s+\w+\s*=\s*([A-Za-z0-9_]+::)*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b)|skein_forge_setup[^;]*\bas\s+\w+' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src crates/temper/src
+$ rg -n -U 'pub\s+use\b[^;]*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b|(?m:^\s*(pub(\([^)]*\))?\s+)?type\s+\w+\s*=\s*([A-Za-z0-9_]+::)*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b)|skein_forge_setup[^;]*\bas\s+\w+' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src crates/temper/src
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 no matches
 exit 1; no moved-type aliases/re-exports at the base
@@ -433,7 +431,7 @@ README's tools-first ordering; it is reported, not treated as a pass.
 
 The name checks below are reads at the base worktree (temper dd12b8e), run
 as plain `rg`/`git` from `temper-base`: they build and test nothing, and
-`heavy rg` sat queued behind the paused build lane (task 795, removed from the
+`rg` sat queued behind the paused build lane (task 795, removed from the
 queue unrun). No base build or test run was added; every count and time used
 by the three increments is one recorded above or in `base-runs.md`.
 
@@ -564,7 +562,7 @@ basis in this file (it records 931). The 931 counts as 340 (`reconcile.rs`) +
 | 04.3 (-13 moved, +1 item test, +1 shell test) | 90 | 25 | 35 | 59 | 21 | 230 | 1873 |
 
 The 98-test package time, 0.043 s, is the figure skein/04-setup.md records for
-`heavy cargo nextest run -p temper-forge-setup` at its revised base; this file
+`cargo nextest run -p temper-forge-setup` at its revised base; this file
 records the joint 0.989 s only, and nothing was re-run for it.
 
 ### Reachability and the table (ruling 5)
@@ -588,7 +586,7 @@ Sketch A's signatures are those compiled in the first revision's scratch
 (source types); this revision changes none of them. `What::Own` and
 `Problems::extend` are described in prose only and not recompiled; the
 exhaustive `match` in `given::refusal` is likewise prose, to be written and
-compiled by the implementer (clippy denies the wildcard arm).
+compiled by the author (clippy denies the wildcard arm).
 
 ### Done-when searches at the base (reads, run directly in temper-base)
 

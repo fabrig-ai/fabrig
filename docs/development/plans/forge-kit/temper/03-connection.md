@@ -52,8 +52,8 @@ the page sizes).
 
 ## Rules that bind it
 
-- The repin is the first commit of 03.1 and of 03.2: `heavy cargo update -p skein-lib`, then
-  `heavy cargo check --workspace --all-targets`; it repairs what skein's steps since temper's last
+- The repin is the first commit of 03.1 and of 03.2: `cargo update -p skein-lib`, then
+  `cargo check --workspace --all-targets`; it repairs what skein's steps since temper's last
   repin broke. A `Cargo.lock` conflict takes `origin/main`'s and runs the update again, never a hand
   merge. temper-service's `forge.rs` and `settings.rs` are not named hotspots (README): 03.1 and
   03.2 edit them minimally and rebase onto the tools plan's changes.
@@ -148,24 +148,24 @@ Test shape: **no test of the crate stays** (112 at the step's start, 117 at the 
     five numbers, `name_bytes`, `repositories` and the io limits.
   The owner unit `temper_word_keeps_the_marker_bytes_and_length` (01.3) stays; existing tests change
   `use`s and construction only. A profile, limit or size test that fails after the repin is a question.
-Proof: unit; `heavy cargo nextest run -p temper-service tests::forge`: 16 passed, origin/main's 11
+Proof: unit; `cargo nextest run -p temper-service tests::forge`: 16 passed, origin/main's 11
   (the base's 10 and 01.3's owner unit; 0.028 s for the 10) plus 5.
-Proof: joint; `heavy cargo nextest run -p temper-service -p temper -p temper-forge-setup-shell
+Proof: joint; `cargo nextest run -p temper-service -p temper -p temper-forge-setup-shell
   -p temper-codecs-world -p temper-one-process-world -p temper-engine-protocol-forge-world
   -p forgejo-conformance`: the set's count at the step's start plus 5 (435 at the base, 2.325 s), <15 s.
 Proof: joint; the same command with `--profile fuzzy` on `-p temper-engine-protocol-forge-world`:
   origin/main's count at the step's start, unchanged (6 at the base, 6.185 s), <60 s.
-Proof: world; `heavy cargo nextest run -p temper-forge-setup-reconcile-world -p temper-system-world`:
+Proof: world; `cargo nextest run -p temper-forge-setup-reconcile-world -p temper-system-world`:
   origin/main's count at the step's start, unchanged (37 at the base, 0.248 s).
 Proof: process; `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate scripts/proof-one-process.sh`: its count at the step's start passed (19 at the base),
+  scripts/proof-one-process.sh`: its count at the step's start passed (19 at the base),
   <5 minutes (145.694 s at the base). Once.
 Proof: process; the component recording (03.1 changes `component/hosted.rs`), with `T` a fresh
-  directory under `$WS/tmp` and the two forge variables above: `heavy --gate cargo run -p
+  directory under `$WS/tmp` and the two forge variables above: `cargo run -p
   forgejo-conformance -- --component --scratch $T/component --out $T/out`, exit 0, about 30 s (28 s
   alone at the base). Once.
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at the step's start less
+Proof: joint; `scripts/check.sh`: origin/main's focused count at the step's start less
   107 (the crate's 112 out, 5 in; the base's 1879 still holds the crate's 117), fuzzy count unchanged
   (50), clippy and format clean, focused <15 s (6.668 s at the base), fuzzy <60 s.
 Don't: keep `USER_AGENT` or `conventions` but in temper-service; hand a Host; alias or re-export
@@ -227,11 +227,11 @@ Test shape: three new units, each <20 ms (the two original units took0.007 and0.
   head is 4096 + 259 + 512 + 12 + 192 = 5071, under `tls.send` 16_384 and
   `io.output` 1_048_576 (the landed Host helper and arithmetic passed a scratch oracle; future
   component admission remains unproved).
-Proof: unit; `heavy cargo nextest run -p temper-service tests::forge`: 19 passed (16 at03.1, plus3; the added fixture-contract unit is included).
+Proof: unit; `cargo nextest run -p temper-service tests::forge`: 19 passed (16 at03.1, plus3; the added fixture-contract unit is included).
 Proof: joint; the users command of 03.1: its count at the step's start plus3, <15 s.
 Proof: process; 03.1's component recording: exit 0, about 30 s. Once.
 Proof: process; 03.1's command: its count at the step's start passed (19 at the base), <5 minutes. Once.
-Proof: joint; `heavy --gate scripts/check.sh`: focused plus3, fuzzy unchanged, clean.
+Proof: joint; `scripts/check.sh`: focused plus3, fuzzy unchanged, clean.
 Don't: raise a bound, drop a row or loosen an assertion to pass; add an arm for answer 2.
 Size: about 20 lines moved (the repin's repairs, as many as the run shows), about 55 new (the arm and
   `indexed` about 12, the tests and the literal about 43).
@@ -272,16 +272,16 @@ and the head's size.
 
 ## Done when
 
-- `heavy cargo check --workspace --all-targets` prints `Finished`, exit 0.
-- `heavy rg -n 'temper_engine_protocol_forge\b|temper-engine-protocol-forge($|[^-])' Cargo.toml
+- `cargo check --workspace --all-targets` prints `Finished`, exit 0.
+- `rg -n 'temper_engine_protocol_forge\b|temper-engine-protocol-forge($|[^-])' Cargo.toml
   Cargo.lock crates testing tests tools -g '*.rs' -g Cargo.toml -g Cargo.lock` prints nothing; at the
   base 63 lines in 38 files.
-- `heavy rg -n '(temper_engine_protocol_forge|skein_forge_connection)( as |::\{.* as )' crates testing
+- `rg -n '(temper_engine_protocol_forge|skein_forge_connection)( as |::\{.* as )' crates testing
   tests tools -g '*.rs'` prints nothing; at the base 6 lines.
-- `heavy rg -n 'conventions::(host|USER_AGENT)' crates tests tools -g '*.rs'` prints nothing (6 lines
-  at the base), and `heavy rg -c --sort path 'temper/0\.0\.0' crates -g '*.rs'` prints
+- `rg -n 'conventions::(host|USER_AGENT)' crates tests tools -g '*.rs'` prints nothing (6 lines
+  at the base), and `rg -c --sort path 'temper/0\.0\.0' crates -g '*.rs'` prints
   `crates/temper-service/src/forge.rs:1` and `crates/temper-service/src/tests/forge.rs:1`.
-- `heavy python3 -I -c 'from pathlib import Path; print("component_copy_absent=" +
+- `python3 -I -c 'from pathlib import Path; print("component_copy_absent=" +
   str(not Path("crates/temper-engine-protocol-forge").exists()))'` prints `component_copy_absent=True`.
-- `heavy cargo nextest run -p temper-service tests::forge` shows19passed (the step-start count plus3).
+- `cargo nextest run -p temper-service tests::forge` shows19passed (the step-start count plus3).
 - The process tier (03.1's command) exits 0 with its count at the step's start (19 at the base).

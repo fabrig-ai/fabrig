@@ -16,26 +16,24 @@ or project-listing operation was called.
 ## Base tests and inventories
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest run -p temper-fake-forge-domain
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-fake-forge-domain
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 9.28s
     Starting 96 tests across 1 binary
         PASS [   0.051s] (96/96) temper-fake-forge-domain tests::every_call_is_answered_once_under_every_fault
      Summary [   0.081s] 96 tests run: 96 passed, 0 skipped
-heavy: task 744 (build) exit 0, waited 9s, ran 10s, log /srv/data/git/runner/src/tmp/logs/20261019T003910-744.log
 ```
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest run -p temper-fake-forge-protocol
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-fake-forge-protocol
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
     Starting 55 tests across 1 binary
      Summary [   0.033s] 55 tests run: 55 passed, 0 skipped
-heavy: task 745 (build) exit 0, waited 19s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T003920-745.log
 ```
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest run -p temper-fake-forge-tests
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-fake-forge-tests
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
     Starting 3 tests across 2 binaries
@@ -43,40 +41,36 @@ Directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.003s] (2/3) temper-fake-forge-tests::memory a_forge_filled_to_its_limits_stays_within_its_worst_case
         PASS [   0.004s] (3/3) temper-fake-forge-tests::memory many_check_contexts_and_small_trees_keep_the_temporary_status_array_bounded
      Summary [   0.005s] 3 tests run: 3 passed, 0 skipped
-heavy: task 746 (build) exit 0, waited 20s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T003921-746.log
 ```
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest run -p skein-fake-peers
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p skein-fake-peers
 Directory: /srv/data/git/runner/src/tmp/planning/skein-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
     Starting 8 tests across 3 binaries
      Summary [   0.046s] 8 tests run: 8 passed, 0 skipped
-heavy: task 747 (build) exit 0, waited 20s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T003921-747.log
 ```
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest run -p temper-one-process-world
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-one-process-world
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 13.96s
     Starting 9 tests across 2 binaries (1 binary skipped via profile.default.default-filter)
         PASS [   1.450s] (9/9) temper-one-process-world::one_process an_adopted_repository_gets_its_change_pushed_through_git
      Summary [   1.451s] 9 tests run: 9 passed, 0 skipped
-heavy: task 743 (build) exit 0, waited 4s, ran 16s, log /srv/data/git/runner/src/tmp/logs/20261019T003905-743.log
 ```
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest list -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest list -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
 temper-fake-forge-tests::memory a_forge_filled_to_its_limits_stays_within_its_worst_case
 temper-fake-forge-tests::memory full_merge_history_and_both_parent_traversals_stay_bounded
 temper-fake-forge-tests::memory many_check_contexts_and_small_trees_keep_the_temporary_status_array_bounded
-heavy: task 736 (build) exit 0, waited 89s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T004116-736.log
 ```
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest list -p skein-fake-peers
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest list -p skein-fake-peers
 Directory: /srv/data/git/runner/src/tmp/planning/skein-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
 skein-fake-peers oauth::tests::redirect_preserves_registered_uri_and_escapes_code_and_state
@@ -87,7 +81,6 @@ skein-fake-peers::llm fake_peer_binds_loopback_and_shutdown_settles_the_actual_l
 skein-fake-peers::llm fake_peer_refuses_non_loopback_configuration_before_effects
 skein-fake-peers::oauth a_connection_past_the_peers_limit_is_rejected_and_the_peer_settles
 skein-fake-peers::oauth issuer_process_binds_and_settles_for_both_transports
-heavy: task 737 (build) exit 0, waited 99s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T004127-737.log
 ```
 
 The list has 96 domain names, 55 protocol names and 3 memory names.
@@ -114,7 +107,7 @@ constructor and shared-field spellings as well. No downstream code outside
 temper names either fake crate, ForgeHost or temper_fake_git::Forge.
 
 ```text
-$ heavy bash -c 'for repo in temper skein jig smith hearth; do for pattern in "temper_fake_forge_domain::" "temper_fake_forge_protocol::" "ForgeHost" "temper_fake_git::Forge" "fake_config"; do hits=$(rg -o "$pattern" /srv/data/git/runner/src/$repo --glob "*.rs" | wc -l); files=$(rg -l "$pattern" /srv/data/git/runner/src/$repo --glob "*.rs" | wc -l); printf "%s %s: %s occurrences, %s files\n" "$repo" "$pattern" "$hits" "$files"; done; done'
+$ bash -c 'for repo in temper skein jig smith hearth; do for pattern in "temper_fake_forge_domain::" "temper_fake_forge_protocol::" "ForgeHost" "temper_fake_git::Forge" "fake_config"; do hits=$(rg -o "$pattern" /srv/data/git/runner/src/$repo --glob "*.rs" | wc -l); files=$(rg -l "$pattern" /srv/data/git/runner/src/$repo --glob "*.rs" | wc -l); printf "%s %s: %s occurrences, %s files\n" "$repo" "$pattern" "$hits" "$files"; done; done'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 temper temper_fake_forge_domain::: 118 occurrences, 39 files
 temper temper_fake_forge_protocol::: 27 occurrences, 14 files
@@ -141,11 +134,10 @@ hearth temper_fake_forge_protocol::: 0 occurrences, 0 files
 hearth ForgeHost: 0 occurrences, 0 files
 hearth temper_fake_git::Forge: 0 occurrences, 0 files
 hearth fake_config: 0 occurrences, 0 files
-heavy: task 743 (build) exit 0, waited 87s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T004134-743.log
 ```
 
 ```text
-$ heavy bash -c 'for package in temper-fake-forge-domain temper-fake-forge-protocol; do rg -l "^$package" /srv/data/git/runner/src/{temper,skein,jig,smith,hearth} --glob Cargo.toml; done'
+$ bash -c 'for package in temper-fake-forge-domain temper-fake-forge-protocol; do rg -l "^$package" /srv/data/git/runner/src/{temper,skein,jig,smith,hearth} --glob Cargo.toml; done'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 /srv/data/git/runner/src/temper/Cargo.toml
 /srv/data/git/runner/src/temper/tests/one-process/Cargo.toml
@@ -164,7 +156,6 @@ Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 /srv/data/git/runner/src/temper/tests/one-process/Cargo.toml
 /srv/data/git/runner/src/temper/tests/engine/protocol-forge/Cargo.toml
 /srv/data/git/runner/src/temper/testing/temper-fake-git/Cargo.toml
-heavy: task 744 (build) exit 0, waited 87s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T004135-744.log
 ```
 
 Domain: 12 manifest matches including the root; protocol: 5 including
@@ -206,7 +197,7 @@ host/users if they have landed.
 
 
 ```text
-$ heavy bash -c 'for repo in temper skein jig smith hearth; do for pattern in "(Server::new|Service::new|Service::target|Service::delivery|protocol::(start|up|down|resume|closed|close)|protocol::Server|fake::Server)" "(Forge::new|forge[.]serial|forge[.]pending|shared[.]borrow)" "(struct Peer|take_head|next_reply)"; do hits=$(rg -o "$pattern" /srv/data/git/runner/src/$repo --glob "*.rs" | wc -l); files=$(rg -l "$pattern" /srv/data/git/runner/src/$repo --glob "*.rs" | wc -l); printf "%s %s: %s occurrences, %s files\n" "$repo" "$pattern" "$hits" "$files"; done; done'
+$ bash -c 'for repo in temper skein jig smith hearth; do for pattern in "(Server::new|Service::new|Service::target|Service::delivery|protocol::(start|up|down|resume|closed|close)|protocol::Server|fake::Server)" "(Forge::new|forge[.]serial|forge[.]pending|shared[.]borrow)" "(struct Peer|take_head|next_reply)"; do hits=$(rg -o "$pattern" /srv/data/git/runner/src/$repo --glob "*.rs" | wc -l); files=$(rg -l "$pattern" /srv/data/git/runner/src/$repo --glob "*.rs" | wc -l); printf "%s %s: %s occurrences, %s files\n" "$repo" "$pattern" "$hits" "$files"; done; done'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 temper (Server::new|Service::new|Service::target|Service::delivery|protocol::(start|up|down|resume|closed|close)|protocol::Server|fake::Server): 49 occurrences, 24 files
 temper (Forge::new|forge[.]serial|forge[.]pending|shared[.]borrow): 22 occurrences, 11 files
@@ -223,7 +214,6 @@ smith (struct Peer|take_head|next_reply): 3 occurrences, 3 files
 hearth (Server::new|Service::new|Service::target|Service::delivery|protocol::(start|up|down|resume|closed|close)|protocol::Server|fake::Server): 9 occurrences, 4 files
 hearth (Forge::new|forge[.]serial|forge[.]pending|shared[.]borrow): 24 occurrences, 12 files
 hearth (struct Peer|take_head|next_reply): 0 occurrences, 0 files
-heavy: task 777 (build) exit 0, waited 416s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T004947-777.log
 ```
 
 These are deliberately broad spelling counts, including other servers and
@@ -236,7 +226,7 @@ was found.
 
 
 ```text
-$ heavy python3 -c 'from pathlib import Path; roots=[Path("testing/temper-fake-forge-domain"),Path("testing/temper-fake-forge-protocol")]; [(print(str(r),"production",sum(len(p.read_text().splitlines()) for p in r.rglob("*.rs") if "tests" not in p.parts and p.name!="tests.rs"),"tests",sum(len(p.read_text().splitlines()) for p in r.rglob("*.rs") if "tests" in p.parts or p.name=="tests.rs"))) for r in roots]; [(print(p,len(Path(p).read_text().splitlines()))) for p in ["testing/temper-fake-forge-domain/src/tests.rs","tests/fake-forge/tests/memory.rs","tests/one-process/src/forge.rs","testing/temper-fake-git/src/transport.rs"]]'
+$ python3 -c 'from pathlib import Path; roots=[Path("testing/temper-fake-forge-domain"),Path("testing/temper-fake-forge-protocol")]; [(print(str(r),"production",sum(len(p.read_text().splitlines()) for p in r.rglob("*.rs") if "tests" not in p.parts and p.name!="tests.rs"),"tests",sum(len(p.read_text().splitlines()) for p in r.rglob("*.rs") if "tests" in p.parts or p.name=="tests.rs"))) for r in roots]; [(print(p,len(Path(p).read_text().splitlines()))) for p in ["testing/temper-fake-forge-domain/src/tests.rs","tests/fake-forge/tests/memory.rs","tests/one-process/src/forge.rs","testing/temper-fake-git/src/transport.rs"]]'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 testing/temper-fake-forge-domain production 5527 tests 2793
 testing/temper-fake-forge-protocol production 3724 tests 1585
@@ -244,14 +234,12 @@ testing/temper-fake-forge-domain/src/tests.rs 2084
 tests/fake-forge/tests/memory.rs 451
 tests/one-process/src/forge.rs 268
 testing/temper-fake-git/src/transport.rs 218
-heavy: task 794 (build) exit 0, waited 291s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005108-794.log
 ```
 
 ```text
-$ heavy bash -c 'awk "/^temper-fake-forge-domain / {d++} /^temper-fake-forge-protocol / {p++} /^temper-fake-forge-tests::memory / {m++} END {print \"nextest list counts: domain\",d,\"protocol\",p,\"memory\",m}" /srv/data/git/runner/src/tmp/logs/20261019T004116-736.log'
+$ bash -c 'awk "/^temper-fake-forge-domain / {d++} /^temper-fake-forge-protocol / {p++} /^temper-fake-forge-tests::memory / {m++} END {print \"nextest list counts: domain\",d,\"protocol\",p,\"memory\",m}" /srv/data/git/runner/src/tmp/logs/20261019T004116-736.log'
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 nextest list counts: domain 96 protocol 55 memory 3
-heavy: task 795 (build) exit 0, waited 290s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005108-795.log
 ```
 
 05.1's Size rounds 5,527 production lines; memory and other tests are
@@ -267,7 +255,7 @@ The earlier four-line and one-line scan excerpts were incomplete. This
 split into blocks of 24 output lines (continuations of the same command).
 
 ```text
-$ heavy rg -n -i temper testing/temper-fake-forge-domain testing/temper-fake-forge-protocol tests/one-process/src/forge.rs testing/temper-fake-git/src/transport.rs /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers
+$ rg -n -i temper testing/temper-fake-forge-domain testing/temper-fake-forge-protocol tests/one-process/src/forge.rs testing/temper-fake-git/src/transport.rs /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 testing/temper-fake-git/src/transport.rs:5:use temper_fake_checkout::git::{Created, Fault, Pushed, Remote, Tree, Want, What};
 testing/temper-fake-git/src/transport.rs:6:use temper_fake_forge_domain::{self as domain, api};
@@ -376,7 +364,7 @@ testing/temper-fake-forge-protocol/src/setup/orgs.rs:166:fn document(team: &Team
 testing/temper-fake-forge-protocol/src/setup/orgs.rs:167:    temper_forge_forgejo::document::Team { id: team.id, spec: team.spec.clone() }
 ```
 
-Exit 0, 96 matches, 0 from skein-fake-peers; heavy task 733, ran 0 s,
+Exit 0, 96 matches, 0 from skein-fake-peers; task 733, ran 0 s,
 log /srv/data/git/runner/src/tmp/logs/20261019T012144-733.log.
 The shorter command without skein-fake-peers also ran once: task 738,
 exit 0, the same 96 matches (20261019T011609-738.log). The final
@@ -386,21 +374,19 @@ and both manifests also need the neutral names named in Shape.
 
 
 ```text
-$ heavy cargo clippy -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests --all-targets -- -D warnings
+$ cargo clippy -p temper-fake-forge-domain -p temper-fake-forge-protocol -p temper-fake-forge-tests --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Checking temper-fake-forge-tests v0.0.0 (/srv/data/git/runner/src/tmp/planning/temper-base/tests/fake-forge)
     Checking temper-fake-forge-protocol v0.0.0 (/srv/data/git/runner/src/tmp/planning/temper-base/testing/temper-fake-forge-protocol)
     Checking temper-fake-forge-domain v0.0.0 (/srv/data/git/runner/src/tmp/planning/temper-base/testing/temper-fake-forge-domain)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.28s
-heavy: task 778 (build) exit 0, waited 416s, ran 4s, log /srv/data/git/runner/src/tmp/logs/20261019T004948-778.log
 ```
 
 ```text
-$ heavy cargo clippy -p skein-fake-peers --all-targets -- -D warnings
+$ cargo clippy -p skein-fake-peers --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/skein-base
 Checking skein-fake-peers v0.0.0 (/srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.52s
-heavy: task 780 (build) exit 0, waited 419s, ran 11s, log /srv/data/git/runner/src/tmp/logs/20261019T004952-780.log
 ```
 
 The domain/protocol clippy command's base form includes the separate
@@ -431,7 +417,7 @@ HEAD is now at 27995fb75 Point temper's forge documents to skein's forge kit
 ```
 
 ```text
-$ heavy cargo clippy -p temper-fake-git -p temper-fake-forge-protocol --all-targets -- -D warnings
+$ cargo clippy -p temper-fake-git -p temper-fake-forge-protocol --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05
 error: item in documentation is missing backticks
  --> testing/temper-fake-git/src/peer_sketch.rs:1:27
@@ -440,7 +426,6 @@ error: item in documentation is missing backticks
 error: item in documentation is missing backticks
   --> testing/temper-fake-git/src/peer_sketch.rs:60:17
 error: could not compile `temper-fake-git` (lib) due to 3 previous errors
-heavy: task 766 (build) exit 101, waited 439s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T004928-766.log
 ```
 
 The first sketch run failed only doc_markdown at three type names in
@@ -449,26 +434,25 @@ changed, and no lint exception was added. The corrected run:
 
 
 ```text
-$ heavy cargo clippy -p temper-fake-git -p temper-fake-forge-protocol --all-targets -- -D warnings
+$ cargo clippy -p temper-fake-git -p temper-fake-forge-protocol --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05
 Checking temper-fake-git v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05/testing/temper-fake-git)
     Checking temper-engine-forge-world v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05/tests/engine/forge)
     Checking temper-fake-forge-protocol v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05/testing/temper-fake-forge-protocol)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.93s
-heavy: task 809 (build) exit 0, waited 56s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T005124-809.log
 ```
 
 ## Queue recovery
 
 An initial counting command was mistakenly queued with its program on
-stdin. heavy queues argv, not that heredoc. It was removed before starting
+stdin. queues argv, not that heredoc. It was removed before starting
 and replaced by the successful python3 -c command above. Another session's
 stdin-waiting task held the shared lane; it subsequently cleared. No other
 session's task was cancelled or altered.
 
 
 ```text
-$ heavy python3 - <<'PY'
+$ python3 - <<'PY'
 from pathlib import Path
 for root in ('testing/temper-fake-forge-domain','testing/temper-fake-forge-protocol'):
     fs=list(Path(root).rglob('*.rs'))
@@ -479,7 +463,6 @@ for name in ('testing/temper-fake-forge-domain/src/tests.rs','tests/fake-forge/t
 PY
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 Queued as task 772; removed before execution (stdin is not forwarded).
-heavy: task 772 did not finish; exit 1.
 ```
 
 ```text
@@ -576,7 +559,7 @@ The new Done-when command's base package is temper-fake-forge-tests,
 which still owns the memory target here.
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest run -p temper-fake-forge-tests --test memory
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-fake-forge-tests --test memory
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
     Starting 3 tests across 1 binary
@@ -584,7 +567,6 @@ Directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.003s] a_forge_filled_to_its_limits_stays_within_its_worst_case
         PASS [   0.004s] many_check_contexts_and_small_trees_keep_the_temporary_status_array_bounded
      Summary [   0.004s] 3 tests run: 3 passed, 0 skipped
-heavy: task 735 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011608-735.log
 ```
 
 The preliminary name scan (without the existing skein peer crate) also
@@ -592,12 +574,11 @@ ran once; the complete 96 matches are in the replacement scan above.
 This block shows its first three matches and its terminal.
 
 ```text
-$ heavy rg -n -i temper testing/temper-fake-forge-domain testing/temper-fake-forge-protocol tests/one-process/src/forge.rs testing/temper-fake-git/src/transport.rs
+$ rg -n -i temper testing/temper-fake-forge-domain testing/temper-fake-forge-protocol tests/one-process/src/forge.rs testing/temper-fake-git/src/transport.rs
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 testing/temper-fake-git/src/transport.rs:5:use temper_fake_checkout::git::{Created, Fault, Pushed, Remote, Tree, Want, What};
 testing/temper-fake-git/src/transport.rs:6:use temper_fake_forge_domain::{self as domain, api};
 testing/temper-fake-git/src/transport.rs:35:    pub fn new(forge: Rc<RefCell<Forge>>, table: &temper_fake_forge_protocol::Config) -> Self {
-heavy: task 738 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011609-738.log
 ```
 
 ### Changed signatures compiled in a skein scratch
@@ -623,67 +604,61 @@ The following three scratch-only preparation errors were corrected. Each
 block excerpts the diagnostic and terminal, not the full dependency build.
 
 ```text
-$ heavy cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
+$ cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision
 error: binding to `_` prefixed variable with no side-effect
   --> testing/skein-fake-peers/src/forge_sketch.rs:44:9
 error: could not compile `skein-fake-peers` (lib) due to 1 previous error
-heavy: task 733 (build) exit 101, ran 6s, log /srv/data/git/runner/src/tmp/logs/20261019T011934-733.log
 ```
 
 The placeholder's unused arguments became underscore-prefixed parameters.
 
 ```text
-$ heavy cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
+$ cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision
 error[E0433]: cannot find module or crate `skein_json` in this scope
   --> testing/skein-fake-peers/examples/base_bound.rs:40:19
 error[E0433]: cannot find module or crate `skein_json` in this scope
   --> testing/skein-fake-peers/examples/base_bound.rs:41:21
 error: could not compile `skein-fake-peers` (example "base_bound") due to 2 previous errors
-heavy: task 733 (build) exit 101, ran 3s, log /srv/data/git/runner/src/tmp/logs/20261019T012032-733.log
 ```
 
 The base-bound probe needed an explicit scratch dependency on skein-json.
 
 ```text
-$ heavy cargo run -p skein-fake-peers --example base_bound
+$ cargo run -p skein-fake-peers --example base_bound
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision
 error[E0433]: cannot find module or crate `skein_json` in this scope
 error: could not compile `skein-fake-peers` (example "base_bound") due to 2 previous errors
-heavy: task 734 (build) exit 101, ran 6s, log /srv/data/git/runner/src/tmp/logs/20261019T012034-734.log
 ```
 
 ```text
-$ heavy cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
+$ cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision
 error: function `boxed` is never used
   --> testing/skein-fake-peers/examples/base_bound.rs:49:4
 error: could not compile `skein-fake-peers` (example "base_bound") due to 1 previous error
-heavy: task 733 (build) exit 101, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T012059-733.log
 ```
 
 The probe had copied an unused fixture helper; it was deleted. Its earlier
 run completed but warned about that helper:
 
 ```text
-$ heavy cargo run -p skein-fake-peers --example base_bound
+$ cargo run -p skein-fake-peers --example base_bound
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision
 warning: function `boxed` is never used
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.68s
 BASE_BYTES=4645153; HEAD_BYTES=4664; connections=4
 with capture=4663809
-heavy: task 733 (build) exit 0, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T012107-733.log
 ```
 
 Corrected sketch and probe compile, with warnings denied:
 
 ```text
-$ heavy cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
+$ cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision
     Checking skein-fake-peers v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision/testing/skein-fake-peers)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
-heavy: task 733 (build) exit 0, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012117-733.log
 ```
 
 ### The head bound's independent expected values
@@ -698,25 +673,23 @@ It also measured the base at http.head + 1, so the new test pins both
 expected totals. No checkout path enters either value.
 
 ```text
-$ heavy cargo run -p skein-fake-peers --example base_bound
+$ cargo run -p skein-fake-peers --example base_bound
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.36s
      Running `target/debug/examples/base_bound`
 BASE_BYTES=4645153; HEAD_BYTES=4664; connections=4
 with capture=4663809
 http.head+1: base=4645289; with capture=4663949
-heavy: task 733 (build) exit 0, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012213-733.log
 ```
 
 Adding the second bound case was the only later scratch change; the
 final clippy run covered it too:
 
 ```text
-$ heavy cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
+$ cargo clippy -p skein-fake-peers -p base-forge-protocol --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision
     Checking skein-fake-peers v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05-revision/testing/skein-fake-peers)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.17s
-heavy: task 733 (build) exit 0, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T012339-733.log
 ```
 
 All other prescribed commands retain their base runs above. Future skein
@@ -804,7 +777,7 @@ checked in the bases; the future host path remains the ready check's,
 as decision 26 requires.
 
 ```text
-$ heavy rg -n 'worst_case\(limits, &config\).is_none|endpoint\.(host|secret)\.is_empty|Forge::new\(domain, CONFIG\)|pub use transport|use crate::\{Answer, Forge|^pub\(crate\) struct (Face|Wire)|fn limits\(\)|sockets: 3|connections: 2|queue: 64' testing/temper-fake-forge-protocol/src/service.rs testing/temper-fake-git/src/fixtures.rs testing/temper-fake-git/src/lib.rs /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/src/face.rs /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/src/transport.rs /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/tests/llm.rs
+$ rg -n 'worst_case\(limits, &config\).is_none|endpoint\.(host|secret)\.is_empty|Forge::new\(domain, CONFIG\)|pub use transport|use crate::\{Answer, Forge|^pub\(crate\) struct (Face|Wire)|fn limits\(\)|sockets: 3|connections: 2|queue: 64' testing/temper-fake-forge-protocol/src/service.rs testing/temper-fake-git/src/fixtures.rs testing/temper-fake-git/src/lib.rs /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/src/face.rs /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/src/transport.rs /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/tests/llm.rs
 Directory: /srv/data/git/runner/src/tmp/planning/temper-base
 /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/tests/llm.rs:13:fn limits() -> Limits {
 /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/tests/llm.rs:16:            sockets: 3,
@@ -817,7 +790,6 @@ testing/temper-fake-git/src/fixtures.rs:149:    let forge = Rc::new(RefCell::new
 /srv/data/git/runner/src/tmp/planning/skein-base/testing/skein-fake-peers/src/face.rs:31:pub(crate) struct Face {
 testing/temper-fake-forge-protocol/src/service.rs:26:            && (endpoint.host.is_empty() || endpoint.secret.is_empty())
 testing/temper-fake-forge-protocol/src/service.rs:30:        if worst_case(limits, &config).is_none()
-heavy: task 733 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T014114-733.log
 ```
 
 ### Changed signature and the base refusal
@@ -841,7 +813,7 @@ HEAD is now at 25d2551 Have the forge component count a call's cost
 ```
 
 ```text
-$ heavy cargo clippy -p base-forge-protocol --all-targets -- -D warnings
+$ cargo clippy -p base-forge-protocol --all-targets -- -D warnings
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-recheck
     Checking skein-lib v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05-recheck/crates/skein-lib)
     Checking skein-json v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05-recheck/crates/skein-json)
@@ -850,19 +822,17 @@ Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-recheck
     Checking base-forgejo v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05-recheck/crates/base-forgejo)
     Checking base-forge-protocol v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-05-recheck/testing/base-forge-protocol)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.80s
-heavy: task 747 (build) exit 0, waited 94s, ran 7s, log /srv/data/git/runner/src/tmp/logs/20261019T013934-747.log
 ```
 
 The full protocol run, excerpted to its build, new test and summary:
 
 ```text
-$ NEXTEST_DOUBLE_SPAWN=0 heavy cargo nextest run -p base-forge-protocol
+$ NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p base-forge-protocol
 Directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-05-recheck
     Finished `test` profile [unoptimized + debuginfo] target(s) in 4.42s
     Starting 56 tests across 1 binary
         PASS [   0.009s] (29/56) base-forge-protocol tests::deliveries::service_refuses_limits_without_a_worst_case
      Summary [   0.026s] 56 tests run: 56 passed, 0 skipped
-heavy: task 750 (build) exit 0, waited 58s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T013941-750.log
 ```
 
 No new Proof or Done-when command was introduced; their base forms have

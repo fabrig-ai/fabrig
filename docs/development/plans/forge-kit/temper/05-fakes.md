@@ -83,8 +83,8 @@ the README table's; the code shows no other. Design built: skein `fake-forge.md`
 
 ## Rules that bind it
 
-- The repin is each increment's first commit: `heavy cargo update -p skein-lib`,
-  then `heavy cargo check --workspace --all-targets`, repairing what skein's
+- The repin is each increment's first commit: `cargo update -p skein-lib`,
+  then `cargo check --workspace --all-targets`, repairing what skein's
   steps since the last repin broke. A `Cargo.lock` conflict takes
   `origin/main`'s and runs the update again. At the base the check fails on
   `Op::Lock` in `temper-worker-protocol-git` and on jig's pin (findings); the
@@ -96,7 +96,7 @@ the README table's; the code shows no other. Design built: skein `fake-forge.md`
 - Both increments are hotspots (README Rules). 05.1 ends the fake crates'
   wait. 05.2 ends the forge host's, and a change to `ForgeHost` or to the
   fake-git handle waits from skein 05.4's start to its landing.
-- A Size counts `heavy git diff --numstat origin/main -- . ':!Cargo.lock'`,
+- A Size counts `git diff --numstat origin/main --. ':!Cargo.lock'`,
   first column summed. Paths and counts are at the base (temper dd12b8e, skein
   064c55f); copies come from `origin/main` at the step's start.
 - The process tier runs once, in 05.2.
@@ -133,9 +133,9 @@ Shape: a rename, in three commits: the repin; the users (`temper_fake_forge_doma
 Test shape: no new test, none moved. The 154 tests of the deleted crates (96
   domain, 55 protocol, 3 memory; none fuzzy) leave temper; skein runs them (100
   and 56 there, skein/05-fakes.md). Times at the base: the three crates 0.118 s.
-Proof: joint; `heavy cargo nextest run -p temper-fake-git`: its count at the
+Proof: joint; `cargo nextest run -p temper-fake-git`: its count at the
   step's start (14 at the base: check 6, transcripts 8; 0.021 s).
-Proof: joint; `heavy cargo nextest run -p temper-conformance-world
+Proof: joint; `cargo nextest run -p temper-conformance-world
   -p temper-engine-domain-world -p temper-engine-forge-world
   -p temper-engine-forge-client-world -p temper-engine-protocol-forge-world
   -p temper-forge-setup-reconcile-world -p temper-system-world
@@ -145,7 +145,7 @@ Proof: joint; `heavy cargo nextest run -p temper-conformance-world
 Proof: joint; the same packages with `--profile fuzzy`: their count at the step's
   start, unchanged (39 at the base, 27.1 s while the queue was loaded; 15.5 s with the three fake crates
   among 13 packages), under the 60 s fuzzy ceiling.
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at the
+Proof: joint; `scripts/check.sh`: origin/main's focused count at the
   step's start less 154 (1725 from the base's 1879) and its fuzzy count unchanged
   (50 at the base), clean clippy, focused <15 s (6.8 s at the
   base), fuzzy <60 s (23.9 s).
@@ -244,22 +244,22 @@ Test shape: three new units in `world.rs`' tests, no world, each <20 ms:
   delivery count (or `tally().hooks`) other than 2, or an Adopt that meets
   its existing deadline still short of 2 records, goes to the supervisor,
   not into an edit.
-Proof: unit; `heavy cargo nextest run -p temper-one-process-world -E
+Proof: unit; `cargo nextest run -p temper-one-process-world -E
   'test(a_port_zero_listener_names_the_hooks_address_once_it_listens) | test(a_fixed_port_bind_is_not_a_hooks_address) | test(a_failed_bind_is_not_a_hooks_address)'`: 3 passed, each <20 ms.
-Proof: joint; `heavy cargo nextest run -p temper-one-process-world`: its count at
+Proof: joint; `cargo nextest run -p temper-one-process-world`: its count at
   the step's start plus 3 (12 from the base's 9, 0.953 s; the scratch with webhooks configured ran them in
   1.96 s serially, the Adopt story in 1.08 s). The Adopt story alone took
   0.953 s at the base, over the 0.5 s focused ceiling: its time and cause are
   reported, never a raised budget or a new world; the added check is an assertion.
-Proof: joint; `heavy cargo nextest run -p temper-one-process-world --profile
+Proof: joint; `cargo nextest run -p temper-one-process-world --profile
   fuzzy`: its count at the step's start, unchanged (4 at the base, 2.10 to 2.14 s, 2.18 to 2.28 s in the scratch over
   two rounds), under about 5 s.
-Proof: joint; `heavy cargo nextest run -p temper-fake-git`: its count at the step's start (14, 0.021 s, at the base).
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at the
+Proof: joint; `cargo nextest run -p temper-fake-git`: its count at the step's start (14, 0.021 s, at the base).
+Proof: joint; `scripts/check.sh`: origin/main's focused count at the
   step's start plus 3 and its fuzzy count unchanged, clean clippy, focused <15 s, fuzzy <60 s.
 Proof: process; `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate scripts/proof-one-process.sh`, once: its count at the step's start passed (19, 145.440 s
+  scripts/proof-one-process.sh`, once: its count at the step's start passed (19, 145.440 s
   at the base). That script runs the real-binary tier; the one-process stories are the
   joint lines above.
 Don't: add a story or a world; edit a story's name or an assertion beyond the
@@ -325,18 +325,18 @@ values of `tests/engine/protocol-forge/src/fixtures.rs`.
 
 ## Done when
 
-- `heavy cargo check --workspace --all-targets` exits 0 after each increment.
+- `cargo check --workspace --all-targets` exits 0 after each increment.
 - `ls -d testing/temper-fake-forge-domain testing/temper-fake-forge-protocol
   tests/fake-forge` prints "No such file" three times (all exist at the base).
-- `heavy rg -n 'temper[-_]fake[-_]forge' Cargo.toml crates testing tests tools
+- `rg -n 'temper[-_]fake[-_]forge' Cargo.toml crates testing tests tools
   -g '*.rs' -g Cargo.toml` prints nothing (174 matches in 63 files at the base,
   counted with `--count-matches`; the three crates are among them).
-- `heavy rg -n 'temper_fake_git::Forge|ForgeHost|pub use transport::\{Forge'
+- `rg -n 'temper_fake_git::Forge|ForgeHost|pub use transport::\{Forge'
   tests testing crates -g '*.rs'` prints nothing (11 lines at the base).
-- `heavy rg -n '3000' tests/one-process/src/fixtures.rs` prints one line, the
+- `rg -n '3000' tests/one-process/src/fixtures.rs` prints one line, the
   definition of `FORGE` (3 lines at the base: the document's two strings and
   `forges()`' address).
-- `heavy rg -n 'skein_fake_peers::forge' testing tests -g '*.rs'` prints the
+- `rg -n 'skein_fake_peers::forge' testing tests -g '*.rs'` prints the
   users, among them temper-fake-git's `transport.rs` and `fixtures.rs`, and
   one-process's `world.rs`, `referee/forge.rs`, `stories.rs`, `tests/one_process.rs`.
 - The Proof lines of both increments print their counts; the process tier ran

@@ -121,7 +121,7 @@ jig 14 carries these operations to it, and jig 22 the documents.
 
 - **Format versions** (README, Rules): the tasks and people families are
   v3 from jig 02.1 and 02.3; each increment here edits v3's schema in
-  place and regenerates (`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run
+  place and regenerates (`SKEIN_CODEGEN_WRITE=1 cargo nextest run
   -p jig-store-codecs-world --test drift`); never a v2 file.
 - **Files over 800 lines get at most 40 more lines each**
   (code-organization.md, 7; `git diff --numstat origin/main...HEAD --
@@ -340,7 +340,7 @@ Proof: joint layer, `tests/core/tests/parties.rs`,
 `Create` of two agents' tasks, the second depending on the first, is
 answered `Created { first: 2, last: 3 }` once durable, and the store holds
 both as the member's roots, funded by their pool, with the tracked
-priority, labels and flags asked. Under 0.5 s. Run once, `heavy cargo
+priority, labels and flags asked. Under 0.5 s. Run once, `cargo
 nextest run -p jig-core-world -E
 'test(a_partys_batch_of_two_agents_tasks_is_made_as_their_roots)'`; it
 passes, and nothing else is wanted.
@@ -482,8 +482,7 @@ Proof: joint layer, `tests/core/tests/parties.rs`,
 agent's would be"): a member's batch of an agent's task and a person task
 addressed to their own role, the person task depending on the agent's, is
 made; the person task waits for its dependency, then shows in the
-member's inbox as a task they carry out. Under 0.5 s. Run once, `heavy
-cargo nextest run -p jig-core-world -E
+member's inbox as a task they carry out. Under 0.5 s. Run once, `cargo nextest run -p jig-core-world -E
 'test(a_partys_batch_of_an_agents_task_and_a_person_task_is_made)'`; it
 passes, and nothing else is wanted.
 Don't: let a party's member hand down holds (a party holds none); accept
@@ -560,7 +559,7 @@ Proof: joint layer, `tests/core/tests/parties.rs`,
 member's `Create` of a task whose budget passes their role's spend but
 not the project's ceiling is refused `Authority { lacking: Budget { needs:
 150, left: 100 }, proposable: Some(Accepter::Role(0)) }`, and nothing of it
-is made. Under 0.5 s. Run once, `heavy cargo nextest run -p
+is made. Under 0.5 s. Run once, `cargo nextest run -p
 jig-core-world -E
 'test(a_partys_batch_beyond_their_role_is_refused_naming_who_may_accept)'`;
 it passes, and nothing else is wanted.
@@ -743,7 +742,7 @@ role 0; their `Propose` of the same batch with a reason is answered
 `Proposed { proposal, to: 0 }` and shows in the owner's inbox; the owner
 accepts it; the batch is live as the member's roots, funded by the
 owner's pool, and the member's inbox shows the decision. Under 0.5 s.
-Run once, `heavy cargo nextest run -p jig-core-world -E
+Run once, `cargo nextest run -p jig-core-world -E
 'test(a_partys_batch_beyond_their_role_is_proposed_and_accepted)'`; it
 passes, and nothing else is wanted.
 Don't: let a proposal wait for nobody; give a party's proposal an
@@ -900,10 +899,10 @@ the proposal's document names the member, not the task, as its proposer;
 the owner accepts it, and the task's authority is the widened one. Its
 funder is the owner's pool, which reserves the widened budget (the task
 spent nothing), and its funder before is given back the budget it had
-reserved for it. Under 0.5 s. Run once, `heavy cargo
+reserved for it. Under 0.5 s. Run once, `cargo
 nextest run -p jig-core-world -E
 'test(a_partys_widening_amendment_is_proposed_by_the_party_and_accepted)'`,
-and once `heavy cargo nextest run -p jig-engine-clients-world -E
+and once `cargo nextest run -p jig-engine-clients-world -E
 'test(a_v8_amend_beyond_the_role_is_proposed_and_answered_amend_proposed)'`
 for the transitional piece; each passes, and nothing else is wanted.
 Don't: keep any path in the engine that commits a proposal its proposer
@@ -920,7 +919,7 @@ proposal.
 ## Interface sketches
 
 Compiled at jig's base `a3b53546` as scratch modules of
-`jig-domain-people` and `jig-domain-tasks`, `heavy cargo clippy -p
+`jig-domain-people` and `jig-domain-tasks`, `cargo clippy -p
 jig-domain-tasks -p jig-domain-authority -p jig-domain-people -p
 jig-domain-core --all-targets -- -D warnings`: passed; compiled again
 at jig `45b1479f3`, after jig 02 (ruling 146), with

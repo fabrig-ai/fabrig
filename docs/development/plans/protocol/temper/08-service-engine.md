@@ -292,7 +292,7 @@ fn an_override_sets_the_field_its_dotted_name_names() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service`, run once: the
+Proof: unit, `cargo nextest run -p temper-service`, run once: the
 prefixes are disjoint, each override sets its field, an unknown name is
 refused, and the profile passes every domain's worst case; under 1 s.
 Don't: parse configuration (10.1's); define a component's limits the
@@ -389,12 +389,11 @@ fn a_continued_forge_load_asks_from_its_tagged_cursor() {
     assert_eq!(cursor, jig_protocol_store::Cursor { interval: 0, after: tagged });
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/store_route/)'`, run once: each root range asks the store as the
 table maps it, a forge commit puts its encoded row, a page reaches the
 root decoded within its bounds, a filtered page goes on, the census's
-cursor is its index row's, and a bad row stops the engine; and `heavy
-cargo nextest run -p temper-engine-domain -p temper-engine-domain-world`,
+cursor is its index row's, and a bad row stops the engine; and `cargo nextest run -p temper-engine-domain -p temper-engine-domain-world`,
 run once: the root takes a census page as jig walks it, and the engine
 domain world's stories pass; under 1 s and the world's budget.
 Don't: decode a row without checking its key against its record;
@@ -444,7 +443,7 @@ fn a_forge_row_committed_is_restored_by_the_forge_interval() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/store/)'`, run once: a forge row committed over the memory store
 comes back from the forge's interval, and sizes past skein-kv's limits
 refuse the store; under 1 s.
@@ -494,7 +493,7 @@ fn a_granted_token_is_lent_and_kept_out_of_the_root() {
     assert_eq!(fixtures::lent(&accounts, 1, 1).expose(), b"test-token");
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/accounts/)'`, run once: a handed-in account is granted, its token
 lent from the table and absent from the root's events; under 1 s.
 Don't: refresh an account, keep its record in the store, or put a token
@@ -585,7 +584,7 @@ fn a_forge_call_is_answered_unavailable_at_no_cost() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service`, run once: the
+Proof: unit, `cargo nextest run -p temper-service`, run once: the
 engine restarts over the memory store one load at a time, gives each
 configured project one period at its first start, answers a forge call
 unavailable at cost 0, stops on a failed commit, and drains on a signal;
@@ -682,7 +681,7 @@ fn a_workspace_reaches_items_with_each_remote_made_from_its_base() {
 ```
 
 (`first_repository` takes the generated record apart with `into_parts`.)
-Proof: unit, `heavy cargo nextest run -p temper-service -p
+Proof: unit, `cargo nextest run -p temper-service -p
 temper-engine-smith`, run once: an assignment leaves with its items,
 remotes made from the forge's base, its charter encoded and its grant
 filled with its identity's value; an answer's parts reach the root's
@@ -737,7 +736,7 @@ fn an_unknown_tool_is_answered_an_error_with_no_commit() {
 ```
 
 (`host::Relayed::Answer` is jig-domain-host's `link.rs:58` at the pin.)
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/tools/)'`, run once: a call decodes into the root's tool, an
 unknown tool is answered an error with no commit, an answer is rendered,
 and a bad result fails its attempt invalid; under 1 s.
@@ -792,7 +791,7 @@ fn a_chat_ask_reaches_the_root_as_a_party_ask() {
     assert_eq!(key, [5; 16]);
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/clients/)'`, run once: the engine prints one link, a link's
 sign-in reaches the root and answers a bearer token, and a chat's ask reaches the
 root; under 1 s.
@@ -852,7 +851,7 @@ fn an_adopt_reaches_the_root_with_its_forges_host() {
 
 (`application_adoption` takes 02.2's `PartyInput::Application` apart;
 landed code wins on its shape.)
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/family/)'`, run once: an adoption reaches the root with its
 forge's host, one of another version is answered undecodable, the
 family's reads are unknown and its watches refused, and every outcome
@@ -1362,7 +1361,7 @@ pub mod family {
 
 ## Done when
 
-- The crate builds and its tests pass: `heavy cargo nextest run -p
+- The crate builds and its tests pass: `cargo nextest run -p
   temper-service -p temper-engine-smith` passes.
 - It links neither jig's charter nor its tools: `grep -nE
   'jig-protocol-(charter|tools)' crates/temper-service/Cargo.toml`

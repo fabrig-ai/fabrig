@@ -68,13 +68,13 @@ binary under it, and replaces itself by `forgejo web` or `forgejo-runner daemon`
 - **No secret in an argument, a refusal or a `Debug`.** A refusal prints versions, paths and commands only (`state` holds
   Forgejo's secrets). Checked by 07.4's `no_argument_of_any_command_holds_a_secret`, 08.2's
   `no_secret_of_the_state_reaches_a_refusal` and 07.2's `a_state_debug_shows_no_secret`; no other type holds one, and the
-  implementer keeps it so.
+  author keeps it so.
 - **The binaries,** exported in the shell that runs a command below, on a line of their own: `export
   TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64`. The focused
   tests use scripts. No live service, no sign-in.
 - **Hotspots shared with client-api (README):** marked in Files (to about 10-18 20Z); root `Cargo.toml` is also 07.1's and
-  12.1's. A rebase takes origin/main's `Cargo.lock`, then `heavy cargo check -p temper-forge-setup-shell -p temper
+  12.1's. A rebase takes origin/main's `Cargo.lock`, then `cargo check -p temper-forge-setup-shell -p temper
   --tests` (no `cargo update`).
 
 ## Increments
@@ -168,7 +168,7 @@ fn a_preparation_cut_short_is_begun_again_from_an_empty_layout() {
 ```
 Proof: process, `forge_prepare_makes_an_owned_forge_then_remakes_nothing` (`tests/process.rs`, both pinned binaries):
 `owned::configuration` with a runner, `temper forge prepare` exits 0, the five secret files exist and are private,
-`runner/secret` holds 40 hex digits, a second preparation exits 0 with each byte-equal. Command: `heavy --gate sh -c
+`runner/secret` holds 40 hex digits, a second preparation exits 0 with each byte-equal. Command: `sh -c
 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process -E
 "test(=forge_prepare_makes_an_owned_forge_then_remakes_nothing)"'` ends `1 test run: 1 passed`, about 10 s, at most
 30 s. Nothing runs higher: Forgejo runs first in 08.2.
@@ -239,7 +239,7 @@ Proof: process, `a_prepared_forge_runs_forgejo_and_its_runner_once_each` (`tests
 08.1's `owned::{configuration, prepare}`): after `prepare` with a runner, `run forgejo` answers `GET /api/v1/version`
 with the pin's release and `forge-1/admin_token` answers `GET /api/v1/user` as site admin `temper-admin` (30 s at
 most each), `run runner` logs `declared successfully` (30 s), a second `run forgejo` exits 1 with `forge 1: forgejo
-is running or being prepared already`, and killing both leaves neither answering. Command: `heavy --gate sh -c
+is running or being prepared already`, and killing both leaves neither answering. Command: `sh -c
 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process
 -E "test(=a_prepared_forge_runs_forgejo_and_its_runner_once_each)"'` ends `1 test run: 1 passed`, about 20 s, at
 most 60 s. It is also the first run of the runner on 07.2's configuration (Question 1). Nothing runs higher.
@@ -270,11 +270,11 @@ Test shape: no new test: the increment is test support, and the tier's six tests
 Forgejo (`temper_open_adopts_a_repository_by_commands`, `a_persons_change_lands_on_the_forge_and_is_found_after_a_
 restart`). Limits: the tier keeps the shipped profile's (`support/configuration.rs:43`, `"profile":"small"`);
 `Settings::small()` still gives `attach` its answer bound.
-Proof: process, the tier whole, once, `TEMPER_FORGEJO` set: `heavy --gate scripts/proof-one-process.sh` exits 0 and
+Proof: process, the tier whole, once, `TEMPER_FORGEJO` set: `scripts/proof-one-process.sh` exits 0 and
 every test passes, the landing story merging its pull request on an owned Forgejo (base: 42.4 s for six tests,
 `findings/forge-and-tiers.md` 4; now at most 42.4 s plus the ceilings of the tests added to the `process` binary
 since the base: 08.1's 30 s, 08.2's 60 s, and each other landed by then, named in the report). Second, the live binary in its fake mode, which shares `start`
-(no `TEMPER_RUN_LOGS`): `heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper &&
+(no `TEMPER_RUN_LOGS`): `sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper &&
 cargo nextest run -p temper --profile live'` ends `1 test run: 1 passed`, at most 90 s. Nothing runs higher:
 reconcile and CI are temper 10.
 Don't: change `Instance::start` or `Settings` (the conformance and git tools use them); run reconcile or the runner;
@@ -386,17 +386,17 @@ impl Instance {
 ## Done when
 
 With the two binaries exported (Rules); the counts are of this session's own tests, which the filters name:
-1. Prepare and run work on the pinned binaries: `heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper
+1. Prepare and run work on the pinned binaries: `sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper
    --bin temper && cargo nextest run -p temper --profile process -E "test(=forge_prepare_makes_an_owned_forge_then_remakes_nothing)
    + test(=a_prepared_forge_runs_forgejo_and_its_runner_once_each)"'` ends `2 tests run: 2 passed`.
 2. The whole tier passes on an owned Forgejo: README Done when 4's run (not repeated here) exits 0, and `git grep -n -F
    'actions: false' origin/main -- crates/temper/tests/support/forgejo.rs` prints nothing.
-3. The focused binary tests pass in the default suite: `heavy cargo nextest run -p temper --test forge -E
+3. The focused binary tests pass in the default suite: `cargo nextest run -p temper --test forge -E
    'test(/a_second_(preparation|run)|a_preparation_cut_short|forgejo_files_with_no_state|a_later_preparation|a_forge_directory_open|a_termination_signal|the_run_replaces|the_new_process_|no_secret_of_the_state/)'`
    ends `11 tests run: 11 passed`, under 5 s.
-4. The shell crate's tests pass, the boundary scan among them: `heavy cargo nextest run -p temper-forge-setup-shell -E
+4. The shell crate's tests pass, the boundary scan among them: `cargo nextest run -p temper-forge-setup-shell -E
    'test(/a_second_lock|a_child_holds|a_command_ends|output_past_the_bound|a_program_that_is_not_there|a_file_is_written_whole|clear_removes_a_first|std_process_and_file_locks|the_scan_catches/)'`
-   ends `9 tests run: 9 passed`; the run's step tests: `heavy cargo nextest run -p temper-forge-setup -E
+   ends `9 tests run: 9 passed`; the run's step tests: `cargo nextest run -p temper-forge-setup -E
    'test(/the_run_refuses_a_(forge_not_prepared|runner_the_setup)|the_run_refuses_another_binary|the_run_specs_name/)'` ends `4 tests run: 4 passed`.
 5. One module locks and execs: `git grep -l -E 'process::(Command|Child|Stdio|exit|abort)|CommandExt|try_lock|lock_shared'
    origin/main -- 'crates/*/src/*' ':!*/tests/*' ':!*/tests.rs'` prints only `origin/main:crates/temper-forge-setup-shell/src/process.rs`.

@@ -174,7 +174,7 @@ phases, since/until together and timeout bounds),
 is checked against `ask_bytes`, a u64, before the tokenizer, whose length
 is a u32),
 `each_tools_record_is_written_as_json`.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, `cargo nextest run -p temper-client-tools -E
 'test(every_call_goes_from_argv_to_json_and_back_unchanged)'` (under 20
 ms): every row's call goes from argv to JSON and back unchanged. No host reads
 `--call` at this session's start; the next plan's host reads the file or stdin
@@ -286,7 +286,7 @@ reported as findings, the sized-turn exception),
 (golden examples have Choices' fields and messages, no request name or
 key; unread records counted, invalid file refused). Among the bounds tests,
 `the_help_fits_the_tools_window`.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, `cargo nextest run -p temper-client-tools -E
 'test(every_call_line_of_the_guide_parses_with_the_table)'` (under 20
 ms): the guide names only calls the table parses. No host prints help
 at this session's start: the next plan's host connects it, and its process

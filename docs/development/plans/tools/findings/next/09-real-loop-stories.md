@@ -135,7 +135,7 @@ fn a_restarted_service_keeps_the_chat_and_its_reply() {
     assert!(!second.llm.iter().any(|o| matches!(o, Observation::Query { .. })));
 }
 ```
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test
+Proof: world, `cargo nextest run -p temper-real-loop-world --test
 calls -E 'test(restarted)'`, under 1 s for both runs together. This
 kernel persistence proof is already the highest useful layer; both
 runs pass 08's drain, memory and descriptor checks.
@@ -189,7 +189,7 @@ fn a_call_killed_once_its_request_is_held_is_made_once_by_its_name() {
     assert!(ran.calls[6].stdout.is_empty(), "nothing kept after recovery");
 }
 ```
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test
+Proof: world, `cargo nextest run -p temper-real-loop-world --test
 calls -E 'test(killed_once)'`, under 1 s. The trace orders the durable
 cue, Kill and the released lock; no answer was read first. The real
 kernel world is this proof's layer; executable signal conversion is 10's.
@@ -250,7 +250,7 @@ fn an_act_waiting_on_a_killed_holder_takes_the_lock_and_sends_its_record() {
 task: one of the two listed tasks, different from the surviving call's.
 Each story under 1 s; trace checks Busy, retry and exclusive intervals,
 not a guessed duration between spawn and exit.
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test
+Proof: world, `cargo nextest run -p temper-real-loop-world --test
 calls -E 'test(an_act_waiting_on_a_killed_holder)'`, under 1 s. The
 kernel's lock and descriptor release are already at the required layer.
 Don't: choose which concurrent call wins, shorten a client deadline,

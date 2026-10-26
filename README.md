@@ -52,9 +52,7 @@ draft to landed change.
   `testing-strategy.md` and `notes.md`.
 
 Before changing code, read [`AGENTS.md`](AGENTS.md) and
-[`docs/development/workflow.md`](docs/development/workflow.md). `main`
-moves only through agents' `land`, which runs the gate,
-`scripts/check.sh`.
+[`docs/development/workflow.md`](docs/development/workflow.md).
 
 ## The family
 

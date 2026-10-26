@@ -214,8 +214,8 @@ fn valid_given_values_are_accepted() {
     assert_eq!(crate::given::check(&given), Ok(()), "shipped profile admitted");
 }
 ```
-Proof: unit; `heavy cargo nextest run -p skein-forge-setup` shows 17 passing
-  tests, each <20 ms, suite <1 s. Base form: `heavy cargo nextest run -p
+Proof: unit; `cargo nextest run -p skein-forge-setup` shows 17 passing
+  tests, each <20 ms, suite <1 s. Base form: `cargo nextest run -p
   temper-forge-setup`, 98 passed in 0.043 s. No caller of the new crate yet;
   temper 04.1 connects the host/world, skein 07.3 moves the world here.
 Don't: move `setup`, `check`, `problem`, `state`, `place`, `ini`, `runner`,
@@ -294,7 +294,7 @@ Test shape: **0 moved, 16 new**, 33 total; shared 04.1 fixtures, all <20 ms.
   - `a_down_checking_a_token_stops`: Down for either token -> named Stop/Down.
   Failure expectations include forge 1 and literal subject `kit`, `kit-api`
   or `kit-git`. Helpers prepare the phase without assertions on the way.
-Proof: unit; `heavy cargo nextest run -p skein-forge-setup` shows 33 passing
+Proof: unit; `cargo nextest run -p skein-forge-setup` shows 33 passing
   tests, each <20 ms, suite <1 s. 04.1's 98-test base form lacks these 16 tests.
   temper 04.1 connects the host; skein 07.3 moves the world. Neither blocks this step.
 Don't: alter scopes, check scopes of a kept token that answers as the bot,
@@ -382,7 +382,7 @@ fn limits_at_both_relations_are_accepted() {
 ```
   Extend the reference with max = profile deadline minus 1 ns. steps.rs imports
   `crate::reconcile::{Event, Failure, Need, Stage, Why}`.
-Proof: unit; `heavy cargo nextest run -p skein-forge-setup` shows 54 passing
+Proof: unit; `cargo nextest run -p skein-forge-setup` shows 54 passing
   tests, each <20 ms, suite <1 s. 04.1's 98-test base form lacks the new tests.
   No higher kit caller until skein 07.3; temper 04.1 connects the host.
   Keep tests/steps.rs under 800 lines; each test <=40.
@@ -395,12 +395,12 @@ Removes: nothing.
 
 Commands from skein's root; base forms and results are in base-skein-04.
 
-- `heavy cargo nextest run -p skein-forge-setup` prints 54 passed, 0 skipped,
+- `cargo nextest run -p skein-forge-setup` prints 54 passed, 0 skipped,
   suite <1 s, every unit <20 ms; the 13 moved names still appear unchanged.
-- `heavy cargo nextest list -p skein-forge-setup -E 'test(/^tests::reconcile::/)'`
+- `cargo nextest list -p skein-forge-setup -E 'test(/^tests::reconcile::/)'`
   prints 25 tests: the 13 moved names plus 04.2's 12; no filter is used to run
   the suite. At the base its source form lists exactly the 13 moved names.
-- `heavy cargo clippy -p skein-forge-setup --all-targets -- -D warnings`
+- `cargo clippy -p skein-forge-setup --all-targets -- -D warnings`
   exits 0, with no warnings.
-- `heavy rg -n -i 'temper' crates/skein-forge-setup` prints nothing (exit 1
+- `rg -n -i 'temper' crates/skein-forge-setup` prints nothing (exit 1
   means no matches); the base source crate contains the names being removed.

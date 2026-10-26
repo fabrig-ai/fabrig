@@ -156,7 +156,7 @@ family's records in `route` are 15.1a's.
   `crates/jig-shell-native/clippy.toml`; its modules `route`, `render`,
   `command` and `limits` are step code" (code-organization.md, section 2).
 - "**The process and live tiers run only where a Proof line or 'Done
-  when' says,** through `heavy --gate`, once" (README, Rules); "No other
+  when' says,** once" (README, Rules); "No other
   variable is read by temper's code or tests" (code-organization.md, 1).
 
 ## Increments
@@ -218,7 +218,7 @@ fn a_service_credential_is_a_notice_never_a_root_event() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-shell-terminal`, run
+Proof: unit, `cargo nextest run -p temper-shell-terminal`, run
 once: jig's reads and watches pass unchanged both ways, a table record
 round-trips through the small store's shape, the shell gets its
 exchanges and writes, a service's credential and an unasked family
@@ -287,7 +287,7 @@ fn the_binary_answers_a_chat_from_a_person_signed_in_by_its_link() {
 }
 ```
 
-Proof: process, `heavy --gate scripts/proof-one-process.sh`, run once:
+Proof: process, `scripts/proof-one-process.sh`, run once:
 the real binary prints its link, jig's fake person signs in through
 temper's native client by it, starts a chat that names no repository,
 and sees the fake model's answer on jig's page (the test above, beside
@@ -683,9 +683,8 @@ pub fn run(directory: &Path, script: person::Script, peer: Option<skein_fake_pee
 
 ## Done when
 
-- The crate and the story pass: `heavy cargo nextest run -p
-  temper-shell-terminal` passes, and `heavy --gate
-  scripts/proof-one-process.sh` passed once in 12.2's Proof, its log
+- The crate and the story pass: `cargo nextest run -p
+  temper-shell-terminal` passes, and `scripts/proof-one-process.sh` passed once in 12.2's Proof, its log
   naming `the_binary_answers_a_chat_from_a_person_signed_in_by_its_link`.
 - The step modules keep the subset: `grep -nE
   'Vec<|String|format!|std::|\|[a-z_, ]*\||\bloop\b|\bwhile\b'

@@ -14,9 +14,9 @@ run are appended after "For the user".
    serves the conformance's delivery facts (temper 04.1) alone: by the
    time the engine has a listener, the process tier runs on owned.
 2. **temper's skein moves once, in temper 05.1,** after skein 01.2 and
-   after the director's client-api ruling lands (temper's skein may be
+   after the client-api ruling lands (temper's skein may be
    ahead of client-api's floor; its repins check `git merge-base
-   --is-ancestor`; none moves skein back). The director chose this on
+   --is-ancestor`; none moves skein back). The review chose this on
    2026-10-16; the ruling is client-api's ruling 154 (`c36858db7`), on
    `main` at the plan's base, so 05.1 waits for skein 01.2 and temper
    04.2 alone.
@@ -147,13 +147,13 @@ run are appended after "For the user".
      Ruling 101, a plan defect: 04.1's Size of 250 under-counted the scenario the session file itself prescribes
      (the listener, eleven steps, two probes, 21 facts and their roll-up, "Facts, 21, each named `delivery-` …" in 04.1's
      Shape). 04.1's Size is now 300, the plan's largest (development.md, 5.2: "Every Size is at most about 300 lines"),
-     so its tolerance is 600 by implementer.md's 8.6 ("An increment lands within twice its Size without asking").
+     so its tolerance is 600 by the implementation rules ("An increment lands within twice its Size without asking").
 
      - 04.1 lands at its count of 523, plus what the recording's proof needs fixed, while the count by
        code-organization.md 6's command stays at most 600.
      - Past 600, stop on a question again, with the count by file.
      - Unchanged: 04.2's Size (220, codec); the rule against trimming a doc comment, a test or the formatting to meet a
-       Size (implementer.md, 8.6); the proof, the recording whole, before landing.
+       Size; the proof, the recording whole, before landing.
 
 102. **07.1's Size at 300; sizes within 2.6 times** (plan defect, temper 07's block of 2026-10-16T22:11:00Z).
      Ruling 102, a plan defect: 07.1's Size of 280 under-counted its own Shape (sketches 1-3, `problem::{Problems,
@@ -164,8 +164,8 @@ run are appended after "For the user".
      - The same block twice (04.1, ruling 101; 07.1) becomes a standing rule, in the README's "Rules of this plan":
        "An increment of this plan lands within 2.6 times its Size without asking, a Size marked "(codec)" within 3 times;
        its report gives the count by code-organization.md 6's command, by file. Past that, it stops on a question, as
-       implementer.md 8.6 says." By it, 07.1 lands at its 724 and what its review needs, up to 780.
-     - Unchanged: never trim a doc comment, a test or the formatting to meet a Size (implementer.md, 8.6); a split
+       the implementation rules says." By it, 07.1 lands at its 724 and what its review needs, up to 780.
+     - Unchanged: never trim a doc comment, a test or the formatting to meet a Size; a split
        increment's parts count together; 07.2-07.4's Sizes.
      - For the retrospective: with Sizes at most about 300 and increments landing at about twice them (development.md,
        5.2), a tolerance of twice stops about half of them; this plan's two size blocks came in its first 11 minutes.
@@ -339,7 +339,7 @@ run are appended after "For the user".
        `skein_io::Limits`'s five other fields (`sends` 1, `accepts` 1, `backlog` 1, `close_timeout` 5 s, `retry` 10 ms);
        the harness's root is `Sim::root(Handle::new(opened.raw()))`; each ask goes to `skein_fake_machine::step` alone,
        never `serve`, the spawn's environment recorded from its `Ask::Spawn` first.
-     - Unchanged: never trim a doc comment, a test or the formatting to meet a Size (implementer.md, 8.6); 12.2's tests
+     - Unchanged: never trim a doc comment, a test or the formatting to meet a Size; 12.2's tests
        and their ceilings.
 
 114. **The component fixture's HTTP 500** (process, temper 01's block of 2026-10-16T23:03:16Z).
@@ -364,7 +364,7 @@ run are appended after "For the user".
      connector takes a pull not mergeable at once as conflicted, which the conformance world's
      `a_ci_repair_recovers_its_focused_commit_cuts` meets. So 06.1 and 06.2 land together.
 
-     - One `land`, two commits: 06.1's, then 06.2's, each with its own `Step:` trailer; the gate runs once, at the tip.
+     - One merge, two commits: 06.1's, then 06.2's, each with its own `Step:` trailer; the gate runs once, at the tip.
        06.1's commit need not pass the gate alone.
      - Each keeps its own Size and its own proof; the report gives both counts and both proofs.
      - Do not weaken the story or its fixture, and do not defer the phase.
@@ -378,7 +378,7 @@ run are appended after "For the user".
      - 02.1 lands at up to 1100 production lines by code-organization.md 6's command, past the README's "Sizes" (3 times a
        codec Size, 750). Past 1100, stop on a question again, with the count by file.
      - 02.2 (four hook variants, the same lists) lands at up to 600, not 450: its arms meet the same lists as 02.1's.
-     - Unchanged: never trim a doc comment, a test or the formatting to meet a Size (implementer.md, 8.6); 02's proofs.
+     - Unchanged: never trim a doc comment, a test or the formatting to meet a Size; 02's proofs.
 
 117. **A literal a third time goes to the fixtures** (steer of the check of 2026-10-16T23:49Z).
      Ruling 117, process, from the check of 2026-10-16T23:49Z: the same finding twice (the `User` literal in
@@ -437,7 +437,7 @@ run are appended after "For the user".
      - Questions: two go to the designer (run's words for a runner-presence mismatch; setup.md 6.3's preamble against its
        item 3); until answered, 15.1 leaves 08.2's words for a presence mismatch as they land.
      - Unchanged: Size 180, the tests' names and Done when's count of 11; sketch 1's `todo!()` bodies are the
-       implementer's to write.
+       author's to write.
 
 121. **01.3's recording made byte-stable; 720 lines** (plan question, temper 01's block of 2026-10-17T00:17:56Z).
      Ruling 121, a plan question the session file asked for (01-users-tokens.md:385: "**Byte-stability:** a recording
@@ -616,9 +616,9 @@ run are appended after "For the user".
      descriptor code, and the gates of the landings since 08.2 passed it. The supervisor has the failure diagnosed by a
      sub-agent; its fix, in the test or in production, becomes a step of its own, not 09.3's.
 
-     - 09.3 runs `land` once more on candidate 49d225783, unchanged. If the same test fails again, report it with both gate
+     - 09.3 runs the gate once more on candidate 49d225783, unchanged. If the same test fails again, report it with both gate
        logs and wait: do not change the test, the fixture or the process code, and do not retry a third time.
-     - Unchanged: implementer.md 8.5 for every other failure; 09.3's Size (875) and proofs.
+     - Unchanged: the implementation rules for every other failure; 09.3's Size (875) and proofs.
 
 133. **temper-08.s1: the process tests wait for what they read** (diagnosis of 09.3's gate failure).
      Ruling 133, a plan defect in 08.1's and 08.2's process tests: step **temper-08.s1**,
@@ -663,11 +663,11 @@ run are appended after "For the user".
      - Done when 2 now reads `13 tests run: 13 passed`; README Done when's "at least" applies if a later session adds one.
      - Unchanged: the filter, 13's other items, and the landed tests.
 
-137. **The implementer runs the renamed Proof** (process, the coordinator's block of 2026-10-17T03:50:37Z).
+137. **The author runs the renamed Proof** (process, the coordinator's block of 2026-10-17T03:50:37Z).
      Ruling 137, process: the steer's sentence was wrong; the coordinator checks reports with git only
      (development.md, section 2.3: "It checks reports with git only, ... it reads no code").
 
-     - The implementer of 05.3 or 14.1 runs its increment's Proof with the new name, and its report gives the command run
+     - The author of 05.3 or 14.1 runs its increment's Proof with the new name, and its report gives the command run
        and its last line, with "old name -> new name" for each test renamed.
      - The coordinator checks each new name with git only, in the session's worktree: `git grep -c '<new name>' <commit>`
        prints a count of at least 1. A report that renames a test but gives no Proof command for the new name is asked for
@@ -865,7 +865,7 @@ run are appended after "For the user".
         `http://127.0.0.1:3000`, the tier's agent). With the four constants changed, `{}` and the worker's two:
         `temper::prepare_in` returned `Ok`. One past each bound was refused: `hub.event_bytes` 597 and 599, `hub.accounts` 5,
         `checkout.message_bytes` 4095, `checkout.repositories` 3, `checkout.name_bytes` 257, `forge.resources_per_task` 3
-        and `forge.name_bytes` 115 (114 starts). Then `heavy cargo nextest run -p temper-service -p temper` ran 260 tests,
+        and `forge.name_bytes` 115 (114 starts). Then `cargo nextest run -p temper-service -p temper` ran 260 tests,
         260 passed (258 before item 4's two lines).
      6. **14.1's scope:** 14-example.md's new "Corrections after the designer's answer of 2026-10-18T12:25:44Z" block. It
         takes precedence over ruling 145's provisional eight and over the Test shape's "the fewest overrides T3 finds". The
@@ -904,7 +904,7 @@ run are appended after "For the user".
      Ruling 149, a plan defect in ruling 148's rule: 14.s1 lands now; it does not wait for client-api's fix.
 
      - Ruling 139's wait ("A proof of 11.1 that runs the landing story and fails as above is reported with its log, and
-       waits") is 11.1's: its Proof is the landing story. 14.s1's Proof is `heavy cargo nextest run -p temper-forge-setup`,
+       waits") is 11.1's: its Proof is the landing story. 14.s1's Proof is `cargo nextest run -p temper-forge-setup`,
        which passed (98). Ruling 148's rule said "a story red on `main` for a known cause stays red, with its cause named";
        it now reads: "runs the process tier once before landing, with `--no-fail-fast`; a story red on `main` for a known
        cause (ruling 139's landing story) stays red, its cause named in the commit body, and the increment lands without
@@ -942,7 +942,7 @@ run are appended after "For the user".
      2. **The Bound is ten runs.** It now reads "at most ten runs, each after the last one's cause, a new one, was found by
         a focused probe and handled in the script (rulings 150 and 151)"; the rest of it stands ("a failure with a cause
         seen before, or a fault in temper or the example rather than the script, is a question"). You have four more full
-        runs, each under 420 s. Before each, `heavy cargo build -p temper --bin temper` once, as the script now checks.
+        runs, each under 420 s. Before each, `cargo build -p temper --bin temper` once, as the script now checks.
 
      Unchanged: checks (a) to (d) and (f) to (h), the guide's text (the person's walk pushes no `temper/` branch), 14.2's
      Files, Size and Don't; ruling 147's forms rule, and the landing report's lines for the pages with no `_csrf`.
@@ -975,7 +975,7 @@ run are appended after "For the user".
         `temper_serve_answers_an_unknown_forge_404` ("the referee failed the real loop: webhook delivery or drain did not
         finish", at 30 s) and `temper_serve_prints_its_link_and_drains_on_a_signal` ("signal sent: true … exit: None").
         All three passed at 13:03Z on 14.s1's run (`logs/20261018T130310-45.log`), at 0.04 s each; between that base and
-        fe4978f22 only client-api's code landed. They go to client-api's owner, through the director. 11.1 runs the process
+        fe4978f22 only client-api's code landed. They go to client-api's owner,. 11.1 runs the process
         tier once with `--no-fail-fast` before landing (ruling 148's rule, as ruling 149 amends it): these three may stay
         red, each named in the commit body with this cause; any other red story is a block.
      7. Ruling 148 said "temper has no `scripts/check.sh` yet"; it has had one since 796d50279, and every landing runs it.
@@ -986,7 +986,7 @@ run are appended after "For the user".
 
 153. **11.1 waits for the drain regression's fix** (interim, temper-11.1's block of 2026-10-18T14:01:33Z).
      Ruling 153, an interim ruling: 11.1 waits for the fix of one regression on `main`, routed to client-api through the
-     director (14:1xZ).
+     review (14:1xZ).
 
      - **The cause, bisected:** client-api's 3262df8f9 (its temper-04.s1, "Finish held HTTP calls once their clients
        component closes"). At it, `temper_serve_answers_a_signed_delivery_204` and `…_an_unknown_forge_404` fail on every
@@ -1104,7 +1104,7 @@ run are appended after "For the user".
 
 ## Answers received
 
-- **The director,** 2026-10-16: temper's skein moves in temper 05.1
+- **The review,** 2026-10-16: temper's skein moves in temper 05.1
   once client-api's ruling lands (decision 2; ruling 154); temper builds
   on skein's `main` at the base (`findings/skein-main-in-temper.md`).
 - **The designer,** 2026-10-16, landed in temper `326cbded`, `0d67b373`,

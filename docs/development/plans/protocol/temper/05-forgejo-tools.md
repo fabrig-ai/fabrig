@@ -174,7 +174,7 @@ the transcripts as files.
   the one `TEMPER_FORGEJO` names, whose `--version` must be 16.0.5"; nor
   "writes under `/tmp`"; nor "writes Python" (code-organization.md, 6).
 - "**The process and live tiers run only where a Proof line or 'Done
-  when' says,** through `heavy --gate`, once; never in the gate"
+  when' says,** once; never in the gate"
   (README, "Rules of this plan"). Every test here that starts Forgejo is
   `#[ignore = "needs TEMPER_FORGEJO"]`.
 - "**Tools and test support** may link `serde_json` (decisions.md, 10);
@@ -244,7 +244,7 @@ fn a_throwaway_forgejo_starts_serves_its_admin_and_is_removed() {
 ```
 
 Proof: process (a real Forgejo), `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-heavy --gate cargo nextest run -p temper-throwaway-forgejo --profile
+cargo nextest run -p temper-throwaway-forgejo --profile
 measure --run-ignored only` (the default profile's 15 s budget would
 stop it), run once: Forgejo 16.0.5 starts on loopback in a scratch
 directory, its admin's token reads `/api/v1/user`, a repository is
@@ -347,7 +347,7 @@ fn a_secret_in_a_case_stops_the_run_naming_the_case() {
 ```
 
 Proof: process (a real Forgejo), `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-heavy --gate cargo run -p forgejo-conformance -- --scratch
+cargo run -p forgejo-conformance -- --scratch
 target/forgejo-conformance --out tools/forgejo-conformance`, run once:
 exit 0; then `ls -d tools/forgejo-conformance/transcripts/*/ | wc -l`
 prints 77 (the cases above), `grep -L '^HTTP/1.1 [1-5][0-9][0-9] '
@@ -449,7 +449,7 @@ the three outcomes against literal lines),
 `merge-stale-head` exchange as a literal). Under 20 ms each.
 Proof: process (a real Forgejo and runner), `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v12.13.2/forgejo-runner-12.13.2-linux-amd64
-heavy --gate cargo run -p forgejo-conformance -- --scratch
+cargo run -p forgejo-conformance -- --scratch
 target/forgejo-conformance --out tools/forgejo-conformance`, run once
 (after `sha256sum -c` in both directories prints `OK`): exit 0;
 `grep -cE '^(holds|fails|unchecked) ' tools/forgejo-conformance/facts.txt`
@@ -549,7 +549,7 @@ fn masking_rewrites_ids_ports_and_the_scratch_path() {
 }
 ```
 Proof: process (real git and Forgejo), `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-heavy --gate cargo run -p git-transcripts -- --git /usr/bin/git
+cargo run -p git-transcripts -- --git /usr/bin/git
 --scratch target/git-transcripts --out tools/git-transcripts`, run
 once: exit 0; `ls -d tools/git-transcripts/transcripts/*/ | wc -l`
 prints 41 (the cases above); `cat tools/git-transcripts/transcripts/push-protected/stdout`
@@ -715,7 +715,7 @@ pub enum Failure {
 
 - The throwaway Forgejo starts and is removed:
   `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v16.0.5/forgejo-16.0.5-linux-amd64
-  heavy --gate cargo nextest run -p temper-throwaway-forgejo --profile
+  cargo nextest run -p temper-throwaway-forgejo --profile
   measure --run-ignored only` passed once (05.1's Proof).
 - No Python is left in the tool: `git ls-files 'tools/forgejo-conformance/*.py'`
   prints nothing.

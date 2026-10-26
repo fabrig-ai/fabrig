@@ -56,7 +56,7 @@ commit body); `me_refused_busy_is_opened_again_and_the_link_is_offline`;
 `a_watch_closed_before_its_opening_is_answered_closes_once_opened`;
 `a_watch_closed_then_refused_sends_no_closing`;
 `the_application_s_watches_leave_one_for_me`.
-Proof: land's gate.
+Proof: the gate.
 Size: aim for at most 80 production lines; past it, the report says
 why.
 Don't: change the link's exchanges, the wire, or the engine's rooms;

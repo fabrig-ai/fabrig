@@ -103,7 +103,7 @@ Test shape: retain 74 tests, names unchanged, including `tests::locate`.
       assert_eq!(key.as_deref(), Some(b"\x01\x00\x03kita".as_slice()));
   }
   ```
-Proof: unit, `heavy cargo nextest run -p skein-forge-client`: 81 tests
+Proof: unit, `cargo nextest run -p skein-forge-client`: 81 tests
   pass, zero skipped, <0.5 s, each <20 ms; Progress precedes Call (callers: temper 02.1, skein 07.1).
 Don't: split `keep.rs` or `outbox.rs`, fix their behavior, or retarget
   temper's 15 dependent crates here. Do not rename the moved test whose
@@ -215,9 +215,9 @@ Test shape: retain 81 client tests; add three in `tests/contracts.rs` reusing `t
       assert_eq!(crate::measure::op(&op), Some(TWO_IDS_BYTES));
   }
   ```
-Proof: unit, `heavy cargo nextest run -p skein-forge-client`: 84 passed,
+Proof: unit, `cargo nextest run -p skein-forge-client`: 84 passed,
   zero skipped, <0.5 s, each <20 ms; admission driven through step (no harness until skein 07.1).
-Proof: unit, `heavy cargo nextest run -p skein-forge -E 'test(measure_)'`:
+Proof: unit, `cargo nextest run -p skein-forge -E 'test(measure_)'`:
   12 passed, each <20 ms, <0.5 s; other vocabulary/dialect tests unselected.
 Don't: fold rows into byte measurement, change refusal order, add serde,
   retain old public wrappers, or change native worst-case accounting.
@@ -286,7 +286,7 @@ Test shape: retain 84 tests. Move only fixture bodies into fixtures.rs and
   one Read(InvalidAnswer), Failed fact names that error.
 - `an_answered_busy_makes_a_write_uncertain`: clock, write, Busy: Progress,
   Uncertain, next call a find, zero additional writes.
-Proof: unit, `heavy cargo nextest run -p skein-forge-client`: 90 passed,
+Proof: unit, `cargo nextest run -p skein-forge-client`: 90 passed,
   zero skipped, <0.5 s, each <20 ms. No higher client harness until skein 07.1.
 Don't: change refusal order/recovery classes, clear failed restoration,
   add an owner dependency, allocator or world.
@@ -377,7 +377,7 @@ Test shape: retain 90 tests; 24 new tests in `tests/recovery.rs`, <20 ms each.
   identical generic fresh paired-row success from the21 rejection cases,
   preserving all mapped assertions and adding exact-bound pairs. Every-table
   saturation belongs to skein07.1.
-Proof: unit, `heavy cargo nextest run -p skein-forge-client`: 114 passed,
+Proof: unit, `cargo nextest run -p skein-forge-client`: 114 passed,
   zero skipped, <0.5 s, each <20 ms; echo read at 101, resend deadline 113.
   The durable-parent world first connects in skein 07.1.
 Don't: change the preconditions, reset a failed client/find deadline, add
@@ -389,13 +389,13 @@ Removes: hinted-only echo landing and recovery's acceptance of unframed/foreign 
 
 In skein at `origin/main`; base forms/outputs are in findings.
 
-- `heavy cargo nextest list -p skein-forge-client` lists the post-02.s1 count plus6 after02.s2 (136 at the checked base):
+- `cargo nextest list -p skein-forge-client` lists the post-02.s1 count plus6 after02.s2 (136 at the checked base):
   74 preserved names and62 new names at that base; no purpose tests or missing locate tests.
-- `heavy cargo nextest run -p skein-forge-client` prints that same relative count passed after02.s2 (136 at the checked base),
+- `cargo nextest run -p skein-forge-client` prints that same relative count passed after02.s2 (136 at the checked base),
   zero skipped; under 0.5 s and every new unit below 20 ms.
-- `heavy cargo nextest run -p skein-forge -E 'test(measure_)'` prints
+- `cargo nextest run -p skein-forge -E 'test(measure_)'` prints
   12 passed, <0.5 s, every test <20 ms; client total is the post-02.s1 count plus6 after02.s2 (136 at the checked base).
-- `heavy cargo clippy -p skein-forge -p skein-forge-client --all-targets -- -D warnings` exits 0.
-- `heavy rg -n -i 'temper|jig|EffectPurpose' crates/skein-forge-client` prints nothing (status 1).
-- `heavy -- sh -c 'wc -l crates/skein-forge-client/src/*.rs crates/skein-forge-client/src/*/*.rs crates/skein-forge-client/src/tests/fixtures/*.rs | awk '\''$1 > 800 && $2 != "total"'\'''`
+- `cargo clippy -p skein-forge -p skein-forge-client --all-targets -- -D warnings` exits 0.
+- `rg -n -i 'temper|jig|EffectPurpose' crates/skein-forge-client` prints nothing (status 1).
+- `sh -c 'wc -l crates/skein-forge-client/src/*.rs crates/skein-forge-client/src/*/*.rs crates/skein-forge-client/src/tests/fixtures/*.rs | awk '\''$1 > 800 && $2 != "total"'\'''`
   prints nothing; the vocabulary move and 02.3 split the base's oversized files.

@@ -132,7 +132,7 @@ and draining on a signal. 12.2 then runs the first story through it.
   (`Missing` "missing", `Unknown` "unknown member", `Duplicate`
   "duplicate", `Bound` "past its bound", `Unreadable` "not read",
   `Memory { over }` "the worst case passes memory_bytes by N bytes"; the
-  others as the implementer words them, one table).
+  others as the author words them, one table).
 - **Two passes, as the reference's.** `named` parses everything and runs
   every check that needs no file's bytes; `startup` parses again with
   the files' bytes. temper's members are first `application::Members`
@@ -190,7 +190,7 @@ and draining on a signal. 12.2 then runs the first story through it.
   is read by temper's code or tests" than section 1's
   (code-organization.md, sections 5 and 1).
 - "**The process and live tiers run only where a Proof line or 'Done
-  when' says,** through `heavy --gate`, once; never in the gate"
+  when' says,** once; never in the gate"
   (README, Rules). The default and fuzzy filters leave `process` and
   `live` out; `scripts/check.sh` compiles them with clippy and runs
   neither.
@@ -275,7 +275,7 @@ fn problems_print_one_line_each_with_their_path() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/tests::startup::/)'`, run once: configuration.md, 10's example
 reads into its members, and an unknown, missing or reserved member, a
 refused override and a malformed `git` are each named by their path on
@@ -339,7 +339,7 @@ fn a_file_named_but_not_given_refuses_the_start_naming_it() {
 
 (`fixtures::without` drops one entry by name; jig's `Unreadable` reads
 "not read".)
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/tests::startup::/)'`, run once: `named` lists every file with its
 bound and privacy and the two paths the binary opens, a missing file
 refuses the start naming it, jig's problems keep their paths, and the
@@ -419,7 +419,7 @@ fn a_remote_past_the_checkouts_names_refuses_the_start() {
 and `name_bytes` 256: 21 + 1 + 256 + 1 + 256 + 4 = 539 bytes, past 300,
 while the forge's 256-byte names fit; `Against` names `the longest
 remote` for this check.)
-Proof: unit, `heavy cargo nextest run -p temper-service -E
+Proof: unit, `cargo nextest run -p temper-service -E
 'test(/tests::checks::/)'`, run once: standalone's shape, the remote,
 the channel's parts, an identity's value, the agent's names, the git
 component's limits and the worst case each refuse a start naming their
@@ -497,7 +497,7 @@ and `support::Forge` there, and 10.4 grows the module.
 `temper::prepare_in(directory)` is `prepare` with the configuration read
 from `directory/config.json` and paths resolved against `directory`, a
 public function for this test; `prepare` itself calls it with `.`.)
-Proof: unit, `heavy cargo nextest run -p temper`, run once: a usage
+Proof: unit, `cargo nextest run -p temper`, run once: a usage
 error, a configuration past its bound, a public token file and a linked
 worker root are refused with their lines on stderr (the six tests
 above); under 1 s. The process layer opens at 10.4.
@@ -567,7 +567,7 @@ fn temper_serve_prints_its_link_and_drains_on_a_signal() {
 }
 ```
 
-Proof: process, `heavy --gate scripts/proof-one-process.sh`, run once:
+Proof: process, `scripts/proof-one-process.sh`, run once:
 the real binary, started on a scratch directory from the configuration
 the test wrote, prints its sign-in link on stdout and, on SIGTERM,
 drains and exits 0 (the test above); under 2 minutes.
@@ -922,7 +922,7 @@ impl skein_shell::Host for Host { /* iterate, queues, deadlines, exit, drain: ji
 ```sh
 #!/bin/sh
 # The process tier (domain/testing.md, 2.6): the binary built first, then
-# nextest's process profile, once. Run through `heavy --gate`.
+# nextest's process profile, once. Run.
 set -eu
 cd "$(dirname "$0")/.."
 export NEXTEST_DOUBLE_SPAWN=0
@@ -1001,7 +1001,7 @@ enum Process { Binary(Box<Binary>), Stdout(Box<StdoutReader>), Peer(Box<skein_fa
 
 ## Done when
 
-- Startup, the checks and the binary pass: `heavy cargo nextest run -p
+- Startup, the checks and the binary pass: `cargo nextest run -p
   temper-service -p temper` passes.
 - No `service` member is read: `git grep -n '"service"\|b"service"' --
   crates/temper-service/src crates/temper/src` prints nothing.
@@ -1009,7 +1009,7 @@ enum Process { Binary(Box<Binary>), Stdout(Box<StdoutReader>), Peer(Box<skein_fa
   crates/temper/src ':!crates/temper/src/tests.rs'` prints nothing.
 - The suites leave the tiers out: `grep -c 'not binary(/^(process|live)\$/)'
   .config/nextest.toml` prints 2.
-- The process tier ran once: `heavy --gate scripts/proof-one-process.sh`
+- The process tier ran once: `scripts/proof-one-process.sh`
   passed in 10.4's Proof, its log naming
   `temper_serve_prints_its_link_and_drains_on_a_signal`.
 - The pins held: `grep -oE 'forgetic/(jig|smith|skein)\.git#[0-9a-f]+'

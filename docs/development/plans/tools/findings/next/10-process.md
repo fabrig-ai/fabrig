@@ -164,7 +164,7 @@ Tests: unit, each under 10 ms: `a_form_is_url_encoded`,
 `cookies_and_hidden_fields_are_read_from_a_login_page`,
 `a_token_is_read_from_the_flash`; process, under 30 s:
 `a_person_changes_a_password_on_the_web_and_makes_a_read_token`.
-Proof: process, the ignored test once: `heavy sh -c 'cargo nextest run
+Proof: process, the ignored test once: `sh -c 'cargo nextest run
 -p temper-throwaway-forgejo --run-ignored only -E
 "test(a_person_changes_a_password_on_the_web_and_makes_a_read_token)"'`
 with `TEMPER_FORGEJO` exported (about 20 s).
@@ -201,7 +201,7 @@ Tests, each as today: that one, under 60 s;
 `a_persons_change_lands_on_the_forge_and_is_found_after_a_restart`,
 within `LANDING` and its restart.
 Proof: process, three stories once, with `TEMPER_FORGEJO` and
-`TEMPER_FORGEJO_RUNNER` exported: `heavy sh -c 'cargo build -p temper
+`TEMPER_FORGEJO_RUNNER` exported: `sh -c 'cargo build -p temper
 --bin temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper
 --profile process -E "test(reconcile_converges_an_owned_forgejo_and_a_second_run_writes_nothing)
 | test(a_push_is_delivered_signed_with_the_secret_reconcile_drew) |
@@ -251,7 +251,7 @@ Tests: `temper_ctl_help_prints_the_guide_and_exits_0` (under 1 s, names `sign-in
 stderr line starting `temper ctl: `, DIRECTORY absent); the reference (under 10 s);
 `a_wait_past_its_timeout_exits_3_with_its_digest` (under 10 s: read `me --json`'s
 digest D, then `wait me --since D --timeout 1` exits 3 with that document and D).
-Proof: process, one story: `heavy sh -c 'cargo build -p temper --bin
+Proof: process, one story: `sh -c 'cargo build -p temper --bin
 temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile
 process -E "test(temper_ctl_signs_in_by_the_link_on_stdin_and_reads_me)"'`
 (about 1 minute with the build).
@@ -327,10 +327,10 @@ fn an_adopt_cut_by_a_signal_is_made_once_and_its_change_lands() {
 ```
 Tests: that one, within `LANDING` (180 s) from Forgejo's start, its
 adopt steps within 30 s (`WITHIN`).
-Proof: process, one story, both binaries exported: `heavy sh -c 'cargo build
+Proof: process, one story, both binaries exported: `sh -c 'cargo build
 -p temper --bin temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E
 "test(an_adopt_cut_by_a_signal_is_made_once_and_its_change_lands)"'`
-(about 3 minutes); then `heavy --gate scripts/proof-one-process.sh`
+(about 3 minutes); then `scripts/proof-one-process.sh`
 once on `origin/main`, with both exports; report the tier's time.
 Don't: change `landing_scripts`, the fake LLM or the terminal's landing
 stories; add a test for agent launch alone; assert an exit status for

@@ -66,15 +66,14 @@ it, and 02.2 (the comparisons' flags) lands after it.
   (decisions.md, 2). No other Forgejo or runner is used, and none is
   downloaded.
 - **The recording tools run only where an increment's Shape or Proof
-  says,** through `heavy --gate`, once, and once more after each fix
+  says,** once, and once more after each fix
   aimed at a cause their output names; the third failure with the same
   symptom is a question (development.md, 5.5). A recording's
   `facts.txt` is read after the run: a `fails` line still exits 0.
   Transcripts and `facts.txt` are written by the tools only, never by
   hand; a new capture is appended after the existing ones, since masking
   numbers ids and times in order of appearance (`findings/tools.md`, 2).
-  `heavy --gate` refuses a tree with changes: the plain and component
-  modes run in one `heavy --gate sh -c '…'`, or with a commit between.
+
 - **The store's version does not move** (decisions.md, 4):
   `STORE_VERSION` stays as `origin/main` has it, and a record changes in
   place in the schema `origin/main` holds (`ls
@@ -85,14 +84,14 @@ it, and 02.2 (the comparisons' flags) lands after it.
   `crates/temper-protocol-store/` (the schema moved to `store-v2.schema`),
   `crates/temper-engine-domain/`, `tests/engine/domain/` and the
   pins in `Cargo.toml` and `Cargo.lock`. A rebase conflict is resolved
-  as `land` and the implementer's card say; a conflict in
+  before merging; a conflict in
   `crates/temper-protocol-store/schema/` takes `origin/main`'s file and
   applies this increment's change to it, then regenerates (the store's
   drift test, `findings/answer.md`, 2). This plan changes no
   dependency but temper-01.s1's skein move (ruling 104): a conflict in
   `Cargo.lock` takes `origin/main`'s, and temper-01.s1 moves again.
 - **The process tier runs where a Proof line or "Done when" says,**
-  through `heavy --gate`, once; never in the gate.
+  once; never in the gate.
 - **The suites' aims for the whole run** (development.md, 5.6): the
   default suite at the base takes 5.25 s, the fuzzy one 26.6 s (medians
   of three on x1, `findings/measurements.md`); the run adds at most
@@ -183,7 +182,7 @@ Each command runs once, after `done.md`, reading `origin/main`, in
 9. The process tier passes on v17, in a worktree of temper at
    `origin/main`:
    `TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
-   heavy --gate scripts/proof-one-process.sh` exits 0.
+   scripts/proof-one-process.sh` exits 0.
 10. The plan's commits: `git log origin/main --grep='^Plan:
     forgejo-17$' --format='%(trailers:key=Step,valueonly,separator=)' |
     sort -u` lists the 9 steps the session files number: `temper-01.1`,
@@ -191,7 +190,7 @@ Each command runs once, after `done.md`, reading `origin/main`, in
     `temper-03.2`, `temper-04.1`, `temper-04.2`, `temper-05.1`. A supplementary step (`.s<k>`) adds a line; a
     step dropped by a ruling is named in decisions.md's rulings instead.
 11. The test-time aims, measured once in a worktree of temper at
-    `origin/main`: `heavy --gate -- sh -c 'export
+    `origin/main`: `sh -c 'export
     NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run
     --workspace 2>&1 | grep Summary; cargo nextest run --workspace
     --profile fuzzy 2>&1 | grep Summary; done'`; the medians of the

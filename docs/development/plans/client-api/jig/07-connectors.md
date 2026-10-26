@@ -219,7 +219,7 @@ Test shape:
   `news_on_a_subscribed_topic_reaches_the_tasks_inbox`,
   `dropped_news_reaches_no_inbox`,
   `unsubscribing_a_topic_ends_it_at_the_connector`. Under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(news_on_a_subscribed_topic_reaches_the_tasks_inbox)'` once: a
 run's topic call under its grant subscribes its task, the fake system's
 news is classified by the test connector and lands in the task's inbox
@@ -328,7 +328,7 @@ Test shape:
   `a_procedure_hears_the_first_task_its_step_made_with_its_revision`,
   `a_step_naming_a_moved_revision_is_refused_and_told_what_it_is_now`.
   Under 0.5 s each.
-Proof: conformance, `heavy cargo nextest run -p jig-ops-world -E
+Proof: conformance, `cargo nextest run -p jig-ops-world -E
 'test(the_alert_storm_reaches_triage_and_the_person_accepts_the_production_restart)'`
 once (it passes at the base): `ops`'s standing watch makes its triage
 task through `ProcedureStep` and hears it made, through `ops`'s real
@@ -411,7 +411,7 @@ Test shape:
   `a_procedure_messages_its_delegate_in_its_step`,
   `a_procedure_proposes_a_widening_while_its_message_commits`. Under
   0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_procedure_steps_again_after_its_amendment_is_refused_as_moved)'`
 once: a run amends the procedure's delegate first, the procedure's
 amendment naming the older revision is refused with the revision now,
@@ -478,7 +478,7 @@ Test shape:
   `a_deployment_scope_watch_without_a_deployment_role_is_refused`,
   `an_application_read_carries_its_window_to_the_connector`. Under
   0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(an_own_scope_watch_is_admitted_on_the_sign_in_alone)'` once: a
 party with no deployment role watches a subject in its own scope and
 receives the connector's document, through the real people child, views
@@ -538,7 +538,7 @@ Test shape:
   `an_untracked_goal_is_fed_its_state_once_as_its_last_feed`,
   `an_untracked_goals_projection_is_forgotten_once_its_write_settles`.
   Under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(an_untracked_goal_is_fed_its_state_once_as_its_last_feed)'` once:
 a party's amendment untracks a goal and each projecting connector gets
 one feed with `closing: true`, then none; under 0.5 s.
@@ -644,7 +644,7 @@ Test shape:
 - `tests/core/tests/application_documents.rs`:
   `an_own_scope_application_request_reaches_its_connector_with_no_role`.
   Under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(an_own_scope_application_request_reaches_its_connector_with_no_role)'`
 once: a party with no role anywhere sends an application request in its
 own scope, and the test connector receives it with no role and answers
@@ -657,8 +657,7 @@ Removes: `ApplicationScope` in `crates/jig-domain-core/src/documents.rs`
 ## Interface sketches
 
 Compiled at the base in a scratch module of `jig-domain-core`
-(`src/sketch_w4.rs`), bodies `unreachable!("sketch")`, under `heavy
-cargo clippy -p jig-domain-core --all-targets -- -D warnings`; the new
+(`src/sketch_w4.rs`), bodies `unreachable!("sketch")`, under `cargo clippy -p jig-domain-core --all-targets -- -D warnings`; the new
 `Event`, `Ask` and enum variants are written there as their own types.
 `StepCancel`'s grace is jig 04.1's form: checked at the ready check.
 

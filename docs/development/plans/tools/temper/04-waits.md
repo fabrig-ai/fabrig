@@ -162,7 +162,7 @@ Others, each under 20 ms:
 - `task_with_tree_and_run_prints_three_digests_each_over_its_part`;
 - `pages_and_non_watch_arguments_print_no_digest`, including tasks after/ended
   and each inbox flag; supported task query filters still print one.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, `cargo nextest run -p temper-client-tools -E
 'test(a_read_and_a_watch_window_digest_the_same_rows)'` (under 1 s), shows
 identical first-window bytes despite page/watch envelopes. This plan builds no
 tools world; 04.3 connects the digest to a wait, then the next plan's stories
@@ -218,7 +218,7 @@ and proposal in the root task's supplied waits_on; a different project misses),
 `ended_and_held_follow_the_task_or_tree_root_phase` (all four terminal phases,
 both tree forms), `waiting_and_updates_use_counts_in_both_inbox_forms`,
 `a_condition_waits_for_each_document_it_reads_to_be_live`.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, `cargo nextest run -p temper-client-tools -E
 'test(replied_holds_once_a_chat_is_parked_and_not_while_it_writes)'` (under 1 s).
 The predicate is pure; 04.3 connects it to the caller, and the next plan's
 stories prove the chat's reply through its worlds.
@@ -274,7 +274,7 @@ inbox/tasks beyond the first window; since holds while unchanged),
 `a_me_change_rechecks_the_task_without_changing_its_digest`,
 `a_meeting_delivery_wins_over_timeout_in_the_same_iteration`;
 check run text, coalesced changes, no answer while behind, and cleanup too.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, `cargo nextest run -p temper-client-tools -E
 'test(a_read_and_a_wait_print_one_digest)'` (under 1 s), shows a read's digest
 holding a wait until its document changes. This plan builds no tools world;
 the next plan's stories (a reply, a concurrent close) connect it.
@@ -318,7 +318,7 @@ Test shape: extend `src/tests/jig/wait.rs`; `end` injects `Up::WatchEnded`,
 - `an_answered_wait_releases_all_its_handles_and_timer` (late terminals ignored).
 Each under 20 ms. Assert final-read text/JSON equals the ended task read's part,
 with no running phase substituted, and assert no extra task watch for tree.
-Proof: unit, `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, `cargo nextest run -p temper-client-tools -E
 'test(a_task_watch_ending_reads_how_the_task_ended_before_answering)'` (under 1 s).
 This plan builds no tools world; the next plan's stories (a closed chat, a
 concurrent close) prove the final read against the engine, and its host proves

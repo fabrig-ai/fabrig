@@ -144,7 +144,7 @@ Found by `git grep` of the twelve old names, kebab and snake, outside
 `jig_domain_client`, which jig 01 keeps). Shared hotspot: `Cargo.lock`.
 Shape:
 1. The repin commit, unless the Pins rule's ancestor check exits 0: the
-   eight manifests' dependency keys renamed, then, through `heavy`,
+   eight manifests' dependency keys renamed, then,
    `cargo update -p jig-domain-core --precise <landing>`, `cargo update
    -p skein-lib --precise <skein's revision>`, `cargo update -p
    smith-host-protocol --precise <smith's revision>` (each revision from
@@ -190,12 +190,12 @@ lists `temper-protocol-client-wire` and `temper-shell-terminal`
 trees, `logs/w1/temper-names-probe.txt`). No other test changes but by
 the renamed paths.
 Proof: the process tier, the real binary on jig 01's crates, once
-through the build lane: `heavy sh -c 'cargo build -p temper --bin
+through the build lane: `sh -c 'cargo build -p temper --bin
 temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile
 process -E "test(temper_open_signs_in_prints_the_inbox_and_exits_on_q)"'`:
 `temper open` signs in by the printed link, prints `== Inbox == Live`
 and exits 0 on `q`. Bound: 2 minutes (1.2 s for the test at the base).
-`client_crates_carry_the_client_prefix` runs in `land`'s gate: from this
+`client_crates_carry_the_client_prefix` runs in the gate: from this
 landing on, the gate refuses a client crate of temper's outside the
 prefix.
 Don't: copy jig's check into temper (decisions.md, "For the user", B);
@@ -231,7 +231,7 @@ pub fn breaches(root: &Path, project: &str, allowed: &[&str]) -> Vec<String>;
 ## Done when
 
 - 02.1 has landed with its gate.
-- In a worktree of temper at `origin/main`, `heavy cargo nextest run -p
+- In a worktree of temper at `origin/main`, `cargo nextest run -p
   temper-client-world -E 'test(client_crates_carry_the_client_prefix)'`,
   once, passes one test.
 - The Rules' `git grep` of jig's old names prints nothing, and `git -C

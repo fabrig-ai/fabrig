@@ -142,8 +142,8 @@ answered inside `std::thread::scope` (clippy.toml bans `thread::spawn`): `Peer::
 drop), `Peer::address(&self) -> SocketAddr`, `Peer::serve_after(self, ms: u64, replies: &[(u16, &[u8])]) -> Heard` (binds
 after `ms`, answers one request per reply on its own connection, then holds one more connection unanswered for at most
 1 s), `Heard { requests: Vec<Received> }`, `Received { line: String, headers: Vec<(String, String)> }` (`line` as `GET
-/api/v1/user HTTP/1.1`, header names lower-case). Focused < 0.5 s; `exchange.rs` is unit, < 20 ms. Run `heavy cargo
-nextest run -p temper-forge-setup-shell` and `heavy cargo nextest run -p temper --test forge`.
+/api/v1/user HTTP/1.1`, header names lower-case). Focused < 0.5 s; `exchange.rs` is unit, < 20 ms. Run `cargo
+nextest run -p temper-forge-setup-shell` and `cargo nextest run -p temper --test forge`.
 - `a_first_request_is_made_again_until_the_api_answers` (reference, sketch E); `the_admins_token_is_sent_as_a_token_header`
   (the peer hears `authorization: token admin-token-value`);
 - `a_run_ends_at_its_deadline_when_nothing_answers` (deadline 300 ms: `temper forge reconcile: forge 1: Forgejo did not
@@ -170,7 +170,7 @@ git_token,user}` are 0o600. Then 08.3's `Instance::attach` over `start`'s child 
 `Token::new` of `admin_token`) reads Forgejo by `instance.exchange(&Outgoing::get(..))` (`Outgoing` and its `get`, throwaway `lib.rs:84, :98`; instance.rs:195): the
 API token answers `GET /api/v1/user` as `temper-bot` with the id `user` holds; as the admin, the bot is no site admin and
 its full name holds `temper:bot`, org `acme` is private and has its team `temper-bot`. A second run exits 0 with the
-three files' inode and mtime unchanged. Command: `heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper
+three files' inode and mtime unchanged. Command: `sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper
 --bin temper && cargo nextest run -p temper --profile process -E
 "test(=reconcile_converges_an_owned_forgejo_and_a_second_run_writes_nothing)"'` ends `1 test run: 1 passed`, 60 s at most.
 Don't: keep a connection across requests; make a later request again; name a route, a path or a Forgejo word in the host;
@@ -225,7 +225,7 @@ Proof: process, `a_persons_change_lands_on_the_forge_and_is_found_after_a_restar
 asserts `assert_eq!(forgejo.job_state(merged), "success")`: the merged pull request's head holds a `success` job, `main`
 holds the edit, the restart finds the work; within 175 s on the story alone (31 s without CI at the base); and
 `temper_open_adopts_a_repository_by_commands` (process.rs:34) on the same Forgejo, aiming at 30 s (13.1 s at the base):
-a miss is noted in the landing report, read from nextest's `PASS [ t ]` line in heavy's log. Command: `heavy --gate sh -c
+a miss is noted in the landing report, read from nextest's `PASS [ t ]` line in the test log. Command: `sh -c
 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process -E
 "test(=a_persons_change_lands_on_the_forge_and_is_found_after_a_restart) + test(=temper_open_adopts_a_repository_by_commands)"'`
 ends `2 tests run: 2 passed`. The whole tier runs once, in README Done when 4's run.
@@ -408,8 +408,8 @@ fn pause_doubles_from_the_backoff_to_its_cap() {
 
 ## Done when
 
-- `heavy --gate scripts/check.sh` exits 0.
-- README Done when 4's run (the whole tier, once) passes this session's three process tests; with `$LOG` the path heavy
+- `scripts/check.sh` exits 0.
+- README Done when 4's run (the whole tier, once) passes this session's three process tests; with `$LOG` the path the command
   ends that run with, `grep -c -E 'PASS .*(reconcile_converges_an_owned_forgejo_and_a_second_run_writes_nothing|a_persons_change_lands_on_the_forge_and_is_found_after_a_restart|temper_open_adopts_a_repository_by_commands)' "$LOG"`
   prints 3.
 - `grep -c -e create_user -e create_repository -e add_collaborator crates/temper/tests/support/forgejo.rs`,

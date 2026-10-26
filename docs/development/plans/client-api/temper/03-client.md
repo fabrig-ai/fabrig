@@ -121,11 +121,9 @@ stays joined to temper's engine root throughout.
   jig-NN.k$' --format=%H -1`
   with the step's number, never jig's `origin/main`; when `git -C
   ~/src/rust/jig merge-base --is-ancestor <that landing> <temper's
-  present jig pin>` succeeds, no repin commit is made. The repin: `heavy
-  cargo update -p jig-domain-core --precise <the landing>`, then `heavy
-  cargo update -p skein-lib --precise <its pin of skein, or temper's
+  present jig pin>` succeeds, no repin commit is made. The repin: `cargo update -p jig-domain-core --precise <the landing>`, then `cargo update -p skein-lib --precise <its pin of skein, or temper's
   skein floor while that pin does not hold it>`, none when temper's skein
-  already holds it, and `heavy cargo update
+  already holds it, and `cargo update
   -p smith-host-protocol --precise <its pin of smith>`; then `grep -o
   'git+https://github.com/forgetic/[a-z]*.git#[0-9a-f]*' Cargo.lock |
   sort -u` prints three lines: `jig.git#<the landing>`, smith's line
@@ -211,7 +209,7 @@ tests), `tests/support/mod.rs` (271), `tests/fuzzy_terminal.rs`,
 which stays.
 Shape:
 - **The skein move,** 03.1's first commit, on its own (README, "Pins",
-  "The terminal's room" and "The print's room"): `heavy cargo update -p
+  "The terminal's room" and "The print's room"): `cargo update -p
   skein-lib --precise <temper's skein floor>`, none when temper's pin
   already holds the floor (forgejo-17's temper step moved it first);
   after it, `grep -o
@@ -333,7 +331,7 @@ stays, on `Terminal::new` with this increment's `Settings` and
 so do `Terminal::worst_case` and `Terminal::operations` of the same. If
 this increment lands first, it adds the test. Under ruling 111 it is
 the check of the print's room that runs on carbon-forge.
-Proof: the process tier, once: `heavy sh -c 'cargo build -p temper
+Proof: the process tier, once: `sh -c 'cargo build -p temper
 --bin temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper
 --profile process -E "test(temper_open_signs_in_prints_the_inbox_and_exits_on_q)"'`:
 `temper open`, its stdin and stdout piped, prints `== Inbox == Live`
@@ -473,7 +471,7 @@ Test shape: `crates/temper-client-domain/src/tests.rs` (213 lines) and
 `tests/form.rs` keep their names and expected values, moved to `Held`
 as jig 11.3 moves the test root's; one new unit test, under 20 ms:
 `a_restored_record_of_version_one_is_dropped_as_invalid`.
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_reload_with_an_adoption_pending_sends_it_once)
 | test(a_double_press_of_adopt_adopts_once)'`: an adoption kept as a
 `Held` record across a reload is made once by temper's engine root, and
@@ -541,7 +539,7 @@ Test shape: the tests keep their names and expected values but the
 paths; one new unit test, under 20 ms, in
 `crates/temper-client-domain/src/tests.rs`:
 `the_reference_uis_records_never_reach_the_small_store`.
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(signing_in_shows_the_inbox_from_the_engine_root)
 | test(a_reload_with_an_adoption_pending_sends_it_once)'` (under 0.5 s
 each): the person signs in on jig's pages from their new crate, and a
@@ -660,12 +658,12 @@ for them`, printed once, `client.md`, 3.4 and 6.6, when a kept request's
 `an_asker_naming_no_child_is_a_fact_and_reaches_none`,
 `a_family_the_engine_does_not_serve_marks_the_form_out_of_date`,
 `a_request_under_the_pages_owner_is_answered_undecodable` (service).
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_repository_adopted_from_the_navigation_link_is_held_by_the_engine)'`
 (under 0.5 s; 0.03 s at the base): the adoption crosses `jig-client`'s
 table as the forge's bytes, temper's engine routing decodes it by
 `Owner`, and the engine holds the repository. And the one-process world,
-once: `heavy cargo nextest run -p temper-one-process-world -E
+once: `cargo nextest run -p temper-one-process-world -E
 'test(an_adopted_repository_gets_its_change_pushed_through_git)'` (about
 3 s; 2.2 s at the base): the same through HTTP bytes and the native
 host holding the client. After the repin onto jig-12.s1, the land
@@ -745,7 +743,7 @@ Test shape: `tests/client/tests/{stories.rs, adoption.rs}` and
 domain's and the view's tests keep theirs on the `Ui`'s surface; one
 new unit test, under 20 ms:
 `the_forges_side_learns_its_party_from_its_own_me_handle`.
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(signing_in_shows_the_inbox_from_the_engine_root)
 | test(a_held_chats_escalation_released_from_its_task_page)'` (under
 0.5 s each; both pass at the base): the person signs in and releases a
@@ -831,6 +829,6 @@ match Owner::of(told_asker(&told)) {
   '*Cargo.toml'` prints nothing.
 - `git -C <worktree> grep -n -w RequestTable -- crates/temper-client-domain/src`
   prints nothing.
-- `heavy cargo nextest run -p temper-client-world`, once, prints a
+- `cargo nextest run -p temper-client-world`, once, prints a
   `Summary` line with no test failed, the base's 11 stories among those
   run under their names.

@@ -67,10 +67,10 @@ Test shape:
   `amend_and_release_calls_name_their_revision` (each without
   `revision` refused as malformed, with it decoded);
   `each_of_jigs_new_call_answers_renders_its_task_and_value` (the four).
-Proof: world, once: `heavy cargo nextest run -p
+Proof: world, once: `cargo nextest run -p
 temper-engine-domain-world --test escalation -E
 'test(an_amend_naming_an_old_spec_revision_is_answered_moved)'`;
-temper's gate, by `land`.
+temper's gate.
 Size: aim for at most 220 production lines besides the repin's
 repairs; past it, report why. The repin's 200 lines stay a rule.
 Interim, ruling 163 (in place of 160's `rows: 3`, which jig's view at
@@ -89,7 +89,7 @@ these four); unify or rename temper's tools (`decide` and
 gate need (its tests and its process Proof stay 03.2's).
 If the client's repairs pass the repin's 200 lines, or the gate needs
 more of 03.2's Shape than they hold: land temper-03.s1 and 03.2 in one
-`land`, s1's commits first, each step's last commit with its own
+merging, s1's commits first, each step's last commit with its own
 `Step:` trailer, rather than asking again (ruling 155).
 Done when: `git -C ~/src/rust/temper log origin/main --all-match
 --grep='^Plan: client-api$' --grep='^Step: temper-03.s1$' --format=%H

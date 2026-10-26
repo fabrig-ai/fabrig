@@ -7,7 +7,6 @@ $ cat skein/.config/nextest.toml temper/.config/nextest.toml skein/scripts/check
 $ grep -n '^\[profile' -A4 skein/Cargo.toml temper/Cargo.toml
 $ sed -n 2438,2456p skein/docs/foundation/development.md; sed -n 2509,2515p ...; sed -n 444,520p skein/docs/foundation/testing-strategy.md
 $ git -C temper log -12 --format='%h %cI %(trailers:key=Gate-Result,valueonly)' origin/main -- crates tests testing   # same for skein
-$ awk -F'\t' '$2=="gate" && $6==0' tmp/temper/client-api/logs/heavy.tsv   # find the gate logs (no tmp/active-plan now, so logs sit in the last run's dir)
 $ awk -f /tmp/sum-pkg.awk tmp/temper/client-api/logs/20261018T224544-734.log   # PASS lines summed per package, per nextest run
 ```
 
@@ -56,10 +55,10 @@ temper-engine-domain-world forge_routes 33 3.95; temper-fake-git 14 0.14
 ## (d) testing-strategy.md 8, slow tests
 1. Budgets are enforced (global timeout): focused 15 s, fuzzy 1 min; a breach is fixed by cheaper tests or by moving randomized ones to fuzzy; raising a budget is an explicit decision, not a fix.
 2. A slow test is understood, never hidden: find the cause (scan, hidden I/O, sleep, repeated setup, copying) with a profile and fix it there; build settings never stand in, so test builds stay unoptimized, dependencies included (a tool a test runs may be optimized).
-3. A per-crate `[profile.dev.package.<crate>]` is allowed for one hot leaf crate only, when a profile shows a cost no test can avoid, with the user's (or director's) sign-off cited in a comment beside it.
+3. A per-crate `[profile.dev.package.<crate>]` is allowed for one hot leaf crate only, when a profile shows a cost no test can avoid, with the user's  sign-off cited in a comment beside it.
 
 ## (e) What skein's gate would trip on
-- Nothing is enforced by a list or allowlist: no deny.toml, no cargo-deny, no test reads Cargo.toml or Cargo.lock (only scripts/dev/land and plan-check.sh read manifests, for the prebuild and a git-URL check), no boundary crate (jig has jig-boundary; skein has none), no serde check (no manifest in skein names serde).
+- Nothing is enforced by a list or allowlist: no deny.toml, no cargo-deny, no test reads Cargo.toml or Cargo.lock (only the prebuild and a git-URL check read manifests), no boundary crate (jig has jig-boundary; skein has none), no serde check (no manifest in skein names serde).
 - Clippy `-D warnings --workspace --all-targets`: root clippy.toml (step-crate subset) equals temper's but for three reason strings; `[workspace.lints]` are the same. Ordinary-Rust crates need their own clippy.toml, which must move with them: temper-forge-setup-shell, temper-throwaway-forgejo, forgejo-conformance have one; skein's `tests/clippy.toml` covers crates under tests/ (it bans HashMap, thread::spawn, env::var).
 - Cargo.toml: `crates/*` is a glob, but `testing/*` and `tests/*` members and every `[workspace.dependencies]` entry are listed by hand; no check compares them, a missing one fails the build.
 - External dependencies: skein's Cargo.toml allows only io-uring, libc, rustls (and the wasm tools), by comment and programming-model.md 2.1, 3. temper-throwaway-forgejo and forgejo-conformance use `serde_json =1.0.154`; no other named crate has an external dependency. Nothing in the gate rejects it, review does.

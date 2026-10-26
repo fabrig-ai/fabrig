@@ -212,7 +212,7 @@ fn a_started_service_drains_on_termination() {
     assert_eq!(ran.served(), Some(&End::Drained), "link {:?}", ran.link());
 }
 ```
-The first story: run alone, unoptimized, three times (`heavy cargo
+The first story: run alone, unoptimized, three times (`cargo
 nextest run -p temper-real-loop-world --profile measure -j 1 -E
 'test(=a_started_service_drains_on_termination)'`), the median in the
 commit body, with the sum, under the same profile, of the packages

@@ -5,7 +5,7 @@ At 00:47:15 UTC the shared base worktrees advanced to design-only commits
 `b4cfb9999` and `d9f3e39`; subsequent commands ran there with identical Rust,
 manifests and lockfiles. See the verified diff at the end. The scratch compile
 remained at the original temper commit.
-Commands run in the clean base, through `heavy`; test builds unoptimized.
+Commands run in the clean base; test builds unoptimized.
 The future skein packages do not exist at the base. Each command below
 is its source-package form, not a claim that the destination already runs.
 
@@ -17,22 +17,20 @@ setup world with decode.rs, and 07.4 adds setup stories. All design questions
 are answered; decisions 22 and 23 assign the component worlds to skein 08.
 
 ```text
-$ heavy cargo nextest run -p temper-engine-forge-client-world
+$ cargo nextest run -p temper-engine-forge-client-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.011s] (24/29) temper-engine-forge-client-world::simulation a_seed_replays_and_facts_change_no_decision
         PASS [   0.011s] (29/29) temper-engine-forge-client-world::simulation creations_and_comments_survive_faults_late_landings_and_restart
         PASS [   0.008s] (20/29) temper-engine-forge-client-world::simulation active_comment_history_has_a_bounded_slow_repair_cost_and_catches_a_lost_edit_hint
-heavy: queued task 750 in the build lane
      Summary [   0.020s] 29 tests run: 29 passed, 0 skipped
-heavy: task 750 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T003926-750.log
 exit: 0
 ```
 
-The list output was recovered from heavy’s completed log after the recorder
+The list output was recovered from the completed test log after the recorder
 failed to parse its trailing log text; cargo succeeded and was not rerun.
 
 ```text
-$ heavy cargo nextest list -p temper-engine-forge-client-world --message-format json
+$ cargo nextest list -p temper-engine-forge-client-world --message-format json
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 job_answer: 1 selected
 locate: 2 selected
@@ -76,13 +74,11 @@ simulation::the_groundwork_reads_keep_the_fake_api_facts_in_the_client_projectio
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-forge-client-world --profile fuzzy
+$ cargo nextest run -p temper-engine-forge-client-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.018s] (1/2) temper-engine-forge-client-world::fuzzy_simulation unrecoverable_branch_creation_survives_cuts_before_and_after_its_late_copy
         PASS [   0.169s] (2/2) temper-engine-forge-client-world::fuzzy_simulation seeded_faults_restarts_and_keyed_effects
-heavy: queued task 742 in the build lane
      Summary [   0.169s] 2 tests run: 2 passed, 0 skipped
-heavy: task 742 (build) exit 0, waited 89s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T004134-742.log
 exit: 0
 ```
 
@@ -188,9 +184,8 @@ not an invented positive margin. It stays a single allocator binary in 07.1.
 forge-client.md 10 places it among step tests; the supplied brief expressly
 places this existing test with the world. Location is not a new test claim.
 ```text
-$ heavy cargo nextest list -p temper-engine-forge-client-world --profile fuzzy --message-format json
+$ cargo nextest list -p temper-engine-forge-client-world --profile fuzzy --message-format json
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 758 in the build lane
 fuzzy_simulation: 2 selected
 exit: 0
 ```
@@ -210,21 +205,17 @@ using the source `Entry` and `Resource` types; 07.1 only renames their imports.
 No behavior implementation is claimed by this compile.
 
 ```text
-$ heavy cargo clippy -p temper-engine-forge-client-world --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-forge-client-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-07
-heavy: queued task 765 in the build lane
     Checking temper-engine-forge-client-world v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-07/tests/engine/forge/client)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.40s
-heavy: task 765 (build) exit 0, waited 442s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T004927-765.log
 exit: 0
 ```
 
 ```text
-$ heavy wc -l tests/engine/forge/client/src/lib.rs tests/engine/forge/client/src/referee.rs tests/engine/forge/client/src/translate.rs tests/engine/forge/client/src/world.rs tests/engine/forge/client/tests/fuzzy_simulation.rs tests/engine/forge/client/tests/job_answer.rs tests/engine/forge/client/tests/locate.rs tests/engine/forge/client/tests/memory.rs tests/engine/forge/client/tests/simulation.rs tests/forge-setup/reconcile/src/exchange.rs tests/forge-setup/reconcile/src/fixtures.rs tests/forge-setup/reconcile/src/lib.rs tests/forge-setup/reconcile/src/world.rs tests/forge-setup/reconcile/tests/fuzzy_reconcile.rs tests/forge-setup/reconcile/tests/reconcile.rs tests/engine/protocol-forge/src/fixtures.rs tests/engine/protocol-forge/src/hooks.rs tests/engine/protocol-forge/src/joint.rs tests/engine/protocol-forge/src/lib.rs tests/engine/protocol-forge/src/machine.rs tests/engine/protocol-forge/src/peer.rs tests/engine/protocol-forge/src/pipe.rs tests/engine/protocol-forge/src/protocol.rs tests/engine/protocol-forge/tests/fake_protocol.rs tests/engine/protocol-forge/tests/fuzzy_hooks.rs tests/engine/protocol-forge/tests/fuzzy_machine.rs tests/engine/protocol-forge/tests/fuzzy_protocol.rs tests/engine/protocol-forge/tests/hooks.rs tests/engine/protocol-forge/tests/machine.rs tests/engine/protocol-forge/tests/protocol.rs
+$ wc -l tests/engine/forge/client/src/lib.rs tests/engine/forge/client/src/referee.rs tests/engine/forge/client/src/translate.rs tests/engine/forge/client/src/world.rs tests/engine/forge/client/tests/fuzzy_simulation.rs tests/engine/forge/client/tests/job_answer.rs tests/engine/forge/client/tests/locate.rs tests/engine/forge/client/tests/memory.rs tests/engine/forge/client/tests/simulation.rs tests/forge-setup/reconcile/src/exchange.rs tests/forge-setup/reconcile/src/fixtures.rs tests/forge-setup/reconcile/src/lib.rs tests/forge-setup/reconcile/src/world.rs tests/forge-setup/reconcile/tests/fuzzy_reconcile.rs tests/forge-setup/reconcile/tests/reconcile.rs tests/engine/protocol-forge/src/fixtures.rs tests/engine/protocol-forge/src/hooks.rs tests/engine/protocol-forge/src/joint.rs tests/engine/protocol-forge/src/lib.rs tests/engine/protocol-forge/src/machine.rs tests/engine/protocol-forge/src/peer.rs tests/engine/protocol-forge/src/pipe.rs tests/engine/protocol-forge/src/protocol.rs tests/engine/protocol-forge/tests/fake_protocol.rs tests/engine/protocol-forge/tests/fuzzy_hooks.rs tests/engine/protocol-forge/tests/fuzzy_machine.rs tests/engine/protocol-forge/tests/fuzzy_protocol.rs tests/engine/protocol-forge/tests/hooks.rs tests/engine/protocol-forge/tests/machine.rs tests/engine/protocol-forge/tests/protocol.rs
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 781 in the build lane
   6754 total
-heavy: task 781 (build) exit 0, waited 420s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T004955-781.log
 exit: 0
 ```
 
@@ -262,19 +253,17 @@ Source-file line inventory (test and fixture lines included):
 - 448 tests/engine/protocol-forge/tests/protocol.rs
 
 ```text
-$ heavy cargo nextest run -p temper-forge-setup-reconcile-world
+$ cargo nextest run -p temper-forge-setup-reconcile-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.068s] (17/21) temper-forge-setup-reconcile-world::reconcile a_deleted_bot_is_made_again
         PASS [   0.054s] (15/21) temper-forge-setup-reconcile-world::reconcile a_team_edited_by_a_person_is_repaired
         PASS [   0.050s] (11/21) temper-forge-setup-reconcile-world::reconcile a_deleted_hook_is_made_again
-heavy: queued task 803 in the build lane
      Summary [   0.075s] 21 tests run: 21 passed, 0 skipped
-heavy: task 803 (build) exit 0, waited 112s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T005116-803.log
 exit: 0
 ```
 
 ```text
-$ heavy rg -n -i temper tests/engine/forge/client tests/forge-setup/reconcile tests/engine/protocol-forge
+$ rg -n -i temper tests/engine/forge/client tests/forge-setup/reconcile tests/engine/protocol-forge
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/engine/forge/client/tests/simulation.rs:511:                temper_fake_forge_domain::api::Step {
 tests/engine/forge/client/tests/simulation.rs:512:                    number: temper_fake_forge_domain::api::WORKFLOW_STEP,
@@ -288,17 +277,14 @@ tests/engine/protocol-forge/tests/protocol.rs:2:use temper_engine_domain_forge a
 tests/engine/protocol-forge/tests/protocol.rs:3:use temper_engine_domain_forge_change as change;
 tests/engine/protocol-forge/tests/protocol.rs:4:use temper_engine_domain_forge_client as client;
 tests/engine/protocol-forge/tests/protocol.rs:5:use temper_engine_domain_forge_issues as issues;
-240 matching lines in the full heavy log (the terminal tail showed 200)
-heavy: queued task 804 in the build lane
-heavy: … 40 earlier lines in /srv/data/git/runner/src/tmp/logs/20261019T005117-804.log
-heavy: task 804 (build) exit 0, waited 81s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005117-804.log
+240 matching lines in the full log (the terminal tail showed 200)
+
 exit: 0
 ```
 
 ```text
-$ heavy cargo nextest list -p temper-forge-setup-reconcile-world --message-format json
+$ cargo nextest list -p temper-forge-setup-reconcile-world --message-format json
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 810 in the build lane
 reconcile: 21 selected
 exit: 0
 ```
@@ -330,45 +316,38 @@ reconcile::two_hooks_with_the_listeners_url_keep_the_lowest_patched_and_the_rest
 ```
 
 ```text
-$ heavy rg -n '"tests/(engine/forge/client|forge-setup/reconcile|engine/protocol-forge)"' Cargo.toml
+$ rg -n '"tests/(engine/forge/client|forge-setup/reconcile|engine/protocol-forge)"' Cargo.toml
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 6:    "tests/forge-setup/reconcile",
 13:    "tests/engine/protocol-forge",
 45:    "tests/engine/forge/client",
 3 matching lines
-heavy: queued task 811 in the build lane
-heavy: task 811 (build) exit 0, waited 7s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005127-811.log
 exit: 0
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-forge-setup-reconcile-world --profile fuzzy
+$ cargo nextest run -p temper-forge-setup-reconcile-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.744s] (1/1) temper-forge-setup-reconcile-world::fuzzy_reconcile random_initial_forges_converge_and_a_second_run_writes_only_hook_patches
-heavy: queued task 813 in the build lane
      Summary [   0.744s] 1 test run: 1 passed, 0 skipped
-heavy: task 813 (build) exit 0, waited 2s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T005130-813.log
 exit: 0
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --test fake_protocol
+$ cargo nextest run -p temper-engine-protocol-forge-world --test fake_protocol
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 814 in the build lane
         PASS [   0.011s] (1/5) temper-engine-protocol-forge-world::fake_protocol the_component_starts_and_lists_items_through_the_fakes_bytes
         PASS [   0.011s] (2/5) temper-engine-protocol-forge-world::fake_protocol opening_with_nothing_to_merge_writes_no_pull_request
         PASS [   0.017s] (3/5) temper-engine-protocol-forge-world::fake_protocol a_failed_jobs_log_end_comes_through_a_suffix_range
         PASS [   0.018s] (4/5) temper-engine-protocol-forge-world::fake_protocol a_failed_job_read_names_its_failed_step_and_reads_its_log
         PASS [   0.019s] (5/5) temper-engine-protocol-forge-world::fake_protocol pull_for_answers_the_open_pull_when_the_lookup_names_a_closed_one
      Summary [   0.019s] 5 tests run: 5 passed, 0 skipped
-heavy: task 814 (build) exit 0, waited 3s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T005132-814.log
 exit: 0
 ```
 
 ```text
-$ heavy cargo nextest list -p temper-forge-setup-reconcile-world --profile fuzzy --message-format json
+$ cargo nextest list -p temper-forge-setup-reconcile-world --profile fuzzy --message-format json
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 815 in the build lane
 fuzzy_reconcile: 1 selected
 exit: 0
 ```
@@ -380,21 +359,18 @@ fuzzy_reconcile::random_initial_forges_converge_and_a_second_run_writes_only_hoo
 ```
 
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world
+$ cargo nextest run -p temper-engine-protocol-forge-world
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.131s] (46/47) temper-engine-protocol-forge-world::protocol a_failed_ci_head_is_repaired_then_checked_again
         PASS [   0.122s] (45/47) temper-engine-protocol-forge-world::protocol a_change_produced_opened_checked_queued_and_landed
         PASS [   0.102s] (47/47) temper-engine-protocol-forge-world::protocol idle_forge_call_cost_does_not_follow_old_issue_history
-heavy: queued task 817 in the build lane
      Summary [   0.235s] 47 tests run: 47 passed, 0 skipped
-heavy: task 817 (build) exit 0, waited 1s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T005137-817.log
 exit: 0
 ```
 
 ```text
-$ heavy cargo nextest list -p temper-engine-protocol-forge-world --message-format json
+$ cargo nextest list -p temper-engine-protocol-forge-world --message-format json
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 786 in the build lane
 fake_protocol: 5 selected
 hooks: 19 selected
 machine: 14 selected
@@ -463,10 +439,10 @@ exit: 0
 ```
 
 Only this scratch worktree had code edits, solely to compile signatures.
-The shared heavy queue temporarily stalled on another session's Python stdin;
+The shared queue temporarily stalled on another session's Python stdin;
 it later cleared. Queued time is not test runtime.
 ```text
-$ heavy cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy
+$ cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   0.313s] (1/6) temper-engine-protocol-forge-world::fuzzy_protocol stories_through_cut_streams_answer_each_call_once
         PASS [   0.667s] (2/6) temper-engine-protocol-forge-world::fuzzy_hooks a_delivery_split_at_every_point_is_answered_alike
@@ -474,16 +450,13 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
         PASS [   4.038s] (4/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once
         PASS [   4.214s] (5/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_3
         PASS [   4.892s] (6/6) temper-engine-protocol-forge-world::fuzzy_machine a_response_cut_at_each_byte_ends_its_call_once_seed_2
-heavy: queued task 786 in the build lane
      Summary [   4.892s] 6 tests run: 6 passed, 0 skipped
-heavy: task 786 (build) exit 0, waited 1s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T005142-786.log
 exit: 0
 ```
 
 ```text
-$ heavy cargo nextest list -p temper-engine-protocol-forge-world --profile fuzzy --message-format json
+$ cargo nextest list -p temper-engine-protocol-forge-world --profile fuzzy --message-format json
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 788 in the build lane
 fuzzy_hooks: 1 selected
 fuzzy_machine: 4 selected
 fuzzy_protocol: 1 selected
@@ -534,7 +507,7 @@ the proposed client-world method names. Counts include definitions; generic
 names can include unrelated declarations, so import users are audited below.
 
 ```text
-$ heavy --tail 1000 python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 import re, subprocess
 root=Path("/srv/data/git/runner/src")
 base=root/"tmp/planning/temper-base"
@@ -554,8 +527,6 @@ for name in names: print(name+" | "+" | ".join(map(str,counts[name])))
 print("searched",len(names),"names; counts are matching lines, including definitions and same-spelled symbols")
 '
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 785 in the build lane
-heavy: task 785 (build) exit 1, waited 422s, ran 171s, log /srv/data/git/runner/src/tmp/logs/20261019T005307-785.log
 exit: 1
 ```
 
@@ -570,7 +541,7 @@ replaced by the equivalent one-pass counter below. This was an analysis
 script failure, not a Rust test/build failure or a hidden test-time change.
 
 ```text
-$ heavy --tail 1000 python3 -c 'from pathlib import Path
+$ python3 -c 'from pathlib import Path
 from collections import Counter
 import re, subprocess
 root=Path("/srv/data/git/runner/src"); base=root/"tmp/planning/temper-base"
@@ -589,9 +560,7 @@ for name in sorted(names): print(name+" | "+" | ".join(map(str,counts[name])))
 print("searched",len(names),"names; matching source lines, including definitions and same-spelled symbols")
 '
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 732 in the build lane
 searched 419 names; matching source lines, including definitions and same-spelled symbols
-heavy: task 732 (build) exit 0, waited 1s, ran 2s, log /srv/data/git/runner/src/tmp/logs/20261019T005323-732.log
 exit: 0
 ```
 
@@ -1024,7 +993,7 @@ and the namespace/old-key frame together. The memory fixture continues to
 fill its namespace to the declared bound. Other owners keep their bytes.
 
 ```text
-$ heavy rg -n -F -e worldold -e '<!-- temper:key ' -e 'b"world"' /srv/data/git/runner/src/temper /srv/data/git/runner/src/skein /srv/data/git/runner/src/jig /srv/data/git/runner/src/smith /srv/data/git/runner/src/hearth --glob '*.rs' --glob '!target/**'
+$ rg -n -F -e worldold -e '<!-- temper:key ' -e 'b"world"' /srv/data/git/runner/src/temper /srv/data/git/runner/src/skein /srv/data/git/runner/src/jig /srv/data/git/runner/src/smith /srv/data/git/runner/src/hearth --glob '*.rs' --glob '!target/**'
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 /srv/data/git/runner/src/smith/tests/agent-process/src/tracing.rs:137:                        version: b"world".as_slice().into(),
 /srv/data/git/runner/src/jig/tests/core/tests/stories/watches.rs:77:    for (offset, text) in [(0, b"hello ".as_slice()), (6, b"world".as_slice())] {
@@ -1045,7 +1014,7 @@ directory: /srv/data/git/runner/src/tmp/planning/temper-base
 /srv/data/git/runner/src/temper/tests/codecs/tests/forgejo_writes.rs:75:        [("post-comment", 4, "<!-- temper:key 01000002 -->\ncomment text"), ("post-comment-plain", 5, "plain comment")]
 /srv/data/git/runner/src/temper/tests/codecs/tests/forgejo_writes.rs:89:        ("post-review-approved", 1, ReviewState::Approved, true, "<!-- temper:key 01000003 -->\nreview text"),
 /srv/data/git/runner/src/temper/tests/codecs/tests/forgejo_writes.rs:95:            "<!-- temper:key 01000004 -->\nreview text",
-59 matching lines in the full heavy log
+59 matching lines in the full log
 exit: 0
 ```
 
@@ -1067,24 +1036,20 @@ That draft's unresolved status for 25 and S07-A is superseded: answer 25
 requires the mark whole on both sides; decisions 22 and 23 settle S07-A.
 
 ```text
-$ heavy git diff --name-only 27995fb75 HEAD
+$ git diff --name-only 27995fb75 HEAD
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 732 in the build lane
 docs/design/protocol/setup.md
-heavy: task 732 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005539-732.log
 exit: 0
 ```
 
 ```text
-$ heavy git diff --name-only d120820 HEAD
+$ git diff --name-only d120820 HEAD
 directory: /srv/data/git/runner/src/tmp/planning/skein-base
-heavy: queued task 732 in the build lane
 docs/design/fake-forge.md
 docs/design/forge-client.md
 docs/design/forge-connection.md
 docs/design/forge-setup.md
 docs/design/forge.md
-heavy: task 732 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005542-732.log
 exit: 0
 ```
 
@@ -1094,13 +1059,11 @@ exit: 0
 Anchor to member rows so a workspace dependency path does not count twice.
 
 ```text
-$ heavy rg -n '^    "tests/(engine/forge/client|forge-setup/reconcile|engine/protocol-forge)",$' Cargo.toml
+$ rg -n '^    "tests/(engine/forge/client|forge-setup/reconcile|engine/protocol-forge)",$' Cargo.toml
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
-heavy: queued task 732 in the build lane
 6:    "tests/forge-setup/reconcile",
 13:    "tests/engine/protocol-forge",
 45:    "tests/engine/forge/client",
-heavy: task 732 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T005657-732.log
 exit: 0
 ```
 
@@ -1156,7 +1119,7 @@ are additions, not claims of existing definitions. Setup's given-values
 type and `Item` remain skein 04.1's interface, with no second sketch here.
 
 ```text
-$ heavy rg -n 'Pipe|Cut|fake_limits|pub fn trace' tests/forge-setup/reconcile/src
+$ rg -n 'Pipe|Cut|fake_limits|pub fn trace' tests/forge-setup/reconcile/src
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/forge-setup/reconcile/src/world.rs:37:        let limits = temper_engine_protocol_forge_world::fixtures::fake_limits();
 tests/forge-setup/reconcile/src/world.rs:91:    pub fn trace(&self) -> &[String] {
@@ -1164,7 +1127,6 @@ tests/forge-setup/reconcile/src/fixtures.rs:79:    let limits = temper_engine_pr
 tests/forge-setup/reconcile/src/exchange.rs:7:use temper_engine_protocol_forge_world::pipe::{Cut, Pipe};
 tests/forge-setup/reconcile/src/exchange.rs:23:    pipe: Pipe,
 tests/forge-setup/reconcile/src/exchange.rs:47:        pipe: Pipe::new(seed, Cut::Never),
-heavy: task 739 (build) exit 0, waited 1s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011609-739.log
 exit: 0
 ```
 
@@ -1176,23 +1138,21 @@ The source has two member rows and still names temper; the destination
 must have two member rows and no such names (rg exit 1).
 
 ```text
-$ heavy rg -n '^    "tests/(engine/forge/client|forge-setup/reconcile)",$' Cargo.toml
+$ rg -n '^    "tests/(engine/forge/client|forge-setup/reconcile)",$' Cargo.toml
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 6:    "tests/forge-setup/reconcile",
 45:    "tests/engine/forge/client",
-heavy: task 733 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011505-733.log
 exit: 0
 ```
 
 ```text
-$ heavy rg -n -i 'temper' tests/engine/forge/client tests/forge-setup/reconcile
+$ rg -n -i 'temper' tests/engine/forge/client tests/forge-setup/reconcile
 directory: /srv/data/git/runner/src/tmp/planning/temper-base
 tests/forge-setup/reconcile/tests/reconcile.rs:1:use temper_fake_forge_protocol::Route;
 tests/forge-setup/reconcile/tests/reconcile.rs:2:use temper_forge_forgejo::request::Request;
 tests/forge-setup/reconcile/tests/reconcile.rs:3:use temper_forge_setup::place::File;
 tests/forge-setup/reconcile/tests/reconcile.rs:4:use temper_forge_setup_reconcile_world::{Ended, World, fixtures};
-144 matching source lines in the full heavy log; excerpt above.
-heavy: task 734 (build) exit 0, waited 0s, ran 0s, log /srv/data/git/runner/src/tmp/logs/20261019T011505-734.log
+144 matching source lines in the full test log; excerpt above.
 exit: 0
 ```
 
@@ -1221,23 +1181,21 @@ and scratch; kept `#[must_use]` on the read-only counter method. No lint
 exception, dependency optimization or implementation change was needed.
 
 ```text
-$ heavy cargo clippy -p temper-engine-forge-client-world --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-forge-client-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-07-review
 error: item in documentation is missing backticks
   --> tests/forge/client/src/world/recovery.rs:13:31
 error: item in documentation is missing backticks
   --> tests/forge/client/src/world/recovery.rs:13:50
 error: could not compile `temper-engine-forge-client-world` (lib) due to 2 previous errors
-heavy: task 734 (build) exit 101, waited 1s, ran 5s, log /srv/data/git/runner/src/tmp/logs/20261019T011543-734.log
 exit: 101
 ```
 
 ```text
-$ heavy cargo clippy -p temper-engine-forge-client-world --all-targets -- -D warnings
+$ cargo clippy -p temper-engine-forge-client-world --all-targets -- -D warnings
 directory: /srv/data/git/runner/src/tmp/planning/scratch-skein-07-review
     Checking temper-engine-forge-client-world v0.0.0 (/srv/data/git/runner/src/tmp/planning/scratch-skein-07-review/tests/forge/client)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.63s
-heavy: task 737 (build) exit 0, waited 1s, ran 1s, log /srv/data/git/runner/src/tmp/logs/20261019T011608-737.log
 exit: 0
 ```
 
@@ -1303,7 +1261,7 @@ them against their owner, skein/04-setup.md 04.1. The future machine package
 and module paths match skein/08-component-worlds.md 08.1.
 
 No new Proof or Done when command, test, limit, or interface sketch was
-prescribed, so no heavy command or scratch compile was rerun. The four
+prescribed, so no command or scratch compile was rerun. The four
 source-package nextest runs, two narrowed closing searches and corrected
 skein-base recovery-signature compile recorded above remain the evidence.
 Destination types/packages are still checked against landed code at readiness

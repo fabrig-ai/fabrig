@@ -190,7 +190,7 @@ Test shape: no new file or test kind. Existing view forge tests and
 terminal adoption goldens keep their names and bytes; reuse their
 fixtures and shipped limits. The move's checks include resource paths,
 kinds, validation marks and outcome sentences, each under 20 ms.
-Proof: unit, once: `heavy cargo nextest run -p temper-client-shell-terminal
+Proof: unit, once: `cargo nextest run -p temper-client-shell-terminal
 -p temper-client-view -E 'test(/adopt|forge/)'` (under 1 s); unchanged
 adoption goldens show the view still composes the same phrases.
 The words move behind the same view; 11.2 connects their tools consumer.
@@ -275,7 +275,7 @@ The restore cases use only jig's records, named and drawn keys, text and
 JSON: exactly the two wrapper fields, no key/name there; outcome fields
 keep their own names. Parked work does not prevent an unrelated call.
 Compare asks without envelope keys, varying call prefixes and DIRECTORY too.
-Proof: unit, once: `heavy cargo nextest run -p temper-client-tools -E
+Proof: unit, once: `cargo nextest run -p temper-client-tools -E
  'test(=adopt_prints_adopted_in_the_forges_words_and_exits_0)'` (under 20 ms).
 It proves the form, family encoder/decoder, jig client and rendered answer
 connect. Existing domain/view form tests keep passing; the next plan's adopt

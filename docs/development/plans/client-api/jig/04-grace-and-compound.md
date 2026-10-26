@@ -162,7 +162,7 @@ jig 07.5 uses through 04.5, for untracking.
 - **Format versions** (README, Rules): tasks v3 is jig 02.1's, and
   people v3 its owner's; an increment that changes a family's records
   needs its owner's landing and edits that version in place. Regenerate
-  with `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p
+  with `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p
   jig-store-codecs-world --test drift`, once per increment that edits a
   schema.
 - **Files over 800 lines at the base get at most 40 lines each**
@@ -378,7 +378,7 @@ Test shape:
 - `tests/core/src/stories/closing_chat.rs` keeps its assertions, on
   `grace` in `chat_close`'s place.
 - Ceilings: world tests under 0.5 s, unit tests under 20 ms.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(=peers_scenarios)'` once (it passes at the base in 0.07 s): its
 `closing_chat::disposals_and_finish_grace` closes a chat whose grace
 now lives in the tasks child, restarts the engine inside the grace, and
@@ -468,7 +468,7 @@ Test shape:
   (two goals, one ends, a third is tracked by amendment after
   `restart`), with the world's `LIMITS` at `project_goals: 2`. Under
   0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-tasks-world -E
+Proof: world, `cargo nextest run -p jig-tasks-world -E
 'test(goals_per_project_count_only_live_tracked_tasks_after_a_restart)'`
 once: a project at its two goals refuses a third tracked by amendment
 until one ends, and admits it after a restart; under 0.5 s. Nothing
@@ -524,7 +524,7 @@ Test shape:
   with its fixture (`core()`, tests.rs:308, and
   `funding_fixtures.rs:2`'s `set_role_authority`):
   `a_move_is_refused_while_nobody_holds_its_escalations`. Under 20 ms.
-Proof: joint, once: `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, once: `cargo nextest run -p jig-core-world -E
 'test(=peers_scenarios) | test(a_plan_of_reports_and_a_procedure_is_revised_midway_and_done) | test(an_exhausted_delegate_escalates_to_a_person_who_releases_it_to_finish)'`
 (3 tests at the base): a chat closed with a delegate moved and one
 cancelled, a person's stop released by words, a plan amended midway and
@@ -625,7 +625,7 @@ Test shape:
   "lifecycle/compound.rs"] mod compound;` in `lifecycle.rs`, as :774 does):
   `a_compound_closing_a_task_and_moving_its_delegate_survives_a_restart`.
   Under 0.5 s.
-Proof: world, `heavy cargo nextest run -p jig-tasks-world -E
+Proof: world, `cargo nextest run -p jig-tasks-world -E
 'test(a_compound_closing_a_task_and_moving_its_delegate_survives_a_restart)'`
 once: the parent's cancel with a grace and its delegate's move, made in
 one step, are both in the restored state; under 0.5 s. The core sends no
@@ -756,7 +756,7 @@ Test shape:
 
   Its other tests: `a_maintainer_tracks_a_task_by_amendment`,
   `a_grace_past_the_limit_is_refused_naming_it`. Under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_partys_cancel_with_a_grace_ends_the_chat_when_the_grace_ends)'`
 once: the chat's run hears the request's reason as words to finish, and
 the chat ends cancelled by the party with that reason when the grace
@@ -868,7 +868,7 @@ Test shape:
   `a_compound_sent_again_after_a_crash_is_made_once_and_answered_once`
   (the crash and the resend as `a_read_waits_for_the_commit_in_flight_before_it`
   makes them, tests/core/tests/reads.rs:11-34). Under 0.5 s each.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_compound_sent_again_after_a_crash_is_made_once_and_answered_once)'`
 once: a compound closing a conversation, committed and crashed before
 its answer, sent again under its key after the restart, is in the store
@@ -975,7 +975,7 @@ Test shape:
   `a_compound_made_across_two_commits_breaks_once`,
   `a_refused_compound_with_a_changed_task_breaks_once`. Under 20 ms
   each.
-Proof: joint, `heavy cargo nextest run -p jig-conformance-world -E
+Proof: joint, `cargo nextest run -p jig-conformance-world -E
 'test(compound_chosen_answer_cut_ends_the_story) |
 test(grace_chosen_restart_cut_ends_the_story)'` once: the testing
 application, crashed after the compound's commit and sent the request
@@ -994,8 +994,7 @@ Compiled at the base in scratch modules (`src/sketch_w3.rs` of
 `jig-domain-tasks` and `jig-domain-people`, bodies `unimplemented!()`
 and parameters prefixed `_`, under `#![expect(clippy::unimplemented,
 dead_code, clippy::too_many_arguments, reason = "interface sketch")]`,
-with `use alloc::boxed::Box;` in these `no_std` crates) with `heavy
-cargo clippy -p jig-domain-tasks -p jig-domain-people -p jig-domain-core
+with `use alloc::boxed::Box;` in these `no_std` crates) with `cargo clippy -p jig-domain-tasks -p jig-domain-people -p jig-domain-core
 --all-targets -- -D warnings`; the variants shown inside existing enums
 were compiled as enums of their own (`AskSketch`, `OutcomeSketch`).
 
@@ -1187,6 +1186,6 @@ Operations,
   '^jig-04\.'` prints 7).
 - `git -C ~/src/rust/jig grep -n -w chat_close origin/main -- crates`
   prints nothing.
-- `heavy cargo nextest run -p jig-core-world -E
+- `cargo nextest run -p jig-core-world -E
   'test(/^a_compound_|^a_partys_cancel_with_a_grace/)'`, run once in a
   worktree of jig's `origin/main`, passes 6 tests.

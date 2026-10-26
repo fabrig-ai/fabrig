@@ -167,7 +167,7 @@ has no steps is not checked here: `later.md` (decisions.md, 13).
     line in step 0's slice and a failure's `RUN exit status` line in the
     step's own, so a passing step that prints nothing has an empty slice;
     the fact `empty-log-suffix-range-answers-206-empty` shows it.
-11. **Each recording runs both modes,** in one `heavy --gate sh -c`: the
+11. **Each recording runs both modes,** in one `sh -c`: the
     plain mode writes `facts.txt` from its own facts (`lib.rs:33-36`),
     without the `component-` block, which only the component mode writes
     back (`component.rs:19-21`, `facts.rs:503-526`). The command, from
@@ -176,7 +176,7 @@ has no steps is not checked here: `later.md` (decisions.md, 13).
     ```sh
     TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 \
     TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 \
-    heavy --gate sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --scratch target/forgejo-component --out tools/forgejo-conformance --component'
+    sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --scratch target/forgejo-component --out tools/forgejo-conformance --component'
     ```
 
     About 70 s after the tool's build (38 s and 24 s in the spike).
@@ -206,7 +206,7 @@ has no steps is not checked here: `later.md` (decisions.md, 13).
   this plan"; code-organization.md, 5). A shifted mask moves a literal
   the codecs world reads, and its tests fail.
 - **The recording tools run only where a Proof line says,** through
-  `heavy --gate`, once, and once more after each fix aimed at a cause
+  once, and once more after each fix aimed at a cause
   their output names; the third failure with the same symptom is a
   question (README, "Rules of this plan"). `facts.txt` is read after the
   run: a `fails` line still exits 0.
@@ -472,7 +472,7 @@ Test shape:
   `file_requests_route_on_the_servers_side_to_the_same_request` and
   `file_answers_the_server_encodes_decode_unchanged_with_the_transcripts_shape`
   read them (each under 0.5 s); the values are the spike's `v17-job`, and
-  the implementer reads them from its own `actions-job` transcript:
+  the author reads them from its own `actions-job` transcript:
 
   ```rust
   fn failing_job() -> Answer {
@@ -528,7 +528,7 @@ tools/forgejo-conformance/facts.txt | cut -d: -f1` prints the base's
 four; `grep -c '^holds component-' tools/forgejo-conformance/facts.txt`
 prints 39. About 70 s after the build; bound: 10 minutes, the build
 included (Choices, 11). The codecs world decodes the
-recorded job in `land`'s gate; temper 04.1 connects the job read to the
+recorded job in the gate; temper 04.1 connects the job read to the
 engine, and temper 03.1 to the fake. If `empty-log-suffix-range-answers-206-empty`
 fails because the `exit 0` step's slice holds bytes, it is a question with
 the capture, not a change of the workflow.
@@ -742,7 +742,7 @@ plain mode's `grep -c -E '^holds (compare-files-false-lists-no-commits-files|com
 tools/forgejo-conformance/facts.txt` prints 4. About 70 s after the
 build; bound: 10 minutes, the build included (Choices, 11). The protocol world (`tests/engine/protocol-forge`, the component
 on the fake's HTTP layer) runs the comparisons' stories with the flags in
-`land`'s gate.
+the gate.
 
 Don't: send `files=false` on `Read::Compare`'s first comparison; record
 `compare` or `compare-reverse` with flags (they stay Forgejo's

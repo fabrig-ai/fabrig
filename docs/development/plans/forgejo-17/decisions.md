@@ -32,7 +32,7 @@
 3. **The run's machine is x1,** beside client-api's run on carbon-forge
    (the user, 2026-10-16): x1 holds both binaries, and Forgejo v16's
    support ends on 2026-10-29. The two runs share temper's `main`;
-   `land` rebases each landing on the other's.
+   Changes are rebased before merging.
 4. **The store's version does not move in this plan** (the user,
    2026-10-16). `JobAnswer` changes in place in the schema
    `origin/main` holds at the increment's landing: `store-v1.schema` at
@@ -140,7 +140,7 @@
         01.1's Proof, item 2, now says:
 
         ```sh
-        TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process --no-fail-fast -E "not test(/^temper_open_/)"'
+        TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process --no-fail-fast -E "not test(/^temper_open_/)"'
         ```
 
         It exits 0, and its log's nextest `Summary` line reads `4 tests run:
@@ -156,7 +156,7 @@
 
 102. **temper 02's Shapes against main** (ready check of temper-02.1).
      temper/02-documents.md corrected against origin/main b6a69057 and
-     temper 01.1's and 01.2's landings (two ready checks, through heavy;
+     temper 01.1's and 01.2's landings (two ready checks, directly;
      with these corrections applied, 02.1's code passed fmt, clippy
      `-D warnings`, nextest 1257 passed, fuzzy 46 passed):
      - Choices: steps in a listing's rows are read and dropped, not skipped.
@@ -213,9 +213,9 @@
         (`Terminal::new`'s room, not `worst_case`'s; a print's rest waits as
         the print and an offset). API unchanged: `Print.text: List<u8>`,
         `worst_case`'s `(u32, u64)`, both constructors. Proof: skein's gate,
-        by `land`. Don't: name a downstream repository. Size: at most 80
+      . Don't: name a downstream repository. Size: at most 80
         production lines.
-     2. **temper-01.s1**, after it: first `heavy cargo update -p skein-lib
+     2. **temper-01.s1**, after it: first `cargo update -p skein-lib
         --precise <its landing>`, `Cargo.lock` alone, none when temper's
         skein pin already holds it (`merge-base --is-ancestor`); then the
         unit test `the_native_limits_make_the_terminal`
@@ -236,7 +236,7 @@
 
 105. **temper 03's Shapes against main** (ready check of temper-03.1).
      temper/03-fake-jobs.md corrected against origin/main 3ed817888 (a ready
-     check, through heavy: with these corrections, 03.1's types, `op`
+     check, : with these corrections, 03.1's types, `op`
      without `limits`, the domain's reference test and both HTTP tests
      passed clippy, and 474 tests of the fake forge, the forge worlds, the
      domain, system, conformance and joint worlds passed, fuzzy 34) and 02.1's
@@ -263,7 +263,7 @@
 
 106. **temper 04's Shapes against main** (ready check of temper-04.1).
      temper/04-job-read.md corrected against origin/main 49f589b32 (a ready
-     check, through heavy: the sketch and 04.1's contents and smith reference
+     check, : the sketch and 04.1's contents and smith reference
      tests passed clippy `-D warnings` with these corrections) and 02.2's
      landing df37f0329:
      - The sketch drops `#![expect(clippy::unused_self, ...)]`, never met.
@@ -289,7 +289,7 @@
 107. **temper 04's Shapes after 03.1** (ready check of temper-04.1).
      temper/04-job-read.md re-checked after temper 03.1's landing 00f6dc640,
      for the parts that need it (translate's arm, the client-world tests, the
-     joint test; through heavy, with a stand-in for 04.1's client change:
+     joint test; directly, with a stand-in for 04.1's client change:
      workspace clippy `-D warnings` passed, 370 of 371 tests passed, the one
      failure the joint reference test that 04.1's component work makes pass,
      fuzzy 30 of 30):
@@ -305,7 +305,7 @@
 
 108. **temper 05's Shapes against main** (ready check of temper-05.1).
      temper/05-brief.md checked against origin/main 988ec48a5 (a ready check,
-     through heavy: the sketch passed clippy `-D warnings`; on a stand-in for
+     : the sketch passed clippy `-D warnings`; on a stand-in for
      04.1, 275 tests passed, fuzzy 8 of 8, the domain world's CI section 352
      bytes as the Shape says): the fake's own `failing check` lines are at
      `testing/temper-fake-forge-domain/src/actions.rs:200-210` and

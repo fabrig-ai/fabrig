@@ -26,7 +26,7 @@ and its generated code. Rename any further identifier naming this read
 position for a chat (a function, a fixture, a doc comment), and list it
 in the commit body.
 
-Proof: land's gate. At the end, the grep above prints nothing, and `git
+Proof: the gate. At the end, the grep above prints nothing, and `git
 grep -n -w -E 'ReadChat|SeenChat' -- '*.schema'` prints nothing.
 Size: a rename; aim for at most 200 changed lines outside generated code.
 

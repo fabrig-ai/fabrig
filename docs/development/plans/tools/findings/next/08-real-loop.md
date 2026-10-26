@@ -108,7 +108,7 @@ cases: absent before bind, actual address after bind, absent after failure/close
 hooks absent (each under 20 ms). The existing signed-push world also asserts its listener's
 address; its simulated Listening completion supplies an address different from the requested
 port 0. Keep the signed push's 204 and hint assertions.
-Proof: world, `heavy cargo nextest run -p temper-engine-protocol-forge-world --test hooks -E
+Proof: world, `cargo nextest run -p temper-engine-protocol-forge-world --test hooks -E
 'test(a_signed_push_is_answered_204_before_its_hint_goes_up)'`, under 0.5 s. The forge
 host's first joint connection is 08.5.
 Don't: expose tokens or secrets; change hook admission or delivery semantics.
@@ -143,7 +143,7 @@ fn the_scripted_peer_tells_its_bound_port_and_drains() {
     assert!(seen.settled);
 }
 ```
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test peers`, under 0.5 s.
+Proof: world, `cargo nextest run -p temper-real-loop-world --test peers`, under 0.5 s.
 No higher until 08.4 runs the chat against the agent.
 Don't: change skein's fake LLM, smith's helpers, providers or account setup.
 Size: at most 220 lines of harness; no production change.
@@ -187,7 +187,7 @@ fn a_bound_service_prints_its_link_and_drains() {
     assert!(seen.drained);
 }
 ```
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test lifecycle`, under
+Proof: world, `cargo nextest run -p temper-real-loop-world --test lifecycle`, under
 0.5 s; the real store and worker drain, all owners and descriptors release. Calls and the
 first agent turn meet them in 08.4.
 Don't: replay the kernel schedule; copy the simulator; use real git or sh to establish this
@@ -231,7 +231,7 @@ fn a_signed_in_call_starts_a_chat_and_waits_for_its_reply() {
     assert!(ran.killed.is_empty());
 }
 ```
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test tools -E
+Proof: world, `cargo nextest run -p temper-real-loop-world --test tools -E
 'test(starts_a_chat)'`, under 1 s: real pipes, credential/store files, call exits and
 smith's reply, with the full drain checks.
 Don't: fake the lock or Saved/Stored; inspect engine or client domain state.
@@ -275,7 +275,7 @@ fn the_forge_host_s_signed_delivery_is_accepted_by_the_engine() {
     assert!(seen.drained);
 }
 ```
-Proof: joint, `heavy cargo nextest run -p temper-real-loop-world --test deliveries`, under
+Proof: joint, `cargo nextest run -p temper-real-loop-world --test deliveries`, under
 0.5 s: the host's signed bytes cross the real socket to the engine's component; all owners
 and descriptors release.
 Don't: change fake forge/client/component files; take 09's fake-git probe or landing;
@@ -312,7 +312,7 @@ fn another_clients_close_meets_a_running_wait() {
     assert!(ran.calls[2].ended > ran.calls[3].spawned);
 }
 ```
-Proof: world, `heavy cargo nextest run -p temper-real-loop-world --test tools -E
+Proof: world, `cargo nextest run -p temper-real-loop-world --test tools -E
 'test(another_clients)'`, under 1 s, including drain.
 Don't: change the tools' waits or cli host to tell the harness readiness.
 Size: at most 140 lines of harness; no production change.

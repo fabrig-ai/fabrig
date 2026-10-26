@@ -103,13 +103,12 @@ The webhooks' path: skein 01.1 → 01.2 and temper 04.2 → temper 05.1 →
   - `crates/temper/tests/process.rs` and `tests/support/*`: until about
     10-18 20Z. This plan's 05.3, 07.3, 08.1, 08.2, 08.3, 10.1, 10.2, 11.1,
     11.2, 13.1, 13.2, 14.1 and 15.1 touch them.
-  A rebase conflict there is resolved as `land` and the implementer's
-  card say. client-api leaves alone temper-forge-forgejo, the fake
+  A rebase conflict there is resolved before merging. client-api leaves alone temper-forge-forgejo, the fake
   forge, the throwaway, the conformance tool,
   temper-engine-protocol-forge, `tests/engine/forge` and new crates.
 - **`Cargo.lock` is never merged by hand:** a conflict takes
   `origin/main`'s, and the step's `cargo update` runs again. temper's
-  skein moves once, in temper 05.1, by `heavy cargo update -p skein-lib
+  skein moves once, in temper 05.1, by `cargo update -p skein-lib
   --precise <skein's origin/main>` in a commit of its own
   (`findings/skein-main-in-temper.md`); the three new crates add their
   own entries in the commits that create them.
@@ -121,15 +120,14 @@ The webhooks' path: skein 01.1 → 01.2 and temper 04.2 → temper 05.1 →
   `. ~/.profile` (run once at the base: `findings/base-runs.md`):
 
   ```sh
-  land --gate 'mkdir -p target && sed "/--profile browser\$/s/\$/ -E \"not test(=a_page_of_another_origin_is_opened_by_its_step)\"/" scripts/check.sh > target/check-x1.sh && sh target/check-x1.sh'
+  bash -c 'mkdir -p target && sed "/--profile browser\$/s/\$/ -E \"not test(=a_page_of_another_origin_is_opened_by_its_step)\"/" scripts/check.sh > target/check-x1.sh && sh target/check-x1.sh'
   ```
 - **The recording tools** (the conformance tool) run where an
-  increment's Shape or Proof says, through `heavy --gate`, once, and once
+  increment's Shape or Proof says, once, and once
   more after each fix aimed at a cause their output names; the third
   failure with the same symptom is a question (development.md, 5.5).
   Transcripts and `facts.txt` are written by the tools only; a new
-  capture is appended after the existing ones. `heavy --gate` refuses a
-  tree with changes: commit first.
+  capture is appended after the existing ones.
 - **Byte-stable recordings (rulings 121 and 124).** A recording of a
   group that changes a capture of an earlier recording is fixed in the
   tool, not accepted, without asking: a creation whose answer carries a
@@ -150,7 +148,7 @@ The webhooks' path: skein 01.1 → 01.2 and temper 04.2 → temper 05.1 →
   within 4.5 times; a ruling that gives an increment its own number
   keeps it where it is larger. Its report gives the count by
   code-organization.md 6's command, by file. Past that, it stops on a
-  question, as implementer.md 8.6 says. This takes the place of 8.6's
+  question, as the implementation rules says. This takes the place of 8.6's
   twice and 2.5 times, and of ruling 102's 2.6 and 3 times, for every
   session of this plan, until the run ends. Unchanged: never trim a doc comment,
   a test or the formatting to meet a Size; a split increment's parts
@@ -166,7 +164,7 @@ The webhooks' path: skein 01.1 → 01.2 and temper 04.2 → temper 05.1 →
   unchanged, without asking; a second such failure is a question, with
   the body.
 - **The process tier runs where a Proof line or "Done when" says,**
-  through `heavy --gate`, once; never in the gate.
+  once; never in the gate.
 - **The suites' aims for the whole run** (decisions.md, 13): temper's
   default suite at the base takes 4.43 s and its fuzzy suite 24.22 s
   (medians of three on x1, `findings/measurements.md`); the run adds at
@@ -206,7 +204,7 @@ The coordinator runs each once, before the first session, and writes
 ## One test of a suite that needs a built artifact
 
 None. skein 01.3's bundler is checked by its golden tests and by
-`land`'s gate, which builds the bundle and runs the browser suite whole;
+the gate, which builds the bundle and runs the browser suite whole;
 01.3 runs no browser test of its own.
 
 ## Live services
@@ -260,7 +258,7 @@ sessions grow is read as "at least".
    ```sh
    export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
    export TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-   heavy --gate scripts/proof-one-process.sh
+   scripts/proof-one-process.sh
    ```
 
    exits 0, within 180 s
@@ -285,7 +283,7 @@ sessions grow is read as "at least".
    | sort -u | cut -d'#' -f2)` exits 0, and that `grep` prints one
    revision.
 7. The test-time aims, measured once in a worktree of temper at
-   `origin/main`: `heavy --gate -- sh -c 'export
+   `origin/main`: `sh -c 'export
    NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run
    --workspace 2>&1 | grep Summary; cargo nextest run --workspace
    --profile fuzzy 2>&1 | grep Summary; done'`; the medians of the

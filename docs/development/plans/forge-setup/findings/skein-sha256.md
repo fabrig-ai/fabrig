@@ -63,13 +63,13 @@ At skein `main` ec686b8 (2026-10-16). Paths are skein's unless named.
   single cut point.
 
 ## 4. The gate
-- `scripts/check.sh` (`land` runs it; do not run it before): fmt; clippy workspace
+- `scripts/check.sh`: fmt; clippy workspace
   `-D warnings`; **`cargo check --target wasm32-unknown-unknown -p skein-lib -p
   skein-codec -p skein-http`** (the lib-specific line); `taste.sh`; `cargo check
   -p skein-tls`; nextest focused (15 s; base 6.46 s), fuzzy (60 s, `fuzzy_*`),
   browser (Chromium: x1 needs `SKEIN_TEST_CHROMIUM`, and
-  `a_page_of_another_origin_is_opened_by_its_step` fails there, so `land --gate`
-  with it filtered, as hearth's plan did). Dev: `heavy cargo nextest run -p
+  `a_page_of_another_origin_is_opened_by_its_step` fails there, so the gate
+  with it filtered, as hearth's plan did). Dev: `cargo nextest run -p
   skein-lib -p skein-lib-tests -p skein-io -p skein-oauth -p skein-ui-bundle`.
 
 ## 5. Downstream

@@ -219,7 +219,7 @@ fn temper_ctl_signs_in_by_the_link_read_on_stdin() {
 }
 ```
 Proof: process, the highest layer for `main`'s paths:
-`heavy sh -c 'cargo build -p temper --bin temper &&
+`sh -c 'cargo build -p temper --bin temper &&
 NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E
 "test(/^temper_ctl_/) | test(a_wait_past_its_timeout_exits_3)"'`
 (about 1 minute with the build); each test's time in the commit body.
@@ -289,11 +289,10 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
 }
 ```
 `from_slice` refuses a second stderr line. One answer under one key is the made-once proof (tools.md, 7).
-Proof: process, with both variables exported: `heavy sh -c 'cargo build
+Proof: process, with both variables exported: `sh -c 'cargo build
 -p temper --bin temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p
 temper --profile process -E "test(an_adopt_cut_by_a_signal_is_made_once)"'`
-(about 1 minute with the build). Then the tier once, `heavy --gate
-scripts/proof-one-process.sh`, with both exported. The commit body gives
+(about 1 minute with the build). Then the tier once, `scripts/proof-one-process.sh`, with both exported. The commit body gives
 the tier's time and this test's.
 Don't: catch or mask the signal in the fixture; add a landing or CI to the
 story; change `Throwaway`'s name or `landing_scripts`.

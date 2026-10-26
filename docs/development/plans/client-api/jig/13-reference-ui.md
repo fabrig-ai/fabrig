@@ -98,7 +98,7 @@ they read from.
 
 - **The naming check waits for nothing from 13.2 on:**
   `git -C ~/src/rust/jig grep -n 'PENDING' origin/main --
-  tests/boundary/src` prints a line with `[]`, and `heavy cargo nextest
+  tests/boundary/src` prints a line with `[]`, and `cargo nextest
   run -p jig-boundary -E 'test(client_crates_carry_the_client_prefix)'`
   passes one test (README, Done when 4).
 - **A root keeps no map and no `_` arm** (root.md, 10): the root's match
@@ -180,7 +180,7 @@ with the literals of the link's `src/tests/fixtures/link_store.rs:122-130`,
 `a_record_of_another_version_is_dropped`,
 `a_malformed_record_is_dropped`, and the drift test above. Each under
 20 ms.
-Proof: joint layer: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: joint layer: `cargo nextest run -p jig-client-protocol-world
 -E 'test(a_reload_restores_a_pending_request_from_the_small_store_s_bytes)'`,
 once, passing with the table's records alone in the link's store (under
 2 s); it passes; nothing else is wanted. In the client's world, the gate
@@ -259,7 +259,7 @@ link names `jig_domain_client` in 25 lines in 6 files at `23e3fbbdb`.
 Test shape: the moved tests move with their modules, names kept;
 `client_crates_carry_the_client_prefix` (jig 01.4) runs with `PENDING`
 empty.
-Proof: joint layer: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: joint layer: `cargo nextest run -p jig-client-protocol-world
 -E 'test(a_person_signs_in_by_the_printed_link_and_starts_a_chat)'`,
 once (under 2 s); it passes; nothing else is wanted. The gate's suites
 run the rest.
@@ -310,7 +310,7 @@ subject, answer, document, Invalid}`, as
 Test shape: the moved tests move; `tests/client-protocol/tests/protocol.rs`'s
 `a_family_place_record_round_trips_through_its_owner_s_small_store_bytes`
 keeps its name.
-Proof: joint layer: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: joint layer: `cargo nextest run -p jig-client-protocol-world
 -E 'test(a_person_s_part_request_is_answered_from_the_connector_s_outcome)'`,
 once, passing with the family's request encoded by the moved codec
 (under 2 s); it passes; nothing else is wanted.
@@ -511,7 +511,7 @@ fn the_link_reaches_each_child() {
 ```
 Each under 20 ms. The worlds' stories keep their names.
 Proof: joint layer, the root's client against the real engine:
-`heavy cargo nextest run -p jig-client-protocol-world -E
+`cargo nextest run -p jig-client-protocol-world -E
 'test(a_reload_restores_a_pending_request_from_the_small_store_s_bytes)
 | test(a_person_s_words_reach_a_running_run_through_bytes)'`, once,
 both passing with the root holding the client (under 2 s); it passes;
@@ -556,7 +556,7 @@ and `Following::Reopening` (ruling 207); the native shell's dependency on
 
 ## Interface sketches
 
-Checked at the base with `heavy cargo clippy -p jig-w6-sketch
+Checked at the base with `cargo clippy -p jig-w6-sketch
 --all-targets -- -D warnings` in a scratch crate, the page's types named
 at their base paths (`jig_domain_client::{address, contract}`), passing.
 The reference UI owns its records' codec; the application keeps the

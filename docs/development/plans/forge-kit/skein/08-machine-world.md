@@ -1,7 +1,7 @@
 # Session 08: the machine and listener world
 
 Move the machine/listener world into skein, then prove plaintext/TLS faults, deadlines and closing.
-The complete component-memory measurement is deferred to the GitHub draft, section17 (director ruling189; execution195). The client/component protocol world is skein 09. Needs at start: temper 03.1's users on the
+The complete component-memory measurement is deferred to the GitHub draft, section17 (ruling189; execution195). The client/component protocol world is skein 09. Needs at start: temper 03.1's users on the
 component, temper 05.1's users on the fakes, and skein 06.2's transcripts/deliveries, all landed on
 origin/main (README; decisions 22, 23).
 
@@ -22,7 +22,7 @@ origin/main (README; decisions 22, 23).
   then closed once and last after io settles.
 - Connection7: plaintext/TLS byte faults; client/component stories and invariants over the fake's bytes.
   Connection10's complete worst-case measurement is deferred to the GitHub draft, section17,
-  after its holders exist (director ruling189; execution195).
+  after its holders exist (ruling189; execution195).
 - Fake 4, 8: its existing HTTP/domain boundary, observations and tally; testing-strategy 8: preserve moved
   coverage and understand slow tests.
 
@@ -120,8 +120,8 @@ two_deliveries_on_one_connection_are_both_answered_and_hinted
   Each rebuilds the component, two start reads and path resolution per recorded response cut.
   Keep that cost/budget; report it, never shorten its sweep.
 Proof:
-world; `heavy cargo nextest run -p skein-forge-machine-world`: 33 passed, each <0.5 s, including signed domain push through Joint. Full source base: 47 focused at 0.404 s; separate lighter-load reruns: machine 14/0.034 s, hooks 19/0.024 s. This proves the moved harness; conformance cannot drive it.
-world; `heavy cargo nextest run -p skein-forge-machine-world --profile fuzzy`: 5 passed, each fuzzy_machine at most 7.8 s (base 7.481–7.709 s), fuzzy_hooks <0.5 s; full source base 6/7.709 s. Reruns: fuzzy_machine 4/1.746 s, fuzzy_hooks 1/0.189 s; no new ceiling.
+world; `cargo nextest run -p skein-forge-machine-world`: 33 passed, each <0.5 s, including signed domain push through Joint. Full source base: 47 focused at 0.404 s; separate lighter-load reruns: machine 14/0.034 s, hooks 19/0.024 s. This proves the moved harness; conformance cannot drive it.
+world; `cargo nextest run -p skein-forge-machine-world --profile fuzzy`: 5 passed, each fuzzy_machine at most 7.8 s (base 7.481–7.709 s), fuzzy_hooks <0.5 s; full source base 6/7.709 s. Reruns: fuzzy_machine 4/1.746 s, fuzzy_hooks 1/0.189 s; no new ceiling.
 Don't: move protocol.rs or its policy tests; copy recordings; drop the Joint story; export fake_config from
   the fake library; alter Pipe's cut schedule.
 Size: about 2,000 lines moved, 120 new including tests: 60 fixture/path edits, 40 manifest/module
@@ -183,8 +183,8 @@ fn plaintext_request_cuts_end_once() {
 ```
   The driver also checks each row's literal Error above; no expected cost comes from Answered.cost.
 Proof:
-world; `heavy cargo nextest run -p skein-forge-machine-world`: 38 passed (33+5), each <0.5 s; only this world controls phase boundaries, so no higher proof can observe them.
-world; `heavy cargo nextest run -p skein-forge-machine-world --profile fuzzy`: 6 passed (5+1), new sweep ≤5 s, inherited four ≤7.8 s each and fuzzy_hooks <0.5 s; base forms in findings.
+world; `cargo nextest run -p skein-forge-machine-world`: 38 passed (33+5), each <0.5 s; only this world controls phase boundaries, so no higher proof can observe them.
+world; `cargo nextest run -p skein-forge-machine-world --profile fuzzy`: 6 passed (5+1), new sweep ≤5 s, inherited four ≤7.8 s each and fuzzy_hooks <0.5 s; base forms in findings.
 Don't: change moved sweeps, import a service profile, or claim 03.3's Harness tests are world coverage.
 Size: about 0 lines moved, 300 new including tests: 100 driver/pauses, 100 focused cases/table,
   100 request/head sweep and reference; no shipped code.
@@ -253,8 +253,8 @@ fn listener_faults_at_each_byte() {
   hints1, status204. Before verification: hints0; after verification a queued204 may have produced one
   hint, never two. Response queued before Hint; all sockets settle. Retain the old split sweep.
 Proof:
-world; `heavy cargo nextest run -p skein-forge-machine-world`: its step-start focused count plus2 (40 from38;42 after08.s1), each <0.5 s; this world alone controls close/terminal ordering and io settlement.
-world; `heavy cargo nextest run -p skein-forge-machine-world --profile fuzzy`: 7 passed (6+1), new sweeps ≤5 s together; inherited four ≤7.8 s each and fuzzy_hooks <0.5 s.
+world; `cargo nextest run -p skein-forge-machine-world`: its step-start focused count plus2 (40 from38;42 after08.s1), each <0.5 s; this world alone controls close/terminal ordering and io settlement.
+world; `cargo nextest run -p skein-forge-machine-world --profile fuzzy`: 7 passed (6+1), new sweeps ≤5 s together; inherited four ≤7.8 s each and fuzzy_hooks <0.5 s.
 Don't: send an answer for an outstanding call after Close; spin waiting for already settled io.
 Size: about 0 lines moved, 280 new including tests: 90 close/settlement observation, 90 tables/tests,
   100 listener sweep and assertions; no shipped code.
@@ -277,7 +277,7 @@ Shape: wrap scripted HTTP peer bytes in skein_tls_world::server::Server, pki::Se
   derive the cut range from those bytes, and cut that same flight; never use a previous handshake's length or assert an exact TLS byte count.
   HTTP cuts range over that trial's plaintext framing; assertions concern outcomes/counts only.
   Ruling214's single handshake-only follow-up is exhausted. A fresh owner
-  gets at most20 wall minutes from start, TWO executable pinned-heavy
+  gets at most20 wall minutes from start, TWO executable
   absolute-Bash submissions and10 active execution minutes, including
   setup/compilation, for the reached HTTP terminal copies and busy clock.
   First inspect and repair only this world's Peer and Machine driver.
@@ -332,7 +332,7 @@ Shape: wrap scripted HTTP peer bytes in skein_tls_world::server::Server, pki::Se
     focused 43, fuzzy 8 (7+1), exhaustive 1.
   - Suite: `[profile.exhaustive]`, default-filter `binary(/^exhaustive_/)`, global-timeout 60 s,
     slow-timeout 20 s; the default profile's filter adds `not binary(/^exhaustive_/)`; fuzzy's is
-    unchanged. The machine's post-landing lane runs `heavy cargo nextest run --workspace --profile
+    unchanged. The machine's post-landing lane runs `cargo nextest run --workspace --profile
     exhaustive` after each skein push and reports a failure against the commit; the lane is not this
     step's.
   - Next, bounded: one narrow check of the quiet rule (the Locate response cut at its length minus one,
@@ -389,9 +389,9 @@ fn tls_faults_at_each_byte_end_once() {
   Before any call write (including failed start/handshake): Unavailable/cost0; after first call write:
   Timeout/cost1 (Read::Locate as 08.2); successful control cost1. Each case checks that Error.
 Proof:
-world; `heavy cargo nextest run -p skein-forge-machine-world`: its step-start focused count plus1 (43 after08.s1/08.3), each <0.5 s, new focused work ≤1 s so far; only this harness controls TLS/HTTP phase and Close boundaries.
-world; `heavy cargo nextest run -p skein-forge-machine-world --profile fuzzy`: 8 passed (7+1), additions ≤5 s together, inherited four ≤7.8 s each and fuzzy_hooks <0.5 s; suite <60 s.
-world; `heavy cargo nextest run -p skein-forge-machine-world --profile exhaustive`: 1 passed, within the profile's 60 s; run once before landing, then by the post-landing lane after each push.
+world; `cargo nextest run -p skein-forge-machine-world`: its step-start focused count plus1 (43 after08.s1/08.3), each <0.5 s, new focused work ≤1 s so far; only this harness controls TLS/HTTP phase and Close boundaries.
+world; `cargo nextest run -p skein-forge-machine-world --profile fuzzy`: 8 passed (7+1), additions ≤5 s together, inherited four ≤7.8 s each and fuzzy_hooks <0.5 s; suite <60 s.
+world; `cargo nextest run -p skein-forge-machine-world --profile exhaustive`: 1 passed, within the profile's 60 s; run once before landing, then by the post-landing lane after each push.
 Don't: TLS listener, renewal, optimized dependencies, fixed ECDSA flight lengths or entropy-seeded assertions;
   a boundary row drawn at random, a cut resolved from another trial's flight, a cloned or snapshotted
   world, a replayed flight, or the every-byte sweep in the gate's fuzzy suite.
@@ -401,7 +401,7 @@ Removes: nothing.
 
 ### 08.5 The counted worst case — dropped
 
-Dropped by the director's scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
+Dropped by the scope cut, ruling 189 (2026-10-20). Moved to the GitHub draft, section 17 (ruling 189).
 No implementation or proof of this increment runs in forge-kit; its earlier specification remains
 in git history. Every retained move and its inherited coverage still runs.
 
@@ -421,9 +421,9 @@ then sum the ten focused identities (including08.s1’s two separated cases) and
 skein's additions. Per-test sums are conservative accounting, not a substitute for README's three gate
 runs measuring whole-suite wall time. Report an excess with its three slowest tests and measured sums.
 
-- `heavy cargo nextest run -p skein-forge-machine-world` prints43passed after08.s1 (41 original+2 separated identities), each <0.5 s; new focused sum ≤1 s.
-- `heavy cargo nextest run -p skein-forge-machine-world --profile fuzzy` prints 8 passed; inherited four ≤7.8 s each, fuzzy_hooks <0.5 s, new fuzzy sum ≤5 s.
-- `heavy cargo nextest run -p skein-forge-machine-world --profile exhaustive` prints 1 passed within 60 s: TLS's every-byte sweep, outside the gate (forge-connection 10).
-- `heavy cargo clippy -p skein-forge-machine-world --all-targets -- -D warnings` prints Finished without warnings.
-- `heavy rg -n '^    "tests/forge/machine",$' Cargo.toml` prints exactly one member line.
-- `heavy rg -n -i temper tests/forge/machine` prints nothing (rg exit1); README Done when5 covers the whole kit.
+- `cargo nextest run -p skein-forge-machine-world` prints43passed after08.s1 (41 original+2 separated identities), each <0.5 s; new focused sum ≤1 s.
+- `cargo nextest run -p skein-forge-machine-world --profile fuzzy` prints 8 passed; inherited four ≤7.8 s each, fuzzy_hooks <0.5 s, new fuzzy sum ≤5 s.
+- `cargo nextest run -p skein-forge-machine-world --profile exhaustive` prints 1 passed within 60 s: TLS's every-byte sweep, outside the gate (forge-connection 10).
+- `cargo clippy -p skein-forge-machine-world --all-targets -- -D warnings` prints Finished without warnings.
+- `rg -n '^    "tests/forge/machine",$' Cargo.toml` prints exactly one member line.
+- `rg -n -i temper tests/forge/machine` prints nothing (rg exit1); README Done when5 covers the whole kit.

@@ -1,10 +1,10 @@
 # jig focused suite: where the time goes, and what gets the median to 12 s
 
-Date: 2026-10-18. jig `origin/main` 08430b94, detached scratch worktree (removed afterwards). Measured on debian-16gb-hel1-1 (8 vCPU AMD EPYC Genoa), NOT on the gate machine: carbon-forge is an i5-8265U, 4 cores / 8 threads (jig test-budgets findings/measurements.md), and the Gate-Result times below come from it. Every cargo run went through `heavy`, in the gate lane unless said.
+Date: 2026-10-18. jig `origin/main` 08430b94, detached scratch worktree (removed afterwards). Measured on debian-16gb-hel1-1 (8 vCPU AMD EPYC Genoa), NOT on the gate machine: carbon-forge is an i5-8265U, 4 cores / 8 threads (jig test-budgets findings/measurements.md), and the Gate-Result times below come from it. Every cargo run went in the gate lane unless said.
 
 ## 1. How gate time is measured
 
-`land` (skein/scripts/dev/land, function `evidence`) copies nextest's own `Summary [ N s]` of each `cargo nextest run` in jig's `scripts/check.sh` into the `Gate-Result` trailer: focused, fuzzy, browser, then the whole gate. So the focused figure is nextest wall time only (no compile), default profile, `NEXTEST_DOUBLE_SPAWN=0`, test threads = logical CPUs. Budget: `.config/nextest.toml` `[profile.default] global-timeout` (30 s since jig 20d9501e / ruling 275; 15 s before). The `measure` profile has no budget: `cargo nextest run --workspace --profile measure -j 1` (jig docs/development/workflow.md; client-api README, "Test time"). The 12 s aim is the median of three gate-lane runs.
+The merge evidence uses nextest's own `Summary [ N s]` of each `cargo nextest run` in jig's `scripts/check.sh`: focused, fuzzy, browser, then the whole gate. So the focused figure is nextest wall time only (no compile), default profile, `NEXTEST_DOUBLE_SPAWN=0`, test threads = logical CPUs. Budget: `.config/nextest.toml` `[profile.default] global-timeout` (30 s since jig 20d9501e / ruling 275; 15 s before). The `measure` profile has no budget: `cargo nextest run --workspace --profile measure -j 1` (jig docs/development/workflow.md; client-api README, "Test time"). The 12 s aim is the median of three gate-lane runs.
 
 ```
 $ git -C jig log origin/main --format='%h %(trailers:key=Gate-Result,valueonly,separator=)' | grep passed | head -20 | sed -E 's/ scripts.check.sh passed: ([0-9]+) tests \/ ([0-9.]+) s;.*/ \1 \2/' | paste - -
@@ -25,11 +25,11 @@ Last 20 code landings (hash, tests, focused s): median 14.95 s, min 7.92, max 18
 ## 2. The focused suite as the gate runs it, and measured serially
 
 ```
-$ heavy --gate --tail 4 -- cargo nextest run --workspace      (x3, scratch worktree)
+$ cargo nextest run --workspace      (x3, scratch worktree)
      Summary [   6.663s] 4266 tests run: 4266 passed (1 slow), 0 skipped     (cold cache)
      Summary [   5.305s] 4266 tests run: 4266 passed, 0 skipped
      Summary [   5.941s] 4266 tests run: 4266 passed, 0 skipped
-$ heavy --gate --tail 3 -- cargo nextest run --workspace --profile measure -j 1
+$ cargo nextest run --workspace --profile measure -j 1
      Summary [  52.628s] 4266 tests run: 4266 passed, 0 skipped      (log tmp/logs/20261018T220649-3795.log)
 ```
 
@@ -90,13 +90,13 @@ So the floor of a test is about 2 to 3 ms of mostly kernel exec/page-fault time 
 
 Unit tests in one process (libtest) instead of one process each, all 61 unit binaries run directly, none failing (jig-boundary needs its package directory as cwd):
 ```
-$ heavy --gate -- taskset -c 0-7 .../libs.sh 8     direct libtest 8 threads: 2.59 s    vs nextest kind(lib or bin): 2.82 s
-$ heavy --gate -- taskset -c 0-3 .../libs.sh 8     direct libtest 8 threads: 3.28, 3.48 s   vs nextest: 4.84, 4.85 s
-$ heavy --gate -- .../libs.sh 1 (one thread)       12.9 s    vs nextest -j 1 summed 27.9 s
+$ taskset -c 0-7.../libs.sh 8     direct libtest 8 threads: 2.59 s    vs nextest kind(lib or bin): 2.82 s
+$ taskset -c 0-3.../libs.sh 8     direct libtest 8 threads: 3.28, 3.48 s   vs nextest: 4.84, 4.85 s
+$.../libs.sh 1 (one thread)       12.9 s    vs nextest -j 1 summed 27.9 s
 ```
 Opt-level of dependencies (config only, no file touched: `--config 'profile.dev.package."*".opt-level=2'`, own `--target-dir`, build 4m39s against 2m54s). jig's Cargo.toml has `opt-level = 3` only for `jig-boundary` and `skein-codegen`. A/B interleaved, three runs each, `taskset` to model fewer cores (`-j 8`):
 ```
-$ heavy --gate -- taskset -c 0-3 cargo nextest run --workspace -j 8 [--config ...]
+$ taskset -c 0-3 cargo nextest run --workspace -j 8 [--config...]
 4 vCPU: base 10.51 8.66 8.84 (median 8.84)    deps opt 2: 8.05 7.35 7.46 (median 7.46)   -15.6%
 8 vCPU: base  4.82 4.86 4.66 (median 4.82)    deps opt 2: 3.94 4.10 4.07 (median 4.07)   -15.6%
 $ ... --profile measure -j 1 (deps opt 2)   Summary [ 45.104s]   (52.628 s base: -14.4%)
@@ -114,7 +114,7 @@ Phrasebook `english()`: no view test builds it through the shared fixture (`Fixt
 ## Levers
 
 Savings are wall time on carbon-forge (14.4 s median now), scaled from the 4 vCPU model.
-1. **Dependencies at opt-level 2** (`[profile.dev.package."*"] opt-level = 2` in jig/Cargo.toml). About -2.3 s (-16%). Evidence: A/B above, 3 runs each at two core counts, identical -15.6%. Costs: a cold first build 1.5 to 2 minutes longer (kache keeps it after), the wasm32 dev builds of the browser tier get the same setting (not measured). Size S.
+1. **Dependencies at opt-level 2** (`[profile.dev.package."*"] opt-level = 2` in jig/Cargo.toml). About -2.3 s (-16%). Evidence: A/B above, 3 runs each at two core counts, identical -15.6%. Costs: a cold first build 1.5 to 2 minutes longer, the wasm32 dev builds of the browser tier get the same setting (not measured). Size S.
 2. **Unit tests in one process** (the fallback of test-budgets ruling 5: `<repo>-tests.one-process`; the designer changes skein testing-strategy.md, section 8, "A test is a process"; check.sh runs `cargo test --workspace --lib --bins` beside `cargo nextest run -E 'kind(test)'`). About -2.0 to -2.3 s (-14 to -16%; only -0.2 s at 8 vCPU). Evidence: 61 unit binaries pass in-process; 3034 tests, 15 s of 27.9 s serial CPU is process cost. Loses nextest's SLOW flag and global-timeout for those tests. Size M.
 3. **Cut the world fixtures' floor** in jig-core-world (15 ms per test x 359), jig-client-world (`harness/world.rs`, `harness/referee.rs`) and jig-client-view `Fixture::build` (about 1300 tests): halve the floor and save -1 to -2 s. Evidence: floors above; deps opt 2 moves jig-core-world only 5%, so the cost is in jig's own crates or the test body; where exactly is unmeasured (no perf on this machine). Size M to L.
 4. **`opt-level = 1` for jig's own crates** (`[profile.dev] opt-level = 1`, config only): expected from the 5% in jig-core-world, unknown, maybe -1 s; costs compile time on every increment. Size S to try, not tried.
@@ -129,4 +129,4 @@ Together 1 and 2 give 14.4 s to about 10.5 to 11.5 s (-25 to -30% if they add; n
 - Levers 1 and 2 were never measured together, nor lever 1 on the wasm32 builds or on compile time of an incremental change.
 - Where jig-core-world's and the client fixtures' floor goes (the world build, allocations, or the test bodies): no profiler here. The cost of `english()` is bounded from the module floors, not measured on its own.
 - Gate-Result noise (13.6 to 18.7 s for the same code) is not explained; the 7.92 s landing d6afc638 may have run on another machine.
-- One `cargo nextest list --workspace --message-format json` ran outside `heavy` (nothing built) to find the test binaries; the 100-run loops ran the test binaries directly, not cargo.
+- One `cargo nextest list --workspace --message-format json` ran (nothing built) to find the test binaries; the 100-run loops ran the test binaries directly, not cargo.

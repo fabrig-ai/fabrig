@@ -74,7 +74,7 @@ that keep it compiling.
 - **Transcripts and `facts.txt` are written by the tool only.** A recording rewrites 34 other transcripts (01.2's
   Don't): `git checkout -- tools/forgejo-conformance/transcripts` first, then add the new `setup-` directories and
   the `setup-` lines of `facts.txt`. Masked ids count within the group: a rebase over 01.3's tokens renumbers
-  these captures, so record again. `heavy --gate` refuses a tree with changes: the tool's code is committed first.
+  these captures, so record again.
 - **No client-api hotspot is touched; `Cargo.lock` does not change** (no dependency; 01.2 adds the codecs'). Shared
   with temper 01 and 04.2: `request.rs`, `document.rs`, `client.rs`, `server.rs`, `server/writes.rs`, `walk.rs`,
   the fake's lists, `tests/codecs/src/forgejo.rs`, the tool's `lib.rs`, `cases.rs`, `facts.rs`, `setup.rs`.
@@ -153,14 +153,14 @@ as the encoder sends them, pulls `read` and actions `none`; ruling 127); `setup-
 `setup-team-listing-pages-by-limit` (list-page-1: one team; list-page-3: none).
 Proof: process: the record command (below) on the pinned Forgejo and runner shows 18 new `holds`, no `fails`, and 21
 new directories, in at most 150 s (01.3's 150 s, with this session's exchanges; the base takes 44 s plus 24 s for
-`--component`); world: `heavy cargo nextest run -p temper-codecs-world --test forgejo_setup` replays the rows through
-both sides, under 30 s built; unit: `heavy cargo nextest run -p temper-forge-forgejo -E 'test(/tests::orgs::/)'` runs the 7 tests of
+`--component`); world: `cargo nextest run -p temper-codecs-world --test forgejo_setup` replays the rows through
+both sides, under 30 s built; unit: `cargo nextest run -p temper-forge-forgejo -E 'test(/tests::orgs::/)'` runs the 7 tests of
 `src/tests/orgs.rs`, under 30 s built. The proof stops at the recording and its replay because nothing in
 production calls the codec: temper 09.3 connects it to reconcile's machine and the fake, temper 10.1 to a Forgejo.
 Record command:
 ```sh
 export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-heavy --gate -- sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --component --scratch target/forgejo-conformance --out tools/forgejo-conformance'
+sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --component --scratch target/forgejo-conformance --out tools/forgejo-conformance'
 ```
 Don't: no remove or delete request (reconcile only makes again); no request for `POST /orgs` (its two captures are
 probes); no `description`, `can_create_org_repo` or deprecated `units` sent; no credential in a `Request`; no route
@@ -208,7 +208,7 @@ same body), `-hook-made-other` (`http://127.0.0.1:3000/other`, `push` alone), `-
 `setup-hook-delete-is-204-and-leaves-the-orgs-other-hooks` (deleted; a final live read);
 `setup-hook-delete-of-a-missing-id-is-404`.
 Proof: process: the record command of 02.1 shows 12 new `holds`, no `fails`, 33 directories in all, in at most 150 s;
-world: the replay of 02.1 over the hook rows, under 30 s built; unit: `heavy cargo nextest run -p temper-forge-forgejo -E 'test(/tests::hooks::/)'`
+world: the replay of 02.1 over the hook rows, under 30 s built; unit: `cargo nextest run -p temper-forge-forgejo -E 'test(/tests::hooks::/)'`
 runs the 7 tests of `src/tests/hooks.rs`, under 30 s built. As 02.1: temper 09.3 and 10.1 connect it.
 Don't: no repository hook (the person's); no `workflow_run_*` or `action_run_*` event (the caller's list, forge.md 5);
 no delete but a hook's; the secret never in a `Debug`, a message or a test name; log or `{:?}` an `Encoded` of a hook
@@ -394,6 +394,6 @@ From the repository root, after 02.2 has landed; `TEMPER_FORGEJO` and `TEMPER_FO
 
 1. The facts hold: `grep -c -e '^holds setup-org-' -e '^holds setup-team-' -e '^holds setup-hook-' tools/forgejo-conformance/facts.txt` prints 30, and the same with `^fails` prints 0.
 2. The captures are there: `ls -d tools/forgejo-conformance/transcripts/setup-org-* tools/forgejo-conformance/transcripts/setup-team-* tools/forgejo-conformance/transcripts/setup-hook-*` lists 33 directories.
-3. Both sides agree and compile: `heavy cargo nextest run -p temper-forge-forgejo -p temper-codecs-world -p temper-fake-forge-protocol -p temper-engine-protocol-forge` passes, `heavy cargo nextest run -p temper-forge-forgejo -E 'test(/tests::orgs::/) | test(/tests::hooks::/)'` runs 14 tests, and `heavy cargo nextest run -p temper-codecs-world --profile fuzzy --test fuzzy_forgejo` passes (2 tests).
-4. Clippy is clean where the arms are: `heavy cargo clippy -p temper-forge-forgejo -p temper-engine-protocol-forge -p temper-fake-forge-protocol -p temper-codecs-world -p forgejo-conformance --all-targets -- -D warnings`.
+3. Both sides agree and compile: `cargo nextest run -p temper-forge-forgejo -p temper-codecs-world -p temper-fake-forge-protocol -p temper-engine-protocol-forge` passes, `cargo nextest run -p temper-forge-forgejo -E 'test(/tests::orgs::/) | test(/tests::hooks::/)'` runs 14 tests, and `cargo nextest run -p temper-codecs-world --profile fuzzy --test fuzzy_forgejo` passes (2 tests).
+4. Clippy is clean where the arms are: `cargo clippy -p temper-forge-forgejo -p temper-engine-protocol-forge -p temper-fake-forge-protocol -p temper-codecs-world -p forgejo-conformance --all-targets -- -D warnings`.
 5. Each landing's report gives its hand-written production lines by code-organization.md's command, against Size 250 and 150 (codec).

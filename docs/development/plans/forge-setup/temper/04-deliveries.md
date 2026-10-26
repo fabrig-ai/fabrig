@@ -142,7 +142,7 @@ deliver to the listener):
 ```sh
 export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
 export TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-heavy --gate -- sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --component --scratch target/forgejo-conformance --out tools/forgejo-conformance'
+sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --component --scratch target/forgejo-conformance --out tools/forgejo-conformance'
 ```
 `facts.txt` and `deliveries/` then show Done when 2 to 4. Bound 150 s alone (43 s at the base, plus about 30 s for two
 instances and the jobs). No live layer exists in this plan.
@@ -209,7 +209,7 @@ fn recorded_deliveries_decode_to_the_fields_their_hints_read() {
 ```
 `delivery_cases()` is a table of literals written from the recordings (ids, numbers, masked shas as `forgejo::sha(n)`,
 marker bodies).
-Proof: unit, `heavy cargo nextest run -p temper-forge-forgejo -p temper-codecs-world -E 'test(/delivery/) | binary(forgejo_deliveries)'`
+Proof: unit, `cargo nextest run -p temper-forge-forgejo -p temper-codecs-world -E 'test(/delivery/) | binary(forgejo_deliveries)'`
 (11 tests): 04.1's recordings decode to the fields of their hints, the encoder's bodies decode unchanged and the hook
 path reads back; under 2 s. No layer above: nothing calls the documents until temper 05.2 and 05.1 connect them.
 Don't: add a `Document` variant or a `Hint`; verify a signature or compute SHA-256; decode a marker; name an event or
@@ -358,8 +358,8 @@ pub fn encode(_delivery: &Delivery, _limits: &Limits) -> Result<Sent, writer::Re
 ## Done when
 
 ```sh
-heavy cargo nextest run -p temper-throwaway-forgejo -p forgejo-conformance -p temper-forge-forgejo -p temper-codecs-world
-heavy cargo nextest run -p temper-codecs-world --profile fuzzy
+cargo nextest run -p temper-throwaway-forgejo -p forgejo-conformance -p temper-forge-forgejo -p temper-codecs-world
+cargo nextest run -p temper-codecs-world --profile fuzzy
 ```
 Both exit 0. After 04.1's Proof command:
 ```sh

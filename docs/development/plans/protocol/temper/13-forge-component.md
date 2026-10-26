@@ -389,7 +389,7 @@ fn the_start_stops_on_another_user_or_a_4xx_and_waits_otherwise() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-engine-protocol-forge`,
+Proof: unit, `cargo nextest run -p temper-engine-protocol-forge`,
 run once: a start stops on another user or a `4xx` and waits on the
 rest, a marker round-trips and a malformed one has no key, disagreeing
 limits are refused naming both, and a waiting call is answered
@@ -486,7 +486,7 @@ fn the_start_reads_user_then_settings_on_one_connection() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-engine-protocol-forge -E
+Proof: unit, `cargo nextest run -p temper-engine-protocol-forge -E
 'test(/connection::/)'`, run once: the start reads the user then the
 page cap on one connection, a refused token stops it once, a refused
 connect waits its backoff, an idle connection closes, a start read
@@ -632,7 +632,7 @@ fn items_list_since_with_leastupdate_and_an_explicit_page() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-engine-protocol-forge -E
+Proof: unit, `cargo nextest run -p temper-engine-protocol-forge -E
 'test(/reads::/)'`, run once: the keep-up listing goes out with
 `state=all`, `since`, `sort=leastupdate`, `page` and `limit`, a thread
 stops at the answer's bound, a missing path is resolved and counted, a
@@ -757,7 +757,7 @@ fn failures_classify_by_status_call_and_message() {
 }
 ```
 
-Proof: unit, `heavy cargo nextest run -p temper-engine-protocol-forge -E
+Proof: unit, `cargo nextest run -p temper-engine-protocol-forge -E
 'test(/contents::/) | test(/writes::/)'`, run once: a pull's files at
 another head read no file, a failing job's attempt is found from its
 link, creations carry their marker, a merge names the row's style and
@@ -876,8 +876,8 @@ fn a_response_cut_at_each_byte_ends_its_call_once() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-engine-protocol-forge-world`
-and `heavy cargo nextest run -p temper-engine-protocol-forge-world
+Proof: world, `cargo nextest run -p temper-engine-protocol-forge-world`
+and `cargo nextest run -p temper-engine-protocol-forge-world
 --profile fuzzy -E 'binary(fuzzy_machine)'`, each run once: the
 component reaches Ready from Forgejo v16.0.5's recorded answers, stops
 on another user or a `404`, resolves a dropped path again and counts it,
@@ -1727,9 +1727,9 @@ pub fn case_bytes(case: &str) -> Vec<u8>;
 
 ## Done when
 
-- The crate and its machine world pass: `heavy cargo nextest run -p
+- The crate and its machine world pass: `cargo nextest run -p
   temper-engine-protocol-forge -p temper-engine-protocol-forge-world`
-  passes, and `heavy cargo nextest run -p
+  passes, and `cargo nextest run -p
   temper-engine-protocol-forge-world --profile fuzzy -E
   'binary(fuzzy_machine)'` passes.
 - It links what code-organization.md 3 names: `cargo tree --locked -p

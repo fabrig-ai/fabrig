@@ -185,7 +185,7 @@ fn a_forge_row_survives_the_real_store_byte_for_byte() {
 }
 ```
 
-Proof: world, `heavy cargo nextest run -p temper-engine-domain-world -p
+Proof: world, `cargo nextest run -p temper-engine-domain-world -p
 temper-system-world`, run once: every story of both worlds passes with
 jig's store component holding the root's commits, temper's forge rows
 encoded by `temper-protocol-store` and read back through its interval;
@@ -218,7 +218,7 @@ the alias's type changes them)}`; `tests/engine/domain/{Cargo.toml
 Shape: `impl jig_conformance::Durable for Store` (ordinary Rust, after
 jig's `testing/jig-test-store-files/src/durable.rs`).
 Test shape: no new test; the conformance world's tests pass unchanged.
-Proof: world, `heavy cargo nextest run -p temper-conformance-world`, run
+Proof: world, `cargo nextest run -p temper-conformance-world`, run
 once: jig's conformance scenarios pass against temper's root with jig's
 store component under jig's harness, crashes included; under 20 s.
 Don't: keep `observations::Record`'s wrapper if nothing but the fake's
@@ -265,7 +265,7 @@ Test shape: no new test; the system world's stories pass unchanged
 (`tests/system/tests/*.rs`), a run's pushed heads and saved work reaching
 the engine through the service's translations. The removed unit tests
 are named in the commit body.
-Proof: world, `heavy cargo nextest run -p temper-system-world`, run once:
+Proof: world, `cargo nextest run -p temper-system-world`, run once:
 the composed stories (a chat answered, a change pushed and landed, a run
 resumed from its transcript) pass with the engine and the worker joined
 by the service's translations and charter; under 20 s.
@@ -353,7 +353,7 @@ impl Store {
 
 ## Done when
 
-- The worlds pass on the real store: `heavy cargo nextest run -p
+- The worlds pass on the real store: `cargo nextest run -p
   temper-engine-domain-world -p temper-system-world -p
   temper-conformance-world` passes.
 - jig's fake store is gone: `git grep -n jig-fake-store -- '*.toml'`

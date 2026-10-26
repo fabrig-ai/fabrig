@@ -26,7 +26,7 @@ this session (README, Repin).
   `docs/design/domain/testing.md` 2.2 and 7.
 - skein `docs/foundation/testing-strategy.md` 8 and `development.md` 5.5-5.7.
 - README (sessions, Rules, Repin, Done when); code-organization 1; decisions
-  11, 22 and 23; designer `tmp/director/forge-kit-answers-1.md`.
+  11, 22 and 23.
 - `skein/06-conformance.md` 06.3 (Removes), `skein/07-worlds.md` 07.1,
   `skein/08-machine-world.md` 08.1, `skein/09-protocol-world.md` 09.1 (Don't);
   findings `survey-06-tests.md`, `base-runs.md`, `base-temper-07.md`.
@@ -90,8 +90,8 @@ keep their original counts.
 
 ## Rules that bind it
 
-- 07.1's **first commit** is its repin: `heavy cargo update -p skein-lib`, then
-  `heavy cargo check --workspace --all-targets`. Repair in that commit what
+- 07.1's **first commit** is its repin: `cargo update -p skein-lib`, then
+  `cargo check --workspace --all-targets`. Repair in that commit what
   skein's steps since temper's last repin broke. A lock conflict takes
   origin/main's Cargo.lock and repeats the update. 07.2 uses no new skein
   step, so no repin.
@@ -165,24 +165,24 @@ Test shape: no new test. The 10 tests of temper's policy stay, on skein's
   job_answer 1, memory 1; 0.025 s, and 0.119 s); 21 and 1 of reconcile's
   (0.075 s, and 1.27 s). In all 88 focused and 8 fuzzy at the base. Temper 02
   and 04 change the client's and reconcile's worlds first, so the step reads
-  each package's count with `heavy cargo nextest list -p <package>` before it
+  each package's count with `cargo nextest list -p <package>` before it
   deletes, and the gate's subtraction below is their sum.
 Proof:
-- joint: after the repin commit, `heavy cargo check --workspace --all-targets`
+- joint: after the repin commit, `cargo check --workspace --all-targets`
   prints Finished (0.25 s at the base, already built).
-- world: `heavy cargo nextest run -p temper-engine-protocol-forge-world`: 9
+- world: `cargo nextest run -p temper-engine-protocol-forge-world`: 9
   passed, 0 skipped, in about 0.14 s (47 at the base, 0.155 s here, 0.404 s
   in `base-runs.md`); each under 0.5 s.
-- world: `heavy cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy`:
+- world: `cargo nextest run -p temper-engine-protocol-forge-world --profile fuzzy`:
   1 passed, about 0.2 s (6 in 5.2 s at the base).
-- world: `heavy cargo nextest run -p temper-engine-forge-world`: the count at
+- world: `cargo nextest run -p temper-engine-forge-world`: the count at
   the step's start, as before (54 passed in 0.044 s at the base; fuzzy 1 in 0.024 s); it compiles the relocated `translate.rs`.
-- joint: `heavy --gate scripts/check.sh` exits 0: clippy clean, focused count =
+- joint: `scripts/check.sh` exits 0: clippy clean, focused count =
   the start's minus 88 (1879 -> 1791 in the scratch worktree: 6.2 s against the
   gate's 6.1 s at the base), fuzzy = the start's minus 8 (50 -> 42: 21.5 s
   against 23.1 s; one untouched engine-domain test is nearly all of it); the
   gate's fmt and clippy are clean in the scratch tree.
-- The process tier does not run: `heavy cargo tree -p temper -e normal,dev`
+- The process tier does not run: `cargo tree -p temper -e normal,dev`
   names none of the five packages (203 lines at the base, none of them).
 Don't: edit any of the 10 tests; rewrite a moved or relocated part (`translate.rs`
   keeps `temper:key`); add an alias, a wrapper `Joint` or a `pub use`; delete or
@@ -224,12 +224,12 @@ Test shape: no new test. Leaving, with their times at the base: 55 focused of
   recorder, document tests and facts are skein's. The refusal test leaves with
   the tool and has no counterpart: skein's tool reads no variable (answer 31).
 Proof:
-- world: `heavy cargo nextest run -p temper-codecs-world`: 5 passed, 0 skipped,
+- world: `cargo nextest run -p temper-codecs-world`: 5 passed, 0 skipped,
   0.084 s in the scratch tree (60 in 0.222 s at the base, 0.427 s in `base-runs.md`).
-- world: `heavy cargo nextest run -p temper-codecs-world --profile fuzzy`: 3
+- world: `cargo nextest run -p temper-codecs-world --profile fuzzy`: 3
   passed, 0.10 s in the scratch tree (6 in 2.3 s at the base).
-- joint: `heavy cargo check --workspace --all-targets` prints Finished; then
-  `heavy --gate scripts/check.sh` exits 0: focused = the start's minus 90 (codecs'
+- joint: `cargo check --workspace --all-targets` prints Finished; then
+  `scripts/check.sh` exits 0: focused = the start's minus 90 (codecs'
   55 and the conformance's 35, with temper 06.1 to 06.4's tests; 80 in the
   scratch worktree, which lacks them: 1791 -> 1711), fuzzy = the start's minus
   3 (42 -> 39). After both increments: 1879 -> 1711 and 50 -> 39 at the base.
@@ -248,25 +248,25 @@ Removes: about 18,156 lines in 387 files: the tool's 15,619 (377 files), codecs'
 
 Each command runs once in a worktree of temper at `origin/main`.
 
-- `heavy cargo check --workspace --all-targets` prints Finished, exits 0; the
-  gate is `heavy --gate scripts/check.sh` (land owns it).
-- `heavy python3 -I -c 'from pathlib import Path; print("gone=" + str(not any(Path(p).exists() for p in ("tests/engine/forge/client", "tests/forge-setup", "tools/forgejo-conformance", "tests/codecs/src/forgejo.rs"))))'`
+- `cargo check --workspace --all-targets` prints Finished, exits 0; the
+  gate is `scripts/check.sh` (land owns it).
+- `python3 -I -c 'from pathlib import Path; print("gone=" + str(not any(Path(p).exists() for p in ("tests/engine/forge/client", "tests/forge-setup", "tools/forgejo-conformance", "tests/codecs/src/forgejo.rs"))))'`
   prints `gone=True` (False at the base).
-- `heavy bash -c 'echo $(ls tests/engine/forge/src); echo $(ls tests/codecs/src); echo $(ls tests/codecs/tests)'`
+- `bash -c 'echo $(ls tests/engine/forge/src); echo $(ls tests/codecs/src); echo $(ls tests/codecs/tests)'`
   prints three lines: `changes.rs lib.rs translate.rs world.rs`, `lib.rs`, and
   `client_wire.rs drift.rs fuzzy_client_wire.rs fuzzy_store.rs fuzzy_worker_wire.rs worker_wire.rs`.
-- `heavy bash -c 'echo $(ls tests/engine/protocol-forge/src); echo $(ls tests/engine/protocol-forge/tests)'`
+- `bash -c 'echo $(ls tests/engine/protocol-forge/src); echo $(ls tests/engine/protocol-forge/tests)'`
   prints two lines: `fixtures.rs lib.rs protocol.rs` and `fuzzy_protocol.rs protocol.rs`.
-- `heavy rg -n 'temper_engine_forge_client_world|temper-engine-forge-client-world|temper_forge_setup_reconcile_world|temper-forge-setup-reconcile-world|forgejo-conformance|forgejo_conformance' Cargo.toml crates testing tests tools scripts .config -g '*.rs' -g '*.toml' -g '*.sh'`
+- `rg -n 'temper_engine_forge_client_world|temper-engine-forge-client-world|temper_forge_setup_reconcile_world|temper-forge-setup-reconcile-world|forgejo-conformance|forgejo_conformance' Cargo.toml crates testing tests tools scripts.config -g '*.rs' -g '*.toml' -g '*.sh'`
   prints nothing (exit 1); at the base 33 lines in 15 files.
-- `heavy rg -n '(temper_engine_protocol_forge_world|crate)::(hooks|joint|machine|peer|pipe)\b' tests -g '*.rs'`
-  prints nothing (exit 1); `heavy rg -n '#\[path = "\.\./client' tests` prints nothing.
-- `heavy rg -n 'skein[-_]forge[-_]machine[-_]world' Cargo.toml tests -g '*.rs' -g '*.toml'`
+- `rg -n '(temper_engine_protocol_forge_world|crate)::(hooks|joint|machine|peer|pipe)\b' tests -g '*.rs'`
+  prints nothing (exit 1); `rg -n '#\[path = "\.\./client' tests` prints nothing.
+- `rg -n 'skein[-_]forge[-_]machine[-_]world' Cargo.toml tests -g '*.rs' -g '*.toml'`
   prints the workspace line, the world's dependency line and the three `use`
   lines (5; nothing at the base).
-- `heavy cargo nextest run -p temper-engine-protocol-forge-world -p temper-codecs-world`
+- `cargo nextest run -p temper-engine-protocol-forge-world -p temper-codecs-world`
   prints `14 tests run: 14 passed, 0 skipped`; with `--profile fuzzy`, `4 tests run: 4 passed`.
-- `heavy cargo nextest run --workspace` and `--profile fuzzy` print the count at
+- `cargo nextest run --workspace` and `--profile fuzzy` print the count at
   07.1's start minus the deleted packages' tests, and minus 11 for fuzzy: at
   the base minus 168 (88 + 55 + 25) and 11, 1711 passed and 39 passed; with
   temper 06.1 to 06.4's ten tests, minus 178.

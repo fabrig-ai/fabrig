@@ -185,8 +185,7 @@ Files:
   added net): the two brief tests (`:1177-1294`), rewritten on helpers
   placed beside `failed_ci_with_delayed_brief` (`:1296`), and one new
   test. This file is shared with client-api's temper sessions (README,
-  Rules): a rebase conflict is resolved as `land` and the implementer's
-  card say.
+  Rules): a rebase conflict is resolved before merging.
 - `tests/system/src/forge/stories.rs` (326 lines): the CI assertion of
   `a_smith_change_with_failed_ci_is_repaired_reviewed_and_landed`
   (`:256-262`).
@@ -197,7 +196,7 @@ Files:
   `the_smith_delegate_input_creates_the_producer` (`:152-153`) and
   `a_small_fix_made_in_a_smith_chat_lands_through_the_fake_forge`
   (`:176-177`), which this increment does not edit; they run unchanged
-  in `land`'s gate.
+  in the gate.
 - The literals' users, found by `git grep -n -F -e 'Job log tail' -e
   '[job log truncated]' -e 'failing check build 3' -- crates tests
   testing`: at the base, `brief.rs:309,313`, `forge_routes.rs:1236,1237`
@@ -259,7 +258,7 @@ Shape:
   (`forge_routes.rs:103-107`), and that walking's 128 and 256 lose the
   log's end. The limits apply to the three stories of
   `start_change_world` (Files); the two this increment does not edit
-  run unchanged in `land`'s gate.
+  run unchanged in the gate.
 Test shape:
 - `crates/temper-engine-domain-forge/src/tests.rs`, one test of the
   gather's cut, under 20 ms, `BriefWords`, `append` and `brief_part`
@@ -395,7 +394,7 @@ Test shape:
   this plan makes", the table of steps and slices): with `NoStep`, 04.1's
   `translate.rs` answers `build`'s three slices joined, whose last line
   is the completion step's `job build cancelled\n`. Where 03.1 landed
-  other words, the implementer replaces `Run build`, `failing check
+  other words, the author replaces `Run build`, `failing check
   build 3` and `job build cancelled` with what it landed, read by hand.
   `1` and the words around them are 05.1's.
 - Tests, each under 0.5 s (a focused world; the base's two took 0.04 s
@@ -422,7 +421,7 @@ Test shape:
   the larger brief, that is a question, with the refusal. No other limit
   moves to make room.
 Proof: the system world, once:
-`heavy cargo nextest run -p temper-system-world -E
+`cargo nextest run -p temper-system-world -E
 'test(a_smith_change_with_failed_ci_is_repaired_reviewed_and_landed)'`.
 This is the joint layer: the real engine and worker, smith's agents
 hosted by the worker, and the fake forge, joined by the protocol

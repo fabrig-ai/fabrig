@@ -94,7 +94,7 @@ repins onto 01.1's landing.
 
 ## Rules that bind it
 
-- **Pins** (development.md 5.7). Each pin is named with `cargo update -p <package> --precise <sha>`, through `heavy`. After
+- **Pins** (development.md 5.7). Each pin is named with `cargo update -p <package> --precise <sha>`. After
   01.1, `grep -o 'git+https://github.com/forgetic/[a-z]*.git#[0-9a-f]*' Cargo.lock | sort -u` prints two lines:
   - `skein.git#b4c6241aefea0e434b6e1128754168d02bae0706`;
   - `smith.git#a277e9226273bf71c845db98b62a59b9ca4c9bfd`.
@@ -131,8 +131,8 @@ Files (the rehearsal's 30, `Cargo.lock` a shared hotspot):
 
 None is the fake forge, a forge client or component, the fake LLM or a provider.
 Shape, in this order:
-1. The pins, from jig's root: `heavy cargo update -p skein-io --precise b4c6241aefea0e434b6e1128754168d02bae0706`, then
-   `heavy cargo update -p smith-domain --precise a277e9226273bf71c845db98b62a59b9ca4c9bfd`, then skein's command once more:
+1. The pins, from jig's root: `cargo update -p skein-io --precise b4c6241aefea0e434b6e1128754168d02bae0706`, then
+   `cargo update -p smith-domain --precise a277e9226273bf71c845db98b62a59b9ca4c9bfd`, then skein's command once more:
    smith's update moves the skein packages only smith's crates use to skein's `main`. Check the Pins rule's two lines; a
    second revision still there after that is a question.
 2. J1, skein's `file::Event::{Locked, Busy}`: `| file::Event::Locked { .. } | file::Event::Busy { .. }` joins each exhaustive
@@ -158,11 +158,11 @@ Shape, in this order:
    - `unread_pages` and `unread_turn.rs`: `[0, 3]` and `[0, 3, 255]` become `[0, 5]` and `[0, 5, 255]`.
 7. tech-debt.md 11's item on the copies: 146 and 42 bytes, the pin `a277e922`, `golden/v5/`, and the README naming the pin.
    Its point, that nothing checks the copies, stays.
-8. `heavy cargo check --workspace --all-targets`, then the gate's suites. A failure past step 6 follows the 5.7 rule.
+8. `cargo check --workspace --all-targets`, then the gate's suites. A failure past step 6 follows the 5.7 rule.
 
 Test shape: no test is added. `tests.rs`'s case for a call not run builds its value with `NotRunWhy::Stopped`; its expected
 `Not run`, failed, is unchanged.
-Proof: process, `scripts/check.sh`, land's gate. It shows jig building, linting and passing its focused, fuzzy and browser
+Proof: process, `scripts/check.sh`, the gate. It shows jig building, linting and passing its focused, fuzzy and browser
 tiers on the new pins. Bound: the gate's own; the rehearsal's focused suite took 5.8 s and its fuzzy suite 7.6 s.
 Don't:
 - hand-edit `Cargo.lock` or generated code;
@@ -202,7 +202,7 @@ the joint world's receiving limits. The person signs in and starts a conversatio
 (`stories.rs`, `signing_in_and_starting_a_chat_on_the_engine`). In the `shell` call's region they then see "Call
 completed" and "Started as job 2", and in the `job` call's region "Job 1 ended: exit 0". The joint world cuts a summary at 32
 bytes, and both prefixes fit within it. Ceiling: under 1 s of wall time.
-Proof: joint, `heavy cargo nextest run -p jig-client-world -E 'test(=joint::stories::job_stories::a_job_reads_as_its_calls_outcome)'`,
+Proof: joint, `cargo nextest run -p jig-client-world -E 'test(=joint::stories::job_stories::a_job_reads_as_its_calls_outcome)'`,
 once. It shows a job's start and a job's end reaching the person's page as call outcomes, through the engine, the worker
 and the client. Bound: 1 s besides the build.
 Don't:
@@ -221,7 +221,7 @@ Needs: nothing beyond 01.1.
 Files: `testing/jig-test/tests/support/mod.rs` (`agent_configuration`).
 Shape: `"memory":2_147_483_648_u64,` leaves the `declared` object; `tool_payload` and `read_window` stay.
 Test shape: none added. The process test that runs the shipped agent on this configuration is the measure.
-Proof: process, `heavy cargo nextest run -p jig-test --profile process -E 'test(=a_killed_jig_test_restarts_and_the_work_is_found)'`,
+Proof: process, `cargo nextest run -p jig-test --profile process -E 'test(=a_killed_jig_test_restarts_and_the_work_is_found)'`,
 once. It shows `jig-test`'s agent passing smith's startup checks at the shipped memory, answering a chat, and the work found
 after a restart. The process tier is not in jig's gate. Bound: 2 s besides the build (the rehearsal: 0.4 s for the tier's two
 tests).

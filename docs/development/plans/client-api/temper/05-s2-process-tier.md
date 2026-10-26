@@ -1,6 +1,6 @@
 # Supplement temper-05.s2: the whole process tier passes
 
-Added by ruling 367 (the director's request of 2026-10-18, for
+Added by ruling 367 (the request of 2026-10-18, for
 forge-setup's Done when 4, which runs the whole tier within 180 s). Read
 first: `temper/05-s1-landing-story.md`, whose Read first, Proof and Don't
 hold here unchanged.
@@ -18,7 +18,7 @@ Needs: nothing. It runs off jig's chain, beside temper 06 and jig 19.
 
 Shape:
 1. **Every failure first:** the whole tier once with `--no-fail-fast`:
-   `heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0 && cargo build -p
+   `sh -c 'export NEXTEST_DOUBLE_SPAWN=0 && cargo build -p
    temper --bin temper && cargo nextest run -p temper --profile process
    --no-fail-fast'`. Each failing test, with its first failure line, is a
    cause of this step.
@@ -27,7 +27,7 @@ Shape:
    link, the POST's status and when, and after the `SIGTERM` which of
    serve's components has not closed (the webhooks listener, the clients'
    HTTP server, the embedded worker, the engine). The trace's lines are
-   the implementer's choice, and go before the commit.
+   the author's choice, and go before the commit.
 3. **If two traced runs do not name it,** one run of the test alone at
    each first-parent commit of `git log --first-parent 7f5ce036f..origin/main --
    crates/` (`7f5ce036f` last changed the referee): the first that fails
@@ -43,7 +43,7 @@ Shape:
 Bound: three focused runs and 40 minutes from the unblock; past it, the
 report gives what the trace shows.
 
-**Ruling 369 (the director's request of 2026-10-18T14:02Z):** forge-setup's
+**Ruling 369 (the request of 2026-10-18T14:02Z):** forge-setup's
 bisect on x1 names the cause, so point 3's bisect is not run. At temper-04.s1's
 `3262df8f9` ("Finish held HTTP calls once their clients component
 closes"), the signed delivery and `temper_serve_answers_an_unknown_forge_404`
@@ -134,7 +134,7 @@ stories, the signed delivery, `temper_serve_answers_an_unknown_forge_404`
 (`process.rs:318`), `temper_serve_prints_its_link_and_drains_on_a_signal`
 (`process.rs:10`) four times, the sign-in story (`process.rs:106`, ruling
 371), and the landing story with its restart; then
-the whole tier once, `heavy --gate scripts/proof-one-process.sh`, within
+the whole tier once, `scripts/proof-one-process.sh`, within
 180 s.
 
 Size: about 100 production lines. Past 200, it asks.

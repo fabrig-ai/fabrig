@@ -175,7 +175,7 @@ Tests, each under 0.5 s (world):
 `a_call_on_the_listener_is_answered_from_the_shared_forge`,
 `a_shut_down_host_closes_its_listener_and_settles`; and one-process's
 tests, unchanged.
-Proof: joint, the one-process world, once: `heavy cargo nextest run -p
+Proof: joint, the one-process world, once: `cargo nextest run -p
 temper-one-process-world -E
 'test(an_adopted_repository_gets_its_change_pushed_through_git)'`
 (about 3 s): the engine adopts, reads and pushes through the moved host
@@ -288,7 +288,7 @@ Tests, each under 0.5 s (world):
 `with_no_hooks_configured_nothing_is_written`,
 `a_hook_before_any_listener_is_told_is_dropped`,
 `a_refused_delivery_is_dropped_and_calls_are_still_answered`.
-Proof: world, once: `heavy cargo nextest run -p temper-fake-forge-host
+Proof: world, once: `cargo nextest run -p temper-fake-forge-host
 -E 'test(a_hooked_repositorys_hook_is_written_signed_to_the_listener_told)'`
 (under 0.5 s): a delivery reaches a listener on the loopback, signed.
 No higher: no world joins the engine's webhooks' listener to the host

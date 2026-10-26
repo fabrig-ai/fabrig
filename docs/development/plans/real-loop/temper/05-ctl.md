@@ -147,7 +147,7 @@ Others: `calls_that_send_nothing_take_no_lock`, `a_name_address_is_refused`,
 `MakeDirectory` or `OpenPrivate` submitted; exit 1),
 `a_zero_byte_token_is_not_signed_in`, `sigterm_exits_143_printing_nothing_more`,
 `sigint_exits_130`, `partial_writes_finish_before_exit`; each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(a_busy_directory_is_refused_after_60_s_of_retries)'`:
 no world hosts the crate until 08.3; 09.3 proves contention on the kernel.
 Size: at most 290 production lines.
@@ -190,7 +190,7 @@ Others: `memory_saves_are_stored_in_order_without_file_operations`,
 `a_read_waits_for_me`, `an_unheard_read_exits_1_at_the_link_deadline`,
 `a_read_sends_no_stream_gone`, `host_bounds_cover_its_holders`; each
 under 20 ms, deadlines in virtual time.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(a_read_never_opens_the_store)'`: the real engine and kernel need
 08.3's world, which needs 05.4 too.
 Size: at most 280 production lines.
@@ -228,7 +228,7 @@ fn sign_in_keeps_its_record_before_success() {
 Others: `a_non_loopback_link_exits_1_before_sending`,
 `a_refused_link_never_prints_its_secret`, `sign_in_takes_the_lock`;
 each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(sign_in_keeps_its_record_before_success)'`: modes 0o700
 and 0o600 need the kernel, 08.3's.
 Size: at most 200 production lines.
@@ -270,7 +270,7 @@ Others: `a_kept_line_names_no_name_or_key`, `a_dropped_record_prints_its_line`,
 `two_writes_get_two_ordered_terminals`, `an_unheard_act_stays_kept`,
 `a_bad_store_exits_1_cannot_be_read`, `sigterm_mid_act_keeps_its_record`,
 `a_json_kept_line_is_unprefixed`; each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(a_new_act_waits_for_the_kept_answers_erase_to_be_stored)'`;
 recovery across a kill needs the kernel, 09.2's; the parked line stays
 unit, area 1 having no second party (decision 9).
@@ -327,7 +327,7 @@ not sent`, no network, unlocked), `pending_counts_unread_records_in_its_line`,
 `a_file_that_is_no_store_cannot_be_read`, `sign_out_waits_for_the_empty_token_stored`,
 `sign_in_dash_reads_stdin`, `close_kept_line`,
 `a_drawn_key_is_resent_from_directory`, `adopt_is_an_act`; each under 20 ms.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(pending_lists_each_kept_request)'`: the unread line has
 no real-loop story (ruling 130), `sign-in -` through pipes temper 10's.
 Size: at most 300 production lines (the renderer's included).
@@ -377,7 +377,7 @@ Others: `a_live_wait_passes_30_seconds`, `a_wait_timeout_exits_3`,
 `help_opens_nothing`, `call_stdin_cannot_also_give_text`,
 `usage_exits_1_before_directory_opens`, `ctl_is_configured`; each
 under 20 ms, 30 and 300 s in virtual time.
-Proof: unit, `heavy cargo nextest run -p temper-client-shell-cli -E
+Proof: unit, `cargo nextest run -p temper-client-shell-cli -E
 'test(a_stopping_engine_exits_the_wait_only_at_the_link_deadline)'`: a
 stopping engine on cue is not the real loop's (decision 10); 08.4 joins
 a wait to another call's act; temper 10.1 runs the executable (choice

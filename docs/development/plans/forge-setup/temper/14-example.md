@@ -103,7 +103,7 @@ ruling 143's rule; for each other number ruling 143 stays:**
   two overrides, `temper::prepare_in` is `Ok`. One past each is refused: `hub.event_bytes` 597 and 599, `hub.accounts`
   5, `checkout.message_bytes` 4095, `checkout.repositories` 3 and `checkout.name_bytes` 257 (`workers[0].limits: past
   its bound`); `forge.resources_per_task` 3 (`must agree with checkout.repositories and checkout.name_bytes`);
-  `forge.name_bytes` 115 (`must agree with the longest remote`; 114 starts). Then `heavy cargo nextest run -p
+  `forge.name_bytes` 115 (`must agree with the longest remote`; 114 starts). Then `cargo nextest run -p
   temper-service -p temper` ran 260 tests, 260 passed. T3 checks the example's start; no test is added for it.
 - Ruling 143's rule (each number the least its check accepts) stays for `memory_bytes` and each number the design does
   not give. The numbers above are given. Ruling 145's "Change no `startup.rs`, `worker_settings.rs` or smith code"
@@ -198,7 +198,7 @@ Test shape: `crates/temper/tests/{startup,configuration}.rs` (default suite, `Sc
 re-exported at `fixtures.rs:738`). Limits: the file's `application.limits` is `small` with the fewest overrides T3 finds
 (builder `limits.rs:245-257`), each named in the landing's report; the tier keeps its own
 (`support/configuration.rs:43-44`). Ceilings: T1 under 20 ms; T2 under 0.5 s; T3 under 1 s (a full start); T4 under 50
-ms; a miss is noted in the landing report, read from nextest's `PASS [ t ]` lines in heavy's log. Tests:
+ms; a miss is noted in the landing report, read from nextest's `PASS [ t ]` lines in the test log. Tests:
 - T1 (temper-service) `the_owned_example_is_named_without_a_problem`: `crate::named(fixtures::OWNED)` is `Ok`, with
   `agent` `/home/me/temper/owned/agent.json`, `worker_root` `workspaces`, `deployment` `state`, four files under
   `forge-1/` (reconcile's) and `accounts/llm.json` listed as private.
@@ -234,7 +234,7 @@ Proof: process, the box's two tests (13.1's `temper_box_prints_the_link_and_a_st
   ```sh
   export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   export TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process -E "test(/^temper_box_/)"'
+  sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile process -E "test(/^temper_box_/)"'
   ```
   The link is printed on stdout, Forgejo killed is restarted, a stop leaves no process (13.2's referee), 120 s at most
   each. 14.2 runs the guide's copy; README Done when 4's run is the rest of the tier on the file's `application`.
@@ -298,15 +298,15 @@ Shape:
 Test shape: none; the script is the proof.
 Proof: process, on x1 with the guide and the example committed, the exports of 14.1's Proof and
   ```sh
-  heavy cargo build -p temper --bin temper
-  heavy --gate sh ~/src/rust/tmp/temper/forge-setup/logs/temper-14.2/follow.sh
+  cargo build -p temper --bin temper
+  sh ~/src/rust/tmp/temper/forge-setup/logs/temper-14.2/follow.sh
   ```
   The script exits 0 after printing checks (a) to (h), and `follow.log` holds the commands and their output. Bound: 420
   s wall, the script's own timeouts as above, at most ten runs, each after the last one's cause, a new one, was found by a focused probe and handled in the script (rulings 150 and 151); a failure with a cause seen before, or a fault in temper or the example rather than the script, is a question.
 Don't: run `temper sign-in`, `live-login` or anything that reaches the provider; use a binary other than the two pinned;
 read a forge file but `person_password` (as the person); change the guide while a run is under way (a fix starts the
 script again from step 1).
-Size: 0 (a document). Landing: `land --docs` if only Markdown changed, else the full gate.
+Size: 0 (a document). Landing: no gate if only Markdown changed, else the full gate.
 Removes: nothing.
 
 ## Interface sketches
@@ -382,7 +382,7 @@ None: the designer's answer 45 settled the charters' texts and the person's firs
    docs/examples/owned.json` prints `{"socket":"127.0.0.1:3000"}`, `{"socket":"127.0.0.1:7101"}`,
    `{"socket":"127.0.0.1:7100"}` in that order; `jq -e . docs/examples/owned/agent.json >/dev/null` exits 0; and `git
    ls-files docs/examples` prints the four files and no other: no secret is shipped.
-2. `heavy cargo nextest run -p temper-service -p temper -E 'test(/owned_example/)'` runs 4 tests, 4 passed.
+2. `cargo nextest run -p temper-service -p temper -E 'test(/owned_example/)'` runs 4 tests, 4 passed.
 3. `git grep -n '127.0.0.1:3000' -- crates/temper/tests ':!crates/temper/tests/support/owned.rs'` prints nothing: one
    place holds the example's addresses.
 4. `git grep -n '"owned"' -- crates/temper/tests ':!crates/temper/tests/support/owned.rs'` prints nothing: no test

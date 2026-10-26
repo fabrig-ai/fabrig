@@ -45,14 +45,14 @@ alone.
 
 ## Rules that bind it
 
-- The tier needs `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER`, runs by `heavy --gate` (README), never in `scripts/check.sh`
+- The tier needs `TEMPER_FORGEJO` and `TEMPER_FORGEJO_RUNNER`, runs directly (README), never in `scripts/check.sh`
   (workflow.md 2), and a test refuses to run without either, naming it (domain/testing.md 2.6). The exports, run before any
   command here that needs the binaries:
   ```sh
   export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 \
     TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
   ```
-- A time below is read from nextest's `PASS [ t ]` line in heavy's log; a miss is noted in the landing report.
+- A time below is read from nextest's `PASS [ t ]` line in the test log; a miss is noted in the landing report.
 - Limits come from the shipped profile (`limits.rs`:247; the hooks': `forge::small`, `forge.rs`:110). The hooks' are not
   overridden; a value of the story's own is named beside the profile's, with its reason (11.2).
 - `process.rs` and `support/*` are client-api's hotspot until about 10-18 20Z (README): rebase, add beside, never reorder.
@@ -140,7 +140,7 @@ fn a_push_is_delivered_signed_with_the_secret_reconcile_drew() {
 ```
 
 Ceiling: 60 s (a box starts in about 15 s: adopt-by-commands takes 13.1 s, measurements.md 3); `receive` waits `WITHIN` (30 s).
-Proof: process, `a_push_is_delivered_signed_with_the_secret_reconcile_drew`, by the exports, then `heavy --gate cargo
+Proof: process, `a_push_is_delivered_signed_with_the_secret_reconcile_drew`, by the exports, then `cargo
 nextest run -p temper --profile process -E 'test(=a_push_is_delivered_signed_with_the_secret_reconcile_drew)'`, shows a
 push made through the API arrive at the configured address with `X-Forgejo-Event: push` and a signature equal to the
 HMAC of its body under `webhook_secret` less one final line feed; within 60 s. Then the landing story (process.rs:71),
@@ -198,13 +198,13 @@ fn landing(case: &str, raised: bool) { todo!() }
 ```
 
 Ceiling: `LANDING` (180 s; the judge's deadline is 175 s, mod.rs:492-494).
-Proof: process, `a_change_lands_by_deliveries_with_every_poll_raised`, by the exports, then `heavy --gate cargo nextest
+Proof: process, `a_change_lands_by_deliveries_with_every_poll_raised`, by the exports, then `cargo nextest
 run -p temper --profile process -E 'test(=a_change_lands_by_deliveries_with_every_poll_raised)'`, shows the change
 merged on the owned Forgejo after its CI passed, found again after the restart, with every poll and the stall at 600 s
 and its job sleeping 60 s; within 180 s.
 Once, by hand, before landing, the control, a hinted story that could pass without deliveries proving nothing:
 `owned::tier_configuration` writes `application.webhooks` and `forges[0].webhook_secret` as `null` (the handle's
-`webhooks` is `None`; `forgejo::configuration` follows), committed on its own (`heavy --gate` takes a committed tree) and
+`webhooks` is `None`; `forgejo::configuration` follows), committed on its own and
 dropped after (`git reset --hard HEAD~1`). With the exports and `mkdir -p ~/src/rust/tmp/temper/forge-setup/logs/temper-11`
 done, the same command with `--tail 400` after `--gate` and `2>&1 | tee
 ~/src/rust/tmp/temper/forge-setup/logs/temper-11/control.log` at its end exits non-zero (the pipe's status is tee's) and
@@ -282,7 +282,7 @@ pub fn raise_paces(directory: &Path) { todo!() }
 
 ## Done when
 
-- The tier passes, in README Done when 4's run (this session does not run it): in the log whose path heavy's last line
+- The tier passes, in README Done when 4's run (this session does not run it): in the log whose path the command's last line
   printed, `grep -c -e 'PASS.*a_push_is_delivered_signed' -e 'PASS.*a_change_lands_by_deliveries' <log>` prints 2, and its
   `Summary [ t ]` line gives the time, reported (Q1 if over 180 s).
 - Both tests exist: `grep -c -e 'fn a_push_is_delivered_signed_with_the_secret_reconcile_drew'

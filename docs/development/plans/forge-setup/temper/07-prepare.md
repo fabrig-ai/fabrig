@@ -98,7 +98,7 @@ fn an_owned_entry_with_a_runner_reads_into_its_members() {
     assert_eq!(owned.runner.as_ref().expect("a runner").capacity, 1);
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-forge-setup`: the cases above pass and `TWO` gives the six steps in the design tree's
+Proof: unit, `cargo nextest run -p temper-forge-setup`: the cases above pass and `TWO` gives the six steps in the design tree's
 order (setup.md 7.1), under 2 s. Unit: nothing calls the crate until 07.3 (`checked`) and temper 13.1 (`steps`).
 Don't: check `webhooks` or `webhook_secret` (05.3); add a second problem form or a `Default`; read a file; expose a `Kind`.
 Size: 300. Removes: nothing.
@@ -129,7 +129,7 @@ fn app_ini_for_an_owned_forge_with_a_runner_matches_the_golden_text() {
     assert_eq!(text.expose(), APP_INI_WITH_RUNNER, "golden text written by hand from setup.md 6.2");
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-forge-setup -E 'test(~tests::golden) | test(~tests::files)'`: each file's text equals its
+Proof: unit, `cargo nextest run -p temper-forge-setup -E 'test(~tests::golden) | test(~tests::files)'`: each file's text equals its
 golden, under 1 s. No higher layer yet: Forgejo reads `app.ini` in temper 08.1's proof, the runner its file in 08.2's.
 Don't: run or read anything; compute a golden from the code; hold a secret outside `Secret`.
 Size: 220 (codec). Removes: nothing.
@@ -166,9 +166,9 @@ digits); `a_user_object_with_a_stray_or_missing_member_is_refused`; `a_missing_s
 managed entry (`directory` `forge-1`, `admin_token` `secrets/forgejo-admin`, never written) and, if asked, moves the forge's `api_token`, identity `token` and `user` under `forge-1/`.
 Proof: process, with the tree committed:
 `export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64`, then
-`heavy --gate sh -c 'NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E "test(=temper_open_adopts_a_repository_by_commands)"'`
+`sh -c 'NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E "test(=temper_open_adopts_a_repository_by_commands)"'`
 (`process.rs:34`): `temper serve` passes its start check on the id read from `secrets/forge-1.user` and the person adopts `acme/widget`; at
-most 30 s (13.1 s at the base). The unit cases run in the default suite: `heavy cargo nextest run -p temper-service -p temper`.
+most 30 s (13.1 s at the base). The unit cases run in the default suite: `cargo nextest run -p temper-service -p temper`.
 Don't: decode `setup` in temper-service, or name `temper-forge-setup` or `temper-box` there; read a file that only `setup` names; keep a second reader of `user`;
 let a message carry a file's bytes; handle `box.` limits (temper 13.1).
 Size: 200. Removes: nothing.
@@ -223,7 +223,7 @@ fn another_forgejo_binary_is_refused_naming_its_path_and_line() {
     assert_eq!(ended, Request::End(Err(Failure::Binary { which: Which::Forgejo, program, printed: line })));
 }
 ```
-Proof: unit, `heavy cargo nextest run -p temper-forge-setup -E 'test(~tests::prepare) | test(~tests::spec)'`: the requests for each case of
+Proof: unit, `cargo nextest run -p temper-forge-setup -E 'test(~tests::prepare) | test(~tests::spec)'`: the requests for each case of
 setup.md 13.1 equal the literals, under 1 s. Unit: the machine has no caller until temper 08.1, where the real binaries meet its commands.
 Don't: build the upgrade; put a secret in a `Spec`'s arguments; take a lock; call `std` or a clock; write a version number but through `VERSION`.
 Size: 300. Removes: nothing.
@@ -394,7 +394,7 @@ pub fn step(machine: &mut Prepare, event: Event, out: &mut Queue<Request>) { tod
 
 ## Done when
 
-1. The tests pass: `heavy cargo nextest run -p temper-forge-setup -p temper-service -p temper` ends with every test passed.
+1. The tests pass: `cargo nextest run -p temper-forge-setup -p temper-service -p temper` ends with every test passed.
 2. The process proof: README Done when 4's run.
 3. Every document carries `setup`: `git grep -L '"setup"' origin/main -- crates/temper-service/src/tests/fixtures/startup.rs crates/temper/tests/support/configuration.rs tests/one-process/src/fixtures.rs` prints nothing.
 4. temper-service names neither crate and the step crate no host: `git grep -c -E 'temper-forge-setup|temper-box' origin/main -- crates/temper-service/Cargo.toml` and `git grep -c -E 'skein-(io|http|tls|shell)' origin/main -- crates/temper-forge-setup/Cargo.toml` print nothing.

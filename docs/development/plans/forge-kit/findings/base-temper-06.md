@@ -4,7 +4,7 @@
 `/srv/data/git/runner/src/tmp/planning/temper-base`); skein 064c55f
 (`skein-base`, read only: skein's throwaway does not exist there). Only this
 file and `temper/06-throwaway.md` are deliverables. Every command ran once
-through `heavy`; a block holds the command, its directory and the relevant
+; a block holds the command, its directory and the relevant
 lines (at most 30). The scratch worktree is removed (last section).
 
 ## Discovery and corrections
@@ -63,7 +63,7 @@ skein index has no throwaway. Every name below was read with `rg` and
 ## Commands at the base
 
 ```
-$ heavy cargo nextest list -p temper-throwaway-forgejo     # the crate skein 06.1 copies
+$ cargo nextest list -p temper-throwaway-forgejo     # the crate skein 06.1 copies
 dir: /srv/data/git/runner/src/tmp/planning/temper-base
 temper-throwaway-forgejo tests::a_basic_request_records_its_scheme_and_holds_no_credential
 temper-throwaway-forgejo tests::a_chunked_answer_is_read_whole_and_unframed
@@ -82,16 +82,15 @@ temper-throwaway-forgejo::throwaway a_work_path_runs_commands_in_the_scratch_wit
 ```
 
 ```
-$ heavy cargo nextest run -p temper-throwaway-forgejo
+$ cargo nextest run -p temper-throwaway-forgejo
 dir: temper-base
 Starting 13 tests across 2 binaries (1 test skipped)
 Summary [   0.020s] 13 tests run: 13 passed, 1 skipped
 (slowest 0.019 s: a_failed_work_path_command_keeps_its_exit_code_and_both_streams)
-heavy: task 735 (build) exit 0
 ```
 
 ```
-$ heavy cargo nextest run -p git-transcripts       # list showed the same 7
+$ cargo nextest run -p git-transcripts       # list showed the same 7
 dir: temper-base
 Starting 7 tests across 2 binaries
 tests::a_redirect_to_the_old_name_fails_the_redirect_fact, a_renamed_fetch_exiting_non_zero_fails_the_redirect_fact,
@@ -102,14 +101,14 @@ Summary [   0.016s] 7 tests run: 7 passed, 0 skipped
 ```
 
 ```
-$ heavy cargo nextest run -p forgejo-conformance   # list showed the same 25 (all in src/tests.rs)
+$ cargo nextest run -p forgejo-conformance   # list showed the same 25 (all in src/tests.rs)
 dir: temper-base
 PASS [   0.110s] (25/25) forgejo-conformance tests::the_listener_holds_its_answer_until_the_probe_replies
 Summary [   0.116s] 25 tests run: 25 passed, 0 skipped
 ```
 
 ```
-$ heavy cargo nextest run -p temper
+$ cargo nextest run -p temper
 dir: temper-base
 PASS [   0.322s] (58/58) temper::forge reconcile_makes_a_missing_forge_directory_private
 Summary [   0.369s] 58 tests run: 58 passed, 0 skipped
@@ -119,7 +118,7 @@ Summary [   0.369s] 58 tests run: 58 passed, 0 skipped
 ```
 
 ```
-$ heavy cargo nextest list -p temper --profile process
+$ cargo nextest list -p temper --profile process
 dir: temper-base
 19 tests, all `temper::process`, among them a_prepared_forge_runs_forgejo_and_its_runner_once_each,
 an_older_recorded_forgejo_is_dumped_then_upgraded, temper_box_restarts_a_killed_forgejo_while_the_engine_serves,
@@ -127,30 +126,27 @@ temper_sign_in_prints_the_visit_and_keeps_the_record
 ```
 
 ```
-$ heavy cargo check --workspace --all-targets     # the base form of the repin's second command
+$ cargo check --workspace --all-targets     # the base form of the repin's second command
 dir: temper-base
 Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.28s
-heavy: task 733 (build) exit 0
-(the repin's first command, `heavy cargo update -p skein-lib`, is not run: skein 06.1
+(the repin's first command, `cargo update -p skein-lib`, is not run: skein 06.1
  has not landed, and an update at the base would change Cargo.lock for nothing)
 ```
 
 ```
-$ heavy --gate scripts/check.sh > /tmp/claude-600/temper06-gate.out
+$ scripts/check.sh > /tmp/claude-600/temper06-gate.out
 dir: temper-base
 Summary [   4.914s] 1879 tests run: 1879 passed, 1 skipped
 Starting 50 tests across 26 binaries (122 binaries skipped via profile.fuzzy.default-filter)
 SLOW [> 20.000s] temper-engine-domain-world::fuzzy_walking fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure
 Summary [  23.448s] 50 tests run: 50 passed (1 slow), 0 skipped
-heavy: ran alone for 33s
-heavy: task 734 (gate) exit 0, waited 1s, ran 34s
 (fmt and clippy -D warnings passed: exit 0)
 ```
 
 ```
 $ TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 \
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 \
-  heavy --gate scripts/proof-one-process.sh              (WS=/srv/data/git/runner/src)
+  scripts/proof-one-process.sh              (WS=/srv/data/git/runner/src)
 dir: temper-base
 Starting 19 tests across 1 binary (6 binaries skipped via profile.process.default-filter)
 PASS [  83.157s] ( 1/19) a_change_lands_by_deliveries_with_every_poll_raised
@@ -161,17 +157,15 @@ PASS [   1.833s] ( 7/19) an_older_recorded_forgejo_is_dumped_then_upgraded
 PASS [   6.116s] (12/19) temper_box_restarts_a_killed_forgejo_while_the_engine_serves
 PASS [   0.077s] (19/19) temper_sign_in_prints_the_visit_and_keeps_the_record
 Summary [ 145.248s] 19 tests run: 19 passed (8 slow), 0 skipped
-heavy: ran alone for 146s ; task 733 (gate) exit 0
 (this run passed; base-runs.md's 145.7 s run passed too. base-temper-01.md records
  another run that failed at test 6 on a sign-in deadline: the tier is not a stable base)
 ```
 
 ```
-$ TEMPER_FORGEJO=$WS/.../forgejo-17.0.0-linux-amd64 heavy --gate --tail 25 cargo run -p git-transcripts -- \
+$ TEMPER_FORGEJO=$WS/.../forgejo-17.0.0-linux-amd64 cargo run -p git-transcripts -- \
     --git /usr/bin/git --scratch target/git-transcripts-06 --out target/git-transcripts-06-out
 dir: temper-base                                  (the recorder, outside the committed corpus)
 Running `target/debug/git-transcripts --git /usr/bin/git --scratch target/git-transcripts-06 --out target/git-transcripts-06-out`
-heavy: ran alone for 14s ; task 733 (gate) exit 0, ran 16s
 42 case directories + facts.txt written
 $ diff -r target/git-transcripts-06-out/transcripts tools/git-transcripts/transcripts | grep -c '^diff -r'
 9      (8 stderr files, 1 stdout file; byte counts of `POST git-upload-pack (351 bytes)` against 357,
@@ -182,15 +176,14 @@ $ diff target/git-transcripts-06-out/facts.txt tools/git-transcripts/facts.txt
 
 The corpus was recorded with git 2.53.0, this machine has 2.47.3 (`git --version`),
 so the committed corpus is no proof here: the Proof compares two recordings
-on one machine. The same tree recorded twice (second run `heavy --gate --tail 5
-target/debug/git-transcripts ... --out target/git-transcripts-06b-out`, 15 s)
+on one machine. The same tree recorded twice (second run `target/debug/git-transcripts... --out target/git-transcripts-06b-out`, 15 s)
 gives `diff -r target/git-transcripts-06-out target/git-transcripts-06b-out`: no output,
 exit 0. The recording is deterministic on one machine. The output directories are removed.
 
 ## Users of what the session changes
 
 ```
-$ heavy bash -c 'rg -n "temper_throwaway_forgejo|temper-throwaway-forgejo" Cargo.toml crates tools tests scripts testing --glob "!testing/temper-throwaway-forgejo/**" | wc -l; rg -l ... | wc -l'
+$ bash -c 'rg -n "temper_throwaway_forgejo|temper-throwaway-forgejo" Cargo.toml crates tools tests scripts testing --glob "!testing/temper-throwaway-forgejo/**" | wc -l; rg -l... | wc -l'
 dir: temper-base
 46      lines in
 27      files        (Cargo.toml 2, crates/temper/Cargo.toml 1, crates/temper/tests/{process 2, support/forgejo 2,
@@ -199,7 +192,7 @@ dir: temper-base
 ```
 
 ```
-$ heavy bash -c 'rg -n "Forgejo::from_env|Refusal::Unset|Instance::attach|owned::attach" crates tools tests testing -g "*.rs"'
+$ bash -c 'rg -n "Forgejo::from_env|Refusal::Unset|Instance::attach|owned::attach" crates tools tests testing -g "*.rs"'
 dir: temper-base
 testing/temper-throwaway-forgejo/tests/throwaway.rs:36   from_env (the ignored test; moves with skein 06.1)
 tools/git-transcripts/src/lib.rs:76                      from_env
@@ -211,7 +204,7 @@ crates/temper/tests/support/forgejo.rs:31, process.rs:272   owned::attach (2 cal
 ```
 
 ```
-$ heavy bash -c 'rg -n "TEMPER_FORGEJO" crates tools tests testing scripts .config -g "!*.md"'
+$ bash -c 'rg -n "TEMPER_FORGEJO" crates tools tests testing scripts.config -g "!*.md"'
 dir: temper-base
 15 lines in .rs files: owned.rs 5 (binaries(), prepared_processes, reconcile_configuration),
  throwaway crate 3 (binary.rs:25, throwaway.rs:34 and :36), conformance 7 (runner.rs 3, deliveries.rs 1,
@@ -219,13 +212,13 @@ dir: temper-base
 ```
 
 ```
-$ heavy bash -c 'for r in skein-base jig smith hearth; do rg -l "temper_throwaway_forgejo|temper-throwaway-forgejo|TEMPER_FORGEJO|Forgejo::from_env|Instance::attach|skein_throwaway_forgejo" -g "*.rs" -g Cargo.toml -g "*.sh" $r | wc -l; done'
+$ bash -c 'for r in skein-base jig smith hearth; do rg -l "temper_throwaway_forgejo|temper-throwaway-forgejo|TEMPER_FORGEJO|Forgejo::from_env|Instance::attach|skein_throwaway_forgejo" -g "*.rs" -g Cargo.toml -g "*.sh" $r | wc -l; done'
 dir: /srv/data/git/runner/src/tmp/planning/skein-base, /srv/data/git/runner/src/{jig,smith,hearth}
 0 0 0 0      (no other repository names the throwaway, its variables, from_env or attach)
 ```
 
 ```
-$ heavy bash -c 'rg -n "temper-throwaway-forgejo|temper_throwaway_forgejo|throwaway" docs/design docs/foundation AGENTS.md scripts .config'
+$ bash -c 'rg -n "temper-throwaway-forgejo|temper_throwaway_forgejo|throwaway" docs/design docs/foundation AGENTS.md scripts.config'
 dir: temper-base
 only prose naming `skein-throwaway-forgejo` or "the throwaway Forgejo" (docs/design/domain/testing.md,
 protocol/{setup,README,forge}.md, client/tools.md); no live document names the temper crate.
@@ -243,20 +236,20 @@ worktree of dd12b8ed9) against the **temper** crate, since skein's cannot
 exist at the base; the crate-name swap itself is mechanical (below).
 
 ```
-$ heavy cargo clippy -p git-transcripts --all-targets -- -D warnings
+$ cargo clippy -p git-transcripts --all-targets -- -D warnings
 dir: scratch-temper-06 (with the sketch edit in lib.rs::run)
-Checking git-transcripts v0.0.0 ... Finished `dev` profile in 3.22s ; heavy exit 0
-$ heavy cargo clippy -p forgejo-conformance --all-targets -- -D warnings
+Checking git-transcripts v0.0.0... Finished `dev` profile in 3.22s ; exit 0
+$ cargo clippy -p forgejo-conformance --all-targets -- -D warnings
 dir: scratch-temper-06 (with lib.rs::forgejo and component.rs::record)
-Checking forgejo-conformance v0.0.0 ... Finished `dev` profile in 1.97s ; heavy exit 0
+Checking forgejo-conformance v0.0.0... Finished `dev` profile in 1.97s ; exit 0
 ```
 
 With the two refusal tests added (`tools/{git-transcripts,forgejo-conformance}/tests/refusal.rs`):
 
 ```
-$ heavy cargo clippy -p git-transcripts -p forgejo-conformance --all-targets -- -D warnings
-Finished `dev` profile in 0.44s ; heavy exit 0
-$ heavy cargo nextest run -p git-transcripts -p forgejo-conformance
+$ cargo clippy -p git-transcripts -p forgejo-conformance --all-targets -- -D warnings
+Finished `dev` profile in 0.44s ; exit 0
+$ cargo nextest run -p git-transcripts -p forgejo-conformance
 Starting 34 tests across 6 binaries
 PASS [   0.016s] ( 9/34) forgejo-conformance::refusal an_unset_forgejo_variable_is_refused_naming_it
 PASS [   0.020s] (15/34) git-transcripts::refusal an_unset_forgejo_variable_is_refused_naming_it
@@ -296,26 +289,26 @@ removed; `git status --short` there prints nothing.
 
 ## The Done-when commands at the base
 
-Each ran once through `heavy` (task 751; the corpus count is task 761), in
+Each ran once (task 751; the corpus count is task 761), in
 `temper-base`. The expected result after the session is in the session file.
 
 ```
-$ heavy rg -n 'temper_throwaway_forgejo|temper-throwaway-forgejo' Cargo.toml crates testing tests tools -g '*.rs' -g Cargo.toml | wc -l
+$ rg -n 'temper_throwaway_forgejo|temper-throwaway-forgejo' Cargo.toml crates testing tests tools -g '*.rs' -g Cargo.toml | wc -l
 48      (46 outside the crate; its own two: Cargo.toml `name` and tests/throwaway.rs `use`)
-$ heavy python3 -I -c 'from pathlib import Path; print("throwaway_copy_absent=" + str(not Path("testing/temper-throwaway-forgejo").exists()))'
+$ python3 -I -c 'from pathlib import Path; print("throwaway_copy_absent=" + str(not Path("testing/temper-throwaway-forgejo").exists()))'
 throwaway_copy_absent=False
-$ heavy rg -c 'skein-throwaway-forgejo' Cargo.toml crates/temper/Cargo.toml tools/git-transcripts/Cargo.toml
+$ rg -c 'skein-throwaway-forgejo' Cargo.toml crates/temper/Cargo.toml tools/git-transcripts/Cargo.toml
 (no output, exit 1: the crate is not a dependency at the base)
-$ heavy rg -n 'Forgejo::from_env|SKEIN_FORGEJO|skein_throwaway_forgejo::(VERSION|RUNNER_VERSION|names_runner)' crates tools -g '*.rs'
+$ rg -n 'Forgejo::from_env|SKEIN_FORGEJO|skein_throwaway_forgejo::(VERSION|RUNNER_VERSION|names_runner)' crates tools -g '*.rs'
 tools/git-transcripts/src/lib.rs:76:    let forgejo = Forgejo::from_env().map_err(|e| format!("{e:?}"))?;
 tools/forgejo-conformance/src/lib.rs:27:    let forgejo = Forgejo::from_env().map_err(|e| format!("{e:?}"))?;
 tools/forgejo-conformance/src/component.rs:17:    let forgejo = Forgejo::from_env().map_err(|e| format!("{e:?}"))?;
-$ heavy cargo nextest run -p git-transcripts --test refusal       # cannot run at the base: the target does not exist
+$ cargo nextest run -p git-transcripts --test refusal       # cannot run at the base: the target does not exist
 error: no test target named `refusal` in `git-transcripts` package      (exit 101)
 (its base form is the package run above: 7 passed)
-$ heavy rg -n '#\[ignore' -g '*.rs' crates tools tests testing
+$ rg -n '#\[ignore' -g '*.rs' crates tools tests testing
 testing/temper-throwaway-forgejo/tests/throwaway.rs:34:#[ignore = "needs TEMPER_FORGEJO"]
       (the only ignored test of the workspace: the gate's one skipped test is the throwaway's)
-$ heavy rg -o -I '[A-Za-z/_.-]*temper[A-Za-z/_.:-]*' tools/git-transcripts/transcripts tools/git-transcripts/facts.txt | sort | uniq -c
+$ rg -o -I '[A-Za-z/_.-]*temper[A-Za-z/_.:-]*' tools/git-transcripts/transcripts tools/git-transcripts/facts.txt | sort | uniq -c
      15 refs/temper/fetched       (15 of 169 files hold it)
 ```

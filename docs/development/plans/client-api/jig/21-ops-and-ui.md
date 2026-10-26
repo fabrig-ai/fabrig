@@ -210,11 +210,11 @@ extended): `routes_an_infrastructure_tell_to_its_side`,
 `passes_the_client_s_transport_requests_out_in_order`,
 `a_tell_under_an_asker_no_connector_names_reaches_no_child`. Each under
 20 ms.
-Proof: joint layer, `ops`'s real engine: `heavy cargo nextest run -p
+Proof: joint layer, `ops`'s real engine: `cargo nextest run -p
 jig-ops-world --profile fuzzy -E 'binary(fuzzy_joint) &
 test(=p_accepts_the_restart_from_the_incidents_page)'`, once (0.83 s at
 the base); it passes; nothing else is wanted. And, once, the eight tests
-rulings 218 and 220 marked: `heavy cargo nextest run -p jig-ops-world --profile
+rulings 218 and 220 marked: `cargo nextest run -p jig-ops-world --profile
 fuzzy -E 'binary(fuzzy_joint) & test(/_survives_/)'`; each
 passes. In the default suite, the
 gate runs `p_accepts_a_restart_from_the_incidents_page` (tests/ops);
@@ -375,7 +375,7 @@ is, and `a_sign_in_the_engine_ended_shows_the_sign_in_page_after_a_lost_sign_out
 `random_people_in_new_chat_starts`. No other referee rule or judge
 changes, and the Ui does not: it shows the sign-in page once the link
 says signed out (view.md, 18.6). Each under 20 ms.
-Proof: joint layer: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: joint layer: `cargo nextest run -p jig-client-protocol-world
 -E 'test(a_person_signs_in_by_the_printed_link_and_starts_a_chat) |
 test(a_slow_reader_gets_fewer_deliveries_and_others_are_answered)'`,
 once (under 2 s); it passes; nothing else is wanted. In the client's
@@ -497,10 +497,10 @@ Test shape: the moved intent tests keep their names; added
 `someone_else_s_work_leaves_when_its_requests_are_unknown`,
 `kept_work_dropped_at_start_shows_a_notice`. Each under
 20 ms.
-Proof: joint layer: `heavy cargo nextest run -p jig-client-protocol-world
+Proof: joint layer: `cargo nextest run -p jig-client-protocol-world
 -E 'test(signed_out_with_requests_pending_then_signed_in_again) |
 test(a_request_whose_answer_was_lost_is_made_once)'`, once (under 2 s);
-and `heavy cargo nextest run -p jig-ops-world --profile fuzzy -E
+and `cargo nextest run -p jig-ops-world --profile fuzzy -E
 'binary(fuzzy_joint) & test(=p_accepts_the_restart_from_the_incidents_page)'`,
 once; both pass; nothing else is wanted.
 Don't: no intent kept across a restart (view.md, 18.4: kept work has no
@@ -517,7 +517,7 @@ Removes: the by-value hand-offs; `Kept { scope, requests }`.
 
 ## Interface sketches
 
-Checked at the base with `heavy cargo clippy -p jig-w6-sketch
+Checked at the base with `cargo clippy -p jig-w6-sketch
 --all-targets -- -D warnings` in a scratch crate, and again at jig
 `154e10942` with the derives and `#[must_use]` below, passing; `Record`
 and `StoreKey` are the view's `store::{Record, StoreKey}`, which keep

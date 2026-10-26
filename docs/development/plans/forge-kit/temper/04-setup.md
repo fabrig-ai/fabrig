@@ -44,14 +44,14 @@ constructed `Refused`, so none depends on it.
 
 ## Rules that bind it
 
-- The repin is its own first commit: `heavy cargo update -p skein-lib`, then
-  `heavy cargo check --workspace --all-targets`; it repairs all intervening
+- The repin is its own first commit: `cargo update -p skein-lib`, then
+  `cargo check --workspace --all-targets`; it repairs all intervening
   skein breakage (at the base the check fails on `Op::Lock` in
   temper-worker-protocol-git, findings). On a Cargo.lock conflict take
   `origin/main`'s and update again; never merge it by hand.
 - No re-export or alias of a moved type: every user names `skein_forge_setup`.
   Moved tests keep names, budgets and times; no moved part is rewritten.
-- A Size counts added lines with tests: `heavy git diff --numstat origin/main
+- A Size counts added lines with tests: `git diff --numstat origin/main
   -- . ':!Cargo.lock'`, first column summed. At the base it prints nothing.
 
 ## Increments
@@ -130,13 +130,13 @@ Test shape: one new unit, `each_kit_place_names_its_temper_path`, in the new
 
   The three limits tests keep their names and bytes (`a_backoff_past_its_maximum_names_both_limits`
   still prints both paths once); `tests/steps.rs` and `tests/members.rs` are untouched here.
-Proof: unit; `heavy cargo nextest run -p temper-forge-setup`: 99 passed (98
+Proof: unit; `cargo nextest run -p temper-forge-setup`: 99 passed (98
   at the base, 0.043 s per skein/04-setup.md), the new test <20 ms, suite <1 s.
-Proof: joint; `heavy cargo nextest run -p temper-forge-setup
+Proof: joint; `cargo nextest run -p temper-forge-setup
   -p temper-forge-setup-shell -p temper-box -p temper
   -p temper-forge-setup-reconcile-world`: origin/main's count at the step's
   start plus 1 (237 from the base's 236, 0.989 s), about 1 s.
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at
+Proof: joint; `scripts/check.sh`: origin/main's focused count at
   the step's start plus 1, and its fuzzy count, passed (1880 / 50 from the
   base's 1879 in 6.770 s and 50 in 26.715 s), clean clippy,
   focused <15 s, fuzzy <60 s.
@@ -200,13 +200,13 @@ Test shape: three units in `tests/given.rs`, reusing `fixtures::{TWO, setup,
   has no runner arm); each exits 1 with stderr `temper forge <verb>: forge 1: `
   and the pair line (verb `run` for both run rows). Seven rows, no Forgejo
   started: <0.5 s.
-Proof: unit; `heavy cargo nextest run -p temper-forge-setup`: 102 passed (99
+Proof: unit; `cargo nextest run -p temper-forge-setup`: 102 passed (99
   after 04.1), each new test <20 ms, suite <1 s.
-Proof: joint; `heavy cargo nextest run -p temper-forge-setup
+Proof: joint; `cargo nextest run -p temper-forge-setup
   -p temper-forge-setup-shell -p temper-box -p temper
   -p temper-forge-setup-reconcile-world`: 04.1's count plus 4 (241 from
   the base's 236 and 04.1's 237; the binary 59, from 58), about 1.5 s.
-Proof: joint; `heavy --gate scripts/check.sh`: 04.1's focused count plus 4
+Proof: joint; `scripts/check.sh`: 04.1's focused count plus 4
   (1884 from the base's 1879), and its fuzzy count (50), passed, clean clippy, focused <15 s, fuzzy <60 s.
 Don't: touch the shell, the world or `place`; remove the copied machine; add a
   value the kit derives; check in the shell what step code checks.
@@ -262,20 +262,20 @@ Test shape: the 13 moved names leave (now skein's), each 0.003–0.007 s at the
   `acme` for the empty list (skein 04.2's admission), through `given::values`
   and keeps its 2 s, 50 ms and 100 ms waits; the two deadline cases set
   `settings.given.limits.deadline` to 300 ms and 200 ms.
-Proof: unit; `heavy cargo nextest run -p temper-forge-setup
+Proof: unit; `cargo nextest run -p temper-forge-setup
   -p temper-forge-setup-shell`: 115 passed (90 and 25; 98 and 24 at the
   base), each new test <20 ms.
-Proof: joint; `heavy cargo nextest run -p temper-forge-setup
+Proof: joint; `cargo nextest run -p temper-forge-setup
   -p temper-forge-setup-shell -p temper-box -p temper
   -p temper-forge-setup-reconcile-world`: 04.2's count less 11 (230 from
   04.2's 241; 236 at the base, 0.989 s), about 1 s; focused worlds <0.5 s each.
-Proof: world; `heavy cargo nextest run -p temper-forge-setup-reconcile-world
+Proof: world; `cargo nextest run -p temper-forge-setup-reconcile-world
   --profile fuzzy`: 1 passed (0.493 s at the base), under 5 s.
-Proof: joint; `heavy --gate scripts/check.sh`: 04.2's focused count less 11
+Proof: joint; `scripts/check.sh`: 04.2's focused count less 11
   (1873 from the base's 1879), and 50 fuzzy, passed, clean clippy, focused <15 s, fuzzy <60 s.
 Proof: process; `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate scripts/proof-one-process.sh` (README Rules), once here, its
+  scripts/proof-one-process.sh` (README Rules), once here, its
   production setup path having changed: its count at the step's start passed (19 at
   the base), <5 minutes; 145.694 s at
   the base, alone (`findings/base-runs.md`).
@@ -327,24 +327,24 @@ pub enum Refused {
 
 Commands run from temper's root; the Proofs above run once and do not repeat.
 
-- `heavy cargo check --workspace --all-targets` prints Finished and exits 0.
-- `heavy rg -n 'pub mod reconcile|pub struct (Limits|Unfit)|^pub fn check|^fn (login|email)' crates/temper-forge-setup/src/{lib,limits,setup}.rs`
+- `cargo check --workspace --all-targets` prints Finished and exits 0.
+- `rg -n 'pub mod reconcile|pub struct (Limits|Unfit)|^pub fn check|^fn (login|email)' crates/temper-forge-setup/src/{lib,limits,setup}.rs`
   prints nothing (exit 1): no local machine, limits check or validators (6
   lines at the base: lib.rs:11, limits.rs:5, 19 and 57, setup.rs:99 and 110).
-- `heavy rg -l --sort path 'skein_forge_setup::' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src`
+- `rg -l --sort path 'skein_forge_setup::' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src`
   prints exactly ten paths: `crates/temper-forge-setup-shell/src/{exchange,reconcile}.rs`
   and `crates/temper-forge-setup/src/{check,given,limits,place,setup}.rs` and
   `crates/temper-forge-setup/src/tests/{given,limits,read}.rs` (nothing at the
   base, exit 1).
-- `heavy rg -n 'webhooks: bool|listener: Option<SocketAddr>' crates/temper-forge-setup/src/check.rs`
+- `rg -n 'webhooks: bool|listener: Option<SocketAddr>' crates/temper-forge-setup/src/check.rs`
   prints two lines: `members`' `webhooks: bool` (line 60 at the base) and
   `checked`'s `listener: Option<SocketAddr>` (the base's second is `webhooks:
   bool`, line 137).
-- `heavy rg -n 'Reconcile::new' crates tests -g '*.rs'` prints two lines, in
+- `rg -n 'Reconcile::new' crates tests -g '*.rs'` prints two lines, in
   `crates/temper-forge-setup-shell/src/reconcile.rs` and
   `tests/forge-setup/reconcile/src/world.rs`: the hosts build the kit's machine
   (four lines at the base; the two in `tests/fixtures.rs` go with `Run`).
-- `heavy python3 -c 'from pathlib import Path; root=Path("crates/temper-forge-setup/src"); paths=[root/"reconcile.rs",*[root/"reconcile"/(name+".rs") for name in ("hooks","orgs","tokens")]]; remaining=[str(p) for p in paths if p.exists()]; print("reconcile copies:",len(remaining)); print("\n".join(remaining)); raise SystemExit(bool(remaining))'`
+- `python3 -c 'from pathlib import Path; root=Path("crates/temper-forge-setup/src"); paths=[root/"reconcile.rs",*[root/"reconcile"/(name+".rs") for name in ("hooks","orgs","tokens")]]; remaining=[str(p) for p in paths if p.exists()]; print("reconcile copies:",len(remaining)); print("\n".join(remaining)); raise SystemExit(bool(remaining))'`
   prints `reconcile copies: 0` and exits 0 (4 at the base).
-- `heavy rg -n -U 'pub\s+use\b[^;]*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b|(?m:^\s*(pub(\([^)]*\))?\s+)?type\s+\w+\s*=\s*([A-Za-z0-9_]+::)*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b)|skein_forge_setup[^;]*\bas\s+\w+' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src crates/temper/src`
+- `rg -n -U 'pub\s+use\b[^;]*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b|(?m:^\s*(pub(\([^)]*\))?\s+)?type\s+\w+\s*=\s*([A-Za-z0-9_]+::)*(Given|Reconcile|Need|Event|Reply|Failure|Stage|Why|Item|Place|Limits|Unfit|Refused)\b)|skein_forge_setup[^;]*\bas\s+\w+' crates/temper-forge-setup/src crates/temper-forge-setup-shell/src crates/temper/src`
   prints nothing (exit 1): no moved-type re-export, alias or renamed import.

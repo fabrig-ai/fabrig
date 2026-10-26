@@ -306,12 +306,12 @@ on a fresh connection to the started service's listener), `answered`
 `to_component` (the mount's messages to the component since the last
 call) are new in the fixtures module, written once, used by the six.
 Proof: the process tier, through `scripts/proof-one-process.sh`'s two
-commands narrowed to one test, once: `heavy sh -c 'cargo build -p temper
+commands narrowed to one test, once: `sh -c 'cargo build -p temper
 --bin temper && NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper
 --profile process -E "test(temper_open_signs_in_prints_the_inbox_and_exits_on_q)"'`:
 `temper open` signs in by the link `temper serve` printed, through
 `/jig` on temper's own listener, prints `== Inbox == Live` and exits 0
-(about 1 minute). And the one-process world, once: `heavy cargo nextest
+(about 1 minute). And the one-process world, once: `cargo nextest
 run -p temper-one-process-world -E
 'test(a_person_signs_in_by_the_printed_link_and_a_chat_is_answered)'`:
 the person's chat is answered through the mapping (about 1 s). Nothing

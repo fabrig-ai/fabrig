@@ -244,7 +244,7 @@ fn the_landing_grants_name_the_forges_bound_authority() {
 ```
 Proof: unit for the world's part, no higher than its test (13.5 runs
 the scripts at joint); process for the landing stories the adapter
-feeds, `heavy --gate scripts/proof-one-process.sh` once, `TEMPER_FORGEJO` and
+feeds, `scripts/proof-one-process.sh` once, `TEMPER_FORGEJO` and
 `TEMPER_FORGEJO_RUNNER` exported; the commit body gives the tier's time.
 Don't: copy the scripts; rename `Throwaway`; change a script's turn.
 Size: at most ~150 lines of `tests/real-loop/src`, moved, counted as

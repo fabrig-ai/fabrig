@@ -249,7 +249,7 @@ Test shape:
       ));
   }
   ```
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_stopped_chat_reads_as_waiting_on_its_party)'` once: a party who
 stops their chat reads it as waiting on them, for that chat's
 escalation, through the real store's read; under 0.5 s.
@@ -384,7 +384,7 @@ Test shape:
   (fuzzy_watches.rs:11) open their own tasks' query beside their other
   subjects (`Parties::new`, watches.rs:112), so the fuzzy suite sweeps
   it. Under 0.5 s; the sweep's added time an aim of 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_watched_task_query_is_delivered_again_when_its_task_ends)'`
 once: a client watching their own tasks' query is delivered their chat's
 line, then a delivery after the commit that cancels the chat, whose
@@ -433,7 +433,7 @@ Test shape:
   `seeded_reads_wait_for_prior_commits_and_keep_receipts_across_restart_cuts`
   (:12) also reads the party's own tasks' query after its restart, one
   more receipt per seed.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(a_task_query_reads_a_partys_live_tasks_in_last_activity_order)'`
 once: a party's query over their two live tasks, read through the real
 store after words reach the older one, lists that one first; under
@@ -473,7 +473,7 @@ Test shape:
   `me_carries_no_creating_bounds_for_an_observer`. Under 20 ms each.
 - `tests/core/tests/task_queries.rs`:
   `me_reads_the_pool_left_in_its_creating_bounds`. Under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(me_reads_the_pool_left_in_its_creating_bounds)'` once: the
 signed-in owner reads `me` and finds their pool left in the project's
 creating bounds; under 0.5 s.
@@ -530,7 +530,7 @@ Test shape:
   their `me`, their inbox, and the queries the task matches"; the
   query's next delivery carries the line's unread count 1). Under
   0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-core-world -E
+Proof: joint, `cargo nextest run -p jig-core-world -E
 'test(seen_over_a_conversations_turns_clears_its_lines_unread_count) |
 test(=conversations_page_both_ways_from_the_index)'` once: a party's
 `Seen` over their conversation's turns brings its task line's unread
@@ -547,7 +547,7 @@ the same three in `inbox_deployment.rs`'s `conversations` and
 
 Compiled at the base in a scratch module of `jig-domain-core`
 (`src/sketch_w3.rs`, bodies `unimplemented!()`, parameters prefixed `_`)
-with `heavy cargo clippy -p jig-domain-tasks -p jig-domain-people -p
+with `cargo clippy -p jig-domain-tasks -p jig-domain-people -p
 jig-domain-core --all-targets -- -D warnings`. jig 02's label and flags
 were stubs there (`type Label = u32`, a `Flags` struct); below they are
 written as jig 02's file names them (`label: u32`, `tasks::Flags`), and
@@ -722,6 +722,6 @@ for candidate in core.tasks.view_tasks().as_ref() {
 - `git -C ~/src/rust/jig grep -n -e chat_requester -e 'settings\.chat'
   origin/main -- crates/jig-domain-core/src/inbox.rs
   crates/jig-domain-core/src/routing/watch_marks.rs` prints nothing.
-- `heavy cargo nextest run -p jig-core-world -E
+- `cargo nextest run -p jig-core-world -E
   'binary(task_queries)'`, run once in a worktree of jig's
   `origin/main`, passes 9 tests.

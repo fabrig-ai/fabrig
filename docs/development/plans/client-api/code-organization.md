@@ -152,7 +152,7 @@ line opened whole, extra origins, awaited trouble, a request with a given
     `jig-boundary` as a dev-dependency) calling
     `jig_boundary::client_names::breaches(<temper's root>, "temper",
     &["temper", "temper-one-process-world"])` and asserting it is empty.
-  - Both run in the default suite, so `land`'s gate refuses a client
+  - Both run in the default suite, so the gate refuses a client
     crate without the prefix from their first landing on.
 - **One wire version** (section 2): from jig 11's last landing on,
   `git -C ~/src/rust/jig grep -n -E '(CLIENT_VERSION|VERSION): u32 = [0-9]'
@@ -173,7 +173,7 @@ module in a world. New crates: `jig-client-protocol-http` (jig 10),
 
 ## 6. The plan's "Don't" list
 
-The first six lines are guides that review reads (the implementer's own
+The first six lines are guides that review reads (the author's own
 reading before landing, the supervisor's hourly sample of a diff); a
 miss found is fixed by the session's next increment. The lines after
 them are rules, each with its check.
@@ -263,8 +263,7 @@ them are rules, each with its check.
   - temper: the same with `-- crates testing tools`;
   - skein: the same with `-- crates testing`.
   `tests/` (worlds), generated code, goldens and schemas are not
-  counted. Each landing's report gives the number (implementer.md,
-  8.6).
+  counted. Each landing's report gives the number.
 - **Moves and renames:** an increment whose Shape is a move or a rename
   (jig 01.1 to 01.3, jig 11.1, jig 13.2, temper 01.2, temper 02.1's
   path rewrite, temper 03.3, temper 03.4, jig 15.4, jig 17.3) counts

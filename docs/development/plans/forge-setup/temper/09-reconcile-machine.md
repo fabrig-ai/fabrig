@@ -50,11 +50,11 @@ the setup's routes: 09.1 the frame, the admin and the bot (unit); 09.2 the bot's
 
 - **No secret in a failure, a `Debug` or a trace:** the world scans the `Debug` of every `Need`, `Event` and failure, and the
   trace, for every secret the fake issued (`secrets_absent`: the reference story asserts it, 09.4's
-  `no_secret_is_in_any_failure_debug_or_trace` does for the failures). The implementer keeps a secret out of an argument and a
+  `no_secret_is_in_any_failure_debug_or_trace` does for the failures). The author keeps a secret out of an argument and a
   URL: a token is named only in `Need::Send`'s `token`, the password only in `CreateUser`.
 - **The ceilings are aims** (development.md 5.3: a new world costs at most about 1 s focused and 5 s fuzzy; this one aims at 1 s
   and 2 s in all, decisions.md 13; unit tests 20 ms, focused world tests 0.5 s each): a miss is noted in the landing report, read
-  from nextest's `PASS [ t ]` lines in heavy's log (the whole run's, from its `Summary [ t ]` line). The shipped profile's builder
+  from nextest's `PASS [ t ]` lines in the test log (the whole run's, from its `Summary [ t ]` line). The shipped profile's builder
   is `temper_service::limits::profile` (limits.rs:247); the machine takes no limit, the world's are the fake's own.
 
 ## Increments
@@ -106,7 +106,7 @@ fn a_user_of_the_bots_login_without_the_marker_is_refused_naming_the_login() {
     assert_eq!(need, Need::Stop(why));
 }
 ```
-Proof: unit; `heavy cargo nextest run -p temper-forge-setup -E 'test(/tests::reconcile::/)'` passes its 8 tests, each under 20 ms
+Proof: unit; `cargo nextest run -p temper-forge-setup -E 'test(/tests::reconcile::/)'` passes its 8 tests, each under 20 ms
 (Rules: a miss is noted), in under 1 s in all. No higher layer exists: nothing hosts the machine until 09.2's world connects it.
 Don't: format text, name a host, a path or a clock; hold a timer or a limit; keep a record of its own; define a `File` beside
 `place::File`; read the admin's token but through `Read(AdminToken)`; set `is_admin` on the bot; send the password but in
@@ -174,10 +174,10 @@ fn an_empty_forge_is_given_its_bot_and_both_tokens() {
     assert!(world.secrets_absent(), "no secret in a failure, a debug or the trace");
 }
 ```
-Proof: world; `heavy cargo nextest run -p temper-forge-setup-reconcile-world --test reconcile` runs the first story to `Done`: the
+Proof: world; `cargo nextest run -p temper-forge-setup-reconcile-world --test reconcile` runs the first story to `Done`: the
 bot made, marked and not an admin, both tokens answering as it, the id file `2`; each test under 0.5 s (Rules). No higher layer
 yet: the host that meets a real Forgejo is 10.1's.
-Proof: unit; `heavy cargo nextest run -p temper-fake-forge-protocol -E 'test(/tests::setup::/)'` passes 3 tests, each under 20 ms (Rules).
+Proof: unit; `cargo nextest run -p temper-fake-forge-protocol -E 'test(/tests::setup::/)'` passes 3 tests, each under 20 ms (Rules).
 Don't: add a field to the fake's `Config` or `Limits` (every world builds them); keep a password in the store; let a token
 route answer without an admin's token; wire the store into the fake domain's permissions; let a document's `Debug` show a
 token (the scan fails then).
@@ -218,10 +218,10 @@ Test shape: world tests: `an_owned_forge_makes_a_missing_org_for_its_person`,
 `two_hooks_with_the_listeners_url_keep_the_lowest_patched_and_the_rest_deleted` (a third of another URL stays). Unit, in the
 crate's `src/tests/reconcile.rs`: `hook_urls_are_written_for_loopback_v4_and_v6` (literals, and `None` for 192.0.2.1),
 `a_lower_hook_met_later_deletes_the_higher_one_kept` (rows 7, 3: `DeleteOrgHook` 7, the page listed again, `EditOrgHook` 3).
-Proof: world; `heavy cargo nextest run -p temper-forge-setup-reconcile-world --test reconcile` shows an owned empty forge converged:
+Proof: world; `cargo nextest run -p temper-forge-setup-reconcile-world --test reconcile` shows an owned empty forge converged:
 two orgs owned by `ada`, each with the bot's team holding the bot and one hook at `/hooks/1` carrying the secret of `webhook_secret`;
 12 tests, each under 0.5 s (Rules).
-Proof: unit; `heavy cargo nextest run -p temper-forge-setup -E 'test(/hook_urls_are_written|a_lower_hook_met_later/)'` passes 2 tests, each
+Proof: unit; `cargo nextest run -p temper-forge-setup -E 'test(/hook_urls_are_written|a_lower_hook_met_later/)'` passes 2 tests, each
 under 20 ms (Rules).
 Don't: send a repository request; remove a hook or a member it did not make; make a hook when no listener is given.
 Size: 250.
@@ -241,7 +241,7 @@ Test shape: world tests: `a_second_run_writes_only_the_hooks_patches`, `a_delete
 `a_team_edited_by_a_person_is_repaired`, `a_person_under_the_bots_login_is_refused`,
 `no_secret_is_in_any_failure_debug_or_trace` (the failing stories, scanned). Fuzzy, under 2 s:
 `random_initial_forges_converge_and_a_second_run_writes_only_hook_patches`.
-Proof: world; `heavy cargo nextest run -p temper-forge-setup-reconcile-world` passes in under 1 s in all, and `... --profile fuzzy`
+Proof: world; `cargo nextest run -p temper-forge-setup-reconcile-world` passes in under 1 s in all, and `... --profile fuzzy`
 in under 2 s (Rules): the world's whole cost.
 Don't: sleep or draw outside the seed; weaken an earlier story to fit.
 Size: 40.
@@ -388,14 +388,14 @@ impl Store {
 
 Each command runs from the repository root.
 
-- The machine, the fake and the world pass: `heavy cargo nextest run -p temper-forge-setup -p temper-fake-forge-protocol -p
-  temper-forge-setup-reconcile-world`. The world's `Summary [ t ]` line (`heavy --gate cargo nextest run -p
+- The machine, the fake and the world pass: `cargo nextest run -p temper-forge-setup -p temper-fake-forge-protocol -p
+  temper-forge-setup-reconcile-world`. The world's `Summary [ t ]` line (`cargo nextest run -p
   temper-forge-setup-reconcile-world`) reads under 1.0 s, and under 2.0 s with `--profile fuzzy` (the aims of Rules: a miss was
   noted in 09.4's landing report and fails nothing here).
 - The stories exist: `git grep -c '^#\[test\]' -- crates/temper-forge-setup/src/tests/reconcile.rs
   tests/forge-setup/reconcile/tests/reconcile.rs tests/forge-setup/reconcile/tests/fuzzy_reconcile.rs
   testing/temper-fake-forge-protocol/src/tests/setup.rs` prints the counts 10 (the crate), 3 (the fake), 1 (fuzzy) and 20 (the world), in that order.
-- Lints: `heavy cargo clippy -p temper-forge-setup -p temper-fake-forge-protocol -p temper-forge-setup-reconcile-world
+- Lints: `cargo clippy -p temper-forge-setup -p temper-fake-forge-protocol -p temper-forge-setup-reconcile-world
   --all-targets -- -D warnings` is clean, and no file passes 800 lines: `git ls-files -z -- crates/temper-forge-setup
   testing/temper-fake-forge-protocol tests/forge-setup | xargs -0 wc -l | awk '$1 > 800 && $2 != "total"'` prints nothing.
 - The step crate names no host: `! git grep -nE 'std::|skein_io|skein_http|format!' -- crates/temper-forge-setup/src/reconcile.rs

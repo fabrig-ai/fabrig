@@ -4,7 +4,7 @@
 
 ## 1. The suites at the base
 
-In a worktree of temper at `118f7fb7`, through `heavy --gate`, each
+In a worktree of temper at `118f7fb7`, each
 suite three times after one build (`export NEXTEST_DOUBLE_SPAWN=0`):
 
 | Suite | Runs (s) | Median | Tests |

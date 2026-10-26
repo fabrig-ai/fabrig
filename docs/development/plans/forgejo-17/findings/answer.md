@@ -49,7 +49,7 @@ read-only sub-agent. Paths are temper's.
   `golden/v1/*.bin` from `schema/store-v1.schema`; the drift test,
   `store_schema_matches_generated_code_and_goldens`
   (`tests/codecs/tests/drift.rs:54`, `temper-codecs-world`), writes them
-  with `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p
+  with `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p
   temper-codecs-world --test drift` (`:61`). Write mode never deletes a
   golden. A changed `JobAnswer` changes `record_job_answer_{full,smallest}.bin`
   and `enum_answer_job_{full,smallest}.bin`.

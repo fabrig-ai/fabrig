@@ -117,7 +117,7 @@ only jig 02.1.
 
 - **Format versions** (README, Rules): tasks v3 is jig 02.1's and people
   v3 jig 02.3's; this session edits them in place. Regenerate with
-  `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p
+  `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p
   jig-store-codecs-world --test drift`, once per increment that edits a
   schema; the drift and memory tests then pass unchanged in name.
 - **Files over 800 lines at the base get at most 40 lines each**
@@ -284,7 +284,7 @@ Test shape:
   9). `tests/tasks/tests/referee.rs`:
   `an_ended_task_without_its_party_index_row_is_refused`.
 - Ceilings: unit under 20 ms, world under 0.5 s.
-Proof: world. `heavy cargo nextest run -p jig-core-world -E
+Proof: world. `cargo nextest run -p jig-core-world -E
 'test(an_ended_chat_is_indexed_by_its_requesting_party_and_label)'`
 once: a person's chat ends and the real store holds its
 `(party, label, ended at, task)` row, committed with the ended record;
@@ -336,7 +336,7 @@ Test shape:
   row in the commit that ends it; `tests/tasks/tests/referee.rs`:
   `an_ended_listed_task_without_its_project_index_row_is_refused`.
 - Ceilings as 8.1.
-Proof: world. `heavy cargo nextest run -p jig-core-world -E
+Proof: world. `cargo nextest run -p jig-core-world -E
 'test(an_ended_goal_is_indexed_by_its_project_and_label)'` once: a goal
 ends and the real store holds its project row beside its party row;
 under 0.5 s. 8.5 connects the read.
@@ -569,7 +569,7 @@ Test shape:
   kept: its expected `world.census_ended` becomes 3 (the chat, now kept,
   and the two unread goals), the one changed literal.
 - Ceilings: world under 0.5 s.
-Proof: world. `heavy cargo nextest run -p jig-core-world -E
+Proof: world. `cargo nextest run -p jig-core-world -E
 'test(a_conversation_forgotten_once_read_leaves_no_row_once_read) |
 test(a_kept_chat_stays_after_its_party_read_it)'` once: a conversation
 of class forgotten once read is gone from the real store, its index rows
@@ -836,7 +836,7 @@ Test shape:
   (the position saved as `EndedRead` at the end, none restored, and a
   mark after the restart decided against the position the world loads).
 - Ceilings: unit under 20 ms, world under 0.5 s.
-Proof: world. `heavy cargo nextest run -p jig-core-world -E
+Proof: world. `cargo nextest run -p jig-core-world -E
 'test(an_ended_chats_read_position_is_read_back_after_a_restart) |
 test(a_restart_restores_unread_results_and_chat_totals)'` once: after a
 restart, an ended chat reads with the position its person left, and
@@ -932,7 +932,7 @@ Test shape:
   sweep runs it at each commit: aim to add at most 0.5 s to the fuzzy
   suite, as 8.3's.
 - Ceilings: unit under 20 ms, world under 0.5 s.
-Proof: world. `heavy cargo nextest run -p jig-core-world -E
+Proof: world. `cargo nextest run -p jig-core-world -E
 'test(a_partys_ended_chats_page_newest_first_after_a_restart)'` once: a
 person's three ended chats come back newest first from the real store's
 index after a restart, each line with its unread count; under 0.5 s.
@@ -991,7 +991,7 @@ Test shape:
   `a_read_position_moving_back_across_an_end_is_a_violation`,
   `a_read_position_erased_without_its_task_is_a_violation`,
   `a_read_position_kept_across_a_restart_passes`. Under 20 ms each.
-Proof: world. `heavy cargo nextest run -p jig-conformance-world -E
+Proof: world. `cargo nextest run -p jig-conformance-world -E
 'test(conversation_ends_while_read_chosen_cut_ends_the_story)'` once:
 8.3's scenario, its conversation ended and the engine restarted while
 its party reads it, runs under the referee with this rule and finds no
@@ -1005,7 +1005,7 @@ Removes: nothing.
 
 ## Interface sketches
 
-Compiled at the base under `heavy cargo clippy -p <scratch crate>
+Compiled at the base under `cargo clippy -p <scratch crate>
 --all-targets -- -D warnings`, in a scratch crate of jig with jig 02's
 and jig 05's types stubbed (`documents::TaskQuery` with its executor kind and order elided), as
 their files name them: checked at the ready check. Bodies are
@@ -1184,7 +1184,7 @@ forgettable task's rows; retention (not planned) ends a kept one's.
   ~/src/rust/jig fetch origin && git -C ~/src/rust/jig log origin/main
   --all-match --grep='^Plan: client-api$' --grep="^Step: jig-08.$k$"
   --format=%H -1` prints a commit.
-- In a worktree of jig's `origin/main`, once: `heavy cargo nextest run -p
+- In a worktree of jig's `origin/main`, once: `cargo nextest run -p
   jig-core-world -p jig-tasks-world -p jig-conformance-world -E
   'test(=an_ended_chat_is_indexed_by_its_requesting_party_and_label) |
   test(=an_ended_goal_is_indexed_by_its_project_and_label) |

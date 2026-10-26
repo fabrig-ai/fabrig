@@ -20,7 +20,7 @@ and Removes (`store::Record::Jig`, `Key::Jig`, the root's `Save` and
 `Erase` of the reference UI's records). A scenario that needs behaviour
 temper's engine lacks is reported as a question, never skipped.
 Test shape: no new test; the conformance suite and temper's gate.
-Proof: temper's gate, by `land`, at the jig 13.2 pin.
+Proof: temper's gate, at the jig 13.2 pin.
 Size: aim for at most 550 added production lines (415 counted with
 path rewrites at 01:32Z, `logs/temper-03/03.4-repin-counts.txt`, the
 client's about 179 included, before the four scenarios' adapters); test

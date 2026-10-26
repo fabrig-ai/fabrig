@@ -104,7 +104,7 @@ stay until jig 16.
 ## Increments
 
 Each increment regenerates the codec once from the edited schema:
-`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world
+`SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world
 --test drift`, then runs the drift test without the variable. Schema,
 generated code and goldens count no lines (code-organization.md, 7);
 the drift test also runs ops' wire (`v1`), so 14.1's edit of ops' schema
@@ -294,7 +294,7 @@ Test shape:
   (`tests/client-protocol/src/fixtures.rs:71-94` (ruling 222), hand-set at the base;
   this plan does not move them). Ceilings: unit under 20 ms, world under
   0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent)
 | test(a_family_request_in_the_deployment_scope_reaches_the_people_child_with_it)
 | test(=a_person_s_part_request_is_answered_from_the_connector_s_outcome)'`
@@ -440,7 +440,7 @@ from the world's fixtures; the grace's span limit from
 `jig_protocol_config::profile::profile(Profile::Small)`
 (`crates/jig-protocol-config/src/profile.rs:45`), the test's 200 ms
 within it. Ceilings: unit under 20 ms, joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_cancel_with_a_grace_ends_the_task_once_its_grace_has_passed) |
 test(an_owner_s_template_override_is_answered_policy_changed)'` once:
 the task hears it is asked to finish, and ends cancelled after its
@@ -571,7 +571,7 @@ request made, the run resumed). Reuse `stories::submit_stop` and
 the base, followed to jig 12's file). Limits: operations per request
 from `profile(Profile::Small)`; the world's own from its fixtures.
 Ceilings as 14.2.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(words_to_a_stopped_task_release_it_in_one_compound_request) |
 test(=a_person_s_words_reach_a_running_run_through_bytes)'` once: the
 stopped task resumes after one request made once (`requests_made()`
@@ -681,7 +681,7 @@ reaches it as `TaskExecutor::Person(PersonAddress::Role(2))`),
 (on jig 12's `Story`; fixtures: the world's first owner, `fixtures::FIRST_OWNER`, project 1,
 the core world's configuration, `jig_core_world::world::config`). Limits
 as 14.3. Ceilings as 14.2.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_party_creates_a_batch_whose_as_allowed_task_hears_what_it_was_given)'`
 once: the engine makes both tasks at once and answers their numbers, the
 `AsAllowed` one with the amount it gave. Bound: 1 s.
@@ -747,7 +747,7 @@ other assertions, and expects `Ask::Propose` of the amendment where it
 expected `Ask::Amend`; and
 `an_amendment_beyond_the_offer_says_to_whom_it_will_be_proposed`. Limits
 and ceilings as 14.4.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_party_proposes_a_batch_and_withdraws_it_before_it_is_decided)'`
 once: the proposal's number is answered, it waits at the policy's role,
 and the withdraw leaves it withdrawn, the party its proposer. Bound: 1 s.
@@ -763,11 +763,11 @@ Checked at the plan's base: the schema as one edit of the v7 schema,
 this session's records and jig 22's together
 (`client-v7*.schema` in a scratch worktree, applied by a script; the
 same edits apply to jig 11's v8), generated with skein-codegen, and
-`heavy cargo clippy -p jig-protocol-client-wire --lib -- -D warnings`
+`cargo clippy -p jig-protocol-client-wire --lib -- -D warnings`
 clean (its `--all-targets` fails only in its own test fixtures that
 construct the changed records, which the increments edit). The Rust
 types compiled in a scratch crate against the base's contract types,
-`heavy cargo clippy -p w7-sketch --all-targets -- -D warnings` clean.
+`cargo clippy -p w7-sketch --all-targets -- -D warnings` clean.
 Names from jig 05, 07, 09, 11 and 12 are checked at the ready check.
 
 `crates/jig-client-protocol-wire/schema/client-v8*.schema`, the records

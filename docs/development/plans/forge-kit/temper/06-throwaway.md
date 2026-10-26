@@ -29,7 +29,7 @@ line, `component.rs` and `component/hosted.rs`, and may land before or after
   `development.md` 5.5-5.7.
 - README (sessions, Rules, Live services, Done when); code-organization 1, 6,
   7; decisions 27, Design questions 30 and 31;
-  designer `tmp/director/forge-kit-answers-1.md`.
+
 - `skein/06-conformance.md` 06.1 ("temper's side", its Removes; 06.2 copies the
   conformance, 06.4 is the stable-fact check) and `temper/01-forge.md` 01.2;
   findings `survey-05-fakes.md`, `trace-fakes.md`, `base-runs.md`,
@@ -82,8 +82,8 @@ as it stands at the step's start, where temper 01.2 has repointed the pin lines.
 
 ## Rules that bind it
 
-- The increment's **first commit** is its repin: `heavy cargo update -p
-  skein-lib`, then `heavy cargo check --workspace --all-targets`. Repair in
+- The increment's **first commit** is its repin: `cargo update -p
+  skein-lib`, then `cargo check --workspace --all-targets`. Repair in
   that commit what skein's steps since temper's last repin broke. A lock
   conflict takes origin/main's Cargo.lock and repeats the update.
 - No alias, no `pub use` of a kit item, no second copy: every `use` names
@@ -175,28 +175,28 @@ fn an_unset_forgejo_variable_is_refused_naming_it() {
   leave with it and live on, names unchanged, as skein 06.1's. Unchanged:
   git-transcripts 7, conformance 25, `-p temper` 58 (default profile), process 19.
 Proof:
-- world: `heavy cargo nextest run -p git-transcripts -p forgejo-conformance`: the
+- world: `cargo nextest run -p git-transcripts -p forgejo-conformance`: the
   count at the step's start plus 2 passed, 0 skipped (32 at the base, 7 + 25,
   in 0.016 s and 0.116 s), the two new < 0.1 s.
-- world: `heavy cargo nextest run -p temper`: the count at the step's start, as
+- world: `cargo nextest run -p temper`: the count at the step's start, as
   before it (58 passed, 0.369 s at the base); its five test binaries compile
   `support/{owned,forgejo}.rs`.
-- joint: `heavy cargo check --workspace --all-targets` Finished (0.28 s at the base)
-  after the repin; then `heavy --gate scripts/check.sh` exits 0: clippy clean,
+- joint: `cargo check --workspace --all-targets` Finished (0.28 s at the base)
+  after the repin; then `scripts/check.sh` exits 0: clippy clean,
   focused count = origin/main's at the start minus 13 plus 2, and 0 skipped (the
   one skipped test at the base is the copy's only `#[ignore]`: 1879 passed,
   1 skipped, 4.9 s), fuzzy count at the step's start, unchanged (50 at the base, about 23 s; one slow,
   `fuzzy_walking_commit_cuts_latency_replay_and_observation_pressure`, 23.4 s).
 - process: once, `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate scripts/proof-one-process.sh`: its count at the step's start passed (19 at
+  scripts/proof-one-process.sh`: its count at the step's start passed (19 at
   the base), exit 0, about 146 s (145.2 s here, 145.7 s in base-runs.md), inside domain/testing.md 2.6's aim of 3
   minutes; a failure, or a run past it, is reported with its test and never
   retried silently (another base run failed at test 6, `base-temper-01.md`).
 - process: the recording, before the repin commit and after the last, on one
   machine: `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate cargo run -p git-transcripts -- --git /usr/bin/git
+  cargo run -p git-transcripts -- --git /usr/bin/git
   --scratch target/gt-<before|after> --out target/gt-<before|after>-out`
   exits 0 in about 16 s each, and `diff -r target/gt-before-out target/gt-after-out`
   prints nothing (the same tree twice prints nothing at the base).
@@ -249,10 +249,10 @@ Test shape: four new unit tests in `json/tests.rs`, each <20 ms, over `BODY =
   Existing tests keep names: `masking_sorts_the_deprecated_units_set_in_every_team` proves
   `sorted_units`. Conformance tests: 26 at the step's start (the base's 25, 0.118 s, and 06.1's
   refusal test), 30 after.
-Proof: unit; `heavy cargo nextest run -p forgejo-conformance`: 30 passed, 26 at the step's start (the
+Proof: unit; `cargo nextest run -p forgejo-conformance`: 30 passed, 26 at the step's start (the
   base's 25 and 06.1's refusal test) plus 4.
 Proof: process; both recordings, with `T` a fresh directory under `$WS/tmp` and the forge variables of
-  06.1's process line: `heavy --gate cargo run -p forgejo-conformance -- --scratch $T/instance
+  06.1's process line: `cargo run -p forgejo-conformance -- --scratch $T/instance
   --out $T/out`, exit 0, about 100 s (98 s alone at the base), then the same with `--component
   --scratch $T/component`, exit 0, about 30 s (28 s). Then the stable-fact line (the recording's checks) on
   `$T/out/facts.txt` prints the counts and the digest, and the transcripts diff (the same) names
@@ -261,7 +261,7 @@ Proof: process; both recordings, with `T` a fresh directory under `$WS/tmp` and 
   registration read run only live.
 Apply README's compatible smith source and Settled smith adapters rules. live-text/smith-02.1 is landed; shared compatibility now waits for jig01.s2 and temper02.1. Rebase their adapter landing before this repin's all-target check and both required recordings; retain the completed JSON checkpoint and every facts/transcript proof.
 Upstream reset cause/repair belongs to skein06.s1; the bounded diagnostic exception is complete. Recording proof waits for its evidenced repair to land, then a compatible skein repin with the existing all-target check. Independent JSON work/checkpoint stays; diagnostic probes do not replace required recording/facts/transcript proof.
-Proof: joint; `heavy --gate scripts/check.sh`: origin/main's focused count at the step's start plus 4,
+Proof: joint; `scripts/check.sh`: origin/main's focused count at the step's start plus 4,
   fuzzy unchanged, clippy and format clean (the gate runs both).
 Don't: add a value tree, a `serde_json::Value` bridge or a second parser; re-serialize a captured body;
   change a transcript, a delivery or `facts.txt`; touch the `Fixture` family (06.3).
@@ -288,7 +288,7 @@ Shape: the family cannot split by module (every file calls `Fixture::api`), so i
   17, registration 15, cases 15, tokens 14, users 13, fixture 11, six files 19), and 146 lines of the
   `api` family in 14 files. `has_key` walks the document for a member at any depth and never matches
   a value that spells the key.
-  Diagnostics (the designer's answer, as the director ruled): a whole body in a failure's text
+  Diagnostics (the designer's answer, as the decision states): a whole body in a failure's text
   (`facts.rs`: `initial(&defaults.to_string())`, `listing(&since.to_string())`, and `flags`'
   `format!("Forward {}, reverse {}, verification {}", ..)`) is printed as the response's own bytes,
   as received, the `body` its call site already holds: `facts.rs::diagnostic(body: &[u8]) -> String`
@@ -305,12 +305,12 @@ Test shape: two new unit tests. `a_diagnostic_is_the_bodys_bytes_cut_at_its_boun
   `has_key("x")` false (an item, not a key). `a_listed_runner_is_found_by_its_uuid` and
   `a_fact_read_from_a_case_compares_its_status_and_message` change their fixtures, not their names or
   expected values. Conformance tests: 32.
-Proof: unit; `heavy cargo nextest run -p forgejo-conformance`: 32 passed, <1 s.
+Proof: unit; `cargo nextest run -p forgejo-conformance`: 32 passed, <1 s.
 Proof: process; 06.2's two recordings, exit 0, the stable-fact line and the transcripts diff: the same
   counts and digest, and only the four framing differences plus optional masked
   merge-ID variants in The recording's checks. Any other difference, or a changed digest, is a question: the
   diagnostics print only on a failure.
-Proof: joint; `heavy --gate scripts/check.sh`: the focused count plus 2, fuzzy unchanged.
+Proof: joint; `scripts/check.sh`: the focused count plus 2, fuzzy unchanged.
 Don't: add a `Value`-shaped accessor (`Index`), a macro, or a second tree; change a fact's text, its
   order or an expected value; turn a failing read into a `None` default that hides it; give `Json`
   retained bytes, a `Display` or a serializer, or print a body through a second parser or a
@@ -358,12 +358,12 @@ Test shape: three new unit tests, <20 ms (conformance tests: 35):
     are errors.
   - `a_string_is_escaped_to_the_bytes_the_base_wrote`: `"` `\` newline, tab and a control byte `\u0001`
     write `\"`, `\\`, `\n`, `\t` and `\u0001`; a non-ASCII letter is written as it is.
-Proof: unit; `heavy cargo nextest run -p forgejo-conformance`: 35 passed (the base's 25, 06.1's refusal
-  test and the 9 of 06.2 to 06.4), <1 s; `heavy rg -n 'serde_json|json!' tools/forgejo-conformance
+Proof: unit; `cargo nextest run -p forgejo-conformance`: 35 passed (the base's 25, 06.1's refusal
+  test and the 9 of 06.2 to 06.4), <1 s; `rg -n 'serde_json|json!' tools/forgejo-conformance
   -g '*.rs' -g Cargo.toml` prints nothing (96 lines in 18 files at the base).
 Proof: process; 06.2's two recordings, the stable-fact line and the transcripts diff, as 06.3: `api`
   builds the state the facts record, so equal counts, digest and files show the bodies unchanged.
-Proof: joint; `heavy --gate scripts/check.sh`: the focused count plus 3, fuzzy unchanged.
+Proof: joint; `scripts/check.sh`: the focused count plus 3, fuzzy unchanged.
 Don't: raise ordinary writer or production bounds, enlarge the explicit large-fact room beyond its named existing-input derivation, write a body by `format!`, or edit a transcript to match.
 Size: about 100 lines changed in place (counted as moved), about 105 new (`Put` and `object` about
   66, the three tests about 40); counted as new, about 205.
@@ -409,9 +409,9 @@ temper 07 deletes the conformance, and skein 06.4 keeps the stable-fact line.
   `tools/forgejo-conformance/facts.txt`, prints the five timing outcomes, then `facts=218 stable=213
   holds=207 fails=6 timing=5 unchecked=0` and the digest `d1f7ba2bb323...ec18347d`, exit 0:
   ```sh
-  heavy bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh tools/forgejo-conformance/facts.txt
+  bash -o pipefail -c 'set -eu; digest=$(awk '\''BEGIN { split("merge-old-head-is-409-head-out-of-date delivery-pull-reads-not-mergeable-while-checked delivery-pull-is-settled-when-its-push-is-delivered delivery-pull-is-checking-when-its-push-is-delivered webhook-deliveries", a); for (i in a) timing[a[i]]=1 } /^#/ || NF==0 { next } { name=$2; sub(/:.*/, "", name); if (seen[name]++ || $1 !~ /^(holds|fails)$/) exit 1; n++;   if (name in timing) { t++; print "timing " $0 > "/dev/stderr" }   else { s++; h+=($1=="holds"); f+=($1=="fails"); print $1, name } } END { if (n!=218 || s!=213 || h!=207 || f!=6 || t!=5) exit 1;   print "facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0" > "/dev/stderr" }'\'' "$1" | LC_ALL=C sort | sha256sum); printf "%s\n" "$digest"; test "$digest" = "d1f7ba2bb323b8944e05d2e05bc1c83396fb7bfffadbcefea4faad64ec18347d  -"' sh tools/forgejo-conformance/facts.txt
   ```
-- The transcripts diff, `heavy sh -c 'cd tools/forgejo-conformance && diff -rq --exclude=response
+- The transcripts diff, `sh -c 'cd tools/forgejo-conformance && diff -rq --exclude=response
   transcripts "$1"/transcripts; echo "diff exit $?"' sh $T/out`, prints four required
   `Files ... differ` lines: `setup-team-member-added/request`,
   `setup-team-member-missing-user/request`, `update-conflict/request` and `update-pull/request`.
@@ -432,21 +432,21 @@ temper 07 deletes the conformance, and skein 06.4 keeps the stable-fact line.
 
 Each command runs once in a worktree of temper at `origin/main`.
 
-- `heavy cargo check --workspace --all-targets` prints Finished, exits 0;
-  the session's gate Proof is `heavy --gate scripts/check.sh` (land owns it).
-- `heavy rg -n 'temper_throwaway_forgejo|temper-throwaway-forgejo' Cargo.toml crates testing tests tools -g '*.rs' -g Cargo.toml`
+- `cargo check --workspace --all-targets` prints Finished, exits 0;
+  the session's gate Proof is `scripts/check.sh` (land owns it).
+- `rg -n 'temper_throwaway_forgejo|temper-throwaway-forgejo' Cargo.toml crates testing tests tools -g '*.rs' -g Cargo.toml`
   prints nothing (exit 1); at the base it prints 48 lines (46 outside the crate).
-- `heavy python3 -I -c 'from pathlib import Path; print("throwaway_copy_absent=" + str(not Path("testing/temper-throwaway-forgejo").exists()))'`
+- `python3 -I -c 'from pathlib import Path; print("throwaway_copy_absent=" + str(not Path("testing/temper-throwaway-forgejo").exists()))'`
   prints `throwaway_copy_absent=True` (False at the base).
-- `heavy rg -c 'skein-throwaway-forgejo' Cargo.toml crates/temper/Cargo.toml tools/git-transcripts/Cargo.toml`
+- `rg -c 'skein-throwaway-forgejo' Cargo.toml crates/temper/Cargo.toml tools/git-transcripts/Cargo.toml`
   prints `1` for each of the three files, with the file names.
-- `heavy rg -n 'Forgejo::from_env|SKEIN_FORGEJO|skein_throwaway_forgejo::(VERSION|RUNNER_VERSION|names_runner)' crates tools -g '*.rs'`
+- `rg -n 'Forgejo::from_env|SKEIN_FORGEJO|skein_throwaway_forgejo::(VERSION|RUNNER_VERSION|names_runner)' crates tools -g '*.rs'`
   prints nothing (exit 1); the pin is read from `skein_forge::forgejo::pin`
   (at the base it prints the three `from_env` calls).
-- `heavy cargo nextest run -p git-transcripts --test refusal` prints `1 test run: 1 passed, 0 skipped`
+- `cargo nextest run -p git-transcripts --test refusal` prints `1 test run: 1 passed, 0 skipped`
   (the conformance's refusal test leaves with it in temper 07).
-- `heavy rg -n 'pub use skein_' crates tools -g '*.rs'` prints nothing (exit 1): no
+- `rg -n 'pub use skein_' crates tools -g '*.rs'` prints nothing (exit 1): no
   alias or re-export of a kit item.
 - The process tier: `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate scripts/proof-one-process.sh` exits 0 (README, Done when 6).
+  scripts/proof-one-process.sh` exits 0 (README, Done when 6).

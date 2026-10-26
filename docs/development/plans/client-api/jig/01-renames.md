@@ -153,7 +153,7 @@ lines, paths and manifest keys follow (`jig_protocol_client_wire` to
   (`tests.rs:280-295`) puts `"jig-client-protocol-wire"` first.
 Test shape: no new test. The renamed names in `tests.rs` and `graph.rs`
 follow; no test function's name changes.
-Proof: `land`'s gate, whose suites link the renamed crates: a rename
+Proof: the gate, whose suites link the renamed crates: a rename
 has no behaviour to show above the build and those suites. In it,
 `engine_clients_link_only_their_boundary_wire_and_foundation`,
 `protocol_crates_link_no_application_crate_even_when_empty` and
@@ -197,7 +197,7 @@ follow, and three sorted lists are written sorted:
 - `ops_client_view_is_step_code_with_only_client_and_connector_vocabulary`
   (`graph.rs:357-364`): `"jig-client-view"` first.
 Test shape: no new test; no test function's name changes.
-Proof: `land`'s gate, as 01.1's, with
+Proof: the gate, as 01.1's, with
 `test_client_view_links_only_client_children_and_foundation` and
 `client_roles_cover_step_crates_and_exclude_the_world` passing in it.
 Bound: the gate's.
@@ -221,7 +221,7 @@ Files (25 files edited and 29 moved at the rehearsal,
 42-43, paths at 167-168), `Cargo.lock`.
 Shape: the names and directories as above.
 Test shape: no new test.
-Proof: `land`'s gate, with
+Proof: the gate, with
 `ops_client_domain_is_step_code_with_only_client_and_connector_vocabulary`
 and `ops_client_view_is_step_code_with_only_client_and_connector_vocabulary`
 passing in it, each reading its moved `src/lib.rs`. Bound: the gate's.
@@ -302,7 +302,7 @@ rehearsal): `client_crates_carry_the_client_prefix`,
 `a_crate_named_as_a_view_without_the_prefix_is_reported` (rule (c): a
 manifest named `jig-pages-view` depending on `skein-lib` alone gives
 `["jig-pages-view"]`).
-Proof: `land`'s gate, in which `client_crates_carry_the_client_prefix`
+Proof: the gate, in which `client_crates_carry_the_client_prefix`
 passes with `PENDING = ["jig-domain-client"]`: from this landing on, the
 gate refuses a client crate of jig's outside the prefix. The layer is
 the check's own: it reads manifests, and nothing runs above it; its
@@ -406,6 +406,6 @@ fn shaped(name: &str, project: &str) -> bool;
 - 01.1 to 01.4 have landed, each with its gate.
 - The three patterns of the Rules, each run once as `git -C <worktree>
   grep -n -E '<pattern>' origin/main -- . ':!docs'`, print nothing.
-- `heavy cargo nextest run -p jig-boundary -E 'test(client_crates_carry_the_client_prefix)'`,
+- `cargo nextest run -p jig-boundary -E 'test(client_crates_carry_the_client_prefix)'`,
   once, passes one test, and `git grep -n 'PENDING' origin/main --
   tests/boundary/src` prints a line containing `["jig-domain-client"]`.

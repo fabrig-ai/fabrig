@@ -264,7 +264,7 @@ Tests, each under 20 ms: the two above,
 `no_project_chosen_offers_no_adoption_link`,
 `adopt_a_repository_is_offered_whatever_the_persons_role`; the
 terminal's machine world: `a_link_state_change_prints_the_page_again`.
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(signing_in_shows_the_inbox_from_the_engine_root)'`:
 the person signs in and sees temper's banner ("Live", the person's
 name) and the inbox's heading against temper's engine root (under
@@ -337,7 +337,7 @@ or 0.5 s (world): `a_question_needing_the_person_is_shown_first_in_the_inbox`,
 `a_filter_by_goal_shows_only_entries_below_it`,
 `an_entry_naming_a_task_links_to_its_page_by_number`,
 `marking_seen_sends_one_seen_over_results`.
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_question_needing_the_person_is_shown_first_in_the_inbox)'`
 (under 0.5 s): a question the engine root holds is shown in temper's
 inbox. Nothing else is run.
@@ -415,7 +415,7 @@ leave held, take and hand back),
 `a_refused_act_shows_jigs_words_and_sends_nothing_more`,
 `releasing_says_what_releasing_does_before_it_is_sent`,
 `a_held_chats_escalation_released_from_the_inbox` (moved, world).
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_held_chats_escalation_released_from_the_inbox)'`
 (under 0.5 s): the person releases a held chat from temper's inbox after
 the confirmation, and the engine root's task has its tries reset, with
@@ -493,9 +493,9 @@ code.) Tests, each under 20 ms (unit) or 0.5 s (world):
 `a_chats_row_links_to_its_chat_by_number`,
 `a_double_press_of_start_makes_one_chat` (moved, world),
 `a_chat_started_on_the_chats_page_is_answered_by_the_run` (moved, world).
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_chat_started_on_the_chats_page_is_answered_by_the_run)'`
-(under 0.5 s). And the one-process world, once: `heavy cargo nextest run
+(under 0.5 s). And the one-process world, once: `cargo nextest run
 -p temper-one-process-world -E
 'test(a_person_signs_in_by_the_printed_link_and_a_chat_is_answered)'`
 (about 1 s): the person starts the chat on temper's page through bytes,
@@ -576,7 +576,7 @@ Tests, each under 20 ms (unit) or 0.5 s (world):
 `seen_over_a_chats_turns_is_one_keyed_request`,
 `leaving_a_chat_unwatches_its_task_activity_and_run`,
 `stop_sends_one_stop_and_shows_it_pending_until_answered`.
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_message_in_a_chat_is_answered_in_its_conversation)'`
 (under 0.5 s).
 Don't: interleave turns and text by hand (jig's `thread` does); show a
@@ -640,7 +640,7 @@ Tests, each under 20 ms (unit) or 0.5 s (world):
 `a_proposal_decided_elsewhere_leaves_the_chats_card`,
 `a_goal_proposed_in_a_chat_accepted_in_the_inbox_leaves_the_chat`
 (world), `a_closed_chat_shows_under_closed_in_the_chats` (world).
-Proof: the joint world, once: `heavy cargo nextest run -p
+Proof: the joint world, once: `cargo nextest run -p
 temper-client-world -E 'test(a_goal_proposed_in_a_chat_accepted_in_the_inbox_leaves_the_chat)'`
 (under 0.5 s): the run proposes a goal in the chat, the person accepts
 it in the inbox, and the chat's card leaves, the engine root holding the
@@ -764,5 +764,5 @@ pub fn shown(pages: &Pages) -> u64;
 - 06.1 to 06.6 have landed on temper's `origin/main`.
 - `git -C <worktree> grep -n -e 'First words' -e 'Start a conversation'
   -- '*.rs'` prints nothing: the stories start chats on temper's page.
-- `heavy cargo nextest run -p temper-client-world`, once, passes the
+- `cargo nextest run -p temper-client-world`, once, passes the
   stories named in 06.1 to 06.6.

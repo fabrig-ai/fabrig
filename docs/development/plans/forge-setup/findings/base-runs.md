@@ -3,14 +3,14 @@
 2026-10-16, on x1, by the planners' sub-agents (forgejo-17's
 retrospective, proposal 1; development.md 5.4): temper at `e40485aa7`,
 skein at `04c1562` (its crates equal `ec686b8a`), each from a scratch
-worktree at that commit, the cargo commands through `heavy`. The
+worktree at that commit, the cargo commands. The
 `runs/<repo>-NN.txt:LINE` of each entry names the planner's list of the
 session's commands; each entry carries its command whole.
 
 ## Summary
 
 - **skein 01:** 17 `base` commands, 17 as expected. The README's x1 gate
-  (`land --gate '… target/check-x1.sh'`): exit 0, the browser suite 37
+  (`bash -c '… target/check-x1.sh'`): exit 0, the browser suite 37
   passed and the one filtered test skipped, 116 s alone.
 - **temper 01 to 15:** 83 `base` commands. 77 as expected at once; four
   were the planner's list escaping `|` as `\|` (the session file's
@@ -34,18 +34,18 @@ session's commands; each entry carries its command whole.
   `client::api::Hint`), one import (12.1's `machine::Order`) and one
   `let … else` syntax error (02); each fixed in the session file
   (fix pass 5) and compiled again clean.
-- **Placement, for an implementer compiling a sketch:** temper's and
+- **Placement, for an author compiling a sketch:** temper's and
   skein's workspaces deny `allow_attributes`; a scratch allow needs a
   reason (`#![expect(…, reason = "…")]`).
 
 ## skein: the base commands
 
 ### 01.1 (runs/skein-01.txt:3)
-`heavy cargo nextest run -p skein-oauth-accounts-world a_refreshed_record_is_stored_privately_before_it_is_lent`
+`cargo nextest run -p skein-oauth-accounts-world a_refreshed_record_is_stored_privately_before_it_is_lent`
 expected: 1 test, 1 passed, under 0.5 s — observed: Summary 1 test run: 1 passed, 52 skipped; PASS [0.004s]; exit 0 — **match**
 
 ### 01.1 (runs/skein-01.txt:5)
-`heavy cargo nextest run -p skein-io -p skein-io-world -E '...4 filters...'`
+`cargo nextest run -p skein-io -p skein-io-world -E '...4 filters...'`
 expected: 4 tests, 4 passed — observed: Summary [0.331s] 4 tests run: 4 passed, 310 skipped; exit 0 — **match**
 
 ### 01.1 (runs/skein-01.txt:6)
@@ -77,24 +77,24 @@ expected: 23670528..., ae0c0e4a..., ed378e5d... each ' *stdin' — observed: the
 expected: 5b5b4571...b891a *stdin — observed: 5b5b45718bbcc73dcc6578f7067d021ba39266484b0b24d1ea44c8a853ab891a *stdin; exit 0 — **match**
 
 ### 01.2 (runs/skein-01.txt:15)
-`heavy cargo nextest run -p skein-oauth-world public_sign_in_refresh_rotation_and_old_refresh_replay`
+`cargo nextest run -p skein-oauth-world public_sign_in_refresh_rotation_and_old_refresh_replay`
 expected: 1 test, 1 passed, under 0.5 s — observed: 1 test run: 1 passed, 7 skipped; PASS [0.002s]; exit 0 — **match**
 
 ### 01.2 (runs/skein-01.txt:16)
-`heavy cargo nextest run -p skein-oauth wrong_state_and_redirect_are_terminal_without_exchange`
+`cargo nextest run -p skein-oauth wrong_state_and_redirect_are_terminal_without_exchange`
 expected: 1 test, 1 passed — observed: 1 test run: 1 passed, 26 skipped; PASS [0.001s]; exit 0 — **match**
 
 ### 01.3 (runs/skein-01.txt:17)
-`heavy cargo nextest run -p skein-oauth -p skein-ui-bundle`
+`cargo nextest run -p skein-oauth -p skein-ui-bundle`
 expected: all pass, incl. pkce RFC 7636 tests, the_page_matches_its_golden, the_digest_covers_paths_and_bytes — observed: Summary [0.016s] 40 tests run: 40 passed, 0 skipped; pkce tests present (3), both bundler tests PASS; exit 0 — **match**
 
 ### 01.3 (runs/skein-01.txt:18)
-`heavy cargo nextest run -p skein-oauth-world public_sign_in_refresh_rotation_and_old_refresh_replay`
+`cargo nextest run -p skein-oauth-world public_sign_in_refresh_rotation_and_old_refresh_replay`
 expected: 1 test, 1 passed, under 0.5 s — observed: 1 test run: 1 passed, 7 skipped; PASS [0.002s]; exit 0 — **match**
 
 ### 01.3 (runs/skein-01.txt:19)
-`heavy cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web && heavy cargo run -p skein-ui-bundle -- ... --noscript '...'`
-expected: exit 0; bundling wall time recorded — observed: exit 0, output dir target/ui-example-bundle/9b02acf966dcb1fd; bundler binary run alone (debug, 3 reps): 1.82 s, 2.00 s, 1.96 s; heavy's run step (incl. cargo) 5 s — **match** (timing recorded: ~1.9 s bundler alone)
+`cargo build --target wasm32-unknown-unknown -p skein-ui-example-shell-web && cargo run -p skein-ui-bundle --... --noscript '...'`
+expected: exit 0; bundling wall time recorded — observed: exit 0, output dir target/ui-example-bundle/9b02acf966dcb1fd; bundler binary run alone (debug, 3 reps): 1.82 s, 2.00 s, 1.96 s; the command's run step (incl. cargo) 5 s — **match** (timing recorded: ~1.9 s bundler alone)
 
 ### done (runs/skein-01.txt:27)
 `git diff ec686b8a origin/main -- crates/skein-io/src/digest.rs crates/skein-oauth/src/pkce.rs crates/skein-ui-bundle/src/digest.rs | grep -c -E '^-\s*pub (fn|struct|enum|const|mod|use|type|trait)\b'`
@@ -105,7 +105,7 @@ expected: 0 — observed: prints 0 (grep -c exit 1 because of no match) — **ma
 expected: exit 0 — observed: exit 0 — **match**
 
 ### done (runs/skein-01.txt:32)
-`heavy --gate -- sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep Summary; done'`
+`sh -c 'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run --workspace 2>&1 | grep Summary; done'`
 expected: three Summary lines per checkout (medians within 0.5 s across ec686b8a and origin/main) — observed at base (origin/main) only: 4.452 s, 5.163 s, 5.485 s, each 2461 tests passed; median 5.163 s; exit 0. The ec686b8a side was not run (task covers base only) — **match** for the base side
 
 ## MISMATCH lines
@@ -115,22 +115,21 @@ none
 
 ```
      Summary [  21.204s] 37 tests run: 37 passed, 1 skipped
-heavy: task 2 (gate) exit 0, waited 97s, ran 116s, log /home/free/src/rust/tmp/logs/20261016T191527-2.log
 exit 0
 ```
 
 ## temper: the base commands
 
 ### 01.1 (runs/temper-01.txt:1)
-`heavy cargo nextest run -p temper-forge-forgejo -p temper-codecs-world -p temper-fake-forge-protocol`
+`cargo nextest run -p temper-forge-forgejo -p temper-codecs-world -p temper-fake-forge-protocol`
 expected: exit 0 (at ready: the 7 tests of tests::accounts and the changed forgejo_start row pass; under 30 s once built) — observed: exit 0; 111 tests run: 111 passed (summary 0.078 s) — **match**
 
 ### 01.1 (runs/temper-01.txt:3)
-`heavy cargo nextest run -p temper-engine-protocol-forge-world --test fake_protocol`
+`cargo nextest run -p temper-engine-protocol-forge-world --test fake_protocol`
 expected: exit 0; 5 tests passed, among them the_component_starts_and_lists_items_through_the_fakes_bytes (under 30 s once built) — observed: exit 0; 5 tests run: 5 passed (0.010 s) — **match**
 
 ### 01.1 (runs/temper-01.txt:4)
-`heavy cargo nextest run -p temper-engine-protocol-forge -E 'test(the_worst_case_counts_answers_and_refuses_overflow)'`
+`cargo nextest run -p temper-engine-protocol-forge -E 'test(the_worst_case_counts_answers_and_refuses_overflow)'`
 expected: exit 0; 1 test passed (the memory guard of 01.1's Shape) — observed: exit 0; 1 test run: 1 passed (0.003 s) — **match**
 
 ### 01.1 (runs/temper-01.txt:6)
@@ -214,7 +213,7 @@ expected: base: two lines, testing/temper-throwaway-forgejo/src/binary.rs:14 and
 expected: users at base, 16 lines: throwaway src/tests.rs 2,40,51,56,61,62,63,64,66; src/lib.rs 5; src/binary.rs 11,14,19,20,51; tools/forgejo-conformance/src/runner.rs 203; no other file (bare VERSION also at tests.rs 36-49 and tests/throwaway.rs 2,25) — observed: exit=1; no output — **MISMATCH: same `\|` escape: exit 1, no output (16 lines expected)**
 
 ### 03.1 (runs/temper-03.txt:7)
-`TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --scratch target/forgejo-component --out tools/forgejo-conformance --component'`
+`TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --scratch target/forgejo-component --out tools/forgejo-conformance --component'`
 expected: exit 0 from a clean tree (about 70 s of recordings after the build); same outcome at base and ready; the tree is dirty after (git checkout -- tools/forgejo-conformance) — observed: exit 0; ran 79 s (77 s alone) incl. build — **match**
 
 ### 03.1 (runs/temper-03.txt:8)
@@ -254,7 +253,7 @@ expected: base, 5 lines: runner.rs:55 and :60, component/reads.rs:57, :93 and :9
 expected: base: "tools/forgejo-conformance/README.md:1" and "tools/git-transcripts/README.md:1"; ready: ":0" for both — observed: exit=0; 2 lines — **match**
 
 ### done (runs/temper-03.txt:35)
-`heavy cargo nextest run -p temper-forge-forgejo -p temper-throwaway-forgejo -p forgejo-conformance`
+`cargo nextest run -p temper-forge-forgejo -p temper-throwaway-forgejo -p forgejo-conformance`
 expected: exit 0 at base and at ready — observed: exit 0; 55 tests run: 55 passed, 1 skipped — **match**
 
 ### done (runs/temper-03.txt:41)
@@ -262,23 +261,23 @@ expected: exit 0 at base and at ready — observed: exit 0; 55 tests run: 55 pas
 expected: prints nothing (exit 1), at base and at ready — observed: exit=1; no output — **match**
 
 ### done (runs/temper-03.txt:42)
-`heavy --gate scripts/check.sh`
+`scripts/check.sh`
 expected: exit 0 (base: 120 s cold, findings/measurements.md) — observed: exit=0; 202 lines — **MISMATCH: ran 238 s alone (log 20261016T191332-0.log), not about 120 s cold; exit 0, all pass (later reruns of the same gate: 32 s and 48 s)**
 
 ### 04.1 (runs/temper-04.txt:1)
-`heavy cargo nextest run -p temper-throwaway-forgejo -p forgejo-conformance`
+`cargo nextest run -p temper-throwaway-forgejo -p forgejo-conformance`
 expected: exit 0 (the existing tests pass at the base; the 7 new tests of 04.1 join them) — observed: exit 0; 18 tests run: 18 passed, 1 skipped — **match**
 
 ### 04.1 (runs/temper-04.txt:2)
-`TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 heavy --gate -- sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --component --scratch target/forgejo-conformance --out tools/forgejo-conformance'`
-expected: exit 0 within 150 s alone (at the base: about 70 s, 1 unchecked webhook-deliveries; it rewrites 34 transcripts, restore with git checkout -- tools/forgejo-conformance/transcripts; after 04.1: no unchecked, 21 delivery facts, deliveries/ with at least 21 directories) — observed: exit 0; ran 70 s (67 s alone); heavy's tail shows no unchecked line, so the 1 unchecked webhook-deliveries was not visible in the output — **match**
+`TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64 sh -c 'cargo run -p forgejo-conformance -- --scratch target/forgejo-conformance --out tools/forgejo-conformance && cargo run -p forgejo-conformance -- --component --scratch target/forgejo-conformance --out tools/forgejo-conformance'`
+expected: exit 0 within 150 s alone (at the base: about 70 s, 1 unchecked webhook-deliveries; it rewrites 34 transcripts, restore with git checkout -- tools/forgejo-conformance/transcripts; after 04.1: no unchecked, 21 delivery facts, deliveries/ with at least 21 directories) — observed: exit 0; ran 70 s (67 s alone); the output's tail shows no unchecked line, so the 1 unchecked webhook-deliveries was not visible in the output — **match**
 
 ### done (runs/temper-04.txt:4)
-`heavy cargo nextest run -p temper-throwaway-forgejo -p forgejo-conformance -p temper-forge-forgejo -p temper-codecs-world`
+`cargo nextest run -p temper-throwaway-forgejo -p forgejo-conformance -p temper-forge-forgejo -p temper-codecs-world`
 expected: exit 0 — observed: exit 0; 89 tests run: 89 passed, 1 skipped — **match**
 
 ### done (runs/temper-04.txt:5)
-`heavy cargo nextest run -p temper-codecs-world --profile fuzzy`
+`cargo nextest run -p temper-codecs-world --profile fuzzy`
 expected: exit 0 — observed: exit 0; 5 tests run: 5 passed — **match**
 
 ### done (runs/temper-04.txt:6)
@@ -354,7 +353,7 @@ expected: prints nothing (exit 1), at the base and after — observed: exit=1; n
 expected: 10 lines at the base, the ten literals of client::Limits (one per file); each gains a settle line after slow — observed: 10 lines, exit 0 — **match**
 
 ### done (runs/temper-06.txt:5)
-`heavy cargo nextest run -p temper-fake-forge-domain -p temper-engine-forge-world -p temper-engine-domain-forge-client -p temper-engine-domain-forge -p temper-engine-domain-forge-change -p temper-service -p temper-conformance-world`
+`cargo nextest run -p temper-fake-forge-domain -p temper-engine-forge-world -p temper-engine-domain-forge-client -p temper-engine-domain-forge -p temper-engine-domain-forge-change -p temper-service -p temper-conformance-world`
 expected: passes at the base (no settle.rs, hooks.rs or settling yet); passes after the session, with the change crate's two settle_window tests among them — observed: exit 0; 426 tests run: 426 passed — **match**
 
 ### done (runs/temper-06.txt:6)
@@ -370,11 +369,11 @@ expected: exit 1 and no output at the base; one line after — observed: exit=1;
 expected: exit 1 and no output at the base; crates/temper-service/src/limits/names.rs:1 after — observed: exit=1; no output — **match**
 
 ### done (runs/temper-06.txt:9)
-`heavy --gate scripts/check.sh`
+`scripts/check.sh`
 expected: exits 0 at the base (about 120 s cold); exits 0 after the session — observed: exit 0; ran 32 s — **match**
 
 ### 07.3 (runs/temper-07.txt:3)
-`export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64; heavy --gate sh -c 'NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E "test(=temper_open_adopts_a_repository_by_commands)"'`
+`export TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64; sh -c 'NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E "test(=temper_open_adopts_a_repository_by_commands)"'`
 expected: 1 test run: 1 passed, within 30 s (13.1 s at the base; the tree committed first); after 07.3 the same command runs on the id read from secrets/forge-1.user — observed: exit 0; 1 test run: 1 passed, PASS [12.767s] (summary 12.767 s) — **match**
 
 ### done (runs/temper-07.txt:12)
@@ -382,11 +381,11 @@ expected: 1 test run: 1 passed, within 30 s (13.1 s at the base; the tree commit
 expected: prints nothing (exit 1) — observed: exit=1; no output — **match**
 
 ### 08.3 (runs/temper-08.txt:5)
-`env TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 heavy --gate scripts/proof-one-process.sh`
+`env TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 scripts/proof-one-process.sh`
 expected: exit 0; at the base "6 tests run: 6 passed" in about 45 s (findings/forge-and-tiers.md 4: 42.4 s); after 08.3 every test passes, at most 90 s — observed: exit 0; 6 tests run: 6 passed (summary 43.304 s; ran 53 s with build) — **match**
 
 ### 08.3 (runs/temper-08.txt:6)
-`env TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile live'`
+`env TEMPER_FORGEJO=$HOME/src/rust/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64 sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p temper --profile live'`
 expected: exit 0; Summary "1 test run: 1 passed" (live binary, fake mode: TEMPER_RUN_LOGS unset); at the base and after 08.3, at most 90 s — observed: exit 0; 1 test run: 1 passed (23.803 s; ran 26 s) — **match**
 
 ### done (runs/temper-08.txt:8)
@@ -414,7 +413,7 @@ expected: exit 0, prints nothing (at the base the paths do not exist) — observ
 expected: exit 0, prints nothing (at the base the paths do not exist; the fake's older tests under src/tests use "actual" and are not in these paths) — observed: exit=0; no output — **match**
 
 ### done (runs/temper-10.txt:8)
-`heavy --gate scripts/check.sh`
+`scripts/check.sh`
 expected: exit 0 (120 s cold at the base) — observed: exit 0; ran 48 s — **match**
 
 ### 11.1 (runs/temper-11.txt:1)
@@ -464,7 +463,7 @@ expected: prints nothing (exit 1); at the base the two crates do not exist, so i
 
 ## Second run, after fix pass 4
 
-Base: temper e40485aa7 (scratch worktree temper-forge-setup-base). Commands whose text was already in the first run, and `heavy --gate scripts/check.sh`, were not rerun. The runs/temper-03.txt greps carry plain `|` in the file now, so no `\|` rewrite was needed. Nothing was written into the worktree.
+Base: temper e40485aa7 (scratch worktree temper-forge-setup-base). Commands whose text was already in the first run, and `scripts/check.sh`, were not rerun. The runs/temper-03.txt greps carry plain `|` in the file now, so no `\|` rewrite was needed. Nothing was written into the worktree.
 
 ### 01.? (runs/temper-01.txt:26)
 `test "$(grep -cE '^fails setup-(create-user|created-user|user-of|a-non-admin|the-admin-token|every-recorded|a-user-made|admin-route|token-|a-made-token|a-git-token|admin-token|api-token|git-token)' tools/forgejo-conformance/facts.txt)" = 0`
@@ -522,7 +521,7 @@ Existing: the component's connections/deadline/body_bytes checks (temper-
 engine-protocol-forge limits.rs `check`) and checks::sockets (startup/
 checks.rs: jig's engine+worker io.sockets, 16+16=32; no temper constant yet).
 No check takes the new values, so each is arithmetic. One throwaway probe
-(`heavy cargo nextest run -p temper-service -E 'test(zz_probe_sockets)'
+(`cargo nextest run -p temper-service -E 'test(zz_probe_sockets)'
 --no-capture`, reverted) read the fixtures' small profile: clients.connections
 4, accounts 1 (handed in), worker slots 1, git operations 3, forge calls 2,
 lifetime 10 s, io intake 1048576, forge body_bytes max(16384, 2*512+21)=16384.
@@ -557,7 +556,7 @@ or expectation.
 
 Placement (mine, not the sketches'): crates/skein-lib/src/sha256.rs (01.1 and 01.2 blocks joined), `pub mod sha256;` in lib.rs (a private module leaves the `#[expect(clippy::new_without_default)]` unfulfilled, since the lint needs an exported item), tests/sha256.rs with `mod sha256;` in tests.rs, each `mod` carrying `#[allow(clippy::todo, unused, dead_code)]`; the workspace lints deny `allow` attributes without reason, so lib.rs also got a crate-level `#![allow(clippy::allow_attributes, clippy::allow_attributes_without_reason)]`; the test's `crate::sha256::Hmac` written `sha256::Hmac` (unused_qualifications; the sketch already imports `sha256`). All four built together.
 
-Command for all four: `heavy cargo clippy -p skein-lib --all-targets -- -D warnings`
+Command for all four: `cargo clippy -p skein-lib --all-targets -- -D warnings`
 
 ### 01.1 skein-lib Sha256, Debug, digest (runs/skein-01.txt:34)
 compile — as above — **clean**
@@ -576,7 +575,7 @@ compile — as above — **DEFECT (minor): the test writes `crate::sha256::Hmac:
 
 ## Recompiled after fix pass 5
 
-Worktree skein-forge-setup-base, placed as at the top of this record (sha256.rs from the 01.1 and 01.2 impl blocks, tests/sha256.rs from both test blocks, `pub mod sha256;` / `mod sha256;`, mod-line allows with reasons), session file text as now, with `sha256::Hmac::new(key)`. `heavy cargo clippy -p skein-lib --all-targets -- -D warnings`.
+Worktree skein-forge-setup-base, placed as at the top of this record (sha256.rs from the 01.1 and 01.2 impl blocks, tests/sha256.rs from both test blocks, `pub mod sha256;` / `mod sha256;`, mod-line allows with reasons), session file text as now, with `sha256::Hmac::new(key)`. `cargo clippy -p skein-lib --all-targets -- -D warnings`.
 
 - 01.2 skein-lib RFC_4231, rfc_4231_cases_1_to_7_give_their_published_macs (runs/skein-01.txt:37): **clean** (all four sketches together).
 
@@ -594,40 +593,40 @@ itself, session lines 71, 163) were stubbed in `tests/codecs/src/forgejo.rs`. Fo
 `pub(crate)` (01.2 does it, session 01 line 162).
 
 ### 01.1 temper-forge-forgejo request.rs: Method, Page, Request variants (runs/temper-01.txt:33)
-compile — module sk01_request; `heavy cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
+compile — module sk01_request; `cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
 
 ### 01.1 temper-forge-forgejo document.rs: User, AccessToken (runs/temper-01.txt:34)
 compile — module sk01_document; same command — **DEFECT: `#[derive(Clone, Default, ..)]` on `User` is refused by clippy.toml's disallowed macro `core::default::Default` ("only the derives in section 10.2"), at the session file's line 350** (also what 01.1's Shape at line 107 and the 20 `..Default::default()` literals at line 106 rest on). Clean once `Default` is dropped.
 
 ### 01.2 temper-throwaway-forgejo instance.rs: Instance::exchange_basic (runs/temper-01.txt:35)
-compile — module sk01_instance; `heavy cargo clippy -p temper-throwaway-forgejo --all-targets -- -D warnings` — **clean**
+compile — module sk01_instance; `cargo clippy -p temper-throwaway-forgejo --all-targets -- -D warnings` — **clean**
 
 ### 01.1 temper-forge-forgejo tests/accounts.rs: a_top_level_user_keeps_admin_flag_and_full_name (runs/temper-01.txt:36)
-compile — second pass (User with `is_admin`, `full_name` added to the base); `heavy cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
+compile — second pass (User with `is_admin`, `full_name` added to the base); `cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
 
 ### 01.2 temper-codecs-world tests/forgejo_setup.rs: setup_requests_encode_as_the_tool_sent_them (runs/temper-01.txt:37)
-compile — `heavy cargo clippy -p temper-codecs-world --lib --test forgejo_setup -- -D warnings` (stubs of `profile_limits`, `setup_cases`; User literal in forgejo.rs adjusted) — **clean**
+compile — `cargo clippy -p temper-codecs-world --lib --test forgejo_setup -- -D warnings` (stubs of `profile_limits`, `setup_cases`; User literal in forgejo.rs adjusted) — **clean**
 
 ### 01.3 temper-forge-forgejo tests/tokens.rs: a_made_token_holds_its_value_and_shows_only_its_length (runs/temper-01.txt:38)
 compile — second pass (`Request::CreateToken`, `Document::Token`, `AccessToken` added); same command as 01.1's test — **DEFECT: `token.value.as_ref().map(Secret::len)` uses the disallowed method `Option::map` ("no closures: match"), at the session file's line 298; `format!("{:?}", token.value)` is the disallowed macro `alloc::format` ("no formatting in step code"), at line 299** (the only two errors).
 
 ### 02.1 temper-forge-forgejo request.rs: Page, HookSpec, Request variants (runs/temper-02.txt:17)
-compile — module sk02_request (names `TeamSpec` through sk02_document); `heavy cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
+compile — module sk02_request (names `TeamSpec` through sk02_document); `cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
 
 ### 02.1 temper-forge-forgejo document.rs: Access, Units, TeamSpec, Team, Org, Hook, access, access_text (runs/temper-02.txt:18)
 compile — module sk02_document; same command — **clean**
 
 ### 02.1 forgejo-conformance src/orgs.rs: record, facts (runs/temper-02.txt:19)
-compile — module sk02_orgs; `heavy cargo clippy -p forgejo-conformance --all-targets -- -D warnings` (`Recorder` made `pub(crate)`) — **clean**
+compile — module sk02_orgs; `cargo clippy -p forgejo-conformance --all-targets -- -D warnings` (`Recorder` made `pub(crate)`) — **clean**
 
 ### 02.1 temper-forge-forgejo tests/orgs.rs: a_team_request_writes_its_booleans_and_four_units_as_literals (runs/temper-02.txt:20)
-compile — second pass (TeamSpec, Units, Access, `Request::CreateTeam` added); `heavy cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
+compile — second pass (TeamSpec, Units, Access, `Request::CreateTeam` added); `cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
 
 ### 02.2 temper-forge-forgejo tests/hooks.rs: a_hook_requests_debug_text_shows_no_secret_bytes (runs/temper-02.txt:21)
 compile — second pass (HookSpec, `Request::CreateOrgHook` added); same command — **DEFECT: `format!("{:?}", Request::CreateOrgHook { .. })` is the disallowed macro `alloc::format` ("no formatting in step code"), at the session file's line 369** (the only error).
 
 ### 03.1 temper-forge-forgejo pin.rs (runs/temper-03.txt:39)
-compile — `pub mod pin;`; `heavy cargo clippy -p temper-forge-forgejo -p temper-throwaway-forgejo -p forgejo-conformance --all-targets -- -D warnings` — **clean**
+compile — `pub mod pin;`; `cargo clippy -p temper-forge-forgejo -p temper-throwaway-forgejo -p forgejo-conformance --all-targets -- -D warnings` — **clean**
 
 ### 03.1 temper-forge-forgejo tests/pin.rs (runs/temper-03.txt:40)
 compile — `mod pin;` in tests.rs; same command — **clean**
@@ -648,7 +647,7 @@ compile — `mod registration;`; same command — **clean**
 compile — `#[cfg(test)] mod sk03_tests;` with its `use crate::registration::configuration`; same command — **clean**
 
 ### 04.2 temper-forge-forgejo delivery.rs (runs/temper-04.txt:21)
-compile — `pub mod delivery;`; `heavy cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
+compile — `pub mod delivery;`; `cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings` — **clean**
 
 ### 04.2 temper-forge-forgejo client/delivery.rs (runs/temper-04.txt:22)
 compile — `mod delivery;` in client.rs; same command — **clean**
@@ -664,7 +663,7 @@ compile — `mod delivery;` in server.rs; same command — **clean**
 
 ## Recompiled after fix pass 5
 
-Worktree temper-forge-setup-sketch2, placements as above (the sk01_*/sk02_* modules; the 01.3 and 02.2 tests as a second pass with `Request::CreateToken`, `Request::CreateOrgHook`, `HookSpec`, `Document::Token`, `AccessToken` added to the real types and `todo!()` arms in the exhaustive matches), session file text as now. `heavy cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings`.
+Worktree temper-forge-setup-sketch2, placements as above (the sk01_*/sk02_* modules; the 01.3 and 02.2 tests as a second pass with `Request::CreateToken`, `Request::CreateOrgHook`, `HookSpec`, `Document::Token`, `AccessToken` added to the real types and `todo!()` arms in the exhaustive matches), session file text as now. `cargo clippy -p temper-forge-forgejo --all-targets -- -D warnings`.
 
 - 01.1 document.rs: User, AccessToken (runs/temper-01.txt:34): **clean** (no `Default`).
 - 01.3 tests/tokens.rs: a_made_token_holds_its_value_and_shows_only_its_length (runs/temper-01.txt:38): **clean**.
@@ -676,16 +675,16 @@ Planner 3, after the recompile: 02-orgs-hooks.md's test now binds `let request =
 ## The sketches: temper-a2
 
 Placement: each sketch as a new module (`sk_*.rs`, or `#[test]` file) with `#![expect(clippy::todo, ..., reason = "sketch")]`
-(the crates deny `allow_attributes`, so `expect`, trimmed to what fires). Commands are `heavy cargo clippy -p <crate> --all-targets -- -D warnings`.
+(the crates deny `allow_attributes`, so `expect`, trimmed to what fires). Commands are `cargo clippy -p <crate> --all-targets -- -D warnings`.
 
 ### 05.1 temper-fake-forge-protocol delivery.rs (runs/temper-05.txt:27)
-compile — `heavy cargo clippy -p temper-fake-forge-protocol --all-targets -- -D warnings` — **clean**
+compile — `cargo clippy -p temper-fake-forge-protocol --all-targets -- -D warnings` — **clean**
 
 ### 05.2 temper-engine-protocol-forge hooks.rs (runs/temper-05.txt:28)
-compile — `heavy cargo clippy -p temper-engine-protocol-forge --all-targets -- -D warnings` — **clean**
+compile — `cargo clippy -p temper-engine-protocol-forge --all-targets -- -D warnings` — **clean**
 
 ### 6.1 temper-fake-forge-domain api.rs: Change, Ended (runs/temper-06.txt:10)
-compile (as `sk_api.rs`, beside `Check`/`JobRef` imported) — `heavy cargo clippy -p temper-fake-forge-domain --all-targets -- -D warnings` — **clean**
+compile (as `sk_api.rs`, beside `Check`/`JobRef` imported) — `cargo clippy -p temper-fake-forge-domain --all-targets -- -D warnings` — **clean**
 
 ### 6.1 temper-fake-forge-domain boundary.rs: Request (runs/temper-06.txt:11)
 compile (as `sk_boundary.rs`; `Change`, `Ended` imported from the api sketch) — same command — **clean**
@@ -694,16 +693,16 @@ compile (as `sk_boundary.rs`; `Change`, `Ended` imported from the api sketch) �
 compile (as `sk_scenario.rs`) — same command — **clean**
 
 ### 6.1 temper-engine-forge-client-world translate.rs: hint (runs/temper-06.txt:13)
-compile (as `sk_translate.rs`) — `heavy cargo clippy -p temper-engine-forge-client-world --all-targets -- -D warnings` — **clean**
+compile (as `sk_translate.rs`) — `cargo clippy -p temper-engine-forge-client-world --all-targets -- -D warnings` — **clean**
 
 ### 6.1 temper-engine-forge-world world.rs: impl World (runs/temper-06.txt:14)
-compile (as `sk_world.rs`) — `heavy cargo clippy -p temper-engine-forge-world --lib -- -D warnings` —
+compile (as `sk_world.rs`) — `cargo clippy -p temper-engine-forge-world --lib -- -D warnings` —
 **DEFECT: `client::Hint` does not exist (`Hint` is `client::api::Hint`; the crate root has only `pub mod api`), at 06-settle.md:307**;
 **DEFECT: `hooked`, `hints`, `wall` lack `#[must_use]` (clippy::must_use_candidate, pedantic denied by -D warnings), at 06-settle.md:306-308**.
 With both fixed: clean.
 
 ### 6.1 temper-engine-forge-world tests/hooks.rs (runs/temper-06.txt:15)
-compile (with the world sketch) — `heavy cargo clippy -p temper-engine-forge-world --test sk_hooks -- -D warnings` — **clean**
+compile (with the world sketch) — `cargo clippy -p temper-engine-forge-world --test sk_hooks -- -D warnings` — **clean**
 
 ### 6.2 temper-engine-forge-world tests/settle.rs (runs/temper-06.txt:16)
 compile (with the world sketch; `changes::{change_row, change_step}` are 6.1's move from simulation.rs, stubbed with the base's signatures,
@@ -711,12 +710,12 @@ which match the sketch's use; 6.1's Files lists `src/changes.rs`, and the base's
 `change_step(&mut World, u64, change::Status, Box<[change::GateReport]>) -> change::Decision` agree) — same crate, `--test sk_settle` — **clean**
 
 ### 6.2 temper-engine-domain-forge settle.rs (runs/temper-06.txt:17)
-compile (as `sk_settle.rs`) — `heavy cargo clippy -p temper-engine-domain-forge --all-targets -- -D warnings` —
+compile (as `sk_settle.rs`) — `cargo clippy -p temper-engine-domain-forge --all-targets -- -D warnings` —
 **DEFECT: `#[derive(Default)]` on `Settle` is a disallowed macro (clippy.toml: "only the derives in section 10.2; a default can be a live state"), at 06-settle.md:331**.
 Without `Default`: clean (the rest, `fold` included, passes).
 
 ### 07.1 temper-forge-setup setup.rs (runs/temper-07.txt:17)
-compile (new crate `crates/temper-forge-setup`, deps skein-lib, skein-json, jig-protocol-config, temper-forge-forgejo; `limits::{Limits, small}` and `problem::Problems` stubbed as the file's Shape says) — `heavy cargo clippy -p temper-forge-setup --all-targets -- -D warnings` —
+compile (new crate `crates/temper-forge-setup`, deps skein-lib, skein-json, jig-protocol-config, temper-forge-forgejo; `limits::{Limits, small}` and `problem::Problems` stubbed as the file's Shape says) — `cargo clippy -p temper-forge-setup --all-targets -- -D warnings` —
 **DEFECT: `Setup::entry` lacks `#[must_use]` (must_use_candidate), at 07-prepare.md:257**. Otherwise clean.
 
 ### 07.1 temper-forge-setup check.rs (runs/temper-07.txt:18)
@@ -759,7 +758,7 @@ compile (with fixtures stubs `Drive::{new, send}`, `first()`, `owned()`) — sam
 
 ## Recompiled after fix pass 5
 
-Same placements (06's world and settle blocks and 07's seven src blocks and tests/read.rs replaced by the session files' current text, trimmed `#![expect]` to what fires). Commands: `heavy cargo clippy -p temper-engine-forge-world --lib -- -D warnings`, `-p temper-engine-domain-forge --all-targets`, `-p temper-forge-setup --all-targets`, all `-- -D warnings`.
+Same placements (06's world and settle blocks and 07's seven src blocks and tests/read.rs replaced by the session files' current text, trimmed `#![expect]` to what fires). Commands: `cargo clippy -p temper-engine-forge-world --lib -- -D warnings`, `-p temper-engine-domain-forge --all-targets`, `-p temper-forge-setup --all-targets`, all `-- -D warnings`.
 
 - 6.1 temper-engine-forge-world world.rs: impl World (06-settle.md:300-318): **clean**
 - 6.2 temper-engine-domain-forge settle.rs (06-settle.md:322-381; `const NEW`, no Default): **clean**
@@ -794,16 +793,16 @@ ready-check — **names agree**: Place, Owned, Spec, Which, State all as 07's sk
 ready-check — **names agree**: run::{Launch, Refusal} are the sketch above's, command::Error is 08.1's sketch 2.
 
 ### 08.3 temper-throwaway-forgejo Instance::attach (runs/temper-08.txt:17)
-compile — `heavy cargo clippy -p temper-throwaway-forgejo --all-targets -- -D warnings` — **DEFECT: 08-run.md:370, the doc comment has no `# Errors` section (clippy::missing_errors_doc: "docs for function returning Result missing # Errors section"); the crate's other pub fns return Result with one. All names resolve; nothing else fires once missing_errors_doc is allowed.**
+compile — `cargo clippy -p temper-throwaway-forgejo --all-targets -- -D warnings` — **DEFECT: 08-run.md:370, the doc comment has no `# Errors` section (clippy::missing_errors_doc: "docs for function returning Result missing # Errors section"); the crate's other pub fns return Result with one. All names resolve; nothing else fires once missing_errors_doc is allowed.**
 
 ### 09.1 temper-forge-setup reconcile.rs sketch A (runs/temper-09.txt:16)
-ready-check — **names agree** (setup::Entry 07.1, place::File 07.2, skein_lib::{Queue, Secret}, temper_forge_forgejo::{document::{Document, Row}, request::Request} at the base). Bonus compile against stubs of Entry/File, as a pub module, with `heavy cargo clippy -p temper-forge-setup --all-targets -- -D warnings`: **DEFECT: 09-reconcile-machine.md:282 and :296, clippy::large_enum_variant on `Event` and `Reply` (Document is 224 bytes at the base; the other variants 16); box Document or the variant. DEFECT: 09-reconcile-machine.md:340, `Reconcile::new` lacks #[must_use] (clippy::must_use_candidate).**
+ready-check — **names agree** (setup::Entry 07.1, place::File 07.2, skein_lib::{Queue, Secret}, temper_forge_forgejo::{document::{Document, Row}, request::Request} at the base). Bonus compile against stubs of Entry/File, as a pub module, with `cargo clippy -p temper-forge-setup --all-targets -- -D warnings`: **DEFECT: 09-reconcile-machine.md:282 and :296, clippy::large_enum_variant on `Event` and `Reply` (Document is 224 bytes at the base; the other variants 16); box Document or the variant. DEFECT: 09-reconcile-machine.md:340, `Reconcile::new` lacks #[must_use] (clippy::must_use_candidate).**
 
 ### 09.1 temper-forge-setup tests/reconcile.rs reference test (runs/temper-09.txt:17)
 ready-check — **names agree**: File::AdminToken, Event/Need/Reply/Failure/Stage/Why::Unmarked and `Need::Send { request, token }`/`Need::Stop` as sketch A; fixtures `Run::{managed, step, forge, bot}`, `secret`, `ADMIN`, `admin() -> User`, `person(login, full_name) -> User` each with the signature the Test shape gives; `Request::User` and `Document::User(User)` exist at the base.
 
 ### 09.2 temper-fake-forge-protocol setup.rs sketch B (runs/temper-09.txt:18)
-compile — `heavy cargo clippy -p temper-fake-forge-protocol --all-targets -- -D warnings` (as `mod setup;`) — **clean**
+compile — `cargo clippy -p temper-fake-forge-protocol --all-targets -- -D warnings` (as `mod setup;`) — **clean**
 
 ### 09.2 temper-forge-setup-reconcile-world tests/reconcile.rs (runs/temper-09.txt:19)
 ready-check — **names agree**: World::{managed, reconcile, store, file, secrets_absent}, Ended::Done are in 09.2's world text; `Store::find(&[u8]) -> Option<&Account>` (admin, full_name, id), `token_user(&[u8]) -> Option<u64>` as sketch B; bot `temper`, full name `temper:bot`, id 2 after `temper-admin` id 1.
@@ -821,13 +820,13 @@ ready-check — **names agree**: `temper_service::startup::Named` is at the base
 ready-check — **names agree**: `reconcile(Settings, &Clock) -> Result<(), Refused>` and `Refused::line()` as the sketch; Peer and settings are 10.1's fixtures (support/mod.rs), named in the Test shape.
 
 ### 10.1 temper-forge-setup-shell tests/exchange.rs reference test (runs/temper-10.txt:20)
-ready-check — **names agree**: `exchange::pause(backoff, cap, deadline, attempt: u32, began, now)`; bonus: compiled in the stub crate and `heavy cargo nextest run -p temper-forge-setup-shell` passes (1 test).
+ready-check — **names agree**: `exchange::pause(backoff, cap, deadline, attempt: u32, began, now)`; bonus: compiled in the stub crate and `cargo nextest run -p temper-forge-setup-shell` passes (1 test).
 
 ### 10.2 temper binaries, tier_configuration (runs/temper-10.txt:21)
 ready-check — **names agree** with 08.1's owned.rs (no clash with Names/document/configuration/prepare/files/scripted/finished) and with 13.1/14.1/11.1's uses (`tier_configuration(&Path) -> SocketAddr`, `binaries() -> (PathBuf, PathBuf)`). Bonus compile (appended to the 14.1 module): **DEFECT: 10-reconcile.md:322 and :325, `binaries` and `tier_configuration` lack #[must_use] (clippy::must_use_candidate).**
 
 ### 10.2 temper Throwaway::job_state (runs/temper-10.txt:22)
-compile — `heavy cargo clippy -p temper --all-targets -- -D warnings` — **DEFECT: 10-reconcile.md:331, `job_state` lacks #[must_use] (clippy::must_use_candidate; 11.1's methods have it).**
+compile — `cargo clippy -p temper --all-targets -- -D warnings` — **DEFECT: 10-reconcile.md:331, `job_state` lacks #[must_use] (clippy::must_use_candidate; 11.1's methods have it).**
 
 ### 10.2 temper .forgejo/workflows/check.yaml (runs/temper-10.txt:23)
 not Rust — `python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' check.yaml` — **clean**: one job `check` on `temper-host`, `on: push: branches: ['temper/**']` only (PyYAML reads the key `on` as True, a YAML 1.1 quirk; Forgejo's parser is not affected).
@@ -836,19 +835,19 @@ not Rust — `python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' ch
 ready-check — **names agree**: the module is 05.3's (05-webhooks.md names `support/webhooks.rs`, "temper 11.1 extends it"), which gives `webhooks::signature(secret, body)`, `configuration`, `served`, `free_address`; no `Delivery`/`receive` there to clash.
 
 ### 11.1 temper support/forgejo.rs impl Throwaway { webhooks, secret, push } (runs/temper-11.txt:17)
-compile — `heavy cargo clippy -p temper --all-targets -- -D warnings` (appended to the base file) — **clean**
+compile — `cargo clippy -p temper --all-targets -- -D warnings` (appended to the base file) — **clean**
 
 ### 11.1 temper process.rs a_push_is_delivered_signed_with_the_secret_reconcile_drew (runs/temper-11.txt:18)
 ready-check — **names agree**: `Throwaway::{webhooks, secret, push, stop}` (sketch above), `webhooks::{receive, signature}` (11.1 / 05.3), `support::WITHIN` and `skein_lib::bytes::find` at the base.
 
 ### 11.2 temper process.rs the two stories and fn landing (runs/temper-11.txt:19)
-compile — `heavy cargo clippy -p temper --all-targets -- -D warnings` (replacing the base test of the first story's name) — **clean**
+compile — `cargo clippy -p temper --all-targets -- -D warnings` (replacing the base test of the first story's name) — **clean**
 
 ### 11.2 temper support/mod.rs LANDING, RAISED_MS, raise_paces (runs/temper-11.txt:20)
-compile — `heavy cargo clippy -p temper --all-targets -- -D warnings` (as module support/landing.rs) — **clean**
+compile — `cargo clippy -p temper --all-targets -- -D warnings` (as module support/landing.rs) — **clean**
 
 ### 12.1 temper-box limits.rs sketch 1 (runs/temper-12.txt:11)
-compile — `heavy cargo clippy -p temper-box --all-targets -- -D warnings` (new no_std crate, deps skein-lib) — **clean**
+compile — `cargo clippy -p temper-box --all-targets -- -D warnings` (new no_std crate, deps skein-lib) — **clean**
 
 ### 12.1 temper-box machine.rs sketch 2 (runs/temper-12.txt:12)
 ready-check — **names agree**: `temper_forge_setup::Step` is re-exported at the root (07-prepare.md:60) with `Step::new(name, arguments, long)` and `is_long()`; skein_io::kernel::Exit at the base. Bonus compile against a Step stub: clean.
@@ -866,10 +865,10 @@ ready-check — **names agree**: Step (07.1), `limits::{Limits, Unfit}` (12.1 sk
 ready-check — **names agree**: Exit::Code(u8), Time::saturating_since, Duration ordering at the base; fixtures `Harness, once, long` are 12.2's.
 
 ### 13.1 temper box_command.rs run (runs/temper-13.txt:12)
-compile — `heavy cargo clippy -p temper --all-targets -- -D warnings` (as `mod box_command;`) — **clean**
+compile — `cargo clippy -p temper --all-targets -- -D warnings` (as `mod box_command;`) — **clean**
 
 ### 13.1 temper tests/support/boxed.rs Plan, Outcome, run, status (runs/temper-13.txt:13)
-compile — `heavy cargo clippy -p temper --all-targets -- -D warnings` (`pub mod boxed;`) — **clean**
+compile — `cargo clippy -p temper --all-targets -- -D warnings` (`pub mod boxed;`) — **clean**
 
 ### 13.1 temper process.rs temper_box_prints_the_link_and_a_stop_leaves_no_process (runs/temper-13.txt:14)
 ready-check — **names agree**: `owned::tier_configuration` (10.2) and `boxed::{run, Plan::Stop, status}` as sketched; `printed_link`, `Scratch::new`, `skein_lib::bytes::find` at the base. Bonus compile with 10.2's sketch D appended: clean.
@@ -878,13 +877,13 @@ ready-check — **names agree**: `owned::tier_configuration` (10.2) and `boxed::
 ready-check — **names agree**: `Plan::KillForgejo`, `forgejo_pids`, `engine_served`, `left` are in sketch 2. Bonus compile: clean.
 
 ### 14.1 temper tests/support/owned.rs EXAMPLE, SHIPPED, Owned, ... lay (runs/temper-14.txt:18)
-compile — `heavy cargo clippy -p temper --all-targets -- -D warnings` (module alone, placeholder example files) — **DEFECT: 14-example.md:251, :256, :261, :266, `Owned::example`, `Owned::tier`, `application`, `example_document` lack #[must_use] (clippy::must_use_candidate, 4 errors); nothing else fires.**
+compile — `cargo clippy -p temper --all-targets -- -D warnings` (module alone, placeholder example files) — **DEFECT: 14-example.md:251, :256, :261, :266, `Owned::example`, `Owned::tier`, `application`, `example_document` lack #[must_use] (clippy::must_use_candidate, 4 errors); nothing else fires.**
 
 ### 14.1 temper tests/startup.rs serve_on_the_owned_example_asks_only_for_the_files_reconcile_makes (runs/temper-14.txt:19)
-compile — `heavy cargo clippy -p temper --all-targets -- -D warnings` (with the owned.rs sketch) — **clean** (`Scratch::startup`, `prepare_in`, `fs` exist at the base)
+compile — `cargo clippy -p temper --all-targets -- -D warnings` (with the owned.rs sketch) — **clean** (`Scratch::startup`, `prepare_in`, `fs` exist at the base)
 
 ### 15.1 temper-forge-setup upgrade.rs Course, course, backup_name (runs/temper-15.txt:6)
-compile — `heavy cargo clippy -p temper-forge-setup --all-targets -- -D warnings` (new no_std crate) — **clean**
+compile — `cargo clippy -p temper-forge-setup --all-targets -- -D warnings` (new no_std crate) — **clean**
 
 ## DEFECT lines
 - 08-run.md:370 (08.3 attach): doc lacks `# Errors` (missing_errors_doc).
@@ -901,7 +900,7 @@ Aside, found while stubbing 07's names (07-prepare.md, not my files): :287 `Step
 
 Same scratch worktree and placements, each replaced by the session file's current block; the extra allows I had added for the
 defects (`missing_errors_doc`, `large_enum_variant`, `must_use_candidate`) were removed, so only `todo`, `unused`,
-`dead_code` (and `needless_pass_by_value` on todo bodies) remain. Command per crate: `heavy cargo clippy -p <crate> --all-targets -- -D warnings`.
+`dead_code` (and `needless_pass_by_value` on todo bodies) remain. Command per crate: `cargo clippy -p <crate> --all-targets -- -D warnings`.
 
 - 08.3 temper-throwaway-forgejo Instance::attach (08-run.md:364-373): **clean**
 - 09.1 temper-forge-setup reconcile.rs sketch A (09-reconcile-machine.md:256-347): **clean** (its `#[expect(clippy::large_enum_variant)]` on Event and Reply are fulfilled; `Reconcile::new` has `#[must_use]`)

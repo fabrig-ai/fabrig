@@ -53,8 +53,8 @@ count as tests (code-organization.md 6) and the sizes are the gate's lines and t
 
 ## Choices this plan makes
 
-- **The repin** (04.1's first commit; README, Rules; development.md 5.7): `heavy cargo update -p skein-lib -p
-  jig-client` moves both git sources to their `origin/main`, then `heavy cargo check --workspace --all-targets`. smith
+- **The repin** (04.1's first commit; README, Rules; development.md 5.7): `cargo update -p skein-lib -p
+  jig-client` moves both git sources to their `origin/main`, then `cargo check --workspace --all-targets`. smith
   stays at `f47f4df9`, which jig's `origin/main` also pins. jig's crates then build against skein's `main`, ahead of
   jig's own skein pin; skein 01 only adds variants that jig matches with a fallback arm (`skein/01-prerequisites.md`).
 - **The configuration is the process tier's, copied:** `documents` and `support::configuration`'s writes, into the
@@ -117,7 +117,7 @@ count as tests (code-organization.md 6) and the sizes are the gate's lines and t
 Scope: README "The repin"; browser.md 4.3; 4.1 story 1, the printed link (Design questions 1 and 2).
 Needs: temper 01.2, 02.3; skein 01.4.
 Files:
-- The repin's commit: `Cargo.lock`, and what `heavy cargo check --workspace --all-targets` then names.
+- The repin's commit: `Cargo.lock`, and what `cargo check --workspace --all-targets` then names.
 - `Cargo.toml`: `tests/client-browser` in `members`; `skein-fake-person-browser`, `skein-browser` and
   `jig-client-fake-person-browser`, each copying the URL its repository's lines use (`skein-scratch` is there at the
   base). `Cargo.lock`.
@@ -391,6 +391,6 @@ Each in a worktree of temper at `origin/main`, after `git fetch` there and in `~
   "fn pressed\("'`: temper's skein holds skein 01.4, and so 01.1 to 01.3 before it.
 - `sh -c 'rev=$(git show origin/main:Cargo.lock | grep -o -E "fabrig-dev/jig\.git#[0-9a-f]{40}" | head -n 1 |
   cut -d"#" -f2); test -n "$rev" && git -C ~/src/rust/jig merge-base --is-ancestor 8cc7e79f "$rev"'`
-- `heavy sh -c 'test "$(cargo nextest list -p temper-client-browser-world --profile browser --message-format oneline |
+- `sh -c 'test "$(cargo nextest list -p temper-client-browser-world --profile browser --message-format oneline |
   wc -l)" -eq 10'`
-- `heavy --gate scripts/check.sh` exits 0, with `SKEIN_TEST_CHROMIUM` set.
+- `scripts/check.sh` exits 0, with `SKEIN_TEST_CHROMIUM` set.

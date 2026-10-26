@@ -113,7 +113,7 @@ Proof: each test beside its kind (the engine's task line in
 `crates/jig-client-protocol-link/src/tests/documents.rs`; the view's cut
 in `crates/jig-client-view/src/tests/owner_chip.rs`, the notes filter's
 whole path beside `sections/project/notes.rs`'s tests); jig's gate, by
-`land`. Downstream, the temper step that first pins a jig holding this
+merging. Downstream, the temper step that first pins a jig holding this
 step sets `segments` in `temper-client-shell-terminal/src/limits.rs:52-59`,
 `temper-client-domain/src/tests/fixtures.rs:37-44`,
 `temper-client-view/src/tests/fixtures.rs:34-41` and `forge_route.rs:611`

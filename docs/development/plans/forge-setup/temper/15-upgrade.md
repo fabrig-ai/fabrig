@@ -66,7 +66,7 @@ none (setup.md 6.3 item 4). The plan's last temper work: a box at the pinned ver
   TEMPER_FORGEJO_RUNNER=$HOME/src/rust/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64`. No live
   service, no sign-in.
 - **Hotspots shared with client-api (README):** `crates/temper/tests/process.rs` and `tests/support/*` (to about 10-18 20Z).
-  A rebase takes origin/main's `Cargo.lock`, then `heavy cargo check -p temper-forge-setup -p temper-forge-setup-shell -p
+  A rebase takes origin/main's `Cargo.lock`, then `cargo check -p temper-forge-setup -p temper-forge-setup-shell -p
   temper --tests`; 15.1 adds no dependency, so no `cargo update`.
 
 ## Increments
@@ -190,7 +190,7 @@ runner)` rewrites `state`'s versions, `None` keeping one (07.2's `decode`/`encod
 preparation leaves that file byte-equal, same mtime. `an_older_recorded_runner_has_its_files_prepared_again_without_a_dump`:
 `state` rewritten to runner `13.1.0`, the runner's configuration (`owned::file(directory, forge, File)`) removed; the
 preparation exits 0, the configuration is back byte-equal (its uuid came from the new registration), `backups/` is empty.
-Command: `heavy --gate sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p
+Command: `sh -c 'export NEXTEST_DOUBLE_SPAWN=0; cargo build -p temper --bin temper && cargo nextest run -p
 temper --profile process -E "test(=an_older_recorded_forgejo_is_dumped_then_upgraded) +
 test(=an_older_recorded_runner_has_its_files_prepared_again_without_a_dump)"'` ends `2 tests run: 2 passed`, about 30 s, at
 most 90 s. Nothing runs higher: the migration finds nothing to do on a v17 database (its order after the dump is the unit
@@ -248,10 +248,10 @@ for a runner older than its pin (item 3) or added (item 4)".
 
 With the two binaries exported (Rules):
 1. The upgrade works on the real binaries: 15.1's command ends `2 tests run: 2 passed`.
-2. The default-suite tests pass: `heavy cargo nextest run -p temper-forge-setup -p temper-forge-setup-shell -p temper
+2. The default-suite tests pass: `cargo nextest run -p temper-forge-setup -p temper-forge-setup-shell -p temper
    -E 'test(~the_upgrade_) + test(~newer_recorded) + test(~an_interrupted_upgrade) + test(~a_renamed_file) +
    test(~a_runner_added) + test(~a_runner_removed) + test(~the_run_names_prepare)'` ends `14 tests run: 14 passed`.
 3. No version in production code: `git grep -n -E '"v?[0-9]+\.[0-9]+\.[0-9]+"' origin/main --
    crates/temper-forge-setup/src crates/temper-forge-setup-shell/src ':!*/tests/*' ':!*/tests.rs'` prints nothing.
-4. The default suite passes, 08.1's boundary test included: `heavy cargo nextest run -p temper-forge-setup
+4. The default suite passes, 08.1's boundary test included: `cargo nextest run -p temper-forge-setup
    -p temper-forge-setup-shell -p temper` ends with every test passed.

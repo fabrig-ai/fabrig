@@ -9,12 +9,12 @@ Frozen Skein `9ab88f697e8d6831913db40c78f3c300cb187e8e`; Temper `48543c5ac91b2b8
 | 3 session commands | 102 distinct commands; all Cargo commands pass; literal exceptions below and in220 |
 | 4 moved copies/users | copies absent; original underscore query misses Cargo hyphens; nine manifest users verified separately |
 | 5 neutral names | missed: eight application-name matches in independent GitHub/setup changes; correction retained in later.md |
-| 6 process | 22/22 pass,101.744s tier,118.808s outer heavy; two upstream-deleted sign-in identities recorded |
+| 6 process | 22/22 pass,101.744s tier,118.808s outer command; two upstream-deleted sign-in identities recorded |
 | 7 facts | 218 facts,213 stable,207 holds,6 fails,5 timing,0 unchecked; unchanged digest |
 | 8 time aims | Skein+1.933/+6.734s and13 Temper package/profile increases: missed; all measured commands pass |
 | 9 budget history | Temper empty; Skein contains designer217's explicit exhaustive-profile exception; existing caps unchanged |
 
-Every C row gives seconds for its command. Every measurement invocation is separately listed below; phase times include compilation and heavy wait. Full raw output and immutable wrappers remain at the named absolute paths. The original and effective (`--locked`) command and its references are in results.jsonl; no result is silently repaired.
+Every C row gives seconds for its command. Every measurement invocation is separately listed below; phase times include compilation and queue wait. Full raw output and immutable wrappers remain at the named absolute paths. The original and effective (`--locked`) command and its references are in results.jsonl; no result is silently repaired.
 
 ## Final command ledger
 
@@ -307,18 +307,17 @@ Three slowest final tests for every missed package/profile aim:
 | temper-final-temper-worker-domain-world-default | `cargo nextest run --locked -p temper-worker-domain-world` | 0 | 0.516 | Summary [   0.021s] 23 tests run: 23 passed, 0 skipped ([output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-results/temper-final-temper-worker-domain-world-default.log)) |
 | temper-final-temper-worker-domain-world-fuzzy | `cargo nextest run --locked -p temper-worker-domain-world --profile fuzzy` | 0 | 1.040 | Summary [   0.111s] 2 tests run: 2 passed, 0 skipped ([output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-results/temper-final-temper-worker-domain-world-fuzzy.log)) |
 
-### Direct heavy phases and final process proof
+### Command phases and final process proof
 
-- `skein-base`: exit0, wall627.488s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/heavy --gate --tail 8 -- bash /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-skein-base.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-skein-base.log).
-- `skein-final`: exit0, wall277.541s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/heavy --gate --tail 8 -- bash /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-skein-final.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-skein-final.log).
-- `temper-base`: exit0, wall315.649s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/heavy --gate --tail 8 -- bash /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-temper-base.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-temper-base.log).
-- `temper-final`: exit0, wall195.111s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/heavy --gate --tail 8 -- bash /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-temper-final.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-temper-final.log).
-- `process`: exit0, wall118.808s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/heavy --gate --tail 35 -- scripts/proof-one-process.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-process.log).
+- `skein-base`: exit0, wall627.488s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/bash /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-skein-base.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-skein-base.log).
+- `skein-final`: exit0, wall277.541s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/bash /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-skein-final.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-skein-final.log).
+- `temper-base`: exit0, wall315.649s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/bash /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-temper-base.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-temper-base.log).
+- `temper-final`: exit0, wall195.111s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/bash /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/measure-temper-final.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-temper-final.log).
+- `process`: exit0, wall118.808s; command `/srv/data/git/runner/src/tmp/temper/forge-kit/kit/scripts/dev/scripts/proof-one-process.sh`; [full output](/srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/final-frozen-sources-longer-than-every-implementer-worktree/phase-process.log).
 
 Process tail:
 ```
-heavy: queued task 749 in the gate lane
-heavy: … 47 earlier lines in /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/queue/logs/20261020T121455-749.log
+
         SLOW [> 12.000s] (─────) temper::process a_persons_change_lands_on_the_forge_and_is_found_after_a_restart
         SLOW [> 15.000s] (─────) temper::process a_persons_change_lands_on_the_forge_and_is_found_after_a_restart
         SLOW [> 18.000s] (─────) temper::process a_persons_change_lands_on_the_forge_and_is_found_after_a_restart
@@ -353,7 +352,5 @@ heavy: … 47 earlier lines in /srv/data/git/runner/src/tmp/temper/forge-kit/sup
         PASS [   0.101s] (22/22) temper::process temper_serve_prints_its_link_and_drains_on_a_signal
 ────────────
      Summary [ 101.744s] 22 tests run: 22 passed (9 slow), 0 skipped
-heavy: ran alone for 115s
-heavy: task 749 (gate) exit 0, waited 0s, ran 117s, log /srv/data/git/runner/src/tmp/temper/forge-kit/supervisor-done-when-20261020T1147Z/queue/logs/20261020T121455-749.log
 
 ```

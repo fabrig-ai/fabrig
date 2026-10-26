@@ -143,7 +143,7 @@ Found by the rehearsal's `cargo check --workspace --all-targets
 `jig_fake_person`, `jig_shell_text` (none in temper), each moved tree
 type and `Owner::Side`. Shared hotspot: `Cargo.lock`.
 Shape, in this order:
-1. The pins, from temper's root, through `heavy`: `cargo update -p
+1. The pins, from temper's root: `cargo update -p
    jig-domain-core --precise a3b5354672019b776e1d4408d585dea0c126fdf7`,
    `cargo update -p skein-lib --precise f12f29d43b808f819795473d96bd5696ae3fb30b`,
    `cargo update -p smith-host-protocol --precise 29fa97c9cdfdcd1a0d0bc28e270de5be221c0928`,
@@ -229,7 +229,7 @@ Shape, in this order:
     118.
 11. skein `f12f29d4`: `stream::Read::Arrived { max }` with the other reads
     (`tests/worker/protocol-git/src/io.rs:242`).
-12. The codecs regenerated: `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest
+12. The codecs regenerated: `SKEIN_CODEGEN_WRITE=1 cargo nextest
     run -p temper-codecs-world --test drift`, once; their goldens do not
     change (measured: 306, 3,913 and 503 lines of generated code
     changed, no golden file; clippy clean).
@@ -255,7 +255,7 @@ The front's `delivers` rule runs in
 `random_people_and_faults_make_each_request_once`. Each named test
 matched one test at the base (`logs/w1/temper-base-filters.txt`).
 Proof: the process tier, the real binary on the new pins, once through
-the build lane: `heavy sh -c 'cargo build -p temper --bin temper &&
+the build lane: `sh -c 'cargo build -p temper --bin temper &&
 NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper --profile process -E
 "test(temper_open_signs_in_prints_the_inbox_and_exits_on_q)"'`. It shows
 `temper serve` printing its link, `temper open` signing in by it and
@@ -300,7 +300,7 @@ two names, kebab and snake, and of their directories; nothing in
 Shape: the two packages' names and directories; their users' `use`
 paths and manifest keys follow.
 Test shape: no new test; no test's name changes.
-Proof: `land`'s gate: a rename shows nothing above the build and the
+Proof: the gate: a rename shows nothing above the build and the
 suites that link the renamed crates. In it,
 `client_wire_schema_matches_generated_code_and_goldens`
 (`temper-codecs-world`, reading the moved schema and goldens) passes;

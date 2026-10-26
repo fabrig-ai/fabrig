@@ -103,7 +103,7 @@ One status row instead of LIMITS.statuses = 8 forces eviction; ci::room stays.
 The moved `every_call_is_answered_once_under_every_fault`: 0.051 s, 32 seeded
 sweeps, each up to 64 sending rounds and 4096 draining rounds. Retain
 it with its cost recorded, not hidden by a filter.
-Proof: world `heavy cargo nextest run -p skein-fake-forge-domain`: 100 pass
+Proof: world `cargo nextest run -p skein-fake-forge-domain`: 100 pass
 (97 units, 3 memory); base forms are the domain's 96 in 0.081 s and the
 memory package's 3 in 0.005 s; after the move under 0.5 s overall.
 Memory is the highest caller until 05.2 connects protocol; 05.4 adds the peer.
@@ -140,7 +140,7 @@ Add `service_refuses_limits_without_a_worst_case` (<20 ms): fixture
 `worst_case(&limits, &config) == None` and
 `Service::new(config, &limits, 3).err() == Some(crate::Error::Limits)`.
 The base already refuses this (answer 33); no production change.
-Proof: joint `heavy cargo nextest run -p skein-fake-forge-protocol`: 56 pass;
+Proof: joint `cargo nextest run -p skein-fake-forge-protocol`: 56 pass;
 base 0.033 s (earlier baseline 0.078 s), under 0.5 s overall. It connects
 HTTP, dialect and domain; a socket host is not available until 05.4.
 Don't: repair a protocol difference while copying; import an application world.
@@ -200,7 +200,7 @@ fn a_signature_holds_for_its_body_only() {
 Extend the existing delivery tests to decode their posts to literal
 `Delivery` values too (repository 2, item 3, commit 7 as their hooks
 specify); keep the moved names and the independent RFC 4231 vector.
-Proof: joint `heavy cargo nextest run -p skein-fake-forge-protocol`: 67 pass,
+Proof: joint `cargo nextest run -p skein-fake-forge-protocol`: 67 pass,
 under 0.5 s overall; base 55 in 0.033 s. Highest available before 05.4.
 Don't: change setup permissions, subscribe stored hooks, or add a production codec.
 Size: about 60 lines moved (`Pump` and `deliver`, the base fixtures.rs
@@ -268,9 +268,9 @@ destinations:
   branch's; pending empty, one reply each, same last now.
 - `shutdown_keeps_a_mid_request_client_until_its_terminal`: call ends once, admission closes,
   then all hosts empty and 0 open descriptors.
-Proof: joint `heavy cargo nextest run -p skein-fake-peers`: 12 pass (8 at the base, 0.046 s);
+Proof: joint `cargo nextest run -p skein-fake-peers`: 12 pass (8 at the base, 0.046 s);
 the new forge tests <0.5 s together, each <0.5 s; moved tests keep their times.
-Proof: joint `heavy cargo nextest run -p skein-fake-forge-protocol`: 68 pass, <0.5 s overall;
+Proof: joint `cargo nextest run -p skein-fake-forge-protocol`: 68 pass, <0.5 s overall;
 covers capture below the peer.
 Don't: move fake git's parsing/Remote, thread-local factory, application stories or credentials;
 deliver a hook; enable TLS, subscribe setup hooks or change protocol constants.
@@ -317,9 +317,9 @@ second; Sim also drives a receiving listener. Six peer tests:
 Their form, in `tests/forge.rs`: `fixtures::World::late_delivery(23)`, `create_issue_and_settle()`,
 then `delivery_outcomes()` is `[forge::Delivery::Written]`, `received_posts()` 1 and
 `first_delivery_at() >= fixtures::LATE_MIN`.
-Proof: joint `heavy cargo nextest run -p skein-fake-peers`: 18 pass; the new forge tests <1 s
+Proof: joint `cargo nextest run -p skein-fake-peers`: 18 pass; the new forge tests <1 s
 together, each <0.5 s.
-Proof: joint `heavy cargo nextest run -p skein-fake-forge-protocol`: 68 pass, unchanged, <0.5 s.
+Proof: joint `cargo nextest run -p skein-fake-forge-protocol`: 68 pass, unchanged, <0.5 s.
 Don't: retry or resend a delivery; resolve a name; enable TLS; subscribe setup hooks.
 Size: about 0 lines moved, 300 new (estimated: delivery about 220, six tests and fixtures about
 80; decision 26).
@@ -393,16 +393,16 @@ impl Service {
 ## Done when
 
 Run from skein; no full gate duplicate.
-- `heavy cargo nextest run -p skein-fake-forge-domain` prints 100 passed;
-  `heavy cargo nextest run -p skein-fake-forge-domain --test memory`
+- `cargo nextest run -p skein-fake-forge-domain` prints 100 passed;
+  `cargo nextest run -p skein-fake-forge-domain --test memory`
   prints 3 passed, under 0.5 s overall.
-- `heavy cargo nextest run -p skein-fake-forge-protocol` prints 68 passed, <0.5 s.
-- `heavy cargo nextest run -p skein-fake-peers` prints 18 passed; new forge
+- `cargo nextest run -p skein-fake-forge-protocol` prints 68 passed, <0.5 s.
+- `cargo nextest run -p skein-fake-peers` prints 18 passed; new forge
   tests <1 s together, each <0.5 s; moved times retained.
-- `heavy cargo clippy -p skein-fake-forge-domain -p skein-fake-forge-protocol
-  --all-targets -- -D warnings` and `heavy cargo clippy -p skein-fake-peers
+- `cargo clippy -p skein-fake-forge-domain -p skein-fake-forge-protocol
+  --all-targets -- -D warnings` and `cargo clippy -p skein-fake-peers
   --all-targets -- -D warnings` print Finished without warnings.
-- `heavy rg -n -i temper testing/skein-fake-forge-domain
+- `rg -n -i temper testing/skein-fake-forge-domain
   testing/skein-fake-forge-protocol testing/skein-fake-peers` prints
   nothing (rg exit 1 means no matches). Base forms and the expected
   source-name matches are recorded in findings/base-skein-05.md.

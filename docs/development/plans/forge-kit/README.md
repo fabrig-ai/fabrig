@@ -131,19 +131,7 @@ chain.
 
 ## Rules of this plan
 
-- **Director's scope cut, ruling189 (2026-10-20):** drop skein07.4,08.5,09.2,09.3,09.4 from this run, to the GitHub draft, section17. PartC reshapes teams/hooks, runtime credentials, App key, installation tokens and puller; the director owns that draft. Keep every other step, especially05.2first when slots are scarce,07.3,08.1–08.4,09.1,10.5,10.s1 and Temper07.1/07.2. Preserve every test temper deletes by its retained move; the protocol package ends with the five09.1tests, no fuzzy run; the retained machine steps end at41, plus08.s1’s two separated identities (43 final, no additional scenario). The independent component measurement runs once after GitHub holders exist. The closing temper-repin waits only for retained steps. Session Done-when checks and later.md apply this cut; no runtime limit or kept proof changes.
-
-- **Director's parallel capacity instruction (2026-10-20 00:20Z):** run
-  every dependency-ready session the coordinator can hold, in parallel,
-  within the normal resource limits. Give temper05.2's critical path
-  priority when slots are scarce; it does not hold unrelated ready work.
-  Resume preserved checkpoints and dirty drafts with their fresh owners.
-  Rebase owned work onto Accounts' compatible landed mains; reuse its
-  adapters and rederive complete fixture sums instead of retaining stale
-  deltas. Keep every required proof and limit. This run's Codex experiment
-  keeps kit d6d4abe and its local adapter; a kit move needs the director.
-  If Codex actually runs out, pause under development.md7.6; the director
-  resumes it. Do not reserve capacity solely because of subscription usage.
+- **Scope cut, ruling189 (2026-10-20):** drop skein07.4,08.5,09.2,09.3,09.4 from this run, to the GitHub draft, section17. PartC reshapes teams/hooks, runtime credentials, App key, installation tokens and puller; the review owns that draft. Keep every other step, especially05.2first when slots are scarce,07.3,08.1–08.4,09.1,10.5,10.s1 and Temper07.1/07.2. Preserve every test temper deletes by its retained move; the protocol package ends with the five09.1tests, no fuzzy run; the retained machine steps end at41, plus08.s1’s two separated identities (43 final, no additional scenario). The independent component measurement runs once after GitHub holders exist. The closing temper-repin waits only for retained steps. Session Done-when checks and later.md apply this cut; no runtime limit or kept proof changes.
 
 - **Workspace license inheritance:** every new workspace member in skein or smith carries
   `license.workspace = true` in `[package]`, beside its other workspace-inherited fields.
@@ -157,7 +145,7 @@ chain.
 
 - **Connection component test shape:** skein03.s1 owns hourly07’s sampled corrections after03.3: separate backoff progression from terminal-state immutability and derive named capacities from the two-row page and sequential single-resource eviction premises. Preserve the assertion mapping in findings/connection-shapes.md, inherited tests, wire values, inputs, outcomes, limits and timing budgets. Add only the scoped connection-shapes AST recurrence mode to the existing checker/gate under development.md14.4; preserve recovery, plan-shapes and any already-landed listing mode/controls. Normal readiness precedes implementation. Serialize shared checker/gate edits without holding existing starts; closing temper-repin also waits for03.s1. Final connection counts gain relative+1; historical increment proofs keep their original counts.
 
-- **The director’s Cargo org cutover:** the GitHub org is now `fabrig-dev`; remotes already use it and old URLs redirect. The director moves smith’s, jig’s and temper’s `Cargo.toml` and `Cargo.lock` source URLs together, in one change after temper’s tools part 1 ends, with pins unchanged. Until that landing every Cargo source line stays `forgetic`; afterward every source line uses `fabrig-dev`. A step adding a dependency copies the URL its `Cargo.toml` already uses; this rule governs the plans’ older literal URL examples. If a rebase conflicts on a source line in either Cargo file, take main’s file and rerun the step’s authorized repin. A gate error naming two skein sources identifies a remaining `forgetic` line: rename it. Preserve the existing checks and one source per upstream; the GitHub redirect does not unify Cargo source identities.
+- **The Cargo org cutover:** the GitHub org is now `fabrig-dev`; remotes already use it and old URLs redirect. The review moves smith’s, jig’s and temper’s `Cargo.toml` and `Cargo.lock` source URLs together, in one change after temper’s tools part 1 ends, with pins unchanged. Until that landing every Cargo source line stays `forgetic`; afterward every source line uses `fabrig-dev`. A step adding a dependency copies the URL its `Cargo.toml` already uses; this rule governs the plans’ older literal URL examples. If a rebase conflicts on a source line in either Cargo file, take main’s file and rerun the step’s authorized repin. A gate error naming two skein sources identifies a remaining `forgetic` line: rename it. Preserve the existing checks and one source per upstream; the GitHub redirect does not unify Cargo source identities.
 
 - **Plan contracts and repository matches:** skein10.s2 owns hourly05’s three sampled corrections after10.4: separate the literal subscription contract from delivery mapping, keep word-validity assertions separate from marker round trips, and match repository Documents exhaustively under programming-model.md10.2. Preserve every mapped assertion, outcome and ordering. Add only the scoped plan-shapes AST gate mode under development.md14.4; preserve landed recovery controls, and listing mode/controls only when present from10.s1. 10.s2 must neither add nor require10.s1 files; later10.s1 preserves plan-shapes mode/controls. Normal readiness precedes implementation; serialize shared checker/gate edits with10.s1 without holding existing starts. Closing temper-repin waits for10.s2. Final calls/edges counts include its relative +2; historical increment proofs retain their original counts.
 
@@ -175,9 +163,7 @@ chain.
   only a clean primary `main` to its already-landed `origin/main`, check
   alignment and the dry-run push again, and preserve the passed gate's
   exact tree/result. Dirty or divergent primaries return a report. This
-  synchronization touches no implementer's worktree or the pinned kit.
-
-- **Preflight lane ownership:** a pinned heavy gate pauses build groups while it owns the exclusive interval and releases them on exit. A preflight Paused observation during that interval is transient; retain the owning task/log and take a status-only recheck after release. Never unpause another live gate or start another preflight, queue probe or main gate solely for already-resolved metadata/queue drift. Continue the original preflight and preserve its exact gate result; an actual queue/gate failure returns with its own evidence. The supervisor handles only failed clean-primary alignment and dry-run checks under189.
+  synchronization touches no author's worktree or the pinned kit.
 
 - **Busy admission test shape:** jig01.s4 extracts only the reference busy test’s typed socket-drain plumbing into its existing server fixtures. Keep all eight assertions visible and ordered in the single test, with the same calls, queued ends, retirement, fixture values and budgets. No runtime, pin, accounting, gate or test-count change; normal readiness comes first. The existing closing temper-repin also waits for01.s4; Temper02.1 and Accounts retain independent ownership, and other starts stay unheld. Refresh further reached copies within this test-only scope and list users in the commit body.
 
@@ -210,7 +196,7 @@ chain.
   copies and list them in the owning commit. Completed recordings satisfying
   this exact rule need no repeat; all pending gate/increment proofs remain.
 
-- **Readiness proof preparation:** preflight explicit shell scripts and any source generator before submitting a bounded heavy attempt. Verify the clean candidate first; keep temporary accounting diagnostics in a separate scratch copy so a diagnostic setup defect cannot prevent its compile, clippy and existing-profile proof. Reuse an executed baseline only after source, test-identity and count verification. Setup failures still consume attempts; a new budget needs a supervisor ruling. Use isolated owned sources/targets, retain provenance and remove only completed owned targets; no global cache or dependency-code changes.
+- **Readiness proof preparation:** preflight explicit shell scripts and any source generator before submitting a bounded attempt. Verify the clean candidate first; keep temporary accounting diagnostics in a separate scratch copy so a diagnostic setup defect cannot prevent its compile, clippy and existing-profile proof. Reuse an executed baseline only after source, test-identity and count verification. Setup failures still consume attempts; a new budget needs a supervisor ruling. Use isolated owned sources/targets, retain provenance and remove only completed owned targets; no global cache or dependency-code changes.
   Freeze and hash each absolute Bash wrapper after bash-n preflight and before submission. Never rewrite a queued or running script. Establish deadline/watchdog handling before launch; any correction uses a new immutable script and only an already authorized remaining attempt. A checker-caused wrapper failure consumes its attempt and leaves the underlying result incomplete, with original commands, diagnostics and locks retained.
 
 - **Diagnostic process attempts:** before spending an authorized process probe, select a fresh run-owned instance path and the harness for its process tier; verify prerequisites and the exact request comparison before execution. Preserve earlier evidence instead of reusing a nonempty instance. Setup failures still consume attempts. Exhausting a diagnostic budget requires a report and a new ruling before another attempt; it does not expand unit-suite time limits or authorize retries.
@@ -283,17 +269,16 @@ chain.
   `crates/temper-service/src/family.rs` and `src/family/refusals.rs`
   (its README's hotspots name them for the forge kit) touch none of this
   plan's files: temper 03.1 here changes temper-service's `forge.rs`
-  and its neighbours, not the family. By the director's order for this
+  and its neighbours, not the family. By the order for this
   run, it starts before the tools plan's temper 11 lands. The tools run
   is on `debian-16gb-hel1-1`, on the same temper `main`. The coordinator
   must register `plan await coordinator tools/temper-01.1` and must not
   start temper 01.1 here until that step is on `origin/main`. No other
   hotspot above adds a wait for tools temper 11; rebase conflicts are
-  resolved as `land` and the implementer's card say. The fake and host
+  resolved before merging. The fake and host
   copy windows above still hold until their named landings.
 - **Each temper increment that needs a new skein step repins first,** in
-  a commit of its own: `heavy cargo update -p skein-lib`, then `heavy
-  cargo check --workspace --all-targets`. It moves every skein crate,
+  a commit of its own: `cargo update -p skein-lib`, then `cargo check --workspace --all-targets`. It moves every skein crate,
   jig's and smith's included (one revision per source); skein's new
   crates and modules break neither (Repin). **`Cargo.lock` is never
   merged by hand:** a conflict takes `origin/main`'s, and the update runs
@@ -308,10 +293,10 @@ chain.
 - **The first repin's jig repair** (temper 01.1): if its jig source is
   still `719bd70d4`, the first skein repin also takes landed tools
   `jig-02.1`, `b2eebe6ab91af9eca121588f2d44072fcbdf3b9c`, with
-  `heavy cargo update -p jig-client-domain --precise b2eebe6ab91af9eca121588f2d44072fcbdf3b9c`.
+  `cargo update -p jig-client-domain --precise b2eebe6ab91af9eca121588f2d44072fcbdf3b9c`.
   This repairs the RequestTable admission-number interface. Keep one jig
   revision per source, retain the skein update, and run the existing
-  `heavy cargo check --workspace --all-targets` before the repin commit.
+  `cargo check --workspace --all-targets` before the repin commit.
   If another landing has already moved jig forward compatibly, keep it;
   this rule authorizes no backward pin. The remaining tools steps add no
   wait to this repair. Refresh derived fixtures reached by the normal check
@@ -329,7 +314,7 @@ chain.
   readiness before implementation: the diagnosis's candidate
   (`client_names.rs` and its eight fixtures) is its evidence, with no
   system or forge word in jig and `breaches`' signature kept. temper 02.1
-  takes it in its repin, with `heavy cargo update -p jig-boundary --precise
+  takes it in its repin, with `cargo update -p jig-boundary --precise
   <the repair's commit>`: one jig revision per source, a newer compatible
   jig kept, no backward pin. Its migration, deletion and clippy go on
   meanwhile; its naming proof and its landing wait. `tests/client/tests/names.rs`
@@ -353,7 +338,7 @@ chain.
   other caller of the mount's `Event::Call` in jig asking first; a test
   at each seam (the room across a heard, unhandled end; the reference's
   call past the room answered `503`). No profile or connection number
-  changes. temper 02.1's commit 7 takes it with `heavy cargo update -p
+  changes. temper 02.1's commit 7 takes it with `cargo update -p
   jig-protocol-engine-clients-http --precise <the repair's commit>`, one
   jig revision per source, and the closing temper repin waits for it.
   In temper's shared `unclaimed` path, both the existing 404 and the new
@@ -445,7 +430,7 @@ chain.
   `people_v4`; client-tools `jig/render/document/limits.rs`'s `Lacking::Models`;
   client-tools, client-view and client-domain test fixtures' unavailable wire
   `v9`. These name reached sites, not chosen defaults or target versions.
-  Obtain the director's actual downstream owner/disposition and repair Step
+  Obtain the actual downstream owner/disposition and repair Step
   before consuming the newer interfaces; preserve the retained exact locks
   and diagnostics in `scratch-hourly-17`. The introducing interface step is
   not itself a downstream repair trailer.
@@ -463,7 +448,7 @@ chain.
   (`Down::Send.value` and `link::Event::Send.value`). These extend only
   the same Accounts-2/smith-sources inventory. Retain exact source hashes,
   compiler messages and locks from scratch-hourly-19/diagnostic-custody.json.
-  Await the director's actual downstream owner/disposition and repair Step;
+  Await the actual downstream owner/disposition and repair Step;
   no defaults, forced pins, dependency patches, new diagnosis or repeated
   adapter audit. The eventual owner refreshes reached copies and proves
   its actual tree. This inventory is no newer-head compatibility proof.
@@ -479,7 +464,7 @@ chain.
   within that owning repair and list users. Actual-tree compilation remains required.
   Hourly17 also reaches Temper's worker-domain `agents.rs`,
   `tests/fixtures.rs` and `tests/lifecycle.rs` grant literals. Retain these
-  with the Jig sites under the same director routing; choose no form here.
+  with the Jig sites through the same dependency; choose no form here.
 - **Settled smith adapters at the next repin:** smith's live-text
   decisions2.2/answer4 and For the user9 settle v3 paths, `live: None`
   and ignored `OpenEvent::Live`; its later.md expressly assigns them to
@@ -493,7 +478,7 @@ chain.
   `crates/temper-service/src/tests/worker.rs`'s derived `encode_start` proof.
   Set the three Start literals to no ask and ignore only Live in the
   two worker_route matches; use the landed codec for derived sizes.
-  This is the director's recorded policy, not live-display implementation.
+  This is the recorded policy, not live-display implementation.
   Temper05.2 and06.2 retain their checkpoints and wait for jig01.s2 and
   temper02.1, then rebase onto the adapter landing and keep every own proof.
   Other runs' next repins reuse the landing instead of redoing its sweep;
@@ -506,7 +491,7 @@ chain.
 - **Mechanical repairs during repins** belong to the existing repin commit.
   Follow landed upstream renames, paths, signatures and generated-version
   moves through their whole sweep, including source, tests, schema comments,
-  copied values and derived fixtures, as implementer 8.2 allows. Keep fields,
+  copied values and derived fixtures, for the dependency update. Keep fields,
   behaviour, test identities and assertions; list further users and repairs
   in the commit body. Use the increment's existing all-target check and gate.
   A straightforward successor-name repair needs no further scope block;
@@ -549,7 +534,7 @@ chain.
   for paths, and the increment's tolerance applies to the new lines
   alone.
 - **A completed supervisor check releases its build outputs.** Once its worker
-  has ended and no queued/running heavy task uses its paths, remove its scratch
+  has ended and no queued/running command uses its paths, remove its scratch
   build targets, including a custom CARGO_TARGET_DIR, while retaining source,
   patches, reports and logs. Count available filesystem bytes after cleanup:
   Btrfs targets may share cache extents, so du totals do not measure reclaimed
@@ -560,7 +545,7 @@ chain.
   once, never in the gate, with the pinned binaries named:
   `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
   TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-  heavy --gate scripts/proof-one-process.sh` in temper, with `WS` the
+  scripts/proof-one-process.sh` in temper, with `WS` the
   workspace: `~/src/rust`, or `~/src` on a machine that keeps its
   checkouts there (AGENTS.md). skein's throwaway and conformance take
   the same paths as flags (skein 06). The tier is load-sensitive: two
@@ -630,12 +615,12 @@ skein, for skein's) at `origin/main`, the plan's worktrees removed.
    binaries named as Rules say,
    `TEMPER_FORGEJO=$WS/tmp/temper/forgejo/v17.0.0/forgejo-17.0.0-linux-amd64
    TEMPER_FORGEJO_RUNNER=$WS/tmp/temper/forgejo/runner-v13.2.0/forgejo-runner-13.2.0-linux-amd64
-   heavy --gate scripts/proof-one-process.sh` exits 0.
+   scripts/proof-one-process.sh` exits 0.
 7. The conformance: skein 06.4's stable-fact check, its "Done when"'s
-   `heavy bash` line, prints the five timing outcomes, then
+   `bash` line, prints the five timing outcomes, then
    `facts=218 stable=213 holds=207 fails=6 timing=5 unchecked=0` and the
    base's digest, `d1f7ba2b…18347d` (`findings/base-skein-06.md`).
-8. The test-time aims (Rules), measured once: `heavy --gate -- sh -c
+8. The test-time aims (Rules), measured once: `sh -c
    'export NEXTEST_DOUBLE_SPAWN=0; for i in 1 2 3; do cargo nextest run
    --workspace 2>&1 | grep Summary; cargo nextest run --workspace
    --profile fuzzy 2>&1 | grep Summary; done'` in skein, against the

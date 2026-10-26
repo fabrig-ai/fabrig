@@ -6,7 +6,7 @@ read-only sub-agent.
 
 ## 1. The repin probe
 
-`heavy cargo update -p jig-domain-core --precise a3b53546…`, in a
+`cargo update -p jig-domain-core --precise a3b53546…`, in a
 scratch worktree of temper, failed (exit 101, 433 s): "no matching
 package named `jig-fake-person`", required by `tests/one-process`
 (skein-ui moved it to skein's `skein-fake-person`). `Cargo.lock` was

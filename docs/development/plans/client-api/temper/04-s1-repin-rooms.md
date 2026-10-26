@@ -77,9 +77,9 @@ Shape:
 - jig-17.s2 changes no temper code: its repin repairs are what jig
   landed, as README, "Pins" says.
 
-Proof: the world layer, once: `heavy cargo nextest run -p
+Proof: the world layer, once: `cargo nextest run -p
 temper-engine-domain-world -E 'test(a_change_on_the_forges_deepest_branch_is_served_in_its_task_document)'`
-(the owner's read served), and land's gate.
+(the owner's read served), and the gate.
 Size: at most 20 production lines; the repin's repairs counted apart
 (README, "Pins": at most 200).
 Don't: work around a refusal or a busy `me` in temper's code; set

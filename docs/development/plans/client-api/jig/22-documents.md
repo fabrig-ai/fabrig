@@ -131,7 +131,7 @@ item, and list it in the commit body.
 ## Increments
 
 Each increment regenerates the codec once from the edited schema:
-`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world
+`SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-client-wire-world
 --test drift`, then runs the drift test without the variable. Schema,
 generated code and goldens count no lines (code-organization.md, 7);
 each increment is a codec increment, landing within 2.5 times its Size
@@ -268,7 +268,7 @@ override).
 Limits: the core's from `jig_core_world::world::limits()`
 (`tests/core/src/world.rs:17`), the configuration's templates from
 jig 09's default configuration. Ceilings: unit under 20 ms, joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(me_serves_a_template_merged_with_its_project_s_override)'` once:
 the client's `me` handle holds project 1's template 2 with the override's
 budget and project 2's with the configuration's. Bound: 1 s.
@@ -356,7 +356,7 @@ lines, the first one's first), `a_task_line_says_what_its_task_waits_on`;
 6.3 and 12.5: the project's live tasks, by last change, the section's
 filters as the query's keys; the scripted engine records the one
 opening). Ceilings: unit under 20 ms, world and joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(a_task_query_watch_delivers_the_live_lines_its_keys_select)'`
 once: the handle's latest document holds the tracked task's line alone,
 and a second delivery follows when the other task is amended tracked.
@@ -412,7 +412,7 @@ Test shape: the link's: `a_task_page_decodes_its_two_groups_with_their_cursors`;
 `an_ended_task_is_read_through_its_requester_s_index_after_the_live_ones`
 (two tasks the first owner created, one ended), and
 `a_query_naming_no_index_key_reads_no_ended_group`. Ceilings: unit under 20 ms, joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(an_ended_task_is_read_through_its_requester_s_index_after_the_live_ones)'`
 once: the page's live group holds the live task, its ended group the
 ended one, read from the store. Bound: 1 s.
@@ -535,7 +535,7 @@ counted),
 `cancelling_a_task_says_what_ends_before_it_is_sent` (the reference UI's
 confirmation, by the fake person, shows the task's delegate and its live
 run among what ends). Ceilings: unit under 20 ms, joint under 0.5 s.
-Proof: joint, `heavy cargo nextest run -p jig-client-protocol-world -E
+Proof: joint, `cargo nextest run -p jig-client-protocol-world -E
 'test(cancelling_a_task_says_what_ends_before_it_is_sent)'` once: the
 confirmation's text names the counts the engine's document gave, before
 any request leaves. Bound: 1 s.
@@ -553,9 +553,9 @@ grep` prints nothing after 22.4 (the designer's answer of
 ## Interface sketches
 
 Checked at the plan's base with jig 14's (one edit of the v7 schema in a
-scratch worktree, generated with skein-codegen, `heavy cargo clippy -p
+scratch worktree, generated with skein-codegen, `cargo clippy -p
 jig-protocol-client-wire --lib -- -D warnings` clean; the Rust types in
-a scratch crate against the base's contract types, `heavy cargo clippy
+a scratch crate against the base's contract types, `cargo clippy
 -p w7-sketch --all-targets -- -D warnings` clean). Names from jig 05 and
 jig 09 are checked at the ready check. The derives, `PhaseClass`,
 `ExecutorKind`, `task` of `WaitsOn::Party` and the core types of
