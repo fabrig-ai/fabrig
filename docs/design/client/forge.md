@@ -505,7 +505,12 @@ and `connect-forge.html`.
     which is not connected: "temper connects as its site admin, makes
     its bot and your first repository." and "Connect as its admin".
     HOST is `row.web` when present, otherwise "forge N". The legacy
-    managed object configuration has `admin` false and offers no card;
+    managed object configuration has `admin` false and offers no card.
+    It is Connect a forge's alone: the welcome's Forge step leaves it
+    out, and offers GitHub, Forgejo on this machine and A Forgejo
+    elsewhere, as its mockup draws them (the user, 2026-10-26, a
+    stop-gap: 10). An address that names the forge still opens its
+    Details there;
   - *A Forgejo elsewhere,* always: "Your own Forgejo server. temper
     connects as its admin, or with its bot’s tokens." · "Needs a change
     to temper’s configuration and a restart".
@@ -1257,6 +1262,10 @@ made by the forge connector from what it keeps of the change
   autocomplete off, its text masked) would keep the PEM's lines as
   GitHub gives them and retire the restore. A change to skein's
   builder and page, not temper's.
+- **The welcome's forge choices** (5.4). Default, a stop-gap: Connect
+  a forge's, less a configured admin Forgejo's card. The user's
+  direction (2026-10-26) is that the welcome's items be fixed rather
+  than taken from the configuration; its shape is open.
 - **A browser on another machine** for GitHub's connect. Default: the
   link names the clients' listener's fixed address, and the person
   opens it where that address reaches (in standalone, the engine's

@@ -769,7 +769,8 @@ keeps (`../protocol/configuration.md`, section 2).
     in 5.5's provider and plan words. Key providers join with " or ";
     the other alternatives join with ", or ". No model sentence is
     drawn with no offered way.
-  - *Forge* is `ConnectForge`'s Choose and Details (`forge.md`, 5.4),
+  - *Forge* is `ConnectForge`'s Choose, less a configured admin
+    Forgejo's card, and Details (`forge.md`, 5.4),
     its choice in the welcome's address (`browser.md`, 2.3); inside a
     choice, the foot's one "‹ Back" returns to Forge's Choose. The
     welcome has no "‹ All forges"; `ConnectForge` keeps it. A forge

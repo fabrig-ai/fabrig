@@ -207,9 +207,12 @@ temper**. On **Forge**, take one path:
 - **Forgejo on this machine**: choose **Choose**, fill in the first
   repository's details, then **Set up a Forgejo here**. Its first use
   downloads Forgejo and its runner if they are not cached.
-- **Forgejo at HOST**, matching the printed fake's address: choose
-  **Connect as its admin**, paste the admin token file's text, fill in
-  the first repository's details, and choose **Connect as its admin**.
+- **Forgejo at HOST**, matching the printed fake's address, is not on
+  the welcome: open **Connect a forge** (`/forges/connect`, or
+  **Forges** then **Connect a forge**), choose **Connect as its admin**
+  on its card, paste the admin token file's text, fill in the first
+  repository's details, and choose **Connect as its admin**. Then open
+  `/welcome?at=model` for **Model**.
 
 On **Model**, take one path:
 
