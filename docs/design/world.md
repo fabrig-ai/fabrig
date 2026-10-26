@@ -51,7 +51,7 @@ simulator.md; a world run in a browser is playground.md.
 
 | Crate | Where | Holds |
 |---|---|---|
-| `skein-sim-world` | `crates/` | the world and its steps; the program registry (`HostedProgram`, `Inherited`, startup roots and appends); the machine's seam (`Machine`, `NoMachine`); a process's cut (`Cut`: a kill, a power loss); a hosted pipe's capture (`PipeWriter`, `PipeCapture`, `PipeHost`) |
+| `skein-sim-world` | `crates/` | the world and its steps; the program registry (`HostedProgram`, `Inherited`, startup roots and appends); the machine's seam (`Machine`, `NoMachine`); a process's cut (`Cut`: a kill, a power loss); a hosted pipe's capture (`PipeWriter`, `PipeCapture`, `PipeHost`); what processes print (`Printer`, `Printed`) |
 | `skein-world` | `testing/` | the harness, over `skein-sim-world`, whose items it re-exports under their names: the run with its referee, its expectations and controls, the heap meter, the settled and teardown checks, `Outcome`, digests, and the faults and inputs hooks; the domain worlds' and protocol worlds' helpers (`domain`, `stream`); and, under `cfg(unix)`, the real loop, the ring, the tree keeper and end to end |
 | `skein-fake-machine` | `crates/` | unchanged (testing.md, 4) |
 
@@ -84,6 +84,15 @@ simulator.md; a world run in a browser is playground.md.
   process empty, nothing in flight, every descriptor closed); its
   clock; a process, lent to the loop to give it input (section 5); and
   a cut, planned before a submission or made now (simulator.md, 3.3).
+- **What processes print:** a shell's hook writes short lines to its
+  standard output or error, through a writer its caller supplies
+  (shell.md, 12). In a world, the world supplies it: a printer for a
+  process and a stream, handed to the process at its making, which the
+  world keeps whole lines from, in the order written, until its loop
+  takes them; a bounded unread backlog, past which a write would block,
+  as a pipe's does. A playground's loop brings them to the page
+  (playground.md, 5), the printed link among them; the harness may read
+  them as a referee reads any output.
 - **The harness's run** is the loop of examples.md, section 6 over these
   steps, unchanged in what it checks: the referee acts before a step
   and observes each turn; the heap is metered around each turn; when
