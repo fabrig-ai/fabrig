@@ -1558,7 +1558,7 @@ into the binary.
 | template 3, the configuring chat | a chat, flagged conversation and labelled as jig's chat is, run by charter 3 |
 | policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 100 for the project and for role 0, an authority's spend of 40, with the rules' grants and delegation; its ceiling's and role 0's tool families 513, delegation and reads (jig's `ToolFamilies` Delegate and Read), so that a chat reads the forge it works on |
 | the rules | today's: tools 513, delegation and reads, the forge's grants under `forge`, delegation to charters 1, 2 and 3 and the change procedure, 8 tasks 4 deep, a spend of 100, a run's spend from 1 to 10; and 13.3's two requirements |
-| kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date; no gates, no approvals |
+| kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | charter 2 |
 
 - **The configuring agent is a setting** like any other (`../draft/configuring.md`, 5.1): "Tell temper how you work" starts template 3,
