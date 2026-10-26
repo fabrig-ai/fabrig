@@ -20,7 +20,7 @@ fn the_printed_link_signs_in() {
 
 #[test]
 fn a_reload_on_a_chat_signs_in_by_its_cookie() {
-    let tier = Tier::new("reload-on-a-chat");
+    let tier = Tier::new("reload-on-a-chat").with_model();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let mut steps = temper_client_browser_world::start_chat(b"Hello");
     steps.extend([

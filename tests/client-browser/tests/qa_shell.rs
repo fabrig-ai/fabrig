@@ -222,9 +222,10 @@ fn reloads_in_quick_succession_end_in_one_live_page() {
 /// not an empty composer's Enter, not Shift+Enter, and a second Enter makes no second chat.
 #[test]
 fn enter_starts_one_chat_and_empty_or_shift_enter_none() {
+    let tier = Tier::new("qa-shell-composer").with_model();
     let words = |find: Find, words: &[u8]| Step::Type { find, words: words.into() };
-    play(
-        "qa-shell-composer",
+    played(
+        tier.setup(),
         vec![
             see(live()),
             Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") }),
@@ -272,7 +273,7 @@ fn words_far_past_the_composers_bound_leave_the_page_live() {
 /// restart: the banner says "Offline", then "Live", and a chat started before it is there at its address.
 #[test]
 fn a_restart_shows_offline_then_live_with_the_chat_in_place() {
-    let tier = Tier::reserved("qa-shell-restart");
+    let tier = Tier::reserved("qa-shell-restart").with_model();
     let mut setup = tier.setup();
     setup.expected = vec![
         Box::from(b"net::ERR_CONNECTION_REFUSED".as_slice()),

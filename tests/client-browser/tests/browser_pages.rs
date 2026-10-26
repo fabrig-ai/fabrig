@@ -12,7 +12,7 @@ use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Tier, 
 
 #[test]
 fn back_then_forward_returns_to_the_chat() {
-    let tier = Tier::new("back-then-forward");
+    let tier = Tier::new("back-then-forward").with_model();
     let mut started = Script::new(temper_client_browser_world::start_chat(b"Hello").into_boxed_slice());
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut started]), Outcome::Done, "the chat to return to");
     let chats = Shown { address: b"/chats", sees: Find::exactly_named(Role::Heading { level: 1 }, b"Chats") };
@@ -42,7 +42,7 @@ fn a_non_page_address_opens_the_inbox_at_slash() {
 
 #[test]
 fn enter_starts_one_chat_keeping_a_shift_enter_break() {
-    let tier = Tier::new("composer");
+    let tier = Tier::new("composer").with_model();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let composer = || Find::exactly_named(Role::TextArea, b"Start a chat");
     let chats = || Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") });

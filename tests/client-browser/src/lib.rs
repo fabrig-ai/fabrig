@@ -71,7 +71,8 @@ pub fn bundle() -> PathBuf {
 pub fn first_chat(title: &[u8]) -> Find {
     Find::exactly_named(Role::Heading { level: 1 }, &[b"T1 \xc2\xb7 ".as_slice(), title].concat())
 }
-/// From a signed-in page, start the first chat with `words`, one line, and see it titled by them.
+/// From a signed-in page in a world with a usable model, start the first chat with `words`, one line,
+/// and see it titled by them.
 #[must_use]
 pub fn start_chat(words: &[u8]) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
@@ -118,6 +119,17 @@ impl Tier {
         let scratch = skein_scratch::Scratch::new(name);
         configuration::write(scratch.path(), &temper(), &bundle());
         Self { scratch, forged: forgery::request(), command: "serve" }
+    }
+    /// Give the deployment a usable model without a credential or a reachable LLM peer.
+    #[must_use]
+    pub fn with_model(self) -> Self {
+        let path = self.scratch.path().join("temper.json");
+        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        // As in jig's browser deployment, a provider offering no credential source gets a
+        // deployment-held None account at startup: the view's demo_accounts fixture has this shape.
+        value["engine"]["llm"]["providers"][0]["sources"] = serde_json::json!({});
+        configuration::private(&path, &serde_json::to_vec(&value).expect("model deployment JSON"));
+        self
     }
     /// The first-run demo, with the box's own fake LLM and forge, started when the playground is chosen.
     #[must_use]
