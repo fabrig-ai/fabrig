@@ -27,7 +27,7 @@ pub enum RunAdmission {
 #[derive(Debug)]
 pub struct Transcript {
     pub window: Option<(u64, u32)>,
-    /// The loaded window was closed by an upgrade.
+    /// An upgrade closed the loaded window or crossed its claim.
     pub closed: bool,
     pub previous_attempt: u64,
     pub last: Option<(u64, u32)>,
@@ -202,10 +202,13 @@ impl Core {
             None => None,
         };
         let closed = match self.proofs.get(&task) {
-            Some(proof) => match proof.window {
-                Some(window) => window.closed,
-                None => false,
-            },
+            Some(proof) => {
+                proof.crossed
+                    || match proof.window {
+                        Some(window) => window.closed,
+                        None => false,
+                    }
+            }
             None => false,
         };
         let from = match self.proofs.get(&task) {

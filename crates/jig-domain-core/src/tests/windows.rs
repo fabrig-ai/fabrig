@@ -279,3 +279,16 @@ fn a_window_at_turn_zero_is_refused_at_restore() {
         assert_eq!(core.restore_proof(proof, limits.tasks.result_bytes), accepted, "window turn {turn}");
     }
 }
+
+// engine.md, 7.2: a mark crosses even a claim that committed no window.
+#[test]
+fn beginning_a_crossed_claims_transcript_without_a_window_keeps_it_fresh() {
+    let (mut core, _) = core();
+    let mut proof = RunProof::claimed(1, 1, 1, None, fleet::HostKind::Worker);
+    proof.crossed = true;
+    core.proofs.insert(1, proof).unwrap();
+    core.begin_transcript(1, 1);
+    let transcript = core.transcripts.get(&1).unwrap();
+    assert!(transcript.closed, "a crossed claim cannot resume even without a window");
+    assert_eq!(transcript.window, None);
+}
