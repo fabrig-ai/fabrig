@@ -127,7 +127,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 - **A call that does not decode** is answered at once as an error that
   names what is wrong (its `temper_engine_smith::Problem`: malformed,
   too large, a member missing, of the wrong type or out of range, each
-  naming the member by its name, `repository` or `number`, an
+  naming the member by its path, `repository` or `read.number`, an
   unknown tool), and decides nothing: the routing renders the error as
   smith's text and hands it to the root as `WorkerInput::RenderedHostCall
   { to, answer }`, with the answer marked an error, and the root relays
