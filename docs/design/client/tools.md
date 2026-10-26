@@ -372,8 +372,18 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   | `run N` | `ended` |
   | `accounts` | `usable` (an account the party's work may use has a source usable on a host); `settled` (no sign-in or check the party asked is in progress) |
   | `forges` | `settled` (no forge setting up or connecting: no set up, connect or install the deployment asked is in progress); `connected:F` (forge F is connected); `made:F` (forge F's first repository is made, `../protocol/setup.md`, 6.7) |
-  | `change N` | `pull` (its pull request is open: the panel names its number); `ci:pending`, `ci:passed`, `ci:failed` (CI at its head, as the panel says it); `held` (it is held); `landed` (its step is landed) |
+  | `change N` | `pull` (its pull request opened: the panel names its number, which it keeps after the pull request closes or lands); `ci:pending`, `ci:passed`, `ci:failed` (CI at its head, as the panel says it); `held` (it is held); `landed` (its step is landed) |
 
+- **A change's wait outlives its panel's watch,** as the change's page
+  does (`../client/forge.md`, 9.2, **Its subject**): when the panel's
+  watch opens `Unknown` or ends, the wait reads task N; while the task
+  is live, it watches the panel again at the task's next document (a
+  change the forge has not registered yet); once the task has ended
+  with a change result, it opens the panel once more and judges the
+  condition on that last panel, its digest the last panel's. Any other
+  end answers not met, exit 3, with the last panel and its digest, and
+  a task that ended with no change result prints `no change panel for
+  task N`, exit 2.
 - **`replied`** holds while a chat's status (jig's
   `client/domain/client.md`, section 19, its facts) is parked, waiting
   for you, waiting for them, held, closing or ended. A chat wakes on its
