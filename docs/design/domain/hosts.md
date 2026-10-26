@@ -835,8 +835,7 @@ smith runs an Open run on a program backend, keeping the program across
 its turns (smith's `protocol/programs.md`, 5.9): selection and the
 claim's recheck judge its models and grants by the same view as any
 task's, each source, account and host still checked and the binding
-revalidated exactly, and no run waits as `OpenProgram`. The recheck
-below stays, for a start a host refuses for its grants. The client's
+revalidated exactly, and no run waits as `OpenProgram`. The client's
 `TaskWaitRefused.program` arm, which would name that wait, stays on the
 wire with no producer.
 
@@ -849,20 +848,10 @@ a number twice, before keeping it, and a malformed list refuses the
 channel without counting an agent short.
 
 A refused agent start carries its typed cause, `StartCause::{Other,
-Grants}`, apart from the operator's bytes. A run's end is rechecked,
-its attempt released and no try spent, if and only if all of these
-hold:
-
-- its start was refused with the Grants cause;
-- its saved work and its result passed their fences;
-- it spent nothing and committed no turn;
-- its task's program source, on its main binding or an alternative,
-  was offered.
-
-Whatever class the host's refusal was given, the recheck is the same;
-the selection then refuses an unsupported start again. A structural
-invalid from the host, a program endpoint not proven, and a run that
-committed keep their ordinary handling.
+Grants}`, apart from the operator's bytes. Either is an invalid start:
+it spends a try, as any refused start does, so that a host that refuses
+the same start every time ends its task's tries rather than spawning an
+agent for ever.
 
 ## 9. Messages and delivery
 
