@@ -79,14 +79,7 @@ fn request(
 }
 // The bundle's item is AdminToken (1), not AppKey (11). Preserve every byte.
 fn admin_token(token: &[u8]) -> Option<skein_lib::Secret> {
-    if token.is_empty() || token.len() > 4090 {
-        return None;
-    }
-    let mut out = skein_lib::Writer::new(token.len().checked_add(6)?);
-    out.put(&[1, 1, 1, 0]).ok()?;
-    out.put(&u16::try_from(token.len()).ok()?.to_le_bytes()).ok()?;
-    out.put(token).ok()?;
-    Some(skein_lib::Secret::new(out.finish()))
+    temper_client_domain::forge::forges::pasted_admin_token(token)
 }
 fn admin_how(
     call: &jig::call::Call,
@@ -252,7 +245,7 @@ pub(super) fn send(
         Some(pem) => {
             let bundled = if admin { admin_token(pem.expose()) } else { domain::pasted_app_key(pem.expose()) };
             let Some(value) = bundled else {
-                let printed = render::failure(b"credential file must contain 1 to 4090 bytes", called.json, 1);
+                let printed = render::failure(b"credential file must contain 1 to 4089 bytes", called.json, 1);
                 finish(called, printed, out);
                 return;
             };

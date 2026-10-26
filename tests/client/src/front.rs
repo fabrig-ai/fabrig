@@ -1315,7 +1315,7 @@ impl Joint {
             } = &request
             {
                 let value = self.transport.carried().get(&carried.number).expect("admin carrier");
-                assert!(value.expose().starts_with(&[1, 1, 1, 0]), "item-1 bundle");
+                assert!(value.expose().starts_with(&[0, 1, 0]), "temper-secrets admin bundle");
                 self.admin_connects.push((*forge, *attempt));
                 self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
                     forge: *forge,

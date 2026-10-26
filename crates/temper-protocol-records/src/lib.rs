@@ -1,16 +1,20 @@
-//! Forge records, protocol/credentials.md, 2.1. No store schema is changed.
+//! Forge records from temper-secrets (protocol/README.md, 9; protocol/credentials.md, 2.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
 use alloc::boxed::Box;
-#[expect(clippy::disallowed_types, reason = "temper-01 explicitly requires the codec writing half to return Vec")]
-use alloc::vec::Vec;
 use skein_forge_connection::{Access, settings::Kind};
 use skein_forge_setup::item;
 use skein_lib::{Map, Secret, Writer};
 
+#[rustfmt::skip]
+#[path = "generated/v1.rs"]
+pub mod v1;
+mod codec;
+pub use codec::{PASTED_BYTES, PASTED_PAYLOAD, PastedError, decode, decode_pasted, encode, encode_pasted};
+
 pub const FAMILY_FORGE: u16 = 1;
-pub const VERSION: u8 = 1;
+pub const VERSION: u16 = 1;
 pub const CARRIED: u64 = 1 << 63;
 const FORGES: u32 = 65536;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -70,25 +74,6 @@ pub fn parse(number: u64) -> Option<(u16, u16, Item)> {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Unreadable;
-pub fn value(bytes: &[u8]) -> Result<&[u8], Unreadable> {
-    match bytes.split_first() {
-        Some((&VERSION, rest)) => Ok(rest),
-        Some(_) | None => Err(Unreadable),
-    }
-}
-/// The codec's writing half; runtime writes arrive in temper-05.
-#[must_use]
-#[expect(
-    clippy::disallowed_types,
-    clippy::disallowed_methods,
-    reason = "temper-01 explicitly exposes encode as Vec; allocated once at the checked length"
-)]
-pub fn encode(bytes: &[u8]) -> Vec<u8> {
-    let mut out = Writer::new(bytes.len().checked_add(1).expect("record length"));
-    out.put(&[VERSION]).expect("version");
-    out.put(bytes).expect("item");
-    out.finish().into_vec()
-}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Origin {
     pub kind: Kind,
@@ -97,28 +82,14 @@ pub struct Origin {
 impl Origin {
     #[must_use]
     pub fn encode(&self) -> Box<[u8]> {
-        let mut out = Writer::new(self.api.len().checked_add(1).expect("origin length"));
-        out.put(&[match self.kind {
-            Kind::Forgejo => 1,
-            Kind::GitHub => 2,
-        }])
-        .expect("kind");
-        out.put(self.api.as_bytes()).expect("api");
+        let value = codec::generated_origin(self).expect("configured origin within schema ceiling");
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("origin length"));
+        value.encode(&mut out).expect("measured origin");
         out.finish()
     }
-    #[expect(clippy::disallowed_methods, reason = "the origin codec validates its UTF-8 text")]
     pub fn decode(bytes: &[u8]) -> Result<Self, Unreadable> {
-        let (kind, api) = bytes.split_first().ok_or(Unreadable)?;
-        let kind = match kind {
-            1 => Kind::Forgejo,
-            2 => Kind::GitHub,
-            _ => return Err(Unreadable),
-        };
-        let api = core::str::from_utf8(api).or(Err(Unreadable))?;
-        if api.is_empty() {
-            return Err(Unreadable);
-        }
-        Ok(Self { kind, api: Box::from(api) })
+        let value = v1::Origin::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(bytes)).or(Err(Unreadable))?;
+        codec::origin(value)
     }
 }
 /// Display is part of the stored format, including IPv6 brackets.
@@ -155,6 +126,7 @@ pub struct Rows {
 pub struct ForgeRows {
     values: [Option<Secret>; 10],
     unreadable: bool,
+    unreadable_items: u16,
 }
 #[expect(clippy::new_without_default, reason = "the programming model uses explicit constructors")]
 impl Rows {
@@ -169,8 +141,11 @@ impl Rows {
         }
         let Ok(forge) = u16::try_from((number >> 16_u32) & 0xffff_ffff) else { return };
         if self.forges.get(&forge).is_none() {
-            let row =
-                ForgeRows { values: [None, None, None, None, None, None, None, None, None, None], unreadable: false };
+            let row = ForgeRows {
+                values: [None, None, None, None, None, None, None, None, None, None],
+                unreadable: false,
+                unreadable_items: 0,
+            };
             self.forges.insert(forge, row).expect("all u16 forge numbers fit");
         }
         let row = self.forges.get_mut(&forge).expect("inserted forge");
@@ -178,12 +153,20 @@ impl Rows {
             row.unreadable = true;
             return;
         };
-        if bytes.expose().len() > usize::try_from(value_bytes).expect("u32 bound") {
-            row.unreadable = true;
-            return;
-        }
         let index = usize::from(item.code()).checked_sub(1).expect("positive item");
-        *row.values.get_mut(index).expect("ten item codes") = Some(bytes);
+        let bit = 1_u16 << index;
+        let decoded = if bytes.expose().len() > usize::try_from(value_bytes).expect("u32 bound") {
+            Err(Unreadable)
+        } else {
+            decode(item, bytes.expose())
+        };
+        match decoded {
+            Ok(value) => {
+                *row.values.get_mut(index).expect("ten item codes") = Some(value);
+                row.unreadable_items &= !bit;
+            }
+            Err(Unreadable) => row.unreadable_items |= bit,
+        }
     }
     #[must_use]
     pub fn forge(&self, forge: u16) -> Option<&ForgeRows> {
@@ -191,11 +174,13 @@ impl Rows {
     }
 }
 impl ForgeRows {
-    /// Read an item past temper's version byte; malformed rows are refused.
+    /// Read skein setup bytes translated from a validated schema row.
     pub fn get(&self, item: Item) -> Result<&[u8], NotConnected> {
         let index = usize::from(item.code()).checked_sub(1).expect("positive item");
-        value(self.values.get(index).expect("ten codes").as_ref().ok_or(NotConnected::Incomplete)?.expose())
-            .or(Err(NotConnected::Unreadable))
+        if self.unreadable || self.unreadable_items & (1_u16 << index) != 0 {
+            return Err(NotConnected::Unreadable);
+        }
+        Ok(self.values.get(index).expect("ten codes").as_ref().ok_or(NotConnected::Incomplete)?.expose())
     }
     #[must_use]
     pub fn has(&self, item: Item) -> bool {
@@ -253,13 +238,13 @@ pub fn access(
     bounds: &item::Bounds,
     webhooks: bool,
 ) -> Result<Start, NotConnected> {
-    if rows.unreadable {
+    if rows.unreadable || rows.unreadable_items != 0 {
         return Err(NotConnected::Unreadable);
     }
     // Validate even optional/unused items: one unreadable row refuses the set.
     for (index, bytes) in rows.values.iter().enumerate() {
         let Some(bytes) = bytes else { continue };
-        let bytes = value(bytes.expose()).or(Err(NotConnected::Unreadable))?;
+        let bytes = bytes.expose();
         if index == 9 {
             Origin::decode(bytes).or(Err(NotConnected::Unreadable))?;
             continue;

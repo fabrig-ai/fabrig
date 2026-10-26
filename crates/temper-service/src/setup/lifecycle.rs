@@ -261,7 +261,7 @@ pub(crate) fn state(engine: &mut crate::engine::Engine, forge: u16, state: domai
     engine.events.push(root::Event::Forge(Box::new(domain::Event::Connection { forge, state })));
 }
 pub(super) fn keep(engine: &mut crate::engine::Engine, forge: u16, item: Item, bytes: &[u8], purpose: Purpose) {
-    let value = Secret::new(records::encode(bytes).into_boxed_slice());
+    let value = Secret::new(records::encode(item, bytes).expect("validated setup item").into_boxed_slice());
     let bound = usize::try_from(engine.setup.value_bytes).expect("record bound");
     assert!(value.expose().len() <= bound, "startup::checks::records proves every encoded setup write fits");
     assert!(engine.setup.next_write < (1_u64 << 60_u32), "setup write names fit prefix");

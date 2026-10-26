@@ -2419,6 +2419,7 @@ dependencies = [
  "skein-lib",
  "skein-ui",
  "temper-client-protocol-wire",
+ "temper-protocol-records",
 ]
 
 [[package]]
@@ -3031,6 +3032,7 @@ name = "temper-protocol-records"
 version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
+ "skein-codec",
  "skein-forge",
  "skein-forge-connection",
  "skein-forge-setup",
@@ -3174,6 +3176,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-program",
  "smith-transcript",
+ "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-engine-domain",
  "temper-engine-domain-forge",

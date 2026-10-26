@@ -89,7 +89,7 @@ Connect an existing GitHub App with its private PEM file:
 For a shared App, set forge 2's app_read_only to true in C/temper.json before starting the box.
 Its hook is read and left; an unaccepted installation is kept, never uninstalled; the key and grants are checked.
 The private file must be regular, owned by you, with no group or other permissions.
-PEM is 1 to 4090 bytes after one final newline; the carried bundle is at most 4096 bytes.
+PEM is 1 to 4089 bytes after one final newline; the carried bundle is at most 4096 bytes.
 It is sent once, never kept or replayed; use the same --key and file to recover a lost answer.
 Read the connected App's installations, then accept one already made, with no browser:
   temper ctl DIRECTORY forges

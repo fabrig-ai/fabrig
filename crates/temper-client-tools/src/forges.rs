@@ -47,7 +47,7 @@ pub const CONNECT: Tool = Tool {
                 b"An existing GitHub App",
             ),
             positional(b"id", b"ID", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"GitHub App id"),
-            positional(b"file", b"FILE", Kind::File, Required, b"Private PEM key file; at most 4090 bytes"),
+            positional(b"file", b"FILE", Kind::File, Required, b"Private PEM key file; at most 4089 bytes"),
         ],
         &[
             positional(b"forge", b"F", Kind::NumberRange { min: 1, max: 65535 }, Required, b"Forge number"),
@@ -73,7 +73,7 @@ pub const CONNECT: Tool = Tool {
                 Required,
                 b"A Forgejo site admin",
             ),
-            positional(b"file", b"FILE", Kind::File, Required, b"Private admin token file; at most 4090 bytes"),
+            positional(b"file", b"FILE", Kind::File, Required, b"Private admin token file; at most 4089 bytes"),
             flag(b"first", b"ORG/NAME", Kind::Literal, Optional, b"Make the first repository"),
             flag(
                 b"project",
