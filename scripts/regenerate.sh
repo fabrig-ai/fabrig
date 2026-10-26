@@ -38,6 +38,8 @@ TABLE
 }
 
 prefix=crates/temper/tests/figures/memory
+# Ownership is by place: a .txt directly in a registered directory, unless
+# it is a symlink. Keep this rule in sync with Python's figure() below.
 owns() {
     case $1 in
         "$prefix"/*.txt) ;;
@@ -46,8 +48,7 @@ owns() {
     directory=${1%/*}
     directory=${directory#"$prefix"/}
     writer=$(writers | awk -F '|' -v directory="$directory" '$2 == directory { print $1 }')
-    [ -n "$writer" ] && [ -f "$1" ] && [ ! -L "$1" ] &&
-        git ls-files --error-unmatch -- ":(literal)$1" >/dev/null 2>&1
+    [ -n "$writer" ] && [ ! -L "$1" ]
 }
 
 mode='write'
@@ -65,6 +66,12 @@ for path do
     if ! owns "$path"; then
         [ "$mode" = owns ] && exit 1
         printf 'regenerate: unknown figure: %s\n' "$path" >&2
+        exit 2
+    fi
+    if [ "$mode" = write ] && ! {
+        [ -f "$path" ] && git ls-files --error-unmatch -- ":(literal)$path" >/dev/null 2>&1
+    }; then
+        printf 'regenerate: expected existing tracked figure: %s\n' "$path" >&2
         exit 2
     fi
     needed="$needed$writer "
@@ -114,6 +121,8 @@ paths = sorted({os.fsdecode(entry[3:]) for entry in entries if entry})
 
 
 def figure(path):
+    # Same ownership rule as the shell's owns(): place and no symlink,
+    # regardless of presence or tracking; write inputs are checked separately.
     parent, _, name = path.rpartition('/')
     return parent in directories and name.endswith('.txt') and not Path(path).is_symlink()
 
