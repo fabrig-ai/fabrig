@@ -150,7 +150,7 @@ pub(crate) fn send(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     if !d.calls.is_ready() {
         return;
     }
-    let Some(id) = next(&mut d.calls, env) else {
+    let Some(id) = next(&mut d.calls, &d.outbox, env) else {
         return;
     };
     let call = d.calls.slab.get_mut(id).expect("a queued call stays alive");
@@ -176,22 +176,47 @@ pub(crate) fn send(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     d.fact(Fact::Sent { priority });
     out.push(Request::Call { call: token, repository, op });
 }
-fn next(c: &mut Calls, env: &Env<Limits>) -> Option<Id<Call>> {
+fn next(c: &mut Calls, outbox: &crate::outbox::Outbox, env: &Env<Limits>) -> Option<Id<Call>> {
     let waiting = !(c.keep.is_empty() && c.slow.is_empty());
     let first = if env.now >= c.budget.ends { 0 } else { c.budget.first };
     let share = env.limits.rate.saturating_sub(env.limits.reserve);
     if !waiting || first < share {
-        if let Some(id) = c.fresh.pop() {
+        if let Some(id) = eligible(&mut c.fresh, &c.slab, outbox) {
             return Some(id);
         }
-        if let Some(id) = c.write.pop() {
+        if let Some(id) = eligible(&mut c.write, &c.slab, outbox) {
             return Some(id);
         }
     }
-    if let Some(id) = c.keep.pop() {
+    if let Some(id) = eligible(&mut c.keep, &c.slab, outbox) {
         return Some(id);
     }
-    c.slow.pop()
+    eligible(&mut c.slow, &c.slab, outbox)
+}
+fn eligible(queue: &mut Queue<Id<Call>>, slab: &Slab<Call>, outbox: &crate::outbox::Outbox) -> Option<Id<Call>> {
+    for _ in 0..queue.len() {
+        let id = queue.pop().expect("counted queued call");
+        let call = slab.get(id).expect("queued call remains");
+        if crate::outbox::stop::call(outbox, &call.owner, &call.op) {
+            return Some(id);
+        }
+        queue.push(id);
+    }
+    None
+}
+pub(crate) fn settling_ready(d: &Domain) -> bool {
+    if !d.calls.is_ready() {
+        return false;
+    }
+    for queue in [&d.calls.fresh, &d.calls.write, &d.calls.keep, &d.calls.slow] {
+        for id in queue {
+            let call = d.calls.slab.get(*id).expect("queued call remains");
+            if crate::outbox::stop::call(&d.outbox, &call.owner, &call.op) {
+                return true;
+            }
+        }
+    }
+    false
 }
 /// Apply the same reserved share before allocating a logical-call slot:
 /// otherwise a sole slot can repeatedly be filled by foreground pumps before
@@ -372,7 +397,12 @@ pub(crate) fn answered(
                     Owner::Resource(resource) => crate::keep::active_resource(&d.keep, resource),
                     Owner::Repository(repository) => crate::keep::active_repository(&d.keep, *repository),
                 };
-                if retry {
+                let stopping_write = crate::outbox::stop::active(&d.outbox)
+                    && match &d.calls.slab.get(id).expect("refused call remains").op {
+                        Op::Write(_) => true,
+                        Op::Read(_) => false,
+                    };
+                if retry && !stopping_write {
                     let call = d.calls.slab.get_mut(id).expect("the refused call remains");
                     call.state = State::Queued;
                     queued(&mut d.calls, id, priority);
@@ -406,7 +436,17 @@ pub(crate) fn answered(
     d.calls.slab.retire(id);
     match owner {
         Owner::Read(owner) => out.push(Request::Read { owner, result }),
-        Owner::Entry(number) => crate::outbox::answer::answered(d, env, number, result, out),
+        Owner::Entry(number) => {
+            let result = if crate::outbox::stop::active(&d.outbox) {
+                match result {
+                    Err(Error::RateLimited { .. }) => Err(Error::Timeout),
+                    result => result,
+                }
+            } else {
+                result
+            };
+            crate::outbox::answer::answered(d, env, number, result, out);
+        }
         Owner::Resource(resource) => crate::keep::answer::answered_resource(d, env, &resource, result, out),
         Owner::Repository(repository) => crate::keep::answer::answered_repository(d, env, repository, result, out),
     }

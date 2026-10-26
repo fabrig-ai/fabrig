@@ -91,7 +91,7 @@ impl Harness {
                 }
                 Request::Read { result: Ok(_), .. } => panic!("no successful fresh parent read"),
                 Request::ReadAfreshDone => self.fresh_done = self.fresh_done.saturating_add(1),
-                Request::OutboxDone => self.outbox_done = self.outbox_done.saturating_add(1),
+                Request::Settled { .. } | Request::OutboxDone => self.outbox_done = self.outbox_done.saturating_add(1),
             }
         }
         self.domain.reclaim();

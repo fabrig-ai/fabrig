@@ -88,5 +88,7 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
         // Owner names and in-flight operation copies are
         // independently owned; bound them even at simultaneous saturation.
         .checked_add(u64::from(l.pending).checked_mul(u64::from(l.op_bytes).checked_mul(2)?)?)?
+        // The final Settled request owns one number per entry.
+        .checked_add(u64::from(l.entries).checked_mul(8)?)?
         .checked_add(Queue::<Fact>::worst_case(l.facts)?)
 }

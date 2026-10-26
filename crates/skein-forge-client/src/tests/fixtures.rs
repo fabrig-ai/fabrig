@@ -70,6 +70,7 @@ impl Harness {
                 | Request::Changed { .. }
                 | Request::Drift { .. }
                 | Request::ReadAfreshDone
+                | Request::Settled { .. }
                 | Request::OutboxDone,
             ) => {
                 panic!("read resume only sends a call")

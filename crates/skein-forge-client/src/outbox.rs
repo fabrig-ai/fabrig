@@ -11,6 +11,7 @@ pub(crate) mod answer;
 pub(crate) mod find;
 pub(crate) mod queue;
 pub(crate) mod retry;
+pub(crate) mod stop;
 use crate::calls::{self, Owner};
 use crate::domain::{Alarm, Domain};
 use crate::{
@@ -27,6 +28,7 @@ pub(crate) struct Outbox {
     paused: bool,
     settling: bool,
     clock: RecoveryClock,
+    stop: stop::State,
 }
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent recovery facts of one outbox write")]
@@ -41,6 +43,7 @@ struct Writing {
     withdrawn: bool,
     /// A person asked for it again: not found after its lifetime, it is made anew.
     again: bool,
+    awaiting_outcome: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 struct Lane {
@@ -72,6 +75,7 @@ impl Outbox {
             paused: false,
             settling: false,
             clock: RecoveryClock::Monotonic,
+            stop: stop::State::Running,
         }
     }
     pub(crate) fn is_ready(&self, keep: &crate::keep::Keep) -> bool {
@@ -81,7 +85,7 @@ impl Outbox {
         for (&number, writing) in &self.entries {
             match writing.state {
                 State::Due(_) => {
-                    if eligible(self, keep, number, writing) {
+                    if eligible(self, keep, number, writing) && stop::entry(self, number) {
                         return true;
                     }
                 }
@@ -208,6 +212,7 @@ pub(crate) fn make(d: &mut Domain, env: &Env<Limits>, entry: Entry, again: bool,
                 restart_checked: !uncertain,
                 withdrawn: false,
                 again,
+                awaiting_outcome: false,
             },
         )
         .expect("outbox admission checked");
@@ -266,7 +271,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             State::Due(phase) => phase,
             State::Busy(_) | State::Waiting(_) => continue,
         };
-        if eligible(&d.outbox, &d.keep, number, writing) {
+        if eligible(&d.outbox, &d.keep, number, writing) && stop::entry(&d.outbox, number) {
             selected = Some((number, phase));
             break;
         }
@@ -351,6 +356,7 @@ pub(crate) fn sent(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Que
     };
     match phase {
         Phase::Make => {
+            w.awaiting_outcome = true;
             if w.entry.start.is_none() {
                 w.entry.start = Some(Position { at: w.clock, ..position });
             }

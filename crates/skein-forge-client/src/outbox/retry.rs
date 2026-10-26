@@ -11,6 +11,9 @@ pub(super) fn failed(
     error: Error,
     out: &mut Queue<Request>,
 ) {
+    if phase == Phase::Make && stopped_write(d, number, error, out) {
+        return;
+    }
     if phase == Phase::Queued {
         d.outbox.entries.get_mut(&number).expect("queued look owns entry").restart_checked = true;
     }
@@ -109,9 +112,39 @@ pub(super) fn failed(
         | Error::Busy => super::finish(d, env, number, Outcome::Failed(error), out),
     }
 }
+fn stopped_write(d: &mut Domain, number: u64, error: Error, out: &mut Queue<Request>) -> bool {
+    if !super::stop::active(&d.outbox) {
+        return false;
+    }
+    let lost = match error {
+        Error::Timeout | Error::InvalidAnswer | Error::Unavailable => true,
+        Error::RateLimited { .. }
+        | Error::TooLarge
+        | Error::Missing
+        | Error::Exists
+        | Error::Forbidden
+        | Error::MissingJob
+        | Error::Empty
+        | Error::Full
+        | Error::NothingToMerge
+        | Error::Closed
+        | Error::Stale
+        | Error::Conflict
+        | Error::Protected
+        | Error::Refused
+        | Error::NotConnected
+        | Error::NotInstalled
+        | Error::Busy => false,
+    };
+    if lost {
+        write_uncertain(d, number, out);
+    }
+    lost
+}
 fn write_uncertain(d: &mut Domain, number: u64, out: &mut Queue<Request>) {
     let w = d.outbox.entries.get_mut(&number).expect("failed write remains");
     w.uncertain = true;
+    w.awaiting_outcome = false;
     w.entry.failures = w.entry.failures.saturating_add(1);
     let phase = super::find(&w.entry);
     let task = w.entry.task;

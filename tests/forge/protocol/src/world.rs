@@ -249,6 +249,7 @@ impl World {
             | Event::Restored { .. }
             | Event::PauseOutbox
             | Event::ReadAfresh
+            | Event::Settle
             | Event::SettleOutbox
             | Event::Answered { .. } => {}
         }
@@ -713,7 +714,7 @@ impl World {
                 Request::Read { owner, result } => {
                     assert!(self.read_results.insert(*owner, result.clone()).expect("owner read capacity").is_none());
                 }
-                Request::Drift { .. } | Request::OutboxDone => {}
+                Request::Drift { .. } | Request::Settled { .. } | Request::OutboxDone => {}
             }
             decision.push(request);
         }

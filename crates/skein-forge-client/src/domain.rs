@@ -94,17 +94,24 @@ impl Domain {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        self.alarms.next()
+        match (self.alarms.next(), outbox::stop::deadline(&self.outbox)) {
+            (Some(left), Some(right)) => Some(left.min(right)),
+            (left, None) => left,
+            (None, right) => right,
+        }
     }
     #[must_use]
     pub fn is_due(&self, now: Time) -> bool {
-        match self.alarms.next() {
+        match self.next_deadline() {
             Some(at) => at <= now,
             None => false,
         }
     }
     #[must_use]
     pub fn is_ready(&self) -> bool {
+        if outbox::stop::active(&self.outbox) {
+            return calls::settling_ready(self) || (!self.calls.is_full() && self.outbox.is_ready(&self.keep));
+        }
         self.calls.is_ready() || (!self.calls.is_full() && (self.outbox.is_ready(&self.keep) || self.keep.is_ready()))
     }
     /// Whether a read asked now finds a call slot.
@@ -162,6 +169,7 @@ pub fn writer(d: &mut Domain, env: &Env<Limits>, writer: Writer, out: &mut Queue
 /// Decide one parent event and emit the records and effects of that decision.
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Settle => outbox::stop::start(d, env, out),
         Event::Keep { owner, watches } => {
             d.identity_used = true;
             keep::replace(d, env, owner, watches, out);
@@ -238,11 +246,19 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
     }
+    outbox::stop::advance(d, env, out);
 }
 /// One queued call per loop iteration. Only uncertain outbox entries retain
 /// their original lifetime; unrelated reads have no startup delay.
 /// Send one eligible call after earlier progress has been committed.
 pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if outbox::stop::active(&d.outbox) {
+        if !outbox::pump(d, env, out) {
+            calls::send(d, env, out);
+        }
+        outbox::stop::advance(d, env, out);
+        return;
+    }
     if calls::background_owed(&d.calls, env) && keep::poll::pump(d, env, out) {
         calls::send(d, env, out);
         if outbox::settle_done(d) {
@@ -269,7 +285,8 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
 }
 /// Expire one client deadline at the injected time.
-pub fn fire(d: &mut Domain, env: &Env<Limits>, _out: &mut Queue<Request>) {
+pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    outbox::stop::advance(d, env, out);
     let Some(alarm) = d.alarms.expire(env.now) else {
         return;
     };

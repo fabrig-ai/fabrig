@@ -423,7 +423,7 @@ impl World {
                     self.read_afresh_done = self.read_afresh_done.checked_add(1).expect("world recovery bound");
                     settle = true;
                 }
-                Request::OutboxDone => {
+                Request::Settled { .. } | Request::OutboxDone => {
                     self.outbox_done = self.outbox_done.checked_add(1).expect("world recovery bound");
                 }
                 Request::Drift { .. } => {}
@@ -442,6 +442,7 @@ impl World {
                 | Request::Drift { .. }
                 | Request::Read { .. }
                 | Request::ReadAfreshDone
+                | Request::Settled { .. }
                 | Request::OutboxDone => unreachable!("only calls withheld"),
             }
         }

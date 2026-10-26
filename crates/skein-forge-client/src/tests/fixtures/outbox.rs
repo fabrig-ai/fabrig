@@ -18,6 +18,7 @@ pub(in crate::tests) struct Harness {
     pub(in crate::tests) calls: Queue<Sent>,
     pub(in crate::tests) writes: u32,
     pub(in crate::tests) outbox_done: u32,
+    pub(in crate::tests) settled: Option<Box<[u64]>>,
 }
 impl Harness {
     pub(in crate::tests) fn new() -> Harness {
@@ -33,6 +34,7 @@ impl Harness {
             calls: Queue::with_capacity(CALL_ROOM),
             writes: 0,
             outbox_done: 0,
+            settled: None,
         };
         h.step(Event::Restored { clock: RecoveryClock::Monotonic });
         h
@@ -88,6 +90,9 @@ impl Harness {
                 | Request::Changed { .. }
                 | Request::Drift { .. } => panic!("outbox tests keep no resources"),
                 Request::Read { .. } => panic!("outbox tests make no parent read requests"),
+                Request::Settled { left } => {
+                    assert!(self.settled.replace(left).is_none(), "settled once");
+                }
                 Request::OutboxDone => self.outbox_done = self.outbox_done.saturating_add(1),
                 Request::ReadAfreshDone => {
                     panic!("ordinary outbox test did not request restart phases")

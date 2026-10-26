@@ -88,6 +88,7 @@ impl Measured {
                 | Request::Kept { .. }
                 | Request::Read { .. }
                 | Request::ReadAfreshDone
+                | Request::Settled { .. }
                 | Request::OutboxDone => {}
             }
         }

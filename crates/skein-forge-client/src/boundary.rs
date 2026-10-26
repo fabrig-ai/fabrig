@@ -245,6 +245,8 @@ pub enum Outcome {
 /// A request or answer delivered by the connector top.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// The owner is stopping: send no write and finish entries sent (forge-client.md, 7.8).
+    Settle,
     /// The complete union of resources named by live tasks. Admission is
     /// atomic; the top owns naming and task references.
     Keep { owner: Token, watches: Box<[Watch]> },
@@ -290,6 +292,9 @@ pub enum Event {
 /// A decision or API call emitted to the connector top.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// Entries sent still without an outcome at twice lifetime plus clock margin from Settle.
+    /// Emitted once, at once with an empty list if none remain (forge-client.md, 7.8).
+    Settled { left: Box<[u64]> },
     /// Report whether a complete watch set was admitted.
     Kept { owner: Token, result: Result<(), Error> },
     /// Report a fresh observation of a live resource.

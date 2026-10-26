@@ -25,6 +25,7 @@ impl Look {
 }
 pub(super) fn queued(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     let w = d.outbox.entries.get_mut(&number).expect("queued merge remains");
+    w.awaiting_outcome = false;
     w.entry.queued = true;
     w.uncertain = true;
     out.push(Request::Progress { entry: w.entry.clone() });
