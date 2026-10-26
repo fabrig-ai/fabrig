@@ -456,6 +456,32 @@ was neither made nor refused, and it lands, or not, later.
   itself. A look answered `Missing` is `Failed(Missing)`, and the lane
   is free.
 
+### 7.8 A stop
+
+An owner that stops settles its effects first (jig's
+`domain/connectors.md`, 4.2; temper's `domain/root.md`, 9.2). `Settle`
+tells the client to finish what it sent and to send nothing new; it is
+the client's last state, and a start builds a new client.
+
+- **Nothing new is written.** No write is sent from then on: not an
+  entry's first, nor one again (after `Unavailable` or a rate refusal, a
+  set past its lifetime, a remade entry). An entry not yet sent stays as
+  it is, its row the owner's, for the next start; so does a write's
+  call queued and not yet sent.
+- **What was sent finishes.** An entry whose write this client sent and
+  which has no outcome yet goes on to its outcome as ever: its answer,
+  then the read that proves a review, a merge or an update (7.4, step
+  4). A lost answer ends in `Uncertain`, its find left to the next
+  start; a merge answered `Queued` ends there (7.7). The client starts
+  no other read of its own meanwhile: no listing, no poll, no find.
+- **`Settled { left }`** once every entry it sent has its outcome, at
+  once if none lacked one; or at its bound, twice `lifetime` and
+  `clock_margin` after `Settle` (the write's lifetime, then its proving
+  read's), `left` naming each entry still without its outcome. The next
+  start finds those by their attempts (section 8).
+- **The owner** commits the outcomes as ever (2.1), and asks nothing new
+  of the client while it settles.
+
 ## 8. Restart
 
 After a restart the owner gives the client its rows, then has it read
@@ -510,7 +536,9 @@ before it writes.
   given as another author, and restored; a write meeting `NotConnected`;
   a merge queued, then merged, merged at another head, closed and
   ejected, a later comment on its pull waiting, and a queued entry
-  restored.
+  restored; a stop that settles at once, waits for a sent merge's proving
+  read, sends no write due or queued, and names an entry unfinished at
+  its bound, one tick either side of it.
 - **The client world** (testing-strategy.md, section 2.2) runs the client
   alone under a durable scripted parent that commits a decision whole
   before it releases any call, over skein's fake forge domain
