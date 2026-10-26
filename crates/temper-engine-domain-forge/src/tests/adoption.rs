@@ -310,6 +310,9 @@ fn each_admission_conflict_keeps_its_own_reason() {
                 row.provider.repository += 1;
             }
             outputs(&mut d, Event::Restore { record: Stored::Repository(row) });
+            outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+            outputs(&mut d, Event::ReadAfresh);
+            outputs(&mut d, Event::SettleOutbox);
         }
         let request = Token::new(4);
         let mut requests = fixtures::begin_adoption(&mut d, request, fixtures::adoption());
