@@ -490,6 +490,9 @@ wrong, and reports each as `Trouble` with its text, cut to
   6): an alert, a confirm, a prompt, or a `beforeunload` prompt with no
   go of its page in flight. The kit dismisses it at once. Its text is
   the dialog's type, `: `, and its message (`confirm: Delete it?`).
+- a download the page started that was cancelled, denied, past
+  `Limits::downloads`, or whose name or path is past `Limits::text`
+  (section 5). Its text is the name the page suggested.
 
 A dismissed dialog commits the page to nothing: a confirm answers no, a
 prompt gives nothing, and a `beforeunload` prompt keeps the page where
