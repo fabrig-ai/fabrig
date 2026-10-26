@@ -977,7 +977,7 @@ party reads is therefore never lost by a crash.
 | `tasks{query}`: a task query's page (6.1) | live state, then the store's indexes of ended tasks |
 | a project; its spend, a page; its notes, a page | live state; the store; the notes child |
 | the deployment | live state |
-| `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../domain/engine.md`, 17.7) |
+| `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it, or, of an application's kind, its state and size alone; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../domain/engine.md`, 17.7) |
 | an application's read, naming its owner, its scope and its window (7.5) | its owner, the connector, through the engine's root |
 
 - **An ended task is a finished read.** Opening its task or tree watch

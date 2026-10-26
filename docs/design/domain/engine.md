@@ -1800,7 +1800,7 @@ Until held charter versions are implemented, a settings change is refused as ful
   part hears of it, in the same decision: the tasks child and the fleet
   the charter versions added and dropped; authority the rules; the
   views a mark on every `me`, when a template changed, and on every
-  watch of the settings; the connectors their kinds' values (17.5); and, when
+  watch of the settings; each connector the word to keep its kinds' items' values (17.5); and, when
   it moves running work, the tasks moved (17.4). After a crash the old
   revision holds or the new one does, never a mix (core.md, section 4).
 - **What follows it.** A narrowed rule reaches every later decision,
@@ -2077,7 +2077,9 @@ Its code comes after the rest (`../STATUS.md`).
   - *defaults that differ* are stored, and when they change the current
     settings (a setting no change is over), they make a revision
     recorded as the release's, with no proposal, once the core's
-    records are restored (section 6, step 1); like any revision, it
+    records are restored and every connector has said which of its
+    kinds' defaults differ (section 6, steps 1 and 2; 17.5), with the
+    connectors' new defaults saved in it; like any revision, it
     withdraws stale proposals of settings (17.6); new work takes it,
     running work keeps its own;
   - *the current settings are checked whole* (17.1): a start whose

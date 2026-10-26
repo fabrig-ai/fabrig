@@ -727,8 +727,9 @@ Each connector keeps its system's request budget:
 At a restart (engine.md, section 6), a connector is given, when the core
 asks for each step:
 
-1. **its settings, then its records:** its kinds' current settings
-   (section 17); its live resources, its procedures' states and
+1. **its settings, then its records:** the application's defaults of
+   its kinds, of which it tells the core which differ from those it
+   stored (section 17); its live resources, its procedures' states and
    parameters, its outbox, its projections' states, what it made by key,
    and its own state, loaded from its live ranges;
 2. **a fresh read:** it reads afresh what its system owns of its live
