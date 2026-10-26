@@ -389,7 +389,11 @@ open is section 9.
 ### 5.9 Open runs
 
 A conversation, such as a person's chat: domain/run.md's `Mode::Open`,
-whose text replies wait and whose activation parks, on a program.
+whose text replies wait and whose activation parks, on a program. The
+adapter tells the run's domain what the program said, a turn ended with
+its text and its `result`, an interrupted turn ended; the domain decides
+the reply, the waiting, the parking and the wind-down, as on the direct
+backend (domain/run.md, sections 6, 7.2 and 9.1).
 
 - **Launched as 5.1 says,** but with no result contract: no
   `--json-schema`, and of the run's own tools only `wait`, since Open
@@ -411,6 +415,11 @@ whose text replies wait and whose activation parks, on a program.
 - **A turn that ends with no text,** and no call left unanswered, is an
   unsuccessful end, nudged as on the direct backend (domain/run.md,
   7.2).
+- **An interrupted turn is expected.** A turn the agent ends with
+  SIGINT, to park while it is held on `wait` or to wind down, ends with
+  a `result` the agent asked for, never 5.6's error: the calls it left
+  unanswered are answered as not run, and the next user message, if
+  any, follows.
 - **The wind-down,** the budget spent or the host's finish request
   (domain/run.md, 9.1): the agent ends the program's turn with SIGINT,
   sends the run's note as its next user message, and refuses every call
@@ -527,8 +536,11 @@ conditions. smith keeps each as a rule of its own:
 - **The live suite** runs the real program on a source signed in once
   (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
   prompt tool's shape, `system/init`'s tools and capabilities, a limit's
-  events, that `-p` reads the login, and that a stream-json input
-  takes a second user message after a turn's `result`, as 5.9 needs.
+  events, that `-p` reads the login, and what 5.9 relies on: after a
+  turn's `result`, with its input left open, the same process takes a
+  second user message that needs the first turn's context, answers it
+  with a second `result`, and exits when its input closes; and a turn
+  ended by SIGINT is followed by another in the same process.
 
 ## 9. Open questions
 
