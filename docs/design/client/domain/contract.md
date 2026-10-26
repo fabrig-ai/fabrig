@@ -676,7 +676,8 @@ served is held, kept and unsent, for its owner's version (client.md,
   - *the settings:* the newest revision's number; each setting, by kind,
     scope and number, with its name where it has one, whether it
     follows its default or a change, and the revision that last changed
-    it; each revision held, with who decided it, when, the proposal it
+    it, a reset included, which leaves it following its default from
+    that revision; each revision held, with who decided it, when, the proposal it
     came from, and how many live tasks hold it; the pending proposals of
     settings, by number (`../../domain/engine.md`, section 17). It
     carries no value: one setting is read whole on its own, from the
