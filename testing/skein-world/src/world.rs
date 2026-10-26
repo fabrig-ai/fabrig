@@ -381,16 +381,29 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
             self.referee.act(now, &mut self.procs);
             self.deliver_signals();
             let mut at = 0;
+            let mut observed = false;
             while at < self.procs.len() {
+                let ran;
                 if self.hosted.get(at).expect("a status per process").is_some()
                     && !*self.finished.get(at).expect("a status per process")
                     && !self.sim.service_running(self.pids.get(at).copied().expect("a pid per process"))
                 {
                     self.drop_killed(at);
+                    ran = true;
                 } else {
-                    self.turn(at, now, wall, &mut faults);
+                    ran = !*self.finished.get(at).expect("a status per process");
+                    if ran {
+                        self.turn(at, now, wall, &mut faults);
+                    }
                     at = at.checked_add(1).expect("a bounded process count");
                 }
+                if ran {
+                    self.referee.observe(now, &self.procs);
+                    observed = true;
+                }
+            }
+            if !observed {
+                // Even a pass with only retained exits observes what act did.
                 self.referee.observe(now, &self.procs);
             }
             self.trace_machine_digest();

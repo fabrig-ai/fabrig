@@ -449,9 +449,11 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             self.signals();
             self.reap();
             let mut at = 0;
+            let mut observed = false;
             while at < self.world.procs.len() {
                 let host = *self.ids.get(at).expect("an id per host");
-                if self.processes.get(host).expect("a process per host").exit.is_none() {
+                let mut ran = self.processes.get(host).expect("a process per host").exit.is_none();
+                if ran {
                     let proc = self.world.procs.get_mut(at).expect("a process per host");
                     self.ring.deliver(host, proc.completions());
                     match &mut self.world.heap {
@@ -475,10 +477,18 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 }
                 if self.dying.contains(&host) {
                     self.discard(at, host);
+                    ran = true;
                 }
                 if self.ids.get(at) == Some(&host) {
                     at = at.checked_add(1).expect("bounded host count");
                 }
+                if ran {
+                    self.world.referee.observe(now, &self.world.procs);
+                    observed = true;
+                }
+            }
+            if !observed {
+                // Even a pass with only retained exits observes what act did.
                 self.world.referee.observe(now, &self.world.procs);
             }
             if last_word.is_none() && self.world.referee.passed() {
@@ -982,16 +992,22 @@ mod tests {
     use super::{Child, Process, Running, World};
     use crate::{Host, Referee, ring::Ring};
     use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
+    use alloc::rc::Rc;
+    use core::cell::RefCell;
     use skein_io::kernel::{Complete, Done, Error, Exit, Family, Fd, Op, Submit};
     use skein_lib::{Queue, Time, Token, Wall};
 
     struct Idle {
         completions: Queue<Complete>,
         submissions: Queue<Submit>,
+        iterations: u32,
+        marked: bool,
     }
 
     impl Host for Idle {
-        fn iterate(&mut self, _now: Time, _wall: Wall) {}
+        fn iterate(&mut self, _now: Time, _wall: Wall) {
+            self.iterations = self.iterations.checked_add(1).expect("bounded test iterations");
+        }
         fn completions(&mut self) -> &mut Queue<Complete> {
             &mut self.completions
         }
@@ -1035,9 +1051,18 @@ mod tests {
     }
 
     fn children_after_descriptor_cleanup() -> Running<Idle, Quiet> {
-        let mut world = World::new(Quiet);
+        children_with(Quiet)
+    }
+
+    fn children_with<R: Referee<Idle>>(referee: R) -> Running<Idle, R> {
+        let mut world = World::new(referee);
         for _ in 0_usize..3 {
-            world.spawn(|| Idle { completions: Queue::with_capacity(2), submissions: Queue::with_capacity(2) });
+            world.spawn(|| Idle {
+                completions: Queue::with_capacity(2),
+                submissions: Queue::with_capacity(2),
+                iterations: 0,
+                marked: false,
+            });
         }
         Running {
             world,
@@ -1075,6 +1100,89 @@ mod tests {
             killed: Vec::new(),
             dying: BTreeSet::new(),
         }
+    }
+
+    struct Observations(Rc<RefCell<Vec<Vec<u32>>>>);
+
+    impl Referee<Idle> for Observations {
+        fn act(&mut self, _now: Time, procs: &mut [Idle]) {
+            for proc in procs {
+                proc.marked = true;
+            }
+        }
+        fn observe(&mut self, _now: Time, procs: &[Idle]) {
+            assert!(procs.iter().all(|proc| proc.marked), "act is visible to observe");
+            self.0.borrow_mut().push(procs.iter().map(|proc| proc.iterations).collect());
+        }
+        fn next_deadline(&self) -> Option<Time> {
+            None
+        }
+        fn overdue(&self, _now: Time) -> Option<String> {
+            None
+        }
+        fn passed(&self) -> bool {
+            !self.0.borrow().is_empty()
+        }
+    }
+
+    fn retain_exited(running: &mut Running<Idle, Observations>, host: usize) {
+        running.processes.get_mut(host).expect("test process").exit = Some(Exit::Code(0));
+        running.living_hosts.remove(&host);
+        if let Some(child) = running.children.get_mut(&host) {
+            child.exit = Some(Exit::Code(0));
+            running.unsettled_children = running.unsettled_children.checked_sub(1).expect("live test child");
+            let instances = running.instances.first_mut().expect("test program");
+            *instances = instances.checked_sub(1).expect("live test instance");
+        }
+    }
+
+    #[test]
+    fn observes_a_drive_but_not_retained_exited_positions() {
+        let seen = Rc::new(RefCell::new(Vec::new()));
+        let mut running = children_with(Observations(seen.clone()));
+        retain_exited(&mut running, 1);
+        retain_exited(&mut running, 2);
+        let outcome = running.run(&super::Clock::new(), skein_lib::Duration::from_secs(1));
+        assert_eq!(outcome.iterations, 1);
+        assert_eq!(*seen.borrow(), [vec![1_u32, 0_u32, 0_u32]]);
+    }
+
+    #[test]
+    fn observes_act_once_when_only_retained_exits_remain() {
+        let seen = Rc::new(RefCell::new(Vec::new()));
+        let mut running = children_with(Observations(seen.clone()));
+        for host in 0_usize..3 {
+            retain_exited(&mut running, host);
+        }
+        let outcome = running.run(&super::Clock::new(), skein_lib::Duration::from_secs(1));
+        assert_eq!(outcome.iterations, 1);
+        assert_eq!(*seen.borrow(), [vec![0_u32, 0_u32, 0_u32]]);
+    }
+
+    #[test]
+    fn observes_a_discard_even_without_a_drive() {
+        let seen = Rc::new(RefCell::new(Vec::new()));
+        let mut running = children_with(Observations(seen.clone()));
+        retain_exited(&mut running, 2);
+        running.kill(1);
+        let outcome = running.run(&super::Clock::new(), skein_lib::Duration::from_secs(1));
+        assert_eq!(outcome.iterations, 1);
+        assert_eq!(outcome.killed.len(), 1);
+        assert_eq!(*seen.borrow(), [vec![1_u32, 0_u32, 0_u32], vec![1_u32, 0_u32, 0_u32]]);
+    }
+
+    #[test]
+    fn simulated_empty_pass_observes_before_testing_passed() {
+        let seen = Rc::new(RefCell::new(Vec::new()));
+        let world = crate::World::<Idle, _>::new(
+            7,
+            skein_sim::Config::calm(),
+            Observations(seen.clone()),
+            crate::Memory::Unchecked,
+        );
+        let outcome = world.run();
+        assert_eq!(outcome.iterations, 1);
+        assert_eq!(*seen.borrow(), [Vec::<u32>::new()]);
     }
 
     #[test]
