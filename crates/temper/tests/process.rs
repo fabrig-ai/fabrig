@@ -9,7 +9,8 @@ use support::forge_land::{
     forgejo_setup_steps, plan_change_steps,
 };
 
-// Each whole-example box story is bounded at 120 seconds.
+/// The patience that ends a hung box story, never its guide: a story's time is measured idle
+/// (domain/testing.md 6.1).
 const BOX_DEADLINE: Duration = Duration::from_secs(240);
 
 #[test]

@@ -1,7 +1,6 @@
 //! Child reads and retention, on the existing box/ctl real-loop harness.
 use crate::support;
 use skein_io::kernel::Exit;
-use skein_lib::Duration;
 use std::{
     fs,
     io::{Read, Write},
@@ -10,9 +9,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// Same harness allowance as the other ctl stories: ten seconds reserved for teardown.
-// The story's execution target remains two seconds; the owner measures it after integration.
-const DEADLINE: Duration = Duration::from_secs(12);
 const SOURCE_PAGE: &[u8] = b"<!doctype html><html><head></head><body>source provisioned fixture</body></html>";
 const EFFECTIVE_PAGE: &[u8] = b"<!doctype html><html><head></head><body>retained effective fixture only</body></html>";
 
@@ -77,7 +73,7 @@ fn life(root: &Path, paths: &[PathBuf; 3], effective: &Path, client: &str, bundl
         flags(&paths[0], &paths[1], &paths[2], bundle),
         &client,
         vec![Step::Run(Call::sign_in())],
-        DEADLINE,
+        crate::BOX_DEADLINE,
         || {
             for name in ["github.json", "oauth.json", "llm.json", "forgejo.json"] {
                 let peer = value(&effective.join(name));

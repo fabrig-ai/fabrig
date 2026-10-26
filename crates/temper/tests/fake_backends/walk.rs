@@ -12,7 +12,6 @@ struct Walk {
     scratch: support::Scratch,
     paths: [PathBuf; 3],
     bundle: PathBuf,
-    allowance: skein_lib::Duration,
 }
 
 enum Act {
@@ -34,13 +33,13 @@ impl Walk {
         let bundle = scratch.path().join("loopback-bundle");
         // This process story sends acts through ctl; only the bundle's file shape is needed.
         super::bundle(&bundle, super::SOURCE_PAGE);
-        Self { scratch, paths, bundle, allowance: super::DEADLINE }
+        Self { scratch, paths, bundle }
     }
 
     fn owned(case: &str) -> Self {
         let walk = Self::new(case);
         let _cached = support::forge_land::cache_forgejo_binaries(&walk.paths[2]);
-        Self { allowance: support::forge_land::OWNED_ALLOWANCE, ..walk }
+        walk
     }
 
     fn sandbox(&self) -> PathBuf {
@@ -79,7 +78,7 @@ impl Walk {
             super::flags(&self.paths[0], &self.paths[1], &self.paths[2], Some(&self.bundle)),
             self.scratch.path(),
             steps,
-            self.allowance,
+            crate::BOX_DEADLINE,
             || (),
         );
         let diagnostic = String::from_utf8_lossy(&outcome.stderr);
