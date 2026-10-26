@@ -1118,10 +1118,14 @@ pub fn memory_in_band(declared: u64, required: u64) -> bool {
 
 /// Only this drift check writes the document's memory literals, in the established explicit mode.
 pub fn check_memory(relative: &str, required: temper_service::startup::Requirements) {
+    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
+    check_memory_mode(relative, required, write);
+}
+
+pub fn check_memory_mode(relative: &str, required: temper_service::startup::Requirements, write: bool) {
     let path = skein_scratch::paths::package().join(relative);
     let mut text = fs::read_to_string(&path).expect("owned example");
     let value: serde_json::Value = serde_json::from_str(&text).expect("owned JSON");
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let again = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run --locked -p temper --test startup -E 'test(owned_memory_figures)'";
     for (previous, required, name) in [
         (
@@ -1135,7 +1139,7 @@ pub fn check_memory(relative: &str, required: temper_service::startup::Requireme
             "workers[0].memory_bytes",
         ),
     ] {
-        let declared = if write {
+        let declared = if write && !memory_in_band(previous, required) {
             let declared = memory_with_headroom(required);
             let literal = format!("\"memory_bytes\": {previous}");
             assert_eq!(text.matches(&literal).count(), 1, "one literal per envelope");

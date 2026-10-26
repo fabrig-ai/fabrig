@@ -1041,6 +1041,40 @@ fn example_memory_band_includes_both_bounds_and_rejects_each_side() {
 }
 
 #[test]
+fn example_memory_writer_preserves_declarations_in_band_byte_for_byte() {
+    let scratch = support::Scratch::startup("memory-writer-in-band");
+    let path = scratch.path().join("temper.json");
+    let required = temper_service::startup::Requirements { engine_bytes: 100, worker_bytes: 200 };
+    for (engine, worker) in [(100, 250), (125, 200), (123, 234)] {
+        let document = format!(
+            "{{\n  \"engine\": {{\"memory_bytes\" : {engine}}},\n  \"workers\": [{{\"memory_bytes\" : {worker}}}]\n}}\n"
+        );
+        fs::write(&path, &document).expect("memory document");
+        support::owned::check_memory_mode(path.to_str().expect("document path"), required, true);
+        assert_eq!(fs::read(&path).expect("kept document"), document.as_bytes());
+    }
+    scratch.remove();
+}
+
+#[test]
+fn example_memory_writer_raises_declarations_below_band_with_rounded_headroom() {
+    let scratch = support::Scratch::startup("memory-writer-below-band");
+    let path = scratch.path().join("temper.json");
+    let document = "{\n  \"engine\": {\"memory_bytes\": 99},\n  \"workers\": [{\"memory_bytes\": 199}]\n}\n";
+    fs::write(&path, document).expect("memory document");
+    support::owned::check_memory_mode(
+        path.to_str().expect("document path"),
+        temper_service::startup::Requirements { engine_bytes: 100, worker_bytes: 200 },
+        true,
+    );
+    assert_eq!(
+        fs::read_to_string(&path).expect("raised document"),
+        "{\n  \"engine\": {\"memory_bytes\": 110},\n  \"workers\": [{\"memory_bytes\": 220}]\n}\n"
+    );
+    scratch.remove();
+}
+
+#[test]
 fn owned_memory_figures_match_startup_requirements_at_bounded_strings() {
     let scratch = support::Scratch::startup("owned-memory-figures");
     let bounded = support::owned::bounded(scratch.path());

@@ -1750,7 +1750,10 @@ runs it (section 7).
   it checks that the exact worst case starts and each one-byte deficit
   is refused at startup. Artificial paths are never opened. A
   separate shell test prepares the example with ordinary paths.
-  Regenerate the two literals and the exact term figures with:
+  Regenerate the exact term figures with the writer below. It leaves
+  each `memory_bytes` declaration within the checked band byte for byte,
+  and replaces only a declaration outside it with 10% headroom rounded
+  up to two significant digits:
 
   ```sh
   SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test startup -E 'test(owned_memory_figures)'
