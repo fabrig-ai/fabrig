@@ -1593,9 +1593,10 @@ into the binary.
   bridge, `domain/engine.md`, 17.7, serves an application that passes
   none), and temper reads no `application.landing` or `charter`. A
   document naming one is refused as any unknown member is (section 1),
-  naming its path and saying where it went: "settings live in the
-  store: How work runs". Section 3's `landing` and `charter`, and
-  `Config`'s `landing` and `forge_charter` fields, go with them.
+  naming its path and saying where it went: "`engine.charters`:
+  settings live in the store; read them with `temper ctl settings`".
+  Section 3's `landing` and `charter`, and `Config`'s `landing` and
+  `forge_charter` fields, go with them, in 13.6's second step.
 - **Before the baseline** (`../draft/upgrades.md`, 4.1), when planned implementation
   is planned to land: the settings change the store's families, so a
   deployment is made again, and nothing is imported. A document `temper
@@ -1608,11 +1609,11 @@ into the binary.
   at that start takes its values as stored changes where the store has
   none, in a revision recorded as the release's and as from the
   document, so nothing configured is lost; the next release refuses it.
-- **Across jig and temper:** jig reads the four members while temper
-  passes no defaults (the bridge); temper's repin onto the jig that
-  takes defaults and application kinds lands with temper's side whole
-  (the `stock` module, the kinds, the members refused, `temper init`'s
-  document shortened), and jig's bridge goes after.
+- **Across jig and temper:** jig reads the four members for an
+  application that passes no defaults (its bridge, which stays jig's),
+  and refuses them for one that passes its own. temper passes its own
+  from 13.6's first step, which needs nothing new of jig's settings;
+  its second needs jig's application settings.
 - **Who writes them today, and loses them:** `temper init`'s document
   and its `charters/` files (`setup.md`, 8.2 and 8.3); the box, which
   has no document of its own but `temper init`'s (`setup.md`, section
@@ -1621,3 +1622,32 @@ into the binary.
   6.4). A generated document elsewhere, fabrig's, drops the six members;
   what it set differently from the stock values becomes a proposal after
   the deployment's first start.
+
+### 13.6 In steps
+
+The members leave in three steps, each landing whole, so that temper's
+side never waits on the part of jig it does not use:
+
+1. **jig's four kinds.** The `stock` module passes jig's builder
+   charters 1 and 2, templates 1 and 2, policy 1 and the rules as
+   `Config`'s defaults (13.4), and the document's `engine.charters`,
+   `templates`, `policies` and `rules` are refused (13.5). The landing
+   rules stay `application.landing` until the second step, so policy 1
+   and the rules keep the requirements 1 to 4 each rule's criteria
+   become today (`../domain/forge.md`, 8.7), derived at each start
+   from the document as now: a document whose landing rules change
+   between starts gives new defaults, which make a revision recorded
+   as the release's (jig's `domain/engine.md`, 17.7). `temper init`'s
+   document loses the four members and its `charters/`, and every
+   other writer of them (13.5) moves with it. A deployment whose
+   document carried the stock values starts on the same settings, and
+   makes no revision.
+2. **temper's kinds,** on jig's application settings (jig's
+   `domain/engine.md`, 17.5): kinds 1 to 3 (13.2), judged by the
+   forge; `application.landing` and `charter` refused; 13.3's two
+   standing requirements in the rules, and policy 1 without
+   requirements, as 13.4 has them.
+3. **The configuring agent:** charter 3 and template 3 (13.4), with
+   the run's `settings` tools (`../domain/agent.md`, 4.3). A
+   deployment made before takes them as new defaults, by a revision
+   recorded as the release's.
