@@ -1,1 +1,0 @@
-the transcripts' framing changed (protocol/store.md 8.1): from the first release a deployment holds these bytes, and changing them needs an upgrade of its own, before the records' patches (temper's draft upgrades.md 6.5)

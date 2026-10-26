@@ -17,11 +17,11 @@ const READER: Token = Token::new(715);
 // Fixed above the world's roughly 323 KiB row floor with a margin, so a
 // changed row worst case does not move the kept bytes. If that floor passes
 // the fixed page below, sizes::check fails before the world opens.
-const TRANSCRIPT_BYTES: usize = 400_000;
+const TRANSCRIPT_BYTES: u32 = 400_000;
 // sizes::frame counts 52 bytes of core-v6 metadata (including Some(read)
 // and the transcript's length) plus 12 wrapper bytes (store.md 8.1).
 const FRAME_OVERHEAD: u32 = 64;
-const PAGE: u32 = 400_000 + FRAME_OVERHEAD;
+const PAGE: u32 = TRANSCRIPT_BYTES + FRAME_OVERHEAD;
 // The disk driver needs the page plus the KV chunk's 20-byte envelope.
 const KV_CHUNK_OVERHEAD: u32 = 20;
 // store.md 7.1: decoded room is separate from the encoded page bound.
@@ -44,7 +44,12 @@ fn turns() -> [core::TurnRecord; 3] {
             spent: 21,
             read: Some(22),
             at: Wall::from_nanos(23),
-            ..root::turn(root::LIVE, 1, 2, &vec![b'x'; TRANSCRIPT_BYTES])
+            ..root::turn(
+                root::LIVE,
+                1,
+                2,
+                &vec![b'x'; usize::try_from(TRANSCRIPT_BYTES).expect("fixed transcript size")],
+            )
         },
         core::TurnRecord {
             spent: 31,
@@ -116,8 +121,7 @@ fn assert_kept(made: &[u8]) {
         _ => None,
     };
     let reason = changed_body.map_or_else(
-        // The diagnostic's application-specific design citation is fixture data.
-        || include_str!("transcript_framing_change.txt").trim_end().to_owned(),
+        || "the transcripts' framing changed (protocol/store.md 8.1 and 14): from the first release a deployment holds these bytes, and changing them needs an upgrade of its own, run before the records' patches".to_owned(),
         |index| format!("frame {}'s body changed: the core's `TurnRecord` or smith's turn, whose changes are the patches' and their goldens' (store.md 8.6 and 14); the kept file is replaced in place before the first release", index + 1),
     );
     let offset = KEPT.iter().zip(made).position(|(kept, made)| kept != made).unwrap_or(KEPT.len().min(made.len()));
