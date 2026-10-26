@@ -123,7 +123,7 @@ until the run ends.
    edit: `cargo nextest run --workspace -E 'rdeps(<crate>) or
    rdeps(<crate>)'`, one `rdeps` for each crate the increment changed. A
    failure only on a timeout is left to the gate; any other is fixed
-   first. This is the one exception to "whole suites only in land's
+   first. This is the one exception to "whole suites only in the
    gate"; a Proof or a Done when that names `-p` packages runs those
    packages' tests, as the implementation rules allows.
 7. **Words and lint exceptions never land** (lesson 8). Once before
