@@ -408,6 +408,10 @@ backend (domain/run.md, sections 6, 7.2 and 9.1).
   program's input, and the program's next turn answers it, in the same
   process and session. Messages queued before the reply are offered as
   the direct backend offers them, in order, at most one offer's worth.
+  The program keeps the conversation itself: of what the domain offers,
+  only the messages after the program's last assistant turn go in, and
+  a host's words are bounded by the input's ceiling, not a tool
+  reply's.
 - **Parking:** past the waiting interval, the agent closes the
   program's input and the program exits after the turn it has ended;
   the run parks, its session kept (5.8). A turn held on `wait` is ended
@@ -423,9 +427,11 @@ backend (domain/run.md, sections 6, 7.2 and 9.1).
 - **The wind-down,** the budget spent or the host's finish request
   (domain/run.md, 9.1): the agent ends the program's turn with SIGINT,
   sends the run's note as its next user message, and refuses every call
-  from then on (5.7). The text of the turn that follows, at its
-  `result`, is the last reply, and the run parks; a program that has
-  not replied within the reserve is stopped as a cancel is.
+  from then on (5.7). The domain says when main yields for the note,
+  so that a reply crossing the note is told from the one after it: the
+  text of the turn that follows the yield, at its `result`, is the last
+  reply, and the run parks; a program that has not replied within the
+  reserve is stopped as a cancel is.
 - **The fake program** plays it (section 8): several turns on one
   input, a `result` each, until its input closes.
 
