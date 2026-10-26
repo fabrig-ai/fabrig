@@ -903,7 +903,9 @@ digest: task 7c1e09a2b44f0d13
   resource is a path, `README.md`, 4.1), then the call that reads its
   panel, `change N`; the id is the words' first line, and their second,
   the same pull request with its address (`../domain/root.md`, section
-  6), prints as `pull request: ADDRESS`; a change's words that
+  6), prints as `pull request: ADDRESS` when the task's document carries
+  it whole: a line the document's text window cut prints nothing, and
+  `change N` has the address; a change's words that
   are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
   as they are; a connector's its summary and its part in the forge's
   words; a failed or cancelled task's its reason, if it gave one. Words
