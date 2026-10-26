@@ -1435,7 +1435,11 @@ The pages a person meets it on are `../client/README.md`, 5.13.
   the identities, `clients`, `sign_in`, `webhooks`, `setup` and `demo`,
   and, for now, the LLM providers (`engine.llm`), each its own design
   later (`../draft/configuring.md`, section 10). jig's `engine.projects`,
-  the projects a first start seeds, stays jig's member.
+  the projects a first start seeds, stays jig's member; `temper init`'s
+  project 1 names its policy as `policy: 1` (jig's
+  `protocol/configuration.md`, section 3), so the seed copies the
+  stock's policy 1 and no document carries a copy of it (13.6, step
+  1).
 - **A project's own policy** is not a setting: it is in the store
   already, and its owners change it (jig's `domain/people.md`, 5.2).
   What a project adds to how its changes land is its landing rules, a
@@ -1552,8 +1556,8 @@ into the binary.
 | charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
 | template 2, a goal | jig's goal, its executor chosen |
 | template 3, the configuring chat | a chat, flagged conversation and labelled as jig's chat is, run by charter 3 |
-| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 100 for the project and for role 0, an authority's spend of 40, with the rules' grants and delegation |
-| the rules | today's: tools, the forge's grants under `forge`, delegation to charters 1, 2 and 3 and the change procedure, 8 tasks 4 deep, a spend of 100, a run's spend from 1 to 10; and 13.3's two requirements |
+| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 100 for the project and for role 0, an authority's spend of 40, with the rules' grants and delegation; its ceiling's and role 0's tool families 513, delegation and reads (jig's `ToolFamilies` Delegate and Read), so that a chat reads the forge it works on |
+| the rules | today's: tools 513, delegation and reads, the forge's grants under `forge`, delegation to charters 1, 2 and 3 and the change procedure, 8 tasks 4 deep, a spend of 100, a run's spend from 1 to 10; and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date; no gates, no approvals |
 | kind 3 | charter 2 |
 
@@ -1648,7 +1652,10 @@ side never waits on the part of jig it does not use:
    2 refuses such a change, kind 3 naming its charter (13.2). `temper
    init`'s document
    loses the four members and its `charters/`, and every other writer
-   of them (13.5) moves with it. A deployment whose document carried
+   of them (13.5) moves with it. Its seeded project 1 names `policy: 1`
+   in place of an inline policy, so the stock reaches a fresh
+   deployment's first chat; the interim inline copy with tools 513, and
+   the test that holds it equal to the stock, go with it. A deployment whose document carried
    the stock values starts on the same settings, and makes no
    revision.
 2. **temper's kinds,** on jig's application settings (jig's
