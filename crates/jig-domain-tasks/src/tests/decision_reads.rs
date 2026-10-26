@@ -46,7 +46,7 @@ fn running_holder() -> Harness {
         writes: Box::new([]),
     });
     h.send(Event::Started { task: HOLDER, attempt: ATTEMPT });
-    let _first_turn = turn(&mut h, FIRST_TURN, None, 0, &[]);
+    let _first_turn = turn(&mut h, FIRST_TURN, None, 0, &[], &[]);
     h
 }
 
@@ -56,6 +56,7 @@ fn turn(
     read: Option<u64>,
     cumulative: u64,
     offers: &[crate::Word],
+    refused: &[u64],
 ) -> Result<Accepted, Refusal> {
     let out = h.send(Event::Turn {
         reply_to: to(),
@@ -63,7 +64,7 @@ fn turn(
         attempt: ATTEMPT,
         turn: number,
         read,
-        refused: Box::new([]),
+        refused: refused.into(),
         offered: offers.last().map(|word| word.number),
         outstanding: offers.iter().map(|word| word.number).collect(),
         cumulative,
@@ -110,7 +111,7 @@ fn decided_escalation_entries_remain_readable_by_their_holder() {
             Request::EscalationDecided { outcome, .. } => Some(*outcome),
             _ => None,
         });
-        let admitted = turn(&mut h, READING_TURN, Some(read), TURN_SPEND, &offered);
+        let admitted = turn(&mut h, READING_TURN, Some(read), TURN_SPEND, &offered, &[]);
         let holder = h.domain.task(HOLDER).expect("holder live");
         results.push((name, decided, admitted, holder.turn, holder.run_spent));
         expected.push((name, Some(outcome), Ok(Accepted::New), READING_TURN, TURN_SPEND));
@@ -160,7 +161,7 @@ fn decided_proposal_entries_remain_readable_by_their_holder() {
             Request::ProposalDecided { outcome, .. } => Some(*outcome),
             _ => None,
         });
-        let admitted = turn(&mut h, READING_TURN, Some(read), TURN_SPEND, &offered);
+        let admitted = turn(&mut h, READING_TURN, Some(read), TURN_SPEND, &offered, &[]);
         let holder = h.domain.task(HOLDER).expect("holder live");
         results.push((name, decided, admitted, holder.turn, holder.run_spent));
         expected.push((name, Some(outcome), Ok(Accepted::New), READING_TURN, TURN_SPEND));
@@ -207,16 +208,16 @@ fn a_replaced_offered_word_at_the_inbox_bound_remains_readable() {
         h.domain.task(HOLDER).unwrap().inbox.iter().map(|word| word.number).collect::<Vec<_>>(),
         [ENTRY, NEXT_ENTRY + 1]
     );
-    assert_eq!(turn(&mut h, READING_TURN, Some(NEXT_ENTRY), TURN_SPEND, &offers), Ok(Accepted::New));
+    assert_eq!(turn(&mut h, READING_TURN, Some(NEXT_ENTRY), TURN_SPEND, &offers, &[]), Ok(Accepted::New));
 }
 
 #[test]
 fn holes_and_consumed_words_cannot_advance_or_charge() {
     let (mut h, offers) = replaced_word();
     let before = h.domain.task(HOLDER).unwrap().clone();
-    assert_eq!(turn(&mut h, READING_TURN, Some(ENTRY - 1), TURN_SPEND, &offers), Err(Refusal::Read));
+    assert_eq!(turn(&mut h, READING_TURN, Some(ENTRY - 1), TURN_SPEND, &offers, &[]), Err(Refusal::Read));
     assert_eq!(h.domain.task(HOLDER).unwrap(), &before);
-    turn(&mut h, READING_TURN, Some(NEXT_ENTRY), TURN_SPEND, &offers).expect("reads the replaced offer");
+    turn(&mut h, READING_TURN, Some(NEXT_ENTRY), TURN_SPEND, &offers, &[]).expect("reads the replaced offer");
     let before = h.domain.task(HOLDER).unwrap().clone();
     // The parent retires the evidence with that commit. Keep the high-water
     // authentic while testing admission without the consumed exact offer.
@@ -274,7 +275,7 @@ fn an_old_passed_proposal_decided_without_an_offer_does_not_supply_a_read_fence(
     });
     h.send(Event::Message { reply_to: to(), project: 1, task: HOLDER, word: word(ENTRY, crate::MessageKind::Words) });
     let offers = h.domain.task(HOLDER).expect("holder live").inbox.clone();
-    assert_eq!(turn(&mut h, READING_TURN, Some(old), TURN_SPEND, &offers), Err(Refusal::Read));
+    assert_eq!(turn(&mut h, READING_TURN, Some(old), TURN_SPEND, &offers, &[]), Err(Refusal::Read));
 }
 
 #[test]
@@ -300,6 +301,82 @@ fn wrong_attempt_and_oversized_offer_evidence_cannot_advance_or_charge() {
             Request::Refused { problem, .. } => problem.why == expected,
             _ => false,
         }));
+        assert_eq!(h.domain.task(HOLDER).unwrap(), &before);
+    }
+}
+
+#[test]
+fn a_run_refuses_an_offered_escalation_and_it_stays_pending() {
+    let mut h = running_holder();
+    h.send(Event::Hold { task: CHILD, why: Hold::Stopped });
+    h.route(CHILD, EscalationHolder::Task(HOLDER), ENTRY);
+    let pending = h.domain.task(CHILD).unwrap().escalation.clone();
+    let offers = crate::escalation::waiting_for(&h.domain, HOLDER);
+    assert_eq!(offers.iter().map(|word| word.number).collect::<Vec<_>>(), [ENTRY]);
+    assert_eq!(h.domain.next_waiting(HOLDER, None).unwrap().number, ENTRY);
+
+    assert_eq!(turn(&mut h, READING_TURN, Some(ENTRY), TURN_SPEND, &offers, &[ENTRY]), Ok(Accepted::New));
+    assert_eq!(h.domain.task(CHILD).unwrap().escalation, pending);
+    assert_eq!(crate::escalation::waiting_for(&h.domain, HOLDER), offers);
+    assert!(h.domain.next_waiting(HOLDER, None).is_none());
+    // A later turn and its publication must retain the earlier refusal.
+    assert_eq!(turn(&mut h, READING_TURN + 1, None, TURN_SPEND, &[], &[]), Ok(Accepted::New));
+    h.restart();
+    assert_eq!(h.domain.task(HOLDER).unwrap().refused.as_ref(), [ENTRY]);
+    assert_eq!(h.domain.task(CHILD).unwrap().escalation, pending);
+    assert!(h.domain.next_waiting(HOLDER, None).is_none());
+}
+
+#[test]
+fn a_run_refuses_an_offered_proposal_and_it_stays_pending() {
+    let mut h = running_holder();
+    h.send(Event::Hold { task: CHILD, why: Hold::Stopped });
+    // Complete the held child's routing before testing a cold restore.
+    h.route(CHILD, EscalationHolder::Person(REQUESTER), ENTRY - 1);
+    h.send(Event::Propose {
+        reply_to: to(),
+        proposal: Proposal {
+            number: ENTRY,
+            proposer: CHILD,
+            project: 1,
+            action: ProposalAction::Release { task: CHILD },
+            reason: Box::from(b"please release".as_slice()),
+            as_holder: false,
+            state: ProposalState::Pending { holder: ProposalHolder::Task(HOLDER), since: h.env.wall },
+        },
+    });
+    let pending = h.domain.task(CHILD).unwrap().proposal.clone();
+    let offers = crate::proposals::waiting_for(&h.domain, HOLDER);
+    assert_eq!(offers.iter().map(|word| word.number).collect::<Vec<_>>(), [ENTRY]);
+    assert_eq!(h.domain.next_waiting(HOLDER, None).unwrap().number, ENTRY);
+
+    assert_eq!(turn(&mut h, READING_TURN, Some(ENTRY), TURN_SPEND, &offers, &[ENTRY]), Ok(Accepted::New));
+    assert_eq!(h.domain.task(CHILD).unwrap().proposal, pending);
+    assert_eq!(crate::proposals::waiting_for(&h.domain, HOLDER), offers);
+    assert!(h.domain.next_waiting(HOLDER, None).is_none());
+    assert_eq!(turn(&mut h, READING_TURN + 1, None, TURN_SPEND, &[], &[]), Ok(Accepted::New));
+    h.restart();
+    assert_eq!(h.domain.task(HOLDER).unwrap().refused.as_ref(), [ENTRY]);
+    assert_eq!(h.domain.task(CHILD).unwrap().proposal, pending);
+    assert!(h.domain.next_waiting(HOLDER, None).is_none());
+}
+
+#[test]
+fn a_refusal_of_an_entry_never_offered_is_refused() {
+    let mut h = running_holder();
+    h.send(Event::Hold { task: CHILD, why: Hold::Stopped });
+    h.route(CHILD, EscalationHolder::Task(HOLDER), ENTRY);
+    let offers = crate::escalation::waiting_for(&h.domain, HOLDER);
+    // An unknown name below the offer, and a real entry above the offer.
+    h.send(Event::Message {
+        reply_to: to(),
+        project: 1,
+        task: HOLDER,
+        word: word(NEXT_ENTRY, crate::MessageKind::Words),
+    });
+    let before = h.domain.task(HOLDER).unwrap().clone();
+    for refused in [ENTRY - 1, NEXT_ENTRY] {
+        assert_eq!(turn(&mut h, READING_TURN, None, TURN_SPEND, &offers, &[refused]), Err(Refusal::Read));
         assert_eq!(h.domain.task(HOLDER).unwrap(), &before);
     }
 }

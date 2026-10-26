@@ -75,9 +75,10 @@ fn apply(domain: &mut Domain, env: &Env<Limits>, fence: Fence, decision: Procedu
     if let Err(problem) = check(domain, env, number, &decision) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
+    crate::inbox::keep_refusals(domain, number, &[]);
     let live = task_mut(domain, number).expect("procedure step preflighted");
     live.record.attempt = step;
-    crate::inbox::take(&mut live.record, read, &[]);
+    crate::inbox::take(&mut live.record, read);
     live.procedure_offered = None;
     task_mut(domain, number).expect("procedure task live").record.phase = Phase::Active(Active::Idle);
     let made = !decision.batch.is_empty();

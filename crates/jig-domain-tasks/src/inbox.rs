@@ -573,68 +573,63 @@ pub(crate) fn proposal_decision(
     crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
 }
 
+/// Physical words and virtual decisions offered to this task share entry names.
+fn entry(domain: &Domain, task: u64, number: u64) -> bool {
+    let task_record = record(domain, task).expect("entry recipient live");
+    for word in &task_record.inbox {
+        if word.number == number {
+            return true;
+        }
+    }
+    for word in crate::proposals::waiting_for(domain, task) {
+        if word.number == number {
+            return true;
+        }
+    }
+    for word in crate::escalation::waiting_for(domain, task) {
+        if word.number == number {
+            return true;
+        }
+    }
+    false
+}
+
 pub(crate) fn readable(domain: &Domain, task: u64, read: Option<u64>, outstanding: &[u64]) -> bool {
     match read {
         None => true,
-        Some(number) => {
-            if number == 0 {
-                return false;
-            }
-            if outstanding.contains(&number) {
-                return true;
-            }
-            let task_record = record(domain, task).expect("readable task live");
-            for word in &task_record.inbox {
-                if word.number == number {
-                    return true;
-                }
-            }
-            for word in crate::proposals::waiting_for(domain, task) {
-                if word.number == number {
-                    return true;
-                }
-            }
-            for word in crate::escalation::waiting_for(domain, task) {
-                if word.number == number {
-                    return true;
-                }
-            }
-            false
-        }
+        Some(number) => number != 0 && (outstanding.contains(&number) || entry(domain, task, number)),
     }
 }
 
-pub(crate) fn valid_refusals(task: &crate::TaskRecord, offered: Option<u64>, refusals: &[u64]) -> bool {
+pub(crate) fn valid_refusals(domain: &Domain, task: u64, offered: Option<u64>, refusals: &[u64]) -> bool {
     for number in refusals {
-        if offered.is_none() || Some(*number) > offered {
-            return false;
-        }
-        let mut found = false;
-        for word in &task.inbox {
-            found |= word.number == *number;
-        }
-        if !found {
+        if offered.is_none() || Some(*number) > offered || !entry(domain, task, *number) {
             return false;
         }
     }
     true
 }
 
-pub(crate) fn keep_refusals(task: &mut crate::TaskRecord, refused: &[u64]) {
-    if task.refused.is_empty() && refused.is_empty() {
+pub(crate) fn keep_refusals(domain: &mut Domain, task: u64, refused: &[u64]) {
+    let old = record(domain, task).expect("refusal recipient live");
+    if old.refused.is_empty() && refused.is_empty() {
         return;
     }
-    let mut names = List::with_capacity(u32::try_from(task.inbox.len()).expect("bounded inbox"));
-    for word in &task.inbox {
-        if task.refused.contains(&word.number) || refused.contains(&word.number) {
-            names.push(word.number).expect("refused subset fits");
+    let capacity = old.refused.len().checked_add(refused.len()).expect("bounded refusal names");
+    let mut names = List::with_capacity(u32::try_from(capacity).expect("bounded refusals"));
+    for candidates in [&*old.refused, refused] {
+        for &number in candidates {
+            if !names.as_slice().contains(&number) && entry(domain, task, number) {
+                names.push(number).expect("refused subset fits");
+            }
         }
     }
-    task.refused = names.into_boxed();
+    let mut names = names.into_boxed();
+    names.sort_unstable();
+    task_mut(domain, task).expect("refusal recipient live").record.refused = names;
 }
 
-pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, refused: &[u64]) {
-    keep_refusals(task, refused);
+pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>) {
     if let Some(number) = read {
         let mut kept = List::with_capacity(u32::try_from(task.inbox.len()).expect("bounded inbox count"));
         for word in &task.inbox {

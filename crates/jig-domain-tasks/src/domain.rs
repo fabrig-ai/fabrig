@@ -1035,8 +1035,8 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
 pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     crate::waits::refresh(domain, number);
     crate::proposals::withdraw_on_close(domain, env, number, out);
+    crate::inbox::keep_refusals(domain, number, &[]);
     let task = task_mut(domain, number).expect("published task is live");
-    crate::inbox::keep_refusals(&mut task.record, &[]);
     let source_changed = match &task.record.phase {
         Phase::Held { source, .. } => match &task.observed_phase {
             Some(Phase::Held { source: previous, .. }) => source != previous,

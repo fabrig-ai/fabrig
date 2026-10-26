@@ -343,7 +343,6 @@ fn valid_record(domain: &Domain, limits: &Limits, task: &TaskRecord) -> bool {
         || !valid_grace(task, limits)
         || !valid_person_answer(task)
         || !crate::positions::valid(task, limits.inbox_messages)
-        || !crate::inbox::valid_refusals(task, Some(task.last_message), &task.refused)
     {
         return false;
     }
@@ -874,6 +873,10 @@ fn failed(domain: &mut Domain, task: Option<u64>, why: Refusal, out: &mut Queue<
 
 #[expect(clippy::too_many_lines, reason = "restore validates complete task topology and period allotments together")]
 fn links(domain: &Domain, env: &Env<Limits>, task: &TaskRecord) -> bool {
+    // Virtual entries live on other rows, so validate after every row arrived.
+    if !crate::inbox::valid_refusals(domain, task.number, domain.run_message(task.number), &task.refused) {
+        return false;
+    }
     match task.requester {
         Party::Task(number) => {
             let Some(parent) = record(domain, number) else {

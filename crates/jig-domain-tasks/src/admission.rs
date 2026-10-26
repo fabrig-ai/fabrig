@@ -77,7 +77,7 @@ pub(crate) fn turn(
     if beyond_offer
         || outstanding.len() > usize::try_from(environment.limits.run_inbox).expect("run inbox fits usize")
         || !crate::inbox::readable(domain, number, read, outstanding)
-        || !crate::inbox::valid_refusals(old, offered, refusals)
+        || !crate::inbox::valid_refusals(domain, number, offered, refusals)
     {
         return refused(to, Some(number), Refusal::Read, out);
     }
@@ -88,10 +88,11 @@ pub(crate) fn turn(
     if old.last_reply == u64::MAX {
         return refused(to, Some(number), Refusal::Turn, out);
     }
+    crate::inbox::keep_refusals(domain, number, refusals);
     let task = &mut task_mut(domain, number).expect("turn admitted").record;
     task.last_activity = environment.wall;
     task.turn = turn;
-    crate::inbox::take(task, read, refusals);
+    crate::inbox::take(task, read);
     task.ever_turned = true;
     task.last_reply = task.last_reply.checked_add(1).expect("reply ordinal admitted");
     crate::activity::append(
@@ -137,11 +138,11 @@ pub(crate) fn answer_refusals(
         || refused.len() > usize::try_from(env.limits.inbox_messages).expect("u32 fits usize")
         || attempt == 0
         || crate::run::run_attempt(&old.phase) != Some(attempt)
-        || !crate::inbox::valid_refusals(old, offered, refused)
+        || !crate::inbox::valid_refusals(domain, number, offered, refused)
     {
         return;
     }
-    crate::inbox::keep_refusals(&mut task_mut(domain, number).expect("current attempt").record, refused);
+    crate::inbox::keep_refusals(domain, number, refused);
     publish(domain, env, number, out);
 }
 
