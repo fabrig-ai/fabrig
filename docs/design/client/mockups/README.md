@@ -8,12 +8,17 @@ and which pages are under the rules below yet.
 
 ## 1. In one page
 
-- **Binding.** A page's look, its parts and their order, its words and
-  where each act leads are its mockup's. The client's documents
-  (`../README.md`, `../forge.md`, `../browser.md`) hold what a page
-  reads, watches and does, and cite the mockup for the rest. The two
-  agree: a change to one changes the other in the same landing, and a
-  disagreement found is settled, never recorded.
+- **Binding for what is not built yet.** temper is the source of truth
+  for what it draws (the user, 10-26): where a mockup differs from what
+  temper draws, the mockup is reconciled to temper, gradually, and a
+  built page's look is tuned on its journey's print
+  (`../journeys.md`, section 7). For what is not built yet, a page's
+  look, its parts and their order, its words and where each act leads
+  are its mockup's. The client's documents (`../README.md`,
+  `../forge.md`, `../browser.md`) hold what a page reads, watches and
+  does, and cite the mockup for the rest. The two agree: a change to
+  one changes the other in the same landing, and a disagreement found
+  is settled, never recorded.
 - **Realistic.** A page's main drawing shows only what the engine has
   today: the data the client can read and the operations it can call,
   so that building the page is the client's work alone. Each value
@@ -108,9 +113,11 @@ hovering one shows its citation.
   listed in that step's `look`. A page draws no gallery of its other
   states.
 - **The look:** `style.css`, `terminal-chat.css` and
-  `terminal-pages.css` are the product's, from which `temper.css` takes
-  its rules (`../browser.md`, 2.5); `mockup.css` is the mockups' own
-  bar and marks, never the product.
+  `terminal-pages.css` sketch the look of what is not built yet; the
+  product's is `temper.css`, tuned on the journeys' prints
+  (`../browser.md`, 2.5; `../journeys.md`), to which these sheets are
+  reconciled. `mockup.css` is the mockups' own bar and marks, never the
+  product.
 
 ## 5. Keeping them
 

@@ -1,10 +1,12 @@
 # The browser
 
-Provisional, 2026-10-05, revised 2026-10-23. temper's browser client: a
+Provisional, 2026-10-05, revised 2026-10-26. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
-`forge.md`), with the mockups' design (`mockups/`),
-which this document takes as given; how a view runs in a browser is
+`forge.md`). What temper draws is the source of truth, recorded and
+printed as journeys (`journeys.md`); the mockups (`mockups/`) are the
+design of what is not built yet, reconciled to temper where they
+differ (the user, 10-26). How a view runs in a browser is
 skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 (jig's `protocol/browser.md`). It is built in two milestones (section
 6). What is still open is section 5.
@@ -60,7 +62,12 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   (section 4).
 - **The gallery** prints the browser's pages in named states as static
   documents, beside the bundle's stylesheets, for screenshots held to
-  the mockups: no server, no script, no network (section 7).
+  the mockups: no server, no script, no network (section 7). It stays
+  for the states no journey reaches.
+- **Journeys** are walks recorded in a browser on a fresh fake box,
+  replayed natively through the shipped host and printed as the
+  client's pages, where the look is tuned and kept current by a test
+  (`journeys.md`).
 
 ## 2. What temper brings to the browser
 
@@ -68,8 +75,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   view and `temper-client-protocol-wire` are step crates under the
   subset, which build for the host and for wasm32 alike; the terminal
   and the agents' tools are not part of the bundle.
-- **Its look:** after the mockups (`mockups/style.css`), as temper's
-  style tokens and a stylesheet over skein's (skein's `ui-web.md`, 3.2
+- **Its look:** temper's style tokens and a stylesheet over skein's,
+  tuned on the journeys' prints (`journeys.md`, section 7; skein's `ui-web.md`, 3.2
   and section 12): 2.5.
 - **Its pages,** the client's (`README.md`, 3.5), each at an address of
   its own (2.3); and the forge's parts, from `forge.md`, as the forge's
@@ -84,7 +91,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 ### 2.1 The shell
 
 - **`temper-client-shell-web`** is a `cdylib` for
-  `wasm32-unknown-unknown`, ordinary Rust as a shell is (skein's
+  `wasm32-unknown-unknown`, and a library on every target for its host
+  and its journeys (`journeys.md`, section 2), ordinary Rust as a shell is (skein's
   `ui.md`, section 2), copied from jig's reference browser shell,
   `jig-client-test-shell-web` (jig's `protocol/browser.md`, 3.1), with
   temper's client root, view and records in place of jig's test
@@ -106,7 +114,13 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
     adapter (`jig-client-shell-web`'s `adapter`) and skein's transport,
     and their reports back to the root; and the wake, skein's timer
     set at the earlier of the root's deadline and the instant the
-    view's words next change (`README.md`, 5.12);
+    view's words next change (`README.md`, 5.12); its seam, a report
+    given and the duties asked back, a turn's drawing and its deadline,
+    the shell's turn and the journeys' replay call alike
+    (`journeys.md`, section 2);
+  - `journey`: a recording's records and file, its recorder and its
+    replay (`journeys.md`, sections 3 and 4); the recorder's keys and
+    save are in `lib`, under the `record` feature alone;
   - `records`: the small store's records, `jig-client`'s alone; from the
     adoption form (section 6), a pending adoption is among them, a kept
     request whose request `temper-client-protocol-wire` encodes
@@ -358,9 +372,14 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   cards; the conversation's turns; the composers. The view sets them
   (`README.md`, 5.1); the terminal prints none.
 - **The bundle's stylesheets:** skein's `skein-ui.css`, then
-  `temper.css`, which takes its rules from the mockups' terminal sheets
-  as they render (`terminal-chat.css` and `terminal-pages.css` over
-  `style.css`); the mockups are not shipped. These are the bundle's three
+  `temper.css`, temper's look. It no longer takes its rules from the
+  mockups' terminal sheets (`terminal-chat.css` and `terminal-pages.css`
+  over `style.css`): it is tuned on the journeys' prints
+  (`journeys.md`, section 7), and the mockups are reconciled to it
+  (`mockups/README.md`, 1); they are not shipped. What follows here
+  says what it draws today, much of it first taken from the mockups,
+  and is the gallery's for the states no journey reaches (section 7).
+  These are the bundle's three
   stylesheets; `jig.css` is not in it. `temper.css` holds the mockups'
   palette as variables under the prefix, their monospaced stack, compact
   top navigation and quiet borders. DM Sans, for the wordmark alone, is
@@ -874,7 +893,9 @@ workspace, prints the browser's pages in named states into a
 directory, as static documents, for screenshots beside the mockups
 (`../draft/qa-web.md`, 3.2) and a person's eye. It is a tool, not a test of the pages: what
 the pages do is the worlds' (section 4), and the gallery draws what the
-view draws, never changing a view to suit a sample.
+view draws, never changing a view to suit a sample. It stays for the
+states no journey reaches (`journeys.md`): a journey's print, replayed
+from the engine's own answers, is where the look is tuned.
 
 ### 7.1 What it prints
 

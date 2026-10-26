@@ -177,10 +177,12 @@ forge, temper adds:
 - **`client/`:** temper's client on `jig-client`. Its `README.md` is the
   client: its client root and pages, the forge's client family, its view,
   the terminal, signing in, and the clients' listener; `forge.md` is the
-  forge's part of the client, `browser.md` the browser shell, `tools.md`
+  forge's part of the client, `browser.md` the browser shell,
+  `journeys.md` its pages recorded and printed, `tools.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
   from a command line), and `mockups/` the pages' design: their look,
-  parts, words and acts, binding, with a `STATUS.md` of their own.
+  parts, words and acts, binding for what is not built yet and
+  reconciled to what temper draws, with a `STATUS.md` of their own.
 - **`qa.md`:** temper's binding to the lab (the lab's `lab.md`): its
   experiments in `lab/`, their charter, tool and checks, and M1's
   campaign.

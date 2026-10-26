@@ -141,7 +141,7 @@ temper-client-shell-terminal    the terminal: temper's host, its settings and li
 ├── skein-ui-text               skein's text shell: the renderer, the command reader, the terminal
 └── jig-client-shell-native     jig's native transport: skein's HTTP client with jig-client-protocol-http; the small store's file and the credential's
 temper                          the binary; `temper open` runs the terminal (../protocol/README.md, section 4)
-temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust (browser.md, 2.1)
+temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (browser.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
 └── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
 
@@ -157,6 +157,7 @@ temper-client-world             tests/client: temper's client joined to temper's
 skein-fake-person-browser       the person in Chromium, through skein-browser (browser.md, section 4)
 temper-client-browser-world     tests/client-browser: the browser tier (browser.md, section 4)
 temper-client-gallery           tools/gallery: the browser's pages in named states, as static documents (browser.md, section 7)
+temper-client-journeys          tools/journeys: recorded walks replayed through the shipped host and printed as pages (journeys.md)
 ```
 
 - **The crate graph.** `temper-client-domain` depends on skein-lib,
