@@ -231,18 +231,19 @@ default; the document is `temper.json` in the configuration directory
   keeps them (jig's `protocol/store.md`, 5.3). It reads no
   configuration and no store.
 - **`temper upgrade --check DIRECTORY`:** a rehearsal (jig's
-  `protocol/store.md`, 10.5) over DIRECTORY, a copy of a stopped
-  deployment's data directory such as last night's backup, with the
-  configuration `temper serve` would read: the open patches and checks
-  as a start would, restores, and stops where it would switch. It
-  prints a line per patch with its counts and time, the time of the
-  whole, the refusal a start would meet, in a start's words, or that a
-  start would succeed; then whether the workers may stay: yes when the
-  copy's wires equal this binary's and no pending patch is marked
-  fresh, no saying which differs, unknown when the copy keeps none
-  (`draft/upgrades.md`, sections 3.1 and 9). Exit 0 when a start would
-  succeed, 1 when it would be refused. It never touches the deployment
-  it copies; the copy's next start removes its scratch.
+  `protocol/store.md`, 10.5) over DIRECTORY, a stopped deployment's
+  data directory or a copy of one such as last night's backup, which it
+  never writes: it works in a scratch copy under the cache directory,
+  with the configuration `temper serve` would read; the open patches
+  and checks as a start would, restores, and stops before its switch
+  step. It prints a line per patch with its counts and time, the time
+  of the whole, and the refusal a start would meet, in a start's words,
+  or that the patches and the restores pass, saying that what follows
+  the switch is not rehearsed; then whether the workers may stay: yes
+  when the copy's wires equal this binary's and no pending patch is
+  marked fresh, no saying which differs, unknown when the copy keeps
+  none (`draft/upgrades.md`, sections 3.1 and 9). Exit 0 when the
+  patches and restores pass, 1 when a start would be refused there.
 - **`temper upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store.md`, 10.5), for a binary that patched and
   failed before its first commit of its own: the deployment stopped,

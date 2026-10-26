@@ -604,14 +604,17 @@ each step the core asks for:
    task the restart does not hold, as jig's children refuse theirs.
    Designed, not built: before them, the forge loads its kinds' values
    from its family `Setting`, is given temper's stock defaults, and
-   tells the core which differ (5.6). Over a generation the store holds pending (jig's
-   `protocol/store.md`, 10.2, step 7), then **the switch**
-   (`RestartStep::Switch`): the root asks the store to switch and goes
-   on once it answers; nothing has been committed before it, and a
-   refusal before it leaves the generation patched from active (jig's
-   `domain/engine.md`, section 6). A rehearsing root
-   (`../protocol/README.md`, section 4, `temper upgrade --check`) asks
-   for no switch: it ends there, reporting the restores whole.
+   tells the core which differ (5.6). Then **the switch**
+   (`RestartStep::Switch`), at every start: over a generation the store
+   holds pending (jig's `protocol/store.md`, 10.2, step 7) the root asks
+   the store to switch and goes on once it answers; then it commits the
+   start's wires (jig's `protocol/store.md`, 5.3). Nothing leaves the
+   process before that commit is durable: the restores' commits before
+   it land in the copy alone, and a refusal before the switch leaves the
+   generation patched from active (jig's `domain/engine.md`, section 6).
+   A rehearsing root (`../protocol/README.md`, section 4, `temper
+   upgrade --check`) ends before this step, reporting the restores
+   whole.
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
 5. **The forge reads afresh,** then **settles its outbox** (forge.md,
