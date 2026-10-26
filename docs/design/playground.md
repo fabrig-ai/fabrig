@@ -151,6 +151,10 @@ on the timer, or after a message:
   the duration read 0. The page keeps the high water of each, so the
   world says how big and how quick it is, which the application may
   show and its browser tier reads as a person does (section 8).
+- **The worker says it is ready:** once its module has started and its
+  handler is in, it posts one empty message, no encoded message at all,
+  and the page holds everything it would send until it hears it, since
+  a message posted before the handler is lost.
 - **Plain data, encoded as bytes,** one message per `postMessage`, its
   buffer transferred. Both modules come from one bundle (section 7), so
   the encoding has no version and no negotiation: a page and a worker of
