@@ -53,7 +53,8 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
         fixtures::forge_runtime(),
     )
     .expect("a whole frame exactly at Small's page ceiling starts");
-    let opened = crate::store_limits(&document, &config::Directories::working()).unwrap();
+    let opened =
+        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap();
     assert_eq!(opened.store.store.page.bytes, 1_590_110);
 }
 
@@ -63,7 +64,8 @@ fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
     let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 1590111 bytes, needs a store page past the profile's ceiling of 1590110 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
-    let opened = crate::store_limits(&document, &config::Directories::working()).unwrap_err();
+    let opened =
+        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap_err();
     assert_eq!(lines(&opened).as_ref(), expected);
 }
 
@@ -135,7 +137,7 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
             }
             document = text.into_bytes().into_boxed_slice();
         }
-        let store = crate::store_limits(&document, &config::Directories::working()).unwrap().store;
+        let store = crate::store_limits(&document, &config::Directories::working(), Some(&agent)).unwrap().store;
         let page = u64::from(store.store.page.bytes);
         let map = u64::from(store.store.key) + u64::from(store.store.value);
         let frame = u64::from(jig_protocol_store::sizes::frame(&store.core, TRANSCRIPT).unwrap());
@@ -181,7 +183,9 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
 #[test]
 fn a_map_driven_page_needs_no_larger_read_bound() {
     let document = fixtures::document();
-    let store = crate::store_limits(&document, &config::Directories::working()).unwrap().store;
+    let store = crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent()))
+        .unwrap()
+        .store;
     let map = store.store.key.checked_add(store.store.value).unwrap();
     let frame =
         jig_protocol_store::sizes::frame(&store.core, fixtures::startup_agent().limits.bodies.turn_body).unwrap();

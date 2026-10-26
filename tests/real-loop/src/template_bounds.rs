@@ -152,15 +152,11 @@ fn fixture() -> crate::forge::Fixture {
             value["engine"]["projects"][0]["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
             value["engine"]["projects"][0]["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds;
             fixtures::turn_bounds::apply(value, fixtures::turn_bounds::turn_body(agent));
-            admit(value);
+            // ServiceHost::configured admits the final document with its checked agent
+            // through envelope_in after both fixture documents have been written.
         },
         ..crate::forge::fixture()
     }
-}
-fn admit(value: &Value) {
-    let bytes = serde_json::to_vec(value).expect("final fixture document");
-    temper_service::store_limits(&bytes, &jig_protocol_config::Directories::working())
-        .expect("final fixture passes full store admission");
 }
 fn turn(name: &[u8], value: &Value) -> skein_fake_llm_domain::api::Turn {
     use skein_fake_llm_domain::api::{Finish, Line, Turn};
