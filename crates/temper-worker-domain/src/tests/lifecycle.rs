@@ -270,21 +270,23 @@ fn earlier_host_answers_take_the_same_agents_reply_bound() {
             let mut h = Harness::new();
             let (owner, source) = h.decode(Box::new([]));
             let mut start = super::fixtures::start(RUN, &source);
-            let bytes = usize::try_from(h.env.limits.reply_bytes + extra).expect("reply length");
+            let bytes = h.env.limits.reply_bytes + extra;
+            let mut body = skein_lib::List::with_capacity(bytes);
+            for _ in 0..bytes {
+                body.push(b'x').expect("room for each byte");
+            }
+            let body = body.into_boxed();
             start.answered = Box::new([agent::AnsweredCall {
                 name: agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 },
                 tool: Box::from(&b"recall"[..]),
-                reply: agent::SavedReply::Host { error, body: alloc::vec![b'x'; bytes].into_boxed_slice() },
+                reply: agent::SavedReply::Host { error, body: body.clone() },
             }]);
             let rows = h.run(Event::Decoded { agent: owner, start: Ok(Box::new(start)) });
             let [call] = sent_start(&rows).answered.as_ref() else { panic!("one earlier answer") };
             assert_eq!(call.tool.as_ref(), b"recall");
             assert_eq!(call.name, agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 });
-            let expected = if extra == 0 {
-                agent::SavedReply::Host { error, body: alloc::vec![b'x'; bytes].into_boxed_slice() }
-            } else {
-                agent::SavedReply::TooLarge
-            };
+            let expected =
+                if extra == 0 { agent::SavedReply::Host { error, body } } else { agent::SavedReply::TooLarge };
             assert_eq!(call.reply, expected);
         }
     }

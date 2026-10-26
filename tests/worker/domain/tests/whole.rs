@@ -65,7 +65,7 @@ fn a_host_answer_at_the_agents_reply_bound_reaches_it_whole() {
         panic!("the agent receives the whole host answer");
     };
     assert!(!reply.error());
-    assert_eq!(reply.text(), vec![b'x'; usize::try_from(REPLY_BYTES).unwrap()]);
+    assert_eq!(reply.text(), vec![b'x'; usize::try_from(REPLY_BYTES).expect("reply length")]);
 }
 
 #[test]

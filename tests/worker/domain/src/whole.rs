@@ -23,7 +23,7 @@ const ATTEMPT: Token = Token::new(13);
 const WORKSTREAM: u64 = 81;
 const PROCESS: Token = Token::new(707);
 const CALL: Token = Token::new(44);
-/// The scripted channel's host_reply_text, small enough to exercise both sides.
+/// The scripted channel's `host_reply_text`, small enough to exercise both sides.
 pub const REPLY_BYTES: u32 = 32;
 
 const REMOTE: &[u8] = b"org/app";
