@@ -169,6 +169,7 @@ pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undec
 
 pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
+        answer_name_name: forge.client.answer_bytes,
         binding_address: 254,
         binding_subject: 255,
         application_adopted_owner: forge.name_bytes,
@@ -210,7 +211,7 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         compare_answer_commits: forge.client.rows,
         checks_answer_statuses: forge.client.answer_bytes.checked_add(forge.client.rows.checked_mul(4)?)?,
         collaborators_answer_collaborators: forge.client.rows,
-        summary_labels: forge.client.answer_bytes.checked_add(forge.client.rows.checked_mul(4)?)?,
+        summary_labels: forge.client.answer_bytes.checked_add(forge.client.rows.checked_mul(8)?)?,
         summary_key_some: forge.client.answer_bytes,
         summary_title: forge.client.answer_bytes,
         summary_body: forge.client.answer_bytes,
@@ -228,7 +229,11 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         job_answer_log: forge.client.answer_bytes,
         file_answer_path: forge.client.answer_bytes,
         file_answer_bytes: forge.client.answer_bytes,
-        branches_answer_branches: forge.client.answer_bytes.checked_add(forge.client.rows.checked_mul(4)?)?,
+        branches_answer_branches: forge.client.answer_bytes.checked_add(forge.client.rows.checked_mul(8)?)?,
         ..w::CEILINGS
     })
 }
+
+#[cfg(test)]
+#[path = "tests/holds.rs"]
+mod holds;

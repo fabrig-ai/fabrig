@@ -4,16 +4,18 @@ family temper-store 10
 record Repository { forge: u16 repository: u32 }
 record Number { number: u64 }
 record Commit { commit: fixed 32 }
-# A branch's segments: one piece, each segment after its u32 length;
-# limit 4 x forge.name_bytes.
-record Segments { segments: bytes 65536 }
+# Names carry their own byte length inside each framed piece.
+record Segment { name: bytes 4096 }
+record AnswerName { name: bytes 1048576 }
+# A branch's segments: limit 8 x forge.name_bytes, including both lengths.
+record Segments { segments: bytes 65536 pieces Segment }
 enum What { repository, branch: Segments, pull: Number, issue: Number }
 record Name { forge: u16 repository: u32 what: What }
 enum ItemState { open, closed }
 enum Ci { none, pending, passed, failed }
-# The contexts: one piece; limit client.answer_bytes + 4 x client.rows.
+# The contexts: one piece; limit client.answer_bytes + 8 x client.rows.
 enum Bypass { never, pulls_only, always }
-record Protection { branch: bytes 1048576 contexts: bytes 2097152 approvals: u32 dismiss_stale: bool queue: bool signatures: bool linear: bool code_owners: bool bypass: Bypass }
+record Protection { branch: bytes 1048576 contexts: bytes 2097152 pieces AnswerName approvals: u32 dismiss_stale: bool queue: bool signatures: bool linear: bool code_owners: bool bypass: Bypass }
 record Settings { default_branch: bytes 1048576 merge: bool squash: bool rebase: bool }
 
 # 04.2: family 2, Repository (forge::Repository).
@@ -86,7 +88,7 @@ record JobAttempt { head: fixed 32 run: u64 job: u64 attempt: u32 }
 record Step { number: u32 name: bytes 1048576 }
 record JobAnswer { attempt: JobAttempt step: option Step log: bytes 1048576 truncated: bool }
 record FileAnswer { head: fixed 32 path: bytes 1048576 bytes: bytes 1048576 truncated: bool }
-record BranchesAnswer { branches: bytes 2097152 }
+record BranchesAnswer { branches: bytes 2097152 pieces AnswerName }
 record ProtectionAnswer { protection: option Protection }
 record PermissionValue { permission: Permission }
 record BranchCreationValue { creation: BranchCreation }
@@ -94,23 +96,23 @@ record BranchCreationValue { creation: BranchCreation }
 # 04.3ca: item summaries, comments and reviews in answer pieces.
 enum Kind { issue, pull }
 enum Provenance { original, revised, unknown }
-record Summary { labels: bytes 2097152 number: u64 kind: Kind state: ItemState author: u64 key: option bytes 1048576 title: bytes 1048576 body: bytes 1048576 updated: u64 }
+record Summary { labels: bytes 2097152 pieces AnswerName number: u64 kind: Kind state: ItemState author: u64 key: option bytes 1048576 title: bytes 1048576 body: bytes 1048576 updated: u64 }
 record Comment { id: u64 provenance: Provenance author: u64 created: u64 revision: u64 key: option bytes 1048576 body: bytes 1048576 }
 record Review { id: u64 provenance: Provenance revision: u64 author: u64 verdict: Verdict commit: fixed 32 key: option bytes 1048576 body: bytes 1048576 at: u64 official: bool }
-record ItemsAnswer { items: bytes 2097152 more: bool now: u64 }
-record ItemAnswer { item: Summary comments: bytes 2097152 more: bool }
-record ReviewsAnswer { reviews: bytes 2097152 more: bool }
+record ItemsAnswer { items: bytes 2097152 pieces Summary more: bool now: u64 }
+record ItemAnswer { item: Summary comments: bytes 2097152 pieces Comment more: bool }
+record ReviewsAnswer { reviews: bytes 2097152 pieces Review more: bool }
 
 # 04.3cb: the rest of the forge's answer items and families.
 record Status { at: u64 context: bytes 1048576 verdict: Check description: bytes 1048576 url: bytes 1048576 job: option JobAttempt }
 record Remark { id: u64 author: u64 path: bytes 1048576 line: u32 body: bytes 1048576 }
 record File { path: bytes 1048576 before: option bytes 1048576 after: option bytes 1048576 }
 record Collaborator { user: u64 permission: Permission }
-record StatusesAnswer { ci: Ci statuses: bytes 2097152 more: bool }
-record RemarksAnswer { remarks: bytes 2097152 more: bool }
-record PullFilesAnswer { head: fixed 32 files: bytes 2097152 more: bool }
-record CompareAnswer { before: fixed 32 after: fixed 32 contains_before: bool files: bytes 2097152 commits: list 65536 fixed 32 }
-record ChecksAnswer { statuses: bytes 2097152 }
+record StatusesAnswer { ci: Ci statuses: bytes 2097152 pieces Status more: bool }
+record RemarksAnswer { remarks: bytes 2097152 pieces Remark more: bool }
+record PullFilesAnswer { head: fixed 32 files: bytes 2097152 pieces File more: bool }
+record CompareAnswer { before: fixed 32 after: fixed 32 contains_before: bool files: bytes 2097152 pieces File commits: list 65536 fixed 32 }
+record ChecksAnswer { statuses: bytes 2097152 pieces Status }
 record CollaboratorsAnswer { collaborators: list 65536 Collaborator more: bool }
 record Located { repository: u32 }
 enum Answer { items: ItemsAnswer, item: ItemAnswer, pull: Pull, reviews: ReviewsAnswer, statuses: StatusesAnswer, remarks: RemarksAnswer, commit: Commit, branches: BranchesAnswer, pull_files: PullFilesAnswer, compare: CompareAnswer, checks: ChecksAnswer, job: JobAnswer, file: FileAnswer, protection: ProtectionAnswer, settings: Settings, collaborators: CollaboratorsAnswer, permission: PermissionValue, created: Number, commented: Number, reviewed: Number, merged: Commit, branch: BranchCreationValue, done, located: Located, queued }
@@ -174,8 +176,8 @@ record Projected { opened: bool digest: option fixed 32 last_body: option u64 bo
 record IssueRow { goal: u64 repository: Repository state: Projected number: option u64 pending: option u64 before: option Projected failed: bool desired: option GoalView }
 # 02.4: family 15, the retained application outcome.
 record ApplicationAdopted { repository: Repository owner: bytes 4096 name: bytes 4096 role: Role home: bool kinds: Kinds protection: RepositoryProtection }
-# Ceiling: jig-protocol-store people_v12::Refusal::worst_case_bytes(&people_v12::CEILINGS).
-record CoreRefused { refusal: bytes 517 }
+# Ceiling: jig-protocol-store people_v13::Refusal::worst_case_bytes(&people_v13::CEILINGS).
+record CoreRefused { refusal: bytes 517 holds jig-store-people Refusal }
 enum ForgeReason { no_such_forge, not_found, no_access, refused, in_flight, too_large, unreachable, invalid_answer, not_installed }
 record ForgeRefused { reason: ForgeReason }
 enum ApplicationOutcome { adopted: ApplicationAdopted, core_refused: CoreRefused, forge_refused: ForgeRefused }

@@ -15,11 +15,28 @@ pub(super) fn decode_repository(value: w::Repository) -> api::Repository {
 pub(super) fn encode_piece(values: &[Box<[u8]>]) -> Box<[u8]> {
     let mut size = 0_usize;
     for value in values {
-        size = size.checked_add(value.len()).expect("bounded piece").checked_add(4).expect("bounded piece");
+        size = size.checked_add(value.len()).expect("bounded piece").checked_add(8).expect("bounded piece");
     }
     let mut writer = Writer::new(size);
     for value in values {
-        skein_codec::piece::write(&mut writer, value).expect("measured piece");
+        let item = w::AnswerName::new(&w::CEILINGS, w::AnswerNameParts { name: value.clone() }).expect(FITS);
+        let mut encoded = Writer::new(usize::try_from(item.measure()).expect("name length fits"));
+        item.encode(&mut encoded).expect("measured name room");
+        skein_codec::piece::write(&mut writer, &encoded.finish()).expect("measured piece");
+    }
+    writer.finish()
+}
+fn encode_segments(values: &[Box<[u8]>]) -> Box<[u8]> {
+    let mut size = 0_usize;
+    for value in values {
+        size = size.checked_add(value.len()).expect("bounded piece").checked_add(8).expect("bounded piece");
+    }
+    let mut writer = Writer::new(size);
+    for value in values {
+        let item = w::Segment::new(&w::CEILINGS, w::SegmentParts { name: value.clone() }).expect(FITS);
+        let mut encoded = Writer::new(usize::try_from(item.measure()).expect("segment length fits"));
+        item.encode(&mut encoded).expect("measured segment room");
+        skein_codec::piece::write(&mut writer, &encoded.finish()).expect("measured piece");
     }
     writer.finish()
 }
@@ -32,6 +49,8 @@ fn decode_segments(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Un
         let Some(segment) = item else {
             return Ok(segments.into_boxed());
         };
+        let segment =
+            w::Segment::decode(bounds.limits(), &mut Reader::new(&segment)).or(Err(Undecodable))?.into_parts().name;
         size = size
             .checked_add(u32::try_from(segment.len()).or(Err(Undecodable))?.checked_add(1).ok_or(Undecodable)?)
             .ok_or(Undecodable)?;
@@ -46,7 +65,7 @@ pub(super) fn encode_what(value: &d::What) -> w::What {
     match value {
         d::What::Repository => w::What::Repository,
         d::What::Branch(segments) => w::What::Branch(
-            w::Segments::new(&w::CEILINGS, w::SegmentsParts { segments: encode_piece(segments) }).expect(FITS),
+            w::Segments::new(&w::CEILINGS, w::SegmentsParts { segments: encode_segments(segments) }).expect(FITS),
         ),
         d::What::Pull(number) => {
             w::What::Pull(w::Number::new(&w::CEILINGS, w::NumberParts { number: *number }).expect(FITS))
@@ -88,6 +107,8 @@ pub(super) fn decode_contexts(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<
         let Some(item) = item else {
             return Ok(contexts.into_boxed());
         };
+        let item =
+            w::AnswerName::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?.into_parts().name;
         contexts.push(item).or(Err(Undecodable))?;
     }
     Err(Undecodable)

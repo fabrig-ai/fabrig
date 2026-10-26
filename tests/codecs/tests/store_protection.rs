@@ -64,7 +64,7 @@ fn protection_bounds_accept_the_limit_and_refuse_one_past() {
             match field {
                 "branch" => rule.branch = vec![b'x'; length].into_boxed_slice(),
                 "contexts bytes" => {
-                    // A piece's four-byte length is allowed beside each context.
+                    // Both four-byte lengths are allowed beside each context.
                     // Fill every prefix slot so this also reaches the schema's byte limit.
                     let mut contexts = vec![Box::<[u8]>::default(); usize::try_from(limits.rows).expect("rows")];
                     contexts[0] = vec![b'x'; length].into_boxed_slice();

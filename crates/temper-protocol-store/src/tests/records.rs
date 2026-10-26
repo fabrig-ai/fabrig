@@ -42,7 +42,8 @@ fn bounds_take_each_limit_from_its_source() {
     let bounds = crate::bounds(&fixtures::LIMITS).expect("fixture limits fit");
     let limits = bounds.limits();
     for (name, value, expected) in [
-        ("segments", limits.segments_segments, 512),
+        // Two four-byte lengths per segment, at most name_bytes empty segments.
+        ("segments", limits.segments_segments, 1024),
         ("host", limits.adopted_host, 128),
         ("resources", limits.names_resources, 4),
         ("goal tasks", limits.subscriber_goal_tasks_some, 8),
