@@ -49,6 +49,7 @@ pub struct OneShot {
     class: Class,
     pub(crate) root: root::Root,
     root_env: Env<root::Limits>,
+    connections: jig_client_shell_native::Limits,
     requests: Queue<root::Request>,
     pub(crate) transport: Option<Memory>,
     #[cfg(test)]
@@ -98,7 +99,7 @@ impl OneShot {
             Parsed::File { .. } => Class::Help,
         };
         let root = root::Root::new(&limits.root, startup.seed)?;
-        let request_room = jig_client::max_out(&limits.root.domain.client) * (limits.root.tools.rows + 1);
+        let request_room = root::max_out(&limits.root);
         let mut io = io::Io::new(&limits.io);
         let output = Output::new(&mut io, startup.stdout, startup.stderr, limits.io.output);
         let stdin = Some(io.adopt_read_pipe(startup.stdin).expect("stdin slot"));
@@ -143,17 +144,16 @@ impl OneShot {
             file_end: None,
             recording: None,
             directory: Directory::new(
-                startup.parent,
-                startup.file_parent,
+                startup,
                 call.directory.unwrap_or_default(),
                 class,
-                startup.user,
-                startup.seed,
                 files,
+                u32::try_from(limits.root.tools.ask_bytes).expect("call bound"),
             ),
             call: Some(call.parsed),
             class,
             root,
+            connections: limits.connections,
             root_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.root },
             requests: Queue::with_capacity(request_room),
             transport: None,
@@ -246,6 +246,8 @@ impl OneShot {
                 self.directory.leaf(),
                 self.startup,
                 &mut self.submit,
+                self.connections,
+                self.env.limits,
             ));
             return;
         }
@@ -341,7 +343,7 @@ impl OneShot {
             && matches!(self.class, Class::Read | Class::Wait)
             && let Some(token) = self.directory.token.take()
         {
-            let connections = limits::native().connections;
+            let connections = self.connections;
             #[cfg(test)]
             let connections = self.test_connections.unwrap_or(connections);
             self.transport = Some(Memory::new(self.directory.engine.expect("loaded engine"), &connections));
@@ -512,6 +514,8 @@ impl OneShot {
                 self.directory.leaf(),
                 self.startup,
                 &mut self.submit,
+                self.connections,
+                self.env.limits,
             ));
             self.until = Some(self.env.now.saturating_add(limits::DEADLINE));
             return;

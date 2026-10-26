@@ -16,11 +16,12 @@ fn retained_delivery(root: &mut fixtures::Harness, subject: client::Watchable, d
     let env = skein_lib::Env {
         now: root.now,
         wall: root.wall,
-        limits: super::Limits { domain: root.limits.domain, tools: root.limits.tools },
+        limits: super::Limits::new(root.limits.domain, root.limits.tools),
     };
     let mut child = skein_lib::Queue::with_capacity(fixtures::OUTPUTS);
     let mut out = skein_lib::Queue::with_capacity(fixtures::OUTPUTS);
     super::drain(&mut root.root, &env, &mut pending, &mut child, &mut out);
+    root.root.changed();
     root.outputs(out);
 }
 

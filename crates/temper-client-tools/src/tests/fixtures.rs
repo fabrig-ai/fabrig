@@ -235,7 +235,7 @@ pub(crate) const LONG_WORDS: u32 = crate::limits::TEXT + 1024;
 /// The same frame is read in JSON without repeating its command.
 pub(crate) const ME_JSON_CALL: &[&str] = &[ME_CALL[0], "--json"];
 pub(crate) fn limits_root() -> root::Limits {
-    root::Limits { domain: crate::limits::client(), tools: crate::limits::tools() }
+    root::Limits::new(crate::limits::client(), crate::limits::tools())
 }
 pub(crate) fn me(party: u64) -> c::Me {
     let mut projects = List::with_capacity(PROJECTS);
@@ -411,11 +411,8 @@ pub(crate) fn signed_in(party: u64) -> Harness {
 }
 impl Harness {
     fn event(&mut self, event: root::Event) {
-        let env = Env {
-            now: self.now,
-            wall: self.wall,
-            limits: root::Limits { domain: self.limits.domain, tools: self.limits.tools },
-        };
+        let env =
+            Env { now: self.now, wall: self.wall, limits: root::Limits::new(self.limits.domain, self.limits.tools) };
         let mut out = Queue::with_capacity(OUTPUTS);
         root::step(&mut self.root, &env, event, &mut out);
         self.outputs(out);

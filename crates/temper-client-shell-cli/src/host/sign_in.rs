@@ -14,6 +14,8 @@ impl OneShot {
                     self.directory.leaf(),
                     self.startup,
                     &mut self.submit,
+                    self.connections,
+                    self.env.limits,
                 ) {
                     Ok(signing) => {
                         self.directory.address = signing.address.as_ref().map(|a| a[..a.len() - 1].into());

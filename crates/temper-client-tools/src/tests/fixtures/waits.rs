@@ -195,11 +195,8 @@ pub(crate) fn has(printed: &crate::jig::Printed, expected: &[u8]) -> bool {
 }
 impl Harness {
     pub(crate) fn fire(&mut self) {
-        let env = Env {
-            now: self.now,
-            wall: self.wall,
-            limits: root::Limits { domain: self.limits.domain, tools: self.limits.tools },
-        };
+        let env =
+            Env { now: self.now, wall: self.wall, limits: root::Limits::new(self.limits.domain, self.limits.tools) };
         let mut out = Queue::with_capacity(OUTPUTS);
         root::fire(&mut self.root, &env, &mut out);
         self.outputs(out);

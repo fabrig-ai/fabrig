@@ -1,5 +1,5 @@
 //! A private native shell adopts its own parent while DIRECTORY keeps the lock.
-use crate::{directory, host::Startup, limits};
+use crate::{directory, host::Startup};
 use jig_client_shell_native::Shell;
 use skein_io::kernel::{Complete, Done, Fd, Op, OpenHow, Submit};
 use skein_lib::{Duration, Queue, Secret, Time, Token};
@@ -36,13 +36,20 @@ impl Signing {
         leaf: Box<[u8]>,
         startup: Startup,
         out: &mut Queue<Submit>,
+        connections: jig_client_shell_native::Limits,
+        io: skein_io::Limits,
     ) -> Self {
         out.push(Submit {
             op: OPEN,
             kind: Op::Open { root: parent, path: b".".as_slice().into(), how: OpenHow::ReadNoFollow },
         });
         Self {
-            shell: Some(Shell::new(limits::settings(engine, leaf))),
+            shell: Some(Shell::new(jig_client_shell_native::Settings {
+                engine,
+                directory: leaf,
+                limits: connections,
+                io,
+            })),
             with: None,
             link: None,
             held: None,
@@ -65,6 +72,8 @@ impl Signing {
         leaf: Box<[u8]>,
         startup: Startup,
         out: &mut Queue<Submit>,
+        connections: jig_client_shell_native::Limits,
+        io: skein_io::Limits,
     ) -> Result<Self, &'static [u8]> {
         let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
         let parsed = jig_client_protocol_http::printed(
@@ -76,7 +85,8 @@ impl Signing {
         address.extend_from_slice(&parsed.host);
         address.push(b'\n');
         let engine = directory::address(&address)?;
-        let mut shell = Shell::new(limits::settings(engine, leaf));
+        let mut shell =
+            Shell::new(jig_client_shell_native::Settings { engine, directory: leaf, limits: connections, io });
         let with = shell.sign_in(bytes).map_err(|_| b"the sign-in link was refused".as_slice())?;
         out.push(Submit {
             op: OPEN,

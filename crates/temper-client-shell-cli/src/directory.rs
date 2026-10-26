@@ -1,5 +1,5 @@
 //! DIRECTORY's private files and its engine address (client/tools.md, 8.1).
-use crate::{arguments::Class, limits};
+use crate::{arguments::Class, host::Startup, limits};
 use skein_io::{
     Addr, file,
     file_layer::{self, FileIo},
@@ -50,6 +50,7 @@ pub(crate) struct Directory {
     closing: bool,
     link_path: Option<Box<[u8]>>,
     link_max: u32,
+    ask_bytes: u32,
     settings_input: Option<()>,
     key: Option<Token>,
     record: Option<Token>,
@@ -73,22 +74,9 @@ pub(crate) struct Directory {
     pub(crate) submissions: Queue<Submit>,
 }
 impl Directory {
-    pub(crate) fn new(
-        parent: Option<Fd>,
-        file_parent: Option<Fd>,
-        leaf: Box<[u8]>,
-        class: Class,
-        user: u32,
-        seed: u64,
-        files: Vec<(u8, Fd)>,
-    ) -> Self {
-        let mut io = FileIo::new(
-            FILE_SLOTS,
-            u32::try_from(limits::native().root.tools.ask_bytes).expect("call bound"),
-            1,
-            Duration::from_secs(30),
-        )
-        .with_effective_user(user);
+    pub(crate) fn new(startup: Startup, leaf: Box<[u8]>, class: Class, files: Vec<(u8, Fd)>, ask_bytes: u32) -> Self {
+        let Startup { parent, file_parent, user, seed, .. } = startup;
+        let mut io = FileIo::new(FILE_SLOTS, ask_bytes, 1, Duration::from_secs(30)).with_effective_user(user);
         io.seed_randomness(seed);
         let root = parent.map(|fd| io.adopt_root(fd).expect("parent slot"));
         let file_root = file_parent.map(|fd| io.adopt_root(fd).expect("file parent slot"));
@@ -98,6 +86,7 @@ impl Directory {
         }
         Self {
             io,
+            ask_bytes,
             text_roots,
             text_root: None,
             root,
@@ -573,12 +562,12 @@ impl Directory {
         }
         let start = path.iter().rposition(|byte| *byte == b'/').map_or(0, |at| at + 1);
         self.link_path = Some(path[start..].into());
-        self.link_max = u32::try_from(limits::native().root.tools.ask_bytes).expect("text bound");
+        self.link_max = self.ask_bytes;
         self.stage = Stage::Link;
     }
     pub(crate) fn load_call(&mut self, path: &[u8]) {
         self.load_link(path);
-        self.link_max = u32::try_from(limits::native().root.tools.ask_bytes).expect("call bound");
+        self.link_max = self.ask_bytes;
     }
     pub(crate) fn load_link(&mut self, path: &[u8]) {
         if self.file_root.is_none() {

@@ -395,7 +395,7 @@ fn an_admin_connect_is_not_recovered_as_a_durable_request() {
     let env = skein_lib::Env {
         now: root.now,
         wall: root.wall,
-        limits: crate::root::Limits { domain: root.limits.domain, tools: root.limits.tools },
+        limits: crate::root::Limits::new(root.limits.domain, root.limits.tools),
     };
     let mut out = skein_lib::Queue::with_capacity(f::OUTPUTS);
     crate::forges::told(

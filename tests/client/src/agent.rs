@@ -75,7 +75,7 @@ impl Agent {
 }
 #[must_use]
 pub fn limits() -> root::Limits {
-    root::Limits { domain: temper_client_tools::limits::client(), tools: temper_client_tools::limits::tools() }
+    root::Limits::new(temper_client_tools::limits::client(), temper_client_tools::limits::tools())
 }
 #[must_use]
 pub fn new(seed: u64) -> (Root, View) {
@@ -98,11 +98,7 @@ pub fn new(seed: u64) -> (Root, View) {
     )
 }
 fn environment(env: &Env<domain::Limits>) -> Env<root::Limits> {
-    Env {
-        now: env.now,
-        wall: env.wall,
-        limits: root::Limits { domain: env.limits, tools: temper_client_tools::limits::tools() },
-    }
+    Env { now: env.now, wall: env.wall, limits: root::Limits::new(env.limits, temper_client_tools::limits::tools()) }
 }
 pub fn step(agent: &mut Agent, env: &Env<domain::Limits>, event: Event, out: &mut Queue<Request>) {
     let env = environment(env);

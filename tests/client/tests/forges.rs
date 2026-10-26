@@ -133,7 +133,7 @@ impl World {
         transport.signed_in(CLIENT, fixtures::PARTY, engine.session());
         engine.delivered.clear();
         engine.immediate.clear();
-        let limits = root::Limits { domain: tools::limits::client(), tools: tools::limits::tools() };
+        let limits = root::Limits::new(tools::limits::client(), tools::limits::tools());
         let root = root::Root::unlinked(&limits, fixtures::SEED).expect("client profile");
         let mut world = Self {
             root,

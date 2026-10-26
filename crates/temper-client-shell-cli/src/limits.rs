@@ -24,10 +24,10 @@ pub struct Limits {
 #[must_use]
 pub fn native() -> Limits {
     Limits {
-        root: temper_client_tools::root::Limits {
-            domain: temper_client_tools::limits::client(),
-            tools: temper_client_tools::limits::tools(),
-        },
+        root: temper_client_tools::root::Limits::new(
+            temper_client_tools::limits::client(),
+            temper_client_tools::limits::tools(),
+        ),
         connections: jig_client_shell_native::Limits {
             exchanges: EXCHANGES,
             deadline: DEADLINE,

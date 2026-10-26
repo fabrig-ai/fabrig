@@ -703,7 +703,7 @@ fn exports_wait_for_the_record_acknowledgment_and_render_public_fields() {
         let env = skein_lib::Env {
             now: root.now,
             wall: root.wall,
-            limits: crate::root::Limits { domain: root.limits.domain, tools: root.limits.tools },
+            limits: crate::root::Limits::new(root.limits.domain, root.limits.tools),
         };
         root.root.recorded(&env, call, Ok(()), &mut out);
         root.outputs(out);
