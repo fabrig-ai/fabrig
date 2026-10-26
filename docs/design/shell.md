@@ -199,12 +199,14 @@ section 14.
   adapter with its `iterate`: what the host gives is all it uses. The
   configuration comes as a value or as bytes, and its roots, its
   descriptors, its seed and its process ID as values.
-- **No current directory and no name resolution.** A root the
-  configuration names is one the host supplied, matched by its name as
-  given, never made absolute against a current directory; an endpoint
-  is the address the configuration gives, never a name to resolve. A
-  root the host did not supply is refused at `Agent::new`, naming it,
-  rather than opened.
+- **No current directory and no name resolution.** The host supplies
+  base roots by name, each a directory it opened (a worker's, say). A
+  root a run asks for, at its start, is either one of them, matched by
+  its name as given, or a path beneath one, which the agent opens
+  beneath it through io, as the native agent opens one by path; never
+  made absolute against a current directory. A path beneath no
+  supplied root is refused, naming it, and the run with it. An endpoint
+  is the address the configuration gives, never a name to resolve.
 - **Native, under `cfg(unix)`:** `run` and everything it reads (the
   configuration's file, trust roots, the system's seed, termination
   signals, the current executable, the kernel); a program's sign-in
