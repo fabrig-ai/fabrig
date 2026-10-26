@@ -371,7 +371,9 @@ impl Judge {
         // w1, and its linked line. Only that worker can have executed this coder.
     }
     fn forge(&self, read_objects: bool) {
-        let lines = fs::read_to_string(&self.observations).expect("forge observations");
+        let bytes = fs::read(&self.observations).expect("forge observations");
+        let bytes = if read_objects { certified_prefix(&bytes) } else { &bytes };
+        let lines = std::str::from_utf8(bytes).expect("observation UTF-8");
         let rows: Vec<Value> =
             lines.lines().map(|line| serde_json::from_str(line).expect("observation JSON")).collect();
         assert_eq!(rows.last().expect("checkpoint")["observations_lost"], 0);
@@ -584,6 +586,19 @@ impl Referee<cluster::Root> for Judge {
     fn passed(&self) -> bool {
         self.members.passed()
     }
+}
+/// The live observations prefix through its last complete checkpoint (protocol/setup.md, 8.4).
+fn certified_prefix(bytes: &[u8]) -> &[u8] {
+    let mut end = bytes.len();
+    for line in bytes.split_inclusive(|byte| *byte == b'\n').rev() {
+        if line.ends_with(b"\n")
+            && serde_json::from_slice::<Value>(line).is_ok_and(|row| row["observations_lost"].is_u64())
+        {
+            return &bytes[..end];
+        }
+        end -= line.len();
+    }
+    panic!("forge observations have a complete checkpoint");
 }
 fn decode(value: &Value) -> Box<[u8]> {
     base64::decode(base64::Alphabet::Standard, value.as_str().expect("base64 text").as_bytes(), 8192)
