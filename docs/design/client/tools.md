@@ -1106,9 +1106,12 @@ may change with them.
   bound) is another ask, refused as a key conflict.
 - **A name the client holds already** is answered `Held`, nothing sent
   (jig's `client/domain/client.md`, section 6). A call sends what
-  DIRECTORY kept again before it sends its own (8.2), so it meets
-  `Held` for a name a kept request of its party still holds, or another
-  party's parked request holds (8.2); it exits 1.
+  DIRECTORY kept again before it sends its own (8.2). A call whose name
+  a kept request of its party holds, the same ask, is that request: it
+  waits for its answer as for its own, and prints it, so that a rerun
+  still gets the first answer; one under that name with another ask, or
+  under a name another party's parked request holds (8.2), meets
+  `Held`, and exits 1.
 - **Names are the party's.** Agents sharing a party give their names a
   prefix of their own; the guide says so (11.5).
 - **Acts that decide name the revision the agent saw;** a moved one is
@@ -1229,9 +1232,11 @@ as the terminal's host is:
    the engine does not answer (busy past its retries, a bound full)
    holds no other act: the call's own local keys are drawn past those
    the kept requests hold, and the call goes on beside them. One still
-   unanswered when the call ends stays kept, named on stderr: `kept:
-   adopt, key NAME, first sent T, unanswered: it clears when the
-   engine answers it, or past its retention; pending lists it`;
+   unanswered when the call ends stays kept, named on stderr as the
+   record allows, which keeps the request's digest and no name (6.1):
+   `kept: adopt, first sent T, unanswered: it clears when the engine
+   answers it, or past its retention; pending lists it`, a line apart
+   from the call's own output on stdout;
 5. run the call: a read answered, an act's answer durable, a wait's
    condition met or its timeout;
 6. print the result on stdout, close the stream, exit with the call's

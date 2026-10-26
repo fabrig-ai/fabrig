@@ -3631,8 +3631,9 @@ does for the client:
   refused at once, jig's `Limit` of kind `ApplicationAnswers` with that
   bound, which jig keeps under the key (jig's `domain/people.md`, its
   application requests), never answered busy until the retention ends.
-  ctl says it as "temper keeps at most N answers to requests like this
-  within a day: ask again later" with N the bound.
+  The key keeps that refusal for the retention, so ctl says it as
+  "temper keeps at most N answers to requests like this within a day:
+  ask again later, under a new key", N the bound.
 - **The forge's errors as reasons,** by the forge connector
   (`temper-engine-domain-forge`'s `reason`, from `skein-forge`'s
   `Error`, skein's `forge.md`, section 3.4): `NotConnected` is not
