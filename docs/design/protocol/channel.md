@@ -413,6 +413,11 @@ holds, and neither of its components reads them.
   any part crosses. Until the first release the version stays fixed
   while these encodings change in place, so the engine and its workers
   come from the same build (skein's `codec.md`, section 5).
+- **A delivery's evidence is the application's to keep:** the core
+  keeps a settled delivery's outcome, never its evidence; the
+  application keeps the evidence in its own records, by the call's key,
+  and its routing puts it in the assignment's answered call as it sends
+  one (`store.md`, 5.1).
 
 ### 6.3 Host tools' calls
 

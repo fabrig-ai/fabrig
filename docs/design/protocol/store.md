@@ -490,8 +490,11 @@ schema remains v4. These are the versions the format row requires.
   worker wire's) stay smith's bytes under `call_name_bytes`, and a
   refused call's reply keeps its opaque address, since neither is kept. A word makes a patch reach the field; a patch that
   converts a piece's items, not copies them, is still refused when
-  planned (skein's `codec.md`, 11.3; section 16). A delivery's evidence
-  stays opaque (section 16).
+  planned (skein's `codec.md`, 11.3; section 16). A settled delivery
+  keeps its outcome alone, no evidence: the application that hands
+  evidence down at a later assignment keeps it in a family of its own,
+  by the call's key, and puts it in the assignment as it makes it
+  (`channel.md`, 6.2), so jig keeps none of another owner's bytes.
 
 ### 5.2 The application's records
 
@@ -2243,18 +2246,6 @@ Each within jig's suites' budgets.
     refused `Pieces` until they open (skein's `codec.md`, 11.3 and
     section 13); so are jig's own packed lists (5.1), whose words make
     a copying patch reach them and a converting one refuse;
-  - a delivery's evidence (core-v6's `SettledAnswerDelivery.evidence`),
-    which the core keeps as bytes and hands down again at a later
-    attempt's assignment: temper's is smith's channel record of the
-    delivery's reply (temper's `protocol/channel.md`, section 2), which
-    smith versions with its channel whole. From the baseline a change of
-    it would leave kept evidence a new worker refuses. Options: smith
-    keeps its channel's records as a family of its own, which the field
-    holds through the application, by a family word the application's
-    set resolves (jig never names temper); or the application keeps the
-    evidence in its own family, as its settings' values are, and the
-    core keeps its number. Default: open until the baseline's checklist;
-    nothing before it moves a version;
   - the core's records walked by a smith patch: the core's `Row` reaches
     `TurnRecord`, which holds smith's turn, so each smith patch runs the
     core's identity plan over every core record, though no row in the
