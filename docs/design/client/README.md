@@ -2285,8 +2285,9 @@ the change's chip in a chat (`forge.md`, 2.4 and 2.5).
   otherwise.
 - **Its result's words:** a landed change's, "CI passed. Landed ·
   merge commit ABCDEFG", ABCDEFG the first seven characters of the
-  result's words, which are the merge commit's id in hex (the engine's
-  landing words); any other result's words as they are; a failed
+  result's words' first line, which is the merge commit's id in hex (the
+  engine's landing words, whose second line names the pull request,
+  `../domain/root.md`, section 6); any other result's words as they are; a failed
   task's reason.
 - **The steps are a stand-in:** none ticked while the change lives, all
   four once it has landed, none otherwise. A ticked step is skein-ui's

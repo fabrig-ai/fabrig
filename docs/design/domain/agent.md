@@ -176,9 +176,13 @@ permission on it.
 Their input is flat, each member declared by name in the read's schema,
 so that a run writes a call from its tools alone:
 
-- **`repository`,** one of the project's repositories as `owner/name`,
-  resolved as `change`'s is and refused as it is, naming the project's
-  repositories where none fits; left out where the project has one.
+- **`repository`,** one of the project's repositories as `owner/name`:
+  among its adopted repositories of any role, on forges not ended, the
+  one named, or with no name the only one; with several and no name, or
+  a name none has, refused, naming them. The root resolves it to the
+  repository's resource as it builds a change's delegate (4.3.1),
+  before it decides the call, so that the call's authority is checked
+  on that resource (`root.md`, 5.2) and the run never names a number.
 - **The read's own members,** beside it: `read_branch` `branch`;
   `read_branches` `prefix`; `read_pull` `number`; `read_pull_for` `head`
   and `base`, branch names; `read_pull_files` `number`, `head` and
