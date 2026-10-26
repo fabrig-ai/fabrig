@@ -540,6 +540,25 @@ schema remains v4. These are the versions the format row requires.
     is a later jig's, since from the baseline the component's version
     moves only by jig's patches: `Ahead { owner: Jig, found: None,
     wanted }`, its levels unread.
+- **The wires,** in a row of their own beside it (`Wires`, the
+  component's): the versions the engine that last started on the store
+  speaks to its workers, so that the next binary can say before it
+  starts whether they may stay (temper's `draft/upgrades.md`, section 9):
+  jig's channel's (`channel.md`, 4.1), smith's charters' and turns'
+  (smith's `protocol/README.md`, section 8), and each the application
+  names, temper's payload version among them, each a name of at most 32
+  bytes and a `u32`, at most 16, handed in by the shell as data
+  (`Store::wires`, beside `patch_sets`), so the component names no
+  owner's constant. Every start writes it once, in its first commit, and
+  a start that would commit nothing before it serves commits it alone
+  as its restart opens decisions (`../domain/engine.md`, section 6,
+  step 6); so a start that ran leaves its wires, and the commit that
+  writes them is past any patching's (10.2, step 8). Read by the open,
+  never compared: a worker's wire is checked at its link's opening, as
+  ever (`channel.md`, 4.1), and the row is for the tool that rehearses
+  an upgrade (temper's `draft/upgrades.md`, 3.1), which says it cannot
+  tell where a store has none. A store of a build before the row gains
+  it at its next start, and no open refuses for it.
 - **The layouts,** in a row of their own beside it (`Layouts`, the
   component's): each of jig's families' fingerprint, the digest of its
   layout, computed from the schemas built in and committed beside their
