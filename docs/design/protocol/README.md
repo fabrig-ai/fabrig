@@ -225,6 +225,34 @@ default; the document is `temper.json` in the configuration directory
 - **`temper ctl DIRECTORY ...`:** the agents' tools, one call per
   process, over the same native transport as `temper open`
   (`../client/tools.md`, section 8). It reads no configuration file.
+- **`temper versions`:** what this binary speaks and keeps, one line
+  each: every owner's patch level (none before the first release), its
+  families' and the store's versions, and its wires, as jig's store
+  keeps them (jig's `protocol/store.md`, 5.3). It reads no
+  configuration and no store.
+- **`temper upgrade --check DIRECTORY`:** a rehearsal (jig's
+  `protocol/store.md`, 10.5) over DIRECTORY, a copy of a stopped
+  deployment's data directory such as last night's backup, with the
+  configuration `temper serve` would read: the open patches and checks
+  as a start would, restores, and stops where it would switch. It
+  prints a line per patch with its counts and time, the time of the
+  whole, the refusal a start would meet, in a start's words, or that a
+  start would succeed; then whether the workers may stay: yes when the
+  copy's wires equal this binary's and no pending patch is marked
+  fresh, no saying which differs, unknown when the copy keeps none
+  (`draft/upgrades.md`, sections 3.1 and 9). Exit 0 when a start would
+  succeed, 1 when it would be refused. It never touches the deployment
+  it copies; the copy's next start removes its scratch.
+- **`temper upgrade --back`:** makes the previous generation active
+  again (jig's `protocol/store.md`, 10.5), for a binary that patched and
+  failed before its first commit of its own: the deployment stopped,
+  and the old binary started after it. Refused, changing nothing, once
+  the patched generation has committed, with no previous generation, or
+  while a process holds the deployment, each in words that say so; past
+  the first commit, going back is restoring a backup
+  (`draft/upgrades.md`, 3.2).
+- **A start that patches** prints a line per patch as it ends:
+  `temper serve: patched {owner} {patch}: {records} records in {commits} commits`.
 - **`temper program-login NAME`:** a program's login for
   the program source NAME, on this host: it checks the document and the
   agent's configuration, makes the source's configuration directory, and
@@ -270,6 +298,9 @@ temper serve                           one process, one loop: temper-service's s
 temper open DIRECTORY LINK_OR_ADDRESS  a process of its own, reaching the engine on loopback
 temper ctl DIRECTORY TOOL ...          a process per call, reaching the engine on loopback
 temper program-login NAME              run by hand on a host, replaced by the program's sign-in
+temper versions                        prints this binary's levels, versions and wires
+temper upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
+temper upgrade --back                  makes the previous generation active again, before the patched one's first commit
 ```
 
 A box runs `temper serve` as one of its steps, after the forge's setup's

@@ -609,7 +609,9 @@ each step the core asks for:
    (`RestartStep::Switch`): the root asks the store to switch and goes
    on once it answers; nothing has been committed before it, and a
    refusal before it leaves the generation patched from active (jig's
-   `domain/engine.md`, section 6).
+   `domain/engine.md`, section 6). A rehearsing root
+   (`../protocol/README.md`, section 4, `temper upgrade --check`) asks
+   for no switch: it ends there, reporting the restores whole.
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
 5. **The forge reads afresh,** then **settles its outbox** (forge.md,
