@@ -489,7 +489,10 @@ generation `active` names: the store's open answers that a generation
 is pending, and the script asks, after the connectors' records (step
 2) and before the runs adopted (step 3), for one step more,
 `RestartStep::Switch`, which the root serves by asking the store to
-switch. Before it the restores may commit, as they do at any start
+switch. Every start takes that step, pending or not: once the store is
+active the root commits the start's wires (`../protocol/store.md`, 5.3),
+the start's mark, and only once it is durable are secrets served, runs
+adopted and connectors let reach their systems. Before it the restores may commit, as they do at any start
 (people's expired rows erased, the accounts' wants saved, the release's
 settings revision, 17.7), and their commits land in the copy alone; but
 nothing leaves the engine's process: no secret is served, no run
@@ -498,7 +501,8 @@ adopted or placed, no connector reads or writes its system
 runs in the restores, before the switch, and what acts on it after: the
 tasks child's checks of its live tasks' links, stubs, writers, waits and
 funders, which adopting the runs makes today, run in its restore, and
-step 3 adopts. A start with nothing pending has no switch step.
+step 3 adopts. Over a generation with nothing pending, the step switches
+nothing and commits the wires alone.
 
 So the restore is the check the draft asks before the switch (temper's
 `draft/upgrades.md`, 6.4), the binary's own open over the copy: every

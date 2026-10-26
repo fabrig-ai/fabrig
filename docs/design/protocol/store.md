@@ -549,11 +549,14 @@ schema remains v4. These are the versions the format row requires.
   names, temper's payload version among them, each a name of at most 32
   bytes and a `u32`, at most 16, handed in by the shell as data
   (`Store::wires`, beside `patch_sets`), so the component names no
-  owner's constant. Every start writes it once, in its first commit, and
-  a start that would commit nothing before it serves commits it alone
-  as its restart opens decisions (`../domain/engine.md`, section 6,
-  step 6); so a start that ran leaves its wires, and the commit that
-  writes them is past any patching's (10.2, step 8). Read by the open,
+  owner's constant. Every start writes it in a commit of its own at its
+  switch step (`../domain/engine.md`, section 6), once the store is
+  active, after a pending generation's switch, and before anything
+  leaves the process: no secret is served (section 10, step 4), no run
+  adopted, no connector reaches its system until it is durable. So a
+  start that went past its restores leaves its wires, and over a
+  patched generation that commit is the first past the manifest's
+  position (10.2, step 6), which ends going back (10.5). Read by the open,
   never compared: a worker's wire is checked at its link's opening, as
   ever (`channel.md`, 4.1), and the row is for the tool that rehearses
   an upgrade (temper's `draft/upgrades.md`, 3.1), which says it cannot
@@ -1290,8 +1293,9 @@ nothing is written.
    makes for providers whose source is none. A first start with no
    accounts needs no such commit. Restarts retain those same numbers.
 4. **Secrets are served** to the protocol layer's other components once
-   the secrets' store is open, and over a pending generation once it has
-   switched (10.2, step 7), never before: each signed-in source's record to make
+   the start's wires are durable, at its switch step (5.3;
+   `../domain/engine.md`, section 6), at every start and never before:
+   each signed-in source's record to make
    skein's driver with, and each key to the accounts' table, when the
    accounts child names the restored sources. After all are named, the
    component sweeps unnamed source secrets (`llm.md`, 5.1).
@@ -1547,9 +1551,10 @@ generation `A` to `A + 1`:
    whichever generation `active` names.
 8. **The restart goes on** over `A + 1`, now active, as any restart:
    nothing reopens, since the copy's open made every check a later
-   start makes, and `A + 1`'s first commit of its own, which ends going
-   back (temper's `draft/upgrades.md`, 3.2), is the first after the
-   manifest's position.
+   start makes. `A + 1`'s first commit of its own, which ends going
+   back (temper's `draft/upgrades.md`, 3.2; 10.5), is the start's wires
+   (5.3), at once after the switch and before anything leaves the
+   process.
 
 ```rust
 Event::Opened { owner: Token, last: u64, installation: [u8; 16], pending: bool }
@@ -1838,22 +1843,26 @@ Two operations the application's tools run with the engine stopped
 (temper's `draft/upgrades.md`, 3.1 and 3.2), each taking the
 deployment's lock as a start does (10.1, step 1).
 
-- **A rehearsal** is a start that never switches. Over a copy of a
-  stopped deployment's directory, such as a backup, the application's
-  binary opens the store as any start does (10.1 and 10.2), with its
-  patch sets, so the plan, the copy, the patches, the check and the
-  restores run over `A + 1` (10.2, step 7); then, where the root would
-  ask for the switch, the rehearsing root does not, and the process
-  ends. Before the switch nothing leaves the process (10.2, step 7), so
-  a rehearsal makes no effect, serves no secret and adopts no run; it
-  writes `A + 1`, which is the scratch, and cuts the copy's transcripts
-  to `A`'s lengths as any start would, and nothing else. It answers what
-  a start would: the patches with their counts and times
-  (`Event::Patched`), the refusal a start would meet, or `pending` with
-  the restores whole; and the wires `A`'s last start spoke (5.3), with
-  whether a pending patch is marked fresh (10.3), from which the
-  application says whether its workers may stay. The next start of any
-  build over that directory removes `A + 1` as a stray (10.1, step 5).
+- **A rehearsal** is a start that stops before its switch step. It
+  never writes the directory it is given, a copy of a stopped
+  deployment's such as a backup: it reads `active` and that
+  generation's maps, copies them into a scratch deployment under the
+  application's cache directory as that generation, and opens the
+  scratch as any start does (10.1 and 10.2), with its patch sets, the
+  transcripts read where they are and never cut, and no generation
+  dropped. The plan, the copy, the patches, the check and the restores
+  run (over `A + 1` where patches are pending, over the scratch's `A`
+  otherwise); then the rehearsing root ends where it would take the
+  switch step, at which every start's first act beyond the process
+  waits (`../domain/engine.md`, section 6), so a rehearsal makes no
+  effect, serves no secret and adopts no run. It answers what it ran:
+  the patches with their counts and times (`Event::Patched`), the
+  refusal a start would meet, or the restores whole; the wires `A`'s
+  last start spoke (5.3), with whether a pending patch is marked fresh
+  (10.3), from which the application says whether its workers may
+  stay; and that what follows the switch (adopting runs, reading the
+  systems, settling the outboxes) is not rehearsed. The scratch is
+  removed as it ends.
 - **Going back** (`Store::back`, over the deployment's directory): once
   a patched generation is active, its previous one, `A`, stays on disk
   (section 2), and `active` may name it again until `A + 1`'s first
