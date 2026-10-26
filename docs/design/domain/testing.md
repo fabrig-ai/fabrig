@@ -2372,10 +2372,13 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   under the nextest profiles `process` and `live` by
   `scripts/proof-one-process.sh` and `scripts/proof-live.sh`. The gate
   never runs them; `scripts/after-landing.sh` runs the process tier
-  after each landing. After-landing
-  is paused since 10-24, on the user's word, while they design how it
-  should work: until it lifts, the process tier runs only where an
-  owner runs it.
+  after each landing, with the lab's process tests, the QA tests and
+  the browser tier, by phase. `--part K/N` runs part K of N: whole test
+  phases with the builds they need, dealt longest first onto the
+  lightest part by the phases' times the script records. In two, the
+  usual split, that is the QA and browser tiers, then the process tier
+  with the lab's tests, each about 8 minutes on a quiet machine, since
+  both tiers run one test at a time.
 
 A fuzzy test lives in its world's crate, beside the focused ones, and
 uses that world: a world's settings, random ones included, are the
@@ -2507,7 +2510,7 @@ tools/gallery                       temper-client-gallery: the browser's pages i
 tools/journeys                      temper-client-journeys: recorded walks replayed through the shipped host and printed (../client/journeys.md), its test reprinting each committed journey
 scripts/proof-one-process.sh        the process tier
 scripts/proof-live.sh               the live tier
-scripts/after-landing.sh            the process tier, after each landing (paused since 10-24)
+scripts/after-landing.sh            the process, QA and browser tiers after each landing, whole or in parts (6.1)
 ```
 
 - **The worlds and the harness** are skein's world harness
