@@ -2529,7 +2529,7 @@ them as it does any Forgejo.
   made then, so an end that no client saw, or that a restart cut, ends
   whole.
 - **`temper fake forge check DIRS N OBSERVATIONS STORE`,** no step: the
-  QA loop's check of the fake forge's promises (`../qa.md`, 8.3),
+  QA loop's check of the fake forge's promises (`../draft/qa-lab.md`, 8.3),
   skein's judge (skein's `fake-forge.md`, 2.5) over forge N's
   observations, with temper's decisions from temper's own record, a
   copy of its store, never from the merges judged (decision 259). It

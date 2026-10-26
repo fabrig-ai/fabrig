@@ -1,5 +1,9 @@
 # Continuous QA
 
+**Superseded** by agents' `docs/design/qa-flow.md`, which says who
+chooses, starts and triages a pass, and by `../qa.md`, temper's binding
+for it, 2026-10-26. Kept until the documents that cite it move.
+
 Draft, 2026-10-07, revised 2026-10-18. Agents and procedures that keep
 using a build of main, on every landing or on a period, to check it
 still works and to find bugs, with temper as its first subject. This

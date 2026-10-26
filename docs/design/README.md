@@ -183,10 +183,11 @@ forge, temper adds:
   from a command line), and `mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and
   reconciled to what temper draws, with a `STATUS.md` of their own.
-- **`qa.md`:** temper's binding to the lab (the lab's `lab.md`): its
-  experiments in `lab/`, their charter, tool and checks, and M1's
-  campaign.
-- **`draft/`:** drafts, not contract.
+- **`qa.md`:** temper's binding for QA after landing (agents'
+  `docs/design/qa-flow.md`): whom a pass plays, its box and rungs, its
+  hands, its reads of the forge, and what makes a finding.
+- **`draft/`:** drafts, not contract. `draft/qa-lab.md`, temper's
+  binding to the lab, is parked there with the drafts that build on it.
 - **`STATUS.md`:** how far the code is from this design.
 
 ## 7. Conventions

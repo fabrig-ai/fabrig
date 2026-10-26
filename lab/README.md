@@ -1,7 +1,7 @@
 # M1 lab pieces
 
 [chat-change-smoke/](chat-change-smoke/README.md) is S, the free NOTICE smoke
-from `docs/design/qa.md`. It runs on the lab's runner with no driver or model,
+from `docs/design/draft/qa-lab.md`. It runs on the lab's runner with no driver or model,
 using the canonical [cluster/](cluster/) documents, a TLS fake LLM, two
 remote workers and the subject's fake git.
 
@@ -498,14 +498,14 @@ experiments stand on, and it costs no model call.
   `temper ctl` directory; `hand`, the browser's `--out` (its
   `trouble.jsonl` and its shots); `spent`, the directory of the `ctl`
   that presents the spent link.
-- **`cost`:** `temper-m1-calibration`, `cluster/`'s (`qa.md`, 10.1): 120 s (60 s before the user's doubling of 10-22, provisional)
+- **`cost`:** `temper-m1-calibration`, `cluster/`'s (`draft/qa-lab.md`, 10.1): 120 s (60 s before the user's doubling of 10-22, provisional)
   to be ready, 240 s (120 s before the user's doubling of 10-22, provisional) a command,
   20 s (10 s before the user's doubling of 10-22, provisional) to stop.
 - **`relink`, `smoke` and `checks/trouble`,** below.
 
 ## The seed
 
-Each `{artifact.temper} ctl` action is `qa.md`'s, 5.1. In order:
+Each `{artifact.temper} ctl` action is `draft/qa-lab.md`'s, 5.1. In order:
 
 | Action | Its argv | Its stdin | For |
 |---|---|---|---|

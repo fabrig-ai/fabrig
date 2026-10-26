@@ -1,12 +1,15 @@
 # The QA loop on real backends
 
+**Parked** with the lab (`qa-lab.md`), 2026-10-26. Its ladder of rungs
+(section 3) is taken up by `../qa.md`, section 3, for QA after landing.
+
 Draft, 2026-10-23. The QA loop on ChatGPT and an owned Forgejo:
 `qa-loop.md`'s M3 begun on one real LLM and one real forge, as the
 backends roadmap makes them work end to end. It records a session with
 the user on 2026-10-23. The lab's records, runner, outcomes, verdicts
 and findings are skein's `lab.md`'s, amended with this draft for what
 real backends need (its 2.3, 4.8, 6.1, 6.5, 8 and 9.3); the experiments'
-cluster form, seed, `ctl` tool and checks follow `../qa.md`'s, cited
+cluster form, seed, `ctl` tool and checks follow `qa-lab.md`'s, cited
 and not restated. This draft says what real backends add: a ladder of
 stories (section 3), a run from scratch on the machine's binaries and a
 moved account (section 4), the sign-in, the one act a person does
@@ -82,14 +85,14 @@ section 11.
 |---|---|---|---|
 | 0a, the forge | the seed's `ctl forge-setup 1`: Forgejo and its runner prepared and started, temper's take-over, `work/hello` made with the starter workflow and adopted as the home of a new project, `hello` (`../protocol/setup.md`, 6.5 and 6.7) | none | the forge connected; the starter workflow's first run green on Forgejo's Actions; the repository adopted, read from `ctl forges`' first repository, made in `hello`, and from `forge-setup`'s printed adoption, since no ctl read lists a project's repositories |
 | 0b, the account | 0a, then the held account imported, one chat turn in `hello`, and the release | none | the account usable once imported; the chat's reply; the record given back to the lab (4.3) |
-| A | a person asks a chat for a one-file change on `work/hello`; it is delegated, pushed, passes CI on Actions and an agent's review, and lands: `../qa.md`'s story on real backends | yes | landed on `main`, the file as asked, nothing else changed |
+| A | a person asks a chat for a one-file change on `work/hello`; it is delegated, pushed, passes CI on Actions and an agent's review, and lands: `qa-lab.md`'s story on real backends | yes | landed on `main`, the file as asked, nothing else changed |
 | B0 | A, with a question the delegate asks and the person's green light (`reference-case.md`, 4.1) | yes | A's end; nothing pushed before the answer |
 | B1 | B0, with a gate the first push fails and the change's repair (`reference-case.md`, 6.3) | yes | B0's end after a red run and a green one on Actions, the repair the delegate's |
 | B2 | B1, with an advisor's report and two delegates, one depending on the other (`reference-case.md`, 6.1, 6.8 and 7.3) | yes | both landed in order; the report delivered before the dependent's start |
 | C1 to C4 | the reference case's acts 1 to 4 (`reference-case.md`, sections 4 to 7), each from the state the act before it leaves | yes | the act's end, as the case states it |
 
 - **Each rung is an experiment** of temper's `lab/`, `live-<rung>`, in
-  `../qa.md`'s form: its cluster (4.1), its seed, its charter for the
+  `qa-lab.md`'s form: its cluster (4.1), its seed, its charter for the
   driver, its checks of the story's end read through `ctl` and the
   forge's API.
 - **0a and 0b have no driver:** cheap smokes of the ground, which the
@@ -132,7 +135,7 @@ run R, seed S, scratch directory D
   names `forgejo` and `runner.binary` by the lab's paths (4.2), with
   `"start": "asked"`; its models are ChatGPT's, priced as 6.2 says; its
   project's spend per period is the rung's (6.2).
-- **The seed** signs in as `../qa.md`'s does (its 5.1), by the link
+- **The seed** signs in as `qa-lab.md`'s does (its 5.1), by the link
   serve prints; runs `ctl forge-setup 1`, which waits for the forge and
   adopts `work/hello`; does the person's own act at first sign-in with
   Forgejo's CLI on the run's work path (`ada`'s password change waived,
@@ -208,7 +211,7 @@ The record of one signed-in ChatGPT account is a held file of the lab,
 
 ### 4.4 The driver's tool
 
-- **`../qa.md`'s `ctl` wrapper** (its 6.2): the seed's client
+- **`qa-lab.md`'s `ctl` wrapper** (its 6.2): the seed's client
   directory, the engine's address pinned, `sign-in`, `sign-out` and
   `--call` refused. It takes the areas its rung's story needs: area 1
   for A and B; for C, areas 2 and 3's tools as its acts need them
@@ -303,7 +306,7 @@ ChatGPT account's five-hour and weekly windows.
   spend.
 - **Then the rung's class,** `temper-live-<rung>`: each value twice the
   largest of the calibration key's passing runs, rounded up, reported to
-  the director before any run under it, as `../qa.md`'s 10.1 does.
+  the director before any run under it, as `qa-lab.md`'s 10.1 does.
 - **A pass far above the median,** past twice the rung's median use of
   any value, files a cost finding: a loop, a retry, a charter that
   wanders.
@@ -362,7 +365,7 @@ cancelled first, since the stop ends every run.
   kept, and the director reads it as a boundary incident. So a run in
   which the driver went around `ctl` is never judged.
 - **M1 unblocked too:** the same admission holds on fakes, so
-  `../qa.md`'s paid driver runs, refused until now for want of that
+  `qa-lab.md`'s paid driver runs, refused until now for want of that
   list, can start.
 
 ## 8. Findings
@@ -375,7 +378,7 @@ cancelled first, since the stop ends every run.
 - **Down to fakes first:** a failure's transcripts, the driver's calls
   (`lab.md`, 6.3) and temper's model's exchanges (its `transcripts/`,
   collected at rest), become a script of the fake LLM in skein's
-  vocabulary (`../qa.md`, 7.1). Run on fakes, it shows whether temper
+  vocabulary (`qa-lab.md`, 7.1). Run on fakes, it shows whether temper
   fails without the real model; run with the owned Forgejo and the fake
   LLM, whether Forgejo is the cause. Where it reproduces names the class
   and the lowest world that takes its test.
@@ -385,7 +388,7 @@ cancelled first, since the stop ends every run.
   `below`, its test on the corrected fake.
 - **Cost findings** (6.4) are classed by their cause, most often
   `words`: a charter that sends the model round.
-- **Routed through the director** to each owner, as `../qa.md`'s 10.3
+- **Routed through the director** to each owner, as `qa-lab.md`'s 10.3
   says; the lab commits no test, and its records stay under
   `~/src/rust/tmp/lab/`.
 
@@ -401,7 +404,7 @@ cancelled first, since the stop ends every run.
 - **Under the brake:** a braked judge resumes later, from the evidence it
   has; it is never forced.
 - **Paid runs counted:** each campaign plans its paid runs and holds some
-  for attempts, as `../qa.md`'s 10.2 does; past its plan, the director
+  for attempts, as `qa-lab.md`'s 10.2 does; past its plan, the director
   is asked first.
 
 ## 10. Milestones
@@ -451,7 +454,7 @@ cancelled first, since the stop ends every run.
   path hold no account once the release has run; how a run starts from
   them, writable, with the account moved in, is open.
 - **B1's red run on real Actions:** fakes fail CI by a content cue
-  (`../qa.md`, 7.2); a real workflow fails by content too, but a real
+  (`qa-lab.md`, 7.2); a real workflow fails by content too, but a real
   model may meet the rule at its first push, and then the run walked
   B0's story, not B1's. Whether such a run is recorded as not having
   exercised B1, or the experiment forces the first run red, is open.

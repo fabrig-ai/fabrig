@@ -1,5 +1,5 @@
 #!/bin/sh
-# qa.md, 6.2. Trusted prefix: TEMPER CLIENT_DIRECTORY PUBLIC_ORIGIN.
+# draft/qa-lab.md, 6.2. Trusted prefix: TEMPER CLIENT_DIRECTORY PUBLIC_ORIGIN.
 # The runner supplies http://HOST:PORT/, with no credential.
 # Shell builtins only until exec; never interpret a driver's words as code.
 set -f

@@ -16,7 +16,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-// qa.md, 10.1: temper-m1-calibration, the approved class the cluster runs under until it has its own.
+// draft/qa-lab.md, 10.1: temper-m1-calibration, the approved class the cluster runs under until it has its own.
 const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;

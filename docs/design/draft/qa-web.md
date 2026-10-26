@@ -1,12 +1,15 @@
 # The QA loop in the browser
 
+**Parked** with the lab (`qa-lab.md`), 2026-10-26, until QA after
+landing (`../qa.md`) takes up the browser.
+
 Draft, 2026-10-22. The QA loop's web level (director decision 344):
 temper's pages held to the mockups, and agents driving temper through
-its web client in headless Chromium, as `qa.md`'s drive it through
+its web client in headless Chromium, as `qa-lab.md`'s drive it through
 `temper ctl`. It records a session with the user on 2026-10-22. The
 lab's records, runner, outcomes, verdicts and findings are skein's
 `lab.md`'s; the cluster, the seed, the fakes' scripts and the story's
-checks are `qa.md`'s. This draft says what the browser adds: the look's
+checks are `qa-lab.md`'s. This draft says what the browser adds: the look's
 scenes, their three views and their judging (sections 3 to 5), the hand
 a driver reaches the pages by (section 6), its stories and checks
 (sections 7 and 8), the findings' homes (section 9) and two milestones
@@ -42,7 +45,7 @@ a driver reaches the pages by (section 6), its stories and checks
   name, press, type, keys, go, reload, back, the address, an outline, a
   shot. Every call is recorded, so a transcript becomes a world's story
   (section 6).
-- **The use story is `qa.md`'s,** through the browser: the same change,
+- **The use story is `qa-lab.md`'s,** through the browser: the same change,
   scripts and end-state check on the same subject, so the two levels
   compare (section 7).
 - **Fixes go low:** words, order and missing parts to the view's world;
@@ -127,7 +130,7 @@ browser shows.
 
 ### 3.3 Live scenes
 
-`qa.md`'s cluster with the bundle named (`client/browser.md`, 2.2) and
+`qa-lab.md`'s cluster with the bundle named (`client/browser.md`, 2.2) and
 the browser (6.1). The state comes from seed actions through `temper
 ctl` and the fakes' scripts; the browser then opens the scene's page.
 Live scenes cover what the gallery cannot show: a dialog in the top
@@ -269,7 +272,7 @@ A stylesheet the capture adds on temper's side, the experiment's data:
 one token changed (the body's type a pixel larger, a border's colour)
 and one region moved (the composer above the turns). Its planted
 signatures are the style and order failures it must cause, and the judge
-must name both in the pictures. As `qa.md`'s P is H with a fault, the
+must name both in the pictures. As `qa-lab.md`'s P is H with a fault, the
 planted experiment with the stylesheet removed is the healthy one byte
 for byte.
 
@@ -288,7 +291,7 @@ socket in its directory (director decision 503; skein's
 - **It signs in:** a seed action gives it a printed sign-in link from
   the action's stdin, which it opens, and its query is redacted from
   everything the browser answers or logs. The link never reaches the
-  driver, as no credential reaches it through `ctl` (`qa.md`, 4.3).
+  driver, as no credential reaches it through `ctl` (`qa-lab.md`, 4.3).
   It is serve's second: once the seed's `ctl` has spent the first, a
   spent link presented again is refused and serve prints a fresh one
   (jig's `protocol/client.md`, section 8), which the runner awaits
@@ -337,7 +340,7 @@ by the fake person's name for it (skein's `ui.md`, 17.1):
   queries a world's fake person makes (skein's `ui.md`, 17.1), so a
   transcript that shows a bug of temper's becomes a `tests/client`
   story, or a browser-tier story when only a browser shows it
-  (`qa.md`, 10.3).
+  (`qa-lab.md`, 10.3).
 - **Images:** a tool's result is text (skein's `lab.md`, 6.3), and the
   host's image tools are disabled (6.1 there). Until the tool server
   returns a shot as an image (section 11), `shot` writes a file the
@@ -346,17 +349,17 @@ by the fake person's name for it (skein's `ui.md`, 17.1):
 
 ### 6.3 Its charter
 
-`qa.md`'s 6.1 with the tool changed: Ada reaches temper through
+`qa-lab.md`'s 6.1 with the tool changed: Ada reaches temper through
 `browse` alone, follows the change until the pages say it landed, and
 adopts, adds and connects nothing. She is told that her browser is
 signed in and on temper's first page, and nothing of the pages' paths.
 
 ## 7. The stories
 
-- **W2's first is `qa.md`'s H through the browser:** the same request
-  (`qa.md`, 3.3), cluster, seed actions, fakes' scripts (its section 7)
+- **W2's first is `qa-lab.md`'s H through the browser:** the same request
+  (`qa-lab.md`, 3.3), cluster, seed actions, fakes' scripts (its section 7)
   and end-state check (its 8.4), with serve's bundle named. Its
-  experiments mirror `qa.md`'s: `chat-change-web`, H through the
+  experiments mirror `qa-lab.md`'s: `chat-change-web`, H through the
   browser; `chat-change-web-smoke`, its story scripted through `browse`
   with no driver, the free smoke. On one subject, H at both levels
   compares the ctl level's verdict with the browser's: what one sees and
@@ -372,7 +375,7 @@ signed in and on temper's first page, and nothing of the pages' paths.
 
 ### 8.1 The use's
 
-- **`qa.md`'s section 8,** unchanged: the runner's own, the forge's
+- **`qa-lab.md`'s section 8,** unchanged: the runner's own, the forge's
   promises, the story's end.
 - **The browser's trouble:** a check reading the browser's log, failing
   `browser/<kind>/<page>`: the kind an exception, a console error, a
@@ -404,7 +407,7 @@ signed in and on temper's first page, and nothing of the pages' paths.
   `world`: a page's words, order or missing part, fixed in the view with
   a test of the view's world (`tests/client`, or the view's own), since
   the tree carries roles, names and order. `below` and `fake`, as in
-  `qa.md`. `lab`: the hand, the capture or the judge's setup.
+  `qa-lab.md`. `lab`: the hand, the capture or the judge's setup.
   `experiment`: a scene's wrong expectation, or the gallery's.
 - **`look`, new:** the page's appearance, where no world below a browser
   renders it. Its fix is a change to `temper.css` (or skein-ui's sheet),
@@ -416,7 +419,7 @@ signed in and on temper's first page, and nothing of the pages' paths.
   sparingly.
 - **A stale mockup is no finding:** a departure and a note to the user,
   who keeps the mockups.
-- **Routed through the director,** as `qa.md`'s 10.3 has them.
+- **Routed through the director,** as `qa-lab.md`'s 10.3 has them.
 
 ## 10. Milestones
 
@@ -443,7 +446,7 @@ No driver, so no paid driver run: W1's spend is the judge's.
 
 - **The browser in the cluster and `browse`** (section 6);
   `chat-change-web-smoke`, then `chat-change-web` on three seeds, with
-  cost classes set as `qa.md`'s 10.1 sets them.
+  cost classes set as `qa-lab.md`'s 10.1 sets them.
 - **Live scenes** for what the gallery cannot show, and the gallery
   checked against them (8.2).
 - **Its bar:** H's verdict through the browser at the ctl level's

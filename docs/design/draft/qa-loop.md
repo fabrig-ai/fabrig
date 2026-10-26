@@ -1,5 +1,8 @@
 # The QA loop, first milestone
 
+**Parked** with the lab (`qa-lab.md`), 2026-10-26. QA after landing is
+agents' `docs/design/qa-flow.md`, with temper's binding in `../qa.md`.
+
 Draft, 2026-10-20, revised 2026-10-23. Agents use temper end to end, as
 processes, through its agents' tools, and report what they find in
 records of a fixed shape. It records a session with the user on

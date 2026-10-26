@@ -1,4 +1,4 @@
-"""Private pure decoding and judgment for qa.md, 8.4; no IO.
+"""Private pure decoding and judgment for draft/qa-lab.md, 8.4; no IO.
 
 The observation projection reads the landed skein writer's JSON lines.
 The live collection supplies the checkpoint prefix and complete objects

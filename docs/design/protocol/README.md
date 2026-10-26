@@ -1088,13 +1088,13 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   other kind (a seed's, a run's, a run directory's, the browser's) fails
   the test, naming it: the description uses none.
 - **Its cost class,** `temper-m1-calibration`, is the binding's
-  (`../qa.md`, 10.1), as every experiment's is (the lab's `lab.md`, 6.5),
+  (`../draft/qa-lab.md`, 10.1), as every experiment's is (the lab's `lab.md`, 6.5),
   until the cluster has a class of its own: the reader holds its
   `ready_seconds` and `stop_seconds` as that table gives them, the
   first bounding each process's ready lines from its start, the second
   each process's stop.
 - **The fake forge's setup** is `temper serve`'s handover and reconcile
-  at start, from records (setup.md, 6.5; `../qa.md`, 4.3). So
+  at start, from records (setup.md, 6.5; `../draft/qa-lab.md`, 4.3). So
   `lab/cluster/` holds the fake forge, the fake LLM, the engine and
   the workers, the engine's one forge connected and unreached, as the
   process tier's other documents have theirs, until a story makes it

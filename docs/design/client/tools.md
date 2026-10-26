@@ -1,15 +1,17 @@
 # Tools: temper for agents
 
-Provisional, 2026-10-17, revised 2026-10-23. How agents drive temper:
+Provisional, 2026-10-17, revised 2026-10-26. How agents drive temper:
 they read what it holds, act through jig's operations and wait for what
-changes, with `temper ctl`, a command line. It serves the agents
-(smith's) that QA and develop temper's core: they drive a throwaway
+changes, with `temper ctl`, a command line. It serves any agent working
+with temper for a person, which reaches the systems temper works with,
+the forge first, by tools of its own choosing (5.2). The first are the
+agents that QA and develop temper's core: they drive a throwaway
 deployment on coding tasks of growing size, then on temper's features,
 until the first milestone (`../README.md`, section 2) is usable for real
-tasks. Their QA loop extends the tools area by area (5.5). Their bounds
-are section 12, and what they take of jig section 13; an MCP endpoint
-and the tools' extraction into jig are later (section 14). What is
-still open is listed in section 15.
+tasks, and their passes extend the tools area by area (5.5;
+`../qa.md`). Their bounds are section 12, and what they take of jig
+section 13; an MCP endpoint and the tools' extraction into jig are later
+(section 14). What is still open is listed in section 15.
 
 ## 1. In one page
 
@@ -56,15 +58,18 @@ still open is listed in section 15.
 
 ## 2. What it is for, and what not
 
-- **The first QA loop.** Agents use temper to do coding work of growing
-  size, through growing parts of its surface: a chat that changes one
-  file; then larger changes, held changes released, questions answered;
-  then goals with plans, decisions, several parties. What breaks is
-  fixed, and what is slow made faster, each fix with a story in the
-  worlds (11.6).
-- **Production later.** An agent driving temper for a person, or a
-  service of a project acting as a party, uses the same tools; MCP gives
-  them to agents that have no shell (section 14).
+- **Any agent working for a person.** An agent driving temper for a
+  person, or a service of a project acting as a party, uses these tools;
+  MCP gives them to agents that have no shell (section 14). How it
+  reaches the forge, or any other system temper works with, is its own
+  choice: temper serves its own part and names the rest by id and link
+  (5.2; the user, 10-26).
+- **QA's passes first.** QA after landing plays such an agent
+  (`../qa.md`): coding work of growing size, through growing parts of
+  temper's surface: a chat that changes one file; then larger changes,
+  held changes released, questions answered; then goals with plans,
+  decisions, several parties. What breaks is fixed, and what is slow
+  made faster, each fix with a story in the worlds (11.6).
 - **Not the person's pages.** temper's pages are the person's, proven by
   the fake person's stories in `tests/client` (`README.md`, section 10).
   No tool waits for a page: a tool reads jig's documents, so no page is
@@ -240,11 +245,18 @@ watch's subject, its digest (5.4). It needs no key.
   engine's bound on one read, or the client's limit for one document, is
   answered with its size and that it is past the limit, exit 0; the
   agent reports it as a finding (section 12).
-- **The forge's changes are read on the forge,** with its API or `git`,
-  as a person reads them there. A part of the forge's that the engine
-  does not serve prints "Shown on the forge.", with the resource in the
-  forge's words (`README.md`, 4.1 and 4.2). Of the forge's read family
-  (`forge.md`, section 9), the deployment's part is a tool, `forges`,
+- **The forge's changes are read on the forge,** with whatever the agent
+  chooses, its API, `git` or a command line of the forge's, as a person
+  reads them there: temper is agnostic about how (the user, 10-26). The
+  tools give what temper is doing, why, and where it is on the forge:
+  each part that has a place there names it by its ids and its address.
+  A part of the forge's that the engine does not serve prints "Shown on
+  the forge.", with the resource in the forge's words (`README.md`, 4.1
+  and 4.2). What temper owns there, its branches, pull requests and
+  landings, changes only through temper; what a person does there, a
+  review or an approval at a head, they do on the forge as themselves,
+  and temper reads it (`forge.md`, sections 4 and 6). Of the forge's
+  read family (`forge.md`, section 9), the deployment's part is a tool, `forges`,
   and a change's panel another, `change` (5.5, area 6); the others join
   the table as tools of their own (section 14).
 
@@ -1305,7 +1317,7 @@ An agent runs a `wait` while it acts, or several agents share a party.
 
 The deployment an agent drives is an owned setup run by `temper box`
 (`../protocol/setup.md`, section 7), with no demo, in a scratch
-directory of the QA harness's:
+directory of its harness's; a QA pass's is `../qa.md`, section 3:
 
 - **Started:** `temper box`, given the harness's three directories
   (`../protocol/configuration.md`, section 12); its stdout carries `temper
@@ -1325,15 +1337,12 @@ directory of the QA harness's:
   `person_password` and changes it, and makes the repository to adopt
   in an org, which the agent adopts with `adopt` as the first act of
   area 1.
-- **The forge read directly:** its API and `git` on `owned.listen`, with
-  a token the harness makes for the person, as a person makes one
-  (`../protocol/setup.md`, section 16), whose scopes are reads alone:
-  `read:repository`, `read:issue`, `read:organization` and `read:user`.
-  The agent is handed that token, never the preparation's
-  `admin_token`, which the engine's setup host alone takes, once
-  (`../protocol/setup.md`, sections 3 and 9). Forgejo refuses the
-  agent's writes with it; the agent changes the forge only through
-  temper, and the guide says so (11.5).
+- **The forge beside temper:** its API and `git` on `owned.listen`,
+  reached as the agent chooses (5.2), as the person, never with the
+  preparation's `admin_token`, which the engine's setup host alone
+  takes, once (`../protocol/setup.md`, sections 3 and 9). A QA pass's
+  hands there, an observer with reads alone and the person, and the
+  files the box names for them, are `../qa.md`, section 4.
 - **The forge through temper:** the box's Forgejo is owned, connected by
   the box's own preparation and the setup host's plans
   (`../protocol/setup.md`, owned), so it takes no connect, and the agent is never handed a value
@@ -1591,8 +1600,9 @@ moving, the refusals' decisions) is not repeated here.
 
 `temper ctl help` prints a short guide, then the tools from the table:
 how to sign in, the loop of 5.4, naming keys and their prefix, reading
-acts, the exit statuses, reading the forge and never changing it but
-through temper (section 10), and an LLM account's key read from a
+acts, the exit statuses, the forge read with whatever the agent
+chooses and what temper owns there changed only through temper (5.2),
+and an LLM account's key read from a
 private file, never typed, with a sign-in followed by `wait accounts`
 (5.5, area 5), and a forge's pasted value read from a private file,
 never typed, with a connect's link printed as text, never opened, and

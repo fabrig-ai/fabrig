@@ -117,7 +117,7 @@ person's tab would. Each story pairs one new path with one already
 proved, so that a failure names one thing, and ends with the forge's
 first repository adopted, the account usable and the first chat's reply
 committed; a program's story ends at Ready, since a program takes no
-chat yet. Clicking the same paths in a browser is the lab's (../qa.md,
+chat yet. Clicking the same paths in a browser is the lab's (../draft/qa-lab.md,
 section 12).
 
 ### 2.1 System worlds

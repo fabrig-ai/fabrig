@@ -1,4 +1,4 @@
-"""H/P identity, driver boundary and free rehearsal contracts (qa.md, 3 and 6)."""
+"""H/P identity, driver boundary and free rehearsal contracts (draft/qa-lab.md, 3 and 6)."""
 import json
 from pathlib import Path
 import re
@@ -9,7 +9,7 @@ S = LAB / 'chat-change-smoke'
 H = LAB / 'chat-change'
 P = LAB / 'chat-change-killed'
 REHEARSAL = LAB / 'chat-change-rehearsal'
-QA = (LAB.parent / 'docs/design/qa.md').read_text()
+QA = (LAB.parent / 'docs/design/draft/qa-lab.md').read_text()
 
 
 def canonical(value):
