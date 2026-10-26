@@ -255,3 +255,10 @@ div.md > * + * { margin-top: 8px; }
 .proposal-items { display: grid; gap: 6px; margin: 10px 0; padding: 9px 12px; border-radius: 3px; background: #faf8f4; }
 .proposal-item { display: flex; align-items: baseline; gap: 10px; font-size: 11px; }
 .proposal-item .label { width: 64px; color: var(--term-muted); flex: none; }
+
+/* The pages' text 14px for 12px, as the journeys draw it: every size and spacing in proportion; the top bar and a chat's bar as they are, which fill their row already. */
+body > :is(.app, main), .terminal-shell > :not(.terminal-topbar, .terminal-chatbar), body > .drawer { zoom: 1.1667; }
+
+/* The forge choices: a title a little apart from its first line; on the welcome, its two choices share the row. */
+.forge-choices .card h3 { margin-bottom: 10px; }
+@media (min-width: 761px) { .welcome-page .forge-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
