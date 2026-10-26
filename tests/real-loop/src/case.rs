@@ -13,7 +13,8 @@ pub const PROJECT: u64 = 1;
 pub const DIRECTOR: u64 = 1;
 pub const A: u64 = 2;
 pub const DESIGN: u64 = 3;
-pub const QUESTION: u64 = 6;
+// The design's current-head CI subscription and news precede this question.
+pub const QUESTION: u64 = 8;
 // After step_4_1's chat and A's delegation create tasks 1..=5,
 // step_4_3's chat creates CHECK; its delegate creates B, which delegates BENCHMARK.
 pub const CHECK: u64 = 6;
@@ -1046,8 +1047,9 @@ pub const RED_FIRST_HEAD: u64 = 2;
 pub const RED_UPDATED_HEAD: u64 = 6;
 pub const RED_A4_PULL: u64 = 1;
 pub const RED_REPAIR_PULL: u64 = 2;
-pub const RED_TIMER: u64 = 6;
-pub const RED_PERSON_MESSAGE: u64 = 5;
+// a4's current-head CI subscription and news precede the person's direction.
+pub const RED_TIMER: u64 = 8;
+pub const RED_PERSON_MESSAGE: u64 = 7;
 pub const RED_REVISION: u64 = 0;
 pub const RED_TIMER_AT: u64 = 4_102_444_800_000_000_000;
 pub const RED_PERSON: &str = "@case_red_director Delegate A1 to own a4 and report its landing.";

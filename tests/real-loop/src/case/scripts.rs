@@ -499,7 +499,7 @@ pub fn step_5_3(_forge: SocketAddr) -> Box<[Script]> {
 // Act 2, step 5.2 (domain/testing.md, 5.3)
 #[must_use]
 pub fn step_5_2_rules() -> Box<[Box<[Rule]>]> {
-    use super::{BOWNER, BOWNER_REPORT, HELPER, OWNER};
+    use super::{BOWNER, BOWNER_REPORT, H1, HELPER, IMPLEMENTER, IMPLEMENTER_RESULT, OWNER};
     // Cancelling the helper wakes the chat before B ends. Observed in the
     // cluster run: counting that wake as B's report finishes the chat early.
     let pause = [
@@ -512,7 +512,18 @@ pub fn step_5_2_rules() -> Box<[Box<[Rule]>]> {
         ("", 4),
     ]
     .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
-    Box::new([Box::new(pause), Box::new([]), Box::new([]), Box::new([]), Box::new([]), Box::new([]), Box::new([])])
+    // Current-head CI wakes do not replace either delegate's final result.
+    let owner = [
+        (IMPLEMENTER_RESULT, 3),
+        (&format!("Result from task {H1}:"), 3),
+        (CROSSED, 3),
+        (&format!("{DELEGATED}{IMPLEMENTER}"), 1),
+        (&format!("{DELEGATED}{H1}"), 2),
+        (BEGIN, 0),
+        ("", 2),
+    ]
+    .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
+    Box::new([Box::new(pause), Box::new([]), Box::new(owner), Box::new([]), Box::new([]), Box::new([]), Box::new([])])
 }
 
 #[must_use]
@@ -1794,6 +1805,7 @@ pub fn step_6_8_rules() -> Box<[Box<[Rule]>]> {
         table(&[
             (SUBOWNER_REPORT, 2),
             (CROSSED, 2),
+            ("forge ci ", 3),
             (M1_REPORT, 1),
             (&format!("{DELEGATED}{A2}"), 4),
             (DELEGATED, 3),

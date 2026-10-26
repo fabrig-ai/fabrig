@@ -150,6 +150,7 @@ pub enum Read {
     RedChangePaused,
     RedDirectorEnded,
     RedOwnerEnded,
+    RedOwnerEarlier,
     RedChangeEnded,
     RedCoderEnded,
     RedReviewEnded,
@@ -1087,6 +1088,7 @@ pub fn step_6_5() -> Vec<calls::Step> {
 }
 
 // Act 3, step 6.4 (domain/testing.md, 5.3)
+const RED_OWNER_ENDED: usize = 19;
 pub const READS_6_4: &[(Read, usize)] = &[
     (Read::RedReviewWriting, 8),
     (Read::RedChangeOpen, 9),
@@ -1097,7 +1099,7 @@ pub const READS_6_4: &[(Read, usize)] = &[
     (Read::RedTimerArmed, 14),
     (Read::RedChangePaused, 15),
     (Read::RedDirectorEnded, 18),
-    (Read::RedOwnerEnded, 19),
+    (Read::RedOwnerEnded, RED_OWNER_ENDED),
     (Read::RedChangeEnded, 20),
     (Read::RedCoderEnded, 21),
     (Read::RedReviewEnded, 22),
@@ -1107,6 +1109,7 @@ pub const READS_6_4: &[(Read, usize)] = &[
     (Read::RedRepairReviewEnded, 24),
     (Read::RedUpdatedReviewEnded, 25),
     (Read::RedRootsEnded, 26),
+    (Read::RedOwnerEarlier, 27),
 ];
 #[must_use]
 pub fn step_6_4() -> Vec<calls::Step> {
@@ -1184,6 +1187,11 @@ pub fn step_6_4() -> Vec<calls::Step> {
         steps.push(call(D1, argv!["task", number(task), "--activity", "32", "--json"]));
     }
     steps.push(call(D1, argv!["tasks", "--project", number(PROJECT), "--ended", "--json"]));
+    // Current-head CI news adds parked runs to the tracked owner's journal.
+    steps.push(call(
+        D1,
+        argv!["activity", number(RED_OWNER), "--before", calls::activity_before(RED_OWNER_ENDED), "--json"],
+    ));
     steps
 }
 

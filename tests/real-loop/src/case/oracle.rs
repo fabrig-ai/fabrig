@@ -2518,7 +2518,15 @@ fn pause_stop(observed: &Observed, misses: &mut Vec<Miss>) {
         .collect();
     let attempts =
         |rows: &[&Value]| rows.iter().filter_map(|row| number(row, "/line/run_began/attempt")).collect::<Vec<_>>();
-    let previous = attempts(&before);
+    // CI news can put the held snapshot's first attempt on an earlier page.
+    // The complete ended journal retains that history; its prefix at Stop
+    // must agree with every row visible in the held snapshot.
+    let held_rows: Vec<_> = after
+        .iter()
+        .copied()
+        .filter(|row| number(row, "/position").zip(number(held, "/activity")).is_some_and(|(at, head)| at <= head))
+        .collect();
+    let previous = attempts(&held_rows);
     let following = attempts(&after);
     step_check(
         misses,
@@ -2544,7 +2552,8 @@ fn pause_stop(observed: &Observed, misses: &mut Vec<Miss>) {
             && [Read::BHeld, Read::BEnded, Read::BEndedEarlier]
                 .iter()
                 .all(|read| pause_activity(observed, *read)["cut"] == false)
-            && pause_activity(observed, Read::BHeld)["before"].is_null()
+            && !before.is_empty()
+            && before.iter().all(|row| held_rows.contains(row))
             && pause_activity(observed, Read::BEndedEarlier)["before"].is_null(),
         STOPPED_NEWS,
         "B's complete journal must add exactly one attempt after its unchanged held attempt",
@@ -2897,6 +2906,9 @@ mod pause_tests {
     #[test]
     fn stop_order_a_hold_and_the_merge_are_checked() {
         let passing = met();
+        let mut paged = passing.clone();
+        paged.documents.get_mut(&Read::BHeld).expect("held")["activity"]["before"] = json!({"value":"older"});
+        assert_met(&step_5_2(&paged));
         let mut red = passing.clone();
         red.kit.merged_green = false;
         let mut missing_file = passing.clone();
@@ -8139,7 +8151,18 @@ pub fn step_6_4(observed: &Observed) -> Vec<Miss> {
             step_check(
                 &mut misses,
                 "6.4",
-                if task == RED_DIRECTOR { red_director_done(observed) } else { batch_done(observed, read, task) },
+                if task == RED_DIRECTOR {
+                    red_director_done(observed)
+                } else if task == RED_OWNER {
+                    doc.pointer("/result/ending/task/done").is_some_and(Value::is_object)
+                        && batch_journal_pages(
+                            observed,
+                            &direction_pages(observed, Read::RedOwnerEnded, Read::RedOwnerEarlier),
+                            task,
+                        )
+                } else {
+                    batch_done(observed, read, task)
+                },
                 RED_ATTEMPTS,
                 &format!(
                     "task {task}'s complete journal ends every admitted attempt and permits only bounded placement rechecks"
