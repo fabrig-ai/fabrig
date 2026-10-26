@@ -310,6 +310,7 @@ pub(crate) fn restart_request(
     match request {
         jig_domain_core::RestartRequest::Idle => {}
         jig_domain_core::RestartRequest::Settings { .. }
+        | jig_domain_core::RestartRequest::Unresolved { .. }
         | jig_domain_core::RestartRequest::ProjectPolicy { .. }
         | jig_domain_core::RestartRequest::HeldPastLimit { .. }
         | jig_domain_core::RestartRequest::UnheldRevision { .. }
@@ -348,6 +349,10 @@ pub(crate) fn restart_request(
                     &env.limits,
                     Delivery::Load { waiter: Token::new(u64::MAX), range: Range::Forge, after: None },
                 );
+            }
+            jig_domain_core::RestartStep::Switch => {
+                domain.work.push(Work::Tasks(tasks::Event::Check));
+                domain.work.push(Work::SwitchChecked);
             }
             jig_domain_core::RestartStep::AdoptRuns => {
                 domain.work.push(Work::Tasks(tasks::Event::Restored));
@@ -397,6 +402,7 @@ pub(crate) fn connector_restarting(domain: &Domain) -> bool {
         ) => true,
         Some(
             jig_domain_core::RestartStep::LoadCore
+            | jig_domain_core::RestartStep::Switch
             | jig_domain_core::RestartStep::LoadInbox
             | jig_domain_core::RestartStep::AdoptRuns
             | jig_domain_core::RestartStep::Open,

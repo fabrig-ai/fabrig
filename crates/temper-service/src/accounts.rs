@@ -814,6 +814,8 @@ impl Accounts {
                 events.push(root::Event::Account(domain::Event::Adopted { source, kept: false }));
             }
             store::Event::Opened { .. }
+            | store::Event::SecretsNotReady { .. }
+            | store::Event::Switched { .. }
             | store::Event::OpenRefused { .. }
             | store::Event::Site { .. }
             | store::Event::Patched { .. }
@@ -1064,6 +1066,8 @@ impl Accounts {
                     unreachable!("the accounts only load and replace their records")
                 }
                 store::Event::Opened { .. }
+                | store::Event::SecretsNotReady { .. }
+                | store::Event::Switched { .. }
                 | store::Event::OpenRefused { .. }
                 | store::Event::Site { .. }
                 | store::Event::Patched { .. }

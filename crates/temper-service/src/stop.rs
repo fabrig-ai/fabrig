@@ -113,6 +113,10 @@ pub(crate) fn root(engine: &mut Engine) {
     use jig_domain_core::RestartRequest;
     let problems = match engine.domain.restore_failure() {
         Some(RestartRequest::Settings { failure, changed }) => settings_problem(failure, changed),
+        Some(RestartRequest::Unresolved { child, records }) => {
+            engine.end = Some(End::Stopped(Stop::Unresolved { child, records }));
+            return;
+        }
         Some(RestartRequest::ProjectPolicy { project }) => project_policy_problem(project),
         Some(RestartRequest::HeldPastLimit { which, held, limit }) => held_limit_problem(which, held, limit),
         Some(RestartRequest::UnheldRevision { task, revision }) => unheld_revision_problem(task, revision),
