@@ -369,6 +369,34 @@ in the lower world that owns it, never here.
     `fuzzy_green_light` is, and its forge's records stay within the
     harness's bound. Its fixture, scripts and checks are its own, in its
     test file, on the tier's shared hosts.
+- **The ladder's twins,** one story a rung of `../draft/v0.1.0.md`'s
+  ladder from B0 up, added once its brief passes on real backends (its
+  section 3): the passing walk replayed on the first run's cast.
+  - **Its scripts are the walk's,** a fake LLM document made from the
+    passing run's transcripts by `tools/twin` (4.1), never written by
+    hand: each agent of the walk says what the real model said, turn by
+    turn. Its forge is the fake's, seeded as the walk's box seeded
+    `playground/widget`, with any commit the walk's person made on it
+    (rung B1's gate), and a CI cue that judges as the walk's CI did:
+    for B1, a head passes only when it holds `changes/1.md`.
+  - **The person's acts and the checks are the brief's,** through
+    `temper ctl` and the fake forge's API: the same request and answer
+    in the same words, read where the brief reads them. A rung's twin
+    replaces its hand-written story once it passes: B0's
+    `fuzzy_green_light`, B1's `fuzzy_repair`.
+  - **Its data is the playground's story** of the rung
+    (`../playground.md`, 5.3), one source: the LLM's and the forge's
+    documents and the person's words, among `temper-playground`'s
+    stories' documents (`../playground.md`, section 3), which the twin's
+    test reads too; until that crate exists, in the test's own fixture,
+    moved there when it lands. Checked as data in the gate, as
+    `temper-init`'s scripts are.
+  - **What a twin cannot hold** is what only a real model shows: the
+    words it reads (`../draft/qa-live.md`, 8). A change to them is
+    rechecked by the rung's live story (2.7), and its twin made again
+    from that run's transcripts.
+  - It is fuzzy, as the stories it replaces are, past the 2 s guide by
+    the landing path.
 - **An account first,** with area 5's tools (../client/tools.md, 5.5):
   a story whose agents run adds a key the fake LLM peer accepts, from
   the client, before its first task, and waits for its account to be
@@ -1567,6 +1595,32 @@ section 8; testing-strategy.md, 2.9).
     (making the App, installing it) are the fixtures', made once by
     hand, and a failing or stalled check is the process tier's on
     fakes.
+- **The ladder's rungs,** a story of their own each once its brief
+  passes on real backends (`../draft/v0.1.0.md`, 3): the brief's
+  scenario as a test in `crates/temper/tests/live.rs`, run by
+  `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`.
+  - **What runs:** a fresh box as the guide makes one, its owned
+    Forgejo set up through ctl with the playground's copy
+    (`../protocol/setup.md`, 6.7); the model a held ChatGPT record,
+    `TEMPER_LIVE_ACCOUNT`, moved in by `temper ctl import` and moved
+    back by `export` over the same path before the box stops, on a pass,
+    a failure or a signal: the script's last act, which it checks by
+    `stat` alone. Whoever runs it holds the login for the run (agents'
+    `qa-flow.md`, 10.2).
+  - **Its acts are the brief's,** the person's words included, through
+    `temper ctl`; the forge's by the box's person, its read and write
+    header files (`../qa.md`, 4), as the brief's person acts.
+  - **Its Musts are the brief's "What passes",** read through temper
+    and through Forgejo's API, each a comparison of the two accounts.
+  - **Its bounds are the passing walk's,** as its report states them:
+    each phase's time and the whole; a run past one fails, naming the
+    phase. A bound is never raised: a slower run is a finding.
+  - **When it runs:** before the release, and when a change touches its
+    path, by the owner of that change, one live run at a time on the
+    login. Never at the gate.
+  - **Its other pairs** come as the rung's walks with GitHub and with
+    Claude pass (`../draft/v0.1.0.md`, 2.2): the same story, its forge
+    or its model named by the script's argument.
 - **Outside the suites:** nextest profile `live`, run only by
   `scripts/proof-live.sh` and `scripts/proof-live-github.sh`, one at a
   time, never at the gate.
@@ -1673,6 +1727,34 @@ skein's (skein's `fake-llm.md`):
   design (skein's `fake-llm.md`, and skein's `oauth.md`, section 5;
   smith's `protocol/programs.md`, section 8); temper's stories code
   against the fake LLM's script.
+- **A live run's twin,** `tools/twin` (crate `temper-twin`), a
+  developer's tool, never shipped: it turns a stopped deployment's
+  transcripts into a fake LLM document that replays the run's agents
+  (2.4, "The ladder's twins").
+  - **Its input:** the deployment's data directory, read after a clean
+    stop, its transcripts decoded by jig's frame decoder and smith's
+    turn codec (jig's `protocol/store.md`, section 8; smith's
+    `protocol/transcript.md`), never the store opened; and the tasks to
+    take, each with its cue: the person's request for a chat, an
+    `asked` script; a phrase of its brief for a delegate, a `cued`
+    script, since a delegate's system text opens with its brief.
+  - **Its output:** one document in `temper fake llm`'s form
+    (../protocol/setup.md, 8.4), a script per task, each assistant
+    completion of its run one turn, its text and its calls in order,
+    the calls' arguments as recorded. A turn the form cannot hold (an
+    opaque block, a call cut short, a window's compaction) is refused,
+    naming the task and the turn, and so is a document past the twin's
+    bounds, which are the fake's, sized for twins from the first passing
+    walk's transcripts and checked as the demo's are.
+  - **What does not replay** is named, not guessed: values a fresh
+    deployment does not give again, such as a commit's id in a call's
+    arguments, are listed in its report for a person to edit in the
+    document. Task, message and pull numbers recur when the story's acts
+    run in the walk's order on a fresh deployment, as the fuzzy stories'
+    numbers do.
+  - **Its tests:** step tests from recorded frames; and a round trip, a
+    fuzzy story's run turned into its twin and the twin run to the same
+    end.
 
 ### 4.2 The forge
 
