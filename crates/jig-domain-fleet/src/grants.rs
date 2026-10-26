@@ -72,6 +72,7 @@ pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, grant: Grant, out: &
         match attempt.state {
             State::Waiting { .. } | State::Adopted { .. } | State::Claimed { .. } => {}
             State::Cancelled { .. }
+            | State::Crossed { .. }
             | State::Handed { .. }
             | State::Acknowledged { .. }
             | State::Stray { .. }

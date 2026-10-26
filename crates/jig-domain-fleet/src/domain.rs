@@ -416,7 +416,9 @@ impl Domain {
                 }
                 attempt::State::Stray { at, until } => (crate::AttemptState::Stray, Some(at), until),
                 attempt::State::Kept { at, until, .. } => (crate::AttemptState::Kept, Some(at), until),
-                attempt::State::Fenced { at } => (crate::AttemptState::Fenced, Some(at), None),
+                attempt::State::Crossed { at, .. } | attempt::State::Fenced { at } => {
+                    (crate::AttemptState::Fenced, Some(at), None)
+                }
                 attempt::State::Closed => (crate::AttemptState::Closed, None, None),
             };
             let (placement, deadline) = match at {
@@ -530,6 +532,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 }
             }
         },
+        Event::Cross { reply_to, run, attempt } => attempt::cross(domain, env, reply_to, run, attempt, out),
         Event::Cancel { run, attempt } => attempt::cancel(domain, run, attempt, out),
         Event::Relayed { to, answer } => call::relayed(domain, to, answer, out),
         Event::Acknowledge { run, attempt } => attempt::acknowledge(domain, run, attempt, out),

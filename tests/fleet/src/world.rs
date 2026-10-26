@@ -1351,6 +1351,7 @@ fn describe(event: &Event) -> String {
         | Event::TurnKept { .. }
         | Event::TurnBusy { .. }
         | Event::Adopt { .. }
+        | Event::Cross { .. }
         | Event::Cancel { .. }
         | Event::Relayed { .. }
         | Event::Lost { .. }

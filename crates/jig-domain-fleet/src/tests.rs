@@ -1390,3 +1390,5 @@ fn an_overflowing_joined_reply_count_is_refused() {
     let limits = Limits { program_sources: u32::MAX / 2 + 1, ..LIMITS };
     assert_eq!(worst_case(&limits), None);
 }
+
+mod crossed;

@@ -687,6 +687,7 @@ pub(super) fn route_fleet(
         | fleet::Event::SignedOut { .. }
         | fleet::Event::Start { .. }
         | fleet::Event::Adopt { .. }
+        | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Loaded
@@ -775,6 +776,7 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Lost { .. } => true,
         fleet::Event::Start { .. }
         | fleet::Event::Adopt { .. }
+        | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Answer { .. }

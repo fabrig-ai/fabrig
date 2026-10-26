@@ -38,7 +38,9 @@ fn face(domain: &Domain, entry: &Attempt) -> Face {
     match &entry.state {
         State::Claimed { at, .. } | State::Handed { at } => Face::Live { channel: contact(domain, *at) },
         State::Stray { at, .. } | State::Kept { at, .. } => Face::Stray { channel: contact(domain, *at) },
-        State::Cancelled { at, .. } | State::Fenced { at } => Face::Fenced { channel: contact(domain, *at) },
+        State::Cancelled { at, .. } | State::Crossed { at, .. } | State::Fenced { at } => {
+            Face::Fenced { channel: contact(domain, *at) }
+        }
         State::Acknowledged { .. } | State::Closed => Face::Fenced { channel: None },
         State::Waiting { .. } | State::Adopted { .. } => Face::Unplaced,
     }

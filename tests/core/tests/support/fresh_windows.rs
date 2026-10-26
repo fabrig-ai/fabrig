@@ -65,6 +65,10 @@ pub fn restart(world: &mut World, sets: PatchSets) {
     world.grant_account(1);
 }
 pub fn hello(world: &mut World) {
+    hello_hosting(world, Box::new([]));
+}
+
+pub fn hello_hosting(world: &mut World, hosting: Box<[jig_domain_fleet::Hosted]>) {
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
@@ -73,7 +77,7 @@ pub fn hello(world: &mut World) {
             stop_bound: Duration::from_millis(100),
             slots: 1,
             workstreams: Box::new([]),
-            hosting: Box::new([]),
+            hosting,
         },
     })));
 }
@@ -125,5 +129,6 @@ pub fn fresh(world: &World) {
     assert_eq!(assignment.conversation, assignment.attempt);
     assert_eq!(proof(world).conversation, assignment.attempt);
     assert_eq!(proof(world).window, None);
+    assert!(!proof(world).crossed, "every new claim writes its own uncrossed proof");
     assert!(matches!(activity(world).last(), Some(tasks::Line::RunBegan { resumed: false, .. })));
 }

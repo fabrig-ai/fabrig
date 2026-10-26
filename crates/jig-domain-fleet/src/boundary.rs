@@ -23,7 +23,7 @@
 //!   not acknowledged. Everything a worker sends names a run and an attempt,
 //!   and is dropped unless that attempt is the parent's live claim (attempts
 //!   are fenced): only its answer is still taken once it is cancelled.
-//! - The parent's own. [`Event::Start`] and [`Event::Adopt`] are calls,
+//! - The parent's own. [`Event::Start`], [`Event::Adopt`] and [`Event::Cross`] are calls,
 //!   each ended by exactly one of [`Request::Answered`], [`Request::Lost`],
 //!   [`Request::Withdrawn`] or [`Request::Refused`]; a start is told
 //!   [`Request::Placed`] before, each time it is assigned, and an adoption
@@ -255,6 +255,17 @@ pub enum Event {
         worked: bool,
         holds: Box<[GrantName]>,
         grants: Box<[Grant]>,
+    },
+    /// From the parent, a claim restored after restart that an upgrade
+    /// across a fresh mark crossed, on a worker (domain/engine.md, 6 step 3
+    /// and 7.2): never adopted. Its run is cancelled when a worker lists
+    /// it, and the call ends `Lost` once that run has answered, or once the
+    /// grace has passed with none listing it; whatever else it sends is
+    /// dropped. Refused as `Adopt` is (busy, duplicate).
+    Cross {
+        reply_to: ReplyTo,
+        run: Token,
+        attempt: Token,
     },
     /// From the parent: cancel the attempt `attempt` of the run `run`. Its
     /// call is still ended by its answer, unless it was never placed.
@@ -554,15 +565,16 @@ pub enum Request {
         run: Token,
         attempt: Token,
     },
-    /// To the parent, terminal for `Start` and `Adopt`: the attempt is
-    /// presumed lost, its worker out of contact past the grace or none
-    /// having said it hosts it. Whatever still comes for it is dropped.
+    /// To the parent, terminal for `Start`, `Adopt` and `Cross`: the attempt
+    /// is lost, its worker out of contact past the grace, none having said
+    /// it hosts it, or its crossed run having answered. Whatever still comes
+    /// for it is dropped.
     Lost {
         to: ReplyTo,
         run: Token,
         attempt: Token,
     },
-    /// To the parent, terminal for `Start` and `Adopt`: the attempt was
+    /// To the parent, terminal for `Start`, `Adopt` and `Cross`: the attempt was
     /// withdrawn, for `withdrawal`.
     Withdrawn {
         to: ReplyTo,
@@ -570,7 +582,7 @@ pub enum Request {
         attempt: Token,
         withdrawal: Withdrawal,
     },
-    /// To the parent, terminal for `Start` and `Adopt`: refused at the
+    /// To the parent, terminal for `Start`, `Adopt` and `Cross`: refused at the
     /// entrance, nothing done.
     Refused {
         to: ReplyTo,

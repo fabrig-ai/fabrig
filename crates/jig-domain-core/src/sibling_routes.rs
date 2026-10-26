@@ -180,6 +180,16 @@ impl Core {
     /// host adoption until the application's live-range load finishes.
     pub fn adopt(&mut self, env: &Env<Limits>, task: u64, attempt: u64, kept: u32) {
         assert!(self.unreported_restored.insert(task, attempt) == Ok(None), "one restored claim per task");
+        let proof = self.proofs.get(&task).expect("restored claim proof");
+        let kind = if self.workers_in_process { fleet::HostKind::Engine } else { proof.host };
+        if proof.crossed && kind == fleet::HostKind::Worker {
+            self.adopted.push(fleet::Event::Cross {
+                reply_to: skein_lib::ReplyTo::new(Token::new(task)),
+                run: Token::new(task),
+                attempt: Token::new(attempt),
+            });
+            return;
+        }
         let mut worked = kept > 0;
         for (key, _) in &self.call_parts {
             if key.task == task && key.attempt == attempt {
@@ -216,11 +226,7 @@ impl Core {
         self.adopted.push(fleet::Event::Adopt {
             holds: holds.into_boxed(),
             grants: grants.into_boxed(),
-            kind: if self.workers_in_process {
-                fleet::HostKind::Engine
-            } else {
-                self.proofs.get(&task).expect("restored claim has its proof").host
-            },
+            kind,
             worked,
             reply_to: skein_lib::ReplyTo::new(Token::new(task)),
             run: Token::new(task),

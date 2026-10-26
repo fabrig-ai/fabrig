@@ -28,6 +28,7 @@
 //! state         event or alarm      next              emits
 //! (none)        start               Waiting           (a newer claim replaces its run's claim)
 //!               adopt               Adopted           (likewise)
+//!               cross               Crossed adrift    (likewise)
 //!               listed, its run     Fenced on         cancel, unless answered
 //!                 claimed
 //!               listed              Stray on          listed
@@ -56,6 +57,12 @@
 //!               answer: busy        (gone)            withdrawn: cancelled
 //!               channel lost        Cancelled adrift
 //!               grace (adrift)      (gone)            lost
+//! Crossed       listed              Crossed on        cancel, unless answered
+//!               cancel              Crossed
+//!               replaced            Fenced            withdrawn: replaced
+//!               answer (any)        (gone)            acknowledge; drop; lost
+//!               channel lost        Crossed adrift
+//!               grace (adrift)      (gone)            lost
 //! Handed        acknowledge, on     (gone)            acknowledge
 //!               acknowledge, adrift Acknowledged
 //!               listed              Handed on         (moved)
@@ -65,12 +72,14 @@
 //!               grace               (gone)
 //! Stray         listed              Stray on          (moved)
 //!               adopt               Claimed           placed
+//!               cross               Crossed           cancel, if on
 //!               cancel              Fenced            cancel, if on
 //!               answer              Kept on
 //!               channel lost        Stray adrift
 //!               loaded              Stray             (its deadline: the grace from now)
 //!               its deadline        Fenced            cancel, if on
 //! Kept          adopt               Handed            answered
+//!               cross               (gone) or Fenced  drop; acknowledge, if on; lost
 //!               cancel              (gone)            acknowledge, if on; drop the answer
 //!                                   or Fenced adrift
 //!               its deadline        likewise
@@ -91,7 +100,7 @@
 //! dropped. Strays and kept answers wait for the parent's `Loaded` before
 //! their deadline runs, the grace from then or from their first listing,
 //! whichever is later. Only the parent's claims (Waiting, Adopted, Claimed,
-//! Cancelled) are replaced: a stray of the run is left to its deadline.
+//! Cancelled, Crossed) are replaced: a stray of the run is left to its deadline.
 //!
 //! What a state implies (the slot it takes, whether its run's next attempt
 //! waits for it, its place in the queue for a slot, whether it is its run's
@@ -154,6 +163,10 @@ pub(crate) enum State {
     Claimed { to: ReplyTo, at: Where, workstream: u64, kinds: Kinds, charter: u32 },
     /// Cancelled by the parent: its answer still ends the call.
     Cancelled { to: ReplyTo, at: Where },
+    /// Restored across a fresh mark (domain/engine.md, 6 step 3 and 7.2):
+    /// never adopted. Its run is cancelled when listed, and the parent's
+    /// call ends lost once it answers or its adrift grace passes.
+    Crossed { to: ReplyTo, at: Where },
     /// Its answer handed to the parent, which has yet to acknowledge it: its
     /// worker keeps it, and its slot.
     Handed { at: Where },
@@ -208,7 +221,7 @@ pub(crate) fn implied(state: &State) -> Implied {
     match state {
         State::Waiting { serial, .. } => Implied { queued: Some(*serial), claim: true, ..none },
         State::Adopted { until, .. } => Implied { held: true, claim: true, deadline: Some(*until), ..none },
-        State::Claimed { at, .. } | State::Cancelled { at, .. } => {
+        State::Claimed { at, .. } | State::Cancelled { at, .. } | State::Crossed { at, .. } => {
             Implied { on: on(*at), held: true, claim: true, deadline: until(*at), ..none }
         }
         State::Handed { at } => Implied { on: on(*at), ..none },
@@ -239,6 +252,7 @@ pub(crate) fn lost_host(attempt: &Attempt) -> Option<Token> {
     match attempt.state {
         State::Claimed { at: Where::Adrift { .. }, .. }
         | State::Cancelled { at: Where::Adrift { .. }, .. }
+        | State::Crossed { at: Where::Adrift { .. }, .. }
         | State::Handed { at: Where::Adrift { .. } }
         | State::Stray { at: Where::Adrift { .. }, .. }
         | State::Kept { at: Where::Adrift { .. }, .. }
@@ -248,6 +262,7 @@ pub(crate) fn lost_host(attempt: &Attempt) -> Option<Token> {
         | State::Adopted { .. }
         | State::Claimed { at: Where::On(_), .. }
         | State::Cancelled { at: Where::On(_), .. }
+        | State::Crossed { at: Where::On(_), .. }
         | State::Handed { at: Where::On(_) }
         | State::Stray { at: Where::On(_), .. }
         | State::Kept { at: Where::On(_), .. }
@@ -341,6 +356,7 @@ pub(crate) fn adopt(
         | State::Adopted { .. }
         | State::Claimed { .. }
         | State::Cancelled { .. }
+        | State::Crossed { .. }
         | State::Handed { .. }
         | State::Acknowledged { .. } => {
             refuse(domain, to, names, Refusal::Duplicate, out);
@@ -366,6 +382,7 @@ pub(crate) fn adopt(
         | State::Adopted { .. }
         | State::Claimed { .. }
         | State::Cancelled { .. }
+        | State::Crossed { .. }
         | State::Handed { .. }
         | State::Acknowledged { .. }
         | State::Fenced { .. }
@@ -373,6 +390,79 @@ pub(crate) fn adopt(
     };
     follow(domain, id, before);
     true
+}
+
+/// Cross: fence a restored claim across a fresh mark, keeping its call
+/// open until its worker answers or the adrift grace passes.
+pub(crate) fn cross(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    run: Token,
+    attempt: Token,
+    out: &mut Queue<Request>,
+) {
+    let names = Names { run, attempt };
+    let Some(&id) = domain.names.get(&(run, attempt)) else {
+        if !has_room(domain, env) {
+            refuse(domain, to, names, Refusal::Busy, out);
+            return;
+        }
+        replace(domain, run, out);
+        let at = Where::Adrift { until: env.now.saturating_add(env.limits.grace) };
+        insert(
+            domain,
+            run,
+            attempt,
+            false,
+            Assignment { turns: Token::new(0), answered: Token::new(0) },
+            State::Crossed { to, at },
+        );
+        return;
+    };
+    let entry = domain.attempts.get(id).expect("a named attempt is tracked");
+    match &entry.state {
+        State::Stray { .. } | State::Kept { .. } => {}
+        State::Fenced { .. } => {
+            let _closed = presumed(to, names, &mut domain.facts, out);
+            return;
+        }
+        State::Waiting { .. }
+        | State::Adopted { .. }
+        | State::Claimed { .. }
+        | State::Cancelled { .. }
+        | State::Crossed { .. }
+        | State::Handed { .. }
+        | State::Acknowledged { .. } => {
+            refuse(domain, to, names, Refusal::Duplicate, out);
+            return;
+        }
+        State::Closed => unreachable!("a closed attempt is no longer named"),
+    }
+    replace(domain, run, out);
+    let entry = domain.attempts.get_mut(id).expect("looked up above");
+    let before = implied(&entry.state);
+    entry.state = match mem::replace(&mut entry.state, State::Closed) {
+        State::Stray { at, until: _ } => {
+            again(at, false, names, &domain.channels, out);
+            State::Crossed { to, at }
+        }
+        State::Kept { answer: _, payload, at, until: _ } => {
+            let state = forgotten(payload, at, names, &domain.channels, &mut domain.facts, out);
+            let _closed = presumed(to, names, &mut domain.facts, out);
+            state
+        }
+        State::Waiting { .. }
+        | State::Adopted { .. }
+        | State::Claimed { .. }
+        | State::Cancelled { .. }
+        | State::Crossed { .. }
+        | State::Handed { .. }
+        | State::Acknowledged { .. }
+        | State::Fenced { .. }
+        | State::Closed => unreachable!("only a stray or a kept answer is crossed, as matched above"),
+    };
+    follow(domain, id, before);
 }
 
 /// Cancel, from the parent. An attempt the fleet no longer tracks, or whose
@@ -395,6 +485,7 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
             cancelled(to, at, names, &domain.channels, out)
         }
         State::Cancelled { to, at } => State::Cancelled { to, at },
+        State::Crossed { to, at } => State::Crossed { to, at },
         State::Handed { at } => State::Handed { at },
         State::Acknowledged { until } => State::Acknowledged { until },
         State::Stray { at, until: _ } => fenced(at, names, &domain.channels, &mut domain.facts, out),
@@ -427,6 +518,7 @@ pub(crate) fn acknowledge(domain: &mut Domain, run: Token, attempt: Token, out: 
         | State::Adopted { .. }
         | State::Claimed { .. }
         | State::Cancelled { .. }
+        | State::Crossed { .. }
         | State::Acknowledged { .. }
         | State::Stray { .. }
         | State::Kept { .. }
@@ -466,6 +558,7 @@ pub(crate) fn place(
         State::Adopted { .. }
         | State::Claimed { .. }
         | State::Cancelled { .. }
+        | State::Crossed { .. }
         | State::Handed { .. }
         | State::Acknowledged { .. }
         | State::Stray { .. }
@@ -508,6 +601,10 @@ pub(crate) fn listed(
         State::Cancelled { to, at: _ } => {
             again(on, answered, names, &domain.channels, out);
             State::Cancelled { to, at: on }
+        }
+        State::Crossed { to, at: _ } => {
+            again(on, answered, names, &domain.channels, out);
+            State::Crossed { to, at: on }
         }
         State::Handed { at: _ } => State::Handed { at: on },
         State::Acknowledged { until: _ } => acknowledged(channel, names, &domain.channels, out),
@@ -587,6 +684,11 @@ pub(crate) fn answer(
                 handed(to, answer, payload, on, names, &mut domain.facts, out)
             }
         },
+        State::Crossed { to, at: _ } => {
+            out.push(Request::Acknowledge { channel, run, attempt });
+            out.push(Request::Drop { payload });
+            presumed(to, names, &mut domain.facts, out)
+        }
         State::Handed { at } => {
             resent(payload, &mut domain.facts, out);
             State::Handed { at }
@@ -625,6 +727,7 @@ pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until
             State::Claimed { to, at, workstream, kinds, charter }
         }
         State::Cancelled { to, at: _ } => State::Cancelled { to, at },
+        State::Crossed { to, at: _ } => State::Crossed { to, at },
         State::Handed { at: _ } => State::Handed { at },
         State::Stray { at: _, until } => State::Stray { at, until },
         State::Kept { answer, payload, at: _, until } => State::Kept { answer, payload, at, until },
@@ -646,7 +749,8 @@ pub(crate) fn expire(domain: &mut Domain, id: Id<Attempt>, out: &mut Queue<Reque
     entry.state = match state {
         State::Adopted { to, until: _ }
         | State::Claimed { to, at: Where::Adrift { .. }, .. }
-        | State::Cancelled { to, at: Where::Adrift { .. } } => presumed(to, names, &mut domain.facts, out),
+        | State::Cancelled { to, at: Where::Adrift { .. } }
+        | State::Crossed { to, at: Where::Adrift { .. } } => presumed(to, names, &mut domain.facts, out),
         State::Stray { at, until: Some(_) } => fenced(at, names, &domain.channels, &mut domain.facts, out),
         State::Kept { answer: _, payload, at, until: Some(_) } => {
             forgotten(payload, at, names, &domain.channels, &mut domain.facts, out)
@@ -655,6 +759,7 @@ pub(crate) fn expire(domain: &mut Domain, id: Id<Attempt>, out: &mut Queue<Reque
         State::Waiting { .. }
         | State::Claimed { at: Where::On(_), .. }
         | State::Cancelled { at: Where::On(_), .. }
+        | State::Crossed { at: Where::On(_), .. }
         | State::Handed { .. }
         | State::Stray { until: None, .. }
         | State::Kept { until: None, .. }
@@ -677,6 +782,7 @@ pub(crate) fn loaded(domain: &mut Domain, env: &Env<Limits>) {
             | State::Adopted { .. }
             | State::Claimed { .. }
             | State::Cancelled { .. }
+            | State::Crossed { .. }
             | State::Handed { .. }
             | State::Acknowledged { .. }
             | State::Stray { until: Some(_), .. }
@@ -697,6 +803,7 @@ pub(crate) fn loaded(domain: &mut Domain, env: &Env<Limits>) {
             | State::Adopted { .. }
             | State::Claimed { .. }
             | State::Cancelled { .. }
+            | State::Crossed { .. }
             | State::Handed { .. }
             | State::Acknowledged { .. }
             | State::Fenced { .. }
@@ -727,6 +834,7 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
             State::Adopted { .. }
             | State::Claimed { .. }
             | State::Cancelled { .. }
+            | State::Crossed { .. }
             | State::Handed { .. }
             | State::Acknowledged { .. }
             | State::Stray { .. }
@@ -739,6 +847,7 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
             State::Adopted { .. }
             | State::Claimed { .. }
             | State::Cancelled { .. }
+            | State::Crossed { .. }
             | State::Handed { .. }
             | State::Acknowledged { .. }
             | State::Stray { .. }
@@ -823,7 +932,7 @@ fn replace(domain: &mut Domain, run: Token, out: &mut Queue<Request>) {
             again(at, false, names, &domain.channels, out);
             superseded(to, at, names, out)
         }
-        State::Cancelled { to, at } => superseded(to, at, names, out),
+        State::Cancelled { to, at } | State::Crossed { to, at } => superseded(to, at, names, out),
         State::Handed { .. }
         | State::Acknowledged { .. }
         | State::Stray { .. }

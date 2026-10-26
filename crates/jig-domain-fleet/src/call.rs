@@ -56,6 +56,7 @@ fn live(domain: &Domain, id: Id<Attempt>) -> Live {
         State::Waiting { .. }
         | State::Adopted { .. }
         | State::Cancelled { .. }
+        | State::Crossed { .. }
         | State::Handed { .. }
         | State::Acknowledged { .. }
         | State::Stray { .. }
@@ -151,6 +152,7 @@ pub(crate) fn inbound(domain: &mut Domain, run: Token, attempt: Token, message: 
             State::Waiting { .. } => Undelivered::Unplaced,
             State::Adopted { .. } | State::Claimed { at: Where::Adrift { .. }, .. } => Undelivered::Adrift,
             State::Cancelled { .. }
+            | State::Crossed { .. }
             | State::Handed { .. }
             | State::Acknowledged { .. }
             | State::Stray { .. }
