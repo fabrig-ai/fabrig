@@ -399,8 +399,9 @@ child's vocabulary and the driver's, both ways, exhaustive on both:
   (skein's `oauth.md`, 6.4). Each part has its bound, the whole at most
   their sum. The generated decode refuses another version, a part past
   its bound, and a short or trailing input; the moves then refuse an
-  empty part and decode the record with skein's `decode_record`, as
-  today, refusing one skein does not read;
+  empty part but the display name, which may be empty, and decode the
+  record with skein's `decode_record`, as today, refusing one skein does
+  not read;
   a file of another version is refused by name, and the account is
   moved again from a deployment of the same release.
 - **Out.** The child releases the source and asks to withdraw it,

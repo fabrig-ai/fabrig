@@ -1201,6 +1201,19 @@ nothing is written.
   - `NextCarried { next: u64 }`, the carried values' next number
     (`[2, 1]`).
 
+  The store encodes its family's rows, so its secrets' requests carry
+  typed values and no service keeps a hand codec of a row:
+  `SecretValue { Digest { expiry, digest }, Record(Secret), Key(Secret),
+  Carried { kind, value }, Application(Secret) }`, `CarriedKind { Key,
+  Value, Moved }`. `Keep`, `Replace` and `AdoptValue` take one, `Carry`
+  takes its kind, `Get` and `Load` answer them, and a value that
+  disagrees with its key's owner is refused; `Adopt` unwraps a carried
+  key into a source's `Key`, any other kind answering stale. A row whose
+  envelope does not decode fails the read and stops the engine, as a
+  failed commit does (an older build's store was refused at open by its
+  layout); a held record's digest is taken before it is decoded, so one
+  that does not decode can still be replaced, as today.
+
   Each `N` is the bound its value has today; the version, the tags and
   the options add bytes, so each row's bound and the secrets' store's
   worst case grow by them, measured, and a rise in a budget comes to
