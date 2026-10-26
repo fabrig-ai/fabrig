@@ -1623,7 +1623,8 @@ into the binary.
   and its `charters/` files (`setup.md`, 8.2 and 8.3); the box, which
   has no document of its own but `temper init`'s (`setup.md`, section
   7); `docs/examples/owned.json` and its instructions; the lab's engine
-  documents; the fake backends' document rewriter (`temper-fake`'s
+  documents, whose studies apply their own values as a settings file
+  through ctl after sign-in; the fake backends' document rewriter (`temper-fake`'s
   backends, which edits `engine.charters` today); the tests' documents
   and builders (`../domain/testing.md`, 6.4). A generated document elsewhere, fabrig's, drops the six members;
   what it set differently from the stock values becomes a proposal after
