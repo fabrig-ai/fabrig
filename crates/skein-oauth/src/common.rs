@@ -110,6 +110,7 @@ pub fn classify(status: u16, error: Option<&crate::OAuthError>, retry_after: Dur
 /// candidate/record being handed to the durability owner. Checked on startup.
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
+    let _record_limits = crate::record::record_limits(limits)?;
     List::<Token>::worst_case(limits.tokens)?
         .checked_mul(3)?
         .checked_add(u64::from(limits.document_bytes).checked_mul(6)?)?

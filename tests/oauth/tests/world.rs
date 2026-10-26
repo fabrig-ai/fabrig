@@ -285,7 +285,8 @@ fn authorization_code_cannot_be_redeemed_twice() {
     assert!(bytes::find(&refusal.body, b"invalid_grant").is_some());
 }
 
-const VERSION_TWO: &[u8] = b"SKOT\x00\x02\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x04seed\x00\x00\x00\x00";
+// Schema version 3, key 1, generation 2, expiry 3, access "a", refresh "seed".
+const SAVED_RECORD: &[u8] = b"\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x01\x00\x00\x00\x04seed\x00\x00\x00\x00\x00\x00";
 fn refreshed(prior: &oauth::SavedToken, plan: fake::Plan) -> oauth::SavedToken {
     let registration = registration(true);
     let (mut client, mut issuer) = planned(&registration, plan);
@@ -298,7 +299,7 @@ fn refreshed(prior: &oauth::SavedToken, plan: fake::Plan) -> oauth::SavedToken {
 }
 #[test]
 fn a_refresh_naming_no_scope_keeps_the_granted_scopes() {
-    let mut prior = oauth::decode_record(VERSION_TWO, &documents()).expect("version two");
+    let mut prior = oauth::decode_record(SAVED_RECORD, &documents()).expect("current record");
     prior.granted_scopes = Some(boxed(b"read"));
     let expected = prior.granted_scopes.clone();
     let record = refreshed(&prior, success(b"access", Some(b"next"), 0));
@@ -306,7 +307,7 @@ fn a_refresh_naming_no_scope_keeps_the_granted_scopes() {
 }
 #[test]
 fn a_refresh_keeps_the_subject_and_id_token() {
-    let mut prior = oauth::decode_record(VERSION_TWO, &documents()).expect("version two");
+    let mut prior = oauth::decode_record(SAVED_RECORD, &documents()).expect("current record");
     prior.subject = Some(boxed(b"subject"));
     prior.id_token = Some(boxed(b"held.header.signature"));
     let expected = (prior.subject.clone(), prior.id_token.clone());
@@ -317,11 +318,11 @@ fn a_refresh_keeps_the_subject_and_id_token() {
     assert!((record.subject, record.id_token) == expected);
 }
 #[test]
-fn a_version_two_record_refreshes_into_version_three() {
-    let prior = oauth::decode_record(VERSION_TWO, &documents()).expect("version two");
+fn a_current_record_refreshes_and_keeps_its_generation() {
+    let prior = oauth::decode_record(SAVED_RECORD, &documents()).expect("current record");
     let record = refreshed(&prior, success(b"access", Some(b"next"), 0));
     let saved = oauth::encode_record(&record, &documents()).expect("saved");
-    assert_eq!(saved.get(..6), Some(b"SKOT\x00\x03".as_slice()));
+    assert_eq!(saved.get(..2), Some(b"\x00\x03".as_slice()));
     let restored = oauth::decode_record(&saved, &documents()).expect("version three");
     assert!(restored.refresh_token == Some(boxed(b"next")));
     assert_eq!(restored.generation, 3);
@@ -400,7 +401,7 @@ fn an_added_error_name_on_a_refresh_signs_in_again() {
     additions.sign_in_again = Box::new([boxed(b"refresh_gone")]);
     registration.terms = Some(additions);
     let (mut client, mut issuer) = planned(&registration, error(500, b"refresh_gone", 0));
-    let prior = oauth::decode_record(VERSION_TWO, &documents()).expect("version two");
+    let prior = oauth::decode_record(SAVED_RECORD, &documents()).expect("current record");
     let request = http(client_step(
         &mut client,
         oauth::Event::Refresh { registration, prior: prior.refresh_state().expect("refreshable"), now: time(1) },

@@ -99,6 +99,8 @@ skein-forge-setup = { path = "crates/skein-forge-setup" }
 skein-forge-client = { path = "crates/skein-forge-client" }
 skein-forge = { path = "crates/skein-forge" }
 skein-lib = { path = "crates/skein-lib" }
+skein-codec = { path = "crates/skein-codec" }
+skein-codegen = { path = "testing/skein-codegen" }
 skein-channel = { path = "crates/skein-channel" }
 skein-io = { path = "crates/skein-io" }
 skein-kv = { path = "crates/skein-kv" }

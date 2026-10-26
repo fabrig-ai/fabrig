@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-codec.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true
 skein-tls.workspace = true

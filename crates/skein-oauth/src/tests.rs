@@ -229,30 +229,16 @@ fn base64url_mutations_and_claim_shape_errors_are_refused_without_authentication
 }
 
 #[test]
-fn an_access_only_record_round_trips_without_refresh_state() {
-    let record = SavedToken {
-        key: 1,
-        generation: 2,
-        access_token: boxed(b"a"),
-        refresh_token: None,
-        metadata: None,
-        expires_at: Wall::from_nanos(3),
-        issued_client_id: None,
-        granted_scopes: None,
-        subject: None,
-        id_token: None,
-        earliest_refresh_at: None,
-    };
-    let golden = b"SKOT\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-    assert_eq!(encode_record(&record, &limits()).expect("access-only encoding").as_ref(), golden);
-    let restored = decode_record(golden, &limits()).expect("access-only record");
-    assert!(restored == record);
+fn a_record_with_every_option_absent_round_trips() {
+    let record = SavedToken { refresh_token: None, ..byte_record() };
+    let encoded = encode_record(&record, &limits()).expect("access-only encoding");
+    assert!(decode_record(&encoded, &limits()).expect("access-only record") == record);
+}
+
+#[test]
+fn an_access_only_record_has_no_refresh_state() {
+    let record = SavedToken { refresh_token: None, ..byte_record() };
     assert!(record.refresh_state().is_none());
-    assert!(restored.refresh_state().is_none());
-    assert_eq!(restored.remaining(Wall::from_nanos(1)), Duration::from_nanos(2));
-    let mut old = boxed(golden);
-    *old.get_mut(5).expect("version byte") = 1;
-    assert!(decode_record(&old, &limits()) == Err(DecodeError::Version));
 }
 
 #[test]
@@ -278,39 +264,36 @@ fn record_bounds_hold_with_and_without_a_refresh_token() {
     assert_eq!(encode_record(&record, &limits()), Err(DecodeError::TooLarge));
 }
 
+// Version, key, generation, expiry, access "a", refresh "r", then six absent options.
+const RECORD_BYTES: &[u8] = b"\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x01\x00\x00\x00\x01r\x00\x00\x00\x00\x00\x00";
+
 #[test]
-fn saved_record_has_an_independent_big_endian_versioned_golden_and_refuses_corruption() {
-    let record = SavedToken {
-        key: 1,
-        generation: 2,
-        access_token: boxed(b"a"),
-        refresh_token: Some(boxed(b"r")),
-        metadata: None,
-        expires_at: Wall::from_nanos(3),
-        issued_client_id: None,
-        granted_scopes: None,
-        subject: None,
-        id_token: None,
-        earliest_refresh_at: None,
-    };
-    let golden = b"SKOT\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-    assert_eq!(encode_record(&record, &limits()).expect("encode").as_ref(), golden);
-    assert!(decode_record(golden, &limits()).expect("golden") == record);
-    for len in 0..golden.len() {
-        let outcome = decode_record(golden.get(..len).expect("prefix"), &limits());
-        let refused = outcome.is_err();
-        assert!(refused, "every truncated record is refused");
+fn a_record_encodes_the_independent_schema_bytes() {
+    assert_eq!(encode_record(&byte_record(), &limits()).expect("encode").as_ref(), RECORD_BYTES);
+}
+
+#[test]
+fn a_record_decodes_the_independent_schema_bytes() {
+    assert!(decode_record(RECORD_BYTES, &limits()).expect("decode") == byte_record());
+}
+
+#[test]
+fn a_record_cut_short_is_malformed() {
+    for length in 0..RECORD_BYTES.len() {
+        assert!(
+            decode_record(RECORD_BYTES.get(..length).expect("prefix"), &limits()) == Err(DecodeError::Malformed),
+            "prefix length {length}"
+        );
     }
-    let mut version = boxed(golden);
-    *version.get_mut(5).expect("version low byte") = 1;
-    assert!(decode_record(&version, &limits()) == Err(DecodeError::Version));
-    let mut length = boxed(golden);
-    *length.get_mut(26).expect("access length high byte") = 0xff;
-    assert!(decode_record(&length, &limits()) == Err(DecodeError::TooLarge));
-    let mut bounded = limits();
-    bounded.record_bytes = 39;
-    assert_eq!(encode_record(&record, &bounded), Err(DecodeError::TooLarge));
-    assert!(decode_record(golden, &bounded) == Err(DecodeError::TooLarge));
+}
+
+#[test]
+fn a_record_with_a_trailing_byte_is_malformed() {
+    let mut writer = skein_lib::Writer::new(RECORD_BYTES.len().checked_add(1).expect("fixture length fits"));
+    writer.put(RECORD_BYTES).expect("room for record");
+    writer.put(&[0]).expect("room for trailing byte");
+    let trailing = writer.finish();
+    assert!(decode_record(&trailing, &limits()) == Err(DecodeError::Malformed));
 }
 
 #[test]
@@ -444,31 +427,73 @@ fn byte_record() -> SavedToken {
     }
 }
 #[test]
-fn a_version_two_record_reads_with_no_additions() {
-    assert!(decode_record(VERSION_TWO, &limits()).expect("version two") == byte_record());
+fn a_version_two_record_is_unreadable() {
+    for input in [VERSION_TWO, b"\x00\x02".as_slice()] {
+        assert!(decode_record(input, &limits()) == Err(DecodeError::Version));
+    }
 }
+
 #[test]
-fn a_version_three_record_reads_its_bytes() {
-    let bytes = b"SKOT\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00\x01\x00\x00\x00\x01c\x01\x00\x00\x00\x00\x01\x00\x00\x00\x01s\x01\x00\x00\x00\x01i\x01\x00\x00\x00\x00\x00\x00\x00\x04";
-    let expected = SavedToken {
-        issued_client_id: Some(boxed(b"c")),
-        granted_scopes: Some(boxed(b"")),
-        subject: Some(boxed(b"s")),
-        id_token: Some(boxed(b"i")),
-        earliest_refresh_at: Some(Wall::from_nanos(4)),
-        ..byte_record()
-    };
-    assert!(decode_record(bytes, &limits()).expect("version three") == expected);
-    assert!(encode_record(&expected, &limits()).expect("encoded").as_ref() == bytes);
+fn the_hand_written_form_is_unreadable() {
+    let input = b"SKOT\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+    assert!(decode_record(input, &limits()) == Err(DecodeError::Version));
 }
+
 #[test]
 fn a_record_of_another_version_is_refused() {
     for version in [1, 4] {
-        let mut input = boxed(VERSION_TWO);
-        input[5] = version;
+        let mut input = boxed(RECORD_BYTES);
+        *input.get_mut(1).expect("version low byte") = version;
         assert!(decode_record(&input, &limits()) == Err(DecodeError::Version), "version {version}");
     }
 }
+
+#[test]
+fn a_full_record_round_trips() {
+    let record = SavedToken { metadata: Some(boxed(b"account")), ..additions([true; 5]) };
+    let encoded = encode_record(&record, &limits()).expect("full encoding");
+    assert!(decode_record(&encoded, &limits()).expect("full decoding") == record);
+}
+
+// Schema ceilings in oauth.md, 6.4; token_bytes also bounds refresh and metadata.
+const TOKEN_CEILING: u32 = 65_536;
+const TEXT_CEILING: u32 = 4_096;
+fn ceiling_rows() -> [(&'static str, Limits); 5] {
+    [
+        ("tokens and metadata", Limits { token_bytes: TOKEN_CEILING, ..limits() }),
+        ("id token", Limits { id_token_bytes: TOKEN_CEILING, ..limits() }),
+        ("issued client", Limits { issued_client_bytes: TEXT_CEILING, ..limits() }),
+        ("granted scopes", Limits { granted_bytes: TEXT_CEILING, ..limits() }),
+        ("subject", Limits { subject_bytes: TEXT_CEILING, ..limits() }),
+    ]
+}
+
+#[test]
+fn limits_at_a_ceiling_have_a_worst_case() {
+    for (name, limits) in ceiling_rows() {
+        assert!(worst_case(&limits).is_some(), "{name}");
+    }
+}
+
+#[test]
+fn limits_one_past_a_ceiling_have_none() {
+    for (name, limits) in [
+        (
+            "tokens and metadata",
+            Limits { token_bytes: TOKEN_CEILING.checked_add(1).expect("ceiling fits"), ..limits() },
+        ),
+        ("id token", Limits { id_token_bytes: TOKEN_CEILING.checked_add(1).expect("ceiling fits"), ..limits() }),
+        (
+            "issued client",
+            Limits { issued_client_bytes: TEXT_CEILING.checked_add(1).expect("ceiling fits"), ..limits() },
+        ),
+        ("granted scopes", Limits { granted_bytes: TEXT_CEILING.checked_add(1).expect("ceiling fits"), ..limits() }),
+        ("subject", Limits { subject_bytes: TEXT_CEILING.checked_add(1).expect("ceiling fits"), ..limits() }),
+    ] {
+        assert_eq!(worst_case(&limits), None, "{name}");
+    }
+}
+
 #[test]
 fn a_token_response_reads_scope_id_token_and_earliest() {
     let input = br#"{"access_token":"access-new","refresh_token":"refresh-new","expires_in":30,"scope":"read","id_token":"header.payload.signature","earliest_refresh_at":90}"#;

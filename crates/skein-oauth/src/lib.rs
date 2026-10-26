@@ -4,12 +4,16 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+#[rustfmt::skip]
+#[path = "generated/v3.rs"]
+pub mod v3;
 mod common;
 mod documents;
 mod json;
 mod jwt;
 mod keys;
 mod machine;
+pub mod patches;
 mod pkce;
 mod record;
 mod redirect;
@@ -32,3 +36,15 @@ pub use redirect::{OpenId, Parameter, Sent, Terms, missing_scopes, redirect_addr
 mod machine_tests;
 #[cfg(test)]
 mod tests;
+
+/// The owner of skein's patches, as their headers spell it.
+pub const OWNER: &str = "skein";
+/// The record's family, as its kept texts spell it.
+pub const FAMILY: &str = "skein-oauth";
+/// The declaration a kept record is.
+pub const ROOT: &str = "SavedToken";
+/// The family's layout fingerprint (codec.md, 9), checked by the drift test.
+pub const FINGERPRINT: [u8; 32] = [
+    41, 62, 146, 237, 7, 170, 232, 22, 146, 49, 19, 74, 222, 68, 228, 174, 213, 32, 183, 205, 88, 142, 62, 177, 6, 115,
+    197, 141, 117, 122, 254, 62,
+];

@@ -3,13 +3,11 @@
 //! it knows no credential source or store. The codecs enforce bounds and version,
 //! and `rotate` prepares a candidate the caller keeps before lending.
 
-use crate::{DecodeError, Limits, TokenResponse, common, documents, jwt};
+use crate::{DecodeError, Limits, TokenResponse, common, documents, jwt, v3};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Reader, Wall, Writer, bytes};
+use skein_lib::{Duration, Reader, Secret, Wall, Writer};
 
 pub const RECORD_VERSION: u16 = 3;
-const MAGIC: &[u8] = b"SKOT";
-const FIXED_BYTES: u32 = 43;
 /// Caller-selected nested JWT claim to keep as opaque metadata.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ClaimSelector {
@@ -154,146 +152,125 @@ fn validate(record: &SavedToken, limits: &Limits) -> Result<(), DecodeError> {
     }
     Ok(())
 }
-fn measured(record: &SavedToken, limits: &Limits) -> Result<u32, DecodeError> {
-    let id_len = match &record.metadata {
-        Some(id) => u32::try_from(id.len()).or(Err(DecodeError::TooLarge))?,
-        None => 0,
+/// Maps runtime limits to the schema's fields and checks its fixed ceilings.
+pub(crate) fn record_limits(limits: &Limits) -> Option<v3::Limits> {
+    let limits = v3::Limits {
+        saved_token_access_token: limits.token_bytes,
+        saved_token_refresh_token_some: limits.token_bytes,
+        saved_token_metadata_some: limits.token_bytes,
+        saved_token_issued_client_id_some: limits.issued_client_bytes,
+        saved_token_granted_scopes_some: limits.granted_bytes,
+        saved_token_subject_some: limits.subject_bytes,
+        saved_token_id_token_some: limits.id_token_bytes,
     };
-    let access_len = u32::try_from(record.access_token.len()).or(Err(DecodeError::TooLarge))?;
-    let refresh_len = match &record.refresh_token {
-        Some(refresh_token) => u32::try_from(refresh_token.len()).or(Err(DecodeError::TooLarge))?,
-        None => 0,
+    v3::check_limits(&limits).ok()?;
+    Some(limits)
+}
+
+fn problem(problem: v3::Problem) -> DecodeError {
+    match problem.reason {
+        skein_codec::Reason::Version => DecodeError::Version,
+        skein_codec::Reason::Bound => DecodeError::TooLarge,
+        skein_codec::Reason::Short
+        | skein_codec::Reason::Tag
+        | skein_codec::Reason::Bool
+        | skein_codec::Reason::Utf8
+        | skein_codec::Reason::Trailing
+        | skein_codec::Reason::Malformed => DecodeError::Malformed,
+    }
+}
+
+#[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
+fn secret(value: Option<Box<[u8]>>) -> Option<Secret> {
+    match value {
+        Some(value) => Some(Secret::new(value)),
+        None => None,
+    }
+}
+
+#[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
+fn exposed(value: Option<Secret>) -> Option<Box<[u8]>> {
+    match value {
+        Some(value) => Some(value.into_exposed()),
+        None => None,
+    }
+}
+
+#[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
+fn generated(record: &SavedToken, limits: &Limits) -> Result<v3::SavedToken, DecodeError> {
+    let schema_limits = record_limits(limits).ok_or(DecodeError::TooLarge)?;
+    validate(record, limits)?;
+    let parts = v3::SavedTokenParts {
+        key: record.key,
+        generation: record.generation,
+        expires_at: record.expires_at.as_nanos(),
+        access_token: Secret::new(record.access_token.clone()),
+        refresh_token: secret(record.refresh_token.clone()),
+        metadata: record.metadata.clone(),
+        issued_client_id: record.issued_client_id.clone(),
+        granted_scopes: record.granted_scopes.clone(),
+        subject: record.subject.clone(),
+        id_token: secret(record.id_token.clone()),
+        earliest_refresh_at: match record.earliest_refresh_at {
+            Some(wall) => Some(wall.as_nanos()),
+            None => None,
+        },
     };
-    let mut additions = 0_u32;
-    for value in
-        [&record.issued_client_id, &record.granted_scopes, &record.subject, &record.id_token].into_iter().flatten()
-    {
-        let len = u32::try_from(value.len()).or(Err(DecodeError::TooLarge))?;
-        additions =
-            additions.checked_add(4).ok_or(DecodeError::TooLarge)?.checked_add(len).ok_or(DecodeError::TooLarge)?;
+    match v3::SavedToken::new(&schema_limits, parts) {
+        Ok(value) => Ok(value),
+        Err(error) => Err(problem(error)),
     }
-    if record.earliest_refresh_at.is_some() {
-        additions = additions.checked_add(8).ok_or(DecodeError::TooLarge)?;
-    }
-    let len = FIXED_BYTES
-        .checked_add(additions)
-        .ok_or(DecodeError::TooLarge)?
-        .checked_add(access_len)
-        .ok_or(DecodeError::TooLarge)?
-        .checked_add(refresh_len)
-        .ok_or(DecodeError::TooLarge)?
-        .checked_add(id_len)
-        .ok_or(DecodeError::TooLarge)?;
+}
+
+fn record_length(len: u32, limits: &Limits) -> Result<u32, DecodeError> {
     if len > limits.record_bytes {
         return Err(DecodeError::TooLarge);
     }
     Ok(len)
 }
+
+fn measured(record: &SavedToken, limits: &Limits) -> Result<u32, DecodeError> {
+    record_length(generated(record, limits)?.measure(), limits)
+}
+
 pub fn encode_record(record: &SavedToken, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
-    validate(record, limits)?;
-    let len = measured(record, limits)?;
+    let value = generated(record, limits)?;
+    let len = record_length(value.measure(), limits)?;
     let mut out = Writer::new(usize::try_from(len).expect("u32 fits usize"));
-    out.put(MAGIC).expect("record measured");
-    out.put(&RECORD_VERSION.to_be_bytes()).expect("record measured");
-    out.put(&record.key.to_be_bytes()).expect("record measured");
-    out.put(&record.generation.to_be_bytes()).expect("record measured");
-    out.put(&record.expires_at.as_nanos().to_be_bytes()).expect("record measured");
-    write_field(&mut out, &record.access_token);
-    match &record.refresh_token {
-        Some(refresh_token) => write_field(&mut out, refresh_token),
-        None => write_field(&mut out, b""),
-    }
-    match &record.metadata {
-        Some(id) => write_field(&mut out, id),
-        None => write_field(&mut out, b""),
-    }
-    for value in [&record.issued_client_id, &record.granted_scopes, &record.subject, &record.id_token] {
-        out.put(&[u8::from(value.is_some())]).expect("record measured");
-        if let Some(value) = value {
-            write_field(&mut out, value);
-        }
-    }
-    out.put(&[u8::from(record.earliest_refresh_at.is_some())]).expect("record measured");
-    if let Some(wall) = record.earliest_refresh_at {
-        out.put(&wall.as_nanos().to_be_bytes()).expect("record measured");
-    }
+    value.encode(&mut out).expect("record measured");
     Ok(out.finish())
 }
-fn write_field(out: &mut Writer, value: &[u8]) {
-    out.put(&u32::try_from(value.len()).expect("measured field fits u32").to_be_bytes()).expect("record measured");
-    out.put(value).expect("record measured");
-}
+
+#[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
 pub fn decode_record(input: &[u8], limits: &Limits) -> Result<SavedToken, DecodeError> {
     if input.len() > usize::try_from(limits.record_bytes).expect("u32 fits usize") {
         return Err(DecodeError::TooLarge);
     }
-    let mut reader = Reader::new(input);
-    if reader.bytes(4).ok_or(DecodeError::Malformed)? != MAGIC {
-        return Err(DecodeError::Malformed);
-    }
-    let version = reader.u16().ok_or(DecodeError::Malformed)?;
-    if version != 2 && version != RECORD_VERSION {
-        return Err(DecodeError::Version);
-    }
-    let key = reader.u32().ok_or(DecodeError::Malformed)?;
-    let generation = reader.u64().ok_or(DecodeError::Malformed)?;
-    let expires_at = Wall::from_nanos(reader.u64().ok_or(DecodeError::Malformed)?);
-    let access_token = read_field(&mut reader, limits.token_bytes)?;
-    let refresh = read_field(&mut reader, limits.token_bytes)?;
-    let refresh_token = if refresh.is_empty() { None } else { Some(refresh) };
-    let id = read_field(&mut reader, limits.token_bytes)?;
-    let metadata = if id.is_empty() { None } else { Some(id) };
-    let (issued_client_id, granted_scopes, subject, id_token, earliest_refresh_at) = if version == 2 {
-        (None, None, None, None, None)
-    } else {
-        let issued = read_optional(&mut reader, limits.issued_client_bytes)?;
-        let granted = read_optional(&mut reader, limits.granted_bytes)?;
-        let subject = read_optional(&mut reader, limits.subject_bytes)?;
-        let id = read_optional(&mut reader, limits.id_token_bytes)?;
-        let earliest = if presence(&mut reader)? {
-            Some(Wall::from_nanos(reader.u64().ok_or(DecodeError::Malformed)?))
-        } else {
-            None
-        };
-        (issued, granted, subject, id, earliest)
+    let schema_limits = record_limits(limits).ok_or(DecodeError::TooLarge)?;
+    let value = match v3::SavedToken::decode(&schema_limits, &mut Reader::new(input)) {
+        Ok(value) => value,
+        Err(error) => return Err(problem(error)),
     };
-    if !reader.is_empty() {
-        return Err(DecodeError::Malformed);
-    }
+    let _length = record_length(value.measure(), limits)?;
+    let parts = value.into_parts();
     let record = SavedToken {
-        key,
-        generation,
-        access_token,
-        refresh_token,
-        metadata,
-        expires_at,
-        issued_client_id,
-        granted_scopes,
-        subject,
-        id_token,
-        earliest_refresh_at,
+        key: parts.key,
+        generation: parts.generation,
+        expires_at: Wall::from_nanos(parts.expires_at),
+        access_token: parts.access_token.into_exposed(),
+        refresh_token: exposed(parts.refresh_token),
+        metadata: parts.metadata,
+        issued_client_id: parts.issued_client_id,
+        granted_scopes: parts.granted_scopes,
+        subject: parts.subject,
+        id_token: exposed(parts.id_token),
+        earliest_refresh_at: match parts.earliest_refresh_at {
+            Some(nanos) => Some(Wall::from_nanos(nanos)),
+            None => None,
+        },
     };
     validate(&record, limits)?;
     Ok(record)
-}
-fn read_field(reader: &mut Reader<'_>, cap: u32) -> Result<Box<[u8]>, DecodeError> {
-    let len = reader.u32().ok_or(DecodeError::Malformed)?;
-    if len > cap {
-        return Err(DecodeError::TooLarge);
-    }
-    let value = reader.bytes(len).ok_or(DecodeError::Malformed)?;
-    Ok(bytes::copy_of(value))
-}
-
-fn presence(reader: &mut Reader<'_>) -> Result<bool, DecodeError> {
-    match reader.bytes(1).ok_or(DecodeError::Malformed)? {
-        [0] => Ok(false),
-        [1] => Ok(true),
-        _ => Err(DecodeError::Malformed),
-    }
-}
-fn read_optional(reader: &mut Reader<'_>, cap: u32) -> Result<Option<Box<[u8]>>, DecodeError> {
-    if presence(reader)? { Ok(Some(read_field(reader, cap)?)) } else { Ok(None) }
 }
 
 /// Checks held identity fields before the machine retains or copies them.

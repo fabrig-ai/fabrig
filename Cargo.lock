@@ -1099,6 +1099,7 @@ dependencies = [
 name = "skein-oauth"
 version = "0.0.0"
 dependencies = [
+ "skein-codec",
  "skein-json",
  "skein-lib",
  "skein-tls",
@@ -1161,6 +1162,8 @@ dependencies = [
 name = "skein-oauth-world"
 version = "0.0.0"
 dependencies = [
+ "skein-codec",
+ "skein-codegen",
  "skein-fake-oauth",
  "skein-fake-peers",
  "skein-heap",
