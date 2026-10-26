@@ -10,7 +10,16 @@ publish.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [features]
-record = ["dep:skein-fake-person"]
+record = [
+    "dep:skein-fake-person",
+    "dep:js-sys",
+    "web-sys/KeyboardEvent",
+    "web-sys/Blob",
+    "web-sys/BlobPropertyBag",
+    "web-sys/Url",
+    "web-sys/HtmlAnchorElement",
+    "web-sys/AddEventListenerOptions",
+]
 loopback-navigation = ["skein-ui-web/loopback-navigation"]
 
 [dependencies]
@@ -29,6 +38,7 @@ temper-client-protocol-wire.workspace = true
 skein-fake-person.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = { version = "=0.3.103", optional = true }
 wasm-bindgen.workspace = true
 web-sys = { workspace = true, features = ["Window", "Document", "Element", "Location", "HtmlElement"] }
 
