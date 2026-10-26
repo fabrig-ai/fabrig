@@ -788,10 +788,6 @@ impl Referee<Process> for SupervisedJudge {
                 SupervisedTrigger::Never => false,
             };
             if ready {
-                if child.exit_status().is_some() && !child.tree_status().live_pids.is_empty() {
-                    assert!(child.counts().is_none(), "a living tree retains its keeper after leader exit");
-                    self.saw_retained_exit = true;
-                }
                 child.signal_tree(Signal::Terminate);
                 self.term_at = Some(now);
             }
@@ -799,11 +795,6 @@ impl Referee<Process> for SupervisedJudge {
             && child.counts().is_none()
         {
             let grace = term_at.saturating_add(Duration::from_millis(20));
-            if child.exit_status().is_some() && !child.tree_status().live_pids.is_empty() && now < grace {
-                self.saw_grace = true;
-                self.saw_retained_exit = true;
-                assert!(child.tree_status().killed_pids.is_empty(), "the keeper leaves escalation to its referee");
-            }
             if now >= grace && self.kill_at.is_none() {
                 child.signal_tree(Signal::Kill);
                 self.kill_at = Some(now);
@@ -815,6 +806,16 @@ impl Referee<Process> for SupervisedJudge {
         #[cfg(target_os = "macos")]
         let _ = now;
         let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+        if child.exit_status().is_some() && !child.tree_status().live_pids.is_empty() {
+            assert!(child.counts().is_none(), "a living tree retains its keeper after leader exit");
+            self.saw_retained_exit = true;
+            if let Some(term_at) = self.term_at
+                && now < term_at.saturating_add(Duration::from_millis(20))
+            {
+                self.saw_grace = true;
+                assert!(child.tree_status().killed_pids.is_empty(), "the keeper leaves escalation to its referee");
+            }
+        }
         self.next = if child.counts().is_some() {
             None
         } else if let Some(term_at) = self.term_at {
@@ -869,6 +870,72 @@ fn supervised_run(mode: &str, containment: Containment, trigger: SupervisedTrigg
     let mut world = real::World::new(judge);
     world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
     world.run(&Clock::new(), Duration::from_secs(2))
+}
+
+// The detached descendant is retained by Linux's tree keeper.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_retained_exit_observation_records_grace_before_the_next_act() {
+    struct Observed {
+        judge: SupervisedJudge,
+        checked: bool,
+    }
+    impl Referee<Process> for Observed {
+        fn act(&mut self, now: Time, procs: &mut [Process]) {
+            self.judge.act(now, procs);
+        }
+        fn observe(&mut self, now: Time, procs: &[Process]) {
+            let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+            if !self.checked && child.exit_status().is_some() && !child.tree_status().live_pids.is_empty() {
+                // Sample the retained exit at the start of a grace, with no subsequent act.
+                let mut probe = SupervisedJudge {
+                    trigger: SupervisedTrigger::LeaderExit,
+                    term_at: Some(now),
+                    kill_at: None,
+                    next: None,
+                    saw_retained_exit: false,
+                    saw_grace: false,
+                };
+                probe.observe(now, procs);
+                assert!(probe.saw_retained_exit, "observe records the exit while its keeper is retained");
+                assert!(probe.saw_grace, "observe records the live un-killed tree inside the grace");
+                self.checked = true;
+            }
+            self.judge.observe(now, procs);
+        }
+        fn next_deadline(&self) -> Option<Time> {
+            self.judge.next_deadline()
+        }
+        fn overdue(&self, now: Time) -> Option<String> {
+            self.judge.overdue(now)
+        }
+        fn passed(&self) -> bool {
+            self.checked && self.judge.passed()
+        }
+    }
+    let judge = Observed {
+        judge: SupervisedJudge {
+            trigger: SupervisedTrigger::LeaderExit,
+            term_at: None,
+            kill_at: None,
+            next: None,
+            saw_retained_exit: false,
+            saw_grace: false,
+        },
+        checked: false,
+    };
+    let binary = Binary::start_contained(
+        fixture("escape-exit"),
+        Mode::Pipes,
+        4096,
+        skein_world::end_to_end::Expectation::Supervise,
+        Containment::Walk,
+    )
+    .expect("a supervised fixture starts");
+    let mut world = real::World::new(judge);
+    world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
+    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+    assert!(tree_child(&outcome).counts().is_some(), "the retained tree drains");
 }
 
 #[test]
