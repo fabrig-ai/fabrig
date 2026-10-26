@@ -294,6 +294,16 @@ fn a_secrets_debug_shows_its_length_and_not_its_bytes() {
 }
 
 #[test]
+fn consuming_a_secret_exposes_the_same_owned_box() {
+    let bytes = crate::bytes::copy_of(b"a credential");
+    let address = bytes.as_ptr();
+    let secret = crate::Secret::new(bytes);
+    let exposed = secret.into_exposed();
+    assert_eq!(exposed.as_ptr(), address);
+    assert_eq!(exposed.as_ref(), b"a credential");
+}
+
+#[test]
 fn secrets_compare_and_hash_over_their_bytes() {
     use core::hash::{Hash, Hasher};
     let secret = crate::Secret::new(crate::bytes::copy_of(b"key"));

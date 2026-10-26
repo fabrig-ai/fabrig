@@ -16,6 +16,11 @@ impl Secret {
     pub fn expose(&self) -> &[u8] {
         &self.0
     }
+    /// Moves the bytes out to their owner, exposed, without copying.
+    #[must_use]
+    pub fn into_exposed(self) -> Box<[u8]> {
+        self.0
+    }
     /// How many bytes the secret holds.
     #[must_use]
     pub fn len(&self) -> usize {
