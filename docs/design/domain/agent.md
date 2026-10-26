@@ -140,6 +140,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 |---|---|---|---|---|
 | `delegate` | delegate | makes a batch of direct delegates, each with what a party's `Create` names (a deadline as seconds after it is made, or none, to end with its creator's) (jig's `domain/tasks.md`, section 4), tracked as a goal at a priority (`tracked`, the lower first) or untracked | | their numbers, their specs' revisions, and what a budget given `AsAllowed` was given; refused, and why |
 | `change` | delegate | one change to one of the project's repositories, landed (forge.md, section 8): the run gives the words and, where the project has more than one repository it may write, which as `owner/name`; the root fills in the rest, as 4.3.1 says, and decides it as a `delegate` | | its task's number, as `delegate`'s; refused, and why: naming the project's repositories where none fits |
+| `goal` | delegate | one tracked goal, in the run's words: the run gives the words, and whether it is an advisor, which changes nothing; the root fills in the rest, as 4.3.2 says, and decides it as a `delegate` | | its task's number, as `delegate`'s; refused, and why |
 | `message` | message | words, a question, or the answer to one, to a task it references (jig's `domain/tasks.md`, 8.5) | the question, for an answer | sent, with the message's number; refused: no reference, the inbox full, too large for a run to read |
 | `introduce` | message | gives two tasks it references a reference to each other | | done; refused, and why |
 | `amend` | amend and cancel | changes a live delegate (jig's `domain/tasks.md`, section 7), naming only what changes: its tracking (a priority, or untracked), its spec, wake, dependencies (the whole list), authority (whole: a deadline is its budget's, the rest restated), instructions (whole; empty leaves none) or models; with a reason, which its live run hears unless new instructions replace it | its spec's revision, as the run last read it; a tracked delegate's priority alone needs no revision | done, with the spec's revision after the commit, the one its next amendment names, and what changed; refused, and why; moved, with what it is now |
@@ -266,6 +267,36 @@ any `delegate` (jig's authority, named and decided once):
 
 A `delegate` refused for an executor or a grant says, too, that a
 repository change is `change`'s.
+
+#### 4.3.2 A goal, in the run's words
+
+A chat cannot know what a goal's `delegate` needs either: its own
+authority's tool families, the grants' vocabulary on the forge's
+resources, the delegation's kinds and its funding, none of which a run
+sees. `goal` takes the words alone, and whether the goal is an advisor,
+and the root builds the one delegate from the run's own, then decides
+it as any `delegate`:
+
+- **the delegate:** under the run's charter (a chat's, charter 1), the
+  words as its instructions and brief, tracked at the run's own
+  priority, with a report's contract (4.4): the work a person asked
+  for, which plans, asks its requester with `message` where it must
+  (8.2), calls `change` for each change, and reports;
+- **its authority, the run's own narrowed:** the run's tool families
+  (delegation, messages and reads, so that it may call `change`, ask
+  and read the forge); the run's grants of the kinds a change makes and
+  its reads, so that `change` can narrow them again (4.3.1); the run's
+  delegation kinds, at most all the tasks the run has left but one and
+  a depth one less; no notes; half of what the run's budget has left,
+  refused when that is no more than a run's minimum, as `change`'s;
+- **an advisor,** with `advisor` set: the same, but reads alone, no
+  grant of a forge effect and no delegation, so that it reads and
+  reports and can change nothing (the reference case's tester, 6.8: a
+  rail, not an instruction).
+
+The goal's own run takes `goal` too: an advisor it asks for, before it
+asks its requester, is how the reference case's survey before a plan
+goes (6.1).
 
 ### 4.4 Result contracts
 
@@ -445,9 +476,9 @@ rung B0 of `../draft/v0.1.0.md`.
   questions, answers or words (forge.md, 8.1); its amendments and its
   cancel reach it as forge.md says.
 - **The chat delegates the work as a goal** when its person asks to
-  agree it first: a delegate under charter 1, its instructions the
-  person's words, holding the authority to call `change` and to ask;
-  never `change` itself, which would start the work at once. The stock
+  agree it first, with `goal` (4.3.2) and the person's words: a
+  delegate under charter 1 holding the authority to call `change` and
+  to ask; never `change` itself, which would start the work at once. The stock
   chat's instructions (charter 1, `../protocol/configuration.md`, 13.4)
   carry the rule: work the person wants to agree before anything is
   changed goes to such a delegate, which tells its plan, asks, and calls
