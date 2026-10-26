@@ -1526,15 +1526,16 @@ Settings inventory, a setting, a revision and revision history each have
 one named ctl process story in text and JSON. An owner's change has one
 story: read the current revision, change a charter, read its full value
 and revision back, and refuse a stale request naming the newest revision.
-Running work keeps its revision, one story: a goal made by ctl, the
-deployment's only live agent task, parked between two runs under
-revision R; an owner's `change-settings` of its charter's instructions
-makes R+1; `task N` prints `settings: revision R · newest R+1`,
-`settings` counts one live task on R, and `setting charter C
---revision R` prints the old instructions; `move-to-newest R` answers
-one moved and none that could not; the goal's next run, woken by a
-message, reads R+1's instructions, as the fake LLM's request shows, and
-R is no longer held. What jig's worlds
+Running work keeps its revision, one story: a ctl chat whose run, on
+the fake LLM, delegates one task and waits, the delegate parked between
+two runs under revision R, the chat and its delegate the deployment's
+only live agent tasks; an owner's `change-settings` of the delegate's
+charter's instructions makes R+1; `task N` on the delegate prints
+`settings: revision R · newest R+1`, `settings` counts two live tasks
+on R, and `setting charter C --revision R` prints the old instructions;
+`move-to-newest R` answers two moved and none that could not; the
+delegate's next run, woken by a message, reads R+1's instructions, as
+the fake LLM's request shows, and R is no longer held. What jig's worlds
 show of revisions (a restart with R held, a removed charter's task
 finishing on R, the bound reached) is not repeated here.
 
