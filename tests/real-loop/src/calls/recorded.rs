@@ -26,19 +26,29 @@ impl LockChange {
 
 pub(crate) struct LockChanges {
     pending: Vec<LockChange>,
+    // Call groups whose records or applied caller state may have changed.
+    pub(crate) invalidated: Vec<(usize, bool)>,
 }
 impl Default for LockChanges {
     fn default() -> Self {
         // Each live call iterates at most once between referee acts.
-        Self { pending: Vec::with_capacity(crate::fixtures::CALLS_AT_ONCE as usize) }
+        let live = crate::fixtures::CALLS_AT_ONCE as usize;
+        Self { pending: Vec::with_capacity(live), invalidated: Vec::with_capacity(live) }
     }
 }
 impl LockChanges {
     pub(crate) fn clear(&mut self) {
         self.pending.clear();
+        self.invalidated.clear();
+    }
+    pub(crate) fn invalidate(&mut self, call: usize, setup: bool) {
+        if !self.invalidated.contains(&(call, setup)) {
+            self.invalidated.push((call, setup));
+        }
     }
     fn push(&mut self, change: LockChange) {
         assert!(self.pending.len() < self.pending.capacity(), "bounded live lock changes");
+        self.invalidate(change.call, change.setup);
         self.pending.push(change);
     }
     pub(crate) fn changed(&self, caller: &super::Caller) -> bool {
@@ -47,11 +57,15 @@ impl LockChanges {
             .any(|change| (!change.setup || caller.setup()) && change.differs(&caller.calls[change.call]))
     }
     pub(crate) fn apply(&mut self, caller: &mut super::Caller) {
-        for change in self.pending.drain(..) {
+        for index in 0..self.pending.len() {
+            let change = self.pending[index];
             if !change.setup || caller.setup() {
                 change.apply(&mut caller.calls[change.call]);
+                // Applying one attempt can leave another attempt disagreeing.
+                self.invalidate(change.call, change.setup);
             }
         }
+        self.pending.clear();
     }
 }
 
@@ -86,6 +100,11 @@ impl Recorded {
     pub(crate) fn apply(&self, caller: &mut super::Caller) {
         if !self.setup || caller.setup() {
             self.change().apply(&mut caller.calls[self.call]);
+        }
+    }
+    pub(crate) fn record_change(&self) {
+        if let Some(changes) = self.changes.borrow().as_ref() {
+            changes.borrow_mut().push(self.change());
         }
     }
     pub(crate) fn stop_observing(&self) {
@@ -124,10 +143,8 @@ impl Host for Recorded {
             }
         }
         self.host.iterate(now, wall);
-        if before != (self.locked, self.released, self.busy)
-            && let Some(changes) = self.changes.borrow().as_ref()
-        {
-            changes.borrow_mut().push(self.change());
+        if before != (self.locked, self.released, self.busy) {
+            self.record_change();
         }
     }
     fn drain(&mut self) {

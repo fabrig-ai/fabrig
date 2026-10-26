@@ -345,9 +345,15 @@ struct Children {
     seen: usize,
     finished: bool,
     terminals: Vec<usize>,
-    calls: Vec<[Option<(usize, bool)>; 2]>,
-    repeated: Vec<usize>,
+    calls: Vec<[CallRecords; 2]>,
+    differing_calls: [usize; 2],
     locks: std::rc::Rc<std::cell::RefCell<crate::calls::recorded::LockChanges>>,
+}
+/// All retained attempts for one (call, setup), compared only when invalidated.
+#[derive(Default)]
+struct CallRecords {
+    positions: Vec<usize>,
+    differs: bool,
 }
 impl Children {
     fn observe(&mut self, children: &[Proc]) -> bool {
@@ -356,25 +362,18 @@ impl Children {
             self.seen = 0;
             self.terminals.clear();
             self.calls.clear();
-            self.repeated.clear();
+            self.differing_calls = [0; 2];
             self.locks.borrow_mut().clear();
         }
         for (offset, proc) in children[self.seen..].iter().enumerate() {
             if let Proc::Ctl(recorded) = proc {
                 let index = self.seen + offset;
                 if self.calls.len() <= recorded.call {
-                    self.calls.resize(recorded.call + 1, [None; 2]);
+                    self.calls.resize_with(recorded.call + 1, Default::default);
                 }
-                let first = &mut self.calls[recorded.call][usize::from(recorded.setup)];
-                if let Some((first, repeated)) = first {
-                    if !*repeated {
-                        self.repeated.push(*first);
-                        *repeated = true;
-                    }
-                    self.repeated.push(index);
-                } else {
-                    *first = Some((index, false));
-                }
+                let records = &mut self.calls[recorded.call][usize::from(recorded.setup)];
+                records.positions.push(index);
+                self.locks.borrow_mut().invalidate(recorded.call, recorded.setup);
                 if !self.finished {
                     recorded.observe_with(&self.locks);
                 }
@@ -384,6 +383,42 @@ impl Children {
         }
         self.seen = children.len();
         removed
+    }
+    fn apply(&mut self, children: &[Proc], caller: &mut Caller) {
+        // Observe removals before this pass can append children with reused positions.
+        if self.observe(children) {
+            // Removal can reveal an older attempt at a reused call number. Restore
+            // the retained hosts' admission order, just as the whole scan did.
+            for proc in children {
+                if let Proc::Ctl(recorded) = proc {
+                    recorded.apply(caller);
+                }
+            }
+        }
+        self.locks.borrow_mut().apply(caller);
+    }
+    fn lock_changed(&mut self, children: &[Proc], caller: &Caller) -> bool {
+        let mut locks = self.locks.borrow_mut();
+        for (call, setup) in locks.invalidated.drain(..) {
+            let phase = usize::from(setup);
+            let records = &mut self.calls[call][phase];
+            let differs = records.positions.len() > 1
+                && records.positions.iter().any(|index| {
+                    let Proc::Ctl(recorded) = &children[*index] else { panic!("ctl position") };
+                    recorded.differs(caller)
+                });
+            if differs != records.differs {
+                if differs {
+                    self.differing_calls[phase] += 1;
+                } else {
+                    self.differing_calls[phase] -= 1;
+                }
+                records.differs = differs;
+            }
+        }
+        // Historical disagreements persist after the queue drains. Setup records
+        // cease to count when the caller reuses their positions for the story.
+        locks.changed(caller) || self.differing_calls[0] != 0 || caller.setup() && self.differing_calls[1] != 0
     }
     fn finish(&mut self, children: &[Proc]) {
         // The referee owns the queue's heap. Hosts must release their subscriptions
@@ -480,17 +515,7 @@ impl Referee<Proc> for Judge {
             }
             self.armed = true;
         }
-        // Observe removals before this pass can append children with reused positions.
-        if self.children.observe(children) {
-            // Removal can reveal an older attempt at a reused call number. Restore
-            // the retained hosts' admission order, just as the whole scan did.
-            for proc in children.iter() {
-                if let Proc::Ctl(recorded) = proc {
-                    recorded.apply(caller);
-                }
-            }
-        }
-        self.children.locks.borrow_mut().apply(caller);
+        self.children.apply(children, caller);
         if let Some(state) = &self.forge {
             let mut borrowed = state.borrow_mut();
             let state = borrowed.as_mut().expect("spawned forge");
@@ -578,14 +603,7 @@ impl Referee<Proc> for Judge {
         }
         caller.held.set(service.held_at(caller.held_index()));
         caller.links.set(service.links());
-        // Retried calls reuse a caller slot: older immutable records may disagree
-        // with the newest attempt even without another host event. Keep these
-        // comparisons whole; ordinary calls only compare their queued changes.
-        let lock_changed = self.children.locks.borrow().changed(caller)
-            || self.children.repeated.iter().any(|index| {
-                let Proc::Ctl(recorded) = &children[*index] else { panic!("repeated ctl position") };
-                recorded.differs(caller)
-            });
+        let lock_changed = self.children.lock_changed(children, caller);
         let forge_changed = self.forge.as_ref().is_some_and(|state| {
             let borrowed = state.borrow();
             let state = borrowed.as_ref().expect("spawned forge");
@@ -807,6 +825,127 @@ mod tests {
     use skein_fake_llm_domain::api;
     use skein_fake_peers::llm::Observation::{self, Accepted, Answered, Closed, Credential, Head, Query};
     use skein_lib::Token;
+
+    fn caller() -> crate::calls::Caller {
+        let mut caller = crate::calls::Caller::new(vec![], std::path::PathBuf::new(), skein_io::kernel::Fd::new(0));
+        caller.calls.push(crate::calls::Called {
+            locked: None,
+            released: None,
+            busy: 0,
+            exit: None,
+            stdout: vec![],
+            stderr: vec![],
+            spawned: skein_lib::Time::ZERO,
+            ended: skein_lib::Time::ZERO,
+            observed_at: None,
+            tries: 0,
+            early: 0,
+        });
+        caller
+    }
+
+    fn ctl(setup: bool) -> super::Proc {
+        use skein_io::kernel::Fd;
+        use temper_client_shell_cli::host::{Invocation, OneShot, Startup};
+        super::Proc::Ctl(Box::new(crate::calls::Recorded::new(
+            OneShot::new(
+                Invocation {
+                    directory: None,
+                    parsed: temper_client_shell_cli::arguments::parse(&[b"help"]).expect("help"),
+                },
+                Startup {
+                    parent: None,
+                    file_parent: None,
+                    stdin: Fd::new(0),
+                    stdout: Fd::new(1),
+                    stderr: Fd::new(2),
+                    signals: Fd::new(3),
+                    user: 0,
+                    seed: 7,
+                },
+            )
+            .expect("shipped tools limits"),
+            0,
+            setup,
+        )))
+    }
+
+    fn lock_event(procs: &mut [super::Proc], index: usize, locked: Option<u64>, released: Option<u64>) {
+        let super::Proc::Ctl(recorded) = &mut procs[index] else { panic!("ctl fixture") };
+        recorded.locked = locked.map(skein_lib::Time::from_nanos);
+        recorded.released = released.map(skein_lib::Time::from_nanos);
+        recorded.record_change();
+    }
+
+    #[test]
+    fn late_lock_completion_of_an_older_attempt_is_observed() {
+        let mut caller = caller();
+        let mut procs = vec![ctl(false), ctl(false)];
+        let mut children = super::Children::default();
+        children.apply(&procs, &mut caller);
+        assert!(!children.lock_changed(&procs, &caller));
+
+        lock_event(&mut procs, 0, Some(1), None);
+        assert!(children.lock_changed(&procs, &caller), "the older attempt completed after its retry");
+        children.apply(&procs, &mut caller);
+        assert_eq!(caller.calls[0].locked, Some(skein_lib::Time::from_nanos(1)));
+        assert!(children.lock_changed(&procs, &caller), "the newer empty attempt still disagrees");
+        assert!(children.lock_changed(&procs, &caller), "the disagreement needs no new event");
+    }
+
+    #[test]
+    fn setup_and_story_reuse_a_call_position_without_sharing_records() {
+        let mut setup = crate::calls::Caller::provisioned(
+            vec![crate::calls::sign_in(crate::calls::D1)],
+            std::path::PathBuf::new(),
+            skein_io::kernel::Fd::new(0),
+        );
+        setup.calls = caller().calls;
+        let mut procs = vec![ctl(true), ctl(true)];
+        lock_event(&mut procs, 0, Some(1), None);
+        let mut children = super::Children::default();
+        children.apply(&procs, &mut setup);
+        assert!(children.lock_changed(&procs, &setup), "setup's older attempt disagrees");
+
+        // The story's slot now has a fresh host, while the setup hosts remain.
+        let mut caller = caller();
+        assert!(!children.lock_changed(&procs, &caller), "finished setup's cached disagreement is ignored");
+        procs.push(ctl(false));
+        children.apply(&procs, &mut caller);
+        assert!(!children.lock_changed(&procs, &caller), "a setup attempt is not a retry of the story's call");
+        assert_eq!(caller.calls[0].locked, None);
+    }
+
+    #[test]
+    fn removing_a_killed_attempt_rebuilds_the_lock_comparison() {
+        let mut caller = caller();
+        let mut procs = vec![ctl(false), ctl(false)];
+        lock_event(&mut procs, 1, Some(1), None);
+        let mut children = super::Children::default();
+        children.apply(&procs, &mut caller);
+        assert!(children.lock_changed(&procs, &caller));
+
+        procs.pop().expect("killed retry");
+        children.apply(&procs, &mut caller);
+        assert_eq!(caller.calls[0].locked, None, "the retained attempt replaces the killed one");
+        assert!(!children.lock_changed(&procs, &caller), "the removed attempt cannot keep the judge awake");
+    }
+
+    #[test]
+    fn an_older_attempts_release_can_resolve_a_cached_disagreement() {
+        let mut caller = caller();
+        let mut procs = vec![ctl(false), ctl(false)];
+        lock_event(&mut procs, 0, Some(1), None);
+        lock_event(&mut procs, 1, Some(1), Some(2));
+        let mut children = super::Children::default();
+        children.apply(&procs, &mut caller);
+        assert!(children.lock_changed(&procs, &caller), "the older attempt has not released its lock");
+
+        lock_event(&mut procs, 0, Some(1), Some(2));
+        assert!(!children.lock_changed(&procs, &caller), "both attempts now match the caller");
+        children.apply(&procs, &mut caller);
+        assert!(!children.lock_changed(&procs, &caller));
+    }
 
     #[test]
     fn llm_history_matches_every_prefix_and_visits_each_record_once() {
