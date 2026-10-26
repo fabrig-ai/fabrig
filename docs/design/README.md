@@ -185,8 +185,7 @@ forge, temper adds:
   experiments in `lab/`, their charter, tool and checks, and M1's
   campaign.
 - **`draft/`:** drafts, not contract.
-- **`STATUS.md`:** how far the code is from this design, and which plans
-  take it there.
+- **`STATUS.md`:** how far the code is from this design.
 
 ## 7. Conventions
 

@@ -537,7 +537,7 @@ without it.
   build and no bundle; any other value fails the build, naming the two.
   `embed` is for a build whose environment says `none` and wants the
   browser this once. The machine's builds set `none`: the gate's and
-  development builds (`docs/development/workflow.md`), a machine without the
+  development builds, a machine without the
   target, an editor's own (rust-analyzer runs build scripts at its
   start). Such a binary serves the page for no bundle (2.2).
 - **The embed needs the wasm32 target.** Before any nested build, the

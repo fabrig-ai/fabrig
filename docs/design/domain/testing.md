@@ -2100,8 +2100,7 @@ Every world checks what the strategy lists (testing-strategy.md, section
 
 ### 6.1 Focused tests and fuzzy tests
 
-The two suites are the strategy's (testing-strategy.md, section 8), run
-by the commands in `docs/development/workflow.md`. In temper:
+The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 
 - **Focused tests** are the strategy's, with facts changing nothing (a
   run is the same whether its facts are kept or dropped): every test

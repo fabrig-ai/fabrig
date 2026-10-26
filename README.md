@@ -51,8 +51,7 @@ draft to landed change.
 - skein's foundation, which temper follows: `programming-model.md`,
   `testing-strategy.md` and `notes.md`.
 
-Before changing code, read [`AGENTS.md`](AGENTS.md) and
-[`docs/development/workflow.md`](docs/development/workflow.md).
+Before changing code, read [`AGENTS.md`](AGENTS.md).
 
 ## The family
 

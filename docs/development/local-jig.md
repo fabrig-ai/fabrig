@@ -30,7 +30,7 @@ is in place, Cargo writes jig's packages into `Cargo.lock` as paths:
 **never commit that lock.** Save any intentional lock changes before
 trying the patch. When local work is done, remove the patch and let
 Cargo restore the Git sources. Confirm jig's intended commit and the
-pin rule below before running the four checks of `workflow.md`:
+pin rule below:
 
 ```sh
 rm .cargo/config.toml

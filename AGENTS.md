@@ -1,15 +1,14 @@
 # Agent guidance for temper
 
 - **main moves only through agents' `land`,** which runs the gate,
-  `scripts/check.sh`, and pushes (`docs/development/workflow.md`, section
-  1). Do not run the gate yourself before `land`. A change to Markdown
+  `scripts/check.sh`, and pushes. Do not run the gate yourself before
+  `land`. A change to Markdown
   files only lands with `land --docs`. Push only your own branch.
 - The default test suite (unit tests and the worlds' focused tests under
   `tests/`) takes at most 30 seconds (15 seconds before the user's doubling
   of 10-22, provisional); the fuzzy suite (the worlds' `tests/fuzzy_*.rs`,
   randomized tests) at most 2 minutes (1 minute before the user's doubling
-  of 10-22, provisional). Keep new tests within these budgets: see the same
-  document.
+  of 10-22, provisional). Keep new tests within these budgets.
 - temper is built on skein, the io and generic-protocol kit, and follows
   the foundation documents in the `docs/foundation` directory of skein's
   repository. temper's code and documents cite them by file name:
