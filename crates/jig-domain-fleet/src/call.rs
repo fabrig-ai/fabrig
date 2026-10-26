@@ -85,7 +85,8 @@ pub(crate) fn owned(domain: &Domain, channel: Token, run: Token, attempt: Token)
 }
 
 /// A call is passed through whole, with its bounded name and write flag retained
-/// for the answer. A rejected call is returned whole to its parent.
+/// for the answer. A busy call moves only its name up and drops its input here;
+/// a fenced call or an overlong name is returned whole to its parent.
 pub(crate) fn relay(
     domain: &mut Domain,
     env: &Env<crate::limits::Limits>,
@@ -105,11 +106,16 @@ pub(crate) fn relay(
         out.push(Request::DropCall { call });
         return;
     }
-    let name = call.name.clone();
-    match domain.calls.insert(PendingCall { attempt: id, name, writes: call.writes }) {
-        Ok(id) => out.push(Request::Relay { reply_to: ReplyTo::new(id.token()), run, attempt, call }),
-        Err(_) => out.push(Request::RelayBusy { channel, run, attempt, call }),
+    if domain.calls.is_full() {
+        out.push(Request::RelayBusy { channel, run, attempt, call: call.name });
+        return;
     }
+    let name = call.name.clone();
+    let id = domain
+        .calls
+        .insert(PendingCall { attempt: id, name, writes: call.writes })
+        .expect("room for a call was checked");
+    out.push(Request::Relay { reply_to: ReplyTo::new(id.token()), run, attempt, call });
 }
 
 /// The parent's answer to a relayed call: passed down to the run's worker,

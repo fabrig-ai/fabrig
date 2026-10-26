@@ -262,7 +262,8 @@ answer, and a **notice** is not answered.
 - **Live call capacity is retryable.** After checking the current hosting
   channel and bounded opaque name, the fleet answers a call beyond its
   capacity as busy at that original channel, run, attempt and name. It
-  allocates no call flight and starts no tool effect. A stale or foreign
+  allocates no call flight and starts no tool effect. Only the name travels
+  up: the fleet drops the call's input. A stale or foreign
   call, or one whose name exceeds the bound, is still discarded before
   capacity handling. The application only forwards the addressed answer.
 - **Refusals ride with turns** (`../domain/hosts.md`, 6.4): a turn or an

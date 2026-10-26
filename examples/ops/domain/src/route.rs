@@ -1500,13 +1500,13 @@ fn core_now(domain: &mut Domain, env: &Env<Limits>, value: core::Now, work: &mut
             let _request = domain.core.restart_refuse();
         }
         core::Now::RelayBusy { channel: _, run, attempt, call } => {
-            domain.host_calls.remove(&call.name);
+            domain.host_calls.remove(&call);
             now(
                 domain,
                 Output::ToChild(Released::Host(host::Event::Down(host::LinkDown::Relayed {
                     run,
                     attempt,
-                    call: call.name,
+                    call,
                     answer: host::Relayed::Busy,
                 }))),
             );

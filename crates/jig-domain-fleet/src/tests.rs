@@ -769,7 +769,7 @@ fn a_relayed_call_beyond_the_room_is_busy_at_its_original_address() {
     }
     assert_eq!(
         &*h.step(Event::Relay { channel: C1, run: R1, attempt: A1, call: host_call(Token::new(9), payload(9)) }),
-        &[Request::RelayBusy { channel: C1, run: R1, attempt: A1, call: host_call(Token::new(9), payload(9)) }]
+        &[Request::RelayBusy { channel: C1, run: R1, attempt: A1, call: Box::from(9_u64.to_be_bytes()) }]
     );
     assert_eq!(h.domain.calls(), 2, "refusal creates no flight");
     unowned_worker_inputs(&mut h, C2);

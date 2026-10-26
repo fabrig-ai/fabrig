@@ -189,12 +189,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
                 workers.send(
                     engine.env.now,
                     channel,
-                    jig_domain_host::LinkDown::Relayed {
-                        run,
-                        attempt,
-                        call: call.name,
-                        answer: jig_domain_host::Relayed::Busy,
-                    },
+                    jig_domain_host::LinkDown::Relayed { run, attempt, call, answer: jig_domain_host::Relayed::Busy },
                     &engine.values,
                     &mut engine.events,
                 );

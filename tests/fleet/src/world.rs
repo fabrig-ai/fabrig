@@ -496,7 +496,7 @@ pub struct World {
     pub(crate) workers: Vec<Worker>,
     items: Vec<Item>,
     /// The parent's starts and adoptions not yet ended, by attempt; the
-    /// fleet's relayed calls not yet answered; the payloads not yet echoed.
+    /// fleet's relayed calls not yet answered; payloads not yet echoed or dropped by Busy.
     calls: Ledger<u64, ()>,
     relays: Ledger<u64, ()>,
     pub(crate) payloads: Ledger<u64, Payload>,
@@ -962,17 +962,18 @@ impl World {
                 self.payloads.end(skein_lib::Reader::new(&call.input).u64().expect("body token"));
             }
             Request::RelayBusy { channel, run, attempt, call } => {
-                self.payloads.end(skein_lib::Reader::new(&call.input).u64().expect("body token"));
+                let call = skein_lib::Reader::new(&call).u64().expect("scripted call token");
+                // The world wrote the name and body token; Busy drops the input in the fleet.
+                let body = self
+                    .payloads
+                    .keys()
+                    .copied()
+                    .find(|&body| self.payloads.get(body) == Some(&Payload::Body { call }))
+                    .expect("a busy call still owes its body");
+                assert_eq!(self.payloads.end(body), Payload::Body { call }, "a busy call drops its own body");
                 self.stats.capacity_refusals += 1;
                 self.sent(run, attempt, Down::Relayed);
-                self.down(
-                    channel,
-                    Message::Relayed {
-                        run: run.raw(),
-                        attempt: attempt.raw(),
-                        call: skein_lib::Reader::new(&call.name).u64().expect("scripted call token"),
-                    },
-                );
+                self.down(channel, Message::Relayed { run: run.raw(), attempt: attempt.raw(), call });
             }
             Request::Grant { channel, run, attempt, grant } => self.record_grant(channel, run, attempt, grant),
             Request::Unauthorized { .. } | Request::Limited { .. } | Request::AccountRefused { .. } => {}

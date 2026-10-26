@@ -436,12 +436,14 @@ pub enum Request {
         /// Whether the original call changes state and its answer must wait for commitment.
         writes: bool,
     },
-    /// The current host's bounded call found no live call capacity; retry at its original address.
+    /// The current host's call found no room for calls: busy at its original
+    /// channel, run, attempt and name (`call`, as in `Relayed`), which its run
+    /// may ask again. The fleet keeps neither the call nor its input.
     RelayBusy {
         channel: Token,
         run: Token,
         attempt: Token,
-        call: Call,
+        call: Box<[u8]>,
     },
     /// Return a fenced call or one whose name exceeds the bound; the parent owns its bytes.
     DropCall {

@@ -368,7 +368,7 @@ fn route_now(
         core::Now::RelayBusy { channel, run, attempt, call } => {
             let delivery = crate::link::down(
                 domain,
-                Delivery::CallBusy { channel, task: run.raw(), attempt: attempt.raw(), name: call.name },
+                Delivery::CallBusy { channel, task: run.raw(), attempt: attempt.raw(), name: call },
             );
             assert!(domain.journal.now(delivery).is_ok(), "reserved busy answer room");
         }
