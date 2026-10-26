@@ -35,6 +35,7 @@ fn harness(setup: &Setup<'_>, stopped: bool) -> Harness {
         restart: setup.restart.clone(),
         printed: setup.printed,
         chromium: setup.chromium.clone(),
+        downloads: None,
         expected,
         origins: setup.origins.clone(),
     })

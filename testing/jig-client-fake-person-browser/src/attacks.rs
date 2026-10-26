@@ -29,6 +29,7 @@ fn cross_site(setup: &Setup<'_>, states: &States, target: &Target<'_>, host: &[u
         restart: setup.restart.clone(),
         printed: setup.printed,
         chromium: setup.chromium.clone(),
+        downloads: None,
         expected,
         origins,
     })
@@ -86,6 +87,7 @@ pub fn a_rebound_host_is_answered_421_and_does_nothing(
         restart: setup.restart.clone(),
         printed: setup.printed,
         chromium: setup.chromium.clone(),
+        downloads: None,
         expected: setup.expected.clone(),
         origins: setup.origins.clone(),
     })
@@ -112,6 +114,7 @@ pub fn a_framed_page_shows_nothing(setup: &Setup<'_>, states: &States, target: &
         restart: setup.restart.clone(),
         printed: setup.printed,
         chromium: setup.chromium.clone(),
+        downloads: None,
         expected: setup.expected.clone(),
         origins,
     })
