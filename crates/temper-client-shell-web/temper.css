@@ -590,7 +590,7 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 /* .task-heading: ten pixels after its metadata, nineteen before the cards. */
 .temper-main.temper-page > .temper-choice { width: min(760px, calc(100% - 48px)); margin: -9px auto 19px max(24px, calc((100% - 1160px) / 2)); }
 /* .terminal-composer-area: the entry column, also when Message is unavailable. */
-.temper-chat .temper-composer-area > .temper-choice { width: min(1040px, 100%); margin: 0 auto 8px; }
+.temper-chat .temper-composer-area > .temper-choice { width: min(1040px, 100%); margin: 0 auto 6px; }
 .temper-chat > .temper-choice { box-sizing: content-box; flex: none; width: min(1040px, calc(100% - 46px)); margin: 0 auto; padding: 10px 23px; }
 /* .task-heading at 850px: follow the heading's left edge. */
 @media (max-width: 850px) {
@@ -1032,7 +1032,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-main > .temper-rows > .temper-row > p:not(:first-of-type):not(.temper-details):not(.temper-time) { margin: 3px 0; font-size: 11px; color: var(--temper-muted); text-align: left; }
 .temper-main > .temper-rows > .temper-row > :is(.temper-details, .temper-time) { display: inline-block; margin: 4px 12px 0 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--temper-muted); font-size: 11px; text-align: left; }
 /* .composer-line stays immediately above the editable field. */
-.temper-main.temper-page > .temper-choice { margin-top: 0; margin-bottom: 8px; }
+.temper-main.temper-page > .temper-choice { margin-top: 0; margin-bottom: 6px; }
 .temper-choice .temper-account-line a { margin-left: 0; color: var(--temper-accent-dark); font-weight: 600; text-decoration: none; }
 .temper-entry button:disabled { opacity: .45; cursor: default; }
 .temper-main:not(.temper-chat) > .temper-chatbar + .temper-context { padding-top: 18px; }
