@@ -159,11 +159,13 @@ class FilesTests(unittest.TestCase):
 
 class LauncherTests(unittest.TestCase):
     """Construct the real commands without invoking a build or a lab run."""
-    def launcher(self, *, dirty=False, codes=None):
+    def launcher(self, *, dirty=False, codes=None, heavy='/invented/heavy'):
         path = ROOT / 'lab/look-live-judge'
         source = path.read_text().split("<<'PYTHON'\n", 1)[1].rsplit('\nPYTHON', 1)[0]
         namespace = {}
-        exec(compile(source[:source.index('\ntry:\n')], str(path), 'exec'), namespace)
+        with patch('shutil.which', return_value=heavy) as which:
+            exec(compile(source[:source.index('\ntry:\n')], str(path), 'exec'), namespace)
+        which.assert_called_once_with('heavy')
         calls = []
         codes = codes or {}
         def run(argv, repository, **kwargs):
@@ -196,7 +198,7 @@ class LauncherTests(unittest.TestCase):
             status = namespace['main']()
         return status, calls, pack, copy, bar
 
-    def test_build_pack_subject_validate_judge_bar(self):
+    def test_builds_through_heavy_where_it_is_on_path(self):
         status, calls, pack, copy, bar = self.launcher()
         self.assertEqual(status, 0)
         self.assertEqual(calls[:5], [
@@ -218,6 +220,13 @@ class LauncherTests(unittest.TestCase):
         copy.assert_called_once_with(ROOT / 'target/release/temper', Path('/invented/scratch/temper'))
         bar.assert_called_once_with(Path.home() / 'src/rust/tmp/lab', ROOT / 'lab/look-live', 'key-K',
                                     Path.home() / 'src/rust/tmp/lab/judgements/look-live')
+
+    def test_builds_plainly_where_no_heavy_is_on_path(self):
+        status, calls, *_ = self.launcher(heavy=None)
+        self.assertEqual(status, 0)
+        self.assertEqual(calls[2:4], [
+            ['cargo', 'build', '--release', '-p', 'temper', '-p', 'temper-client-gallery'],
+            ['scripts/bundle.sh', '--release', '/invented/scratch/bundle']])
 
     def test_dirty_build_and_validation_failures_stop(self):
         status, calls, _, _, bar = self.launcher(dirty=True)

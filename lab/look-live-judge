@@ -11,6 +11,9 @@ import subprocess
 import sys
 import tempfile
 
+# The machine's build queue where it has one (agents' build-infrastructure.md 12).
+QUEUE = ['heavy'] if shutil.which('heavy') else []
+
 
 def run(argv, repository, *, capture=True):
     print('+ ' + shlex.join(map(str, argv)), file=sys.stderr, flush=True)
@@ -42,7 +45,7 @@ def main():
     commit = run(['git', 'rev-parse', 'HEAD'], repository)
     if commit.returncode:
         return 4
-    build = run(['heavy', 'cargo', 'build', '--release', '-p', 'temper',
+    build = run([*QUEUE, 'cargo', 'build', '--release', '-p', 'temper',
                  '-p', 'temper-client-gallery'],
                 repository, capture=False)
     if build.returncode:
@@ -53,7 +56,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='temper-look-live-') as scratch:
         scratch = Path(scratch)
         output = scratch / 'bundle'
-        bundled = run(['heavy', 'scripts/bundle.sh', '--release', output],
+        bundled = run([*QUEUE, 'scripts/bundle.sh', '--release', output],
                       repository, capture=False)
         if bundled.returncode:
             return 4

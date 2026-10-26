@@ -5,6 +5,9 @@ umask 077
 # Preserve the person's answers before the build wrapper can read stdin.
 exec 3<&0
 cd "$(dirname "$0")/.."
+# The machine's build queue where it has one, plain cargo where it hasn't
+# (agents' docs/design/build-infrastructure.md 12).
+heavy=$(command -v heavy || true)
 case ${1:-} in live|fake|fake-wide) mode=$1 ;; *) printf '%s\n' 'usage: proof-live-github-managed.sh {live|fake|fake-wide} [PORT [CONVERSION.json]]' >&2; exit 2 ;; esac
 [ "$#" -le 3 ] || exit 2
 port=${2:-8765}
@@ -50,7 +53,8 @@ if [ -e "$evidence" ] || [ -L "$evidence" ]; then
     exit 2
 fi
 printf '%s\n' 'building the sitting offline'
-if ! heavy cargo test --locked -p temper --test live_github_managed --no-run --message-format=json < /dev/null > "$scratch/build.jsonl" 2> "$scratch/build.log"; then
+# shellcheck disable=SC2086
+if ! $heavy cargo test --locked -p temper --test live_github_managed --no-run --message-format=json < /dev/null > "$scratch/build.jsonl" 2> "$scratch/build.log"; then
     # Compilation has no sitting credentials. Surface its diagnostics before cleanup.
     python3 - "$scratch/build.jsonl" <<'PYBUILD'
 import json
@@ -67,11 +71,13 @@ fi
 if [ "$mode" = live ]; then
     # Keep TEMPER_BUNDLE=none; build a separate, explicit browser bundle in this scratch.
     printf '%s\n' 'building the browser bundle offline'
-    if ! heavy cargo build --locked --profile web --target wasm32-unknown-unknown -p temper-client-shell-web < /dev/null > "$scratch/web-build.log" 2>&1; then
+    # shellcheck disable=SC2086
+    if ! $heavy cargo build --locked --profile web --target wasm32-unknown-unknown -p temper-client-shell-web < /dev/null > "$scratch/web-build.log" 2>&1; then
         tail -n 15 "$scratch/web-build.log" >&2
         exit 1
     fi
-    if ! heavy cargo build --locked -p skein-ui-bundle < /dev/null > "$scratch/bundler-build.log" 2>&1; then
+    # shellcheck disable=SC2086
+    if ! $heavy cargo build --locked -p skein-ui-bundle < /dev/null > "$scratch/bundler-build.log" 2>&1; then
         tail -n 15 "$scratch/bundler-build.log" >&2
         exit 1
     fi

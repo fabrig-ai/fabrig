@@ -129,12 +129,14 @@ class TroubleTests(unittest.TestCase):
 
 class LauncherTests(unittest.TestCase):
     """Exercise command construction only; no build or lab command runs."""
-    def launcher(self, codes=None, dirty=False, target='/invented/target'):
+    def launcher(self, codes=None, dirty=False, target='/invented/target', heavy='/invented/heavy'):
         path = ROOT / 'cluster-web-judge'
         source = path.read_text().split("<<'PYTHON'\n", 1)[1].rsplit('\nPYTHON', 1)[0]
         # Load imports and definitions, leaving the command's entry point uncalled.
         namespace = {}
-        exec(compile(source[:source.index('\ntry:\n')], str(path), 'exec'), namespace)
+        with patch('shutil.which', return_value=heavy) as which:
+            exec(compile(source[:source.index('\ntry:\n')], str(path), 'exec'), namespace)
+        which.assert_called_once_with('heavy')
         calls = []
         codes = codes or {}
         def run(argv, repository, **kwargs):
@@ -165,7 +167,7 @@ class LauncherTests(unittest.TestCase):
         self.copied = copy.call_args_list
         return status, calls, pack, write
 
-    def test_build_pack_subject_validate_judge(self):
+    def test_builds_through_heavy_where_it_is_on_path(self):
         status, calls, pack, write = self.launcher()
         self.assertEqual(status, 0)
         self.assertEqual(calls[:4], [
@@ -185,6 +187,13 @@ class LauncherTests(unittest.TestCase):
         write.assert_called_once_with(b'invented tar bytes')
         self.assertEqual([c.args for c in self.copied],
                          [(Path('/invented/target/release/temper'), Path('/invented/scratch/temper'))])
+
+    def test_builds_plainly_where_no_heavy_is_on_path(self):
+        status, calls, *_ = self.launcher(heavy=None)
+        self.assertEqual(status, 0)
+        self.assertEqual(calls[2:4], [
+            ['cargo', 'build', '--release', '-p', 'temper'],
+            ['scripts/bundle.sh', '--release', '/invented/scratch/bundle']])
 
     def test_dirty_tree_and_build_failure_stop(self):
         status, calls, _, _ = self.launcher(dirty=True)

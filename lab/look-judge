@@ -7,9 +7,13 @@ import json
 import os
 from pathlib import Path
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
+
+# The machine's build queue where it has one (agents' build-infrastructure.md 12).
+QUEUE = ['heavy'] if shutil.which('heavy') else []
 
 
 def run(argv, repository, *, capture=True):
@@ -48,7 +52,7 @@ def main():
     commit = run(['git', 'rev-parse', 'HEAD'], repository)
     if commit.returncode:
         return 4
-    build = run(['heavy', 'cargo', 'build', '--release', '-p', 'temper-client-gallery'],
+    build = run([*QUEUE, 'cargo', 'build', '--release', '-p', 'temper-client-gallery'],
                 repository, capture=False)
     if build.returncode:
         return 4

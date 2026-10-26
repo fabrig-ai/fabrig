@@ -3,6 +3,9 @@
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
+# The machine's build queue where it has one, plain cargo where it hasn't
+# (agents' docs/design/build-infrastructure.md 12).
+heavy=$(command -v heavy || true)
 case ${1:-} in freeekanayaka|fabrig-ai) owner=$1 ;; *) printf '%s\n' 'usage: proof-live-github.sh {freeekanayaka|fabrig-ai} [FIXTURES]' >&2; exit 2 ;; esac
 [ "$#" -le 2 ] || exit 2
 fixtures=$(readlink -f "${2:-$HOME/src/rust/tmp/github-conformance}")
@@ -12,7 +15,8 @@ fixtures=$(readlink -f "${2:-$HOME/src/rust/tmp/github-conformance}")
 # The App key is the only credential; app.json supplies public App/installation ids.
 python3 -c 'from cryptography.hazmat.primitives.serialization import load_pem_private_key'
 export NEXTEST_DOUBLE_SPAWN=0
-heavy cargo nextest run -p temper --profile live --no-run
+# shellcheck disable=SC2086
+$heavy cargo nextest run -p temper --profile live --no-run
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github.XXXXXX")")
 cleanup() {
     status=$?
@@ -179,7 +183,8 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 status=0
+# shellcheck disable=SC2086
 TEMPER_LIVE_GITHUB_OWNER=$owner TEMPER_LIVE_GITHUB_FIXTURES=$fixtures TMPDIR=$scratch \
-    heavy cargo nextest run -p temper --profile live --run-ignored only --no-capture \
+    $heavy cargo nextest run -p temper --profile live --run-ignored only --no-capture \
     -E 'binary(=live_github) & test(=a_chat_lands_a_change_on_github_com_through_a_restart)' || status=$?
 exit "$status"

@@ -3,6 +3,9 @@
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
+# The machine's build queue where it has one, plain cargo where it hasn't
+# (agents' docs/design/build-infrastructure.md 12).
+heavy=$(command -v heavy || true)
 case ${1-} in
     '') test_name=a_real_model_answers_a_chat_and_pushes_a_small_change ;;
     forge-land) test_name=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge ;;
@@ -41,7 +44,8 @@ elif [ -n "${TEMPER_LIVE_ACCOUNT-}" ]; then
     exit 2
 fi
 export NEXTEST_DOUBLE_SPAWN=0
-heavy cargo nextest run -p temper --profile live --no-run
+# shellcheck disable=SC2086
+$heavy cargo nextest run -p temper --profile live --no-run
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live.XXXXXX")")
 # A kept deployment may already have processes. Only this sitting's new
 # processes belong to its cleanup, even when its box refuses a busy store.
@@ -145,7 +149,8 @@ if [ "$rerun" = false ] && [ -z "${TEMPER_LIVE_ACCOUNT-}" ]; then
     printf '%s\n' 'Approve the printed ChatGPT address in a browser that reaches this machine.' \
         'For a remote browser: ssh -L 1455:127.0.0.1:1455 -L <client port>:127.0.0.1:<client port> HOST'
 fi
-TMPDIR=$scratch heavy cargo nextest run -p temper --profile live --run-ignored only --no-capture \
+# shellcheck disable=SC2086
+TMPDIR=$scratch $heavy cargo nextest run -p temper --profile live --run-ignored only --no-capture \
     -E "test(=$test_name)" &
 runner=$!
 tail -n +1 -f --sleep-interval=0.2 --pid="$runner" "$notice" &
@@ -153,7 +158,7 @@ follower=$!
 status=0
 wait "$runner" || status=$?
 runner=
-# Let tail flush notices appended just before heavy returned.
+# Let tail flush notices appended just before the run returned.
 wait "$follower" || true
 follower=
 exit "$status"

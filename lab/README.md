@@ -425,7 +425,7 @@ lab/look-judge LAB EXPERIMENT...
 (for example, `/path/to/lab`).
 
 From a clean temper checkout at its commit C: builds the gallery
-through `heavy` (release), prints and packs its output in temporary space
+through `heavy` where the machine has it (release), prints and packs its output in temporary space
 removed after making the subject, and runs the lab's `lab
 judge` on each experiment named (`lab/look`, `lab/look-planted`):
 three seeds a key (the lab's `lab.md`, section 8), printing each key and
@@ -607,7 +607,7 @@ lab/cluster-web-judge LAB
 
 From a clean temper checkout at its commit C, as `look-judge` (above):
 builds `temper` (release) and the browser bundle
-(`scripts/bundle.sh --release`) through `heavy`, packs the bundle's
+(`scripts/bundle.sh --release`) through `heavy` where the machine has it, packs the bundle's
 directory as `look_pack.py` packs the gallery, makes the subject
 (`lab subject --repository TEMPER --commit C --exclude lab --artifact
 temper=… --artifact bundle=…`), validates `cluster-web`, and runs
@@ -809,7 +809,7 @@ lab/look-live-judge LAB
 ```
 
 From a clean temper checkout at its commit C: builds `temper`, the
-bundle and the gallery (release) through `heavy`, packs the bundle
+bundle and the gallery (release) through `heavy` where the machine has it, packs the bundle
 and the gallery's printout as `look_pack.py` packs them, makes the
 subject (`--artifact temper=… --artifact bundle=… --artifact
 gallery=…`), validates `look-live`, runs the lab's `lab judge` on it
