@@ -1550,7 +1550,7 @@ into the binary.
 
 | Setting | Its value |
 |---|---|
-| charter 1, a chat's | the instructions of today's `charters/chat.txt`; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of 20; the inspect, modify and agents tool families, no shell; a call's timeout 10 s |
+| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, worded by v0.1.0's ladder, whose walks test them (`../draft/v0.1.0.md`); this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of 20; the inspect, modify and agents tool families, no shell; a call's timeout 10 s |
 | charter 2, a coding agent's | as charter 1, with today's `charters/coding.txt` |
 | template 1, a chat | jig's chat, run by charter 1, as `temper init` writes it today |
 | charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
