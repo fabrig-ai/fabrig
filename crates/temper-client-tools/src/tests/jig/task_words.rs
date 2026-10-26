@@ -129,7 +129,7 @@ fn another_connectors_change_keeps_its_connector_and_kind() {
     );
 }
 #[test]
-fn a_landed_delegate_names_the_branch_and_whole_merge_commit() {
+fn a_landed_delegate_names_the_pull_before_the_whole_merge_commit() {
     let mut task = delegate();
     let branch = part();
     task.resources = List::with_capacity(1);
@@ -147,7 +147,17 @@ fn a_landed_delegate_names_the_branch_and_whole_merge_commit() {
         task,
         c::Ending::Task(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Change {
             kind: 1,
-            part: branch,
+            part: c::OwnerPart {
+                connector: FORGE,
+                kind: c::OwnerPartKind::Resource,
+                key: c::OwnerPartKey::Path({
+                    let mut path = List::with_capacity(6);
+                    for segment in [b"forge".as_slice(), b"localhost:3000", b"qa", b"pilot-20261026", b"pull", b"1"] {
+                        path.push(Box::from(segment)).unwrap();
+                    }
+                    path
+                }),
+            },
             words: f::document_text(MERGE),
         }))),
         None,
@@ -324,7 +334,10 @@ fn result_text(ending: c::Ending, value: Option<c::ResultValue>, expected: &[u8]
     let printed = delegate_answer(ended(delegate(), ending, value));
     let from = skein_lib::bytes::find(&printed.stdout, b"result: ").expect("result line");
     let tail = &printed.stdout[from..];
-    let to = skein_lib::bytes::find(tail, b"digest: ").expect("digest line");
+    let to = match skein_lib::bytes::find(tail, b"next: ") {
+        Some(to) => to,
+        None => skein_lib::bytes::find(tail, b"digest: ").expect("digest line"),
+    };
     assert_eq!(&tail[..to], expected);
 }
 #[test]

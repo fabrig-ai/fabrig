@@ -161,6 +161,7 @@ impl Part<'_> {
 }
 /// Application vocabulary for parts and changes, borrowed for this step alone.
 pub trait Parts: core::fmt::Debug {
+    fn task_next(&self, task: &contract::Task, out: &mut Text);
     fn owner_part(&self, part: &contract::OwnerPart, out: &mut Text);
     fn part(&self, part: &contract::Part, out: &mut Text);
     fn change_kind(&self, connector: u16, kind: u16, out: &mut Text);

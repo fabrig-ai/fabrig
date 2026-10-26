@@ -118,7 +118,12 @@ kept: 2 for party 3, unsent while it is not signed in here
 JSON: {"party":3,"unsent":2}
 It answers and erases only the signed-in party's kept requests; other parties' work stays parked.
 
-Read forge changes with the forge API or git. Change the forge only through temper.
+After a chat asks for a change, follow its change task through landing:
+  temper ctl DIRECTORY wait change 2 --until landed
+  temper ctl DIRECTORY change 2
+The panel names its pull request, CI at its head, step, holds and merge commit.
+Use change N --json for whole named facts and its digest; --project defaults to task N's project.
+Change the forge only through temper.
 A part served there says: Shown on the forge.
 
 Tools:

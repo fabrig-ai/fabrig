@@ -105,10 +105,14 @@ fn text(
         Document::Wait(wait) => waiting::text(wait, book, limits, vocabulary, out),
         Document::Accounts(value) => accounts::text(*value, limits, out),
         Document::Me(me) => me_text(me, book, limits, out),
-        Document::Task(task, me) => task_text(task, *me, book, vocabulary, out),
+        Document::Task(task, me) => {
+            task_text(task, *me, book, vocabulary, out);
+            vocabulary.task_next(task, out);
+        }
         Document::HistoricalTask(task, result, me) => {
             task_text(task, *me, book, vocabulary, out);
             result_text(result, vocabulary, out);
+            vocabulary.task_next(task, out);
         }
         Document::ReadSet(reading, me) => read_sets::text(reading, *me, book, limits, vocabulary, out),
         Document::SizedTurn { task, name, bytes } => super::turn::sized(*task, *name, *bytes, true, out),

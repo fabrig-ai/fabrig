@@ -82,6 +82,9 @@ pub(super) fn text(
         if let Some(result) = wait.result {
             super::result_text(result, vocabulary, out);
         }
+        if let c::Delivery::Task(task) = delivery {
+            vocabulary.task_next(task, out);
+        }
         let part = Part::delivery(delivery).expect("subject form");
         let list = match part {
             Part::Inbox(_) | Part::OwnerInbox(_) | Part::Tasks(_) => true,

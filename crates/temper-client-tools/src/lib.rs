@@ -4,6 +4,7 @@
 extern crate alloc;
 pub mod adopt;
 mod amend;
+mod change;
 mod demo;
 mod forge;
 mod forges;

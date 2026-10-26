@@ -34,6 +34,7 @@ pub(super) fn text(
             )) => super::proposal::text(value, limits, out),
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
                 super::task_text(task, me, book, vocabulary, out);
+                vocabulary.task_next(task, out);
                 super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Historical(value)))
@@ -45,6 +46,7 @@ pub(super) fn text(
                 let (task, result) = super::super::historical_task(value).expect("validated historical task");
                 super::task_text(task, me, book, vocabulary, out);
                 super::result_text(result, vocabulary, out);
+                vocabulary.task_next(task, out);
                 super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => {

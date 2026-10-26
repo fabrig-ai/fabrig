@@ -63,7 +63,7 @@ const USAGES: &[&[u8]] = &[
     b"release N --hold R [--again] [--key NAME]\n",
     b"stop N [--key NAME]\n",
     b"cancel N [--grace D] REASON [--key NAME]\n",
-    b"wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]\nwait forges [--since DIGEST] [--until settled|connected:F|made:F] [--timeout DURATION]\n",
+    b"wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]\nwait forges [--since DIGEST] [--until settled|connected:F|made:F] [--timeout DURATION]\nwait change N [--project P] [--since DIGEST] [--until pull|ci:pending|ci:passed|ci:failed|held|landed] [--timeout DURATION]\n",
     b"adopt --project P [--forge F] --owner O --name N --landing B [--role owned|fork|context] [--prefix X] [--no-home] [--no-ci] [--check G]... --key NAME\n",
     b"sign-in FILE|-\n",
     b"sign-out\n",
@@ -96,6 +96,7 @@ const USAGES: &[&[u8]] = &[
     b"change-settings FILE --against R [--running stays|moves] --key NAME\n",
     b"propose-settings FILE [REASON] --against R --key NAME\n",
     b"proposal tN/K|pN/K\n",
+    b"change N [--project P]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

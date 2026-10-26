@@ -1,5 +1,6 @@
 wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 wait forges [--since DIGEST] [--until settled|connected:F|made:F] [--timeout DURATION]
+wait change N [--project P] [--since DIGEST] [--until pull|ci:pending|ci:passed|ci:failed|held|landed] [--timeout DURATION]
 Wait for a subject's change or condition
 Result: wait
   subject: Watch subject
@@ -9,6 +10,12 @@ Result: wait
   subject: The deployment's forges
   since: Wait past this digest
   until: settled: none setting up or connecting; connected:F: forge F connected; made:F: first repository made
+  timeout: At most 3600 seconds; default 300 seconds
+  subject: A change's panel
+  task: The change task's number
+  project: Its project; default the task's
+  since: Wait past this digest
+  until: The panel's condition
   timeout: At most 3600 seconds; default 300 seconds
 Subjects and --until conditions:
   me: waiting

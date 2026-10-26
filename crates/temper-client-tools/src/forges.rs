@@ -141,6 +141,7 @@ pub const WAIT: Tool = Tool {
             ),
             flag(b"timeout", b"DURATION", Kind::Duration, Optional, b"At most 3600 seconds; default 300 seconds"),
         ],
+        crate::change::WAIT_FORM,
     ],
     keyed: Keyed::Never,
     area: 1,

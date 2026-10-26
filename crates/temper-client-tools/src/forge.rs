@@ -304,7 +304,7 @@ fn phrase(word: Word, holes: &[Hole], out: &mut Text) {
     }
     unreachable!("closed words")
 }
-fn literals_text(literals: &[&[u8]], holes: &[Hole], out: &mut Text) {
+pub(crate) fn literals_text(literals: &[&[u8]], holes: &[Hole], out: &mut Text) {
     for (index, literal) in literals.iter().enumerate() {
         out.put(literal);
         match holes.get(index) {
@@ -555,9 +555,20 @@ pub(crate) fn change_kind(connector: u16, kind: u16, out: &mut Text) {
         out.number(u64::from(kind));
     }
 }
-pub(crate) fn change(_kind: u16, _part: &c::OwnerPart, words: &c::DocumentText, out: &mut Text) {
+pub(crate) fn change(kind: u16, resource: &c::OwnerPart, words: &c::DocumentText, out: &mut Text) {
     out.put(b"Landed");
     if let Some(commit) = temper_client_domain::pages::delegation::merge_commit(words.bytes()) {
+        out.put(b" \xc2\xb7 ");
+        // A core Change result names its settled pull by number. Resource paths,
+        // when supplied, additionally name its repository and host (client/README.md, 4.1).
+        if kind == 1
+            && let c::OwnerPartKey::Number(number) = resource.key
+        {
+            out.put(b"pull request #");
+            out.number(number);
+        } else {
+            part(resource, out);
+        }
         out.put(b" \xc2\xb7 merge commit ");
         out.words(commit);
     } else {

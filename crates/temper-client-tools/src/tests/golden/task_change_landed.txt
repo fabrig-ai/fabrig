@@ -4,5 +4,6 @@ requester: task 1 · spent 0.00 of 0.10 · no deadline
 waiting on: Nothing awaited
 resource: branch temper/1/c2 of repository 1 on forge 1
 acts:
-result: Landed · merge commit 1d0b14e4db018fed000000000000000300000000
-digest: task fb4d524f8b562381
+result: Landed · pull request #1 of qa/pilot-20261026 on localhost:3000 · merge commit 1d0b14e4db018fed000000000000000300000000
+next: temper ctl DIRECTORY change 2
+digest: task 7e3f4823c479dfe6

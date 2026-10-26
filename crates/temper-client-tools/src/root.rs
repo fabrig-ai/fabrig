@@ -16,6 +16,7 @@ pub struct Root {
     runner: runner::Runner,
     adopter: crate::forge::Adopter,
     forges: crate::forges::Forges,
+    changes: crate::change::Changes,
     next: Option<u32>,
 }
 #[derive(Debug)]
@@ -52,6 +53,7 @@ impl Root {
             runner,
             adopter: crate::forge::Adopter::new(),
             forges: crate::forges::Forges::new(),
+            changes: crate::change::Changes::new(),
             next: Some(1),
         }
     }
@@ -86,6 +88,8 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 .checked_add(root.adopter.calls())
                 .expect("bounded calls")
                 .checked_add(root.forges.calls())
+                .expect("bounded calls")
+                .checked_add(root.changes.calls())
                 .expect("bounded calls");
             if active >= usize::try_from(env.limits.tools.rows).expect("rows fit") {
                 let mut printed = jig::render::failure(b"call limit", json, 1);
@@ -98,7 +102,9 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 let forge = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name
                     == crate::adopt::ROW.name;
                 let called = runner::Called { number, call_number, call, json, value };
-                if crate::forges::owns(&called.call) {
+                if crate::change::owns(&called.call) {
+                    crate::change::call(&mut root.changes, &root.client, env, called, &mut child);
+                } else if crate::forges::owns(&called.call) {
                     crate::forges::call(&mut root.forges, &root.client, env, called, &mut child);
                 } else if forge {
                     crate::forge::call(&mut root.adopter, &root.client, &env.limits, called, &mut child);
@@ -214,12 +220,14 @@ fn route(root: &mut Root, env: &Env<Limits>, told: Told, child: &mut Queue<runne
                 | Told::Ended { .. }
                 | Told::Page { .. } => {}
             }
+            crate::change::told(&mut root.changes, &root.client, env, &told, child);
             crate::forges::told(&mut root.forges, &root.client, env, &told, child);
             crate::forge::told(&mut root.adopter, &env.limits, told, child);
         }
         Some(Owner::Pages) | None => out.push(Request::Fact { fact: temper_client_domain::Fact::UnknownAsker }),
     }
     if me_changed {
+        crate::change::ready(&mut root.changes, &root.client, env, child);
         crate::forge::ready(&mut root.adopter, &root.client, &env.limits, child);
         crate::forges::ready(&mut root.forges, &root.client, env, child);
     }
@@ -230,6 +238,7 @@ pub fn fire(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
     root.client.fire(env.now, env.wall, &mut client);
     drain(root, env, &mut client, &mut child, out);
     jig::wait::fire(&mut root.runner, &root.client, &tools_env(env), &mut child);
+    crate::change::fire(&mut root.changes, env, &mut child);
     crate::forges::fire(&mut root.forges, &root.client, env, &mut child);
     drain(root, env, &mut client, &mut child, out);
     root.client.reclaim();
@@ -241,6 +250,7 @@ pub fn next_deadline(root: &Root) -> Option<Time> {
         .into_iter()
         .chain(jig::wait::next_deadline(&root.runner))
         .chain(root.forges.next_deadline())
+        .chain(root.changes.next_deadline())
         .min()
 }
 
@@ -252,6 +262,15 @@ mod tests;
 #[derive(Debug)]
 pub struct Parts;
 impl jig::render::Parts for Parts {
+    fn task_next(&self, task: &jig_client::contract::Task, out: &mut jig::render::Text) {
+        if let jig_client::contract::TaskContractDocument::Change { connector, kind: 1, .. } = task.result_contract
+            && connector == temper_client_protocol_wire::FORGE
+        {
+            out.put(b"next: temper ctl DIRECTORY change ");
+            out.number(task.chip.task);
+            out.put(b"\n");
+        }
+    }
     fn owner_part(&self, part: &jig_client::contract::OwnerPart, out: &mut jig::render::Text) {
         crate::forge::part(part, out);
     }

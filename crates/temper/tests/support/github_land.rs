@@ -65,6 +65,7 @@ pub fn restart() {
         ready: BTreeSet::new(),
         call_marks: 0,
         landed: None,
+        panel: None,
         tasks: None,
         life_tasks: Vec::new(),
         reply_snapshot: None,
@@ -122,6 +123,7 @@ struct Judge {
     ready: BTreeSet<&'static str>,
     call_marks: usize,
     landed: Option<Value>,
+    panel: Option<Value>,
     tasks: Option<Vec<u64>>,
     life_tasks: Vec<u64>,
     reply_snapshot: Option<String>,
@@ -276,12 +278,29 @@ impl Judge {
                     host,
                     vec![
                         ctl::Call::new(&["wait", "task", "1", "--until", "replied"]),
+                        ctl::Call::new(&["wait", "change", "2", "--until", "landed", "--json"]),
+                        ctl::Call::new(&["change", "2", "--json"]),
+                        ctl::Call::new(&["task", "2"]),
                         ctl::Call::new(&["wait", "task", "2", "--until", "ended", "--json"]),
                     ],
                 );
                 self.stage = Stage::Change;
             }
             Stage::Change => {
+                let waited = ctl::json(&calls.ends()[1]);
+                assert_eq!(waited["met"], true);
+                let panel = ctl::json(&calls.ends()[2]);
+                assert_eq!(panel["task"], CHANGE);
+                assert_eq!(panel["step"], "landed");
+                assert_eq!(waited["change"]["pull"], panel["pull"]);
+                assert_eq!(waited["change"]["merge"], panel["merge"]);
+                assert_eq!(panel["pull"]["number"], 1);
+                let forge = self.members.capture("forge", "address").expect("forge address");
+                assert_eq!(panel["pull"]["address"], format!("http://{forge}/acme/app/pull/1"));
+                self.panel = Some(panel);
+                let words = String::from_utf8_lossy(&calls.ends()[3].stdout);
+                assert!(words.contains("result: Landed · pull request #1 · merge commit "), "{words}");
+                assert!(words.contains("next: temper ctl DIRECTORY change 2"), "{words}");
                 let packet = ctl::json(calls.ends().last().expect("landed change"));
                 assert_eq!(packet["task"]["chip"]["phase"], "ended");
                 assert_eq!(packet["task"]["result"]["value"]["change"]["kind"], 1);
@@ -525,6 +544,9 @@ impl Judge {
         }
         let result = &self.landed.as_ref().expect("landed result")["value"]["change"];
         assert_eq!(result["words"]["bytes"], hex);
+        let panel = self.panel.as_ref().expect("ctl change panel");
+        assert_eq!(panel["merge"], hex, "ctl names the fake forge's merge");
+        assert_eq!(panel["pull"]["number"], merge["number"]);
         assert_eq!(result["part"]["key"]["number"], merge["number"]);
         if read_objects {
             let address = self.members.capture("forge", "address").expect("forge address").parse().expect("socket");
