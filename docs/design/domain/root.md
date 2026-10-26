@@ -448,7 +448,10 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   bound leaves room, a line follows the id: the pull request in the
   forge's words (`../client/README.md`, 4.1) and its address on the
   forge (`../client/forge.md`, 9.2), `pull request #7 of acme/app on
-  github.com: https://github.com/acme/app/pull/7`, so that the run that
+  github.com: https://github.com/acme/app/pull/7`, or the words alone
+  where the forge gives no address or it is past its bound; the line
+  cut whole, never in part, where the bound leaves no room for it; so
+  that the run that
   asked for it hears which pull request landed, since jig gives a
   parent a result's words and never its resource. A client reads the id
   from the first line. A result's
