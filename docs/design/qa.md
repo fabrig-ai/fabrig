@@ -73,7 +73,7 @@ parked as `draft/qa-lab.md`. What is still open is section 8.
   | Rung | Forges | Model | Accounts held |
   |---|---|---|---|
   | fakes | `--fake-backends` (`protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
-  | a real model | as fakes | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5) | the model's |
+  | a real model | Forgejo here, set up through ctl (`../guide/box.md` 4); the box walked as `../guide/box.md` 2 to 7 | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5) | the model's |
   | GitHub | GitHub, through an App kept for QA, on a repository kept for it | as the rung below | the App's key and its installation |
 
 - **Down before up:** the director opens a rung once the rung below has
