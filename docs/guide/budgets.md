@@ -29,7 +29,8 @@ not as a statement of an invoiced amount.
 A template chooses a new task's budget rule: an amount, as much as is
 allowed, or an amount given by its creator. A delegate's authority
 gives its allotment. The run then draws a capped share from the task.
-A charter's spend is a default and an admission value; it does not
+A charter's spend (`temper help charters`) is a default and an
+admission value; it does not
 promise that every run gets that much.
 
 Funding can come from a person's pool in a project period, an
@@ -155,7 +156,8 @@ enter an arbitrary new allowance. For task 41's proposal 3:
 temper ctl me decide t41/3 accept --key allow-budget-3
 ```
 
-You can also change settings for later runs: the deployment's run
+You can also change settings (`temper help settings`) for later runs:
+the deployment's run
 cap or a charter's spend, for example. A raised run cap can let the
 next run draw more from the task's existing allotment. A charter
 change can change later run behavior. These settings changes do not

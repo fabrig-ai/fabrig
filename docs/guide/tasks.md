@@ -70,8 +70,8 @@ revision is refused rather than applied to a different specification.
 ## Chats
 
 Start a chat in a project to talk with temper. It uses that project's
-template 1, with its charter, budget rule and model choice; the
-command does not offer a template picker. The supplied chat template
+template 1, with its charter (`temper help charters`), budget rule
+and model choice; the command does not offer a template picker. The supplied chat template
 is an untracked conversation that you end. It has no task deadline
 and keeps its transcript.
 
