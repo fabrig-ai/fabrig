@@ -244,9 +244,9 @@ watch's subject, its digest (5.4). It needs no key.
   as a person reads them there. A part of the forge's that the engine
   does not serve prints "Shown on the forge.", with the resource in the
   forge's words (`README.md`, 4.1 and 4.2). Of the forge's read family
-  (`forge.md`, section 9), the deployment's part is a tool, `forges`
-  (5.5, area 6); the others join the table as tools of their own
-  (section 14).
+  (`forge.md`, section 9), the deployment's part is a tool, `forges`,
+  and a change's panel another, `change` (5.5, area 6); the others join
+  the table as tools of their own (section 14).
 
 ### 5.3 Acts
 
@@ -326,7 +326,7 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 
 - **The subject** is a watch's (jig's `client/domain/contract.md`, 7.1):
   `me`, `inbox`, `task N`, `tree N`, `run N`, `accounts` (area 5 of
-  5.5), `forges` (area 6), or a task query as `tasks` takes it, with
+  5.5), `forges` and `change N` (area 6), or a task query as `tasks` takes it, with
   what its watch takes alone: `inbox` with no flag, the inbox's watch
   being the party's whole inbox; `tasks` without
   `--after` or `--ended`, `tasks{query}` following live tasks. Any
@@ -350,7 +350,7 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 - **Which reads print one:** a read whose arguments are a watch's
   subject, with every wait's answer: `me`; `inbox` and `tasks` with the
   arguments a wait takes (above); `task N`; `run N`; `accounts`;
-  `forges`.
+  `forges`; `change N`.
   `task N --tree --run` prints one for each subject, `task N`, `tree N`
   and `run N`, each over its own part of the result. `--activity`'s
   lines, `chat`, `activity` and `turn` are pages, not subjects, and
@@ -372,6 +372,7 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   | `run N` | `ended` |
   | `accounts` | `usable` (an account the party's work may use has a source usable on a host); `settled` (no sign-in or check the party asked is in progress) |
   | `forges` | `settled` (no forge setting up or connecting: no set up, connect or install the deployment asked is in progress); `connected:F` (forge F is connected); `made:F` (forge F's first repository is made, `../protocol/setup.md`, 6.7) |
+  | `change N` | `pull` (its pull request is open: the panel names its number); `ci:pending`, `ci:passed`, `ci:failed` (CI at its head, as the panel says it); `held` (it is held); `landed` (its step is landed) |
 
 - **`replied`** holds while a chat's status (jig's
   `client/domain/client.md`, section 19, its facts) is parked, waiting
@@ -697,6 +698,7 @@ area lands with its stories (section 11).
    | `forge-forget F` | erases a managed forge's admin's token; the forge is connected, its bot and tokens kept | `Forget { forge }` | |
    | `forge-setup F [--org O] [--repository R] [--project P]` | sets up an owned Forgejo here, under the box, with its first repository: the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `O/R` (default `work/hello`) with the starter workflow, and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `wait forges --until made:F` does, then adopts `O/R` into project P, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named R (`../draft/first-run.md`, 2.4), as `adopt --project P --forge F --owner O --name R --landing main` would, as P's home unless P already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption and exits 0. Refused, exit 2: "not offered" (the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "a new project" (a new one, by no `--project` or a P no project holds, waits on jig's projects at runtime), "invalid" (O or R not a name Forgejo takes, or O, R or P's name empty or too long), or, without the box, "not under the box", with the commands to run (`../client/forge.md`, 5.4). Set up failed, or its first repository failed, exit 1, naming the step | `SetUp { forge, org, repository, project }`; then `Adopt` | |
    | `demo-start` | starts the playground, the demo (`../protocol/setup.md`, 8.4): the box starts its fakes, and the engine adds the demo model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (no demo, or the demo ended). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartDemo` | |
+   | `change N [--project P]` | change task N's panel (`../client/forge.md`, 9.2; `README.md`, 4.6), read as the change's page watches it, in the scope of P, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../client/forge.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; then the call that follows it, `wait change N --until landed` while it is live. A landed or ended change keeps its last panel. `task N` of a change task, live or ended, prints `change N` among the calls that follow it. A task that is no change into a repository of P, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`forge.md`, 9.2) | |
    | `repositories F [--installation I] [--page N]` | the picker's page N, from 1 (`README.md`, 4.4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `adopt --ids`; then the call that reads page N plus one while more follow, or that none do. `--installation I` is an accepted installation's id, as `forges` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
 
    - **`forges`' text,** one line per forge, in number order: `forge N
@@ -884,9 +886,11 @@ digest: task 7c1e09a2b44f0d13
   `Failed`, `Cancelled` (cancelled or withdrawn), `Ended`), then ` · ` and its
   words. A landed change's words are its merge commit, whole, as the
   engine's landing words give it (the card shows seven characters; an
-  agent may need the id): `result: Landed · merge commit 3f2a9c1…`
-  (forty characters); a change's words that are not an id print as they
-  are. A report's words, a verdict's, an approval's and a choice's print
+  agent may need the id), after its pull request, the result's resource
+  in the forge's words: `result: Landed · pull request #7 of
+  acme/app on github.com · merge commit 3f2a9c1…` (forty characters),
+  then the call that reads its panel, `change N`; a change's words that
+  are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
   as they are; a connector's its summary and its part in the forge's
   words; a failed or cancelled task's its reason, if it gave one. Words
   of more than one line go on the lines after it, each indented two
