@@ -2508,7 +2508,7 @@ fn cluster_chats(case: &str, story: ClusterStory) {
     if matches!(story, ClusterStory::Kill | ClusterStory::Hung) {
         cluster.record_llm();
     }
-    let engine = cluster.dir("engine").join("config/temper.json");
+    let settings = cluster.settings_file();
     let key = cluster.dir("llm").join("llm.key");
     let (mut members, hosts) = cluster.members();
     members.up(if story == ClusterStory::Each { &["w1", "w2"] } else { &["w1"] });
@@ -2516,7 +2516,7 @@ fn cluster_chats(case: &str, story: ClusterStory) {
     let mut world = skein_world::real::World::new(ClusterChatJudge {
         members,
         deadline: clock.now().now.saturating_add(support::WITHIN),
-        engine,
+        settings,
         key,
         client: scratch.path().join("client"),
         stage: ClusterChatStage::Start,
@@ -2584,7 +2584,7 @@ enum ClusterChatStage {
 struct ClusterChatJudge {
     members: support::cluster::Members,
     deadline: skein_lib::Time,
-    engine: std::path::PathBuf,
+    settings: std::path::PathBuf,
     key: std::path::PathBuf,
     client: std::path::PathBuf,
     stage: ClusterChatStage,
@@ -2611,35 +2611,31 @@ impl ClusterChatJudge {
     }
     fn begin(&mut self, client: &mut support::cluster::Root) {
         use support::ctl::{Call, PROJECT};
-        let engine: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&self.engine).expect("rendered engine document"))
-                .expect("engine JSON");
-        let template = engine["engine"]["templates"]
+        // Read the same whole charter value the owner applies below, rather than the startup document.
+        let settings: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&self.settings).expect("cluster settings FILE"))
+                .expect("settings JSON");
+        let charter = &settings["items"]
             .as_array()
-            .expect("templates")
+            .expect("settings items")
             .iter()
-            .find(|template| template["name"] == "chat")
-            .expect("chat template");
-        let charter = engine["engine"]["charters"]
-            .as_array()
-            .expect("charters")
-            .iter()
-            .find(|charter| charter["number"] == template["executor"]["charter"])
-            .expect("chat charter");
+            .find(|item| item["setting"] == serde_json::json!({"kind":"charter","number":1}))
+            .expect("chat charter setting")["set"];
         assert!(
-            Duration::from_millis(charter["waiting_ms"].as_u64().expect("chat waiting_ms")) >= CHAT_HOLDS_ITS_SLOT,
-            "lab/cluster/engine.json: chat charter waiting_ms must hold its slot past the story deadline"
+            Duration::from_nanos(charter["waiting"].as_u64().expect("chat waiting")) >= CHAT_HOLDS_ITS_SLOT,
+            "lab/cluster/settings.json: charter 1 waiting must hold its slot past the story deadline"
         );
-        let time = charter["time_ms"].as_u64().expect("chat time_ms");
-        let reserve = charter["reserve_time_ms"].as_u64().expect("chat reserve_time_ms");
+        let time = charter["time"].as_u64().expect("chat time");
+        let reserve = charter["reserve_time"].as_u64().expect("chat reserve_time");
         assert!(
-            time.checked_sub(reserve).is_some_and(|ordinary| Duration::from_millis(ordinary) >= CHAT_HOLDS_ITS_SLOT),
-            "lab/cluster/engine.json: chat charter time_ms less its reserve must hold its slot past the story deadline"
+            time.checked_sub(reserve).is_some_and(|ordinary| Duration::from_nanos(ordinary) >= CHAT_HOLDS_ITS_SLOT),
+            "lab/cluster/settings.json: charter 1 time less its reserve must hold its slot past the story deadline"
         );
         self.queue(
             client,
             vec![
                 Call::sign_in(),
+                support::cluster::settings_change(&self.settings),
                 Call::new(&[
                     "add-key",
                     "1",
