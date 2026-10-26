@@ -286,21 +286,36 @@ impl<P: Host, R: Referee<P>> World<P, R> {
             }),
         };
         let ids: Vec<usize> = (0..self.procs.len()).collect();
+        let living_hosts = ids.iter().copied().collect();
+        let positions = ids.iter().copied().map(Some).collect();
+        let root_signals = self.signals.keys().copied().collect();
+        let instances = vec![0; self.programs.len()];
         let processes = self
             .inherited
             .iter()
-            .enumerate()
-            .map(|(host, fds)| {
-                (host, Process { fds: fds.iter().copied().collect(), exit: None, cleanup: 0, cleaned: false })
+            .map(|fds| Process {
+                fds: fds.iter().copied().collect(),
+                exit: None,
+                cleanup: 0,
+                queued_cleanup: 0,
+                cleaned: false,
             })
             .collect();
         Running {
             world: self,
             ring,
             ids,
+            positions,
+            living_hosts,
+            root_signals,
+            instances,
+            settling_children: BTreeSet::new(),
+            unsettled_children: 0,
+            submits: Queue::with_capacity(operations),
             processes,
             children: BTreeMap::new(),
             placeholders: BTreeMap::new(),
+            waiting_children: BTreeMap::new(),
             housekeeping: BTreeMap::new(),
             cleanup: VecDeque::new(),
             killed: Vec::new(),
@@ -314,6 +329,7 @@ struct Process {
     fds: BTreeSet<Fd>,
     exit: Option<Exit>,
     cleanup: u32,
+    queued_cleanup: u32,
     cleaned: bool,
 }
 
@@ -366,9 +382,20 @@ struct Running<P, R> {
     world: World<P, R>,
     ring: Ring,
     ids: Vec<usize>,
-    processes: BTreeMap<usize, Process>,
+    // Stable host identities name the ledger; positions follow surviving hosts.
+    positions: Vec<Option<usize>>,
+    // Roots keep running; killed children stay here until their buffers return.
+    living_hosts: BTreeSet<usize>,
+    root_signals: Vec<usize>,
+    instances: Vec<usize>,
+    // Only children with a process exit need settlement checks.
+    settling_children: BTreeSet<usize>,
+    unsettled_children: usize,
+    submits: Queue<Submit>,
+    processes: Vec<Process>,
     children: BTreeMap<usize, Child>,
     placeholders: BTreeMap<Fd, usize>,
+    waiting_children: BTreeMap<Token, usize>,
     housekeeping: BTreeMap<Token, usize>,
     cleanup: VecDeque<(usize, Op)>,
     killed: Vec<Killed>,
@@ -424,7 +451,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             let mut at = 0;
             while at < self.world.procs.len() {
                 let host = *self.ids.get(at).expect("an id per host");
-                if self.processes.get(&host).expect("a process per host").exit.is_none() {
+                if self.processes.get(host).expect("a process per host").exit.is_none() {
                     let proc = self.world.procs.get_mut(at).expect("a process per host");
                     self.ring.deliver(host, proc.completions());
                     match &mut self.world.heap {
@@ -437,24 +464,14 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                             proc.drain();
                         }
                     }
-                    let mut submits = Queue::with_capacity(proc.submissions().len());
                     while let Some(record) = proc.submissions().pop() {
-                        submits.push(record);
+                        self.submits.push(record);
                     }
-                    while let Some(record) = submits.pop() {
+                    while let Some(record) = self.submits.pop() {
                         let record = self.ring.register(host, record);
                         self.submit(record);
                     }
-                    // Killed hosts remain admitted until their records return.
-                    if self.ids.get(at) == Some(&host) {
-                        let proc = self.world.procs.get(at).expect("a process per host");
-                        if self.children.values().any(|child| child.host == host)
-                            && let Some(exit) = proc.exit()
-                        {
-                            assert!(proc.is_empty(), "normal hosted exit releases every entity");
-                            self.processes.get_mut(&host).expect("a process per host").exit = Some(exit);
-                        }
-                    }
+                    self.check_exit(at, host);
                 }
                 if self.dying.contains(&host) {
                     self.discard(at, host);
@@ -471,20 +488,21 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             self.settle_root_signals();
             self.submit_cleanup();
             self.ring.enter(Wait::No);
-            if self.world.procs.iter().any(|proc| proc.work_pending(now))
+            if self.living_hosts.iter().any(|host| self.proc(*host).work_pending(now))
                 || self.ring.has_ready()
                 || !self.world.controls.signals.borrow().is_empty()
             {
                 continue;
             }
-            if self.world.procs.iter().all(Host::is_empty)
+            if self.living_hosts.iter().all(|host| self.proc(*host).is_empty())
                 && self.ring.is_empty()
                 && self.cleanup.is_empty()
-                && self.children.values().all(|child| child.exit.is_some() && !child.placeholder_open)
+                && self.unsettled_children == 0
+                && self.placeholders.is_empty()
                 && self.world.referee.passed()
             {
                 assert!(
-                    self.processes.values().all(|process| process.fds.is_empty()),
+                    self.processes.iter().all(|process| process.fds.is_empty()),
                     "settled hosts leave no owned descriptor open"
                 );
                 return Outcome {
@@ -504,41 +522,59 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 ));
             }
             let until = self.wait_until(deadline);
-            policy_wake = self.policy_wake(last_word);
+            self.policy_wake(last_word, &mut policy_wake);
             self.ring.enter(Wait::Until(until));
         }
     }
 
+    fn check_exit(&mut self, at: usize, host: usize) {
+        // Killed hosts remain admitted until their records return.
+        if self.ids.get(at) == Some(&host) {
+            let proc = self.world.procs.get(at).expect("a process per host");
+            if self.children.contains_key(&host)
+                && let Some(exit) = proc.exit()
+            {
+                assert!(proc.is_empty(), "normal hosted exit releases every entity");
+                self.processes.get_mut(host).expect("a process per host").exit = Some(exit);
+                self.living_hosts.remove(&host);
+                self.settling_children.insert(host);
+            }
+        }
+    }
+
     fn wait_until(&self, patience: Time) -> Time {
-        self.world
-            .procs
+        self.living_hosts
             .iter()
-            .map(Host::next_deadline)
+            .map(|host| self.proc(*host).next_deadline())
             .chain([self.world.referee.next_deadline()])
             .flatten()
             .fold(patience, Time::min)
     }
 
-    fn policy_wake(&self, last_word: Option<Time>) -> Vec<(usize, Time)> {
-        let mut deadlines = Vec::new();
+    fn proc(&self, host: usize) -> &P {
+        let at = self.positions.get(host).expect("a position per host").expect("a living host remains admitted");
+        self.world.procs.get(at).expect("a process per position")
+    }
+
+    fn policy_wake(&self, last_word: Option<Time>, deadlines: &mut Vec<(usize, Time)>) {
         if let Some(last_word) = last_word {
-            for (at, proc) in self.world.procs.iter().enumerate() {
+            for host in &self.living_hosts {
+                let proc = self.proc(*host);
                 if !proc.is_empty()
                     && let Some(deadline) = proc.next_policy_deadline()
                     && deadline > last_word
                 {
-                    deadlines.push((*self.ids.get(at).expect("an id per process"), deadline));
+                    deadlines.push((*host, deadline));
                 }
             }
         }
-        deadlines
     }
 
     fn signals(&mut self) {
         loop {
             let Some((host, signal)) = self.world.controls.signals.borrow_mut().pop() else { break };
             assert!(
-                self.processes.get(&host).expect("a signal names an admitted host").exit.is_none(),
+                self.processes.get(host).expect("a signal names an admitted host").exit.is_none(),
                 "a signal names a running service"
             );
             match self.world.signals.get(&host).expect("a service declares its signal source") {
@@ -553,17 +589,15 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     }
 
     fn settle_root_signals(&mut self) {
-        let finished: Vec<usize> = self
-            .ids
-            .iter()
-            .zip(&self.world.procs)
-            .filter_map(|(host, proc)| {
-                (proc.is_empty() && self.ring.count(*host) == 0 && !self.children.contains_key(host)).then_some(*host)
-            })
-            .collect();
-        for host in finished {
-            if let Some(SignalSource::Pipe(writer)) = self.world.signals.remove(&host) {
-                self.cleanup.push_back((host, Op::Close { fd: writer }));
+        let mut at = 0;
+        while let Some(host) = self.root_signals.get(at).copied() {
+            if self.proc(host).is_empty() && self.ring.count(host) == 0 {
+                if let Some(SignalSource::Pipe(writer)) = self.world.signals.remove(&host) {
+                    self.queue_cleanup(host, Op::Close { fd: writer });
+                }
+                self.root_signals.remove(at);
+            } else {
+                at = at.checked_add(1).expect("bounded root count");
             }
         }
     }
@@ -572,7 +606,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         self.ring.kernel.reap(&mut self.ring.arrived);
         while let Some(complete) = self.ring.arrived.pop() {
             if let Some(host) = self.housekeeping.remove(&complete.op) {
-                let process = self.processes.get_mut(&host).expect("cleanup names a process");
+                let process = self.processes.get_mut(host).expect("cleanup names a process");
                 process.cleanup = process.cleanup.checked_sub(1).expect("cleanup was in flight");
             } else {
                 self.answer(complete);
@@ -582,9 +616,9 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
 
     fn answer(&mut self, complete: Complete) {
         let (host, complete) = self.ring.complete(complete);
-        let process = self.processes.get_mut(&host).expect("a process per host");
+        let process = self.processes.get_mut(host).expect("a process per host");
         process.completed(&complete);
-        self.ring.ready.get_mut(host).expect("a queue per host").push_back(complete);
+        self.ring.returned(host, complete);
     }
 
     fn synthetic(&mut self, record: Submit, result: Result<Done, Error>) {
@@ -594,7 +628,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     fn submit(&mut self, mut record: Submit) {
         assert!(record.kind.is_valid(), "only valid records cross the kernel boundary");
         let host = self.ring.bindings.get(&record.op).expect("a registered operation").host;
-        self.processes.get_mut(&host).expect("an operation owner").submitted(&record.kind);
+        self.processes.get_mut(host).expect("an operation owner").submitted(&record.kind);
         match &mut record.kind {
             Op::Spawn { spawn } => {
                 if let Some(program) = self.world.programs.iter().position(|entry| entry.program == spawn.program) {
@@ -608,7 +642,10 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 {
                     match child.exit {
                         Some(exit) => self.synthetic(record, Ok(Done::Exit(exit))),
-                        None => child.waiters.push(record),
+                        None => {
+                            self.waiting_children.insert(record.op, child.host);
+                            child.waiters.push(record);
+                        }
                     }
                     return;
                 }
@@ -618,7 +655,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     let child_host = child.host;
                     let writer = child.signal_writer;
                     let result = if child.exit.is_some()
-                        || self.processes.get(&child_host).expect("child process").exit.is_some()
+                        || self.processes.get(child_host).expect("child process").exit.is_some()
                     {
                         Err(Error::Other(3))
                     } else {
@@ -647,14 +684,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 }
             }
             Op::Cancel { target } => {
-                let mut cancelled = None;
-                for child in self.children.values_mut() {
-                    if let Some(at) = child.waiters.iter().position(|waiter| waiter.op == *target) {
-                        cancelled = Some(child.waiters.remove(at));
-                        break;
-                    }
-                }
-                if let Some(waiter) = cancelled {
+                if let Some(waiter) = self.take_waiter(*target) {
                     self.synthetic(waiter, Err(Error::Cancelled));
                     self.synthetic(record, Ok(Done::Nothing));
                     return;
@@ -691,7 +721,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
 
     fn spawn(&mut self, parent: usize, program: usize, spawn: &mut Spawn) -> Result<Done, Error> {
         let entry = self.world.programs.get(program).expect("a registered program");
-        let active = self.children.values().filter(|child| child.program == program && child.exit.is_none()).count();
+        let active = *self.instances.get(program).expect("a count per program");
         assert!(
             active < usize::try_from(entry.instances).expect("instances fit"),
             "hosted instances fit their provision"
@@ -710,7 +740,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 Ok(fd) => roots.push((declaration.name, fd)),
                 Err(errno) => {
                     for (_, fd) in roots {
-                        self.cleanup.push_back((parent, Op::Close { fd }));
+                        self.queue_cleanup(parent, Op::Close { fd });
                     }
                     return Err(match errno {
                         2 => Error::NotFound,
@@ -729,7 +759,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 Ok(fd) => appends.push((declaration.name, fd)),
                 Err(error) => {
                     for (_, fd) in roots.into_iter().chain(appends) {
-                        self.cleanup.push_back((parent, Op::Close { fd }));
+                        self.queue_cleanup(parent, Op::Close { fd });
                     }
                     return Err(error);
                 }
@@ -746,22 +776,25 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 let child = self.ring.admit(proc.operations());
                 self.world.procs.push(proc);
                 self.ids.push(child);
-                self.processes.insert(
-                    child,
-                    Process {
-                        fds: inherited
-                            .pipes
-                            .iter()
-                            .map(|(_, fd)| *fd)
-                            .chain(inherited.roots.iter().map(|(_, fd)| *fd))
-                            .chain(inherited.appends.iter().map(|(_, fd)| *fd))
-                            .chain([inherited.signal])
-                            .collect(),
-                        exit: None,
-                        cleanup: 0,
-                        cleaned: false,
-                    },
-                );
+                self.positions.push(Some(self.world.procs.len().checked_sub(1).expect("an admitted child")));
+                self.living_hosts.insert(child);
+                self.unsettled_children = self.unsettled_children.checked_add(1).expect("bounded child count");
+                let active = self.instances.get_mut(program).expect("a count per program");
+                *active = active.checked_add(1).expect("bounded instance count");
+                self.processes.push(Process {
+                    fds: inherited
+                        .pipes
+                        .iter()
+                        .map(|(_, fd)| *fd)
+                        .chain(inherited.roots.iter().map(|(_, fd)| *fd))
+                        .chain(inherited.appends.iter().map(|(_, fd)| *fd))
+                        .chain([inherited.signal])
+                        .collect(),
+                    exit: None,
+                    cleanup: 0,
+                    queued_cleanup: 0,
+                    cleaned: false,
+                });
                 self.world.signals.insert(child, SignalSource::Pipe(pipes.signal_writer));
                 self.placeholders.insert(pipes.pidfd, child);
                 self.children.insert(
@@ -779,7 +812,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             }
             Err(error) => {
                 for (_, fd) in roots.into_iter().chain(appends) {
-                    self.cleanup.push_back((parent, Op::Close { fd }));
+                    self.queue_cleanup(parent, Op::Close { fd });
                 }
                 Err(error)
             }
@@ -788,26 +821,27 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
 
     fn kill(&mut self, host: usize) {
         let exit = Exit::Signal(9);
-        self.processes.get_mut(&host).expect("child process").exit = Some(exit);
+        self.processes.get_mut(host).expect("child process").exit = Some(exit);
         assert!(self.dying.insert(host), "a hosted child is killed once");
+        self.settling_children.insert(host);
         // Keep the child until every submitted buffer returns. Returned records
         // are discarded under that child's meter, never by the backend.
         let targets: Vec<Token> =
             self.ring.bindings.iter().filter_map(|(token, binding)| (binding.host == host).then_some(*token)).collect();
         for target in targets {
-            let mut waiter = None;
-            for child in self.children.values_mut() {
-                if let Some(at) = child.waiters.iter().position(|record| record.op == target) {
-                    waiter = Some(child.waiters.remove(at));
-                    break;
-                }
-            }
-            if let Some(waiter) = waiter {
+            if let Some(waiter) = self.take_waiter(target) {
                 self.synthetic(waiter, Err(Error::Cancelled));
             } else {
-                self.cleanup.push_back((host, Op::Cancel { target }));
+                self.queue_cleanup(host, Op::Cancel { target });
             }
         }
+    }
+
+    fn take_waiter(&mut self, token: Token) -> Option<Submit> {
+        let host = self.waiting_children.remove(&token)?;
+        let child = self.children.get_mut(&host).expect("a waiter names its child");
+        let at = child.waiters.iter().position(|waiter| waiter.op == token).expect("an indexed waiter");
+        Some(child.waiters.remove(at))
     }
 
     fn discard(&mut self, at: usize, host: usize) {
@@ -825,9 +859,14 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     }
 
     fn release_killed(&mut self, host: usize, exit: Exit) {
-        let at = self.ids.iter().position(|id| *id == host).expect("a dying child remains admitted");
+        let at =
+            self.positions.get_mut(host).expect("a position per host").take().expect("a dying child remains admitted");
+        self.living_hosts.remove(&host);
         let proc = self.world.procs.remove(at);
         self.ids.remove(at);
+        for (at, host) in self.ids.iter().enumerate().skip(at) {
+            *self.positions.get_mut(*host).expect("a position per host") = Some(at);
+        }
         let heap = match &mut self.world.heap {
             Some(heap) => Some(heap.release(at, proc)),
             None => {
@@ -839,36 +878,56 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     }
 
     fn settle_children(&mut self) {
-        let hosts: Vec<usize> =
-            self.children.values().filter(|child| child.exit.is_none()).map(|child| child.host).collect();
-        for host in hosts {
-            let process = self.processes.get_mut(&host).expect("child process");
-            let Some(exit) = process.exit else { continue };
+        let mut after = None;
+        loop {
+            let next = match after {
+                Some(host) => {
+                    self.settling_children.range((core::ops::Bound::Excluded(host), core::ops::Bound::Unbounded)).next()
+                }
+                None => self.settling_children.first(),
+            };
+            let Some(host) = next.copied() else { break };
+            after = Some(host);
+            let process = self.processes.get_mut(host).expect("child process");
+            let exit = process.exit.expect("only exited children settle");
             if self.ring.count(host) != 0 {
                 continue;
             }
             if !process.cleaned {
-                for fd in core::mem::take(&mut process.fds) {
-                    self.cleanup.push_back((host, Op::Close { fd }));
-                }
-                let child = self.children.values().find(|child| child.host == host).expect("registered child");
-                self.cleanup.push_back((host, Op::Close { fd: child.signal_writer }));
+                let fds = core::mem::take(&mut process.fds);
                 process.cleaned = true;
+                for fd in fds {
+                    self.queue_cleanup(host, Op::Close { fd });
+                }
+                let child = self.children.get(&host).expect("registered child");
+                self.queue_cleanup(host, Op::Close { fd: child.signal_writer });
             }
-            if process.cleanup != 0 || self.cleanup.iter().any(|(owner, _)| *owner == host) {
+            let process = self.processes.get(host).expect("child process");
+            if process.cleanup != 0 || process.queued_cleanup != 0 {
                 continue;
             }
             if self.dying.remove(&host) {
                 self.release_killed(host, exit);
             }
-            let child = self.children.values_mut().find(|child| child.host == host).expect("registered child");
+            let child = self.children.get_mut(&host).expect("registered child");
             child.exit = Some(exit);
+            let active = self.instances.get_mut(child.program).expect("a count per program");
+            *active = active.checked_sub(1).expect("a settled child was active");
+            self.unsettled_children = self.unsettled_children.checked_sub(1).expect("a child settles once");
+            self.settling_children.remove(&host);
             self.world.signals.remove(&host);
             let waiters = core::mem::take(&mut child.waiters);
             for waiter in waiters {
+                self.waiting_children.remove(&waiter.op).expect("an indexed waiter");
                 self.synthetic(waiter, Ok(Done::Exit(exit)));
             }
         }
+    }
+
+    fn queue_cleanup(&mut self, host: usize, kind: Op) {
+        let process = self.processes.get_mut(host).expect("cleanup owner");
+        process.queued_cleanup = process.queued_cleanup.checked_add(1).expect("cleanup operations fit");
+        self.cleanup.push_back((host, kind));
     }
 
     fn submit_cleanup(&mut self) {
@@ -883,7 +942,8 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             }
             let op = self.ring.fresh();
             self.housekeeping.insert(op, host);
-            let process = self.processes.get_mut(&host).expect("cleanup owner");
+            let process = self.processes.get_mut(host).expect("cleanup owner");
+            process.queued_cleanup = process.queued_cleanup.checked_sub(1).expect("cleanup was queued");
             process.cleanup = process.cleanup.checked_add(1).expect("cleanup operations fit");
             self.ring.submits.push(Submit { op, kind });
         }
@@ -919,14 +979,185 @@ fn check_policy_wake(deadlines: &mut Vec<(usize, Time)>, now: Time) {
 
 #[cfg(test)]
 mod tests {
-    use super::Process;
-    use skein_io::kernel::{Complete, Done, Family, Fd, Op};
-    use skein_lib::Token;
+    use super::{Child, Process, Running, World};
+    use crate::{Host, Referee, ring::Ring};
+    use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
+    use skein_io::kernel::{Complete, Done, Error, Exit, Family, Fd, Op, Submit};
+    use skein_lib::{Queue, Time, Token, Wall};
+
+    struct Idle {
+        completions: Queue<Complete>,
+        submissions: Queue<Submit>,
+    }
+
+    impl Host for Idle {
+        fn iterate(&mut self, _now: Time, _wall: Wall) {}
+        fn completions(&mut self) -> &mut Queue<Complete> {
+            &mut self.completions
+        }
+        fn submissions(&mut self) -> &mut Queue<Submit> {
+            &mut self.submissions
+        }
+        fn work_pending(&self, _now: Time) -> bool {
+            false
+        }
+        fn next_deadline(&self) -> Option<Time> {
+            None
+        }
+        fn next_policy_deadline(&self) -> Option<Time> {
+            None
+        }
+        fn is_empty(&self) -> bool {
+            true
+        }
+        fn worst_case(&self) -> u64 {
+            0
+        }
+        fn operations(&self) -> u32 {
+            2
+        }
+    }
+
+    struct Quiet;
+
+    impl Referee<Idle> for Quiet {
+        fn act(&mut self, _now: Time, _procs: &mut [Idle]) {}
+        fn observe(&mut self, _now: Time, _procs: &[Idle]) {}
+        fn next_deadline(&self) -> Option<Time> {
+            None
+        }
+        fn overdue(&self, _now: Time) -> Option<String> {
+            None
+        }
+        fn passed(&self) -> bool {
+            true
+        }
+    }
+
+    fn children_after_descriptor_cleanup() -> Running<Idle, Quiet> {
+        let mut world = World::new(Quiet);
+        for _ in 0_usize..3 {
+            world.spawn(|| Idle { completions: Queue::with_capacity(2), submissions: Queue::with_capacity(2) });
+        }
+        Running {
+            world,
+            ring: Ring::new(8, vec![2; 3]).expect("test ring"),
+            ids: vec![0, 1, 2],
+            positions: vec![Some(0), Some(1), Some(2)],
+            living_hosts: [0, 1, 2].into_iter().collect(),
+            root_signals: Vec::new(),
+            instances: vec![2],
+            settling_children: BTreeSet::new(),
+            unsettled_children: 2,
+            submits: Queue::with_capacity(8),
+            processes: (0..3)
+                .map(|_| Process { fds: BTreeSet::new(), exit: None, cleanup: 0, queued_cleanup: 0, cleaned: true })
+                .collect(),
+            children: (1..3)
+                .map(|host| {
+                    (
+                        host,
+                        Child {
+                            host,
+                            program: 0,
+                            signal_writer: Fd::new(-1),
+                            exit: None,
+                            waiters: Vec::new(),
+                            placeholder_open: false,
+                        },
+                    )
+                })
+                .collect(),
+            placeholders: BTreeMap::new(),
+            waiting_children: BTreeMap::new(),
+            housekeeping: BTreeMap::new(),
+            cleanup: VecDeque::new(),
+            killed: Vec::new(),
+            dying: BTreeSet::new(),
+        }
+    }
+
+    #[test]
+    fn releasing_a_killed_child_keeps_the_other_childs_position_and_instance() {
+        let mut running = children_after_descriptor_cleanup();
+        running.kill(1);
+        running.settle_children();
+        assert_eq!(running.ids, [0, 2]);
+        assert_eq!(running.positions, [Some(0), None, Some(1)]);
+        assert_eq!(running.living_hosts.into_iter().collect::<Vec<_>>(), [0, 2]);
+        assert_eq!(running.instances, [1]);
+        assert_eq!(running.unsettled_children, 1);
+        assert!(running.children.get(&2).expect("living child").exit.is_none(), "the other child remains live");
+        assert_eq!(running.killed.first().expect("released child").host, 1);
+    }
+
+    #[test]
+    fn another_hosts_queued_cleanup_does_not_hold_a_settling_child() {
+        let mut running = children_after_descriptor_cleanup();
+        running.kill(1);
+        running.kill(2);
+        running.queue_cleanup(2, Op::Close { fd: Fd::new(-1) });
+        running.settle_children();
+        assert_eq!(running.killed.len(), 1);
+        assert_eq!(running.killed.first().expect("released child").host, 1);
+        assert_eq!(running.children.get(&1).expect("settled child").exit, Some(Exit::Signal(9)));
+        assert!(
+            running.children.get(&2).expect("pending child").exit.is_none(),
+            "its own cleanup holds the second child"
+        );
+        assert_eq!(running.processes.get(2).expect("cleanup owner").queued_cleanup, 1);
+        running.submit_cleanup();
+        let process = running.processes.get(2).expect("cleanup owner");
+        assert_eq!((process.queued_cleanup, process.cleanup), (0, 1));
+        running.settle_children();
+        assert_eq!(running.killed.len(), 1, "submitted cleanup still belongs to the second child");
+    }
+
+    #[test]
+    fn cancelling_and_killing_waiters_keep_the_other_hosts_local_token() {
+        let mut running = children_after_descriptor_cleanup();
+        let pidfd = Fd::new(41);
+        running.placeholders.insert(pidfd, 2);
+        running.children.get_mut(&2).expect("waited child").placeholder_open = true;
+        let local = Token::new(10);
+        for host in [0, 1] {
+            let record = running.ring.register(host, Submit { op: local, kind: Op::Wait { pidfd, reap: false } });
+            running.submit(record);
+        }
+        let cancel = Token::new(11);
+        let record = running.ring.register(0, Submit { op: cancel, kind: Op::Cancel { target: local } });
+        running.submit(record);
+        assert_eq!(running.waiting_children.len(), 1);
+        assert_eq!(running.children.get(&2).expect("waited child").waiters.len(), 1);
+        let mut returned = Queue::with_capacity(2);
+        running.ring.deliver(0, &mut returned);
+        let terminal = returned.pop().expect("cancelled wait");
+        assert_eq!(terminal.op, local);
+        assert_eq!(terminal.result, Err(Error::Cancelled));
+        let terminal = returned.pop().expect("cancel answer");
+        assert_eq!(terminal.op, cancel);
+        assert_eq!(terminal.kind, Op::Cancel { target: local });
+        assert_eq!(terminal.result, Ok(Done::Nothing));
+        assert!(!running.ring.has_ready(), "the other wait still waits on its child");
+        running.kill(1);
+        assert!(running.waiting_children.is_empty(), "kill removes the killed hosts waiter");
+        assert!(running.children.get(&2).expect("waited child").waiters.is_empty(), "both waits have terminals");
+        assert!(running.ring.has_ready(), "kill returns its cancelled wait before releasing the child");
+        running.ring.deliver(1, &mut returned);
+        let terminal = returned.pop().expect("killed hosts cancelled wait");
+        assert_eq!(terminal.op, local);
+        assert_eq!(terminal.result, Err(Error::Cancelled));
+        assert!(!running.ring.has_ready(), "every returned record has been delivered");
+        running.settle_children();
+        assert_eq!(running.killed.first().expect("released child").host, 1);
+        assert!(running.children.get(&2).expect("waited child").exit.is_none(), "cancelling its waits leaves it live");
+    }
 
     #[test]
     fn a_late_close_completion_does_not_erase_a_reused_descriptor() {
         let fd = Fd::new(42);
-        let mut process = Process { fds: [fd].into_iter().collect(), exit: None, cleanup: 0, cleaned: false };
+        let mut process =
+            Process { fds: [fd].into_iter().collect(), exit: None, cleanup: 0, queued_cleanup: 0, cleaned: false };
         process.submitted(&Op::Close { fd });
         process.completed(&Complete {
             op: Token::new(2),

@@ -28,6 +28,7 @@ pub struct Ring {
     pub(crate) bindings: BTreeMap<Token, Binding>,
     pub(crate) tokens: BTreeMap<(usize, Token), Token>,
     pub(crate) ready: Vec<VecDeque<Complete>>,
+    returned: usize,
     pub(crate) submits: Queue<Submit>,
     pub(crate) arrived: Queue<Complete>,
 }
@@ -53,6 +54,7 @@ impl Ring {
             counts: vec![0; limits.len()],
             ready: (0..limits.len()).map(|_| VecDeque::new()).collect(),
             limits,
+            returned: 0,
             bindings: BTreeMap::new(),
             tokens: BTreeMap::new(),
             submits: Queue::with_capacity(operations),
@@ -69,6 +71,7 @@ impl Ring {
     /// Queues a restored record until its owner has completion capacity.
     pub fn returned(&mut self, host: usize, complete: Complete) {
         self.ready.get_mut(host).expect("a queue per host").push_back(complete);
+        self.returned = self.returned.checked_add(1).expect("returned records fit the ring");
     }
 
     /// Queues an already registered operation for the next kernel entry.
@@ -94,6 +97,7 @@ impl Ring {
             let Some(complete) = self.ready.get_mut(host).expect("a queue per host").pop_front() else { break };
             let count = self.counts.get_mut(host).expect("a count per host");
             *count = count.checked_sub(1).expect("a returned operation was in flight");
+            self.returned = self.returned.checked_sub(1).expect("a delivered record was returned");
             out.push(complete);
         }
     }
@@ -157,7 +161,7 @@ impl Ring {
     /// Whether any host has a completion waiting for delivery.
     #[must_use]
     pub fn has_ready(&self) -> bool {
-        self.ready.iter().any(|ready| !ready.is_empty())
+        self.returned != 0
     }
 
     /// Whether the kernel and all hosts' returned queues are empty.
