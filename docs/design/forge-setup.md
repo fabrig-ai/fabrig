@@ -585,16 +585,22 @@ or the status it answers.
   account is the same plan again. Which repositories the installation
   takes is the person's choice on GitHub's page; ones granted later
   arrive as its repositories' change (forge-connection.md, section 4.4).
-- **`Accept { forge, installation, state }`** runs when GitHub's setup
+- **`Accept { forge, installation, state? }`** runs when GitHub's setup
   address brings the person back with the installation's id and the
-  state. The host checks the state as one of `Install`'s (5.7). The plan
+  state, or, with no state, when the owner accepts an installation that
+  exists already (made on GitHub before the service knew it) on its
+  person's own act, taken under that person's authority (temper's
+  tools, under the person's sign-in). A state binds a browser's return
+  to the install its person started; an act of the person's needs none.
+  The host checks a state as one of `Install`'s (5.7), and none
+  without one. The plan
   reads the App's id and key and the accepted set, reads the
   installation (`GET /app/installations/{id}`; a `404` stops it
   `Missing`), adds its id and writes the set. The owner then hands the
   set down (forge-connection.md, section 4.4).
 - **Only installations accepted this way are the service's.** Another
-  account may install a public App: such an installation is never used,
-  and reconcile uninstalls it (5.6).
+  account may install a public App: such an installation is never used
+  until it is accepted, and reconcile uninstalls it (5.6).
 
 ### 5.5 The hook, at no listener
 
@@ -801,7 +807,7 @@ end.
   `Reconcile { forge, adopted }`, `Adopt { forge, repository }`,
   `Create { forge, org, repository, files }` (4.9), `Check { forge }`, `TakeOver { forge, admin_token }`,
   `Manifest { forge, target }`, `Convert { forge, code, state }`,
-  `Install { forge }`, `Accept { forge, installation, state }`,
+  `Install { forge }`, `Accept { forge, installation, state? }`,
   `Reconcile { forge }` (GitHub's) or `Paste { forge, app }`, each of
   the forge's kind, or `Reachable { forge, installation, page }` (4.8,
   5.9). A forge has at most one writing run at once and one
