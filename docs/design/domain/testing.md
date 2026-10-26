@@ -2262,7 +2262,7 @@ and one smoke above:
 | the client and the engine, joined (6.3) | "Tell temper how you work" starting the configuring chat, whose run proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
 | the one-process world (2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
 | the real loop (2.4) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling (13 s before the user's increase of 10-24), from 9.5 s at its last measure (case 2’s M4) |
-| the process tier | temper ctl settings, setting, revision, revisions and change-settings, one named story each; reads in text and JSON, owner's change read back through its full new revision. | existing process profile, measured separately |
+| the process tier | temper ctl settings, setting, revision, revisions and change-settings, one named story each; reads in text and JSON, owner's change read back through its full new revision. Running work keeping its revision, and `move-to-newest` moving it, one story (`../client/tools.md`, 11.4). | existing process profile, measured separately |
 
 - **The tests that move:** every test document and typed builder that
   writes the six members (25 files of documents, 20 of builders, a
