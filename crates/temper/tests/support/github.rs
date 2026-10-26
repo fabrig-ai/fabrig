@@ -534,7 +534,9 @@ impl Referee<cluster::Root> for Judge {
             assert!(hosts.iter().all(Host::is_empty), "Must: no process or ctl client outlives the story");
             assert_eq!(
                 stopped.iter().map(|member| member.name.as_str()).collect::<Vec<_>>(),
-                ["w1", "engine", "w1", "engine", "llm", "forge"]
+                ["w1", "engine", "w1", "engine", "llm", "forge"],
+                "{}",
+                stopped_members_details(stopped)
             );
             for (index, member) in stopped.iter().enumerate() {
                 assert_eq!(
@@ -587,6 +589,63 @@ impl Referee<cluster::Root> for Judge {
         self.members.passed()
     }
 }
+fn stopped_members_details(stopped: &[cluster::Stopped]) -> String {
+    use std::fmt::Write as _;
+    const STDERR_TAIL_BYTES: usize = 2048;
+    let mut details = String::new();
+    for member in stopped {
+        let stderr = String::from_utf8_lossy(&member.stderr);
+        let mut start = stderr.len().saturating_sub(STDERR_TAIL_BYTES);
+        while !stderr.is_char_boundary(start) {
+            start += 1;
+        }
+        writeln!(details, "{} exit={:?}\nstderr tail:\n{}", member.name, member.exit, &stderr[start..])
+            .expect("member diagnostic");
+    }
+    details
+}
+
+#[test]
+fn stopped_members_details_include_exits_and_bounded_stderr() {
+    let stderr = [b"discard old output\n".as_slice(), "é".repeat(2048).as_bytes(), b"listener bind failed\n"].concat();
+    let stopped = [
+        cluster::Stopped {
+            name: "engine".into(),
+            life: 0,
+            ending: cluster::Ending::Cluster,
+            exit: Some(Exit::Code(1)),
+            killed: false,
+            survivors: Vec::new(),
+            stdout: Vec::new(),
+            stderr,
+        },
+        cluster::Stopped {
+            name: "forge".into(),
+            life: 0,
+            ending: cluster::Ending::Cluster,
+            exit: Some(Exit::Code(0)),
+            killed: false,
+            survivors: Vec::new(),
+            stdout: Vec::new(),
+            stderr: vec![0xff],
+        },
+    ];
+    let details = stopped_members_details(&stopped);
+    assert!(details.contains("engine exit=Some(Code(1))"));
+    assert!(details.contains("forge exit=Some(Code(0))"));
+    assert!(!details.contains("discard old output"));
+    let tail = details
+        .split_once("stderr tail:\n")
+        .expect("engine stderr")
+        .1
+        .split_once("\nforge exit=")
+        .expect("next member")
+        .0;
+    assert!(tail.len() <= 2048, "stderr tail is bounded in UTF-8 bytes");
+    assert!(tail.ends_with("listener bind failed\n"));
+    assert!(details.ends_with("stderr tail:\n�\n"), "invalid stderr bytes remain printable");
+}
+
 /// The live observations prefix through its last complete checkpoint (protocol/setup.md, 8.4).
 fn certified_prefix(bytes: &[u8]) -> &[u8] {
     let mut end = bytes.len();
