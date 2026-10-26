@@ -1,4 +1,4 @@
-use super::{Glue, Inputs, Refusal, bundle};
+use super::{Glue, Inputs, Refusal, STYLESHEET, bundle};
 use skein_scratch::Scratch;
 use std::collections::BTreeMap;
 use std::fs;
@@ -154,10 +154,7 @@ fn skein_ui_css_comes_first_in_the_page() {
     let digest = bundle(&inputs, &glue(), &out).expect("bundle");
     let page = fs::read_to_string(out.join("index.html")).expect("page");
     assert!(page.find("/skein-ui.css").expect("kit stylesheet") < page.find("/a.css").expect("owner stylesheet"));
-    assert_eq!(
-        fs::read(out.join(digest.to_string()).join("skein-ui.css")).expect("stylesheet"),
-        include_bytes!("../skein-ui.css")
-    );
+    assert_eq!(fs::read(out.join(digest.to_string()).join("skein-ui.css")).expect("stylesheet"), STYLESHEET);
 }
 
 #[test]

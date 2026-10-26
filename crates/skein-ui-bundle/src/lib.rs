@@ -13,6 +13,10 @@ mod page;
 pub mod types;
 pub use digest::Digest;
 
+/// The kit's stylesheet, `skein-ui.css`, which every bundle holds first and a
+/// program printing pages beside it without a bundle copies (ui-web.md, 12).
+pub const STYLESHEET: &[u8] = include_bytes!("../skein-ui.css");
+
 /// What the application gives the bundler.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Inputs {
@@ -54,7 +58,7 @@ fn io<T>(path: &Path, result: std::io::Result<T>) -> Result<T, Refusal> {
 pub fn bundle(inputs: &Inputs, glue: &Glue, out: &Path) -> Result<Digest, Refusal> {
     let mut files = BTreeMap::new();
     files.insert("boot.js".into(), page::starter(&inputs.name));
-    files.insert("skein-ui.css".into(), include_bytes!("../skein-ui.css").to_vec());
+    files.insert("skein-ui.css".into(), STYLESHEET.to_vec());
     insert(&mut files, format!("{}.js", inputs.name), glue.js.clone(), Path::new(&inputs.name))?;
     insert(&mut files, format!("{}_bg.wasm", inputs.name), glue.wasm.clone(), Path::new(&inputs.name))?;
     for (path, bytes) in &glue.snippets {
