@@ -948,6 +948,8 @@ mod memory_figures;
 // B6c (domain/root.md, 9.1) retains 32-byte reference facts through reconciliation;
 // forge::reconcile::capacity charges each family's references. Its inline verdict
 // and retained demo record also flow into the root and Service layouts.
+// The rebased small profile retains 32 applications rather than four: each
+// adds one 32-byte Application reference (28 * 32 = 896 root heap bytes).
 fn memory_figure(
     name: &str,
     terms: &temper_service::startup::MemoryTerms,
