@@ -363,10 +363,11 @@ python3 -m http.server 8766
   a submit's field and a toggle's box, each with its attributes.
 - **`again`'s walk, natively,** in the journey module's tests and the
   host's world, with no browser: a recording's walk read as its steps
-  (a run of typing one step, a drawing refused); a save replayed to its
-  end finding the control of a step's event by its role, name and
-  order; a still page told from a moving one by two saves; and the
-  check refusing a new walk whose events or key marks differ.
+  (each typed act one, a drawing and a moving key mark refused); a save
+  replayed to its end finding the control of a step's event by its
+  role, name and order; a still page told from a moving one by two
+  saves, an exchange or a write in flight among them; and the check
+  refusing a new walk whose acts, values, events or key marks differ.
 - **`again`'s browser half has no story of its own,** as the recorder's
   keys have none: its first run, a journey recorded again, proves it,
   and skein's browser tier proves the kit's letter with Alt and its
@@ -449,14 +450,20 @@ reprint carries, since its acts are events, not controls.
 ### 8.1 Again
 
 `cargo run -p temper-client-journeys -- again NAME`, in
-`tools/journeys`, its walk's logic in the journey module beside the
-recorder and the replay, natively:
+`tools/journeys`. Its walk's logic is the journey module's, beside the
+recorder and the replay, natively and without io: it takes each save's
+bytes and answers what to do next. The program reads the saves from the
+person's downloads and drives the box and the browser, as ordinary Rust
+over skein's harness.
 
 - **The walk** is the journey's recording read as its steps, in order:
-  each act with its value and event, each key's mark, and the end. A run
-  of `input` acts on one control is one step, the run's last value and
-  event. A `drawing` act is no person's to give: such a journey is
-  refused, and walked anew.
+  each act, with its value and event, each key's mark, and the end. Each
+  act is a step, an `input` among them (typing is given an act at a
+  time, so that the new walk asks what the old one asked after each). A
+  `drawing` act is no person's to give, and a key's mark that caught the
+  page moving (a report other than a due within half a second after it)
+  is no state a still page shows: such a journey is refused before
+  anything starts, and walked anew.
 - **A fresh fake box** (3.5): `temper box --fake-backends`, built from
   the checkout with the recording bundle (`scripts/bundle.sh --loopback
   --record`), every directory fresh in a scratch directory of its own;
@@ -468,24 +475,29 @@ recorder and the replay, natively:
   directory.
 - **Each step once the page is still.** A save (Alt+Shift+S) is the walk
   so far, a whole recording. The page is still when a save half a second
-  after another holds no report the other lacks and no exchange asked
-  but not heard. Then:
+  after another holds no report the other lacks but dues, no exchange
+  asked but not heard, and no write asked but not carried. A page not
+  still within 30 seconds stops `again`, naming the step. Then:
   - **an act:** the still save is replayed natively to its end
     (section 4); the first node of which the view makes the step's event
-    names its control by its role, its accessible name and its order
-    among the page's controls with both, and the face finds that control
-    on the live page and acts on it as a person: a press, a submit, a
-    toggle, or the field's value selected and the step's value typed;
+    names its control by its role, its accessible name and its order,
+    from 0, among the page's controls with both, and the face finds that
+    control on the live page (the fake person's n-th match, skein's
+    `ui.md` 17.1) and acts on it as a person: a press, a submit, a
+    toggle, or the field's value selected and the act's value typed;
   - **a key's mark:** Alt+Shift+M;
   - **the end:** the still save is the new recording.
 
-  A step whose event no control gives within 10 seconds of the page
-  being still stops `again`: its acts no longer hold.
+  A step whose event no control gives, in a still save, within 10
+  seconds stops `again`: its acts no longer hold.
 - **The check, then `add`:** the new recording's walk is the old one's,
-  the same events in order and the key marks in their places, or
-  `again` refuses, naming the first step that differs, and the journey
-  is walked anew. Then `add NAME FILE`, its first replay proving it
-  (4.3), its README left as it was.
+  the same acts with their values and events in order and the key marks
+  in their places, or `again` refuses, naming the first step that
+  differs, and the journey is walked anew. The page may change between
+  a still save and the act given; an act that then lands on a control
+  making another event fails the check, and one that makes the same
+  event is the same act. Then `add NAME FILE`, its first replay proving
+  it (4.3), its README left as it was.
 - **What it reads and starts:** the environment's Chromium, the clock
   and the loopback network; the box and Chromium, both stopped at its
   end, its scratch directory removed unless it failed, which it then
