@@ -715,32 +715,43 @@ change, never in the gate.
 
 - **`lab/configuring-golden/`,** on rung 0b's ground
   (`lab/live-0b/README.md`): the box, the held ChatGPT record moved in
-  and out again, no driver. Its spend is the configuring chat's turns,
-  which the meter reads; its class is 0b's, its budgets raised only as
-  0b's rule for a charter's two largest turns asks.
-- **Its inputs, frozen:** `owners.md` and `director.md` as
-  `temper-on-temper.md` read them, copied from agents' `roles/` at the
-  commit that draft names, never today's (the roles changed on 10-26);
-  and `golden.json`, section 4's encoding as a settings file
-  (`client/tools.md`, 5.3), each setting carrying in a `why` member the
-  sentence of section 4 it encodes, with `gaps.json` naming each part of
-  section 4 that 6.8 leaves out and why.
+  and out again, no driver. A paid run, authorized as 0b's are (10.2).
+  Its class is its own, `temper-configuring-golden`, whose spend
+  ceiling the user sets before its first paid run: the configuring
+  chat's budget follows 0b's rule for a charter's two largest turns,
+  which sizes temper's charter, never the class's ceiling.
+- **Its inputs, frozen:** `owners.md` and `director.md` copied from
+  agents' `roles/` at commit `c89abcf90027d24dd24ac745bf1518703c702025`
+  (10-24, the last before both drafts' commit that set this test), never
+  today's, since the roles changed on 10-26; `golden.json`, section 4's
+  encoding in a settings file's own form (`client/tools.md`, 5.3), each
+  charter and template named as section 4 names its role; `why.json`,
+  for each of its settings the sentence of section 4 it encodes; and
+  `gaps.json`, each part of section 4 that 6.8 leaves out, and why.
 - **The seed:** the account imported and usable, as 0b's; then
   `ctl chat --project hello --template 3` with the two documents and
   "Propose how temper should run this. Ask nothing: say what you
-  assumed." It waits for the chat's proposal, at most the class's story
-  deadline, and keeps `ctl proposal … --json` and the chat's turns.
-- **The checks:** `proposal`, that one proposal of settings was made,
-  against the newest revision, and that it decodes as settings; and
-  `score`, a report and never a failure: for each setting of
-  `golden.json`, whether the proposal has one of its kind whose
-  structure matches (models by provider and effort, hosts, waiting,
-  resume, tool families, delegation, deadline, budget, a landing rule's
-  criteria), and for each rule section 4 keeps as text, whether the
-  proposal's reason lists it under "your agents follow" with its
-  source. The score is the matched share, with each miss and each
-  extra named, kept with the run so that two runs of different
-  instructions compare.
+  assumed." It waits at most 600 s for the chat's proposal, and the
+  collection keeps `ctl proposal … --json`, the chat's turns and
+  `ctl settings --json` before it.
+- **The checks:**
+  - `proposal`, a failure when the evidence is missing or unreadable:
+    one proposal of settings, against the revision `settings` showed,
+    decoding as settings;
+  - `score`, a report and never a failure, written to the run's
+    `checks/score.json`: the run's key, the subject, the digests of
+    `golden.json` and `gaps.json`, the revision, and for each golden
+    setting its pair in the proposal (a charter or a template by its
+    name, case folded, and, unnamed, by the template that starts it),
+    each of its fields compared (models as a set of provider and
+    effort; hosts as a set; waiting and budget within a factor of 2;
+    resume; tool families as a set; delegation as the set of role names
+    it may delegate to; a deadline's presence; a landing rule's
+    criteria), and for each rule section 4 keeps as text, whether the
+    proposal's reason lists it under "your agents follow" with its
+    source document. The share is the fields and rules matched over
+    those compared; each miss and each extra setting is named, so that
+    two runs of different instructions compare.
 - **Run by whoever changes** charter 3's instructions or the
   documentation, before landing it, on the machine that holds the lab's
-  ChatGPT record; its score goes in the landing's report.
+  ChatGPT record; its share goes in the landing's report.
