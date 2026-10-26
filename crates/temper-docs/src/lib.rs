@@ -47,7 +47,7 @@ pub struct Topic {
 
 /// Walks, concepts, recipes, limits; each kind by name.
 #[expect(clippy::disallowed_macros, reason = "topics compile their single Markdown source as static data")]
-pub static TOPICS: [Topic; 6] = [
+pub static TOPICS: [Topic; 8] = [
     Topic {
         name: "box",
         kind: Kind::Walk,
@@ -82,6 +82,20 @@ pub static TOPICS: [Topic; 6] = [
         title: "Budgets",
         summary: "How temper counts what work spends, where a task's budget comes from, what happens when it runs out, and what you can do then.",
         text: include_str!("../../../docs/guide/budgets.md"),
+    },
+    Topic {
+        name: "charters",
+        kind: Kind::Concept,
+        title: "Charters, templates and policies",
+        summary: "What decides how temper's agents work: a charter for each run, a template for each new task, and the policies and rules that bound what work may do.",
+        text: include_str!("../../../docs/guide/charters.md"),
+    },
+    Topic {
+        name: "settings",
+        kind: Kind::Concept,
+        title: "Settings, revisions and proposals",
+        summary: "How you read and change temper's settings with temper ctl, what a revision is, how a proposal asks the deployment's owners, and what still needs a restart.",
+        text: include_str!("../../../docs/guide/settings.md"),
     },
     Topic {
         name: "tasks",
