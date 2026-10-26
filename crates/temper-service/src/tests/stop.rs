@@ -298,3 +298,32 @@ fn an_unknown_flight_key_is_named_in_lowercase_hex() {
     let expected = refusal_words(&why) + "temper serve: forge write key 0x0015ff" + FLIGHT_REMEDY;
     assert_eq!(crate::refused_start(&why, b"state"), (expected.into_bytes().into_boxed_slice(), 1));
 }
+
+#[test]
+fn unresolved_forge_records_keep_the_named_start_failure() {
+    use temper_engine_domain::{Record, Write};
+    use temper_engine_domain_forge::Stored;
+    const ABSENT_TASK: u64 = 999;
+    // Same completed-restart horizon as the service's startup stories.
+    const PASSES: u32 = 256;
+    let mut previous = fixtures::ready().engine.expect("running engine");
+    fixtures::commit(
+        &mut previous.store,
+        1,
+        Box::new([Write::Save(Record::Forge {
+            row: Box::new(Stored::Names { task: ABSENT_TASK, resources: Box::new([]) }),
+        })]),
+    );
+    drop(previous.store.above.pop().expect("fixture commit answer"));
+    let mut service = fixtures::restarting_from(previous);
+    for _ in 0..PASSES {
+        fixtures::turn(&mut service);
+        if service.end().is_some() {
+            break;
+        }
+    }
+    assert_eq!(service.end(), Some(&End::Stopped(Stop::ForgeUnresolved { records: 1 })));
+    let engine = service.engine.as_ref().expect("refused engine");
+    assert!(!engine.store.component.mark_durable(), "no start mark on refusal");
+    assert!(!engine.domain.connectors_restored(), "no adoption on refusal");
+}

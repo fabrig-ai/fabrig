@@ -945,6 +945,9 @@ mod memory_figures;
 // Flight (domain/forge.md, 6) adds a Map<(task, entry), ()>: 576 heap bytes
 // at eight entries, inherited by engine, system payloads and store envelopes.
 // Its 32-byte map header also grows inline Service, including worker-alone system.
+// B6c (domain/root.md, 9.1) retains 32-byte reference facts through reconciliation;
+// forge::reconcile::capacity charges each family's references. Its inline verdict
+// and retained demo record also flow into the root and Service layouts.
 fn memory_figure(
     name: &str,
     terms: &temper_service::startup::MemoryTerms,

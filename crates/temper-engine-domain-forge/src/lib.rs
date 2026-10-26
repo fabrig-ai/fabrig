@@ -30,6 +30,8 @@ mod judge;
 mod limits;
 mod panel;
 pub mod purpose;
+mod reconcile;
+pub use reconcile::{RecordKind, Unresolved};
 pub mod resources;
 mod settle;
 #[cfg(test)]

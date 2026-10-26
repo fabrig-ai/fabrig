@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 jig-domain-core.workspace = true
+jig-domain-tasks.workspace = true
 skein-forge.workspace = true
 skein-forge-client.workspace = true
 skein-lib.workspace = true

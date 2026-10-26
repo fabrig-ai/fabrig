@@ -289,7 +289,7 @@ pub(crate) fn startup_page(
     }
     let request = if range == Range::Forge {
         // The connector confirms that its restored rows have been reconciled.
-        domain.work.push(Work::Forge(forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Wall }));
+        domain.work.push(Work::ForgeRestored);
         jig_domain_core::RestartRequest::Idle
     } else {
         domain.core.restart_done(jig_domain_core::RestartStep::LoadCore)

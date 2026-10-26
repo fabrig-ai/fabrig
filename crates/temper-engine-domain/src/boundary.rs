@@ -685,6 +685,7 @@ pub(crate) enum Work {
     Brief(brief::GatherEvent),
     StartBrief { task: u64 },
     Forge(forge::Event),
+    ForgeRestored,
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
     Activate(Box<tasks::RunContext>),

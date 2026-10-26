@@ -390,6 +390,15 @@ impl Domain {
         })
     }
 
+    /// The forge's independent reference verdict at its restore terminal.
+    #[must_use]
+    pub const fn forge_restore_failure(&self) -> Option<forge::Unresolved> {
+        match self.forge.reconciliation() {
+            Ok(()) => None,
+            Err(why) => Some(why),
+        }
+    }
+
     /// A restore refusal retains its named settings value, project or child for startup diagnostics.
     #[must_use]
     pub fn restore_failure(&self) -> Option<jig_domain_core::RestartRequest> {

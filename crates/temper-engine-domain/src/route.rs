@@ -264,7 +264,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         };
         match work {
             Work::SwitchChecked => {
-                if domain.core.restart_checked() {
+                if domain.core.restart_checked() && domain.forge.reconciliation().is_ok() {
                     emit(decision, &env.limits, Delivery::Restart(core::RestartStep::Switch));
                 } else {
                     domain.stop_pending = true;
@@ -306,20 +306,16 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, routed);
             }
             Work::StartBrief { task } => domain.work.push(Work::Core(core::Event::StartBrief { task })),
-            Work::Forge(event) => {
-                if let forge::Event::Connection { forge, state: forge::Connection::SetUpFailed { why } } = &event {
-                    demo::connection(domain, *forge, why);
-                }
-                if event == forge::Event::BoxClosed
-                    && let Some(config) = domain.forge.demo()
-                {
-                    demo::connection(domain, config.adoption.forge, b"the box closed the pipe");
-                }
-                let mut out = Queue::with_capacity(forge::max_out(&env.limits.forge));
-                forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
-                forge_route::outputs(domain, env, decision, &mut out);
-                demo::progress(domain, env, decision);
+            Work::ForgeRestored => {
+                domain.forge.reconcile(&domain.core.tasks);
+                forge_event(
+                    domain,
+                    env,
+                    decision,
+                    forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
+                );
             }
+            Work::Forge(event) => forge_event(domain, env, decision, event),
             Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal),
             Work::GoalSubscribe(subscriber) => forge_route::goal_subscribed(domain, env, subscriber),
             Work::Activate(context) => {
@@ -514,4 +510,19 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
             Write::Save(Record::Forge { row: Box::new(forge::Stored::Call { key: named_call(key), answer }) }),
         );
     }
+}
+
+fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, event: forge::Event) {
+    if let forge::Event::Connection { forge, state: forge::Connection::SetUpFailed { why } } = &event {
+        demo::connection(domain, *forge, why);
+    }
+    if event == forge::Event::BoxClosed
+        && let Some(config) = domain.forge.demo()
+    {
+        demo::connection(domain, config.adoption.forge, b"the box closed the pipe");
+    }
+    let mut out = Queue::with_capacity(forge::max_out(&env.limits.forge));
+    forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
+    forge_route::outputs(domain, env, decision, &mut out);
+    demo::progress(domain, env, decision);
 }

@@ -122,6 +122,12 @@ pub(crate) fn hooks(engine: &mut Engine) {
 /// Preserve jig's named settings failure in the ordinary startup diagnostics.
 pub(crate) fn root(engine: &mut Engine) {
     use jig_domain_core::RestartRequest;
+    if engine.domain.restore_failure().is_none()
+        && let Some(why) = engine.domain.forge_restore_failure()
+    {
+        engine.end = Some(End::Stopped(Stop::ForgeUnresolved { records: why.records }));
+        return;
+    }
     let problems = match engine.domain.restore_failure() {
         Some(RestartRequest::Settings { failure, changed }) => settings_problem(failure, changed),
         Some(RestartRequest::Unresolved { child, records }) => {

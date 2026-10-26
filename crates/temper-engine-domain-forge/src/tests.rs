@@ -8,6 +8,7 @@ mod fixtures;
 mod flight;
 mod panel;
 mod purpose;
+mod reconcile;
 mod stopping;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};

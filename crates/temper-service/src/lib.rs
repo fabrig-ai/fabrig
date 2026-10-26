@@ -68,6 +68,10 @@ pub enum Stop {
         child: jig_domain_core::RestoreChild,
         records: u32,
     },
+    /// The forge refused restored records before the store switch.
+    ForgeUnresolved {
+        records: u32,
+    },
     /// The store refuses this start (jig's protocol/store.md, 5.3 and 10).
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,

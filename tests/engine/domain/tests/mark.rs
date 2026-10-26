@@ -1,24 +1,36 @@
 //! Restored forge work follows the root's durable start mark.
 use skein_forge_client::{Condition, Effect, Entry};
-use skein_lib::{Duration, Time, Wall};
+use skein_lib::{Duration, ReplyTo, Time, Token, Wall};
 use temper_engine_domain::{self as engine, Record, Write};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, fixtures, forge_stand::ForgeStand, walking};
 
 // The direct world's existing restart horizon.
 const PASSES: u32 = 256;
-const TASK: u64 = 51; // The shared change fixture's task.
 const ENTRY: u64 = 1; // One restored outbox entry.
 const SEED: u64 = 71; // The direct forge fixture's deployment.
 
 #[test]
 fn the_forge_reaches_no_forge_before_the_mark() {
     let limits = fixtures::forge_limits();
-    let mut store = fixtures::restored_store(walking::config(SEED), &limits);
+    // The outbox needs a live owner and an adopted repository at reconciliation.
+    let (mut running, owner) = Driver::configured_chat([walking::config(SEED), walking::config(SEED)], &limits);
+    running.forge = Some(ForgeStand::new());
+    running.send(engine::Event::Party(engine::PartyInput::Application {
+        scope: jig_domain_people::ApplicationScope::Project(1),
+        reply_to: ReplyTo::new(Token::new(95)),
+        sign_in: running.session(),
+        key: [95; 16],
+        digest: [5; 32],
+        carried: None,
+        request: engine::Application::Forge(forge::Ask::Adopt(fixtures::adoption(1))),
+    }));
+    running.settle();
+    let mut store = running.store;
     let change = temper_engine_forge_world::changes::change_row();
     let entry = Entry {
         number: ENTRY,
-        task: TASK,
+        task: owner.task,
         repository: temper_engine_forge_world::REPO,
         effect: Effect {
             write: skein_forge::api::Write::CreateIssue {

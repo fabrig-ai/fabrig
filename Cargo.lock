@@ -2693,6 +2693,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-core",
  "jig-domain-people",
+ "jig-domain-tasks",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",

@@ -107,7 +107,9 @@ pub fn worst_case(l: &Limits) -> Option<u64> {
     let criteria = u64::from(l.judge_criteria).checked_mul(u64::try_from(size_of::<Criterion>()).ok()?)?;
     let judges = Map::<u32, Box<[Criterion]>>::worst_case(l.judge_projects)?
         .checked_add(criteria.checked_mul(u64::from(l.judge_projects).checked_add(1)?)?)?;
-    Map::<Box<[u8]>, Box<[u8]>>::worst_case(l.bindings)?
+    // Restart retains row references until reconciliation.
+    skein_lib::List::<crate::reconcile::Reference>::worst_case(crate::reconcile::capacity(l)?)?
+        .checked_add(Map::<Box<[u8]>, Box<[u8]>>::worst_case(l.bindings)?)?
         .checked_add(u64::from(l.bindings).checked_mul(254 + 255)?)?
         .checked_add(crate::adoption::worst_case(l)?)?
         .checked_add(retirement_scratch(l)?)?

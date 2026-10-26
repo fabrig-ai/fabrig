@@ -87,7 +87,7 @@ struct StepInput {
 /// (domain/forge.md, 6; jig's `domain/connectors.md`, 4.3).
 #[derive(Debug)]
 pub(crate) struct Outboxed {
-    entry: skein_forge_client::Entry,
+    pub(crate) entry: skein_forge_client::Entry,
     held: bool,
     handoff: Handoff,
 }
@@ -141,7 +141,7 @@ pub struct Domain {
     /// Each pull's last mergeable, unsaved: a restart reads it afresh.
     pull_mergeable: Map<Name, bool>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
-    entries: Map<u64, Outboxed>,
+    pub(crate) entries: Map<u64, Outboxed>,
     flights: Map<(u64, u64), ()>,
     named_calls: Map<crate::NamedCall, crate::CallPayload>,
     proposed_effects: Map<u64, crate::ProposedEffect>,
@@ -167,6 +167,8 @@ pub struct Domain {
     stopping: bool,
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 9.1).
     restore_phase: RestorePhase,
+    pub(crate) reconciliation: crate::reconcile::Reconciliation,
+    restored_demo: Option<crate::Demo>,
     client: skein_forge_client::Domain,
     client_out: Queue<skein_forge_client::Request>,
     pub(crate) brief_fetches: Map<Token, brief::BriefFetch>,
@@ -590,6 +592,8 @@ impl Domain {
             identities: credentials,
             stopping: false,
             restore_phase: RestorePhase::Cold,
+            reconciliation: crate::reconcile::Reconciliation::new(l),
+            restored_demo: None,
             client: skein_forge_client::Domain::configured(&l.client, seed, config)?,
             client_out: Queue::with_capacity(skein_forge_client::max_out(&l.client)),
             brief_fetches: Map::with_capacity(l.brief_sections),
@@ -4315,6 +4319,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
     if d.restore_phase != RestorePhase::Active {
         d.restore_phase = RestorePhase::Restoring;
     }
+    if d.restore_phase == RestorePhase::Restoring {
+        d.reconciliation.restore(&record);
+    }
     match record {
         Stored::Application { token, until, outcome } => d.application.restore(token, until, outcome),
         Stored::Call { key, answer } => {
@@ -4367,6 +4374,10 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.demo_acts.insert(row.key, row.act).expect("restored demo acts within limits");
         }
         Stored::Demo(row) => {
+            if d.restore_phase == RestorePhase::Restoring {
+                assert!(d.restored_demo.is_none(), "one restored demo row");
+                d.restored_demo = Some(row);
+            }
             if let Some(demo) = &d.demo
                 && row.forge == demo.adoption.forge
             {

@@ -135,6 +135,9 @@ fn ending(
                 };
                 format!("temper serve: {name}: unresolved records: {records}\n")
             }
+            Stop::ForgeUnresolved { records } => {
+                format!("temper serve: the forge: unresolved records: {records}\n")
+            }
             Stop::StoreOpen { why } => {
                 let deployment = crate::path(store);
                 let (lines, exit) = temper_service::refused_start(why, deployment.display().to_string().as_bytes());
@@ -379,6 +382,12 @@ fn other_endings_keep_their_exit_behavior() {
             Some(End::Stopped(Stop::Unresolved { child: jig_domain_core::RestoreChild::Tasks, records: 3 })),
             false,
             "temper serve: tasks: unresolved records: 3\n",
+            1,
+        ),
+        (
+            Some(End::Stopped(Stop::ForgeUnresolved { records: 3 })),
+            false,
+            "temper serve: the forge: unresolved records: 3\n",
             1,
         ),
         (Some(End::Stopped(Stop::CommitFailed { number: 7 })), false, "temper serve: commit 7 failed\n", 1),
