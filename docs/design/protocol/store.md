@@ -1,6 +1,6 @@
 # temper's store
 
-Provisional, 2026-10-05, revised 2026-10-23. What temper keeps in jig's
+Provisional, 2026-10-05, revised 2026-10-26. What temper keeps in jig's
 store, and how: its families, the forge's records, under the
 application's tag; their keys, their records and temper's store
 version; and the restart's ranges. The store itself is jig's
@@ -88,6 +88,7 @@ section 7).
 | 18 | `Binding` | `Binding(address)`: a member's address, ASCII letters folded to lower case | the Google subject that first signed in with that member's address, `{ address, subject }`, the subject at most 255 bytes (`sign-in.md`, section 5). Written by the first sign-in alone, never erased. A family of the forge connector's though it is people's, as `Demo` is: `Stored` holds every family of temper's, restored in the one restart step and written in the root's decisions, so it takes no range of its own | `bindings`, the configured members |
 | 19 | `DemoAct` | `DemoAct([u8; 16])`: the act's key, in the forge connector's own key space (jig's `domain/people.md`, 5.3) | an act the demo's end asks in the deployment's name and has not heard answered: a chat's close, its project and task, or the demo model's account's removal, its account (setup.md, 8.4). Written in the end's decision, erased on the act's saved answer, sent again at each start | `tasks`, plus one |
 | 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2 or 3), 0 or a project's number, the setting's number, and the slot, `Default`, `Change` or `Proposal { proposer, number }` | a value of temper's kinds (configuration.md, 13.2): a `LandingRule`, or the forge's charter's number; the stock default the binary last gave, the current change, a removal being a change with no value, or a pending proposal's item. Written in jig's decisions as jig's `domain/engine.md`, 17.5 says: a default in the release's revision when the stock differs, a change at its commit, a proposal's item at its making; erased with the change a reset undoes, and with the proposal's end | the forge's `landing_rules` per scope, times the scopes and the slots, plus the pending proposals of settings' items |
+| 21 | `Flight` | `Flight { task, entry }`: the entry's task, then its number | a write the forge sent and has not settled for good: saved in the commit that records an entry's attempt, beside the `Entry` row; kept through an uncertain outcome, a retry, a merge queued on the forge's queue and the restart's settlement; erased in the commit that settles the entry for good (made, failed for good, withdrawn, not made) or holds it for a person, and saved again before a held entry is made again. So after a stop that settled none is left (jig's `protocol/store.md`, 10.3, "Effects in flight"; `../domain/root.md`, 9.2). Its record is its key's fields, `{ task, entry }`, as every row holds its key's (section 3), so a start that refuses to patch over it names each write from its key alone | `entries` |
 
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads them: the engine serves none of the forge's

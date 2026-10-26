@@ -1,6 +1,6 @@
 # The forge connector
 
-Provisional, 2026-10-04, revised 2026-10-23. How temper drives a forge,
+Provisional, 2026-10-04, revised 2026-10-26. How temper drives a forge,
 Forgejo or GitHub: the forge as a connector on jig's contract (jig's
 `domain/connectors.md`), with its resources, effects, topics, procedures,
 requirements and reads; a forge connected or not; adopting repositories,
@@ -687,6 +687,18 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 
 - **Each row is a kind of its own** (jig's `domain/connectors.md`,
   3.1): a policy that grants writing issues grants each kind it means.
+- **A write in flight is a row of its own,** `Flight { task, entry }`
+  (`../protocol/store.md`, section 2): saved in the decision that
+  commits an entry's attempt; kept while the write is unresolved, an
+  uncertain outcome, a retry, a merge in the forge's queue (9.1) or the
+  restart's settlement (section 16); erased in the decision that
+  settles the entry for good or holds it for a person, and saved again
+  before a held entry is made again. So the store shows which writes a
+  stop left unsettled without decoding an entry. temper's patch set
+  names its range (jig's `protocol/store.md`, 10.3). temper keeps one
+  schema family for all its records, so any patch of temper's refuses
+  while one is there, whichever record it changes: a crash or a stop
+  past its bound is rare, and the remedy is one more settled stop.
 - **Classes follow what the forges offer** (skein's `forge-client.md`,
   section 7.3; the facts, skein's `forge.md`, section 9, and
   `forge-github.md`, section 13). Neither Forgejo nor GitHub keeps a

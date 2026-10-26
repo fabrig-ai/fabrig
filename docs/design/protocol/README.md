@@ -1,6 +1,6 @@
 # The protocol layer
 
-Provisional, 2026-10-03, revised 2026-10-22. temper's protocol layer:
+Provisional, 2026-10-03, revised 2026-10-26. temper's protocol layer:
 how temper composes jig's protocol layer with components of its own (its
 forge's, its checkout's, its client's) into the processes of one binary.
 jig owns the layer's shape (jig's `protocol/README.md`) and the services'
@@ -207,6 +207,12 @@ default; the document is `temper.json` in the configuration directory
     left without its outcome is printed as the drained engine ends, one
     line each, and the exit is still 0:
     `temper serve: stopped before task {task}'s forge write {entry} settled; the next start settles it`.
+  - A start refused because its patches would reshape a write in flight
+    (jig's `protocol/store.md`, 10.3, `InFlight`) prints jig's words,
+    then a line for each write its keys name, from temper's `Flight`
+    key, at most 64, then how many more, and exits 1:
+    `temper serve: task {task}'s forge write {entry} is still in flight; start the build before this one and stop it to settle it`;
+    `temper serve: and {n} more forge writes in flight`.
 - **`temper init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
   configuration directory holds a document (setup.md, 8.2).
