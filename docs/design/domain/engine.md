@@ -1845,7 +1845,8 @@ section 17; the records are `../protocol/store.md`, 4.4.
   step, a recurring task, an accepted proposal), whatever revision its
   parent runs under. It keeps it, live and ended, until it moves
   (17.4). A delegation to a charter the newest does not offer is refused
-  as not offered, as any create naming one is, and the agent adapts. A
+  as not offered, as any create naming one is, before its authority is
+  checked, so the run reads the true cause, and the agent adapts. A
   procedure's or a person's task reads nothing of a charter: its
   revision is its history alone, and it holds none.
 - **A run records the revision it is prepared under:** its task's, as
