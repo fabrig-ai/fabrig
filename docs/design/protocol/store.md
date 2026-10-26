@@ -1813,6 +1813,49 @@ partial one removed, or the new.
   read leaves every file as it was, and the next read patches the same
   frame the same way.
 
+### 10.5 Rehearsing and going back
+
+Two operations the application's tools run with the engine stopped
+(temper's `draft/upgrades.md`, 3.1 and 3.2), each taking the
+deployment's lock as a start does (10.1, step 1).
+
+- **A rehearsal** is a start that never switches. Over a copy of a
+  stopped deployment's directory, such as a backup, the application's
+  binary opens the store as any start does (10.1 and 10.2), with its
+  patch sets, so the plan, the copy, the patches, the check and the
+  restores run over `A + 1` (10.2, step 7); then, where the root would
+  ask for the switch, the rehearsing root does not, and the process
+  ends. Before the switch nothing leaves the process (10.2, step 7), so
+  a rehearsal makes no effect, serves no secret and adopts no run; it
+  writes `A + 1`, which is the scratch, and cuts the copy's transcripts
+  to `A`'s lengths as any start would, and nothing else. It answers what
+  a start would: the patches with their counts and times
+  (`Event::Patched`), the refusal a start would meet, or `pending` with
+  the restores whole; and the wires `A`'s last start spoke (5.3), with
+  whether a pending patch is marked fresh (10.3), from which the
+  application says whether its workers may stay. The next start of any
+  build over that directory removes `A + 1` as a stray (10.1, step 5).
+- **Going back** (`Store::back`, over the deployment's directory): once
+  a patched generation is active, its previous one, `A`, stays on disk
+  (section 2), and `active` may name it again until `A + 1`'s first
+  commit of its own, the first past the position its manifest names
+  (10.2, steps 6 and 8). It takes the lock, reads `active` and `A + 1`'s
+  manifest, opens `A + 1`'s store as 10.1 opens one (skein-kv's recovery
+  alone writes), and compares its last commit with the manifest's
+  position. Equal, it replaces `active` by io's durable replace,
+  expecting the digest it read, to name `A`, and answers `Back`; `A + 1`
+  is then a stray the next start removes, and that start opens `A` as it
+  was, cutting the transcripts to `A`'s lengths (8.4). Past it, or with
+  no previous generation or no manifest, it refuses, `Back { why }`,
+  changing nothing: the patched generation has made commits of its own,
+  which may have acted beyond the store, and going back is restoring a
+  backup.
+
+```rust
+pub enum BackRefusal { Busy, NoPrevious, Committed { manifest: u64, last: u64 }, Unreadable }
+Event::Back { owner: Token, to: u64 }                 // `active` names generation `to`
+Event::BackRefused { owner: Token, why: BackRefusal }
+```
 
 ## 11. Growth
 
@@ -1958,6 +2001,14 @@ Each within jig's suites' budgets.
   records' patches (temper's `draft/upgrades.md`, 6.5). A change to the
   core's `TurnRecord` or smith's turn is the patches' and their goldens'
   instead.
+- **Rehearsing and going back** (10.5), in the store's world over
+  fixture sets: a rehearsal reporting each patch and the restores whole,
+  `A` still active and its maps unchanged, and the next start removing
+  the scratch; one meeting a refusal, reporting it in a start's words;
+  going back after a patched start that failed before its first commit
+  of its own, the next start opening `A` as it was; refused once the
+  patched generation has committed, with no previous generation, and
+  while another process holds the lock, each changing nothing.
 - **Transcripts patched as read,** most of it at the lowest layer. Step
   tests in `jig-protocol-store` over `jig-test-patches-smith` (and a
   fixture body family in `jig-test-patches-jig`): frames written at each
