@@ -46,8 +46,9 @@ python3 -m http.server 8765 --directory docs/design/client/mockups
 ```
 
 Each file also opens directly in a browser, with no build step; serving
-them keeps the chosen world, step and switches from page to page. The
-only external asset is the optional Google Fonts stylesheet.
+them keeps the chosen world, step and switches from page to page. They
+fetch nothing from the network: their fonts are the machine's, the
+monospaced stack and its sans and serif.
 
 - **The bar** above each page is the mockups' own: ‹ and › move the
   step, **Steps** lists the world's steps, the step's title says what
