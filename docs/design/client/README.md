@@ -1323,8 +1323,10 @@ for its kind, its user's login and its installations. Its nodes:
   number (u16); its first repository's org and name (byte strings,
   bounded as `Adopt`'s owner and name); and its project, `SetUpProject`:
   `existing`, a project's number (u32), or `new`, a new project's name
-  (a byte string bounded as `Adopt`'s name) (`../protocol/setup.md`,
-  6.7). Its outcome, `Answer`'s: *setting up*, the box asked
+  (a byte string bounded as `Adopt`'s name); and `playground`, a bool,
+  the first repository made as the playground's copy, `playground/widget`
+  with its files, the org and name then `playground` and `widget`
+  (`../protocol/setup.md`, 6.7). Its outcome, `Answer`'s: *setting up*, the box asked
   for the forge's group; *set up refused*, with why: not offered (the
   forge's connection does not offer it, or no such forge), not under
   the box, busy (`../protocol/forge.md`, 2.8), a new project, which

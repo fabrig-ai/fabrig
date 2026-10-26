@@ -907,6 +907,16 @@ its own for any other host.
   owned forge enables Actions (6.2), and Forgejo gives a repository
   made through its API the Actions unit (skein's `forge-setup.md`,
   section 8). The step needs no network and no action from elsewhere.
+- **The playground's copy,** asked with `SetUp`'s `playground`
+  (`../client/tools.md`, 5.5, `forge-setup --playground`): the first
+  repository is `playground/widget`, its organization and name fixed,
+  made with the playground's two files (8.4: `README.md` and
+  `src/main.rs`, `temper-fake`'s constants, one source for both) beside
+  the starter workflow, in one Create, so that the playground's three
+  suggested requests (8.4) are asked of a real forge and a real model.
+  The fake's `check.yml` is not copied: the box's runner runs the
+  starter. The project is a new one, named `widget`, unless the set up
+  names one. Create then takes 3 files of at most 4 KiB.
 - **The row says it,** the forge's first repository beside its
   connection (`../client/forge.md`, 5.4; `../client/README.md`, 4.6):
   none; making `ORG/NAME` from the `SetUp`'s admission; made
