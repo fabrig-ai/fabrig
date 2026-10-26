@@ -1510,7 +1510,8 @@ generation `A` to `A + 1`:
    in `A + 1`'s maps alone, and nothing leaves the process: no secret
    is served (section 10, step 4) and no source swept, no run adopted
    or placed, no connector reads or writes its system, and no
-   transcript is written or dropped. Then the manifest (step 6), then
+   transcript is written or dropped. Once every commit before the ask
+   is durable (`Committed`), the manifest (step 6), then
    `active` replaced by io's durable replace, expecting the digest of
    the `active` 10.1 read, so that only the start that planned from
    `A` switches from it; the component answers `Switched` and takes
