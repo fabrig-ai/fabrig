@@ -75,6 +75,7 @@ parked as `draft/qa-lab.md`. What is still open is section 8.
   | fakes | `--fake-backends` (`protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
   | a real model | Forgejo here, set up through ctl (`../guide/box.md` 4); the box walked as `../guide/box.md` 2 to 7 | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5) | the model's |
   | GitHub | GitHub, through an App kept for QA, on a repository kept for it | as the rung below | the App's key and its installation |
+  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, a held configuration directory used in place (`protocol/credentials.md`, 3) | the model's |
 
 - **Down before up:** the director opens a rung once the rung below has
   run clean at a `main` no older, and a rung's open findings hold the
@@ -142,8 +143,25 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
   fake, routed to skein's owner.
 - **The person's writes** are Forgejo's API with the write header, as
   the case's plan names them; a pass writes only what a case needs.
-- **GitHub's reads** come with its rung: GitHub's REST API by `curl`,
-  this table in GitHub's terms, written then.
+- **GitHub's reads,** on its rung: GitHub's REST API by `curl` at
+  `https://api.github.com`, with the person's header file, a
+  fine-grained token kept for QA on the repository kept for it, by its
+  path:
+
+  | What | Read |
+  |---|---|
+  | a change's pull request; its reviews; its files | `GET /repos/O/R/pulls/N`; `.../pulls/N/reviews`; `.../pulls/N/files` |
+  | CI at a head: check runs; commit statuses | `GET /repos/O/R/commits/SHA/check-runs`; `.../commits/SHA/status` |
+  | the Actions runs at a head; a run's jobs | `GET /repos/O/R/actions/runs?head_sha=SHA`; `.../actions/runs/ID/jobs` |
+  | a job's log | `GET /repos/O/R/actions/jobs/ID/logs`, a redirect `curl -L` follows |
+  | a branch and its head; the branches under a prefix | `GET /repos/O/R/branches/B`; `GET /repos/O/R/git/matching-refs/heads/PREFIX` |
+  | a file at a commit | `GET /repos/O/R/contents/PATH?ref=SHA`, with `Accept: application/vnd.github.raw` |
+
+  The box prints no forge hands for GitHub, which has no person of the
+  box's: the person's header file is the brief's. Its 5,000 requests an
+  hour are the person's own, apart from temper's installation's, so a
+  pass reads at a person's pace, a wait on temper's side between reads,
+  never a loop of reads.
 
 ## 6. Checking an outcome
 
