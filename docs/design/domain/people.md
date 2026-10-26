@@ -466,7 +466,14 @@ The operations as the client sends them are
   (signed out, the party's role in the request's scope, a key sent again
   with another request, a limit) is answered with jig's refusal and never
   reaches its connector; only an admitted request is the connector's to
-  decide, and answered with its outcome. A connector's core part carries
+  decide, and answered with its outcome. A connector whose own bound on
+  the answers it keeps is full refuses an admitted request at once, by
+  the decision this child reserved for it before routing: a `Limit` of
+  kind `ApplicationAnswers`, with the connector's number and its bound,
+  which this child keeps under the key as its own refusals, so that the
+  client is answered once and sends no more. Busy stays for what passes
+  while the request waits, never for a table full until the retention
+  ends. A connector's core part carries
   no model-name context: an explicit model selector (ALL or named,
   including empty) is refused at people admission with `Lack::Models`;
   an omitted selector keeps the operation's default.
