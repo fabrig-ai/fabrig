@@ -1487,23 +1487,42 @@ generation `A` to `A + 1`:
    the deployment's limits, its key its record's; each ended read
    position's ended task is held, joined as the restart joins it; and
    each file of the copy's secrets' store is a regular file, private to
-   the service's user, with one link. What the core's census chooses
-   (the results after each party's read position, the unanswered
-   questions' activity), the children's rules, strictly, and their live
-   sets' limits are not checked here yet (section 16).
+   the service's user, with one link. The rest of the check before the
+   switch (temper's `draft/upgrades.md`, 6.4), each child's rules
+   strictly, their live sets' limits, the joins their records make and
+   the rows the core's census chooses, is the domain's own restore, run
+   over the copy before the switch (step 7).
 6. **The manifest** written into `A + 1` (section 2), by io's durable
    replace expecting no file there.
-7. **Switch:** `active` replaced by io's durable replace, expecting the
-   digest of the `active` 10.1 read, so that only the start that
-   planned from `A` switches from it. One rename, never two standing
-   for one.
-8. **Open again** from 10.1: the root starts over the switched
-   generation, opened as any later start opens it.
+7. **Switch, once the root has restored from the copy.** The open
+   goes on over the copy, still open, as 10.1's step 7 goes on over an
+   active generation (the run proofs' cuts, which cut the shared
+   transcripts to the copy's committed lengths, `A`'s, since patching
+   writes no frame; the installation's identifier), and answers
+   `Opened` with `pending`: a patched generation awaits its switch. The
+   root's restart restores from it as from any store, commits nothing,
+   and asks for the switch (`Request::Switch`) once its restores are
+   whole (`../domain/engine.md`, section 6). Then `active` is replaced
+   by io's durable replace, expecting the digest of the `active` 10.1
+   read, so that only the start that planned from `A` switches from it,
+   and the component answers `Switched`. One rename, never two standing
+   for one. A restart that refuses before it ends the start with `A`
+   active and unchanged.
+8. **The restart goes on** over `A + 1`, now active, as any restart:
+   nothing reopens, and its first commit is after the switch.
+
+```rust
+Event::Opened { owner: Token, last: u64, installation: [u8; 16], pending: bool }
+Request::Switch { owner: Token }   // once, and only when `pending`
+Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the rename's fault
+```
 
 - **A refusal or a failure** at any step (a patch's `Halt`, a check
   failed, a file's fault) stops the start, answering `OpenRefused`
   with why: the record's key and the patch, or the check and what
-  failed. Before the switch's rename, `A` stays active and unchanged,
+  failed; so does a restore the root refuses before it asks for the
+  switch, which the root names as any restart's refusal. Before the
+  switch's rename, `A` stays active and unchanged,
   and the next start removes `A + 1` and begins again from a fresh
   copy. A switch answered `Failed` with its rename made (`committed`:
   skein's `io.md`, 5.2) may leave `A + 1` active, whole and checked,
@@ -1518,8 +1537,9 @@ generation `A` to `A + 1`:
   copy's opens) and one machine per kept family (10.3), each
   `Patcher::worst_case_heap` of its capacity. Section 13's worst case
   counts the larger of patching's peak and serving's, never both.
-- **The domain sees nothing of it** but the check's restore (step 5),
-  and, after the switch, the windows a fresh mark closed (step 4).
+- **The domain sees** the copy as any restart's store, pending until it
+  asks for the switch (step 7), with the windows a fresh mark closed and
+  the claims it crossed (step 4).
 
 ### 10.3 Patch sets, the plan and written sites
 
@@ -1682,7 +1702,9 @@ pub struct Counts { pub records: u64, pub commits: u64 }
   routes already do for any token.
 - **What a shell downstream sees** (temper's `temper-service`, its
   domain world's driver, `temper-github-app`): open's signature stays
-  as it is. The component holds `PatchSets::NONE` until a shell hands
+  as it is; its answer, `Opened`, gains `pending` (10.2, step 7), which
+  is false until a shell hands sets, and a root that sees it true asks
+  for `Request::Switch` before its runs are adopted. The component holds `PatchSets::NONE` until a shell hands
   it sets, by a setter beside the constructors (`Store::patch_sets`,
   additive); with none it never answers `Site` or `Patched` and never
   wants `Request::Site`. The new refusals (10.1) reach shells whose
@@ -1727,7 +1749,7 @@ partial one removed, or the new.
 | removing strays | part of a stray | removes the rest |
 | the drop of `A - 1`, before its rename | `active` is `A`; `A - 1` whole | patches again, its plan dropping `A - 1` |
 | the drop, after its rename | `active` is `A`; part of `generations/dropped` | removes the rest as a stray; patches again |
-| the copy, a patch commit, a closing commit, the check, the manifest | `active` is `A`; `A + 1` partial or whole | removes `A + 1`; patches again from a fresh copy |
+| the copy, a patch commit, a closing commit, the check, the manifest, the restore before the switch | `active` is `A`; `A + 1` partial or whole | removes `A + 1`; patches again from a fresh copy |
 | the switch, before its rename | `active` is `A` | as above |
 | the switch, after its rename | `active` is `A`, or `A + 1` whole | as above, or opens `A + 1` |
 
@@ -1865,8 +1887,10 @@ Each within jig's suites' budgets.
   past its commit and none missing before it; numbers that match the
   header; pages equal to a model's.
 - **Generations and patching,** in the store's world: a fixture owner's
-  patch sets over a store at an older level, patched, checked and
-  switched, then opened as at its levels; each refusal before any
+  patch sets over a store at an older level, patched, checked, opened
+  `pending`, switched only when its root asks, never before, and a
+  root that ends before asking leaving the old generation active; each
+  refusal before any
   write; a second start refused `Busy` while one holds the lock; the
   copy's secrets private; a cut at every write, sync and rename of the
   first start, the copy, the patch commits, the manifest, the switch
@@ -2002,28 +2026,6 @@ Each within jig's suites' budgets.
     needed, not the price; but it keeps that room until the machine
     goes, so one large turn keeps it large (skein's `codec.md`, 13,
     "Shrinking");
-  - the children's rules, strictly, their live sets' limits, and the
-    rows the core's census chooses, in the check before the switch
-    (10.2, step 5; `../domain/engine.md`, section 6). The rules live in
-    each child's restore, which refuses the start on a broken record,
-    but for the accounts child, which counts such records and leaves
-    them; no child has a check over decoded rows the store could call
-    with nothing committed, and a live set's limit is the child's own
-    arena's, counted by its own members. The census's results after each
-    party's read position and its unanswered questions' activity are
-    chosen by the core from its restored state (7.2), which the store
-    does not hold before the switch. Until then a patched record a child
-    refuses, or a result row naming an ended task the store does not
-    hold (the store's own join, which stops the start), makes the start
-    after the switch refuse, as any restart's does, and the generation patched from stays
-    on disk as `active` − 1, spared by the strays' sweep (section 2), for
-    the operator to go back to before the active generation's first
-    commit of its own. Writing `active` back to A gives up A + 1, the
-    patched copy, which the next start sweeps as a stray: a start of the
-    build before opens A as it was, and a start of this build patches A
-    again and refuses the same way, until the binary or the record
-    changes. One the accounts child counts and leaves stays in the
-    patched store;
   - schemas for the secrets' records, so that a patch can name them
     (section 9);
   - keys a patch moves (10.3), left to later work: a line for them

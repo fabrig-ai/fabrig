@@ -480,25 +480,38 @@ send them again after their hello; the core commits any it does not
 have, and acknowledges each.
 
 **After an upgrade.** jig's store patches a copy of a store behind the
-binary's patch levels before the root starts, and switches to it
-(`../protocol/store.md`, 10.2), so a restart always runs over the
-generation the deployment's `active` names, at the binary's levels,
-and sees nothing of the patching. The check before that switch
-(temper's `draft/upgrades.md`, 6.4) runs what the store holds of this
-section's rules: every record of the live ranges and of the census's
-ended read positions loads within its codec's limits, and each ended
-read position's task is held (`../protocol/store.md`, 10.2, step 5).
-This section's rules, strictly, the live sets' limits and the rows the
-census chooses are not in it yet (store.md, section 16): a
-patched record a child refuses makes the restart after the switch
-refuse, as any restart's does, with the generation patched from kept on
-disk as `active` − 1 for the operator to go back to; one the accounts
-child counts and leaves stays. The restart then runs over the switched
-generation as any restart does. A patch marked fresh has closed every
-live task's window in the copy before the switch (store.md, 10.2, step
-4) and marked every claim crossed, so the restart restores the windows
-closed, adopts no crossed claim (step 3), and each task's next attempt
-starts fresh (7.2).
+binary's patch levels before the root starts (`../protocol/store.md`,
+10.2), and the restart restores from that copy before it becomes the
+generation `active` names: the store's open answers that a generation
+is pending, and the script asks, after the connectors' records (step
+2) and before the runs adopted (step 3), for one step more,
+`RestartStep::Switch`, which the root serves by asking the store to
+switch. Nothing is committed before it: what a restore would commit
+(the release's settings revision, 17.7; the accounts' counter) commits
+at the switch step, after the switch and before anything is admitted.
+A start with nothing pending has no such step.
+
+So the restore is the check the draft asks before the switch (temper's
+`draft/upgrades.md`, 6.4), the binary's own open over the copy: every
+record of the live ranges loads within its codec's limits, each child's
+rules hold, the live sets fit the limits, the census's rows load and
+join, and each child's restore refuses a record whose references do not
+resolve to what the restart holds: a task to its project and parties,
+an account's source to its account, a read position to its
+conversation, an application's records to theirs (its root's, by the
+same rule). Over a pending generation it is strict: a record the
+accounts child counts and leaves (its `unrestored`) refuses the
+restart at the switch step, naming the child, as a broken record in any
+other child refuses it. A restart refused before the switch leaves the
+generation patched from active and unchanged (store.md, 10.2, step 7);
+one refused after it, at a later step, leaves the patched generation
+active and the one before it as `active` − 1, for the operator to go
+back to before its first commit of its own (temper's
+`draft/upgrades.md`, 3.2). A patch marked fresh has closed every live
+task's window in the copy (store.md, 10.2, step 4) and marked every
+claim crossed, so the restart restores the windows closed, adopts no
+crossed claim (step 3), and each task's next attempt starts fresh
+(7.2).
 
 `RestartRequest::ProjectPolicy { project: u32 }` names a saved project
 policy whose byte size exceeds `limits.policy_bytes` or cannot be
@@ -1609,6 +1622,16 @@ after the switch before the restart, the next restart settling the
 claim the same way; the next attempt claimed and the engine restarted
 before its first turn, adopted as any claim; and a second upgrade
 across another mark before that turn, settling it again.
+
+Its stories of the restore before the switch (section 6), over the store
+with fixture patch sets: a patched copy restored whole, switched, and its
+first commit after the switch; a patched account the accounts child would
+count and leave, refused at the switch step, the generation patched from
+still active and unchanged, and a start of the build before opening it as
+it was; a task naming a project the copy does not hold, refused before the
+switch the same way; a live set past limits lowered since, refused the
+same way; a crash during the restore, the next start patching a fresh
+copy; and a start with nothing pending, whose script has no switch step.
 
 Its referee holds the core to core.md, section 11, seen from outside;
 applications' worlds reuse it on jig's conformance world (testing.md,
