@@ -3010,10 +3010,10 @@ the settings first for `temper ctl` (its planned implementation).
   - *History,* the revision records the store keeps, newest first:
     each its number, what it did in a line (a proposal's title, or "a
     release's", "the first start's"), who decided it and when, "Show",
-    and "Restore…", which proposes its items again against the newest
-    (jig's `domain/engine.md`, 17.7), saying that temper's kinds' items
-    are left out, their past values not kept, and opens that
-    proposal's review.
+    and "Restore…", which proposes the settings as that revision left
+    them, against the newest (jig's `domain/engine.md`, 17.10), saying
+    which of temper's kinds' settings it leaves out, their past values
+    not kept, and opens that proposal's review.
 - **Its tags:** "Default", a setting no change is over; "Changed", one
   a change is over, with "changed in revision N"; "Added", one no
   default has.
