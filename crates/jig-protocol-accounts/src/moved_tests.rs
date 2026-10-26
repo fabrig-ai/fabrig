@@ -123,12 +123,121 @@ fn refused(input: &[u8], limits: &Limits, expected: Unread, name: &str) {
     assert_eq!(moved::decode(input, limits).err(), Some(expected), "{name}");
 }
 
+// Literal output of the encoder at 365afd554^ for fixture(false), retained
+// from the J4 compatibility-refusal test, including its version-3 SavedToken.
+const OLD: &[u8] = b"JIGM\0\x01\0\0\0\x01a\0\0\0\x01i\0\0\0\x01c\0\0\0\x01s\0\0\0\0\0\0\0\x22\0\x03\0\0\0\x07\0\0\0\0\0\0\0\x09\0\0\0\0\0\0\0\x7b\0\0\0\x01a\0\0\0\0\0\0\0";
+const MAGIC_BYTES: usize = 4;
+
 #[test]
-fn old_jigm_files_are_refused_as_another_version() {
-    // Literal output of the former encoder for fixture(false), including
-    // its version-3 SavedToken. It is not made by the new encoder.
-    let old = b"JIGM\0\x01\0\0\0\x01a\0\0\0\x01i\0\0\0\x01c\0\0\0\x01s\0\0\0\0\0\0\0\x22\0\x03\0\0\0\x07\0\0\0\0\0\0\0\x09\0\0\0\0\0\0\0\x7b\0\0\0\x01a\0\0\0\0\0\0\0";
-    refused(old, &limits(), Unread::Version, "old JIGM form");
+fn old_jigm_literal_decodes_to_its_saved_account() {
+    assert_same(&fixture(false), &moved::decode(OLD, &limits()).expect("old JIGM form"));
+}
+
+#[test]
+fn an_old_file_reencodes_only_in_the_generated_form() {
+    let decoded = moved::decode(OLD, &limits()).expect("old JIGM form");
+    let encoded = moved::encode(&decoded, &limits()).expect("new form");
+    assert_eq!(&encoded.expose()[..2], b"\0\x01");
+    assert_same(&decoded, &moved::decode(encoded.expose(), &limits()).expect("new form decodes"));
+}
+
+#[test]
+fn every_truncation_of_an_old_file_is_refused() {
+    for end in MAGIC_BYTES..OLD.len() {
+        refused(&OLD[..end], &limits(), Unread::Malformed, "truncated old file");
+    }
+}
+
+#[test]
+fn an_old_file_refuses_a_trailing_byte() {
+    refused(&append_byte(OLD), &limits(), Unread::Trailing, "old trailing byte");
+}
+
+#[test]
+fn an_old_file_refuses_a_version_after_its_magic() {
+    let mut wrong_version = bytes::copy_of(OLD);
+    for (index, byte) in 2_u16.to_be_bytes().into_iter().enumerate() {
+        wrong_version[MAGIC_BYTES.checked_add(index).expect("version byte")] = byte;
+    }
+    refused(&wrong_version, &limits(), Unread::Version, "old version 2");
+}
+
+// Build boundary cases from the kept old bytes, never with today's encoder.
+fn old_part(part: usize, replacement: &[u8]) -> Box<[u8]> {
+    let replaced = replace_part(&OLD[MAGIC_BYTES..], part, replacement);
+    with_magic(&replaced)
+}
+
+fn with_magic(input: &[u8]) -> Box<[u8]> {
+    let mut out = Writer::new(MAGIC_BYTES.checked_add(input.len()).expect("small old file"));
+    out.put(b"JIGM").expect("room");
+    out.put(input).expect("room");
+    out.finish()
+}
+
+fn append_byte(input: &[u8]) -> Box<[u8]> {
+    let mut out = Writer::new(input.len().checked_add(1).expect("one extra byte"));
+    out.put(input).expect("room");
+    out.put(b"x").expect("room");
+    out.finish()
+}
+
+#[test]
+fn old_parts_at_their_bounds_decode() {
+    for (part, (_name, cap)) in OUTER_CAPS.into_iter().enumerate() {
+        let mut expected = fixture(false);
+        *outer_field(&mut expected, part) = filled(cap);
+        assert_same(&expected, &moved::decode(&old_part(part, &filled(cap)), &limits()).expect("old part at bound"));
+    }
+    let limits = record_limits(&fixture(false));
+    assert_same(&fixture(false), &moved::decode(OLD, &limits).expect("old record at bound"));
+}
+
+#[test]
+fn old_parts_refuse_oversized_prefixes_before_reading_bytes() {
+    for (part, (name, cap)) in OUTER_CAPS.into_iter().chain([("record", limits().record_bytes)]).enumerate() {
+        let mut changed = bytes::copy_of(OLD);
+        let offset = MAGIC_BYTES.checked_add(prefix(&OLD[MAGIC_BYTES..], part)).expect("old prefix");
+        let end = offset.checked_add(4).expect("prefix end");
+        for (index, byte) in cap.checked_add(1).expect("small cap").to_be_bytes().into_iter().enumerate() {
+            changed[offset.checked_add(index).expect("prefix byte")] = byte;
+        }
+        refused(&changed, &limits(), Unread::TooLarge, name);
+        refused(&changed[..end], &limits(), Unread::TooLarge, name);
+    }
+    let mut limits = record_limits(&fixture(false));
+    limits.record_bytes = limits.record_bytes.checked_sub(1).expect("nonzero record");
+    refused(OLD, &limits, Unread::TooLarge, "old record one past bound");
+}
+
+#[test]
+fn old_required_parts_refuse_empty_bytes() {
+    for part in [0, 1, 2, 3, 5] {
+        refused(&old_part(part, b""), &limits(), Unread::Malformed, "old empty required part");
+    }
+}
+
+#[test]
+fn an_old_file_refuses_an_invalid_nested_record() {
+    refused(&old_part(5, b"invalid record"), &limits(), Unread::Record, "old nested record");
+}
+
+#[test]
+fn old_file_at_the_whole_file_bound_decodes() {
+    let mut old = bytes::copy_of(OLD);
+    for (part, (_name, cap)) in OUTER_CAPS.into_iter().enumerate() {
+        let replaced = replace_part(&old[MAGIC_BYTES..], part, &filled(cap));
+        old = with_magic(&replaced);
+    }
+    let limits = record_limits(&fixture(false));
+    assert_eq!(u64::try_from(old.len()).expect("size"), moved::bound(&limits));
+    let decoded = moved::decode(&old, &limits).expect("old whole-file bound decodes");
+    let mut expected = fixture(false);
+    for (part, (_name, cap)) in OUTER_CAPS.into_iter().enumerate() {
+        *outer_field(&mut expected, part) = filled(cap);
+    }
+    assert_same(&expected, &decoded);
+    refused(&append_byte(&old), &limits, Unread::TooLarge, "old whole-file bound before trailing");
 }
 
 #[test]
@@ -303,19 +412,28 @@ fn encode_refuses_a_record_skein_will_not_encode() {
 }
 
 #[test]
-fn bound_is_the_encoded_size_with_every_part_at_its_bound() {
+fn bound_includes_four_more_bytes_than_the_generated_form() {
     let mut original = fixture(true);
     for (part, (_name, cap)) in OUTER_CAPS.into_iter().enumerate() {
         *outer_field(&mut original, part) = filled(cap);
     }
     let limits = record_limits(&original);
     let encoded = moved::encode(&original, &limits).expect("all parts at bounds");
-    assert_eq!(moved::bound(&limits), u64::try_from(encoded.len()).expect("size"));
+    assert_eq!(moved::bound(&limits), u64::try_from(encoded.len()).expect("size").checked_add(4).expect("old magic"));
     assert_same(&original, &moved::decode(encoded.expose(), &limits).expect("largest file decodes"));
 }
 
 #[test]
-fn a_runtime_allowance_above_the_schema_uses_its_ceiling() {
+fn a_runtime_allowance_above_the_schema_covers_old_files() {
     let limits = Limits { record_bytes: u32::MAX, ..limits() };
-    assert_eq!(moved::bound(&limits), v1::Moved::worst_case_bytes(&v1::CEILINGS).expect("schema size"));
+    assert_eq!(
+        moved::bound(&limits),
+        30_u64
+            + u64::from(moved::APPLICATION)
+            + u64::from(moved::ISSUER)
+            + u64::from(moved::CLIENT_ID)
+            + u64::from(SUBJECT)
+            + u64::from(DISPLAY)
+            + u64::from(u32::MAX)
+    );
 }
