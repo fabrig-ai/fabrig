@@ -103,7 +103,7 @@ fn adopted() -> forge::Answer {
 fn each_outcome_reads_as_the_designs_sentence() {
     let words = fixtures::words();
     let rows: [(forge::Answer, &[u8], bool); 10] = [
-        (adopted(), b"Adopted acme/shop on forge 1 as owned.It is the project's home.temper may: read; push; open pull requests; land; review; set statuses; comment; create issues; create and delete branches.Branch protection could not be read.", false),
+        (adopted(), b"Adopted acme/shop on forge 1 as owned.It is the project's home.temper may: read; push; open pull requests; land; review; set statuses; comment; create issues; create and delete branches.temper's forge user may not read the branch protection: the forge shows it to repository administrators only.", false),
         (forge::Answer::ForgeRefused(forge::Reason::NoSuchForge), b"No forge 1 is configured.", true),
         (forge::Answer::ForgeRefused(forge::Reason::NotFound), b"No repository acme/shop on forge 1 that temper's forge user can see.", true),
         (forge::Answer::ForgeRefused(forge::Reason::NoAccess), b"temper's forge user may not read acme/shop on forge 1.", true),

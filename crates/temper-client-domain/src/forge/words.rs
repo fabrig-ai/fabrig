@@ -89,7 +89,7 @@ pub const ROWS: [Row; 51] = [
     (Word::AdoptedRole, &[b"adopted"], &[]),
     (Word::IsHome, &[b"It is the project's home."], &[]),
     (Word::May, &[b"temper may: ", b"."], &[Name]),
-    (Word::Protection, &[b"Branch protection could not be read."], &[]),
+    (Word::Protection, &[b"temper's forge user may not read the branch protection: the forge shows it to repository administrators only."], &[]),
     (Word::NoSuchForge, &[b"No forge ", b" is configured."], &[Name]),
     (Word::NotFound, &[b"No repository ", b" on forge ", b" that temper's forge user can see."], &[Name, Name]),
     (Word::NoAccess, &[b"temper's forge user may not read ", b" on forge ", b"."], &[Name, Name]),

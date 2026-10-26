@@ -24,4 +24,4 @@ Adopt a repository into shop:
   * Adopted acme/shop on forge 1 as owned.
   * It is the project's home.
   * temper may: read; open pull requests; review; comment; create and delete branches.
-  * Branch protection could not be read.
+  * temper's forge user may not read the branch protection: the forge shows it to repository administrators only.
