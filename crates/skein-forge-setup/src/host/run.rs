@@ -219,7 +219,9 @@ impl Run {
                     Machine::Install(machine)
                 }
                 Plan::Accept { installation, ref state, .. } => {
-                    states.take(given.forge, Purpose::Accept, state, now)?;
+                    if let Some(state) = state {
+                        states.take(given.forge, Purpose::Accept, state, now)?;
+                    }
                     Machine::Accept(Accept::new(given, installation).expect("host checks the given"))
                 }
                 Plan::Reachable { installation, page, .. } => {

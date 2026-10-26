@@ -140,7 +140,7 @@ fn request_bytes(request: &Request) -> usize {
                     + files.iter().map(|f| f.path.len() + f.content.len()).sum::<usize>()
             }
             Plan::Convert { code, state, .. } => code.len() + state.len(),
-            Plan::Accept { state, .. } => state.len(),
+            Plan::Accept { state, .. } => state.as_ref().map_or(0, |state| state.len()),
             Plan::Manifest { .. }
             | Plan::Paste { .. }
             | Plan::Install { .. }

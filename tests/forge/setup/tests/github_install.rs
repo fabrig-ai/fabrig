@@ -43,7 +43,7 @@ fn accept(world: &mut HostWorld, run: u64, state: &[u8], installation: u64) {
         Plan::Accept {
             forge: FORGE,
             installation: NonZeroU64::new(installation).expect("nonzero fixture"),
-            state: state.into(),
+            state: Some(state.into()),
         },
     );
     world.settle();
@@ -126,7 +126,10 @@ fn a_reused_or_wrong_install_state_sends_nothing() {
     let mut world = HostWorld::new_with(7, &[], settings, fixtures::host_limits());
     world.put(Item::AppSlug, fixtures::secret(SLUG));
     let state = install(&mut world, 1);
-    world.run_plan(2, Plan::Accept { forge: 5, installation: NonZeroU64::new(INSTALLATION).expect("fixture"), state });
+    world.run_plan(
+        2,
+        Plan::Accept { forge: 5, installation: NonZeroU64::new(INSTALLATION).expect("fixture"), state: Some(state) },
+    );
     world.settle();
     let Some(Heard::Stop { failure, .. }) = world.heard().last() else { panic!("wrong forge") };
     assert_eq!(

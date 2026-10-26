@@ -23,8 +23,10 @@ pub enum Plan {
     Paste { forge: u16, app: NonZeroU64 },
     /// The App install link with an Accept-purpose state (5.4 and 5.7).
     Install { forge: u16 },
-    /// Verifies and retains an installation admitted by its state (5.4 and 5.7).
-    Accept { forge: u16, installation: NonZeroU64, state: Box<[u8]> },
+    /// Verifies and retains an installation (5.4): admitted by the state its
+    /// Install drew (5.7), or, with none, by the owner, for its person's own
+    /// act under their sign-in.
+    Accept { forge: u16, installation: NonZeroU64, state: Option<Box<[u8]>> },
     /// Reconcile either kind; GitHub requires an empty adopted set (5.6).
     Reconcile { forge: u16, adopted: Box<[u64]> },
     /// A connected Forgejo's two tokens, checked (4.6).

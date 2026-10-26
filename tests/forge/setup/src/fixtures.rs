@@ -616,7 +616,7 @@ pub mod github_stories {
             run,
             Plan::Accept {
                 forge: FORGE,
-                state: state.into(),
+                state: Some(state.into()),
                 installation: core::num::NonZeroU64::new(id).expect("fixture id"),
             },
         );

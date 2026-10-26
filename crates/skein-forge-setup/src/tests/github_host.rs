@@ -76,7 +76,7 @@ fn wrong_forge_acceptance_preserves_the_right_binding_and_kind_checks_come_first
         &env,
         Request::Run {
             run: Token::new(1),
-            plan: Plan::Accept { forge: 5, installation: NonZeroU64::new(2).expect("id"), state: state.clone() },
+            plan: Plan::Accept { forge: 5, installation: NonZeroU64::new(2).expect("id"), state: Some(state.clone()) },
         },
         &mut up,
         &mut io,
@@ -94,10 +94,11 @@ fn wrong_forge_acceptance_preserves_the_right_binding_and_kind_checks_come_first
     let mut plain = Host::new(&env.limits, fixtures::github_settings(), fixtures::crypto()).expect("host");
     for plan in [
         Plan::Install { forge: 1 },
+        Plan::Accept { forge: 1, installation: NonZeroU64::new(2).expect("id"), state: None },
         Plan::Accept {
             forge: 1,
             installation: NonZeroU64::new(2).expect("id"),
-            state: secret(b"unknown").expose().into(),
+            state: Some(secret(b"unknown").expose().into()),
         },
     ] {
         assert!(up.room() >= MAX_OUT.above && io.room() >= MAX_OUT.below);
@@ -502,5 +503,55 @@ fn paste_uses_its_forges_deadline_and_close_ends_once() {
     assert!(world.up.is_empty());
     world.fire(30);
     assert!(world.up.is_empty());
+    world.close();
+}
+
+#[test]
+fn stateless_accept_keeps_the_checked_installation_without_drawing_or_taking_state() {
+    use crate::{item, reconcile};
+    use skein_forge::github::document::{Account, Document, Installation};
+    let mut world = ConvertHost::new();
+    world.io = Queue::with_capacity(MAX_OUT.below.checked_mul(2).expect("reply beside connect"));
+    let state = world.state(4, Purpose::Accept);
+    let mut crypto = world.host.crypto.clone();
+    let run = Token::new(1);
+    world.down(Request::Run {
+        run,
+        plan: Plan::Accept { forge: 4, installation: NonZeroU64::new(3).expect("id"), state: None },
+    });
+    for (item, value) in [
+        (Item::AppId, Some(secret(&7u64.to_le_bytes()))),
+        (Item::AppKey, Some(secret(skein_fake_forge_github::keys::KEYS[0]))),
+        (Item::Accepted, None),
+    ] {
+        assert_eq!(world.up.pop(), Some(Event::Need { run, need: super::Need::Read(item) }));
+        world.down(Request::Answer { run, answer: Answer::Read(value) });
+    }
+    assert!(world.up.is_empty());
+    world.host.runs.get_mut(&run).expect("accept running").reply(
+        reconcile::Reply::GithubDocument(Document::Installation(Installation {
+            id: 3,
+            login: b"acme".as_slice().into(),
+            account: 22,
+            kind: Account::Organization,
+            created: Wall::EPOCH,
+            suspended: false,
+        })),
+        &mut world.host.plan_out,
+    );
+    world.host.fire(&world.env, &mut world.up, &mut world.io);
+    assert_eq!(
+        world.up.pop(),
+        Some(Event::Need { run, need: super::Need::Write { item: Item::Accepted, bytes: item::accepted_item(&[3]) } })
+    );
+    world.down(Request::Answer { run, answer: Answer::Written });
+    assert_eq!(world.up.pop(), Some(Event::Done { run, outcome: reconcile::Outcome::Nothing }));
+    assert!(world.up.is_empty());
+    let mut expected = [0; 16];
+    let mut actual = [0; 16];
+    crypto.fill(&mut expected);
+    world.host.crypto.fill(&mut actual);
+    assert_eq!(actual, expected, "no state drawn");
+    assert_eq!(world.host.states.take(4, Purpose::Accept, &state, Time::ZERO), Ok(()));
     world.close();
 }
