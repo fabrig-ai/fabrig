@@ -5,6 +5,74 @@ use crate::{
 use skein_scratch::Scratch;
 use skein_ui::NodeId;
 use std::{fs, path::Path};
+use temper_client_shell_web::journey;
+
+#[test]
+fn the_committed_journeys_are_their_print() {
+    let scratch = Scratch::new("temper-client-journeys-committed");
+    let committed = Path::new(JOURNEYS);
+    let stale = crate::reprint(committed, scratch.path())
+        .expect("reprint committed journeys; run cargo run -p temper-client-journeys");
+    assert!(stale.is_empty(), "stale journeys: {stale:?}; run cargo run -p temper-client-journeys");
+    let committed_pages = printed_files(committed);
+    let reprinted_pages = printed_files(scratch.path());
+    for path in committed_pages.union(&reprinted_pages) {
+        let expected = fs::read(committed.join(path)).ok();
+        let actual = fs::read(scratch.path().join(path)).ok();
+        assert!(
+            expected.is_some() && actual.is_some(),
+            "{} is missing or unreadable; run cargo run -p temper-client-journeys",
+            path.display()
+        );
+        assert_eq!(expected, actual, "{} differs; run cargo run -p temper-client-journeys", path.display());
+    }
+    for file in ["skein-ui.css", "journey.js"] {
+        let reprinted = fs::read(scratch.path().join(file)).expect("reprinted file beside the journeys");
+        assert_eq!(
+            fs::read(committed.join(file)).ok().as_deref(),
+            Some(reprinted.as_slice()),
+            "{file} differs; run cargo run -p temper-client-journeys"
+        );
+    }
+}
+
+fn printed_files(root: &Path) -> std::collections::BTreeSet<std::path::PathBuf> {
+    let mut files = std::collections::BTreeSet::new();
+    for entry in fs::read_dir(root).expect("journeys directory") {
+        let entry = entry.expect("journey entry");
+        if !entry.file_type().expect("journey type").is_dir() {
+            continue;
+        }
+        for page in fs::read_dir(entry.path()).expect("journey directory") {
+            let page = page.expect("page entry");
+            if crate::printed_page(&page.path()) {
+                files.insert(Path::new(&entry.file_name()).join(page.file_name()));
+            }
+        }
+    }
+    files
+}
+
+#[test]
+fn a_name_outside_the_pattern_is_refused() {
+    let scratch = Scratch::new("temper-client-journeys-name");
+    for name in ["Welcome", "1-welcome", "welcome_set", ""] {
+        assert!(!crate::named(name), "invalid name: {name:?}");
+        assert!(matches!(crate::add(scratch.path(), name, b""), Err(crate::Refusal::Name(refused)) if refused == name));
+    }
+    assert!(crate::named("welcome-set-up"));
+    assert!(matches!(crate::add(scratch.path(), "welcome-set-up", b""), Err(crate::Refusal::Proof { .. })));
+}
+
+#[test]
+fn an_unreadable_recording_is_refused_by_add() {
+    let scratch = Scratch::new("temper-client-journeys-unreadable");
+    assert!(matches!(
+        crate::add(scratch.path(), "welcome", b"not a recording\n"),
+        Err(crate::Refusal::Proof { name, refusal: journey::Refusal::Unreadable(_) }) if name == "welcome"
+    ));
+    assert!(!scratch.path().join("welcome").exists());
+}
 
 fn mark(html: &str, heading: &str, acted: Option<u32>) -> Mark {
     Mark { html: html.to_owned(), heading: heading.as_bytes().to_vec(), acted: acted.map(NodeId) }
