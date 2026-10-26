@@ -135,6 +135,16 @@ impl World {
         self.drain();
     }
 
+    /// Read each lost writer's resource and deliver its answer through the root.
+    pub fn finish_lost_reads(&mut self) {
+        self.hold_lost_reads = false;
+        for (connector, resource, call) in std::mem::take(&mut self.pending_lost_reads) {
+            let event = self.systems[usize::from(connector - 1)].answer(call, Fault::None);
+            self.events.push_back(root::Event::WriterRead { connector, resource, event });
+        }
+        self.drain();
+    }
+
     pub fn finish_restart_reads(&mut self) {
         let reads = std::mem::take(&mut self.pending_reads);
         for (number, call) in reads {
@@ -164,6 +174,14 @@ impl World {
         self.restart(seed, requirement);
     }
 
+    /// Switch the durable store to the next binary's sets without starting its root.
+    pub fn switch_patch_sets(&mut self, seed: u64, sets: jig_protocol_store::PatchSets) {
+        self.store.patch_sets(sets);
+        let config = fixture(seed, false).0;
+        self.store.reconfigure(18, &config.core.settings.models);
+        self.observer.fresh_mark(self.wall, &self.store);
+    }
+
     /// Cold start with the same scenario configuration, including its host slots.
     pub fn restart_with(&mut self, config: root::Config) {
         self.observer.observe(self.wall, crate::referee::Observed::Restart);
@@ -190,6 +208,7 @@ impl World {
         }
         self.events.clear();
         self.pending_reads.clear();
+        self.pending_lost_reads.clear();
         self.pending_writes.clear();
         self.pending_lookups.clear();
         self.restart_reads.clear();

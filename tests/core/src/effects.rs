@@ -88,6 +88,9 @@ pub struct World {
     /// A procedure connector can withhold its reply while a story drives its step.
     pub hold_procedures: bool,
     pub pending_reads: Vec<(u16, connector::SystemRequest)>,
+    /// Hold a lost writer's fresh read until the scenario releases it.
+    pub hold_lost_reads: bool,
+    pub pending_lost_reads: Vec<(u16, tasks::Name, connector::SystemRequest)>,
     pub lost_answers: u32,
     pub hold_writes: bool,
     pub recovery: connector::Recovery,

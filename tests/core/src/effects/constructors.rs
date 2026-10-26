@@ -340,6 +340,8 @@ impl World {
             procedure_inputs: Vec::new(),
             hold_procedures: false,
             pending_reads: Vec::new(),
+            hold_lost_reads: false,
+            pending_lost_reads: Vec::new(),
             lost_answers: 0,
             hold_writes: false,
             recovery: connector::Recovery::Keyed,

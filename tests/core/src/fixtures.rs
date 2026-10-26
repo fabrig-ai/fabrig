@@ -696,3 +696,34 @@ pub fn restore_project_policies(core: &mut core::Core, limits: &core::Limits, st
 }
 
 pub use jig_test_domain::initial_settings_current;
+
+/// A delegate that writes one of the resource fixture's holds.
+#[must_use]
+pub fn resource_member(world: &crate::effects::World, id: u64, words: &[u8]) -> core::Delegate {
+    let mut child = member(world, tasks::Executor::Agent { charter: 1 }, words);
+    child.spec.parameters = Box::new([tasks::Parameter::Resource { name: 1, connector: 1, resource: id }]);
+    child.authority.budget.spend = 10;
+    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    child
+}
+
+/// Adopt the exclusive and pooled resources used by writer and hold stories.
+pub fn configure_resources(world: &mut crate::effects::World) {
+    for id in [1, 2] {
+        world.send(root::Event::Connector {
+            number: 1,
+            event: jig_test_connector::Event::Adopt {
+                project: 1,
+                resource: jig_test_connector_world::path(1, id),
+                role: jig_test_connector::ResourceRole::Owned,
+            },
+        });
+    }
+    world.configure_holds(
+        1,
+        Box::new([
+            tasks::Kind { connector: 1, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
+            tasks::Kind { connector: 1, kind: 2, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
+        ]),
+    );
+}

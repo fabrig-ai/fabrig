@@ -1,4 +1,5 @@
 use jig_core_world::effects::{World, fixture};
+pub(crate) use jig_core_world::fixtures::{configure_resources, resource_member};
 use jig_core_world::fixtures::{delegate, live_row, member};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -520,34 +521,6 @@ fn an_exhausted_delegate_escalates_to_a_person_who_releases_it_to_finish() {
     for task in [child, parent.0] {
         assert!(world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))));
     }
-}
-
-pub(crate) fn resource_member(world: &World, id: u64, words: &[u8]) -> core::Delegate {
-    let mut child = member(world, tasks::Executor::Agent { charter: 1 }, words);
-    child.spec.parameters = Box::new([tasks::Parameter::Resource { name: 1, connector: 1, resource: id }]);
-    child.authority.budget.spend = 10;
-    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    child
-}
-
-pub(crate) fn configure_resources(world: &mut World) {
-    for id in [1, 2] {
-        world.send(root::Event::Connector {
-            number: 1,
-            event: connector::Event::Adopt {
-                project: 1,
-                resource: jig_test_connector_world::path(1, id),
-                role: connector::ResourceRole::Owned,
-            },
-        });
-    }
-    world.configure_holds(
-        1,
-        Box::new([
-            tasks::Kind { connector: 1, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
-            tasks::Kind { connector: 1, kind: 2, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
-        ]),
-    );
 }
 
 fn pool_size(world: &mut World, slots: u32) {

@@ -123,6 +123,10 @@ impl World {
                 });
             }
             root::Delivery::LostRead { connector, resource, call, .. } => {
+                if self.hold_lost_reads {
+                    self.pending_lost_reads.push((connector, resource, call));
+                    return;
+                }
                 let event = self.systems[usize::from(connector - 1)].answer(call, Fault::None);
                 self.events.push_back(root::Event::WriterRead { connector, resource, event });
             }
