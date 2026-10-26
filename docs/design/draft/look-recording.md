@@ -27,7 +27,8 @@ look's edits, 6 a recording gone stale, 7 the first journey, 8 the work.
 - **Committed journeys stay current.** A test reprints each one and
   fails while its print differs, naming the command that reprints it,
   so a landing that changes a recorded page carries its new print.
-- **The look is `temper.css`, on the print.** The pages link the shell's
+- **The look is `temper.css`, on the print:** temper is the source of
+  truth, and the mockups are reconciled to it. The pages link the shell's
   stylesheets from the checkout, then `overlay.css`, committed empty.
   The person tunes the look in the overlay and the markup in place;
   the diff is the request. It is done when the reprint equals the
@@ -192,22 +193,19 @@ recording ended.
 
 ## 9. What it changes
 
+- **temper is the source of truth** for what it draws (the user,
+  10-26). The existing mockups are reconciled to it gradually, and stay
+  the design of what is not built yet.
 - `client/browser.md`, 2.5: `temper.css` no longer takes its rules from
-  the mockups' terminal sheets for a page a journey records; that
-  page's look is `temper.css`'s, tuned on its print. Section 7's gallery
-  stays for the states no journey reaches.
-- `client/mockups/README.md`, 1, "Binding": a page's look is its
-  mockup's. For a built page that a journey records, it becomes its
-  print's; the mockup keeps its words, its parts and their order and
-  where each act leads, and its look is the sketch of what is not built
-  yet (section 10).
+  the mockups' terminal sheets; the look is `temper.css`'s, tuned on
+  the prints. Section 7's gallery stays for the states no journey
+  reaches.
+- `client/mockups/README.md`, 1, "Binding": the mockups bind what is
+  not built yet. Where a mockup differs from what temper draws, the
+  mockup is reconciled to temper.
 
 ## 10. Open
 
-- **The mockups' binding for the look** (section 9): whether a built
-  page's look moves to its print, and whether `pages.js` takes
-  `temper.css`'s palette, its `:root` variables, so that even the
-  sketches share it. The user's word.
 - **The gallery's states,** set from hand-written worlds: whether each
   moves to a journey once the fake box reaches it, its answers then the
   engine's own.
