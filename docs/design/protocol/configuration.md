@@ -1657,7 +1657,8 @@ side never waits on the part of jig it does not use:
    deployment's first chat; the interim inline copy with tools 513, and
    the test that holds it equal to the stock, go with it. A document may
    seed no project at all, its first owners the deployment's alone, as
-   jig's seed allows; a world or a person that needs a wider project
+   jig's seed allows, holding no escalation role until a project's
+   policy gives them one; a world or a person that needs a wider project
    raises the rules and policy 1 with one change of settings, then makes
    it, or widens an existing project's ceiling within the new rules
    (jig's `domain/authority.md`, section 6). A deployment whose document carried
