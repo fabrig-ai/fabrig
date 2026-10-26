@@ -2378,7 +2378,10 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   lightest part by the phases' times the script records. In two, the
   usual split, that is the QA and browser tiers, then the process tier
   with the lab's tests, each about 8 minutes on a quiet machine, since
-  both tiers run one test at a time.
+  both tiers run one test at a time. The gate (`scripts/check.sh`) and
+  the tier's script each name every test that passed starved (skein's
+  `testing-strategy.md` 2.8), from their profiles' JUnit with passing
+  tests' output kept.
 
 A fuzzy test lives in its world's crate, beside the focused ones, and
 uses that world: a world's settings, random ones included, are the
