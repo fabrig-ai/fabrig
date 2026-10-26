@@ -506,18 +506,6 @@ pub fn turns(
                 b"the agent's largest turn with a loaded row",
                 turn.checked_add(u64::try_from(size_of::<domain::Record>()).expect("record slot")),
             );
-            // jig's reads::vocabulary::row_bytes charges size_of::<Row>() and
-            // record_bytes charges size_of::<Record>() even for a Turn. Both
-            // types are public; owner, ancestor and linked evidence is extra.
-            let row = u64::try_from(size_of::<jig_domain_core::reads::Row>()).expect("read row slot");
-            let record = u64::try_from(size_of::<jig_domain_core::Record>()).expect("read record carrier");
-            short(
-                problems,
-                own(b"root.loads.read_bytes"),
-                loads.read_bytes,
-                b"the agent's largest turn with a read's row",
-                turn.checked_add(row.checked_add(record).expect("read row carriers")),
-            );
         }
         for (index, worker) in workers.iter().enumerate() {
             let path = at(index, Path::root().member(b"workers")).member(b"limits").member(b"overrides");
@@ -1107,10 +1095,9 @@ pub(crate) fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> 
 
 pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {
     let (path, what) = match refused {
-        crate::store::Refusal::ReadPage { read, page } => (
-            own(b"root.loads.bytes"),
-            What::Short { bytes: u64::from(read), of: b"the store's page", needs: u64::from(page) },
-        ),
+        crate::store::Refusal::ReadRoom { read, needs } => {
+            (own(b"root.loads.read_bytes"), What::Short { bytes: read, of: b"a read's room", needs })
+        }
         crate::store::Refusal::Page { transcript, frame, page, ceiling } => {
             (own(b"root.loads.transcript_bytes"), What::StorePage { transcript, frame, page, ceiling })
         }

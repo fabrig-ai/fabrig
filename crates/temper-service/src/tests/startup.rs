@@ -99,11 +99,11 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
     engine.limits.root.loads.transcript_bytes = 1_000_000;
     engine.limits.root.loads.read_bytes = 1_000_000;
     let root = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
-    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store).unwrap_err();
-    let crate::store::Refusal::ReadPage { read, page } = refused else {
+    let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store, None).unwrap_err();
+    let crate::store::Refusal::ReadRoom { read, needs } = refused else {
         panic!("the driver's page is the only refusal: {refused:?}");
     };
-    assert!(read < page);
+    assert!(read < needs);
 
     let mut problems = Problems::empty();
     crate::startup::checks::records(&engine.jig, &engine.limits, &[], &mut problems);
@@ -111,12 +111,96 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
 }
 
 #[test]
-fn startup_names_a_store_driver_read_below_its_page() {
-    let found = crate::startup::checks::store_refusal(crate::store::Refusal::ReadPage { read: 99, page: 100 });
-    assert_eq!(
-        lines(&found).as_ref(),
-        b"application.limits.overrides.root.loads.bytes: 99 bytes, short of the store's page, 100 bytes\n"
-    );
+fn a_read_bound_set_to_the_refusals_number_starts() {
+    const TRANSCRIPT: u32 = 1_000_000;
+    // With a smaller agent turn the page drives the requirement; with a turn
+    // as large as the transcript the decoded row drives it instead.
+    for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
+        let mut agent = fixtures::startup_agent();
+        agent.limits.bodies.turn_body = turn;
+        let mut document = transcript_document(TRANSCRIPT);
+        if turn == TRANSCRIPT {
+            let previous = u64::from(fixtures::startup_agent().limits.bodies.turn_body);
+            let mut text = core::str::from_utf8(&document).unwrap().to_string();
+            for (key, before, after) in [
+                ("hub.turn_bytes", previous, u64::from(turn)),
+                ("core.resume_bytes", previous + 4, u64::from(turn) + 4),
+                ("hub.transcript_bytes", (previous + 4) * 4, (u64::from(turn) + 4) * 4),
+                ("hub.turn_queue_bytes", previous * 8, u64::from(turn) * 8),
+                ("root.journal.transcript_bytes", previous + 4, u64::from(turn) + 4),
+            ] {
+                let needle = format!("\"{key}\":{before}");
+                assert!(text.contains(&needle));
+                text = text.replace(&needle, &format!("\"{key}\":{after}"));
+            }
+            document = text.into_bytes().into_boxed_slice();
+        }
+        let store = crate::store_limits(&document, &config::Directories::working()).unwrap().store;
+        let page = u64::from(store.store.page.bytes);
+        let map = u64::from(store.store.key) + u64::from(store.store.value);
+        let frame = u64::from(jig_protocol_store::sizes::frame(&store.core, TRANSCRIPT).unwrap());
+        let decoded = u64::from(turn)
+            + u64::try_from(size_of::<jig_domain_core::reads::Row>()).unwrap()
+            + u64::try_from(size_of::<jig_domain_core::Record>()).unwrap();
+        assert!(frame > map);
+        assert_eq!(page, frame);
+        assert!(u64::from(store.store.chunk) < page);
+        assert_eq!(decoded > page, turn == TRANSCRIPT);
+        let required = page.max(decoded);
+        // A read with no carrier room exercises both causes together; the
+        // same complete figure must be named there and at one byte short.
+        for read in [u64::from(turn), required - 1, required] {
+            let text = core::str::from_utf8(&document).unwrap();
+            let needle = format!("\"root.loads.read_bytes\":{}", store.core.load_bytes);
+            assert_eq!(text.matches(&needle).count(), 1);
+            let document = text.replace(&needle, &format!("\"root.loads.read_bytes\":{read}"));
+            let started = crate::startup(
+                document.as_bytes(),
+                &config::Directories::working(),
+                &fixtures::files(),
+                &agent,
+                &fixtures::seeds(),
+                None,
+                fixtures::worker_runtime(),
+                fixtures::forge_runtime(),
+            );
+            if read == required {
+                started.expect("the refusal's complete figure starts");
+            } else {
+                let refused = started.err().expect("short read refuses startup");
+                assert_eq!(refused.problems.len(), 1);
+                let expected = format!(
+                    "application.limits.overrides.root.loads.read_bytes: {read} bytes, short of a read's room, {required} bytes\n"
+                );
+                assert_eq!(lines(&refused).as_ref(), expected.as_bytes());
+            }
+        }
+    }
+}
+
+#[test]
+fn a_map_driven_page_needs_no_larger_read_bound() {
+    let document = fixtures::document();
+    let store = crate::store_limits(&document, &config::Directories::working()).unwrap().store;
+    let map = store.store.key.checked_add(store.store.value).unwrap();
+    let frame =
+        jig_protocol_store::sizes::frame(&store.core, fixtures::startup_agent().limits.bodies.turn_body).unwrap();
+    assert!(map > frame);
+    assert_eq!(store.store.page.bytes, map);
+    assert!(store.store.chunk >= store.store.page.bytes);
+    assert_eq!(store.core.load_bytes, 131_072);
+    assert!(store.core.load_bytes < u64::from(store.store.page.bytes));
+    crate::startup(
+        &document,
+        &config::Directories::working(),
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .expect("the chunk covers the map-driven page without raising the read bound");
 }
 
 #[test]

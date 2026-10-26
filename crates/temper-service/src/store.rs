@@ -51,13 +51,13 @@ pub struct Store {
 /// Admit the core, journal and temper families, then copy checked sizes to KV.
 #[must_use]
 pub fn limits(root: &root::Limits, forge: &forge::Limits, profile: &protocol::Limits) -> Option<protocol::Limits> {
-    admit(root, forge, profile).ok()
+    admit(root, forge, profile, None).ok()
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Refusal {
     Map(protocol::sizes::SizeRefusal),
-    ReadPage { read: u32, page: u32 },
+    ReadRoom { read: u64, needs: u64 },
     Transcript { bytes: u32, ceiling: u32 },
     Page { transcript: u32, frame: u32, page: u32, ceiling: u32 },
 }
@@ -67,9 +67,16 @@ pub(crate) fn admit(
     root: &root::Limits,
     forge: &forge::Limits,
     profile: &protocol::Limits,
+    turn: Option<u32>,
 ) -> Result<protocol::Limits, Refusal> {
     let limits = layout(root, forge, profile)?;
-    check_read_page(&limits).ok_or(Refusal::ReadPage { read: max_read(&limits), page: limits.store.page.bytes })?;
+    let needs = read_room(&limits, turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
+    let decoded = decoded_read_room(turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
+    // The chunk or resume buffer can already cover a page. Only a decoded
+    // row must fit the configured read itself; either refusal names one room.
+    if check_read_page(&limits).is_none() || root.loads.read_bytes < decoded {
+        return Err(Refusal::ReadRoom { read: root.loads.read_bytes, needs });
+    }
     match protocol::sizes::whole(max_whole(&limits)) {
         Ok(()) => {}
         Err(why) => return Err(Refusal::Map(why)),
@@ -77,8 +84,24 @@ pub(crate) fn admit(
     Ok(limits)
 }
 
-/// Size the records before agent metadata is read. Driver admission follows the
-/// agent's decoded read-row checks, which can require more room than a frame.
+/// The room named by either read refusal: the drivers' encoded page or the
+/// agent's decoded turn with its read row (protocol/configuration.md, 7).
+/// Without agent metadata only the page requirement is known.
+pub(crate) fn read_room(limits: &protocol::Limits, turn: Option<u32>) -> Option<u64> {
+    Some(u64::from(limits.store.page.bytes).max(decoded_read_room(turn)?))
+}
+
+fn decoded_read_room(turn: Option<u32>) -> Option<u64> {
+    match turn {
+        Some(turn) => u64::from(turn)
+            .checked_add(u64::try_from(size_of::<jig_domain_core::reads::Row>()).ok()?)?
+            .checked_add(u64::try_from(size_of::<jig_domain_core::Record>()).ok()?),
+        None => Some(0),
+    }
+}
+
+/// Size the records before agent metadata is read. Read admission follows once
+/// the page and, where available, the agent's decoded read-row room are known.
 pub(crate) fn layout(
     root: &root::Limits,
     forge: &forge::Limits,

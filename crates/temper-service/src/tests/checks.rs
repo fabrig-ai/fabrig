@@ -767,9 +767,6 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
     let mut agent = fixtures::startup_agent();
     agent.limits.bodies.turn_body = TURN;
     let loaded = TURN + u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap();
-    let read = u64::from(TURN)
-        + u64::try_from(size_of::<jig_domain_core::reads::Row>()).unwrap()
-        + u64::try_from(size_of::<jig_domain_core::Record>()).unwrap();
     let window = u64::from(TURN + 4) * 4;
     let rows = [
         ("engine.limits.overrides.hub.turn_bytes", u64::from(TURN), "the agent's largest turn"),
@@ -781,7 +778,6 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
             u64::from(loaded),
             "the agent's largest turn with a loaded row",
         ),
-        ("application.limits.overrides.root.loads.read_bytes", read, "the agent's largest turn with a read's row"),
         ("engine.limits.overrides.hub.transcript_bytes", window, "the engine's resume window"),
         ("workers[0].limits.overrides.hub.transcript_bytes", window, "the engine's resume window"),
     ];
@@ -794,7 +790,6 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
         own.root.loads.transcript_bytes = TURN;
         own.root.loads.bytes = loaded;
         own.root.loads.reply_bytes = loaded;
-        own.root.loads.read_bytes = read;
         let mut found = Problems::empty();
         checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent), &mut found);
         assert_eq!(&*lines(&found), b"", "{path} at equality");
@@ -804,10 +799,9 @@ fn each_turn_bound_accepts_equality_and_names_one_byte_short() {
             2 => engine.core.resume_bytes -= 1,
             3 => own.root.loads.transcript_bytes -= 1,
             4 => own.root.loads.bytes -= 1,
-            5 => own.root.loads.read_bytes -= 1,
-            6 => engine.hub.transcript_bytes -= 1,
-            7 => worker.limits.hub.transcript_bytes -= 1,
-            _ => unreachable!("eight turn-bound relations"),
+            5 => engine.hub.transcript_bytes -= 1,
+            6 => worker.limits.hub.transcript_bytes -= 1,
+            _ => unreachable!("seven turn-bound relations"),
         }
         checks::turns(Some(&engine), core::slice::from_ref(&worker), &own, Some(&agent), &mut found);
         assert_eq!(&*lines(&found), format!("{path}: {} bytes, short of {of}, {needs} bytes\n", needs - 1).as_bytes(),);
