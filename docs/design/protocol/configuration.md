@@ -1288,7 +1288,8 @@ login is imported.
   C'/D'/K', retaining init's listeners. Give --bundle DIR to name the
   separately built loopback bundle; C stays untouched. A nonempty C is
   accepted only for the current init-shaped standalone configuration,
-  its public agent document and two public charters. --bundle overrides
+  and its public agent document; it reads and copies no charters, which
+  are the binary's stock (13.4). --bundle overrides
   its application.clients.bundle; otherwise that configured directory is
   used. Unsupported shapes are refused with the member named before any
   child starts. Fresh worker/deployment resources are created in D'.
@@ -1567,6 +1568,12 @@ into the binary.
   place of the document's members, and temper's kinds' defaults (kind 1
   rule 1, kind 3) to the forge (jig's `domain/engine.md`, 17.5), and
   makes the engine as today.
+- **The stock sets floors under the limits.** Its own values must fit
+  the limits they are checked against: a configuration whose
+  `core.policy_bytes` is below policy 1's encoding, or whose
+  `authority.grants` is below the rules' grants, is refused at the
+  start, naming the limit and the stock setting. A start's problem about
+  a stock setting names it as ctl does, `charter 1.hosts`.
 - **The stock charters' models are the document's:** a charter names
   configured models, and the binary knows none, so it gives every model
   `engine.llm` configures, the demo's among them where the demo is
