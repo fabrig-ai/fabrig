@@ -1719,13 +1719,14 @@ section 17; the records are `../protocol/store.md`, 4.4.
   | template | the template's, from 1 | a template whole (`../protocol/configuration.md`, 3.1) | when `me` is served (11.1): the newest |
   | policy | the policy's, from 1 | a whole policy in a seed's format, a project made from it copying it (core.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (authority.md, section 6) | at every decision: the newest |
-  | an application's kind | the application's | bytes jig never reads (17.5) | by its connector: the newest |
+  | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (17.5) | by the application, from that connector: the newest |
 
 - **The defaults are the binary's.** The application passes them as
   values when it builds the core (`Config`'s defaults): its charters,
   policies and rules, its templates, jig's chat and goal among them
   where it wants them, which jig gives as values made for the charter
-  they run (`../protocol/configuration.md`, 3.1), and its own kinds'
+  they run (`../protocol/configuration.md`, 3.1); its own kinds'
+  defaults it gives the connectors that own them, never the core
   (17.5). An application that passes none has `jig-protocol-config`
   read them from the document (17.7).
 - **The current settings are the defaults with the stored changes over
@@ -1899,44 +1900,77 @@ Until held charter versions are implemented, a settings change is refused as ful
 ### 17.5 An application's settings
 
 An application's own settings ride the same mechanism: defaulted,
-stored, changed, recorded in revisions and decided as jig's are,
-without jig reading them. No trait and no generic: a kind is a number,
-a value is bytes, and its connector judges it within the change's
-decision.
+changed, proposed and decided as jig's are, each change in a revision.
+Their values are the application's, kept by the connector that owns
+their kind, in its own family: jig keeps what it decides, whether a
+setting follows its default, which revision changed it and the size of
+its value, never the value. No trait and no generic: a kind is a
+number, a value crosses jig as bytes it never reads, and its connector
+judges and keeps it within the change's decision.
 
-- **Declared with the defaults.** For each of its kinds the application
-  gives its number, in a space of its own beside jig's kinds; its scope,
-  the deployment or each project; the connector that owns it, by number
-  (core.md, 3.5), which the root may route to any child of its own; its
-  bounds, a value's largest bytes and the values per scope, which the
-  worst case prices; and its defaults, each a number and bytes.
-- **Values are bytes.** The core keeps them, the store keeps their
-  changes, and a revision records them as it records jig's; the core
-  checks only their bounds. They are never pinned: whatever reads one
-  reads the newest.
+- **Declared at the start.** For each of its kinds the application
+  gives the core its number, in a space of its own beside jig's kinds;
+  its scope, the deployment or each project; the connector that owns
+  it, by number (core.md, 3.5), which the root may route to any child
+  of its own; and its bounds, a value's largest bytes and the values
+  per scope, which the core's worst case prices for what it keeps of
+  them, and the connector's for the values. Its defaults, each a number
+  and bytes, it gives that connector, never the core.
+- **The connector keeps the values,** in its own family, written in the
+  core's decisions as every child's records are (core.md, section 4):
+  its kinds' defaults as the application last gave them, each setting's
+  current change, and the items of each pending proposal of settings
+  that name its kinds. A value is a record of the connector's own, so
+  that the application's patches reach it as they reach any of its
+  records (`../protocol/store.md`, 10.3), and jig's families hold no
+  bytes of another owner's.
+- **The core keeps the rest,** as it keeps its own kinds' (17.7): for
+  each setting of an application's kind, whether it follows its
+  default, is changed and by which revision, or is removed, and its
+  value's size; in each revision's record, each item's edit and the
+  size of what it set; in a pending proposal's set, its items' edits
+  and sizes. jig's documents carry no value of an application's
+  (`../client/domain/contract.md`, 5.1): they say the state and the
+  size, and the application's own reads serve the value.
 - **Judged in the change's decision.** A change naming items of a kind
-  hands them, each as the value it would leave (a reset as the default
-  it returns to, or as a removal where there is none), with the
-  revision they would make, to that kind's
-  connector through the root, within the decision's step (4.3), as a
-  requirement's verdict is asked (connectors.md, section 7). The
-  connector accepts, or refuses with its reason, which the change's
-  refusal carries. A set commits only when every connector it names
-  accepts.
-- **Told in the same decision.** Once committed, each connector hears
-  its kinds' new values, its state running ahead of the commit as every
-  child's does (5.1). At each start, each connector hears its kinds'
-  current values before its records are restored (section 6, step 2),
-  judged again by nobody: a stored value was judged when its change was
-  made, and the defaults are the application's own. A release reads the
-  values its kinds took before, as it reads its records; one it cannot
-  read refuses the start, naming it, as a record it cannot read does.
-- **Read by the application.** What a connector keeps of them is its
-  own. The root, and through it the application's own children, read a
-  value through the core by kind, scope and number, as they read a
-  charter.
+  hands them, each with the value it would leave (a reset as the
+  default it returns to, a removal as none) and the revision they would
+  make, to that kind's connector through the root, within the
+  decision's step (4.3), as a requirement's verdict is asked
+  (connectors.md, section 7): the values a party's change carried, or,
+  for an accepted proposal, those the connector kept. The connector
+  accepts, refuses with its reason, which the change's refusal carries,
+  or answers that an item leaves its setting as it is, which the core
+  counts toward *empty* (17.2). A set commits only when every connector
+  it names accepts.
+- **Kept in the same decision.** Once a change commits, each connector
+  saves its items' values as their settings' changes, or erases the
+  changes of those reset or removed, and acts on them from then on, its
+  state running ahead of the commit as every child's does (5.1). A
+  proposal of settings naming its kinds hands the connector its items'
+  values in the decision that makes the proposal, which the connector
+  checks against its kinds' bounds alone and keeps; the decision that
+  withdraws or rejects it erases them, and the one that accepts it
+  turns them into the changes.
+- **At each start,** before its records are restored (section 6, step
+  2), each connector is given its kinds' defaults by the application,
+  compares them with those it stored, saves the new ones, and tells the
+  core which of its settings' defaults changed and their sizes, so that
+  a changed default no change is over joins the release's revision
+  (17.7). A stored value it cannot read refuses the start, naming it,
+  as a record it cannot read does; a default past its kind's bounds
+  refuses it, naming the kind. Nothing is judged again: a stored value
+  was judged when its change was made, and the defaults are the
+  application's own.
+- **Read by the application.** The root, and through it the
+  application's own children and clients, read a value from the
+  connector that owns its kind, by kind, scope and number: the newest,
+  whatever revision a task was made in. Never pinned.
+- **History** keeps, for an application's kind, each revision's edits
+  and sizes; the values past revisions set are not kept, only the
+  current ones and the defaults.
 - **The root routes, never judges** (root.md, section 11): the judging
-  is the connector's, in the connector's own terms.
+  and the keeping are the connector's, in its own terms.
 
 ### 17.6 A proposal of settings
 
@@ -1958,7 +1992,8 @@ Its code comes after the rest (`../STATUS.md`).
 - **The owner keeps the value.** The tasks child keeps the proposal as
   it keeps every proposal: its proposer, reason, where it waits and its
   state. The core keeps its set, by the proposal's number, in memory and
-  in the store, restored with it.
+  in the store, restored with it, but for the values of its items of an
+  application's kinds, which their connectors keep (17.5).
 - **Accepting it is the change** of 17.2, with the accepter's choice of
   whether running work moves, checked again then. An acceptance refused
   (out of shape, judged, full) leaves the proposal pending, and the
@@ -1987,7 +2022,9 @@ Its code comes after the rest (`../STATUS.md`).
 - **What the store keeps** (the core's settings family,
   `../protocol/store.md`, 4.4): the defaults the newest revision was
   made with, setting by setting; the changes, each a setting's value whole or its
-  removal, with the revision that made it; a record per revision, with
+  removal, with the revision that made it, and of an application's
+  kind its state and size alone, its value the connector's (17.5); a
+  record per revision, with
   its number, the revision it was made against, when, who decided it (a
   party, the release, the first start), the proposal it came from,
   whether it moved running work, and its items with the values they
@@ -2057,7 +2094,9 @@ Its code comes after the rest (`../STATUS.md`).
   the tasks child's and the fleet's tables are sized for the charters
   and the versions together.
 - **The current settings** cost the defaults and the changes, each
-  within its kind's bounds (17.1): at most two whole sets, priced so.
+  within its kind's bounds (17.1): at most two whole sets, priced so;
+  of an application's kinds, the core prices only what it keeps of
+  them, and their connectors the values (17.5).
   The fleet keeps, for each connected host, what its hello declared for
   the configured models and its agent's bounds, priced by the models'
   bound, so that it can judge the host against changed needs.

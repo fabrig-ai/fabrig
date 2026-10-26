@@ -465,8 +465,9 @@ host's half reports it (`llm.md`, 5.5).
   held past one lowered since refuse the start, saying which.
 - **An application's kinds of settings** declare a value's largest
   bytes and the values per scope (`../domain/engine.md`, 17.5), which
-  enter the core's worst case; a default past either refuses the start,
-  naming the kind.
+  enter the core's worst case for what it keeps of each setting, and
+  the connector's for the values it keeps; a default past either
+  refuses the start, naming the kind.
 - **The application's limits** are its own members, checked in the same
   sum.
 

@@ -635,7 +635,8 @@ served is held, kept and unsent, for its owner's version (client.md,
     it is now (its value, following its default or the change of which
     revision, or not offered) and what it would be, each value within
     the document's bound or with its size, as a revision's items are
-    (section 6);
+    (section 6), an item of an application's kinds with its size alone,
+    the application serving its values;
   - *an activity line:* one of a task's words, run boundaries, turns,
     results heard, news heard, decisions, in commit order; a turn as its
     bytes, within the page's byte bound, which the client's link
@@ -678,7 +679,9 @@ served is held, kept and unsent, for its owner's version (client.md,
     came from, and how many live tasks hold it; the pending proposals of
     settings, by number (`../../domain/engine.md`, section 17). It
     carries no value: one setting is read whole on its own, from the
-    newest or a held revision (section 6). Seen by a party with a
+    newest or a held revision (section 6), and one of an application's
+    kinds from the application, whose connector keeps its value (17.5),
+    jig's read giving its state and size alone. Seen by a party with a
     deployment role, and a project's items by a party with a role there.
 Program host facts use each worker's whole configured name. Inventory still awaited
 is unknown, including after a reconnect; a disconnected worker's earlier inventory

@@ -782,21 +782,36 @@ history making the same calls while idle.
 
 A connector may own kinds of settings of the application's (engine.md,
 17.5): the application declares each kind with its connector's number,
-and the core keeps, stores and revisions the values as bytes it never
-reads.
+and gives the connector its defaults. The connector keeps the values in
+its own family; the core keeps whether each setting follows its default
+or a change, the revisions, the proposals and their sizes, never the
+bytes.
 
+- **Its defaults at each start,** before its records (section 14): the
+  application's, which it compares with those it stored, saving the new
+  ones and telling the core which settings' defaults changed and their
+  sizes, for the release's revision. A default past its kind's bounds,
+  or a stored value it cannot read, refuses the start, naming it.
 - **Judged in the change's decision.** A change naming items of its
   kinds reaches it as a hand-off within the decision's step, as a
   requirement's verdict does (section 7): the items, each its kind,
   scope and number and the value it would leave or its removal (a reset
-  as the default it returns to), and the revision they would make. It accepts, or refuses with a reason in its own words,
-  which the change's refusal carries to the party. A judge reads only its
-  own state, and decides what the items mean in its system's terms.
-- **Told in the same decision.** Once the change is committed, it hears
-  its kinds' new values, and acts on them from then on; at a start it
-  hears them before its records (section 14), judged again by nobody,
-  and refuses the start only for a value it cannot read.
-- **Never pinned:** it reads the newest, whatever revision a task it
-  serves was made in.
-- **Its world** scripts changes of its kinds, judged both ways, and a
-  restart that hands them back (section 15).
+  as the default it returns to), and the revision they would make. It
+  accepts; refuses with a reason in its own words, which the change's
+  refusal carries to the party; or says an item leaves its setting as
+  it is. A judge reads only its own state, and decides what the items
+  mean in its system's terms.
+- **Kept in the same decision.** Once the change is committed, it saves
+  its items' values as the current changes, or erases the changes reset
+  or removed, and acts on them from then on. A proposal of settings
+  naming its kinds hands it its items' values to keep, checked against
+  the kinds' bounds, in the decision that makes the proposal; it erases
+  them when the proposal is withdrawn or rejected, and an acceptance
+  makes them the changes.
+- **Read through it.** The application's children and clients read a
+  value from the connector, by kind, scope and number: the newest,
+  whatever revision a task it serves was made in. Never pinned.
+- **Its world** scripts changes of its kinds, judged both ways, a
+  proposal kept, accepted and withdrawn, and a restart that hands back
+  the values and finds a changed default (section 15).
+
