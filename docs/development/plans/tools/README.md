@@ -52,7 +52,7 @@ plan.
 - **`findings/`:** the base builds at the new pins (`base-repin.md`),
   the audits (`jig-section-13.md`, `temper-area-1.md`), jig's test cost
   (`jig-test-cost.md`, `jig-test-profile.md`), the suites' times at the
-  base (`base-times.md`), who drafted each file (`drafters.md`), and the
+  base (`base-times.md`), and the
   next plan's drafts (`next/`).
 - **`later.md`:** what the design names that this plan does not build.
 

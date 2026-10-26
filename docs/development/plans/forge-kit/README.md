@@ -36,7 +36,7 @@ gaps the designer named: the head check counts the user agent (skein
 - **`findings/`:** the code audit at the base, one file per area
   (`survey-01-forge.md` to `survey-07-pins.md`), the design trace per
   document (`trace-*.md`), `base-runs.md` (each command of this plan, run
-  once at the base), `drafters.md`.
+  once at the base).
 - **`code-organization.md`:** what moves where, names, owners, fixtures,
   the "Don't" list, sizes and the count.
 - **`later.md`:** what the design names that this plan does not build.
