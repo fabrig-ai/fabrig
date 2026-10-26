@@ -946,7 +946,9 @@ fn local_service(config: crate::settings::Engine, store: crate::store::Store) ->
 }
 fn restore_local(service: &mut crate::Service) {
     // The generic kernel refuses unhandled network connects. Hold local work
-    // until restore completes, then give its real setup streams to Face.
+    // until service admission opens, then give its real setup streams to Face.
+    // domain/root.md, 9.1 holds effects through the durable mark; the service pass
+    // publishes the held sign-in link after observing decisions open.
     let pending = match service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1) {
         Some(local) => {
             let pending = local.pending;
@@ -958,7 +960,7 @@ fn restore_local(service: &mut crate::Service) {
     for _ in 0_u32..4096 {
         fixtures::turn(service);
         let engine = service.engine.as_mut().unwrap();
-        if engine.domain.ready() {
+        if engine.domain.ready() && engine.clients.starting.is_none() {
             if let Some(pending) = pending {
                 engine.setup.lifecycle.local_mut(1).unwrap().pending = pending;
             }
