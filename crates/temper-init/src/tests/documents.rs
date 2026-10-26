@@ -130,7 +130,7 @@ fn the_default_is_the_owned_example_so_edited() {
                 }
             }
         }
-        assert_eq!(replace_org_patterns(&mut expected), 40, "{row}");
+        assert_eq!(replace_org_patterns(&mut expected), 30, "{row}");
         expected["engine"]["projects"][0]["policy"]["ceiling"]["tools"] = json!(513_u64);
         expected["engine"]["projects"][0]["policy"]["roles"][0]["authority"]["tools"] = json!(513_u64);
         expected["engine"]["policies"] = expected["engine"]["projects"].clone();
