@@ -200,10 +200,12 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 - **The program backend,** in the real loop: a run on a program's source
   through smith's fake `claude`, calling host tools that the engine
   decides as a direct run's, its result read the same way; a chat, an
-  Open run, replying to two of its person's messages on one program
-  process, parking and resuming by its session (smith's
-  `protocol/programs.md`, 5.9); and a limit the fake program reports
-  making the source limited (`../domain/testing.md`, 2.4).
+  Open run, replying to two of its person's messages, one program
+  process each, parking between them and resuming by its session, since
+  the real loop's charters park at once; two replies on one process are
+  smith's agent-process world's to show (smith's
+  `protocol/programs.md`, 5.9 and 8); and a limit the fake program
+  reports making the source limited (`../domain/testing.md`, 2.4).
 - **Notices:** a limited, refused and unauthorized notice from a run,
   each scripted on skein's fake LLM peer, reaching the accounts child
   fenced by its attempt, and one of a fenced attempt dropped
