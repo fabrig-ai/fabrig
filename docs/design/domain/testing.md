@@ -1738,9 +1738,12 @@ skein's (skein's `fake-llm.md`):
     stop, its transcripts decoded by jig's frame decoder and smith's
     turn codec (jig's `protocol/store.md`, section 8; smith's
     `protocol/transcript.md`), never the store opened; and the tasks to
-    take, each with its cue: the person's request for a chat, an
-    `asked` script; a phrase of its brief for a delegate, a `cued`
-    script, since a delegate's system text opens with its brief.
+    take, `--cue TASK=PHRASE` each. Every script is `cued`, its cue a
+    phrase of that task's system text, where smith renders each task's
+    brief, a chat's included: the person's request for a chat, a phrase
+    of its brief for a delegate. A chat's first user message is smith's
+    own opening words, never the person's, so an `asked` script would
+    not match.
   - **Its output:** one document in `temper fake llm`'s form
     (../protocol/setup.md, 8.4), a script per task, each assistant
     completion of its run one turn, its text and its calls in order,
@@ -1757,7 +1760,9 @@ skein's (skein's `fake-llm.md`):
     uncommitted at the stop, is refused, naming it, since the twin is
     made from a walk just after it, never from an old store.
   - **Cues are the caller's,** distinct, each a phrase of its own task's
-    request or brief; the tool refuses two the same. Whether each
+    system text; the tool refuses two the same. Where one task's brief
+    quotes another's (a goal's, the person's request), its own cue must
+    come earlier in its system text than the quoted one. Whether each
     selects its script on replay, as the fake's earliest-cue rule
     chooses (skein's `fake-llm.md`, 2.4), the twin's run proves, not
     the tool.
