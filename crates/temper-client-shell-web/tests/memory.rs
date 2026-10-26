@@ -1,14 +1,8 @@
 //! Patch emission measured at the browser's configured bounds.
-#[path = "../src/host.rs"]
-pub mod host;
-#[path = "../src/limits.rs"]
-mod limits;
-#[path = "../src/records.rs"]
-mod records;
-
 use skein_lib::{Time, Wall};
 use skein_ui::Patch;
 use skein_world::domain::heap::{Counting, Meter};
+use temper_client_shell_web::host;
 
 #[global_allocator]
 static HEAP: Counting = Counting;

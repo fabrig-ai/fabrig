@@ -33,7 +33,7 @@ init|init/engine|temper|startup|test(=owned_memory_figures_for_init_match_its_ow
 init|init/worker|temper|startup|test(=owned_memory_figures_for_init_match_its_own_document)
 worker|worker-alone/worker|temper|startup|test(=owned_memory_figures_for_a_worker_alone_include_its_process_and_no_engine)
 view|client-view|temper-client-view|lib|test(account_bounds_have_a_literal_price) | test(english_phrase_declarations_match_the_vocabulary)
-web|client-web|temper-client-shell-web|host|test(the_web_preset_has_a_literal_price)
+web|client-web|temper-client-shell-web|lib|test(the_web_preset_has_a_literal_price)
 TABLE
 }
 

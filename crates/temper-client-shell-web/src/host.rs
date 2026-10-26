@@ -1,15 +1,36 @@
-//! One client host shared by the browser's platform parts.
+//! One client host shared by the browser and the journeys' replay (client/journeys.md, 2).
 use crate::{limits, records};
 use jig_client_protocol_http::Heard as Above;
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{Env, List, Queue, Secret, Time, Token, Wall};
 use skein_ui::{Act, NodeId, Patch};
+use skein_ui_web::{Look, mapping::Primary, page::Page};
 use std::collections::BTreeMap;
 use temper_client_domain::{
     self as root, Address, Event, Place, Request,
     address::{Filter, parse, print},
 };
 use temper_client_view as view;
+
+/// One report of a turn, as the shell gives it to the host (client/journeys.md, 2).
+pub enum Report {
+    Start,
+    Due,
+    Act { node: NodeId, act: Act },
+    Place { path: Box<[u8]> },
+    Heard(Heard),
+    Carried { reports: Vec<skein_ui_web::transport::Carried>, writes: u32 },
+}
+
+/// What the host asks after one report.
+#[derive(Debug, Default)]
+pub struct Duties {
+    pub asked: Vec<Asked>,
+    pub writes: u32,
+    pub navigate: Option<Box<[u8]>>,
+    pub replace: Option<Box<[u8]>>,
+    pub show: Option<(Box<[u8]>, bool)>,
+}
 
 pub struct Host {
     root: root::Domain,
@@ -23,9 +44,9 @@ pub struct Host {
     stream: jig_client_protocol_http::Stream,
     tickets: BTreeMap<u32, Token>,
     next: u32,
-    pub navigate: Option<Box<[u8]>>,
-    pub replace: Option<Box<[u8]>>,
-    pub show: Option<(Box<[u8]>, bool)>,
+    navigate: Option<Box<[u8]>>,
+    replace: Option<Box<[u8]>>,
+    show: Option<(Box<[u8]>, bool)>,
 }
 impl Host {
     #[must_use]
@@ -88,16 +109,40 @@ impl Host {
         }
         address
     }
-    pub fn went(&mut self, path: &[u8]) {
+    fn went(&mut self, path: &[u8]) {
         self.address = self.opened(path);
         self.event(Event::Went { place: parse(path) });
     }
-    pub fn href(&mut self, node: NodeId) -> Option<Box<[u8]>> {
+    fn href(&mut self, node: NodeId) -> Option<Box<[u8]>> {
         view::href(&mut self.view, node)
     }
     pub fn clocks(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
+    }
+    pub fn report(&mut self, report: Report) -> Duties {
+        match report {
+            Report::Start => {}
+            Report::Due => self.due(),
+            Report::Act { node, act } => self.act(node, act),
+            Report::Place { path } => self.went(&path),
+            Report::Heard(heard) => self.heard(heard),
+            Report::Carried { reports, writes } => self.carried(reports, writes),
+        }
+        let (asked, writes) = self.duties();
+        Duties { asked, writes, navigate: self.navigate.take(), replace: self.replace.take(), show: self.show.take() }
+    }
+    pub fn draw(&mut self, page: &mut Page<'_>, ops: &mut Vec<skein_ui_web::page::Op>) {
+        page.apply(&self.patches(), ops);
+        for node in page.links().to_vec() {
+            if let Some(path) = self.href(node) {
+                page.set_href(node, &path, ops);
+            }
+        }
+    }
+    #[must_use]
+    pub fn tree(&self) -> &skein_ui::Tree {
+        self.view.tree()
     }
     fn event(&mut self, event: Event) {
         root::step(&mut self.root, &self.env, event, &mut self.out);
@@ -105,15 +150,15 @@ impl Host {
     fn client(&mut self, event: jig_client::Event) {
         self.event(Event::Client { event });
     }
-    pub fn due(&mut self) {
+    fn due(&mut self) {
         root::fire(&mut self.root, &self.env, &mut self.out);
     }
-    pub fn act(&mut self, node: NodeId, act: Act) {
+    fn act(&mut self, node: NodeId, act: Act) {
         if let Some(event) = view::event(&mut self.view, node, act) {
             self.event(event);
         }
     }
-    pub fn heard(&mut self, heard: Heard) {
+    fn heard(&mut self, heard: Heard) {
         let mut above = Queue::with_capacity(4096);
         match heard {
             Heard::Answered { exchange, status, body } => {
@@ -144,7 +189,7 @@ impl Host {
     }
     // The root can step the client several times in one turn. Each Save or
     // Erase needs its own answer, after the whole turn's storage has finished.
-    pub fn carried(&mut self, reports: Vec<skein_ui_web::transport::Carried>, writes: u32) {
+    fn carried(&mut self, reports: Vec<skein_ui_web::transport::Carried>, writes: u32) {
         let mut refused = false;
         for report in reports {
             match jig_client_shell_web::adapter::carried(report) {
@@ -166,7 +211,7 @@ impl Host {
     pub fn requests(&mut self) -> Vec<Asked> {
         self.duties().0
     }
-    pub fn duties(&mut self) -> (Vec<Asked>, u32) {
+    fn duties(&mut self) -> (Vec<Asked>, u32) {
         let mut asked = Vec::new();
         let mut writes = 0_u32;
         while let Some(request) = self.out.pop() {
@@ -253,6 +298,23 @@ impl Host {
     pub fn deadline(&self) -> Option<Time> {
         deadline(root::next_deadline(&self.root), self.view.next_change(), self.env.now, self.env.wall)
     }
+}
+
+/// The page with temper's look, for the shell's start and the replay.
+#[must_use]
+pub fn page(bounds: &skein_ui::Limits, primary: Primary) -> Page<'static> {
+    Page::new(
+        Look {
+            names: &[view::look::NAMES],
+            pictures: &[],
+            draw: |_, _, _, _, _| false,
+            components: &[],
+            elements: view::look::ELEMENTS,
+        },
+        bounds,
+        b"temper",
+        primary,
+    )
 }
 
 #[cfg(test)]

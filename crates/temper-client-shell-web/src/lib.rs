@@ -1,20 +1,24 @@
-//! Temper's browser shell: platform facts enter, the root's requests leave.
-#![cfg(target_arch = "wasm32")]
+//! The client host on every target and the browser's shell on wasm32.
 #![forbid(unsafe_code)]
+#[cfg(target_arch = "wasm32")]
 use jig_client_shell_web::{adapter, sign_in};
+#[cfg(target_arch = "wasm32")]
 use skein_ui::{Act, NodeId};
+#[cfg(target_arch = "wasm32")]
 use skein_ui_web::{
-    Look, fetch, history,
+    fetch, history,
     inbox::Inbox,
     page::{Page, web::Dom},
     platform,
     store::Store,
     timer, title, transport, wasm_bindgen,
 };
+#[cfg(target_arch = "wasm32")]
 use std::{cell::RefCell, rc::Rc};
-mod host;
-mod limits;
-mod records;
+pub mod host;
+pub mod limits;
+pub mod records;
+#[cfg(target_arch = "wasm32")]
 enum Report {
     Start,
     Due,
@@ -23,6 +27,7 @@ enum Report {
     Carried(Vec<transport::Carried>, u32),
     Place(Box<[u8]>),
 }
+#[cfg(target_arch = "wasm32")]
 struct Shell {
     host: host::Host,
     page: Rc<RefCell<Page<'static>>>,
@@ -33,6 +38,7 @@ struct Shell {
     timer: timer::web::Timer,
     title: title::web::Title,
 }
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn start() {
     if !skein_ui_web::restart::Restart::new(
@@ -69,18 +75,7 @@ pub fn start() {
     let mut host = host::Host::new(facts.seed, facts.now, facts.wall, ways);
     host.forge_sign_in(forge_sign_in(&document));
     host.start(path.as_bytes(), store.read_all(&platform), secret);
-    let page = Rc::new(RefCell::new(Page::new(
-        Look {
-            names: &[temper_client_view::look::NAMES],
-            pictures: &[],
-            draw: |_, _, _, _, _| false,
-            components: &[],
-            elements: temper_client_view::look::ELEMENTS,
-        },
-        &host.bounds.tree,
-        b"temper",
-        facts.primary,
-    )));
+    let page = Rc::new(RefCell::new(host::page(&host.bounds.tree, facts.primary)));
     let dom = Dom::new(mount, &page, &inbox, Report::Act, &[]);
     let history = history::web::History::new(Rc::clone(&inbox), Report::Place);
     let timer = timer::web::Timer::new(Rc::clone(&inbox), || Report::Due);
@@ -88,6 +83,7 @@ pub fn start() {
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
 }
+#[cfg(target_arch = "wasm32")]
 impl Shell {
     fn turn(&mut self, inbox: &Inbox<Report>) {
         let (now, wall) = platform::clocks();
@@ -96,26 +92,26 @@ impl Shell {
         while let Some(report) = inbox.next() {
             let read_on =
                 matches!(&report, Report::Fetch(fetch::Report::StreamOpened | fetch::Report::StreamPiece { .. }));
-            match report {
-                Report::Start => {}
+            let report = match report {
+                Report::Start => host::Report::Start,
                 Report::Due => {
                     self.timer.fired();
-                    self.host.due();
+                    host::Report::Due
                 }
-                Report::Act(node, act) => self.host.act(node, act),
-                Report::Place(path) => self.host.went(&path),
-                Report::Fetch(report) => self.host.heard(adapter::fetched(report)),
-                Report::Carried(reports, writes) => self.host.carried(reports, writes),
-            }
-            let (asked, writes) = self.host.duties();
-            let mut requests = adapter::requests(asked);
-            requests.navigate = self.host.navigate.take();
+                Report::Act(node, act) => host::Report::Act { node, act },
+                Report::Place(path) => host::Report::Place { path },
+                Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
+                Report::Carried(reports, writes) => host::Report::Carried { reports, writes },
+            };
+            let duties = self.host.report(report);
+            let mut requests = adapter::requests(duties.asked);
+            requests.navigate = duties.navigate;
             if requests.navigate.is_some() {
                 // This acknowledged departure erases its finished request before
                 // navigating. The previous turn's close warning is already stale.
                 web_sys::window().expect("window").set_onbeforeunload(None);
             }
-            if let Some(to) = self.host.replace.take() {
+            if let Some(to) = duties.replace {
                 let window = web_sys::window().expect("window");
                 window.set_onbeforeunload(None);
                 window
@@ -125,26 +121,19 @@ impl Shell {
             }
             let mut carried = Vec::new();
             transport::carry(requests, &mut self.store, &mut self.platform, &mut carried);
-            if writes != 0 || !carried.is_empty() {
-                inbox.raise(Report::Carried(carried, writes));
+            if duties.writes != 0 || !carried.is_empty() {
+                inbox.raise(Report::Carried(carried, duties.writes));
             }
             if read_on {
                 self.platform.fetch.read_on();
             }
-            if let Some((path, replace)) = self.host.show.take() {
+            if let Some((path, replace)) = duties.show {
                 self.history.show(&path, replace);
                 new_page = !replace;
             }
         }
-        let patches = self.host.patches();
         let mut ops = Vec::new();
-        self.page.borrow_mut().apply(&patches, &mut ops);
-        let links = self.page.borrow().links().to_vec();
-        for node in links {
-            if let Some(path) = self.host.href(node) {
-                self.page.borrow_mut().set_href(node, &path, &mut ops);
-            }
-        }
+        self.host.draw(&mut self.page.borrow_mut(), &mut ops);
         self.dom.apply(&ops);
         let document = web_sys::window().expect("window").document().expect("document");
         // Nodes can be reused by a later page: remove this shell's previous
@@ -196,6 +185,7 @@ impl Shell {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 fn forge_sign_in(document: &web_sys::Document) -> temper_client_view::forge_sign_in::Forges {
     let mut facts = temper_client_view::forge_sign_in::Forges::new();
     let mut selector = String::from("meta[name='temper-forge-sign-in']");
