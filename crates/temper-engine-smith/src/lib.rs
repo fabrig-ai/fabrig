@@ -45,6 +45,7 @@ fn decimal(bytes: &[u8]) -> Result<u64, Problem> {
 /// or its answer, made here at decode, deciding nothing
 /// (protocol/documentation.md, section 5).
 #[derive(Debug)]
+#[expect(clippy::large_enum_variant, reason = "the stateless decode boundary moves the engine's bounded call whole")]
 pub enum Decoded {
     Call(temper_engine_domain::Call),
     Answered(smith_domain_run::HostAnswer),

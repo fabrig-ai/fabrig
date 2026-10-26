@@ -112,13 +112,15 @@ fn link(channel: Token, link: engine::Link) -> engine::Event {
     engine::Event::Worker(engine::WorkerInput::Link { channel, link })
 }
 
+type DecodeAnswer = (bool, Box<[u8]>);
+
 /// What the world's protocol layer keeps: tool bodies by call name, ended
 /// runs' terminals by outcome bytes, and every typed answer it rendered.
 #[derive(Debug, Default)]
 pub struct Protocol {
     pub sign_in_sources: BTreeSet<u32>,
     calls: BTreeMap<Box<[u8]>, engine::Call>,
-    decode_answers: BTreeMap<Box<[u8]>, (bool, Box<[u8]>)>,
+    decode_answers: BTreeMap<Box<[u8]>, DecodeAnswer>,
     ends: BTreeMap<Box<[u8]>, tasks::End>,
     serial: u64,
     /// Each decided call's typed answer, by its opaque call name, in render order.
