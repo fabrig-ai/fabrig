@@ -702,3 +702,45 @@ ordinary `temper box --fake-backends` (`protocol/configuration.md`,
 - **Forgejo here downloads nothing:** its subject carries the pinned
   Forgejo and runner in the box's cache, which the ordinary fetch
   verifies.
+
+## 13. The configuring golden
+
+The configuring agent's test against a real model
+(`draft/configuring.md`, section 8): given the roles we worked by, it
+should propose the encoding `draft/temper-on-temper.md` made by hand
+(its section 4), as far as that draft's gaps (its 6.8) let temper say
+it. A lab experiment, run when charter 3's instructions
+(`domain/agent.md`, 8.1) or the documentation (`protocol/documentation.md`)
+change, never in the gate.
+
+- **`lab/configuring-golden/`,** on rung 0b's ground
+  (`lab/live-0b/README.md`): the box, the held ChatGPT record moved in
+  and out again, no driver. Its spend is the configuring chat's turns,
+  which the meter reads; its class is 0b's, its budgets raised only as
+  0b's rule for a charter's two largest turns asks.
+- **Its inputs, frozen:** `owners.md` and `director.md` as
+  `temper-on-temper.md` read them, copied from agents' `roles/` at the
+  commit that draft names, never today's (the roles changed on 10-26);
+  and `golden.json`, section 4's encoding as a settings file
+  (`client/tools.md`, 5.3), each setting carrying in a `why` member the
+  sentence of section 4 it encodes, with `gaps.json` naming each part of
+  section 4 that 6.8 leaves out and why.
+- **The seed:** the account imported and usable, as 0b's; then
+  `ctl chat --project hello --template 3` with the two documents and
+  "Propose how temper should run this. Ask nothing: say what you
+  assumed." It waits for the chat's proposal, at most the class's story
+  deadline, and keeps `ctl proposal … --json` and the chat's turns.
+- **The checks:** `proposal`, that one proposal of settings was made,
+  against the newest revision, and that it decodes as settings; and
+  `score`, a report and never a failure: for each setting of
+  `golden.json`, whether the proposal has one of its kind whose
+  structure matches (models by provider and effort, hosts, waiting,
+  resume, tool families, delegation, deadline, budget, a landing rule's
+  criteria), and for each rule section 4 keeps as text, whether the
+  proposal's reason lists it under "your agents follow" with its
+  source. The score is the matched share, with each miss and each
+  extra named, kept with the run so that two runs of different
+  instructions compare.
+- **Run by whoever changes** charter 3's instructions or the
+  documentation, before landing it, on the machine that holds the lab's
+  ChatGPT record; its score goes in the landing's report.
