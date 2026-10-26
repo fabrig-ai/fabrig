@@ -186,7 +186,7 @@ pub enum Request {                                       // from the test
     Type   { page: Token, op: Token, node: Node, text: Box<[u8]> },
     Compose { page: Token, op: Token, node: Node, text: Box<[u8]> },  // an IME composition, left open
     Keys   { page: Token, op: Token, node: Node, text: Box<[u8]> },  // each character a key: a native date or time field
-    Key    { page: Token, op: Token, key: Key, shift: bool, alt: bool },  // Enter, Escape, Tab, Backspace, arrows, select-all, a letter
+    Key    { page: Token, op: Token, key: Key, shift: bool },  // Enter, Escape, Tab, Backspace, arrows, select-all, a letter
     Address { page: Token, op: Token },                  // the current address, from the history
     Attribute { page: Token, op: Token, selector: Box<[u8]>, name: Box<[u8]> },  // of the first element a CSS selector finds
     Snapshot   { page: Token, op: Token },               // the accessibility tree, as text
@@ -220,6 +220,8 @@ pub struct Point { x: u32, y: u32 }                      // whole CSS pixels fro
 pub struct Seen  { node: Node, role: Box<[u8]>, name: Box<[u8]>, value: Box<[u8]>,
                    states: States, rect: Option<Rect> }   // focused, disabled, checked, expanded, selected
 pub enum Expect  { Present, Count(u32), Absent }
+pub enum Key     { Enter, Escape, Tab, Backspace, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, SelectAll,
+                   Letter { letter: u8, alt: bool } }   // a to z, by its place on the keyboard
 pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, perhaps empty
 ```
 
@@ -232,9 +234,21 @@ pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, 
   navigation to an attachment) is written there under a name the browser
   chooses, never the page's, so that no page names a path; once it is
   complete, `Downloaded` reports the name the page suggested and the
-  path written. A download cancelled or failed is the page's `Trouble`.
-  The directory is the test's: the kit never reads, moves or removes a
-  file in it.
+  path written, each at most `Limits::text`, a longer one making the
+  download the page's `Trouble`. A download cancelled or failed is the
+  page's `Trouble` too.
+  - **Its page is its main frame's:** a download a page's own document
+    starts is that page's, and so its person's. One started in a frame
+    within it is not reported; the file may still be written.
+  - **Bounded:** at most `Limits::downloads` are in flight across the
+    browser; one past them is cancelled and is its page's `Trouble`.
+    The kit keeps each in flight's id, person and suggested name, and
+    never a file's bytes.
+  - **Its end:** a download outlives its page's close, and ends as its
+    person's. A person's close cancels its downloads in flight first,
+    and none is reported after its `Closed`.
+  - The directory is the test's: the kit never reads, moves or removes a
+    file in it.
 - **A node is the browser's backend node id,** which names one element
   for as long as it lives. A node since removed is `Gone`, as a stale
   handle is.
@@ -258,12 +272,14 @@ pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, 
   that holds it.
 - **A key may be pressed with Shift held,** as a person makes a new line
   with Shift+Enter in a text area, where Enter alone sends.
-- **A letter with Alt is an application's shortcut,** as a person
-  presses Alt+Shift+S where the page reads it. A letter is named by its
-  place on the keyboard (`Key::Letter(b's')`, the code `KeyS`), so that
-  it is the same key whatever the layout, and with Alt held it makes no
-  text. Alt applies to a letter alone; Alt with another key is refused
-  (`Refusal::Key`).
+- **A letter, with Alt or without:** `Key::Letter { letter, alt }`, the
+  letter `a` to `z` named by its place on the keyboard (`KeyS`), so that
+  it is the same key whatever the layout. Without Alt it types its
+  letter, upper case with Shift, as a person's key does; with Alt it
+  makes no text, as a person presses an application's shortcut such as
+  Alt+Shift+S where the page reads it. Alt is the letter's alone, so no
+  other chord can be asked. Any other byte is refused `Protocol`,
+  before a command is sent.
 - **Select-all is a key of its own,** Control and A as the kit's
   platform takes them, as a person selects a field's whole value before
   typing over it: a `Type` after it replaces the value (the face's
@@ -377,8 +393,8 @@ to the next command, never a closure waiting on a reply:
 | type | text with CR/LF first describes its node; for a single-line `input`, CR and LF are removed as on a person’s paste (CDP’s `Input.insertText` would change them to spaces). Text areas and editable content keep their line endings. Then the node is focused and the text inserted |
 | compose | the node focused; a composition set and left open, which a later `Type` commits |
 | keys | the node focused; for each character of the text, in order, its key down and up, the character its key and its text |
-| key | the key down and up, with the text it makes; with `shift`, Shift's modifier on both; select-all, A's key down and up with Control's modifier and no text; a letter, its code and key, its text unless `alt`, and with `alt` Alt's modifier on both |
-| download | not an operation: the browser's `Browser.downloadWillBegin` names the file's page by its frame, and so its person, and its suggested name; `Browser.downloadProgress` completed is `Downloaded`, the path the directory and the download's id; canceled is the page's `Trouble` |
+| key | the key down and up, with the text it makes; with `shift`, Shift's modifier on both; select-all, A's key down and up with Control's modifier and no text; a letter, its code (`KeyS`), its key and Windows key code (upper case with Shift), its text unless `alt`, and with `alt` Alt's modifier on both |
+| download | not an operation: the browser-level `Browser.downloadWillBegin` names the frame, which is a page's when it is the page's target, and the suggested name, kept by the download's id; `Browser.downloadProgress` completed is `Downloaded`, its path the person's directory and the id; canceled is the page's `Trouble`; past `Limits::downloads`, `Browser.cancelDownload` |
 | address | the page's navigation history (`Page.getNavigationHistory`); its current entry's URL, `Address` |
 | attribute | the current document's root (`DOM.getDocument`, its root alone); the first element under it the selector finds (`DOM.querySelector`), `NoElement` if none; its attributes (`DOM.getAttributes`), the named one's value, or `NoAttribute`; refused `Protocol` for a selector Chromium cannot parse, and `Limit` for a value past `Limits::text`, which is never cut, since a test uses it whole |
 | snapshot | the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
@@ -488,6 +504,7 @@ example) expects it. That is the test's harness, not the kit.
 ## 8. Limits and memory
 
 `Limits` bound persons, pages, operations in flight, commands in flight,
+downloads in flight,
 a message each way, matches kept per query, the bytes of a name or
 value, a snapshot, a screenshot, a look's tree entries and properties
 (`Limits::entries`, `Limits::properties`), a `Trouble`'s text and
@@ -533,8 +550,8 @@ allocator's high water against `worst_case`.
   heading, and a page that holds a closing warning once a button is pressed
   and asks a confirm at another's press, a page that reloads itself, a
   page whose button saves a file through a link with `download`, and a
-  page that shows the last key its document heard, by its code and
-  modifiers.
+  page that shows the last key its document heard, by its code, its
+  modifiers and the text it made.
   These tests check the facts the fake browser assumes: the framing,
   flattened sessions, what the accessibility queries match, with a name and
   without one, boxes and the hit test, on an element and on a shape of an
@@ -542,9 +559,10 @@ allocator's high water against `worst_case`.
   closing warning, a close meeting none, a confirm dismissed), and a find
   across a reload (a page that reloads itself found again after it, a scope
   found before it `Gone`), a download (the file saved in the person's
-  directory, `Downloaded` naming it, and a person with no directory
-  refused it), and a letter with Alt and Shift (the page hears its code,
-  both modifiers and no text). The look's reads have theirs: a page at a phone's
+  directory with the page's bytes, `Downloaded` naming it, and a person
+  with no directory saving none), and a letter (alone, it types; with
+  Alt and Shift, the page hears its code, both modifiers and no text).
+  The look's reads have theirs: a page at a phone's
   viewport whose media queries show the scheme and the motion it was given,
   by a part they name; a tree's depths and its headings' levels; a
   selector's node, and none; a styled part's computed values, its faces (a

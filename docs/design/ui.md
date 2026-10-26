@@ -1041,7 +1041,9 @@ a world's loop and the browser tier's run it.
 
 - **What it looks for:** a target by role and words in its name, by role
   and its whole name exactly, or by its text, within named ancestors,
-  outermost first: "the button named Save, in the region named Draft".
+  outermost first: "the button named Save, in the region named Draft";
+  the first such in the tree's order, or the n-th where the find names
+  one, from 0 (`Find::nth`): "the second button named Choose".
 - **What it does,** a step at a time: go to an address; press; type a
   field's whole value; send, as Enter in a field that submits on enter;
   see something, within a time; see it gone, within a time; reload;

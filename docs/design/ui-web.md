@@ -936,7 +936,10 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
     to the role that lists it first, a text box by whether it takes
     several lines, beside the mapping and tested against it, so that
     the role shown finds what it was shown for;
-  - names by words in them or exactly (browser.md, section 5); text by
+  - names by words in them or exactly (browser.md, section 5), and the
+    n-th match in document order where a find asks for one past the
+    first, failing when the kit kept fewer than it asks (its
+    `Limits::matches`); text by
     words within one run, a sentence that a strong word or a link splits
     being several runs. A described disclosure's name, as Chromium
     computes it from its summary, holds its description after it (section
@@ -948,8 +951,8 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   it), a date's or a time's by the kit's keys (below);
   Enter for a send; a key with Shift held, Shift+Enter a new line in a
   text area that sends on Enter (section 7); an application's shortcut,
-  a letter with Alt and Shift held (browser.md, section 5), a step's
-  `Shortcut` in a script; an option chosen with the
+  the kit's letter with Alt and Shift held (browser.md, section 5); an
+  option chosen with the
   kit's keys, as a keyboard chooses one; `Go`, a navigation to the path
   the application's codec prints for the address; a reload. A go and a
   reload accept the page's closing warning, as a person who chose to go
@@ -997,8 +1000,8 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   **Its persons' downloads** go to a directory the test names in its
   setup, or are refused when it names none (browser.md, section 5). The
   face keeps each person's `Downloaded` in order, its suggested name and
-  path, for the person's script to read; the harness neither reads nor
-  removes the files, which are the test's.
+  path, for the person's script; the harness neither reads nor removes
+  the files, which are the test's to read, as ordinary Rust.
   **It hosts the peers a test lends it,** in the same loop, so that a
   story reaches a fake service the test holds, such as skein's forge
   peer (fake-forge.md, sections 5 and 10.5):
