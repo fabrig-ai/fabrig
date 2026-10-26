@@ -19,7 +19,7 @@ look's edits, 6 a recording gone stale, 7 the first journey, 8 the work.
   costs much and is inexact for this.
 - **A journey is recorded in a browser:** everything the web shell's
   host is given, from the printed link's first page on, with each act
-  as its control's role and name. A recording holds no secret.
+  as its control's role and name.
 - **Its print is native and exact.** The shipped host, built natively,
   replays the recording and draws what the browser drew; skein's
   `Page` prints it as the gallery does. No browser, no box, the same
@@ -51,29 +51,17 @@ look's edits, 6 a recording gone stale, 7 the first journey, 8 the work.
   fetch's report as heard, the carried transport. With them, what the
   host asked each turn: its requests, its address shown or replaced,
   its deadline (section 3).
-- **An act** keeps its control's role and accessible name, and, where
-  the name alone is not one control on the page, the name of the
-  nearest named region holding it: "Choose" in "Forgejo on this
-  machine".
+- **An act** keeps its control's role and accessible name, and its
+  order among the page's controls with both ("Choose", the second).
 - **A mark is a page as the person saw it.** Each act marks the page
-  as it was drawn when the act came; the recording's end marks the
-  page as it is then. One of the recorder's two keys marks the page
-  with no act, for a state the page reaches by itself, such as a
-  setup's progress; the other ends the recording and saves it as one
-  file, through the browser's download.
-- **Each mark keeps the live page's print** (skein's `Page`), so that
-  the first replay proves itself against it (section 3).
-- **No secret is kept.** The printed link's secret is a fixed
-  placeholder in what is kept, the start's facts and the requests
-  alike, and so is a value typed into a field of kind `Secret` (an
-  admin token, a key). The credential is the cookie, which the page
-  never sees (jig's `protocol/browser.md`). The fake box's values are
-  dummies, but its walk's token file never enters any evidence
-  (`domain/testing.md`), and neither does a recording.
+  as it was drawn when the act came, keeping the live page's print
+  (skein's `Page`) for the first replay's proof (section 3); the
+  recording's end marks the page as it is then. One of the recorder's
+  two keys marks the page with no act, for a state the page reaches by
+  itself, such as a setup's progress; the other ends the recording and
+  saves it as one file, through the browser's download.
 - **The file** is text, one record per line, its kind first, bytes
-  escaped, so that a recording reads in a diff. It is bounded, as every
-  buffer is (skein's `programming-model.md`): at its bound the recorder
-  stops and says so.
+  escaped, so that a recording reads in a diff.
 
 ## 3. Replay
 
@@ -84,7 +72,7 @@ look's edits, 6 a recording gone stale, 7 the first journey, 8 the work.
   clocks and reports in order, each act given to the node that carries
   its role and name on the page at that point.
 - **The check:** each turn, what the host asks is what it asked when
-  recorded, with the placeholders in place. The recording's answers
+  recorded. The recording's answers
   are to those requests; a client that asks otherwise (a new read,
   another request's bytes, another deadline) would be answered what it
   never asked. Then the journey is stale, as it is when an act's
@@ -132,14 +120,14 @@ What it writes, under `docs/design/client/journeys/`:
   copies stylesheets and their `files/` as they are, so the look
   resolves as in the bundle, and a change to `temper.css` shows on the
   next reload, with no print.
-- **Beside the journeys:** `overlay.css`, committed empty; `journey.js`;
-  and `index.html`, listing each journey's pages.
+- **Beside the journeys:** `overlay.css`, committed empty, and
+  `journey.js`.
 - **Opened through a server,** from the repository's root, since a
   browser refuses `temper.css`'s masks from a `file://` page:
 
   ```sh
   python3 -m http.server 8766
-  # http://localhost:8766/docs/design/client/journeys/index.html
+  # http://localhost:8766/docs/design/client/journeys/
   ```
 
 **Its test,** in `tools/journeys`' own tests: every committed journey
@@ -175,12 +163,9 @@ gallery's states do (`client/browser.md`, 7.3).
   same acts, then `add NAME FILE`. The browser and the box are needed
   only when the client's exchange with the engine changes, never for a
   change to the view or the look alone.
-- **A recording again reads anew:** its times are the new walk's, and
-  so are the fake box's loopback ports wherever a page shows one, so
-  the print's diff holds those as well as what changed (section 10).
-- **The recorder can walk the acts itself,** given the stale
-  recording: each act once its control is on the page, each mark where
-  the old one was, so that the person only watches (section 8, step 6).
+- **A new recording reads anew:** its times are the new walk's, and so
+  are the fake box's loopback ports wherever a page shows one, so the
+  print's diff holds those as well as what changed.
 
 ## 7. The first journey
 
@@ -199,12 +184,11 @@ recording ended.
 2. **The recorder,** its feature and `scripts/bundle.sh --record`, its
    two keys and its file.
 3. **`temper-client-journeys`:** `add` and the reprint, the replay's
-   check, the first replay's proof, the print, `journey.js`,
-   `overlay.css` and the index.
+   check, the first replay's proof, the print, `journey.js` and
+   `overlay.css`.
 4. **Its test,** within the budget of section 4.
 5. **The first journey,** recorded on a fresh fake box and committed
    with its print.
-6. **Later:** the recorder walking a stale recording's acts (section 6).
 
 ## 9. What it changes
 
@@ -227,9 +211,7 @@ recording ended.
 - **The gallery's states,** set from hand-written worlds: whether each
   moves to a journey once the fake box reaches it, its answers then the
   engine's own.
-- **Fixed loopback ports** for the fake box, so that a recording again
-  differs from the last only where the client does.
-- **An exact check of the look's move:** computed styles compared
-  element by element in a browser, the old print with the overlay
-  against the reprint without it. Only if moving the rules by hand
-  proves error-prone.
+- **Later, if wanted:** fixed loopback ports for the fake box, so that a
+  new recording differs from the last only where the client does; the
+  recorder walking a stale recording's acts itself, so that the person
+  only watches.
