@@ -178,6 +178,7 @@ impl Component {
                     | w::Ask::MakeService(_)
                     | w::Ask::Message(_)
                     | w::Ask::MoveTask(_)
+                    | w::Ask::MoveToNewest(_)
                     | w::Ask::Propose(_)
                     | w::Ask::Release(_)
                     | w::Ask::Rename(_)
@@ -301,6 +302,7 @@ fn account_key_digest(ask: &w::Ask) -> Option<[u8; 32]> {
     let change = match ask {
         w::Ask::AccountChange(row) => row.change(),
         w::Ask::ChangeSettings(_)
+        | w::Ask::MoveToNewest(_)
         | w::Ask::Message(_)
         | w::Ask::Answer(_)
         | w::Ask::Take(_)
@@ -350,6 +352,7 @@ fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes:
     let change = match ask {
         w::Ask::AccountChange(row) => row.change(),
         w::Ask::ChangeSettings(_)
+        | w::Ask::MoveToNewest(_)
         | w::Ask::Message(_)
         | w::Ask::Answer(_)
         | w::Ask::Take(_)
@@ -415,6 +418,7 @@ fn carried_kind(ask: &people::Ask) -> Option<crate::CarriedKind> {
             }
         },
         people::Ask::ChangeSettings { .. }
+        | people::Ask::MoveToNewest { .. }
         | people::Ask::Compound { .. }
         | people::Ask::Create { .. }
         | people::Ask::MarkSeen { .. }
