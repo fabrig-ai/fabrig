@@ -86,13 +86,13 @@ fn a_recorded_walk_proves_and_replays_its_marks() {
     assert_eq!(act.number, 1);
     assert!(!act.end);
     assert!(act.recorded.is_none());
-    let node = act.tree.find(act.acted.expect("acted control")).expect("control in tree");
+    let node = act.tree.find(*act.acted.first().expect("acted control")).expect("control in tree");
     assert_eq!(node.role, skein_ui::Role::Button);
     assert!(act.page.html().contains("Continue with ChatGPT"));
     let end = replay.next().expect("replay end").expect("end mark");
     assert_eq!(end.number, 2);
     assert!(end.end);
-    assert!(end.acted.is_none());
+    assert!(end.acted.is_empty());
     assert!(end.recorded.is_none());
     assert!(replay.next().expect("after end").is_none());
 }
@@ -141,15 +141,15 @@ fn a_departure_not_recorded_is_stale() {
     assert_eq!(stopped(&written(&records)), Stale { turn, line: number, recorded, asked: line_text(&navigate) });
 }
 #[test]
-fn a_control_gone_is_stale_at_its_act() {
+fn an_event_no_control_gives_is_stale_at_its_act() {
     let recording = walk::walked();
     let is_act = |line: &Line| matches!(line, Line::Act { .. });
     let (turn, number, mut act) = at_line(&recording, is_act);
-    let Line::Act { control, .. } = &mut act else { unreachable!() };
-    control.name = b"Gone".as_slice().into();
+    let Line::Act { event, .. } = &mut act else { unreachable!() };
+    *event = b"Gone".as_slice().into();
     assert_eq!(
         stopped(&edited(&recording, is_act, act.clone())),
-        Stale { turn, line: number, recorded: line_text(&act), asked: "no such control".into() }
+        Stale { turn, line: number, recorded: line_text(&act), asked: "no control gives the event".into() }
     );
 }
 #[test]
@@ -161,4 +161,39 @@ fn the_proof_refuses_a_mark_whose_html_differs() {
     let byte = html.len() / 2;
     html[byte] ^= 1;
     assert_eq!(prove(&edited(&recording, is_mark, mark)), Err(Refusal::Differs { mark: 1, byte }));
+}
+
+#[test]
+fn a_version_1_recording_is_unreadable() {
+    let recording = edited(&walk::walked(), |line| matches!(line, Line::Journey { .. }), Line::Journey { version: 1 });
+    assert!(matches!(Replay::new(&recording), Err(Refusal::Unreadable(error))
+        if error.line == 1 && error.why == "expected ordered start facts for journey 2"));
+}
+#[test]
+fn a_renamed_control_holds() {
+    let original = walk::walked();
+    let is_act = |line: &Line| matches!(line, Line::Act { .. });
+    let (_, _, mut act) = at_line(&original, is_act);
+    let Line::Act { name, .. } = &mut act else { unreachable!() };
+    *name = b"Renamed".as_slice().into();
+    let recording = prove(&edited(&original, is_act, act)).expect("renamed act proves");
+    let mut original = Replay::new(&prove(&original).expect("original proves")).expect("original replay");
+    let mut renamed = Replay::new(&recording).expect("renamed replay");
+    let mut marks = 0;
+    while let Some(before) = original.next().expect("original mark") {
+        let after = renamed.next().expect("renamed mark").expect("same marks");
+        assert_eq!(before.page.html(), after.page.html());
+        assert_eq!(before.acted, after.acted);
+        marks += 1;
+    }
+    assert_eq!(marks, 2);
+    assert!(renamed.next().expect("after end").is_none());
+}
+#[test]
+fn an_act_with_no_event_keeps_nothing() {
+    let recording = walk::walked_with_no_event(true);
+    let records = lines(&recording).expect("walk lines");
+    assert_eq!(records.iter().filter(|line| matches!(line, Line::Act { .. })).count(), 1);
+    assert_eq!(records.iter().filter(|line| matches!(line, Line::Mark(_))).count(), 1);
+    prove(&recording).expect("walk without an event's act replays faithfully");
 }

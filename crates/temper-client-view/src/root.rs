@@ -271,9 +271,10 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Pages(_) | Action::Forge(_) => None,
     }
 }
+/// Read the event an act gives, without changing the view (client/journeys.md, 3.3).
 /// Shell inputs can move a secret directly to the domain without a clonable action.
 #[must_use]
-pub fn event(view: &mut View, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {
+pub fn event(view: &View, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {
     let bound = view.render.act(node, act)?;
     if bound.binding.owner == crate::accounts::owner() {
         return view.accounts.decode(bound.binding.token, bound.act);

@@ -919,14 +919,13 @@ fn an_accepted_installation_makes_github_ready_and_reads_its_picker() {
 #[expect(clippy::disallowed_macros, reason = "the test captures Debug to verify secret redaction")]
 fn the_private_key_moves_as_a_secret_and_never_enters_the_view() {
     let mut root = root(Some(Choice::Forge(GITHUB)), w::Connection::NotSetUp, w::Offer::Offered);
-    let mut view = f::browser_page_view(&root);
+    let view = f::browser_page_view(&root);
     let id = node(view.tree(), Role::TextField, b"App id");
-    let event = crate::event(&mut view, id, Act::Input { value: b"7".as_slice().into() }).unwrap();
+    let event = crate::event(&view, id, Act::Input { value: b"7".as_slice().into() }).unwrap();
     f::root_event(&mut root, event);
     let key = node(view.tree(), Role::TextField, b"Private key");
-    let event =
-        crate::event(&mut view, key, Act::Input { value: b"private-app-fixture\nsecond line\n".as_slice().into() })
-            .unwrap();
+    let event = crate::event(&view, key, Act::Input { value: b"private-app-fixture\nsecond line\n".as_slice().into() })
+        .unwrap();
     assert!(!format!("{event:?}").contains("private-app-fixture"));
     let d::Event::Forge(d::forge::Event::AppKey { .. }) = &event else {
         panic!("the input moves straight into a secret key event");
@@ -1967,9 +1966,9 @@ fn admin_root(choice: Option<Choice>, row: w::ForgeRow) -> d::Domain {
     f::forge_root(Address::ConnectForge { forge: choice }, rows)
 }
 fn admin_input(root: &mut d::Domain, name: &[u8], value: &[u8]) {
-    let mut view = f::page_view(root);
+    let view = f::page_view(root);
     let id = node(view.tree(), Role::TextField, name);
-    let event = crate::event(&mut view, id, Act::Input { value: value.into() }).unwrap();
+    let event = crate::event(&view, id, Act::Input { value: value.into() }).unwrap();
     f::root_event(root, event);
 }
 fn admin_send(root: &mut d::Domain) {

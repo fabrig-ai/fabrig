@@ -6,9 +6,10 @@ use skein_ui::Act;
 fn every_record_reads_back_as_written() {
     let bytes = || Box::from(b"bytes".as_slice());
     let headers = || vec![(Box::from(b"name".as_slice()), Box::from(b"value".as_slice()))];
-    let control = || Control { role: Role::TextField, name: b"Name".as_slice().into(), order: 1 };
+    let event = || Box::from(b"Event \"quoted\"\\\n".as_slice());
+    let name = || Box::from(b"Name".as_slice());
     let rows = [
-        Line::Journey { version: 1 },
+        Line::Journey { version: 2 },
         Line::Seed(u64::MAX),
         Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
         Line::Primary(Primary::Control),
@@ -32,12 +33,11 @@ fn every_record_reads_back_as_written() {
         Line::Written(bytes()),
         Line::Unwritten(bytes()),
         Line::Lost(3),
-        Line::Act { control: control(), act: Act::Press },
-        Line::Act { control: Control { role: Role::Heading { level: 3 }, ..control() }, act: Act::Press },
-        Line::Act { control: control(), act: Act::Submit },
-        Line::Act { control: control(), act: Act::Toggle },
-        Line::Act { control: control(), act: Act::Input { value: b"ab".as_slice().into() } },
-        Line::Act { control: control(), act: Act::Drawing { data: bytes() } },
+        Line::Act { event: event(), name: name(), act: Act::Press },
+        Line::Act { event: event(), name: name(), act: Act::Submit },
+        Line::Act { event: event(), name: name(), act: Act::Toggle },
+        Line::Act { event: event(), name: name(), act: Act::Input { value: b"ab".as_slice().into() } },
+        Line::Act { event: event(), name: name(), act: Act::Drawing { data: bytes() } },
         Line::Exchange {
             id: 4,
             bound: 100,
@@ -67,7 +67,9 @@ fn every_record_reads_back_as_written() {
         line.write(&mut out);
         assert_eq!(Line::read(&out[..out.len() - 1]), Ok(line.clone()));
         if matches!(&line, Line::Act { act: Act::Input { .. }, .. }) {
-            assert_eq!(out, b"act text-field \"Name\" 1 input \"ab\"\n");
+            let mut expected = br#"act input "ab" "Event \"quoted\"\\\x0a" "Name""#.to_vec();
+            expected.push(b'\n');
+            assert_eq!(out, expected);
         }
         if matches!(&line, Line::Show { replace: false, .. }) {
             assert_eq!(out, b"show \"/accounts\" push\n");
@@ -104,8 +106,8 @@ fn a_malformed_line_is_unreadable() {
         "heard unknown",
         "primary other",
         "show \"/\" other",
-        "act alien \"x\" 1 press",
-        "act button \"x\" 1 unknown",
+        "act alien \"event\" \"Name\"",
+        "act press \"event\"",
         "exchange 1 1 OTHER \"/\" \"\"",
         "open 1 \"/\" \"name\"",
         "path \"\\xAF\"",
@@ -116,7 +118,7 @@ fn a_malformed_line_is_unreadable() {
         "path \"é\"",
         "path \"\r\"",
     ] {
-        let mut recording = b"journey 1\n".to_vec();
+        let mut recording = b"journey 2\n".to_vec();
         recording.extend_from_slice(bad.as_bytes());
         recording.push(b'\n');
         let error = lines(&recording).expect_err(bad);
@@ -124,6 +126,6 @@ fn a_malformed_line_is_unreadable() {
         assert!(!error.why.is_empty());
         assert_eq!(Line::read(bad.as_bytes()).expect_err(bad).line, 1);
     }
-    assert_eq!(lines(b"journey 1\nseed 1").expect_err("no final newline").line, 2);
+    assert_eq!(lines(b"journey 2\nseed 1").expect_err("no final newline").line, 2);
     assert_eq!(lines(b"").expect_err("empty recording").line, 1);
 }

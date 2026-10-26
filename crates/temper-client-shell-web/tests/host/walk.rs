@@ -10,7 +10,7 @@ use skein_ui_web::{mapping::Primary, page::Page, transport::Carried};
 use temper_client_protocol_wire::{self as wire, v1 as f};
 use temper_client_shell_web::{
     host::{Duties, Host, Report},
-    journey::{Control, Facts, Recorder},
+    journey::{Facts, Recorder},
 };
 
 const ADDRESS: &[u8] = b"http://127.0.0.1:9/authorize?state=test";
@@ -69,6 +69,29 @@ impl Walk {
         self.recorder.as_mut().expect("recording until departure").deadline(self.host.deadline());
         asks
     }
+    fn press_heading(&mut self) {
+        let heading = self
+            .host
+            .tree()
+            .nodes()
+            .iter()
+            .find(|node| matches!(node.role, Role::Heading { .. }))
+            .expect("a heading")
+            .id;
+        assert!(self.host.event_of(heading, Act::Press).is_none());
+        assert!(self.turn(vec![Report::Act { node: heading, act: Act::Press }]).is_empty());
+    }
+    fn continue_with_chatgpt(&mut self) -> u32 {
+        let button = self
+            .host
+            .tree()
+            .nodes()
+            .iter()
+            .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT"))
+            .expect("sign-in button")
+            .id;
+        exchange(self.turn(vec![Report::Act { node: button, act: Act::Press }]))
+    }
     fn streamed(&mut self, event: &w::StreamEvent) -> Vec<Asked> {
         let bytes = encoded(event.measure(), |writer| event.encode(writer));
         let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
@@ -108,6 +131,9 @@ fn exchange(asks: Vec<Asked>) -> u32 {
         .expect("keyed request left the linked host")
 }
 pub(super) fn walked() -> Box<[u8]> {
+    walked_with_no_event(false)
+}
+pub(super) fn walked_with_no_event(no_event: bool) -> Box<[u8]> {
     let mut walk = Walk::new();
     walk.turn(vec![Report::Start]);
     walk.turn(vec![Report::Heard(Heard::StreamOpened)]);
@@ -175,10 +201,10 @@ pub(super) fn walked() -> Box<[u8]> {
         )
         .expect("me delivery"),
     ));
-    let button = Control { role: Role::Button, name: b"Continue with ChatGPT".as_slice().into(), order: 1 }
-        .find(walk.host.tree())
-        .expect("sign-in button");
-    let signing = exchange(walk.turn(vec![Report::Act { node: button, act: Act::Press }]));
+    if no_event {
+        walk.press_heading();
+    }
+    let signing = walk.continue_with_chatgpt();
     let started = w::OwnerOutcome::AccountSignInStarted(
         w::OwnerOutcomeAccountSignInStarted::new(
             &w::CEILINGS,

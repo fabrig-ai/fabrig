@@ -75,7 +75,7 @@ fn an_unreadable_recording_is_refused_by_add() {
 }
 
 fn mark(html: &str, heading: &str, acted: Option<u32>) -> Mark {
-    Mark { html: html.to_owned(), heading: heading.as_bytes().to_vec(), acted: acted.map(NodeId) }
+    Mark { html: html.to_owned(), heading: heading.as_bytes().to_vec(), acted: acted.into_iter().map(NodeId).collect() }
 }
 
 #[test]
@@ -90,15 +90,15 @@ fn a_page_breaks_inside_each_tag_before_its_close() {
 
 #[test]
 fn the_acted_control_leads_to_the_next_page() {
-    let printed = pages(&[
-        mark(
-            "<div data-node=\"1\"><h1 data-node=\"2\">Welcome</h1><button data-node=\"3\">Set up temper</button></div>",
-            "Welcome",
-            Some(3),
-        ),
-        mark("<div data-node=\"4\">Forge</div>", "Forge", None),
-    ]);
+    let mut first = mark(
+        "<div data-node=\"1\"><h1 data-node=\"2\">Welcome</h1><button data-node=\"3\">Set up temper</button><a data-node=\"5\">Begin</a></div>",
+        "Welcome",
+        Some(3),
+    );
+    first.acted.push(NodeId(5));
+    let printed = pages(&[first, mark("<div data-node=\"4\">Forge</div>", "Forge", None)]);
     assert!(printed[0].document.contains("<button data-journey-next=\"02.html\"\n>Set up temper</button\n>"));
+    assert!(printed[0].document.contains("<a data-journey-next=\"02.html\"\n>Begin</a\n>"));
     for page in printed {
         assert!(!page.document.contains("data-node"));
     }
@@ -183,4 +183,36 @@ fn beside_writes_the_kits_and_the_journeys_files_and_keeps_an_overlay() {
     assert_eq!(fs::read(&overlay).expect("kept overlay"), rule);
     assert_eq!(fs::read_to_string(&script).expect("rewritten script"), SCRIPT);
     assert_eq!(fs::read(&stylesheet).expect("rewritten stylesheet"), skein_ui_bundle::STYLESHEET);
+}
+
+#[test]
+fn the_overlay_is_empty() {
+    let overlay = fs::read(Path::new(JOURNEYS).join("overlay.css")).expect("committed overlay.css");
+    assert!(
+        overlay.is_empty(),
+        "overlay.css holds a request: move its rules into temper.css or task-pages.css, and empty it"
+    );
+}
+#[test]
+fn every_journey_has_its_description() {
+    for name in crate::names(Path::new(JOURNEYS)).expect("committed journeys") {
+        let path = Path::new(JOURNEYS).join(&name).join("README.md");
+        assert!(
+            fs::read_to_string(path).is_ok_and(|text| !text.trim().is_empty()),
+            "{name} needs a README.md holding its description"
+        );
+    }
+}
+#[test]
+fn a_reprint_keeps_a_journeys_readme() {
+    let scratch = Scratch::new("temper-client-journeys-readme");
+    let directory = scratch.path().join("welcome-set-up");
+    fs::create_dir(&directory).expect("journey directory");
+    let readme = directory.join("README.md");
+    let description = b"The journey's description.\n";
+    fs::write(&readme, description).expect("write description");
+    fs::write(directory.join("99.html"), "old page").expect("old page");
+    assert!(crate::reprint(Path::new(JOURNEYS), scratch.path()).expect("reprint").is_empty());
+    assert_eq!(fs::read(readme).expect("description kept"), description);
+    assert!(!directory.join("99.html").exists());
 }

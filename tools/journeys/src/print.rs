@@ -7,7 +7,7 @@ use std::{fmt::Write, fs, io, path::Path};
 pub struct Mark {
     pub html: String,
     pub heading: Vec<u8>,
-    pub acted: Option<NodeId>,
+    pub acted: Vec<NodeId>,
 }
 
 /// One printed page: its file name in the journey's directory and its document.
@@ -24,7 +24,7 @@ pub fn pages(marks: &[Mark]) -> Vec<Printed> {
         let prev = (index > 0).then(|| format!("{index:02}.html"));
         let next = (index + 1 < marks.len()).then(|| format!("{:02}.html", index + 2));
         let mut html = mark.html.replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
-        if let Some(NodeId(node)) = mark.acted {
+        for NodeId(node) in &mark.acted {
             let next = next.as_deref().expect("an acted mark has a next page");
             let attribute = format!(" data-node=\"{node}\"");
             assert!(html.contains(&attribute), "the acted control is on the marked page");

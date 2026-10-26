@@ -1,5 +1,5 @@
 //! Keep the reports and duties, never patches (client/journeys.md, 3.1).
-use super::{Control, Facts, Line, line::clone_act, line::clone_heard};
+use super::{Facts, Line, line::clone_act, line::clone_heard};
 use crate::host::{Duties, Host, Report};
 use jig_client_shell_web::adapter::Asked;
 use skein_lib::{Time, Wall};
@@ -15,7 +15,7 @@ impl Recorder {
     pub fn new(facts: &Facts) -> Self {
         let mut this = Self { file: Vec::new() };
         for line in [
-            Line::Journey { version: 1 },
+            Line::Journey { version: 2 },
             Line::Seed(facts.seed),
             Line::Clocks { now: facts.now, wall: facts.wall },
             Line::Primary(facts.primary),
@@ -48,12 +48,15 @@ impl Recorder {
             Report::Place { path } => self.keep(&Line::Place(path.clone())),
             Report::Heard(heard) => self.keep(&Line::Heard(clone_heard(heard))),
             Report::Act { node, act } => {
+                let Some(event) = super::event(host, *node, act) else {
+                    let duties = host.report(report);
+                    assert!(asked(&duties).is_empty(), "an act with no event unexpectedly has duties");
+                    return duties;
+                };
                 if !matches!(act, Act::Input { .. }) {
                     self.mark(page);
                 }
-                let control =
-                    Control::of(host.tree(), *node).expect("the shell gives acts only for nodes in the host's tree");
-                self.keep(&Line::Act { control, act: clone_act(act) });
+                self.keep(&Line::Act { act: clone_act(act), event, name: super::name(host.tree(), *node) });
             }
             Report::Carried { reports, writes } => {
                 self.keep(&Line::Carried { writes: *writes });

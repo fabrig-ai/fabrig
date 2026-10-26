@@ -46,7 +46,7 @@ impl Bindings {
         self.entries.push((token, meaning)).ok()?;
         Some(Binding { owner: owner(), token })
     }
-    pub fn decode(&mut self, token: Token, act: Act) -> Option<Event> {
+    pub fn decode(&self, token: Token, act: Act) -> Option<Event> {
         for (key, meaning) in &self.entries {
             if *key != token {
                 continue;

@@ -1,8 +1,7 @@
 //! Record and replay the shipped host's seam (client/journeys.md, 2–4).
 use crate::host::{self, Host};
-use skein_fake_person::role_name;
 use skein_lib::{Time, Wall};
-use skein_ui::{NodeId, Role, Tree};
+use skein_ui::{Act, NodeId, Tree};
 use skein_ui_web::{mapping::Primary, page::Page};
 mod line;
 mod record;
@@ -45,43 +44,25 @@ impl Facts {
     }
 }
 
-/// An act's role, accessible name and order (client/journeys.md, 3.3).
-#[derive(Clone, Debug)]
-pub struct Control {
-    pub role: Role,
-    pub name: Box<[u8]>,
-    pub order: u32,
+/// The event the view makes of `act` on `node`, as a recording keeps it: the
+/// domain `Event`'s Debug print (client/journeys.md, 3.3). None when it makes none.
+#[must_use]
+pub fn event(host: &Host, node: NodeId, act: &Act) -> Option<Box<[u8]>> {
+    host.event_of(node, line::clone_act(act)).map(|event| format!("{event:?}").into_bytes().into())
 }
-impl PartialEq for Control {
-    fn eq(&self, other: &Self) -> bool {
-        role_name(self.role) == role_name(other.role) && self.name == other.name && self.order == other.order
-    }
+/// Every node of the host's tree, in tree order, of which the view makes `event` from `act`.
+#[must_use]
+pub fn giving(host: &Host, act: &Act, event: &[u8]) -> Vec<NodeId> {
+    host.tree()
+        .nodes()
+        .iter()
+        .filter_map(|node| (self::event(host, node.id, act).as_deref() == Some(event)).then_some(node.id))
+        .collect()
 }
-impl Eq for Control {}
-
-impl Control {
-    #[must_use]
-    pub fn of(tree: &Tree, node: NodeId) -> Option<Self> {
-        let index = tree.nodes().iter().position(|candidate| candidate.id == node)?;
-        let role = tree.nodes()[index].role;
-        let name = name(tree, index);
-        let order = (0..=index)
-            .filter(|&at| role_name(tree.nodes()[at].role) == role_name(role) && name == self::name(tree, at))
-            .count();
-        Some(Self { role, name, order: u32::try_from(order).expect("tree count fits u32") })
-    }
-    #[must_use]
-    pub fn find(&self, tree: &Tree) -> Option<NodeId> {
-        let index = usize::try_from(self.order.checked_sub(1)?).ok()?;
-        tree.nodes()
-            .iter()
-            .enumerate()
-            .filter(|(at, node)| role_name(node.role) == role_name(self.role) && name(tree, *at) == self.name)
-            .nth(index)
-            .map(|(_, node)| node.id)
-    }
-}
-fn name(tree: &Tree, index: usize) -> Box<[u8]> {
+/// A node's accessible name, for a reader: its name, else its subtree's text.
+fn name(tree: &Tree, node: NodeId) -> Box<[u8]> {
+    let index =
+        tree.nodes().iter().position(|candidate| candidate.id == node).expect("an event's node is in the host's tree");
     // Same fallback as skein-fake-person's tree.rs, exactly_named.
     let nodes = tree.nodes();
     let node = &nodes[index];

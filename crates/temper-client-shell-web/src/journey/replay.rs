@@ -26,7 +26,7 @@ pub struct Mark<'a> {
     pub number: u32,
     pub page: &'a Page<'static>,
     pub tree: &'a Tree,
-    pub acted: Option<NodeId>,
+    pub acted: Vec<NodeId>,
     pub recorded: Option<&'a [u8]>,
     pub end: bool,
 }
@@ -81,15 +81,11 @@ impl Replay {
             if let Line::Mark(html) | Line::End(html) = line {
                 let end = matches!(line, Line::End(_));
                 let acted = if end {
-                    None
-                } else if let Some(Line::Act { control, .. }) = self.lines.get(self.at + 1) {
-                    Some(
-                        control
-                            .find(self.host.tree())
-                            .ok_or_else(|| self.stale(self.at + 1, "no such control".into()))?,
-                    )
+                    Vec::new()
+                } else if let Some(Line::Act { act, event, .. }) = self.lines.get(self.at + 1) {
+                    super::giving(&self.host, act, event)
                 } else {
-                    None
+                    Vec::new()
                 };
                 self.at += 1;
                 self.marks += 1;
@@ -149,8 +145,11 @@ impl Replay {
             Line::Due => Report::Due,
             Line::Place(path) => Report::Place { path: path.clone() },
             Line::Heard(heard) => Report::Heard(clone_heard(heard)),
-            Line::Act { control, act } => Report::Act {
-                node: control.find(self.host.tree()).ok_or_else(|| self.stale(at, "no such control".into()))?,
+            Line::Act { act, event, .. } => Report::Act {
+                node: super::giving(&self.host, act, event)
+                    .first()
+                    .copied()
+                    .ok_or_else(|| self.stale(at, "no control gives the event".into()))?,
                 act: clone_act(act),
             },
             Line::Carried { writes } => {
@@ -221,8 +220,8 @@ fn text(line: &Line) -> String {
 }
 fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     let mut at = 0;
-    let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 1" };
-    if lines.get(at) != Some(&Line::Journey { version: 1 }) {
+    let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2" };
+    if lines.get(at) != Some(&Line::Journey { version: 2 }) {
         return Err(error(at));
     }
     at += 1;

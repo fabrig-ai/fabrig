@@ -11,7 +11,6 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 record = [
-    "dep:skein-fake-person",
     "dep:js-sys",
     "web-sys/KeyboardEvent",
     "web-sys/Blob",
@@ -23,7 +22,6 @@ record = [
 loopback-navigation = ["skein-ui-web/loopback-navigation"]
 
 [dependencies]
-skein-fake-person = { workspace = true, optional = true }
 jig-client.workspace = true
 jig-client-protocol-http.workspace = true
 jig-client-shell-web.workspace = true
@@ -33,9 +31,6 @@ skein-ui-web.workspace = true
 temper-client-domain.workspace = true
 temper-client-view.workspace = true
 temper-client-protocol-wire.workspace = true
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-skein-fake-person.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = { workspace = true, optional = true }

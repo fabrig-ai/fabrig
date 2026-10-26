@@ -1,7 +1,5 @@
 //! The recording's strict byte codec (client/journeys.md, 3.2).
-use super::Control;
 use jig_client_shell_web::adapter::Heard;
-use skein_fake_person::{role_name, role_named};
 use skein_lib::{Time, Wall};
 use skein_ui::Act;
 use skein_ui_web::{mapping::Primary, transport::Header};
@@ -27,7 +25,7 @@ pub enum Line {
     Written(Box<[u8]>),
     Unwritten(Box<[u8]>),
     Lost(u32),
-    Act { control: Control, act: Act },
+    Act { act: Act, event: Box<[u8]>, name: Box<[u8]> },
     Exchange { id: u32, bound: u32, method: Box<[u8]>, path: Box<[u8]>, body: Box<[u8]>, headers: Vec<Header> },
     Open { piece: u32, path: Box<[u8]>, headers: Vec<Header> },
     Close,
@@ -108,12 +106,11 @@ impl Line {
                 w.word(b"lost");
                 w.number(u64::from(*exchange));
             }
-            Self::Act { control, act } => {
+            Self::Act { act, event, name } => {
                 w.word(b"act");
-                w.word(role_name(control.role).replace(' ', "-").as_bytes());
-                w.bytes(&control.name);
-                w.number(u64::from(control.order));
                 w.act(act);
+                w.bytes(event);
+                w.bytes(name);
             }
             Self::Exchange { id, bound, method, path, body, headers } => {
                 w.word(b"exchange");
@@ -207,7 +204,11 @@ pub fn lines(recording: &[u8]) -> Result<Vec<Line>, Unreadable> {
         let Some(line) = part.strip_suffix(b"\n") else {
             return Err(Unreadable { line: number, why: "missing final newline" });
         };
-        result.push(Line::read(line).map_err(|error| Unreadable { line: number, ..error })?);
+        let record = Line::read(line).map_err(|error| Unreadable { line: number, ..error })?;
+        if result.is_empty() && matches!(record, Line::Journey { version } if version != 2) {
+            return Err(Unreadable { line: number, why: "expected ordered start facts for journey 2" });
+        }
+        result.push(record);
     }
     if result.is_empty() {
         return Err(Unreadable { line: 1, why: "empty recording" });
@@ -454,9 +455,6 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"unwritten" => Line::Unwritten(r.bytes()?),
         b"lost" => Line::Lost(r.count()?),
         b"act" => {
-            let role = r.word()?;
-            let role = role_named(&String::from_utf8_lossy(&role).replace('-', " ")).ok_or("unknown role")?;
-            let control = Control { role, name: r.bytes()?, order: r.count()? };
             let act = match r.word()?.as_ref() {
                 b"press" => Act::Press,
                 b"submit" => Act::Submit,
@@ -465,7 +463,7 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
                 b"drawing" => Act::Drawing { data: r.bytes()? },
                 _ => return Err("unknown act"),
             };
-            Line::Act { control, act }
+            Line::Act { act, event: r.bytes()?, name: r.bytes()? }
         }
         b"exchange" => {
             let id = r.count()?;
@@ -531,7 +529,9 @@ impl Clone for Line {
             Self::Written(value) => Self::Written(value.clone()),
             Self::Unwritten(value) => Self::Unwritten(value.clone()),
             Self::Lost(value) => Self::Lost(*value),
-            Self::Act { control, act } => Self::Act { control: control.clone(), act: clone_act(act) },
+            Self::Act { act, event, name } => {
+                Self::Act { act: clone_act(act), event: event.clone(), name: name.clone() }
+            }
             Self::Exchange { id, bound, method, path, body, headers } => Self::Exchange {
                 id: *id,
                 bound: *bound,

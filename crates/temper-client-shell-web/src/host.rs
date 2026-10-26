@@ -161,8 +161,13 @@ impl Host {
     fn due(&mut self) {
         root::fire(&mut self.root, &self.env, &mut self.out);
     }
+    /// The event the view makes of `act` on `node`, if any, without giving it (client/journeys.md, 3.3).
+    #[must_use]
+    pub fn event_of(&self, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {
+        view::event(&self.view, node, act)
+    }
     fn act(&mut self, node: NodeId, act: Act) {
-        if let Some(event) = view::event(&mut self.view, node, act) {
+        if let Some(event) = self.event_of(node, act) {
             self.event(event);
         }
     }

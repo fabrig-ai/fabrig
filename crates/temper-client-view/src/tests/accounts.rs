@@ -1064,7 +1064,7 @@ fn a_limited_plan_offers_resume_and_moves_the_first_later_key() {
     let text = String::from_utf8(fixtures::text(fixtures::build(&mut view, &root)).into_vec()).unwrap();
     assert!(text.contains("temper reached its usage limit on your ChatGPT plan. Tasks on it wait."));
     let node = fixtures::find(view.tree(), Role::Button, b"Use the API key first").unwrap();
-    let Some(d::Event::Act { action }) = crate::event(&mut view, node, Act::Press) else { panic!("row act") };
+    let Some(d::Event::Act { action }) = crate::event(&view, node, Act::Press) else { panic!("row act") };
     assert_eq!(
         action,
         d::Action::Pages(d::pages::Act::Accounts(A::Submit {
@@ -1343,7 +1343,7 @@ fn an_accounts_rows_sign_in_offers_the_paste() {
         })
         .unwrap();
     assert!(field_at > disclosure && field_at < disclosure + usize::try_from(tree.nodes()[disclosure].size).unwrap());
-    let input = crate::event(&mut view, field, Act::Input { value: Box::from(b"fixture".as_slice()) }).unwrap();
+    let input = crate::event(&view, field, Act::Input { value: Box::from(b"fixture".as_slice()) }).unwrap();
     let d::Event::SignInAddress { value } = &input else { panic!("secret event") };
     assert!(value.expose() == b"fixture");
     fixtures::root_event(&mut root, input);

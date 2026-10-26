@@ -740,8 +740,7 @@ fn the_paste_field_decodes_to_the_secret_event_and_finish_to_its_act() {
     let (mut root, _) = pasting(false);
     let mut view = fixtures::view();
     let node = fixtures::find(fixtures::build(&mut view, &root), Role::TextField, PASTE_FIELD).unwrap();
-    let decoded =
-        crate::event(&mut view, node, Act::Input { value: Box::from(b"fixture-private".as_slice()) }).unwrap();
+    let decoded = crate::event(&view, node, Act::Input { value: Box::from(b"fixture-private".as_slice()) }).unwrap();
     let d::Event::SignInAddress { value } = decoded else { panic!("secret event") };
     assert!(value.expose() == b"fixture-private");
     paste_input(&mut root, b"fixture-private");
@@ -772,7 +771,7 @@ fn choose_offers_this_browser_isnt_on_tempers_computer_beside_the_sign_in() {
             .as_slice()
             .contains(&crate::look::FLOW_PRIMARY)
     );
-    let event = crate::event(&mut view, secondary, Act::Press).unwrap();
+    let event = crate::event(&view, secondary, Act::Press).unwrap();
     let d::Event::Act { action: d::Action::Pages(d::pages::Act::ConnectModel(M::SignInElsewhere { .. })) } = &event
     else {
         panic!("elsewhere sign-in act")
