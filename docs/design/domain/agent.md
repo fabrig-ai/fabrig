@@ -279,20 +279,34 @@ it as any `delegate`:
 
 - **the delegate:** under the run's charter (a chat's, charter 1), the
   words as its instructions and brief, tracked at the run's own
-  priority, with a report's contract (4.4): the work a person asked
-  for, which plans, asks its requester with `message` where it must
-  (8.2), calls `change` for each change, and reports;
-- **its authority, the run's own narrowed:** the run's tool families
-  (delegation, messages and reads, so that it may call `change`, ask
-  and read the forge); the run's grants of the kinds a change makes and
-  its reads, so that `change` can narrow them again (4.3.1); the run's
-  delegation kinds, at most all the tasks the run has left but one and
-  a depth one less; no notes; half of what the run's budget has left,
-  refused when that is no more than a run's minimum, as `change`'s;
-- **an advisor,** with `advisor` set: the same, but reads alone, no
-  grant of a forge effect and no delegation, so that it reads and
-  reports and can change nothing (the reference case's tester, 6.8: a
-  rail, not an instruction).
+  priority, or last among the project's goals where the run is
+  untracked, with a report's contract bounded as the run's own results
+  are (4.4): the work a person asked for, which plans, asks its
+  requester with `message` where its words say to (8.2), calls `change`
+  for each change, and reports. The contract bounds the result, not
+  the work: asking first is the instructions', and the rail is
+  authority's;
+- **its authority, the run's own narrowed,** never wider in any part
+  (jig's `domain/authority.md`, sections 3 and 5): the run's models and
+  deadline; its tool families (delegation, messages and reads, so that
+  it may call `change`, ask and read the forge); its grants of the kinds
+  a change makes and its reads, so that `change` can narrow them again
+  (4.3.1); its delegation kinds, with the tasks its subtree may still
+  make, as jig counts them, less one for the goal itself, and a depth
+  one less, refused when either is spent; no notes; half of what its
+  budget has left, refused when that is no more than a run's minimum, as
+  `change`'s. A change the goal then makes has half of the goal's,
+  so at most a quarter of the chat's: defaults, open to tuning;
+- **an advisor,** with `advisor` set: untracked, so that no goal of its
+  is projected on the forge; reads alone, no grant of a forge effect, no
+  delegation (no kinds, tasks or depth) and no notes, so that it reads
+  and reports and can change nothing beyond its own workspace, which it
+  has no grant to push (the reference case's tester, 6.8: a rail, not
+  an instruction).
+
+The root builds it where it builds `change`'s delegate, in the engine's
+route of host tools, and decides it as any `delegate`; the smith
+translation only decodes the call.
 
 The goal's own run takes `goal` too: an advisor it asks for, before it
 asks its requester, is how the reference case's survey before a plan
