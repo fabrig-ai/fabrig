@@ -450,13 +450,18 @@ next only once the root says this one is done (root.md, section 8).
    they committed nothing (tasks.md, 5.2); so are claims on workers in
    the engine's own process, which no worker outlives
    (`../protocol/service.md`, section 10), when its configuration says
-   its workers are in process; and so is a claim an upgrade across a
-   fresh mark crossed (its run proof's `crossed`), wherever it runs, so
-   that no attempt goes on across that mark (7.2). Claims on other
-   workers reach the
+   its workers are in process. Claims on other workers reach the
    fleet, which adopts each attempt a worker reports as it dials in,
    keeps waiting for one within its grace, and cancels any it does not
-   name (section 8). Nothing new is assigned before every claim loaded has
+   name (section 8). A claim an upgrade across a fresh mark crossed (its
+   run proof's `crossed`) is never adopted, so that no attempt goes on
+   across that mark (7.2): one in the engine or on in-process workers
+   is settled at once, as above; one on another worker ends lost as a
+   claim lost with its worker does, its run stopped when its worker
+   lists it, and the claim lost once that run has stopped or once the
+   engine's grace has passed with none listing it, so that no next
+   attempt starts while it may still write (hosts.md, 6.6; tasks.md,
+   6.3). Nothing new is assigned before every claim loaded has
    reached the fleet.
 4. **Read afresh.** Each connector reads, for the live tasks that name
    them, the resources its system owns.
@@ -492,8 +497,8 @@ child counts and leaves stays. The restart then runs over the switched
 generation as any restart does. A patch marked fresh has closed every
 live task's window in the copy before the switch (store.md, 10.2, step
 4) and marked every claim crossed, so the restart restores the windows
-closed, settles each crossed claim at once (step 3), and each task's
-next attempt starts fresh (7.2).
+closed, adopts no crossed claim (step 3), and each task's next attempt
+starts fresh (7.2).
 
 `RestartRequest::ProjectPolicy { project: u32 }` names a saved project
 policy whose byte size exceeds `limits.policy_bytes` or cannot be
@@ -742,13 +747,14 @@ the per-run charter routes by them.
   (core-v6's `RunProof.crossed`; `../protocol/store.md`, 10.2, step
   4): a claim resuming an earlier attempt's window, one whose attempt
   has yet to commit a turn and has no window, and one whose window an
-  earlier mark closed alike. At the restart a crossed claim is settled
-  at once, as the engine's own claims are (section 6, step 3): lost, or
-  not started if it committed nothing, as at any stop. It is never
-  adopted, and a run a worker lists for it is cancelled as any run no
-  claim adopts (section 8). The mark is on the proof, so a crash after
-  the switch, before the restart settles the claim, settles it at the
-  next. Each claim's preparation writes a proof of its own, never
+  earlier mark closed alike. At the restart a crossed claim is never
+  adopted (section 6, step 3): in the engine's process it is settled at
+  once, lost or not started as at any stop; on another worker its run is
+  stopped when the worker lists it, and the claim ends lost once the run
+  has stopped or the engine's grace has passed, as a claim lost with its
+  worker does, so its writer slot is freed only once nothing of it may
+  still write (tasks.md, 6.3). The mark is on the proof, so a crash after
+  the switch, before the restart ends the claim, ends it at the next. Each claim's preparation writes a proof of its own, never
   crossed, so the next attempt is adopted at a later restart as any
   claim is, until another mark crosses it. So every window the next
   attempt opens is its own, and open.
@@ -1593,10 +1599,12 @@ change and withdrawn, its proposer told.
 
 Its stories of an upgrade across a fresh mark (7.2), over the store
 with fixture patch sets: a task mid-run on a worker, its window
-resumed from an earlier attempt, upgraded across the mark, its claim
-settled at once as lost, the worker's listed run cancelled, its late
-turn refused, and its next attempt fresh with the closed window's tail;
-a fresh attempt yet to commit a turn, settled as not started; a crash
+resumed from an earlier attempt, upgraded across the mark, the worker
+listing its run at its hello, the run stopped, the claim lost, its late
+turn refused, its writer slot held until the connector reads afresh,
+and its next attempt fresh with the closed window's tail; the same with
+no worker listing it, lost once the grace has passed; an in-process
+claim yet to commit a turn, settled at once as not started; a crash
 after the switch before the restart, the next restart settling the
 claim the same way; the next attempt claimed and the engine restarted
 before its first turn, adopted as any claim; and a second upgrade
@@ -1608,6 +1616,14 @@ section 5).
 
 ## 16. Open questions
 
+- **A fresh attempt's tail, lost before its first turn.** An attempt
+  that starts fresh from a closed window, or past the resume limit,
+  carries the old window's tail in its brief, but its proof keeps no
+  window (`conversation` is its own attempt, which `valid_proof` holds
+  every window at or after); lost before its first turn, by a crash or
+  another mark, the attempt after it starts fresh without that tail.
+  Default: so, rare and costing context alone; a proof that kept the
+  tail's window apart from the current one would carry it.
 - **Commits in flight:** how many, and whether the store should take
   several decisions as one commit when they wait together.
 - **Briefs:** whether a brief's store loads and connectors' gathering
