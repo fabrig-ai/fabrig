@@ -1,7 +1,8 @@
 # Browser
 
 Implemented, 2026-10-06, revised 2026-10-19; the lab's look reads (5.1)
-provisional, 2026-10-22. The design of
+provisional, 2026-10-22; a key with Alt and a letter, and downloads,
+provisional, 2026-10-26. The design of
 `skein-browser`: a testing kit that drives a real, headless Chromium from
 a service's loop, so that a service with a web can test it as a person
 uses it. It is a step machine over the child's pipes, speaking the
@@ -176,7 +177,7 @@ actions into it.
 
 ```rust
 pub enum Request {                                       // from the test
-    Person { person: Token },                            // a browser context: its own cookies and storage
+    Person { person: Token, downloads: Option<Box<[u8]>> },  // a browser context: its own cookies, storage and downloads
     Page   { person: Token, page: Token, url: Box<[u8]> },
     Go     { page: Token, op: Token, to: Go },           // an address, reload, back, forward
     Find   { page: Token, op: Token, query: Query },     // one look
@@ -185,7 +186,7 @@ pub enum Request {                                       // from the test
     Type   { page: Token, op: Token, node: Node, text: Box<[u8]> },
     Compose { page: Token, op: Token, node: Node, text: Box<[u8]> },  // an IME composition, left open
     Keys   { page: Token, op: Token, node: Node, text: Box<[u8]> },  // each character a key: a native date or time field
-    Key    { page: Token, op: Token, key: Key, shift: bool },  // Enter, Escape, Tab, Backspace, arrows, select-all
+    Key    { page: Token, op: Token, key: Key, shift: bool, alt: bool },  // Enter, Escape, Tab, Backspace, arrows, select-all, a letter
     Address { page: Token, op: Token },                  // the current address, from the history
     Attribute { page: Token, op: Token, selector: Box<[u8]>, name: Box<[u8]> },  // of the first element a CSS selector finds
     Snapshot   { page: Token, op: Token },               // the accessibility tree, as text
@@ -208,7 +209,8 @@ pub enum Event {                                         // to the test
     Address { op: Token, url: Box<[u8]> },               // the history's current entry
     Attribute { op: Token, read: Read },
     Looked  { op: Token, looked: Looked },               // a look's answer (5.1)
-    Trouble { page: Token, trouble: Trouble, text: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog
+    Downloaded { person: Token, name: Box<[u8]>, path: Box<[u8]> },  // a file one of its pages saved, complete
+    Trouble { page: Token, trouble: Trouble, text: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed
     Closed  { owner: Token },                            // terminal
 }
 
@@ -224,6 +226,15 @@ pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, 
 - **A person is a browser context,** with its own cookies and storage.
   Two pages of one person share sign-ins and local storage, and each has
   its own session storage, as two tabs do.
+- **A person's downloads go to a directory the test names,** or are
+  refused without one, as a headless browser refuses them by default. A
+  file one of the person's pages saves (a link with `download`, a
+  navigation to an attachment) is written there under a name the browser
+  chooses, never the page's, so that no page names a path; once it is
+  complete, `Downloaded` reports the name the page suggested and the
+  path written. A download cancelled or failed is the page's `Trouble`.
+  The directory is the test's: the kit never reads, moves or removes a
+  file in it.
 - **A node is the browser's backend node id,** which names one element
   for as long as it lives. A node since removed is `Gone`, as a stale
   handle is.
@@ -247,11 +258,17 @@ pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, 
   that holds it.
 - **A key may be pressed with Shift held,** as a person makes a new line
   with Shift+Enter in a text area, where Enter alone sends.
+- **A letter with Alt is an application's shortcut,** as a person
+  presses Alt+Shift+S where the page reads it. A letter is named by its
+  place on the keyboard (`Key::Letter(b's')`, the code `KeyS`), so that
+  it is the same key whatever the layout, and with Alt held it makes no
+  text. Alt applies to a letter alone; Alt with another key is refused
+  (`Refusal::Key`).
 - **Select-all is a key of its own,** Control and A as the kit's
   platform takes them, as a person selects a field's whole value before
   typing over it: a `Type` after it replaces the value (the face's
-  typing, ui-web.md 14.2). It is named by what it does, so that no
-  other chord is asked for.
+  typing, ui-web.md 14.2). It is named by what it does: Control with
+  another key is asked for by no test, and the kit has no other.
 - **An attribute is read by a CSS selector,** of the first element it
   finds in the page's current document, as the document holds it. It is
   how a test reads what holds no role a person finds it by, such as a
@@ -351,6 +368,7 @@ to the next command, never a closure waiting on a reply:
 
 | Operation | Its steps |
 |---|---|
+| a person | a browser context created; with a downloads directory, its downloads allowed there under the browser's own names, with their events (`Browser.setDownloadBehavior`, `allowAndName`, `eventsEnabled`), else denied |
 | opening a page | create a target in the person's context, attach to it, enable the domains it reports on, set the viewport, navigate; `Opened` once the load event fires |
 | go | navigate, reload, or move through the history; the page's `beforeunload` prompt, if it opens meanwhile, accepted, and `Warned`; `Done` once the navigation commits: the load event for a new document, the same-document event for one that stays |
 | find | the accessibility nodes matching the role and the name, under the scope or the page's current document, either asked by its object in that document (below): exactly, both asked of CDP; by words, the role's nodes asked without a name, their names compared in the kit; at most `Limits::matches` kept, the rest counted in `more`; their properties; their boxes, if asked |
@@ -359,7 +377,8 @@ to the next command, never a closure waiting on a reply:
 | type | text with CR/LF first describes its node; for a single-line `input`, CR and LF are removed as on a person’s paste (CDP’s `Input.insertText` would change them to spaces). Text areas and editable content keep their line endings. Then the node is focused and the text inserted |
 | compose | the node focused; a composition set and left open, which a later `Type` commits |
 | keys | the node focused; for each character of the text, in order, its key down and up, the character its key and its text |
-| key | the key down and up, with the text it makes; with `shift`, Shift's modifier on both; select-all, A's key down and up with Control's modifier and no text |
+| key | the key down and up, with the text it makes; with `shift`, Shift's modifier on both; select-all, A's key down and up with Control's modifier and no text; a letter, its code and key, its text unless `alt`, and with `alt` Alt's modifier on both |
+| download | not an operation: the browser's `Browser.downloadWillBegin` names the file's page by its frame, and so its person, and its suggested name; `Browser.downloadProgress` completed is `Downloaded`, the path the directory and the download's id; canceled is the page's `Trouble` |
 | address | the page's navigation history (`Page.getNavigationHistory`); its current entry's URL, `Address` |
 | attribute | the current document's root (`DOM.getDocument`, its root alone); the first element under it the selector finds (`DOM.querySelector`), `NoElement` if none; its attributes (`DOM.getAttributes`), the named one's value, or `NoAttribute`; refused `Protocol` for a selector Chromium cannot parse, and `Limit` for a value past `Limits::text`, which is never cut, since a test uses it whole |
 | snapshot | the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
@@ -512,14 +531,20 @@ allocator's high water against `worst_case`.
   words, a named figure holding an inline SVG hidden from assistive
   technology, whose shape, pressed through the figure at a point, changes a
   heading, and a page that holds a closing warning once a button is pressed
-  and asks a confirm at another's press, and a page that reloads itself.
+  and asks a confirm at another's press, a page that reloads itself, a
+  page whose button saves a file through a link with `download`, and a
+  page that shows the last key its document heard, by its code and
+  modifiers.
   These tests check the facts the fake browser assumes: the framing,
   flattened sessions, what the accessibility queries match, with a name and
   without one, boxes and the hit test, on an element and on a shape of an
   SVG, the events each step waits for, the dialogs (a reload accepting the
   closing warning, a close meeting none, a confirm dismissed), and a find
   across a reload (a page that reloads itself found again after it, a scope
-  found before it `Gone`). The look's reads have theirs: a page at a phone's
+  found before it `Gone`), a download (the file saved in the person's
+  directory, `Downloaded` naming it, and a person with no directory
+  refused it), and a letter with Alt and Shift (the page hears its code,
+  both modifiers and no text). The look's reads have theirs: a page at a phone's
   viewport whose media queries show the scheme and the motion it was given,
   by a part they name; a tree's depths and its headings' levels; a
   selector's node, and none; a styled part's computed values, its faces (a
@@ -545,7 +570,8 @@ The kit's tests are a crate of their own, `tests/browser`
   the child's descriptors, each with its direction (io.md, 6).
 - **A service using it:**
   - spawning the browser with `command`, and owning the child, its pipes
-    and the scratch root its profile is made in;
+    and the scratch root its profile is made in, and each person's
+    downloads directory, which it reads;
   - Chromium's path, in its configuration;
   - a face that turns its person's actions into the kit's requests;
   - a harness that fails a test on unexpected `Trouble` and writes the

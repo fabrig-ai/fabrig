@@ -947,7 +947,9 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   selected whole by the kit's select-all key, then the words typed over
   it), a date's or a time's by the kit's keys (below);
   Enter for a send; a key with Shift held, Shift+Enter a new line in a
-  text area that sends on Enter (section 7); an option chosen with the
+  text area that sends on Enter (section 7); an application's shortcut,
+  a letter with Alt and Shift held (browser.md, section 5), a step's
+  `Shortcut` in a script; an option chosen with the
   kit's keys, as a keyboard chooses one; `Go`, a navigation to the path
   the application's codec prints for the address; a reload. A go and a
   reload accept the page's closing warning, as a person who chose to go
@@ -992,6 +994,11 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   (browser.md, section 7); and writes the accessibility snapshot, a
   screenshot, and Chromium's and the binary's stderr's tails on a
   failure (browser.md, section 10).
+  **Its persons' downloads** go to a directory the test names in its
+  setup, or are refused when it names none (browser.md, section 5). The
+  face keeps each person's `Downloaded` in order, its suggested name and
+  path, for the person's script to read; the harness neither reads nor
+  removes the files, which are the test's.
   **It hosts the peers a test lends it,** in the same loop, so that a
   story reaches a fake service the test holds, such as skein's forge
   peer (fake-forge.md, sections 5 and 10.5):
