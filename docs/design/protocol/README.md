@@ -629,6 +629,11 @@ section 8 give them. temper's sit beside them:
   the layouts apart. A reader still refuses another version.
 - **Both channel components are given `PAYLOAD_VERSION`** when they are
   made; neither knows what it covers.
+- **The store keeps the wires** the last start spoke (jig's
+  `protocol/store.md`, 5.3, `Wires`): temper's shell hands jig's store
+  `PAYLOAD_VERSION` as `temper-payload` beside jig's and smith's, so the
+  next binary's rehearsal can say whether the workers may stay
+  (`draft/upgrades.md`, section 9).
 
 ## 10. Secrets
 
