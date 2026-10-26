@@ -15,7 +15,10 @@ use crate::{ChangeResource, Problem, answer, call, result, start, tools, turn};
 
 fn decoded(tool: &[u8], json: &[u8]) -> Result<engine::Call, Problem> {
     let input = run::HostInput::attested(json.into()).expect("bounded object exterior");
-    call(run::CallName { activation: 7, completion: 2, position: 1 }, tool, &input)
+    match call(run::CallName { activation: 7, completion: 2, position: 1 }, tool, &input)? {
+        crate::Decoded::Call(call) => Ok(call),
+        crate::Decoded::Answered(_) => panic!("decided tool answered at decode"),
+    }
 }
 
 fn assignment() -> engine::Assignment {

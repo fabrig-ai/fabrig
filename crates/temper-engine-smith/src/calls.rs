@@ -7,7 +7,7 @@ use skein_lib::{Duration, List, Wall, bytes};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 
-use crate::{Problem, forge, json::Value, nested, notes};
+use crate::{Decoded, Problem, forge, json::Value, nested, notes};
 
 struct Spec {
     name: &'static [u8],
@@ -78,7 +78,7 @@ pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
 /// Decode an attested Smith host call under one activation-qualified name.
 /// The caller supplies its task/attempt envelope separately to the root.
 #[expect(clippy::too_many_lines, reason = "one exhaustive finite host-tool registry")]
-pub fn call(name: run::CallName, tool: &[u8], input: &run::HostInput) -> Result<engine::Call, Problem> {
+pub fn call(name: run::CallName, tool: &[u8], input: &run::HostInput) -> Result<Decoded, Problem> {
     let value = crate::json::parse(input.bytes())?;
     let tool = match tool {
         b"read_items"
@@ -280,7 +280,7 @@ pub fn call(name: run::CallName, tool: &[u8], input: &run::HostInput) -> Result<
         }
         _ => return Err(Problem::UnknownTool),
     };
-    Ok(engine::Call { completion: name.completion, position: name.position, tool })
+    Ok(Decoded::Call(engine::Call { completion: name.completion, position: name.position, tool }))
 }
 
 fn number(value: &Value, field: &[u8]) -> Result<u64, Problem> {

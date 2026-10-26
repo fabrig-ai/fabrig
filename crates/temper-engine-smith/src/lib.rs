@@ -41,6 +41,21 @@ fn decimal(bytes: &[u8]) -> Result<u64, Problem> {
     Ok(value)
 }
 
+/// What a host call's input decodes to: a call for the root to decide,
+/// or its answer, made here at decode, deciding nothing
+/// (protocol/documentation.md, section 5).
+#[derive(Debug)]
+pub enum Decoded {
+    Call(temper_engine_domain::Call),
+    Answered(smith_domain_run::HostAnswer),
+}
+
+/// The most a call answered at decode holds, as the root counts a
+/// settled call (jig's `SettledCall::owned_bytes`: its name, its tool
+/// and its body); the start refuses a smaller answer bound
+/// (protocol/documentation.md, section 5).
+pub const DOC_ANSWER: u32 = 2_048;
+
 /// A host call that cannot be translated into the engine's declared schema.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Problem {

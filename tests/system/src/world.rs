@@ -287,8 +287,12 @@ pub fn relay(
     assignment: &engine::Assignment,
     submission: &smith_agent_world::host_referee::Submission,
 ) -> engine::CallAnswer {
-    let body = temper_engine_smith::call(submission.name, &submission.tool, &submission.input)
-        .expect("script uses the declared host schema");
+    let temper_engine_smith::Decoded::Call(body) =
+        temper_engine_smith::call(submission.name, &submission.tool, &submission.input)
+            .expect("script uses the declared host schema")
+    else {
+        panic!("script tool answered at decode")
+    };
     let call = submission.relay.owner.raw();
     root.call(CHANNEL, assignment.task, assignment.attempt, call, body);
     root.settle();

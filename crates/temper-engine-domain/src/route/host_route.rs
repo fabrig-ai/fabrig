@@ -179,7 +179,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
     let to = ReplyTo::new(right);
     let Some(flight) = domain.host_calls.remove(&right) else { return };
     let Some(key) = flight.key else {
-        undecoded(domain, to, flight, answer);
+        answered_at_decode(domain, to, flight, answer);
         return;
     };
     let mut call = SettledCall { serial: 0, name: flight.name, tool: flight.tool, answer };
@@ -210,17 +210,19 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
     }
 }
 
-fn undecoded(domain: &mut Domain, to: ReplyTo, flight: Flight, answer: SettledAnswer) {
+/// An answer made at decode decides nothing (domain/root.md, 5.2).
+fn answered_at_decode(domain: &mut Domain, to: ReplyTo, flight: Flight, answer: SettledAnswer) {
     let mut call = SettledCall { serial: 0, name: flight.name, tool: flight.tool, answer };
-    let body = if call.valid(&super::core_limits(&domain.limits)) {
+    call.answer = if call.valid(&super::core_limits(&domain.limits)) {
         match call.answer {
-            SettledAnswer::Host { body, .. } => body,
-            SettledAnswer::Delivery { .. } => Box::from(&b"invalid call"[..]),
+            answer @ SettledAnswer::Host { .. } => answer,
+            SettledAnswer::Delivery { .. } => {
+                SettledAnswer::Host { error: true, body: Box::from(&b"invalid call"[..]) }
+            }
         }
     } else {
-        Box::from(&b"invalid call"[..])
+        SettledAnswer::Host { error: true, body: Box::from(&b"invalid call"[..]) }
     };
-    call.answer = SettledAnswer::Host { error: true, body };
     let id = domain.payloads.insert(Some(Payload::SettledCall(call))).expect("fleet call reserved answer room");
     domain.work.push(Work::Fleet(fleet::Event::Relayed { to, answer: id.token() }));
 }

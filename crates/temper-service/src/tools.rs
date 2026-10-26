@@ -6,7 +6,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Reader, ReplyTo, Token, Writer};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
-use temper_engine_smith::Problem;
+use temper_engine_smith::{Decoded, Problem};
 
 pub(crate) fn decode(to: ReplyTo, _task: u64, attempt: u64, call: &fleet::Call) -> engine::Event {
     let mut reader = Reader::new(&call.name);
@@ -26,7 +26,14 @@ pub(crate) fn decode(to: ReplyTo, _task: u64, attempt: u64, call: &fleet::Call) 
     let name =
         run::CallName { activation: name.activation(), completion: name.completion(), position: name.position() };
     match temper_engine_smith::call(name, &call.tool, &input) {
-        Ok(body) => engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }),
+        Ok(Decoded::Call(body)) => engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }),
+        Ok(Decoded::Answered(answer)) => {
+            let (body, error) = answer.into_parts();
+            engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
+                to,
+                answer: core::SettledAnswer::Host { error, body },
+            })
+        }
         Err(problem) => invalid(to, problem),
     }
 }

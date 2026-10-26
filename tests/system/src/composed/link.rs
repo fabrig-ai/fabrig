@@ -81,7 +81,12 @@ pub fn decode(call: &fleet::Call) -> engine::Call {
     let name =
         run::CallName { activation: name.activation(), completion: name.completion(), position: name.position() };
     let input = run::HostInput::attested(call.input.clone()).expect("bounded host input");
-    temper_engine_smith::call(name, &call.tool, &input).expect("the run calls the declared host schema")
+    let temper_engine_smith::Decoded::Call(body) =
+        temper_engine_smith::call(name, &call.tool, &input).expect("the run calls the declared host schema")
+    else {
+        panic!("script tool answered at decode")
+    };
+    body
 }
 
 /// A decided call's answer rendered as smith takes it.

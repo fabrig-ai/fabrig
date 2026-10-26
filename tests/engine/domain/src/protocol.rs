@@ -118,7 +118,7 @@ fn link(channel: Token, link: engine::Link) -> engine::Event {
 pub struct Protocol {
     pub sign_in_sources: BTreeSet<u32>,
     calls: BTreeMap<Box<[u8]>, engine::Call>,
-    undecodable: BTreeSet<Box<[u8]>>,
+    decode_answers: BTreeMap<Box<[u8]>, (bool, Box<[u8]>)>,
     ends: BTreeMap<Box<[u8]>, tasks::End>,
     serial: u64,
     /// Each decided call's typed answer, by its opaque call name, in render order.
@@ -140,7 +140,7 @@ impl Protocol {
     /// A run's call that the world's protocol answers as an undecodable tool.
     pub fn undecodable(&mut self, channel: Token, task: u64, attempt: u64, name: u64) -> engine::Event {
         let call: Box<[u8]> = name.to_be_bytes().into();
-        self.undecodable.insert(call.clone());
+        self.decode_answers.insert(call.clone(), (true, b"unknown tool".as_slice().into()));
         up(
             channel,
             host::LinkUp::Call {
@@ -154,6 +154,20 @@ impl Protocol {
             },
             engine::Parts::none(),
         )
+    }
+
+    /// A run's call answered successfully by the world's protocol at decode.
+    pub fn answered_at_decode(
+        &mut self,
+        channel: Token,
+        task: u64,
+        attempt: u64,
+        name: u64,
+        text: &[u8],
+    ) -> engine::Event {
+        let event = self.undecodable(channel, task, attempt, name);
+        self.decode_answers.insert(name.to_be_bytes().into(), (false, text.into()));
+        event
     }
 
     /// A run's call of one engine tool, named `name`; its decoded body waits
@@ -220,10 +234,11 @@ impl Protocol {
                     Some(body) => {
                         Ok(vec![engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body: body.clone() })])
                     }
-                    None if self.undecodable.contains(&call.name) => {
+                    None if self.decode_answers.contains_key(&call.name) => {
+                        let (error, body) = self.decode_answers.get(&call.name).expect("registered decode answer");
                         Ok(vec![engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
                             to,
-                            answer: core::SettledAnswer::Host { error: true, body: b"unknown tool".as_slice().into() },
+                            answer: core::SettledAnswer::Host { error: *error, body: body.clone() },
                         })])
                     }
                     None => Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(

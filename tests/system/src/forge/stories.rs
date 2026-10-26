@@ -89,15 +89,19 @@ fn run_smith(
         let pending: Vec<_> = agent.pending_host_calls().into_iter().cloned().collect();
         assert!(!pending.is_empty(), "Smith either settles or yields a host call");
         for submission in pending {
-            let body = temper_engine_smith::call(submission.name, &submission.tool, &submission.input).unwrap_or_else(
-                |problem| {
-                    panic!(
-                        "declared Smith tool input: {problem:?} tool={} input={}",
-                        String::from_utf8_lossy(&submission.tool),
-                        String::from_utf8_lossy(submission.input.bytes())
-                    )
-                },
-            );
+            let temper_engine_smith::Decoded::Call(body) =
+                temper_engine_smith::call(submission.name, &submission.tool, &submission.input).unwrap_or_else(
+                    |problem| {
+                        panic!(
+                            "declared Smith tool input: {problem:?} tool={} input={}",
+                            String::from_utf8_lossy(&submission.tool),
+                            String::from_utf8_lossy(submission.input.bytes())
+                        )
+                    },
+                )
+            else {
+                panic!("script tool answered at decode")
+            };
             let before = world.answers.len();
             let call = world.protocol.call(
                 smith_world::CHANNEL,
@@ -151,12 +155,14 @@ fn run_smith(
 fn the_smith_delegate_input_creates_the_producer() {
     let (mut world, chat) = start_change_world(1000);
     let input = run::HostInput::attested(DELEGATE.into()).expect("bounded Smith host input");
-    let body = temper_engine_smith::call(
+    let temper_engine_smith::Decoded::Call(body) = temper_engine_smith::call(
         run::CallName { activation: chat.attempt, completion: 1, position: 1 },
         b"delegate",
         &input,
     )
-    .expect("declared delegate shape");
+    .expect("declared delegate shape") else {
+        panic!("delegate answered at decode")
+    };
     let call = world.protocol.call(smith_world::CHANNEL, chat.task, chat.attempt, 93, body);
     world.send(call);
     world.until(Until::Delegated);
