@@ -543,6 +543,7 @@ pub(crate) fn make_task(core: &mut Core, limits: &Limits, number: u64) {
 fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: tasks::EndedBy) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks };
     let mut out = Queue::with_capacity(settings::task_room(limits));
+    tasks::step(&mut core.tasks, &env, tasks::Event::Check, &mut out);
     tasks::step(&mut core.tasks, &env, tasks::Event::Restored, &mut out);
     while out.pop().is_some() {}
     tasks::step(
@@ -775,6 +776,7 @@ fn tree_core() -> (Core, Limits) {
     core.counters.deployment.projects = 1;
     core.people = old.people;
     core.accounts = old.accounts;
+    send_task(&mut core, &limits, tasks::Event::Check);
     send_task(&mut core, &limits, tasks::Event::Restored);
     send_task(
         &mut core,
@@ -3719,3 +3721,5 @@ fn a_restored_policy_cannot_pass_the_deployments_projects_mark() {
 }
 
 mod ended_watches;
+
+mod restart_checks;

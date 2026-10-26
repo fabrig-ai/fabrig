@@ -257,6 +257,7 @@ impl World {
             reports: BTreeMap::new(),
         };
         world.observe(Seen::Newest { revision: 1 });
+        world.send(Event::Check);
         world.send(Event::Restored);
         world.open_period(0, 100_000);
         world
@@ -517,6 +518,7 @@ impl World {
             | Event::Retained { .. }
             | Event::Settled { .. }
             | Event::Restore { .. }
+            | Event::Check
             | Event::Restored
             | Event::InspectEscalations { .. }
             | Event::RecheckEscalations { .. }
@@ -593,6 +595,7 @@ impl World {
             | Event::Retained { .. }
             | Event::Settled { .. }
             | Event::Restore { .. }
+            | Event::Check
             | Event::Restored
             | Event::InspectEscalations { .. }
             | Event::RecheckEscalations { .. }
@@ -1203,6 +1206,7 @@ impl World {
         for record in rows {
             self.send(Event::Restore { record });
         }
+        self.send(Event::Check);
         self.send(Event::Restored);
     }
 

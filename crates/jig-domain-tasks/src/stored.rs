@@ -747,7 +747,7 @@ fn person_counters(task: &TaskRecord) -> bool {
 
 pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, stored: Stored, out: &mut Queue<Request>) {
     match domain.startup {
-        Startup::Ready => return failed(domain, None, Refusal::NotReady, out),
+        Startup::Checked | Startup::Ready => return failed(domain, None, Refusal::NotReady, out),
         Startup::Failed => return,
         Startup::Restoring => {}
     }
@@ -1027,9 +1027,9 @@ fn links(domain: &Domain, env: &Env<Limits>, task: &TaskRecord) -> bool {
     true
 }
 
-pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub(crate) fn check(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     match domain.startup {
-        Startup::Ready | Startup::Failed => return,
+        Startup::Checked | Startup::Ready | Startup::Failed => return,
         Startup::Restoring => {}
     }
     for (number, _) in &domain.names {
@@ -1049,6 +1049,15 @@ pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
         || !crate::funders::links(domain, env.limits.tasks)
     {
         return failed(domain, None, Refusal::Restore, out);
+    }
+    domain.startup = Startup::Checked;
+}
+
+pub(crate) fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    match domain.startup {
+        Startup::Restoring => return failed(domain, None, Refusal::NotReady, out),
+        Startup::Ready | Startup::Failed => return,
+        Startup::Checked => {}
     }
     domain.startup = Startup::Ready;
     crate::holds::restore(domain, env);
