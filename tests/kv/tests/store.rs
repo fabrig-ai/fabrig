@@ -1,12 +1,11 @@
 //! Store through file io, the simulated kernel and fake filesystem.
 
-use skein_fake_machine::{Item, Machine, serve};
+use skein_fake_machine::Item;
 use skein_io::file;
-use skein_io::file_layer::{self, FileIo};
-use skein_io::kernel::{Complete, Fd, Submit};
-use skein_kv::{Event, Limits, Op, Page, Range, Request, Store};
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_sim::{Config, Faults, Handle, Pid, Sim};
+use skein_kv::{Event, Limits, Op, Page, Range, Request};
+use skein_kv_tests::world::World;
+use skein_lib::{Duration, Time, Token};
+use skein_sim::Faults;
 
 fn limits(snapshot_after: u64) -> Limits {
     Limits {
@@ -27,136 +26,6 @@ fn limits(snapshot_after: u64) -> Limits {
 
 fn put(key: &[u8], value: &[u8]) -> Op {
     Op::Put { key: Box::from(key), value: Box::from(value) }
-}
-
-struct World {
-    machine: Machine,
-    sim: Sim,
-    pid: Pid,
-    root: Fd,
-    io: FileIo,
-    store: Store,
-    env: Env<Limits>,
-    above: Queue<Event>,
-    below: Queue<file::Request>,
-    file_events: Queue<file::Event>,
-    subs: Queue<Submit>,
-    completions: Queue<Complete>,
-}
-
-impl World {
-    fn new(snapshot_after: u64) -> World {
-        Self::with_items(snapshot_after, &[])
-    }
-
-    fn with_items(snapshot_after: u64, items: &[Item]) -> World {
-        let mut machine = Machine::new();
-        let handle = machine.lay(items);
-        let mut sim = Sim::new(1, Config::calm());
-        let pid = sim.spawn_process();
-        let root = sim.root(pid, Handle::new(handle.raw()));
-        let limits = limits(snapshot_after);
-        World {
-            machine,
-            sim,
-            pid,
-            root,
-            io: FileIo::new(8, limits.chunk, 1024, limits.deadline),
-            store: Store::new(&limits),
-            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            above: Queue::with_capacity(128),
-            below: Queue::with_capacity(128),
-            file_events: Queue::with_capacity(128),
-            subs: Queue::with_capacity(128),
-            completions: Queue::with_capacity(128),
-        }
-    }
-
-    fn request(&mut self, request: Request) {
-        self.start(request);
-        self.drive(true);
-    }
-
-    fn request_no_fire(&mut self, request: Request) {
-        self.start(request);
-        self.drive(false);
-    }
-
-    fn start(&mut self, request: Request) {
-        skein_kv::down(&mut self.store, &self.env, request, &mut self.above, &mut self.below);
-    }
-
-    fn fire_once(&mut self) {
-        skein_kv::fire(&mut self.store, &self.env, &mut self.above, &mut self.below);
-        self.drive(false);
-    }
-
-    fn drive(&mut self, auto_fire: bool) {
-        for _ in 0..10_000 {
-            if !self.step(auto_fire) {
-                return;
-            }
-        }
-        panic!("store did not quiesce");
-    }
-
-    fn step(&mut self, auto_fire: bool) -> bool {
-        let mut progress = false;
-        if self.io.is_due(self.env.now) {
-            file_layer::expire(&mut self.io, self.env.now, &mut self.subs);
-            progress = true;
-        }
-        if self.io.takes()
-            && let Some(request) = self.below.pop()
-        {
-            file_layer::down(&mut self.io, self.env.now, request, &mut self.file_events, &mut self.subs);
-            progress = true;
-        }
-        if !self.subs.is_empty() {
-            self.sim.submit(self.pid, &mut self.subs);
-            serve(&mut self.machine, &mut self.sim);
-            progress = true;
-        }
-        self.sim.reap(self.pid, &mut self.completions);
-        while let Some(complete) = self.completions.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.file_events, &mut self.subs);
-            progress = true;
-        }
-        while let Some(event) = self.file_events.pop() {
-            skein_kv::up(&mut self.store, &self.env, event, &mut self.above, &mut self.below);
-            progress = true;
-        }
-        if auto_fire && self.io.takes() && self.below.is_empty() && skein_kv::is_ready(&self.store, &self.env.limits) {
-            skein_kv::fire(&mut self.store, &self.env, &mut self.above, &mut self.below);
-            progress = true;
-        }
-        progress
-    }
-
-    fn crash(&mut self, seed: u64) {
-        self.machine.crash(seed);
-        let handle = self.machine.reopen_root(0);
-        self.sim = Sim::new(seed, Config::calm());
-        self.pid = self.sim.spawn_process();
-        self.root = self.sim.root(self.pid, Handle::new(handle.raw()));
-        self.io = FileIo::new(8, self.env.limits.chunk, 1024, self.env.limits.deadline);
-        self.store = Store::new(&self.env.limits);
-        self.above = Queue::with_capacity(128);
-        self.below = Queue::with_capacity(128);
-        self.file_events = Queue::with_capacity(128);
-        self.subs = Queue::with_capacity(128);
-        self.completions = Queue::with_capacity(128);
-    }
-
-    fn reopen(&mut self) {
-        self.store = Store::new(&self.env.limits);
-        self.io = FileIo::new(8, self.env.limits.chunk, 1024, self.env.limits.deadline);
-        self.request(Request::Open { owner: Token::new(1), root: self.root });
-    }
-
-    fn pop(&mut self) -> Event {
-        self.above.pop().expect("one owner event")
-    }
 }
 
 fn crc32c(bytes: &[u8]) -> u32 {
@@ -190,7 +59,7 @@ fn frame(number: u64, key: &[u8], value: &[u8]) -> Vec<u8> {
 fn torn_tail_repairs_before_new_commits() {
     let mut bytes = frame(1, b"a", b"one");
     bytes.extend_from_slice(b"SKV");
-    let mut world = World::with_items(100_000, &[Item::file(b"log-00000000000000000001", &bytes)]);
+    let mut world = World::with_items(limits(100_000), &[Item::file(b"log-00000000000000000001", &bytes)]);
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 1 });
     world.request(Request::Commit { owner: Token::new(2), ops: Box::new([put(b"b", b"two")]) });
@@ -208,7 +77,7 @@ fn torn_tail_repairs_before_new_commits() {
 #[test]
 fn rejected_recovery_file_is_closed() {
     let oversized = vec![0_u8; 12_289];
-    let mut world = World::with_items(100_000, &[Item::file(b"log-00000000000000000001", &oversized)]);
+    let mut world = World::with_items(limits(100_000), &[Item::file(b"log-00000000000000000001", &oversized)]);
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::OpenFailed { owner: Token::new(1), failure: skein_kv::Failure::Full });
     assert_eq!(world.io.open_files(), 0);
@@ -217,7 +86,7 @@ fn rejected_recovery_file_is_closed() {
 #[test]
 fn crash_at_each_commit_operation_keeps_whole_prefix() {
     for cut in 0..8_u64 {
-        let mut world = World::new(100_000);
+        let mut world = World::new(limits(100_000));
         world.request(Request::Open { owner: Token::new(1), root: world.root });
         assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
         world.request(Request::Commit { owner: Token::new(2), ops: Box::new([put(b"a", b"one")]) });
@@ -250,7 +119,7 @@ fn crash_at_each_commit_operation_keeps_whole_prefix() {
 #[test]
 fn crash_during_each_snapshot_step_replays_log() {
     for cut in 0..25_u64 {
-        let mut world = World::new(32);
+        let mut world = World::new(limits(32));
         world.request(Request::Open { owner: Token::new(1), root: world.root });
         assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
         world.request_no_fire(Request::Commit { owner: Token::new(2), ops: Box::new([put(b"a", b"one")]) });
@@ -270,7 +139,7 @@ fn crash_during_each_snapshot_step_replays_log() {
 
 #[test]
 fn short_writes_and_reads_are_continued() {
-    let mut world = World::new(100_000);
+    let mut world = World::new(limits(100_000));
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
     world.sim.set_faults(Faults { short_write: 1000, ..Faults::NONE });
@@ -294,7 +163,7 @@ fn short_writes_and_reads_are_continued() {
 
 #[test]
 fn failed_sync_reports_uncertain_commit_then_recovers() {
-    let mut world = World::new(100_000);
+    let mut world = World::new(limits(100_000));
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
     world.start(Request::Commit { owner: Token::new(2), ops: Box::new([put(b"a", b"one")]) });
@@ -315,7 +184,7 @@ fn failed_sync_reports_uncertain_commit_then_recovers() {
 
 #[test]
 fn hung_write_times_out_and_recovers() {
-    let mut world = World::new(100_000);
+    let mut world = World::new(limits(100_000));
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
     world.sim.set_faults(Faults { hung: 1000, ..Faults::NONE });
@@ -331,7 +200,7 @@ fn hung_write_times_out_and_recovers() {
 
 #[test]
 fn commits_queued_during_sync_share_the_next_barrier() {
-    let mut world = World::new(100_000);
+    let mut world = World::new(limits(100_000));
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
     world.start(Request::Commit { owner: Token::new(2), ops: Box::new([put(b"a", b"1")]) });
@@ -351,7 +220,7 @@ fn commits_queued_during_sync_share_the_next_barrier() {
 
 #[test]
 fn close_drains_commits_queued_during_sync() {
-    let mut world = World::new(100_000);
+    let mut world = World::new(limits(100_000));
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
     world.start(Request::Commit { owner: Token::new(2), ops: Box::new([put(b"a", b"1")]) });
@@ -368,7 +237,7 @@ fn close_drains_commits_queued_during_sync() {
 
 #[test]
 fn commits_race_fuzzy_snapshot_chunks() {
-    let mut world = World::new(32);
+    let mut world = World::new(limits(32));
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
     let value = [b'x'; 60];
@@ -401,7 +270,7 @@ fn commits_race_fuzzy_snapshot_chunks() {
 
 #[test]
 fn commits_recover_after_close() {
-    let mut world = World::new(100_000);
+    let mut world = World::new(limits(100_000));
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
     world.request(Request::Commit { owner: Token::new(2), ops: Box::new([put(b"a", b"one"), put(b"b", b"two")]) });
@@ -428,7 +297,7 @@ fn commits_recover_after_close() {
 
 #[test]
 fn snapshot_installs_and_recovers() {
-    let mut world = World::new(32);
+    let mut world = World::new(limits(32));
     world.request(Request::Open { owner: Token::new(1), root: world.root });
     assert_eq!(world.pop(), Event::Opened { owner: Token::new(1), last: 0 });
     world.request(Request::Commit { owner: Token::new(2), ops: Box::new([put(b"a", b"one")]) });
