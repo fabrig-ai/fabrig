@@ -1074,7 +1074,10 @@ impl Joint {
         let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.into_parts().forges.into_boxed() {
-            forges.push(row).expect("scripted deployment row");
+            // A change story can use the engine's fake stand as its demo forge.
+            if row.number() != demo.forge() {
+                forges.push(row).expect("scripted deployment row");
+            }
         }
         let connection = if *demo.state() == w::DemoState::Running {
             w::Connection::Connected(
