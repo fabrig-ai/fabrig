@@ -36,6 +36,7 @@ fi
 
 # skein's programming-model.md, 2: every binary installs the fail-stop hook first.
 step fail-stop python3 -I -B scripts/fail_stop.py
+step scripts python3 -I -B scripts/test_after_landing.py
 step fmt cargo fmt --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
 # The browser's client crates (client/browser.md, 4.3).
