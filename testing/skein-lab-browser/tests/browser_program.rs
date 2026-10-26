@@ -16,7 +16,7 @@ use support::{Child, Reader, field, integer, text};
 #[test]
 #[expect(clippy::too_many_lines, reason = "the program story checks one ordered conversation from ready through EOF")]
 fn browser_program() {
-    // lab-browser.md, 4: desktop and phone viewports; a small desktop shot
+    // lab-browser.md, 6: desktop and phone viewports; a small desktop shot
     // exposes the scrollbar gutter on tall.html's 2000px body.
     const DESKTOP: (i64, i64) = (1440, 900);
     const PHONE: (i64, i64) = (390, 844);

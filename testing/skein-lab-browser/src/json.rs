@@ -1,4 +1,4 @@
-//! Canonical JSON over skein-json's tokenizer and sized writer (lab.md, 2.2).
+//! Canonical JSON over skein-json's tokenizer and sized writer (lab-browser.md, 3).
 use skein_json::{Token, tokenizer as read, writer};
 use skein_lib::{Env, Queue, Time, Wall, stream};
 use std::collections::{BTreeMap, VecDeque};

@@ -1,4 +1,4 @@
-//! Process contracts: lab-browser.md, 2, 3 and 6; lab.md, 2.2.
+//! Process contracts: lab-browser.md, 2, 3 and 6.
 // Reader uses the program's JSON vocabulary; calls below include raw invalid lines.
 #[expect(
     dead_code,
