@@ -443,7 +443,7 @@ and `connect-forge.html`.
   is in. On GitHub it holds, connected, the App's line (below, "On
   GitHub, temper's App"), each installation by its account's login, or
   "installation ID" while the forge has not heard its account, with
-  "suspended" and "uninstalled at the next reconcile" where they hold,
+  "suspended" and a stray's words (below) where they hold,
   never yet "all repositories" or "selected repositories" nor a link to
   the installation's page, which wait on the forge hearing an
   installation's selection (skein's installation events carry none);
@@ -770,7 +770,7 @@ says:
   | not set up | an owned forge not prepared yet (`../protocol/setup.md`, 6.5): under the box, "Not set up", with "Set up a Forgejo here"; without it, "Not set up: run `temper forge fetch N`, `temper forge prepare N`, `temper forge run N forgejo` and `temper forge run N runner`, then restart `temper serve`", N its number, with no action |
   | setting up | the box runs its steps, asked: "Setting up: fetching", "Setting up: preparing" or "Setting up: starting", by the box's last word of the step it runs, else "Setting up" (`../protocol/setup.md`, 7.1); then "Connecting", as its handover is taken and reconciled (`../protocol/setup.md`, 5.1) |
   | set up failed | "Set up failed: STEP", naming the box's step, or, after the box's `started`, the engine's step that stopped (taking the handover, reconciling, removing the handover file; `../protocol/setup.md`, 6.5), with `temper box`'s output for the rest until its `failed` line carries a reason; with "Set up again"; the engine and every other forge run on |
-  | connecting | "Connecting": a run holds the forge, and what it waits for: a managed or owned Forgejo's reconcile, the forge's answers to a check, or GitHub's conversion of its App; on GitHub, also connected with no accepted installation, "Connecting: installed nowhere yet", with "Install on GitHub". The person's browser on GitHub is no run, and shows nowhere |
+  | connecting | "Connecting": a run holds the forge, and what it waits for: a managed or owned Forgejo's reconcile, the forge's answers to a check, or GitHub's conversion of its App; on GitHub, also connected with no accepted installation, "Connecting: installed nowhere yet" with none, or "Connecting: no installation accepted yet" with strays alone, with "Install on GitHub". The person's browser on GitHub is no run, and shows nowhere |
   | connected | "Connected as LOGIN", the user the records hold: the bot's on Forgejo, the App's on GitHub; its id on an Account line |
   | stopped | "Stopped: WHY", the component's reason in words (its key or token refused, a user other than its own, an access it finds invalid, a refusal that asking again would not mend), with Replace where offered; an owned forge says "Restart temper box: its preparation mends it"; the engine and every other forge run on |
 
@@ -839,8 +839,11 @@ says:
   ", ", or "installed nowhere yet" with none: its slug, and its installations, each
   with its account's login, "all repositories" or "selected
   repositories" (linked to the installation's page, 5.5), "suspended"
-  while GitHub suspends it, and a stray, an installation never accepted
-  through temper's link, "uninstalled at the next reconcile". When
+  while GitHub suspends it, and a stray, an installation never
+  accepted, "not accepted · uninstalled at the next reconcile", or, the
+  App read-only (`../protocol/setup.md`, 17.7), "not accepted · kept:
+  the App is read-only". The tools accept a stray (`tools.md`, 5.5,
+  `forge-accept`); the page offers no act for it yet. When
   connected, it shows the setup URL the person must set on GitHub:
   `http://<listener>/forges/<n>/github/setup`, with redirect on update,
   no callback URL and no user's authorization at install
@@ -915,7 +918,7 @@ page, the adoption form and its outcome, a change's panel and its hold.
 | `Missing` otherwise | not found, as `README.md`, 4.7 says |
 | `Stopped { why }`, told to the root | on the forge's row, "Stopped: WHY", with Replace (5.4); its calls answer `NotConnected` until its next connect, shown as that row says |
 | an installation suspended | "suspended" on the installation, on the forge's row and on each repository of it (5.2); its calls are refused as no access |
-| a stray installation | on the forge's row, "uninstalled at the next reconcile" |
+| a stray installation | on the forge's row, "not accepted", then "uninstalled at the next reconcile", or, the App read-only, "kept: the App is read-only" (5.4) |
 | `Lacking`, a GitHub App's `Paste` (a connect of an App of the person's own, or a Replace) whose App lacks permissions or events temper needs | on the forge's row, connected, "temper's App lacks WHAT: grant them in the App's settings, then paste its key again.", WHAT each permission, with its level, and each event, as GitHub names them, until the forge's next check of the App ends (5.4); meanwhile a call that needs what the App lacks is refused by GitHub, as no access; with Replace where the forge is connected, Connect where it is not, and a link to the App's settings, `WEB/settings/apps/SLUG`, or `WEB/organizations/ORG/settings/apps/SLUG` for an organization's App |
 | `Unmarked`, connecting as the admin a forge whose user lacks temper's mark | "LOGIN is not temper's bot: add `temper:bot` to its full name on Forgejo, then connect again." |
 

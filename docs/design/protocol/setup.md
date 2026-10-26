@@ -3450,8 +3450,18 @@ listener's (`../client/forge.md`, the browser's steps).
   component reads an installation's repositories again on its events.
 - **An installation temper did not accept,** a stray made with no
   state of temper's, is shown, and uninstalled by the next reconcile
-  once older than a state's life; one deleted on GitHub leaves
-  `Accepted`; one suspended is shown.
+  once older than a state's life, unless the App is read-only (17.7);
+  one deleted on GitHub leaves `Accepted`; one suspended is shown.
+- **Accepting a stray,** `Accept { forge, installation }` (the tools'
+  `forge-accept`, `../client/tools.md`, 5.5): an installation that
+  exists already, made on GitHub before temper knew it, is taken by the
+  deployment's owner's own act, with no browser. The setup host runs
+  `Accept` with no state (skein's `forge-setup.md`, 5.4): the person's
+  sign-in stands for the state, which binds only a browser's return to
+  the install its person started. The installation is read on GitHub
+  as the App's, a `404` refusing it, and added to `Accepted` as the
+  setup route's accept adds it. Its refusals, before any run, are
+  `Install`'s; the setup route's own accept still requires a state.
 
 ### 17.5 Its reconcile
 
@@ -3489,9 +3499,9 @@ listener's (`../client/forge.md`, the browser's steps).
   `read_only` (skein's `forge-setup.md`, GitHub's plans).
 - **What changes:** the paste check (17.3) and reconcile (17.5) read
   the App's hook and leave it; reconcile lists the installations and
-  keeps `Accepted` as it says, and a stray (17.4) is shown and never
-  uninstalled.
+  keeps `Accepted` as it says, and a stray (17.4) is shown as kept,
+  never uninstalled, until the person accepts it.
 - **What doesn't:** the App's key, id, permissions and events are read
-  and checked, a lacking one named; `Install`'s link and the setup
-  route's `Accept` (17.4), which read; and the forge component's
-  connection, its mints and its delivery log (17.6).
+  and checked, a lacking one named; `Install`'s link, the setup route's
+  `Accept` and the accept of a stray (17.4), which read; and the forge
+  component's connection, its mints and its delivery log (17.6).

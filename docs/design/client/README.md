@@ -1286,7 +1286,7 @@ for its kind, its user's login and its installations. Its nodes:
 - **The request, `Requesting`:** which of the family's requests it is,
   `Request`, as `Reading` names a read: `adopt`, `Adopt`, `set_up`,
   `SetUp`, `start_demo`, `StartDemo`, `connect`, `Connect`, `install`,
-  `Install` (below), or `return`, `Return`, answered `returning` (section 8). Each is answered by the family's one record,
+  `Install`, `accept`, `Accept` (below), or `return`, `Return`, answered `returning` (section 8). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
   refuses as undecodable an outcome that does not fit the request it
   sent.
@@ -1362,12 +1362,20 @@ for its kind, its user's login and its installations. Its nodes:
   address (a byte string of at most 2048 bytes); *connecting*, an
   `Install` that stopped, its failure said on the forge's row; *forge
   refused*, `ForgeRefusal`; or *unknown*.
-- **`ForgeRefusal`,** a `Connect`'s or an `Install`'s, by the root
+- **`Accept`:** of the deployment's scope: the forge's number (u16)
+  and an installation's id (u64, never 0), one that exists already on
+  GitHub (`../protocol/setup.md`, 17.4). Its outcome: *accepted*,
+  `AcceptedInstallation`, with the installation's id, once it is kept,
+  and the same when it was accepted already; *forge refused*,
+  `ForgeRefused` with `not found`, GitHub having no such installation of
+  the App; *forge refused*, `ForgeRefusal`, as `Install`'s; or
+  *unknown*.
+- **`ForgeRefusal`,** a `Connect`'s, an `Install`'s or an `Accept`'s, by the root
   before any run: `role`, the sender not the deployment's owner; `no
   such forge`; `not taken`, the forge's kind or mode does not take the
   request (a Forgejo, the demo's fake); `connected`, a `Connect` on a
   forge connected or connecting already, whose key `Replace` replaces;
-  `not connected`, an `Install` on a forge with no App; `busy`, a run
+  `not connected`, an `Install` or an `Accept` on a forge with no App; `busy`, a run
   holding the forge, or `setup.runs` full; `no key`, a `Connect` of an
   App with no carried value; `first is bot`, a `ForgejoAdmin` `Connect`
   whose `first` organization is the bot's login, case-folded
@@ -1376,7 +1384,7 @@ for its kind, its user's login and its installations. Its nodes:
 - **The small store's record of a pending request** is `jig-client`'s
   kept request, its request encoded by this crate as the family's bytes
   at `CLIENT_VERSION` (jig's `protocol/client.md`, section 10).
-- **The FORGE requests and their outcomes:** `Connect`, `Install`,
+- **The FORGE requests and their outcomes:** `Connect`, `Install`, `Accept`,
   `Replace`, `Forget`, `SetUp`, `StartDemo` and `Reachable`, beside
   `Adopt` (section 8).
 - **The demo's read, `Demo`:** of the deployment's scope, with no
@@ -1434,7 +1442,9 @@ for its kind, its user's login and its installations. Its nodes:
   the user's id (u64) and login (a byte string bounded as `Adopt`'s);
   or stopped, with the component's reason;
   `admin`, whether the configured string-managed form takes a site
-  admin's token (the legacy managed object does not); `ended_stop`, none
+  admin's token (the legacy managed object does not); `read_only`, the
+  forge's `app_read_only` (`../protocol/configuration.md`, section 3),
+  false on Forgejo; `ended_stop`, none
   or `AdminStop`: not admin, refused with status (u16) and `SetupStage`
   (admin, bot, token, org, repository, file, app, installation or state),
   unmarked, or other. The diagnostic `ended` stays separate; the client
@@ -3499,6 +3509,7 @@ does for the client:
   | `Connect { forge, how: GitHubApp { id, key } }` | `key`, the App's private key, PEM as GitHub gives it; `id` rides in the request | `Paste`: the key decoded and matched to the App `id` names, the App's user found, its hook pointed at `https://SLUG.invalid/` (no webhook secret on GitHub: changes are heard from the App's delivery log), its permissions and events checked | connecting |
   | `Connect { forge, how: ForgejoAdmin { first? } }` | the site admin's token, item 1 of the carried bundle (at most 4 KiB including its six-byte header) | `Reconcile` with the paste, its `AdminOrigin` write kept, then `Create` of `first` when given; only after Done is `AdminToken` kept, then the forge connects; every end erases the carried value; never `TakeOver` (`../protocol/setup.md`, 5.5); the configured string-managed form (`ForgeRow.admin`) offers the client's admin Details, with `first`'s org, repository, new project and runner label | connecting; then the watched row, its typed `ended_stop` on a stop, or `first` made and its adoption on Ready |
   | `Install { forge, back? }` | none | `Install`, GitHub alone; `back` held with the state | a link, the install page for a fresh state |
+  | `Accept { forge, installation }` | none | `Accept` with no state, GitHub alone (`../protocol/setup.md`, 17.4) | accepted; forge refused, not found |
   | `Replace { forge, value }` | a new App key, or a new API token, git token or both | `Paste` with the kept App id, or `Check` against the kept user: it must answer as the forge's user; the old is erased once the new is kept | connecting |
   | `Forget { forge }` | none | the admin's token erased; a managed forge becomes connected (`../protocol/credentials.md`) | forgotten |
   | `SetUp { forge }` | none | an owned forge not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup.md`, 7.1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge.md`, 2.2) | setting up |
@@ -3580,6 +3591,7 @@ does for the client:
     the forge's row as the last connect's end, never in the answer;
   - *a link:* the address to open, printed and never opened (6.5);
   - *forgotten:* the admin's token erased;
+  - *accepted:* an installation kept by `Accept`, with its id;
   - *a page:* the picker's (4.4);
   - *refused:* `Connect`'s and `Install`'s as `ForgeRefusal` (4.6) has
     them: the role; no such forge; the forge's kind or mode does not
