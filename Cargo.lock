@@ -2537,6 +2537,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-ui",
+ "skein-ui-text",
  "temper-client-domain",
  "temper-client-protocol-wire",
 ]

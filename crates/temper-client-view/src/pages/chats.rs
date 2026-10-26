@@ -244,7 +244,9 @@ pub(crate) fn row(
     if let Some(me) = root.pages().me(root.client()) {
         status(b, &line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words);
     }
-    b.open(Role::Paragraph);
+    // Keep the number's link in a container: a paragraph is flattened to text
+    // by the terminal, hiding the command promised by client/README.md, 3.5.
+    b.open(Role::Slot);
     if let Some(project) = super::project_name(root.pages().me(root.client()), root.forge().demo(), line.project, words)
     {
         b.text(Run::Plain, &project);

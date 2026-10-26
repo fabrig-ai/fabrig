@@ -155,6 +155,49 @@ fn a_chats_row_links_to_its_chat_by_number() {
         }))
     );
 }
+
+#[test]
+fn a_chats_row_offers_its_number_as_a_terminal_command() {
+    // client/README.md, 3.5: "TN", a link to its page; 6.5: numbered commands.
+    for ended in [false, true] {
+        let mut line = line();
+        if ended {
+            line.chip.phase = Phase::Ended;
+            line.ended_at = Some(Wall::EPOCH);
+        }
+        let (mut tree, bindings) = tree(&line);
+        let limits = fixtures::tree_limits();
+        skein_ui::diff(
+            &skein_ui::Tree::new(limits.nodes),
+            &mut tree,
+            &limits,
+            &mut 0,
+            &mut Queue::with_capacity(limits.patches),
+        );
+        let mut print = skein_ui_text::Print::new(&limits).expect("row print bounds");
+        skein_ui_text::render(&tree, b"Chats", None, &mut print);
+        let text = print.text.as_slice();
+        assert!(skein_lib::bytes::find(text, b"Shop").is_some(), "project remains visible");
+        assert!(skein_lib::bytes::find(text, b"[1] T9\n").is_some(), "chat number offers a terminal command");
+        let skein_ui_text::Command::Act { node, first, .. } =
+            skein_ui_text::command(b"1", Some(print.numbers.as_slice()), &tree, TEXT)
+        else {
+            panic!("chat command activates its link")
+        };
+        let mut binding = None;
+        for item in tree.nodes() {
+            if item.id == node {
+                binding = item.binding;
+            }
+        }
+        assert_eq!(
+            bindings.decode(binding.expect("chat link binding").token, first),
+            Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                address: temper_client_domain::Address::Chat { task: TASK }
+            }))
+        );
+    }
+}
 #[test]
 fn the_chat_composer_waits_for_the_person_and_project() {
     let mut root = temper_client_domain::unlinked(&fixtures::domain_limits(), fixtures::SEED);
@@ -686,7 +729,7 @@ fn delegate_counts_are_plural_and_absent_at_zero() {
                     paragraphs += 1;
                 }
             }
-            assert_eq!(paragraphs, 4, "project/number, title, spend and time");
+            assert_eq!(paragraphs, 3, "title, spend and time; project/number is a command container");
         }
     }
 }
