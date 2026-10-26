@@ -196,11 +196,15 @@ default; the document is `temper.json` in the configuration directory
     fds after the listeners the box gives it (setup.md, 7.1). Given
     listeners, `LISTEN_FDS` of them from fd 3, its clients' and webhooks'
     listeners take them by their addresses (skein's `shell.md`, 6.6).
-  - A first termination signal drains it (jig's `protocol/service.md`,
+  - A first termination signal settles the engine's forge writes, then
+    drains it (`../domain/root.md`, 9.2; jig's `protocol/service.md`,
     section 5), and a worker alone's runs its worker's ending (jig's
     `protocol/service.md`, section 6); a second turns either into an
     abort, which keeps the reason of a failure that started the drain
-    (a lost webhooks listener's, forge.md, 2.3).
+    (a lost webhooks listener's, forge.md, 2.3). A write the settling
+    left unanswered is printed as the drained engine ends, one line
+    each, and the exit is still 0:
+    `temper serve: stopped before the forge answered task {task}'s write {entry}; the next start settles it`.
 - **`temper init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
   configuration directory holds a document (setup.md, 8.2).

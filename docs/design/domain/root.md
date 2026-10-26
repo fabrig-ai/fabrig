@@ -601,8 +601,34 @@ from its restore on.
 
 ### 9.2 Stopping
 
-The core drains as jig's `domain/engine.md`, 6.1 says. What the root
-adds:
+A stop settles first (`draft/upgrades.md`, section 8), then the core
+drains as jig's `domain/engine.md`, 6.1 says.
+
+- **Settling.** Told to stop, the root tells the forge to settle
+  (forge.md, section 6) and holds the core's stop until the forge says
+  it has. Meanwhile:
+  - the forge starts no write and retries none: what it was told to
+    make stays in its outbox, durable, for the next start;
+  - the writes it sent before are answered as ever, and each outcome
+    commits as any outcome does;
+  - the root activates no due task, so no run is placed and no
+    procedure steps, and answers every run's call busy, since a call may
+    start an effect: its host sends it again, to the next engine;
+  - workers' turns and answers, and the commits they make, go on; the
+    listeners already refuse new openings and parties' requests
+    (jig's `protocol/service.md`, section 5).
+  With no write unanswered, the forge has settled at once.
+- **Bounded** by the forge's writes' lifetime and clock margin from the
+  stop (`forge.client.lifetime_ms` and `forge.client.clock_margin_ms`):
+  each write sent before it has its answer, or its timeout, by then.
+  Past it, the forge names each write still unanswered, by its entry
+  and its task, and the stop goes on unsettled (`Request::Unsettled`);
+  the service prints each as it ends (`../protocol/README.md`, section
+  4), and the next start settles it as its class says (forge.md,
+  section 16).
+- **A second signal** aborts the wait, as it aborts the drain.
+
+Then the drain. What the root adds to the core's:
 
 - **the forge's events** go back to their owner undecided
   (`Request::Busy`), and no change steps;
