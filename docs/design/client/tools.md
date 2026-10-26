@@ -396,6 +396,13 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   end answers not met, exit 3, with the last panel and its digest, and
   a task that ended with no change result prints `no change panel for
   task N`, exit 2.
+- **A change's wait follows its task,** since the panel of a change
+  that ended without landing keeps its last step (`../domain/forge.md`,
+  8.8): the wait watches task N beside the panel, and when the task
+  ends with no change result (cancelled, failed) it answers at once,
+  not met, exit 3, naming how the task ended (`ended: cancelled`), with
+  the panel's last delivery and its digest; one with no panel ever
+  delivered prints `no change panel for task N`, exit 2.
 - **`replied`** holds while a chat's status (jig's
   `client/domain/client.md`, section 19, its facts) is parked, waiting
   for you, waiting for them, held, closing or ended. A chat wakes on its
