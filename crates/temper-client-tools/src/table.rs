@@ -56,6 +56,7 @@ pub const TOOLS: &[&Tool] = &[
     &rows::PROPOSE_SETTINGS,
     &rows::PROPOSAL,
     &crate::change::READ,
+    &crate::forges::ACCEPT,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())

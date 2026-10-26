@@ -97,6 +97,7 @@ const USAGES: &[&[u8]] = &[
     b"propose-settings FILE [REASON] --against R --key NAME\n",
     b"proposal tN/K|pN/K\n",
     b"change N [--project P]\n",
+    b"forge-accept F I [--key NAME]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
