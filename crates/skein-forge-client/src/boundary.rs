@@ -292,7 +292,7 @@ pub enum Event {
 /// A decision or API call emitted to the connector top.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
-    /// Entries sent still without an outcome at twice lifetime plus clock margin from Settle.
+    /// Entries sent still without an outcome at twice the sum of lifetime and clock margin from Settle.
     /// Emitted once, at once with an empty list if none remain (forge-client.md, 7.8).
     Settled { left: Box<[u64]> },
     /// Report whether a complete watch set was admitted.
