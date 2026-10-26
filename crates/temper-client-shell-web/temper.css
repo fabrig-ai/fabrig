@@ -1023,6 +1023,11 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-row > .temper-meta > p { margin: 0; }
 .temper-row > .temper-meta a { margin: 0; }
 .temper-row > .temper-meta a::before { content: none; }
+/* The chat link covers its row; independent controls stay above the hit area. */
+.temper-row > .temper-meta > p:first-of-type > a:first-of-type::after { content: ''; position: absolute; inset: 0; border-radius: 4px; }
+.temper-row > .temper-meta > p:first-of-type > a:first-of-type:focus-visible { outline: none; }
+.temper-row > .temper-meta > p:first-of-type > a:first-of-type:focus-visible::after { outline: 2px solid var(--temper-accent); outline-offset: 2px; }
+.temper-row:has(> .temper-meta) :is(a, button, input, select, textarea, summary):not(.temper-meta > p:first-of-type > a:first-of-type) { position: relative; z-index: 1; }
 .temper-main > .temper-rows > .temper-row > p:first-of-type { margin: 6px 0 3px; font-size: 12px; font-weight: 700; text-align: left; }
 .temper-main > .temper-rows > .temper-row > p:not(:first-of-type):not(.temper-details):not(.temper-time) { margin: 3px 0; font-size: 11px; color: var(--temper-muted); text-align: left; }
 .temper-main > .temper-rows > .temper-row > :is(.temper-details, .temper-time) { display: inline-block; margin: 4px 12px 0 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--temper-muted); font-size: 11px; text-align: left; }
