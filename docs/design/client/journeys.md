@@ -52,12 +52,15 @@ journeys, 10 what is open.
 ## 2. The host on native
 
 - **A library on every target.** `temper-client-shell-web` is a
-  `cdylib` and an `rlib`. Its `host`, `limits`, `records` and `journey`
-  modules build for native as for `wasm32-unknown-unknown`, their
-  dependencies no longer under the wasm target; `lib`'s start, the DOM
-  and the platform's parts stay wasm-only, as do `wasm-bindgen` and
-  `web-sys`. `tests/host.rs` uses the library instead of including the
-  modules by path. The replay runs this host, never a copy.
+  `cdylib` and an `rlib`. Its `host`, `limits` and `records` modules
+  build for native as for `wasm32-unknown-unknown`, their dependencies
+  no longer under the wasm target; `lib`'s start, the DOM and the
+  platform's parts stay wasm-only, as do `wasm-bindgen` and `web-sys`.
+  `tests/host.rs` uses the library instead of including the modules by
+  path. The replay runs this host, never a copy.
+- **The `journey` module** (the file, the recorder, the replay) builds
+  natively, for the program and the tests, and in the browser only with
+  the `record` feature: the shipped bundle holds none of it.
 - **The seam** is `host::Host`'s, and the shell's turn and the replay
   call it alike:
   - `clocks(now, wall)`, at the turn's start, as today;
@@ -104,9 +107,11 @@ journeys, 10 what is open.
   `journey.recording`, from a link never added to the document. After
   the save the recorder keeps nothing more.
 - **One load of the page.** A recording starts with the page, at the
-  printed link's first page, and ends at its save. A departure the host
-  asks (`navigate`, `replace`) is kept as asked, and nothing after it
-  is. A reload starts a new recording.
+  printed link's first page, and ends at its save. A departure ends it
+  too: when a report's duties ask to `navigate` or `replace`, the
+  recorder keeps them, marks the end as the page is drawn then, and
+  saves, before the shell carries the departure out; the rest of that
+  turn is not kept. A reload starts a new recording.
 
 ### 3.2 The file
 
@@ -166,6 +171,11 @@ comment, no blank.
 - **Typing marks nothing.** An `input` act is recorded and replayed but
   marks no page: a printed field takes typing as the live one does
   (5.3), and the next act's mark shows what was typed.
+- **The page's own state:** skein's page draws one state that its host
+  never hears of, an open menu (`Role::Menu`), and a mark taken with
+  one open fails the first replay's proof. temper's view draws no such
+  menu (its banner's "Menu" is a disclosure, the browser's own); one
+  that does will need the page's events recorded too (section 10).
 
 ### 3.5 Fake only
 
@@ -195,9 +205,9 @@ yields the page and, for an act's mark, the node acted on.
   read, another request's bytes, another deadline) would be answered
   what it never asked.
 - **Stale** is where the replay stops: at the first duty or deadline
-  that differs, at an act whose control is not on the page, or at a
-  report after a departure. It names the turn, the recorded line and
-  what the host asked instead.
+  that differs, a departure asked or not asked among them, or at an
+  act whose control is not on the page. It names the turn, the
+  recorded line and what the host asked instead.
 - **Patches are not compared:** they are what the print shows.
 
 ### 4.3 The first replay's proof
@@ -236,6 +246,11 @@ Under `docs/design/client/journeys/`:
   `journey.js`, the program's, both written at each print; and
   `overlay.css`, the person's, made empty when missing and never written
   otherwise.
+- **Generated:** the pages, `skein-ui.css` and `journey.js` are
+  generated files, owned by `scripts/regenerate.sh`, which rewrites them
+  by the reprint, so that a rebase that conflicts in them is resolved
+  by reprinting (agents' `landing-flow.md`, 3). A recording and the
+  overlay are sources, never regenerated.
 
 ### 5.3 A page
 
@@ -258,6 +273,10 @@ Under `docs/design/client/journeys/`:
   goes no further there, as the mockups' acts that lead to no drawn
   state do. What the browser does alone works as on the live page:
   hover, focus, a disclosure, typing, a narrower window.
+- **Its neighbours:** each page names the pages before and after it in
+  its head (`<link rel="prev">`, `<link rel="next">`), and `journey.js`
+  follows them on `p` and `n` outside a field. A page whose mark had no
+  act, the mark key's, leads on by these alone.
 - **The stylesheets,** by paths relative to the page:
   `../skein-ui.css`, then `temper.css` and `task-pages.css` from
   `crates/temper-client-shell-web/` in the checkout, in
@@ -334,13 +353,15 @@ python3 -m http.server 8766
 
 ## 10. Open questions
 
+- **Typing:** the draft has every act mark its page; the design marks
+  none for an `input` (3.4), since a page per keystroke would make a
+  walk of typing. The user's word.
 - **The gallery's states,** set from hand-written worlds: whether each
   moves to a journey once the fake box reaches it, its answers then the
   engine's own (`browser.md`, section 7).
-- **The page's own state at a mark:** skein's page keeps some state the
-  host never hears of, such as an open menu, which the live print holds
-  and the replay would not. Where a journey needs one, the page's
-  events would be recorded too.
+- **The page's own state at a mark** (3.4): where a journey meets a
+  skein menu, the page's events would be recorded and replayed beside
+  the host's reports.
 - **Later, if wanted:** fixed loopback ports for the fake box, so that a
   new recording differs from the last only where the client does; the
   recorder walking a stale recording's acts itself, so that the person
