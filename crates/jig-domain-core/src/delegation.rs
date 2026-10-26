@@ -8,7 +8,7 @@
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue};
+use skein_lib::{List, Queue, Wall};
 
 use crate::{CallKey, CallPart, Core, translate};
 
@@ -28,6 +28,10 @@ pub struct Delegate {
     pub spec: tasks::Spec,
     pub contract: tasks::Contract,
     pub authority: tasks::Authority,
+    /// When the delegate must end: its authority's wall, or a span after
+    /// the decision that makes it (domain/authority.md, 7). Named with no
+    /// wall ends with its creator's.
+    pub deadline: tasks::Deadline,
     /// An agent child's LLM choice; none for the core to resolve its charter's default within
     /// the child's authority, as at Create (tasks.md, 3).
     pub llm: Option<tasks::LlmChoice>,
@@ -97,7 +101,7 @@ impl ProcedureStep {
 impl Core {
     /// Admit one procedure's delegated batch against its current task authority.
     #[must_use]
-    pub fn procedure_batch_admit(&self, limits: &tasks::Limits, task: u64, batch: &[Delegate]) -> bool {
+    pub fn procedure_batch_admit(&self, limits: &tasks::Limits, task: u64, batch: &[Delegate], decision: Wall) -> bool {
         let Some(context) = self.tasks.delegation(task) else { return false };
         if batch.is_empty() || batch.len() > usize::try_from(limits.batch).expect("bounded batch") {
             return false;
@@ -114,7 +118,7 @@ impl Core {
             asked
                 .push(authority::Delegate {
                     executor,
-                    authority: translate::authority_value(&member.authority),
+                    authority: crate::routing::deadlines::authority(&member.authority, member.deadline, decision),
                     symbolic,
                 })
                 .expect("bounded procedure batch");
@@ -139,8 +143,25 @@ impl Core {
             member.authority.models = models;
         }
     }
-    /// Check a named task delegation before any historical input load or connector handoff.
-    pub fn delegate_preflight(&self, limits: &tasks::Limits, key: CallKey, batch: &[Delegate]) -> Result<(), CallPart> {
+    /// A delegate naming no deadline ends with its creator's: its
+    /// deadline is never later (domain/authority.md, 5 and 7).
+    pub(crate) fn take_deadline(&self, task: u64, batch: &mut [Delegate]) {
+        let Some(context) = self.tasks.delegation(task) else { return };
+        for member in batch {
+            if member.deadline == tasks::Deadline::Named && member.authority.budget.deadline.is_none() {
+                member.authority.budget.deadline = context.authority.budget.deadline;
+            }
+        }
+    }
+    /// Check a named task delegation at `decision`, before any historical
+    /// input load or connector handoff.
+    pub fn delegate_preflight(
+        &self,
+        limits: &tasks::Limits,
+        key: CallKey,
+        batch: &[Delegate],
+        decision: Wall,
+    ) -> Result<(), CallPart> {
         if !self.current_proof(key.task, key.attempt) {
             return Err(delegate_refused(Some(key.task), tasks::Refusal::State));
         }
@@ -170,13 +191,11 @@ impl Core {
             let Some(symbolic) = symbolic_grants(&member.symbolic_grants, self.authority.limits().grants) else {
                 return Err(delegate_refused(None, tasks::Refusal::AuthorityShape));
             };
-            asked
-                .push(authority::Delegate {
-                    executor,
-                    authority: translate::authority_value(&member.authority),
-                    symbolic,
-                })
-                .expect("bounded delegation request");
+            let mut authority = crate::routing::deadlines::authority(&member.authority, member.deadline, decision);
+            if member.deadline == tasks::Deadline::Named && authority.budget.deadline.is_none() {
+                authority.budget.deadline = context.authority.budget.deadline;
+            }
+            asked.push(authority::Delegate { executor, authority, symbolic }).expect("bounded delegation request");
         }
         let mut findings = Queue::with_capacity(authority::max_out(self.authority.limits()).expect("findings bound"));
         let checked = self.connector_batch_admit(

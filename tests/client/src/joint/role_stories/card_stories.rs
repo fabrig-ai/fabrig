@@ -42,6 +42,7 @@ fn a_real_engine_question_offers_exactly_its_admitted_answer_act() {
                 position: 0,
             },
             batch: Box::new([jig_domain_core::Delegate {
+                deadline: jig_domain_tasks::Deadline::Named,
                 label: 0,
                 flags: jig_domain_tasks::Flags::PLAIN,
                 tracked: None,

@@ -97,6 +97,7 @@ impl World {
                         };
                         self.delegated = true;
                         let delegate = core::Delegate {
+                            deadline: jig_domain_tasks::Deadline::Named,
                             label: 0,
                             flags: jig_domain_tasks::Flags::PLAIN,
                             tracked: None,

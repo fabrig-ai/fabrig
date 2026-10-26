@@ -144,3 +144,93 @@ fn holder_rechecks_use_their_own_wall() {
         }
     }
 }
+
+const CREATOR_WALL: Wall = Wall::from_nanos(20_000_000_000);
+
+#[test]
+fn a_delegate_span_starts_when_the_delegate_is_made() {
+    use jig_core_world::fixtures::{delegate, member, run_with_deadline};
+    let mut world = run_with_deadline(309, Some(CREATOR_WALL));
+    let run = world.assignments[0];
+    let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"span delegate");
+    child.deadline = tasks::Deadline::Span(f::SPAN);
+    f::clock(&mut world, 10);
+    let child = delegate(&mut world, run, 1, child);
+    assert_eq!(live_row(&world, child).authority.budget.deadline, Some(Wall::from_nanos(15_000_000_000)));
+}
+
+#[test]
+fn a_delegate_span_past_its_creator_is_refused() {
+    use jig_core_world::fixtures::{delegate, member, run_with_deadline};
+    use jig_domain_core as core;
+    use jig_test_domain as root;
+    use skein_lib::{ReplyTo, Token};
+    for seconds in [16, 15] {
+        let mut world = run_with_deadline(310, Some(CREATOR_WALL));
+        let run = world.assignments[0];
+        let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"bounded span");
+        child.deadline = tasks::Deadline::Span(f::SPAN);
+        f::clock(&mut world, seconds);
+        if seconds == 15 {
+            let child = delegate(&mut world, run, 1, child);
+            assert_eq!(live_row(&world, child).authority.budget.deadline, Some(CREATOR_WALL));
+        } else {
+            world.send(root::Event::Core(core::Event::DelegateValidated {
+                to: ReplyTo::new(Token::new(9001)),
+                key: core::CallKey { task: run.0, attempt: run.1, completion: 1, position: 0 },
+                batch: Box::new([child]),
+                stubs: Box::new([]),
+            }));
+            let core::CallPart::DelegationDenied { findings, .. } = &world.answers.last().expect("refusal").2 else {
+                panic!("delegate denied: {:?}", world.answers)
+            };
+            assert!(findings.iter().any(|finding| matches!(
+                finding,
+                jig_domain_authority::Finding::Authority {
+                    lacks: jig_domain_authority::Lacks { deadline: true, .. },
+                    ..
+                }
+            )));
+            assert!(live_row(&world, run.0).delegates.is_empty());
+            assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(CREATED)))));
+        }
+    }
+}
+
+#[test]
+fn a_delegate_naming_no_deadline_ends_with_its_creators() {
+    use jig_core_world::fixtures::{delegate, member, run_with_deadline};
+    for deadline in [Some(CREATOR_WALL), None] {
+        let mut world = run_with_deadline(311, deadline);
+        let run = world.assignments[0];
+        let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"no deadline");
+        child.authority.budget.deadline = None;
+        let child = delegate(&mut world, run, 1, child);
+        assert_eq!(live_row(&world, child).authority.budget.deadline, deadline);
+    }
+}
+
+#[test]
+fn a_proposed_delegate_keeps_its_span() {
+    use jig_core_world::fixtures::{member, run_with_deadline};
+    use jig_domain_core as core;
+    use jig_test_domain as root;
+    use skein_lib::{ReplyTo, Token};
+    let mut world = run_with_deadline(312, Some(CREATOR_WALL));
+    let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"proposed span");
+    child.deadline = tasks::Deadline::Span(f::SPAN);
+    f::clock(&mut world, 10);
+    world.send(root::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(9001)),
+        key: world.call_key(1),
+        action: core::NamedAction::ProposeBatch {
+            batch: Box::new([child]),
+            reason: b"span proposal".as_slice().into(),
+            as_holder: true,
+        },
+    }));
+    assert!(matches!(world.answers.last().expect("proposal answer").2, core::CallPart::Proposed { .. }));
+    let proposal = live_row(&world, 1).proposal.as_ref().expect("retained proposal");
+    let tasks::ProposalAction::Batch(batch) = &proposal.action else { panic!("proposed batch") };
+    assert_eq!(batch[0].deadline, tasks::Deadline::Span(f::SPAN));
+}

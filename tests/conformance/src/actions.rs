@@ -74,6 +74,7 @@ pub(crate) fn prepare_racing_decisions(world: &mut World) {
         to: ReplyTo::new(Token::new(8001)),
         key: core::CallKey { task, attempt, completion: 1, position: 0 },
         batch: Box::new([core::Delegate {
+            deadline: jig_domain_tasks::Deadline::Named,
             label: 0,
             flags: jig_domain_tasks::Flags::PLAIN,
             tracked: None,

@@ -18,6 +18,14 @@ fn procedure_world(seed: u64) -> (World, u64) {
 }
 
 fn program_world(seed: u64, actions: Option<Box<[connector::ProcedureAction]>>) -> (World, u64) {
+    program_world_with_deadline(seed, actions, None)
+}
+
+fn program_world_with_deadline(
+    seed: u64,
+    actions: Option<Box<[connector::ProcedureAction]>>,
+    deadline: Option<skein_lib::Wall>,
+) -> (World, u64) {
     let (mut configuration, limits) = jig_core_world::faults::plan_fixture(seed);
     if let Some(actions) = actions {
         configuration.first.procedures[0].actions = actions;
@@ -26,8 +34,9 @@ fn program_world(seed: u64, actions: Option<Box<[connector::ProcedureAction]>>) 
     let mut world = World::configured(seed, false, configuration, limits);
     world.hold_procedures = true;
     let root_run = world.assignments[0];
-    let procedure =
+    let mut procedure =
         member(&world, tasks::Executor::Procedure { connector: CONNECTOR, code: PROCEDURE_CODE }, b"procedure");
+    procedure.authority.budget.deadline = deadline;
     world.send(root::Event::Core(core::Event::DelegateValidated {
         to: ReplyTo::new(Token::new(DELEGATE_CALL)),
         key: core::CallKey { task: root_run.0, attempt: root_run.1, completion: COMPLETION, position: 0 },
@@ -55,6 +64,7 @@ fn decide(world: &mut World, task: u64, decision: core::ProcedureStep) {
 fn make_delegate(world: &mut World, procedure: u64) -> u64 {
     let mut child = member(world, tasks::Executor::Agent { charter: 1 }, b"delegate");
     child.authority.budget.spend = 5;
+    child.authority.budget.deadline = None;
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     decide(
         world,
@@ -527,4 +537,12 @@ fn a_procedure_receives_pending_dependencies_with_their_amendment_provenance() {
             by: connector::application_core::Party::Task(world.assignments[0].0),
         }]
     );
+}
+
+#[test]
+fn a_procedure_delegate_naming_no_deadline_ends_with_its_procedures() {
+    let deadline = Some(skein_lib::Wall::from_nanos(20_000_000_000));
+    let (mut world, procedure) = program_world_with_deadline(475, None, deadline);
+    let child = make_delegate(&mut world, procedure);
+    assert_eq!(live_row(&world, child).authority.budget.deadline, deadline);
 }

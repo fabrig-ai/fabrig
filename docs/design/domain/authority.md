@@ -317,6 +317,10 @@ deployment's rules       the most any project may have; requirements on effects
   acceptance is answered as any beyond its accepter's authority (8.1),
   for the holder to pass the proposal up (tasks.md, section 9), or
   refused past the project's ceiling.
+
+  A delegate gives its deadline as a run's call can: a span, or none,
+  and then it ends with its creator's, as no delegate's deadline is
+  later than its creator's (section 5).
 - **When a task ends,** in the commit that ends it, its reservation is
   released: its unspent budget goes back to its funder, and what it and
   the tasks it funded spent is added to its funder's "spent by ended

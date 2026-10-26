@@ -175,6 +175,7 @@ fn a_delegate_held_past_its_tries_is_escalated_to_a_person_and_released() {
                 position: 0,
             },
             batch: Box::new([jig_domain_core::Delegate {
+                deadline: jig_domain_tasks::Deadline::Named,
                 label: 0,
                 flags: jig_domain_tasks::Flags::PLAIN,
                 tracked: None,

@@ -3,6 +3,7 @@ use super::{authority, core, tasks};
 
 pub(super) fn delegate(words: Box<[u8]>, executor: tasks::Executor, budget: u64) -> core::Delegate {
     core::Delegate {
+        deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: jig_domain_tasks::Flags::PLAIN,
         tracked: None,

@@ -62,6 +62,7 @@ fn fixture_with_delegates() -> (World, root::Config, u64, [u64; 2]) {
     authority.budget.spend = 10;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let delegate = core::Delegate {
+        deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: jig_domain_tasks::Flags::PLAIN,
         tracked: None,

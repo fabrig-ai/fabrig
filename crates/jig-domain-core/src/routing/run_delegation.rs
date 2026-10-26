@@ -58,10 +58,11 @@ pub(super) fn delegate_validated(
         return Requests::Out(out);
     }
     core.take_models(key.task, &mut batch);
+    core.take_deadline(key.task, &mut batch);
     if let Err(why) = core.task_as_allowed(key.task, &mut batch) {
         return delegate_refused(core, to, key, None, why);
     }
-    if let Err(part) = core.delegate_preflight(&env.limits.tasks, key, &batch) {
+    if let Err(part) = core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
         let mut out = Queue::with_capacity(3);
         call_decision(core, &mut out, to, key, part);
         out.push(Request::Decided);
@@ -115,7 +116,7 @@ pub(super) fn delegate_validated(
         };
         created
             .push(tasks::New {
-                deadline: jig_domain_tasks::Deadline::Named,
+                deadline: member.deadline,
                 label: member.label,
                 flags: member.flags,
                 number,
@@ -215,7 +216,7 @@ pub(super) fn delegate_holdings(
         out.push(Request::Decided);
         return Requests::Out(out);
     }
-    let flight = core.creating_delegates.remove(&request).expect("completed delegate holdings");
+    let mut flight = core.creating_delegates.remove(&request).expect("completed delegate holdings");
     if flight.failed {
         return match flight.kind {
             BatchKind::Delegation { .. } => {
@@ -228,6 +229,7 @@ pub(super) fn delegate_holdings(
     }
     match flight.kind {
         BatchKind::Delegation { stubs, given } => {
+            super::deadlines::resolve(&mut flight.members, env.wall);
             assert!(
                 core.delegating.insert(request, (flight.key, stubs, given)) == Ok(None),
                 "one pending delegated call"
@@ -278,6 +280,7 @@ pub(super) fn propose_batch(
         return proposal_refused(core, to, key, tasks::Refusal::Batch);
     }
     core.take_models(key.task, &mut batch);
+    core.take_deadline(key.task, &mut batch);
     if let Err(why) = core.task_as_allowed(key.task, &mut batch) {
         return proposal_refused(core, to, key, why);
     }
@@ -307,7 +310,7 @@ pub(super) fn propose_batch(
         let number = *numbers.get(u32::try_from(index).expect("batch index")).expect("one ID per member");
         created
             .push(tasks::New {
-                deadline: jig_domain_tasks::Deadline::Named,
+                deadline: member.deadline,
                 label: member.label,
                 flags: member.flags,
                 number,
@@ -393,6 +396,7 @@ pub(super) fn procedure_step(
         return Requests::Out(out);
     }
     core.take_models(task, &mut decision.batch);
+    core.take_deadline(task, &mut decision.batch);
     if let Err(why) = core.task_as_allowed(task, &mut decision.batch) {
         return super::procedure_steps::refused(core, task, step, super::procedure_steps::problem(task, why));
     }
@@ -415,7 +419,7 @@ pub(super) fn procedure_step(
             }));
         }
         [_, ..] => {
-            if !core.procedure_batch_admit(&env.limits.tasks, task, &batch) {
+            if !core.procedure_batch_admit(&env.limits.tasks, task, &batch, env.wall) {
                 return super::procedure_steps::refused(
                     core,
                     task,
@@ -481,7 +485,7 @@ pub(super) fn procedure_step(
                 };
                 created
                     .push(tasks::New {
-                        deadline: jig_domain_tasks::Deadline::Named,
+                        deadline: member.deadline,
                         label: member.label,
                         flags: member.flags,
                         number,
@@ -600,6 +604,7 @@ pub(super) fn procedure_holdings(
         }
         let mut decision = flight.decision;
         decision.batch = flight.members;
+        super::deadlines::resolve(&mut decision.batch, env.wall);
         work.push(Event::Tasks(tasks::Event::Procedure {
             reply_to: ReplyTo::new(Token::new(u64::MAX)),
             task,

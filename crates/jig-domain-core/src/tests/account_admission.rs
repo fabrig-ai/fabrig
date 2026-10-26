@@ -79,6 +79,7 @@ fn a_delegate_preflight_uses_the_parents_financial_payer() {
     core.proofs.insert(1, RunProof::claimed(1, 1, 1, None, fleet::HostKind::Worker)).unwrap();
     let member = new_row(&core, 3, tasks::Funder::Task(1), None);
     let delegate = Delegate {
+        deadline: tasks::Deadline::Named,
         executor: member.executor,
         spec: member.spec,
         contract: member.contract,
@@ -94,7 +95,7 @@ fn a_delegate_preflight_uses_the_parents_financial_payer() {
     };
     let key = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
     assert_eq!(
-        core.delegate_preflight(&limits.tasks, key, &[delegate]),
+        core.delegate_preflight(&limits.tasks, key, &[delegate], Wall::from_nanos(0)),
         Err(CallPart::DelegationRefused(tasks::Problem::new(
             None,
             tasks::Refusal::Account { account: ACCOUNT, why: tasks::AccountWhy::Uses }

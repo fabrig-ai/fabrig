@@ -67,6 +67,7 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
                     to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
                     key: core::CallKey { task: parent.0, attempt: parent.1, completion, position: 0 },
                     batch: Box::new([core::Delegate {
+                        deadline: jig_domain_tasks::Deadline::Named,
                         label: 0,
                         flags: jig_domain_tasks::Flags::PLAIN,
                         tracked: None,

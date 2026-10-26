@@ -134,6 +134,7 @@ pub fn member(world: &crate::effects::World, executor: tasks::Executor, words: &
     authority.delegation =
         tasks::Delegation { kinds: Box::new([tasks::AuthorityExecutor::Charter(1)]), tasks: 1, depth: 1 };
     core::Delegate {
+        deadline: jig_domain_tasks::Deadline::Named,
         label: 0,
         flags: jig_domain_tasks::Flags::PLAIN,
         tracked: None,
@@ -147,6 +148,19 @@ pub fn member(world: &crate::effects::World, executor: tasks::Executor, words: &
         dependencies: Box::new([]),
         wake: tasks::WakePolicy::DEFAULT,
     }
+}
+
+/// A running caller with the supplied authority wall, for delegation deadline stories.
+#[must_use]
+pub fn run_with_deadline(seed: u64, deadline: Option<skein_lib::Wall>) -> crate::effects::World {
+    let (config, limits) = crate::faults::plan_fixture(seed);
+    let people::Ask::Create { project, mut batch } =
+        create_chat(&Creating::new(&config.core, limits.core.tasks.tree_tasks), 1, 0, b"caller".as_slice().into())
+    else {
+        panic!("caller creation")
+    };
+    batch[0].authority.deadline = deadline;
+    crate::effects::World::configured_with(seed, false, config, limits, people::Ask::Create { project, batch })
 }
 
 /// Assert the last party answer carries this refusal.

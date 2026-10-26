@@ -30,6 +30,7 @@ fn delegate_question(world: &mut jig_core_world::effects::World, parent: u64) {
         to: ReplyTo::new(Token::new(4001)),
         key: world.call_key(1),
         batch: Box::new([core::Delegate {
+            deadline: jig_domain_tasks::Deadline::Named,
             label: 0,
             flags: jig_domain_tasks::Flags::PLAIN,
             tracked: None,

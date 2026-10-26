@@ -43,6 +43,7 @@ impl Protocol {
                 to: ReplyTo::new(Token::new(DELEGATE_REPLY)),
                 key: core::CallKey { task: assignment.task, attempt: assignment.attempt, completion: 1, position: 0 },
                 batch: Box::new([core::Delegate {
+                    deadline: jig_domain_tasks::Deadline::Named,
                     label: 0,
                     flags: tasks::Flags::PLAIN,
                     tracked: None,
