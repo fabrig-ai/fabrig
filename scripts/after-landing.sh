@@ -5,7 +5,6 @@
 # Nothing runs this until the user designs how it should run.
 set -eu
 cd "$(dirname "$0")/.."
-echo "after-landing: lab process tier skipped for the attended hetzner prototype (decision 273)"
 browser=0
 scripts/browser.sh || browser=$?
 if grep -q '^\[profile\.exhaustive\]' .config/nextest.toml; then
