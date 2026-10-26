@@ -243,6 +243,20 @@ fn release_reopens_a_closed_pull_and_recreates_a_deleted_branch() {
     assert_eq!(two.change.state, State::Recreating { head: HEAD });
 }
 #[test]
+fn a_reopened_pull_keeps_its_target_when_the_landing_tip_advances() {
+    let c = change(State::Reopening { requested: true, retarget: false });
+    let mut f = facts();
+    f.base_tip = NEW;
+    f.expected_base = NEW;
+    let next = decide(&c, &f, &heard());
+    assert_eq!(next.change.state, State::Checking { head: HEAD });
+    assert_eq!(next.decision, Decision::None);
+
+    f.drift = Some(Hold::Retargeted);
+    assert_eq!(decide(&c, &f, &heard()).decision, Decision::Hold(Hold::Retargeted));
+}
+
+#[test]
 fn drift_writer_slots_and_stalls_do_not_write_over_a_branch() {
     let mut f = facts();
     f.writer_taken = true;

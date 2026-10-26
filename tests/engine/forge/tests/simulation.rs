@@ -8,6 +8,34 @@ use temper_engine_forge_world::changes::{
 use temper_engine_forge_world::{REPO, World, translate};
 
 #[test]
+fn a_merge_seen_by_the_base_read_before_the_pull_read_is_not_a_retarget() {
+    let mut world = World::new(141);
+    world.adopt();
+    world.produce(b"temper/51");
+    world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
+    let pull = world.open_pull(b"temper/51", b"main");
+    let head = translate::commit(world.branch(b"temper/51"));
+    let mut row = change_row();
+    row.pull = Some(pull);
+    row.change.state = change::State::Landing { head };
+    row.change.last_head = Some(head);
+    row.change.since = world.wall();
+    row.effect = change::EffectResult::Made;
+    world.event(top::Event::Change { row });
+    let merge = world.merge_before_pull_read(pull);
+
+    let decision = change_step(&mut world, 100, change::Status::Passed, Box::new([]));
+    assert!(matches!(decision, change::Decision::Wait { .. }), "await the merged pull: {decision:?}");
+    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("change retained") };
+    assert_eq!(saved.change.state, change::State::Landing { head });
+    assert_eq!(saved.base.as_ref(), b"main");
+
+    world.restart();
+    assert_eq!(change_step(&mut world, 101, change::Status::Passed, Box::new([])), change::Decision::Finish { merge });
+    assert_eq!(world.writes(), 0, "the completed merge is never sent again");
+}
+
+#[test]
 fn an_existing_repository_is_adopted_after_its_permission_and_collaborators_are_read() {
     let mut world = World::new(3);
     world.adopt();

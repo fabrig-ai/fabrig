@@ -104,6 +104,7 @@ pub struct World {
     call_ops: Vec<skein_forge::api::Op>,
     hints: Vec<skein_forge::api::Hint>,
     signatures: bool,
+    pull_snapshot: Option<skein_forge::api::Pull>,
 }
 
 impl World {
@@ -240,6 +241,7 @@ impl World {
             call_ops: Vec::new(),
             hints: Vec::new(),
             signatures,
+            pull_snapshot: None,
         };
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         world
@@ -504,6 +506,24 @@ impl World {
     pub fn close(&mut self, number: u64) {
         self.external(raw::Op::Write(raw::Write::Close { number }), 2);
     }
+
+    /// Merge at the forge, retaining its preceding pull snapshot for the
+    /// connector's next fresh-read chain, whose base read sees the merge.
+    pub fn merge_before_pull_read(&mut self, number: u64) -> skein_forge::api::Commit {
+        let op = skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number });
+        let answer = self.external(raw::Op::Read(raw::Read::Pull { number }), 1);
+        let skein_forge::api::Answer::Pull(snapshot) =
+            translate::answer_as(&op, answer, &self.env.limits.client, 1, self.signatures)
+        else {
+            panic!("fixture pull read")
+        };
+        let head = self.branch(&snapshot.head);
+        let raw::Answer::Merged(merge) = self.external(raw::Op::Write(raw::Write::Merge { number, head }), 1) else {
+            panic!("fixture pull merged")
+        };
+        self.pull_snapshot = Some(snapshot);
+        translate::commit(merge)
+    }
     pub fn resolve(&mut self, branch: &[u8], content: &[u8]) {
         let head = self.branch(branch);
         let base = self.branch(b"main");
@@ -737,7 +757,15 @@ impl World {
                     let pending = self.pending.remove(&to.into_token()).expect("pending call");
                     let result = match result {
                         Ok(answer) => {
-                            Ok(translate::answer_as(&pending.op, answer, &self.env.limits.client, 1, self.signatures))
+                            let mut answer =
+                                translate::answer_as(&pending.op, answer, &self.env.limits.client, 1, self.signatures);
+                            if matches!(&pending.op, skein_forge::api::Op::Read(skein_forge::api::Read::PullFor { .. }))
+                                && let skein_forge::api::Answer::Pull(pull) = &mut answer
+                                && let Some(snapshot) = self.pull_snapshot.take()
+                            {
+                                *pull = snapshot;
+                            }
+                            Ok(answer)
                         }
                         Err(error) => {
                             Err(translate::error(error, forge::time(&self.forge_env.limits, self.forge_env.now)))

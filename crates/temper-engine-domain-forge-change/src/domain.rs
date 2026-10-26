@@ -80,9 +80,8 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
             | State::Landed { .. }
             | State::Held { .. } => return hold(next, Hold::PullClosed),
         },
-        Pull::Open { base, .. } if base != facts.expected_base && !is_reopening(&change.state) => {
-            return hold(next, Hold::Retargeted);
-        }
+        // The connector reports a changed target branch through facts.drift.
+        // A pull's base commit can lag the landing tip, including our own merge.
         Pull::Open { .. } | Pull::Missing | Pull::Merged { .. } => {}
     }
     match &change.state {
@@ -101,25 +100,6 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
         State::Repairing { requested, why } => repairing(next, *requested, *why, facts, standing, now, limits),
         State::Landing { head } => landing(next, *head, standing, now, limits),
         State::Landed { .. } | State::Held { .. } => unreachable!("terminal states returned above"),
-    }
-}
-
-fn is_reopening(state: &State) -> bool {
-    match state {
-        State::Reopening { .. } => true,
-        State::Producing { .. }
-        | State::Opening { .. }
-        | State::Recreating { .. }
-        | State::Checking { .. }
-        | State::Gating { .. }
-        | State::Queued { .. }
-        | State::First { .. }
-        | State::Updating { .. }
-        | State::Resolving { .. }
-        | State::Repairing { .. }
-        | State::Landing { .. }
-        | State::Landed { .. }
-        | State::Held { .. } => false,
     }
 }
 
@@ -290,7 +270,7 @@ fn reopening(
         return hold(change, Hold::BranchMissing);
     };
     match facts.pull {
-        Pull::Open { head: pull_head, base } if pull_head == head && base == facts.expected_base => {
+        Pull::Open { head: pull_head, .. } if pull_head == head => {
             change.state = State::Checking { head };
             change.since = now;
             Stepped { change, decision: Decision::None }
