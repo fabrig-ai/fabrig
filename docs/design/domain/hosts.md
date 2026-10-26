@@ -834,7 +834,9 @@ An Open task's program path is admitted as a Finite task's is, since
 smith runs an Open run on a program backend, keeping the program across
 its turns (smith's `protocol/programs.md`, 5.9): selection and the
 claim's recheck judge its models and grants by the same view as any
-task's, and no run waits as `OpenProgram`. The client's
+task's, each source, account and host still checked and the binding
+revalidated exactly, and no run waits as `OpenProgram`. The recheck
+below stays, for a start a host refuses for its grants. The client's
 `TaskWaitRefused.program` arm, which would name that wait, stays on the
 wire with no producer.
 
