@@ -118,6 +118,7 @@ skein-ui-web = { git = "https://github.com/fabrig-dev/skein.git" }
 skein-ui-bundle = { git = "https://github.com/fabrig-dev/skein.git" }
 jig-client-shell-web = { git = "https://github.com/fabrig-dev/jig.git" }
 wasm-bindgen = "=0.2.126"
+js-sys = "=0.3.103"
 web-sys = "=0.3.103"
 jig-client-test-domain = { git = "https://github.com/fabrig-dev/jig.git" }
 temper-client-view = { path = "crates/temper-client-view" }
