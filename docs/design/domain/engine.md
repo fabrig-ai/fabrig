@@ -1982,6 +1982,14 @@ judges and keeps it within the change's decision.
   patches (`../protocol/store.md`, section 10). Nothing is judged
   again: a stored value was judged when its change was made, and the
   defaults are the application's own.
+- **Charters a value names.** A kind may declare that its values name
+  charters, at most a number per value it declares. The connector says
+  which a value names when it judges an item and when it reports a
+  default, and the core keeps those numbers with the setting's state and
+  holds them in its check of references (17.1, *reference*), as it
+  holds a template's charter: a change that would leave such a charter
+  unoffered is refused, naming the setting that names it, and a start
+  whose defaults would is refused the same way.
 - **Read by the application.** The root, and through it the
   application's own children and clients, read a value from the
   connector that owns its kind, by kind, scope and number: the newest,

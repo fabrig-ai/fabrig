@@ -801,9 +801,10 @@ bytes.
   requirement's verdict does (section 7): the items, each its kind,
   scope and number and the value it would leave or its removal (a reset
   as the default it returns to), and the revision they would make. It
-  accepts; refuses with a reason in its own words, which the change's
-  refusal carries to the party; or says an item leaves its setting as
-  it is. A judge reads only its own state, and decides what the items
+  accepts, with the charters each value names where its kind declares
+  that it names some (engine.md, 17.5); refuses with a reason in its own
+  words, which the change's refusal carries to the party; or says an
+  item leaves its setting as it is. A judge reads only its own state, and decides what the items
   mean in its system's terms.
 - **Kept in the same decision.** Once the change is committed, it saves
   its items' values as the current changes, a removal as a change with
