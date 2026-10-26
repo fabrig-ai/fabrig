@@ -2506,6 +2506,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-web",
  "jig-client-test-records",
+ "skein-fake-person",
  "skein-lib",
  "skein-scratch",
  "skein-ui",

@@ -16,6 +16,8 @@ use skein_ui_web::{
 #[cfg(target_arch = "wasm32")]
 use std::{cell::RefCell, rc::Rc};
 pub mod host;
+#[cfg(any(not(target_arch = "wasm32"), feature = "record"))]
+pub mod journey;
 pub mod limits;
 pub mod records;
 #[cfg(target_arch = "wasm32")]

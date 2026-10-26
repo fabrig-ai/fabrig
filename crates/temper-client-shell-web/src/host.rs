@@ -32,6 +32,14 @@ pub struct Duties {
     pub show: Option<(Box<[u8]>, bool)>,
 }
 
+impl Duties {
+    /// Whether carrying these duties leaves this page (client/journeys.md, 3.1).
+    #[must_use]
+    pub fn departs(&self) -> bool {
+        self.navigate.is_some() || self.replace.is_some()
+    }
+}
+
 pub struct Host {
     root: root::Domain,
     view: view::View,
