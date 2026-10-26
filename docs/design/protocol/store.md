@@ -1957,10 +1957,20 @@ deployment's lock as a start does (10.1, step 1).
   backup.
 
 ```rust
+Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written
+Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool }           // before `Opened` or `OpenRefused`
+pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
+Request::Back { owner: Token, root: Root }
 pub enum BackRefusal { Busy, NoPrevious, Committed { manifest: u64, last: u64 }, Unreadable }
 Event::Back { owner: Token, to: u64 }                 // `active` names generation `to`
 Event::BackRefused { owner: Token, why: BackRefusal }
+pub fn levels(sets: &PatchSets) -> Levels             // the binary's levels, for its versions' lines
 ```
+
+A rehearsal's store refuses `Request::Switch`, though its root never
+asks, and its close removes the scratch; a rehearsal that crashed
+leaves one, which the next rehearsal removes before it copies. Its
+patches answer `Patched` as a start's do.
 
 ## 11. Growth
 
