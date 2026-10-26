@@ -75,6 +75,12 @@ simulator.md; a world run in a browser is playground.md.
   simulator; a hosted child whose service has ended is dropped in its
   place. Then the machine answers every call the step's submits made
   (simulator.md, 3.1), and a spawn the registry matches is hosted.
+- **A hosted child inherits its launch directory,** as a kernel gives a
+  child its working directory: the spawn's directory, opened beneath
+  its root, is handed to the child with its pipes and roots, owned by
+  it and closed at its exit. A program that works where it was
+  launched (a shell) writes beneath it; one that doesn't ignores it.
+  The harness's real loop does the same at a hosted spawn.
 - **Counted:** the world's step count starts at 0 and grows by one per
   step; a moment of the world is its count and its clock's instant.
 - **What a loop asks of it,** between steps: whether it is busy (a
