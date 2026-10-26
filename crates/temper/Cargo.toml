@@ -12,6 +12,7 @@ name = "temper"
 path = "src/main.rs"
 
 [dependencies]
+temper-docs.workspace = true
 skein-fail-stop.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-fake-git.workspace = true

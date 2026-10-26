@@ -1,3 +1,5 @@
+mod help;
+
 #[test]
 fn directory_commands_take_flags_after_their_command_words() {
     for (words, valid) in [

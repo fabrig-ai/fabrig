@@ -30,6 +30,7 @@ mod fake_backends;
 pub mod forge;
 mod forge_sign_in;
 mod google_runtime;
+pub mod help;
 mod host;
 mod init;
 pub mod open;
@@ -37,7 +38,7 @@ mod program_login;
 mod setup;
 mod worker_alone;
 pub use host::Host;
-pub const USAGE: &str = "usage: temper init [DIRECTORIES] | temper serve [DIRECTORIES] [--box] | temper agent AGENT.json | temper program-login [DIRECTORIES] NAME | temper open DIRECTORY LINK_OR_ADDRESS | temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge reconcile [DIRECTORIES] FORGE | temper forge sign-in [DIRECTORIES] FORGE | temper box [DIRECTORIES] [--echo none|steps] | temper box [DIRECTORIES] --fake-backends [--bundle DIR] | temper fake llm --document FILE [--ready PREFIX] [--seed N] | temper fake forge [DIRECTORIES] N [--ready PREFIX] [--seed N] [--observations FILE] | temper fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] | temper fake forge check [DIRECTORIES] N OBSERVATIONS STORE | temper fake oauth --document FILE [--ready PREFIX] [--seed N] | temper fake git ARGS... | temper ctl DIRECTORY TOOL [ARGUMENT...] | temper ctl help [TOOL]";
+pub const USAGE: &str = "usage: temper init [DIRECTORIES] | temper serve [DIRECTORIES] [--box] | temper agent AGENT.json | temper program-login [DIRECTORIES] NAME | temper open DIRECTORY LINK_OR_ADDRESS | temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge reconcile [DIRECTORIES] FORGE | temper forge sign-in [DIRECTORIES] FORGE | temper box [DIRECTORIES] [--echo none|steps] | temper box [DIRECTORIES] --fake-backends [--bundle DIR] | temper fake llm --document FILE [--ready PREFIX] [--seed N] | temper fake forge [DIRECTORIES] N [--ready PREFIX] [--seed N] [--observations FILE] | temper fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] | temper fake forge check [DIRECTORIES] N OBSERVATIONS STORE | temper fake oauth --document FILE [--ready PREFIX] [--seed N] | temper fake git ARGS... | temper ctl DIRECTORY TOOL [ARGUMENT...] | temper ctl help [TOOL] | temper help [NAME | --search WORDS...]";
 const CONFIG_BYTES: u32 = 1 << 20;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -50,6 +51,7 @@ pub enum Command {
     Agent { configuration: PathBuf },
     Open { arguments: Vec<OsString> },
     Ctl { arguments: Vec<OsString> },
+    Help { request: help::Request },
     Fake { arguments: fake::Arguments },
     FakeCheck { directories: Directories, check: fake::Check },
     FakeGit { arguments: Box<[Box<[u8]>]> },
@@ -101,6 +103,7 @@ pub fn configure_with(
     match command.as_ref() {
         b"fake" => return fake::configure(arguments, environment, working),
         b"ctl" => return Ok(Command::Ctl { arguments: os(arguments) }),
+        b"help" => return help::request(arguments).map(|request| Command::Help { request }).ok_or_else(invalid),
         b"open" => return Ok(Command::Open { arguments: os(arguments) }),
         b"agent" => {
             return match arguments {
@@ -220,6 +223,10 @@ pub fn run(command: Command) -> Result<u8, String> {
         }
         Command::Forge { directories, arguments, ssl_cert_file } => {
             return Ok(forge::run(&directories, &arguments, ssl_cert_file));
+        }
+        Command::Help { request } => {
+            print!("{}", help::answer(&request)?);
+            return Ok(0);
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),

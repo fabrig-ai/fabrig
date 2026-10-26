@@ -7,12 +7,13 @@ use temper_client_shell_cli::{
     host::{Invocation, OneShot, Startup},
 };
 
-fn start(arguments: &[OsString], clock: &Clock) -> Result<u8, String> {
-    let words: Vec<_> = arguments.iter().map(|word| word.as_bytes()).collect();
+pub(crate) fn parse<'a>(
+    words: &[&'a [u8]],
+) -> Result<(Option<&'a [u8]>, temper_client_tools::jig::call::Parsed), &'static str> {
     let (directory, words) = match words.split_first() {
-        Some((word, _)) if *word == b"help" => (None, words.as_slice()),
+        Some((word, _)) if *word == b"help" => (None, words),
         Some((directory, words)) => (Some(*directory), words),
-        None => return Err("usage: temper ctl DIRECTORY TOOL [ARGUMENT...]".into()),
+        None => return Err("usage: temper ctl DIRECTORY TOOL [ARGUMENT...]"),
     };
     let parsed = arguments::parse(words).map_err(|why| {
         if why == temper_client_tools::jig::argv::Usage::AmendmentRevision {
@@ -21,6 +22,12 @@ fn start(arguments: &[OsString], clock: &Clock) -> Result<u8, String> {
             "usage: temper ctl DIRECTORY TOOL [ARGUMENT...]"
         }
     })?;
+    Ok((directory, parsed))
+}
+
+fn start(arguments: &[OsString], clock: &Clock) -> Result<u8, String> {
+    let words: Vec<_> = arguments.iter().map(|word| word.as_bytes()).collect();
+    let (directory, parsed) = parse(&words)?;
     let help = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if arguments::class(call) == arguments::Class::Help);
     let mut owned = Vec::new();
     let result = (|| {
