@@ -211,7 +211,10 @@ deployment's rules       the most any project may have; requirements on effects
   - its ceiling: the authority no task in the project exceeds, which
     follows from its resources' roles (owned, fork, context) and from
     what the application was given on each at adoption (connectors.md,
-    section 12), and names the models its tasks may use;
+    section 12), and names the models its tasks may use. Its owners edit
+    it whole, within the deployment's rules, refused past them: the way a
+    rule widened by a change of settings (engine.md, 17.2) reaches a
+    project made before it, which otherwise keeps its copy;
   - its spend per period, from which every root task's budget is carved;
   - its roles: for each, the authority a party in it has, the spend a
     party in it may allot per period, and the kinds of proposal it may
