@@ -1913,6 +1913,18 @@ Each within jig's suites' budgets.
   run from its own start, the referee finding one whole generation
   active, the other strays removed, and its records the patched or the
   old, never a mix.
+- **The transcripts' framing's golden bytes,** as skein-kv keeps its
+  own (skein's `kv.md`, section 9): a task's file of frames made from
+  fixed turns (a window turn, a turn at the frame's bound, two
+  attempts), kept beside the component's tests and never regenerated
+  by the test that reads it; the writer's file compared with it byte
+  for byte, and the reader walking it from both ends to the same turns.
+  A change to the framing (8.1: the frame's length at both ends and its
+  checksum, around the body) fails it, naming the format: from
+  the first release on, it needs an upgrade of its own before the
+  records' patches (temper's `draft/upgrades.md`, 6.5). A change to the
+  core's `TurnRecord` or smith's turn is the patches' and their goldens'
+  instead.
 - **Transcripts patched as read,** most of it at the lowest layer. Step
   tests in `jig-protocol-store` over `jig-test-patches-smith` (and a
   fixture body family in `jig-test-patches-jig`): frames written at each
