@@ -1,6 +1,6 @@
 # The store
 
-Provisional, 2026-10-12, revised 2026-10-24. What lies beneath the
+Provisional, 2026-10-12, revised 2026-10-26. What lies beneath the
 engine's store vocabulary: skein's key-value store, embedded in the
 engine's process, holds every record jig's core and the application
 keep, transcripts are files beside it, and secrets are in a second
@@ -1455,11 +1455,13 @@ generation `A` to `A + 1`:
    its own after the plan's last patch, over the core's run proofs (4.4),
    one for each live task ever claimed, by pages, each page a commit as
    a patch's are: each proof is decoded by the binary's codec, since
-   every core record is at the binary's version by then, and one with a
-   window not yet closed is put back at its key with its window closed
-   (core-v6's `Window.closed`), every other field as it was. A proof
-   with no window, or one already closed, is not written, and a page
-   with none to close makes no commit; a proof that does not decode, or
+   every core record is at the binary's version by then, and each is
+   put back at its key marked crossed (core-v6's `RunProof.crossed`),
+   with its window closed where it has one not yet closed
+   (`Window.closed`), every other field as it was, so that the restart
+   settles its claim (`../domain/engine.md`, 7.2). A proof already
+   crossed, with no window open, is not written, and a page with none to
+   write makes no commit; a proof that does not decode, or
    decodes as another key's record, refuses `Check { why: Load }` with
    its key, as step 5 would. Nothing else is written, and no transcript:
    the frames are read patched (8.6), and the closed window is the
@@ -1975,12 +1977,7 @@ Each within jig's suites' budgets.
   - values nested in another owner's family as they run across owners'
     levels (skein's `codec.md`, section 13);
   - effects in flight that a patch changes (temper's
-    `draft/upgrades.md`, section 8). Transcripts are patched as they
-    are read (8.6), and a fresh mark closes the live windows (10.2,
-    step 4). A pending fresh mark requires a full upgrade, with workers
-    stopped and every live attempt ended before the switch even when
-    their wires match (temper's `draft/upgrades.md`, section 9). The
-    application's stop must enforce this before switching;
+    `draft/upgrades.md`, section 8): the plan refuses none yet;
   - pieces held by a frame's turn (smith's `Found.hits`, `pieces Hit`)
     are copied, not opened, so a smith patch that changes `Hit` is
     refused `Pieces` until they open (skein's `codec.md`, 11.3 and

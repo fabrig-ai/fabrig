@@ -1,6 +1,6 @@
 # The core
 
-Provisional, 2026-10-07, revised 2026-10-24. What jig's core is, as a
+Provisional, 2026-10-07, revised 2026-10-26. What jig's core is, as a
 domain layer inside an application's engine: its parts and how they fit,
 what crosses between it and the application's root, how a decision
 reaches the store before anything leaves the engine, how it restarts,
@@ -349,7 +349,7 @@ answers to a run's reads.
 | the indexes of ended tasks: by requester, every ended task a party requested; by project, the ended tasks flagged listed; each saved in the decision that ends its task (11.2; `../protocol/store.md`, 7.4) | tasks | on demand |
 | parties' read positions over conversations: a live one's; an ended one's, moved by the decision that ends the task and erased with it (11.4) | people | live ones at start; ended ones on demand |
 | calls committed since each live task's last turn, by attempt and name, with the core's part of their answers | the core | with their task |
-| each live agent task's conversation: its first attempt, where its current window starts, and whether an upgrade closed it (7.2) | the core | with their task |
+| each live agent task's conversation: its first attempt, where its current window starts, whether an upgrade closed it, and whether an upgrade crossed its claim (7.2) | the core | with their task |
 | funders' numbers: each party's pool and each project's spend, per period; a period's beginning, and when the next begins if its source said | tasks | at start |
 | a task's history: made, amended, held, released, cancelled, by whom, why; and its activity: words written to it, runs begun and ended, what it heard (7.2) | tasks | on demand |
 | inboxes: messages not yet taken | tasks | with their task |
@@ -450,7 +450,10 @@ next only once the root says this one is done (root.md, section 8).
    they committed nothing (tasks.md, 5.2); so are claims on workers in
    the engine's own process, which no worker outlives
    (`../protocol/service.md`, section 10), when its configuration says
-   its workers are in process. Claims on other workers reach the
+   its workers are in process; and so is a claim an upgrade across a
+   fresh mark crossed (its run proof's `crossed`), wherever it runs, so
+   that no attempt goes on across that mark (7.2). Claims on other
+   workers reach the
    fleet, which adopts each attempt a worker reports as it dials in,
    keeps waiting for one within its grace, and cancels any it does not
    name (section 8). Nothing new is assigned before every claim loaded has
@@ -488,8 +491,9 @@ disk as `active` − 1 for the operator to go back to; one the accounts
 child counts and leaves stays. The restart then runs over the switched
 generation as any restart does. A patch marked fresh has closed every
 live task's window in the copy before the switch (store.md, 10.2, step
-4), so the restart restores them closed, and each task's next attempt
-starts fresh (7.2).
+4) and marked every claim crossed, so the restart restores the windows
+closed, settles each crossed claim at once (step 3), and each task's
+next attempt starts fresh (7.2).
 
 `RestartRequest::ProjectPolicy { project: u32 }` names a saved project
 policy whose byte size exceeds `limits.policy_bytes` or cannot be
@@ -727,15 +731,27 @@ the per-run charter routes by them.
   However the upgrade's
   stop classes the attempt it ends (temper's `draft/upgrades.md`, 7.2),
   a closed window is kept for its tail's load, where a transient try
-  drops an open one. No attempt is to be live across the switch: an
-  upgrade across a fresh mark is to be a full one, its workers stopped
-  first, so that every window the next attempt opens is its own, and
-  open. That is temper's to make, in its `draft/upgrades.md`, section 9
-  (`../protocol/store.md`, section 16); the core assumes it and checks
-  nothing of it. The run proof
+  drops an open one. The run proof
   keeps the window as a `CurrentWindow` (its attempt, its turn, whether
   it is closed: core-v6's `Window`); the transcript a run prepares keeps
   the pair it loads from, and whether it is closed beside it.
+- **No attempt goes on across a fresh mark.** An upgrade across one is
+  a full one, its workers stopped first (temper's `draft/upgrades.md`,
+  section 9), and the core holds to it whatever was stopped. The walk
+  that closes the windows marks every run proof it visits `crossed`
+  (core-v6's `RunProof.crossed`; `../protocol/store.md`, 10.2, step
+  4): a claim resuming an earlier attempt's window, one whose attempt
+  has yet to commit a turn and has no window, and one whose window an
+  earlier mark closed alike. At the restart a crossed claim is settled
+  at once, as the engine's own claims are (section 6, step 3): lost, or
+  not started if it committed nothing, as at any stop. It is never
+  adopted, and a run a worker lists for it is cancelled as any run no
+  claim adopts (section 8). The mark is on the proof, so a crash after
+  the switch, before the restart settles the claim, settles it at the
+  next. Each claim's preparation writes a proof of its own, never
+  crossed, so the next attempt is adopted at a later restart as any
+  claim is, until another mark crosses it. So every window the next
+  attempt opens is its own, and open.
 - **Turns are numbered within their attempt,** from one. The task keeps
   the last turn committed for its live attempt, restored with the fleet's
   adoption of the claim, so a copy already committed is acknowledged
@@ -1574,6 +1590,17 @@ change then made; a revision leaving memory as its last holder ends.
 Its stories of a proposal of settings (17.6): one proposed by a run and
 accepted by an owner, moving running work; one made stale by another
 change and withdrawn, its proposer told.
+
+Its stories of an upgrade across a fresh mark (7.2), over the store
+with fixture patch sets: a task mid-run on a worker, its window
+resumed from an earlier attempt, upgraded across the mark, its claim
+settled at once as lost, the worker's listed run cancelled, its late
+turn refused, and its next attempt fresh with the closed window's tail;
+a fresh attempt yet to commit a turn, settled as not started; a crash
+after the switch before the restart, the next restart settling the
+claim the same way; the next attempt claimed and the engine restarted
+before its first turn, adopted as any claim; and a second upgrade
+across another mark before that turn, settling it again.
 
 Its referee holds the core to core.md, section 11, seen from outside;
 applications' worlds reuse it on jig's conformance world (testing.md,
