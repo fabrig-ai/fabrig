@@ -600,8 +600,12 @@ served is held, kept and unsent, for its owner's version (client.md,
     and phase, pending or done, with when and by whom each was added
     after the task was made, and whether they keep it
     (`../../domain/tasks.md`, 5.7); the proposals waiting in its subtree; how
-    far its activity has committed; and the acts the party may make on
-    it, with what each would do (5.3, 5.4);
+    far its activity has committed; for an agent task, the settings
+    revision it records and, while a live run was prepared under an
+    older one, the run's, with the newest's number beside them, so that
+    a party sees which charter version its runs read and whether a move
+    (`../../domain/engine.md`, 17.4) would change it; and the acts the
+    party may make on it, with what each would do (5.3, 5.4);
   - *a task line:* one record for every list of tasks (6.1): the task's
     chip; its project and its requester; tracked and priority, label
     and flags; when it last changed, its last activity, and when it
