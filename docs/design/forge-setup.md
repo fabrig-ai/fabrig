@@ -151,8 +151,8 @@ failures.
 
   The first owner's are temper's: the word its own name, the tokens
   `<word>-api` and `<word>-git`, the admin's name `<word>-admin`, and 8
-  orgs, 120 s, 100 ms and 5 s; for `Create` (4.9), 1 file of at most
-  4 KiB.
+  orgs, 120 s, 100 ms and 5 s; for `Create` (4.9), 2 files of at most
+  4 KiB each.
 - **Asked of its host, as needs,** when a step reaches them: the admin's
   token, the API and git tokens, the bot's id as last kept, and the
   webhooks' secret. These are the items (6.4). Each is named by what it
