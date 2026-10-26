@@ -1392,4 +1392,5 @@ fn project_asks_answers_and_name_refusals_round_trip() {
     }
 }
 
+mod holds;
 mod settings_proposals;

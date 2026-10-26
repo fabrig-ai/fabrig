@@ -24,7 +24,7 @@ record PartPath { segments: list 64 PartSegment }
 enum PartKey { path: PartPath, number: Number }
 record Part { connector: u16 kind: PartKind key: PartKey }
 record FieldRule { name: bytes 4096 max: u32 }
-record Verdict { code: u32 words: u32 followups: u32 fields: bytes 65536 }
+record Verdict { code: u32 words: u32 followups: u32 fields: bytes 65536 pieces FieldRule }
 record Approval { state: bytes 65536 part: Part }
 record Report { words: u32 }
 record Choices { choices: list 64 Verdict }
@@ -100,7 +100,7 @@ record Creation { member: Member recurring: option RecurringTemplate }
 record ResultField { name: bytes 4096 value: bytes 65536 }
 record Approved { state: bytes 65536 words: option bytes 65536 }
 record ReportResult { words: bytes 65536 }
-record VerdictResult { code: u32 fields: bytes 65536 words: bytes 65536 }
+record VerdictResult { code: u32 fields: bytes 65536 pieces ResultField words: bytes 65536 }
 record ChangeResult { connector: u16 kind: u16 resource: u64 words: bytes 65536 }
 record FailureResult { reason: bytes 65536 }
 enum TaskResult { approved: Approved, report: ReportResult, verdict: VerdictResult, change: ChangeResult, failure: FailureResult }
@@ -174,7 +174,7 @@ record NoticeHeld { revision: u64 }
 enum NoticeState { held: NoticeHeld, done, failed, cancelled }
 enum NewsClass { wakes, kept, dropped }
 record ApprovalMessage { state: bytes 65536 words_present: bool }
-record VerdictMessage { code: u32 fields: bytes 65536 }
+record VerdictMessage { code: u32 fields: bytes 65536 pieces ResultField }
 record ChangeMessage { connector: u16 kind: u16 resource: u64 }
 enum ResultKind { approved: ApprovalMessage, report, verdict: VerdictMessage, change: ChangeMessage, failed, cancelled }
 record EscalationMessage { task: u64 revision: u64 }

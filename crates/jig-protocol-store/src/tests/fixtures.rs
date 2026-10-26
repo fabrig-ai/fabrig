@@ -545,28 +545,11 @@ pub fn people_asks() -> Box<[people::Ask]> {
         Ask::Withdraw { project: 1, proposal: 43 },
         Ask::MarkSeen { seen: people::Seen::Conversation { task: 2, through: 3 } },
         Ask::Application { scope: jig_domain_people::ApplicationScope::Project(1), connector: 2, digest: [3; 32] },
-        Ask::EditNote {
-            project: 1,
-            name: 2,
-            scope: Box::new(people::NoteScope::Resources { connector: 1, pattern: people_pattern() }),
-            change: Box::new(people::NoteChange::Correct {
-                description: Box::new([2]),
-                body: Box::new([0, 255]),
-                references: Box::new([3]),
-                recalled: 4,
-            }),
-        },
+        holds::edit_note(),
         Ask::MakeService { project: 1, name: Box::new([2]), role: people::Role::Maintainer },
         Ask::AccountSignIn { holder: people::AccountHolder::Own, provider: 2 },
         Ask::AccountSignOut { holder: people::AccountHolder::Deployment, source: 3 },
-        Ask::Adopt {
-            project: 1,
-            adoption: people::Adoption {
-                resource: people::ResourceName { connector: 1, path: Box::new([Box::new([2])]) },
-                role: people::ResourceRole::Owned,
-                options: Box::new([Box::new([3])]),
-            },
-        },
+        holds::adopt(),
         Ask::Stop { project: 1, task: 2 },
         Ask::Cancel { project: 1, task: 2, reason: Box::new([3]), grace: Some(skein_lib::Duration::from_secs(5)) },
         Ask::Release { project: 1, task: 2, revision: 3, again: Some(true) },
@@ -720,6 +703,7 @@ const fn core_fleet_limits() -> jig_domain_fleet::Limits {
 mod record;
 pub use record::{task_record, task_word};
 pub mod calls;
+pub mod holds;
 
 pub mod core_rows;
 

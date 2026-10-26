@@ -11,17 +11,17 @@ record RequestKey { person: u64 key: fixed 16 }
 record LastExact { value: bytes 8192 }
 record LastOpen { value: bytes 8192 }
 enum Last { exact: LastExact, open: LastOpen }
-record Pattern { segments: bytes 65536 last: Last }
+record Pattern { segments: bytes 65536 pieces Segment last: Last }
 record Grant { connector: u16 kind: u16 pattern: Pattern }
 record ResourceScope { connector: u16 pattern: Pattern }
 record ExecutorCharter { value: u32 }
 record ExecutorProcedure { value: u32 }
 record ExecutorRole { value: u32 }
 enum Executor { charter: ExecutorCharter, procedure: ExecutorProcedure, role: ExecutorRole }
-record Delegation { kinds: bytes 65536 tasks: u32 depth: u32 }
+record Delegation { kinds: bytes 65536 pieces Executor tasks: u32 depth: u32 }
 record ModelSetNamed { bits: u64 }
 enum ModelSet { all, named: ModelSetNamed }
-record Authority { tools: u64 models: option ModelSet grants: bytes 65536 delegation: Delegation spend: u64 deadline: option u64 notes: u8 note_resources: bytes 65536 }
+record Authority { tools: u64 models: option ModelSet grants: bytes 65536 pieces Grant delegation: Delegation spend: u64 deadline: option u64 notes: u8 note_resources: bytes 65536 pieces ResourceScope }
 record Judge { connector: u16 requirement: u16 parameters: u32 }
 record GuardObserved { freshness: u64 }
 enum Guard { guarded, observed: GuardObserved }
@@ -36,12 +36,12 @@ enum TemplateBudget { amount: TemplateBudgetAmount, as_allowed: TemplateBudgetAs
 record TemplateDeadlineSpan { value: u64 }
 enum TemplateDeadline { none, span: TemplateDeadlineSpan, given }
 record TemplateOverride { template: u32 executor: option TemplateExecutor budget: option TemplateBudget deadline: option TemplateDeadline priority: option u32 }
-record PolicyValue { ceiling: Authority escalation_role: option u32 period_spend: u64 projections: list 32 Grant roles: list 8 PolicyRole requirements: list 32 Requirement permissions: bytes 65536 templates: list 16 TemplateOverride }
+record PolicyValue { ceiling: Authority escalation_role: option u32 period_spend: u64 projections: list 32 Grant roles: list 8 PolicyRole requirements: list 32 Requirement permissions: bytes 65536 pieces PermissionRole templates: list 16 TemplateOverride }
 record PolicyChangeProjectSpend { period_spend: u64 }
 record PolicyChangeRole { value: PolicyRole }
-record PolicyChangeRequirements { requirements: bytes 65536 }
-record PolicyChangeProjections { grants: bytes 65536 }
-record PolicyChangePermissions { mappings: bytes 65536 }
+record PolicyChangeRequirements { requirements: bytes 65536 pieces Requirement }
+record PolicyChangeProjections { grants: bytes 65536 pieces Grant }
+record PolicyChangePermissions { mappings: bytes 65536 pieces PermissionRole }
 record PolicyChangeTemplates { overrides: list 16 TemplateOverride }
 enum PolicyChange { project_spend: PolicyChangeProjectSpend, role: PolicyChangeRole, requirements: PolicyChangeRequirements, projections: PolicyChangeProjections, permissions: PolicyChangePermissions, templates: PolicyChangeTemplates }
 record SeenResults { through: u64 }
@@ -50,12 +50,12 @@ enum Seen { results: SeenResults, conversation: SeenConversation }
 record NoteScopeTask { task: u64 }
 record NoteScopeResources { connector: u16 pattern: Pattern }
 enum NoteScope { deployment, project, task: NoteScopeTask, resources: NoteScopeResources }
-record NoteChangeCorrect { description: bytes 8192 body: bytes 8192 references: bytes 65536 recalled: u32 }
+record NoteChangeCorrect { description: bytes 8192 body: bytes 8192 references: bytes 65536 pieces Number64 recalled: u32 }
 record NoteChangeDelete { recalled: u32 }
 enum NoteChange { correct: NoteChangeCorrect, delete: NoteChangeDelete }
 enum ResourceRole { owned, fork, context }
-record ResourceName { connector: u16 path: bytes 65536 }
-record Adoption { resource: ResourceName role: ResourceRole options: bytes 65536 }
+record ResourceName { connector: u16 path: bytes 65536 pieces Segment }
+record Adoption { resource: ResourceName role: ResourceRole options: bytes 65536 pieces Segment }
 record PersonResultApproved { state: bytes 8192 words: option bytes 8192 }
 record PersonResultReport { words: bytes 8192 }
 record PersonResultVerdict { code: u32 words: bytes 8192 }
@@ -76,7 +76,7 @@ record ParameterNumber { name: u32 value: u64 }
 record ParameterBytes { name: u32 value: bytes 8192 }
 record ParameterResource { name: u32 connector: u16 resource: u64 }
 enum Parameter { number: ParameterNumber, bytes: ParameterBytes, resource: ParameterResource }
-record Spec { words: bytes 8192 parameters: bytes 65536 inputs: bytes 65536 }
+record Spec { words: bytes 8192 parameters: bytes 65536 pieces Parameter inputs: bytes 65536 pieces Number64 }
 record WakeRuleBatch { count: u32 age: u64 }
 enum WakeRule { never, immediate, batch: WakeRuleBatch }
 enum ResultsWake { never, each, last_or_failure }
@@ -85,7 +85,7 @@ record TrackingTracked { priority: u32 }
 enum Tracking { tracked: TrackingTracked, untracked }
 record ModelEffort { model: u8 effort: option u8 }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
-record Amendment { tracked: option Tracking addressed: option AddressChange instructions: option bytes 8192 spec: option Spec wake: option WakePolicy dependencies: option bytes 65536 authority: option Authority llm: option LlmChoice reason: bytes 8192 }
+record Amendment { tracked: option Tracking addressed: option AddressChange instructions: option bytes 8192 spec: option Spec wake: option WakePolicy dependencies: option bytes 65536 pieces Number64 authority: option Authority llm: option LlmChoice reason: bytes 8192 }
 record TaskExecutorAgent { charter: u32 }
 record TaskExecutorProcedure { connector: u16 code: u32 }
 record TaskExecutorPerson { address: PersonAddress }
@@ -96,9 +96,9 @@ record DependencyBatch { at: u32 }
 record DependencyExisting { task: u64 }
 enum Dependency { batch: DependencyBatch, existing: DependencyExisting }
 record FieldRule { name: bytes 8192 max: u32 }
-record Verdict { code: u32 words: u32 followups: u32 fields: bytes 65536 }
+record Verdict { code: u32 words: u32 followups: u32 fields: bytes 65536 pieces FieldRule }
 record ContractReport { words: u32 }
-record ContractVerdict { choices: bytes 65536 }
+record ContractVerdict { choices: bytes 65536 pieces Verdict }
 record ContractChange { connector: u16 kind: u16 words: u32 }
 enum Contract { report: ContractReport, verdict: ContractVerdict, change: ContractChange }
 enum Retention { kept, forgotten_once_read }
@@ -106,7 +106,7 @@ enum EndedBy { result, requester }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum Deadline { named, span: DeadlineSpan }
-record Member { deadline: Deadline executor: TaskExecutor words: bytes 8192 parameters: bytes 65536 inputs: bytes 65536 contract: Contract authority: Authority budget: Budget wake: WakePolicy dependencies: bytes 65536 named: bytes 65536 tracked: option u32 label: u32 flags: Flags llm: option LlmChoice }
+record Member { deadline: Deadline executor: TaskExecutor words: bytes 8192 parameters: bytes 65536 pieces Parameter inputs: bytes 65536 pieces Number64 contract: Contract authority: Authority budget: Budget wake: WakePolicy dependencies: bytes 65536 pieces Dependency named: bytes 65536 pieces Grant tracked: option u32 label: u32 flags: Flags llm: option LlmChoice }
 record OperationCancel { task: u64 reason: bytes 8192 grace: option u64 }
 record OperationMove { task: u64 reason: bytes 8192 }
 record OperationAmend { task: u64 revision: u64 amendment: Amendment release: option u64 }
