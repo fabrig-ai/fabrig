@@ -328,7 +328,16 @@ this environment) is the application's (`../../domain/people.md`, 5.1):
   keeps the outcome under that token, durably, for the retention, and
   gives it again when the request is sent again, as the core asks a
   connector for any value it does not own (`../../domain/core.md`,
-  section 5; `../../domain/connectors.md`, 5.5);
+  section 5; `../../domain/connectors.md`, 5.5). The one exception: a
+  connector whose own table of kept outcomes is full refuses the
+  admitted request at once, by the decision the people child reserved
+  for it (`../../domain/people.md`, 5.1): a `Limit` of kind
+  `ApplicationAnswers` naming the connector and its bound. The people
+  child keeps that refusal itself, durably, as it keeps its admission
+  refusals, and gives it again for the key, after a restart too, for
+  the retention; the connector keeps nothing of it. A later ask under
+  the same key gets that refusal, even once the table has room: a new
+  ask takes a new key;
 - **never its own acts:** a connector acts on the core on a party's
   behalf only within that party's request. What it asks of the core
   with no request, where no client is there (a person's conversation
