@@ -13,6 +13,9 @@ pub struct Story {
     pub init: Init,
     #[serde(default)]
     pub turns: Vec<Turn>,
+    /// Record the MCP tool inventory received at startup for admission stories.
+    #[serde(default)]
+    pub observe_tools: bool,
     #[serde(default)]
     pub usage: Usage,
     #[serde(default)]
@@ -221,6 +224,8 @@ pub enum Seen {
     Terminated,
     /// The settings read at startup, sent only to the observation file.
     Settings { allow: Vec<String>, ask: Vec<String>, deny: Vec<String>, keys: Vec<String> },
+    /// The server's tool inventory, when the story requests its observation.
+    Tools { names: Vec<String> },
     /// The settings could not be read or decoded.
     UnreadableSettings,
     /// A server tool call and whether its result failed, without its input.

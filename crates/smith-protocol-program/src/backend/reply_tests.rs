@@ -28,7 +28,7 @@ fn wait_s_messages_join_its_answer() {
     let mut backend = backend();
     assert!(backend.ledger.push(call(b"first")).is_ok());
     assert!(backend.ledger.push(call(b"last")).is_ok());
-    let FromDomain::Complete { prompt, .. } = request(&backend) else { panic!("prompt") };
+    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("prompt") };
     let messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([
@@ -38,7 +38,7 @@ fn wait_s_messages_join_its_answer() {
             llm::Block::Text { text: b"message 2".as_slice().into(), replay: None },
         ]),
     }]);
-    assert!(replies::resume(&mut backend, messages, &prompt).expect("resumed").nudge.is_none());
+    assert!(replies::resume(&mut backend, messages, &mut prompt, false).expect("resumed").line.is_none());
     let mcp::Answer::Text(first) = backend.ledger.get(0).expect("first").answer.as_ref().expect("first reply") else {
         panic!("successful first reply")
     };
@@ -54,12 +54,12 @@ fn a_joined_reply_past_its_bound_is_refused() {
     let mut backend = backend();
     backend.settings.adapter.rendered_result = 8;
     assert!(backend.ledger.push(call(b"last")).is_ok());
-    let FromDomain::Complete { prompt, .. } = request(&backend) else { panic!("prompt") };
+    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("prompt") };
     let messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([result(b"last"), llm::Block::Text { text: b"more".as_slice().into(), replay: None }]),
     }]);
-    assert!(replies::resume(&mut backend, messages, &prompt).is_none());
+    assert!(replies::resume(&mut backend, messages, &mut prompt, false).is_none());
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn user_text_survives_interleaved_results() {
     let mut backend = backend();
     assert!(backend.ledger.push(call(b"first")).is_ok());
     assert!(backend.ledger.push(call(b"last")).is_ok());
-    let FromDomain::Complete { prompt, .. } = request(&backend) else { panic!("prompt") };
+    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("prompt") };
     let messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([
@@ -78,7 +78,7 @@ fn user_text_survives_interleaved_results() {
             llm::Block::Text { text: b"after".as_slice().into(), replay: None },
         ]),
     }]);
-    assert!(replies::resume(&mut backend, messages, &prompt).expect("resumed").nudge.is_none());
+    assert!(replies::resume(&mut backend, messages, &mut prompt, false).expect("resumed").line.is_none());
     let mcp::Answer::Text(first) = backend.ledger.get(0).expect("first").answer.as_ref().expect("first reply") else {
         panic!("first success")
     };

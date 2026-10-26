@@ -47,6 +47,7 @@ fn admitted_finish_request_wakes_listening_and_next_reply_parks() {
         harness.step(finish_request(run, FIRST, b"Please finish")).as_ref(),
         &[Request::Say { peer: Token::new(PEER), text: bytes(b"person: Please finish") }]
     );
+    final_note(&mut harness, main);
     drop(harness.step(told(main, 2)));
     assert_eq!(
         harness.step(reply(main, Stop::EndTurn, b"Goodbye")).as_ref(),
@@ -98,6 +99,7 @@ fn prepared_finish(carried: bool) -> (Harness, Token, Token) {
 fn start_and_preparing_finish_requests_survive_until_main_replies() {
     for carried in [true, false] {
         let (mut harness, _, main) = prepared_finish(carried);
+        final_note(&mut harness, main);
         assert_eq!(
             harness.step(reply(main, Stop::EndTurn, b"Goodbye")).as_ref(),
             &[
@@ -121,6 +123,7 @@ fn finish_request_wakes_wait_and_preserves_unread_words() {
         harness.step(finish_request(run, FIRST, b"Please finish")).as_ref(),
         &[returned(20, Returned::Waited { text: crate::prompt::waited() })]
     );
+    final_note(&mut harness, main);
     drop(harness.step(told(main, 1)));
     drop(harness.step(reply(main, Stop::EndTurn, b"Goodbye")));
     let emitted = harness.step(settled(main, Spend::ZERO));
@@ -349,6 +352,7 @@ fn wind_down_reply_parks_and_keeps_unread_words_for_later() {
     drop(harness.step(message(run, NEXT, b"Later")));
     harness.after(ordinary);
     drop(harness.fire());
+    final_note(&mut harness, main);
     assert_eq!(
         harness.step(reply(main, Stop::EndTurn, b"Last reply")).as_ref(),
         &[
@@ -510,5 +514,32 @@ fn a_reply_does_not_spend_or_reset_unsuccessful_nudges() {
                 turns: 0
             }
         )
+    );
+}
+
+/// Play the root's gate before returning a completion from the final request.
+fn final_note(harness: &mut Harness, main: Token) {
+    drop(crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Unreserved));
+}
+
+#[test]
+fn a_finish_mid_completion_requires_the_note_before_last_reply() {
+    let mut harness = Harness::new(LIMITS);
+    let (run, main) = harness.running_on(HOST, PEER, finish_policy());
+    let owner = Token::new(500);
+    crate::reserve(&mut harness.domain, main, owner, crate::Most::Unreserved).expect("ordinary program completion");
+    drop(harness.step(finish_request(run, FIRST, b"Please finish")));
+    assert!(harness.domain.needs_wind_down_yield(run));
+    assert!(crate::settle_reservation(&mut harness.domain, main, owner, 0));
+    assert_eq!(
+        harness.step(reply(main, Stop::EndTurn, b"Interrupted text")).as_ref(),
+        &[Request::Say { peer: Token::new(PEER), text: bytes(b"person: Please finish") }]
+    );
+    let permit = crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Unreserved);
+    let crate::CompletionPermit::Final { note: Some(_) } = permit else { panic!("final request carries the note") };
+    assert!(!harness.domain.needs_wind_down_yield(run));
+    assert_eq!(
+        harness.step(reply(main, Stop::EndTurn, b"Last reply")).as_ref(),
+        &[Request::Waiting { host_run: Token::new(HOST), read: None }, Request::Close { peer: Token::new(PEER) },]
     );
 }

@@ -18,6 +18,7 @@ mod waiting;
 mod carry;
 pub use carry::{from_frames, start_with_window};
 pub(crate) use waiting::message;
+pub use waiting::{HostMessage, When};
 
 /// One startup scenario encoded in the hosted agent's arguments.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -37,6 +38,8 @@ pub enum Case {
     Tools,
     /// Record a program conversation with full content capture.
     Events,
+    /// Keep an Open conversation across replies and scripted host messages.
+    Open,
     /// The main endpoint does not select the configured program.
     Unbound,
     /// The programs directory could not be opened by the shell.
@@ -170,7 +173,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
             }),
         );
     }
-    // These worlds offer only a 128-byte report, no host tools or chat.
+    // These worlds offer a 128-byte report or bounded Open text, without host tools.
     // Keep result receiving bounds small enough to exercise the program
     // alongside the unchanged two-gigabyte test deployment.
     config.limits.domain.run.run_bytes = config.limits.domain.run.run_bytes.min(4096);
@@ -462,19 +465,32 @@ pub fn run(
     value: &smith_channel::GrantValue,
     refresh: Option<&smith_channel::GrantValue>,
 ) -> Run {
-    run_inner(case, story, login, charter, value, refresh, None)
+    run_inner(case, story, login, charter, value, refresh, None, None)
 }
 
 /// Restore the host's recorded window through the shipped program composition.
 #[must_use]
 pub fn run_with_window(story: &Story, charter: &[u8], turns: &[Box<[u8]>]) -> Run {
-    run_inner(Case::Transcript, story, Some(b"claude.ai"), charter, &crate::program(b"source"), None, Some(turns))
+    run_inner(Case::Transcript, story, Some(b"claude.ai"), charter, &crate::program(b"source"), None, Some(turns), None)
+}
+
+/// Drive Open replies and parent messages on one program input.
+#[must_use]
+pub fn open(story: &Story, charter: &[u8], releases: &[HostMessage]) -> Run {
+    open_with_window(story, charter, releases, None)
+}
+
+/// Restore an Open window, or begin fresh, with the same parent release driver.
+#[must_use]
+pub fn open_with_window(story: &Story, charter: &[u8], releases: &[HostMessage], turns: Option<&[Box<[u8]>]>) -> Run {
+    run_inner(Case::Open, story, Some(b"claude.ai"), charter, &crate::program(b"source"), None, turns, Some(releases))
 }
 
 /// Drive one hosted program scenario on the shared deterministic world and machine.
 #[must_use]
 #[expect(
     clippy::too_many_lines,
+    clippy::too_many_arguments,
     reason = "one hosted fixture connects the program, relay, roots and independent observations"
 )]
 fn run_inner(
@@ -485,6 +501,7 @@ fn run_inner(
     value: &smith_channel::GrantValue,
     refresh: Option<&smith_channel::GrantValue>,
     history: Option<&[Box<[u8]>]>,
+    releases: Option<&[HostMessage]>,
 ) -> Run {
     let mut story = story.clone();
     if !matches!(
@@ -496,6 +513,7 @@ fn run_inner(
             | Case::ParkWaiting
             | Case::Events
             | Case::Transcript
+            | Case::Open
     ) && story.turns.is_empty()
     {
         story.turns.push(smith_fake_claude::Turn {
@@ -517,9 +535,10 @@ fn run_inner(
                     | Case::ParkWaiting
                     | Case::Events
                     | Case::Transcript
+                    | Case::Open
             ),
             ended: false,
-            waiting: waiting::Release::new(case == Case::Waiting),
+            waiting: releases.map_or_else(|| waiting::Release::new(case == Case::Waiting), waiting::Release::open),
             cancel: if matches!(
                 case,
                 Case::Turns
@@ -529,6 +548,7 @@ fn run_inner(
                     | Case::ParkWaiting
                     | Case::Events
                     | Case::Transcript
+                    | Case::Open
             ) {
                 None
             } else {
@@ -594,7 +614,7 @@ fn run_inner(
         operations: smith_agent_shell::relay::operations(),
     });
     world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {
-        let initial = waiting::initial(matches!(case, Case::Waiting | Case::ParkWaiting));
+        let initial = waiting::initial(matches!(case, Case::Waiting | Case::ParkWaiting | Case::Open));
         let mut parent = Parent::new(
             root,
             charter,
@@ -613,6 +633,7 @@ fn run_inner(
             None,
             0,
         );
+        parent.program_messages = waiting::messages(releases.unwrap_or(&[]));
         parent
             .program_arguments(Box::new([serde_json::to_vec(&case).expect("case arguments").into()]), refresh.cloned());
         if matches!(case, Case::Tools | Case::Events) {
@@ -620,7 +641,7 @@ fn run_inner(
             parent.peer.play(tools_start(charter, value));
             parent.program_host_answers = Some(0);
         }
-        if case == Case::Transcript {
+        if case == Case::Transcript || history.is_some() {
             parent.peer = crate::host();
             parent.peer.play(match history {
                 Some(turns) => start_with_window(charter, value, turns),

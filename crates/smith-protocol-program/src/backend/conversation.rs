@@ -44,12 +44,12 @@ impl Backend {
         let Some(mut request) = self.wind_down(env, request, up, below) else {
             return;
         };
-        let prompt = match &mut request {
-            FromDomain::Complete { prompt, .. } => prompt,
+        let (prompt, capture) = match &mut request {
+            FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
             FromDomain::Cancel { .. } => unreachable!("completion route"),
         };
         let messages = core::mem::replace(&mut prompt.messages, Box::new([]));
-        let Some(resumed) = super::replies::resume(self, messages, prompt) else {
+        let Some(resumed) = super::replies::resume(self, messages, prompt, capture) else {
             self.fail(
                 env,
                 llm::Failure::Invalid,
@@ -65,20 +65,15 @@ impl Backend {
         self.answer_calls();
         self.match_calls();
         // A later API message may already be in flight. Only a completed
-        // program turn needs the domain's nudge sent back as a user line.
-        if let Some(text) = resumed.nudge
-            && self.turns.result
-            && self.turns.ready.is_empty()
-            && self.turns.message.is_none()
-        {
-            sent = Some(text.clone());
-            self.outgoing = stream::text_message(&text, self.settings.input_bytes);
-            if self.outgoing.is_none() {
-                self.fail(env, llm::Failure::Invalid, b"smith: program input exceeds its bound", up, below);
-                return;
+        // program turn needs the domain's new text (message or nudge) as a user line.
+        if let Some(line) = resumed.line {
+            if self.turns.result && self.turns.ready.is_empty() && self.turns.message.is_none() {
+                self.outgoing = Some(line);
+                self.turns.restart();
+                self.send_input();
+            } else {
+                sent = None;
             }
-            self.turns.restart();
-            self.send_input();
         }
         self.prompt_measure(env.now, sent.as_deref());
         self.deliver(env, up, below);
@@ -109,6 +104,7 @@ impl Backend {
         if self.stop != super::stop::Stop::None {
             if kind == Some(b"result") {
                 self.stopped_result(env);
+                self.deliver(env, up, below);
             }
             return;
         }
@@ -147,8 +143,12 @@ impl Backend {
                     return;
                 }
                 self.turns.result = true;
+                let structured = match &self.request {
+                    Some(FromDomain::Complete { prompt, .. }) => prompt.served.contains(&llm::Served::Finish),
+                    Some(FromDomain::Cancel { .. }) | None => false,
+                };
                 let completed = match json::field(&document, 0, b"structured_output") {
-                    Some(index) if token_kind(&document, Some(index)) != Some(Kind::Null) => {
+                    Some(index) if structured && token_kind(&document, Some(index)) != Some(Kind::Null) => {
                         match json::raw(&document, index, self.settings.adapter.client.answer) {
                             Some(input) => self.turns.structured(input),
                             None => None,
@@ -381,6 +381,11 @@ impl Backend {
             match call {
                 mcp::Up::Call { call, tool, input } => {
                     if self.phase == Phase::Ending || self.stop != super::stop::Stop::None {
+                        self.server.as_mut().expect("stopped MCP call").answer(
+                            call,
+                            mcp::Answer::Error(super::stop::INTERRUPTED.into()),
+                            &mut self.io,
+                        );
                         continue;
                     }
                     match calls::find(

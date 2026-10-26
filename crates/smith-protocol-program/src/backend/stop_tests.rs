@@ -388,3 +388,37 @@ fn a_tail_moves_served_results_after_the_last_assistant() {
     let decoded: serde_json::Value = serde_json::from_slice(&line).unwrap();
     assert_eq!(decoded["message"]["content"], "result of Read: new reply\nfinish now\n");
 }
+
+#[test]
+fn a_call_arriving_during_interrupt_is_not_run() {
+    let mut backend = active();
+    review_tests::connect_server(&mut backend);
+    backend.stop = stop::Stop::Yielding;
+    let bytes =
+        b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"foo\",\"arguments\":{}}}\n";
+    backend.server.as_mut().expect("server").from_io(
+        env(0).now,
+        io::Event::Stream { owner: Token::new(101), up: skein_lib::stream::Up::Bytes(bytes.as_slice().into()) },
+        &mut backend.io,
+    );
+    let call = backend.server.as_mut().expect("server").up().expect("call");
+    backend.calls.push(call).expect("one held call");
+    backend.match_calls();
+    let reply = review_tests::server_reply(&mut backend);
+    assert_eq!(reply["result"]["isError"], true);
+    assert_eq!(reply["result"]["content"][0]["text"], "not run: the program turn was interrupted");
+}
+
+#[test]
+fn a_prompt_arriving_during_interrupt_is_not_run() {
+    let mut backend = active();
+    review_tests::connect_server(&mut backend);
+    backend.stop = stop::Stop::Yielding;
+    prompt(&mut backend, true);
+    assert_eq!(
+        decision(&mut backend),
+        serde_json::json!({
+            "behavior":"deny", "message":"not run: the program turn was interrupted",
+        })
+    );
+}

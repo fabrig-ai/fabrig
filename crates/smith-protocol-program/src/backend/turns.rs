@@ -253,6 +253,17 @@ impl Turns {
         Some(())
     }
 
+    pub fn interrupted(&mut self) {
+        if self.close(true).is_none() {
+            self.message = None;
+        }
+        if self.ready.is_empty() {
+            self.assistant_events = 0;
+            self.end_empty().expect("one interrupt terminal has completion room");
+        }
+        self.result = true;
+    }
+
     pub fn accepting_calls(&self) -> bool {
         match &self.message {
             Some(message) => !message.stopped || message.received < message.expected,

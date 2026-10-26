@@ -37,6 +37,7 @@ pub(crate) struct Parent {
     pub(crate) cancel_pending: bool,
     pub(crate) program_host_answers: Option<usize>,
     pub(crate) program_message: bool,
+    pub(crate) program_messages: std::collections::VecDeque<skein_channel::Frame>,
 }
 
 impl Parent {
@@ -101,6 +102,7 @@ impl Parent {
             cancel_pending: false,
             program_host_answers: None,
             program_message: false,
+            program_messages: std::collections::VecDeque::new(),
         };
         parent.submit(Op::Spawn {
             spawn: Box::new(Spawn {
@@ -307,7 +309,8 @@ impl Host for Parent {
     fn iterate(&mut self, _now: Time, _wall: Wall) {
         if self.program_message {
             self.program_message = false;
-            self.peer.play(crate::program_world::message());
+            let message = self.program_messages.pop_front().unwrap_or_else(crate::program_world::message);
+            self.peer.play(message);
         }
         if self.cancel_pending {
             self.cancel_pending = false;

@@ -262,10 +262,16 @@ impl Backend {
             FromDomain::Complete { outcome, .. } => outcome,
             FromDomain::Cancel { .. } => return None,
         };
-        let schema = if super::compact::is_compaction(prompt) {
-            Box::default()
-        } else {
+        if !super::compact::is_compaction(prompt) {
+            match &prompt.choice {
+                llm::ToolChoice::Only(_) | llm::ToolChoice::None => self.winding = super::stop::WindDown::Finishing,
+                llm::ToolChoice::Auto => {}
+            }
+        }
+        let schema = if prompt.served.contains(&llm::Served::Finish) {
             protocol::finish_schema(outcome, self.settings.contract_bytes).ok()?
+        } else {
+            Box::default()
         };
         let root = self.settings.workspace.or(self.settings.directory)?;
         let directory = if self.settings.workspace.is_some() { Box::default() } else { self.run_relative() };
@@ -602,14 +608,16 @@ pub(super) fn arguments(
         b"mcp__smith__permission_prompt",
         b"--tools",
         tools,
-        b"--json-schema",
-        schema,
         b"--max-turns",
         turns.as_bytes(),
         b"--session-id",
         session,
     ] {
         arguments.push(Box::from(argument)).ok()?;
+    }
+    if !schema.is_empty() {
+        arguments.push(Box::from(b"--json-schema".as_slice())).ok()?;
+        arguments.push(Box::from(schema)).ok()?;
     }
     Some(arguments.into_boxed())
 }

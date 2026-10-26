@@ -93,6 +93,15 @@ pub(crate) fn operations() -> u32 {
 }
 
 impl Fake {
+    /// The one-based turn currently held inside a call or scripted hang.
+    #[must_use]
+    pub fn active_turn(&self) -> Option<u32> {
+        match &self.command {
+            Some(Command::Print(print)) => print.active_turn(),
+            Some(Command::Status(_) | Command::Login(_) | Command::Logout(_) | Command::Unknown) | None => None,
+        }
+    }
+
     /// The scripted call awaiting its MCP reply, without its input or credentials.
     #[must_use]
     pub fn pending_tool(&self) -> Option<&str> {

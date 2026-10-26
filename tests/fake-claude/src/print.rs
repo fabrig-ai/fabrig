@@ -1,5 +1,5 @@
 //! One print conversation (protocol/programs.md, sections 5 and 8). Keeps
-//! parsed flags, a turn cursor and file phase; never reads prompt contents.
+//! parsed flags, a turn cursor and file phase; never interprets prompt contents.
 //! The shared driver supplies file/input completions and service signals.
 
 use std::collections::BTreeMap;
@@ -149,6 +149,11 @@ pub(crate) struct Print {
 }
 
 impl Print {
+    pub(crate) fn active_turn(&self) -> Option<u32> {
+        matches!(self.phase, Phase::Calling | Phase::Hanging | Phase::Deaf)
+            .then(|| u32::try_from(self.next_turn).expect("scripted turn count fits"))
+    }
+
     pub(crate) fn pending_tool(&self) -> Option<&str> {
         self.pending.as_ref().map(|call| call.tool.as_str())
     }
@@ -521,15 +526,21 @@ impl Print {
                     stream::init(&self.story.init, &self.flags.tools, &self.server, &self.flags.values["--model"]);
                 init["mcp_servers"][0]["status"] = json!(if connected { "connected" } else { "failed" });
                 let mut all_tools = self.flags.tools.clone();
+                let mut effects = if self.story.observe_tools {
+                    vec![Effect::Seen(Seen::Tools { names: tools.clone() })]
+                } else {
+                    Vec::new()
+                };
                 all_tools.extend(tools.into_iter().map(|tool| format!("mcp__{}__{tool}", self.server)));
                 all_tools.extend(self.story.init.extra_tools.clone());
                 init["tools"] = json!(all_tools);
-                match self.story.init.delay_ms {
+                effects.extend(match self.story.init.delay_ms {
                     Some(after_ms) => {
                         vec![Effect::DelayedInit { after_ms, bytes: stream::line(init, &self.flags.session) }]
                     }
                     None => vec![self.emit(init), Effect::ReadCode],
-                }
+                });
+                effects
             }
             crate::mcp::Notice::Reply(reply) => {
                 let Some(pending) = self.pending.take() else { return Vec::new() };
@@ -623,6 +634,8 @@ impl Print {
 
     fn interrupt_result(&mut self) -> Vec<Effect> {
         self.interrupted = false;
+        self.together.clear();
+        self.expected_reply = None;
         self.finish(stream::failure(None, Some("interrupted".into()), Vec::new()))
     }
 

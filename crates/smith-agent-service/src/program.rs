@@ -279,11 +279,6 @@ pub(super) fn install(
     match value {
         channel::GrantValue::Program(source) => {
             let program = service.program.as_mut().ok_or(())?;
-            // protocol/programs.md, section 2: an Open main runs on the direct backend only.
-            match start.charter.mode {
-                domain::run::Mode::Finite => {}
-                domain::run::Mode::Open => return Err(()),
-            }
             if start.charter.llm.account != Some(name.account)
                 || !program.endpoints.contains(&start.charter.llm.endpoint.0)
             {
@@ -394,12 +389,16 @@ pub(super) fn fire(service: &mut Service) {
     if !room(service) {
         return;
     }
+    let yield_for_note = wind_down_requested(service);
     if let Some(program) = &mut service.program {
         match service.teardown {
             super::Teardown::Live => {}
             super::Teardown::Answered { .. } | super::Teardown::Closing { .. } | super::Teardown::Closed { .. } => {
                 program.backend.close(&service.llm_env, &mut service.llm_events, &mut program.below);
             }
+        }
+        if yield_for_note {
+            program.backend.yield_for_wind_down(&service.llm_env, &mut service.llm_events, &mut program.below);
         }
         program.backend.fire(&service.llm_env, &mut service.llm_events, &mut program.below);
     }
@@ -429,9 +428,21 @@ pub(super) fn closed(service: &Service) -> bool {
     }
 }
 
+fn wind_down_requested(service: &Service) -> bool {
+    match &service.domain {
+        Some(domain) => match service.admitted {
+            Some(run) => domain.needs_wind_down_yield(run),
+            None => false,
+        },
+        None => false,
+    }
+}
+
 pub(super) fn pending(service: &Service) -> bool {
     match &service.program {
-        Some(program) => !program.below.is_empty(),
+        Some(program) => {
+            !program.below.is_empty() || (program.backend.can_yield_for_wind_down() && wind_down_requested(service))
+        }
         None => false,
     }
 }

@@ -2,7 +2,8 @@
 //! Keeps a source grant, private run files, status child, MCP listener and
 //! program pipes; never reads login contents. `from_domain` starts on demand,
 //! `from_io` and `fire` advance startup, `settled` observes each finish verdict,
-//! and `close` settles every resource.
+//! `yield_for_wind_down` relays the run's interruption decision, and `close`
+//! settles every resource.
 
 use alloc::boxed::Box;
 use skein_io::{self as io, file, kernel};
@@ -44,6 +45,8 @@ mod exit_tests;
 mod lifecycle_tests;
 #[cfg(test)]
 mod measure_tests;
+#[cfg(test)]
+mod open_tests;
 #[cfg(test)]
 mod reply_tests;
 #[cfg(test)]

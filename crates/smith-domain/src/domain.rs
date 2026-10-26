@@ -263,6 +263,15 @@ impl Domain {
         }
     }
 
+    /// Whether a program must end the admitted Open run's in-flight completion
+    /// before its finishing note (domain/run.md 9.1; protocol/programs.md 5.9).
+    /// The service relays this decision, including as pending work, without
+    /// inspecting child state or choosing a reply.
+    #[must_use]
+    pub fn needs_wind_down_yield(&self, run: Token) -> bool {
+        self.run.needs_wind_down_yield(run)
+    }
+
     /// The run child domain, for a world to look at.
     #[must_use]
     pub const fn run(&self) -> &run::Domain {

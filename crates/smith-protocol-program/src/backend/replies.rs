@@ -33,16 +33,57 @@ fn joined(left: &[u8], right: &[u8], bound: u32) -> Option<Box<[u8]>> {
 
 /// A reply pass may leave a user line for a turn with no held call.
 pub(super) struct Resumed {
-    pub nudge: Option<Box<[u8]>>,
+    pub line: Option<Box<[u8]>>,
     pub observed: Option<Box<[u8]>>,
 }
 
-pub(super) fn resume(backend: &mut Backend, messages: Box<[llm::Message]>, prompt: &llm::Prompt) -> Option<Resumed> {
+pub(super) fn resume(
+    backend: &mut Backend,
+    messages: Box<[llm::Message]>,
+    prompt: &mut llm::Prompt,
+    capture: bool,
+) -> Option<Resumed> {
     let bound = backend.settings.adapter.rendered_result;
     let mut last = None;
     let mut nudge: Option<Box<[u8]>> = None;
     let mut synthetic = None;
-    for message in messages {
+    // A Complete contains history. Only the tail after the last assistant
+    // belongs to this continuation (protocol/programs.md, section 5.9).
+    let mut from = 0;
+    for (index, message) in messages.iter().enumerate() {
+        if message.role == llm::Role::Assistant {
+            from = index.checked_add(1)?;
+        }
+    }
+    let mut text = false;
+    let mut result = false;
+    for message in messages.iter().skip(from) {
+        for block in &message.content {
+            match block {
+                llm::Block::ToolResult { .. } => result = true,
+                llm::Block::Text { .. } => text = true,
+                llm::Block::Opaque { .. } | llm::Block::Refusal { .. } | llm::Block::ToolCall { .. } => {}
+            }
+        }
+    }
+    if !result {
+        if !text {
+            return Some(Resumed { line: None, observed: None });
+        }
+        // Messages and nudges share the exact tail encoder. Its independent
+        // input ceiling admits host offers larger than a tool reply, without
+        // retaining an extra unescaped copy (programs.md 5.9).
+        prompt.messages = messages;
+        let rendered = super::tail::render_observed(
+            prompt,
+            &backend.ledger,
+            &backend.settings.adapter,
+            backend.settings.input_bytes,
+            capture,
+        )?;
+        return Some(Resumed { line: Some(rendered.line), observed: rendered.text });
+    }
+    for message in messages.into_iter().skip(from) {
         let user = match message.role {
             llm::Role::User => true,
             llm::Role::Assistant => false,
@@ -90,9 +131,14 @@ pub(super) fn resume(backend: &mut Backend, messages: Box<[llm::Message]>, promp
                 mcp::Answer::Text(text) | mcp::Answer::Error(text) => Some(text.clone()),
             };
         }
-        Some(Resumed { nudge: None, observed })
+        Some(Resumed { line: None, observed })
     } else {
-        Some(Resumed { nudge: nudge.or(synthetic), observed: None })
+        let text = nudge.or(synthetic);
+        let line = match &text {
+            Some(text) => Some(super::stream::text_message(text, backend.settings.input_bytes)?),
+            None => None,
+        };
+        Some(Resumed { line, observed: text })
     }
 }
 

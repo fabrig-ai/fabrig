@@ -92,6 +92,15 @@ impl Domain {
         }
     }
 
+    /// Whether Open main must yield its in-flight completion for the run's
+    /// first finishing note (domain/run.md 9.1; protocol/programs.md 5.9).
+    /// The service relays this decision to its program adapter; no turn is
+    /// counted and no reply is chosen by observing it.
+    #[must_use]
+    pub fn needs_wind_down_yield(&self, run: Token) -> bool {
+        run::needs_wind_down_yield(&self.runs, run)
+    }
+
     /// Calls of conversations to the run, returned ones included until they
     /// are reclaimed.
     #[must_use]

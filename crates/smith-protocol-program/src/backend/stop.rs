@@ -3,17 +3,22 @@
 //! wind-down enter here; the backend's existing grace escalates to termination.
 
 use super::{Backend, Below, Phase, tail, turns};
+use crate::mcp;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, List, Queue, Time};
 use smith_domain::llm;
 use smith_protocol_llm as protocol;
 use smith_protocol_llm::{FromDomain, ToDomain};
 
+pub(super) const INTERRUPTED: &[u8] = b"not run: the program turn was interrupted";
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Stop {
     None,
     Closing,
     WindDown,
+    /// End an in-flight completion so the domain can issue its finishing note.
+    Yielding,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -23,6 +28,37 @@ pub(super) enum WindDown {
 }
 
 impl Backend {
+    /// Whether the service can relay a domain wind-down decision without
+    /// repeating an interrupt already waiting on its result (programs.md 5.9).
+    #[must_use]
+    pub fn can_yield_for_wind_down(&self) -> bool {
+        self.phase == Phase::Running
+            && self.owner.is_some()
+            && self.stop == Stop::None
+            && self.winding == WindDown::Ordinary
+            && !self.turns.result
+    }
+
+    /// Relay the domain's request to end main's in-flight program turn before
+    /// its finishing note. The result remains this Complete's one terminal.
+    pub fn yield_for_wind_down(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        up: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) {
+        if !self.can_yield_for_wind_down() {
+            return;
+        }
+        if self.active_turn() {
+            self.stop(env.now, true, true);
+            self.stop = Stop::Yielding;
+        } else {
+            self.deliver(env, up, below);
+        }
+        self.flush(below);
+    }
+
     pub(super) fn active_turn(&self) -> bool {
         if self.turns.result {
             return false;
@@ -50,7 +86,7 @@ impl Backend {
             FromDomain::Cancel { .. } => unreachable!("completion route"),
         };
         match &prompt.choice {
-            llm::ToolChoice::Only(_) if self.winding == WindDown::Ordinary => {}
+            llm::ToolChoice::Only(_) | llm::ToolChoice::None if self.winding == WindDown::Ordinary => {}
             llm::ToolChoice::Only(_) | llm::ToolChoice::Auto | llm::ToolChoice::None => return Some(request),
         }
         self.winding = WindDown::Finishing;
@@ -78,7 +114,6 @@ impl Backend {
         self.flush_deltas(now);
         let waiting = self.stop != Stop::None;
         self.stop = if keeping { Stop::WindDown } else { Stop::Closing };
-        self.calls = List::with_capacity(u32::from(self.settings.mcp.calls));
         if active && let Some(child) = self.child {
             if !waiting {
                 self.io.push(io::Request::Signal {
@@ -100,14 +135,55 @@ impl Backend {
     }
 
     pub(super) fn stopped_result(&mut self, env: &Env<protocol::ComponentLimits>) {
+        let yielding = self.stop == Stop::Yielding;
+        if yielding {
+            // A complete assistant message retains its text and usage. A partial
+            // message has no completion to charge (programs.md 5.5, 5.9).
+            self.turns.interrupted();
+        }
         self.finish_stop();
         if self.phase == Phase::Running && !self.switching {
             self.completion_deadline(env, true);
         }
     }
 
+    fn refuse_unanswered(&mut self) {
+        let calls = core::mem::replace(&mut self.calls, List::with_capacity(u32::from(self.settings.mcp.calls)));
+        for pending in calls.into_boxed() {
+            match pending {
+                mcp::Up::Call { call, .. } => {
+                    self.server.as_mut().expect("held MCP call").answer(
+                        call,
+                        mcp::Answer::Error(INTERRUPTED.into()),
+                        &mut self.io,
+                    );
+                }
+                mcp::Up::Prompt { call, .. } => {
+                    self.server.as_mut().expect("held permission prompt").verdict(
+                        call,
+                        mcp::Verdict::Deny { message: INTERRUPTED.into() },
+                        &mut self.io,
+                    );
+                }
+                mcp::Up::Listening { .. } | mcp::Up::Connected | mcp::Up::Ended(_) => unreachable!("held calls"),
+            }
+        }
+        for index in 0..self.ledger.len() {
+            let call = self.ledger.get_mut(index).expect("ledger cell");
+            if !call.answered
+                && let Some(rpc) = call.rpc.take()
+            {
+                self.server.as_mut().expect("correlated MCP call").answer(
+                    rpc,
+                    mcp::Answer::Error(INTERRUPTED.into()),
+                    &mut self.io,
+                );
+            }
+        }
+    }
+
     fn finish_stop(&mut self) {
-        self.calls = List::with_capacity(u32::from(self.settings.mcp.calls));
+        self.refuse_unanswered();
         for index in 0..self.ledger.len() {
             let call = self.ledger.get_mut(index).expect("ledger cell");
             call.rpc = None;
@@ -126,7 +202,7 @@ impl Backend {
                 self.turns.closed = closed;
                 self.send_input();
             }
-            Stop::None => {}
+            Stop::Yielding | Stop::None => {}
         }
         self.stop = Stop::None;
     }

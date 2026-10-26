@@ -18,6 +18,11 @@ impl Backend {
             }
         };
         if self.phase == Phase::Ending || self.stop != super::stop::Stop::None {
+            self.server.as_mut().expect("stopped permission prompt").verdict(
+                call,
+                mcp::Verdict::Deny { message: super::stop::INTERRUPTED.into() },
+                &mut self.io,
+            );
             return;
         }
         if !self.permission_ready(&tool_name, &input, tool_use_id.as_deref()) {

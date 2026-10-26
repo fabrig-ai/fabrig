@@ -676,11 +676,20 @@ pub(crate) fn yielded(
                     Stop::Budget | Stop::MaxTokens | Stop::Refusal | Stop::NoCalls => false,
                 },
             };
-            if replied && run.wind_down.is_some() {
+            let final_reply = match &run.wind_down {
+                Some(crate::wind_down::WindDown::Finishing { noted: true, .. }) => true,
+                Some(
+                    crate::wind_down::WindDown::Finishing { noted: false, .. }
+                    | crate::wind_down::WindDown::Settling { .. },
+                )
+                | None => false,
+            };
+            if replied && final_reply {
                 out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
                 wind_down(conversations, reply_to, main, Ending::Parked, out)
             } else if run.wind_down.is_some() {
                 match final_remaining(run, env.now) {
+                    Ok(()) if run.inbox.has_queued() => continue_messages(run, reply_to, main, peer, &env.limits, out),
                     Ok(()) => {
                         let note = match run.charter.mode {
                             Mode::Finite => prompt::finish_now(),
@@ -2713,4 +2722,32 @@ pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
 /// History presence is kept after its handle moves to the main opening.
 pub(crate) fn resumed(runs: &Slab<Run>, run: Token) -> bool {
     runs.get(Id::from_token(run)).expect("an admitted run lives through its facts").resumed
+}
+
+/// The program's currently reserved turn must end before the finishing note.
+pub(crate) fn needs_wind_down_yield(runs: &Slab<Run>, token: Token) -> bool {
+    let Some(run) = runs.get(Id::from_token(token)) else {
+        return false;
+    };
+    match run.charter.mode {
+        Mode::Finite => return false,
+        Mode::Open => {}
+    }
+    match &run.wind_down {
+        Some(crate::wind_down::WindDown::Finishing { noted: false, .. }) => {}
+        Some(
+            crate::wind_down::WindDown::Finishing { noted: true, .. } | crate::wind_down::WindDown::Settling { .. },
+        )
+        | None => return false,
+    }
+    match run.state {
+        State::Working { .. } => run.reserved_turns > 0,
+        State::Preparing { .. }
+        | State::Awaiting { .. }
+        | State::Listening { .. }
+        | State::Waiting { .. }
+        | State::Stopping { .. }
+        | State::Winding { .. }
+        | State::Closed => false,
+    }
 }
