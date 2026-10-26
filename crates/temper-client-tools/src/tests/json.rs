@@ -12,6 +12,7 @@ fn every_call_goes_from_argv_to_json_and_back_unchanged() {
                 Some(jig::call::Values::One(jig::call::Value::Text(br#"{"items":[]}"#.as_slice().into())));
         }
         let json = jig::json::write_call(table::TOOLS, &call).expect("a call's JSON within its bound");
+        fixtures::unique_keys(&json).expect("call JSON has unique keys");
         assert_eq!(fixtures::from_json(&json), call, "{words:?}");
     }
 }
@@ -166,6 +167,7 @@ fn a_document_past_ask_bytes_is_a_usage_error() {
 fn each_tools_record_is_written_as_json() {
     for tool in table::TOOLS {
         let json = jig::json::write_tool(tool).expect("a tool record's JSON");
+        fixtures::unique_keys(&json).expect("tool JSON has unique keys");
         assert!(skein_lib::bytes::find(&json, tool.name).is_some(), "{tool:?}");
         assert!(skein_lib::bytes::find(&json, br#""forms":["#).is_some(), "{tool:?}");
         skein_json::tokenizer::validate(
@@ -180,6 +182,38 @@ fn each_tools_record_is_written_as_json() {
         )
         .expect("valid record JSON");
     }
+}
+
+#[test]
+fn the_key_guard_names_the_first_repeated_decoded_key_and_its_path() {
+    for (json, expected) in [
+        (br#"{"result":1,"result":2}"#.as_slice(), "repeated key \"result\" at $[\"result\"]"),
+        (
+            br#"{"tasks":[{"result":1,"\u0072esult":2,"result":3}]}"#,
+            "repeated key \"result\" at $[\"tasks\"][0][\"result\"]",
+        ),
+    ] {
+        assert_eq!(fixtures::unique_keys(json).expect_err("repeated key"), expected);
+    }
+    fixtures::unique_keys(br#"{"tasks":[{"result":null},{"result":{"nested":true}}],"other":[]}"#)
+        .expect("keys in separate objects are independent");
+    fixtures::unique_keys(br#"{"unfinished":[]"#).expect_err("invalid JSON is refused");
+}
+
+#[test]
+fn every_json_golden_has_unique_keys() {
+    let mut checked = 0_u32;
+    for entry in std::fs::read_dir("src/tests/golden").expect("golden directory") {
+        let path = entry.expect("golden entry").path();
+        let name = path.file_name().expect("golden name").to_str().expect("UTF-8 name");
+        // Current JSON goldens have .txt names; also cover future .json files.
+        if path.extension() == Some(std::ffi::OsStr::new("json")) || name.ends_with("_json.txt") {
+            let json = std::fs::read(&path).expect("read JSON golden");
+            assert_eq!(fixtures::unique_keys(&json), Ok(()), "{}", path.display());
+            checked = checked.checked_add(1).expect("bounded golden count");
+        }
+    }
+    assert!(checked > 0, "at least one JSON golden checked");
 }
 
 #[test]

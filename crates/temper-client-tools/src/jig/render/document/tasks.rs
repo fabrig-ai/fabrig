@@ -84,6 +84,8 @@ pub(super) fn encode_task(value: &jig_client::contract::Task, out: &mut Encoder,
     encode_task_from_label(value, out, budget);
     encode_task_from_person_revision(value, out, budget);
     encode_task_from_hold(value, out, budget);
+    encode_task_result_member(value, out, budget);
+    encode_task_from_delegates(value, out, budget);
     super::subject_end(digest, out);
 }
 
@@ -98,6 +100,7 @@ pub(super) fn encode_historical_task(
     encode_task_from_label(value, out, budget);
     encode_task_from_person_revision(value, out, budget);
     encode_task_from_hold(value, out, budget);
+    encode_task_from_delegates(value, out, budget);
     out.key(b"result");
     super::encode_result(result, out, budget);
     super::subject_end(digest, out);
@@ -239,6 +242,9 @@ fn encode_task_from_hold(value: &jig_client::contract::Task, out: &mut Encoder, 
         super::encode_offered(item_14, out, budget);
     }
     out.array_end();
+}
+
+fn encode_task_result_member(value: &jig_client::contract::Task, out: &mut Encoder, budget: &mut super::Cut) {
     out.key(b"result");
     match &value.result {
         Some(item_15) => {
@@ -246,6 +252,9 @@ fn encode_task_from_hold(value: &jig_client::contract::Task, out: &mut Encoder, 
         }
         None => out.null(),
     }
+}
+
+fn encode_task_from_delegates(value: &jig_client::contract::Task, out: &mut Encoder, budget: &mut super::Cut) {
     out.key(b"delegates");
     out.array_start();
     for item_16 in &value.delegates {

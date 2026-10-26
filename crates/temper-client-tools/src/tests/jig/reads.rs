@@ -224,6 +224,33 @@ fn task_json_names_the_nested_contract_fields() {
 }
 
 #[test]
+fn an_ended_task_json_has_one_result_member() {
+    use jig_client::contract as c;
+    let report = c::ResultValue::Report(fixtures::document_text(b"Final task report"));
+    let ending = c::OwnerChipEnding::Done(report);
+    let mut task = fixtures::ended_task(c::Phase::Done);
+    task.result = Some(c::TaskResult::Ending(Box::new(ending.clone())));
+    let historical = fixtures::historical_task_result(task.clone(), c::Ending::Task(Box::new(ending)));
+
+    let direct = fixtures::read_answer(fixtures::TASK_JSON_CALL, historical.clone());
+    let (mut root, call) = fixtures::waiting_call(fixtures::WAIT_TASK, fixtures::UNTIL_ENDED);
+    root.end(call, &fixtures::task_watch(), c::WatchEnd::SubjectEnded);
+    root.serve(call, historical);
+    let waited = root.answer(call).expect("ended wait answered");
+    assert_eq!(waited.stdout, fixtures::met_json(&direct.stdout));
+    for answer in [direct, waited] {
+        assert_eq!(answer.status, 0);
+        fixtures::unique_keys(&answer.stdout).expect("every ended task object has unique keys");
+        let fields = br#""ending":{"task":{"done":{"report":{"bytes":"Final task report","cut":false}}}},"value":{"report":{"bytes":"Final task report","cut":false}}"#;
+        assert!(skein_lib::bytes::find(&answer.stdout, fields).is_some(), "whole record ending and value");
+    }
+
+    let live = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task));
+    let own = br#""result":{"ending":{"done":{"report":{"bytes":"Final task report","cut":false}}}}"#;
+    assert!(skein_lib::bytes::find(&live.stdout, own).is_some(), "live task form retains its own result");
+}
+
+#[test]
 fn a_source_wait_keeps_its_unknown_deadline() {
     use jig_client::contract as c;
     for (state, expected) in [

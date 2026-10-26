@@ -1,6 +1,8 @@
 use crate::jig::key::Name;
 use skein_lib::List;
 use std::path::PathBuf;
+mod json;
+pub(crate) use json::unique_keys;
 /// Source files under the extraction boundary; capacity is a source-tree bound.
 const SOURCE_FILES: u32 = 128;
 pub(crate) fn name(bytes: &[u8]) -> Name {
@@ -332,6 +334,7 @@ pub(crate) struct Harness {
     pub closed: List<client::Watchable>,
     pub watches: BTreeMap<Token, client::Watchable>,
     pub answers: BTreeMap<u32, crate::jig::Printed>,
+    pub json_calls: alloc::collections::BTreeSet<u32>,
     pub sends: BTreeMap<u32, (Token, skein_lib::RequestKey, client::Ask)>,
     pub carried: BTreeMap<u32, skein_lib::Secret>,
     pub records: BTreeMap<u32, skein_lib::Secret>,
@@ -367,6 +370,7 @@ pub(crate) fn started_with_limits(
         closed: List::with_capacity(OUTPUTS),
         watches: BTreeMap::new(),
         answers: BTreeMap::new(),
+        json_calls: alloc::collections::BTreeSet::new(),
         sends: BTreeMap::new(),
         saved: BTreeMap::new(),
         carried: BTreeMap::new(),
@@ -427,6 +431,13 @@ impl Harness {
                     self.client(client::Event::Up { up: client::Up::WatchEnded { watch, end: c::WatchEnd::Closed } });
                 }
                 root::Request::Printed { number, printed } => {
+                    if self.json_calls.remove(&number) {
+                        for document in [&printed.stdout, &printed.stderr] {
+                            if !document.is_empty() {
+                                unique_keys(document).expect("ctl JSON has unique keys in every object");
+                            }
+                        }
+                    }
                     assert!(self.answers.insert(number, printed).is_none(), "answered exactly once");
                 }
                 root::Request::Client {
@@ -473,6 +484,9 @@ impl Harness {
         value: Option<skein_lib::Secret>,
     ) -> u32 {
         self.next = self.next.checked_add(1).expect("fixture calls fit");
+        if json {
+            self.json_calls.insert(self.next);
+        }
         let count = match call.tool {
             1 | 2 | 4 | 5 | 6 | 9..=15 | 31 | 42..=45 => SINGLE_READ,
             3 => {
