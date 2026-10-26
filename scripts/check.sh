@@ -25,6 +25,7 @@ step fail-stop python3 -I -B scripts/fail_stop.py
 step scripts python3 -I -B -m unittest discover -s scripts -p 'test_*.py'
 step fmt cargo fmt --all --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
+step wasm cargo clippy --target wasm32-unknown-unknown -p smith-agent-shell -- -D warnings
 export NEXTEST_DOUBLE_SPAWN=0
 step build cargo nextest run --workspace --no-run
 step focused cargo nextest run --workspace --tool-config-file "gate:$PWD/.config/nextest-gate.toml"
