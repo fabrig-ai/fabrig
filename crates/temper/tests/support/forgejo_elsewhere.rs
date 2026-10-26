@@ -281,8 +281,10 @@ fn life(root: &Path, restarted: bool) {
     }
     assert_eq!(engine.exit_status(), Some(Exit::Code(0)), "engine stopped");
     let task = calls.ends().last().expect("landed task read");
+    let task = String::from_utf8_lossy(&task.stdout);
+    let (landed, _) = ctl::landed_result(&task);
     assert!(
-        String::from_utf8_lossy(&task.stdout).contains("Landed · merge commit "),
+        landed.starts_with("result: Landed · pull request #1 · merge commit "),
         "same landing is visible through ctl"
     );
     eprintln!("elsewhere life restarted={restarted}: {:?}", clock.now().now.saturating_since(began));

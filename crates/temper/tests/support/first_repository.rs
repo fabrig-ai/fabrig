@@ -326,7 +326,8 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
     let task = &calls[calls.len() - 2];
     let task = String::from_utf8_lossy(&task.stdout);
     eprintln!("{run} landed task: {task}");
-    assert!(task.contains("Landed · pull request #1 · merge commit "), "{run}: {task}");
+    let (landed, _) = super::ctl::landed_result(&task);
+    assert!(landed.starts_with("result: Landed · pull request #1 · merge commit "), "{run}: {task}");
     assert!(task.contains("on forge 3"), "{run}: {task}");
     assert!(!task.contains("pull request:"), "{run}: a cut address is left to the panel: {task}");
     assert!(producer.contains("\"path\":\"README.md\"}\nRead "), "the worker read hello's cloned README: {producer}");

@@ -178,9 +178,8 @@ fn qa_running_playground_ends_whole_when_owned_forge_connects_without_restart() 
     assert!(turns.contains("CSV export is available"), "the demo's committed reply remains readable: {turns}");
     let before = String::from_utf8_lossy(&outcome.calls[4].stdout);
     let after = String::from_utf8_lossy(&outcome.calls[15].stdout);
-    let landed = before.lines().find(|line| line.contains("Landed · merge commit "));
-    assert!(landed.is_some(), "the demo's change landed before going real: {before}");
-    assert_eq!(after.lines().find(|line| line.contains("Landed · merge commit ")), landed);
+    let landed = ctl::landed_result(&before);
+    assert_eq!(ctl::landed_result(&after), landed, "the demo's landing survives going real");
     assert_eq!(status, Some(200));
     let stderr = String::from_utf8_lossy(&outcome.stderr);
     assert_eq!(

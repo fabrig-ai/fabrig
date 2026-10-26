@@ -2053,10 +2053,7 @@ fn demo_landed(config: &std::path::Path, root: &std::path::Path) {
     let ended = support::ctl::alone(root, call);
     assert_eq!(ended.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&ended.stderr));
     let task = String::from_utf8(ended.stdout).expect("change read");
-    let hex = task
-        .lines()
-        .find_map(|line| line.strip_prefix("result: Landed · merge commit "))
-        .expect("the delegated change's full landed merge id");
+    let (_, hex) = support::ctl::landed_result(&task);
     let commit = temper_worker_protocol_git::invocation::object(hex.as_bytes()).expect("merge hex");
     let merge = skein_fake_forge_protocol::routes::commit(&skein_forge::forgejo::id::ObjectId {
         format: skein_forge::forgejo::id::ObjectFormat::Sha1,

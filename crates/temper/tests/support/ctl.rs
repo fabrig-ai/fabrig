@@ -31,6 +31,15 @@ const PACE: Duration = Duration::from_millis(100);
 // The shared engine document gives the native person's project number one.
 pub const PROJECT: &str = "1";
 
+/// ctl's result keeps the full merge id after any pull request identity (client/tools.md, 6.1).
+#[must_use]
+pub fn landed_result(task: &str) -> (&str, &str) {
+    let line = task.lines().find(|line| line.starts_with("result: Landed · ")).expect("landed result line");
+    let (_, merge) = line.split_once("merge commit ").expect("landed merge id");
+    assert!(merge.len() == 40 && merge.bytes().all(|byte| byte.is_ascii_hexdigit()), "full merge id: {line}");
+    (line, merge)
+}
+
 #[derive(Clone)]
 pub enum Stdin {
     Nothing,

@@ -333,10 +333,11 @@ pub fn assert_landed_chat_pull(run: &str, evidence: &super::first_repository::Ev
 
 #[must_use]
 pub fn landed_identity(task: &str, page: &str) -> (String, String) {
-    let landed =
-        task.lines().find(|line| line.contains("Landed · pull request #1 · merge commit ")).expect("landed line");
+    let (landed, _) = super::ctl::landed_result(task);
     let pull = page.lines().find(|line| line.starts_with("PR #")).expect("pull identity on the change page");
     assert!(pull.contains(" · work/hello · "), "pull belongs to the first repository: {pull}");
+    let number = pull.strip_prefix("PR #").expect("pull prefix").split(" · ").next().expect("pull number");
+    assert!(landed.starts_with(&format!("result: Landed · pull request #{number} · merge commit ")), "{landed}");
     (landed.to_owned(), pull.to_owned())
 }
 
