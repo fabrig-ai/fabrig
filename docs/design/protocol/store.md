@@ -1747,6 +1747,24 @@ impl PatchSets {
   (programming-model.md, 10.3), read by its plan and by each serving
   open, which makes the frames' machines from them (8.6), since `keep`
   and `plan` copy what they need into each machine's tables.
+- **A set is checked where it is admitted,** at every open, before the
+  levels are compared, so a start at equal levels proves its sets too:
+  each family's key ranges ordered and non-empty, disjoint from every
+  other family's in the same map (and from the installation's identifier
+  and the other rows the component keeps), within its owner's tag (the
+  application's relative to it), and each range's root a declaration of
+  the family's last kept text; a set that fails is refused, `Set` with
+  patch 0. That each record of the map lies in one family's range takes
+  a walk, which the baseline's rehearsal makes (temper's
+  `protocol/README.md`, section 9), not every open.
+- **One sequence per owner,** numbered in one crate, its store crate
+  (jig's `jig-protocol-store`, temper's `temper-protocol-store`): an
+  owner whose families another crate of its keeps (jig's `jig-accounts`
+  in `jig-protocol-accounts`, temper's `temper-secrets` in
+  `temper-protocol-records`) names them in the same set, their kept
+  texts in the crate that keeps their current schema, and every patch
+  of any of them in the store crate's sequence, so the owner has one
+  level. The other crates' `patches/` stay empty.
 - **The plan** reads each patch's header (skein's `codec.md`, 11.6:
   `header`, `level`, `after`): a patch's owner must be its set's `name`
   and its number its place there, or the set is refused, naming it.
