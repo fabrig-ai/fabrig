@@ -266,7 +266,7 @@ agent must name.
 | `propose-settings FILE [REASON] --against R` | proposes the whole settings set to the deployment owners; FILE or `-` shares the change-settings format and bounds; the optional reason is forwarded unchanged | `Propose` settings | yes |
 | `change-settings FILE --against R [--running stays\|moves]` | changes the settings in one decision: FILE (or `-`) holds the items; R is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
 | `move-to-newest R` | moves every live agent task on held revision R that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
-| `restore R [REASON]` | proposes the settings as revision R left them, against the newest, to the owners of its items; prints the proposal's number, its items, and the settings of temper's kinds it leaves out; an owner then reads it with `proposal` and decides it | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
+| `restore R [REASON]` | proposes the settings as revision R left them, against the newest, to the owners of its items; prints the proposal's number and the settings of temper's kinds it leaves out; `proposal` then shows its items, and an owner decides it | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
 | `release N --hold R [--again]` | lifts a hold | `Release` | |
 | `stop N` | cancels a task's run, the task held | `Stop` | |
 | `cancel N [--grace D] REASON` | cancels a task and its tree | `Cancel` | |
