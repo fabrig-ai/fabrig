@@ -181,6 +181,18 @@ loopback sockets.
   with deadlines on the real clock. The kernel does not stop meanwhile:
   bytes still arrive and children still run, and the loop sees them as it
   reaps.
+- **A run starved of CPU is not a failure** (the user, 10-26). The
+  loop's patience bounds the run's own work, which needs the CPU; on a
+  loaded machine the kernel may not give it. When a run reaches its
+  patience, the harness reads its loop thread's scheduler accounting
+  since the run began: the CPU time it used, and the time it waited
+  runnable for a CPU. The run is **starved** when it waited runnable for
+  at least half its patience and used less than a tenth of it. A starved
+  run ends as a pass that says so, one line naming both figures, and the
+  verdicts count such passes. Every other run that reaches its patience
+  fails as before, a loop that sat idle waiting for what never came among
+  them: idle is not starved, and its few milliseconds of CPU are the
+  bug's signature, not the machine's.
 
 It shows what only the real kernel can: the ring adapter's `unsafe`,
 under a sanitizer; the probe at startup; signals; TLS; a process tree

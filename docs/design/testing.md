@@ -209,6 +209,24 @@ second, which is why it is skein's (testing-strategy.md, 7).
   the world settles, naming the process and the deadline. In the
   replaying tiers that is a jump of the clock to it; in the real loop, a
   wake for it. No service writes the check, and none opts out.
+- **It tells a starved run from a slow one** in the real loop
+  (testing-strategy.md, 2.8). `skein-world`'s real loop reads
+  `/proc/thread-self/schedstat` for its own thread when a run starts and
+  when it reaches its patience: the first field, the CPU time used, and
+  the second, the time spent runnable waiting for a CPU. At the patience
+  it compares the deltas with the patience: runnable wait at least one
+  half and CPU under one tenth is **starved**; anything else fails as it
+  does today, with the same diagnostic, now naming both figures. A
+  starved run cleans up as the forced path does (every host's tree
+  ended, the ring drained), prints one line to stderr,
+  `skein-world: starved: waited N ms runnable, used M ms of CPU, patience
+  P ms`, and ends the test process with success, so that no assertion
+  after the run reads a world that didn't finish. Ending the process is
+  a pass only where each test is its own process: under nextest (its
+  `NEXTEST` variable set); elsewhere a starved run fails as before.
+  Where the kernel keeps no such accounting (`schedstat` absent or
+  zeros), no run is starved. The verdicts find starved passes by that
+  line in each passing test's kept output, and count them by test.
 - **It carries state digests** (lib.md, 5.1). `Host` (shell.md, 12) and
   `Machine`, the seam a world's fake machine plugs into, each give
   `state_digest() -> Option<[u8; 32]>`, `None` unless the process or the
