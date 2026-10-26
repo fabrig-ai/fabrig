@@ -186,6 +186,9 @@ forge, temper adds:
 - **`playground.md`:** the box's playground run whole in a visitor's
   browser: the world's composition, its stories as data, the page and
   its frame, how it is served, bounded and tested.
+- **`release.md`:** the download: the one Linux binary of a release,
+  its identity and floors, what the machine must have, how a release
+  is made, and its walk on a fresh machine.
 - **`qa.md`:** temper's binding for QA after landing (agents'
   `docs/design/qa-flow.md`): whom a pass plays, its box and rungs, its
   hands, its reads of the forge, and what makes a finding.
