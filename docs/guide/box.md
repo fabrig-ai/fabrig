@@ -6,6 +6,14 @@ Run temper, an owned Forgejo and its runner on one machine, on
 loopback, from a checkout of temper, then adopt a repository and ask
 for work.
 
+Temper supplies the stock charters, templates, the policy new projects
+are made from and the rules. They are settings: read them with
+`temper ctl DIR settings` after signing in as below. An owner changes
+them with `temper ctl DIR change-settings`, or a member proposes a
+change with `temper ctl DIR propose-settings`. Here DIR is your signed-in
+client directory; `temper help settings` explains the change file and
+the required revision and key.
+
 ## 1. Install temper
 
 From a temper checkout, install the binary and put its directory on
