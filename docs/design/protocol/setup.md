@@ -188,6 +188,7 @@ connected  the forge component       ◄── its access, built from the record
   | `state` | prepare | prepare, `run` | owned's record: the versions prepared, whether the first preparation ended, Forgejo's own secrets |
   | `admin_token` | prepare, when missing | the engine's setup host, once, at start or the box's `started` (6.5) | the handover: temper's admin's token, kept as the forge's `AdminToken` record by `TakeOver`, after whose `Done` the file is removed (6.5) |
   | `person_password` | prepare | the person | the person's first password on the owned Forgejo |
+  | `person_read.header`, `person_write.header` | prepare | the person, or their agent (`../qa.md`, 4) | the person's two tokens as one header line each, `Authorization: token TOKEN`: one that reads (`read:repository`, `read:issue`, `read:organization`, `read:user`), one that writes (`write:repository`, `write:issue`, `read:organization`, `read:user`) |
 
 - **What the preparation leaves for the engine** is `admin_token`
   alone: the token's text, nothing else, private and written whole;
@@ -560,7 +561,13 @@ files: at a first preparation, and for a runner older than its pin
    ends in a random suffix, since Forgejo refuses a second token of one
    name; the
    person's account, a site admin with a password Forgejo draws into
-   `person_password`, to change at their first sign-in; the runner's
+   `person_password`, to change at their first sign-in; the person's
+   two tokens, each `admin user generate-access-token --raw --scopes`
+   for the person's login under a name ending in a random suffix,
+   written whole into `person_read.header` and `person_write.header`,
+   private, so that the person's agent reads the forge, or acts on it
+   as the person, by a file's path and never a token on a command line
+   (`../qa.md`, 4); the runner's
    secret drawn into `runner/secret` (40 hexadecimal digits, no line
    feed), registered as a global runner by `forgejo-cli actions register
    --secret-file`, and the runner's connection written from it into the
@@ -570,7 +577,8 @@ files: at a first preparation, and for a runner older than its pin
    the first preparation's start before anything else, and its end last.
    A first preparation that `state` says began and did not end is cut
    short: the next one removes what it left (the work path, the runner's
-   directory, `admin_token`, `person_password`) and begins again from an
+   directory, `admin_token`, `person_password`, the two header files)
+   and begins again from an
    empty layout, since Forgejo refuses a user made twice and never shows
    a drawn password again. A forge's directory that holds Forgejo's files
    with no `state` is refused, naming it: the preparation removes only
@@ -1204,7 +1212,10 @@ temper box
   - for an asked group, named by its label (7.3): `<label>: starting`
     at its `start`, then `<label>: started`, `<label>: failed, <WHY>` and
     `<label>: stopped` as the pipe says them; its `step` lines are the
-    client's row's alone;
+    client's row's alone; an owned forge's `started` is followed by its
+    hands (`../qa.md`, 4): `<label>: api http://ADDRESS/api/v1` and
+    `<label>: person LOGIN, read header PATH, write header PATH`, the
+    files' paths and never their contents;
   - a long step's exit, `<WHY>; restarting in <n> s`, and the box's give
     up, `<WHY>; giving up`, `<WHY>` in `failed`'s words (7.1);
   - `Stopping` at a first termination signal, and `Stopped` once every
