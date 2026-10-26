@@ -160,6 +160,7 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
                 | RestartRequest::HeldPastLimit { .. }
                 | RestartRequest::UnheldRevision { .. }
                 | RestartRequest::ProjectPolicy { .. }
+                | RestartRequest::Unresolved { .. }
                 | RestartRequest::Refused { .. } => panic!("first-owner restart refused: {restart:?}"),
             }
         }

@@ -25,6 +25,7 @@ pub(crate) fn route(
         | core::RestartRequest::HeldPastLimit { .. }
         | core::RestartRequest::UnheldRevision { .. }
         | core::RestartRequest::ProjectPolicy { .. }
+        | core::RestartRequest::Unresolved { .. }
         | core::RestartRequest::Refused { .. } => {}
         core::RestartRequest::Step(step) => match step {
             core::RestartStep::LoadCore => held(decision, Output::Load { step, range: Range::Core }),
