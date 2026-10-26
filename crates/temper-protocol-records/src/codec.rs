@@ -1,9 +1,8 @@
 //! Translate skein setup's item bytes at the schema boundary.
-use super::{Item, Origin, Unreadable, v1};
+use super::{Item, Unreadable, v1};
 use alloc::boxed::Box;
 #[expect(clippy::disallowed_types, reason = "keep the public row encoder's Vec result")]
 use alloc::vec::Vec;
-use skein_forge_connection::settings::Kind;
 use skein_lib::{List, Reader, Secret, Writer};
 
 /// The carried value's existing aggregate budget (protocol/credentials.md, 2.2).
@@ -65,7 +64,7 @@ fn generated(item: Item, bytes: &[u8]) -> Result<v1::Item, Unreadable> {
             v1::AppKey::new(limits, v1::AppKeyParts { value: Secret::new(Box::from(bytes)) }).or(Err(Unreadable))?,
         ),
         Item::Accepted => v1::Item::Accepted(accepted(bytes)?),
-        Item::Origin => v1::Item::Origin(generated_origin(&Origin::decode(bytes)?)?),
+        Item::Origin => v1::Item::Origin(decoded_origin(bytes)?),
     })
 }
 fn accepted(bytes: &[u8]) -> Result<v1::Accepted, Unreadable> {
@@ -80,24 +79,29 @@ fn accepted(bytes: &[u8]) -> Result<v1::Accepted, Unreadable> {
     }
     v1::Accepted::new(&v1::CEILINGS, v1::AcceptedParts { values }).or(Err(Unreadable))
 }
-pub(super) fn generated_origin(value: &Origin) -> Result<v1::Origin, Unreadable> {
-    let kind = match value.kind {
-        Kind::Forgejo => v1::Kind::Forgejo,
-        Kind::GitHub => v1::Kind::Github,
-    };
-    v1::Origin::new(&v1::CEILINGS, v1::OriginParts { kind, api: Box::from(value.api.as_bytes()) }).or(Err(Unreadable))
-}
-#[expect(clippy::disallowed_methods, reason = "the generated text decoder validates UTF-8")]
-pub(super) fn origin(value: v1::Origin) -> Result<Origin, Unreadable> {
-    let parts = value.into_parts();
-    if parts.api.is_empty() {
+pub(super) fn decoded_origin(bytes: &[u8]) -> Result<v1::Origin, Unreadable> {
+    let value = v1::Origin::decode(&v1::CEILINGS, &mut Reader::new(bytes)).or(Err(Unreadable))?;
+    if value.api().is_empty() {
         return Err(Unreadable);
     }
-    let kind = match parts.kind {
-        v1::Kind::Forgejo => Kind::Forgejo,
-        v1::Kind::Github => Kind::GitHub,
-    };
-    Ok(Origin { kind, api: Box::from(core::str::from_utf8(&parts.api).or(Err(Unreadable))?) })
+    Ok(value)
+}
+fn origin_bytes(value: &v1::Origin) -> Result<Secret, Unreadable> {
+    if value.api().is_empty() {
+        return Err(Unreadable);
+    }
+    let mut out = Writer::new(usize::try_from(value.measure()).expect("origin length"));
+    value.encode(&mut out).expect("measured origin");
+    Ok(Secret::new(out.finish()))
+}
+// Skein setup's item boundary remains little-endian; the generated list on
+// disk is big-endian. Keep this conversion usable without the forge runtime.
+fn accepted_bytes(value: &v1::Accepted) -> Secret {
+    let mut out = Writer::new(value.values().as_slice().len().checked_mul(8).expect("accepted length"));
+    for id in value.values().as_slice() {
+        out.put(&id.to_le_bytes()).expect("measured accepted item");
+    }
+    Secret::new(out.finish())
 }
 fn raw(value: v1::Item) -> Result<(Item, Secret), Unreadable> {
     Ok(match value {
@@ -109,10 +113,8 @@ fn raw(value: v1::Item) -> Result<(Item, Secret), Unreadable> {
         v1::Item::AppId(value) => (Item::AppId, Secret::new(Box::from(value.value().to_le_bytes()))),
         v1::Item::AppSlug(value) => (Item::AppSlug, Secret::new(value.into_parts().value)),
         v1::Item::AppKey(value) => (Item::AppKey, value.into_parts().value),
-        v1::Item::Accepted(value) => {
-            (Item::Accepted, skein_forge_setup::item::accepted_item(value.values().as_slice()))
-        }
-        v1::Item::Origin(value) => (Item::Origin, Secret::new(origin(value)?.encode())),
+        v1::Item::Accepted(value) => (Item::Accepted, accepted_bytes(&value)),
+        v1::Item::Origin(value) => (Item::Origin, origin_bytes(&value)?),
     })
 }
 
