@@ -609,9 +609,11 @@ each step the core asks for:
    holds pending (jig's `protocol/store.md`, 10.2, step 7) the root asks
    the store to switch and goes on once it answers; then it commits the
    start's wires (jig's `protocol/store.md`, 5.3). Nothing leaves the
-   process before that commit is durable: the restores' commits before
-   it land in the copy alone, and a refusal before the switch leaves the
-   generation patched from active (jig's `domain/engine.md`, section 6).
+   process before that commit is durable, the accounts' driver made
+   after it (jig's `protocol/llm.md`, 5.1); over a pending generation
+   the restores' commits before it land in the copy alone, and a refusal
+   before the switch leaves the generation patched from active (jig's
+   `domain/engine.md`, section 6).
    A rehearsing root (`../protocol/README.md`, section 4, `temper
    upgrade --check`) ends before this step, reporting the restores
    whole.
