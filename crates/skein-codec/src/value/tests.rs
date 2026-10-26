@@ -235,6 +235,32 @@ fn take_moves_the_secret_buffer_and_empties_the_index() {
     assert_eq!(value.span(root), Err(Misread { node: root }));
 }
 
+fn held_secret_value() -> (Value, Node) {
+    let schema = parse(b"family f 1\nrecord R { key: secret 3 holds other Token }").expect("schema");
+    let mut value = Value::with_room(TEST_ROOM);
+    let root = value.decode(&schema, DeclIx::new(0), Box::from([0, 0, 0, 3, 120, 121, 122])).expect("opaque secret");
+    let node = value.field(root, FieldIx::new(0)).expect("secret field");
+    (value, node)
+}
+
+#[test]
+fn held_secret_bytes_are_read_through_expose() {
+    let (value, node) = held_secret_value();
+    assert_eq!(value.expose(node), Ok(b"xyz".as_slice()));
+}
+
+#[test]
+fn held_secret_content_access_is_refused() {
+    let (value, node) = held_secret_value();
+    assert_eq!(value.content(node), Err(Misread { node }));
+}
+
+#[test]
+fn held_secret_debug_redacts_the_content() {
+    let (value, _) = held_secret_value();
+    assert!(!format!("{value:?}").contains("120, 121, 122"));
+}
+
 #[test]
 fn debug_redacts_secret_and_text_content() {
     let schema = parse(b"family f 1\nrecord R { key: secret 3 words: text 3 }").expect("schema");

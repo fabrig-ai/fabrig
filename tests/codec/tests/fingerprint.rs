@@ -148,8 +148,18 @@ mod tests {
     }
 
     #[test]
+    fn plain_secret_family_digest_is_golden() {
+        let schema = parse(include_str!("../schema/secrets-v1.schema").as_bytes()).expect("secret schema");
+        let mut hex = String::new();
+        for byte in schema.fingerprints().family().digest() {
+            write!(hex, "{byte:02x}").expect("string write");
+        }
+        assert_eq!(hex, "2200dc3e6cdd4d9d39470fa819a334d7a520502516089dff06c75bf2d1dcb05a");
+    }
+
+    #[test]
     fn reprint_exposes_local_renames_and_reverses_payload_boxing() {
-        let schema = parse(b"family f 2\n# comment\nrecord A { x: u8 }\nenum E { a, b: A, c: boxed A }\nrecord R { x: A, y: bytes 8 holds foreign A, z: bytes 8 pieces A }")
+        let schema = parse(b"family f 2\n# comment\nrecord A { x: u8 }\nenum E { a, b: A, c: boxed A }\nrecord R { x: A, y: bytes 8 holds foreign A, z: bytes 8 pieces A s: secret 8 holds foreign Token p: secret 8 pieces A }")
         .expect("reprint fixture");
         assert_eq!(
             reprint(&schema),
@@ -157,7 +167,7 @@ mod tests {
                 "family f 2\n",
                 "record AR { x_r: u8, }\n",
                 "enum ER { a_r, b_r: boxed AR, c_r: AR, }\n",
-                "record RR { x_r: AR, y_r: bytes 8 holds foreign A, z_r: bytes 8 pieces AR, }\n",
+                "record RR { x_r: AR, y_r: bytes 8 holds foreign A, z_r: bytes 8 pieces AR, s_r: secret 8 holds foreign Token, p_r: secret 8 pieces AR, }\n",
             )
         );
         let names =
@@ -174,7 +184,13 @@ mod tests {
                 (
                     "R".into(),
                     "RR".into(),
-                    vec![("x".into(), "x_r".into()), ("y".into(), "y_r".into()), ("z".into(), "z_r".into())]
+                    vec![
+                        ("x".into(), "x_r".into()),
+                        ("y".into(), "y_r".into()),
+                        ("z".into(), "z_r".into()),
+                        ("s".into(), "s_r".into()),
+                        ("p".into(), "p_r".into())
+                    ]
                 ),
             ]
         );

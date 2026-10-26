@@ -55,6 +55,42 @@ fn canonical_bytes_pin_records_enums_and_family() {
 }
 
 #[test]
+fn held_secret_records_hash_their_own_production() {
+    let schema = schema("family f 1 record R { key: secret 8 holds other Token }");
+    let encoding = [
+        1, 1, 0, // encoding version, record, unversioned
+        0, 0, 0, 1, // one field
+        0x0e, 0, 0, 0, 8, // held secret, bound
+        1, 0, 0, 0, 5, b'o', b't', b'h', b'e', b'r', // holds family
+        0, 0, 0, 5, b'T', b'o', b'k', b'e', b'n', // held record
+    ];
+    assert_eq!(selected(&schema, Some("R")).digest(), digest(&encoding));
+}
+
+#[test]
+fn held_secret_pieces_hash_their_item_fingerprint() {
+    let schema = schema("family f 1 record Item { x: u8 } record R { key: secret 8 pieces Item }");
+    let encoding = [
+        1, 1, 0, // encoding version, record, unversioned
+        0, 0, 0, 1, // one field
+        0x0e, 0, 0, 0, 8, // held secret, bound
+        2, // pieces
+        // Item's fingerprint: encoding version, unversioned record, one u8 field.
+        0xd0, 0xb0, 0x25, 0xd8, 0x20, 0x5c, 0x5b, 0xad, 0xf3, 0xcd, 0x10, 0x59, 0xb3, 0x03, 0xc8, 0xb7, 0x26, 0xb9,
+        0xd6, 0x4a, 0x52, 0xee, 0x17, 0xd4, 0x47, 0x92, 0xe3, 0x1f, 0x60, 0xb3, 0x74, 0x8e,
+    ];
+    assert_eq!(selected(&schema, Some("R")).digest(), digest(&encoding));
+}
+
+#[test]
+fn held_secret_fingerprints_differ_from_plain_secrets_and_bytes() {
+    let held = selected(&schema("family f 1 record R { key: secret 8 holds other Token }"), Some("R"));
+    for text in ["family f 1 record R { key: secret 8 }", "family f 1 record R { key: bytes 8 holds other Token }"] {
+        assert_ne!(held, selected(&schema(text), Some("R")));
+    }
+}
+
+#[test]
 fn names_comments_layout_and_boxing_preserve_every_fingerprint() {
     let base = schema("family f 3\nrecord A { x: u8 } enum E { a, b: A } record R { x: A, y: bytes 8 pieces A }");
     let cases = [
@@ -282,6 +318,48 @@ const LAYOUT_PAIRS: &[Pair] = &[
         label: "pieces target",
         left: "family f 1\nrecord A { a: u8 } record B { b: u16 } record R { x: bytes 8 pieces A }",
         right: "family f 1\nrecord A { a: u8 } record B { b: u16 } record R { x: bytes 8 pieces B }",
+        declaration: Some("R"),
+        moved: true,
+    },
+    Pair {
+        label: "secret opaque holds",
+        left: "family f 1\nrecord R { x: secret 8 }",
+        right: "family f 1\nrecord R { x: secret 8 holds other A }",
+        declaration: Some("R"),
+        moved: true,
+    },
+    Pair {
+        label: "secret holds family",
+        left: "family f 1\nrecord R { x: secret 8 holds other A }",
+        right: "family f 1\nrecord R { x: secret 8 holds another A }",
+        declaration: Some("R"),
+        moved: true,
+    },
+    Pair {
+        label: "secret holds type",
+        left: "family f 1\nrecord R { x: secret 8 holds other A }",
+        right: "family f 1\nrecord R { x: secret 8 holds other B }",
+        declaration: Some("R"),
+        moved: true,
+    },
+    Pair {
+        label: "secret opaque pieces",
+        left: "family f 1\nrecord A { a: u8 } record B { b: u16 } record R { x: secret 8 }",
+        right: "family f 1\nrecord A { a: u8 } record B { b: u16 } record R { x: secret 8 pieces A }",
+        declaration: Some("R"),
+        moved: true,
+    },
+    Pair {
+        label: "secret holds pieces",
+        left: "family f 1\nrecord A { a: u8 } record B { b: u16 } record R { x: secret 8 holds other A }",
+        right: "family f 1\nrecord A { a: u8 } record B { b: u16 } record R { x: secret 8 pieces A }",
+        declaration: Some("R"),
+        moved: true,
+    },
+    Pair {
+        label: "secret pieces target",
+        left: "family f 1\nrecord A { a: u8 } record B { b: u16 } record R { x: secret 8 pieces A }",
+        right: "family f 1\nrecord A { a: u8 } record B { b: u16 } record R { x: secret 8 pieces B }",
         declaration: Some("R"),
         moved: true,
     },

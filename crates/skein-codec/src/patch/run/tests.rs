@@ -309,18 +309,26 @@ fn held_fields_accept_replacements_and_carry_their_old_bytes() {
     }
 }
 
-#[test]
-fn identity_stops_only_at_held_fields_and_returns_the_same_bytes() {
-    const TEXT: &[u8] = b"family f 1\nversioned record D { a: u8 f: bytes 3 holds other R }";
+fn identity_carries_held(text: &[u8]) {
     const BYTES: &[u8] = &[0, 1, 7, 0, 0, 0, 1, 97];
     let mut patcher = Patcher::new(CAPACITY);
-    patcher.keep(TEXT).expect("schema");
+    patcher.keep(text).expect("schema");
     let identity = patcher.identity(1).expect("identity");
     patcher.start(identity, D, BYTES.into()).expect("start");
     let at = stopped(&mut patcher);
     let (old, new) = patcher.parts();
     new.carry(old, at).expect("held");
     finished(&mut patcher, "D", BYTES);
+}
+
+#[test]
+fn identity_stops_only_at_held_fields_and_returns_the_same_bytes() {
+    identity_carries_held(b"family f 1\nversioned record D { a: u8 f: bytes 3 holds other R }");
+}
+
+#[test]
+fn identity_stops_at_held_secrets_and_carries_the_bytes() {
+    identity_carries_held(b"family f 1\nversioned record D { a: u8 f: secret 3 holds other R }");
 }
 
 #[test]
@@ -331,6 +339,48 @@ fn copying_content_of_a_held_field_is_misbuilt() {
     let (old, new) = patcher.parts();
     assert_eq!(new.put_content_of(old, at), Err(Halt::Misbuilt(FIELD)));
     restart(&mut patcher, plan, &[0, 0, 0, 1, 97]);
+}
+
+#[test]
+fn copying_content_of_a_held_secret_is_misbuilt() {
+    const TEXT: &str = "record D { f: secret 3 holds other R }";
+    let (mut patcher, plan) = started(TEXT, TEXT, "", "D", &[0, 0, 0, 1, 97]);
+    let at = stopped(&mut patcher);
+    let (old, new) = patcher.parts();
+    assert_eq!(new.put_content_of(old, at), Err(Halt::Misbuilt(FIELD)));
+    restart(&mut patcher, plan, &[0, 0, 0, 1, 97]);
+}
+
+// The held secret admits three content bytes after its length prefix.
+const HELD_SECRET: &str = "record D { f: secret 3 holds other R }";
+const SECRET_BYTES: &[u8] = &[0, 0, 0, 1, 97];
+
+fn stopped_secret() -> Patcher {
+    let (mut patcher, _) = started(HELD_SECRET, HELD_SECRET, "", "D", SECRET_BYTES);
+    match patcher.next().expect("held secret") {
+        Step::Held { family, name, .. } => {
+            assert_eq!(patcher.spelled(family), b"other");
+            assert_eq!(patcher.spelled(name), b"R");
+        }
+        Step::Written { .. } | Step::Done => unreachable!("held secret fixture"),
+    }
+    patcher
+}
+
+#[test]
+fn held_secret_accepts_replacement_at_its_bound() {
+    let mut patcher = stopped_secret();
+    patcher.parts().1.put_content(b"xyz").expect("replacement at bound");
+    finished(&mut patcher, "D", &[0, 0, 0, 3, 120, 121, 122]);
+}
+
+#[test]
+fn held_secret_refuses_replacement_past_its_bound() {
+    let mut patcher = stopped_secret();
+    assert_eq!(
+        patcher.parts().1.put_content(b"wxyz"),
+        Err(Halt::Built(Problem { path: FIELD, reason: Reason::Bound }))
+    );
 }
 
 #[test]

@@ -182,7 +182,12 @@ impl Parser {
                 b"bool" => Type::Bool,
                 b"duration" => Type::Duration,
                 b"fixed" => Type::Fixed(self.bound()?),
-                b"secret" => Type::Secret(self.bound()?),
+                b"secret" => {
+                    let bound = self.bound()?;
+                    let (held, at) = self.held()?;
+                    reference = at;
+                    Type::Secret { bound, held }
+                }
                 b"text" => Type::Text(self.bound()?),
                 b"bytes" => {
                     let bound = self.bound()?;
@@ -206,7 +211,7 @@ impl Parser {
                 | Type::Bool
                 | Type::Duration
                 | Type::Fixed(_)
-                | Type::Secret(_)
+                | Type::Secret { .. }
                 | Type::Text(_)
                 | Type::Bytes { .. }
                 | Type::Named(_) => return Ok(first),

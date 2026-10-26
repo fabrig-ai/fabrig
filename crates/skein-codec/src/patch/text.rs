@@ -276,10 +276,10 @@ impl Reader {
                     self.number(text, Expected::Type, u32::MAX)?;
                     continue;
                 }
-                b"fixed" | b"secret" | b"text" => {
+                b"fixed" | b"text" => {
                     self.number(text, Expected::Type, u32::MAX)?;
                 }
-                b"bytes" => {
+                b"bytes" | b"secret" => {
                     self.number(text, Expected::Type, u32::MAX)?;
                     if self.is(text, b"holds")? {
                         self.take(text, Expected::Type)?;

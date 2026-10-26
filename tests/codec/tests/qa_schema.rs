@@ -68,6 +68,17 @@ fn held_words_before_colons_are_field_names() {
 }
 
 #[test]
+fn secret_held_words_before_colons_are_field_names() {
+    let text = b"family qa 1 record Item {} record R { raw: secret 9 holds: secret 8 pieces: secret 7 }";
+    let parsed = schema::parse(text).expect("held words can name fields");
+    for (index, name, bound) in [(0, b"raw".as_slice(), 9), (1, b"holds", 8), (2, b"pieces", 7)] {
+        let field = parsed.field(FieldIx::new(index));
+        assert_eq!(parsed.spelled(field.name), name);
+        assert_eq!(parsed.ty(field.ty), Type::Secret { bound, held: Held::Opaque });
+    }
+}
+
+#[test]
 fn held_clauses_keep_external_names_and_local_indexes() {
     let text = b"family qa 1 record Item {} enum E { empty } record R { a: bytes 4 holds other-family Unknown b: bytes 4 pieces E }";
     let parsed = schema::parse(text).expect("holds is external; pieces can name a declaration");
@@ -85,10 +96,28 @@ fn held_clauses_keep_external_names_and_local_indexes() {
 }
 
 #[test]
+fn secret_clauses_keep_external_names_and_local_indexes() {
+    let text = b"family qa 1 record Item {} enum E { empty } record R { a: secret 4 holds other-family Unknown b: secret 4 pieces E }";
+    let parsed = schema::parse(text).expect("holds is external; pieces can name a declaration");
+    let held = parsed.ty(parsed.field(FieldIx::new(0)).ty);
+    let Type::Secret { held: Held::Record { family, name }, .. } = held else {
+        unreachable!("holds is a record annotation")
+    };
+    assert_eq!(parsed.spelled(family), b"other-family");
+    assert_eq!(parsed.spelled(name), b"Unknown");
+    assert_eq!(
+        parsed.ty(parsed.field(FieldIx::new(1)).ty),
+        Type::Secret { bound: 4, held: Held::Pieces(DeclIx::new(1)) }
+    );
+    assert_eq!(parsed.most_bytes(DeclIx::new(2)), 16);
+}
+
+#[test]
 fn references_must_precede_the_declaration_that_uses_them() {
     for text in [
         "family qa 1\nrecord R { x: option list 0 R }",
         "family qa 1\nrecord R { x: bytes 0 pieces Later }\nrecord Later {}",
+        "family qa 1\nrecord R { x: secret 0 pieces Later }\nrecord Later {}",
         "family qa 1\nenum E { x: R }\nrecord R {}",
     ] {
         let error = schema::parse(text.as_bytes()).expect_err("forward reference");
@@ -260,6 +289,15 @@ fn runtime_names_are_independent_of_rust_names() {
 fn held_annotations_do_not_change_generated_output() {
     let plain = "family qa 1 record Item {} record R { x: bytes 4 y: bytes 8 }";
     let held = "family qa 1 record Item {} record R { x: bytes 4 holds other-family Missing y: bytes 8 pieces Item }";
+    let plain = skein_codegen::parse(plain).expect("plain schema");
+    let held = skein_codegen::parse(held).expect("annotated schema");
+    assert_eq!(skein_codegen::generate(&plain), skein_codegen::generate(&held));
+}
+
+#[test]
+fn secret_annotations_do_not_change_generated_output() {
+    let plain = "family qa 1 record Item {} record R { x: secret 4 y: secret 8 }";
+    let held = "family qa 1 record Item {} record R { x: secret 4 holds other-family Missing y: secret 8 pieces Item }";
     let plain = skein_codegen::parse(plain).expect("plain schema");
     let held = skein_codegen::parse(held).expect("annotated schema");
     assert_eq!(skein_codegen::generate(&plain), skein_codegen::generate(&held));

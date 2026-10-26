@@ -111,7 +111,7 @@ versioned record Every {
                     | Type::Bool
                     | Type::Duration
                     | Type::Fixed(_)
-                    | Type::Secret(_)
+                    | Type::Secret { .. }
                     | Type::Text(_)
                     | Type::Bytes { .. }
                     | Type::List { .. }
@@ -180,7 +180,7 @@ versioned record Every {
                     assert_eq!(a.uint(an), b.uint(bn), "{root}");
                 }
                 Type::Bool => assert_eq!(a.boolean(an), b.boolean(bn), "{root}"),
-                Type::Secret(_) => assert_eq!(a.expose(an), b.expose(bn), "{root}"),
+                Type::Secret { .. } => assert_eq!(a.expose(an), b.expose(bn), "{root}"),
                 Type::Fixed(_) | Type::Bytes { .. } | Type::Text(_) => {
                     assert_eq!(a.content(an), b.content(bn), "{root}");
                 }
@@ -283,7 +283,7 @@ versioned record Every {
                 | Type::Bool
                 | Type::Duration
                 | Type::Fixed(_)
-                | Type::Secret(_)
+                | Type::Secret { .. }
                 | Type::Text(_)
                 | Type::Bytes { .. } => {}
             }

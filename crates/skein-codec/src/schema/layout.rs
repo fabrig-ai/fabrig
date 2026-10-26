@@ -39,6 +39,12 @@ fn field_size(parsed: &mut Parsed, field: Field) -> Result<u64, SchemaError> {
                     Type::Bytes { bound, held: Held::Pieces(at) };
                 break;
             }
+            Type::Secret { bound, held: Held::Pieces(_) } => {
+                let at = resolve(&parsed.schema, name, field.line)?;
+                *parsed.schema.types.get_mut(end).expect("type belongs to this table") =
+                    Type::Secret { bound, held: Held::Pieces(at) };
+                break;
+            }
             Type::U8
             | Type::U16
             | Type::U32
@@ -46,7 +52,7 @@ fn field_size(parsed: &mut Parsed, field: Field) -> Result<u64, SchemaError> {
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { held: Held::Opaque | Held::Record { .. }, .. }
             | Type::Text(_)
             | Type::Bytes { held: Held::Opaque | Held::Record { .. }, .. } => break,
         }
@@ -59,7 +65,7 @@ fn field_size(parsed: &mut Parsed, field: Field) -> Result<u64, SchemaError> {
             Type::U32 => 4,
             Type::U64 | Type::Duration => 8,
             Type::Fixed(bound) => u64::from(bound),
-            Type::Bytes { bound, .. } | Type::Secret(bound) | Type::Text(bound) => {
+            Type::Bytes { bound, .. } | Type::Secret { bound, .. } | Type::Text(bound) => {
                 sum(4, u64::from(bound), field.line, field.name)?
             }
             Type::Named(at) => u64::from(parsed.schema.most_bytes(at)),

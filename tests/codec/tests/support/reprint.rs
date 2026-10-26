@@ -102,10 +102,10 @@ fn write_type(schema: &Schema, mut at: TypeIx, out: &mut String) {
             Type::Bool => out.push_str("bool"),
             Type::Duration => out.push_str("duration"),
             Type::Fixed(bound) => write!(out, "fixed {bound}").expect("string write"),
-            Type::Secret(bound) => write!(out, "secret {bound}").expect("string write"),
             Type::Text(bound) => write!(out, "text {bound}").expect("string write"),
-            Type::Bytes { bound, held } => {
-                write!(out, "bytes {bound}").expect("string write");
+            ty @ (Type::Bytes { bound, held } | Type::Secret { bound, held }) => {
+                let kind = if matches!(ty, Type::Secret { .. }) { "secret" } else { "bytes" };
+                write!(out, "{kind} {bound}").expect("string write");
                 match held {
                     Held::Opaque => {}
                     Held::Record { family, name } => {

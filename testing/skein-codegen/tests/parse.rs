@@ -125,6 +125,15 @@ mod tests {
     }
 
     #[test]
+    fn held_secret_clauses_leave_generated_output_identical() {
+        let with = parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: secret 8 holds other-family Value b: secret 9 pieces Item }").expect("held clauses");
+        let without =
+            parse("family f 1\nrecord Item { value: u8 }\nrecord R { a: secret 8 b: secret 9 }").expect("opaque bytes");
+        assert_eq!(with, without);
+        assert_eq!(generate(&with), generate(&without));
+    }
+
+    #[test]
     fn layout_refusals_precede_the_rust_name_checks() {
         assert_eq!(
             parse("family f 1\nrecord lowercase {}\nrecord R { a: Missing }").expect_err("layout precedes Rust names"),

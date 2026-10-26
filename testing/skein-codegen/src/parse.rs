@@ -96,7 +96,7 @@ fn ty(schema: &schema::Schema, first: TypeIx) -> Type {
             schema::Type::Duration => break Type::Duration,
             schema::Type::Fixed(bound) => break Type::Fixed(bound),
             schema::Type::Bytes { bound, .. } => break Type::Bytes(bound),
-            schema::Type::Secret(bound) => break Type::Secret(bound),
+            schema::Type::Secret { bound, .. } => break Type::Secret(bound),
             schema::Type::Text(bound) => break Type::Text(bound),
             schema::Type::Named(at) => break Type::Named(named(schema, at)),
         }

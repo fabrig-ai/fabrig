@@ -23,7 +23,7 @@ impl Build {
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::List { .. }
@@ -102,7 +102,7 @@ impl Build {
             Type::U64 | Type::Duration => 8,
             Type::Bool
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::List { .. }
@@ -156,7 +156,7 @@ impl Build {
                     return Err(built(expected.path, Reason::Trailing));
                 }
             }
-            Type::Bytes { bound, .. } | Type::Text(bound) | Type::Secret(bound) => {
+            Type::Bytes { bound, .. } | Type::Text(bound) | Type::Secret { bound, .. } => {
                 if length > bound {
                     return Err(built(expected.path, Reason::Bound));
                 }
@@ -173,7 +173,7 @@ impl Build {
                     | Type::Bool
                     | Type::Duration
                     | Type::Fixed(_)
-                    | Type::Secret(_)
+                    | Type::Secret { .. }
                     | Type::Bytes { .. }
                     | Type::List { .. }
                     | Type::Option(_)
@@ -201,7 +201,9 @@ impl Build {
     fn content_of(&mut self, old: &Old, node: Node) -> Result<(), Halt> {
         let expected = self.expected()?;
         match ty(self.new_schema(), expected.source) {
-            Type::Bytes { held: Held::Record { .. }, .. } => return Err(Halt::Misbuilt(expected.path)),
+            Type::Bytes { held: Held::Record { .. }, .. } | Type::Secret { held: Held::Record { .. }, .. } => {
+                return Err(Halt::Misbuilt(expected.path));
+            }
             Type::U8
             | Type::U16
             | Type::U32
@@ -209,7 +211,7 @@ impl Build {
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { held: Held::Opaque | Held::Pieces(_), .. }
             | Type::Text(_)
             | Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. }
             | Type::List { .. }
@@ -217,7 +219,7 @@ impl Build {
             | Type::Named(_) => {}
         }
         let bytes = match ty(self.old_schema(), old.source(node)?) {
-            Type::Secret(_) => old.expose(node)?,
+            Type::Secret { .. } => old.expose(node)?,
             Type::U8
             | Type::U16
             | Type::U32
@@ -249,7 +251,7 @@ impl Build {
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::List { .. }
@@ -280,7 +282,7 @@ impl Build {
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::List { .. }
@@ -338,7 +340,7 @@ impl Build {
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. } => Err(Halt::Misbuilt(expected.path)),
         }
@@ -395,7 +397,22 @@ impl Build {
         let stop = self.stop.expect("stopped build has its stop");
         let own = self.opened.is_empty() && stop.at == node;
         if own && stop.held {
-            return self.content(old.content(node)?);
+            let bytes = match ty(self.old_schema(), a) {
+                Type::Secret { .. } => old.expose(node)?,
+                Type::U8
+                | Type::U16
+                | Type::U32
+                | Type::U64
+                | Type::Bool
+                | Type::Duration
+                | Type::Fixed(_)
+                | Type::Text(_)
+                | Type::Bytes { .. }
+                | Type::List { .. }
+                | Type::Option(_)
+                | Type::Named(_) => old.content(node)?,
+            };
+            return self.content(bytes);
         }
         // begin checks the enclosing list's bound; the walk counts the carried nodes.
         self.begin()?;
@@ -430,7 +447,7 @@ impl Build {
                     | Type::Bool
                     | Type::Duration
                     | Type::Fixed(_)
-                    | Type::Secret(_)
+                    | Type::Secret { .. }
                     | Type::Text(_)
                     | Type::Bytes { .. }
                     | Type::List { .. }
@@ -450,7 +467,7 @@ impl Build {
                         | Type::Bool
                         | Type::Duration
                         | Type::Fixed(_)
-                        | Type::Secret(_)
+                        | Type::Secret { .. }
                         | Type::Text(_)
                         | Type::Bytes { .. }
                         | Type::List { .. } => return false,

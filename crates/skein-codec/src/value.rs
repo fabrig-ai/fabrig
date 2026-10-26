@@ -435,7 +435,7 @@ fn kind(schema: &Schema, ty: TypeIx) -> Kind {
         Type::Fixed(width) => Kind::Content { width, text: false, prefixed: false },
         Type::Bytes { bound, .. } => Kind::Content { width: bound, text: false, prefixed: true },
         Type::Text(width) => Kind::Content { width, text: true, prefixed: true },
-        Type::Secret(bound) => Kind::Secret(bound),
+        Type::Secret { bound, .. } => Kind::Secret(bound),
         Type::List { bound, item } => Kind::List { bound, item },
         Type::Option(item) => Kind::Option(item),
         Type::Named(decl) => declaration(schema, decl),

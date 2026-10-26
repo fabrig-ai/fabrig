@@ -171,8 +171,13 @@ pub enum Type {
     Duration,
     /// A fixed number of bytes.
     Fixed(u32),
-    /// Bounded secret bytes with a length prefix.
-    Secret(u32),
+    /// Bounded secret bytes with a length prefix, optionally naming what they hold.
+    Secret {
+        /// The most bytes after the length.
+        bound: u32,
+        /// What the bytes hold.
+        held: Held,
+    },
     /// Bounded UTF-8 bytes with a length prefix.
     Text(u32),
     /// Bounded bytes, optionally naming what they hold.
@@ -195,7 +200,7 @@ pub enum Type {
     Named(DeclIx),
 }
 
-/// What a bytes field holds, without changing its encoding.
+/// What a bytes or secret field holds, without changing its encoding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Held {
     /// Bytes whose content the schema does not name.
@@ -362,7 +367,7 @@ impl Schema {
         match self.ty(at) {
             Type::U8 | Type::Bool | Type::Option(_) => 1,
             Type::U16 => 2,
-            Type::U32 | Type::Bytes { .. } | Type::Secret(_) | Type::Text(_) | Type::List { .. } => 4,
+            Type::U32 | Type::Bytes { .. } | Type::Secret { .. } | Type::Text(_) | Type::List { .. } => 4,
             Type::U64 | Type::Duration => 8,
             Type::Fixed(bound) => bound,
             Type::Named(at) => *self.minimum.get(at.0).expect("earlier declaration has its minimum"),

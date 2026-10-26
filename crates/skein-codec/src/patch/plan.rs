@@ -402,7 +402,7 @@ fn width(ty: Type) -> Option<u32> {
         Type::Bool
         | Type::Duration
         | Type::Fixed(_)
-        | Type::Secret(_)
+        | Type::Secret { .. }
         | Type::Text(_)
         | Type::Bytes { .. }
         | Type::List { .. }
@@ -413,16 +413,10 @@ fn width(ty: Type) -> Option<u32> {
 #[expect(clippy::too_many_lines, reason = "the leaf comparison exhaustively lists schema type pairs (codec.md, 10.3)")]
 fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b: Type) -> Comparison {
     let equal = match a {
-        Type::Named(_) | Type::Bytes { .. } | Type::List { .. } | Type::Option(_) => false,
-        Type::U8
-        | Type::U16
-        | Type::U32
-        | Type::U64
-        | Type::Bool
-        | Type::Duration
-        | Type::Fixed(_)
-        | Type::Secret(_)
-        | Type::Text(_) => a == b,
+        Type::Named(_) | Type::Bytes { .. } | Type::Secret { .. } | Type::List { .. } | Type::Option(_) => false,
+        Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration | Type::Fixed(_) | Type::Text(_) => {
+            a == b
+        }
     };
     if equal {
         return Comparison::Equal;
@@ -448,14 +442,14 @@ fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b:
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::List { .. }
             | Type::Option(_) => Comparison::Retype,
         },
         Type::Text(a) => match b {
-            Type::Text(b) | Type::Secret(b) | Type::Bytes { bound: b, .. } => {
+            Type::Text(b) | Type::Secret { bound: b, .. } | Type::Bytes { bound: b, .. } => {
                 if b >= a {
                     Comparison::Widen { integer: false }
                 } else {
@@ -473,12 +467,27 @@ fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b:
             | Type::Option(_)
             | Type::Named(_) => Comparison::Retype,
         },
-        Type::Secret(a) => match b {
-            Type::Secret(b) | Type::Bytes { bound: b, .. } => {
+        Type::Secret { bound: a, held: ah } => match b {
+            Type::Bytes { bound: b, .. } => {
                 if b >= a {
                     Comparison::Widen { integer: false }
                 } else {
                     Comparison::Retype
+                }
+            }
+            Type::Secret { bound: b, held: bh } => {
+                if b < a {
+                    return Comparison::Retype;
+                }
+                match held(matching, old, new, ah, bh) {
+                    Comparison::Equal => {
+                        if b > a {
+                            Comparison::Widen { integer: false }
+                        } else {
+                            Comparison::Equal
+                        }
+                    }
+                    other @ (Comparison::Widen { .. } | Comparison::Wrap | Comparison::Retype) => other,
                 }
             }
             Type::U8
@@ -494,7 +503,7 @@ fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b:
             | Type::Named(_) => Comparison::Retype,
         },
         Type::Bytes { bound: a, held: ah } => match b {
-            Type::Secret(b) => {
+            Type::Secret { bound: b, .. } => {
                 if b >= a {
                     Comparison::Widen { integer: false }
                 } else {
@@ -571,7 +580,7 @@ pub(crate) fn compare(
                     | Type::Bool
                     | Type::Duration
                     | Type::Fixed(_)
-                    | Type::Secret(_)
+                    | Type::Secret { .. }
                     | Type::Text(_)
                     | Type::Bytes { .. }
                     | Type::List { .. }
@@ -596,7 +605,7 @@ pub(crate) fn compare(
                 | Type::Bool
                 | Type::Duration
                 | Type::Fixed(_)
-                | Type::Secret(_)
+                | Type::Secret { .. }
                 | Type::Text(_)
                 | Type::Bytes { .. }
                 | Type::Option(_)
@@ -609,7 +618,7 @@ pub(crate) fn compare(
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::Named(_) => {}
@@ -788,7 +797,7 @@ fn spells(patch: &[u8], parsed: &Parsed, range: Range, schema: &Schema, mut ty: 
                 bound = Some(n);
                 name == b"fixed"
             }
-            Type::Secret(n) => {
+            Type::Secret { bound: n, .. } => {
                 bound = Some(n);
                 name == b"secret"
             }
@@ -821,7 +830,7 @@ fn spells(patch: &[u8], parsed: &Parsed, range: Range, schema: &Schema, mut ty: 
             at = add(at, 1);
         }
         match schema.ty(ty) {
-            Type::Bytes { held, .. } => match held {
+            Type::Bytes { held, .. } | Type::Secret { held, .. } => match held {
                 Held::Opaque => {}
                 Held::Record { family, name } => {
                     if add(at, 3) > range.end
@@ -850,7 +859,6 @@ fn spells(patch: &[u8], parsed: &Parsed, range: Range, schema: &Schema, mut ty: 
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
             | Type::Text(_)
             | Type::List { .. }
             | Type::Option(_)
@@ -1118,7 +1126,7 @@ fn value(
                 | Type::Bool
                 | Type::Duration
                 | Type::Fixed(_)
-                | Type::Secret(_)
+                | Type::Secret { .. }
                 | Type::Text(_)
                 | Type::Bytes { .. }
                 | Type::List { .. }
@@ -1135,7 +1143,7 @@ fn value(
                 | Type::Bool
                 | Type::Duration
                 | Type::Fixed(_)
-                | Type::Secret(_)
+                | Type::Secret { .. }
                 | Type::Text(_)
                 | Type::Bytes { .. }
                 | Type::List { .. }
@@ -1149,7 +1157,7 @@ fn value(
                         Type::U8 | Type::U16 | Type::U32 | Type::U64 => width(integer).expect("integer type"),
                         Type::Bool
                         | Type::Fixed(_)
-                        | Type::Secret(_)
+                        | Type::Secret { .. }
                         | Type::Text(_)
                         | Type::Bytes { .. }
                         | Type::List { .. }
@@ -1230,7 +1238,7 @@ fn value(
                         emit(pool, u8::try_from(selected.ok_or(wrong)?).expect("enum tag at most 255"));
                     }
                 },
-                Type::Secret(_) | Type::Option(_) => return Err(wrong),
+                Type::Secret { .. } | Type::Option(_) => return Err(wrong),
             }
         }
         return Ok(Source::Value { start, end: pool.len() });
@@ -1467,7 +1475,7 @@ fn reference_flags(
                     | Type::Bool
                     | Type::Duration
                     | Type::Fixed(_)
-                    | Type::Secret(_)
+                    | Type::Secret { .. }
                     | Type::Text(_)
                     | Type::Bytes { .. }
                     | Type::List { .. }
@@ -1488,7 +1496,7 @@ fn reference_flags(
                 | Type::Bool
                 | Type::Duration
                 | Type::Fixed(_)
-                | Type::Secret(_)
+                | Type::Secret { .. }
                 | Type::Text(_)
                 | Type::Bytes { .. }
                 | Type::Option(_)
@@ -1501,7 +1509,7 @@ fn reference_flags(
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::Named(_) => {}
@@ -1511,14 +1519,16 @@ fn reference_flags(
                 let converted = conversion(plan, at);
                 return Ok((copies && converted.copies, converted.stops));
             }
-            Type::Bytes { held: Held::Pieces(at), .. } => {
+            Type::Bytes { held: Held::Pieces(at), .. } | Type::Secret { held: Held::Pieces(at), .. } => {
                 if !conversion(plan, at).copies {
                     return Err(PatchWrong::Pieces);
                 }
                 return Ok((copies, false));
             }
-            Type::Bytes { held: Held::Record { family: af, name: an }, .. } => match bv {
-                Type::Bytes { held: Held::Record { family: bf, name: bn }, .. } => {
+            Type::Bytes { held: Held::Record { family: af, name: an }, .. }
+            | Type::Secret { held: Held::Record { family: af, name: an }, .. } => match bv {
+                Type::Bytes { held: Held::Record { family: bf, name: bn }, .. }
+                | Type::Secret { held: Held::Record { family: bf, name: bn }, .. } => {
                     let stops = old.spelled(af) != old.spelled(old.family())
                         && old.spelled(af) == new.spelled(bf)
                         && old.spelled(an) == new.spelled(bn);
@@ -1531,7 +1541,7 @@ fn reference_flags(
                 | Type::Bool
                 | Type::Duration
                 | Type::Fixed(_)
-                | Type::Secret(_)
+                | Type::Secret { held: Held::Opaque | Held::Pieces(_), .. }
                 | Type::Text(_)
                 | Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. }
                 | Type::List { .. }
@@ -1545,7 +1555,7 @@ fn reference_flags(
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { held: Held::Opaque, .. }
             | Type::Text(_)
             | Type::Bytes { held: Held::Opaque, .. }
             | Type::List { .. }

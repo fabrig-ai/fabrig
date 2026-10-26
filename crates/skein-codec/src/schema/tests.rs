@@ -172,6 +172,23 @@ fn held_records_and_pieces_keep_their_names() {
 }
 
 #[test]
+fn held_secrets_keep_external_names_and_piece_indexes() {
+    let schema = parse(b"family f 1\nrecord Item {}\nrecord R { a: secret 8 holds other-family Value b: secret 9 pieces Item c: secret 4 }").expect("held fields");
+    let record = schema.field(FieldIx::new(0));
+    let Type::Secret { bound, held: Held::Record { family, name } } = schema.ty(record.ty) else {
+        unreachable!("held record");
+    };
+    assert_eq!(bound, 8);
+    assert_eq!(schema.spelled(family), b"other-family");
+    assert_eq!(schema.spelled(name), b"Value");
+    assert_eq!(
+        schema.ty(schema.field(FieldIx::new(1)).ty),
+        Type::Secret { bound: 9, held: Held::Pieces(DeclIx::new(0)) }
+    );
+    assert_eq!(schema.ty(schema.field(FieldIx::new(2)).ty), Type::Secret { bound: 4, held: Held::Opaque });
+}
+
+#[test]
 fn holds_and_pieces_can_name_the_next_field() {
     for source in [
         &b"family f 1 record R { a: bytes 4 holds: bool }"[..],
@@ -179,6 +196,18 @@ fn holds_and_pieces_can_name_the_next_field() {
     ] {
         let schema = parse(source).expect("clause word followed by colon is a field");
         assert_eq!(schema.ty(TypeIx::new(0)), Type::Bytes { bound: 4, held: Held::Opaque });
+        assert_eq!(schema.ty(TypeIx::new(1)), Type::Bool);
+    }
+}
+
+#[test]
+fn holds_and_pieces_can_follow_a_secret_as_fields() {
+    for source in [
+        &b"family f 1 record R { a: secret 4 holds: bool }"[..],
+        &b"family f 1 record R { a: secret 4 pieces: bool }"[..],
+    ] {
+        let schema = parse(source).expect("clause word followed by colon is a field");
+        assert_eq!(schema.ty(TypeIx::new(0)), Type::Secret { bound: 4, held: Held::Opaque });
         assert_eq!(schema.ty(TypeIx::new(1)), Type::Bool);
     }
 }
@@ -194,6 +223,16 @@ fn pieces_require_an_earlier_type_and_holds_checks_words() {
     refusal(b"family f 1 record R { a: bytes 8 holds { Value }", 1, Span { start: 39, end: 40 }, Wrong::Family);
     refusal(b"family f 1 record R { a: bytes 8 holds f 1Bad }", 1, Span { start: 41, end: 45 }, Wrong::Name);
     refusal(b"family f 1 record R { a: bytes 8 pieces 1Bad }", 1, Span { start: 40, end: 44 }, Wrong::Name);
+}
+
+#[test]
+fn secret_pieces_refuse_a_later_declaration() {
+    refusal(
+        b"family f 1\nrecord R { a: secret 8 pieces Later }\nrecord Later {}",
+        2,
+        Span { start: 41, end: 46 },
+        Wrong::Undeclared,
+    );
 }
 
 #[test]

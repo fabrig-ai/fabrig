@@ -182,7 +182,7 @@ fn takes_no_value(schema: &Schema, decl: &str, field: &str) -> bool {
         return false;
     };
     match schema.ty(field.ty) {
-        Type::Secret(_) => true,
+        Type::Secret { .. } => true,
         Type::Bytes { held, .. } => matches!(held, Held::Record { .. }),
         Type::Named(named) => match schema.declaration(named).shape {
             Shape::Record { .. } => true,

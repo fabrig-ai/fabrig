@@ -77,45 +77,49 @@ impl Types<'_> {
                 current = ci;
                 continue;
             }
-            let leaf =
-                if k == c && !matches!(k, Type::Named(_) | Type::Bytes { .. } | Type::List { .. } | Type::Option(_)) {
-                    Comparison::Equal
-                } else if let (Some(k), Some(c)) = (integer_width(k), integer_width(c)) {
-                    if c > k { Comparison::Widen(Kind::Derived) } else { Comparison::Retype }
-                } else {
-                    match (k, c) {
-                        (Type::Named(k), Type::Named(c)) => {
-                            if self.payload(Some(k), Some(c)) {
-                                Comparison::Equal
-                            } else {
-                                Comparison::Retype
-                            }
+            let leaf = if k == c
+                && !matches!(
+                    k,
+                    Type::Named(_) | Type::Bytes { .. } | Type::Secret { .. } | Type::List { .. } | Type::Option(_)
+                ) {
+                Comparison::Equal
+            } else if let (Some(k), Some(c)) = (integer_width(k), integer_width(c)) {
+                if c > k { Comparison::Widen(Kind::Derived) } else { Comparison::Retype }
+            } else {
+                match (k, c) {
+                    (Type::Named(k), Type::Named(c)) => {
+                        if self.payload(Some(k), Some(c)) {
+                            Comparison::Equal
+                        } else {
+                            Comparison::Retype
                         }
-                        (Type::Text(k), Type::Text(c) | Type::Secret(c) | Type::Bytes { bound: c, .. })
-                        | (Type::Secret(k) | Type::Bytes { bound: k, .. }, Type::Secret(c))
-                        | (Type::Secret(k), Type::Bytes { bound: c, .. }) => {
-                            if c >= k {
-                                Comparison::Widen(Kind::NoneNeeded)
-                            } else {
-                                Comparison::Retype
-                            }
-                        }
-                        (Type::Bytes { bound: k, held: kh }, Type::Bytes { bound: c, held: ch }) => {
-                            if c < k {
-                                Comparison::Retype
-                            } else {
-                                match self.held(kh, ch) {
-                                    Comparison::Equal if c > k => Comparison::Widen(Kind::NoneNeeded),
-                                    result @ (Comparison::Equal
-                                    | Comparison::Widen(_)
-                                    | Comparison::Wrap
-                                    | Comparison::Retype) => result,
-                                }
-                            }
-                        }
-                        _ => Comparison::Retype,
                     }
-                };
+                    (Type::Text(k), Type::Text(c) | Type::Secret { bound: c, .. } | Type::Bytes { bound: c, .. })
+                    | (Type::Bytes { bound: k, .. }, Type::Secret { bound: c, .. })
+                    | (Type::Secret { bound: k, .. }, Type::Bytes { bound: c, .. }) => {
+                        if c >= k {
+                            Comparison::Widen(Kind::NoneNeeded)
+                        } else {
+                            Comparison::Retype
+                        }
+                    }
+                    (Type::Bytes { bound: k, held: kh }, Type::Bytes { bound: c, held: ch })
+                    | (Type::Secret { bound: k, held: kh }, Type::Secret { bound: c, held: ch }) => {
+                        if c < k {
+                            Comparison::Retype
+                        } else {
+                            match self.held(kh, ch) {
+                                Comparison::Equal if c > k => Comparison::Widen(Kind::NoneNeeded),
+                                result @ (Comparison::Equal
+                                | Comparison::Widen(_)
+                                | Comparison::Wrap
+                                | Comparison::Retype) => result,
+                            }
+                        }
+                    }
+                    _ => Comparison::Retype,
+                }
+            };
             match leaf {
                 Comparison::Retype => return Comparison::Retype,
                 Comparison::Equal => {}
@@ -147,7 +151,7 @@ fn integer_width(ty: Type) -> Option<u8> {
         Type::Bool
         | Type::Duration
         | Type::Fixed(_)
-        | Type::Secret(_)
+        | Type::Secret { .. }
         | Type::Text(_)
         | Type::Bytes { .. }
         | Type::List { .. }
@@ -177,16 +181,18 @@ pub(super) fn spell(schema: &Schema, mut at: TypeIx) -> String {
             Type::Bool => "bool".into(),
             Type::Duration => "duration".into(),
             Type::Fixed(n) => format!("fixed {n}"),
-            Type::Secret(n) => format!("secret {n}"),
             Type::Text(n) => format!("text {n}"),
             Type::Named(at) => name(schema, at.index()),
-            Type::Bytes { bound, held } => match held {
-                Held::Opaque => format!("bytes {bound}"),
-                Held::Record { family, name } => {
-                    format!("bytes {bound} holds {} {}", word(schema, family), word(schema, name))
+            ty @ (Type::Bytes { bound, held } | Type::Secret { bound, held }) => {
+                let kind = if matches!(ty, Type::Secret { .. }) { "secret" } else { "bytes" };
+                match held {
+                    Held::Opaque => format!("{kind} {bound}"),
+                    Held::Record { family, name } => {
+                        format!("{kind} {bound} holds {} {}", word(schema, family), word(schema, name))
+                    }
+                    Held::Pieces(at) => format!("{kind} {bound} pieces {}", name(schema, at.index())),
                 }
-                Held::Pieces(at) => format!("bytes {bound} pieces {}", name(schema, at.index())),
-            },
+            }
         };
         tokens.push(leaf);
         return tokens.join(" ");

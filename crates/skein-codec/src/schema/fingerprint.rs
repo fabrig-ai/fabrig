@@ -89,6 +89,21 @@ fn hash_name(name: &[u8], hash: &mut Sha256) {
     hash.update(name);
 }
 
+fn hash_held(schema: &Schema, declarations: &List<Fingerprint>, held: Held, hash: &mut Sha256) {
+    match held {
+        Held::Opaque => hash.update(&[0]),
+        Held::Record { family, name } => {
+            hash.update(&[1]);
+            hash_name(schema.spelled(family), hash);
+            hash_name(schema.spelled(name), hash);
+        }
+        Held::Pieces(target) => {
+            hash.update(&[2]);
+            hash_reference(declarations, target, hash);
+        }
+    }
+}
+
 fn hash_type(schema: &Schema, declarations: &List<Fingerprint>, mut at: TypeIx, hash: &mut Sha256) {
     // Every wrapper advances to its item; the chain ends within the types table.
     for _ in 0..schema.types.len() {
@@ -103,7 +118,7 @@ fn hash_type(schema: &Schema, declarations: &List<Fingerprint>, mut at: TypeIx, 
                 hash.update(&[7]);
                 hash.update(&bound.to_be_bytes());
             }
-            Type::Secret(bound) => {
+            Type::Secret { bound, held: Held::Opaque } => {
                 hash.update(&[8]);
                 hash.update(&bound.to_be_bytes());
             }
@@ -111,21 +126,15 @@ fn hash_type(schema: &Schema, declarations: &List<Fingerprint>, mut at: TypeIx, 
                 hash.update(&[9]);
                 hash.update(&bound.to_be_bytes());
             }
+            Type::Secret { bound, held: held @ (Held::Record { .. } | Held::Pieces(_)) } => {
+                hash.update(&[14]);
+                hash.update(&bound.to_be_bytes());
+                hash_held(schema, declarations, held, hash);
+            }
             Type::Bytes { bound, held } => {
                 hash.update(&[10]);
                 hash.update(&bound.to_be_bytes());
-                match held {
-                    Held::Opaque => hash.update(&[0]),
-                    Held::Record { family, name } => {
-                        hash.update(&[1]);
-                        hash_name(schema.spelled(family), hash);
-                        hash_name(schema.spelled(name), hash);
-                    }
-                    Held::Pieces(target) => {
-                        hash.update(&[2]);
-                        hash_reference(declarations, target, hash);
-                    }
-                }
+                hash_held(schema, declarations, held, hash);
             }
             Type::List { bound, item } => {
                 hash.update(&[11]);

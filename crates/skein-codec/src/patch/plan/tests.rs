@@ -137,6 +137,24 @@ const CHANGES: &[ChangeRow] = &[
         target: F,
     },
     ChangeRow {
+        name: "add held secret",
+        old: "record D {}",
+        new: "record D { f: secret 8 holds other R }",
+        lines: "add D.f secret 8 holds other R written\nwritten D.f\n",
+        without: "",
+        op: Op::Add,
+        target: F,
+    },
+    ChangeRow {
+        name: "retype held secret",
+        old: "record D { f: secret 8 holds other R }",
+        new: "record D { f: secret 8 holds other S }",
+        lines: "retype D.f secret 8 holds other R secret 8 holds other S\nwritten D.f\n",
+        without: "written D.f\n",
+        op: Op::Retype,
+        target: F,
+    },
+    ChangeRow {
         name: "order fields",
         old: "record D { a: u8 b: u8 }",
         new: "record D { b: u8 a: u8 }",
@@ -459,6 +477,8 @@ fn added_values_refuse_the_other_side_of_each_bound() {
         ("pieces not empty", "bytes 8 pieces R", "0x00"),
         ("held", "bytes 8 holds other R", "0x"),
         ("secret", "secret 8", "0x"),
+        ("held secret", "secret 8 holds other R", "0x"),
+        ("secret pieces", "secret 8 pieces R", "0x"),
         ("record", "R", "R"),
         ("variant record", "E", "payload"),
         ("variant absent", "E", "absent"),
@@ -496,6 +516,29 @@ fn asked_values_are_refused_without_invention() {
 }
 
 #[test]
+fn secret_clauses_accept_their_explicit_widen_lines() {
+    for (old, new, lines) in [
+        (
+            "record D { f: secret 8 }",
+            "record D { f: secret 8 holds other R }",
+            "widen D.f secret 8 secret 8 holds other R\n",
+        ),
+        (
+            "record D { f: secret 8 holds other R }",
+            "record D { f: secret 8 }",
+            "widen D.f secret 8 holds other R secret 8\n",
+        ),
+        (
+            "record R {} record D { f: secret 8 }",
+            "record R {} record D { f: secret 8 pieces R }",
+            "widen D.f secret 8 secret 8 pieces R\n",
+        ),
+    ] {
+        planned(old, new, lines);
+    }
+}
+
+#[test]
 fn comparison_walks_wrappers_and_clauses_level_by_level() {
     let rows = [
         ("equal", "option list 2 u8", "option list 2 u8", Comparison::Equal),
@@ -517,6 +560,12 @@ fn comparison_walks_wrappers_and_clauses_level_by_level() {
         ("holds name", "bytes 2 holds other R", "bytes 2 holds other S", Comparison::Retype),
         ("pieces same", "bytes 2 pieces R", "bytes 2 pieces R", Comparison::Equal),
         ("pieces different", "bytes 2 pieces R", "bytes 2 pieces S", Comparison::Retype),
+        ("secret add holds", "secret 2", "secret 2 holds other R", Comparison::Widen { integer: false }),
+        ("secret drop holds", "secret 2 holds other R", "secret 2", Comparison::Widen { integer: false }),
+        ("secret holds family", "secret 2 holds other R", "secret 2 holds third R", Comparison::Retype),
+        ("secret holds name", "secret 2 holds other R", "secret 2 holds other S", Comparison::Retype),
+        ("secret pieces same", "secret 2 pieces R", "secret 2 pieces R", Comparison::Equal),
+        ("secret pieces different", "secret 2 pieces R", "secret 2 pieces S", Comparison::Retype),
         ("named same", "R", "R", Comparison::Equal),
         ("named different", "R", "S", Comparison::Retype),
     ];
@@ -596,6 +645,16 @@ fn identity_copies_versioned_records_and_stops_at_held_fields() {
 }
 
 #[test]
+fn identity_stops_at_held_secrets_through_nested_records() {
+    let mut patcher =
+        kept("versioned record Copy {} record Held { f: secret 8 holds other R } record Nested { f: Held }", "");
+    patcher.identity(1).expect("identity");
+    let plan = patcher.build.tables.plans.get(0).expect("identity plan");
+    assert_eq!(flags(plan), [(true, false), (false, true), (false, true)]);
+    assert_eq!(plan.fields.as_slice(), [true, true]);
+}
+
+#[test]
 fn pieces_require_their_items_conversion_to_copy() {
     let rows = [
         (
@@ -642,6 +701,12 @@ fn identity_pieces_refuse_items_reaching_held_fields() {
 }
 
 #[test]
+fn identity_secret_pieces_refuse_items_reaching_held_fields() {
+    let mut patcher = kept("record R { a: secret 8 holds other X } record D { p: secret 32 pieces R }", "");
+    assert_eq!(patcher.identity(1), Err(PatchWrong::Pieces));
+}
+
+#[test]
 fn plan_retains_global_refusals_marks_and_its_own_sites() {
     const TEXT: &[u8] = b"patch 1\nowner o 7\nmark mark\nmark fresh\nfamily other 1 to 2\nwritten X\nrefuses a \"other\"\nfamily f 1 to 2\nwritten D\nrefuses b \"first#\"\nrefuses c \"second\"\n";
     let mut patcher = kept("record D {}", "record D {}");
@@ -676,6 +741,19 @@ fn held_stops_require_the_same_other_family_in_both_texts() {
         ("same family", "bytes 8 holds f R", "bytes 8 holds f R"),
         ("clause added", "bytes 8", "bytes 8 holds other R"),
         ("clause removed", "bytes 8 holds other R", "bytes 8"),
+    ];
+    for (name, a, b) in rows {
+        let plan = planned(&format!("record D {{ f: {a} }}"), &format!("record D {{ f: {b} }}"), "");
+        assert_eq!(flags(&plan), [(true, false)], "{name}");
+    }
+}
+
+#[test]
+fn held_secret_stops_require_the_same_other_family() {
+    let rows = [
+        ("same family", "secret 8 holds f R", "secret 8 holds f R"),
+        ("clause added", "secret 8", "secret 8 holds other R"),
+        ("clause removed", "secret 8 holds other R", "secret 8"),
     ];
     for (name, a, b) in rows {
         let plan = planned(&format!("record D {{ f: {a} }}"), &format!("record D {{ f: {b} }}"), "");

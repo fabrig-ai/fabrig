@@ -6,6 +6,26 @@ use super::{
 };
 use skein_lib::Reader;
 
+fn held_record(ty: Type) -> Option<(Span, Span)> {
+    match ty {
+        Type::Bytes { held: Held::Record { family, name }, .. }
+        | Type::Secret { held: Held::Record { family, name }, .. } => Some((family, name)),
+        Type::U8
+        | Type::U16
+        | Type::U32
+        | Type::U64
+        | Type::Bool
+        | Type::Duration
+        | Type::Fixed(_)
+        | Type::Secret { held: Held::Opaque | Held::Pieces(_), .. }
+        | Type::Text(_)
+        | Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. }
+        | Type::List { .. }
+        | Type::Option(_)
+        | Type::Named(_) => None,
+    }
+}
+
 impl Build {
     pub(super) fn advance(&mut self, old: &Old) -> Result<Step, Halt> {
         match self.state {
@@ -68,33 +88,6 @@ impl Build {
         let new_ty = ty(self.new_schema(), new.source);
         match new_ty {
             Type::Named(decl) => return self.declaration(old, at, decl, new, ignore_site, carrying),
-            Type::Bytes { held: Held::Record { .. }, .. } => match old_ty {
-                Type::Bytes { held: Held::Record { family, name }, .. } => {
-                    if self.old_schema().spelled(family) != self.old_schema().spelled(self.old_schema().family())
-                        && self.compatible(old.source(at)?, new.source)
-                    {
-                        return self.stopped(
-                            Step::Held { at, family, name },
-                            new,
-                            Stop { at, site: None, held: true, declaration: false },
-                            carrying,
-                        );
-                    }
-                }
-                Type::U8
-                | Type::U16
-                | Type::U32
-                | Type::U64
-                | Type::Bool
-                | Type::Duration
-                | Type::Fixed(_)
-                | Type::Secret(_)
-                | Type::Text(_)
-                | Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. }
-                | Type::List { .. }
-                | Type::Option(_)
-                | Type::Named(_) => {}
-            },
             Type::U8
             | Type::U16
             | Type::U32
@@ -102,19 +95,31 @@ impl Build {
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
-            | Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. }
+            | Type::Bytes { .. }
             | Type::List { .. }
             | Type::Option(_) => {}
+        }
+        if held_record(new_ty).is_some()
+            && let Some((family, name)) = held_record(old_ty)
+            && self.old_schema().spelled(family) != self.old_schema().spelled(self.old_schema().family())
+            && self.compatible(old.source(at)?, new.source)
+        {
+            return self.stopped(
+                Step::Held { at, family, name },
+                new,
+                Stop { at, site: None, held: true, declaration: false },
+                carrying,
+            );
         }
         self.count_nodes(1)?;
         match new_ty {
             Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Duration => self.write_uint(new, old.uint(at)?)?,
             Type::Bool => self.put(&[u8::from(old.boolean(at)?)])?,
-            Type::Fixed(_) | Type::Secret(_) | Type::Text(_) | Type::Bytes { .. } => {
+            Type::Fixed(_) | Type::Secret { .. } | Type::Text(_) | Type::Bytes { .. } => {
                 let bytes = match old_ty {
-                    Type::Secret(_) => old.expose(at)?,
+                    Type::Secret { .. } => old.expose(at)?,
                     Type::U8
                     | Type::U16
                     | Type::U32
@@ -144,7 +149,7 @@ impl Build {
                     | Type::Bool
                     | Type::Duration
                     | Type::Fixed(_)
-                    | Type::Secret(_)
+                    | Type::Secret { .. }
                     | Type::Text(_)
                     | Type::Bytes { .. }
                     | Type::List { .. }
@@ -181,7 +186,7 @@ impl Build {
             | Type::Bool
             | Type::Duration
             | Type::Fixed(_)
-            | Type::Secret(_)
+            | Type::Secret { .. }
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::List { .. }
@@ -331,7 +336,7 @@ impl Build {
                 | Type::Bool
                 | Type::Duration
                 | Type::Fixed(_)
-                | Type::Secret(_)
+                | Type::Secret { .. }
                 | Type::Text(_)
                 | Type::Bytes { .. }
                 | Type::List { .. }

@@ -84,7 +84,7 @@ fn render_type(schema: &Schema, value: &Value, node: Node, ty: TypeIx) -> String
         Type::Duration => format!("{:?}", skein_lib::Duration::from_nanos(value.uint(node).expect("duration"))),
         Type::Bool => format!("{}", value.boolean(node).expect("boolean")),
         Type::Fixed(_) | Type::Bytes { .. } | Type::Text(_) => format!("{:?}", value.content(node).expect("content")),
-        Type::Secret(_) => format!("Secret {{ len: {} }}", value.expose(node).expect("secret").len()),
+        Type::Secret { .. } => format!("Secret {{ len: {} }}", value.expose(node).expect("secret").len()),
         Type::Named(decl) => render(schema, value, node, decl),
         Type::List { item, .. } => {
             let mut items = value.items(node).expect("list");
