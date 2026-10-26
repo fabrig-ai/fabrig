@@ -145,7 +145,7 @@ const FOCUS: &[(bool, Option<&str>)] = &[
     (
         false,
         Some(
-            "node Find { within: [], target: ExactRole { role: TextField, name: [84, 105, 116, 108, 101] } } is not focused",
+            "node Find { within: [], target: ExactRole { role: TextField, name: [84, 105, 116, 108, 101] }, nth: 0 } is not focused",
         ),
     ),
 ];

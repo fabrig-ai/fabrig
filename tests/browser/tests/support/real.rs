@@ -2,6 +2,8 @@
 
 #[path = "real/dialogs.rs"]
 mod dialogs;
+#[path = "real/downloads.rs"]
+mod downloads;
 #[path = "real/look.rs"]
 mod look;
 #[path = "real/scope.rs"]
@@ -169,12 +171,16 @@ pub enum Scenario {
     Attribute { selector: &'static [u8], name: &'static [u8], expected: Option<&'static [u8]> },
     Leave,
     Confirm,
+    Download { allow: bool },
+    Letter,
 }
 
 impl Scenario {
     fn path(self) -> &'static str {
         match self {
             Scenario::Leave | Scenario::Confirm => "/leave",
+            Scenario::Download { .. } => "/download",
+            Scenario::Letter => "/letter",
             Scenario::Button => "/button",
             Scenario::Form => "/form",
             Scenario::Covered => "/covered",
@@ -229,6 +235,9 @@ pub struct Rig {
     scope: Option<u64>,
     choice: Option<BrowserFace<'static>>,
     pub choice_failure: Option<String>,
+    pub download_directory: PathBuf,
+    pub downloaded: Option<(Box<[u8]>, PathBuf)>,
+    pub download_trouble: bool,
     form_node: u64,
     look: look::State,
 }
@@ -271,6 +280,9 @@ impl Rig {
             scope: None,
             choice: None,
             choice_failure: None,
+            download_directory: profile.join("downloads"),
+            downloaded: None,
+            download_trouble: false,
             form_node: 0,
             look: look::State::default(),
             context_ready: false,
@@ -519,6 +531,14 @@ impl Rig {
             self.choice_event(&event);
             return;
         }
+        let event = if matches!(self.scenario, Scenario::Download { .. } | Scenario::Letter) {
+            match self.download_event(event) {
+                Ok(()) => return,
+                Err(event) => event,
+            }
+        } else {
+            event
+        };
         let event = if matches!(self.scenario, Scenario::Look) {
             match self.look_event(event) {
                 Ok(()) => return,
@@ -571,14 +591,22 @@ impl Rig {
                 assert!(!version.is_empty(), "Chromium gives its version");
                 self.version = version;
                 self.stage = Stage::Context;
-                self.ask(Request::Person { person: PERSON });
+                let downloads = if matches!(self.scenario, Scenario::Download { allow: true }) {
+                    std::fs::create_dir(&self.download_directory).expect("fresh download directory");
+                    Some(self.download_directory.as_os_str().as_bytes().into())
+                } else {
+                    None
+                };
+                self.ask(Request::Person { person: PERSON, downloads });
             }
             Event::Opened { page } => {
                 assert_eq!(page, PAGE);
                 assert_eq!(self.stage, Stage::Opening);
                 self.stage = Stage::Finding;
                 match self.scenario {
-                    Scenario::Look
+                    Scenario::Download { .. }
+                    | Scenario::Letter
+                    | Scenario::Look
                     | Scenario::Leave
                     | Scenario::Confirm
                     | Scenario::ScopeReload
@@ -681,7 +709,9 @@ impl Rig {
                 assert_eq!(seen.len(), 1, "one accessible target for {:?}", self.scenario);
                 let node = seen.get(0).expect("target").node;
                 match self.scenario {
-                    Scenario::Look
+                    Scenario::Download { .. }
+                    | Scenario::Letter
+                    | Scenario::Look
                     | Scenario::Leave
                     | Scenario::Confirm
                     | Scenario::ScopeReload
@@ -794,6 +824,8 @@ impl Rig {
                         | Scenario::Select
                         | Scenario::Dates
                         | Scenario::Reduction
+                        | Scenario::Download { .. }
+                        | Scenario::Letter
                         | Scenario::Look
                         | Scenario::ScopeReload
                         | Scenario::Attribute { .. } => {

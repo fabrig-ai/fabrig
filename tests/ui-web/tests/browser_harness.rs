@@ -295,6 +295,7 @@ fn command_harness(sent: harness::Sent) -> harness::Harness {
             names: if sent == harness::Sent::Command { harness::Names::Url } else { harness::Names::Address },
         },
         restart: vec![],
+        downloads: None,
         chromium: skein_ui_web_tests::chromium(),
         expected: vec![],
         origins: vec![],

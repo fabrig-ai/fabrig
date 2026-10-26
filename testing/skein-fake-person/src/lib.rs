@@ -34,22 +34,30 @@ pub use tree::{TreeFace, role_name, role_named};
 pub struct Find {
     pub within: Box<[Target]>,
     pub target: Target,
+    /// The match in document order, from zero.
+    pub nth: u32,
 }
 impl Find {
     /// Find a role whose accessible name contains these words.
     #[must_use]
     pub fn named(role: Role, name: &[u8]) -> Self {
-        Self { within: Box::new([]), target: Target::Role { role, name: Box::from(name) } }
+        Self { nth: 0, within: Box::new([]), target: Target::Role { role, name: Box::from(name) } }
     }
     /// Find a role whose whole accessible name equals these bytes, including case.
     #[must_use]
     pub fn exactly_named(role: Role, name: &[u8]) -> Self {
-        Self { within: Box::new([]), target: Target::ExactRole { role, name: Box::from(name) } }
+        Self { nth: 0, within: Box::new([]), target: Target::ExactRole { role, name: Box::from(name) } }
     }
     /// Find visible text containing these words.
     #[must_use]
     pub fn text(text: &[u8]) -> Self {
-        Self { within: Box::new([]), target: Target::Text { text: Box::from(text) } }
+        Self { nth: 0, within: Box::new([]), target: Target::Text { text: Box::from(text) } }
+    }
+    /// The n-th match in the tree's (the document's) order, from 0.
+    #[must_use]
+    pub fn nth(mut self, nth: u32) -> Self {
+        self.nth = nth;
+        self
     }
     /// Scope the search through these ancestors, outermost first.
     #[must_use]
@@ -267,6 +275,9 @@ impl<A: Clone> Person<A> {
 
 impl fmt::Display for Find {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.nth != 0 {
+            write!(f, "match {} of ", self.nth)?;
+        }
         write!(f, "{}", self.target)?;
         for region in self.within.iter().rev() {
             write!(f, " in the {region}")?;

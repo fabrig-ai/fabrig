@@ -16,6 +16,7 @@ fn setup() -> Setup<'static> {
             names: skein_fake_person_browser::harness::Names::Address,
         },
         restart: vec!["{address}".into(), "--bundle".into(), skein_ui_web_tests::example_bundle().into_os_string()],
+        downloads: None,
         chromium: chromium(),
         origins: vec![],
         expected: vec![],

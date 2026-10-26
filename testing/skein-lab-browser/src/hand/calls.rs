@@ -168,7 +168,7 @@ impl Members {
     }
     fn part(&mut self) -> Result<Part, String> {
         let (role, target) = self.target()?;
-        Ok(Part { role, find: Find { target, within: self.scope()?.into() } })
+        Ok(Part { role, find: Find { nth: 0, target, within: self.scope()?.into() } })
     }
     fn end(self) -> Result<(), String> {
         if self.0.is_empty() { Ok(()) } else { Err("unknown members".into()) }

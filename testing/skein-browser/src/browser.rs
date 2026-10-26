@@ -46,7 +46,18 @@ enum Phase {
 struct Person {
     token: Token,
     context: Option<Box<[u8]>>,
+    downloads: Option<Box<[u8]>>,
+    ready: bool,
+    closing: bool,
     closed: bool,
+}
+
+#[derive(Debug)]
+struct Download {
+    guid: Box<[u8]>,
+    person: Token,
+    page: Token,
+    name: Box<[u8]>,
 }
 
 #[derive(Debug)]
@@ -106,6 +117,7 @@ enum OpKind {
 #[derive(Debug)]
 struct Queued {
     read: Option<Token>,
+    person: Option<Token>,
     id: u64,
     bytes: Box<[u8]>,
 }
@@ -121,6 +133,9 @@ struct Pending {
 enum PendingKind {
     Version,
     Context(Token),
+    Downloads(Token),
+    CancelPerson(Token),
+    CancelBrowser,
     Target(Token),
     Attach(Token),
     Enable(Token, u8),
@@ -175,6 +190,7 @@ pub struct Browser {
     pages: Vec<Option<Page>>,
     ops: Vec<Option<Operation>>,
     pending: Vec<Pending>,
+    downloads: Vec<Download>,
     next_id: u64,
     framing: Framer,
     outgoing: VecDeque<Queued>,
@@ -203,12 +219,18 @@ impl Browser {
             pages: Vec::with_capacity(usize::try_from(limits.pages).expect("u32 fits usize")),
             ops: Vec::with_capacity(usize::try_from(limits.ops).expect("u32 fits usize")),
             pending: Vec::with_capacity(usize::try_from(limits.commands).expect("u32 fits usize")),
+            downloads: Vec::with_capacity(usize::try_from(limits.downloads).expect("u32 fits usize")),
             next_id: 1,
             framing: Framer::new(limits.message),
             outgoing: VecDeque::with_capacity(usize::try_from(limits.commands).expect("u32 fits usize")),
             events: VecDeque::with_capacity(
                 usize::try_from(
-                    limits.persons.saturating_add(limits.pages).saturating_add(limits.ops).saturating_add(4),
+                    limits
+                        .persons
+                        .saturating_add(limits.pages)
+                        .saturating_add(limits.ops)
+                        .saturating_add(limits.downloads)
+                        .saturating_add(4),
                 )
                 .expect("u32 fits usize"),
             ),
@@ -409,7 +431,15 @@ impl Browser {
             return false;
         };
         self.pending.push(Pending { id: self.next_id, due: env.now.saturating_add(env.limits.answer), kind });
-        let command = Queued { read: None, id: self.next_id, bytes };
+        let person = if let PendingKind::Target(page) = kind {
+            match self.page(page) {
+                Some(page) => Some(page.person),
+                None => None,
+            }
+        } else {
+            None
+        };
+        let command = Queued { read: None, person, id: self.next_id, bytes };
         self.next_id = id;
         self.outgoing.push_back(command);
         true
@@ -454,6 +484,15 @@ impl Browser {
 
     fn sendable(&self) -> Option<usize> {
         for (index, command) in self.outgoing.iter().enumerate() {
+            if let Some(person) = command.person {
+                let waiting = match self.person(person) {
+                    Some(person) => !person.ready || person.closing,
+                    None => true,
+                };
+                if waiting {
+                    continue;
+                }
+            }
             if let Some(page) = command.read
                 && let Some(page) = self.page(page)
                 && page.navigating
@@ -517,12 +556,23 @@ impl Browser {
     fn request(&mut self, env: &Env<Limits>, request: crate::boundary::Request) {
         use crate::boundary::Request;
         match request {
-            Request::Person { person } => {
+            Request::Person { person, downloads } => {
                 if self.phase != Phase::Ready || self.person(person).is_some() {
                     self.events.push_back(Event::Closed { owner: person });
                     return;
                 }
-                let ok = self.insert_person(Person { token: person, context: None, closed: false }, env.limits.persons);
+                if let Some(directory) = &downloads
+                    && (!directory.starts_with(b"/")
+                        || directory.contains(&0)
+                        || directory.len() > usize::try_from(env.limits.command).expect("u32 fits usize"))
+                {
+                    self.events.push_back(Event::Closed { owner: person });
+                    return;
+                }
+                let ok = self.insert_person(
+                    Person { token: person, context: None, downloads, ready: false, closing: false, closed: false },
+                    env.limits.persons,
+                );
                 if !ok
                     || !self.queue_command(
                         env,
@@ -537,8 +587,8 @@ impl Browser {
             }
             Request::Page { person, page, url } => {
                 let context = match self.person(person) {
-                    Some(person) => person.context.clone(),
-                    None => None,
+                    Some(person) if !person.closing => person.context.clone(),
+                    Some(_) | None => None,
                 };
                 let Some(context) = context else {
                     self.events.push_back(Event::Closed { owner: page });
@@ -634,6 +684,12 @@ impl Browser {
                 self.issue_step(env, op, b"DOM.focus", &Params::Backend(node), Step::Focus);
             }
             Request::Key { page, op, key, shift } => {
+                if let Key::Letter { letter, .. } = key
+                    && !letter.is_ascii_lowercase()
+                {
+                    self.events.push_back(Event::Refused { op, why: Refusal::Protocol });
+                    return;
+                }
                 if !self.admit_op(env, page, op, OpKind::Key { key, shift }) {
                     return;
                 }
@@ -750,7 +806,21 @@ impl Browser {
     }
 
     fn issue_key(&mut self, env: &Env<Limits>, op: Token, key: Key, shift: bool, down: bool) {
-        let (name, code, windows, text) = key_info(key);
+        let (mut name, mut code, mut windows, mut text) = key_info(key);
+        let mut modifiers = if shift { SHIFT } else { 0 };
+        let letter_name;
+        let letter_code;
+        if let Key::Letter { letter, alt } = key {
+            letter_name = [if shift { letter.to_ascii_uppercase() } else { letter }];
+            letter_code = [b'K', b'e', b'y', letter.to_ascii_uppercase()];
+            name = &letter_name;
+            code = &letter_code;
+            windows = u64::from(letter.to_ascii_uppercase());
+            text = if alt { b"" } else { name };
+            if alt {
+                modifiers |= 1;
+            }
+        }
         let kind = if down { b"keyDown".as_slice() } else { b"keyUp".as_slice() };
         let step = if down { Step::KeyDown } else { Step::KeyUp };
         self.issue_step(
@@ -763,13 +833,7 @@ impl Browser {
                 code,
                 windows,
                 text,
-                modifiers: if key == Key::SelectAll {
-                    2
-                } else if shift {
-                    SHIFT
-                } else {
-                    0
-                },
+                modifiers: if key == Key::SelectAll { 2 } else { modifiers },
                 command: (key == Key::SelectAll && down).then_some(b"selectAll".as_slice()),
             },
             step,
@@ -860,6 +924,7 @@ impl Browser {
         for page in closing {
             self.close_page_local(page);
         }
+        self.downloads.retain(|download| download.person != token);
         if let Some(person) = self.person_mut(token) {
             person.closed = true;
             self.events.push_back(Event::Closed { owner: token });
@@ -887,9 +952,10 @@ impl Browser {
                 return;
             }
             self.phase = Phase::Closing;
-            if !self.queue_command(env, b"Browser.close", None, &Params::Empty, PendingKind::CloseBrowser) {
-                self.close_browser_local();
+            for person in self.persons.iter_mut().flatten() {
+                person.closing = true;
             }
+            self.close_browser_downloads(env);
             return;
         }
         let target = match self.page(entity) {
@@ -908,20 +974,12 @@ impl Browser {
             }
             return;
         }
-        let context = match self.person(entity) {
-            Some(person) => person.context.clone(),
-            None => None,
-        };
-        if let Some(context) = context
-            && !self.queue_command(
-                env,
-                b"Target.disposeBrowserContext",
-                None,
-                &Params::Context(&context),
-                PendingKind::ClosePerson(entity),
-            )
-        {
-            self.close_person_local(entity);
+        if let Some(person) = self.person_mut(entity) {
+            if person.closing {
+                return;
+            }
+            person.closing = true;
+            self.close_person_downloads(env, entity);
         }
     }
 }
@@ -1199,8 +1257,11 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
                 }
             }
             PendingKind::Release | PendingKind::Dialog => {}
-            PendingKind::Version | PendingKind::CloseBrowser => browser.crash(),
-            PendingKind::Context(person) | PendingKind::ClosePerson(person) => browser.close_person_local(person),
+            PendingKind::Version | PendingKind::CancelBrowser | PendingKind::CloseBrowser => browser.crash(),
+            PendingKind::Context(person)
+            | PendingKind::Downloads(person)
+            | PendingKind::CancelPerson(person)
+            | PendingKind::ClosePerson(person) => browser.close_person_local(person),
             PendingKind::Target(page)
             | PendingKind::Attach(page)
             | PendingKind::Enable(page, _)
@@ -1280,6 +1341,7 @@ fn key_info(key: Key) -> (&'static [u8], &'static [u8], u64, &'static [u8]) {
         Key::ArrowLeft => (b"ArrowLeft", b"ArrowLeft", 37, b""),
         Key::ArrowRight => (b"ArrowRight", b"ArrowRight", 39, b""),
         Key::SelectAll => (b"a", b"KeyA", 65, b""),
+        Key::Letter { .. } => (b"", b"", 0, b""),
     }
 }
 
@@ -1379,8 +1441,11 @@ impl Browser {
         };
         match kind {
             PendingKind::Release | PendingKind::Dialog => {}
-            PendingKind::Version | PendingKind::CloseBrowser => self.crash(),
-            PendingKind::Context(person) | PendingKind::ClosePerson(person) => self.close_person_local(person),
+            PendingKind::Version | PendingKind::CancelBrowser | PendingKind::CloseBrowser => self.crash(),
+            PendingKind::Context(person)
+            | PendingKind::Downloads(person)
+            | PendingKind::CancelPerson(person)
+            | PendingKind::ClosePerson(person) => self.close_person_local(person),
             PendingKind::Target(page)
             | PendingKind::Attach(page)
             | PendingKind::Enable(page, _)
@@ -1410,12 +1475,29 @@ impl Browser {
             }
             PendingKind::Context(person) => {
                 let context = field_text(result, b"browserContextId");
-                if let (Some(person), Some(context)) = (self.person_mut(person), context) {
-                    person.context = Some(context);
+                if let (Some(state), Some(context)) = (self.person_mut(person), context) {
+                    state.context = Some(context.clone());
+                    let directory = state.downloads.clone();
+                    if !self.queue_command(
+                        env,
+                        b"Browser.setDownloadBehavior",
+                        None,
+                        &Params::Downloads { context: &context, directory: directory.as_deref() },
+                        PendingKind::Downloads(person),
+                    ) {
+                        self.close_person_local(person);
+                    }
                 } else {
                     self.close_person_local(person);
                 }
             }
+            PendingKind::Downloads(person) => {
+                if let Some(state) = self.person_mut(person) {
+                    state.ready = true;
+                }
+            }
+            PendingKind::CancelPerson(person) => self.close_person_downloads(env, person),
+            PendingKind::CancelBrowser => self.close_browser_downloads(env),
             PendingKind::Target(page) => {
                 let target = field_text(result, b"targetId");
                 if let Some(target) = target {
@@ -1563,6 +1645,16 @@ impl Browser {
         let page = self.notification_page(session.as_deref());
         let params = root.get(b"params");
         match method {
+            b"Browser.downloadWillBegin" => {
+                if let Some(params) = params {
+                    self.download_begin(env, params);
+                }
+            }
+            b"Browser.downloadProgress" => {
+                if let Some(params) = params {
+                    self.download_progress(env, params);
+                }
+            }
             b"Page.javascriptDialogOpening" => {
                 if let (Some(page), Some(params)) = (page, params) {
                     self.dialog(env, page, params);
@@ -2207,3 +2299,8 @@ mod look;
 #[cfg(test)]
 #[path = "browser/type_tests.rs"]
 mod type_tests;
+
+#[cfg(test)]
+mod download_tests;
+
+mod download;

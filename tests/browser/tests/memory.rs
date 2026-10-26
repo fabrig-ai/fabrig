@@ -96,3 +96,22 @@ fn look_requests_and_answers_at_their_limits_fit_the_declared_bound() {
     drop(world);
     assert_eq!(meter.held(), 0);
 }
+
+#[test]
+fn downloads_at_the_inflight_limit_fit_the_declared_bound() {
+    let limits = compact_limits();
+    let bound = worst_case(&limits).expect("finite download bound");
+    let meter = Meter::new();
+    meter.start();
+    let mut world = World::with_limits(limits);
+    world.start();
+    world.open_with_downloads(Some(b"/downloads".as_slice().into()));
+    for index in 0..limits.downloads {
+        world.begin_download(&format!("guid-{index}"), &"x".repeat(usize::try_from(limits.text).unwrap()));
+    }
+    assert!(world.above.is_empty(), "all downloads at the bound remain in flight");
+    let measured = meter.end();
+    assert!(measured.peak() <= bound, "download peak {} exceeds bound {bound}", measured.peak());
+    drop(world);
+    assert_eq!(meter.held(), 0);
+}

@@ -567,3 +567,56 @@ fn select_all_sends_control_a_and_the_select_all_command_without_text_and_ignori
         assert!(matches!(world.above.pop(), Some(Event::Done { op }) if op == Token::new(4)));
     }
 }
+
+#[test]
+fn seeded_downloads_end_once_and_survive_page_close() {
+    use crate::referee::Referee;
+    for seed in 0..8 {
+        let mut world = World::new();
+        world.start();
+        world.open_with_downloads(Some(b"/downloads".as_slice().into()));
+        let canceled = seed & 4 != 0;
+        world.download_on_press(seed, canceled);
+        world.ask(Request::Press { page: Token::new(3), op: Token::new(4), node: 7, at: None });
+        let mut referee = Referee::new();
+        for (person, page, name) in &world.downloads_begun {
+            referee.download_begun(*person, *page, name);
+        }
+        world.ask(Request::Close { entity: Token::new(3) });
+        world.release_delayed();
+        let mut terminals = 0;
+        while let Some(event) = world.above.pop() {
+            referee.event(&event, 1);
+            if matches!(event, Event::Downloaded { .. } | Event::Trouble { trouble: Trouble::Download, .. }) {
+                terminals += 1;
+            }
+        }
+        assert_eq!(terminals, 1, "seed {seed}");
+        referee.assert_downloads_settled();
+        world.assert_commands_settled();
+    }
+}
+#[test]
+fn a_closing_person_cancels_a_delayed_download_without_late_events() {
+    let mut world = World::new();
+    world.start();
+    world.open_with_downloads(Some(b"/downloads".as_slice().into()));
+    world.download_on_press(2, false);
+    world.ask(Request::Press { page: Token::new(3), op: Token::new(4), node: 7, at: None });
+    let mut referee = crate::referee::Referee::new();
+    for (person, page, name) in &world.downloads_begun {
+        referee.download_begun(*person, *page, name);
+    }
+    world.ask(Request::Close { entity: Token::new(2) });
+    world.release_delayed();
+    while let Some(event) = world.above.pop() {
+        referee.event(&event, 1);
+    }
+    referee.assert_downloads_settled();
+    assert!(
+        world.sent.iter().any(|command| command
+            .windows(b"Browser.cancelDownload".len())
+            .any(|part| part == b"Browser.cancelDownload"))
+    );
+    world.assert_commands_settled();
+}

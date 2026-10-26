@@ -44,6 +44,7 @@ fn a_reload_keeps_a_pending_add_made_once() {
             names: skein_fake_person_browser::harness::Names::Address,
         },
         restart: vec!["{address}".into(), "--bundle".into(), skein_ui_web_tests::example_bundle().into_os_string()],
+        downloads: None,
         chromium: skein_ui_web_tests::chromium(),
         origins: vec![],
         expected: vec![
@@ -125,6 +126,7 @@ fn a_reload_with_an_add_pending_meets_the_closing_warning() {
             names: skein_fake_person_browser::harness::Names::Address,
         },
         restart: vec!["{address}".into(), "--bundle".into(), skein_ui_web_tests::example_bundle().into_os_string()],
+        downloads: None,
         chromium: skein_ui_web_tests::chromium(),
         origins: vec![],
         expected: vec![

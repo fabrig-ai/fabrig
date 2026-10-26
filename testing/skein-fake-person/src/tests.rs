@@ -513,3 +513,28 @@ fn role_names_round_trip_every_role() {
         Some(skein_ui::Role::Heading { level: 0 })
     );
 }
+
+fn repeated_buttons() -> View {
+    const BUTTONS: u32 = 2; // Two equal names make the second and past-last finds distinct.
+    build(|builder| {
+        builder.open(Role::Page);
+        for _ in 0..BUTTONS {
+            builder.open(Role::Button);
+            builder.name(b"Choose");
+            builder.close();
+        }
+        builder.close();
+    })
+}
+#[test]
+fn the_tree_finds_the_nth_button_in_document_order() {
+    let view = repeated_buttons();
+    let mut face = TreeFace::new(view.tree());
+    assert_eq!(face.find(&Find::named(Role::Button, b"Choose").nth(1)), Found::Node(NodeId(3)));
+}
+#[test]
+fn a_tree_find_past_the_last_match_is_absent() {
+    let view = repeated_buttons();
+    let mut face = TreeFace::new(view.tree());
+    assert_eq!(face.find(&Find::named(Role::Button, b"Choose").nth(2)), Found::Absent);
+}

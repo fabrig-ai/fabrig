@@ -12,6 +12,7 @@ fn harness(setup: &Setup<'_>, expected: Vec<Box<[u8]>>) -> Harness {
         printed: setup.printed,
         restart: setup.restart.clone(),
         origins: setup.origins.clone(),
+        downloads: setup.downloads.clone(),
         chromium: setup.chromium.clone(),
         expected,
     })

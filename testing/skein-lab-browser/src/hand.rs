@@ -409,6 +409,7 @@ impl Hand {
                     b::Trouble::Log => "log",
                     b::Trouble::Crash => "crash",
                     b::Trouble::Dialog => "dialog",
+                    b::Trouble::Download => "download",
                 };
                 self.start_trouble(kind, String::from_utf8_lossy(text).into_owned());
             }
@@ -558,7 +559,8 @@ impl Hand {
                     | b::Key::ArrowDown
                     | b::Key::ArrowLeft
                     | b::Key::ArrowRight
-                    | b::Key::SelectAll => unreachable!("parsed key"),
+                    | b::Key::SelectAll
+                    | b::Key::Letter { .. } => unreachable!("parsed key"),
                 };
                 Ok(object([("keyed", string(format!("{}{name}", if shift { "Shift+" } else { "" })))]))
             }
@@ -593,7 +595,7 @@ impl Hand {
             Call::Wait(part, gone, seconds) => self.wait(face, &part, gone, seconds),
             Call::Outline(scope) => {
                 let root = if let Some((last, parents)) = scope.split_last() {
-                    let find = Find { target: last.clone(), within: parents.into() };
+                    let find = Find { nth: 0, target: last.clone(), within: parents.into() };
                     let node = match self.required(face, &find) {
                         Ok(node) => node,
                         Err(answer) => return Ok(answer),
@@ -884,7 +886,11 @@ fn event_op(event: &Event) -> Option<Token> {
         | Event::Snapshot { op, .. }
         | Event::Screenshot { op, .. }
         | Event::Looked { op, .. } => Some(*op),
-        Event::Ready { .. } | Event::Opened { .. } | Event::Trouble { .. } | Event::Closed { .. } => None,
+        Event::Ready { .. }
+        | Event::Opened { .. }
+        | Event::Downloaded { .. }
+        | Event::Trouble { .. }
+        | Event::Closed { .. } => None,
     }
 }
 

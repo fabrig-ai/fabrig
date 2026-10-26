@@ -85,6 +85,7 @@ pub struct Setup<'a> {
     pub printed: Printed<'a>,
     pub restart: Vec<OsString>,
     pub chromium: PathBuf,
+    pub downloads: Option<PathBuf>,
     pub expected: Vec<Box<[u8]>>,
     pub origins: Vec<Origin>,
 }
@@ -143,6 +144,7 @@ pub struct Harness {
     names: Names,
     restart: Vec<OsString>,
     chromium: PathBuf,
+    downloads: Option<PathBuf>,
     expected: Vec<Box<[u8]>>,
     origins: Vec<Origin>,
 }
@@ -159,6 +161,7 @@ impl Harness {
             names: setup.printed.names,
             restart: setup.restart,
             chromium: setup.chromium,
+            downloads: setup.downloads,
             expected: setup.expected,
             origins: setup.origins,
         }
@@ -603,7 +606,10 @@ impl Runtime {
                 self.opening += 1;
                 self.context = false;
                 if self.opening < self.opened.len() {
-                    self.ask(Request::Person { person: person(self.opening) });
+                    self.ask(Request::Person {
+                        person: person(self.opening),
+                        downloads: setup.downloads.as_ref().map(|path| path.as_os_str().as_bytes().into()),
+                    });
                 }
             }
             Event::Trouble { page, trouble, text } => {
@@ -641,7 +647,8 @@ impl Runtime {
                 write!(self.snapshot, "\ncapture refused: {why:?}").expect("string write");
                 self.capturing = 3;
             }
-            Event::Warned { .. }
+            Event::Downloaded { .. }
+            | Event::Warned { .. }
             | Event::Found { .. }
             | Event::Met { .. }
             | Event::Missed { .. }
@@ -841,7 +848,9 @@ impl Runtime {
         while let Some(event) = self.events.pop() {
             for (index, face) in faces.iter_mut().enumerate() {
                 let navigating = face.navigating();
-                BrowserFace::event(face, &event);
+                if !matches!(&event, Event::Downloaded { person: owner, .. } if *owner != person(index)) {
+                    BrowserFace::event(face, &event);
+                }
                 if navigating
                     && !face.navigating()
                     && let Some(command) = &mut self.commands[index]
@@ -972,7 +981,10 @@ impl Runtime {
                 if people.is_empty() {
                     self.outcome = Some(Outcome::Done);
                 } else {
-                    self.ask(Request::Person { person: person(0) });
+                    self.ask(Request::Person {
+                        person: person(0),
+                        downloads: setup.downloads.as_ref().map(|path| path.as_os_str().as_bytes().into()),
+                    });
                 }
             }
             if began && self.outcome.is_none() {

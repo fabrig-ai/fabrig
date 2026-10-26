@@ -93,6 +93,7 @@ pub fn read_answer(event: &b::Event, op: skein_lib::Token) -> Option<Value> {
         | b::Event::Attribute { .. }
         | b::Event::Snapshot { .. }
         | b::Event::Screenshot { .. }
+        | b::Event::Downloaded { .. }
         | b::Event::Trouble { .. }
         | b::Event::Closed { .. } => None,
     }

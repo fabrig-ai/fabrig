@@ -16,6 +16,8 @@ pub struct Referee {
     mouse_events: usize,
     closed: bool,
     looks: BTreeMap<u64, skein_browser::Limits>,
+    downloads: BTreeMap<Vec<u8>, (Token, Token)>,
+    closed_persons: BTreeSet<Token>,
 }
 
 impl Referee {
@@ -35,6 +37,15 @@ impl Referee {
         assert!(self.presses.insert(op.raw(), self.mouse_events).is_none(), "press registered once");
     }
 
+    pub fn download_begun(&mut self, person: Token, page: Token, name: &[u8]) {
+        assert!(!self.closed_persons.contains(&person), "no download begins after its person's Closed");
+        assert!(self.downloads.insert(name.to_vec(), (person, page)).is_none());
+    }
+
+    pub fn assert_downloads_settled(&self) {
+        assert!(self.downloads.is_empty(), "each download begun ends once");
+    }
+
     pub fn command(&mut self, bytes: &[u8]) {
         if bytes.windows(b"Input.dispatchMouseEvent".len()).any(|part| part == b"Input.dispatchMouseEvent") {
             self.mouse_events += 1;
@@ -43,6 +54,19 @@ impl Referee {
 
     pub fn event(&mut self, event: &Event, visible_matches: u32) {
         assert!(!self.closed, "nothing is emitted after Closed");
+        if let Event::Downloaded { person, name, .. } = event {
+            assert!(!self.closed_persons.contains(person), "no download after its person's Closed");
+            let (owner, _) = self.downloads.remove(name.as_ref()).expect("each download ends once");
+            assert_eq!(*person, owner);
+        }
+        if let Event::Trouble { page, trouble: skein_browser::boundary::Trouble::Download, text } = event {
+            let (_, owner_page) = self.downloads.remove(text.as_ref()).expect("each download ends once");
+            assert_eq!(*page, owner_page);
+        }
+        if let Event::Closed { owner } = event {
+            self.closed_persons.insert(*owner);
+            self.downloads.retain(|_, (person, _)| person != owner);
+        }
         if let Event::Warned { op } = event {
             assert!(!self.terminal.contains(&op.raw()), "Warned precedes its go's terminal");
             assert!(self.warned.insert(op.raw()), "a go warns at most once");
@@ -58,7 +82,8 @@ impl Referee {
             | Event::Snapshot { op, .. }
             | Event::Screenshot { op, .. }
             | Event::Looked { op, .. } => Some(*op),
-            Event::Warned { .. }
+            Event::Downloaded { .. }
+            | Event::Warned { .. }
             | Event::Ready { .. }
             | Event::Opened { .. }
             | Event::Trouble { .. }

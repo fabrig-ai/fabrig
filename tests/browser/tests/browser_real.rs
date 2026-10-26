@@ -143,3 +143,28 @@ fn chromium_reads_the_pages_look_and_captures_a_distant_part_at_double_scale() {
         String::from_utf8_lossy(&rig.version)
     );
 }
+
+#[test]
+fn a_download_is_saved_in_the_persons_directory() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Download { allow: true });
+    rig.run();
+    let (name, path) = rig.downloaded.expect("completed download");
+    assert_eq!(name.as_ref(), b"recording.txt");
+    assert_eq!(path.parent(), Some(rig.download_directory.as_path()));
+    assert_eq!(std::fs::read(path).expect("saved file"), b"recorded bytes");
+}
+#[test]
+fn a_person_without_a_directory_downloads_nothing() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Download { allow: false });
+    rig.run();
+    assert!(rig.downloaded.is_none());
+    assert!(!rig.download_directory.exists());
+    assert!(rig.download_trouble, "Chromium 147 reports a denied download as Trouble::Download");
+}
+#[test]
+fn a_letter_with_alt_and_shift_reaches_the_page() {
+    let profile = Profile::fresh();
+    Rig::new(&chromium(), &profile.0, Scenario::Letter).run();
+}

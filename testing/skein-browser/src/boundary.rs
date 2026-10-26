@@ -30,6 +30,8 @@ pub enum Down {
 pub enum Request {
     Person {
         person: Token,
+        /// An absolute directory for downloads; none denies them.
+        downloads: Option<Box<[u8]>>,
     },
     Page {
         person: Token,
@@ -168,6 +170,12 @@ pub enum Event {
         op: Token,
         looked: Looked,
     },
+    /// A completed file, named by its person and the page's suggested name.
+    Downloaded {
+        person: Token,
+        name: Box<[u8]>,
+        path: Box<[u8]>,
+    },
     Trouble {
         page: Token,
         trouble: Trouble,
@@ -287,6 +295,11 @@ pub enum Key {
     ArrowRight,
     /// Select the focused field's whole value with Control+A; `shift` is ignored.
     SelectAll,
+    /// A keyboard letter a to z; Alt makes no text (browser.md, section 5).
+    Letter {
+        letter: u8,
+        alt: bool,
+    },
 }
 
 /// An accessible role and name, optionally scoped beneath a node.
@@ -373,4 +386,5 @@ pub enum Trouble {
     Log,
     Crash,
     Dialog,
+    Download,
 }

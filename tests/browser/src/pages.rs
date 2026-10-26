@@ -1,3 +1,5 @@
+const DOWNLOAD: &[u8] = br#"<!doctype html><html><body><button onclick="const a=document.createElement('a');a.href='data:text/plain,recorded%20bytes';a.download='recording.txt';a.click();document.querySelector('h1').textContent='Saved'">Save</button><h1>Before</h1></body></html>"#;
+const LETTER: &[u8] = br#"<!doctype html><html><body><input autofocus aria-label="Words"><h1>Before</h1><script>let last;function show(){if(last)document.querySelector('h1').textContent=last.code+' alt='+last.altKey+' shift='+last.shiftKey+' text='+document.querySelector('input').value;}document.addEventListener('keydown',e=>{last=e;show()});document.addEventListener('input',show);</script></body></html>"#;
 const BUTTON: &[u8] = br#"<!doctype html><html><body><button onclick="document.querySelector('h1').textContent='Done'">Press</button><h1>Before</h1></body></html>"#;
 const FORM: &[u8] = br#"<!doctype html><html><body><form onsubmit="event.preventDefault();document.querySelector('h1').textContent='Hello '+document.querySelector('input').value"><label>Name <input aria-label="Name" value="Old words"></label><button type="submit">Submit</button></form><h1>Before</h1></body></html>"#;
 const COVERED: &[u8] = br#"<!doctype html><html><body><button onclick="document.querySelector('h1').textContent='Wrong'">Covered</button><h1>Before</h1><div style="position:fixed;inset:0;background:#abc;opacity:.9;z-index:10"></div></body></html>"#;
@@ -13,6 +15,8 @@ const PRESS: &[u8] = br#"document.querySelector('#bar').addEventListener('click'
 pub fn pages() -> Vec<skein_fake_person_browser::origins::Page> {
     use skein_fake_person_browser::origins::Page;
     [
+        (b"/download".as_slice(), DOWNLOAD),
+        (b"/letter".as_slice(), LETTER),
         (b"/leave".as_slice(), LEAVE),
         (b"/button".as_slice(), BUTTON),
         (b"/form".as_slice(), FORM),

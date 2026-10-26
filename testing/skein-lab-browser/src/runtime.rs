@@ -490,6 +490,7 @@ impl Runtime {
                         b::Trouble::Log => "log",
                         b::Trouble::Crash => "crash",
                         b::Trouble::Dialog => "dialog",
+                        b::Trouble::Download => "download",
                     };
                     if let Some(p) = self.pages.values_mut().find(|p| p.page == page) {
                         p.trouble.push(calls::trouble(kind, json::bytes(&text)));
@@ -507,6 +508,7 @@ impl Runtime {
                 | Event::Attribute { .. }
                 | Event::Snapshot { .. }
                 | Event::Screenshot { .. }
+                | Event::Downloaded { .. }
                 | Event::Looked { .. }
                 | Event::Closed { .. }) => self.answers.push_back(terminal),
             }
@@ -662,6 +664,7 @@ impl Runtime {
             | Event::Attribute { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
+            | Event::Downloaded { .. }
             | Event::Looked { .. }
             | Event::Trouble { .. }
             | Event::Closed { .. }) => Err(format!("unexpected call answer: {other:?}")),
@@ -705,7 +708,7 @@ impl Runtime {
         let person = self.fresh();
         let page = self.fresh();
         let op = self.fresh();
-        self.ask(Request::Person { person });
+        self.ask(Request::Person { person, downloads: None });
         while self.browser.work_pending() || self.browser.next_deadline().is_some() {
             self.pump()?;
         }
@@ -727,6 +730,7 @@ impl Runtime {
             | Event::Attribute { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
+            | Event::Downloaded { .. }
             | Event::Looked { .. }
             | Event::Trouble { .. }
             | Event::Closed { .. }) => return Err(format!("page creation failed: {other:?}")),
@@ -757,6 +761,7 @@ impl Runtime {
             | Event::Attribute { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
+            | Event::Downloaded { .. }
             | Event::Looked { .. }
             | Event::Trouble { .. }
             | Event::Closed { .. }) => Err(format!("viewport failed: {other:?}")),
@@ -788,6 +793,7 @@ impl Runtime {
             | Event::Attribute { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
+            | Event::Downloaded { .. }
             | Event::Looked { .. }
             | Event::Trouble { .. }
             | Event::Closed { .. }) => Err(format!("expected Closed {entity:?}: {other:?}")),

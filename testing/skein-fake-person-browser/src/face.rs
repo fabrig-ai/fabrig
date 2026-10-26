@@ -4,6 +4,14 @@ use skein_fake_person::{Doing, Face, Find, Found, Target};
 use skein_lib::Token;
 use skein_ui::{Act, NodeId, Role};
 use skein_ui_web::mapping::accessible;
+use std::{os::unix::ffi::OsStrExt, path::PathBuf};
+
+/// One completed download, in the order the browser reported it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Download {
+    pub name: Box<[u8]>,
+    pub path: PathBuf,
+}
 
 enum Input {
     Select { node: u64, value: Box<[u8]> },
@@ -59,6 +67,7 @@ pub struct BrowserFace<'a> {
     read_address: Option<Box<[u8]>>,
     input: Option<Input>,
     trouble: Vec<Box<[u8]>>,
+    downloads: Vec<Download>,
     warned: bool,
     go: Option<Token>,
     choice: Option<Choice>,
@@ -94,6 +103,7 @@ impl<'a> BrowserFace<'a> {
             read_address: None,
             input: None,
             trouble: Vec::new(),
+            downloads: Vec::new(),
             warned: false,
             go: None,
             choice: None,
@@ -128,6 +138,11 @@ impl<'a> BrowserFace<'a> {
     #[must_use]
     pub fn trouble(&self) -> &[Box<[u8]>] {
         &self.trouble
+    }
+    /// Completed files belonging to this person, in completion order.
+    #[must_use]
+    pub fn downloads(&self) -> &[Download] {
+        &self.downloads
     }
     fn token(&mut self) -> Token {
         self.serial = self.serial.checked_add(1).expect("operation numbers fit");
@@ -353,7 +368,41 @@ impl<'a> BrowserFace<'a> {
         self.seen.push((seen.clone(), role));
         id
     }
-    /// Deliver the kit's terminal events. Other pages' operations are ignored.
+    fn search_found(&mut self, op: Token, seen: &skein_lib::List<Seen>, more: u32) {
+        if self.choice.is_some() && self.acting == Some(op) {
+            self.choice_found(seen, more);
+            return;
+        }
+        if self.search.as_ref().map(|s| s.op) != Some(op) {
+            return;
+        }
+        let mut search = self.search.take().expect("matching search");
+        let nth = if search.depth < search.find.within.len() { 0 } else { search.find.nth };
+        if let Some(seen) = seen.get(nth) {
+            if search.depth < search.find.within.len() {
+                search.depth += 1;
+                search.role = 0;
+                search.within = Some(seen.node);
+                self.ask(search);
+            } else {
+                let role = target_role(&search.find.target);
+                self.answer = Some(Found::Node(self.remember(seen, role)));
+            }
+        } else if more > 0 {
+            self.fail(format!(
+                "find {} needs match {nth}, past the kit's Limits::matches ({} kept)",
+                search.find,
+                seen.len()
+            ));
+            self.answer = Some(Found::Absent);
+        } else if seen.is_empty() {
+            search.role += 1;
+            self.ask(search);
+        } else {
+            self.answer = Some(Found::Absent);
+        }
+    }
+    /// Deliver operation events and downloads routed by the harness to this person.
     pub fn event(&mut self, event: &Event) {
         match event {
             Event::Warned { op } => {
@@ -361,29 +410,9 @@ impl<'a> BrowserFace<'a> {
                     self.warned = true;
                 }
             }
-            Event::Found { op, seen, more } => {
-                if self.choice.is_some() && self.acting == Some(*op) {
-                    self.choice_found(seen, *more);
-                    return;
-                }
-                if self.search.as_ref().map(|s| s.op) != Some(*op) {
-                    return;
-                }
-                let mut search = self.search.take().expect("matching search");
-                if let Some(seen) = seen.get(0) {
-                    if search.depth < search.find.within.len() {
-                        search.depth += 1;
-                        search.role = 0;
-                        search.within = Some(seen.node);
-                        self.ask(search);
-                    } else {
-                        let role = target_role(&search.find.target);
-                        self.answer = Some(Found::Node(self.remember(seen, role)));
-                    }
-                } else {
-                    search.role += 1;
-                    self.ask(search);
-                }
+            Event::Found { op, seen, more } => self.search_found(*op, seen, *more),
+            Event::Downloaded { name, path, .. } => {
+                self.downloads.push(Download { name: name.clone(), path: std::ffi::OsStr::from_bytes(path).into() });
             }
             Event::Done { op } => {
                 if self.acting == Some(*op) {

@@ -538,3 +538,55 @@ fn a_refused_replacement_stops_its_sequence_and_retains_the_kit_refusal() {
         assert_eq!(face.refusal(), None);
     }
 }
+
+#[test]
+fn downloaded_files_are_kept_in_completion_order() {
+    let mut face = face();
+    for (name, path) in [(b"second.json".as_slice(), b"/downloads/two".as_slice()), (b"first.json", b"/downloads/one")]
+    {
+        face.event(&Event::Downloaded { person: Token::new(2), name: name.into(), path: path.into() });
+    }
+    assert_eq!(
+        face.downloads(),
+        &[
+            crate::Download { name: b"second.json".as_slice().into(), path: "/downloads/two".into() },
+            crate::Download { name: b"first.json".as_slice().into(), path: "/downloads/one".into() },
+        ]
+    );
+}
+#[test]
+fn the_browser_face_finds_the_nth_kept_match() {
+    let mut face = face();
+    let find = Find::named(Role::Button, b"Choose").nth(1);
+    face.find(&find);
+    let Request::Find { op, .. } = face.requests().next().unwrap() else { panic!("find") };
+    let mut nodes = List::with_capacity(2);
+    nodes.push(seen(b"first")).unwrap();
+    let mut second = seen(b"second");
+    second.node = 42;
+    nodes.push(second).unwrap();
+    face.event(&Event::Found { op, seen: nodes, more: 0 });
+    let Found::Node(node) = face.find(&find) else { panic!("second match") };
+    assert_eq!(face.seen(node).unwrap().node, 42);
+}
+#[test]
+fn a_match_past_the_kits_kept_limit_fails_the_find() {
+    let mut face = face();
+    let find = Find::named(Role::Button, b"Choose").nth(u32::MAX);
+    face.find(&find);
+    let Request::Find { op, .. } = face.requests().next().unwrap() else { panic!("find") };
+    let mut nodes = List::with_capacity(1);
+    nodes.push(seen(b"first")).unwrap();
+    face.event(&Event::Found { op, seen: nodes, more: 1 });
+    assert_eq!(face.find(&find), Found::Absent);
+    assert!(face.failure().unwrap().contains("Limits::matches"));
+}
+#[test]
+fn a_match_past_the_last_is_absent() {
+    let mut face = face();
+    let find = Find::named(Role::Button, b"Choose").nth(1);
+    face.find(&find);
+    found(&mut face, Some(seen(b"first")));
+    assert_eq!(face.find(&find), Found::Absent);
+    assert!(face.failure().is_none());
+}

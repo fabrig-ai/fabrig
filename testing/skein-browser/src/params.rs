@@ -24,6 +24,14 @@ pub(crate) enum Params<'a> {
     Children(u64),
     Object(&'a [u8]),
     Context(&'a [u8]),
+    Downloads {
+        context: &'a [u8],
+        directory: Option<&'a [u8]>,
+    },
+    CancelDownload {
+        context: &'a [u8],
+        guid: &'a [u8],
+    },
     Target {
         url: &'a [u8],
         context: &'a [u8],
@@ -148,6 +156,24 @@ impl Params<'_> {
             Params::Context(context) => {
                 json.key(b"browserContextId");
                 json.string(context);
+            }
+            Params::Downloads { context, directory } => {
+                json.key(b"browserContextId");
+                json.string(context);
+                json.key(b"behavior");
+                json.string(if directory.is_some() { b"allowAndName" } else { b"deny" });
+                json.key(b"eventsEnabled");
+                json.boolean(true);
+                if let Some(directory) = directory {
+                    json.key(b"downloadPath");
+                    json.string(directory);
+                }
+            }
+            Params::CancelDownload { context, guid } => {
+                json.key(b"browserContextId");
+                json.string(context);
+                json.key(b"guid");
+                json.string(guid);
             }
             Params::Target { url, context } => {
                 json.key(b"url");

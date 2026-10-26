@@ -12,6 +12,8 @@ pub struct Limits {
     pub pages: u32,
     pub ops: u32,
     pub commands: u32,
+    /// Downloads in flight across the browser.
+    pub downloads: u32,
     pub message: u32,
     pub command: u32,
     pub matches: u32,
@@ -34,6 +36,7 @@ impl Default for Limits {
             pages: 16,
             ops: 64,
             commands: 128,
+            downloads: 4,
             message: 4_194_304,
             command: 65_536,
             matches: 128,
@@ -88,7 +91,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(limits.snapshot))?
         .checked_add(u64::from(limits.screenshot))?
         .checked_add(look_answer)?;
-    let persons = u64::from(limits.persons).checked_mul(512_u64.checked_add(text)?)?;
+    let persons = u64::from(limits.persons).checked_mul(512_u64.checked_add(text)?.checked_add(command)?)?;
     // A page retains the loader id of its caret stylesheet, bounded by text.
     let pages =
         u64::from(limits.pages).checked_mul(1024_u64.checked_add(command)?.checked_add(text.checked_mul(4)?)?)?;
@@ -109,10 +112,12 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
             .checked_add(text_nodes)?
             .checked_add(face_names)?,
     )?;
+    let downloads = u64::from(limits.downloads).checked_mul(128_u64.checked_add(text.checked_mul(2)?)?)?;
     let commands = u64::from(limits.commands).checked_mul(512_u64.checked_add(command.checked_mul(2)?)?)?;
     let events = u64::from(limits.persons)
         .checked_add(u64::from(limits.pages))?
         .checked_add(u64::from(limits.ops))?
+        .checked_add(u64::from(limits.downloads))?
         .checked_add(4)?;
     let events = events.checked_mul(
         u64::try_from(size_of::<crate::boundary::Event>()).ok()?.checked_add(report)?.checked_add(text)?,
@@ -125,5 +130,11 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(text.checked_mul(2)?)?
         .checked_add(u64::from(limits.stderr))?
         .checked_add(tree_stack)?;
-    persons.checked_add(pages)?.checked_add(ops)?.checked_add(commands)?.checked_add(events)?.checked_add(transient)
+    persons
+        .checked_add(downloads)?
+        .checked_add(pages)?
+        .checked_add(ops)?
+        .checked_add(commands)?
+        .checked_add(events)?
+        .checked_add(transient)
 }

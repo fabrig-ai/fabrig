@@ -96,7 +96,8 @@ impl Face for TreeFace<'_> {
             end = index.checked_add(usize::try_from(node.size).expect("subtree size fits")).expect("subtree end fits");
         }
         (start..end)
-            .find(|index| matches(nodes, *index, &find.target))
+            .filter(|index| matches(nodes, *index, &find.target))
+            .nth(usize::try_from(find.nth).expect("match index fits usize"))
             .map_or(Found::Absent, |index| Found::Node(nodes[index].id))
     }
     fn allows(&self, id: NodeId, act: &Act) -> bool {

@@ -53,6 +53,9 @@ pub struct World {
     delayed: VecDeque<Vec<u8>>,
     outstanding: BTreeMap<u64, Time>,
     document: u64,
+    download_on_press: Option<(u64, bool)>,
+    download_serial: u64,
+    pub downloads_begun: Vec<(Token, Token, Vec<u8>)>,
 }
 
 impl Default for World {
@@ -97,7 +100,34 @@ impl World {
             delayed: VecDeque::new(),
             outstanding: BTreeMap::new(),
             document: 0,
+            download_on_press: None,
+            download_serial: 0,
+            downloads_begun: Vec::new(),
         }
+    }
+
+    /// The scenario's button saves a file; the seed chooses before or after its reply,
+    /// and whether its progress waits for release_delayed.
+    pub fn download_on_press(&mut self, seed: u64, canceled: bool) {
+        self.download_on_press = Some((seed, canceled));
+    }
+
+    pub fn begin_download(&mut self, guid: &str, name: &str) {
+        self.downloads_begun.push((Token::new(2), Token::new(3), name.as_bytes().to_vec()));
+        self.notify(format!(r#"{{"method":"Browser.downloadWillBegin","params":{{"frameId":"t1","guid":"{guid}","suggestedFilename":"{name}"}}}}"#));
+    }
+
+    pub fn notify(&mut self, json: String) {
+        let mut bytes = json.into_bytes();
+        bytes.push(0);
+        up(
+            &mut self.browser,
+            &self.env,
+            Below::Replies(stream::Up::Bytes(bytes.into())),
+            &mut self.above,
+            &mut self.below,
+        );
+        self.drive();
     }
 
     pub fn fault(&mut self, method: &[u8], fault: Fault) {
@@ -207,6 +237,35 @@ impl World {
                                 b"{\"method\":\"Page.frameStartedLoading\",\"sessionId\":\"s1\",\"params\":{\"frameId\":\"f1\"}}\0"
                                     .to_vec(),
                             );
+                        }
+                        if method.as_ref() == b"Input.dispatchMouseEvent"
+                            && root
+                                .get(b"params")
+                                .and_then(|params| params.get(b"type"))
+                                .and_then(|kind| kind.text())
+                                .as_deref()
+                                == Some(b"mouseReleased")
+                            && let Some((seed, canceled)) = self.download_on_press.take()
+                        {
+                            self.download_serial += 1;
+                            let guid = format!("download-{}", self.download_serial);
+                            let name = format!("recording-{}.json", self.download_serial);
+                            self.downloads_begun.push((Token::new(2), Token::new(3), name.as_bytes().to_vec()));
+                            let mut begin = format!(r#"{{"method":"Browser.downloadWillBegin","params":{{"frameId":"t1","guid":"{guid}","suggestedFilename":"{name}"}}}}"#).into_bytes();
+                            let state = if canceled { "canceled" } else { "completed" };
+                            let mut progress = format!(r#"{{"method":"Browser.downloadProgress","params":{{"guid":"{guid}","state":"{state}"}}}}"#).into_bytes();
+                            begin.push(0);
+                            progress.push(0);
+                            if seed & 1 == 0 {
+                                replies.push_front(begin);
+                            } else {
+                                replies.push_back(begin);
+                            }
+                            if seed & 2 == 0 {
+                                replies.push_back(progress);
+                            } else {
+                                self.delayed.push_back(progress);
+                            }
                         }
                         match fault {
                             Some(Fault::Drop) => {}
@@ -333,6 +392,7 @@ impl World {
             b"DOM.getDocument" => r#"{"root":{"nodeId":1}}"#,
             b"Browser.getVersion" => r#"{"product":"Chrome/153"}"#,
             b"Target.createBrowserContext" => r#"{"browserContextId":"ctx1"}"#,
+            b"Browser.setDownloadBehavior" | b"Browser.cancelDownload" => "{}",
             b"Target.createTarget" => r#"{"targetId":"t1"}"#,
             b"Target.attachToTarget" => r#"{"sessionId":"s1"}"#,
             b"DOM.resolveNode" => r#"{"object":{"type":"object","objectId":"scope-7"}}"#,
@@ -369,7 +429,11 @@ impl World {
     }
 
     pub fn open(&mut self) {
-        self.ask(Request::Person { person: Token::new(2) });
+        self.open_with_downloads(None);
+    }
+
+    pub fn open_with_downloads(&mut self, downloads: Option<Box<[u8]>>) {
+        self.ask(Request::Person { person: Token::new(2), downloads });
         self.ask(Request::Page {
             person: Token::new(2),
             page: Token::new(3),
