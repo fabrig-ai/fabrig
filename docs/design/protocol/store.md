@@ -1252,8 +1252,9 @@ nothing is written.
    finds the active generation (10.1) and opens both its stores;
    skein-kv recovers each: the snapshot, then the log's longest valid
    prefix (skein's `kv.md`, section 3). A store behind the binary's
-   patch levels is patched in a copy that becomes the active generation
-   (10.2), and the open begins again over it.
+   patch levels is patched in a copy, and the open goes on over the
+   copy, pending, which becomes the active generation once the root has
+   restored from it (10.2).
 2. **The component reads its own rows,** and the core's that it checks:
    the format row, refusing another version, another level or another
    deployment (5.3); the
@@ -1270,7 +1271,8 @@ nothing is written.
    makes for providers whose source is none. A first start with no
    accounts needs no such commit. Restarts retain those same numbers.
 4. **Secrets are served** to the protocol layer's other components once
-   the secrets' store is open: each signed-in source's record to make
+   the secrets' store is open, and over a pending generation once it has
+   switched (10.2, step 7), never before: each signed-in source's record to make
    skein's driver with, and each key to the accounts' table, when the
    accounts child names the restored sources. After all are named, the
    component sweeps unnamed source secrets (`llm.md`, 5.1).
@@ -1427,8 +1429,8 @@ generation `A` to `A + 1`:
    (below) against the limits. Every refusal of
    5.3, and an effect in flight that a pending patch changes (temper's
    `draft/upgrades.md`, section 8), comes here. Then `A`'s stores
-   close: no transcript has been cut, which the open after the switch
-   does. Then `A - 1`, where one stands, is dropped, since once `A + 1`
+   close: no transcript has been cut, which the open over the copy
+   does (step 7). Then `A - 1`, where one stands, is dropped, since once `A + 1`
    exists going back is to `A`, which nothing here changes: renamed out
    of the numbers (`generations/dropped`), `generations/` synced, then
    removed as 10.1 removes a stray, so that a cut never leaves part of
@@ -1492,24 +1494,36 @@ generation `A` to `A + 1`:
    strictly, their live sets' limits, the joins their records make and
    the rows the core's census chooses, is the domain's own restore, run
    over the copy before the switch (step 7).
-6. **The manifest** written into `A + 1` (section 2), by io's durable
-   replace expecting no file there.
+6. **The manifest,** written into `A + 1` (section 2) by io's durable
+   replace expecting no file there, once the root asks for the switch
+   (step 7): the counts the check took, and the commit position then,
+   which commits of the restore's may have moved past patching's last.
 7. **Switch, once the root has restored from the copy.** The open
    goes on over the copy, still open, as 10.1's step 7 goes on over an
    active generation (the run proofs' cuts, which cut the shared
    transcripts to the copy's committed lengths, `A`'s, since patching
    writes no frame; the installation's identifier), and answers
    `Opened` with `pending`: a patched generation awaits its switch. The
-   root's restart restores from it as from any store, commits nothing,
-   and asks for the switch (`Request::Switch`) once its restores are
-   whole (`../domain/engine.md`, section 6). Then `active` is replaced
-   by io's durable replace, expecting the digest of the `active` 10.1
-   read, so that only the start that planned from `A` switches from it,
-   and the component answers `Switched`. One rename, never two standing
-   for one. A restart that refuses before it ends the start with `A`
-   active and unchanged.
+   root's restart restores from it as from any store, and asks for the
+   switch (`Request::Switch`) once its restores are whole
+   (`../domain/engine.md`, section 6). Until then what it commits lands
+   in `A + 1`'s maps alone, and nothing leaves the process: no secret
+   is served (section 10, step 4) and no source swept, no run adopted
+   or placed, no connector reads or writes its system, and no
+   transcript is written or dropped. Then the manifest (step 6), then
+   `active` replaced by io's durable replace, expecting the digest of
+   the `active` 10.1 read, so that only the start that planned from
+   `A` switches from it; the component answers `Switched` and takes
+   the generation it switched to as its active one. One rename, never
+   two standing for one. A restart that refuses before it ends the
+   start with `A` active and unchanged, and `A + 1` a stray; a switch
+   that fails ends it as a failed commit does, and the next start opens
+   whichever generation `active` names.
 8. **The restart goes on** over `A + 1`, now active, as any restart:
-   nothing reopens, and its first commit is after the switch.
+   nothing reopens, since the copy's open made every check a later
+   start makes, and `A + 1`'s first commit of its own, which ends going
+   back (temper's `draft/upgrades.md`, 3.2), is the first after the
+   manifest's position.
 
 ```rust
 Event::Opened { owner: Token, last: u64, installation: [u8; 16], pending: bool }

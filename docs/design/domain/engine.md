@@ -486,10 +486,16 @@ generation `active` names: the store's open answers that a generation
 is pending, and the script asks, after the connectors' records (step
 2) and before the runs adopted (step 3), for one step more,
 `RestartStep::Switch`, which the root serves by asking the store to
-switch. Nothing is committed before it: what a restore would commit
-(the release's settings revision, 17.7; the accounts' counter) commits
-at the switch step, after the switch and before anything is admitted.
-A start with nothing pending has no such step.
+switch. Before it the restores may commit, as they do at any start
+(people's expired rows erased, the accounts' wants saved, the release's
+settings revision, 17.7), and their commits land in the copy alone; but
+nothing leaves the engine's process: no secret is served, no run
+adopted or placed, no connector reads or writes its system
+(`../protocol/store.md`, 10.2, step 7). So whatever checks a record
+runs in the restores, before the switch, and what acts on it after: the
+tasks child's checks of its live tasks' links, stubs, writers, waits and
+funders, which adopting the runs makes today, run in its restore, and
+step 3 adopts. A start with nothing pending has no switch step.
 
 So the restore is the check the draft asks before the switch (temper's
 `draft/upgrades.md`, 6.4), the binary's own open over the copy: every
@@ -499,10 +505,13 @@ join, and each child's restore refuses a record whose references do not
 resolve to what the restart holds: a task to its project and parties,
 an account's source to its account, a read position to its
 conversation, an application's records to theirs (its root's, by the
-same rule). Over a pending generation it is strict: a record the
-accounts child counts and leaves (its `unrestored`) refuses the
-restart at the switch step, naming the child, as a broken record in any
-other child refuses it. A restart refused before the switch leaves the
+same rule); where a restore checks a record's shape and not what it
+names, its child gains the check, with the facts it consumes restored
+before it. Over a pending generation it is strict: a record the
+accounts child counts and leaves (its `unrestored`, once its terminal
+rows are restored and its empty accounts removed) refuses the restart
+at the switch step, naming the child, as a broken record in any other
+child refuses it. A restart refused before the switch leaves the
 generation patched from active and unchanged (store.md, 10.2, step 7);
 one refused after it, at a later step, leaves the patched generation
 active and the one before it as `active` − 1, for the operator to go
@@ -1624,8 +1633,9 @@ before its first turn, adopted as any claim; and a second upgrade
 across another mark before that turn, settling it again.
 
 Its stories of the restore before the switch (section 6), over the store
-with fixture patch sets: a patched copy restored whole, switched, and its
-first commit after the switch; a patched account the accounts child would
+with fixture patch sets: a patched copy restored whole, its restores'
+commits in the copy, no secret served and no run adopted before the
+switch, switched, and the manifest naming the position then; a patched account the accounts child would
 count and leave, refused at the switch step, the generation patched from
 still active and unchanged, and a start of the build before opening it as
 it was; a task naming a project the copy does not hold, refused before the
