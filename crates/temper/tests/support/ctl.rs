@@ -742,6 +742,19 @@ impl Calls {
         let root = skein_shell::open_root(scratch).expect("project fixture root");
         self.member = Some(member::Member::project(root, scratch, client, name, number));
     }
+    fn cut_started(&mut self) {
+        let (child, _) = self.started.as_mut().expect("call still running at cut");
+        child.signals += 1;
+        self.awaiting_started = true;
+        self.submit.push(Submit {
+            op: child.token(CUT),
+            kind: Op::Signal {
+                pidfd: child.pidfd.expect("started call pidfd"),
+                signal: Signal::Terminate,
+                to: Target::Child,
+            },
+        });
+    }
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
@@ -822,19 +835,7 @@ impl Calls {
                 self.action = Some(Action::Until(call.clone(), condition));
                 self.start(call, false);
             }
-            Some(Step::Cut) => {
-                let (child, _) = self.started.as_mut().expect("call still running at cut");
-                child.signals += 1;
-                self.awaiting_started = true;
-                self.submit.push(Submit {
-                    op: child.token(CUT),
-                    kind: Op::Signal {
-                        pidfd: child.pidfd.expect("started call pidfd"),
-                        signal: Signal::Terminate,
-                        to: Target::Child,
-                    },
-                });
-            }
+            Some(Step::Cut) => self.cut_started(),
             Some(step @ (Step::Pause | Step::Resume)) => {
                 self.action = Some(Action::Signal);
                 let signal: &[u8] = if matches!(step, Step::Pause) { b"-STOP" } else { b"-CONT" };
