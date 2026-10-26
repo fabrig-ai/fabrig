@@ -1190,9 +1190,10 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   refusal names the item and what fails, and the whole change is
   refused with it.
 - **It holds them** decoded, the deployment's rules and each project's,
-  within `landing_rules` per scope and `judge_projects` projects, and
-  replaces a scope's whole when told its new values, in the decision
-  that committed them. Then each live change into a repository a
+  within `landing_rules` per scope and `judge_projects` projects, keeps
+  their values in its family `Setting`, and replaces a scope's whole
+  when the core's word to keep a change's items reaches it, in the
+  decision that committed them. Then each live change into a repository a
   changed scope covers is stepped: a gate a rule added is asked for, a
   gate it dropped is no longer waited on, and a change queued for a
   gate it now needs leaves its queue until it has its verdict (8.3).

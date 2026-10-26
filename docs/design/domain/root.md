@@ -371,8 +371,9 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   `identities`, each forge's git identity, to the forge; `landing`
   translated (below); `forge_charter` kept, the charter of every agent
   task the forge's procedures make. Designed, not built: `landing` and
-  `forge_charter` leave `Config` for settings, and `core` carries
-  temper's stock defaults and its kinds' declarations
+  `forge_charter` leave `Config` for settings: `core` carries jig's
+  kinds' stock defaults and temper's kinds' declarations, and the
+  forge's configuration temper's kinds' stock defaults
   (`../protocol/configuration.md`, 13.4). The root holds its configuration to
   its limits as it is made, and a start that breaks one is refused,
   naming it (`../protocol/configuration.md`, section 2): one connector;
@@ -596,8 +597,9 @@ each step the core asks for:
 3. **The forge's records,** `Range::Forge`, a page at a time; then the
    forge reconciles them, refusing a record whose forge, repository or
    task the restart does not hold, as jig's children refuse theirs.
-   Designed, not built: before them, the forge hears its kinds' current
-   values (5.6). Over a generation the store holds pending (jig's
+   Designed, not built: before them, the forge loads its kinds' values
+   from its family `Setting`, is given temper's stock defaults, and
+   tells the core which differ (5.6). Over a generation the store holds pending (jig's
    `protocol/store.md`, 10.2, step 7), then **the switch**
    (`RestartStep::Switch`): the root asks the store to switch and goes
    on once it answers; nothing has been committed before it, and a

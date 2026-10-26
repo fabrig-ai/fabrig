@@ -2964,7 +2964,8 @@ the settings first for `temper ctl` (its planned implementation).
   chat is a card of its own (below). They read jig's `settings`
   document, and each setting they show whole (`setting`, jig's
   `client/domain/contract.md`, 5.1 and 6), again as the document says
-  it changed. The settings are bounded by jig's limits and temper's
+  it changed; temper's kinds' values, and a proposal's items of them,
+  from the forge's reads (`forge.md`, section 9). The settings are bounded by jig's limits and temper's
   (`../protocol/configuration.md`, 13.2), so the page reads them all
   as it opens. A party sees the deployment's settings with a role in
   the deployment, and a project's with a role in that project, as the
@@ -3010,7 +3011,9 @@ the settings first for `temper ctl` (its planned implementation).
     each its number, what it did in a line (a proposal's title, or "a
     release's", "the first start's"), who decided it and when, "Show",
     and "Restore…", which proposes its items again against the newest
-    (jig's `domain/engine.md`, 17.7) and opens that proposal's review.
+    (jig's `domain/engine.md`, 17.7), saying that temper's kinds' items
+    are left out, their past values not kept, and opens that
+    proposal's review.
 - **Its tags:** "Default", a setting no change is over; "Changed", one
   a change is over, with "changed in revision N"; "Added", one no
   default has.
