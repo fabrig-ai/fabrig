@@ -16,6 +16,7 @@ use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::fmt::Write;
 use core::ops::{Deref, DerefMut};
 
 use crate::ring::Ring;
@@ -299,6 +300,7 @@ impl<P: Host, R: Referee<P>> World<P, R> {
                 cleanup: 0,
                 queued_cleanup: 0,
                 cleaned: false,
+                pending_recent: 0,
             })
             .collect();
         Running {
@@ -331,6 +333,8 @@ struct Process {
     cleanup: u32,
     queued_cleanup: u32,
     cleaned: bool,
+    // One bit per completed pass, newest low: a fixed eight-pass window.
+    pending_recent: u8,
 }
 
 impl Process {
@@ -432,7 +436,66 @@ fn deadline_diagnostic(patience: Duration, iterations: u32, thread_cpu_start: Op
     )
 }
 
+fn deadline_status(deadline: Option<Time>, now: Time) -> String {
+    match deadline {
+        Some(at) if at <= now => {
+            format!("Some({} ns) (due {} ns ago)", at.as_nanos(), now.saturating_since(at).as_nanos())
+        }
+        Some(at) => format!("Some({} ns) (in {} ns)", at.as_nanos(), at.saturating_since(now).as_nanos()),
+        None => String::from("None"),
+    }
+}
+
 impl<P: Host, R: Referee<P>> Running<P, R> {
+    fn deadline_diagnostic(
+        &self,
+        patience: Duration,
+        iterations: u32,
+        thread_cpu_start: Option<u64>,
+        now: Time,
+        last_word: Option<Time>,
+    ) -> String {
+        let mut text = deadline_diagnostic(patience, iterations, thread_cpu_start);
+        writeln!(&mut text, "\nnow: {} ns", now.as_nanos()).expect("String formatting");
+        let word = match last_word {
+            Some(at) => format!("Some({} ns)", at.as_nanos()),
+            None => String::from("None"),
+        };
+        writeln!(
+            &mut text,
+            "referee: passed={}; last_word={word}; next_deadline={}",
+            self.world.referee.passed(),
+            deadline_status(self.world.referee.next_deadline(), now),
+        )
+        .expect("String formatting");
+        for host in &self.living_hosts {
+            let proc = self.proc(*host);
+            let recent = self.processes.get(*host).expect("a process per host").pending_recent.count_ones();
+            writeln!(
+                &mut text,
+                "host {host}: work_pending={}; next_deadline={}; next_policy_deadline={}; is_empty={}; ring_count={}; work_pending_last_8={recent}/8",
+                proc.work_pending(now),
+                deadline_status(proc.next_deadline(), now),
+                deadline_status(proc.next_policy_deadline(), now),
+                proc.is_empty(),
+                self.ring.counts.get(*host).expect("a ring count per host"),
+            ).expect("String formatting");
+        }
+        text
+    }
+
+    fn work_pending(&mut self, now: Time) -> bool {
+        // Sample every living host, including those after the first pending one.
+        let mut any = false;
+        for host in &self.living_hosts {
+            let pending = self.proc(*host).work_pending(now);
+            let recent = &mut self.processes.get_mut(*host).expect("a process per host").pending_recent;
+            *recent = recent.wrapping_shl(1) | u8::from(pending);
+            any |= pending;
+        }
+        any
+    }
+
     fn run(mut self, clock: &Clock, patience: Duration) -> Outcome<P> {
         let start = clock.now().now;
         let deadline = start.saturating_add(patience);
@@ -444,7 +507,9 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             iterations = iterations.checked_add(1).expect("fewer than 2^32 iterations");
             let Now { now, wall } = clock.now();
             check_policy_wake(&mut policy_wake, now);
-            assert!(now < deadline, "{}", deadline_diagnostic(patience, iterations, thread_cpu_start));
+            if now >= deadline {
+                crate::fail(&self.deadline_diagnostic(patience, iterations, thread_cpu_start, now, last_word));
+            }
             self.world.referee.act(now, &mut self.world.procs);
             self.signals();
             self.reap();
@@ -498,10 +563,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             self.settle_root_signals();
             self.submit_cleanup();
             self.ring.enter(Wait::No);
-            if self.living_hosts.iter().any(|host| self.proc(*host).work_pending(now))
-                || self.ring.has_ready()
-                || !self.world.controls.signals.borrow().is_empty()
-            {
+            if self.work_pending(now) || self.ring.has_ready() || !self.world.controls.signals.borrow().is_empty() {
                 continue;
             }
             if self.living_hosts.iter().all(|host| self.proc(*host).is_empty())
@@ -804,6 +866,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     cleanup: 0,
                     queued_cleanup: 0,
                     cleaned: false,
+                    pending_recent: 0,
                 });
                 self.world.signals.insert(child, SignalSource::Pipe(pipes.signal_writer));
                 self.placeholders.insert(pipes.pidfd, child);
@@ -1076,7 +1139,14 @@ mod tests {
             unsettled_children: 2,
             submits: Queue::with_capacity(8),
             processes: (0..3)
-                .map(|_| Process { fds: BTreeSet::new(), exit: None, cleanup: 0, queued_cleanup: 0, cleaned: true })
+                .map(|_| Process {
+                    fds: BTreeSet::new(),
+                    exit: None,
+                    cleanup: 0,
+                    queued_cleanup: 0,
+                    cleaned: true,
+                    pending_recent: 0,
+                })
                 .collect(),
             children: (1..3)
                 .map(|host| {
@@ -1264,8 +1334,14 @@ mod tests {
     #[test]
     fn a_late_close_completion_does_not_erase_a_reused_descriptor() {
         let fd = Fd::new(42);
-        let mut process =
-            Process { fds: [fd].into_iter().collect(), exit: None, cleanup: 0, queued_cleanup: 0, cleaned: false };
+        let mut process = Process {
+            fds: [fd].into_iter().collect(),
+            exit: None,
+            cleanup: 0,
+            queued_cleanup: 0,
+            cleaned: false,
+            pending_recent: 0,
+        };
         process.submitted(&Op::Close { fd });
         process.completed(&Complete {
             op: Token::new(2),
