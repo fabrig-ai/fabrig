@@ -2808,6 +2808,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-run",
  "smith-domain-session",
+ "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
 ]

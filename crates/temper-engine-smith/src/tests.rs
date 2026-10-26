@@ -13,9 +13,13 @@ const CALL_TASK: u64 = 23;
 
 use crate::{ChangeResource, Problem, answer, call, result, start, tools, turn};
 
-fn decoded(tool: &[u8], json: &[u8]) -> Result<engine::Call, Problem> {
+fn decoded(tool: &[u8], json: &[u8]) -> Result<crate::Decoded, Problem> {
     let input = run::HostInput::attested(json.into()).expect("bounded object exterior");
-    match call(run::CallName { activation: 7, completion: 2, position: 1 }, tool, &input)? {
+    call(run::CallName { activation: 7, completion: 2, position: 1 }, tool, &input)
+}
+
+fn decided(tool: &[u8], json: &[u8]) -> Result<engine::Call, Problem> {
+    match decoded(tool, json)? {
         crate::Decoded::Call(call) => Ok(call),
         crate::Decoded::Answered(_) => panic!("decided tool answered at decode"),
     }
@@ -193,7 +197,7 @@ fn selected_llm_bindings_reach_smith() {
 #[test]
 fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
     assert_eq!(
-        decoded(b"message", br#"{"target":23,"form":"question","words":"Ready?"}"#),
+        decided(b"message", br#"{"target":23,"form":"question","words":"Ready?"}"#),
         Ok(engine::Call {
             completion: 2,
             position: 1,
@@ -204,8 +208,8 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
             },
         })
     );
-    assert_eq!(decoded(b"message", br#"{"target":0,"form":"words","words":"x"}"#), Err(Problem::Range));
-    assert_eq!(decoded(b"message", br#"{"target":23,,"form":"words","words":"x"}"#), Err(Problem::Malformed));
+    assert_eq!(decided(b"message", br#"{"target":0,"form":"words","words":"x"}"#), Err(Problem::Range));
+    assert_eq!(decided(b"message", br#"{"target":23,,"form":"words","words":"x"}"#), Err(Problem::Malformed));
 }
 
 #[test]
@@ -245,6 +249,7 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
         (b"subscribe", br#"{"kind":"task","target":3}"#, br#"{"kind":"task"}"#),
         (b"propose", br#"{"action":"release","task":3,"reason":"x"}"#, br#"{"action":"release","reason":"x"}"#),
         (b"note", br#"{"scope":{"kind":"project","project":1},"description":"slow start","body":"warm it first"}"#, br#"{"scope":{"kind":"project"},"description":"slow start","body":"warm it first"}"#),
+        (b"read_docs", br#"{"topic":"box"}"#, br#"{"topic":3}"#),
         (b"recall", br#"{"kind":"name","name":1}"#, br#"{"kind":"name","name":0}"#),
     ];
     let declared = tools(Duration::from_secs(10));
@@ -272,7 +277,7 @@ fn delegate_tracking_is_optional_and_requires_a_priority_object() {
     let member = r#""executor":{"kind":"agent","charter":1},"spec":{"words":"x"},"contract":{"kind":"report","words":128},"authority":{"tools":1,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":40},"notes":0}"#;
     for (field, expected) in [("", None), (r#", "tracked":{"priority":4294967295}"#, Some(u32::MAX))] {
         let input = format!("{{\"batch\":[{{{member}{field}}}]}}");
-        let engine::Tool::Delegate { batch } = decoded(b"delegate", input.as_bytes()).expect("delegate").tool else {
+        let engine::Tool::Delegate { batch } = decided(b"delegate", input.as_bytes()).expect("delegate").tool else {
             panic!("delegate tool")
         };
         assert_eq!(batch[0].tracked, expected);
@@ -286,14 +291,14 @@ fn delegate_tracking_is_optional_and_requires_a_priority_object() {
         ("{}", Problem::Missing),
     ] {
         let input = format!("{{\"batch\":[{{{member},\"tracked\":{tracked}}}]}}");
-        assert_eq!(decoded(b"delegate", input.as_bytes()), Err(problem), "{tracked}");
+        assert_eq!(decided(b"delegate", input.as_bytes()), Err(problem), "{tracked}");
     }
 }
 
 #[test]
 fn only_a_priority_amendment_can_omit_its_revision() {
     let engine::Tool::Amend { target, revision, amendment } =
-        decoded(b"amend", br#"{"target":3,"amendment":{"reason":"x","tracked":{"priority":8}}}"#)
+        decided(b"amend", br#"{"target":3,"amendment":{"reason":"x","tracked":{"priority":8}}}"#)
             .expect("priority without revision")
             .tool
     else {
@@ -311,14 +316,14 @@ fn only_a_priority_amendment_can_omit_its_revision() {
     ] {
         let input =
             format!("{{\"target\":3,\"amendment\":{{\"reason\":\"x\",\"tracked\":{{\"priority\":8}}{other}}}}}");
-        assert_eq!(decoded(b"amend", input.as_bytes()), Err(Problem::Missing), "{other}");
+        assert_eq!(decided(b"amend", input.as_bytes()), Err(Problem::Missing), "{other}");
     }
     assert_eq!(
-        decoded(b"amend", br#"{"target":3,"amendment":{"reason":"x","tracked":"untracked"}}"#),
+        decided(b"amend", br#"{"target":3,"amendment":{"reason":"x","tracked":"untracked"}}"#),
         Err(Problem::Missing)
     );
     assert_eq!(
-        decoded(b"amend", br#"{"target":3,"revision":"0","amendment":{"reason":"x","tracked":{"priority":8}}}"#),
+        decided(b"amend", br#"{"target":3,"revision":"0","amendment":{"reason":"x","tracked":{"priority":8}}}"#),
         Err(Problem::Type)
     );
 }
@@ -329,7 +334,7 @@ fn amendments_replace_tracking_and_instructions_including_empty_words() {
         let input = format!(
             "{{\"target\":3,\"revision\":1,\"amendment\":{{\"reason\":\"x\",\"tracked\":\"untracked\",\"instructions\":\"{instructions}\"}}}}"
         );
-        let engine::Tool::Amend { amendment, .. } = decoded(b"amend", input.as_bytes()).expect("amend").tool else {
+        let engine::Tool::Amend { amendment, .. } = decided(b"amend", input.as_bytes()).expect("amend").tool else {
             panic!("amend tool")
         };
         assert_eq!(amendment.tracked, Some(tasks::Tracking::Untracked));
@@ -343,10 +348,10 @@ fn amendments_replace_tracking_and_instructions_including_empty_words() {
         ("{}", Problem::Missing),
     ] {
         let input = format!("{{\"target\":3,\"revision\":1,\"amendment\":{{\"reason\":\"x\",\"tracked\":{tracked}}}}}");
-        assert_eq!(decoded(b"amend", input.as_bytes()), Err(problem), "{tracked}");
+        assert_eq!(decided(b"amend", input.as_bytes()), Err(problem), "{tracked}");
     }
     assert_eq!(
-        decoded(b"amend", br#"{"target":3,"revision":1,"amendment":{"reason":"x","instructions":8}}"#),
+        decided(b"amend", br#"{"target":3,"revision":1,"amendment":{"reason":"x","instructions":8}}"#),
         Err(Problem::Type)
     );
 }
@@ -364,7 +369,7 @@ fn the_declared_deadline_example_decodes_the_whole_authority() {
         }
     }
     let engine::Tool::Amend { target, revision, amendment } =
-        decoded(b"amend", EXAMPLE).expect("deadline example").tool
+        decided(b"amend", EXAMPLE).expect("deadline example").tool
     else {
         panic!("amend tool")
     };
@@ -397,7 +402,7 @@ fn a_delegate_deadline_in_seconds_is_a_span() {
         (r#", "deadline_seconds":14400"#, tasks::Deadline::Span(Duration::from_secs(14_400))),
     ] {
         let input = format!("{{\"batch\":[{{{DELEGATE_MEMBER}{field}}}]}}");
-        let engine::Tool::Delegate { batch } = decoded(b"delegate", input.as_bytes()).expect("delegate deadline").tool
+        let engine::Tool::Delegate { batch } = decided(b"delegate", input.as_bytes()).expect("delegate deadline").tool
         else {
             panic!("delegate tool")
         };
@@ -418,7 +423,7 @@ fn a_delegate_names_one_deadline() {
             DELEGATE_MEMBER.into()
         };
         let input = format!("{{\"batch\":[{{{member},\"deadline_seconds\":{seconds}}}]}}");
-        let result = decoded(b"delegate", input.as_bytes());
+        let result = decided(b"delegate", input.as_bytes());
         if accepted {
             let engine::Tool::Delegate { batch } = result.expect("largest whole second").tool else {
                 panic!("delegate tool")
@@ -433,14 +438,14 @@ fn a_delegate_names_one_deadline() {
 #[test]
 fn proposed_amendments_share_controls_but_still_require_a_revision() {
     let engine::Tool::Propose { action: engine::ProposedAction::Amend { revision, amendment, .. }, .. } =
-        decoded(b"propose", br#"{"action":"amend","task":3,"revision":1,"amendment":{"reason":"x","tracked":{"priority":8},"instructions":""},"reason":"x"}"#)
+        decided(b"propose", br#"{"action":"amend","task":3,"revision":1,"amendment":{"reason":"x","tracked":{"priority":8},"instructions":""},"reason":"x"}"#)
             .expect("proposed amendment").tool
     else { panic!("proposed amendment") };
     assert_eq!(revision, 1);
     assert_eq!(amendment.tracked, Some(tasks::Tracking::Tracked { priority: 8 }));
     assert_eq!(amendment.instructions.as_deref(), Some(b"".as_slice()));
     assert_eq!(
-        decoded(
+        decided(
             b"propose",
             br#"{"action":"amend","task":3,"amendment":{"reason":"x","tracked":{"priority":8}},"reason":"x"}"#
         ),
@@ -451,7 +456,7 @@ fn proposed_amendments_share_controls_but_still_require_a_revision() {
 #[test]
 fn an_effect_proposal_decodes_its_connector_payload_and_rejects_an_unknown_resource() {
     assert_eq!(
-        decoded(b"propose", br#"{"action":"effect","repository":{"forge":1,"repository":2},"resource":{"kind":"repository"},"write":{"kind":"close","number":3},"reason":"x"}"#),
+        decided(b"propose", br#"{"action":"effect","repository":{"forge":1,"repository":2},"resource":{"kind":"repository"},"write":{"kind":"close","number":3},"reason":"x"}"#),
         Ok(engine::Call {
             completion: 2, position: 1,
             tool: engine::Tool::Propose {
@@ -464,7 +469,7 @@ fn an_effect_proposal_decodes_its_connector_payload_and_rejects_an_unknown_resou
             },
         })
     );
-    assert_eq!(decoded(b"propose", br#"{"action":"effect","repository":{"forge":1,"repository":2},"resource":{},"write":{"kind":"close","number":3},"reason":"x"}"#), Err(Problem::Missing));
+    assert_eq!(decided(b"propose", br#"{"action":"effect","repository":{"forge":1,"repository":2},"resource":{},"write":{"kind":"close","number":3},"reason":"x"}"#), Err(Problem::Missing));
 }
 
 fn spend(units: u64) -> run::Spend {
@@ -628,7 +633,7 @@ const REVISION_CALLS: &[RevisionCall] = &[
 #[test]
 fn amend_and_release_calls_name_their_revision() {
     for row in REVISION_CALLS {
-        assert_eq!(decoded(row.name, row.missing), Err(Problem::Missing), "{:?}", row.name);
+        assert_eq!(decided(row.name, row.missing), Err(Problem::Missing), "{:?}", row.name);
         let expected = if row.name == b"amend" {
             engine::Tool::Amend {
                 target: CALL_TASK,
@@ -649,7 +654,7 @@ fn amend_and_release_calls_name_their_revision() {
         } else {
             engine::Tool::Release { target: CALL_TASK, revision: 0, again: row.again }
         };
-        let body = decoded(row.name, row.valid).expect("revision-bearing tool");
+        let body = decided(row.name, row.valid).expect("revision-bearing tool");
         assert_eq!(body.tool, expected, "{:?}", row.name);
     }
 }
@@ -801,7 +806,7 @@ fn not_installed_names_the_forge_refusal() {
 
 #[test]
 fn a_delegate_keeps_its_llm_preference() {
-    let call = decoded(
+    let call = decided(
         b"delegate",
         br#"{"batch":[{
         "executor":{"kind":"agent","charter":1},"spec":{"words":"work"},
@@ -825,7 +830,7 @@ fn a_delegate_keeps_its_llm_preference() {
 
 #[test]
 fn an_amendment_keeps_its_llm_preference() {
-    let call = decoded(
+    let call = decided(
         b"amend",
         br#"{"target":23,"revision":7,"amendment":{
         "reason":"change payer","llm":{"main":{"model":2,"effort":1},"subagents":[{"model":3}],"account":43}
@@ -936,7 +941,7 @@ fn dependency_refusals_without_tasks_are_plain_lines() {
 #[test]
 fn change_decodes_words_and_an_optional_repository() {
     for input in [br#"{"words":"edit README"}"#.as_slice(), br#"{"words":"edit README","repository":"work/hello"}"#] {
-        let call = decoded(b"change", input).expect("change is declared and decoded");
+        let call = decided(b"change", input).expect("change is declared and decoded");
         assert_eq!(call.completion, 2);
         assert_eq!(call.position, 1);
         let engine::Tool::Change { words, repository } = call.tool else { panic!("change") };
@@ -947,24 +952,24 @@ fn change_decodes_words_and_an_optional_repository() {
 
 #[test]
 fn change_refuses_missing_words() {
-    assert_eq!(decoded(b"change", b"{}"), Err(Problem::Missing));
+    assert_eq!(decided(b"change", b"{}"), Err(Problem::Missing));
 }
 
 #[test]
 fn change_refuses_empty_words() {
-    assert_eq!(decoded(b"change", br#"{"words":""}"#), Err(Problem::Range));
+    assert_eq!(decided(b"change", br#"{"words":""}"#), Err(Problem::Range));
 }
 
 #[test]
 fn change_refuses_non_string_words() {
-    assert_eq!(decoded(b"change", br#"{"words":1}"#), Err(Problem::Type));
+    assert_eq!(decided(b"change", br#"{"words":1}"#), Err(Problem::Type));
 }
 
 #[test]
 fn change_refuses_malformed_repository_names() {
     for name in ["", "hello", "/hello", "work/", "work/hello/other"] {
         let input = format!(r#"{{"words":"edit README","repository":"{name}"}}"#);
-        assert_eq!(decoded(b"change", input.as_bytes()), Err(Problem::Range));
+        assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range));
     }
 }
 
@@ -1020,3 +1025,5 @@ fn change_repository_refusals_render_the_three_choices() {
         assert!(rendered.text().len() <= run::HostAnswer::CAPACITY);
     }
 }
+
+mod docs;

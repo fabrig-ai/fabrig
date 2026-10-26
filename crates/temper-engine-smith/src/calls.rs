@@ -7,7 +7,7 @@ use skein_lib::{Duration, List, Wall, bytes};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 
-use crate::{Decoded, Problem, forge, json::Value, nested, notes};
+use crate::{Decoded, Problem, docs, forge, json::Value, nested, notes};
 
 struct Spec {
     name: &'static [u8],
@@ -18,7 +18,7 @@ struct Spec {
 
 const READ_SCHEMA: &[u8] = br#"{"type":"object","properties":{"repository":{"type":"object"},"read":{"type":"object"}},"required":["repository","read"]}"#;
 
-const SPECS: [Spec; 35] = [
+const SPECS: [Spec; 36] = [
     Spec { name: b"read_items", description: b"Read one page of forge items.", schema: READ_SCHEMA, effect: run::HostEffect::Read },
     Spec { name: b"read_item", description: b"Read an issue or pull and its comments.", schema: READ_SCHEMA, effect: run::HostEffect::Read },
     Spec { name: b"read_pull", description: b"Read a pull request.", schema: READ_SCHEMA, effect: run::HostEffect::Read },
@@ -54,6 +54,7 @@ const SPECS: [Spec; 35] = [
     Spec { name: b"propose", description: b"Ask the covering holder to act beyond your authority.", schema: br#"{"type":"object","properties":{"action":{"type":"string","enum":["batch","effect","amend","widen","release"]},"task":{"type":"integer","minimum":1},"revision":{"type":"integer","minimum":0},"batch":{"type":"array","items":{"type":"object"}},"amendment":{"type":"object"},"authority":{"type":"object"},"reason":{"type":"string"},"as_holder":{"type":"boolean"},"repository":{"type":"object"},"resource":{"type":"object"},"write":{"type":"object"}},"required":["action","reason"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"note", description: b"Write a scoped note, or revise one at the revision you recalled.", schema: br#"{"type":"object","properties":{"scope":{"type":"object"},"description":{"type":"string"},"body":{"type":"string"},"references":{"type":"array","items":{"type":"integer","minimum":1}},"name":{"type":"integer","minimum":1},"recalled":{"type":"integer","minimum":1}},"required":["scope","description","body"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"recall", description: b"Recall a note by name or search scoped descriptions.", schema: br#"{"type":"object","properties":{"kind":{"type":"string","enum":["name","search"]},"name":{"type":"integer","minimum":1},"scopes":{"type":"array","items":{"type":"object"}},"query":{"type":"string"},"page":{"type":"integer","minimum":0}},"required":["kind"]}"#, effect: run::HostEffect::Read },
+    Spec { name: b"read_docs", description: br#"Read temper's own documentation: setting it up, its concepts, recipes and limits. {"search": "WORDS"} answers the sections holding every word, a line each, NAME@OFFSET: HEADING: LINE. {"topic": NAME, "from": OFFSET} answers a page of a topic from OFFSET (0 when absent), then next: OFFSET to read on, or end."#, schema: br#"{"type":"object","properties":{"topic":{"type":"string"},"from":{"type":"integer","minimum":0},"search":{"type":"string"}}}"#, effect: run::HostEffect::Read },
 ];
 
 /// Host declarations offered to Smith with exact schemas and write effects.
@@ -81,6 +82,13 @@ pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
 pub fn call(name: run::CallName, tool: &[u8], input: &run::HostInput) -> Result<Decoded, Problem> {
     let value = crate::json::parse(input.bytes())?;
     let tool = match tool {
+        b"read_docs" => {
+            let answer = match docs::read(&value)? {
+                Ok(read) => docs::answer(&temper_docs::TOPICS, &read),
+                Err(answer) => answer,
+            };
+            return Ok(Decoded::Answered(answer));
+        }
         b"read_items"
         | b"read_item"
         | b"read_pull"

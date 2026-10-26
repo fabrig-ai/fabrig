@@ -14,6 +14,7 @@ extern crate alloc;
 
 mod answers;
 mod calls;
+mod docs;
 mod finish;
 mod forge;
 mod json;
@@ -56,6 +57,10 @@ pub enum Decoded {
 /// and its body); the start refuses a smaller answer bound
 /// (protocol/documentation.md, section 5).
 pub const DOC_ANSWER: u32 = 2_048;
+
+/// Smith channel v5's `CallName`: fixed-width activation (u64), completion
+/// (u32), position (u32), with no record prefix or tail.
+pub const CALL_NAME_BYTES: u32 = 16;
 
 /// A host call that cannot be translated into the engine's declared schema.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

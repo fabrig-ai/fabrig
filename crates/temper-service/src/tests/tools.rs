@@ -77,6 +77,60 @@ fn an_unknown_tool_is_answered_an_error_with_no_commit() {
     assert_eq!(service.end(), None);
 }
 #[test]
+fn a_documentation_read_is_answered_at_decode_with_no_commit() {
+    let (mut service, run) = fixtures::claimed_chat();
+    let commits = service.engine.as_mut().expect("engine").domain.deployment().commits;
+    let call = call(run.attempt, b"read_docs", br#"{"search":"WireGuard"}"#);
+    service.engine.as_mut().expect("engine").step(root::Event::Worker(root::WorkerInput::Link {
+        channel: Token::new(7),
+        link: root::Link::Up {
+            parts: root::Parts::none(),
+            up: host::LinkUp::Call {
+                run: Token::new(run.task),
+                attempt: Token::new(run.attempt),
+                call: call.name.clone(),
+                tool: call.tool,
+                input: call.input,
+                writes: false,
+                deadline: call.deadline,
+            },
+        },
+    }));
+    let mut delivered = skein_lib::Queue::with_capacity(32);
+    fixtures::settle_root(&mut service, &mut delivered);
+    let mut answer = None;
+    for _ in 0..delivered.len() {
+        let root::Delivery::Link { down: host::LinkDown::Relayed { call: name, answer: relayed, .. }, .. } =
+            delivered.pop().unwrap()
+        else {
+            continue;
+        };
+        assert_eq!(name, call.name);
+        assert!(answer.replace(relayed).is_none(), "one answer");
+    }
+    let Some(host::Relayed::Answer { error, text }) = answer else { panic!("documentation answer") };
+    assert!(!error);
+    assert!(text.starts_with(b"server@"));
+    assert_eq!(service.engine.as_ref().expect("engine").domain.deployment().commits, commits);
+    assert_eq!(service.end(), None);
+}
+#[test]
+fn the_largest_smith_call_name_fits_the_documentation_allowance() {
+    let name = smith_channel::CallName::new(
+        &smith_channel::CEILINGS,
+        smith_channel::CallNameParts { activation: u64::MAX, completion: u32::MAX, position: u32::MAX },
+    )
+    .unwrap();
+    let mut writer = Writer::new(usize::try_from(temper_engine_smith::CALL_NAME_BYTES).unwrap());
+    name.encode(&mut writer).unwrap();
+    let encoded = writer.finish();
+    assert_eq!(encoded.len(), 16);
+    assert!(encoded.len() <= usize::try_from(temper_engine_smith::CALL_NAME_BYTES).unwrap());
+    let mut reader = skein_lib::Reader::new(&encoded);
+    assert_eq!(smith_channel::CallName::decode(&smith_channel::CEILINGS, &mut reader).unwrap(), name);
+    assert!(reader.is_empty());
+}
+#[test]
 fn a_decided_answer_is_rendered_as_smiths_text() {
     let event = crate::tools::render(TO, &root::CallAnswer::NoteWritten { name: 4, revision: 2 });
     let root::Event::Worker(root::WorkerInput::RenderedHostCall { to, answer }) = event else {
