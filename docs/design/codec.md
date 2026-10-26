@@ -616,6 +616,7 @@ type        = 0x01 u8 | 0x02 u16 | 0x03 u32 | 0x04 u64
             | 0x0b · u32 N · type        list N, then its item
             | 0x0c · type                option, then its value
             | 0x0d · fingerprint         a named declaration
+            | 0x0e · u32 N · held        secret N that says what it holds (held never 0x00)
 held        = 0x00                       nothing said
             | 0x01 · u32 n · family · u32 n · name     holds
             | 0x02 · fingerprint         pieces of a declaration
@@ -626,6 +627,9 @@ held        = 0x00                       nothing said
   family's its declarations', in order.
 - The `version` is the family's, in a `versioned` record only: a family
   with no versioned record has the same fingerprints at every version.
+- A plain `secret N` keeps `0x08`, and one that says what it holds takes
+  `0x0e` with its `held`, so no family's fingerprint moves for the word
+  until it uses it.
 - Each production starts with a byte of its own and ends where its
   grammar says, so two layouts' bytes are equal only when the layouts
   are.

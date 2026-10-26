@@ -635,8 +635,13 @@ never renames or reuses one on its own. An account has:
   goes, since the version leads; a record of the hand-written form, or
   of version 2, is unreadable, and its account signs in again, as
   after any change of a record's form (below), once, before the first
-  release. Each part keeps its bound, so the record's worst case is
-  the generated one's. From the first release skein keeps each
+  release. Its ceilings are generous and fixed, since from the baseline
+  raising one is a new version: each token and the metadata 65,536
+  bytes, the issued client id, the scopes and the subject 4,096, the
+  times nanoseconds of wall time. The owner's `Limits` stay its runtime
+  limits, under those ceilings, refused past one where the owner makes
+  them, and `record_bytes` still bounds the whole: every worst case and
+  figure is the runtime limits', never the schema's ceilings. From the first release skein keeps each
   version's text and its patches (codec.md, section 12), so an owner
   whose store keeps records patches them with the store's own records,
   by skein's patch set, and hands the component records of the current
