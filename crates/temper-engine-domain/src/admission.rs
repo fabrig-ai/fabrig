@@ -9,6 +9,7 @@ use skein_lib::Env;
 /// Step one input if the journal can take its whole route; otherwise hand it
 /// back unchanged. Store answers are always taken: a read load's answer waits
 /// in the root's queue until the journal has room for its decision.
+/// A refused released continuation stays with its owner ahead of later callbacks.
 #[expect(clippy::result_large_err, reason = "the service admission boundary returns the original event by value")]
 pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<(), Event> {
     domain.changed();
@@ -28,9 +29,20 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             | StoreInput::Loaded { .. }
             | StoreInput::Unloaded { .. },
         )
-        | Event::Released(_)
         | Event::Resume) => {
             step(domain, env, event);
+            Ok(())
+        }
+        Event::Released(released) => {
+            let retiring = if let crate::Delivery::ForgeCommitted { .. } = &released.0 {
+                domain.core.stopping() || domain.settling.active()
+            } else {
+                false
+            };
+            if !retiring && !crate::limits::route_takes(domain) {
+                return Err(Event::Released(released));
+            }
+            step(domain, env, Event::Released(released));
             Ok(())
         }
         event @ Event::Worker(WorkerInput::Link { link: Link::Up { .. }, .. }) => {

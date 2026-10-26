@@ -10,6 +10,51 @@ const WATCHER: skein_lib::Token = skein_lib::Token::new(30);
 const SIGN_IN: u64 = 10;
 
 #[test]
+fn a_released_continuation_keeps_its_owner_when_the_journal_is_full() {
+    let (mut domain, env) = root();
+    for turn in 1..=env.limits.journal.commits {
+        let mut decision = crate::decision::Decision::new(&env.limits.journal);
+        decision.write(&env.limits.journal, super::turn(turn, 1)).unwrap();
+        crate::decision::accept_pending(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision)
+            .unwrap();
+    }
+    let mut last = 0;
+    while let Some(crate::decision::JournalOutput::Commit { number, .. }) =
+        crate::commit(&mut domain.journal, &env.limits.journal)
+    {
+        last = number;
+    }
+    assert!(!crate::limits::route_takes(&domain));
+
+    let older = Event::Released(crate::Released(crate::Delivery::Fleet(jig_domain_fleet::Event::TurnKept {
+        run: skein_lib::Token::new(1),
+        attempt: skein_lib::Token::new(1),
+        turn: 1,
+    })));
+    let returned = crate::try_step(&mut domain, &env, older)
+        .expect_err("the owner keeps its older turn callback ahead of a later terminal acknowledgement");
+    let Event::Released(crate::Released(crate::Delivery::Fleet(jig_domain_fleet::Event::TurnKept {
+        run,
+        attempt,
+        turn,
+    }))) = &returned
+    else {
+        panic!("the same continuation returns: {returned:?}");
+    };
+    assert_eq!((*run, *attempt, *turn), (skein_lib::Token::new(1), skein_lib::Token::new(1), 1));
+    assert!(domain.work.is_empty(), "a refusal changes no child");
+
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number: last, fill: 0 })).unwrap();
+    crate::try_step(&mut domain, &env, returned).unwrap();
+    let younger = Event::Released(crate::Released(crate::Delivery::Fleet(jig_domain_fleet::Event::Acknowledge {
+        run: skein_lib::Token::new(1),
+        attempt: skein_lib::Token::new(1),
+    })));
+    crate::try_step(&mut domain, &env, younger).unwrap();
+    assert!(!domain.journal.stopped());
+}
+
+#[test]
 fn every_public_mutating_entry_advances_the_root_revision() {
     let (mut domain, env) = root();
     let mut out = Queue::with_capacity(crate::max_out(&env.limits));
