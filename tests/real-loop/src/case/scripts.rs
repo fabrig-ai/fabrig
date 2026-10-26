@@ -921,10 +921,15 @@ pub fn step_5_4(forge: SocketAddr) -> Box<[Script]> {
 }
 
 /// B's hold can wake the director before the person sends the new direction.
-/// Follow the delivered input, so that notice cannot consume the amendment or report.
+/// Follow delivered input so notices cannot consume the amendment or report.
+/// A's subtree also installs its current-head CI topics; those wakes must wait
+/// for the amendment instead of advancing its counted cancellation script.
 #[must_use]
 pub fn step_5_4_rules() -> Box<[Box<[Rule]>]> {
-    use super::{DIRECTION_MESSAGE, DIRECTION_REVISION, OVERLAP_OWNER, STORY_OWNER, STORY_OWNER_REPORT};
+    use super::{
+        DEFERRED_NOTE_NUMBER, DIRECTION_BRIEF, DIRECTION_MESSAGE, DIRECTION_REVISION, OVERLAP_OWNER, STORY_CHANGE,
+        STORY_OWNER, STORY_OWNER_REPORT, X3,
+    };
     let director = [
         (STORY_OWNER_REPORT, 2),
         (CROSSED, 2),
@@ -936,9 +941,23 @@ pub fn step_5_4_rules() -> Box<[Box<[Rule]>]> {
         ("", 3),
     ]
     .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
+    let owner = [
+        (&format!("Note {DEFERRED_NOTE_NUMBER} revision 1: ") as &str, 8),
+        (&format!("Result from task {STORY_CHANGE}:"), 7),
+        (&format!("Result from task {X3}:"), 5),
+        (&format!("Note {DEFERRED_NOTE_NUMBER} revision 1 written"), 4),
+        ("Done", 3),
+        (DIRECTION_BRIEF, 2),
+        (&format!("{DELEGATED}{STORY_CHANGE}"), 6),
+        (&format!("{DELEGATED}{X3}"), 1),
+        ("forge ci ", 1),
+        (BEGIN, 0),
+        ("", 1),
+    ]
+    .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
     Box::new([
         Box::new(director),
-        Box::new([]),
+        Box::new(owner),
         Box::new([]),
         Box::new([]),
         Box::new([]),

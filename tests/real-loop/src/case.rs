@@ -698,11 +698,12 @@ pub const STORY_CODER: u64 = 10;
 pub const STORY_REVIEWER: u64 = 11;
 pub const DIRECTION_REVISION: u64 = 1;
 pub const OVERLAP_HOLD_REVISION: u64 = 1;
-pub const DEFERRED_NOTE_NUMBER: u64 = 7;
-pub const DIRECTION_PERSON_MESSAGE: u64 = 5;
-pub const DIRECTION_AMENDMENT_MESSAGE: u64 = 6;
-pub const OVERLAP_LANDING_MESSAGE: u64 = 13;
-pub const OVERLAP_SUBSCRIPTION: u64 = 3;
+// Current-head CI subscriptions and news also use fresh message identities.
+pub const DEFERRED_NOTE_NUMBER: u64 = 9;
+pub const DIRECTION_PERSON_MESSAGE: u64 = 7;
+pub const DIRECTION_AMENDMENT_MESSAGE: u64 = 8;
+pub const OVERLAP_LANDING_MESSAGE: u64 = 18;
+pub const OVERLAP_SUBSCRIPTION: u64 = 5;
 pub const OVERLAP_RECHECK_ATTEMPT: u64 = 3;
 pub const DIRECTION_PERSON: &str = "@case_direction Delegate A and B as owners on kit and wait for my direction.";
 pub const DIRECTION_MESSAGE: &str = "The end-to-end story first; cut it to one path; placeholders are fine. Stop x3. B's files are A's where the story needs them.";

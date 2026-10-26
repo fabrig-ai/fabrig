@@ -2865,6 +2865,62 @@ fn a_tracked_goals_changes_install_landing_and_current_head_ci_topics_without_ag
     );
 }
 
+#[test]
+fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
+    for (path, class, wakes) in
+        [(b"file".as_slice(), tasks::NewsClass::Wakes, true), (b"other".as_slice(), tasks::NewsClass::Kept, false)]
+    {
+        let (mut world, goal, producer, _) = change_world_with_policy(true, 1000, None, false, false, false, true);
+        let owner = live_task(&world, goal.task);
+        assert_ne!(owner.root, goal.task, "the tracked goal is delegated");
+        assert!(matches!(owner.requester, tasks::Party::Task(_)));
+        let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
+            panic!("producer belongs to its planned change")
+        };
+        assert_eq!(live_task(&world, change).requester, tasks::Party::Task(goal.task));
+        assert!(live_task(&world, change).spec.parameters.iter().any(
+            |parameter| matches!(parameter, tasks::Parameter::Bytes { name: 6, value } if value.as_ref() == b"file")
+        ));
+        assert!(
+            world.store.rows.values().all(|stored| !matches!(stored,
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
+                if row.task == change && row.pull.is_some()))),
+            "change has no produced pull"
+        );
+        let event =
+            world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+        world.send(event);
+        for _ in 0..30 {
+            world.tick();
+        }
+        let assigned = world.assigned.len();
+        assert!(fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", path, b"changed", 1).is_ok());
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: forge_world::REPO,
+                change: skein_forge::api::Change::Branch(Box::from(&b"main"[..])),
+                key: None,
+            },
+        })));
+        for _ in 0..200 {
+            world.tick();
+        }
+        assert!(
+            live_task(&world, goal.task)
+                .inbox
+                .iter()
+                .any(|word| matches!(word.kind, tasks::MessageKind::News { class: actual, .. } if actual == class)),
+            "landing classification for {path:?}: {:?}",
+            live_task(&world, goal.task).inbox
+        );
+        assert_eq!(
+            world.assigned[assigned..].iter().any(|run| run.task == goal.task),
+            wakes,
+            "only an overlapping landing makes a new goal run due: {path:?}"
+        );
+    }
+}
+
 /// The task's current specification revision, as its durable row shows it.
 fn spec_revision(world: &World, task: u64) -> u64 {
     match world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)))) {

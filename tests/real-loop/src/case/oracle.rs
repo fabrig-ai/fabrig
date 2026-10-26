@@ -4191,7 +4191,7 @@ fn pull_digest(records: &[skein_fake_forge_domain::Observation]) -> Vec<Pull> {
 const DIRECTION_AMENDED: Promise = Promise::Must("amendment (exact)");
 const DIRECTION_CANCELLED: Promise = Promise::Must("cancel, with work kept under its closed pull");
 const DIRECTION_OVERLAP: Promise = Promise::Must("grants by convention, with footprints as detection");
-const DIRECTION_NEWS: Promise = Promise::Add("B's overlap news is kept for its release");
+const DIRECTION_NEWS: Promise = Promise::Add("B's overlap news wakes it once released");
 
 #[must_use]
 pub fn step_5_4(observed: &Observed) -> Vec<Miss> {
@@ -4400,7 +4400,7 @@ fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
     let news: Vec<_> = pending_rows
         .iter()
         .filter(|row| {
-            text(row, "/line/heard/kind/news/class") == "kept"
+            text(row, "/line/heard/kind/news/class") == "wakes"
                 && text(row, "/line/heard/words").starts_with("forge landing ")
         })
         .collect();
@@ -4454,7 +4454,7 @@ fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
                     && plan_deliveries(observed, Agent::OverlapOwner, words) == 1
             }),
         DIRECTION_NEWS,
-        "a1's overlapping landing must wait in B's held inbox and be told to B exactly once after Release",
+        "a1's overlapping landing must wake B once released, waiting in its held inbox and being told exactly once",
     );
     step_check(
         misses,
@@ -4513,12 +4513,16 @@ fn direction_attempts(observed: &Observed, misses: &mut Vec<Miss>) {
     use super::{DIRECTION, OVERLAP_OWNER, OVERLAP_RECHECK_ATTEMPT, PLANNED, STORY_CHANGE, STORY_OWNER, X3, X3_CODER};
     let b_reads = direction_pages(observed, Read::DirectionBEnded, Read::DirectionBFirst);
     let director_reads = direction_pages(observed, Read::DirectionEnded, Read::DirectionFirst);
+    let mut owner_reads = vec![Read::StoryOwnerEnded, Read::StoryOwnerEarlier, Read::StoryOwnerFirst];
+    if pause_activity(observed, Read::StoryOwnerFirst)["before"] != Value::Null {
+        owner_reads.push(Read::StoryOwnerInitial);
+    }
     for (task, reads, minimum) in [
         (X3, &[Read::X3Ended][..], 0),
         (X3_CODER, &[Read::X3Produced][..], 1),
         (PLANNED, &[Read::PlannedEnded][..], 0),
         (STORY_CHANGE, &[Read::StoryLanded][..], 0),
-        (STORY_OWNER, &[Read::StoryOwnerEnded, Read::StoryOwnerEarlier, Read::StoryOwnerFirst][..], 1),
+        (STORY_OWNER, owner_reads.as_slice(), 1),
         (OVERLAP_OWNER, b_reads.as_slice(), 2),
         (DIRECTION, director_reads.as_slice(), 1),
     ] {
@@ -4654,7 +4658,7 @@ mod direction_tests {
             json!({"run_began":{"attempt":1}}),
             json!({"run_ended":{"attempt":1,"end":"parked","spent":1}}),
             json!({"decided":{"revision":OVERLAP_HOLD_REVISION}}),
-            json!({"heard":{"number":OVERLAP_LANDING_MESSAGE,"from":{"task":OVERLAP_OWNER},"hits":1,"kind":{"news":{"class":"kept","subscription":OVERLAP_SUBSCRIPTION}},"words":news}}),
+            json!({"heard":{"number":OVERLAP_LANDING_MESSAGE,"from":{"task":OVERLAP_OWNER},"hits":1,"kind":{"news":{"class":"wakes","subscription":OVERLAP_SUBSCRIPTION}},"words":news}}),
             json!({"decided":{"revision":OVERLAP_HOLD_REVISION}}),
             json!({"run_began":{"attempt":2}}),
             json!({"run_ended":{"attempt":2,"end":"finished","spent":1}}),

@@ -1002,6 +1002,21 @@ struct GoalMembers {
     paths: Box<[Box<[u8]>]>,
 }
 
+/// Whether `task` is in `goal`'s subtree below it: its requesters, task by
+/// task, reach `goal` (forge.md, 7.2).
+fn in_subtree(domain: &Domain, task: &tasks::TaskRecord, goal: u64) -> bool {
+    let mut current = task;
+    for _ in 0..task.depth {
+        let tasks::Party::Task(number) = current.requester else { return false };
+        if number == goal {
+            return true;
+        }
+        let Some(parent) = domain.core.tasks.task(number) else { return false };
+        current = parent;
+    }
+    false
+}
+
 fn goal_members(
     domain: &Domain,
     env: &Env<Limits>,
@@ -1023,7 +1038,7 @@ fn goal_members(
     }
     for view in domain.core.tasks.view_tasks() {
         let Some(task) = domain.core.tasks.task(view.number) else { continue };
-        if task.root != goal || task.number == goal {
+        if !in_subtree(domain, task, goal) {
             continue;
         }
         match task.executor {

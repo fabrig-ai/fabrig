@@ -177,7 +177,7 @@ impl World {
                 limits.tasks.project_tasks = 12;
                 limits.tasks.delegates = 4;
                 limits.tasks.tree_tasks = 12;
-                limits.tasks.depth = 3;
+                limits.tasks.depth = 4;
                 limits.tasks.parameters = 8;
                 limits.tasks.spec_bytes = 512;
                 limits.tasks.executor_kinds = 2;
@@ -298,7 +298,7 @@ impl World {
                     rules.ceiling.delegation.kinds =
                         Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(2)]);
                     rules.ceiling.delegation.tasks = 12;
-                    rules.ceiling.delegation.depth = 3;
+                    rules.ceiling.delegation.depth = 4;
                 }
                 let mut policy = config.core.seed_projects[0].policy.policy.clone();
                 policy.ceiling.tools = authority::Tools(1023);
@@ -909,7 +909,7 @@ pub fn change_world_in(
         walking::goal_from(
             world.chat(1, b"make the fix"),
             people::TaskExecutor::Agent { charter: 1 },
-            jig_core_world::fixtures::Goal { budget: 100, priority: 3, deadline: None },
+            jig_core_world::fixtures::Goal { budget: 200, priority: 3, deadline: None },
         )
     } else {
         world.chat(1, &b"make the fix"[..])
@@ -923,6 +923,16 @@ pub fn change_world_in(
     }));
     world.until(Until::Assigned);
     let chat = world.assigned[0].clone();
+    // Tracked stories put the owner below another tracked task, as in the
+    // director's chat. Both goals must gather the change in their subtree.
+    let chat = if tracked { delegated_goal(&mut world, &chat) } else { chat };
+    let producer_index = world.assigned.len();
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(owner)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(chat.task))))
+    else {
+        panic!("change owner remains live")
+    };
+    let root = owner.root;
     let grant = tasks::Grant {
         connector: 0,
         kind: 2,
@@ -982,7 +992,7 @@ pub fn change_world_in(
                                 Box::from(&b"repo"[..]),
                                 Box::from(&b"branch"[..]),
                                 Box::from(&b"temper"[..]),
-                                chat.task.to_string().into_bytes().into_boxed_slice(),
+                                root.to_string().into_bytes().into_boxed_slice(),
                             ]),
                             last: tasks::Last::Open(Box::from(&b"c"[..])),
                         },
@@ -996,12 +1006,18 @@ pub fn change_world_in(
     );
     world.send(event);
     world.until(Until::Delegated);
-    world.until(Until::SecondAssignment);
-    let producer = world.assigned[1].clone();
+    for _ in 0..200 {
+        if world.assigned.len() > producer_index {
+            break;
+        }
+        world.tick();
+    }
+    let producer = world.assigned.get(producer_index).expect("change producer assigned").clone();
     assert_eq!(producer.workspace.repositories[0].landing, None, "initial producer starts from Base");
     let change = world
         .answers
         .iter()
+        .rev()
         .find_map(|answer| match answer {
             temper_engine_domain::CallAnswer::Delegated(numbers) => numbers.first().map(|made| made.task),
             _ => None,
@@ -1013,7 +1029,7 @@ pub fn change_world_in(
                 if task.number == producer.task && task.authority.grants.iter().any(|grant|
                     grant.connector == 0 && grant.kind == 2
                         && grant.pattern.segments.last().map(AsRef::as_ref)
-                            == Some(chat.task.to_string().as_bytes())
+                            == Some(root.to_string().as_bytes())
                         && matches!(&grant.pattern.last, tasks::Last::Exact(prefix)
                             if prefix.as_ref() == format!("c{change}").as_bytes()))
         )),
@@ -1021,6 +1037,45 @@ pub fn change_world_in(
     );
     let branch = producer.workspace.repositories[0].push.clone().expect("writable change branch");
     (world, chat, producer, branch)
+}
+
+fn delegated_goal(world: &mut World, parent: &engine::Assignment) -> engine::Assignment {
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(parent.task))))
+    else {
+        panic!("tracked parent remains live")
+    };
+    let mut authority = row.authority.clone();
+    authority.budget.spend = 100;
+    authority.delegation.depth = 2;
+    authority.delegation.tasks = 8;
+    let event = world.protocol.call(
+        Token::new(7),
+        parent.task,
+        parent.attempt,
+        90,
+        engine::Call {
+            completion: 1,
+            position: 1,
+            tool: engine::Tool::Delegate {
+                batch: Box::new([engine::Delegate {
+                    tracked: Some(3),
+                    authority,
+                    ..temper_engine_domain_world::fixtures::report_delegate(b"delegated goal", Box::new([]))
+                }]),
+            },
+        },
+    );
+    world.send(event);
+    world.until(Until::SecondAssignment);
+    let goal = world.assigned[1].clone();
+    let event =
+        world.protocol.answer(Token::new(7), parent.task, parent.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    for _ in 0..20 {
+        world.tick();
+    }
+    goal
 }
 
 #[derive(Clone, Copy, Default)]

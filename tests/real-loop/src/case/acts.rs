@@ -86,6 +86,7 @@ pub enum Read {
     DirectionEnded,
     StoryOwnerEarlier,
     StoryOwnerFirst,
+    StoryOwnerInitial,
     DirectionNoteWritten,
     DirectionFirst,
     BatchOneWriting,
@@ -732,6 +733,8 @@ const DIRECTION_B_ENDED: usize = 30;
 const STORY_OWNER_ENDED: usize = 34;
 const DIRECTION_ENDED: usize = 36;
 const STORY_OWNER_EARLIER: usize = 37;
+const STORY_OWNER_FIRST: usize = 38;
+const STORY_OWNER_INITIAL: usize = 40;
 pub const READS_5_4: &[(Read, usize)] = &[
     (Read::X3Open, 7),
     (Read::X3Produced, 8),
@@ -746,8 +749,9 @@ pub const READS_5_4: &[(Read, usize)] = &[
     (Read::StoryOwnerEnded, STORY_OWNER_ENDED),
     (Read::DirectionEnded, DIRECTION_ENDED),
     (Read::StoryOwnerEarlier, STORY_OWNER_EARLIER),
-    (Read::StoryOwnerFirst, 38),
+    (Read::StoryOwnerFirst, STORY_OWNER_FIRST),
     (Read::DirectionFirst, 39),
+    (Read::StoryOwnerInitial, STORY_OWNER_INITIAL),
 ];
 #[must_use]
 pub fn step_5_4() -> Vec<calls::Step> {
@@ -852,6 +856,11 @@ pub fn step_5_4() -> Vec<calls::Step> {
         // B's hold can give the director an extra parked run before the
         // person's direction. Keep that run and the initial delegation too.
         call(D1, argv!["activity", number(DIRECTION), "--before", calls::activity_before(DIRECTION_ENDED), "--json"]),
+        // A's additional current-head CI wake adds an earlier parked run.
+        call(
+            D1,
+            argv!["activity", number(STORY_OWNER), "--before", calls::activity_before(STORY_OWNER_FIRST), "--json"],
+        ),
     ]
 }
 
