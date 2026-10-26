@@ -47,7 +47,7 @@ pub struct Topic {
 
 /// Walks, concepts, recipes, limits; each kind by name.
 #[expect(clippy::disallowed_macros, reason = "topics compile their single Markdown source as static data")]
-pub static TOPICS: [Topic; 4] = [
+pub static TOPICS: [Topic; 6] = [
     Topic {
         name: "box",
         kind: Kind::Walk,
@@ -75,6 +75,20 @@ pub static TOPICS: [Topic; 4] = [
         title: "Run temper on a server",
         summary: "Run temper as a long-lived deployment on a server, behind a TLS proxy, with Google sign-in, an owned Forgejo and its workers on another host.",
         text: include_str!("../../../docs/guide/server.md"),
+    },
+    Topic {
+        name: "budgets",
+        kind: Kind::Concept,
+        title: "Budgets",
+        summary: "How temper counts what work spends, where a task's budget comes from, what happens when it runs out, and what you can do then.",
+        text: include_str!("../../../docs/guide/budgets.md"),
+    },
+    Topic {
+        name: "tasks",
+        kind: Kind::Concept,
+        title: "Tasks, goals and chats",
+        summary: "What temper's work is made of, tasks with their delegates, goals and chats, and how you follow, answer, steer and stop them.",
+        text: include_str!("../../../docs/guide/tasks.md"),
     },
 ];
 
