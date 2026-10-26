@@ -386,8 +386,13 @@ impl Host for ServiceHost {
             }
             temper_service::iterate(service, now, wall);
             while let Some(note) = service.listening().pop() {
-                if let temper_service::Note::Listening { listener: temper_service::Listening::Workers, addr } = note {
-                    self.workers_address = Some(addr);
+                if let temper_service::Note::Listening { listener, addr } = note {
+                    match listener {
+                        temper_service::Listening::Workers => self.workers_address = Some(addr),
+                        // The durable mark can leave the workers listening before webhooks.
+                        temper_service::Listening::Webhooks => self.hooks = Some(addr),
+                        temper_service::Listening::Clients => {}
+                    }
                 }
                 self.linked += usize::from(matches!(note, temper_service::Note::Linked { .. }));
                 self.notes.push(note);
@@ -403,7 +408,6 @@ impl Host for ServiceHost {
                 self.link.push(b'\n');
                 fixtures::private(&self.path.join("link"), &self.link).expect("private printed link");
             }
-            self.hooks = self.hook_wire.address(&self.link);
             if service.is_empty() {
                 self.forge = None;
             }
