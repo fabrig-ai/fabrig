@@ -2436,6 +2436,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-journeys"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+ "skein-ui",
+ "skein-ui-web",
+]
+
+[[package]]
 name = "temper-client-protocol-wire"
 version = "0.0.0"
 dependencies = [
