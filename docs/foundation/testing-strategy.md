@@ -487,9 +487,9 @@ Raising a budget is an explicit decision, not a fix.
 
 **A test is a process.** nextest runs each test in a process of its own,
 which costs some milliseconds before the test checks anything, more for
-a large binary. The gate, and every command the machine's queue runs,
+a large binary. The gate
 starts nextest without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`, set by
-each repository's `scripts/check.sh` and by `heavy`): nextest otherwise
+each repository's `scripts/check.sh`): nextest otherwise
 starts each test through a process of its own first, which doubles that
 cost and guards only a terminal's job control, which a gate never uses. So cases of one behaviour that each cost less than that
 (a golden value per type, a refusal per limit, a check per source file)
@@ -515,9 +515,8 @@ nothing the tests check, and it costs what it does, not ten times that.
 **A test reads its paths when it runs.** It finds its package, its
 workspace, its package's binaries and the target's scratch space through
 `skein_scratch::paths`, which reads what cargo and nextest set when a test
-runs, never with `env!`: a path compiled in names the worktree, and the
-build cache, which keys every input, then shares no test executable
-between worktrees or machines. A library that other packages' tests call
+runs, never with `env!`: a path compiled in names the worktree and
+prevents sharing a test executable between worktrees or machines. A library that other packages' tests call
 finds its files from the workspace's root, since the running package is
 theirs. A library that another repository's tests use keeps its
 compile-time path: at run time it could not find its own checkout, and
@@ -532,10 +531,10 @@ encoded again. The cause is found with a profile and fixed where it
 is. Build settings never stand in for that fix: test builds stay
 unoptimized, dependencies included, the tools above aside. An optimized
 copy of skein or smith beside the gate's would also be built again at
-each repin and kept in the build cache. A per-crate override
+each dependency update. A per-crate override
 (`[profile.dev.package.<crate>]`) is allowed for one hot leaf crate
-alone: a profile must show a cost no test can avoid, and the user, or
-the director for them, signs it off; a comment beside the override
+alone: a profile must show a cost no test can avoid, and the user
+signs it off; a comment beside the override
 cites both. Dependencies carry no debug information in dev and test
 builds (`[profile.dev.package."*"]`, the user, 10-25): that halves the
 test executables and changes no test's speed or result, and only a

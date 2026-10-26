@@ -1153,8 +1153,8 @@ masking and refusal of leaked secrets are section 7's.
   suite, which refuses failed facts and unexpected unchecked facts. Required
   signatures remain unchecked because their enforcement is unbuilt in the fake.
 - **github.com** (`--live <directory>`) is opt-in. It runs from the
-  owner's session alone, and only with the director's word. It is never
-  run by a suite, a gate or an implementer, and never from CI.
+  user's session alone, and only on the user's word. It is never
+  run by a suite or a gate, and never from CI.
 - **A fact that holds on github.com and fails on the fake** is a finding
   for the fake. One that fails on github.com is a finding for the
   dialect, and its pin moves only after it is understood (forge-github.md,

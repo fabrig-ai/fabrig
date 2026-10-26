@@ -76,7 +76,7 @@ What is still open is in section 11.
   Detection is proven with the fault on, the correction with the fault
   off, under two keys (9.4).
 - **Bounded, never by default:** an experiment names a cost class, whose
-  values are budgets decided as agents' `roles/owners.md` (3) says and kept in the
+  values are budgets decided by the user and kept in the
   lab's settings; a run without them is refused. Actions are bounded as
   they start; tokens are observed as the host reports them, so a drive
   may overshoot by a turn, recorded. Each run records what it used,
@@ -296,7 +296,7 @@ named by its digest.
   - **Refused for the owner:** a `live.json` without the run's start, a
     directory with neither file, or a unit the user manager can't answer for.
 - **The disk floor:** a run is refused while the lab's file system has
-  less free space than the machine's floor (`owners.md`, 4.5).
+  less free space than the machine's floor.
 
 ### 3.3 Retention and pruning
 
@@ -1198,7 +1198,7 @@ evidence for the owner, not failures.
   `triage_seconds` and `triage_tokens`; each a positive integer.
   The class the experiment names is the one its runs are held to; a
   missing class or value refuses the run (4.7): there is no default.
-  They are budgets and timeouts, decided as `owners.md` (3) says, kept
+  They are budgets and timeouts, decided by the user, kept
   in the lab's settings and named in the product's binding; never the
   runner's, and no number of theirs is in this document.
 - **Tuned, not keyed.** The key holds the class's name (2.3); each run
@@ -1532,10 +1532,8 @@ candidate ─filed─> open ─taken─> taken ─fixed─> fixed ─rechecked�
   or of the corrected experiment. Elsewhere (a subject made before the
   fix, the uncorrected experiment) it is an `occurred`, and the finding
   stays closed; for `lab`, the owner judges.
-- **Fixes land as any change does** (`owners.md`, 4.4). The lab never
-  writes a product's repository.
-- **Findings are the lab's files,** under its directory, reported by the
-  lab's owner as `owners.md` (5) routes them. The lab writes no issue on
+- **The lab never writes a product's repository.**
+- **Findings are the lab's files,** under its directory. The lab writes no issue on
   a forge: a
   lab application that holds findings as its state may project them as
   issues, never reading them back.
@@ -1679,8 +1677,7 @@ root:
   Codex's sandbox with no model, against stand-in programs and a
   scripted host in Codex's place that makes actions from a script; its
   test support, in `tests/support/`. It runs outside the gate, in the
-  after-landing lane (paused since 10-24, on the user's word: agents'
-  `roles/owners.md`, 4.5). The stand-ins: one reports its port, one panics,
+  process tier (paused since 10-24, on the user's word). The stand-ins: one reports its port, one panics,
   one detaches a child, one ignores `SIGTERM`, one grows past its bound,
   one fails by its seed's parity. It shows:
   - ready lines feeding a dependent; an action's awaited line, printed
@@ -1706,8 +1703,6 @@ root:
   - the capture on real Chromium (lab-browser.md, section 6), which
     needs the built browser program and Chromium, and fails, never
     skips, without them.
-- **Wiring** the two commands into the gate and the after-landing lane
-  is the kit's, by its owner, not the runner's.
 
 ### 10.4 Pure decisions and the host
 

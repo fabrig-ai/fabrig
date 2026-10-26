@@ -1113,7 +1113,7 @@ against the two kept texts its versions name.
   - each site's refusals.
 - **Pieces are not opened:** a `pieces` field's items are copied, so
   pieces of a type whose conversion is not a copy are refused
-  (`Pieces`). Opening them is jig's mission's, which patches nested
+  (`Pieces`). Opening them is jig's responsibility, for nested
   values (section 13).
 - **An identity plan** is a kept version planned to itself: every
   declaration its own, nothing written, a versioned record's version
@@ -1535,7 +1535,7 @@ Step tests, in skein-lib and skein-codec, and the story in
 
 - **One command keeps a crate's patches,** `skein-codegen patch
   <crate>`, ordinary Rust in skein-codegen's `patch` module, which each
-  repository may alias (`cargo xtask patch`, in its own mission). It
+  repository may alias (`cargo xtask patch`, when needed). It
   diffs each family's current text against its latest landed kept text
   (section 10), and per family refreshes the kept text, keeps renames
   waiting, or writes the branch's patch: its lines, the values it asks,
@@ -1741,8 +1741,7 @@ text at version `c`:
   `patches/mod.rs`, so the second's rebase on main stops on their
   conflict; a change to a landed file that rebases cleanly fails the
   check.
-- **The author rebases on main,** by hand or by continuing the rebase
-  `land` stopped, and resolves: the branch's side of the files the
+- **The author rebases on main,** and resolves: the branch's side of the files the
   command owns (`git checkout --theirs -- <crate>/patches
   <crate>/schema/kept`), the current schemas merged as any conflict, a
   family both branches moved taking the version after the landed one;
@@ -1884,7 +1883,7 @@ world, no cargo inside a test.
   one large record keeps it at that size until the patcher goes.
 
 - **Upstreams' levels:** the command writes a patch's `after` as its
-  author gives it (12.3); jig's mission, which orders patches across
+  author gives it (12.3); jig, which orders patches across
   owners, reads them from the pins.
 - **Proposals to a fixpoint:** the command runs the diff in rounds to
   propose renames a level of references down (12.2); the diff itself
@@ -1892,8 +1891,8 @@ world, no cargo inside a test.
   them all in one pass.
 - **Pieces of a converted type:** a patch whose conversion of a
   `pieces` field's items is not a copy, or an identity plan whose
-  pieces reach a held field, is refused when planned (11.3). jig's
-  mission, which patches values nested across families, opens them:
+  pieces reach a held field, is refused when planned (11.3). jig,
+  which patches values nested across families, opens them:
   each piece converted as its type, its length back-patched.
 - **Carried parts that stop:** a written function's `carry` converts in
   place, so a part with a site or a held field in reach is refused
@@ -1907,8 +1906,8 @@ world, no cargo inside a test.
   patch's text, should authors write the same function often (11.2).
 - **A held type renamed in its own family** is a `retype` in its
   holder's diff, written: the holder's diff reads its own family's two
-  texts alone, so it cannot see the held family's renames. jig's
-  mission, which patches held fields across families, gives the diff
+  texts alone, so it cannot see the held family's renames. jig,
+  which patches held fields across families, gives the diff
   those renames.
 - **Composing patches:** a record k versions behind is patched in k
   passes; plans may compose later, behind the same interface, and so

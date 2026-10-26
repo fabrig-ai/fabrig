@@ -53,12 +53,8 @@ follows, and the tools of its development process.
   services, and how a service is built on skein.
 - [`docs/design/STATUS.md`](docs/design/STATUS.md): how far the code is
   from the design.
-- agents' `roles/owners.md`: how work goes from a draft to `main`,
-  here and downstream; `roles/director.md`: the director, who runs the
-  owners.
 
-Before changing code, read [`AGENTS.md`](AGENTS.md). `main` moves only
-through `land`, which runs the gate, `scripts/check.sh`.
+Before changing code, read [`AGENTS.md`](AGENTS.md).
 
 ## The family
 

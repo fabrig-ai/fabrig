@@ -890,7 +890,7 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
 
 - **In the browser suite,** `--profile browser`, which
   `scripts/browser.sh` runs after it builds the example's bundle, a slow
-  tier outside the gate (agents' `docs/design/landing-flow.md`, 4): the
+  tier outside the gate: the
   profile takes the binaries of
   `tests/ui-web` named `browser_*` beside the browser kit's own tests
   against Chromium, and its global timeout, four minutes (two minutes before
