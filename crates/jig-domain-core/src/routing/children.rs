@@ -257,7 +257,9 @@ pub(super) fn tag_fleet(
                         break;
                     }
                 }
-                let end = if never_reported && proof.turn.is_none() && !committed_call {
+                // engine.md, 6: crossed claims on remote workers end lost even
+                // without work. In-process claims settle through NotStarted.
+                let end = if never_reported && !proof.crossed && proof.turn.is_none() && !committed_call {
                     tasks::End::Refused
                 } else {
                     tasks::End::Failed(tasks::Class::Lost)

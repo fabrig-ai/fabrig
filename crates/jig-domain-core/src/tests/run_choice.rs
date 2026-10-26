@@ -956,6 +956,40 @@ fn claim_open(core: &mut Core, limits: &Limits, attempt: u64) {
     core.proofs.insert(OPEN_TASK, proof).unwrap();
 }
 
+#[test]
+fn a_crossed_unreported_claim_is_lost_even_before_its_first_turn() {
+    let (mut core, limits) = ready(false);
+    claim_open(&mut core, &limits, OPEN_ATTEMPT);
+    core.proofs.get_mut(&OPEN_TASK).unwrap().crossed = true;
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    core.adopt(&env, OPEN_TASK, OPEN_ATTEMPT, 0);
+    let cross = core.adopted.pop().unwrap();
+    drop(step(&mut core, &env, Event::Fleet(cross)));
+    env.now = env.now.saturating_add(limits.fleet.grace);
+    env.wall = Wall::from_nanos(limits.fleet.grace.as_nanos());
+    drop(fire(&mut core, &env, Timer::Fleet));
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries.lost, 1);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().refusals, 0);
+    assert_eq!(
+        core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end,
+        tasks::End::Failed(tasks::Class::Lost)
+    );
+}
+
+#[test]
+fn crossed_worker_claims_still_count_toward_restart_admission() {
+    for (room, admitted) in [(0, false), (1, true)] {
+        let (mut core, limits) = ready(false);
+        claim_open(&mut core, &limits, OPEN_ATTEMPT);
+        core.proofs.get_mut(&OPEN_TASK).unwrap().crossed = true;
+        core.adopt(&Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, OPEN_TASK, OPEN_ATTEMPT, 0);
+        core.restart = restart::Restart::Waiting(RestartStep::AdoptRuns);
+        // One restored worker claim needs one recovery slot, crossed or not.
+        core.restart_attempts = room;
+        assert_eq!(core.restart_admit_claims(), admitted);
+    }
+}
+
 fn grants_answer(attempt: u64, refused: &[u64]) -> Event {
     Event::AnswerPayload {
         grants_refused: true,
