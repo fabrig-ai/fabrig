@@ -1234,9 +1234,10 @@ made by the forge connector from what it keeps of the change
   when null; `GIT/OWNER/NAME/pulls/N` on Forgejo, GIT its `git` base,
   since Forgejo serves its pages where it serves its repositories and
   its `web` is always null (`../protocol/configuration.md`, section 3).
-  A forge with neither gives no address, and the page offers no "View
-  on forge" (`README.md`, 5.10); so does an address longer than its
-  bound (`README.md`, 4.6), which never fails the delivery.
+  A fake forge serves no pages and gives none; nor does a forge with
+  neither address. The page then offers no "View on forge"
+  (`README.md`, 5.10); so does an address longer than its bound
+  (`README.md`, 4.6), which never fails the delivery.
 - **Not in it,** since the connector's records do not keep them: the
   requirements at its head, judged only at the merge
   (`../domain/forge.md`, 8.7); its heads in order; each CI context and

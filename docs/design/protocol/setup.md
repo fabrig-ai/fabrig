@@ -884,7 +884,9 @@ its own for any other host.
   then the starter workflow, below. Then the forge connects, as before
   (6.5). Each step finds what is already there and leaves it, so a set
   up asked again finishes what the last one left. The engine's limits
-  for it are 1 file of at most 4 KiB (skein's `forge-setup.md`, 4.1).
+  for it are 2 files of at most 4 KiB each, the starter workflow and,
+  for the playground's copy, its `src/main.rs` (skein's
+  `forge-setup.md`, 4.1).
 - **The starter workflow,** `.forgejo/workflows/ci.yml`, its commit
   the bot's, run on a push to `main` and on each pull, on the owned
   runner's label, `temper-host`. At a managed connect it uses `first.label`
@@ -910,13 +912,16 @@ its own for any other host.
 - **The playground's copy,** asked with `SetUp`'s `playground`
   (`../client/tools.md`, 5.5, `forge-setup --playground`): the first
   repository is `playground/widget`, its organization and name fixed,
-  made with the playground's two files (8.4: `README.md` and
-  `src/main.rs`, `temper-fake`'s constants, one source for both) beside
-  the starter workflow, in one Create, so that the playground's three
-  suggested requests (8.4) are asked of a real forge and a real model.
-  The fake's `check.yml` is not copied: the box's runner runs the
+  made with the playground's `src/main.rs` (8.4, `temper-fake`'s
+  constant, one source for both) beside the starter workflow, in one
+  Create, so that the playground's three suggested requests (8.4) are
+  asked of a real forge and a real model. Forgejo's README stays, since
+  Create keeps a file already there (skein's `forge-setup.md`, 4.9);
+  the fake's `check.yml` is not copied, since the box's runner runs the
   starter. The project is a new one, named `widget`, unless the set up
-  names one. Create then takes 3 files of at most 4 KiB.
+  names one. A set up asked again takes its own request's fields, with
+  the flag or without: a first repository already made stays, and the
+  new one is made beside it.
 - **The row says it,** the forge's first repository beside its
   connection (`../client/forge.md`, 5.4; `../client/README.md`, 4.6):
   none; making `ORG/NAME` from the `SetUp`'s admission; made

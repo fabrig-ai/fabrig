@@ -1417,7 +1417,8 @@ for its kind, its user's login and its installations. Its nodes:
     pushed, or a commit (32 bytes, as the forge connector keeps one);
   - its pull request: none yet, or its number (u64) and its address on
     the forge (a byte string of at most 2048 bytes, empty for a forge
-    with no `web`);
+    with no address: GitHub's `web`, Forgejo's `git` base, none for a
+    fake, `forge.md`, 9.2);
   - its step: producing, opening, recreating, reopening, checking,
     gating, queued (its place, from 1 (u32), and the tasks ahead of it,
     nearest first, at most 64 (u64 each)), first, updating, resolving,
@@ -1455,7 +1456,8 @@ for its kind, its user's login and its installations. Its nodes:
   (admin, bot, token, org, repository, file, app, installation or state),
   unmarked, or other. The diagnostic `ended` stays separate; the client
   selects its stop's words from this typed fact, never its text;
-  its first repository, `first`: none, or the set up's org, name, runner
+  its first repository, `first`: none, or the set up's org, name,
+  whether it is the playground's copy (`playground`, appended), runner
   label (at most 64 bytes) and `SetUpProject` with its state, `FirstState`:
   making; made, with the repository's id (u64);
   or failed, with its step, `CreateStep`: admin, org, repository (its
@@ -2669,8 +2671,8 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   forge." as before (4.2).
 - **"View on forge ↗":** an external link (6.5) to its pull request's
   address on the forge, in a toolbar after the header, only when the
-  panel supplies an address (`forge.md`, 9.2); a forge with no `web`
-  gives none, as `temper box`'s demo does.
+  panel supplies an address (`forge.md`, 9.2); a forge with no address
+  gives none, as `temper box`'s demo, a fake, does.
 - **Its steps:** a list of six, as the mockup's: "Producing",
   "Opening", "Checking", "Gating", "Queued", "Landed". The one its step
   is at is current, those before it done, and all six done once it has
