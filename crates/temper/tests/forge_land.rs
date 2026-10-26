@@ -1,7 +1,54 @@
 pub mod support;
 
 use serde_json::{Value, json};
-use support::forge_land::{last_readme_line, require_chat_progress};
+use std::collections::BTreeSet;
+use support::forge_land::{last_readme_line, live_roots, require_chat_progress, require_closed_roots};
+
+fn roots_read(tasks: &[u64]) -> Value {
+    json!({"tasks": {"rows": tasks.iter().map(|task| json!({"chip": {"task": task}})).collect::<Vec<_>>(), "more": false}})
+}
+
+#[test]
+fn a_fresh_sittings_close_leaves_no_live_root() {
+    let before = live_roots(&roots_read(&[])).expect("whole fresh roots");
+    assert_eq!(before, BTreeSet::new());
+    assert_eq!(require_closed_roots(&roots_read(&[]), &before), Ok(()));
+    assert_eq!(
+        require_closed_roots(&roots_read(&[7]), &before),
+        Err("live root tasks this sitting left: [7]; earlier live root tasks missing: []".to_owned())
+    );
+}
+
+#[test]
+fn a_kept_store_keeps_an_earlier_sittings_live_chat() {
+    let before = live_roots(&roots_read(&[1])).expect("whole kept roots");
+    assert_eq!(before, BTreeSet::from([1]));
+    assert_eq!(require_closed_roots(&roots_read(&[1]), &before), Ok(()));
+    assert_eq!(
+        require_closed_roots(&roots_read(&[1, 4]), &before),
+        Err("live root tasks this sitting left: [4]; earlier live root tasks missing: []".to_owned())
+    );
+}
+
+#[test]
+fn a_sitting_never_closes_an_earlier_root() {
+    let before = BTreeSet::from([1]);
+    assert_eq!(
+        require_closed_roots(&roots_read(&[]), &before),
+        Err("live root tasks this sitting left: []; earlier live root tasks missing: [1]".to_owned())
+    );
+}
+
+#[test]
+fn a_roots_read_must_be_whole() {
+    for read in [
+        json!({"tasks": {"rows": [], "more": true}}),
+        json!({"tasks": {"more": false}}),
+        json!({"tasks": {"rows": [{"chip": {}}], "more": false}}),
+    ] {
+        assert!(live_roots(&read).is_err(), "{read}");
+    }
+}
 
 #[test]
 fn a_readme_ignores_trailing_empty_lines() {

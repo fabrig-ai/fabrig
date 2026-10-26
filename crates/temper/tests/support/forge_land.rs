@@ -832,6 +832,7 @@ pub struct LiveEvidence {
     pub address: std::net::SocketAddr,
     pub tasks: LiveTasks,
     pub baseline: std::collections::BTreeSet<u64>,
+    pub roots: std::collections::BTreeSet<u64>,
     pub forge: ForgeIdentity,
     pub replies: std::collections::BTreeMap<u64, serde_json::Value>,
     pub delegates: [Vec<u64>; 2],
@@ -1013,6 +1014,28 @@ fn live_commands(fresh: bool, account: Option<&std::path::Path>) -> (Vec<Vec<Str
     (commands.into_iter().map(|args| args.into_iter().map(str::to_owned).collect()).collect(), account)
 }
 
+/// The live root task numbers of a `tasks --project P --json` read, whole.
+pub fn live_roots(read: &serde_json::Value) -> Result<std::collections::BTreeSet<u64>, String> {
+    require(read["tasks"]["more"] == false, "whole live root tasks read")?;
+    read["tasks"]["rows"]
+        .as_array()
+        .ok_or("live root task rows missing")?
+        .iter()
+        .map(|row| row["chip"]["task"].as_u64().ok_or_else(|| "live root task number missing".to_owned()))
+        .collect()
+}
+
+/// After the chat closes, the project's live roots are exactly those before this sitting.
+pub fn require_closed_roots(read: &serde_json::Value, before: &std::collections::BTreeSet<u64>) -> Result<(), String> {
+    let after = live_roots(read)?;
+    let extra = after.difference(before).copied().collect::<Vec<_>>();
+    let missing = before.difference(&after).copied().collect::<Vec<_>>();
+    require(
+        extra.is_empty() && missing.is_empty(),
+        &format!("live root tasks this sitting left: {extra:?}; earlier live root tasks missing: {missing:?}"),
+    )
+}
+
 pub struct LivePlan<'a> {
     pub paths: &'a [PathBuf; 3],
     pub client: &'a std::path::Path,
@@ -1023,6 +1046,7 @@ pub struct LivePlan<'a> {
     pub address: Option<std::net::SocketAddr>,
     pub tasks: Option<LiveTasks>,
     pub baseline: Option<&'a std::collections::BTreeSet<u64>>,
+    pub roots: Option<&'a std::collections::BTreeSet<u64>>,
     pub words: &'a str,
     pub line: &'a str,
 }
@@ -1122,6 +1146,7 @@ fn live_json(call: &super::Ended) -> Result<serde_json::Value, String> {
 
 enum LivePhase {
     Setup,
+    Roots,
     Created,
     Delegates,
     Waiting,
@@ -1139,6 +1164,7 @@ struct LiveJudge<'a> {
     account_at: usize,
     tasks: LiveTasks,
     baseline: std::collections::BTreeSet<u64>,
+    roots: std::collections::BTreeSet<u64>,
     address: Option<std::net::SocketAddr>,
     token: Option<String>,
     found_at: usize,
@@ -1176,6 +1202,22 @@ impl LiveJudge<'_> {
         let project = self.tasks.project.to_string();
         match self.phase {
             LivePhase::Setup => self.setup(now, calls)?,
+            LivePhase::Roots => {
+                self.roots = live_roots(&last)?;
+                let key = format!("live-chat-{}", now.as_nanos());
+                self.queue(&[
+                    "chat",
+                    "--project",
+                    &project,
+                    "--model",
+                    "gpt-6-luna",
+                    "--key",
+                    &key,
+                    self.plan.words,
+                    "--json",
+                ]);
+                self.phase = LivePhase::Created;
+            }
             LivePhase::Created => {
                 self.tasks.chat = last["outcome"]["done"]["owner"]["created"]["first"]
                     .as_u64()
@@ -1288,19 +1330,9 @@ impl LiveJudge<'_> {
         }
         self.token = Some(token);
         if self.plan.first {
-            let key = format!("live-chat-{}", now.as_nanos());
-            self.queue(&[
-                "chat",
-                "--project",
-                &self.tasks.project.to_string(),
-                "--model",
-                "gpt-6-luna",
-                "--key",
-                &key,
-                self.plan.words,
-                "--json",
-            ]);
-            self.phase = LivePhase::Created;
+            // All fixed setup indices were consumed before this extra read.
+            self.queue(&["tasks", "--project", &self.tasks.project.to_string(), "--json"]);
+            self.phase = LivePhase::Roots;
         } else {
             self.wait_started = Some(now);
             self.wait_until = Some(now.saturating_add(Duration::from_secs(1800)));
@@ -1442,10 +1474,7 @@ impl LiveJudge<'_> {
         let last = live_json(calls.ends().last().ok_or("closing reads missing")?)?;
         if !self.plan.first {
             require(live_json(&calls.ends()[calls.ends().len() - 2])?["met"] == true, "chat tree closed")?;
-            require(
-                last["tasks"]["rows"] == serde_json::json!([]) && last["tasks"]["more"] == false,
-                "no live root tasks",
-            )?;
+            require_closed_roots(&last, &self.roots)?;
         }
         let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change);
         require(self.tools.contains("change"), "the chat's committed change call succeeded")?;
@@ -1489,6 +1518,7 @@ impl LiveJudge<'_> {
             address: self.address.ok_or("forge address missing")?,
             tasks: self.tasks.clone(),
             baseline: self.baseline.clone(),
+            roots: self.roots.clone(),
             forge,
             replies: std::mem::take(&mut self.replies),
             delegates,
@@ -1844,6 +1874,7 @@ pub fn run_live(
     let mut world = real::World::new(LiveJudge {
         tasks: plan.tasks.clone().unwrap_or_default(),
         baseline: plan.baseline.cloned().unwrap_or_default(),
+        roots: plan.roots.cloned().unwrap_or_default(),
         address: plan.address,
         token: None,
         plan,

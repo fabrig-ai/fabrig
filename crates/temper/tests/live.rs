@@ -63,8 +63,7 @@ fn a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge() {
         let mut bot = None;
         let mut previous: Option<forge_land::LiveEvidence> = None;
         let mut completions = 0;
-        for first in [true, false] {
-            let run = if first { "first" } else { "second" };
+        for (first, run) in [(true, "first"), (false, "second")] {
             let client = store.join(if kept { format!("{tag}-{run}") } else { run.to_owned() });
             fs::create_dir(&client).expect("fresh client root");
             fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client root");
@@ -80,6 +79,7 @@ fn a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge() {
                     address: previous.as_ref().map(|before| before.address).or(address),
                     tasks: previous.as_ref().map(|before| before.tasks.clone()),
                     baseline: previous.as_ref().map(|before| &before.baseline),
+                    roots: previous.as_ref().map(|before| &before.roots),
                     words: &words,
                     line: &line,
                 },
