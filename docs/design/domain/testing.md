@@ -395,8 +395,8 @@ in the lower world that owns it, never here.
     words it reads (`../draft/qa-live.md`, 8). A change to them is
     rechecked by the rung's live story (2.7), and its twin made again
     from that run's transcripts.
-  - It is fuzzy, as the stories it replaces are, past the 2 s guide by
-    the landing path.
+  - It runs where the story it replaces runs, in the fuzzy suite, past
+    the 2 s guide by the landing path, as `fuzzy_green_light` is.
 - **An account first,** with area 5's tools (../client/tools.md, 5.5):
   a story whose agents run adds a key the fake LLM peer accepts, from
   the client, before its first task, and waits for its account to be
@@ -1393,7 +1393,10 @@ terminal client, the captures and the faults.
 Nothing is handed in: no input takes a record, no tool reads another
 program's login, and a ChatGPT account comes only from a sign-in
 (../protocol/credentials.md, section 3), on the owned example's
-registration (../protocol/setup.md, 8.1).
+registration (../protocol/setup.md, 8.1). The one exception is a held
+record, a person's signed-in ChatGPT account moved in by `temper ctl
+import` and back by `export`, never copied, which the owned-forge
+landing story and the ladder's rungs take when given one (below).
 
 `crates/temper/tests/live.rs`, after jig's (jig's `protocol/service.md`,
 section 8; testing-strategy.md, 2.9).
@@ -1741,17 +1744,30 @@ skein's (skein's `fake-llm.md`):
   - **Its output:** one document in `temper fake llm`'s form
     (../protocol/setup.md, 8.4), a script per task, each assistant
     completion of its run one turn, its text and its calls in order,
-    the calls' arguments as recorded. A turn the form cannot hold (an
-    opaque block, a call cut short, a window's compaction) is refused,
-    naming the task and the turn, and so is a document past the twin's
-    bounds, which are the fake's, sized for twins from the first passing
-    walk's transcripts and checked as the demo's are.
-  - **What does not replay** is named, not guessed: values a fresh
+    the calls' arguments as recorded; a turn's `finish` is `tool_calls`
+    where it has a call and `stop` otherwise, and its `tokens` the
+    completion's output tokens as recorded, or 1 where the turn kept
+    none. A turn the form cannot hold (an opaque block, a call cut
+    short, a window's compaction) is refused, naming the task and the
+    turn, and so is a document past the twin's bounds, which are the
+    fake's, sized for twins from the first passing walk's transcripts
+    and checked as the demo's are.
+  - **Frames of the version its binary writes,** read from a deployment
+    the same build ran and stopped cleanly; an older frame, or one
+    uncommitted at the stop, is refused, naming it, since the twin is
+    made from a walk just after it, never from an old store.
+  - **Cues are the caller's,** distinct, each a phrase of its own task's
+    request or brief; the tool refuses two the same. Whether each
+    selects its script on replay, as the fake's earliest-cue rule
+    chooses (skein's `fake-llm.md`, 2.4), the twin's run proves, not
+    the tool.
+  - **What does not replay** is the caller's to name: values a fresh
     deployment does not give again, such as a commit's id in a call's
-    arguments, are listed in its report for a person to edit in the
-    document. Task, message and pull numbers recur when the story's acts
-    run in the walk's order on a fresh deployment, as the fuzzy stories'
-    numbers do.
+    arguments, are given as substitutions, `--replace OLD=NEW`, applied
+    to the calls' arguments and counted in its report. Task, message
+    and pull numbers recur when the story's acts run in the walk's
+    order on a fresh deployment, as the fuzzy stories' numbers do. A
+    value missed shows as the twin's run failing, and is added.
   - **Its tests:** step tests from recorded frames; and a round trip, a
     fuzzy story's run turned into its twin and the twin run to the same
     end.
