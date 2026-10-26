@@ -1162,14 +1162,6 @@ one owned forge, with its own values (setup.md, 8.1).
   in section 13, not built: the rules leave the policies for two
   standing requirements the forge judges over the rules it holds, so a
   change reaches the next merge.
-- **A charter an application's setting names** (13.2). The forge's
-  charter is a number in bytes jig never reads, so jig's check of
-  references cannot hold it, and a change that removes that charter is
-  accepted. Default, asked of jig in the configuring plan's planned implementation
-  (jig's hook for an application's kinds): an application's kind may
-  declare that its values name a charter, beside the bytes, and jig's
-  one check holds the reference as it holds a template's. Until then,
-  the forge's next change is held, saying its charter is not offered.
 - **Requirements an application fixes** (13.3). The landing rules'
   two requirements are in jig's rules, which the deployment's owners may
   change, so landing can be left unenforced by a change of rules.
@@ -1482,11 +1474,12 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   Whether a project's policy has an approval's role is not the forge's
   to know: a rule naming a role nobody holds is accepted, and the
   review page says so (`../client/README.md`, 5.13); a change it covers
-  waits, as one whose approvers have not yet approved. Whether the
-  forge's charter names a charter the change leaves offered is jig's
-  check of references, once jig's kinds may name a charter (section
-  11); until then a change of charters that would leave it unoffered is
-  accepted, and the forge's next change is held, saying so.
+  waits, as one whose approvers have not yet approved. Kind 3 declares
+  that its value names one charter (jig's `domain/engine.md`, 17.5): the
+  forge says which when it judges or reports it, and jig's check of
+  references refuses a change that would leave the forge's charter
+  unoffered, naming kind 3, as it refuses one that would leave a
+  template's.
 - **Kept by the forge,** in its family `Setting` (`store.md`, section
   2), written in jig's decisions (jig's `domain/engine.md`, 17.5): the
   stock defaults of its kinds the binary gave it at the last start, each
@@ -1641,9 +1634,12 @@ side never waits on the part of jig it does not use:
    17.7). The document's checks that read the four members (section 3:
    `application.charter` among the charters, a landing rule's
    approvals' roles in the policies) read the stock defaults instead,
-   which the binary knows before the store is read; a stored change
-   that later leaves the forge's charter unoffered holds the forge's
-   next change, saying so, as 13.2 has it. `temper init`'s document
+   which the binary knows before the store is read. A change that
+   leaves the forge's charter unoffered (dropping the rules' delegation
+   to it too, which jig's references require) is accepted in this step,
+   and the forge's changes are refused until it is offered again: step
+   2 refuses such a change, kind 3 naming its charter (13.2). `temper
+   init`'s document
    loses the four members and its `charters/`, and every other writer
    of them (13.5) moves with it. A deployment whose document carried
    the stock values starts on the same settings, and makes no
