@@ -2180,8 +2180,15 @@ revision left them, never a silent rollback (temper's draft
 - **The settings as revision R left them** differ from the newest only
   in the settings a later revision changed, each as the earliest of
   those revisions found it: its record says what each item replaced.
-  So a restore of R reads the records after R, all within the history,
-  since history keeps the latest ones, and R the oldest it may name.
+  So a restore of R reads every record after R, which the history keeps
+  without a gap from its oldest kept to the newest (17.7): R may be any
+  revision from the history's oldest on, and an older one, even one
+  still held, is refused as forgotten.
+- **A setting that followed its default at R follows it again,** today's
+  default, which a release may have changed since; the review says so.
+  What a person restores is what they had chosen, and a default was
+  temper's choice, which a release improves for every deployment that
+  kept it (17.1).
 - **`Restore { revision, reason }`,** a party's request in the
   deployment's scope (people.md, 5.1), proposes, against the newest, one
   item per setting a later revision changed: *set* to the value it
@@ -2192,10 +2199,18 @@ revision left them, never a silent rollback (temper's draft
   reason says "restores revision R", and its items leave out each
   setting of an application's kinds a later revision changed, whose
   past values are not kept, which the answer names.
-- **Its decision loads the records after R** before it decides, as a
-  read loads a revision (`../client/domain/contract.md`, section 6),
-  within the journal's room for one read; a restore of a revision
-  erased is refused as forgotten, naming the oldest kept, and one of the
-  newest as empty.
-- **Bounded** as any proposal of settings: its set is one item per
-  setting at most, a whole set (17.8).
+- **Its decision loads the records after R** before it decides, a page
+  at a time as `revisions` reads them (`../client/domain/contract.md`,
+  section 6), at most the history's limit of records; the decision is
+  made against the newest it loaded, and a revision made meanwhile
+  refuses it as stale, naming the newest, as any change against an
+  older one is. A restore of a revision erased is refused as forgotten,
+  naming the oldest kept, and one of the newest as empty.
+- **Bounded** as any proposal of settings: one item per setting, at most
+  a whole set (17.8); one whose items would pass it, settings added and
+  removed since R among them, is refused as too large, saying so, and a
+  later revision can be restored instead.
+- **Reviewed as any proposal,** each value whole within the document's
+  bound or with its size; a value past it is read whole by
+  `setting{kind, scope, number, proposal}`, a pending proposal's item
+  (`../client/domain/contract.md`, section 6).
