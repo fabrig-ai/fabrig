@@ -126,6 +126,39 @@ impl Live {
         }
         message
     }
+
+    fn send(&mut self, text: &str) {
+        writeln!(
+            self.child.stdin.as_mut().expect("open input"),
+            "{}",
+            serde_json::json!({"type":"user","message":{"role":"user","content":text}})
+        )
+        .expect("next user message");
+    }
+
+    fn result_text(&self) -> String {
+        let mut text = String::new();
+        for _ in 0..1000 {
+            let message = self.message();
+            if message["type"] == "assistant" {
+                for block in message["message"]["content"].as_array().expect("assistant blocks") {
+                    if let Some(part) = block["text"].as_str() {
+                        text.push_str(part);
+                    }
+                }
+            }
+            if message["type"] == "result" {
+                assert!(message["is_error"] == false, "program turn completed");
+                return text;
+            }
+        }
+        panic!("program turn did not finish");
+    }
+
+    fn close_input(&mut self) {
+        drop(self.child.stdin.take());
+        assert!(self.child.wait().expect("program exit").success(), "input closure exits successfully");
+    }
 }
 
 impl Drop for Live {
@@ -133,6 +166,44 @@ impl Drop for Live {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+#[test]
+fn a_live_second_message_needs_the_first_turns_context() {
+    let mut live = Live::start("Remember the word persimmon. Reply with OK.");
+    live.result_text();
+    live.send("Which word did I ask you to remember? Reply with that word only.");
+    let text = live.result_text();
+    assert!(text.to_lowercase().contains("persimmon"), "same process kept the saved word; output withheld");
+    live.close_input();
+}
+
+#[test]
+fn a_live_interrupted_turn_is_followed_by_another() {
+    let mut live = Live::start("Count from one to ten thousand, writing every number.");
+    let mut started = false;
+    for _ in 0..1000 {
+        let message = live.message();
+        assert!(message["type"] != "result", "the turn must still run when interrupted");
+        if message["type"] == "assistant" || message["type"] == "stream_event" {
+            started = true;
+            break;
+        }
+    }
+    assert!(started, "first assistant or partial message before interrupt");
+    assert!(Command::new("/bin/kill").args(["-INT", &live.child.id().to_string()]).status().expect("SIGINT").success());
+    let mut interrupted = false;
+    for _ in 0..1000 {
+        if live.message()["type"] == "result" {
+            interrupted = true;
+            break;
+        }
+    }
+    assert!(interrupted, "interrupted turn ended with a result");
+    live.send("Reply with the word kumquat only.");
+    let text = live.result_text();
+    assert!(text.to_lowercase().contains("kumquat"), "same process answered after interrupt; output withheld");
+    live.close_input();
 }
 
 #[test]
