@@ -30,6 +30,11 @@ chat. Both paths change against the fresh deployment's revision 1. The
 charters' ordinary instructions come from the binary's stock; no instruction
 files are copied into a deployment.
 
+The process tier's reference cases fold the cluster's cap into one settings
+change with their own charters, wait and result ending. Their harness changes
+settings after sign-in, then makes the project from the changed policy 1;
+it starts without a seeded project.
+
 `live-0a/` needs no settings change. `live-0b/` applies its own
 `settings.json` after sign-in, raising its charters' spend to 280 and policy
 1's and the rules' budgets to 600, with maximum run spend 280. It starts

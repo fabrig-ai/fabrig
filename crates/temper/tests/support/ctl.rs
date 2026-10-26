@@ -105,6 +105,13 @@ pub enum Step {
         scratch: PathBuf,
         directory: &'static str,
     },
+    /// Make a project from the owner's changed policy 1 through the public client wire.
+    Project {
+        scratch: PathBuf,
+        client: PathBuf,
+        name: &'static str,
+        number: u32,
+    },
     Open {
         directory: &'static str,
         until: Option<&'static [u8]>,
@@ -701,6 +708,14 @@ impl Calls {
         self.action = Some(action);
         self.referee_work = RefereeWork::Ready;
     }
+    fn make_member(&mut self, scratch: &Path, directory: &'static str) {
+        let root = skein_shell::open_root(scratch).expect("member fixture root");
+        self.member = Some(member::Member::new(root, scratch, &scratch.join("client"), directory));
+    }
+    fn make_project(&mut self, scratch: &Path, client: &Path, name: &'static str, number: u32) {
+        let root = skein_shell::open_root(scratch).expect("project fixture root");
+        self.member = Some(member::Member::project(root, scratch, client, name, number));
+    }
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
@@ -741,10 +756,8 @@ impl Calls {
                     self.advance(now);
                 }
             }
-            Some(Step::Member { scratch, directory }) => {
-                let root = skein_shell::open_root(&scratch).expect("member fixture root");
-                self.member = Some(member::Member::new(root, &scratch, &scratch.join("client"), directory));
-            }
+            Some(Step::Member { scratch, directory }) => self.make_member(&scratch, directory),
+            Some(Step::Project { scratch, client, name, number }) => self.make_project(&scratch, &client, name, number),
             Some(Step::Open { directory, until }) => {
                 self.action = Some(Action::Run);
                 let args = super::terminal::open_arguments(Path::new(directory), self.link());
