@@ -931,15 +931,18 @@ fn measured_admission_keeps_each_providers_lengths_and_refusals() {
         endpoints.push(destination).unwrap();
         let pool = Component::new(endpoints, &limits()).unwrap();
         for enabled in [false, true] {
-            for bad_credential in [false, true] {
+            for fault in 0_u32..3 {
                 let mut value = credential();
                 if provider != Provider::OpenAiCodex {
                     value.account_id = Box::new([]);
                 }
-                if bad_credential {
+                if fault == 1 {
                     value.value = bytes::copy_of(b"bad\r\nvalue");
                 }
-                let input = prompt();
+                let mut input = prompt();
+                if fault == 2 {
+                    input.instructions = Box::new([b'x'; 9000]);
+                }
                 let expected = skein_llm::client::measure(&input, Some(&value), &wire, &bounds);
                 let actual = pool.admit_with_reasoning_drop(Token::new(7), 0, input, Some(value), enabled);
                 match expected {
