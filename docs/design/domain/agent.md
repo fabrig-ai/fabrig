@@ -373,7 +373,7 @@ run starts fresh, its brief carrying the tail.
 | resolving a conflict (forge.md, 8.4) | none | the workspace's, from a merge in progress; `finish` with a change | the merge is resolved, checked and pushed |
 | a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
-| a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`; `wait` | its goal's report is written |
+| a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
 | the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
 
 The change's agents run under the forge's charter; designed, not built,
@@ -381,7 +381,7 @@ the one the change was made with, kept on it whatever later changes of
 settings make the forge's charter (`../protocol/configuration.md`,
 13.2).
 
-The change's agents ask no one: they take no messages and send none
+The change's agents ask no one, and take no questions, answers or words
 (8.2).
 
 ### 8.1 The configuring agent
@@ -438,15 +438,21 @@ rung B0 of `../draft/v0.1.0.md`.
 
 - **The work that waits asks; a change never does.** A change is
   decided work, asked for once what to change is agreed. Its agents,
-  the table's first four rows, hold no Message family in their
-  authority, so they ask no one; and a message sent to a change's task
-  is answered at once that a change takes none, naming its requester,
-  so that no sender waits on silence (forge.md, 8.1).
+  the table's first four rows, ask no one: the change procedure
+  delegates each with the Message family taken out of the tool families
+  it passes on, which a child's authority otherwise keeps (jig's
+  `domain/authority.md`, section 3). The change itself takes no
+  questions, answers or words (forge.md, 8.1); its amendments and its
+  cancel reach it as forge.md says.
 - **The chat delegates the work as a goal** when its person asks to
   agree it first: a delegate under charter 1, its instructions the
   person's words, holding the authority to call `change` and to ask;
   never `change` itself, which would start the work at once. The stock
-  chat's instructions say so (`../protocol/configuration.md`, 13.4).
+  chat's instructions (charter 1, `../protocol/configuration.md`, 13.4)
+  carry the rule: work the person wants to agree before anything is
+  changed goes to such a delegate, which tells its plan, asks, and calls
+  `change` only after the answer; the chat relays the person's answer to
+  it.
 - **The goal asks its requester,** the chat, with `message` in the
   question form, before it calls `change`, and waits. jig puts the
   question in the inbox of the chat's person, since the person requested

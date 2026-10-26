@@ -864,9 +864,14 @@ fills in the rest from the project (`agent.md`, 4.3.1).
 
 A change asks no one. What to change is agreed before it is asked for,
 by a goal that asks first where its person wants to agree a plan
-(`agent.md`, 8.2). Its agents hold no Message family, and a message sent
-to its task is answered at once that a change takes none, naming the
-change's requester.
+(`agent.md`, 8.2), and the procedure delegates its agents without the
+Message family. It takes no questions, answers or words either, and says
+so rather than drop one: at its next step, a question in its inbox is
+answered, in the answer form to the question's number, that a change
+takes no questions and that its requester is task R; words are answered
+with words saying the same, to their sender; each reply commits with the
+step that takes what it answers, so a retried step answers once. Its
+amendments and cancels are its own (8.2, 8.6).
 
 A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
