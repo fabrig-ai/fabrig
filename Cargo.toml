@@ -3,6 +3,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "crates/temper-docs",
     "crates/temper-fake",
     "crates/temper-protocol-records",
     "tests/real-loop",
@@ -60,6 +61,7 @@ rust-version = "1.95"
 publish = false
 
 [workspace.dependencies]
+temper-docs = { path = "crates/temper-docs" }
 rustls = { version = "=0.23.41", default-features = false, features = ["std", "ring", "tls12"] }
 temper-github-app = { path = "testing/temper-github-app" }
 temper-fake = { path = "crates/temper-fake" }
