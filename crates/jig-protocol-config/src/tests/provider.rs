@@ -28,7 +28,7 @@ fn provider_is_optional_and_its_private_paths_are_data_paths() {
     let bytes = bytes();
     let document = crate::document(&bytes, &crate::DocumentLimits { bytes: 8192, tokens: 1536, depth: 16 }).unwrap();
     let dirs = crate::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-    let engine = crate::engine(&document, 0, &dirs).unwrap();
+    let engine = crate::engine(&document, 0, &dirs, crate::Defaults::Document).unwrap();
     let provider = engine.clients.provider.unwrap();
     assert_eq!(provider.key.as_ref(), b"/data/secrets/provider.pem");
     assert_eq!(provider.clients[0].secret.as_ref(), b"/data/secrets/app");

@@ -265,7 +265,7 @@ fn configured(bytes: &[u8]) -> Result<Configured, String> {
     let mut whole = read::Object::new(&document, 0).map_err(|why| format!("configuration: {why:?}"))?;
     let engine = whole
         .member(&document, b"engine")
-        .map(|at| config::engine(&document, at, &config::Directories::working()))
+        .map(|at| config::engine(&document, at, &config::Directories::working(), config::Defaults::Document))
         .transpose()
         .map_err(|why| format!("engine: {why:?}"))?;
     let workers = match whole.member(&document, b"workers") {

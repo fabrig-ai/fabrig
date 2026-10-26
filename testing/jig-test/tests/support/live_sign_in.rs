@@ -394,7 +394,8 @@ pub fn store_limits(bytes: &[u8]) -> codec::Limits {
         .expect("document object")
         .member(&document, b"engine")
         .expect("engine member");
-    let engine = config::engine(&document, at, &config::Directories::working()).expect("live engine configuration");
+    let engine = config::engine(&document, at, &config::Directories::working(), config::Defaults::Document)
+        .expect("live engine configuration");
     codec::limits(&engine.limits.core).expect("live store codec limits")
 }
 

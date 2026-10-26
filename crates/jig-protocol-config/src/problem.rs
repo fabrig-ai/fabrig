@@ -45,6 +45,8 @@ pub struct CodecBound {
 pub enum What {
     Json,
     Unknown,
+    /// This member's setting lives in the store when the application passes defaults.
+    Stored,
     Missing,
     Duplicate,
     Kind,
@@ -159,6 +161,7 @@ impl Problem {
             }
             What::Json
             | What::Unknown
+            | What::Stored
             | What::Missing
             | What::Duplicate
             | What::Kind

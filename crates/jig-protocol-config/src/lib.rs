@@ -10,7 +10,9 @@ mod templates;
 pub use core::core;
 mod directories;
 pub use directories::{Directories, Directory};
+mod defaults;
 mod domain;
+pub use defaults::pass;
 mod projects;
 pub use domain::{Deployment, Provider, ProviderKind, amendment_bytes_max, check_effective_limits, policy_bytes_max};
 pub use projects::{Policy, Project};
@@ -39,9 +41,20 @@ pub use address::Address;
 pub use document::{DocumentLimits, document};
 pub use forms::{digest, secret};
 pub use problem::{CodecBound, PROBLEMS, Path, Problem, Problems, Segment, What};
+/// Where an engine's settings defaults come from (configuration.md, 1;
+/// domain/engine.md, 17.1 and 17.7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Defaults {
+    /// The document's `charters`, `templates`, `policies` and `rules`.
+    Document,
+    /// The application's defaults, given by `pass`; the four members are refused.
+    Passed,
+}
 /// The engine's protocol configuration (configuration.md, 3).
 #[derive(Debug)]
 pub struct Engine {
+    /// With `Passed`, the four settings fields are empty until `pass` gives them.
+    pub defaults: Defaults,
     pub deployment: Deployment,
     pub owners: Box<[jig_domain_people::InitialOwner]>,
     pub acts: Box<[jig_domain_people::ActGrant]>,
@@ -59,7 +72,12 @@ pub struct Engine {
     pub limits: Limits,
 }
 /// Parse jig's engine member before startup constructs any component.
-pub fn engine(document: &skein_json::Document, at: u32, directories: &Directories) -> Result<Engine, Problems> {
+pub fn engine(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &Directories,
+    defaults: Defaults,
+) -> Result<Engine, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
     let Some(mut object) = check::object(document, at, &path, &mut problems) else {
@@ -89,22 +107,11 @@ pub fn engine(document: &skein_json::Document, at: u32, directories: &Directorie
     if let Some(at) = object.required(document, b"clients", &path, &mut problems) {
         clients = clients::parse(document, at, &path.member(b"clients"), directories, &mut problems);
     }
-    let mut charters = None;
-    if let Some(at) = object.required(document, b"charters", &path, &mut problems)
-        && let Some(llm) = &llm
-    {
-        charters = charters::parse(document, at, &path.member(b"charters"), llm, &limits, directories, &mut problems);
-    }
+    let offers = defaults::offers(document, &mut object, llm.as_ref(), &limits, directories, defaults, &mut problems);
     let configured = match &llm {
         Some(llm) => &*llm.models,
         None => &[],
     };
-    let mut templates = None;
-    if let Some(at) = object.required(document, b"templates", &path, &mut problems) {
-        let offered = charters.as_deref().unwrap_or(&[]);
-        let path = path.member(b"templates");
-        templates = templates::templates(document, at, &path, offered, configured, &limits, &mut problems);
-    }
     let mut deployment = None;
     if let Some(at) = object.required(document, b"deployment", &path, &mut problems) {
         deployment = domain::deployment(document, at, &path.member(b"deployment"), directories, &mut problems);
@@ -113,8 +120,10 @@ pub fn engine(document: &skein_json::Document, at: u32, directories: &Directorie
     if let Some(at) = object.required(document, b"providers", &path, &mut problems) {
         providers = domain::providers(document, at, &path.member(b"providers"), &mut problems);
     }
-    let mut rules = None;
-    if let Some(at) = object.required(document, b"rules", &path, &mut problems) {
+    let mut rules = if defaults == Defaults::Passed { Some(defaults::empty_rules()) } else { None };
+    if defaults == Defaults::Document
+        && let Some(at) = object.required(document, b"rules", &path, &mut problems)
+    {
         let authority = &limits.core.authority;
         rules = projects::rules(document, at, &path.member(b"rules"), authority, configured, &mut problems);
     }
@@ -122,7 +131,11 @@ pub fn engine(document: &skein_json::Document, at: u32, directories: &Directorie
     if let Some(at) = object.required(document, b"projects", &path, &mut problems) {
         projects = projects::projects(document, at, &path.member(b"projects"), &limits, configured, &mut problems);
     }
-    let policies = projects::configured_policies(&mut object, document, &limits, configured, &mut problems);
+    let policies = if defaults == Defaults::Document {
+        projects::configured_policies(&mut object, document, &limits, configured, &mut problems)
+    } else {
+        Some(Box::default())
+    };
     let mut connectors = None;
     if let Some(at) = object.required(document, b"connectors", &path, &mut problems) {
         connectors =
@@ -137,6 +150,7 @@ pub fn engine(document: &skein_json::Document, at: u32, directories: &Directorie
         return Err(problems);
     }
     let mut engine = Engine {
+        defaults,
         deployment: deployment.expect("required member checked"),
         providers: providers.expect("required member checked"),
         rules: rules.expect("required member checked"),
@@ -146,8 +160,8 @@ pub fn engine(document: &skein_json::Document, at: u32, directories: &Directorie
         owners: Box::default(),
         acts,
         memory: memory.expect("required member checked"),
-        charters: charters.expect("required member checked"),
-        templates: templates.expect("required member checked"),
+        charters: offers.charters.expect("required member checked"),
+        templates: offers.templates.expect("required member checked"),
         llm: llm.expect("required member checked"),
         hosts: hosts.expect("required member checked"),
         clients: clients.expect("required member checked"),
@@ -156,6 +170,10 @@ pub fn engine(document: &skein_json::Document, at: u32, directories: &Directorie
     engine.owners = domain::owners(document, owners.expect("required member checked"), &engine, &mut problems);
     clients::check_provider(&engine, &mut problems);
     domain::whole(&engine, &mut problems);
+    if defaults == Defaults::Document {
+        domain::seeds(&engine, &mut problems);
+        domain::document_defaults(&engine, &mut problems);
+    }
     if !problems.is_empty() {
         return Err(problems);
     }

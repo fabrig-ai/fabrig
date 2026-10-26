@@ -44,6 +44,9 @@ pub(crate) fn parse(
     Some(charters.into_boxed())
 }
 pub(crate) fn files(engine: &crate::Engine, files: &mut List<crate::File>) {
+    if engine.defaults == crate::Defaults::Passed {
+        return;
+    }
     for (index, charter) in engine.charters.iter().enumerate() {
         let path = &charter.policy.instructions;
         let policy = jig_domain_core::policy_owned_bytes(&charter.policy).expect("validated policy size");

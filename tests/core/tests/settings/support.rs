@@ -14,8 +14,13 @@ pub(super) fn configuration() -> (root::Config, root::Limits) {
         &jig_protocol_config::DocumentLimits { bytes: 16384, tokens: 4096, depth: 16 },
     )
     .expect("settings story fixture");
-    let mut engine = jig_protocol_config::engine(&document, 0, &jig_protocol_config::Directories::working())
-        .expect("settings story fixture");
+    let mut engine = jig_protocol_config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Document,
+    )
+    .expect("settings story fixture");
     engine.charters[0].policy.instructions = Box::from(b"Answer within the granted authority.".as_slice());
     let mut config = world::config(SEED);
     config.core = jig_protocol_config::core(&engine, [31; 16], SEED);

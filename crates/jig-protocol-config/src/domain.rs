@@ -235,12 +235,20 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if let Err(what) = crate::fits(engine.memory, shares.as_slice()) {
         problems.push(Path::root().member(b"memory_bytes"), what);
     }
+}
+
+/// Checks of document seed projects that depend on the settings defaults.
+pub(crate) fn seeds(engine: &crate::Engine, problems: &mut Problems) {
     for (index, project) in engine.projects.iter().enumerate() {
         let path = check::index(&Path::root().member(b"projects"), index);
         if !check_policy(engine, project.number, &project.policy, &project.roles, &project.templates, &path, problems) {
             problems.push(path.member(b"policy"), What::Bound);
         }
     }
+}
+
+/// Checks of settings supplied by the document; passed settings use the core's check.
+pub(crate) fn document_defaults(engine: &crate::Engine, problems: &mut Problems) {
     for (index, policy) in engine.policies.iter().enumerate() {
         let path = check::index(&Path::root().member(b"policies"), index);
         if !check_policy(engine, policy.number, &policy.policy, &policy.roles, &policy.templates, &path, problems) {
@@ -282,19 +290,25 @@ fn check_policy(
     path: &Path,
     problems: &mut Problems,
 ) -> bool {
-    let Some(mut authority) = jig_domain_authority::Domain::new(engine.rules.clone(), engine.limits.core.authority)
-    else {
-        return false;
-    };
-    let mut facts = skein_lib::Queue::with_capacity(jig_domain_authority::POLICY_MAX_OUT);
-    jig_domain_authority::step(
-        &mut authority,
-        jig_domain_authority::Event::Policy { project: number, policy: policy.clone() },
-        &mut facts,
-    );
-    let admitted = match facts.pop().expect("one policy admission fact") {
-        jig_domain_authority::PolicyFact::Added { .. } | jig_domain_authority::PolicyFact::Changed { .. } => true,
-        jig_domain_authority::PolicyFact::Refused { .. } | jig_domain_authority::PolicyFact::Dropped { .. } => false,
+    let admitted = if engine.defaults == crate::Defaults::Passed {
+        jig_domain_authority::policy_refusal(&engine.rules, &engine.limits.core.authority, policy).is_none()
+    } else {
+        let Some(mut authority) = jig_domain_authority::Domain::new(engine.rules.clone(), engine.limits.core.authority)
+        else {
+            return false;
+        };
+        let mut facts = skein_lib::Queue::with_capacity(jig_domain_authority::POLICY_MAX_OUT);
+        jig_domain_authority::step(
+            &mut authority,
+            jig_domain_authority::Event::Policy { project: number, policy: policy.clone() },
+            &mut facts,
+        );
+        match facts.pop().expect("one policy admission fact") {
+            jig_domain_authority::PolicyFact::Added { .. } | jig_domain_authority::PolicyFact::Changed { .. } => true,
+            jig_domain_authority::PolicyFact::Refused { .. } | jig_domain_authority::PolicyFact::Dropped { .. } => {
+                false
+            }
+        }
     };
     crate::templates::check_overrides(engine, templates, &path.member(b"policy").member(b"templates"), problems);
     for (index, role) in roles.iter().enumerate() {

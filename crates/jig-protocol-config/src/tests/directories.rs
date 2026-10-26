@@ -118,7 +118,7 @@ fn document(bytes: &[u8]) -> skein_json::Document {
     crate::document(bytes, &limits).unwrap()
 }
 fn engine(bytes: &[u8]) -> Result<Engine, Problems> {
-    crate::engine(&document(bytes), 0, &given())
+    crate::engine(&document(bytes), 0, &given(), crate::Defaults::Document)
 }
 fn worker(bytes: &[u8]) -> Result<Worker, Problems> {
     crate::worker(&document(bytes), 0, &given())

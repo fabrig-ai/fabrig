@@ -529,7 +529,13 @@ fn configuration(text: &[u8]) -> jig_protocol_config::Engine {
         depth: 32,
     };
     let document = jig_protocol_config::document(text, &bounds).expect("fixture document");
-    jig_protocol_config::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("fixture engine")
+    jig_protocol_config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Document,
+    )
+    .expect("fixture engine")
 }
 
 /// Match the fixture's final admitted core bounds, parsed once per test process.
