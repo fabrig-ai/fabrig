@@ -2156,8 +2156,11 @@ are when the run is prepared.
   (17.3), so a run reads the documents its revision's charter names.
 - **Gathered for each run** as a brief section of the connector that
   owns the resource (section 9; connectors.md, section 9): the file at
-  the branch's head when the run is prepared, or its part under the
-  heading, within the section's budget. A rule that lands reaches the
+  the branch's head as the connector finds it when it gathers the
+  section, one commit for the section's whole life, its cuts included,
+  so a branch that moves during the preparation changes nothing of
+  this run's; or its part under the heading; within the section's
+  budget, which is the connector's (its brief budgets). A rule that lands reaches the
   next run, with no change of settings. A document the connector cannot
   read (no such resource, file or heading, or a read that failed) is a
   section saying so, never a run held: the documents are optional.
