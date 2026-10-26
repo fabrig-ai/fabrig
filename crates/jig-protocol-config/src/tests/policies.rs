@@ -19,7 +19,7 @@ fn refuses(document: &[u8], path: Path, what: What) {
     let problems = fixtures::engine(document).expect_err("invalid configured policy");
     assert_eq!(problems.problems.as_slice(), &[Problem { path, what }]);
 }
-fn override_document(template: u32) -> Box<[u8]> {
+pub(super) fn override_document(template: u32) -> Box<[u8]> {
     let entry = fixtures::with(
         br#""templates": [{"template": TEMPLATE, "executor": null, "budget": null, "deadline": null, "priority": 5}]"#,
         b"TEMPLATE",

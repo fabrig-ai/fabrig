@@ -26,8 +26,21 @@ pub fn pass(engine: &mut Engine, defaults: jig_domain_core::settings::Defaults) 
     }
     engine.policies = policies.into_boxed();
     let mut problems = Problems::empty();
-    domain::seeds(engine, &mut problems);
+    crate::projects::resolve(engine, &mut problems);
+    if problems.is_empty() {
+        domain::seeds(engine, &mut problems);
+    }
     if problems.is_empty() { Ok(()) } else { Err(problems) }
+}
+
+pub(crate) fn document(engine: &mut Engine, problems: &mut Problems) {
+    if engine.defaults == crate::Defaults::Document {
+        crate::projects::resolve(engine, problems);
+        if problems.is_empty() {
+            domain::seeds(engine, problems);
+        }
+        domain::document_defaults(engine, problems);
+    }
 }
 
 pub(crate) fn empty_rules() -> authority::Rules {

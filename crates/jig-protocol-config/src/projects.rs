@@ -104,6 +104,34 @@ pub(crate) fn rules(
     }
     Some(rules)
 }
+pub(crate) struct Projects {
+    pub values: Box<[Project]>,
+    pub policies: Box<[Option<u32>]>,
+}
+
+pub(crate) fn resolve(engine: &mut crate::Engine, problems: &mut Problems) {
+    for (index, number) in engine.seed_policies.iter().enumerate() {
+        let Some(number) = number else { continue };
+        let mut found = false;
+        for policy in &engine.policies {
+            if policy.number == *number {
+                let project = engine.projects.get_mut(index).expect("one reference per parsed seed");
+                project.policy = policy.policy.clone();
+                project.roles.clone_from(&policy.roles);
+                project.templates.clone_from(&policy.templates);
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            problems.push(check::index(&Path::root().member(b"projects"), index).member(b"policy"), What::Refers);
+        }
+    }
+    if problems.is_empty() {
+        engine.seed_policies = Box::default();
+    }
+}
+
 pub(crate) fn projects(
     document: &Document,
     at: u32,
@@ -111,9 +139,10 @@ pub(crate) fn projects(
     limits: &crate::Limits,
     configured: &[Model],
     problems: &mut Problems,
-) -> Option<Box<[Project]>> {
+) -> Option<Projects> {
     let items = domain::items(document, at, limits.core.authority.projects, path, problems)?;
     let mut projects = List::<Project>::with_capacity(items.len());
+    let mut seed_policies = List::with_capacity(items.len());
     let mut name_paths = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
@@ -121,13 +150,10 @@ pub(crate) fn projects(
         let number = check::count(&mut object, document, b"number", &path, problems);
         let name_at = object.member(document, b"name");
         let name = project_name(document, name_at, number, &path.member(b"name"), problems);
-        let at = object.required(document, b"policy", &path, problems);
-        let policy = policy(document, at, &path.member(b"policy"), limits, configured, problems);
-        let roles = permissions(&mut object, document, &path, limits, problems);
+        let policy = project_policy(&mut object, document, &path, limits, configured, problems);
         object.finish(document, &path, problems);
         if let Some(number) = number
-            && let Some((policy, templates)) = policy
-            && let Some(roles) = roles
+            && let Some(policy) = policy
             && let Some(name) = name
         {
             if number == jig_domain_people::DEPLOYMENT {
@@ -142,7 +168,10 @@ pub(crate) fn projects(
             }
             let name_path = if name_at.is_some() { path.member(b"name") } else { path };
             name_paths.push(name_path).expect("one path per project");
-            projects.push(Project { number, name, roles, templates, policy }).expect("bounded project input");
+            seed_policies.push(policy.number).expect("one policy source per seed");
+            projects
+                .push(Project { number, name, roles: policy.roles, templates: policy.templates, policy: policy.value })
+                .expect("bounded project input");
         }
     }
     for (index, project) in projects.iter().enumerate() {
@@ -154,7 +183,53 @@ pub(crate) fn projects(
             }
         }
     }
-    Some(projects.into_boxed())
+    Some(Projects { values: projects.into_boxed(), policies: seed_policies.into_boxed() })
+}
+struct ProjectPolicy {
+    value: authority::Policy,
+    roles: Box<[PermissionRole]>,
+    templates: Box<[jig_domain_people::TemplateOverride]>,
+    number: Option<u32>,
+}
+fn project_policy(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    limits: &crate::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<ProjectPolicy> {
+    let at = object.required(document, b"policy", path, problems);
+    if let Some(at) = at
+        && document.token(at).expect("policy token").kind == skein_json::document::Kind::Number
+    {
+        let number = match read::integer(document, at, u64::from(u32::MAX)) {
+            Ok(number) => u32::try_from(number).expect("checked policy number"),
+            Err(what) => {
+                problems.push(path.member(b"policy"), what);
+                return None;
+            }
+        };
+        // Until resolve copies the defaults, retain only the reference. The copy supplies
+        // permissions too: leave roles unread so object.finish refuses it as unknown.
+        return Some(ProjectPolicy {
+            number: Some(number),
+            roles: Box::default(),
+            templates: Box::default(),
+            value: authority::Policy {
+                ceiling: crate::defaults::empty_rules().ceiling,
+                escalation_role: None,
+                period_spend: 0,
+                projections: Box::default(),
+                requirements: Box::default(),
+                roles: Box::default(),
+            },
+        });
+    }
+    let policy = policy(document, at, &path.member(b"policy"), limits, configured, problems);
+    let roles = permissions(object, document, path, limits, problems);
+    let (value, templates) = policy?;
+    Some(ProjectPolicy { value, templates, roles: roles?, number: None })
 }
 #[expect(clippy::disallowed_methods, reason = "configuration protocol decodes UTF-8 project names")]
 fn project_name(

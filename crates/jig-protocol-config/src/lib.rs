@@ -61,6 +61,8 @@ pub struct Engine {
     pub providers: Box<[Provider]>,
     pub rules: jig_domain_authority::Rules,
     pub projects: Box<[Project]>,
+    /// Policy numbers awaiting defaults, by seed index; empty once the copy is resolved.
+    pub seed_policies: Box<[Option<u32>]>,
     pub policies: Box<[Policy]>,
     pub connectors: Box<[u16]>,
     pub memory: u64,
@@ -149,12 +151,14 @@ pub fn engine(
     if !problems.is_empty() {
         return Err(problems);
     }
+    let projects = projects.expect("required member checked");
     let mut engine = Engine {
         defaults,
         deployment: deployment.expect("required member checked"),
         providers: providers.expect("required member checked"),
         rules: rules.expect("required member checked"),
-        projects: projects.expect("required member checked"),
+        projects: projects.values,
+        seed_policies: projects.policies,
         policies: policies.expect("optional policies checked"),
         connectors: connectors.expect("required member checked"),
         owners: Box::default(),
@@ -170,10 +174,7 @@ pub fn engine(
     engine.owners = domain::owners(document, owners.expect("required member checked"), &engine, &mut problems);
     clients::check_provider(&engine, &mut problems);
     domain::whole(&engine, &mut problems);
-    if defaults == Defaults::Document {
-        domain::seeds(&engine, &mut problems);
-        domain::document_defaults(&engine, &mut problems);
-    }
+    defaults::document(&mut engine, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }

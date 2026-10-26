@@ -3,11 +3,11 @@ use super::fixtures;
 use crate::{Defaults, Engine, Problem, What};
 use skein_lib::bytes;
 
-fn parse(bytes: &[u8], mode: Defaults) -> Result<Engine, crate::Problems> {
+pub(super) fn parse(bytes: &[u8], mode: Defaults) -> Result<Engine, crate::Problems> {
     let document = crate::document(bytes, &crate::DocumentLimits { bytes: 8192, tokens: 1536, depth: 16 }).unwrap();
     crate::engine(&document, 0, &crate::Directories::working(), mode)
 }
-fn without_defaults(bytes: &[u8]) -> Box<[u8]> {
+pub(super) fn without_defaults(bytes: &[u8]) -> Box<[u8]> {
     let mut document = Box::from(bytes);
     for (first, next) in [
         (b"\"charters\":".as_slice(), b"\"clients\":".as_slice()),
