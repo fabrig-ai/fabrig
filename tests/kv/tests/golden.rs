@@ -130,7 +130,7 @@ fn assert_kept(made: &BTreeMap<Box<[u8]>, Box<[u8]>>) {
         std::fs::write(path.join(name), bytes).expect("write the files made for inspection");
     }
     panic!(
-        "{}\nfrom the first release a deployment's store holds these bytes: changing them needs an upgrade of the store's own, run before any records are patched (temper's draft upgrades.md 6.5), and moves the format's version\nfiles made written to {}",
+        "{}\nfrom the first release a deployment's store holds these bytes: changing them needs an upgrade of the store's own, run before any records are patched (kv.md 9), and moves the format's version\nfiles made written to {}",
         differences.join("\n"),
         path.display()
     );
