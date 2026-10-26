@@ -830,15 +830,16 @@ A task's ending (tasks.md, 5.8) is smith's mode for its run: a task its
 result ends runs `Finite`, and one its requester ends runs `Open`. An
 Open run is granted the wait and never delivery.
 
-An Open task's ordinary program path is refused before preparation, at
-selection and again at the claim's recheck, alternative models and
-grants judged by the same view. The refusal chooses no other source or
-account and changes no task's ending. A wait for an account or a source
-comes before it.
+An Open task's program path is admitted as a Finite task's is, since
+smith runs an Open run on a program backend, keeping the program across
+its turns (smith's `protocol/programs.md`, 5.9): selection and the
+claim's recheck judge its models and grants by the same view as any
+task's, and no run waits as `OpenProgram`. The client's
+`TaskWaitRefused.program` arm, which would name that wait, stays on the
+wire with no producer.
 
 Each admitted hello declares the program endpoint numbers its channel
-serves, the engine host's among them, fixed for that channel. Unknown
-evidence fails closed: an Open start is refused on it. At most 64 distinct
+serves, the engine host's among them, fixed for that channel. At most 64 distinct
 numbers are admitted, whatever the number of models: the cap is kept
 with the hello's other bounds, and the worker wire's ceiling is the
 same. The wire and the domain each refuse a longer list, or one naming
@@ -853,8 +854,8 @@ hold:
 - its start was refused with the Grants cause;
 - its saved work and its result passed their fences;
 - it spent nothing and committed no turn;
-- its task's ordinary program source, on its main binding or an
-  alternative, was offered.
+- its task's program source, on its main binding or an alternative,
+  was offered.
 
 Whatever class the host's refusal was given, the recheck is the same;
 the selection then refuses an unsupported start again. A structural

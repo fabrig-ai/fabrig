@@ -239,7 +239,7 @@ Client v11 also carries `TaskRunWait.refused`, as either
 `TaskWaitRefused.hello` (`TaskWaitHello`: the existing `OwnerHostKind`, wall
 receipt time and `OwnerHelloRefusal`) or `TaskWaitRefused.program`
 (`TaskWaitProgram.model` or `.source`, with account and source numbers).
-The Program arm has no producer until the Open compatibility slice.
+The Program arm has no producer: an Open task runs on a program source as any task does (`../domain/hosts.md`, 8.1).
 The server and client reuse the deployment's hello-refusal translations;
 shortfall dimensions that already omit charter numbers keep that wire shape.
 The existing `TaskWaitSource { state }` stays unchanged.

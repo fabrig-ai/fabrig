@@ -599,8 +599,9 @@ served is held, kept and unsent, for its owner's version (client.md,
     also carries `Refused(TaskWaitRefused)`: `Hello { kind, at, why }` is
     the fleet's latest observed allowed-kind refusal, suppressed by any
     admitted connected non-draining allowed-kind host; `Program(OpenProgram)`
-    names `Model` or `Source { account, source }`. The latter is carried
-    without a producer until the Open compatibility slice. The client uses
+    names `Model` or `Source { account, source }`, carried with no
+    producer since an Open task runs on a program source as any task does
+    (`../../domain/hosts.md`, 8.1). The client uses
     its own `OwnerHostKind` and `OwnerHelloRefusal` vocabulary; the canonical
     deployment translation retains the existing shortfall context limits.
     These are derived document facts, never a new hold or stored state.
