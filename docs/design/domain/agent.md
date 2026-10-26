@@ -153,6 +153,8 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 | `note` | note | writes a note in a scope, or revises one (jig's `domain/engine.md`, section 10) | for a revision, the note's revision it recalled | written, with its name and revision; refused: busy, too large, full, already there, missing, moved |
 | `recall` | recall | reads notes by name, or a page of a search of their scoped descriptions | | the entries, and whether more remain |
 | the forge's reads | read | one fresh read each, of an adopted repository (forge.md, section 2), below | | the answer, cut to the read's limit; failed, and why |
+| `settings` | settings | reads the settings (jig's `domain/engine.md`, 7.3): with `{}` the inventory; with `{"setting": SETTING}` one setting's value, SETTING as a settings file names it (`../client/tools.md`, 5.3), a charter's of a held revision with `"revision"`, a page from `"from"`; with `{"revision": R}` a revision's record; with `{"history": {"before": R}}` a page of the history, newest first. temper's kinds' values come from the forge (`../protocol/configuration.md`, 13.2) | | each as `temper ctl` prints it (`../client/tools.md`, 5.2), within the answer's bound: a value past it paged with its next offset; refused, and why |
+| `propose_settings` | settings | proposes a change of settings to the owners who may accept it, with a reason (jig's `domain/engine.md`, 17.6): its items in a settings file's form (`../client/tools.md`, 5.3) | the newest revision it read | proposed, as which proposal and to whom; stale, naming the newest; refused, when nobody may accept it or an item is out of shape, naming it |
 | `read_docs` | none | a page of one of temper's documentation topics from an offset, or the sections matching some words (`../protocol/documentation.md`, section 5); answered where the call is decoded, with no authority, commit or record | | the page and the next offset, or the end; the hits; no such topic, naming them |
 
 The forge's reads, each a host tool of its own: `read_items`, a page of
@@ -344,12 +346,58 @@ run starts fresh, its brief carrying the tail.
 | a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results | most; `deliver` mid-run; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings; proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`; `wait` | its goal's report is written |
+| the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
 
 The change's agents run under the forge's charter; designed, not built,
 the one the change was made with, kept on it whatever later changes of
 settings make the forge's charter (`../protocol/configuration.md`,
 13.2).
 
+
+### 8.1 The configuring agent
+
+A chat from template 3, run by charter 3, both stock and both settings
+like any other (`../protocol/configuration.md`, 13.4), which turns how
+a person says they work into a proposal of settings
+(`../draft/configuring.md`, sections 2, 5 and 6).
+
+- **Its instructions** are held in the binary, in the `stock` module,
+  and say, in the person's register:
+  - the test for each sentence of a description: would temper's engine
+    act differently without it? What changes what temper wakes,
+    schedules, permits, pays, lands or holds is structure, and becomes
+    settings; what only changes how an agent behaves is a rule, and
+    stays text that runs read, in a charter's instructions;
+  - to read the settings first, and the documents the person points to
+    (a path in an adopted repository, with `read_file`; a pasted text);
+  - to ask until it can propose, one question at a time, and to offer a
+    rule as structure where temper's model has it, saying what it
+    guarantees and what it does not, as the draft's 4-hour cap does;
+  - to propose once, against the newest revision it read, with a reason
+    whose first line is the proposal's title and whose next lines say,
+    under "temper enforces", each change of structure in the person's
+    words, under "your agents follow", each rule and where it comes
+    from, and what the change does to running work;
+  - to say what temper cannot model, offering the nearest thing, and
+    what needs a restart (the document's members: a provider, a forge,
+    a listener, a worker, a limit), never proposing it;
+  - to explain from the settings and the documentation (`read_docs`):
+    what happens when work starts, which role runs where, why a task's
+    run had what it had, given the task's `settings:` line the person
+    reads to it;
+  - on its proposal's outcome, heard in its inbox: accepted, to say so
+    in one line with the revision it made; rejected, to take the
+    reason as the person's words and revise; withdrawn as stale, to
+    read the settings again and propose afresh, saying what changed.
+- **It changes nothing itself.** Its charter's `settings` family reads
+  and proposes; only an owner's decision changes settings (jig's
+  `domain/engine.md`, 17.6). A member's configuring chat proposes as
+  an owner's does, and its proposal waits for an owner.
+- **Started from ctl** with `chat --project P --template 3 TEXT`
+  (`../client/tools.md`, 5.3), and, once the user's pages land, from
+  "Tell temper how you work".
+- **Its tests** are `testing.md`, 6.4's: scripted runs in the engine's
+  domain world for its flows, and one process story through ctl.
 ## 9. The world
 
 smith's worlds test the agent itself (smith's documents, each section

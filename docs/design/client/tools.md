@@ -256,7 +256,7 @@ agent must name.
 
 | Tool | What it does | jig's | K |
 |---|---|---|---|
-| `chat --project P TEXT` | starts a chat | `shapes::chat`, a `Create` | yes |
+| `chat --project P [--template N] TEXT` | starts a chat from template N, the project's chat template when none is named: template 3 is the configuring chat (`../domain/agent.md`, 8.1); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
 | `message N TEXT` | words to a task | `Message` | yes |
 | `close N [--move D]... [--reason TEXT]` | closes a chat: its live delegates cancelled, or moved to the party where named; the reason empty unless given, as jig's reference UI sends it | `shapes::close_chat`, a compound request | yes |
 | `adopt --project P [--forge F] --owner O --name N [--ids R/U] --landing B [--role owned\|fork\|context] [--prefix X] [--no-home] [--no-ci] [--check G]...` | adopts a repository | the forge family's request (`README.md`, 4.4) | yes |
