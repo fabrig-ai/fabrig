@@ -1618,8 +1618,9 @@ into the binary.
   and its `charters/` files (`setup.md`, 8.2 and 8.3); the box, which
   has no document of its own but `temper init`'s (`setup.md`, section
   7); `docs/examples/owned.json` and its instructions; the lab's engine
-  documents; the tests' documents and builders (`../domain/testing.md`,
-  6.4). A generated document elsewhere, fabrig's, drops the six members;
+  documents; the fake backends' document rewriter (`temper-fake`'s
+  backends, which edits `engine.charters` today); the tests' documents
+  and builders (`../domain/testing.md`, 6.4). A generated document elsewhere, fabrig's, drops the six members;
   what it set differently from the stock values becomes a proposal after
   the deployment's first start.
 
@@ -1630,24 +1631,31 @@ side never waits on the part of jig it does not use:
 
 1. **jig's four kinds.** The `stock` module passes jig's builder
    charters 1 and 2, templates 1 and 2, policy 1 and the rules as
-   `Config`'s defaults (13.4), and the document's `engine.charters`,
-   `templates`, `policies` and `rules` are refused (13.5). The landing
-   rules stay `application.landing` until the second step, so policy 1
-   and the rules keep the requirements 1 to 4 each rule's criteria
-   become today (`../domain/forge.md`, 8.7), derived at each start
-   from the document as now: a document whose landing rules change
-   between starts gives new defaults, which make a revision recorded
-   as the release's (jig's `domain/engine.md`, 17.7). `temper init`'s
-   document loses the four members and its `charters/`, and every
-   other writer of them (13.5) moves with it. A deployment whose
-   document carried the stock values starts on the same settings, and
-   makes no revision.
+   `Config`'s defaults (13.4), the rules delegating to charters 1 and 2
+   and the change procedure until charter 3 comes, and the document's
+   `engine.charters`, `templates`, `policies` and `rules` are refused
+   (13.5). The landing rules stay `application.landing` until the
+   second step, so policy 1 and the rules keep the requirements 1 to 4
+   each rule's criteria become today (`../domain/forge.md`, 8.7),
+   derived at each start from the document as now: a document whose
+   landing rules change between starts gives new defaults, which make
+   a revision recorded as the release's (jig's `domain/engine.md`,
+   17.7). The document's checks that read the four members (section 3:
+   `application.charter` among the charters, a landing rule's
+   approvals' roles in the policies) read the stock defaults instead,
+   which the binary knows before the store is read; a stored change
+   that later leaves the forge's charter unoffered holds the forge's
+   next change, saying so, as 13.2 has it. `temper init`'s document
+   loses the four members and its `charters/`, and every other writer
+   of them (13.5) moves with it. A deployment whose document carried
+   the stock values starts on the same settings, and makes no
+   revision.
 2. **temper's kinds,** on jig's application settings (jig's
    `domain/engine.md`, 17.5): kinds 1 to 3 (13.2), judged by the
    forge; `application.landing` and `charter` refused; 13.3's two
    standing requirements in the rules, and policy 1 without
    requirements, as 13.4 has them.
 3. **The configuring agent:** charter 3 and template 3 (13.4), with
-   the run's `settings` tools (`../domain/agent.md`, 4.3). A
-   deployment made before takes them as new defaults, by a revision
-   recorded as the release's.
+   the run's `settings` tools (`../domain/agent.md`, 4.3), and the
+   rules' delegation to charter 3. A deployment made before takes them
+   as new defaults, by a revision recorded as the release's.
