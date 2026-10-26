@@ -6,13 +6,31 @@ pub use context::Context;
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
-pub const PATCHES: &[&str] = &[include_str!("0001.patch"), include_str!("0002.patch")];
+pub const PATCHES: &[&str] = &[
+    r"patch 1
+owner fixture-jig 1
+
+family fixture-note 1 to 2
+add Note.pinned bool false
+",
+    r"patch 1
+owner fixture-jig 2
+
+family fixture-frame 5 to 6
+widen TurnRecord.spent u32 u64
+add TurnRecord.read option u64 none
+",
+];
 
 pub mod kept {
     pub mod fixture_frame {
         pub const TEXTS: &[&str] = &[
-            include_str!("../schema/kept/fixture-frame-v5.schema"),
-            include_str!("../schema/kept/fixture-frame-v6.schema"),
+            r"family fixture-frame 5
+versioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u32 spent: u32 at: u64 transcript: bytes 8388608 holds fixture-turn Turn }
+",
+            r"family fixture-frame 6
+versioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u32 spent: u64 read: option u64 at: u64 transcript: bytes 8388608 holds fixture-turn Turn }
+",
         ];
         pub mod v5 {
             pub mod turn_record {
@@ -46,8 +64,12 @@ pub mod kept {
     }
     pub mod fixture_note {
         pub const TEXTS: &[&str] = &[
-            include_str!("../schema/kept/fixture-note-v1.schema"),
-            include_str!("../schema/kept/fixture-note-v2.schema"),
+            r"family fixture-note 1
+versioned record Note { text: text 32 }
+",
+            r"family fixture-note 2
+versioned record Note { text: text 32, pinned: bool }
+",
         ];
         pub mod v1 {
             pub mod note {
@@ -85,20 +107,16 @@ mod tests {
 
     #[test]
     fn current() {
-        skein_codegen::patch::current(&owner()).map_err(|error| error.to_string()).expect("patches are current");
+        assert_eq!(skein_codegen::patch::current(&owner()), Ok(()), "run skein-codegen patch for this owner");
     }
 
     #[test]
     fn p0001_goldens() {
-        skein_codegen::patch::goldens(&owner(), 1, super::written)
-            .map_err(|error| error.to_string())
-            .expect("patch 0001 goldens");
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 1, super::written), Ok(()), "patch 0001 goldens");
     }
 
     #[test]
     fn p0002_goldens() {
-        skein_codegen::patch::goldens(&owner(), 2, super::written)
-            .map_err(|error| error.to_string())
-            .expect("patch 0002 goldens");
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 2, super::written), Ok(()), "patch 0002 goldens");
     }
 }

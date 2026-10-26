@@ -7,13 +7,35 @@ mod p0002;
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
-pub const PATCHES: &[&str] = &[include_str!("0001.patch"), include_str!("0002.patch")];
+pub const PATCHES: &[&str] = &[
+    r"patch 1
+owner fixture 1 after fixture-jig 0
+
+family fixture-label 1 to 2
+add Label.color option u8 none
+",
+    r#"patch 1
+owner fixture 2 after fixture-jig 1
+
+family fixture-shelf 1 to 2
+add Shelf.weight u32 written
+written Shelf.weight
+refuses empty "a shelf without books"
+
+family fixture-token 1 to 2
+add Token.expires option u64 none
+"#,
+];
 
 pub mod kept {
     pub mod fixture_label {
         pub const TEXTS: &[&str] = &[
-            include_str!("../schema/kept/fixture-label-v1.schema"),
-            include_str!("../schema/kept/fixture-label-v2.schema"),
+            r"family fixture-label 1
+versioned record Label { caption: text 32 }
+",
+            r"family fixture-label 2
+versioned record Label { caption: text 32, color: option u8 }
+",
         ];
         pub mod v1 {
             pub mod label {
@@ -35,8 +57,12 @@ pub mod kept {
     }
     pub mod fixture_shelf {
         pub const TEXTS: &[&str] = &[
-            include_str!("../schema/kept/fixture-shelf-v1.schema"),
-            include_str!("../schema/kept/fixture-shelf-v2.schema"),
+            r"family fixture-shelf 1
+versioned record Shelf { name: text 32, books: u32, label: bytes 64 holds fixture-label Label }
+",
+            r"family fixture-shelf 2
+versioned record Shelf { name: text 32, books: u32, label: bytes 64 holds fixture-label Label, weight: u32 }
+",
         ];
         pub mod v1 {
             pub mod shelf {
@@ -62,8 +88,12 @@ pub mod kept {
     }
     pub mod fixture_token {
         pub const TEXTS: &[&str] = &[
-            include_str!("../schema/kept/fixture-token-v1.schema"),
-            include_str!("../schema/kept/fixture-token-v2.schema"),
+            r"family fixture-token 1
+versioned record Token { value: bytes 64, issued: u64 }
+",
+            r"family fixture-token 2
+versioned record Token { value: bytes 64, issued: u64, expires: option u64 }
+",
         ];
         pub mod v1 {
             pub mod token {
@@ -114,20 +144,16 @@ mod tests {
 
     #[test]
     fn current() {
-        skein_codegen::patch::current(&owner()).map_err(|error| error.to_string()).expect("patches are current");
+        assert_eq!(skein_codegen::patch::current(&owner()), Ok(()), "run skein-codegen patch for this owner");
     }
 
     #[test]
     fn p0001_goldens() {
-        skein_codegen::patch::goldens(&owner(), 1, super::written)
-            .map_err(|error| error.to_string())
-            .expect("patch 0001 goldens");
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 1, super::written), Ok(()), "patch 0001 goldens");
     }
 
     #[test]
     fn p0002_goldens() {
-        skein_codegen::patch::goldens(&owner(), 2, super::written)
-            .map_err(|error| error.to_string())
-            .expect("patch 0002 goldens");
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 2, super::written), Ok(()), "patch 0002 goldens");
     }
 }
