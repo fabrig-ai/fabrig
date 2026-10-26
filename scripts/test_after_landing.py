@@ -16,6 +16,7 @@ WHOLE = ["process-lab", "process-programs", "process-build", "process-tests",
 TEST_PHASES = {"process-lab", "process-tests", "qa-tests", "browser-tests"}
 BINARY = "fixture::story"
 TEST = "chosen_test"
+STARVED = "skein-world: starved: waited 10 ms runnable, used 1 ms of CPU, patience 5 ms"
 
 LOG = """
 import os
@@ -60,6 +61,8 @@ elif arguments[:2] == ["nextest", "run"]:
             if fails:
                 ET.SubElement(case, "failure")
                 failed = True
+            for tag, text in story.get("output", {}).get(name, {}).items():
+                ET.SubElement(case, tag).text = text
         report = Path(os.environ["CARGO_TARGET_DIR"]) / "nextest" / profile / "after-landing.xml"
         report.parent.mkdir(parents=True, exist_ok=True)
         ET.ElementTree(suite).write(report)
@@ -71,8 +74,7 @@ else:
 
 class AfterLanding(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix=".test-after-landing-",
-                                               dir=SCRIPT.parent.parent)
+        temporary = tempfile.TemporaryDirectory(prefix=".test-after-landing-")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         (self.root / "scripts").mkdir()
@@ -176,6 +178,39 @@ class Process(unittest.TestCase):
         code, output, _ = self.run_script("--part", "1/2")
         self.assertEqual(code, 1, output)
         self.assertEqual(output.splitlines(), [f"after-landing: failed qa {BINARY} {TEST}"])
+
+    def test_a_starved_pass_is_named(self):
+        self.story["output"] = {TEST: {"system-err": "before\n" + STARVED + "\nafter"}}
+        for arguments in (("--part", "1/2"), ("--only", f"qa {BINARY} {TEST}")):
+            with self.subTest(arguments=arguments):
+                code, output, _ = self.run_script(*arguments)
+                self.assertEqual(code, 0, output)
+                profiles = ("browser", "qa") if "--part" in arguments else ("qa",)
+                self.assertEqual(output.splitlines(),
+                                 [f"after-landing: starved {profile} {BINARY} {TEST}"
+                                  for profile in profiles])
+
+    def test_only_a_pass_is_starved(self):
+        rows = [
+            (True, {"system-err": STARVED}, [f"after-landing: failed qa {BINARY} {TEST}"]),
+            (False, {"system-out": "mentioned " + STARVED}, []),
+            (False, {"system-out": STARVED, "skipped": ""}, []),
+        ]
+        for fails, output, expected in rows:
+            with self.subTest(fails=fails, output=output):
+                self.story["cases"]["qa"] = [[BINARY, TEST, fails]]
+                self.story["output"] = {TEST: output}
+                code, output, _ = self.run_script("--only", "qa-tests")
+                self.assertEqual(code, 1 if fails else 0, output)
+                self.assertEqual(output.splitlines(), expected)
+
+    def test_a_red_run_names_starved_passes_after_failures(self):
+        self.story["cases"]["qa"].append([BINARY, "other_test", True])
+        self.story["output"] = {TEST: {"system-out": STARVED}}
+        code, output, _ = self.run_script("--only", "qa-tests")
+        self.assertEqual(code, 1, output)
+        self.assertEqual(output.splitlines(), [f"after-landing: failed qa {BINARY} other_test",
+                                              f"after-landing: starved qa {BINARY} {TEST}"])
 
     def test_a_part_checks_only_its_tools(self):
         Path(self.env.pop("SKEIN_TEST_CHROMIUM")).unlink()
