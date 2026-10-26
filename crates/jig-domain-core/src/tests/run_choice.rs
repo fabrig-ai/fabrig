@@ -957,7 +957,7 @@ fn claim_open(core: &mut Core, limits: &Limits, attempt: u64) {
 }
 
 #[test]
-fn a_crossed_unreported_claim_is_lost_even_before_its_first_turn() {
+fn a_crossed_unreported_claim_before_its_first_turn_is_not_started() {
     let (mut core, limits) = ready(false);
     claim_open(&mut core, &limits, OPEN_ATTEMPT);
     core.proofs.get_mut(&OPEN_TASK).unwrap().crossed = true;
@@ -968,11 +968,11 @@ fn a_crossed_unreported_claim_is_lost_even_before_its_first_turn() {
     env.now = env.now.saturating_add(limits.fleet.grace);
     env.wall = Wall::from_nanos(limits.fleet.grace.as_nanos());
     drop(fire(&mut core, &env, Timer::Fleet));
-    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries.lost, 1);
-    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().refusals, 0);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries.lost, 0);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().refusals, 1);
     assert_eq!(
         core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end,
-        tasks::End::Failed(tasks::Class::Lost)
+        tasks::End::Refused
     );
 }
 
