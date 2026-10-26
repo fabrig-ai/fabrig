@@ -1179,8 +1179,9 @@ What the connector makes of a change for the client's panel
 Designed, not built (`../protocol/configuration.md`, section 13). The
 forge owns three of temper's kinds of settings: the deployment's
 landing rules (kind 1), each project's (kind 2), and the forge's charter
-(kind 3), whose values are bytes jig keeps and never reads (jig's
-`domain/connectors.md`, section 17).
+(kind 3), whose values it keeps in its own family, `Setting`
+(`../protocol/store.md`, section 2), while jig keeps their states and
+sizes and never reads them (jig's `domain/connectors.md`, section 17).
 
 - **It judges them in the change's decision,** from its own state: a
   rule decodes, its pattern is a landing branch's within jig's pattern
@@ -1554,7 +1555,8 @@ and 8.1); the adopted repositories of each managed or owned Forgejo are
 named to the routing for its reconcile (4.2). Until a forge connects, its
 reads and entries answer `NotConnected`, which narrows nothing (4.1), so
 the steps below run on each forge as it connects. Designed, not built:
-before its records, the connector hears its kinds' current values
+before its records, the connector loads its kinds' values from its
+family `Setting`, is given the stock defaults and says which differ
 (8.9), so a restored change is judged by the rules as they are. temper's
 steps:
 

@@ -348,14 +348,17 @@ Designed, not built (`../protocol/configuration.md`, section 13).
   of temper's kinds reaches the root within the change's decision, as a
   requirement's verdict is asked (jig's `domain/engine.md`, 17.5); the
   root gives each item to the forge, which accepts or refuses it with
-  its reason, and carries the answer back. Once the change commits, the
-  root gives the forge the kinds' new values; then each live change the
-  rules cover is stepped.
+  its reason, and carries the answer back. In the decision that commits
+  the change the root gives the forge the core's word to keep the
+  items' values, which the forge writes to its family `Setting`; a
+  proposal's items are kept and ended likewise; then each live change
+  the rules cover is stepped. At a start the root hands the forge
+  temper's stock defaults of its kinds, and the core the forge's answer
+  of which differ (jig's `domain/root.md`, section 8).
 - **The root routes, never judges** (section 11): what a landing rule
   means and whether it is well formed is the forge's.
-- **The forge's charter is read through the core** when a change is
-  made, by kind, scope and number (jig's `domain/engine.md`, 17.5), and
-  kept on the change (section 6).
+- **The forge's charter is the forge's own value,** read from its kind
+  3 when a change is made, and kept on the change (section 6).
 
 ## 6. Translation
 
@@ -712,8 +715,9 @@ Startup also checks the seed policy after enforced landing requirements are join
   numbers, 268,435,456 and 65,536 bytes, held as the root's constants
   (section 13).
 - **The worst case:** the core's, the forge's, the journal's, the loads',
-  the landing policy's (designed, not built: the forge's rules, priced
-  by the forge, and the settings' values, by jig) and the permission
+  the landing policy's (designed, not built: the forge's rules and its
+  kinds' values, priced by the forge, and their states, by jig) and
+  the permission
   mappings', and every value in
   flight (section 2), summed in checked arithmetic (programming-model.md,
   6.3). The service computes it at start; limits whose sum overflows, or
