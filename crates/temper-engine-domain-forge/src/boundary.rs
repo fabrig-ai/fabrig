@@ -717,6 +717,11 @@ pub enum Stored {
     },
     /// An end act awaiting a saved answer (protocol/setup.md, 8.4).
     DemoAct(DemoAct),
+    /// A sent write not yet settled (domain/forge.md, 6; protocol/store.md, 2).
+    Flight {
+        task: u64,
+        entry: u64,
+    },
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -756,6 +761,10 @@ pub enum Key {
     Demo(u16),
     Binding(Box<[u8]>),
     DemoAct([u8; 16]),
+    Flight {
+        task: u64,
+        entry: u64,
+    },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

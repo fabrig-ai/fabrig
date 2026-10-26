@@ -55,6 +55,8 @@ pub struct World {
     /// Hold decoded write answers after the independent forge has made the effect.
     pub hold_write_answers: Option<HoldWrite>,
     pub held_write_answers: Vec<engine::Event>,
+    /// Timeouts before dispatch: the caller cannot know the write was never made.
+    pub lose_writes: u32,
     /// The durable commit number observed when the root drained.
     pub drained: Option<u64>,
     pub unsettled: Vec<engine::Unsettled>,
@@ -419,6 +421,7 @@ impl World {
             held_reads: None,
             hold_write_answers: None,
             held_write_answers: Vec::new(),
+            lose_writes: 0,
             drained: None,
             unsettled: Vec::new(),
             busy_calls: 0,
@@ -572,6 +575,19 @@ impl World {
                         self.merges += 1;
                     }
                     self.forge_calls += 1;
+                    if self.lose_writes > 0 && matches!(op, skein_forge::api::Op::Write(_)) {
+                        self.lose_writes -= 1;
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::Timeout),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.fail_job_reads
                         && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. }))
                     {

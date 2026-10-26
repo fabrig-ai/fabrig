@@ -18,6 +18,9 @@ use temper_engine_domain_world::{protocol, walking};
 
 use temper_engine_forge_world::{self as forge_world, translate};
 
+#[path = "forge_routes/flights.rs"]
+mod flights;
+
 #[path = "forge_routes/paths.rs"]
 mod paths;
 
@@ -2980,6 +2983,7 @@ fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
         "outcome committed before Drained"
     );
     assert!(world.unsettled.is_empty());
+    assert!(flights::rows(&world).is_empty(), "a settled stop leaves no flight");
     assert_eq!(issue_count(&mut world), 1);
     world.restart(true, false);
     for _ in 0..40 {
@@ -3052,6 +3056,7 @@ fn a_write_unanswered_past_its_lifetime_stops_unsettled_naming_it() {
     }
     drain_stop(&mut world);
     assert_eq!(world.unsettled.as_slice(), &[engine::Unsettled { entry, task: assignment.task }]);
+    assert_eq!(flights::rows(&world), [(assignment.task, entry)]);
     assert!(world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))));
     assert_eq!(issue_count(&mut world), 1);
     world.restart(true, false);
@@ -3064,6 +3069,7 @@ fn a_write_unanswered_past_its_lifetime_stops_unsettled_naming_it() {
         world.tick();
     }
     assert_eq!(issue_count(&mut world), 1, "the next start finds the issue rather than writing twice");
+    assert!(flights::rows(&world).is_empty(), "restart settles and erases the flight");
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))));
 }
 

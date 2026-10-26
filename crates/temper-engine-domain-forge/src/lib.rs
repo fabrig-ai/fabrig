@@ -227,6 +227,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Demo(row) => Key::Demo(row.forge),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
         Stored::DemoAct(row) => Key::DemoAct(row.key),
+        Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
 }
 /// Checked payload bytes of one connector record for its parent's store page.
@@ -376,7 +377,12 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Ci(_) | Stored::Landed { .. } | Stored::Writer(_) | Stored::Demo(_) | Stored::DemoAct(_) => Some(0),
+        Stored::Ci(_)
+        | Stored::Landed { .. }
+        | Stored::Writer(_)
+        | Stored::Demo(_)
+        | Stored::DemoAct(_)
+        | Stored::Flight { .. } => Some(0),
         Stored::ProposedEffect(row) => {
             let resource = match &row.resource {
                 What::Branch(branch) => {

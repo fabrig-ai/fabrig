@@ -168,3 +168,21 @@ fn demo_act_keys_follow_demo_and_require_sixteen_bytes() {
         assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
     }
 }
+
+#[test]
+fn flight_keys_name_task_then_entry_under_family_twenty_one() {
+    const KEY_BYTES: u32 = 17; // Family byte and two u64s (protocol/store.md, 2).
+    let key = Key::Flight { task: 7, entry: 11 };
+    let bytes = keys::encode(&key, KEY_BYTES).expect("exact flight key room");
+    assert_eq!(bytes.as_ref(), &[21, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 11]);
+    assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+    assert_eq!(keys::flight(&bytes), Some((7, 11)));
+    assert_eq!(keys::encode(&Key::Flight { task: 7, entry: 11 }, KEY_BYTES - 1), None);
+    let mut writer = skein_lib::Writer::new(usize::try_from(KEY_BYTES + 1).expect("small key"));
+    writer.put(&bytes).expect("key room");
+    writer.put(&[0]).expect("trailing byte room");
+    let trailing = writer.finish();
+    assert_eq!(keys::flight(&trailing), None);
+    assert_eq!(keys::flight(&trailing[..16]), None);
+    assert_eq!(keys::flight(&[20]), None);
+}

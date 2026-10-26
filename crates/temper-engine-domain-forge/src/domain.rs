@@ -133,6 +133,7 @@ pub struct Domain {
     pull_mergeable: Map<Name, bool>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
     entries: Map<u64, Outboxed>,
+    flights: Map<(u64, u64), ()>,
     named_calls: Map<crate::NamedCall, crate::CallPayload>,
     proposed_effects: Map<u64, crate::ProposedEffect>,
     pub(crate) landed: Map<skein_forge::api::Commit, u64>,
@@ -547,6 +548,7 @@ impl Domain {
             pull_mergeable: Map::with_capacity(l.client.resources),
             ci: Map::with_capacity(l.subscriptions),
             entries: Map::with_capacity(l.entries),
+            flights: Map::with_capacity(l.entries),
             named_calls: Map::with_capacity(l.named_calls),
             proposed_effects: Map::with_capacity(l.tasks),
             landed: Map::with_capacity(l.landings),
@@ -1461,6 +1463,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                             let record = Stored::Entry { entry: row.entry.clone(), held: true };
                             emit(out, Request::Save { read_afresh: None, release: None, record });
                         }
+                        erase_flight(d, task, entry, out);
                     }
                     skein_forge_client::Outcome::Made { .. }
                     | skein_forge_client::Outcome::Failed(_)
@@ -1468,6 +1471,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     | skein_forge_client::Outcome::Withdrawn => {
                         d.entries.remove(&entry);
                         emit(out, Request::Erase { key: Key::Entry(entry) });
+                        erase_flight(d, task, entry, out);
                     }
                 }
                 emit(out, Request::Outcome { entry, task, outcome });
@@ -2144,6 +2148,17 @@ fn keep_entry(d: &mut Domain, entry: skein_forge_client::Entry, release: Option<
         Some(row) => row.handoff,
         None => Handoff::Uncommitted,
     };
+    if entry.attempt.is_some() {
+        d.flights.insert((entry.task, entry.number), ()).expect("flights are bounded by entries");
+        emit(
+            out,
+            Request::Save {
+                read_afresh: None,
+                release: None,
+                record: Stored::Flight { task: entry.task, entry: entry.number },
+            },
+        );
+    }
     let row = Outboxed { entry: entry.clone(), held: false, handoff };
     d.entries.insert(entry.number, row).expect("entry capacity checked or a known entry replaced");
     emit(out, Request::Save { read_afresh: None, release, record: Stored::Entry { entry, held: false } });
@@ -3616,10 +3631,17 @@ fn resolve(d: &mut Domain, env: &Env<Limits>, number: u64, again: bool, out: &mu
     child(d, env, skein_forge_client::Event::Remake { entry }, out);
 }
 
+fn erase_flight(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
+    if d.flights.remove(&(task, entry)).is_some() {
+        emit(out, Request::Erase { key: Key::Flight { task, entry } });
+    }
+}
+
 /// Settle one held entry as not made, freeing its room.
 fn not_made(d: &mut Domain, number: u64, out: &mut Queue<Request>) {
     let row = d.entries.remove(&number).expect("a held entry lives");
     emit(out, Request::Erase { key: Key::Entry(number) });
+    erase_flight(d, row.entry.task, number, out);
     emit(out, Request::NotMade { entry: number, task: row.entry.task });
 }
 
@@ -3644,8 +3666,8 @@ fn settle_held(d: &mut Domain, task: u64, out: &mut Queue<Request>) -> bool {
         return !pending;
     }
     for number in &held {
-        // Its erase and settlement, and the continuation below.
-        if out.room() < 3 {
+        // Both possible erases, settlement, and the continuation below.
+        if out.room() < 4 {
             break;
         }
         not_made(d, *number, out);
@@ -4277,6 +4299,10 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Binding { address, subject } => {
             assert!(crate::binding_address(&address) && subject.len() <= 255, "restored binding fields");
             d.bindings.insert(address, subject).expect("restored binding within limits");
+        }
+        Stored::Flight { task, entry } => {
+            // Cross-record reconciliation is the later restart stage (domain/root.md, 9.1).
+            d.flights.insert((task, entry), ()).expect("restored flights within entry limit");
         }
         Stored::DemoAct(row) => {
             d.demo_acts.insert(row.key, row.act).expect("restored demo acts within limits");

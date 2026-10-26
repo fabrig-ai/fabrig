@@ -38,7 +38,9 @@ pub use accounts::AccountsRuntime;
 mod engine;
 mod route;
 mod setup;
+mod start_refusal;
 mod stop;
+pub use start_refusal::refused_start;
 mod tools;
 /// How the service ended (protocol/README.md, 6).
 #[derive(PartialEq, Eq, Debug)]

@@ -1004,6 +1004,9 @@ mod memory_figures;
 // program_sources and worker_settings.programs count program state and retained paths;
 // worker_settings counts routing queues, payloads, process tables and spawn commands.
 // A worker's values, identities, io and worker_git count credentials, grants, IO and git.
+// Flight (domain/forge.md, 6) adds a Map<(task, entry), ()>: 576 heap bytes
+// at eight entries, inherited by engine, system payloads and store envelopes.
+// Its 32-byte map header also grows inline Service, including worker-alone system.
 fn memory_figure(
     name: &str,
     terms: &temper_service::startup::MemoryTerms,

@@ -128,7 +128,8 @@ fn ending(
             )),
             Stop::StoreOpen { why } => {
                 let deployment = crate::path(store);
-                format!("temper serve: {}\n", why.words().join(&deployment.display().to_string()))
+                let (lines, exit) = temper_service::refused_start(why, deployment.display().to_string().as_bytes());
+                return (String::from_utf8(lines.into_vec()).expect("refusal is UTF-8"), exit);
             }
             Stop::FrameTooLarge { number, task, bytes, limit } => format!(
                 "temper serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes\n"

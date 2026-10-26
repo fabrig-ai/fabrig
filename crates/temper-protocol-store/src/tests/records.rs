@@ -863,3 +863,16 @@ fn release_comments_decode_only_within_the_deployment_byte_bound() {
         assert_eq!(records::decode(&records::encode(&row), &bounds).is_ok(), fits, "{bytes}");
     }
 }
+
+#[test]
+fn flight_rows_keep_both_key_fields_and_refuse_a_disagreeing_key() {
+    let bounds = crate::bounds(&fixtures::LIMITS).expect("fixture bounds");
+    for (task, entry) in [(0, 0), (7, 11), (u64::MAX, u64::MAX)] {
+        let row = forge::Stored::Flight { task, entry };
+        let bytes = records::encode(&row);
+        let key = crate::keys::encode(&forge::Key::Flight { task, entry }, u32::MAX).expect("fixed key");
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+        let other = crate::keys::encode(&forge::Key::Flight { task: task ^ 1, entry }, u32::MAX).expect("fixed key");
+        assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
+    }
+}

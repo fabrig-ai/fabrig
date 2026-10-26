@@ -5,6 +5,7 @@ mod change;
 mod connect;
 mod demo;
 mod fixtures;
+mod flight;
 mod panel;
 mod purpose;
 mod stopping;

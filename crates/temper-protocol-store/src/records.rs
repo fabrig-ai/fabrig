@@ -39,6 +39,9 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
             w::Binding::new(&w::CEILINGS, w::BindingParts { address: address.clone(), subject: subject.clone() })
                 .expect(FITS),
         ),
+        d::Stored::Flight { task, entry } => {
+            w::Value::Flight(w::Flight::new(&w::CEILINGS, w::FlightParts { task: *task, entry: *entry }).expect(FITS))
+        }
         d::Stored::DemoAct(row) => w::Value::DemoAct(
             w::DemoAct::new(
                 &w::CEILINGS,
@@ -96,6 +99,10 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
                 return Err(Undecodable);
             }
             d::Stored::Binding { address, subject }
+        }
+        w::Value::Flight(row) => {
+            let w::FlightParts { task, entry } = row.into_parts();
+            d::Stored::Flight { task, entry }
         }
         w::Value::DemoAct(row) => {
             let w::DemoActParts { key, act } = row.into_parts();
