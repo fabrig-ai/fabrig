@@ -153,9 +153,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 | `note` | note | writes a note in a scope, or revises one (jig's `domain/engine.md`, section 10) | for a revision, the note's revision it recalled | written, with its name and revision; refused: busy, too large, full, already there, missing, moved |
 | `recall` | recall | reads notes by name, or a page of a search of their scoped descriptions | | the entries, and whether more remain |
 | the forge's reads | read | one fresh read each, of an adopted repository (forge.md, section 2), below | | the answer, cut to the read's limit; failed, and why |
-| `settings` | settings | reads the settings (jig's `domain/engine.md`, 7.3): with `{}` the inventory; with `{"setting": SETTING}` one setting's value, SETTING as a settings file names it (`../client/tools.md`, 5.3), a charter's of a held revision with `"revision"`, a page from `"from"`; with `{"revision": R}` a revision's record; with `{"history": {"before": R}}` a page of the history, newest first. temper's kinds' values come from the forge (`../protocol/configuration.md`, 13.2) | | each as `temper ctl` prints it (`../client/tools.md`, 5.2), within the answer's bound: a value past it paged with its next offset; refused, and why |
+| `settings` | settings | reads the settings (jig's `domain/engine.md`, 7.3): with `{}` the inventory; with `{"setting": SETTING}` one setting's value, SETTING as a settings file names it (`../client/tools.md`, 5.3), a charter's of a held revision with `"revision"`; with `{"revision": R}` a revision's record; with `{"history": {}}` the newest page of the history, and `{"history": {"before": R}}` the page before R. Every form takes `"from"`, an offset into its answer's text. temper's kinds' values come from the forge (`../protocol/configuration.md`, 13.2) | | its text as `temper ctl` prints the same read (`../client/tools.md`, 5.2), from `from`, cut as `read_docs` cuts a page (`../protocol/documentation.md`, 3) within the answer's bound, with `next: OFFSET` or `end`; refused, and why |
 | `propose_settings` | settings | proposes a change of settings to the owners who may accept it, with a reason (jig's `domain/engine.md`, 17.6): its items in a settings file's form (`../client/tools.md`, 5.3) | the newest revision it read | proposed, as which proposal and to whom; stale, naming the newest; refused, when nobody may accept it or an item is out of shape, naming it |
-| `read_docs` | none | a page of one of temper's documentation topics from an offset, or the sections matching some words (`../protocol/documentation.md`, section 5); answered where the call is decoded, with no authority, commit or record | | the page and the next offset, or the end; the hits; no such topic, naming them |
+| `read_docs` | none | a page of one of temper's documentation topics from an offset, or the sections matching some words (`../protocol/documentation.md`, section 5); answered where the call is decoded, with no authority, commit or record | | the page and the next offset, or the end; the hits; no such topic, with the hits of a search for its words |
 
 The forge's reads, each a host tool of its own: `read_items`, a page of
 a repository's issues and pull requests; `read_item`, an issue or a pull
@@ -171,7 +171,7 @@ protection; `read_settings`, the repository's settings;
 `read_collaborators`, its collaborators; `read_permission`, a user's
 permission on it.
 
-- **Reads and writes:** the forge's reads, `recall` and `read_docs` are reads; every
+- **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
@@ -385,8 +385,9 @@ a person says they work into a proposal of settings
     what happens when work starts, which role runs where, why a task's
     run had what it had, given the task's `settings:` line the person
     reads to it;
-  - on its proposal's outcome, heard in its inbox: accepted, to say so
-    in one line with the revision it made; rejected, to take the
+  - on its proposal's outcome, heard in its inbox (jig's
+    `domain/engine.md`, 17.6): accepted, to say so in one line with the
+    revision it made; rejected, to take the
     reason as the person's words and revise; withdrawn as stale, to
     read the settings again and propose afresh, saying what changed.
 - **It changes nothing itself.** Its charter's `settings` family reads
