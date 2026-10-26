@@ -6,13 +6,24 @@ pub use context::Context;
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
-pub const PATCHES: &[&str] = &[include_str!("0001.patch")];
+pub const PATCHES: &[&str] = &[r"patch 1
+owner fixture-smith 1
+mark fresh-windows
+
+family fixture-turn 1 to 2
+add Turn.tokens u32 0
+drop Turn.replay
+"];
 
 pub mod kept {
     pub mod fixture_turn {
         pub const TEXTS: &[&str] = &[
-            include_str!("../schema/kept/fixture-turn-v1.schema"),
-            include_str!("../schema/kept/fixture-turn-v2.schema"),
+            r"family fixture-turn 1
+versioned record Turn { said: text 64 replay: bytes 64 }
+",
+            r"family fixture-turn 2
+versioned record Turn { said: text 64 tokens: u32 }
+",
         ];
         pub mod v1 {
             pub mod turn {
@@ -51,13 +62,11 @@ mod tests {
 
     #[test]
     fn current() {
-        skein_codegen::patch::current(&owner()).map_err(|error| error.to_string()).expect("patches are current");
+        assert_eq!(skein_codegen::patch::current(&owner()), Ok(()), "run skein-codegen patch for this owner");
     }
 
     #[test]
     fn p0001_goldens() {
-        skein_codegen::patch::goldens(&owner(), 1, super::written)
-            .map_err(|error| error.to_string())
-            .expect("patch 0001 goldens");
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 1, super::written), Ok(()), "patch 0001 goldens");
     }
 }
