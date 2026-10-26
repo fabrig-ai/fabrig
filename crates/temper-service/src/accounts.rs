@@ -234,6 +234,10 @@ impl Accounts {
         Ok(Some(payload))
     }
 
+    #[cfg(test)]
+    pub(crate) fn startup_state(&self) -> (bool, u32) {
+        (self.component.is_some(), self.early.len())
+    }
     /// Takes the moved record once, for the exchange that asked for it.
     pub fn take_moved(&mut self, source: u32) -> Option<Secret> {
         self.moves.take(source)
@@ -843,7 +847,7 @@ impl Accounts {
         self.inventory.loaded(next);
     }
     fn sweep(&mut self, store: &mut crate::store::Store) {
-        if self.aborting || !store.room() {
+        if self.aborting || !store.component.mark_durable() || !store.room() {
             return;
         }
         let Some(step) = self.inventory.step() else { return };
@@ -1107,11 +1111,11 @@ impl Accounts {
         }
         self.component = Some(component);
     }
-    /// Wait for the store, then route the child's restored sources and runtime requests.
+    /// Wait for the durable start mark, then route the child's restored sources and runtime requests.
     fn start(&mut self, store: &mut crate::store::Store, values: &mut Values) {
         match &mut self.phase {
             Phase::Loading { .. } => {
-                if store.opened {
+                if store.component.mark_durable() {
                     self.opened(&store.installation);
                 }
             }
