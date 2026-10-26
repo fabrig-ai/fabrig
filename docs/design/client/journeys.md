@@ -242,7 +242,8 @@ Under `docs/design/client/journeys/`:
 - **A journey's directory,** `NAME/`: its `recording`, and a page for
   each mark, `01.html` onwards, in the marks' order, replaced whole at
   each print.
-- **Beside the journeys:** `skein-ui.css`, skein-ui-bundle's own, and
+- **Beside the journeys:** `skein-ui.css`, skein-ui-bundle's own
+  (`skein_ui_bundle::STYLESHEET`, skein's `ui-web.md`, section 12), and
   `journey.js`, the program's, both written at each print; and
   `overlay.css`, the person's, made empty when missing and never written
   otherwise.
