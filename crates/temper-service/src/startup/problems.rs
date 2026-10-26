@@ -16,14 +16,47 @@ pub enum What {
     NoWebhooks,
     Profile,
     Override(limits::Refused),
-    Against { other: &'static [u8] },
-    Past { bytes: u64, bound: u64 },
-    Short { bytes: u64, of: &'static [u8], needs: u64 },
-    Within { bytes: u64, limit: &'static [u8], bound: u64 },
-    StorePage { transcript: u32, frame: u32, page: u32, ceiling: u32 },
+    Against {
+        other: &'static [u8],
+    },
+    Past {
+        bytes: u64,
+        bound: u64,
+    },
+    Short {
+        bytes: u64,
+        of: &'static [u8],
+        needs: u64,
+    },
+    Within {
+        bytes: u64,
+        limit: &'static [u8],
+        bound: u64,
+    },
+    StorePage {
+        transcript: u32,
+        frame: u32,
+        page: u32,
+        ceiling: u32,
+    },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
+    /// An explicit call bound below the local agent's call input
+    /// (protocol/configuration.md, 7): `bytes` the configured bound, also
+    /// the wire answer's; `input` the agent's `tool_payload`; `ask` its
+    /// channel's `host_ask_input`; `reply` its `host_reply_text`, smith's
+    /// `host_reply_bytes`.
+    CallInput {
+        bytes: u64,
+        input: u64,
+        ask: u64,
+        reply: u64,
+    },
     Agent,
-    Admission { why: jig_domain_fleet::AgentShortfall, offered: u64, required: u64 },
+    Admission {
+        why: jig_domain_fleet::AgentShortfall,
+        offered: u64,
+        required: u64,
+    },
     Adapter,
     Redirect(super::Listener),
     NoHub,
@@ -101,6 +134,7 @@ fn words(what: What) -> &'static [u8] {
         What::Past { .. }
         | What::Within { .. }
         | What::Short { .. }
+        | What::CallInput { .. }
         | What::Admission { .. }
         | What::StorePage { .. }
         | What::StoreMap(_) => b"",
@@ -293,6 +327,27 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 | config::What::CodecArithmetic
                 | config::What::StoreCodec),
             ) => codec_words(what, writer, &mut length, measuring),
+            What::CallInput { bytes, input, ask, reply } => {
+                put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());
+                put(
+                    writer,
+                    &mut length,
+                    measuring,
+                    b" bytes, short of the agent's call input (profile.declared.tool_payload), ",
+                );
+                put(writer, &mut length, measuring, Decimal::of(input).as_bytes());
+                put(writer, &mut length, measuring, b" bytes; raise it to at least ");
+                put(writer, &mut length, measuring, Decimal::of(input).as_bytes());
+                put(writer, &mut length, measuring, b" bytes, or omit it to follow the agent's call input\n");
+                render_path(&problem.path, writer, &mut length, measuring);
+                put(writer, &mut length, measuring, b": call input ");
+                put(writer, &mut length, measuring, Decimal::of(ask).as_bytes());
+                put(writer, &mut length, measuring, b" bytes; wire answer ");
+                put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());
+                put(writer, &mut length, measuring, b" bytes; smith host_reply_bytes ");
+                put(writer, &mut length, measuring, Decimal::of(reply).as_bytes());
+                put(writer, &mut length, measuring, b" bytes");
+            }
             What::Admission { why, offered, required } => {
                 admission(why, offered, required, writer, &mut length, measuring);
             }

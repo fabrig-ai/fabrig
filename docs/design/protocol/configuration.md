@@ -780,11 +780,18 @@ have one, an engine alone none. Each:
   processes retain their configured allowance. A cluster template must give
   its engine and workers consistent explicit allowances; per-kind terms
   reject a disagreement before hello.
-  Refusal of an explicit input allowance below `tool_payload` is pending a
-  follow-up after case 5 M2. The same temper follow-up owns checking that a
-  rendered answer fits both the wire answer allowance and Smith's
-  `host_reply_bytes`; it is not case 5's reply guard. Derivation alone does
-  not guarantee admission of every agent input or answer.
+  An explicit allowance below the local agent's `tool_payload` is
+  refused at startup by its path, in two lines: what it is short of and
+  the remedy, then the bounds a call meets, for instance
+  `workers[0].limits.overrides.core.call_answer_bytes: 2048 bytes, short
+  of the agent's call input (profile.declared.tool_payload), 4096 bytes;
+  raise it to at least 4096 bytes, or omit it to follow the agent's call
+  input` and `workers[0].limits.overrides.core.call_answer_bytes: call
+  input 4096 bytes; wire answer 2048 bytes; smith host_reply_bytes 4096
+  bytes`. Every entrance that composes the allowance refuses it alike,
+  the offline store readers included. An answer past the agent's
+  `host_reply_bytes` reaches its run as smith's `TooLarge`
+  (`../domain/agent.md`, 4.3).
 - **jig's limits stay in jig's parts:** `engine.limits` and each worker's
   `limits` (jig's `protocol/configuration.md`, section 6).
 - **What the root takes of `engine.limits`:** its core children's

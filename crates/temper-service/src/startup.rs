@@ -243,7 +243,7 @@ pub fn store_limits(
     let mut parsed =
         load(document, directories, false)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     if !parsed.workers.is_empty() {
-        parsed.compose(agent.ok_or(problem(indexed(0).member(b"agent"), What::Agent))?);
+        parsed.compose(agent.ok_or(problem(indexed(0).member(b"agent"), What::Agent))?)?;
     }
     let root = engine_limits(&mut parsed.engine.limits, &parsed.application.limits)?;
     let store = checked_store(&root, &parsed.engine.limits.store, None)?;
@@ -285,14 +285,22 @@ struct Parsed {
     worker_call_answers: Box<[CallAnswer]>,
 }
 impl Parsed {
-    fn compose(&mut self, agent: &settings::Agent) {
-        self.engine_call_answer.compose(&mut self.engine.limits, agent);
+    fn compose(&mut self, agent: &settings::Agent) -> Result<(), Problems> {
+        let mut problems = Problems::empty();
+        if let Err(what) = self.engine_call_answer.compose(&mut self.engine.limits, agent) {
+            problems.push(call_input_path(Path::root().member(b"engine")), what);
+        }
         for (index, worker) in self.workers.iter_mut().enumerate() {
-            self.worker_call_answers
+            if let Err(what) = self
+                .worker_call_answers
                 .get(index)
                 .expect("one provenance per parsed worker")
-                .compose(&mut worker.limits, agent);
+                .compose(&mut worker.limits, agent)
+            {
+                problems.push(call_input_path(indexed(index)), what);
+            }
         }
+        if problems.is_empty() { Ok(()) } else { Err(problems) }
     }
 }
 /// Raw membership preserves an explicit profile-default override (protocol/configuration.md, 7).
@@ -307,12 +315,25 @@ impl CallAnswer {
         let Some(overrides) = member(document, limits, b"overrides") else { return Self::Profile };
         if member(document, overrides, b"core.call_answer_bytes").is_some() { Self::Explicit } else { Self::Profile }
     }
-    fn compose(self, limits: &mut config::Limits, agent: &settings::Agent) {
+    fn compose(self, limits: &mut config::Limits, agent: &settings::Agent) -> Result<(), What> {
         match self {
             Self::Profile => limits.core.call_answer_bytes = limits.core.call_answer_bytes.max(agent.tool_payload),
-            Self::Explicit => {}
+            Self::Explicit => {
+                if limits.core.call_answer_bytes < agent.tool_payload {
+                    return Err(What::CallInput {
+                        bytes: u64::from(limits.core.call_answer_bytes),
+                        input: u64::from(agent.tool_payload),
+                        ask: u64::from(agent.limits.bodies.host_ask_input),
+                        reply: u64::from(agent.limits.bodies.host_reply_text),
+                    });
+                }
+            }
         }
+        Ok(())
     }
+}
+fn call_input_path(path: Path) -> Path {
+    path.member(b"limits").member(b"overrides").member(b"core.call_answer_bytes")
 }
 fn problem(path: Path, what: What) -> Problems {
     let mut problems = Problems::empty();
@@ -719,7 +740,7 @@ fn checked_start(
         None => None,
     };
     if let Some(agent) = agent {
-        parsed.compose(agent);
+        parsed.compose(agent)?;
     }
     // Only a checked local or client-managed entry enables a file-free Forgejo.
     for (index, forge) in parsed.application.forges.iter().enumerate() {
@@ -1048,7 +1069,9 @@ pub fn worker_alone(
 }
 
 fn check_worker_part(part: &mut WorkerPart, files: &settings::Files, agent: &settings::Agent) -> Result<(), Problems> {
-    part.call_answer.compose(&mut part.worker.jig.limits, agent);
+    if let Err(what) = part.call_answer.compose(&mut part.worker.jig.limits, agent) {
+        return Err(problem(call_input_path(indexed(0)), what));
+    }
     let mut problems = Problems::empty();
     for file in &part.files {
         match files.contents(&file.path) {

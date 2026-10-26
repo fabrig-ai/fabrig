@@ -442,6 +442,34 @@ fn serve_prepares_once_on_the_owned_example() {
     scratch.remove();
 }
 #[test]
+fn serve_refuses_an_explicit_call_bound_below_the_agents_call_input() {
+    let scratch = owned_example("owned-call-input-bound");
+    let path = scratch.path().join("temper.json");
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    // The owned agent declares tool_payload 4098; one below refuses, equality prepares.
+    for (bound, expected) in [
+        (
+            4097,
+            Some(concat!(
+                "temper serve: workers[0].limits.overrides.core.call_answer_bytes: 4097 bytes, short of the agent's call input (profile.declared.tool_payload), 4098 bytes; raise it to at least 4098 bytes, or omit it to follow the agent's call input\n",
+                "temper serve: workers[0].limits.overrides.core.call_answer_bytes: call input 4098 bytes; wire answer 4097 bytes; smith host_reply_bytes 4098 bytes\n",
+            )),
+        ),
+        (4098, None),
+    ] {
+        document["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = bound.into();
+        support::write_private(&path, &serde_json::to_vec(&document).expect("configuration JSON"));
+        let prepared = temper::prepare_in(&support::configuration::directories(scratch.path()));
+        match expected {
+            Some(lines) => assert_eq!(prepared.err().expect("call input refused"), lines),
+            None => assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default()),
+        }
+    }
+    scratch.remove();
+}
+
+#[test]
 fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let scratch = owned_example("owned-admission-bounds");
     let path = scratch.path().join("owned/agent.json");

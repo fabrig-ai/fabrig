@@ -3,14 +3,32 @@
 #![expect(clippy::disallowed_macros, reason = "ordinary tests format explicit scalar overrides")]
 use super::*;
 use crate::tests::fixtures;
+use core::fmt::Write;
 
 fn document(engine: Option<u32>, worker: Option<u32>) -> Box<[u8]> {
-    let mut text = core::str::from_utf8(&fixtures::document()).unwrap().to_string();
+    let input = fixtures::document();
+    let mut remaining = core::str::from_utf8(&input).unwrap();
+    let mut text = String::new();
     for bound in [engine, worker] {
-        let replacement = bound.map_or_else(String::new, |bytes| format!(",\"core.call_answer_bytes\":{bytes}"));
-        text = text.replacen(",\"core.call_answer_bytes\":2048", &replacement, 1);
+        let (before, after) = remaining.split_once(",\"core.call_answer_bytes\":2048").unwrap();
+        text.push_str(before);
+        if let Some(bytes) = bound {
+            write!(text, ",\"core.call_answer_bytes\":{bytes}").unwrap();
+        }
+        remaining = after;
     }
+    text.push_str(remaining);
     text.into_bytes().into_boxed_slice()
+}
+
+fn worker_document(bound: Option<u32>) -> Box<[u8]> {
+    let input = fixtures::worker_alone_document();
+    let replacement = bound.map_or_else(String::new, |bytes| format!(",\"core.call_answer_bytes\":{bytes}"));
+    core::str::from_utf8(&input)
+        .unwrap()
+        .replace(",\"core.call_answer_bytes\":2048", &replacement)
+        .into_bytes()
+        .into_boxed_slice()
 }
 
 #[test]
@@ -20,9 +38,9 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         (None, None, 4096, 32_768, 32_768),
         (None, None, 32_768, 32_768, 32_768),
         (None, None, 40_960, 40_960, 40_960),
-        (Some(32_768), None, 40_960, 32_768, 40_960),
-        (None, Some(32_768), 40_960, 40_960, 32_768),
-        (Some(2048), Some(2048), 4096, 2048, 2048),
+        (Some(4096), None, 4096, 4096, 32_768),
+        (None, Some(4096), 4096, 32_768, 4096),
+        (Some(32_768), Some(32_768), 32_768, 32_768, 32_768),
         (Some(40_960), Some(40_960), 4096, 40_960, 40_960),
     ] {
         let input = document(engine, worker);
@@ -110,16 +128,14 @@ fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configure
 #[test]
 fn worker_only_runtime_and_memory_use_the_same_composed_limits() {
     let directories = config::Directories::working();
-    for (explicit, expected) in [(false, 40_960), (true, 32_768)] {
-        let input = fixtures::worker_alone_document();
-        let replacement = if explicit { ",\"core.call_answer_bytes\":32768" } else { "" };
-        let input = core::str::from_utf8(&input).unwrap().replace(",\"core.call_answer_bytes\":2048", replacement);
+    for (bound, expected) in [(None, 40_960), (Some(40_960), 40_960)] {
+        let input = worker_document(bound);
         let mut agent = fixtures::startup_agent();
         agent.tool_payload = 40_960;
-        let part = worker_part(input.as_bytes(), &directories).unwrap();
+        let part = worker_part(&input, &directories).unwrap();
         let service = worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7).unwrap();
         let required = memory_requirements(
-            input.as_bytes(),
+            &input,
             &directories,
             &fixtures::files(),
             &agent,
@@ -131,7 +147,7 @@ fn worker_only_runtime_and_memory_use_the_same_composed_limits() {
         .unwrap();
         assert_eq!(required.engine_bytes, 0);
         let terms = memory_terms(
-            input.as_bytes(),
+            &input,
             &directories,
             &fixtures::files(),
             &agent,
@@ -142,7 +158,7 @@ fn worker_only_runtime_and_memory_use_the_same_composed_limits() {
         )
         .unwrap();
         assert_eq!(memory_sum(&terms.worker), Some(required.worker_bytes));
-        let mut expected_part = worker_part(input.as_bytes(), &directories).unwrap();
+        let mut expected_part = worker_part(&input, &directories).unwrap();
         expected_part.worker.jig.limits.core.call_answer_bytes = expected;
         assert_eq!(
             required.worker_bytes,
@@ -150,11 +166,8 @@ fn worker_only_runtime_and_memory_use_the_same_composed_limits() {
         );
         assert!(service.engine.is_none());
         // A one-byte-short memory declaration refuses the same runtime envelope.
-        let short = fixtures::with(
-            input.as_bytes(),
-            b"workers[0].memory_bytes",
-            (required.worker_bytes - 1).to_string().as_bytes(),
-        );
+        let short =
+            fixtures::with(&input, b"workers[0].memory_bytes", (required.worker_bytes - 1).to_string().as_bytes());
         let found = worker_alone(
             worker_part(&short, &directories).unwrap(),
             &fixtures::files(),
@@ -166,6 +179,159 @@ fn worker_only_runtime_and_memory_use_the_same_composed_limits() {
         .unwrap();
         assert_eq!(found.problems.get(0).unwrap().what, What::Jig(config::What::Memory { over: 1 }));
     }
+}
+
+fn call_input_lines(path: &str, bytes: u32, input: u32, ask: u32, reply: u32) -> String {
+    format!(
+        "{path}: {bytes} bytes, short of the agent's call input (profile.declared.tool_payload), {input} bytes; raise it to at least {input} bytes, or omit it to follow the agent's call input\n{path}: call input {ask} bytes; wire answer {bytes} bytes; smith host_reply_bytes {reply} bytes\n"
+    )
+}
+
+#[test]
+fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
+    let directories = config::Directories::working();
+    // The old M2 explicit cases remain refusals, alongside P - 1 at each override.
+    for (engine, worker, payload, paths, bound) in [
+        (Some(4095), None, 4096, vec!["engine"], 4095),
+        (None, Some(4095), 4096, vec!["workers[0]"], 4095),
+        (Some(2048), Some(2048), 4096, vec!["engine", "workers[0]"], 2048),
+        (Some(32_768), None, 40_960, vec!["engine"], 32_768),
+        (None, Some(32_768), 40_960, vec!["workers[0]"], 32_768),
+    ] {
+        let input = document(engine, worker);
+        let mut agent = fixtures::startup_agent();
+        agent.tool_payload = payload;
+        let mut expected = String::new();
+        for path in paths {
+            expected.push_str(&call_input_lines(
+                &format!("{path}.limits.overrides.core.call_answer_bytes"),
+                bound,
+                payload,
+                4096,
+                65_536,
+            ));
+        }
+        let found = [
+            startup(
+                &input,
+                &directories,
+                &fixtures::files(),
+                &agent,
+                &fixtures::seeds(),
+                None,
+                fixtures::worker_runtime(),
+                fixtures::forge_runtime(),
+            )
+            .err()
+            .unwrap(),
+            store_limits(&input, &directories, Some(&agent)).unwrap_err(),
+            memory_requirements(
+                &input,
+                &directories,
+                &fixtures::files(),
+                &agent,
+                &fixtures::seeds(),
+                None,
+                fixtures::forge_runtime(),
+                None,
+            )
+            .unwrap_err(),
+            memory_terms(
+                &input,
+                &directories,
+                &fixtures::files(),
+                &agent,
+                &fixtures::seeds(),
+                None,
+                fixtures::forge_runtime(),
+                None,
+            )
+            .unwrap_err(),
+        ];
+        for problems in found {
+            assert_eq!(core::str::from_utf8(&lines(&problems)).unwrap(), expected);
+            assert_eq!(problems.problems.len(), if engine.is_some() && worker.is_some() { 2 } else { 1 });
+        }
+        // A refusal preserves each configured value, rather than silently deriving it.
+        let mut parsed = parse(&input, &directories).unwrap();
+        parsed.compose(&agent).unwrap_err();
+        if let Some(bytes) = engine {
+            assert_eq!(parsed.engine.limits.core.call_answer_bytes, bytes);
+        }
+        if let Some(bytes) = worker {
+            assert_eq!(parsed.workers[0].limits.core.call_answer_bytes, bytes);
+        }
+    }
+}
+
+#[test]
+fn explicit_short_call_inputs_refuse_every_worker_only_entrance() {
+    let directories = config::Directories::working();
+    for (bound, payload) in [(4095, 4096), (32_768, 40_960)] {
+        let input = worker_document(Some(bound));
+        let mut agent = fixtures::startup_agent();
+        agent.tool_payload = payload;
+        let expected =
+            call_input_lines("workers[0].limits.overrides.core.call_answer_bytes", bound, payload, 4096, 65_536);
+        let found = [
+            worker_alone(
+                worker_part(&input, &directories).unwrap(),
+                &fixtures::files(),
+                &agent,
+                fixtures::worker_runtime(),
+                7,
+            )
+            .err()
+            .unwrap(),
+            memory_requirements(
+                &input,
+                &directories,
+                &fixtures::files(),
+                &agent,
+                &fixtures::seeds(),
+                None,
+                List::with_capacity(0),
+                None,
+            )
+            .unwrap_err(),
+            memory_terms(
+                &input,
+                &directories,
+                &fixtures::files(),
+                &agent,
+                &fixtures::seeds(),
+                None,
+                List::with_capacity(0),
+                None,
+            )
+            .unwrap_err(),
+        ];
+        for problems in found {
+            assert_eq!(core::str::from_utf8(&lines(&problems)).unwrap(), expected);
+            assert_eq!(problems.problems.len(), 1);
+        }
+    }
+}
+
+#[test]
+fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
+    let input = fixtures::engine_alone_document();
+    let directories = config::Directories::working();
+    let mut agent = fixtures::startup_agent();
+    agent.tool_payload = 4096;
+    let checked = checked_start(
+        &input,
+        &directories,
+        &fixtures::files(),
+        Some(&agent),
+        &fixtures::seeds(),
+        None,
+        fixtures::forge_runtime(),
+        None,
+    )
+    .unwrap();
+    assert_eq!(checked.engine.jig.limits.core.call_answer_bytes, 2048);
+    assert_eq!(store_limits(&input, &directories, Some(&agent)).unwrap().store.core.call_answer_bytes, 2048);
 }
 
 #[test]

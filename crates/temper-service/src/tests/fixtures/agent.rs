@@ -68,7 +68,7 @@ pub fn agent() -> settings::Agent {
     };
     limits.channel.output_bytes = smith_host_protocol::output_bytes(&limits).expect("host frames");
     settings::Agent {
-        tool_payload: 4096,
+        tool_payload: 2048,
         programs: Box::new([]),
         endpoints: smith_protocol_channel::Endpoints::new(endpoints),
         limits,
