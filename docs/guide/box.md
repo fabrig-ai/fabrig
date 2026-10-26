@@ -92,6 +92,22 @@ connected and names the first repository. You may replace `work`,
 and omitting `--project` makes a new project named after the repository.
 Use the project number printed by the adoption in the following steps.
 
+To try the playground's suggested requests on your own Forgejo, set it
+up with a copy of the playground's repository instead:
+
+```sh
+temper ctl DIR forge-setup 3 --playground
+```
+
+It makes `playground/widget`, with the playground's `src/main.rs`
+beside the starter workflow, and adopts it as the home of a new project
+named `widget`. `--playground` takes no `--org` or `--repository`. Ask
+that project the playground's requests: "Add CSV export to widget",
+"Add a dark theme to widget", "Fix widget's empty search state".
+
+Every change is reviewed by an agent at its head before it lands:
+`change N` shows the review, gate 1, pending, then approved.
+
 CI jobs run on this machine as the box's user, with label
 `temper-host`, without a container. Run code you trust there. The
 starter workflow only echoes a success message, on pushes to `main`
