@@ -240,6 +240,9 @@ Designed in `configuring.md`, from a session with the user on
 
 ## 8. The playground
 
+*Superseded by `browser-playground.md` (2026-10-26), which takes this
+section over.*
+
 Fakes only: the demo with richer stories, in the visitor's browser.
 
 ### 8.1 In the browser
