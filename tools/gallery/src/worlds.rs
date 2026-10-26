@@ -837,9 +837,9 @@ fn read_value(w: World, what: &c::Read, then: Then) -> Option<c::ReadValue> {
 fn agent_line(words: &str, number: u32, read: Option<u64>) -> c::Activity {
     let mut blocks = List::with_capacity(1);
     let bytes = words.as_bytes();
-    let limit = usize::try_from(limits().client.domain.text).expect("text limit");
+    let limit = usize::try_from(limits().client.domain.turn_text).expect("turn text limit");
     let length = words.floor_char_boundary(bytes.len().min(limit));
-    let text = c::Text::new(Box::from(&bytes[..length]), limits().client.domain.text).expect("received turn text");
+    let text = c::Text::new(Box::from(&bytes[..length]), limits().client.domain.turn_text).expect("received turn text");
     blocks.push(c::Block::Text(text)).expect("agent text");
     turn_line(&blocks, number, read, length < bytes.len())
 }
