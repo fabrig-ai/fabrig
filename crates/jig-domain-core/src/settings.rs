@@ -493,3 +493,10 @@ pub(crate) fn task_route_room(limits: &crate::Limits) -> u32 {
 pub(crate) fn move_writes(limits: &crate::Limits) -> Option<u32> {
     limits.tasks.tasks.checked_mul(3)?.checked_add(release_writes(limits)?)
 }
+
+/// The fleet's retained requirements use the core's settings version limit.
+pub(crate) fn fleet_limits(limits: &crate::Limits) -> jig_domain_fleet::Limits {
+    let mut fleet = limits.fleet;
+    fleet.versions = limits.settings.versions;
+    fleet
+}
