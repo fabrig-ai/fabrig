@@ -479,12 +479,16 @@ schema remains v4. These are the versions the format row requires.
   grants (`Grant`), requirements, permissions, parameters, numbers and
   a note change's references (`Number64`), dependencies, verdicts, and
   a verdict's, a result's and a verdict message's fields (`FieldRule`,
-  `ResultField`). A settled call's `name` is jig's own record,
-  `CallName { activation: u64, completion: u32, position: u32 }`:
-  decoded from smith's call name where it crosses the channel, in the
-  protocol layer, and encoded back where it is sent again (a replay, the
+  `ResultField`). A settled call keeps no name: smith's call name is
+  its activation, completion and position, which are its key's
+  (`CallKey { task, attempt, completion, position }`, the activation the
+  attempt). The protocol layer checks that they agree as the call
+  settles, refusing one that does not as a malformed call, and encodes
+  the name from the key wherever it is sent again (a replay, the
   in-process hub), so neither the core nor the store holds smith's
-  codec or its bytes. A word makes a patch reach the field; a patch that
+  codec or its bytes. Live names (the fleet's, the hub's, relays', the
+  worker wire's) stay smith's bytes under `call_name_bytes`, and a
+  refused call's reply keeps its opaque address, since neither is kept. A word makes a patch reach the field; a patch that
   converts a piece's items, not copies them, is still refused when
   planned (skein's `codec.md`, 11.3; section 16). A delivery's evidence
   stays opaque (section 16).
