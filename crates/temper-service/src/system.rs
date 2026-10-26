@@ -54,6 +54,24 @@ enum BoxOutput {
 // Existing reservation for setup/forge handoffs beside a root routing pass.
 const SETUP_ROUTING_HEADROOM: u32 = 2;
 impl Service {
+    /// The engine domain, for a world to inspect before requesting shutdown.
+    #[must_use]
+    pub fn engine_domain(&self) -> Option<&temper_engine_domain::Domain> {
+        match &self.engine {
+            Some(engine) => Some(&engine.domain),
+            None => None,
+        }
+    }
+
+    /// The worker domain, for a world to inspect before requesting shutdown.
+    #[must_use]
+    pub fn worker_domain(&self) -> Option<&temper_worker_domain::Domain> {
+        match &self.worker {
+            Some(worker) => Some(&worker.root),
+            None => None,
+        }
+    }
+
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,

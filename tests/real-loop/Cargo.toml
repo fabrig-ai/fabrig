@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-domain-tasks.workspace = true
+temper-worker-domain.workspace = true
 jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true
 jig-protocol-worker-wire.workspace = true

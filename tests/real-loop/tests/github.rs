@@ -2,7 +2,8 @@
 use serde_json::Value;
 use temper_real_loop_world::{
     Exit, Ran, argv,
-    calls::{D1, browse, call, file, number, sign_in, task},
+    calls::{D1, browse, call, ends_leaving, file, number, sign_in, task},
+    ending::{Left, Leftover},
     github, landing, run_github,
 };
 
@@ -27,59 +28,7 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
     fixture.connected = false;
     fixture.manifest = true;
     fixture.unaccepted_after_install = true;
-    let ran = run_github(fixture, scripts, || {
-        vec![
-            sign_in(D1),
-            call(D1, argv!["add-key", "1", file("fixture.key"), "--deployment", "--key", "github-llm"]),
-            call(D1, argv!["wait", "accounts", "--until", "usable"]),
-            call(D1, argv!["forge-connect", "1", "github", "--key", "github-connect"]),
-            browse(CONNECT),
-            call(D1, argv!["wait", "forges", "--until", "settled", "--json"]),
-            call(D1, argv!["repositories", "1", "--installation", "1", "--json"]),
-            call(
-                D1,
-                argv![
-                    "adopt",
-                    "--project",
-                    "1",
-                    "--forge",
-                    "1",
-                    "--owner",
-                    "umbra",
-                    "--name",
-                    "tool",
-                    "--landing",
-                    "main",
-                    "--key",
-                    "adopt-umbra",
-                    "--json"
-                ],
-            ),
-            call(
-                D1,
-                argv![
-                    "adopt",
-                    "--project",
-                    "1",
-                    "--forge",
-                    "1",
-                    "--owner",
-                    "acme",
-                    "--name",
-                    "app",
-                    "--landing",
-                    "main",
-                    "--key",
-                    "adopt-app"
-                ],
-            ),
-            call(D1, argv!["chat", "--project", "1", "--key", "github-change", "@forge_chat Update README"]),
-            call(D1, argv!["wait", "task", task(CHAT), "--until", "replied"]),
-            // An idle procedure has durably made its coder before we watch that task.
-            call(D1, argv!["wait", "task", number(PROCEDURE), "--until", "phase:idle"]),
-            call(D1, argv!["wait", "task", number(CODER), "--until", "ended", "--json"]),
-        ]
-    });
+    let ran = run_github(fixture, scripts, steps);
     for (index, result) in ran.calls().iter().enumerate() {
         assert_eq!(result.exit, Some(Exit::Code(if index == UMBRA { 2 } else { 0 })), "call {index}: {result:?}");
     }
@@ -125,6 +74,65 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
         [branch.head],
         "the pushed head is the coder's one newly created local commit"
     );
+}
+
+fn steps() -> Vec<temper_real_loop_world::calls::Step> {
+    vec![
+        sign_in(D1),
+        call(D1, argv!["add-key", "1", file("fixture.key"), "--deployment", "--key", "github-llm"]),
+        call(D1, argv!["wait", "accounts", "--until", "usable"]),
+        call(D1, argv!["forge-connect", "1", "github", "--key", "github-connect"]),
+        browse(CONNECT),
+        call(D1, argv!["wait", "forges", "--until", "settled", "--json"]),
+        call(D1, argv!["repositories", "1", "--installation", "1", "--json"]),
+        call(
+            D1,
+            argv![
+                "adopt",
+                "--project",
+                "1",
+                "--forge",
+                "1",
+                "--owner",
+                "umbra",
+                "--name",
+                "tool",
+                "--landing",
+                "main",
+                "--key",
+                "adopt-umbra",
+                "--json"
+            ],
+        ),
+        call(
+            D1,
+            argv![
+                "adopt",
+                "--project",
+                "1",
+                "--forge",
+                "1",
+                "--owner",
+                "acme",
+                "--name",
+                "app",
+                "--landing",
+                "main",
+                "--key",
+                "adopt-app"
+            ],
+        ),
+        call(D1, argv!["chat", "--project", "1", "--key", "github-change", "@forge_chat Update README"]),
+        call(D1, argv!["wait", "task", task(CHAT), "--until", "replied"]),
+        // An idle procedure has durably made its coder before we watch that task.
+        call(D1, argv!["wait", "task", number(PROCEDURE), "--until", "phase:idle"]),
+        call(D1, argv!["wait", "task", number(CODER), "--until", "ended", "--json"]),
+        ends_leaving(&[Leftover {
+            task: PROCEDURE,
+            state: Left::Due,
+            why: "GitHub token smoke ends on the coder's push, before review and landing (domain/testing.md, 2.4)",
+        }]),
+    ]
 }
 
 fn reachable_page(ran: &Ran) {

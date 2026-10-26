@@ -613,6 +613,7 @@ impl Judge {
                 self.members.restart(name);
                 self.stage = Stage::Starting { target };
             }
+            Step::EndsLeaving(_) => panic!("EndsLeaving requires the real-loop completion judge"),
             Step::FixtureReady => panic!("FixtureReady unsupported"),
             Step::Advance => panic!("Advance unsupported"),
             Step::Push { .. } => panic!("Push unsupported"),
@@ -910,6 +911,7 @@ impl Referee<cluster::Root> for Judge {
 fn describe(step: &calls::Step) -> String {
     use calls::Step;
     match step {
+        Step::EndsLeaving(leftovers) => format!("EndsLeaving {leftovers:?}"),
         Step::FixtureReady => "FixtureReady".into(),
         Step::Browse { call } => format!("Browse call {call}"),
         Step::Authorize => "Authorize".into(),

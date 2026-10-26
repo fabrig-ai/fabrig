@@ -33,6 +33,8 @@ pub struct Argv(pub Vec<Arg>);
 #[macro_export]
 macro_rules! argv { ($($word:expr),* $(,)?) => { $crate::calls::Argv(vec![$($crate::calls::Arg::from($word)),*]) }; }
 pub enum Step {
+    /// Declare the exact work this story intentionally leaves at its stop.
+    EndsLeaving(&'static [crate::ending::Leftover]),
     /// Finish runtime fixture provisioning before recording the story calls.
     FixtureReady,
     Browse {
@@ -227,6 +229,10 @@ pub fn contended(calls: &'static [usize]) -> Step {
     Step::Contended { calls }
 }
 #[must_use]
+pub fn ends_leaving(leftovers: &'static [crate::ending::Leftover]) -> Step {
+    Step::EndsLeaving(leftovers)
+}
+#[must_use]
 pub fn sign_in(at: Dir) -> Step {
     Step::SignIn { at }
 }
@@ -408,6 +414,10 @@ pub(crate) struct Caller {
     input: Box<[u8]>,
 }
 impl Caller {
+    pub(crate) fn leftovers(&self) -> &'static [crate::ending::Leftover] {
+        if let Some(Step::EndsLeaving(leftovers)) = self.steps.last() { leftovers } else { &[] }
+    }
+
     pub(crate) fn held_names(&self) -> impl Iterator<Item = &[u8]> {
         self.steps.iter().filter_map(|step| match step {
             Step::Held { name } => Some(*name),
@@ -415,6 +425,7 @@ impl Caller {
             | Step::Authorize
             | Step::Return
             | Step::FixtureReady
+            | Step::EndsLeaving(_)
             | Step::ReleaseHold { .. }
             | Step::Terminal(_)
             | Step::StopWorker { .. }
@@ -560,6 +571,7 @@ impl Caller {
             | Step::Authorize
             | Step::Return
             | Step::FixtureReady
+            | Step::EndsLeaving(_)
             | Step::ReleaseHold { .. }
             | Step::Terminal(_)
             | Step::StopWorker { .. }
@@ -912,11 +924,18 @@ impl Caller {
         self.browsed.push(self.browser.take().expect("finished browser").seen);
         true
     }
-    fn advance(&mut self, now: Time) {
+    fn skip_completed_steps(&mut self) {
         if matches!(self.steps.get(self.next), Some(Step::Held { .. })) && self.held.get() {
             // Issue the following kill in this pass, before the hosted caller's next turn.
             self.next += 1;
         }
+        if matches!(self.steps.get(self.next), Some(Step::EndsLeaving(_))) {
+            assert_eq!(self.next + 1, self.steps.len(), "ending declaration is the last step");
+            self.next += 1;
+        }
+    }
+    fn advance(&mut self, now: Time) {
+        self.skip_completed_steps();
         let Some(step) = self.steps.get(self.next) else {
             self.finish();
             return;
@@ -929,6 +948,7 @@ impl Caller {
             }
             Step::FixtureReady if self.running.iter().any(Option::is_some) => return,
             Step::FixtureReady => self.fixture_ready(),
+            Step::EndsLeaving(_) => unreachable!("ending declaration was skipped"),
             Step::AddWorker { .. } if !self.added.replace(false) => return,
             Step::StopWorker { .. } | Step::StartWorker { .. } if !self.worker_ready.replace(false) => return,
             Step::Advance | Step::Push { .. } if !self.advanced.get() => return,
@@ -1020,6 +1040,9 @@ impl Caller {
             Some(Step::Authorize | Step::Return) => self.visit.as_ref().is_none_or(|visit| visit.done),
             Some(Step::Browse { .. }) => self.browser.as_ref().is_none_or(|browser| browser.done),
             Some(Step::Terminal(act)) => self.terminal.ready(act, self.links.get()),
+            Some(Step::EndsLeaving(_)) => {
+                self.root.is_some() && self.running.iter().all(Option::is_none) && self.terminal.finish_ready()
+            }
             Some(Step::FixtureReady) => self.running.iter().all(Option::is_none),
             Some(Step::StopWorker { .. } | Step::StartWorker { .. }) => self.worker_ready.get(),
             Some(Step::Advance | Step::Push { .. }) => self.advanced.get(),

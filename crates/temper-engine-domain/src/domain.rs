@@ -89,6 +89,22 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The live task arena, for a world to inspect between iterations.
+    #[must_use]
+    pub const fn tasks(&self) -> &tasks::Domain {
+        &self.core.tasks
+    }
+
+    /// Tasks whose prepared assignment has not yet been handed to a worker.
+    #[must_use]
+    pub fn pending_assignments(&self) -> List<u64> {
+        let mut tasks = List::with_capacity(self.assignments.len());
+        for (task, _) in &self.assignments {
+            tasks.push(*task).expect("one task per assignment");
+        }
+        tasks
+    }
+
     /// Conservative mutation revision, including refused inputs, empty probes,
     /// observation drains and reclamation. Nested public calls may bump twice.
     /// Owners checkpoint it only after their release and reclaim pass settles.

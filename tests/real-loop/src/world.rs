@@ -572,6 +572,7 @@ impl Referee<Proc> for Judge {
             caller.watched = service.delivered();
         }
         if caller.is_empty() && self.children.settled(children) && !self.stopping {
+            check_ending(caller, service, workers, children);
             for (position, _) in self.workers.iter().enumerate() {
                 self.controls.signal(caller_end + position, ServiceSignal::Terminate);
             }
@@ -676,6 +677,19 @@ impl Referee<Proc> for Judge {
     fn passed(&self) -> bool {
         self.finished
     }
+}
+
+fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], children: &[Proc]) {
+    let mut obligations = crate::ending::Obligations::default();
+    obligations.read(service);
+    for worker in workers {
+        let Proc::Service(worker) = worker else { panic!("worker root") };
+        obligations.read(worker);
+    }
+    for (index, child) in children.iter().enumerate() {
+        obligations.read_child(3 + workers.len() + index, child);
+    }
+    obligations.check(caller.leftovers()).unwrap_or_else(|error| panic!("{error}"));
 }
 
 fn person_push(now: Time, caller: &Caller, state: &mut forge::State, seen: &mut forge::Seen) {

@@ -3066,6 +3066,7 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-world",
  "jig-client-protocol-wire",
+ "jig-domain-tasks",
  "jig-protocol-config",
  "jig-protocol-store",
  "jig-protocol-worker-wire",
@@ -3105,6 +3106,7 @@ dependencies = [
  "temper-github-app",
  "temper-protocol-store",
  "temper-service",
+ "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
 ]

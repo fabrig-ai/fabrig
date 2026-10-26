@@ -78,6 +78,59 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Unanswered hosted attempts, read once by a world's completion referee.
+    /// Answered attempts awaiting acknowledgement are parked, not live work.
+    #[must_use]
+    pub fn hosting(&self) -> skein_lib::List<host::Hosting> {
+        let mut owners = skein_lib::Set::with_capacity(self.host.hosted());
+        for (owner, _) in &self.preparing {
+            owners.insert(*owner).expect("one owner per hosted slot");
+        }
+        for (owner, _) in &self.agents {
+            owners.insert(*owner).expect("one owner per hosted slot");
+        }
+        for pending in &self.pending {
+            owners.insert(pending.owner()).expect("one owner per hosted slot");
+        }
+        for (owner, _) in &self.gone {
+            owners.insert(*owner).expect("one owner per hosted slot");
+        }
+        let mut runs = skein_lib::List::with_capacity(self.host.unanswered());
+        let mut seen = skein_lib::Set::with_capacity(self.host.unanswered());
+        for owner in &owners {
+            if let Some(hosting) = self.host.hosting(*owner)
+                && hosting.phase != host::Phase::Answered
+            {
+                seen.insert((hosting.run, hosting.attempt)).expect("one identity per unanswered attempt");
+                runs.push(hosting).expect("one record per unanswered attempt");
+            }
+        }
+        if runs.len() < self.host.unanswered() {
+            // Once its agent and hand-outs are gone, an unanswered run can only
+            // be finishing its workspace. Items retain its engine identity until
+            // acknowledgement; answered slots are deliberately not obligations.
+            let mut answered = skein_lib::Set::with_capacity(self.host.kept_answers());
+            for index in 0..self.host.kept_answers() {
+                let Some(host::LinkUp::Answer { run, attempt, .. }) = self.host.answer_at(index) else {
+                    unreachable!("retained answer position");
+                };
+                answered.insert((run, attempt)).expect("one answer per slot");
+            }
+            for ((run, attempt), _) in &self.items_by_run {
+                if self.host.is_hosting(*run, *attempt)
+                    && !answered.contains(&(*run, *attempt))
+                    && !seen.contains(&(*run, *attempt))
+                {
+                    seen.insert((*run, *attempt)).expect("one identity per unanswered attempt");
+                    runs.push(host::Hosting { run: *run, attempt: *attempt, phase: host::Phase::Ending })
+                        .expect("one record per unanswered attempt");
+                }
+            }
+        }
+        assert_eq!(runs.len(), self.host.unanswered(), "every unanswered attempt has a root owner");
+        runs
+    }
+
     /// A domain with room for `limits`, which [`crate::worst_case`] accepts.
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {
