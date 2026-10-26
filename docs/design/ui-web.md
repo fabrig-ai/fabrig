@@ -815,7 +815,10 @@ share sheet, a clipboard write, a file picked).
 ## 12. The stylesheet
 
 - **`skein-ui.css`,** written by the bundler first in every bundle
-  (4.2), and loaded first by the page. It:
+  (4.2), and loaded first by the page. Its bytes are
+  `skein_ui_bundle::STYLESHEET`, which the bundler writes and a program
+  that prints pages beside it without a bundle copies (temper's
+  journeys). It:
   - hides a drawn drawing's fallback (`data-drawn`) from sight only,
     taking no space, and places a scene's SVG at its figure's top left
     (section 8);
