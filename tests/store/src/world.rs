@@ -556,6 +556,26 @@ impl World {
         paths
     }
 
+    /// The deployment's sorted paths, kinds and permission modes for its
+    /// layout golden (store.md 2 and 14), excluding the deployment root.
+    #[must_use]
+    pub fn layout_entries(&mut self) -> Vec<(Vec<u8>, bool, u32)> {
+        use skein_fake_machine::{How, Is};
+        let paths = self.paths();
+        let root = self.machine.reopen_root(0);
+        let entries = paths
+            .into_iter()
+            .map(|path| {
+                let file = self.machine.open(root, &path, How::ReadNoFollow).expect("listed layout path");
+                let stat = self.machine.stat(file);
+                self.machine.close(file);
+                (path, stat.is == Is::Directory, stat.mode)
+            })
+            .collect();
+        self.machine.close(root);
+        entries
+    }
+
     #[must_use]
     pub fn active(&mut self) -> Vec<u8> {
         use skein_fake_machine::How;
