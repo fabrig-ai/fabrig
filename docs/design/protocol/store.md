@@ -1158,6 +1158,30 @@ nothing is written.
 
   A program source's login is not here: it is the program's own, on
   each host (`llm.md`, 5.5).
+- **Each row from a schema,** jig's family `secrets`
+  (`schema/secrets-v1.schema`, in place before the first release),
+  versioned records whose key says which:
+  - `Digest { expiry: u64, digest: fixed 32 }`, a sign-in's (`[1, 0]`)
+    and a service's (`[1, 1]`), an expiry of `u64::MAX` for a service's;
+  - `Source`, a source's row (`[3, 0]`), an enum: `record: bytes N
+    holds skein-oauth SavedToken` (skein's `oauth.md`, 6.4) or `key:
+    secret N`, so a row says which it holds, never guessed from its
+    bytes;
+  - `Carried`, a carried value (`[2, 0]` from 2^63), an enum: `key:
+    secret N`, `value: secret N` (an application's), or `moved: bytes N
+    holds jig-accounts Moved` (`llm.md`, 5.6), written as the clients'
+    component decodes the request that carries it, which knows its kind;
+  - `NextCarried { next: u64 }`, the carried values' next number
+    (`[2, 1]`).
+
+  Each `N` is the bound its value has today. The application's rows
+  are its own family's, by its own schema (temper's
+  `protocol/credentials.md`, 2.1). jig's set names the family, `map:
+  Secrets`, and its keys' ranges, the application's left out (10.3), so
+  the copy's secrets are patched as the records are. Its layout is one
+  of jig's families' in the main store's layouts row (5.3), so a store
+  of a build before it is refused at open, `Older::Layout`, before a
+  secret is read, and made again.
 - **Written by components alone,** through the protocol layer's routing.
   The domain names a secret by number, never holds one, and never sees
   the secrets' store's commits, which have numbers of their own.
@@ -2163,8 +2187,6 @@ Each within jig's suites' budgets.
     needed, not the price; but it keeps that room until the machine
     goes, so one large turn keeps it large (skein's `codec.md`, 13,
     "Shrinking");
-  - schemas for the secrets' records, so that a patch can name them
-    (section 9);
   - keys a patch moves (10.3), left to later work: a line for them
     in skein's patch text, and the key function's answer up and back;
   - the free space checked before the copy (10.2);

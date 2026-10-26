@@ -388,17 +388,19 @@ child's vocabulary and the driver's, both ways, exhaustive on both:
 ### 5.6 A moved record
 
 - **The file's form,** one account a file, opaque, private and never
-  printed: a magic, `JIGM`, and the form's version, then, each after its
-  length, the application's name (its root gives it to the accounts'
+  printed: the versioned record `Moved` of `jig-protocol-accounts`'
+  family `jig-accounts` (`schema/moved-v1.schema`, in place of the
+  hand-written `JIGM` form before the first release, at its version,
+  1): the application's name (its root gives it to the accounts'
   protocol layer), the issuer, the client id the record refreshes with
   (the one its LLM provider issued, kept in the record, or the
   registration's own where none was issued), the subject, the display
-  name, and the record in skein's form (skein's `encode_record`, its own
-  version inside). Each part has its bound, the whole at most their sum,
-  and nothing follows the record. `jig-protocol-accounts`' `moved`
-  module encodes and decodes it with total functions; a decode refuses a
-  wrong magic, another version, a part past its bound, a short or
-  trailing input and a record skein does not read.
+  name, and the record, `bytes N holds skein-oauth SavedToken` (skein's
+  `oauth.md`, 6.4). Each part has its bound, the whole at most their
+  sum. The generated decode refuses another version, a part past its
+  bound, a short or trailing input, and a record skein does not read;
+  a file of another version is refused by name, and the account is
+  moved again from a deployment of the same release.
 - **Out.** The child releases the source and asks to withdraw it,
   giving its account's display name for the file. The
   routing removes it from the driver; at `removed`, it reads the
