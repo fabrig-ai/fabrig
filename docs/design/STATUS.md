@@ -12,7 +12,7 @@ Updated 2026-10-26. How far skein's code is from its design.
 | `shell.md` | 1, 2, 4, 7 to 10: epoll backend, startup fallback and platform split; Darwin's shell parts are written. | 6: startup names and TLS server keys; 6.4: containment helper and service cgroup. 8: deferred optimisations. |
 | `simulator.md` | unknown (partly built). | 3.1, 3.3, 4: tree metadata, filesystem faults and power-loss semantics. 3.4: cgroups and contained-spawn faults. |
 | `fake-llm.md` | 3.1: gzip request inflation. | 2.4, 3: request-cued scripts, fallback answers, record-free peer and exported test root. 2.2: standalone byte peer; 7: provider cache granularity. |
-| `kv.md` | unknown (partly built). | 6: payload logs. 12: shared sync and values on disk. |
+| `kv.md` | unknown (partly built); 9: the format's golden bytes, a snapshot and two segments kept in tests/kv/golden/. | 6: payload logs. 12: shared sync and values on disk. |
 | `fake-checkout.md` | unknown (partly built). | 1: product crate, separate tests and fake git over the forge's git route. |
 | `testing.md` | 5: state-digest plumbing. | 3: HTTP example and TLS real loop. 4: full filesystem and contained-tree fixtures. 6: remaining product-fake moves. 9: metering heap handed between services. |
 | `examples.md` | unknown (partly built). | 6: echo referee reading its startup fact rather than service state; end-to-end cgroups on io. 7: echo domain worlds. HTTP example not yet designed here. |
