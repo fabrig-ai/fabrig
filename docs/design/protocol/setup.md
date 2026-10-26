@@ -561,7 +561,10 @@ files: at a first preparation, and for a runner older than its pin
    ends in a random suffix, since Forgejo refuses a second token of one
    name; the
    person's account, a site admin with a password Forgejo draws into
-   `person_password`, to change at their first sign-in; the person's
+   `person_password`, private, never printed, never in an argument or a
+   log, with no change forced at the first sign-in (`admin user create
+   --random-password --must-change-password=false`; the user, 10-26), so
+   that the person's tokens work at once; the person's
    two tokens, each `admin user generate-access-token --raw --scopes`
    for the person's login under a name ending in a random suffix,
    written whole into `person_read.header` and `person_write.header`,
@@ -796,8 +799,8 @@ files: at a first preparation, and for a runner older than its pin
   managed offer "New repository", with the set up's organization,
   repository and project fields (section 15).
 - **The person** signs in on Forgejo's web as a site admin with
-  `person_password`, and changes it, since Forgejo's API refuses them
-  until they do (13.3); makes repositories in their orgs, with Actions,
+  `person_password`, and may change it when they like; makes
+  repositories in their orgs, with Actions,
   and adopts them through temper's client. temper's admin is temper's; a
   person who deletes it makes the next start's reconcile and the next
   preparation stop, naming it.
@@ -3069,11 +3072,12 @@ conformance's `facts.txt`. What reconcile relies on, and the deliveries,
 are skein's: `forge-setup.md`, section 8 and `forge.md`, section 9. What
 the preparation relies on stays here:
 
-- **Forgejo's API takes the person's tokens** before the person's first
-  password change, and after it: a token is the person's until it is
-  revoked, whatever the password (`api-token-of-a-user-whose-password-must-change-is-taken`,
-  `api-token-survives-a-password-change`), recorded at the pin before the
-  header files are relied on;
+- **Forgejo's API takes the person's tokens** once the person need not
+  change their password (`api-token-of-a-user-whose-password-must-change-is-refused`,
+  403 "You must change your password", recorded at 17.0.0; hence
+  `--must-change-password=false`), and after a later change of it: a
+  token is the person's until it is revoked
+  (`api-token-survives-a-password-change`);
 - **Forgejo's command line** (6.3):
   - `admin user create --random-password` prints `generated random
     password is '<password>'` on its first line
