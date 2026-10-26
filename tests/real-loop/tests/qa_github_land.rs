@@ -13,6 +13,7 @@ use temper_real_loop_world::{
 
 const CHANGE: u64 = 2;
 const CHAT_CALL: usize = 4;
+const CHAT: u64 = 1;
 const WORKER: u64 = 3;
 const LANDING_HEARD: usize = 8;
 const HELD_TOLD: usize = 10;
@@ -75,6 +76,10 @@ fn begin() -> Vec<Step> {
 }
 
 fn landed_steps() -> Vec<Step> {
+    leave_chat_open(landing_reads())
+}
+
+fn landing_reads() -> Vec<Step> {
     let mut steps = begin();
     steps.extend([
         // The chat's committed first reply follows delegate creation. Opening
@@ -85,6 +90,20 @@ fn landed_steps() -> Vec<Step> {
         call(D1, argv!["task", number(CHANGE), "--json"]),
         calls::until(D1, argv!["chat", task(CHAT_CALL), "--json"], LANDED, b"Change requested"),
         call(D1, argv!["task", number(CHANGE), "--json"]),
+    ]);
+    steps
+}
+
+fn leave_chat_open(mut steps: Vec<Step>) -> Vec<Step> {
+    // These requester-ended chats remain available on the person's page.
+    // Join the activation that published the reply, without closing the chat.
+    steps.extend([
+        call(D1, argv!["wait", "task", number(CHAT), "--until", "phase:idle", "--json"]),
+        calls::ends_leaving(&[temper_real_loop_world::ending::Leftover {
+            task: CHAT,
+            may_be: &[temper_real_loop_world::ending::Left::Due],
+            why: "the requester-ended chat remains open after its joined reply for the person to follow on the page",
+        }]),
     ]);
     steps
 }
@@ -176,7 +195,7 @@ fn checked_head_lands_once_and_repeated_reads_name_main() {
 }
 
 fn page_steps() -> Vec<Step> {
-    let mut steps = landed_steps();
+    let mut steps = landing_reads();
     steps.extend([
         terminal::open(),
         // client/README.md 3.1, 5.1: this person starts in project 1.
@@ -189,7 +208,7 @@ fn page_steps() -> Vec<Step> {
         terminal::see(LANDED),
         terminal::close(),
     ]);
-    steps
+    leave_chat_open(steps)
 }
 
 #[test]
@@ -426,8 +445,8 @@ fn a_chats_failed_github_check_is_repaired_at_a_new_head_and_lands_once() {
 
 fn repair_acts() -> Vec<Step> {
     let mut steps = connect_adopt_and_ask_for_a_change();
-    let wait = steps.len() - 2;
-    let Step::Call { argv, .. } = &mut steps[wait] else { panic!("chat wait before retained task read") };
+    let wait = steps.len() - 1;
+    let Step::Call { argv, .. } = &mut steps[wait] else { panic!("final chat join after the landing") };
     argv.0.extend(["--timeout".into(), "4s".into()]);
     steps
 }
@@ -518,7 +537,7 @@ fn silent_steps() -> Vec<Step> {
         terminal::see(b"Release"),
         terminal::close(),
     ]);
-    steps
+    leave_chat_open(steps)
 }
 
 #[test]

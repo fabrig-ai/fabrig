@@ -423,8 +423,8 @@ pub(crate) fn make_app(peer: &mut Peer, clients: SocketAddr, path: &Path, fixtur
 
 // Call positions in connect_adopt_and_ask_for_a_change.
 const INSTALL: usize = 5;
-const CHANGE: usize = 10;
-const CHAT: usize = 9;
+const CHANGE: usize = 11;
+const CHAT: usize = 12;
 const CHAT_TASK: u64 = 1;
 const CHANGE_TASK: u64 = 2;
 
@@ -462,8 +462,12 @@ pub fn connect_adopt_and_ask_for_a_change() -> Vec<Step> {
             ],
         ),
         call(D1, argv!["chat", "--project", "1", "--key", "github-land", "@forge_chat Update README"]),
-        call(D1, argv!["wait", "task", number(CHAT_TASK), "--until", "ended", "--json"]),
+        // The first reply follows delegate creation. Join that change before
+        // starting the chat's final wait: its report follows the landing.
+        call(D1, argv!["wait", "task", number(CHAT_TASK), "--until", "replied"]),
+        call(D1, argv!["wait", "task", number(CHANGE_TASK), "--until", "ended", "--json"]),
         call(D1, argv!["task", number(CHANGE_TASK), "--json"]),
+        call(D1, argv!["wait", "task", number(CHAT_TASK), "--until", "ended", "--json"]),
     ]
 }
 
