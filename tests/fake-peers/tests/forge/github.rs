@@ -596,6 +596,27 @@ fn github_peer_serves_the_manifest_and_conversion_pages() {
     world.settle();
 }
 #[test]
+fn github_peer_shutdown_retires_unlisted_log_work_while_io_drains() {
+    let mut world = World::new(f::SEED);
+    let wall = world.sim.wall();
+    world
+        .github
+        .github_layer_mut()
+        .expect("GitHub layer")
+        .release(github::delivery::Delivery::Other, None, wall)
+        .expect("bounded delivery log row");
+    assert!(world.github.next_policy_deadline().is_some(), "unlisted row arms visibility");
+    world.github.shutdown();
+    assert_eq!(world.github.next_policy_deadline(), None, "shutdown retires visibility at its owner");
+    world.pass();
+    assert!(!world.github.is_empty(), "listener close still waits for its IO terminal");
+    world.settle();
+    assert!(!world.github.work_pending(world.sim.now()));
+    assert_eq!(world.github.next_deadline(), None);
+    assert_eq!(world.github.next_policy_deadline(), None);
+}
+
+#[test]
 fn github_peer_shutdown_settles_a_mid_request_client() {
     let mut world = World::new(f::SEED);
     let token = world.token();

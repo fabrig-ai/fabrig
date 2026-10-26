@@ -308,6 +308,10 @@ impl Peer {
         }
     }
     pub fn shutdown(&mut self) {
+        match &mut self.service {
+            protocol::Service::Github(service) => service.shutdown(),
+            protocol::Service::Forgejo(_) => {}
+        }
         self.face.shutdown();
     }
 

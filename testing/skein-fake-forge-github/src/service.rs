@@ -401,6 +401,10 @@ impl Service {
         }
         self.deliveries.poll(now);
     }
+    /// Retires log visibility and retention work while accepted requests drain.
+    pub fn shutdown(&mut self) {
+        self.deliveries.shutdown();
+    }
     pub fn next_post(&mut self) -> Option<crate::delivery::Post> {
         self.posts.pop()
     }

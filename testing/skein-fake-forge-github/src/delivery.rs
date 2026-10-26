@@ -65,17 +65,21 @@ pub(crate) struct Store {
     rng: Rng,
     next: u64,
     revision: u64,
+    closed: bool,
 }
 impl Store {
     pub(crate) fn new(config: Config, limits: Limits, seed: u64) -> Self {
         let mut rng = Rng::new(seed);
         let next = 1_000_000_000_000_000_000_u64.checked_add(rng.below(1_000_000_000)).expect("19-digit id");
-        Self { entries: List::with_capacity(config.log_entries), config, limits, rng, next, revision: 0 }
+        Self { entries: List::with_capacity(config.log_entries), config, limits, rng, next, revision: 0, closed: false }
     }
     pub(crate) fn endpoint(&self) -> Option<&Endpoint> {
         self.config.endpoint.as_ref()
     }
     pub(crate) fn poll(&mut self, now: Wall) {
+        if self.closed {
+            return;
+        }
         for index in (0..self.entries.len()).rev() {
             let entry = self.entries.get_mut(index).expect("entry").as_mut().expect("packed log");
             if now.as_nanos().saturating_sub(entry.row.delivered_at.as_nanos()) >= self.config.log_keep.as_nanos() {
@@ -85,6 +89,9 @@ impl Store {
                 self.revision = self.revision.checked_add(1).expect("finite log changes");
             }
         }
+    }
+    pub(crate) fn shutdown(&mut self) {
+        self.closed = true;
     }
     fn remove(&mut self, at: u32) {
         let last = self.entries.len().checked_sub(1).expect("entry exists");
@@ -175,11 +182,13 @@ impl Store {
             Some(endpoint) => Some(post(id, &guid, sent.event, sent.body, &signature, endpoint)?),
             None => None,
         };
-        if self.entries.room() == 0 {
-            self.remove(0);
+        if !self.closed {
+            if self.entries.room() == 0 {
+                self.remove(0);
+            }
+            self.entries.push(Some(Entry { row, payload, signature, visible, listed: false })).expect("log capacity");
+            self.poll(now);
         }
-        self.entries.push(Some(Entry { row, payload, signature, visible, listed: false })).expect("log capacity");
-        self.poll(now);
         Ok((id, post))
     }
     pub(crate) fn complete(&mut self, id: u64, status: u16) {
@@ -319,6 +328,9 @@ impl Store {
         out.finish()
     }
     pub(crate) fn next_deadline(&self) -> Option<Wall> {
+        if self.closed {
+            return None;
+        }
         let mut next = None;
         for entry in self.entries.as_slice().iter().flatten() {
             if entry.listed {

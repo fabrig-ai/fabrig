@@ -181,6 +181,31 @@ fn github_fake_log_pages_visibility_retention_and_validator() {
     assert!(rows(&request(&mut service, b"/app/hook/deliveries?per_page=8", None, wall(1214))).is_empty());
 }
 #[test]
+fn shutdown_keeps_listed_rows_and_retires_pending_and_late_visibility() {
+    let mut config = f::config();
+    config.deliveries.log_entries = 2;
+    config.deliveries.log_min = Duration::from_secs(2);
+    config.deliveries.log_max = Duration::from_secs(2);
+    config.deliveries.log_keep = Duration::from_secs(10);
+    let mut service = Service::new(config, &f::limits(), 19).unwrap();
+    let (listed, _) = service.release(Delivery::Other, None, wall(1200)).unwrap();
+    let before = request(&mut service, b"/app/hook/deliveries?per_page=8", None, wall(1202));
+    assert_eq!(rows(&before).get(0).unwrap().id, listed);
+    service.release(Delivery::Other, None, wall(1202)).unwrap();
+    assert_eq!(service.next_deadline(), Some(wall(1204)));
+    service.shutdown();
+    service.shutdown();
+    assert_eq!(service.next_deadline(), None);
+    // An accepted request can still produce a delivery; a full closed log keeps its listed rows.
+    service.release(Delivery::Other, None, wall(1203)).unwrap();
+    service.poll(wall(1215));
+    assert_eq!(service.next_deadline(), None, "late records cannot rearm visibility");
+    let after = request(&mut service, b"/app/hook/deliveries?per_page=8", None, wall(1215));
+    assert_eq!(after.body, before.body, "listed rows stay, pending rows stay hidden after their due time");
+    assert_eq!(after.etag, before.etag);
+}
+
+#[test]
 fn github_fake_delivery_log_refuses_after_key_revocation() {
     let mut service = Service::new(f::config(), &f::limits(), 1).unwrap();
     let (id, _) = service.release(Delivery::Other, None, wall(1200)).unwrap();
