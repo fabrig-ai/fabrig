@@ -22,11 +22,11 @@ provisioning and checks with a scripted driver endpoint and no model or login.
 With the owner's subject digest and configured `temper-m1` class:
 
 ```sh
-L=/path/to/skein/scripts/lab/lab
+LAB=/path/to/lab
 S=sha256:...
-$L validate lab/chat-change --subject "$S"
-$L run lab/chat-change --subject "$S" --seed 1 --rehearse lab/chat-change-rehearsal/correct.json
-$L run lab/chat-change --subject "$S" --seed 1 --rehearse lab/chat-change-rehearsal/wrong.json
+$LAB validate lab/chat-change --subject "$S"
+$LAB run lab/chat-change --subject "$S" --seed 1 --rehearse lab/chat-change-rehearsal/correct.json
+$LAB run lab/chat-change --subject "$S" --seed 1 --rehearse lab/chat-change-rehearsal/wrong.json
 ```
 
 Before calibration sets `temper-m1`, copy H outside the repository, change

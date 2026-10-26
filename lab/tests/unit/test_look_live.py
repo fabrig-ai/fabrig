@@ -297,7 +297,7 @@ class GalleryTests(unittest.TestCase):
             links('Messages 2'), links('Inbox'), 'chat-sent', 'desktop')},
             {'chat-sent/desktop/gallery/missing/link/Inbox', 'chat-sent/desktop/gallery/extra/link'})
 
-    def test_outline_is_skeins_with_no_dialog_line(self):
+    def test_outline_is_labs_with_no_dialog_line(self):
         entries = tree(FRAME + CONTENT.replace('  ', '', 1))
         self.assertEqual(gallery.outline(entries, ['Main navigation', 'Chats', 'Sign out', 'Close',
                                                    'Message', 'Send']), '''banner
@@ -356,7 +356,7 @@ region
                          {'dialog': 2, 'dialog > button': 2})
 
     def test_modal_pair_compares_the_dialog_alone(self):
-        # skein's outline prints no dialog line; under a modal the live tree
+        # The lab's outline prints no dialog line; under a modal the live tree
         # holds the dialog's lines alone, outside every landmark.
         modal = FRAME + 'button "Confirm"\nbutton "Cancel"\n'
         live = 'button "Confirm"\nbutton "Cancel"\n'

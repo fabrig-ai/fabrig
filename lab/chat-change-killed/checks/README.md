@@ -33,7 +33,7 @@ base64 byte encoding; commit numbers remain exact u64 integers.
 Status 0 passes silently; 1 prints stable `fail`/`summary` JSON lines for
 `not-landed/fake/widget/main`, `content/fake/widget/main/NOTICE` or
 `changed/fake/widget/main`; 2 prints `undecided` JSON lines when evidence is
-missing, lost or unreadable (skein's `lab.md`, 7.2). C, P, tree paths and
+missing, lost or unreadable (the lab's `lab.md`, 7.2). C, P, tree paths and
 NOTICE bytes go to stderr.
 
 The separate stopped `promises` check reads the forge's observations at rest

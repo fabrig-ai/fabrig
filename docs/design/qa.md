@@ -1,13 +1,13 @@
 # QA in the lab
 
 2026-10-20, with decision 253, revised 2026-10-24. temper's
-binding to skein's lab (skein's `lab.md`): the experiments temper keeps
-in `lab/`, the cluster, seed, charter, tool and checks each runs with,
-what the fakes' scripts must say, the cost classes they name, and the
+binding to the lab, in a repository of its own (the lab's `lab.md`):
+the experiments temper keeps in `lab/`, the cluster, seed, charter, tool
+and checks each runs with, what the fakes' scripts must say, the cost classes they name, and the
 first campaign's process. It settles M1 of `draft/qa-loop.md`: a
 person's chat asks for a one-file change on `fake/widget`, which is
 proposed, pushed, passes CI and its review, and lands. The lab's
-records, commands, outcomes, verdicts and findings are skein's
+records, commands, outcomes, verdicts and findings are the lab's
 `lab.md`'s, cited by section and never restated. What M1 waits for, and
 its adopted decisions, are section 11.
 
@@ -61,7 +61,7 @@ its adopted decisions, are section 11.
 - **Every product process is the subject's `temper`:** `serve`,
   `agent`, `ctl`, `fake git`, `fake llm` and `fake forge`. The fake LLM
   speaks a provider's protocol to temper's agents; it is not the driver,
-  which is Codex on the lab's side (skein's `lab.md`, 6.1).
+  which is Codex on the lab's side (the lab's `lab.md`, 6.1).
 - **Deliveries are required.** M1's story runs on the fake forge's
   webhook deliveries to serve across processes (11.2). Polling stays
   only where temper already uses it as its own fallback. The lab adds
@@ -78,7 +78,7 @@ its adopted decisions, are section 11.
 | `lab/chat-change-smoke/` | `chat-change-smoke` | null | none | S: H's cluster, seed and checks, with the story as one more seed action (5.2) |
 | `lab/chat-change-killed/` | `chat-change` | as H | engine killed (section 9) | P: the planted fault |
 
-- **H's files:** `experiment.json` (skein's `lab.md`, 4.1), `charter.md`
+- **H's files:** `experiment.json` (the lab's `lab.md`, 4.1), `charter.md`
   (6.1), the templates of 4.4, `tools/ctl` (6.2), `checks/end-state`
   (8.4), `NOTICE` (3.3) and `smoke/_runtime_llm.py`, the llm process's
   adapter, which keeps the NOTICE root chat open after its delegate
@@ -92,16 +92,16 @@ its adopted decisions, are section 11.
 ### 3.2 The subject
 
 `lab subject --repository <temper> --commit C --exclude lab --artifact
-temper=<binary> --artifact git=<the same binary>` (skein's `lab.md`,
+temper=<binary> --artifact git=<the same binary>` (the lab's `lab.md`,
 10.2).
 
 - **Two artifacts, one file:** `temper` runs every product process and
   command; `git` is the same binary under the name `git`, which makes
   it `temper fake git` by its `argv[0]` (`domain/testing.md`, 4.3) and
   is the worker's `git`, an absolute path. The lab's store holds no link
-  (skein's `lab.md`, 2.2), where a machine would use one.
+  (the lab's `lab.md`, 2.2), where a machine would use one.
 - **`lab/` is excluded,** so the driver never reads the experiments,
-  their scripts or their checks (skein's `lab.md`, 6.2). It may read the
+  their scripts or their checks (the lab's `lab.md`, 6.2). It may read the
   rest of temper's source and documents (`draft/qa-loop.md`, section 2).
 
 ### 3.3 The change
@@ -136,24 +136,24 @@ forge    temper fake forge; ready "listening " → address
   each a real process. It holds no driver, seed action, fault or check.
   S, H and P use its process contracts; their own files add the story,
   seed and checks. The two workers may start in either seeded order
-  after the engine is ready (skein's `lab.md`, 5.4).
-- **Addresses from ready lines alone** (skein's `lab.md`, 4.4): fakes
+  after the engine is ready (the lab's `lab.md`, 5.4).
+- **Addresses from ready lines alone** (the lab's `lab.md`, 4.4): fakes
   print their chosen addresses after the configured prefix. The engine
   prints `listening clients`, `listening workers` and
   `listening webhooks` on stderr. Reconcile registers the actual bound
   webhook endpoint; no fixed endpoint, socket probe or experiment poll
   substitutes for that handoff. Workers print their linked lines.
 - **A private bootstrap:** the engine's stdout is the runner's private
-  bootstrap channel for the `sign-in` seed action (skein's `lab.md`, 4.3):
+  bootstrap channel for the `sign-in` seed action (the lab's `lab.md`, 4.3):
   the sign-in link goes directly to that action's stdin and is never a
   file, readiness capture, command argument, event or transcript. Only
   the public client origin is kept and passed to the ctl wrapper. A
   spent link remains a credential for this rule. The canonical cluster's
   in-memory stdout link capture is the native process harness's; S, H
   and P replace it with the bootstrap.
-- **S, H and P run on skein's runner,** as every experiment does: its
+- **S, H and P run on the lab's runner,** as every experiment does: its
   containment, records, stopped collection and checks. A requested stop
-  must exit zero, as for every experiment (skein's `lab.md`, 7.1).
+  must exit zero, as for every experiment (the lab's `lab.md`, 7.1).
 
 ### 4.2 Its processes
 
@@ -267,7 +267,7 @@ Each is `{artifact.temper} ctl {dir.client}` and then:
 | `adopt` | `adopt --project 1 --forge 1 --owner fake --name widget --landing main --key lab-adopt` | adopted with CI on, at the form's defaults (`client/tools.md`, 5.3) |
 
 - **Each must exit 0,** or the run fails `action/<name>/exit:<status>`
-  (skein's `lab.md`, 7.1). Each wait's timeout is below
+  (the lab's `lab.md`, 7.1). Each wait's timeout is below
   `command_seconds`, so a wait not met fails by its own exit, 3.
 The seed waits allow 200 s (100 s before the user's doubling of 10-22, provisional) each.
 
@@ -330,7 +330,7 @@ End with the lab's report: done only if you saw the change landed.
 ```
 
 The tool's executable is named by its resolved path, as the runner
-mounts it (skein's `scripts/lab/README.md`): `/usr/bin/dash` is this host's
+mounts it (the lab's README): `/usr/bin/dash` is this host's
 `/bin/sh`. `tools/ctl` is POSIX sh, with the shell's builtins alone,
 then `exec`.
 For each call it checks, in order:
@@ -358,9 +358,9 @@ status are the tool's.
   nothing. It is the experiment's, never temper's, and the transcript
   shows it.
 - **The wrapper records nothing:** the lab's server records every call
-  before its result reaches the agent (skein's `lab.md`, 6.3). It adds no
+  before its result reaches the agent (the lab's `lab.md`, 6.3). It adds no
   tool: temper's public `temper ctl` is the tool.
-- **The boundary is the lab's** (skein's `lab.md`, 6.2): the agent's own
+- **The boundary is the lab's** (the lab's `lab.md`, 6.2): the agent's own
   commands read the source and write its work directory, with no
   network; the tool's view writes `{dir.client}` alone. The agent reads
   no token, run credential, process file or host login, and edits no
@@ -368,9 +368,9 @@ status are the tool's.
 
 ### 6.3 Its report and bounds
 
-- **The report** is the lab's (skein's `lab.md`, 6.4); `done` true only
+- **The report** is the lab's (the lab's `lab.md`, 6.4); `done` true only
   for a landing the agent saw in temper's documents.
-- **Bounds** are the cost class's (10.1), enforced as skein's `lab.md`,
+- **Bounds** are the cost class's (10.1), enforced as the lab's `lab.md`,
   6.5 says. That the host's inventory is checked and that usage is kept
   when a drive is cut are the runner's to show; this binding assumes
   them and proves nothing of them.
@@ -439,8 +439,8 @@ the charter's instructions and the task's words (skein's `fake-llm.md`,
 ### 8.1 The runner's
 
 Stops, panics, survivors, memory, bounds, seed actions, the report's use
-failures and planted signatures (skein's `lab.md`, 7.1), with nothing
-discounted (skein's `lab.md`, 9.4). The experiment adds no generic check.
+failures and planted signatures (the lab's `lab.md`, 7.1), with nothing
+discounted (the lab's `lab.md`, 9.4). The experiment adds no generic check.
 
 ### 8.2 Collection
 
@@ -453,7 +453,7 @@ discounted (skein's `lab.md`, 9.4). The experiment adds no generic check.
   the boundary, and what follows it is a flush still being written.
 - **`observations`, stopped,** the fake's file at rest, its last line a
   checkpoint, then **`store`, stopped,** the engine's `data/state/store`
-  copied once every exit is confirmed (skein's `lab.md`, 4.5), so that
+  copied once every exit is confirmed (the lab's `lab.md`, 4.5), so that
   what the promises compare with the copy was collected no later than
   it. A copy cut short leaves `promises` unjudged; no checker opens the
   live store.
@@ -463,7 +463,7 @@ discounted (skein's `lab.md`, 9.4). The experiment adds no generic check.
 `promises` uses `{artifact.temper} fake forge check` (`protocol/setup.md`,
 8.4), first-run's wrapper of the github owner's landed judge
 (`skein_fake_forge_domain::promises`, skein `4f13123c`, `fake-forge.md`,
-2.5). It judges once, forced, foreign and order, under skein's `lab.md`,
+2.5). It judges once, forced, foreign and order, under the lab's `lab.md`,
 7.2; its signatures are `promise/<promise>/<subject>`. The experiment
 judges no promise of its own.
 
@@ -483,19 +483,19 @@ wrapper preserves both through the existing check contract (259):
 - pass: status 0, no stdout.
 
 Loss or unknown completeness never gives a pass. Status 2 with a
-`fail` line would contradict skein's `lab.md`, 7.2.
+`fail` line would contradict the lab's `lab.md`, 7.2.
 
 ### 8.4 The story's end
 
 `end-state judge` reads the `forge` collection alone: no network, no
-clock. NOTICE is the file beside the helper. Its results follow skein's
+clock. NOTICE is the file beside the helper. Its results follow the lab's
 `lab.md`, 7.2:
 
 The helper is Python 3.11+ standard library only, under the same
 "for now" as the runner (decision 253). It is lab tooling beside the
 experiments in `temper/lab/`, never product code or a test in temper's
 worlds. Its future application home is Rust. The lab's key records its
-interpreter and executable identity (skein's `lab.md`, 2.3).
+interpreter and executable identity (the lab's `lab.md`, 2.3).
 
 1. **The stream:** the prefix up to the last checkpoint, its lines
    complete, every checkpoint's loss count 0. Undecided, `observations missing`, when it
@@ -521,8 +521,8 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
 
 - **P's fault:** `{"kill": "engine", "signal": "SIGKILL",
   "after_actions": [1, 1]}`: the engine process alone killed once the
-  driver's first action has ended (skein's `lab.md`, 4.6).
-- **Its planted signature:** `stop/engine/signal:SIGKILL` (skein's
+  driver's first action has ended (the lab's `lab.md`, 4.6).
+- **Its planted signature:** `stop/engine/signal:SIGKILL` (the lab's
   `lab.md`, 7.1, as the runner spells it). A judged run of P lacking
   it fails `planted-missing/…`. This alone proves M1's stop detection.
   The story may have progressed before the first action returned;
@@ -534,13 +534,13 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
 - **Detection:** P judged under `temper-m1` at H's subject, three seeds,
   verdict fail; its first failing seed run again; each planted
   signature filed, with its reproduction rate, and the planted stop classed
-  `experiment` by the owner (skein's `lab.md`, 9.3).
+  `experiment` by the owner (the lab's `lab.md`, 9.3).
 - **Correction:** P′, P with `faults` and `planted` empty, is H's tree.
   Before P's first run the owner checks it: P's files are H's but
   `experiment.json`, and P's `experiment.json` with those two members
   emptied has H's bytes. For the planted stop finding classed
   `experiment`, the fix is H's digest; its recheck is H's key at that
-  subject and class, judged pass, recorded as its `rechecked` (skein's
+  subject and class, judged pass, recorded as its `rechecked` (the lab's
   `lab.md`, 9.4). Other failures need their own cause, class, fix and
   recheck (10.3); clearing the fault alone does not close them.
   A P that drifted from H is fixed
@@ -550,7 +550,7 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
 - **One signature, several causes:** if P also produced a not-landed
   finding, a later not-landed in H matches it and reopens it; the owner
   classes it again from that
-  run (skein's `lab.md`, 9.3).
+  run (the lab's `lab.md`, 9.3).
 
 ## 10. The campaign
 
@@ -562,11 +562,11 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
 | `temper-m1` | as calibration's | about 1.5 times the calibration run's measured values, rounded up | as calibration's |
 
 - **The driver** is Codex `gpt-6.1-sol` at medium effort, in the lab's
-  settings and the key (skein's `lab.md`, 2.3 and 6.1).
+  settings and the key (the lab's `lab.md`, 2.3 and 6.1).
 - **Calibration before use.** `temper-m1`'s three values, the
   calibration's usage and its spend are reviewed before any run
   under it.
-- **Observed, not capped** (skein's `lab.md`, 6.5): a drive may pass
+- **Observed, not capped** (the lab's `lab.md`, 6.5): a drive may pass
   `driver_input_tokens` by the turn that reported it, recorded; usage
   the host did not report is null, never 0, and totals count it apart.
 
@@ -586,26 +586,25 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
   Exactly one calibration is authorized; replacing it needs the
   user's decision. Past fifteen paid driver runs, the user is
   asked first.
-- **Evidence is reused for an identical key alone** (skein's `lab.md`,
+- **Evidence is reused for an identical key alone** (the lab's `lab.md`,
   2.3 and 8): H's verdict serves P′ because their experiment, subject
   and lab digests are the same, recorded in each finding. A change to H
   after step 4 is a new key, made only for a finding's fix.
 - **Attempts:** a seed whose run ended in error or incomplete is run
   again once its cause is fixed, each a paid run.
 - **The triager** runs only on a run with failures no signature
-  matched, or with use failures (skein's `lab.md`, 9.2): P's first
+  matched, or with use failures (the lab's `lab.md`, 9.2): P's first
   failing run, and H's should one arise; never a rerun that matched.
 
 ### 10.3 Findings
 
-- **By class** (skein's `lab.md`, 9.3): `world`, `below` and `tools` are
+- **By class** (the lab's `lab.md`, 9.3): `world`, `below` and `tools` are
   temper's; `fake`, `temper fake`'s (first-run's) or skein's fakes'.
   Each is fixed with a test in the lowest world that owns the behaviour,
   failing before the fix and passing after, before it lands
   (`domain/testing.md`; `client/tools.md`, 11.6); its recheck is H at a subject that carries it.
   `experiment` is `lab/`'s: its fix the corrected
-  digest, its recheck that experiment's verdict. `lab` is skein's
-  `scripts/lab/`.
+  digest, its recheck that experiment's verdict. `lab` is the lab's runner.
 - **Findings name the area to fix;**
   the records stay under `~/src/rust/tmp/lab/`, and no issue is written.
 - **A transcript that shows a temper bug** becomes a world's story: its
@@ -613,11 +612,11 @@ interpreter and executable identity (skein's `lab.md`, 2.3).
 
 ### 10.4 The closing note
 
-`campaigns/temper-m1.md`: the runner's tables (skein's `lab.md`, 10.2),
+`campaigns/temper-m1.md`: the runner's tables (the lab's `lab.md`, 10.2),
 finished with each key's verdict; the findings filed and
 closed, each with its reproduction rate; each run's usage and spend,
 known and unknown, overshoots and triages; what the seeds fixed and
-what they did not (skein's `lab.md`, 5.4); the choices M1 ran on (11.2);
+what they did not (the lab's `lab.md`, 5.4); the choices M1 ran on (11.2);
 and what the lab application should take over from the records and the
 runner, and what to change in them.
 
@@ -631,7 +630,7 @@ recorded with the experiment. Changes follow those contracts.
 
 | What | Whose | For |
 |---|---|---|
-| the runner's driver, tool server, checks, judge and findings (skein's `lab.md`, section 10) | skein's lab | every run |
+| the runner's driver, tool server, checks, judge and findings (the lab's `lab.md`, section 10) | the lab | every run |
 | `temper fake llm` and `fake forge` with `--document`, `--ready`, `--seed` and `--observations`; `temper fake git` by its name; serve's three directories (`protocol/setup.md`, 8.4; `domain/testing.md`, 4.3; `protocol/configuration.md`, section 12) | first-run | the cluster |
 | the fake LLM's lab form taking cued scripts with tool calls (7.1) | first-run | the story |
 | the fake forge's lab form taking the domain's CI cue (7.2) | first-run | CI by content |

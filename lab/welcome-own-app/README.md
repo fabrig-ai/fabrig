@@ -1,6 +1,6 @@
 # The welcome with an App of your own and a program
 
-A fresh ordinary `temper box --fake-backends`, driven by skein's hand.
+A fresh ordinary `temper box --fake-backends`, driven by the lab's hand.
 The Welcome phase opens `/welcome` and presses Set up temper. Forge
 chooses Use an App of your own ›, types App id 1 and the bytes from the
 key file the box names, connects, installs on the fake GitHub and chooses
@@ -22,14 +22,14 @@ step is a separate `steps` phase so live scenes can capture between them.
 
 Provision the executable siblings `temper` and `fake-claude`, and a USTAR
 loopback bundle artifact `bundle`, as in
-[welcome-chatgpt](../welcome-chatgpt/README.md). Use the runner and hand
-from skein's `fake-backends/hand-peers` branch:
+[welcome-chatgpt](../welcome-chatgpt/README.md). Use the lab's runner and hand
+with `--peer` support:
 
 ```sh
-$L validate lab/welcome-own-app --subject "$S"
-$L run lab/welcome-own-app --subject "$S" --seed 1
-$L run lab/welcome-own-app --subject "$S" --seed 2
-$L run lab/welcome-own-app --subject "$S" --seed 3
+$LAB validate lab/welcome-own-app --subject "$S"
+$LAB run lab/welcome-own-app --subject "$S" --seed 1
+$LAB run lab/welcome-own-app --subject "$S" --seed 2
+$LAB run lab/welcome-own-app --subject "$S" --seed 3
 ```
 
 The existing `temper-m1-calibration` allowances apply: ready 120 s,

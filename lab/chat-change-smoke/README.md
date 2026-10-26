@@ -1,6 +1,6 @@
 # S: the free NOTICE smoke
 
-S runs temper's NOTICE story on skein's lab runner, with no driver or model.
+S runs temper's NOTICE story on the lab's runner, with no driver or model.
 The subject supplies `temper` and the same binary named `git`. The cluster is
 forge → TLS fake LLM → engine → two remote workers; its documents equal
 `../cluster/` byte for byte. The runtime LLM adapter adapts the cluster's NOTICE
@@ -25,13 +25,13 @@ uses those copies and temper's independent decision records. See
 With the owner's subject digest:
 
 ```sh
-L=/path/to/skein/scripts/lab/lab
+LAB=/path/to/lab
 S=sha256:...
-$L validate lab/chat-change-smoke --subject "$S"
-$L run lab/chat-change-smoke --subject "$S" --seed 1
-$L run lab/chat-change-smoke --subject "$S" --seed 2
-$L run lab/chat-change-smoke --subject "$S" --seed 3
-$L judge lab/chat-change-smoke --subject "$S"
+$LAB validate lab/chat-change-smoke --subject "$S"
+$LAB run lab/chat-change-smoke --subject "$S" --seed 1
+$LAB run lab/chat-change-smoke --subject "$S" --seed 2
+$LAB run lab/chat-change-smoke --subject "$S" --seed 3
+$LAB judge lab/chat-change-smoke --subject "$S"
 ```
 
 The cost class stays `temper-m1-calibration`. Each changed experiment has a

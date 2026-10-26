@@ -1,6 +1,6 @@
 # The welcome: forgejo-here
 
-A fresh ordinary `temper box --fake-backends`, driven by skein's hand.
+A fresh ordinary `temper box --fake-backends`, driven by the lab's hand.
 The browser walks Forgejo here: Choose, Set up a Forgejo here, and its first repository,
 then “Use an API key”, pastes the exact bytes of the file captured from
 `box: model key FILE`, and requires the Model step’s embedded “Ready” card and
@@ -27,7 +27,7 @@ the fake reply. A title, user message, or later matching reply cannot pass.
 Provision subject artifacts `temper` and `fake-claude` as exact executable
 siblings, and `bundle` as the loopback bundle's USTAR tree
 (`scripts/bundle.sh --loopback DIR`, packed with `lab/look_pack.py`).
-Use the lab runner and hand from skein's `fake-backends/hand-peers` branch,
+Use the lab's runner and hand with `--peer` support,
 as [welcome-chatgpt](../welcome-chatgpt/README.md) does; the lab's browser
 settings must name that hand.
 
@@ -45,10 +45,10 @@ starting the box. The ordinary fetch checks the pinned digests there
 The box supervises the real Forgejo and runner, and uses real git.
 
 ```sh
-$L validate lab/welcome-forgejo-here --subject "$S"
-$L run lab/welcome-forgejo-here --subject "$S" --seed 1
-$L run lab/welcome-forgejo-here --subject "$S" --seed 2
-$L run lab/welcome-forgejo-here --subject "$S" --seed 3
+$LAB validate lab/welcome-forgejo-here --subject "$S"
+$LAB run lab/welcome-forgejo-here --subject "$S" --seed 1
+$LAB run lab/welcome-forgejo-here --subject "$S" --seed 2
+$LAB run lab/welcome-forgejo-here --subject "$S" --seed 3
 ```
 
 The class is `temper-m1-calibration`: ready 120 s, command 240 s,

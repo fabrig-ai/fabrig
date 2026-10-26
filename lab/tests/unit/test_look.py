@@ -1,4 +1,4 @@
-"""Cheap file contracts for the look experiments; capture decisions live in skein."""
+"""Cheap file contracts for the look experiments; capture decisions live in the lab."""
 import json
 import re
 from pathlib import Path
@@ -13,8 +13,8 @@ WIDTHS = [dict(name='desktop', width=1440, height=900, mobile=False),
           dict(name='phone', width=390, height=844, mobile=True)]
 
 
-# Copied from skein scripts/lab/look/style.py: the capture's 5.3 properties.
-# Skein is a separate repository, unavailable as an import under python3 -I.
+# Copied from the lab's `look/style.py`: the capture's 5.3 properties.
+# The lab's tools are unavailable as imports under python3 -I.
 PROPERTIES = ["font-family", "font-size", "font-weight", "line-height", "letter-spacing",
               "color", "background-color"] + [
     f"border-{side}-{part}" for side in ("top", "right", "bottom", "left")
@@ -97,7 +97,7 @@ class LookTests(unittest.TestCase):
                                  dict(role='main', name='', match='words'))
                 for region in scene['regions']:
                     self.assertEqual(set(region['page']), {'role', 'name', 'match'})
-                # skein lab-browser.md 4: the regions whose words look-words holds to the mockup's.
+                # The lab's `lab-browser.md`, 4: the regions whose words look-words holds to the mockup's.
                 words = scene.get('words', [])
                 if scene['mockup'] is None:
                     self.assertEqual(words, [])

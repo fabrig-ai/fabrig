@@ -181,7 +181,7 @@ forge, temper adds:
   `temper ctl`, temper for agents (reads, jig's operations and waits,
   from a command line), and `mockups/` the pages' design: their look,
   parts, words and acts, binding, with a `STATUS.md` of their own.
-- **`qa.md`:** temper's binding to skein's lab (skein's `lab.md`): its
+- **`qa.md`:** temper's binding to the lab (the lab's `lab.md`): its
   experiments in `lab/`, their charter, tool and checks, and M1's
   campaign.
 - **`draft/`:** drafts, not contract.

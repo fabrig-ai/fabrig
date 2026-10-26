@@ -8,12 +8,12 @@ from pathlib import Path
 import re
 import sys
 
-# skein scripts/lab/look/outline.py, plus the live dialog's landmark.
+# Copied from the lab's `look/outline.py`, plus the live dialog's landmark.
 LANDMARKS = {'banner', 'navigation', 'main', 'complementary', 'contentinfo',
              'region', 'form', 'search', 'dialog'}
 NAME = re.compile(r'[a-z][a-z0-9-]*\Z')
 LABEL = re.compile(r'([a-z][a-z0-9-]*(?: [1-6]| \([0-9]+\))?)(?: (".*"))?\Z')
-# skein scripts/lab/look/outline.py's roles; a dialog prints no line there.
+# Copied from the lab's `look/outline.py`'s roles; a dialog prints no line there.
 CONTROLS = {'button', 'link', 'textbox', 'searchbox', 'checkbox', 'radio', 'combobox', 'tab',
             'menuitem', 'switch'}
 COUNT = re.compile(r'(.+) [0-9]+\Z')
@@ -21,7 +21,7 @@ PROJECTS = 'banner > button'
 
 
 def outline(entries, names):
-    """skein's outline (scripts/lab/look/outline.py), a name's trailing count taken off.
+    """The lab's outline (`look/outline.py`), a name's trailing count taken off.
 
     A count is the page's data ("Inbox 2"): the name is its words before it.
     """
@@ -96,14 +96,14 @@ def frame(text):
 
 
 def _encoded(text):
-    # Copied from skein scripts/lab/look/checks.py (_encoded).
+    # Copied from the lab's `look/checks.py` (_encoded).
     return ''.join(chr(byte) if (ord('a') <= byte <= ord('z') or ord('A') <= byte <= ord('Z')
                                 or ord('0') <= byte <= ord('9') or byte in b'._~-')
                    else f'%{byte:02X}' for byte in text.encode('utf-8'))
 
 
 def entry_signature(kind, entry):
-    # skein scripts/lab/look/checks.py (_own, entry_signature): split only
+    # Copied from the lab's `look/checks.py` (_own, entry_signature): split only
     # outside JSON names, whose words may themselves contain " > ".
     start, quoted, escaped = 0, False, False
     for index, char in enumerate(entry):
@@ -124,7 +124,7 @@ def modal_frame(text):
     """Count a modal pair's frame: the lines outside every landmark.
 
     A modal dialog leaves the page behind it inert, out of the live tree,
-    and skein's outline prints no dialog line: the lines at the top that
+    and the lab's outline prints no dialog line: the lines at the top that
     are no landmark are the dialog's.
     """
     counts = Counter()

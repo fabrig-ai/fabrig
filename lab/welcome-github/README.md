@@ -1,6 +1,6 @@
 # The welcome: github
 
-A fresh ordinary `temper box --fake-backends`, driven by skein's hand.
+A fresh ordinary `temper box --fake-backends`, driven by the lab's hand.
 The browser walks GitHub one-click: Connect GitHub, Create GitHub App, and GitHub's unaided create/install/return chain,
 then “Use an API key”, pastes the exact bytes of the file captured from
 `box: model key FILE`, and requires the Model step’s embedded “Ready” card and
@@ -24,15 +24,15 @@ the fake reply. A title, user message, or later matching reply cannot pass.
 Provision subject artifacts `temper` and `fake-claude` as exact executable
 siblings, and `bundle` as the loopback bundle's USTAR tree
 (`scripts/bundle.sh --loopback DIR`, packed with `lab/look_pack.py`).
-Use the lab runner and hand from skein's `fake-backends/hand-peers` branch,
+Use the lab's runner and hand with `--peer` support,
 as [welcome-chatgpt](../welcome-chatgpt/README.md) does; the lab's browser
 settings must name that hand.
 
 ```sh
-$L validate lab/welcome-github --subject "$S"
-$L run lab/welcome-github --subject "$S" --seed 1
-$L run lab/welcome-github --subject "$S" --seed 2
-$L run lab/welcome-github --subject "$S" --seed 3
+$LAB validate lab/welcome-github --subject "$S"
+$LAB run lab/welcome-github --subject "$S" --seed 1
+$LAB run lab/welcome-github --subject "$S" --seed 2
+$LAB run lab/welcome-github --subject "$S" --seed 3
 ```
 
 The class is `temper-m1-calibration`: ready 120 s, command 240 s,

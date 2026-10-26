@@ -1,7 +1,7 @@
 # M1 lab pieces
 
 [chat-change-smoke/](chat-change-smoke/README.md) is S, the free NOTICE smoke
-from `docs/design/qa.md`. It runs on skein's runner with no driver or model,
+from `docs/design/qa.md`. It runs on the lab's runner with no driver or model,
 using the canonical [cluster/](cluster/) documents, a TLS fake LLM, two
 remote workers and the subject's fake git.
 
@@ -21,13 +21,13 @@ See [checks/README.md](chat-change-smoke/checks/README.md).
 With the owner's subject digest, run from this repository:
 
 ```sh
-L=/path/to/skein/scripts/lab/lab
+LAB=/path/to/lab
 S=sha256:...
-$L validate lab/chat-change-smoke --subject "$S"
-$L run lab/chat-change-smoke --subject "$S" --seed 1
-$L run lab/chat-change-smoke --subject "$S" --seed 2
-$L run lab/chat-change-smoke --subject "$S" --seed 3
-$L judge lab/chat-change-smoke --subject "$S"
+$LAB validate lab/chat-change-smoke --subject "$S"
+$LAB run lab/chat-change-smoke --subject "$S" --seed 1
+$LAB run lab/chat-change-smoke --subject "$S" --seed 2
+$LAB run lab/chat-change-smoke --subject "$S" --seed 3
+$LAB judge lab/chat-change-smoke --subject "$S"
 ```
 
 The class stays `temper-m1-calibration`: ready 120 s, command 240 s, stop
@@ -44,7 +44,7 @@ heavy python3 -I -B -m unittest discover -s lab/tests/process -p 'test_ctl.py' -
 [chat-change-killed/](chat-change-killed/) is P, its planted engine kill twin.
 The scripts in `chat-change-rehearsal/` play H's correct drive and a false
 completion through the real runner, with no model or login. Rehearse with
-`$L run lab/chat-change --subject "$S" --seed 1 --rehearse lab/chat-change-rehearsal/correct.json`
+`$LAB run lab/chat-change --subject "$S" --seed 1 --rehearse lab/chat-change-rehearsal/correct.json`
 and the same command with `wrong.json`: expect exit 0 and exit 1 respectively,
 the latter with `check/end-state/not-landed/fake/widget/main`. Before H's
 calibration sets `temper-m1`, validate and rehearse an external copy whose
@@ -90,9 +90,9 @@ named program account and its worker usable, with no hand trouble.
 `look/` holds temper's pages to the mockups (`docs/design/draft/qa-web.md`,
 sections 3 to 5): the gallery's states captured beside the mockups' at
 1440×900 and 390×844, and checked. It has no driver and no process: a
-seed action extracts the gallery printout, the collection is skein's
-capture, and the checks are skein's look checks (skein's
-`docs/design/lab-browser.md`, 4, 5 and 5.4). `look-planted/` is the same
+seed action extracts the gallery printout, the collection is the lab's
+capture, and the checks are the lab's look checks (the lab's
+`lab-browser.md`, 4, 5 and 5.4). `look-planted/` is the same
 with a fault (qa-web.md, 5.4).
 
 ## Its files
@@ -202,7 +202,7 @@ lost key sample retains the former account request alert's meaning.
 - **Names** are the frame's and the controls' words (the navigation's
   links, Sign out, the composers' Send, a card's acts, the lists'
   headings), never content.
-- **Words** (skein's `lab-browser.md`, 4 and 5.4): the regions whose
+- **Words** (the lab's `lab-browser.md`, 4 and 5.4): the regions whose
   every word is held to the mockup's, a `words` entry a region and
   width. The gallery uses the mockups' words where temper's model can
   hold them (qa-web.md, 3.2), so a word difference is a finding
@@ -223,7 +223,7 @@ lost key sample retains the former account request alert's meaning.
   the mockup's needs none.
 - **A disclosure's words** (the phone's Menu, the chat's model
   chooser) are out of the tree while it is closed, and judged by eye
-  until the capture can press it open (skein's `lab-browser.md`, 5.4).
+  until the capture can press it open (the lab's `lab-browser.md`, 5.4).
 - **Expectations and departures** are the judge's (below). Expectations
   are few, since the base is the mockup as captured; `adoption`, with
   no mockup, is held to them alone. Each departure cites the section of
@@ -277,7 +277,7 @@ is not the value meant:
 `~/src/rust/tmp/lab/judgements/look/<scene>.json`, beside the lab's
 keys: one file a scene, written by the judge, replaced when the scene is
 judged again, and never read by the runner. `look-judgements/1`,
-canonical JSON (skein's `lab.md`, 2.2), shown spread out:
+canonical JSON (the lab's `lab.md`, 2.2), shown spread out:
 
 ```json
 {"format": "look-judgements/1",
@@ -384,10 +384,10 @@ input it cannot read.
   departure or expectation not in the scene). The `undecided` lines are
   listed too: a look check prints one, and the run records it, for a
   part it cannot judge (a record's file missing or changed, a call it
-  needs refused, a region's mockup part not found: skein's
+  needs refused, a region's mockup part not found: the lab's
   `lab-browser.md`, 5.4). A check that prints both exits 1, and the runner
-  records its failures and its undecided alike (skein's
-  `scripts/lab/runner/checks.py`, `command`): the bar lists both, and
+  records its failures and its undecided alike (the lab's
+  `runner/checks.py`, `command`): the bar lists both, and
   neither hides the other. `unjudged: none` when nothing is.
 
 ### The planted chat's blind judge
@@ -418,14 +418,17 @@ being told them:
 ## Running it
 
 ```sh
-lab/look-judge SKEIN EXPERIMENT...
+lab/look-judge LAB EXPERIMENT...
 ```
+
+`LAB` is an absolute or relative path to the lab's executable command
+(for example, `/path/to/lab`).
 
 From a clean temper checkout at its commit C: builds the gallery
 through `heavy` (release), prints and packs its output in temporary space
-removed after making the subject, and runs skein's `lab
+removed after making the subject, and runs the lab's `lab
 judge` on each experiment named (`lab/look`, `lab/look-planted`):
-three seeds a key (skein's `lab.md`, section 8), printing each key and
+three seeds a key (the lab's `lab.md`, section 8), printing each key and
 verdict, then the key's bar (above). More runs of a seed are `lab run
 --seed N`. The lab is `~/src/rust/tmp/lab`, whose `settings.json` names
 the browser and the `look` cost class. It runs on demand, never in the
@@ -453,7 +456,7 @@ counted, and the planted and healthy sets' two differences; a
 judgements file refused for each rule above; the batch; and the blind
 check on a transcript that stays in its directory and on ones that
 leave it, use another tool or see a forbidden name.
-The checks' own decisions are skein's, tested there on capture
+The checks' own decisions are the lab's, tested there on capture
 fixtures.
 
 # The cluster in the browser
@@ -461,7 +464,7 @@ fixtures.
 `cluster-web/` is `cluster/`'s cluster with temper's browser bundle
 served and a person's browser beside it, the hand
 (`docs/design/draft/qa-web.md`, section 6; skein's
-`docs/design/lab-browser.md`, section 8): the browser signed in as the
+`lab-browser.md`, section 8): the browser signed in as the
 deployment's owner, and a scripted story, the smoke, driving it
 through `browse`. It has no driver: it is the free smoke W2's later
 experiments stand on, and it costs no model call.
@@ -474,11 +477,11 @@ experiments stand on, and it costs no model call.
   `cluster/`'s is null. `experiment.json`'s processes `llm`, `engine`,
   `w1` and `w2` are `cluster/`'s member for member, but for `engine`'s
   `files`, which add the bundle's tree, `{"path": "bundle", "tree":
-  "bundle"}` (skein's `lab.md`, 4.3), and `llm`'s `after`: `cluster/`'s
+  "bundle"}` (the lab's `lab.md`, 4.3), and `llm`'s `after`: `cluster/`'s
   `forge` member, which only the process tier's case stories reach
   (`docs/design/domain/testing.md`, 2.6), is not the browser's, so its
   `llm` starts first. Copies, not names: an
-  experiment's digest is its own directory's tree (skein's `lab.md`,
+  experiment's digest is its own directory's tree (the lab's `lab.md`,
   2.3), so an experiment that named another's files would run with
   bytes its key does not hold, and the runner would need a new
   identity rule; a test holds the copies equal instead (below), and
@@ -509,7 +512,7 @@ Each `{artifact.temper} ctl` action is `qa.md`'s, 5.1. In order:
 | `sign-in` | `{artifact.temper} ctl {dir.client} sign-in -` | `http://{proc.engine.ready.link}` | the owner signs in by serve's printed link, which spends it |
 | `add-key` | `{artifact.temper} ctl {dir.client} add-key 1 {proc.llm.dir}/llm.key --deployment --key cluster-web-llm` | | the fake model's key |
 | `usable` | `{artifact.temper} ctl {dir.client} wait accounts --until usable --timeout 200` | | the account usable |
-| `relink` | `/bin/sh {experiment}/relink {artifact.temper} {dir.spent}` | the spent link again | serve refuses it and prints a fresh one, the action's awaited line: `{"process": "engine", "stream": "stdout", "prefix": "http://", "capture": "link"}` (skein's `lab.md`, 4.5) |
+| `relink` | `/bin/sh {experiment}/relink {artifact.temper} {dir.spent}` | the spent link again | serve refuses it and prints a fresh one, the action's awaited line: `{"process": "engine", "stream": "stdout", "prefix": "http://", "capture": "link"}` (the lab's `lab.md`, 4.5) |
 | `browser-sign-in` | `{runner}/hand/sign-in {proc.browser.ready.address}` | `http://{action.relink.link}` | the browser opens the fresh link |
 | `signed-in` | `{runner}/hand/browse {proc.browser.ready.address} wait heading Chats --exact --timeout 120` | | the chats page, signed in |
 | `smoke` | `/bin/sh {experiment}/smoke {runner}/hand/browse {proc.browser.ready.address}` | | the story (below) |
@@ -543,9 +546,9 @@ Each `{artifact.temper} ctl` action is `qa.md`'s, 5.1. In order:
 
 `smoke BROWSE ADDRESS`, POSIX sh: each step one `browse` call, its
 output printed, and the story ends at the first that does not exit 0,
-with its status, which fails the action (`action/smoke/exit:1`, skein's
+with its status, which fails the action (`action/smoke/exit:1`, the lab's
 `lab.md`, 7.1). Each expectation is a `wait`, so a missed one exits 1
-(lab-browser.md, 8.8), 120 seconds (60 seconds before the user's doubling of 10-22, provisional) at most
+(the lab's `lab-browser.md`, 8.8), 120 seconds (60 seconds before the user's doubling of 10-22, provisional) at most
 but the first reply's, 180 seconds (90 seconds before the user's doubling of 10-22, provisional). The roles are the fake
 person's; the names are o/web-look's words for the pages:
 
@@ -587,7 +590,7 @@ live collection `hand`, `/bin/cp -R -- {dir.hand}/. {collect.dir}/.`.
   one's text, as the hand redacted it.
 - **Left out:** the entries whose `during` is `sign-in`, the seed's
   calls.
-- **Statuses** (skein's `lab.md`, 7.2): 0 with no entry left; 1 with
+- **Statuses** (the lab's `lab.md`, 7.2): 0 with no entry left; 1 with
   one, an unreadable line's `undecided` printed beside it; 2, undecided,
   when the log is missing, or a line is unreadable and no entry is left.
 - **The codec's table is copied** into the check, which names its
@@ -599,7 +602,7 @@ live collection `hand`, `/bin/cp -R -- {dir.hand}/. {collect.dir}/.`.
 ## The subject and the command
 
 ```sh
-lab/cluster-web-judge SKEIN
+lab/cluster-web-judge LAB
 ```
 
 From a clean temper checkout at its commit C, as `look-judge` (above):
@@ -608,7 +611,7 @@ builds `temper` (release) and the browser bundle
 directory as `look_pack.py` packs the gallery, makes the subject
 (`lab subject --repository TEMPER --commit C --exclude lab --artifact
 temper=… --artifact bundle=…`), validates `cluster-web`, and runs
-skein's `lab judge` on it: three seeds, printing the key and the
+the lab's `lab judge` on it: three seeds, printing the key and the
 verdict. The lab's `settings.json` names the browser and the cost
 class. It runs on demand, never in the gate; its transcripts are
 evidence, never goldens.
@@ -635,10 +638,10 @@ evidence, never goldens.
 a dialog in the top layer. Each is captured beside its mockup as the
 look's scenes are, and checked by the look's two checks; and the
 gallery's outline of each such page is held to the live one (qa-web.md,
-8.2). skein's `docs/design/lab-browser.md` designs the capture's live
-side (5.1) and the hand's look reads (8.10). It has no driver: the
-seed makes each state through `browse`, and the judge is the lab
-owner, as for `look/`. No scene expects a run's live text, which
+8.2). The lab's `lab-browser.md`, 5.1, designs the capture's live
+side; skein's `lab-browser.md`, 8.10, designs the hand's look reads.
+It has no driver: the seed makes each state through `browse`, and the
+judge is the lab owner, as for `look/`. No scene expects a run's live text, which
 temper's agent processes do not give (`docs/design/protocol/llm.md`,
 7).
 
@@ -664,14 +667,14 @@ temper's agent processes do not give (`docs/design/protocol/llm.md`,
     a wrong picture.
   `experiment.json`'s processes are `cluster-web/`'s member for
   member; the browser is at 1440×900, and the capture changes its
-  viewport for each width (lab-browser.md, 8.10).
+  viewport for each width (skein's `lab-browser.md`, 8.10).
 - **`stage`,** `look/`'s byte for byte: the gallery printout extracted
   into `{dir.page}/gallery`.
 - **`steps`,** POSIX sh, the seed's `browse` steps (below), one phase an
   invocation, each call's output printed, ending at the first that
   does not exit 0, with its status.
 - **`scenes/`:** the live scenes, `look-scene/1` with a live page
-  (lab-browser.md, section 4). **`gallery/`:** the gallery's states
+  (the lab's `lab-browser.md`, section 4). **`gallery/`:** the gallery's states
   that stand for their pages, served scenes with no mockup, captured
   alone for the gallery's check.
 - **`checks/gallery`:** the gallery's check (below).
@@ -719,7 +722,7 @@ phase `/bin/sh {experiment}/steps PHASE {runner}/hand/browse
 
 | Action | What | For |
 |---|---|---|
-| `drain` | `browse trouble` | the sign-in's trouble read, so each capture's is its own scene's (lab-browser.md, 5.1) |
+| `drain` | `browse trouble` | the sign-in's trouble read, so each capture's is its own scene's (the lab's `lab-browser.md`, 5.1) |
 | `stage` | `look/`'s stage of the gallery into `{dir.page}/gallery` | the gallery's scenes |
 | `send` | `steps send`: `type "text area" "Start a chat"` (`look-live-chat`), `press button Start --exact`, `wait log Conversation`; `type "text area" Message` (`look-live-sent`), `key Enter`, `wait text "First reply." --in log Conversation` | `chat-sent`'s state |
 | `capture-sent` | the live capture of `scenes/chat-sent.json`, `--out {dir.look}/chat-sent` | |
@@ -740,7 +743,7 @@ turn's quiet five minutes.
   `cluster-web/`'s; `gallery`, the served capture of `gallery/`'s
   scenes, `--page {dir.page}/gallery`, no mockups.
 - **`look-structure` and `look-style`** over the three live scenes,
-  one `--capture` each (lab-browser.md, 5.4): the outline, readiness,
+  one `--capture` each (the lab's `lab-browser.md`, 5.4): the outline, readiness,
   trouble and order, the focus (`focus/page`), and the regions'
   values, as `look/`'s.
 - **`gallery`** (qa-web.md, 8.2): `/usr/bin/python3 -I -B -S
@@ -753,7 +756,7 @@ turn's quiet five minutes.
   `/chat-closing.html`, its Close pressed. A gallery scene's names are
   its live scene's.
   - **What agrees: the frame, line for line.** At each width, each
-    page side's outline is made from its tree as lab-browser.md 5.3
+    page side's outline is made from its tree as the lab's `lab-browser.md`, 5.3
     makes it, with the live scene's names, but that a name is its
     words before a trailing count (a space, then digits alone): the
     gallery's "Inbox 2" and the live "Inbox" are both `link "Inbox"`,
@@ -763,7 +766,7 @@ turn's quiet five minutes.
     `button "Send"`) wherever they sit under `main`. A pair declared
     modal (`chat-closing=chat-closing:modal`) is cut to its dialog's
     lines alone, on both sides: a modal leaves the page behind it inert,
-    out of the live tree, and skein's outline prints no `dialog` line,
+    out of the live tree, and the lab's outline prints no `dialog` line,
     so the lines outside every landmark are the dialog's. A page that
     lost its banner fails every other pair. Every line there
     is compared as the outline prints it, with its landmarks
@@ -779,10 +782,10 @@ turn's quiet five minutes.
   - **Each disagreement fails** `<scene>/<width>/gallery/missing/<role>[/<name>]`
     (fewer on the live page than in the gallery) or
     `.../gallery/extra/...` (more), its role and name signed as
-    skein's look checks sign them; its summary names both counts. A
+    the lab's look checks sign them; its summary names both counts. A
     disagreement is the gallery's finding, classed `experiment`
     (qa-web.md, 9), unless the judge finds the live page wrong.
-  - **Statuses** (skein's `lab.md`, 7.2): 0 agreeing, 1 with a line,
+  - **Statuses** (the lab's `lab.md`, 7.2): 0 agreeing, 1 with a line,
     2 when a record or an outline is missing or unreadable, or a pair
     names a scene no record holds.
 
@@ -795,21 +798,21 @@ digest stands for its regions' crops alone, its viewports' shots
 listed as null: the live page's viewport shows its turns' times and
 the day, which move with the clock, so its digest moves with every
 run. A width is live when its record's page side holds `focus`
-(lab-browser.md, 5.2), which no served side has: `look/`'s digests and
+(the lab's `lab-browser.md`, 5.2), which no served side has: `look/`'s digests and
 bar stay as they are. The judge still reads the pair. The planted
 twin and the blind judge are `look/`'s alone.
 
 ## Running it
 
 ```sh
-lab/look-live-judge SKEIN
+lab/look-live-judge LAB
 ```
 
 From a clean temper checkout at its commit C: builds `temper`, the
 bundle and the gallery (release) through `heavy`, packs the bundle
 and the gallery's printout as `look_pack.py` packs them, makes the
 subject (`--artifact temper=… --artifact bundle=… --artifact
-gallery=…`), validates `look-live`, runs skein's `lab judge` on it
+gallery=…`), validates `look-live`, runs the lab's `lab judge` on it
 (three seeds), and prints the key, the verdict and the bar. It runs on
 demand, never in the gate.
 

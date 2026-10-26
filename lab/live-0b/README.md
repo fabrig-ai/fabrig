@@ -28,7 +28,7 @@ The seed, after 0a's three actions:
 
 The release, `export` (`release/export`), runs
 `ctl export ACCOUNT {held.chatgpt}` with the kept number, which writes the
-record back for the runner to return (skein's `lab.md` 4.8). If no account
+record back for the runner to return (the lab's `lab.md`, 4.8). If no account
 was imported, it runs nothing and fails, and the untouched file is given
 back.
 

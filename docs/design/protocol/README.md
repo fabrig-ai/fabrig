@@ -807,7 +807,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   may start later than the others, as the reference case's s2 does.
 - **Every address from a ready line:** each listener binds port 0 on
   127.0.0.1, and its process prints what it got; the description's
-  templates carry it to the processes after it (skein's `lab.md`, 4.4).
+  templates carry it to the processes after it (the lab's `lab.md`, 4.4).
   The engine's document names the fakes' addresses as their ready lines
   gave them, and each worker's names the engine's workers' listener as
   its `listening workers` line gave it.
@@ -840,7 +840,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   bound below the engine's grace, so a lost worker's runs are placed
   again within a test's time.
 - **Lines on stderr,** each one line, flushed once what it says holds;
-  the cluster's contract, read by their literal prefixes (skein's
+  the cluster's contract, read by their literal prefixes (the lab's
   `lab.md`, 4.3):
 
   | Line | Printed by | When |
@@ -865,14 +865,14 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   routing keeps the one io's `Listening` event gives; and the webhooks'
   comes up from skein-forge-connection as its `listening` event (skein's
   `forge-connection.md`, 6.4, as skein's change 14h brings it).
-- **Ready** (skein's `lab.md`, 4.3): the engine at its `listening` lines
+- **Ready** (the lab's `lab.md`, 4.3): the engine at its `listening` lines
   and its sign-in link; a worker at its `linked` line. A task created
   before a worker's hello has reached the fleet waits for a free slot,
   so no ready line need say more.
 
 ### 15.4 Stopping, and what fails
 
-- **Stopped in reverse** (skein's `lab.md`, 5.2): each worker first, by
+- **Stopped in reverse** (the lab's `lab.md`, 5.2): each worker first, by
   its first termination signal, which runs its worker's ending: its runs
   stopped, and done once the engine has every turn and answer, or past
   its grace (jig's `protocol/service.md`, section 6), exiting 0; then
@@ -903,18 +903,18 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
 ### 15.5 Its description
 
 - **One description, `lab/cluster/`** in temper: an experiment in the
-  lab's format, `lab-experiment/1` (skein's `lab.md`, section 4). Its
+  lab's format, `lab-experiment/1` (the lab's `lab.md`, section 4). Its
   `processes` are 15.2's, each with its `argv`, its whole `env`, its
   `ready` lines (15.3), its `after`, its `memory_bytes` (15.1) and its
   `files`: its document, rendered from a template, and its secret or the
   digests. Its templates name each address by `{proc.P.ready.C}` and
-  each directory by `{proc.P.dir}` (skein's `lab.md`, 4.2). A cost
+  each directory by `{proc.P.dir}` (the lab's `lab.md`, 4.2). A cost
   class's `stop_seconds` is above each worker's stop bound and the
   engine's drain.
-  The experiment is the lab's canonical JSON (skein's `lab.md`, 2.2),
+  The experiment is the lab's canonical JSON (the lab's `lab.md`, 2.2),
   and each process's `memory_bytes` is the one its own document states,
   within the lab's integers.
-- **Two readers.** skein's lab runner runs it as any experiment (skein's
+- **Two readers.** The lab's runner runs it as any experiment (the lab's
   `lab.md`, section 5), its driver null until the lab's drivers come
   (15.7). temper's process tier reads it with
   `crates/temper/tests/support/cluster.rs`: the format, the directories
@@ -924,7 +924,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   the processes stopped in reverse, a termination signal, then
   `stop_seconds`, then the tree killed. It reads none of the lab's own
   members (actions, faults, collection, checks), and refuses none.
-- **The reader's bindings,** where the lab's runner has its own (skein's
+- **The reader's bindings,** where the lab's runner has its own (the lab's
   `lab.md`, 4.2): `{artifact.temper}` is the absolute path of the
   `temper` binary the tier built, as Cargo names it to the test
   (`CARGO_BIN_EXE_temper`); `{experiment}` is the absolute
@@ -934,7 +934,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   other kind (a seed's, a run's, a run directory's, the browser's) fails
   the test, naming it: the description uses none.
 - **Its cost class,** `temper-m1-calibration`, is the binding's
-  (`../qa.md`, 10.1), as every experiment's is (skein's `lab.md`, 6.5),
+  (`../qa.md`, 10.1), as every experiment's is (the lab's `lab.md`, 6.5),
   until the cluster has a class of its own: the reader holds its
   `ready_seconds` and `stop_seconds` as that table gives them, the
   first bounding each process's ready lines from its start, the second
@@ -955,7 +955,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   start (setup.md, 6.5).
 - **Why a description,** not one program both call: the lab's runner is
   Python and the process tier is Rust; the lab's format is literal so
-  that readers in any language agree (skein's `lab.md`, 4.3); and a
+  that readers in any language agree (the lab's `lab.md`, 4.3); and a
   change to the cluster is one file both run, so the tests and the lab
   cannot drift apart. The reader is temper's until a second product
   needs one (section 14).
@@ -1043,7 +1043,7 @@ worker (`../draft/reference-case.md`).
 - **An engine restarted under live workers,** with generations kept
   across starts (section 14).
 - **The reference case's multi-worker steps driven in the lab,** by a
-  driver (skein's `lab.md`, section 6), once temper's experiments have
+  driver (the lab's `lab.md`, section 6), once temper's experiments have
   one; the cluster's description runs with none until then (15.5).
 - **A worker of several slots,** as the reference case's s1 with its
   three (`../draft/reference-case.md`, 3 and 4.1): a worker's change,
