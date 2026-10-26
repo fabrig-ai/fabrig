@@ -74,7 +74,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
             }
             let key = found.expect("the hub answers a call it was given once");
             domain.calls.remove(&key);
-            let reply = smith_delivery::reply(domain, reply);
+            let reply = smith_delivery::reply(domain, env.limits.reply_bytes, reply);
             smith::parent::Event::Answer { agent, call: key.1, reply }
         }
     };
@@ -217,6 +217,15 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, star
     }
     let event = match start {
         Ok(mut start) => {
+            // Earlier answers cross the same agent channel as live replies
+            // (`domain/agent.md`, 4.3), after the protocol decodes the start.
+            for call in &mut start.answered {
+                if let smith::SavedReply::Host { body, .. } = &call.reply
+                    && body.len() > usize::try_from(env.limits.reply_bytes).expect("u32 fits usize")
+                {
+                    call.reply = smith::SavedReply::TooLarge;
+                }
+            }
             match start.workspace {
                 Some(workspace) => {
                     let (directory, directories) = workspace::directories(domain, workspace);

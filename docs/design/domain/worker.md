@@ -218,6 +218,10 @@ jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
   the limits or which item the workspace cannot take. Once prepared, a
   start smith refuses, or whose charter, transcript, call names or
   delivery evidence do not decode or agree, is refused as invalid too.
+- **An answer past the agent's reply bound** (`Limits::reply_bytes`,
+  smith's `host_reply_bytes`) is given to smith as its `TooLarge`,
+  never as a body its host codec would refuse: such a send would
+  leave the call unsent and the agent draining.
 - **Preparation failed:** transient (the forge could not be reached, the
   worker's side failed or ran out of time, another run of the workstream
   holds its checkout, or every checkout is held), or permanent until

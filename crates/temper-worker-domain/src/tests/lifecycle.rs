@@ -262,3 +262,30 @@ fn no_notices(rows: &[Request]) {
         }
     }
 }
+
+#[test]
+fn earlier_host_answers_take_the_same_agents_reply_bound() {
+    for error in [false, true] {
+        for extra in [0, 1] {
+            let mut h = Harness::new();
+            let (owner, source) = h.decode(Box::new([]));
+            let mut start = super::fixtures::start(RUN, &source);
+            let bytes = usize::try_from(h.env.limits.reply_bytes + extra).expect("reply length");
+            start.answered = Box::new([agent::AnsweredCall {
+                name: agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 },
+                tool: Box::from(&b"recall"[..]),
+                reply: agent::SavedReply::Host { error, body: alloc::vec![b'x'; bytes].into_boxed_slice() },
+            }]);
+            let rows = h.run(Event::Decoded { agent: owner, start: Ok(Box::new(start)) });
+            let [call] = sent_start(&rows).answered.as_ref() else { panic!("one earlier answer") };
+            assert_eq!(call.tool.as_ref(), b"recall");
+            assert_eq!(call.name, agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 });
+            let expected = if extra == 0 {
+                agent::SavedReply::Host { error, body: alloc::vec![b'x'; bytes].into_boxed_slice() }
+            } else {
+                agent::SavedReply::TooLarge
+            };
+            assert_eq!(call.reply, expected);
+        }
+    }
+}

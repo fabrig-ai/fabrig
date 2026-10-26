@@ -57,3 +57,21 @@ fn a_save_says_whether_each_repository_started_from_saved_work() {
         assert_eq!((*tag, *from_saved), (1, expected), "{name}");
     }
 }
+
+#[test]
+fn a_host_answer_at_the_agents_reply_bound_reaches_it_whole() {
+    use temper_worker_domain_world::whole::{REPLY_BYTES, host_answer};
+    let smith_channel::Reply::Host(reply) = host_answer(91, REPLY_BYTES, false) else {
+        panic!("the agent receives the whole host answer");
+    };
+    assert!(!reply.error());
+    assert_eq!(reply.text(), vec![b'x'; usize::try_from(REPLY_BYTES).unwrap()]);
+}
+
+#[test]
+fn a_host_answer_past_the_agents_reply_bound_reaches_it_as_too_large() {
+    use temper_worker_domain_world::whole::{REPLY_BYTES, host_answer};
+    for error in [false, true] {
+        assert_eq!(host_answer(92, REPLY_BYTES + 1, error), smith_channel::Reply::TooLarge);
+    }
+}

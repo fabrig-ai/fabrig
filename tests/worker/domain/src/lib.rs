@@ -75,6 +75,7 @@ pub fn limits() -> Limits {
             local_timeout: Duration::from_secs(10),
             facts: 256,
         },
+        reply_bytes: whole::REPLY_BYTES,
         agent: agent::Limits {
             accounts: 4,
             directories: 8,

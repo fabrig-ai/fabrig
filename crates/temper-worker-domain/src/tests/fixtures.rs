@@ -49,6 +49,8 @@ pub fn limits() -> Limits {
             local_timeout: Duration::from_secs(10),
             facts: 64,
         },
+        // This typed fixture has no smith channel; host text fits 512 bytes.
+        reply_bytes: 512,
         agent: agent::Limits {
             agents: 2,
             directories: 8,

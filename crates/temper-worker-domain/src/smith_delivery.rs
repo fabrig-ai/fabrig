@@ -38,9 +38,15 @@ pub(crate) fn fields(fields: smith::Fields, limit: u32) -> Option<Fields> {
 
 /// The hub's reply to a call, as smith takes it: a delivery's terminal is the
 /// one the workspace made of its push.
-pub(crate) fn reply(domain: &Domain, reply: host::Reply) -> smith::Reply {
+pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::Reply) -> smith::Reply {
     match reply {
-        host::Reply::Relayed { error, text } => smith::Reply::Host { error, body: text },
+        host::Reply::Relayed { error, text } => {
+            if text.len() > usize::try_from(reply_bytes).expect("u32 fits usize") {
+                smith::Reply::TooLarge
+            } else {
+                smith::Reply::Host { error, body: text }
+            }
+        }
         host::Reply::Delivered(delivery) => smith::Reply::Delivery(workspace::smith_delivery(domain, delivery.left)),
         host::Reply::Unavailable => smith::Reply::Unavailable,
         host::Reply::Withdrawn => smith::Reply::Withdrawn,

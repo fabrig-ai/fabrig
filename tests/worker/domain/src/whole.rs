@@ -6,7 +6,7 @@
 use std::collections::VecDeque;
 use std::fmt::Write;
 
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Reader, Time, Token, Wall, Writer};
 use temper_fake_checkout::{
     Checkout,
     git::{Remote, Tree},
@@ -23,6 +23,9 @@ const ATTEMPT: Token = Token::new(13);
 const WORKSTREAM: u64 = 81;
 const PROCESS: Token = Token::new(707);
 const CALL: Token = Token::new(44);
+/// The scripted channel's host_reply_text, small enough to exercise both sides.
+pub const REPLY_BYTES: u32 = 32;
+
 const REMOTE: &[u8] = b"org/app";
 const PATH: &[u8] = b"code";
 
@@ -59,6 +62,9 @@ struct World {
     hold_push: bool,
     held: Option<(Token, Op)>,
     deliveries: u32,
+    call: Option<Box<[u8]>>,
+    replies: Vec<smith_channel::Reply>,
+    unsent: u32,
     answer: Option<(host::Answer, wire::Work, Option<wire::Preparation>)>,
     /// The workstreams the last hello named.
     workstreams: Box<[u64]>,
@@ -94,6 +100,9 @@ impl World {
             hold_push: false,
             held: None,
             deliveries: 0,
+            call: None,
+            replies: Vec::new(),
+            unsent: 0,
             answer: None,
             workstreams: Box::new([]),
             stops: 0,
@@ -150,7 +159,7 @@ impl World {
                 self.report.stop_bound = hello.stop_bound;
                 self.workstreams = hello.workstreams;
             }
-            Request::Link(up) => Self::link(&up),
+            Request::Link(up) => self.link(up),
             Request::Answer { run, attempt, answer, work, preparation } => {
                 assert_eq!((run, attempt), (RUN, ATTEMPT));
                 assert!(self.held.is_none(), "delivery settles before the final answer");
@@ -175,14 +184,20 @@ impl World {
         }
     }
 
-    fn link(up: &host::LinkUp) {
+    fn link(&mut self, up: host::LinkUp) {
         match up {
-            host::LinkUp::Activity { run, attempt, .. } => assert_eq!((*run, *attempt), (RUN, ATTEMPT)),
+            host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (RUN, ATTEMPT)),
+            host::LinkUp::Call { run, attempt, call, tool, writes, input, .. } => {
+                assert_eq!((run, attempt), (RUN, ATTEMPT));
+                assert_eq!(tool.as_ref(), b"recall");
+                assert!(!writes);
+                assert_eq!(input.as_ref(), b"{}");
+                assert!(self.call.replace(call).is_none());
+            }
             host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Piece { .. }
             | host::LinkUp::Turn { .. }
-            | host::LinkUp::Call { .. }
             | host::LinkUp::Unauthorized { .. }
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
@@ -222,8 +237,14 @@ impl World {
             }
             agent::process::Request::Send { owner, process, message } => {
                 assert_eq!((Some(owner), process), (self.process, PROCESS));
-                self.down(message);
-                self.owed.push_back(Event::Process(Box::new(agent::process::Event::Sent { owner })));
+                let sent = self.down(message);
+                let event = if sent {
+                    agent::process::Event::Sent { owner }
+                } else {
+                    self.unsent += 1;
+                    agent::process::Event::Unsent { owner }
+                };
+                self.owed.push_back(Event::Process(Box::new(event)));
             }
             agent::process::Request::Read { owner, process } => {
                 assert_eq!((Some(owner), process), (self.process, PROCESS));
@@ -239,7 +260,7 @@ impl World {
         }
     }
 
-    fn down(&mut self, message: agent::Down) {
+    fn down(&mut self, message: agent::Down) -> bool {
         match message {
             agent::Down::Start { start, .. } => {
                 assert_eq!(start.activation, ATTEMPT.raw());
@@ -249,6 +270,11 @@ impl World {
             }
             agent::Down::Answer { call, reply } => {
                 assert_eq!(call, CALL);
+                if !matches!(reply, agent::Reply::Delivery(_)) {
+                    let Some(reply) = host_reply(reply) else { return false };
+                    self.replies.push(reply);
+                    return true;
+                }
                 let agent::Reply::Delivery(agent::Delivery::Delivered(receipts)) = reply else {
                     panic!("the complete edited tree is delivered: {reply:?}");
                 };
@@ -267,6 +293,7 @@ impl World {
                 panic!("unscripted process record")
             }
         }
+        true
     }
 
     fn connect(&mut self) {
@@ -488,4 +515,84 @@ pub fn workstreams(seed: u64) -> Box<[u64]> {
     world.event(Event::Lost);
     world.connect();
     world.workstreams
+}
+
+/// A host call crossing the engine link, its reply decoded by the agent,
+/// followed by a run answer reaching the engine and complete teardown.
+#[must_use]
+pub fn host_answer(seed: u64, bytes: u32, error: bool) -> smith_channel::Reply {
+    let mut world = World::new(seed);
+    world.start();
+    world.say(agent::Up::Call {
+        call: CALL,
+        name: agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 },
+        deadline: world.env.now.saturating_add(Duration::from_secs(60)),
+        ask: agent::Ask::Host {
+            tool: Box::from(&b"recall"[..]),
+            effect: agent::Effect::Read,
+            body: Box::from(&b"{}"[..]),
+        },
+    });
+    let call = world.call.take().expect("call reaches engine");
+    world.event(Event::Link(host::LinkDown::Relayed {
+        run: RUN,
+        attempt: ATTEMPT,
+        call,
+        answer: host::Relayed::Answer { error, text: vec![b'x'; usize::try_from(bytes).expect("reply length")].into() },
+    }));
+    assert_eq!(world.unsent, 0, "host codec must send the reply instead of draining the run");
+    assert_eq!(world.replies.len(), 1);
+    finish_host_run(&mut world);
+    world.replies.pop().expect("decoded reply")
+}
+
+fn finish_host_run(world: &mut World) {
+    world.finish();
+    world.gone();
+    let (answer, _, preparation) = world.answer.take().expect("run answer reaches engine");
+    assert!(matches!(answer.ending, host::Ending::Ended { .. }), "{answer:?}");
+    assert_eq!(preparation, None);
+    assert_eq!(world.domain.agent().agents(), 0);
+    assert_eq!(world.domain.workspaces(), 0);
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
+    assert_eq!(world.domain.kept_answers(), 0);
+    world.event(Event::Shutdown);
+    assert_eq!(world.stops, 1);
+}
+
+fn channel_limits() -> smith_channel::Limits {
+    let mut limits = smith_channel::CEILINGS;
+    limits.host_reply_text = REPLY_BYTES;
+    limits
+}
+
+/// smith's host codec at the process boundary, and the agent's decode.
+fn host_reply(reply: agent::Reply) -> Option<smith_channel::Reply> {
+    let limits = channel_limits();
+    let reply = match reply {
+        agent::Reply::Host { error, body } => smith_channel::Reply::Host(
+            smith_channel::HostReply::new(&limits, smith_channel::HostReplyParts { error, text: body }).ok()?,
+        ),
+        agent::Reply::TooLarge => smith_channel::Reply::TooLarge,
+        other @ (agent::Reply::Busy
+        | agent::Reply::Unavailable
+        | agent::Reply::Withdrawn
+        | agent::Reply::Delivery(_)) => {
+            panic!("unscripted reply: {other:?}")
+        }
+    };
+    let name = smith_channel::CallName::new(
+        &limits,
+        smith_channel::CallNameParts { activation: ATTEMPT.raw(), completion: 1, position: 0 },
+    )
+    .expect("call name");
+    let record = smith_channel::HostAnswer::new(&limits, smith_channel::HostAnswerParts { name, reply })
+        .expect("bounded answer");
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("answer size"));
+    record.encode(&mut writer).expect("measured answer");
+    let bytes = writer.finish();
+    let mut reader = Reader::new(&bytes);
+    let decoded = smith_channel::HostAnswer::decode(&limits, &mut reader).expect("agent decodes");
+    assert!(reader.is_empty());
+    Some(decoded.reply().clone())
 }

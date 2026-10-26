@@ -184,6 +184,14 @@ permission on it.
   the engine answers a call it has seen before from its record, and smith
   asks again under the same name after busy or a lost answer (smith's
   `domain/run.md`, 5.2).
+- **An answer fits what the agent takes** (`domain/worker.md`, 4.3):
+  a call past the worker's input bound, `core.call_answer_bytes`, is
+  answered `call too large` under its name, and the run goes on (jig's
+  worker link). An answer past the agent's `host_reply_bytes` (smith's,
+  its channel's `host_reply_text`, the agent's `tool_payload`) reaches
+  the run as smith's `TooLarge`, which says the answer was too large
+  and not shown, and the run goes on. The engine keeps the answer it
+  decided, so a call asked again gets the same reply.
 - **A call names what it saw** (jig's `domain/engine.md`, 7.3): the
   revisions above are those its brief, its messages and its earlier
   answers showed it. One whose object has moved since is answered moved,
