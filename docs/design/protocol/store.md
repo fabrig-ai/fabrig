@@ -1965,10 +1965,13 @@ pub enum BackRefusal { Busy, NoPrevious, Committed { manifest: u64, last: u64 },
 Event::Back { owner: Token, to: u64 }                 // `active` names generation `to`
 Event::BackRefused { owner: Token, why: BackRefusal }
 pub fn levels(sets: &PatchSets) -> Levels             // the binary's levels, for its versions' lines
+Request::Close { owner: Token }                       // a rehearsal's end, in any state; refused for any other store
+Event::Closed { owner: Token, removed: bool }         // false on a file's fault: the next rehearsal removes the rest
 ```
 
 A rehearsal's store refuses `Request::Switch`, though its root never
-asks, and its close removes the scratch; a rehearsal that crashed
+asks, and its close (`Request::Close`; an engine's store ends with its
+process and has none) removes the scratch; a rehearsal that crashed
 leaves one, which the next rehearsal removes before it copies. Its
 patches answer `Patched` as a start's do.
 
