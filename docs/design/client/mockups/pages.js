@@ -1696,7 +1696,7 @@
       const chosen = world.forges.find(f => String(f.n) === which && f.mode !== 'fake');
       const next = Math.max(...world.forges.map(f => f.n)) + 1;
       const details = which === 'elsewhere' ? elsewhereHow(next) : (chosen?.kind === 'GitHub' || chosen?.admin) ? flowCard(chosen, 'welcome') : chosen ? ownedForm(chosen, 'welcome.html?at=model&world=first-run-real&step=2') : '';
-      content = `<h2>Connect a forge</h2><p class="muted welcome-lead">Where your repositories live: temper’s agents push branches and open pull requests there.</p>${which ? flowWrap(details) : forgeChoices('welcome.html?at=forge&forge=')}${foot}`;
+      content = `<h2>Connect a forge</h2><p class="muted welcome-lead">Where your code lives: you file issues, agents push and land code.</p>${which ? flowWrap(details) : forgeChoices('welcome.html?at=forge&forge=')}${foot}`;
     } else if (current === 'model') {
       // The forge's line, so that Model says what Forge did: under way,
       // with its steps, or done, ticked, with its first repository.
