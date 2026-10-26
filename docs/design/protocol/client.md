@@ -928,8 +928,7 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
 
 ## 14. Testing
 
-Each within jig's suites' budgets (`../../development/workflow.md`,
-section 2).
+Each within jig's suites' budgets.
 
 - **Step tests** in `jig-client-protocol-wire` and each application's
   wire: generated, as skein's `codec.md`, section 6 has them; the fixed

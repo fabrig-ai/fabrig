@@ -282,8 +282,7 @@ and the starter. What is jig's follows.
   `panic = "abort"`, `overflow-checks = true` and `strip = true`. An
   application's workspace defines its own the same way.
 - **The browser tier's module** is built with the dev profile, as code
-  under test; the bundler is a tool, built optimized
-  (`../../development/workflow.md`, section 2).
+  under test; the bundler is a tool, built optimized.
 
 ### 4.2 The bundler and the bundle
 
@@ -303,8 +302,7 @@ and the starter. What is jig's follows.
   `pictures/<prefix>/` for its test family's owner, and `files/`.
 - **jig's one text that is not Rust** is `jig.css`. Nothing inline.
 - **Its size is a guide:** jig's test application's module, built with
-  `web`, kept with jig's budgets (`../../development/workflow.md`,
-  section 2); past it, what grew is reported.
+  `web`, kept with jig's budgets; past it, what grew is reported.
 
 ### 4.3 The page and the starter
 
@@ -786,8 +784,8 @@ otherwise (skein's `ui-web.md`, section 12).
 
 ## 15. Testing
 
-Each within jig's suites' budgets (`../../development/workflow.md`,
-section 2). skein's parts, its bundler, its face and its harness are
+Each within jig's suites' budgets. skein's parts, its bundler, its face
+and its harness are
 tested in skein, and in a browser on skein's UI example (skein's
 `ui-web.md`, section 14); jig's tests take what is jig's.
 
@@ -820,7 +818,7 @@ tested in skein, and in a browser on skein's UI example (skein's
 - **The browser tier:** a suite of its own, `--profile browser`, run by
   `scripts/browser.sh` after it builds jig's test application's bundle
   with skein's bundler, a slow tier outside jig's gate, within its budget (a rule: its
-  profile's global timeout, `../../development/workflow.md`, section 2).
+  profile's global timeout).
   Each test starts one server (the application's binary; for jig, the
   reference `jig-test`, serving its bundle and the mapping at `/jig`)
   and one Chromium, and plays its stories with a person each: a browser

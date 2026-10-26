@@ -733,9 +733,8 @@ and resends what it must after the next hello.
 ## 12. Testing
 
 Following testing-strategy.md, and skein's `channel.md`, section 11, each
-within jig's suites' budgets (`../../development/workflow.md`, section
-2): focused tests in the default suite, randomized ones in the fuzzy
-suite.
+within jig's suites' budgets: focused tests in the default suite, randomized
+ones in the fuzzy suite.
 
 - **Step tests** in `jig-protocol-worker-wire`: each record encoded and
   decoded at its smallest and fullest, golden bytes per kind, bounds at

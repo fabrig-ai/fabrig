@@ -347,8 +347,7 @@ down:  released and door outputs → components → io submissions
 
 ## 8. Testing
 
-Each within jig's suites' budgets (`../../development/workflow.md`,
-section 2).
+Each within jig's suites' budgets.
 
 - **The domain worlds** run without any of this (`../domain/testing.md`).
 - **The components' worlds** test each component alone (`channel.md`,

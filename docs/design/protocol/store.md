@@ -1804,8 +1804,7 @@ was made (`../domain/tasks.md`, section 3):
 
 ## 14. Testing
 
-Each within jig's suites' budgets (`../../development/workflow.md`,
-section 2).
+Each within jig's suites' budgets.
 
 - **The real store in the domain worlds.** The worlds run the component
   over skein-kv's in-memory mode, in place of a fake of the map, so every

@@ -334,8 +334,7 @@ missing in skein's world harness goes into skein first.
 
 jig's tests fit the suites' budgets (testing-strategy.md, section 8):
 the focused suite runs a few cuts and seeds per scenario, the fuzzy
-suite sweeps. jig's tests count against jig's budgets
-(`../../development/workflow.md`, section 2); an application's
+suite sweeps. jig's tests count against jig's budgets; an application's
 conformance scenarios count against the application's. The stories of
 the plumbing (operations alone and compound, a grace, task queries,
 read positions, revisions named by runs and procedures) join the

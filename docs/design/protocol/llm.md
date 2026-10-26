@@ -509,8 +509,7 @@ child's vocabulary and the driver's, both ways, exhaustive on both:
 
 ## 8. Testing
 
-Each within jig's suites' budgets (`../../development/workflow.md`,
-section 2).
+Each within jig's suites' budgets.
 
 - **The driver is skein's,** tested in skein's worlds; jig tests what it
   adds.

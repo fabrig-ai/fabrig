@@ -16,8 +16,7 @@ sources:
   numbers, `unreachable!` arms, files of 1,600 to 3,000 lines. This file
   alone holds them now, in sections 3, 6 and 7.
 - **The debts that the retrospectives of jig-protocol, test-budgets,
-  client-composition and skein-ui left for this file**
-  (`docs/development/plans/<plan>/retrospective.md`, section 9): in
+  client-composition and skein-ui left for this file:** in
   sections 4 to 7 where they are of those kinds, and in sections 10 to
   13. Section 14 says what was not taken in.
 
@@ -145,7 +144,7 @@ that the joint worlds pass:
 
 The suites are CPU only. At `77c77ec`, callgrind showed their cost
 spent mostly outside what they check. The first look's
-recommendations are now rules, `workflow.md`, section 2: fixtures once,
+recommendations are now rules: fixtures once,
 checks on change, traces on failure, test-sized limits, seeds sized to
 their assertions, long runs as several tests. Against them:
 
@@ -160,8 +159,8 @@ their assertions, long runs as several tests. Against them:
   (`Reached` and `MARKERS`, `tests/tasks/src/coverage.rs`). The sweep
   enumerates the 48 story choices and draws 8 seeds of 256, instead of
   running all 256 (`tests/tasks/tests/fuzzy_lifecycle.rs`). The trace is
-  off unless `JIG_WORLD_TRACE` is set (`tests/tasks/src/trace.rs`), as
-  `workflow.md`, section 3, says; when on, it is still formatted text.
+  off unless `JIG_WORLD_TRACE` is set (`tests/tasks/src/trace.rs`);
+  when on, it is still formatted text.
 - **Conformance and `ops`'s alert story: in part.** Worst cases are
   computed once per harness (`testing/jig-conformance/src/harness.rs:242`),
   and inputs and outputs are formatted only when tracing. Cuts still
@@ -196,7 +195,7 @@ New of the same kind:
   `tests/fleet/src/world.rs:649,657,759` and `turns.rs:200,207`).
 - **The focused suite's budget is doubled.** `.config/nextest.toml`
   gives it a `global-timeout` of 30 s (:10), against the 15 s that its
-  header (:1-3) and `workflow.md`, section 2, state; a comment (:9) ties
+  header (:1-3) states; a comment (:9) ties
   the doubling to one run, until a test-cost pass. Of the last 50 gated
   landings, 8 ran the focused suite past 15 s, the longest in 18.7 s; the
   fuzzy suite took 15.4 to 34.4 s of its 60 (`git log
@@ -205,7 +204,7 @@ New of the same kind:
 
 Building the tests at `opt-level=1` made the suites 3 to 8 times faster,
 but a cold build took 7.5 minutes against 38 seconds. Builds stay
-unoptimized, except the repository's tools (`workflow.md`, section 2).
+unoptimized, except the repository's tools.
 
 **Recommendations:**
 
