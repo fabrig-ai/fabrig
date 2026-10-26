@@ -330,6 +330,10 @@ enum Admission {
     Batch,
     Open,
 }
+enum RefereeWork {
+    Ready,
+    Waiting,
+}
 enum BoxStderr {
     Absent,
     Captured,
@@ -354,6 +358,8 @@ pub struct Calls {
     child: Option<Child>,
     member: Option<member::Member>,
     action: Option<Action>,
+    // A newly published referee action needs one more turn before the ring may wait.
+    referee_work: RefereeWork,
     box_stderr: BoxStderr,
     started: Option<(Child, usize)>,
     awaiting_started: bool,
@@ -400,8 +406,12 @@ impl Calls {
     pub(super) fn visiting(&self) -> bool {
         matches!(self.action, Some(Action::Visit))
     }
-    pub(super) fn visited(&mut self, status: u16) {
+    pub(super) fn visit_handed(&mut self) {
         assert!(self.visiting(), "visit requested");
+        self.referee_work = RefereeWork::Waiting;
+    }
+    pub(super) fn visited(&mut self, status: u16) {
+        self.visit_handed();
         self.ends.push(Ended {
             exit: Some(Exit::Code(0)),
             stdout: format!("HTTP/1.1 {status}\n").into_bytes(),
@@ -424,6 +434,7 @@ impl Calls {
     /// per-call Binary tree could also make abandonment without cancellation safe.
     pub fn cancel(&mut self) {
         self.cancelling = true;
+        self.referee_work = RefereeWork::Waiting;
         self.steps.clear();
         if let Some(member) = &mut self.member {
             member.close();
@@ -456,6 +467,9 @@ impl Calls {
     }
     /// The box referee checks after each ring wake, including stderr reads.
     pub(super) fn observe_box_stderr(&mut self, stderr: &[u8], now: Time) {
+        if matches!(self.action, Some(Action::Stderr(_) | Action::ProgramLogin(_))) {
+            self.referee_work = RefereeWork::Waiting;
+        }
         if let Some(Action::ProgramLogin(name)) = self.action
             && let Some(command) = super::program_login::printed(stderr, name)
         {
@@ -491,6 +505,7 @@ impl Calls {
             child: None,
             member: None,
             action: None,
+            referee_work: RefereeWork::Waiting,
             box_stderr: BoxStderr::Absent,
             started: None,
             awaiting_started: false,
@@ -684,6 +699,7 @@ impl Calls {
             assert!(!bytes.is_empty(), "Step::Stderr requires nonempty bytes");
         }
         self.action = Some(action);
+        self.referee_work = RefereeWork::Ready;
     }
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
@@ -740,7 +756,10 @@ impl Calls {
                 );
                 self.child.as_mut().expect("open child").typing = until.map_or(Input::Hold, Input::After);
             }
-            Some(Step::Visit) => self.action = Some(Action::Visit),
+            Some(Step::Visit) => {
+                self.action = Some(Action::Visit);
+                self.referee_work = RefereeWork::Ready;
+            }
             Some(Step::Run(call)) => {
                 self.action = Some(Action::Run);
                 self.start(call, false);
@@ -853,7 +872,8 @@ impl Host for Calls {
         &mut self.submit
     }
     fn work_pending(&self, now: Time) -> bool {
-        !self.complete.is_empty()
+        matches!(self.referee_work, RefereeWork::Ready)
+            || !self.complete.is_empty()
             || !self.submit.is_empty()
             || self.retry.is_some_and(|retry| retry <= now)
             || self.member.as_ref().is_some_and(|member| member.work_pending(now))
@@ -1073,6 +1093,47 @@ pub fn proposal_key(ended: &Ended) -> String {
 #[cfg(test)]
 mod read_condition_tests {
     use super::*;
+
+    struct VisitJudge {
+        settled: bool,
+    }
+    impl Referee<Process> for VisitJudge {
+        fn act(&mut self, now: Time, procs: &mut [Process]) {
+            let Process::Calls(calls) = &mut procs[0] else { panic!("call host") };
+            if calls.visiting() {
+                calls.visit_handed();
+                assert!(!calls.work_pending(now), "a handed visit waits for its visitor without spinning");
+                calls.visited(200);
+            }
+        }
+        fn observe(&mut self, _now: Time, procs: &[Process]) {
+            self.settled = procs.iter().all(Host::is_empty);
+        }
+        fn next_deadline(&self) -> Option<Time> {
+            None
+        }
+        fn overdue(&self, _now: Time) -> Option<String> {
+            None
+        }
+        fn passed(&self) -> bool {
+            self.settled
+        }
+    }
+
+    #[test]
+    fn a_returned_visit_drains_without_another_process_or_a_poll() {
+        let scratch = super::super::Scratch::new(&format!("returned-visit-wake-{}", std::process::id()));
+        let root = skein_shell::open_root(scratch.path()).expect("scratch root");
+        let clock = Clock::new();
+        let mut world = real::World::new(VisitJudge { settled: false });
+        world.spawn_with_fds(vec![root], || Process::Calls(Box::new(Calls::new(root, vec![Step::Visit], None, None))));
+        let ended = world.run(&clock, Duration::from_secs(2));
+        assert!(ended.procs.iter().all(Host::is_empty), "returned visit drains the call host");
+        let Process::Calls(calls) = &ended.procs[0] else { panic!("call host") };
+        assert_eq!(calls.ends().len(), 1, "one browser visit completed");
+        assert_eq!(calls.ends()[0].exit, Some(Exit::Code(0)));
+        scratch.remove();
+    }
 
     fn completed(stdout: &[u8]) -> Child {
         let mut child = Child::new(Vec::new(), 0);

@@ -450,6 +450,7 @@ impl<F: FnOnce() -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                         .and_then(super::sign_in::authorization_address)
                         .expect("last act printed a browser address");
                     visitor.hand(address);
+                    calls.visit_handed();
                     self.tab_visit = Visit::Handed;
                 }
             }
