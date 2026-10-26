@@ -751,7 +751,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-chat .temper-by-agent > .temper-says :is(ul, ol) { padding-left: 18px; }
 .temper-chat .temper-by-agent > .temper-says :not(pre) > code { font-size: .92em; background: #f4f0ea; padding: 0 3px; border-radius: 3px; }
 /* Agent tables follow the mockup, including its omitted empty header. */
-.temper-chat .temper-by-agent > .temper-says table { border-collapse: collapse; font-size: .88em; max-width: 890px; }
+.temper-chat .temper-by-agent > .temper-says table { border-collapse: collapse; font-size: .88em; max-width: 890px; overflow-wrap: normal; }
 .temper-chat .temper-by-agent > .temper-says :is(th, td) { text-align: left; vertical-align: top; padding: 3px 14px 3px 0; border-bottom: 1px solid #efe9e1; }
 .temper-chat .temper-by-agent > .temper-says tr:last-child > :is(th, td) { border-bottom: 0; }
 .temper-chat .temper-by-agent > .temper-says td:first-child { color: #9b9388; white-space: nowrap; }
