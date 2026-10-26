@@ -1227,11 +1227,14 @@ made by the forge connector from what it keeps of the change
     update's carry counted (`../domain/forge.md`, 8.3);
   - its repairs, resolutions and updates, each used of its limit (8.4).
 - **The address on the forge is the engine's.** The routing builds it as
-  it encodes the document, from the forge's configured `web` and its
-  kind: `WEB/OWNER/NAME/pull/N` on GitHub, `WEB/OWNER/NAME/pulls/N` on
-  Forgejo. A forge with no `web` gives no address, and the page offers
-  no "View on forge" (`README.md`, 5.10); so does an address longer
-  than its bound (`README.md`, 4.6), which never fails the delivery.
+  it encodes the document, from the forge's configured addresses and its
+  kind: `WEB/OWNER/NAME/pull/N` on GitHub, WEB its `web`, github.com's
+  when null; `GIT/OWNER/NAME/pulls/N` on Forgejo, GIT its `git` base,
+  since Forgejo serves its pages where it serves its repositories and
+  its `web` is always null (`../protocol/configuration.md`, section 3).
+  A forge with neither gives no address, and the page offers no "View
+  on forge" (`README.md`, 5.10); so does an address longer than its
+  bound (`README.md`, 4.6), which never fails the delivery.
 - **Not in it,** since the connector's records do not keep them: the
   requirements at its head, judged only at the merge
   (`../domain/forge.md`, 8.7); its heads in order; each CI context and
