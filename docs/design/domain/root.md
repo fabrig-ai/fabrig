@@ -1,6 +1,6 @@
 # temper's root
 
-Provisional, 2026-10-04, revised 2026-10-23. What temper's engine root
+Provisional, 2026-10-04, revised 2026-10-26. What temper's engine root
 is and does: `temper-engine-domain`, the top-level domain of temper's
 engine, which composes jig's core with the forge connector in the shape
 jig's `domain/root.md` gives every application's root. It says what the
@@ -591,8 +591,15 @@ each step the core asks for:
    step.
 2. **The inbox:** the census of ended owners.
 3. **The forge's records,** `Range::Forge`, a page at a time; then the
-   forge reconciles them. Designed, not built: before them, the forge
-   hears its kinds' current values (5.6).
+   forge reconciles them, refusing a record whose forge, repository or
+   task the restart does not hold, as jig's children refuse theirs.
+   Designed, not built: before them, the forge hears its kinds' current
+   values (5.6). Over a generation the store holds pending (jig's
+   `protocol/store.md`, 10.2, step 7), then **the switch**
+   (`RestartStep::Switch`): the root asks the store to switch and goes
+   on once it answers; nothing has been committed before it, and a
+   refusal before it leaves the generation patched from active (jig's
+   `domain/engine.md`, section 6).
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
 5. **The forge reads afresh,** then **settles its outbox** (forge.md,
