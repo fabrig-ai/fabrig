@@ -332,8 +332,10 @@ link. Sign in through ctl as in section 3. This example does not create
 a repository: create `acme/widget` on the forge with your chosen tools,
 initialized on `main`, with Actions enabled and a workflow using
 `temper-host`. Your first Forgejo sign-in uses `forge-1/person_password`
-and requires a password change. The rule covers only `acme/widget`;
-its charters are in `owned/charters/`. Then adopt it:
+and requires a password change. The landing rule covers only
+`acme/widget`. This example starts on the binary's stock settings; no
+charter instruction files are needed. Read or change the settings as
+above, then adopt it:
 
 ```sh
 temper ctl DIR adopt --project 1 --forge 1 --owner acme --name widget --landing main --key manual-adopt
