@@ -39,7 +39,7 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
     let bytes = serde_json::to_vec(value).unwrap();
     let d = config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-    let engine = config::engine(&d, member(&d, 0, b"engine"), &directories).unwrap();
+    let engine = temper_service::startup::engine(&d, member(&d, 0, b"engine"), &directories).unwrap();
     let app = member(&d, 0, b"application");
     let mut ps = problem::Problems::empty();
     let setup = Setup::read(&d, member(&d, app, b"setup"), &temper_forge_setup::limits::small(), &directories, &mut ps)

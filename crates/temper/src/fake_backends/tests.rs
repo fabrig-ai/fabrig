@@ -331,7 +331,7 @@ fn fresh_preparation_is_private_and_isolates_imported_resources() {
     validate(&prepared.directories, &prepared.bytes, &scratch.0.join("fake-claude"))
         .expect("ordinary deployment and agent checks");
     let root = crate::path(&source.data).join("box/fake-backends");
-    for name in ["", "config", "data", "config/charters"] {
+    for name in ["", "config", "data"] {
         assert_eq!(fs::symlink_metadata(root.join(name)).expect("private directory").mode() & 0o777, 0o700, "{name}");
     }
     for name in [
@@ -342,8 +342,6 @@ fn fresh_preparation_is_private_and_isolates_imported_resources() {
         "config/github.json",
         "config/oauth.json",
         "config/llm.json",
-        "config/charters/chat.txt",
-        "config/charters/coding.txt",
         "data/worker.secret",
         "data/worker.digest",
     ] {
@@ -558,18 +556,17 @@ fn reuse_refuses_a_missing_effective_bundle_and_preserves_edits() {
 }
 
 #[test]
-fn current_init_import_copies_only_public_assets_and_rebases_paths() {
+fn current_init_import_ignores_charter_files_and_rebases_paths() {
     let scratch = Scratch::new("import");
     let source = provisioned_source(&scratch);
     let mut temper = read_json(&source.document());
     // Equivalent absolute resource spelling is admitted without following source D's resources.
     temper["workers"][0]["secret"] = crate::path(&source.data).join("worker.secret").to_str().expect("path").into();
-    temper["engine"]["charters"][0]["instructions"] =
-        crate::path(&source.config).join("charters/chat.txt").to_str().expect("path").into();
     store_json(&source.document(), &temper);
-    write(&crate::path(&source.config).join("charters/chat.txt"), b"A custom public charter.\n", true)
+    fs::create_dir_all(crate::path(&source.config).join("charters")).expect("stray public directory");
+    write(&crate::path(&source.config).join("charters/chat.txt"), b"A custom public charter.\n", false)
         .expect("public charter");
-    let before = ["temper.json", "agent.json", "charters/chat.txt", "charters/coding.txt"].map(|name| {
+    let before = ["temper.json", "agent.json", "charters/chat.txt"].map(|name| {
         let path = crate::path(&source.config).join(name);
         (name, fs::read(&path).expect("source public fixture"), fs::metadata(path).expect("mode").mode())
     });
@@ -579,10 +576,7 @@ fn current_init_import_copies_only_public_assets_and_rebases_paths() {
         fs::read(crate::path(&prepared.directories.data).join("worker.secret")).expect("fresh test secret"),
         source_secret
     );
-    assert_eq!(
-        fs::read(crate::path(&prepared.directories.config).join("charters/chat.txt")).expect("effective charter"),
-        b"A custom public charter.\n"
-    );
+    assert!(!crate::path(&prepared.directories.config).join("charters").exists());
     for (name, contents, mode) in &before {
         let path = crate::path(&source.config).join(name);
         assert_eq!(fs::read(&path).expect("source unchanged"), *contents, "{name}");
@@ -600,8 +594,8 @@ fn current_init_import_copies_only_public_assets_and_rebases_paths() {
     drop(prepared);
     write(&crate::path(&source.config).join("charters/chat.txt"), b"Changed source charter.\n", true)
         .expect("changed public source");
-    let error = start(&source, None).err().expect("changed source refuses reuse");
-    assert!(error.contains("changed public source documents") && error.contains("reset"), "{error}");
+    let reused = start(&source, None).expect("stray charter edits do not change the imported defaults");
+    assert!(!crate::path(&reused.directories.config).join("charters").exists());
 }
 
 #[test]
@@ -705,10 +699,10 @@ fn linked_provisioned_page_refuses_before_reading_its_target() {
 fn source_public_asset_links_are_refused_before_reading_them() {
     let scratch = Scratch::new("source-links");
     let source = provisioned_source(&scratch);
-    let charter = crate::path(&source.config).join("charters/chat.txt");
-    fs::remove_file(&charter).expect("remove public fixture");
+    let document = crate::path(&source.config).join("agent.json");
+    fs::remove_file(&document).expect("remove public fixture");
     // The target is absent, so a refusal about links proves it was never opened or copied.
-    std::os::unix::fs::symlink(scratch.0.join("unread-target"), &charter).expect("linked public fixture");
+    std::os::unix::fs::symlink(scratch.0.join("unread-target"), &document).expect("linked public fixture");
     let error = start(&source, None).err().expect("source public link refused");
     assert!(error.contains("links"), "{error}");
     assert!(!crate::path(&source.data).join("box/fake-backends").exists());

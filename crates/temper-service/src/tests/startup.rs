@@ -618,9 +618,9 @@ fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
 #[test]
 fn a_chats_member_is_refused_as_unknown_naming_its_path() {
     let input = fixtures::document();
-    let input = core::str::from_utf8(&input).unwrap().replacen("\"templates\": [", "\"chats\": [", 1);
+    let input = core::str::from_utf8(&input).unwrap().replacen("\"engine\":{", "\"engine\":{\"chats\":[],", 1);
     let problems = crate::named(input.as_bytes(), &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(&*lines(&problems), b"engine.templates: missing\nengine.chats: unknown member\n");
+    assert_eq!(&*lines(&problems), b"engine.chats: unknown member\n");
 }
 fn refused(input: &[u8]) -> Box<[u8]> {
     let (members, problems) = application(input, &fixtures::engine().jig);
@@ -786,7 +786,7 @@ fn members_and_references_are_checked() {
     let input = application_with_landing_requirements();
     let input = core::str::from_utf8(&input).unwrap();
     for (from, to, expected) in [
-        ("\"charter\":1", "\"charter\":2", "application.charter: unknown reference\n"),
+        ("\"charter\":1", "\"charter\":3", "application.charter: unknown reference\n"),
         ("\"kind\":4", "\"kind\":3", "application.landing.projects[0].rules[0].kind: invalid form\n"),
         ("\"role\":0", "\"role\":1", "application.landing.projects[0].rules[0].approvals[0].role: unknown reference\n"),
         ("\"project\":1", "\"project\":2", "application.landing.projects[0].project: unknown reference\n"),
@@ -842,13 +842,9 @@ fn application_files_keep_paths_bounds_privacy_and_resolution_refusals() {
 #[test]
 fn named_lists_each_file_with_its_bound_and_privacy() {
     let named = crate::named(&fixtures::document(), &jig_protocol_config::Directories::working()).unwrap();
-    assert_eq!(named.files.len(), 7, "all files listed");
-    // The optional program carriers add 16 B to both RunPolicy and its model.
-    // With the same run budget, this direct charter has 32 B less instruction room.
-    let instruction_bytes = 16_070 - 2 * 16;
+    assert_eq!(named.files.len(), 6, "all files listed");
     for (name, path, max, private) in [
-        (b"charters/chat.txt".as_slice(), b"engine.charters[0].instructions".as_slice(), instruction_bytes, false),
-        (b"secrets/worker-a.digest", b"engine.hosts.workers[0].digest", 65, true),
+        (b"secrets/worker-a.digest".as_slice(), b"engine.hosts.workers[0].digest".as_slice(), 65, true),
         (b"worker-secret", b"workers[0].secret", 257, true),
         (fixtures::AGENT_JSON, b"workers[0].agent.configuration", 1_048_576, false),
         (b"secrets/forge-1.api-token", b"application.forges[0].api_token", 4096, true),
@@ -1166,8 +1162,6 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
         (b"application.workers[0].root", br#""/kept/root""#, b"/kept/root", false),
         (b"engine.deployment.directory", br#""state""#, b"/data/state", false),
         (b"engine.deployment.directory", br#""/kept/state""#, b"/kept/state", false),
-        (b"engine.charters[0].instructions", br#""chat.txt""#, b"/configuration/chat.txt", false),
-        (b"engine.charters[0].instructions", br#""/kept/chat.txt""#, b"/kept/chat.txt", false),
         (b"workers[0].secret", br#""secret""#, b"/data/secret", false),
         (b"workers[0].secret", br#""/kept/secret""#, b"/kept/secret", false),
         (b"engine.hosts.workers[0].digest", br#""digest""#, b"/data/digest", false),

@@ -55,7 +55,7 @@ pub enum Directory {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct File {
     pub directory: Directory,
-    /// Relative to its directory: `worker.secret`, `charters/chat.txt`.
+    /// Relative to its directory: `worker.secret`, `agent.json`.
     pub name: &'static [u8],
     pub content: Content,
 }
@@ -114,8 +114,7 @@ pub enum Reason {
 
 /// The files of setup.md 8.2, in its table's order: `worker.secret`,
 /// `worker.digest`, `demo/llm.key` (data, private), `demo/bin/git`
-/// (data, a link), `charters/chat.txt`,
-/// `charters/coding.txt`, `agent.json`, `temper.json` (config), the
+/// (data, a link), `agent.json`, `temper.json` (config), the
 /// document last.
 pub fn files(
     facts: &Facts<'_>,
@@ -159,16 +158,6 @@ pub fn files(
                 directory: Directory::Data,
                 name: b"demo/bin/git",
                 content: Content::Link { target: bytes::copy_of(facts.binary) },
-            },
-            File {
-                directory: Directory::Config,
-                name: b"charters/chat.txt",
-                content: Content::Bytes { bytes: bytes::copy_of(template::CHAT), private: false },
-            },
-            File {
-                directory: Directory::Config,
-                name: b"charters/coding.txt",
-                content: Content::Bytes { bytes: bytes::copy_of(template::CODING), private: false },
             },
             File {
                 directory: Directory::Config,

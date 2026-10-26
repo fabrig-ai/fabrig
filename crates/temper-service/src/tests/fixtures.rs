@@ -6,7 +6,7 @@ use skein_lib::{Secret, Token};
 pub const DIALECT: u32 = 1;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":512,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":4096,"authority.grants":16,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"models":["small"],"sources":{"keys":true}}],
 "endpoints": [{
@@ -35,17 +35,6 @@ pub const ENGINE: &[u8] = br#"{
 ],
 "listener": [{"in_process": "workers"}]
 },
-"charters": [{
-"number": 1, "instructions": "charters/chat.txt", "model": "small", "alternatives": [],
-"hosts": "workers", "waiting_ms": 10000, "resume": true,
-"turns": 4, "time_ms": 30000, "reserve_turns": 1, "reserve_time_ms": 5000, "spend": 20,
-"inspect": true, "modify": false, "shell": false, "agents": false, "call_timeout_ms": 10000
-}],
-"templates": [
-{"number": 1, "name": "chat", "executor": {"charter": 1}, "contract": {"report": {"words": 32}}, "shallower": 1, "budget": {"as_allowed": null}, "deadline": "none", "tracked": null, "conversation": true,
-"ended_by": "requester", "listed": false, "retention": "kept", "label": 1, "grace_ms": 5000, "llm": null},
-{"number": 2, "name": "goal", "executor": "chosen", "contract": {"report": {"words": 32}}, "shallower": 1, "budget": "given", "deadline": "given", "tracked": {"priority": 1}, "conversation": false, "listed": true, "retention": "kept", "label": 2, "grace_ms": null, "llm": null}
-],
 "clients": {
 "heartbeat_ms": 10000,
 "link": true
@@ -55,35 +44,25 @@ pub const ENGINE: &[u8] = br#"{
 "providers": [{"number": 1, "kind": "link"}, {"number": 2, "kind": "deployment"}],
 "connectors": [1],
 "memory_bytes": 1152921504606846976,
-"rules": {
-"ceiling": {"tools": 1023, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 7, "note_resources": []},
-"period_spend": 100, "minimum_run_spend": 1, "maximum_run_spend": 100,
-"implies": [], "requirements": []
-},
 "projects": [{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
 "policy": {"templates": [], "escalation_role": 0, "period_spend": 100, "projections": [], "requirements": [],
-"ceiling": {"tools": 1023, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 7, "note_resources": []},
+"ceiling": {"tools": 1, "grants": [],
+"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 4},
+"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []},
 "roles": [{"number": 0, "period_spend": 100, "requests": 511, "decides": 31,
-"authority": {"tools": 1023, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 8},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 7, "note_resources": []}}]
+"authority": {"tools": 1, "grants": [],
+"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 4},
+"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []}}]
 }}]
 }"#;
 
 pub fn engine() -> settings::Engine {
-    let document = jig_protocol_config::document(
-        ENGINE,
-        &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 },
-    )
-    .expect("engine document");
+    let jig = parse_engine(ENGINE);
+    // This typed fixture reaches the core's start; policy 1 needs 2374 bytes.
+
     settings::Engine {
         records_only: Box::new([]),
-        jig: jig_protocol_config::engine(&document, 0, &jig_protocol_config::Directories::working())
-            .expect("typed jig engine"),
+        jig,
         webhooks: None,
         sign_in: None,
         clients: crate::startup::application::Clients {
@@ -114,6 +93,31 @@ pub fn engine() -> settings::Engine {
     }
 }
 
+/// A parsed engine passed the stock, before any component is made.
+pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
+    let document = jig_protocol_config::document(
+        bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    )
+    .unwrap();
+    let mut jig = jig_protocol_config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Passed,
+    )
+    .unwrap();
+    let defaults = crate::stock::defaults(&jig.llm);
+    jig_protocol_config::pass(&mut jig, defaults).unwrap();
+    jig
+}
+/// Startup guards keep the small policy bound; they never make the core.
+pub fn guard_engine() -> settings::Engine {
+    let mut settings = engine();
+    settings.jig.limits.core.policy_bytes = 512;
+    settings
+}
+
 pub fn forges() -> Box<[settings::Forge]> {
     Box::new([settings::Forge {
         number: 1,
@@ -133,9 +137,7 @@ pub fn forges() -> Box<[settings::Forge]> {
 
 pub const OWNER: Token = Token::new(91);
 pub fn routes() -> crate::store::route::Routes {
-    let own = limits::profile(limits::Profile::Small);
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let root = limits::engine(&jig, &own).expect("root limits");
+    let (root, _, _) = store_limits();
     let bounds = temper_protocol_store::bounds(&root.forge).expect("family bounds");
     crate::store::route::Routes::new(2, &root, bounds)
 }
@@ -229,10 +231,9 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
 }
 
 pub fn store_limits() -> (temper_engine_domain::Limits, jig_domain_core::Limits, jig_protocol_store::Limits) {
-    let own = limits::profile(limits::Profile::Small);
-    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let root = limits::engine(&jig, &own).expect("root limits");
-    (root, jig.core, jig.store)
+    let settings = engine();
+    let root = limits::engine(&settings.jig.limits, &settings.limits).expect("root limits");
+    (root, settings.jig.limits.core, settings.jig.limits.store)
 }
 
 pub fn memory_store() -> crate::store::Store {
@@ -380,14 +381,9 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
     )
 }
 
-/// The files the engine document names: its charter and worker digests.
+/// The worker digests the engine document names.
 pub fn fill_files(settings: &mut settings::Engine) {
-    settings.files.entries = skein_lib::List::with_capacity(3);
-    settings
-        .files
-        .entries
-        .push((b"charters/chat.txt".as_slice().into(), Secret::new(b"Answer briefly".as_slice().into())))
-        .unwrap();
+    settings.files.entries = skein_lib::List::with_capacity(2);
     for worker in &settings.jig.hosts.workers {
         settings.files.entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
     }
@@ -482,7 +478,7 @@ fn start_with_worker(
     if worker.is_some() {
         settings.jig.limits.hub = worker_settings().jig.limits.hub;
         settings.limits.checkout = worker_limits().checkout;
-        settings.files.entries.get_mut(1).unwrap().1 =
+        settings.files.entries.get_mut(0).unwrap().1 =
             Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
     }
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
@@ -705,6 +701,14 @@ pub fn settle_root(
                     ..
                 })) => assignment = Some(run),
                 root::Request::Worker(root::WorkerRequest::Deliver(delivery)) => delivered.push(delivery),
+                root::Request::Party(root::PartyRequest::Deliver(root::Delivery::WebReply { to, reply }))
+                    if to == skein_lib::ReplyTo::new(Token::new(31_052)) =>
+                {
+                    assert_eq!(
+                        reply,
+                        jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::SettingsChanged { revision: 2 })
+                    );
+                }
                 root::Request::Party(_) => {}
                 request @ root::Request::Worker(_) => crate::route::request(engine, request),
                 request @ (root::Request::Store(_) | root::Request::Account(_) | root::Request::ToChild(_)) => {
@@ -802,6 +806,36 @@ fn restored_key() -> crate::Service {
 pub fn signed_worker() -> crate::Service {
     use temper_engine_domain as root;
     let mut service = restored_key();
+    service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::SignedIn {
+        held: None,
+        reply_to: skein_lib::ReplyTo::new(Token::new(100)),
+        identity: jig_domain_people::Identity {
+            key: jig_domain_people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
+            login: b"owner".as_slice().into(),
+            name: b"Owner".as_slice().into(),
+        },
+    }));
+    settle_root(&mut service, &mut skein_lib::Queue::with_capacity(32));
+    // These stories exercise running work with the old fixture's run ceiling.
+    // Keep stock at startup, then change the setting through the service's party path.
+    let settings = engine();
+    let mut rules = settings.jig.rules;
+    rules.maximum_run_spend = 100;
+    service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::ChangeSettings {
+        reply_to: skein_lib::ReplyTo::new(Token::new(31_052)),
+        sign_in: 1,
+        key: [52; 16],
+        digest: [52; 32],
+        change: Box::new(jig_domain_core::settings::Change {
+            against: 1,
+            items: Box::new([jig_domain_core::settings::Item {
+                setting: jig_domain_core::settings::Setting::Rules,
+                edit: jig_domain_core::settings::Edit::Set(jig_domain_core::settings::Value::Rules(Box::new(rules))),
+            }]),
+            running: jig_domain_core::settings::Running::Stays,
+        }),
+    }));
+    settle_root(&mut service, &mut skein_lib::Queue::with_capacity(32));
     service.engine.as_mut().expect("engine").step(root::Event::Worker(root::WorkerInput::Link {
         channel: Token::new(7),
         link: root::Link::Hello {
@@ -820,7 +854,7 @@ pub fn signed_worker() -> crate::Service {
                     }]),
                     turns: 8,
                     spend: 1000,
-                    time: skein_lib::Duration::from_secs(60),
+                    time: skein_lib::Duration::from_millis(131_072),
                     waiting: skein_lib::Duration::from_secs(60),
                     checks: skein_lib::Duration::from_secs(1),
                     message_bytes: 512,
@@ -834,16 +868,6 @@ pub fn signed_worker() -> crate::Service {
     service.engine.as_mut().expect("engine").step(root::Event::Worker(root::WorkerInput::Link {
         channel: Token::new(7),
         link: root::Link::Up { up: host::LinkUp::Logins { logins: Box::new([]) }, parts: root::Parts::none() },
-    }));
-    settle_root(&mut service, &mut skein_lib::Queue::with_capacity(32));
-    service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::SignedIn {
-        held: None,
-        reply_to: skein_lib::ReplyTo::new(Token::new(100)),
-        identity: jig_domain_people::Identity {
-            key: jig_domain_people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
-            login: b"owner".as_slice().into(),
-            name: b"Owner".as_slice().into(),
-        },
     }));
     settle_root(&mut service, &mut skein_lib::Queue::with_capacity(32));
     service
@@ -879,8 +903,8 @@ pub fn clients() -> crate::clients::Clients {
 mod startup;
 pub use startup::{
     APPLICATION, demo_application, demo_service, document, engine_alone_document, files, owned_worker_agent,
-    owned_worker_alone_document, parsed, startup_agent, webhook_document, with, without, worker_alone_document,
-    worker_runtime,
+    owned_worker_alone_document, parsed, startup_agent, value, webhook_document, with, without, without_settings,
+    worker_alone_document, worker_runtime,
 };
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
@@ -962,8 +986,8 @@ pub fn chat(project: u32, words: &[u8]) -> jig_domain_people::Ask {
     use jig_domain_people as people;
     let mut member = people_member(words, 0);
     member.budget = people::Budget::AsAllowed { cap: None };
-    member.authority.tools = 1023;
-    member.authority.notes = 7;
+    member.authority.tools = 1;
+    member.authority.notes = 0;
     member.contract = people::Contract::Report { words: 32 };
     member.flags = people::Flags {
         ended_by: people::EndedBy::Result,

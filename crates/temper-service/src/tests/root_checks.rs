@@ -40,20 +40,15 @@ fn engine_with(extra: &str) -> Box<[u8]> {
 }
 /// The fixture engine's root as the start makes it, held to `limits`.
 fn root(limits: &temper_engine_domain::Limits) -> Box<[u8]> {
-    let engine = fixtures::engine();
+    let engine = fixtures::guard_engine();
     let mut found = Problems::empty();
     let seeds = fixtures::seeds();
-    let mut core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
-    for charter in &mut core.defaults.charters {
-        if let Some(contents) = engine.files.contents(&charter.policy.instructions) {
-            charter.policy.instructions = Box::from(contents);
-        }
-    }
+    let core = jig_protocol_config::core(&engine.jig, seeds.deployment, seeds.seed);
     checks::root(core, &engine, &seeds, &[], limits, &mut found);
     lines(&found)
 }
 fn root_limits() -> temper_engine_domain::Limits {
-    let engine = fixtures::engine();
+    let engine = fixtures::guard_engine();
     crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap()
 }
 
@@ -70,15 +65,19 @@ fn engine_slots_above_0_refuse_the_start() {
     );
 }
 #[test]
-fn a_charter_the_engine_may_host_refuses_the_start() {
-    for hosts in [br#""engine""#.as_slice(), br#""both""#] {
-        let document = fixtures::with(&fixtures::document(), b"engine.charters[0].hosts", hosts);
+fn the_hub_check_refuses_a_charter_the_engine_may_host() {
+    for hosts in [jig_domain_fleet::Kinds::Engine, jig_domain_fleet::Kinds::Both] {
+        let mut engine = fixtures::guard_engine().jig;
+        engine.charters[0].hosts = hosts;
+        let mut found = Problems::empty();
+        checks::hub(&engine, &mut found);
         assert_eq!(
-            &*started(&document),
-            b"engine.charters[0].hosts: the root has no hub, so the fleet must place every run on a worker\n"
+            lines(&found).as_ref(),
+            b"charter 1.hosts: the root has no hub, so the fleet must place every run on a worker\n"
         );
     }
 }
+
 #[test]
 fn an_identity_past_the_accounts_credentials_refuses_the_start() {
     let document = fixtures::with(&fixtures::document(), b"application.identities[0].number", b"4");
@@ -172,7 +171,7 @@ fn a_charters_run_past_its_bytes_refuses_the_start() {
     let mut limits = root_limits();
     limits.journal.run_bytes = 16;
     let found = root(&limits);
-    assert!(found.starts_with(b"engine.charters[0]: "), "{}", String::from_utf8_lossy(&found));
+    assert!(found.starts_with(b"charter 1: "), "{}", String::from_utf8_lossy(&found));
     assert!(found.ends_with(b" bytes, past root.journal.run_bytes of 16\n"), "{}", String::from_utf8_lossy(&found));
 }
 #[test]
@@ -236,7 +235,9 @@ fn configured_worker_name_past_membership_names_its_startup_path() {
 fn a_joined_policy_past_its_bytes_returns_problems_before_construction() {
     // Project 7 is document entry 0. The parsed policy (272 bytes) still fits
     // 512; joining all three enforced requirements is the admission failure.
-    let document = fixtures::with(&fixtures::document(), b"engine.projects[0].number", b"7");
+    let document =
+        fixtures::with(&fixtures::document(), b"engine.limits.overrides", format!("{{{ENGINE_OVERRIDES}}}").as_bytes());
+    let document = fixtures::with(&document, b"engine.projects[0].number", b"7");
     let document = fixtures::with(&document, b"application.landing.projects[0].project", b"7");
     let document = fixtures::with(
         &document,
@@ -263,11 +264,12 @@ fn live_github_seed_policy_admission_checks_both_projection_shapes() {
         .replace("{proc.forge.ready.address}", "127.0.0.1:31002")
         .replace("{proc.llm.ready.address}", "127.0.0.1:31004")
         .replace("{story.clients}", "127.0.0.1:31005")
-        .replace("secrets/w1.digest", "secrets/worker-a.digest");
+        .replace("secrets/w1.digest", "secrets/worker-a.digest")
+        .replace("\"tasks.charters\": 1", "\"tasks.charters\": 2");
     for (owner, policy_bytes) in [("freeekanayaka", 4299_u64), ("fabrig-ai", 4167_u64)] {
-        let document = template.replace("\"acme\"", &format!("\"{owner}\""));
+        let document = fixtures::without_settings(template.replace("\"acme\"", &format!("\"{owner}\"")).as_bytes());
         let document = fixtures::with(
-            document.as_bytes(),
+            &document,
             b"application.forges[0]",
             br#"{"number":1,"kind":"github","api":{"socket":"127.0.0.1:31001"},"transport":"plaintext","git":"http://127.0.0.1:31002","web":null,"app_read_only":true}"#,
         );

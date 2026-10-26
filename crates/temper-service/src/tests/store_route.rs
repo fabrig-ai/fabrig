@@ -543,8 +543,7 @@ fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
     };
     assert_eq!(rows.len(), texts.len(), "one rendering per stored turn");
     let settings = fixtures::engine();
-    let mut config = jig_protocol_config::core(&settings.jig, [7; 16], 7);
-    config.defaults.charters.get_mut(0).unwrap().policy.resume = false;
+    let config = jig_protocol_config::core(&settings.jig, [7; 16], 7);
     let mut core = core::Core::new(config, &settings.jig.limits.core).unwrap();
     core.begin_transcript(7, 1);
     core.transcripts.get_mut(&7).unwrap().window = Some((1, 1));

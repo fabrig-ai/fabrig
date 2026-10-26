@@ -154,8 +154,6 @@ fn the_default_is_the_owned_example_so_edited() {
                 ]),
             ),
             ("/engine/llm/models", json!([owned["engine"]["llm"]["models"][0], demo_model()])),
-            ("/engine/charters/0/alternatives", json!(["demo"])),
-            ("/engine/charters/1/alternatives", json!(["demo"])),
             // The template's own figures, which startup's owned_memory_figures_for_init drift check writes and checks.
             ("/engine/memory_bytes", actual["engine"]["memory_bytes"].clone()),
             ("/workers/0/memory_bytes", actual["workers"][0]["memory_bytes"].clone()),
@@ -208,8 +206,6 @@ fn the_default_is_the_owned_example_so_edited() {
             ),
             ("/application/landing/projects/0/rules/0/pattern", every_forge()),
             ("/application/landing/projects/0/rules/0/gates", parse(b"[]")),
-            ("/engine/charters/0/instructions", json!("charters/chat.txt")),
-            ("/engine/charters/1/instructions", json!("charters/coding.txt")),
             ("/engine/hosts/workers/0/digest", json!("worker.digest")),
             ("/engine/deployment/directory", json!("deployment")),
             ("/workers/0/secret", json!("worker.secret")),
@@ -222,6 +218,10 @@ fn the_default_is_the_owned_example_so_edited() {
         expected["application"]["landing"]["deployment"] =
             expected["application"]["landing"]["projects"][0]["rules"].clone();
         expected["application"]["landing"]["projects"] = parse(b"[]");
+        for member in ["charters", "templates", "policies", "rules"] {
+            expected["engine"].as_object_mut().unwrap().remove(member);
+            assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
+        }
         assert_eq!(actual, expected, "{row}");
     }
 }
@@ -491,11 +491,13 @@ fn the_person_keeps_a_forgejo_login_or_falls_back() {
 }
 
 #[test]
-fn the_template_keeps_project_one_and_offers_its_whole_policy_for_runtime_projects() {
+fn the_template_keeps_project_one_without_settings_members() {
     let document = parse(template::TEMPER);
     assert_eq!(document["engine"]["projects"].as_array().unwrap().len(), 1);
     assert_eq!(document["engine"]["projects"][0]["number"], 1_u32);
-    assert_eq!(document["engine"]["policies"], document["engine"]["projects"]);
+    for member in ["charters", "templates", "policies", "rules"] {
+        assert!(document["engine"].get(member).is_none());
+    }
     let landing = &document["application"]["landing"];
     assert_eq!(landing["projects"], parse(b"[]"));
     assert_eq!(

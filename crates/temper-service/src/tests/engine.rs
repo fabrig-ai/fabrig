@@ -153,13 +153,6 @@ fn a_frame_refusal_stops_with_its_details_and_releases_no_later_output() {
 fn an_engine_that_cannot_fit_its_memory_is_refused_before_start() {
     let mut settings = fixtures::engine();
     settings.jig.memory = 1;
-    // Instruction content must be available before children are constructed.
-    settings.files.entries = skein_lib::List::with_capacity(1);
-    settings
-        .files
-        .entries
-        .push((b"charters/chat.txt".as_slice().into(), skein_lib::Secret::new(b"Answer".as_slice().into())))
-        .unwrap();
     let Err(problems) = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()) else {
         panic!("memory refused")
     };

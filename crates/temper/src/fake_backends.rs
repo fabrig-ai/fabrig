@@ -545,9 +545,6 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
         // Imported listeners retain their source values; init's new reservations do not represent them.
         crate::close(std::mem::take(&mut held.0).into_iter().map(|(fd, _)| fd).collect());
     }
-    for (name, value) in &source.charters {
-        write(&crate::path(&effective.config).join(name), value, true)?;
-    }
     let initial = public(&effective.document())?;
     let deployment = crate::setup::check(&initial, &effective.jig())?;
     let mut excluded = vec![1455, crate::address(&deployment.named.clients)?.port()];

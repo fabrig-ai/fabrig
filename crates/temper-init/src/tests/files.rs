@@ -39,8 +39,6 @@ fn the_files_are_named_in_order() {
         ("digest", b"worker.digest".as_slice(), Directory::Data, Some(true)),
         ("demo key", b"demo/llm.key".as_slice(), Directory::Data, Some(true)),
         ("demo git", b"demo/bin/git".as_slice(), Directory::Data, None),
-        ("chat", b"charters/chat.txt".as_slice(), Directory::Config, Some(false)),
-        ("coding", b"charters/coding.txt".as_slice(), Directory::Config, Some(false)),
         ("agent", b"agent.json".as_slice(), Directory::Config, Some(false)),
         ("document last", b"temper.json".as_slice(), Directory::Config, Some(false)),
     ];
@@ -54,24 +52,5 @@ fn the_files_are_named_in_order() {
                 assert_eq!(target.as_ref(), facts().binary, "{row}");
             }
         }
-    }
-}
-
-#[test]
-fn the_charters_are_the_owned_examples() {
-    let answered = files(&facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid facts");
-    for (row, name, expected) in [
-        (
-            "chat",
-            b"charters/chat.txt".as_slice(),
-            include_bytes!("../../../../docs/examples/owned/charters/chat.txt").as_slice(),
-        ),
-        (
-            "coding",
-            b"charters/coding.txt".as_slice(),
-            include_bytes!("../../../../docs/examples/owned/charters/coding.txt").as_slice(),
-        ),
-    ] {
-        assert_eq!(content(&answered, name), expected, "{row}");
     }
 }

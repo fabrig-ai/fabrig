@@ -239,8 +239,6 @@ fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) 
         ("worker.digest", true, Some(0o600)),
         ("demo/llm.key", true, Some(0o600)),
         ("demo/bin/git", true, None),
-        ("charters/chat.txt", false, Some(0o644)),
-        ("charters/coding.txt", false, Some(0o644)),
         ("agent.json", false, Some(0o644)),
         ("temper.json", false, Some(0o644)),
     ];
@@ -269,7 +267,7 @@ fn check_files(dirs: &Directories, binary: &Path, written: &Written, row: &str) 
     for directory in [&dirs.config, &dirs.data, &dirs.cache] {
         assert_eq!(fs::metadata(path(directory)).expect("directory").mode() & 0o777, 0o700);
     }
-    assert_eq!(fs::metadata(path(&dirs.config).join("charters")).expect("charters").mode() & 0o777, 0o700);
+    assert!(!path(&dirs.config).join("charters").exists());
 }
 
 #[test]

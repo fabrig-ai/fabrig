@@ -145,8 +145,13 @@ pub(crate) fn admit(value: &Value) {
     )
     .expect("engine document");
     // Parsing a fixture without a deployment; only its limits are used.
-    let jig = jig_protocol_config::engine(&document, 0, &jig_protocol_config::Directories::working())
-        .expect("engine configuration");
+    let jig = jig_protocol_config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Document,
+    )
+    .expect("engine configuration");
     let mut own = temper_service::limits::profile(temper_service::limits::Profile::Small);
     for (name, number) in value["application"]["limits"]["overrides"].as_object().expect("own overrides") {
         temper_service::limits::apply(&mut own, name.as_bytes(), number.as_u64().expect("limit number"))

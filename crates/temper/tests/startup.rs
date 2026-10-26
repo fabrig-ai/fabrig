@@ -566,7 +566,7 @@ fn the_shipped_chat_is_ended_by_its_requester() {
     let scratch = support::Scratch::startup("owned-ending-authority");
     let bounded = support::owned::bounded(scratch.path());
     let value: serde_json::Value = serde_json::from_slice(&bounded.document).expect("deployment JSON");
-    let engine = jig_protocol_config::engine(
+    let engine = temper_service::startup::engine(
         &configuration_document(&value["engine"]),
         0,
         &jig_protocol_config::Directories::working(),
@@ -587,8 +587,9 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
     let scratch = support::Scratch::startup("owned-admission");
     let bounded = support::owned::bounded(scratch.path());
     let value: serde_json::Value = serde_json::from_slice(&bounded.document).expect("deployment JSON");
-    let engine = config::engine(&configuration_document(&value["engine"]), 0, &config::Directories::working())
-        .expect("engine configuration");
+    let engine =
+        temper_service::startup::engine(&configuration_document(&value["engine"]), 0, &config::Directories::working())
+            .expect("engine configuration");
     let agent = &bounded.agent;
     let core = config::core(&engine, [0; 16], 1);
     let needs = jig_domain_core::fleet_needs::configured(&core, &engine.limits.core);
@@ -1285,16 +1286,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
         assert!(output.stdout.is_empty());
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
-        for name in [
-            "worker.secret",
-            "worker.digest",
-            "demo/llm.key",
-            "demo/bin/git",
-            "charters/chat.txt",
-            "charters/coding.txt",
-            "agent.json",
-            "temper.json",
-        ] {
+        for name in ["worker.secret", "worker.digest", "demo/llm.key", "demo/bin/git", "agent.json", "temper.json"] {
             writeln!(expected, "init: wrote {}", scratch.path().join(name).display()).expect("string");
         }
         assert!(lines.starts_with(&expected), "files are reported in write order");

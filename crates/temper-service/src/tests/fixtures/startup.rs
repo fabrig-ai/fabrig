@@ -98,7 +98,6 @@ pub fn files() -> settings::Files {
             b"secrets/worker-a.digest".as_slice(),
             b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice(),
         ),
-        (b"charters/chat.txt".as_slice(), b"Answer briefly".as_slice()),
         (super::AGENT_JSON, b"{}".as_slice()),
     ] {
         entries.push((path.into(), Secret::new(value.into()))).unwrap();
@@ -143,6 +142,8 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
             ("core.resume_bytes", u64::from(resume)),
+            ("authority.grants", 16),
+            ("notes.scopes", 32),
         ]
     } else if path == b"workers[0].limits.overrides" {
         &[
@@ -187,6 +188,52 @@ fn engine_turn_limits() -> String {
 }
 fn worker_turn_limits() -> String {
     r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
+}
+/// Copy a JSON value for a fixture derived from another document.
+pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {
+    input[member_span(input, path)].into()
+}
+/// Imported documents keep their source owner's fixture; this derived fixture uses the stock.
+pub fn without_settings(input: &[u8]) -> Box<[u8]> {
+    let mut input = input.to_vec();
+    for (name, path) in [
+        (b"charters".as_slice(), b"engine.charters".as_slice()),
+        (b"templates", b"engine.templates"),
+        (b"policies", b"engine.policies"),
+        (b"rules", b"engine.rules"),
+    ] {
+        let document = jig_protocol_config::document(
+            &input,
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+        )
+        .unwrap();
+        let engine =
+            jig_protocol_config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
+        if jig_protocol_config::read::Object::new(&document, engine).unwrap().member(&document, name).is_none() {
+            continue;
+        }
+        let span = member_span(&input, path);
+        let end_quote = input[..span.start].iter().rposition(|byte| *byte == b'"').unwrap();
+        let start_quote = input[..end_quote].iter().rposition(|byte| *byte == b'"').unwrap();
+        let mut end = span.end;
+        while input.get(end).is_some_and(u8::is_ascii_whitespace) {
+            end = end.checked_add(1).unwrap();
+        }
+        let start = if input.get(end) == Some(&b',') {
+            end = end.checked_add(1).unwrap();
+            start_quote
+        } else {
+            end = span.end;
+            let mut start = start_quote;
+            while start > 0 && input[start.checked_sub(1).unwrap()].is_ascii_whitespace() {
+                start = start.checked_sub(1).unwrap();
+            }
+            assert_eq!(input[start.checked_sub(1).unwrap()], b',');
+            start.checked_sub(1).unwrap()
+        };
+        input.drain(start..end);
+    }
+    input.into_boxed_slice()
 }
 /// Replace a member, including indexed lists, in a parsed configuration.
 pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {

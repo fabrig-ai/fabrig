@@ -5,13 +5,29 @@ use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_protocol_config::{self as config, Path, Segment};
 use skein_io::Addr;
-use skein_lib::{Duration, List, Map};
+use skein_lib::{Decimal, Duration, List, Map, Writer};
 use temper_engine_domain as domain;
 use temper_protocol_worker_wire as payload;
 use temper_worker_domain as worker_domain;
 
 fn at(index: usize, path: Path) -> Path {
     path.child(Segment::Index(u32::try_from(index).expect("bounded configuration")))
+}
+fn charter_path(engine: &config::Engine, index: usize) -> Path {
+    if engine.defaults == config::Defaults::Document {
+        return at(index, Path::root().member(b"engine").member(b"charters"));
+    }
+    let number = Decimal::of(u64::from(engine.charters.get(index).expect("checked charter index").number));
+    let mut name = Writer::new(8_usize.checked_add(number.as_bytes().len()).expect("setting name fits"));
+    name.put(b"charter ").expect("setting prefix counted");
+    name.put(number.as_bytes()).expect("setting number counted");
+    Path::root().member(&name.finish())
+}
+fn rules_path(engine: &config::Engine) -> Path {
+    match engine.defaults {
+        config::Defaults::Document => Path::root().member(b"engine").member(b"rules"),
+        config::Defaults::Passed => Path::root().member(b"rules"),
+    }
 }
 fn own(name: &[u8]) -> Path {
     Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
@@ -162,7 +178,7 @@ pub fn hub(engine: &config::Engine, problems: &mut Problems) {
         match charter.hosts {
             fleet::Kinds::Workers => {}
             fleet::Kinds::Engine | fleet::Kinds::Both => {
-                problems.push(at(index, path.member(b"charters")).member(b"hosts"), What::NoHub);
+                problems.push(charter_path(engine, index).member(b"hosts"), What::NoHub);
             }
         }
     }
@@ -656,7 +672,7 @@ pub fn root(
                 (path, What::Jig(what))
             }
             domain::Refused::Run { charter, bytes } => (
-                at(charter, engine_path.member(b"charters")),
+                charter_path(&engine.jig, charter),
                 match bytes {
                     Some(bytes) => What::Within {
                         bytes,
@@ -751,7 +767,7 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
         }
     }
     for (index, charter) in engine.charters.iter().enumerate() {
-        let path = at(index, Path::root().member(b"engine").member(b"charters"));
+        let path = charter_path(engine, index);
         model(&charter.policy.model, &agent.bounds, path.member(b"model"), problems);
         for (index, alternative) in charter.policy.alternatives.iter().enumerate() {
             model(alternative, &agent.bounds, at(index, path.member(b"alternatives")), problems);
@@ -791,7 +807,7 @@ pub fn admission(
                 .models
                 .get(usize::try_from(model).expect("configured model index"))
                 .expect("selected model");
-            let path = model_path(index, model);
+            let path = model_path(engine, index, model);
             let mut offered = None;
             for bound in &bounds.models {
                 if bound.name == need.name {
@@ -826,7 +842,7 @@ pub fn admission(
         | AgentShortfall::Checks { charter } => {
             let index = charter_index(engine, charter);
             let need = needs.charters.get(index).expect("selected charter");
-            let path = at(index, engine_path.member(b"charters"));
+            let path = charter_path(engine, index);
             match why {
                 AgentShortfall::Turns { .. } => (path.member(b"turns"), u64::from(bounds.turns), u64::from(need.turns)),
                 AgentShortfall::Time { .. } => (path.member(b"time_ms"), millis(bounds.time), millis(need.time)),
@@ -847,7 +863,7 @@ pub fn admission(
                 | AgentShortfall::Unacknowledged => unreachable!("selected charter dimension"),
             }
         }
-        AgentShortfall::Spend => (engine_path.member(b"rules").member(b"maximum_run_spend"), bounds.spend, needs.spend),
+        AgentShortfall::Spend => (rules_path(engine).member(b"maximum_run_spend"), bounds.spend, needs.spend),
         AgentShortfall::Message => {
             (engine_path.member(b"limits"), u64::from(bounds.message_bytes), u64::from(needs.message_bytes))
         }
@@ -860,8 +876,8 @@ pub fn admission(
     };
     problems.push(path, What::Admission { why, offered, required });
 }
-fn model_path(index: usize, model: u32) -> Path {
-    let path = at(index, Path::root().member(b"engine").member(b"charters"));
+fn model_path(engine: &config::Engine, index: usize, model: u32) -> Path {
+    let path = charter_path(engine, index);
     match model.checked_sub(1) {
         None => path.member(b"model"),
         Some(alternative) => {

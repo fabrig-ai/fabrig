@@ -4,7 +4,7 @@
     clippy::disallowed_methods,
     reason = "ordinary regression code retains whole snapshots and prints its offline measurement"
 )]
-use super::{application, config, parse, read_instructions};
+use super::{application, config, parse};
 use crate::{settings, tests::fixtures};
 use ::core::{num::NonZeroU16, str};
 use jig_domain_core as core;
@@ -72,8 +72,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     };
     let limits = super::engine_limits(&mut settings.jig.limits, &settings.limits).expect("unchanged effective limits");
     let seeds = fixtures::seeds();
-    let mut core = config::core(&settings.jig, seeds.deployment, seeds.seed);
-    read_instructions(&mut core, &settings.files);
+    let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
     let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
     let forges = application::configured(&settings);
     let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.forges, settings.limits.setup.deadline));

@@ -1,0 +1,143 @@
+//! Stock settings are checked by jig and document members name their store replacement.
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary step tests generate documents and compare embedded instruction bytes"
+)]
+use super::fixtures;
+use jig_protocol_config as config;
+
+fn generated() -> Box<[u8]> {
+    use core::num::NonZeroU16;
+    let answer = temper_init::files(
+        &temper_init::Facts {
+            binary: b"/bin/temper",
+            git: Some(b"/bin/git"),
+            claude: None,
+            login: Some(b"ada"),
+            ports: temper_init::Ports {
+                clients: NonZeroU16::new(8367).unwrap(),
+                owned: NonZeroU16::new(8368).unwrap(),
+                forge: NonZeroU16::new(8369).unwrap(),
+                llm: NonZeroU16::new(8370).unwrap(),
+                webhooks: NonZeroU16::new(8371).unwrap(),
+            },
+        },
+        &temper_init::Directories { config: b"/config", data: b"/data" },
+        &[0; 32],
+        &[1; 32],
+    )
+    .unwrap();
+    for file in answer.files {
+        if file.name == b"temper.json" {
+            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
+            return bytes;
+        }
+    }
+    panic!("init writes temper.json")
+}
+fn single_model() -> Box<[u8]> {
+    let mut document = generated();
+    for (path, first) in [
+        (b"engine.llm.providers".as_slice(), b"engine.llm.providers[0]".as_slice()),
+        (b"engine.llm.endpoints", b"engine.llm.endpoints[0]"),
+        (b"engine.llm.models", b"engine.llm.models[0]"),
+    ] {
+        let one = [b"[".as_slice(), &fixtures::value(&document, first), b"]"].concat();
+        document = fixtures::with(&document, path, &one);
+    }
+    fixtures::with(&document, b"application.demo", b"null")
+}
+fn engine(document: &[u8]) -> config::Engine {
+    fixtures::parse_engine(&fixtures::value(document, b"engine"))
+}
+#[test]
+fn the_stock_passes_jigs_one_check() {
+    let init = generated();
+    let without_demo = fixtures::with(&init, b"application.demo", b"null");
+    for (row, document) in [("init", without_demo), ("single model", single_model()), ("demo", init)] {
+        crate::named(&document, &config::Directories::working()).expect("stock passes startup parsing");
+        let engine = engine(&document);
+        let core = config::core(&engine, [1; 16], 7);
+        let defaults = crate::stock::defaults(&engine.llm);
+        assert_eq!(
+            defaults.charters[0].policy.instructions.as_ref(),
+            include_bytes!("../../../../docs/examples/owned/charters/chat.txt")
+        );
+        assert_eq!(
+            defaults.charters[1].policy.instructions.as_ref(),
+            include_bytes!("../../../../docs/examples/owned/charters/coding.txt")
+        );
+        for charter in &defaults.charters {
+            assert_eq!(charter.hosts, jig_domain_fleet::Kinds::Workers, "{row}");
+        }
+        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core);
+        assert_eq!(
+            jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
+            Ok(()),
+            "{row}"
+        );
+    }
+}
+#[test]
+fn each_charter_offers_every_configured_model() {
+    for (document, names) in [
+        (single_model(), [b"gpt-6-luna".as_slice()].as_slice()),
+        (generated(), [b"gpt-6-luna".as_slice(), b"demo"].as_slice()),
+    ] {
+        let engine = engine(&document);
+        let defaults = crate::stock::defaults(&engine.llm);
+        for charter in &defaults.charters {
+            assert_eq!(charter.policy.model.name.as_ref(), names[0]);
+            assert_eq!(charter.policy.alternatives.len(), names.len() - 1);
+            for (model, name) in charter.policy.alternatives.iter().zip(&names[1..]) {
+                assert_eq!(model.name.as_ref(), *name);
+            }
+        }
+    }
+}
+#[test]
+fn the_document_members_are_refused_naming_temper_ctl_settings() {
+    let init = generated();
+    for member in ["charters", "templates", "policies", "rules"] {
+        let original = fixtures::value(&init, b"engine");
+        let mut engine = format!("{{\"{member}\":null,").into_bytes();
+        engine.extend_from_slice(&original[1..]);
+        let document = fixtures::with(&init, b"engine", &engine);
+        let parsed =
+            config::document(&document, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
+                .unwrap();
+        let at = config::read::Object::new(&parsed, 0).unwrap().member(&parsed, b"engine").unwrap();
+        let found = config::engine(&parsed, at, &config::Directories::working(), config::Defaults::Passed).unwrap_err();
+        let mut problems = crate::startup::Problems::empty();
+        problems.append(found, &config::Path::root().member(b"engine"));
+        assert_eq!(problems.problems.len(), 1);
+        assert_eq!(
+            crate::startup::lines(&problems).as_ref(),
+            format!("engine.{member}: settings live in the store; read them with temper ctl settings\n").as_bytes()
+        );
+    }
+}
+
+#[test]
+fn stock_startup_requires_a_model_before_building_its_charters() {
+    let mut document = generated();
+    for path in [b"engine.llm.providers".as_slice(), b"engine.llm.endpoints", b"engine.llm.models"] {
+        document = fixtures::with(&document, path, b"[]");
+    }
+    let found = crate::named(&document, &config::Directories::working()).unwrap_err();
+    assert_eq!(crate::startup::lines(&found).as_ref(), b"engine.llm.models: past its bound\n");
+}
+
+#[test]
+fn the_transition_keeps_the_documents_own_defaults() {
+    let owned = include_bytes!("../../../../docs/examples/owned.json");
+    let document = fixtures::with(owned, b"engine.charters[0].turns", b"9");
+    let parsed =
+        config::document(&document, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+    let at = config::read::Object::new(&parsed, 0).unwrap().member(&parsed, b"engine").unwrap();
+    let engine = crate::startup::engine(&parsed, at, &config::Directories::working()).unwrap();
+    assert_eq!(engine.defaults, config::Defaults::Document);
+    assert_eq!(engine.charters[0].policy.turns, 9, "the document's edit survives the transition");
+    assert!(config::files(&engine).iter().any(|file| file.path.ends_with(b"charters/chat.txt")));
+}

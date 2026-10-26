@@ -424,7 +424,9 @@ fn count_completions(config: &Path, directories: &temper::directories::Directori
         .expect("object")
         .member(&document, b"engine")
         .expect("engine member");
-    let engine = jig_protocol_config::engine(&document, at, &directories.jig()).expect("engine configuration");
+    let engine =
+        jig_protocol_config::engine(&document, at, &directories.jig(), jig_protocol_config::Defaults::Document)
+            .expect("engine configuration");
     let limits = codec::limits(&engine.limits.core).expect("store codec limits");
     let mut paths = Vec::new();
     let deployment = Path::new(std::ffi::OsStr::from_bytes(&engine.deployment.directory));

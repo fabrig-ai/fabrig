@@ -109,7 +109,9 @@ impl Service {
         let shared = crate::forge::shared(&settings.limits, &settings.jig.limits.io);
         settings.jig.limits.clients.wire.keyed_value_some =
             limits::client_value_bytes(&settings.jig.limits, &settings.limits);
-        read_charters(&mut settings)?;
+        if settings.jig.defaults == jig_protocol_config::Defaults::Document {
+            read_charters(&mut settings)?;
+        }
         let store_limits = store::limits(&limits, &limits.forge, &settings.jig.limits.store)
             .ok_or(start_problem(b"limits", What::Bound))?;
         let max = temper_engine_domain::max_out(&limits);

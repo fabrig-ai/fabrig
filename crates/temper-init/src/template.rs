@@ -2,10 +2,7 @@
 //! The pinned jig and smith parsers require positive prices, so demo uses their
 //! minimum (one per million) until they admit setup.md 8.3's zero prices.
 //! Embedding these fixed templates is init's job (setup.md, 8.2); they are not runtime inputs.
-#![expect(
-    clippy::disallowed_macros,
-    reason = "init embeds its default documents and charters, as setup.md 8.2 requires"
-)]
+#![expect(clippy::disallowed_macros, reason = "init embeds its default documents, as setup.md 8.2 requires")]
 
 use crate::{Directories, Facts, path};
 use alloc::boxed::Box;
@@ -14,8 +11,6 @@ use skein_lib::{Decimal, List, Writer, bytes};
 
 pub(crate) const TEMPER: &[u8] = include_bytes!("../template/temper.json");
 pub(crate) const AGENT: &[u8] = include_bytes!("../template/agent.json");
-pub(crate) const CHAT: &[u8] = include_bytes!("../template/charters/chat.txt");
-pub(crate) const CODING: &[u8] = include_bytes!("../template/charters/coding.txt");
 
 pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login: &[u8]) -> (Box<[u8]>, Box<[u8]>) {
     let agent = path::join(directories.config, b"agent.json");

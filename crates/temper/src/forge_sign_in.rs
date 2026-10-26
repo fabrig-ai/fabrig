@@ -27,8 +27,8 @@ pub(crate) fn run(
         &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
     )
     .expect("checked document");
-    let engine =
-        config::engine(&document, super::member(&document, 0, b"engine"), &directories.jig()).expect("checked engine");
+    let engine = temper_service::startup::engine(&document, super::member(&document, 0, b"engine"), &directories.jig())
+        .expect("checked engine");
     let provider = engine.clients.provider.as_ref().ok_or("engine.clients.provider is not configured")?;
     let client = provider.clients.iter().find(|client| client.id == row.client).expect("checked sign-in client");
     let entry = checked.setup.entry(number);

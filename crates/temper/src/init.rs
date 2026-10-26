@@ -237,7 +237,6 @@ pub(crate) fn write_with_program(
         if !config.exists() {
             make_private(config, skein_shell::effective_user())?;
         }
-        make_private(&config.join("charters"), skein_shell::effective_user())?;
         let mut paths = Vec::with_capacity(answer.files.len());
         for file in answer.files {
             let root = match file.directory {

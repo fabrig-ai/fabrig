@@ -325,8 +325,13 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let docs = write(&temper, &agent, &paths, &peers).expect("program route rewrite");
     let document = crate::read::document(&docs.temper).expect("effective document");
     let engine = super::member(&document, 0, b"engine", &jig_protocol_config::Path::root()).expect("engine");
-    let admitted = jig_protocol_config::engine(&document, engine, &jig_protocol_config::Directories::working())
-        .expect("the program provider passes ordinary engine admission");
+    let admitted = jig_protocol_config::engine(
+        &document,
+        engine,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Passed,
+    )
+    .expect("the program provider passes ordinary engine admission");
     assert_eq!(admitted.limits.core.documents.lines, 3, "all three provider offers fit the Model step");
     let effective = json(&docs.temper);
     let effective_agent = json(&docs.agent);
@@ -379,9 +384,10 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     for field in ["name", "window", "output", "prices"] {
         assert_eq!(model[field], agent_model[field], "program declarations agree: {field}");
     }
-    for charter in effective["engine"]["charters"].as_array().expect("charters") {
-        assert!(charter["alternatives"].as_array().expect("charter alternatives").contains(&json!("fake-claude")));
-        assert_eq!(charter["model"], "gpt-6-luna", "the existing default remains credential-backed");
+    let stock = temper_service::stock::defaults(&admitted.llm);
+    for charter in &stock.charters {
+        assert!(charter.policy.alternatives.iter().any(|model| model.name.as_ref() == b"fake-claude"));
+        assert_eq!(charter.policy.model.name.as_ref(), b"gpt-6-luna", "default remains credential-backed");
     }
 }
 

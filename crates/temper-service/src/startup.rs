@@ -352,6 +352,42 @@ fn problem(path: Path, what: What) -> Problems {
 fn indexed(index: usize) -> Path {
     Path::root().member(b"workers").child(Segment::Index(u32::try_from(index).expect("bounded workers")))
 }
+/// Parse jig's engine member and give it its defaults: temper's stock when none of
+/// `charters`, `templates`, `policies` and `rules` is named; the document's while
+/// it still names one (the transitional first slice of protocol/configuration.md, 13.6).
+/// # Errors
+/// The document's problems at its paths under `engine`.
+pub fn engine(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+) -> Result<config::Engine, config::Problems> {
+    let mut object = match read::Object::new(document, at) {
+        Ok(object) => object,
+        Err(what) => {
+            let mut problems = config::Problems::empty();
+            problems.push(Path::root(), what);
+            return Err(problems);
+        }
+    };
+    let mut defaults = config::Defaults::Passed;
+    for member in [b"charters".as_slice(), b"templates", b"policies", b"rules"] {
+        if object.member(document, member).is_some() {
+            defaults = config::Defaults::Document;
+        }
+    }
+    let mut engine = config::engine(document, at, directories, defaults)?;
+    if defaults == config::Defaults::Passed {
+        if engine.llm.models.is_empty() {
+            let mut problems = config::Problems::empty();
+            problems.push(Path::root().member(b"llm").member(b"models"), config::What::Bound);
+            return Err(problems);
+        }
+        let defaults = crate::stock::defaults(&engine.llm);
+        config::pass(&mut engine, defaults)?;
+    }
+    Ok(engine)
+}
 fn parse(input: &[u8], directories: &config::Directories) -> Result<Parsed, Problems> {
     load(input, directories, true)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))
 }
@@ -392,7 +428,7 @@ fn load(
     }
     problems.append(found, &root);
     let engine = match engine_at {
-        Some(at) => match config::engine(&document, at, directories) {
+        Some(at) => match engine(&document, at, directories) {
             Ok(mut engine) => {
                 engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
                 Some(engine)
@@ -827,7 +863,9 @@ fn checked_start(
         return Err(problems);
     }
     let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
-    read_instructions(&mut core, files);
+    if parsed.engine.defaults == config::Defaults::Document {
+        read_instructions(&mut core, files);
+    }
     if let Some(agent) = agent {
         checks::admission(&core, &parsed.engine, agent, &mut problems);
         checks::agent_answer(agent, &mut problems);

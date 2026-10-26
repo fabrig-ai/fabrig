@@ -1,4 +1,4 @@
-//! Only current init output, with an explicit bundle and public charter edits, is importable in M1.
+//! Only current init output, with an explicit bundle, is importable in M1.
 use super::{Directories, Json, bytes, public, resolved};
 use std::{
     num::NonZeroU16,
@@ -11,14 +11,11 @@ type Documents = (Box<[u8]>, Box<[u8]>);
 pub(super) struct Source {
     pub marker: Box<[u8]>,
     pub documents: Option<(Json, Json)>,
-    pub charters: Vec<(&'static str, Box<[u8]>)>,
     pub bundle: Option<PathBuf>,
 }
 const RESOURCES: &[(&str, bool, &str)] = &[
     ("engine/deployment/directory", false, "deployment"),
     ("engine/hosts/workers/0/digest", false, "worker.digest"),
-    ("engine/charters/0/instructions", true, "charters/chat.txt"),
-    ("engine/charters/1/instructions", true, "charters/coding.txt"),
     ("workers/0/secret", false, "worker.secret"),
     ("workers/0/agent/configuration", true, "agent.json"),
     ("workers/0/agent/arguments/1", true, "agent.json"),
@@ -40,7 +37,7 @@ impl Source {
             format!("temper fake-backends v1\nconfig={:?}\ndata={:?}\n", dirs.config, dirs.data).into_bytes();
         if empty {
             marker.extend_from_slice(b"empty\n");
-            return Ok(Self { marker: marker.into(), documents: None, charters: Vec::new(), bundle: None });
+            return Ok(Self { marker: marker.into(), documents: None, bundle: None });
         }
         let temper_bytes = public(&dirs.document())?;
         let agent_bytes = public(&config.join("agent.json"))?;
@@ -109,26 +106,10 @@ impl Source {
         }
         temper.same(&expected, "temper.json")?;
         agent.same(&expected_agent, "agent.json")?;
-        let checked = crate::setup::check(&temper.encode()?, &dirs.jig())?;
-        let mut charters = Vec::new();
-        for name in ["charters/chat.txt", "charters/coding.txt"] {
-            let path = config.join(name);
-            let file = checked
-                .named
-                .files
-                .iter()
-                .find(|file| crate::path(&file.path) == path)
-                .ok_or_else(|| format!("{name}: expected a public init charter"))?;
-            let value = public(&path)?;
-            if value.len() > usize::try_from(file.max).expect("charter bound fits") {
-                return Err(format!("{name}: public charter past its byte bound"));
-            }
-            marker.extend_from_slice(&skein_lib::sha256::digest(&value));
-            charters.push((name, value));
-        }
+        let _checked = crate::setup::check(&temper.encode()?, &dirs.jig())?;
         marker.extend_from_slice(&skein_lib::sha256::digest(&temper_bytes));
         marker.extend_from_slice(&skein_lib::sha256::digest(&agent_bytes));
-        Ok(Self { marker: marker.into(), documents: Some((temper, agent)), charters, bundle })
+        Ok(Self { marker: marker.into(), documents: Some((temper, agent)), bundle })
     }
     /// Rebase only public paths whose init-equivalence was checked above. Relative data paths
     /// keep their spelling and resolve against D'; absolute spellings are made relative first.

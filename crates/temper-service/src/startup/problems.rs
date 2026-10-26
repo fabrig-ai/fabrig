@@ -153,6 +153,7 @@ fn words(what: What) -> &'static [u8] {
             | config::What::CodecArithmetic
             | config::What::StoreCodec => b"",
             config::What::Json => b"invalid JSON",
+            config::What::Stored => b"settings live in the store; read them with temper ctl settings",
             config::What::Unknown => b"unknown member",
             config::What::Missing => b"missing",
             config::What::Duplicate => b"duplicate",
@@ -397,6 +398,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             }
             What::Jig(
                 config::What::Json
+                | config::What::Stored
                 | config::What::Unknown
                 | config::What::Missing
                 | config::What::Duplicate

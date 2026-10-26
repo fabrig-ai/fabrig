@@ -134,7 +134,7 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
             true,
             b"engine.llm.endpoints[0]: not in the agent's configuration under the same name\n".as_slice(),
         ),
-        ("model", true, false, b"engine.charters[0].model: not in the agent's configuration under the same name\n"),
+        ("model", true, false, b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\n"),
     ] {
         let mut agent = fixtures::startup_agent();
         if !endpoints {
@@ -454,7 +454,11 @@ fn every_offered_adapter_must_be_declared_by_the_agent() {
     )
     .unwrap();
     let engine_at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
-    let engine = config::engine(&document, engine_at, &jig_protocol_config::Directories::working()).unwrap();
+    let mut engine =
+        config::engine(&document, engine_at, &jig_protocol_config::Directories::working(), config::Defaults::Passed)
+            .unwrap();
+    let defaults = crate::stock::defaults(&engine.llm);
+    config::pass(&mut engine, defaults).unwrap();
     for declared in [false, true] {
         let mut agent = fixtures::startup_agent();
         if declared {
@@ -496,7 +500,7 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
         checks::agent(&engine, &agent, &mut problems);
         assert_eq!(
             &*lines(&problems),
-            b"engine.charters[0].model: not in the agent's configuration under the same name\n"
+            b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\n"
         );
     }
 }
@@ -530,7 +534,10 @@ fn configured_keys_use_the_token_bound_instead_of_the_moved_file_ceiling() {
     );
     let document =
         config::document(&input, &config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 32 }).unwrap();
-    let mut engine = config::engine(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+    let mut engine =
+        config::engine(&document, 0, &jig_protocol_config::Directories::working(), config::Defaults::Passed).unwrap();
+    let defaults = crate::stock::defaults(&engine.llm);
+    config::pass(&mut engine, defaults).unwrap();
     engine.limits.token = 1;
     let key = engine.limits.token;
     assert_eq!(crate::values::credential_bytes(&engine), key);
@@ -562,12 +569,12 @@ fn admission_names_global_and_time_requirements_with_their_units() {
     use skein_lib::Duration;
     for (time, waiting, spend, inbox, unacknowledged, expected) in [
         (
-            29_999,
+            119_999,
             60_000,
             100,
             8,
             8,
-            "engine.charters[0].time_ms: needs 30000 ms of run time; the agent's profile.policy.max_time allows 29999 ms\n",
+            "charter 1.time_ms: needs 120000 ms of run time; the agent's profile.policy.max_time allows 119999 ms\n",
         ),
         (
             300_000,
@@ -575,15 +582,15 @@ fn admission_names_global_and_time_requirements_with_their_units() {
             100,
             8,
             8,
-            "engine.charters[0].waiting_ms: needs 10000 ms of waiting; the agent's profile.policy.max_waiting allows 9999 ms\n",
+            "charter 1.waiting_ms: needs 10000 ms of waiting; the agent's profile.policy.max_waiting allows 9999 ms\n",
         ),
         (
             300_000,
             60_000,
-            99,
+            9,
             8,
             8,
-            "engine.rules.maximum_run_spend: needs a spend allowance of 100; the agent's profile.policy.max_spend allows 99\n",
+            "rules.maximum_run_spend: needs a spend allowance of 10; the agent's profile.policy.max_spend allows 9\n",
         ),
         (
             300_000,
@@ -608,7 +615,10 @@ fn admission_names_global_and_time_requirements_with_their_units() {
         agent.bounds.spend = spend;
         agent.bounds.inbox = inbox;
         agent.bounds.unacknowledged = unacknowledged;
-        let found = started(&fixtures::document(), &fixtures::files(), &agent);
+        let engine = fixtures::guard_engine().jig;
+        let core = config::core(&engine, [7; 16], 7);
+        let mut found = Problems::empty();
+        checks::admission(&core, &engine, &agent, &mut found);
         assert_eq!(&*lines(&found), expected.as_bytes());
     }
 }

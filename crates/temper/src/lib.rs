@@ -409,8 +409,8 @@ fn prepare_with_limits(
     let document =
         config::document(bytes, &config::DocumentLimits { bytes: CONFIG_BYTES, tokens: CONFIG_BYTES, depth: 32 })
             .expect("named checked document");
-    let engine =
-        config::engine(&document, member(&document, 0, b"engine"), &directories.jig()).expect("named checked engine");
+    let engine = temper_service::startup::engine(&document, member(&document, 0, b"engine"), &directories.jig())
+        .expect("named checked engine");
     let forges = forges(&named.forges, address)?;
     let agent = named.worker.as_ref().map(|_| agent::preflight(&named)).transpose()?;
     let user = skein_shell::effective_user();

@@ -346,14 +346,6 @@ fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &P
     )
 }
 
-fn program_charters(d: &Document, engine: u32, edits: &mut Edits) -> Result<(), Refusal> {
-    let p = Path::root().member(b"engine").member(b"charters");
-    let charters = member(d, engine, b"charters", &p)?;
-    for charter in &read::list(d, charters, 1, &p)? {
-        append(d, member(d, *charter, b"alternatives", &p)?, &text(PROGRAM_MODEL.as_bytes())?, edits)?;
-    }
-    Ok(())
-}
 /// Wire welcome peers and a program model in ordinary documents. The shell validates and rebases imported resources first.
 pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents, Refusal> {
     for (name, bytes) in [(b"temper".as_slice(), temper), (b"agent", agent)] {
@@ -390,7 +382,6 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     let endpoints = member(&d, llm_at, b"endpoints", &ep)?;
     endpoint(&d, endpoints, &llm, false, &mut edits, &ep.member(b"endpoints"))?;
     program_route(&d, llm_at, &llm, &mut edits, &ep)?;
-    program_charters(&d, engine, &mut edits)?;
     let clients = member(&d, application, b"clients", &ap)?;
     let bundle = member(&d, clients, b"bundle", &ap.member(b"clients"))?;
     if !read::is_null(&d, bundle) {
