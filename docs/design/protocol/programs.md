@@ -73,10 +73,10 @@ open is section 9.
   (events.md, 3.3). A sub-agent's LLM never runs on one either: a start
   that grants a program source for a sub-agent's LLM's account, and
   not for main's, is refused at the entrance (domain/run.md, section 4).
-- **Open runs are not offered on a program backend.** A start whose
-  charter is Open and grants a program source is refused at the entrance,
-  as invalid grants, before the program is checked or started
-  (domain/run.md, section 4). Open runs on the direct backend (section 9).
+- **Open runs keep the program across their turns** (5.9): a text reply
+  ends the program's turn, not the program, and the run listens as on
+  the direct backend; a message while it listens is the program's next
+  user message.
 
 ## 3. Choosing the backend
 
@@ -386,6 +386,40 @@ open is section 9.
   never resumed after it, and it stays in the configuration directory as
   the program keeps its sessions (section 9).
 
+### 5.9 Open runs
+
+A conversation, such as a person's chat: domain/run.md's `Mode::Open`,
+whose text replies wait and whose activation parks, on a program.
+
+- **Launched as 5.1 says,** but with no result contract: no
+  `--json-schema`, and of the run's own tools only `wait`, since Open
+  is granted the wait and never `finish` or `deliver` (domain/run.md,
+  section 1).
+- **A reply is a turn's text.** A program turn that ends, with its
+  `result`, its last assistant message holding nonempty text and no
+  call, is main's text reply (domain/run.md, section 6): the agent
+  tells the turn, then the run waits with its fence and listens for the
+  charter's waiting interval. The program stays, its input open.
+- **A message while it listens** goes in as a user message on the
+  program's input, and the program's next turn answers it, in the same
+  process and session. Messages queued before the reply are offered as
+  the direct backend offers them, in order, at most one offer's worth.
+- **Parking:** past the waiting interval, the agent closes the
+  program's input and the program exits after the turn it has ended;
+  the run parks, its session kept (5.8). A turn held on `wait` is ended
+  with SIGINT first, as 5.8 says.
+- **A turn that ends with no text,** and no call left unanswered, is an
+  unsuccessful end, nudged as on the direct backend (domain/run.md,
+  7.2).
+- **The wind-down,** the budget spent or the host's finish request
+  (domain/run.md, 9.1): the agent ends the program's turn with SIGINT,
+  sends the run's note as its next user message, and refuses every call
+  from then on (5.7). The text of the turn that follows, at its
+  `result`, is the last reply, and the run parks; a program that has
+  not replied within the reserve is stopped as a cancel is.
+- **The fake program** plays it (section 8): several turns on one
+  input, a `result` each, until its input closes.
+
 ## 6. The terms it keeps
 
 Anthropic allows a person's own Claude Code to run in a product under
@@ -462,7 +496,9 @@ conditions. smith keeps each as a rule of its own:
   - `-p` with stream-json both ways: `system/init` with the tools
     `--tools` gave and the MCP servers the configuration named;
     assistant and partial messages, with usage; `rate_limit_event`;
-    `system/api_retry`; a final `result`, each as the story says;
+    `system/api_retry`; a `result` at each turn's end, each as the
+    story says, and, for an Open run, further turns on the same input
+    until it closes;
   - an MCP client of the agent's server: it lists its tools, asks the
     prompt tool before each built-in call, in the shape the agent
     expects, and acts on the answer, and calls `finish`, host tools and
@@ -483,17 +519,18 @@ conditions. smith keeps each as a rule of its own:
     program's;
   - the wind-down, a cancel and the wall time;
   - a park, and a resume by the program's session;
-  - a conversation carried over from the direct backend and back.
+  - a conversation carried over from the direct backend and back;
+  - an Open run (5.9): a reply, a message while it listens answered in
+    the same process, a park past the waiting interval and its resume,
+    a turn with no text nudged, and the wind-down's last reply after a
+    host's finish request.
 - **The live suite** runs the real program on a source signed in once
   (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
   prompt tool's shape, `system/init`'s tools and capabilities, a limit's
-  events, and that `-p` reads the login.
+  events, that `-p` reads the login, and that a stream-json input
+  takes a second user message after a turn's `result`, as 5.9 needs.
 
 ## 9. Open questions
-
-- **Open on a program backend:** a launch without a result schema, a
-  text end taken only at its `result`, and an interrupt for its last
-  reply. Default: refused at the entrance (section 2).
 
 - **Anthropic's terms for a product:** whether a product that runs the
   person's own Claude Code falls under the allowance for a person's own
