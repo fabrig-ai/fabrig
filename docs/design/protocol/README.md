@@ -635,6 +635,53 @@ section 8 give them. temper's sit beside them:
   `PAYLOAD_VERSION` as `temper-payload` beside jig's and smith's, so the
   next binary's rehearsal can say whether the workers may stay
   (`draft/upgrades.md`, section 9).
+- **What the first release freezes.** From it, every byte of temper's a
+  deployment keeps must stay readable by every later build
+  (`draft/upgrades.md`, 4.1, 6.3, 10 and 11). Before it, in place, each
+  in one change with its golden bytes:
+  - **The forges' secrets from a schema:** temper's family
+    `temper-secrets` (`temper-protocol-records`, `schema/secrets-v1.schema`),
+    a versioned record per row of jig's secrets' store under temper's tag
+    (credentials.md, 2.1): an enum of records, one per item (the four
+    tokens and the webhook's secret each a `secret N`; the user and the
+    app's id `u64`s, big-endian as every schema's; the app's slug a
+    `text N`; its key a `secret N` holding its DER; the accepted
+    installations a list; the origin its kind and address), and the
+    pasted bundle a carried value's, a list of items. The hand-written
+    envelope and its little-endian numbers go. temper's set names the
+    family at the baseline, `map: Secrets`, its keys temper's numbers
+    below 2^63 (jig's `protocol/store.md`, section 9).
+  - **temper's store says what it holds** (store.md, section 4): a
+    retained refusal `holds jig-store-people Refusal`; each list of
+    answers' items, comments, reviews, statuses, remarks and files its
+    `pieces`; each list of raw names (a branch's segments, protection
+    contexts, labels, branch names) a declared item type and its
+    `pieces`, its bytes moving in place where they must.
+  - **An effect's key is an identity, never patched:** kept as written,
+    in the store and in the forge's markers, compared byte for byte.
+    Its first byte is its version (skein's `forge-client.md`, 7.4); from
+    the first release the connector reads every version it has written,
+    and a purpose's tag keeps its meaning for good, a new meaning taking
+    a new tag (forge.md, section 4). The marker's wrapper and the bot's
+    marker are fixed forms.
+  - **Small files** (`draft/upgrades.md`, section 10): the forge's setup
+    `state`, versioned JSON, is read in every version from the first
+    release on and written in the current at its next write; the
+    preparation writes it before the engine starts, so it follows the
+    forge's own upgrade, whose going back is its dump (setup.md, 6.3).
+    The worker's secret and digest (hex digits and a newline), the demo
+    model's key, the box's started markers (an empty file each) and the
+    admin token's handover are fixed forms, never versioned: a change is
+    a new file name. The engine writes no small file before its start's
+    wires are durable (jig's `protocol/store.md`, 5.3), so going back
+    finds them as they were.
+  - **Golden bytes** pin each fixed form, each schema's records and the
+    key's frame and marker, so a change fails a test naming it.
+
+  Outside it: what an external program reads (Forgejo's and the
+  runner's files, which their own upgrade carries), the fake backends'
+  sandbox, the standalone reconcile's files until it goes (setup.md,
+  6.5), logs, caches and worker roots.
 
 ## 10. Secrets
 
