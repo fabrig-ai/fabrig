@@ -1076,6 +1076,10 @@ whom; its delegates, their states, and the
   needs sign-in (accounts.md, 3.5), so that a planning agent gives each
   task it delegates the LLM choice its work needs, by capability and
   cost (tasks.md, section 4).
+- **Its charter's documents' (17.9),** gathered by the connector that
+  owns each document's resource as it is when the run is prepared,
+  each optional, titled by the document, after the core's sections and
+  before the task's resources'.
 - **Its connectors',** which it plans by kind, priority and budget but
   never holds (core.md, section 5): for each resource the task names, and
   for each dependency or input whose result is a connector's, the
@@ -1718,7 +1722,7 @@ section 17; the records are `../protocol/store.md`, 4.4.
 
   | Kind | Number | Value | Read |
   |---|---|---|---|
-  | charter | the charter's, from 1 | a charter whole: its instructions as text, its models, tool families, hosts, waiting, resume and default budget (`../protocol/configuration.md`, section 3) | at each run's preparation, from the run's revision (17.3) |
+  | charter | the charter's, from 1 | a charter whole: its instructions as text, its documents (17.9), its models, tool families, hosts, waiting, resume and default budget (`../protocol/configuration.md`, section 3) | at each run's preparation, from the run's revision (17.3) |
   | template | the template's, from 1 | a template whole (`../protocol/configuration.md`, 3.1) | when `me` is served (11.1): the newest |
   | policy | the policy's, from 1 | a whole policy in a seed's format, a project made from it copying it (core.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (authority.md, section 6) | at every decision: the newest |
@@ -2134,3 +2138,28 @@ Its code comes after the rest (`../STATUS.md`).
 - **A full bound names its holders:** a change refused as full names
   the oldest held revision's live tasks, and moving them is the way on
   (17.4).
+
+### 17.9 A charter's documents
+
+The rules a person wrote down reach the runs that should follow them
+(temper's draft `configuring.md`, section 2): a charter may name
+documents, which every run of the charter reads in its brief, as they
+are when the run is prepared.
+
+- **A document** is a resource by its name, a branch of a connector's
+  (authority.md, section 4), a path within it of at most 256 bytes,
+  and, optionally, a heading of at most 80 bytes, the part of the file
+  to read. A charter names at most `tasks.charter_documents` of them
+  (4 in Small). jig never reads one: it checks only that the name is
+  well formed and its first segment a connector's (17.1, *shape*), and
+  keeps the documents with the charter, versioned and pinned with it
+  (17.3), so a run reads the documents its revision's charter names.
+- **Gathered for each run** as a brief section of the connector that
+  owns the resource (section 9; connectors.md, section 9): the file at
+  the branch's head when the run is prepared, or its part under the
+  heading, within the section's budget. A rule that lands reaches the
+  next run, with no change of settings. A document the connector cannot
+  read (no such resource, file or heading, or a read that failed) is a
+  section saying so, never a run held: the documents are optional.
+- **No authority** is asked of the run: the charter's owners chose its
+  documents, as they chose its instructions.

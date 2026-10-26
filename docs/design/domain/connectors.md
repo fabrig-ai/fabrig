@@ -609,9 +609,10 @@ release the writer; Uncertain and Held retain it for connector recovery.
   core checks the read grant (authority.md, 8.5); the connector serves
   it; its answer goes out through the journal's door for outputs that
   decide nothing (root.md, section 3). The core never holds it.
-- **Sections a brief carries** for the resources a task names: a
-  service's recent errors, an environment's state, a pull request
-  against its base. The brief child domain plans them (engine.md,
+- **Sections a brief carries** for the resources a task names, and for
+  the documents its charter names (engine.md, 17.9): a service's recent
+  errors, an environment's state, a pull request against its base, a
+  file at a branch's head. The brief child domain plans them (engine.md,
   section 9) by kind and budget; the connector gathers each, keeps it,
   and says its size; asked to cut it to a smaller size, it cuts it by its
   own rules and says the new size; when the brief is complete, it hands
