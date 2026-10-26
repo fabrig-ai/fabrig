@@ -434,10 +434,11 @@ in the lower world that owns it, never here.
   preparing, claimed or running, none is closing, no assignment is
   pending, and no agent or git child of the worker's is alive. A task
   parked between runs is no obligation. A story that means to leave work
-  in flight declares each leftover, by its task and state, with its
-  reason (GitHub's push-only story leaves its change's procedure due;
-  the bounds story its live delegates); an undeclared obligation fails
-  the story, and so does a declared leftover that isn't there.
+  in flight declares each leftover, by its task and the states it may be
+  left in, with its reason (GitHub's push-only story leaves its change's
+  procedure unfinished; the bounds story its live delegates); an
+  undeclared obligation fails the story, and so does a declared leftover
+  whose task has ended.
   Teardown's own check stays beside it: no child is killed but those a
   story asks for.
 - **The forge and git:** skein's forge peer (skein's `fake-forge.md`,
