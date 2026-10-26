@@ -153,6 +153,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 | `note` | note | writes a note in a scope, or revises one (jig's `domain/engine.md`, section 10) | for a revision, the note's revision it recalled | written, with its name and revision; refused: busy, too large, full, already there, missing, moved |
 | `recall` | recall | reads notes by name, or a page of a search of their scoped descriptions | | the entries, and whether more remain |
 | the forge's reads | read | one fresh read each, of an adopted repository (forge.md, section 2), below | | the answer, cut to the read's limit; failed, and why |
+| `read_docs` | none | a page of one of temper's documentation topics from an offset, or the sections matching some words (`../protocol/documentation.md`, section 5); answered where the call is decoded, with no authority, commit or record | | the page and the next offset, or the end; the hits; no such topic, naming them |
 
 The forge's reads, each a host tool of its own: `read_items`, a page of
 a repository's issues and pull requests; `read_item`, an issue or a pull
@@ -168,7 +169,7 @@ protection; `read_settings`, the repository's settings;
 `read_collaborators`, its collaborators; `read_permission`, a user's
 permission on it.
 
-- **Reads and writes:** the forge's reads and `recall` are reads; every
+- **Reads and writes:** the forge's reads, `recall` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:

@@ -249,6 +249,8 @@ temper's side before the layer:
   `skein-forge-setup` (reconcile); its setup's rest, outside the
   services, `temper-forge-setup`, `temper-forge-setup-shell` and
   `temper-box`;
+- the user documentation's, of no side, `temper-docs`
+  (`protocol/documentation.md`);
 - the client's, under `temper-client` (`client/README.md`, section 2);
 - the services, `temper-service`, and the binary, `temper`.
 

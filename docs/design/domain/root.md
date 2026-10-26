@@ -256,7 +256,10 @@ to the forge; a timer to the child that armed it. What temper adds:
 - **An undecodable call decides nothing.** The protocol layer answers it
   as an error naming what is wrong; the root relays that answer to the
   run with no commit and no record, and the run may ask again with a
-  corrected input under a new name.
+  corrected input under a new name. A documentation read
+  (`read_docs`) is answered the same way, as a success, from the
+  binary's topics (`../protocol/documentation.md`, section 5): it
+  decides nothing either.
 - **Invalid or busy, answered at once:** a call naming no live attempt or
   no completion is answered invalid; one that finds the call records, or
   the loads it needs, full is answered busy, and its run asks again after

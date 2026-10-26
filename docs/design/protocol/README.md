@@ -108,6 +108,8 @@ its tests and its lab, is section 15.
 13. **`../domain/testing.md`:** the tiers below the domain.
 14. **`../client/browser.md`:** the browser, the second shell of
     temper's client.
+15. **documentation.md:** the user documentation compiled into the
+    binary, `temper help`, and agents' `read_docs`.
 
 ## 3. Names
 
