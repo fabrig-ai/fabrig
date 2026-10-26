@@ -289,7 +289,9 @@ h3 { font-size: 14px; line-height: 1.35; letter-spacing: -.015em; margin-bottom:
 .welcome-page h1 { margin-top: 30px; }
 .welcome-page h2 { margin-bottom: 10px; }
 .welcome-page p { font-size: 12px; line-height: 1.7; }
+.welcome-tagline { margin: 12px 0 0; font-style: italic; }
 .welcome-lead { margin: 12px 0 24px; }
+.welcome-tagline + .welcome-lead { margin-top: 10px; }
 .welcome-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .welcome-choices > .card { margin: 0; display: flex; flex-direction: column; align-items: flex-start; }
 .welcome-choices .button { margin-top: auto; }
