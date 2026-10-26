@@ -51,7 +51,9 @@ when configuration is read. What is still open is listed in section 9.
   the defaults as values when it builds the engine; one that passes
   none has this document's `charters`, `templates`, `policies` and
   `rules` read as the defaults, and the store's changes lie over them
-  (section 8).
+  (section 8). One that passes its own has those four members refused
+  as unknown, each naming its path and that its setting lives in the
+  store, so that no document seems to configure what it does not.
 - **Templates are data the engine serves and never expands.** The
   application's shapes of work (jig's chat and goal among them) are
   numbered templates among the settings; a project's policy may override some
