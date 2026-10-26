@@ -576,7 +576,10 @@ schema remains v4. These are the versions the format row requires.
   tell where a store has none. A store of a build before the row gains
   it at its next start, and no open refuses for it.
 - **The layouts,** in a row of their own beside it (`Layouts`, the
-  component's): each of jig's families' fingerprint, the digest of its
+  component's): each of jig's families' fingerprint, and each family of
+  an upstream owner's that the store keeps (skein-oauth's `SavedToken`
+  in the secrets' sources, smith-transcript's `Turn` in frames), since a
+  holder's fingerprint names what it holds and not its layout: the digest of its
   layout, computed from the schemas built in and committed beside their
   generated codecs, which the drift test checks against them, so a
   build holds them as constants. Written with the
@@ -1176,18 +1179,30 @@ nothing is written.
   versioned records whose key says which:
   - `Digest { expiry: u64, digest: fixed 32 }`, a sign-in's (`[1, 0]`)
     and a service's (`[1, 1]`), an expiry of `u64::MAX` for a service's;
-  - `Source`, a source's row (`[3, 0]`), an enum: `record: bytes N
-    holds skein-oauth SavedToken` (skein's `oauth.md`, 6.4) or `key:
-    secret N`, so a row says which it holds, never guessed from its
-    bytes;
-  - `Carried`, a carried value (`[2, 0]` from 2^63), an enum: `key:
-    secret N`, `value: secret N` (an application's), or `moved: bytes N
-    holds jig-accounts Moved` (`llm.md`, 5.6), written as the clients'
-    component decodes the request that carries it, which knows its kind;
+  - `Source`, a source's row (`[3, 0]`): a versioned record whose one
+    field is an enum of records, `Record { record: secret N holds
+    skein-oauth SavedToken }` (skein's `oauth.md`, 6.4) or `Key { key:
+    secret N }`, so a row says which it holds, never guessed from its
+    bytes; written and restored by the accounts component, which knows
+    which it keeps;
+  - `Carried`, a carried value (`[2, 0]` from 2^63), likewise: `Key`,
+    `Value` (an application's) or `Moved { moved: secret N holds
+    jig-accounts Moved }` (`llm.md`, 5.6), its kind passed by the
+    clients' component through `carry`, from the request it decoded; a
+    pasted address stays held in memory, never kept;
   - `NextCarried { next: u64 }`, the carried values' next number
     (`[2, 1]`).
 
-  Each `N` is the bound its value has today. The application's rows
+  Each `N` is the bound its value has today; the version, the tags and
+  the options add bytes, so each row's bound and the secrets' store's
+  worst case grow by them, measured, and a rise in a budget comes to
+  the user first. A held record is still decoded and checked by its own
+  code (skein's `decode_record` and its checks, `Moved`'s), the words
+  changing no decode. Adopting a carried value unwraps its `Carried`
+  and writes a `Source`; every digest a conditional write states
+  (`adopt`, `keep`'s replaced record, a key's) is the digest of the
+  value held, never of its envelope, so it is the same before and after
+  this change. The application's rows
   are its own family's, by its own schema (temper's
   `protocol/credentials.md`, 2.1). jig's set names the family, `map:
   Secrets`, and its keys' ranges, the application's left out (10.3), so
@@ -2206,9 +2221,6 @@ Each within jig's suites' budgets.
   - keys a patch moves (10.3), left to later work: a line for them
     in skein's patch text, and the key function's answer up and back;
   - the free space checked before the copy (10.2);
-  - the layouts of skein's and smith's families recorded, so that
-    their owners' none can be read as level 0 at a later baseline
-    (5.3);
   - a gate holding each patch's `after` to at least the pin it lands
     on (10.3);
   - a copy made by the file system (a reflink, or btrfs's snapshot:

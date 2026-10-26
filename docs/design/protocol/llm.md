@@ -395,10 +395,12 @@ child's vocabulary and the driver's, both ways, exhaustive on both:
   protocol layer), the issuer, the client id the record refreshes with
   (the one its LLM provider issued, kept in the record, or the
   registration's own where none was issued), the subject, the display
-  name, and the record, `bytes N holds skein-oauth SavedToken` (skein's
-  `oauth.md`, 6.4). Each part has its bound, the whole at most their
-  sum. The generated decode refuses another version, a part past its
-  bound, a short or trailing input, and a record skein does not read;
+  name, and the record, `secret N holds skein-oauth SavedToken`
+  (skein's `oauth.md`, 6.4). Each part has its bound, the whole at most
+  their sum. The generated decode refuses another version, a part past
+  its bound, and a short or trailing input; the moves then refuse an
+  empty part and decode the record with skein's `decode_record`, as
+  today, refusing one skein does not read;
   a file of another version is refused by name, and the account is
   moved again from a deployment of the same release.
 - **Out.** The child releases the source and asks to withdraw it,
