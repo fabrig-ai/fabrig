@@ -24,10 +24,10 @@ fn go(front: &mut Joint, root: &mut Root, address: Address) {
     accounts::event(front, root, d::Event::Went { place: Place::Address(address) }.into());
 }
 fn press(front: &mut Joint, root: &mut Root, role: Role, name: &[u8], act: Act) {
-    let mut view = view(root);
+    let view = view(root);
     let node =
         view.tree().nodes().iter().find(|n| n.role == role && n.name.as_deref() == Some(name)).expect("row control").id;
-    let event = temper_client_view::event(&mut view, node, act).expect("row act");
+    let event = temper_client_view::event(&view, node, act).expect("row act");
     accounts::event(front, root, event.into());
 }
 fn signed_in() -> (Joint, Root, u32) {

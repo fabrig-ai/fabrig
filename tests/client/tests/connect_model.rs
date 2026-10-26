@@ -29,7 +29,7 @@ fn go(front: &mut Joint, root: &mut Root, address: Address) {
     accounts::event(front, root, d::Event::Went { place: Place::Address(address) }.into());
 }
 fn press(front: &mut Joint, root: &mut Root, role: Role, name: &[u8], act: skein_ui::Act) {
-    let mut view = view(root);
+    let view = view(root);
     let id = view
         .tree()
         .nodes()
@@ -37,7 +37,7 @@ fn press(front: &mut Joint, root: &mut Root, role: Role, name: &[u8], act: skein
         .find(|node| node.role == role && node.name.as_deref() == Some(name))
         .expect("flow control")
         .id;
-    let event = temper_client_view::event(&mut view, id, act).expect("flow binding");
+    let event = temper_client_view::event(&view, id, act).expect("flow binding");
     accounts::event(front, root, event.into());
 }
 #[test]

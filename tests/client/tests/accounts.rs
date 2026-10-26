@@ -79,7 +79,7 @@ fn a_sign_in_started_answer_is_followed_by_its_actual_end_on_the_accounts_watch(
         .find(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT"))
         .expect("plan sign-in way")
         .id;
-    let press = temper_client_view::event(&mut view, button, skein_ui::Act::Press).expect("way press");
+    let press = temper_client_view::event(&view, button, skein_ui::Act::Press).expect("way press");
     accounts::event(&mut front, &mut root, press.into());
     let source = accounts::signing(&front);
     front.engine.send(temper_engine_domain::Event::Account(a::Event::Visited {

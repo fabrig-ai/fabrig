@@ -1,7 +1,7 @@
 #!/bin/sh
 # Keep the person's look-requests on origin/main, dropping requests whose
 # Look-request names main carries, then push with the checkout's old lease.
-# Implements docs/design/draft/look-recording.md, section 5.
+# Implements docs/design/client/journeys.md, section 7.
 #
 # Takes no arguments; runs in the current checkout, never fetches requests.
 # Exit status: 0 rebased and pushed; 1 git failed (a conflict leaves the
