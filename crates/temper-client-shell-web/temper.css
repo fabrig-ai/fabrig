@@ -393,7 +393,7 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 /* .meta-row and .tag: kind words and the supplied project and task path. */
 .temper-meta { display: flex; flex-wrap: wrap; gap: 7px 12px; align-items: center; color: var(--temper-muted); font-size: 11px; }
 .temper-page .temper-meta .temper-inbox-tag { display: inline-flex; align-items: center; white-space: nowrap; border-radius: 3px; padding: 2px 6px; margin: 0; background: #f3f1eb; color: #6d695f; font: 600 10px/1.58 var(--temper-mono); letter-spacing: -.015em; }
-.temper-page .temper-meta p { color: var(--temper-muted); margin: 0; }
+.temper-page .temper-meta :is(p, :where(.temper-meta)) { color: var(--temper-muted); margin: 0; }
 .temper-meta a::before { content: "›" / ""; margin-right: 7px; }
 .temper-meta a { margin-left: -5px; }
 .temper-kind-proposal > .temper-meta .temper-inbox-tag { background: var(--temper-accent-pale); color: var(--temper-accent-dark); }
@@ -833,7 +833,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-welcome h1.temper-welcome-intro { margin: 30px 0 8px; font-size: clamp(21px, 2.25vw, 26px); line-height: 1.25; }
 .temper-welcome h2 { margin: 0 0 10px; }
 .temper-welcome-card > p { margin: 0 0 12px; }
-.temper-welcome p { font-size: 12px; line-height: 1.7; }
+.temper-welcome :is(p, :where(.temper-account-line)) { font-size: 12px; line-height: 1.7; }
 .temper-welcome-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; list-style: none; margin: 14px 0 20px; padding: 0; }
 .temper-welcome-step { border-top: 3px solid var(--temper-line); padding-top: 9px; font-size: 10px; color: var(--temper-faint); }
 .temper-welcome-step[aria-current] { border-color: var(--temper-accent); color: var(--temper-accent-dark); font-weight: 700; }
@@ -847,7 +847,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-welcome-after { margin-top: 20px; }
 .temper-welcome p.temper-welcome-tiny { font-size: 11px; }
 .temper-welcome .temper-welcome-checklist { gap: 16px; margin: 26px 0; }
-.temper-welcome-checklist > li > p { margin: 0; }
+.temper-welcome-checklist > li > :is(p, :where(.temper-account-line)) { margin: 0; }
 .temper-welcome-checklist .temper-welcome-end { margin-left: -18px; }
 .temper-welcome-status { margin-bottom: 20px; color: var(--temper-muted); font-size: 11px; }
 .temper-welcome .temper-welcome-status > p { margin: 0; color: var(--temper-muted); font-size: 11px; }
@@ -878,7 +878,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-flow-card { border: 1px solid var(--temper-line); border-radius: 5px; background: var(--temper-paper); padding: 20px; margin-bottom: 14px; }
 .temper-welcome .temper-flow-card { border-radius: 9px; }
 .temper-flow-card h2 { margin-top: 0; }
-.temper-flow-card p { font-size: 11px; line-height: 1.6; }
+.temper-flow-card :is(p, :where(div.temper-flow-muted, div.temper-flow-subtitle)) { font-size: 11px; line-height: 1.6; }
 .temper-flow-muted { color: var(--temper-muted); font-size: 10px; }
 /* Empty alternative text keeps decorative marks out of the accessible name. */
 .temper-flow-progress { list-style: none; padding: 0; display: grid; gap: 6px; font-size: 11px; font-weight: 400; }
@@ -930,9 +930,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-flow-choice, :is(.temper-flow-details, .temper-model-key) { padding: 15px 18px; }
 .temper-main :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > h2 { margin: 0 0 4px; font: 700 12px/1.35 var(--temper-mono); }
 .temper-main .temper-flow-choice > h2 { margin-bottom: 0; }
-.temper-main :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > p { margin: 0 0 1em; color: var(--temper-ink); font-size: 11px; line-height: 1.6; }
-.temper-main :is(.temper-flow-details, .temper-model-key) > p { margin-bottom: 10px; }
-.temper-welcome :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > p { font-size: 12px; line-height: 1.7; }
+.temper-main :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > :is(p, :where(.temper-flow-muted, .temper-flow-subtitle)) { margin: 0 0 1em; color: var(--temper-ink); font-size: 11px; line-height: 1.6; }
+.temper-main :is(.temper-flow-details, .temper-model-key) > :is(p, :where(.temper-flow-muted, .temper-flow-subtitle)) { margin-bottom: 10px; }
+.temper-welcome :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > :is(p, :where(.temper-flow-muted, .temper-flow-subtitle)) { font-size: 12px; line-height: 1.7; }
 .temper-main :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > .temper-flow-muted { color: var(--temper-muted); font-size: 11px; }
 :is(.temper-flow-details, .temper-model-key) > .temper-flow-quiet { margin-inline-start: 8px; }
 :is(.temper-flow-details, .temper-model-key):has(> [role=radiogroup]) > .temper-flow-quiet { display: block; margin: 10px 0 0; }
@@ -1051,8 +1051,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 }
 
 /* Card lineage uses the same quiet path as the mockup, with one separator. */
-.temper-meta p > a { margin: 0; }
-.temper-meta p > a::before { content: none; }
+.temper-meta :is(p, :where(.temper-meta)) > a { margin: 0; }
+.temper-meta :is(p, :where(.temper-meta)) > a::before { content: none; }
 /* Answer in words takes rejection's folded-editor pattern. */
 .temper-kind-question > details { display: inline-block; margin: 10px 8px 0 0; vertical-align: baseline; }
 .temper-kind-question > details > summary { display: inline-block; cursor: pointer; list-style: none; min-height: 28px; padding: 5px 9px; border: 1px solid #dcd5ca; border-radius: 4px; font: 600 11px/1.35 var(--temper-mono); }
@@ -1116,3 +1116,11 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   .temper-main.temper-page > .temper-choice:has(+ .temper-entry) { margin-top: 36px; }
 }
 .temper-kind-proposal > a { display: inline-flex; align-items: center; min-height: 30px; vertical-align: top; }
+
+/* Command containers retain the paragraphs' browser layout (client/README.md, 6.5). */
+.temper-change > .temper-change { margin: 1em 0; }
+.temper-page .temper-meta > .temper-meta { display: block; }
+.temper-welcome-checklist > li > .temper-account-line { width: auto; color: inherit; }
+
+/* The nested lineage is metadata too; its following wait keeps the old zero margin. */
+.temper-page .temper-meta > p.temper-wait { margin-top: 0; }

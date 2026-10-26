@@ -789,3 +789,25 @@ fn questions_answer_inside_a_folded_disclosure_and_keep_refusals() {
     );
     assert!(skein_lib::bytes::find(&fixtures::text(&builder.finish()), b"This act is not offered").is_some());
 }
+
+#[test]
+fn each_needs_you_card_offers_its_task_number_as_a_terminal_command() {
+    let mut view = fixtures::page_view(&fixtures::inbox_root());
+    let mut controls = skein_lib::List::with_capacity(4);
+    for node in view.tree().nodes() {
+        if node.role == Role::Link && node.name.as_deref() == Some(b"T9") {
+            controls.push(node.id).unwrap();
+        }
+    }
+    assert_eq!(controls.len(), 4, "proposal, question, held and person task");
+    for control in &controls {
+        let (node, first) =
+            fixtures::terminal_command(view.tree(), &view.limits().tree, *control, b"T9", "Shop › ".as_bytes());
+        assert_eq!(
+            crate::act(&mut view, node, first),
+            Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                address: Address::Task { task: fixtures::INBOX_TASK, filter: PlanFilter::All },
+            },))
+        );
+    }
+}

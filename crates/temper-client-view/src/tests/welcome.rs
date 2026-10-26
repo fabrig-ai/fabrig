@@ -403,7 +403,7 @@ fn ready_does_not_name_another_holders_sign_in() {
     doc.signing.get_mut(0).unwrap().holder = jig_client::contract::OwnerAccountHolder::Deployment;
     super::accounts::deliver(&mut root, watch, doc);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "Model: none yet");
+    node(view.tree(), Role::Slot, "Model: none yet");
     node(view.tree(), Role::Link, "Connect a model");
 }
 #[test]
@@ -706,11 +706,7 @@ fn model_endings_have_their_heading_and_one_back() {
         let view = f::page_view(&root);
         node(view.tree(), Role::Heading { level: 2 }, heading);
         if heading.starts_with("Signed in") {
-            node(
-                view.tree(),
-                Role::Paragraph,
-                "ChatGPT · alice@example.com is on the Accounts page, with its details.",
-            );
+            node(view.tree(), Role::Slot, "ChatGPT · alice@example.com is on the Accounts page, with its details.");
         }
     }
 }
@@ -1062,4 +1058,25 @@ fn ready_offers_forgejo_sign_in_only_after_its_owned_repository_is_adopted() {
             }
         }
     }
+}
+
+#[test]
+fn ready_offers_connect_a_model_as_a_terminal_command() {
+    let (mut root, watch) = ready_model_fixture();
+    let mut doc = signing_document();
+    doc.signing.clear();
+    super::accounts::deliver(&mut root, watch, doc);
+    let mut view = f::page_view(&root);
+    let control = node(view.tree(), Role::Link, "Connect a model");
+    let (node, first) = f::terminal_command(
+        view.tree(),
+        &view.limits().tree,
+        control,
+        b"Connect a model",
+        "Model: none yet · ".as_bytes(),
+    );
+    assert_eq!(
+        crate::act(&mut view, node, first),
+        Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: None } } }))
+    );
 }

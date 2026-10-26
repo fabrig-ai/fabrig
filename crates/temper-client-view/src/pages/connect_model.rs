@@ -615,7 +615,7 @@ fn on_accounts(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
             let lead = w.say(Word::ModelOnAccounts, &[Hole::Name(name)]);
             let accounts = say(w, W::Accounts);
             let tail = w.say(Word::ForgeOnForgesTail, &[]);
-            b.open(Role::Paragraph);
+            b.open(Role::Slot);
             b.style(crate::look::FLOW_MUTED);
             b.name(&words::join(&[&lead, &accounts, &tail]));
             b.text(Run::Plain, &lead);

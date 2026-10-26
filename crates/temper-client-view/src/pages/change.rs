@@ -15,7 +15,7 @@ pub(crate) fn say(words: &Words, word: W, holes: &[Hole]) -> Box<[u8]> {
     words.book.say(words.language, word.id(words.connector), holes).expect("checked change phrase").text
 }
 fn phrase(b: &mut Builder, words: &Words, said: Said) {
-    b.text(Run::Plain, &say(words, said.0, &said.1));
+    b.run(Run::Plain, &say(words, said.0, &said.1));
 }
 fn text(b: &mut Builder, words: &Words, word: W, holes: &[Hole]) {
     b.open(Role::Paragraph);
@@ -81,16 +81,18 @@ pub(crate) fn start(b: &mut Builder, change: Change<'_>, words: &Words, bindings
         b.close();
     }
     b.close();
-    b.open(Role::Paragraph);
+    b.open(Role::Slot);
+    b.style(look::CHANGE);
     let line = change.line();
     let line_word = line.0;
+    b.open(Role::Text);
     phrase(b, words, line);
     if let Some(queue) = change.queue() {
         // First has its own complete sentence; Queued's prefix needs its tail.
         // The domain marks First through its line word, not a step inferred here.
         if line_word != W::FirstLine {
             if !queue.ahead.is_empty() || queue.unnamed != 0 {
-                b.text(Run::Plain, &say(words, W::After, &[]));
+                b.run(Run::Plain, &say(words, W::After, &[]));
                 for (index, task) in queue.ahead.iter().enumerate() {
                     if index != 0 {
                         let word = if index.checked_add(1) == Some(queue.ahead.len()) && queue.unnamed == 0 {
@@ -98,23 +100,26 @@ pub(crate) fn start(b: &mut Builder, change: Change<'_>, words: &Words, bindings
                         } else {
                             W::Comma
                         };
-                        b.text(Run::Plain, &say(words, word, &[]));
+                        b.run(Run::Plain, &say(words, word, &[]));
                     }
+                    b.close();
                     super::task::task_link(b, *task, words, bindings);
+                    b.open(Role::Text);
                 }
                 if queue.unnamed != 0 {
                     let word = if queue.ahead.is_empty() {
                         W::Tasks
                     } else {
-                        b.text(Run::Plain, &say(words, W::And, &[]));
+                        b.run(Run::Plain, &say(words, W::And, &[]));
                         W::More
                     };
-                    b.text(Run::Plain, &say(words, word, &[Hole::Number(u64::from(queue.unnamed))]));
+                    b.run(Run::Plain, &say(words, word, &[Hole::Number(u64::from(queue.unnamed))]));
                 }
             }
-            b.text(Run::Plain, &say(words, W::Period, &[]));
+            b.run(Run::Plain, &say(words, W::Period, &[]));
         }
     }
+    b.close();
     b.close();
     if let Some(task) = change.runs() {
         super::task::task_link(b, task, words, bindings);

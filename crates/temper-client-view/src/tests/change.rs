@@ -244,17 +244,17 @@ fn queues_keep_the_sentence_and_each_named_tasks_link() {
         (2, &[][..], "2nd in the queue for main, after 1 task."),
     ] {
         let tree = draw(parts(queued(place, names)));
-        let mut paragraph = None;
+        let mut line = None;
         for (index, node) in tree.nodes().iter().enumerate() {
-            if node.role == Role::Paragraph && f::node_text(&tree, index).as_ref() == sentence.as_bytes() {
-                paragraph = Some(index);
+            if node.role == Role::Slot && f::node_text(&tree, index).as_ref() == sentence.as_bytes() {
+                line = Some(index);
                 break;
             }
         }
-        let paragraph = paragraph.expect(sentence);
-        let end = paragraph + usize::try_from(tree.nodes()[paragraph].size).unwrap();
+        let line = line.expect(sentence);
+        let end = line + usize::try_from(tree.nodes()[line].size).unwrap();
         let mut links = List::with_capacity(2);
-        for node in &tree.nodes()[paragraph..end] {
+        for node in &tree.nodes()[line..end] {
             if node.role == Role::Link {
                 links.push(node).unwrap();
             }
@@ -456,4 +456,28 @@ fn a_full_length_safe_forge_address_fits_with_its_label() {
     assert_eq!(links.len(), 1);
     assert_eq!(links.as_slice()[0].external.as_deref().unwrap(), address.as_ref());
     assert!(contains(&tree, "View on forge ↗"));
+}
+
+#[test]
+fn the_queue_offers_each_task_ahead_as_a_terminal_command() {
+    let (mut root, watch) = opened();
+    deliver(&mut root, watch, &panel(parts(queued(4, &[7, 8]))));
+    let mut view = page_view(&root);
+    for task in [7, 8] {
+        let label = task_name(task);
+        let control = f::find(view.tree(), Role::Link, &label).unwrap();
+        let (node, first) = f::terminal_command(
+            view.tree(),
+            &view.limits().tree,
+            control,
+            &label,
+            b"4th in the queue for main, after ",
+        );
+        assert_eq!(
+            crate::act(&mut view, node, first),
+            Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                address: temper_client_domain::Address::Task { task, filter: temper_client_domain::PlanFilter::All },
+            },))
+        );
+    }
 }

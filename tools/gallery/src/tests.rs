@@ -201,7 +201,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-signin-ready",
         heading: "Connect a model",
         parts: &[Part::Named {
-            role: Role::Paragraph,
+            role: Role::Slot,
             name: "ChatGPT · pat@example.com is on the Accounts page, with its details.",
         }],
     },
@@ -591,7 +591,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Build path: one cache per lane",
         parts: &[
             Part::Named { role: Role::Item, name: "Queued · 2nd" },
-            Part::Named { role: Role::Paragraph, name: "2nd in the queue for main, after Task 26." },
+            Part::Named { role: Role::Slot, name: "2nd in the queue for main, after Task 26." },
             Part::Named {
                 role: Role::Text,
                 name: "PR #216 · acme/kit · temper/28/build-path-one-cache-per-lane → main",
@@ -610,7 +610,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Fake server: replay fixtures",
         parts: &[
             Part::Named { role: Role::Item, name: "Landed" },
-            Part::Named { role: Role::Paragraph, name: "Landed · merge commit 4e1a9c7" },
+            Part::Named { role: Role::Slot, name: "Landed · merge commit 4e1a9c7" },
             Part::Named {
                 role: Role::Text, name: "PR #212 · acme/kit · temper/24/fake-server-replay-fixtures → main"
             },

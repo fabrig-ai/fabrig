@@ -168,6 +168,34 @@ pub fn build<'a>(view: &'a mut crate::View, root: &temper_client_domain::Domain)
     crate::build(view, root, NOW, &mut Queue::with_capacity(view.limits().tree.patches));
     view.tree()
 }
+/// Type the number from the last terminal print, checking the complete control line.
+pub fn terminal_command(
+    tree: &skein_ui::Tree,
+    limits: &skein_ui::Limits,
+    control: skein_ui::NodeId,
+    words: &[u8],
+    context: &[u8],
+) -> (skein_ui::NodeId, skein_ui::Act) {
+    let mut print = skein_ui_text::Print::new(limits).expect("terminal print bounds");
+    skein_ui_text::render(tree, b"temper", None, &mut print);
+    assert!(skein_lib::bytes::find(print.text.as_slice(), context).is_some(), "control context stays visible");
+    let mut number = None;
+    for (index, node) in print.numbers.as_slice().iter().enumerate() {
+        if *node == control {
+            number = Some(u64::try_from(index).unwrap().checked_add(1).unwrap());
+        }
+    }
+    let number = skein_lib::Decimal::of(number.expect("control offers a terminal number"));
+    let line = crate::accounts::words::join(&[b"[", number.as_bytes(), b"] ", words, b"\n"]);
+    assert!(skein_lib::bytes::find(print.text.as_slice(), &line).is_some(), "numbered control line");
+    let skein_ui_text::Command::Act { node, first, .. } =
+        skein_ui_text::command(number.as_bytes(), Some(print.numbers.as_slice()), tree, limits.text_per_node)
+    else {
+        panic!("printed number activates its control")
+    };
+    assert_eq!(node, control);
+    (node, first)
+}
 pub fn find(tree: &skein_ui::Tree, role: skein_ui::Role, name: &[u8]) -> Option<skein_ui::NodeId> {
     for node in tree.nodes() {
         if node.role == role && node.name.as_deref() == Some(name) {

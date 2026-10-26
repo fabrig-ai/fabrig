@@ -271,12 +271,15 @@ fn entry(
         b.name(&said);
         b.text(Run::Plain, &said);
         b.close();
-        b.open(Role::Paragraph);
+        b.open(Role::Slot);
+        b.style(look::META);
         if let Some(project) = card.project {
             let name = super::project_name(root.pages().me(root.client()), root.forge().demo(), project, words)
                 .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
-            b.text(Run::Plain, &name);
-            b.text(Run::Plain, " › ".as_bytes());
+            b.open(Role::Text);
+            b.run(Run::Plain, &name);
+            b.run(Run::Plain, " › ".as_bytes());
+            b.close();
         }
         if let Some(task) = source_task(card.object) {
             control(
@@ -290,8 +293,10 @@ fn entry(
         if let Some(page) = &card.page
             && let Some(title) = task_title(page)
         {
-            b.text(Run::Plain, b" ");
-            b.text(Run::Plain, title);
+            b.open(Role::Text);
+            b.run(Run::Plain, b" ");
+            b.run(Run::Plain, title);
+            b.close();
         }
         b.close();
         card_time(b, card, words, times);

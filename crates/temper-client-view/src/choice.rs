@@ -109,7 +109,8 @@ pub(crate) fn composer(
     b.style(crate::look::CHOICE);
     if !can_send(root) {
         bindings.block_submissions();
-        b.open(Role::Paragraph);
+        // Paragraphs flatten their controls in the terminal (client/README.md, 6.5).
+        b.open(Role::Slot);
         b.style(crate::look::ACCOUNT_LINE);
         w.text(b, W::ComposerNoModel, &[]);
         control(

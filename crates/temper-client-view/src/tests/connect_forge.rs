@@ -399,7 +399,7 @@ fn ready_without_a_forge_or_model_offers_the_two_steps() {
     let root = f::welcome_root(Step::Ready, false);
     let view = f::page_view(&root);
     node(view.tree(), Role::Paragraph, b"Forge: none yet");
-    node(view.tree(), Role::Paragraph, b"Model: none yet");
+    node(view.tree(), Role::Slot, b"Model: none yet");
     node(view.tree(), Role::Link, b"Connect a forge");
     node(view.tree(), Role::Link, b"Connect a model");
 }
@@ -2303,5 +2303,54 @@ fn owned_ready_offers_the_forgejo_link_after_the_project() {
             );
             words_in_order(view.tree(), &["Open Shop", "Open Forgejo ↗"]);
         }
+    }
+}
+
+#[test]
+fn the_connected_forge_and_repository_picker_offer_their_links_as_terminal_commands() {
+    let mut view = f::page_view(&here(connected()));
+    let control = view
+        .tree()
+        .nodes()
+        .iter()
+        .rev()
+        .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Forges"))
+        .unwrap()
+        .id;
+    let (id, first) = f::terminal_command(
+        view.tree(),
+        &view.limits().tree,
+        control,
+        b"Forges",
+        b"Forgejo on this machine is on the ",
+    );
+    assert_eq!(crate::act(&mut view, id, first), Some(d::Action::Pages(pages::Act::Go { address: Address::Forges })));
+
+    let (mut root, _, token) = picker_started(false);
+    answer(&mut root, token, picker_page(false, false));
+    act(&mut root, d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Adopt });
+    let view = f::page_view(&root);
+    let label = b"Choose its repositories on GitHub";
+    let disabled = node(view.tree(), Role::Button, label);
+    assert!(view.tree().disabled(disabled));
+    let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+    skein_ui_text::render(view.tree(), b"temper", None, &mut print);
+    assert!(skein_lib::bytes::find(print.text.as_slice(), b"Choose its repositories on GitHub (disabled)\n").is_some());
+    assert!(!print.numbers.as_slice().contains(&disabled));
+
+    for empty in [false, true] {
+        let (mut root, _, token) = picker_started(false);
+        answer(&mut root, token, picker_page(empty, false));
+        let mut view = f::page_view(&root);
+        let label = b"Choose its repositories on GitHub";
+        let control = node(view.tree(), Role::Link, label);
+        let (id, first) = f::terminal_command(view.tree(), &view.limits().tree, control, label, b"Not listed? ");
+        assert_eq!(
+            crate::act(&mut view, id, first),
+            Some(d::Action::Forge(d::forge::Act::Install {
+                forge: GITHUB,
+                back: d::address::print(root.pages().address()),
+            }))
+        );
     }
 }

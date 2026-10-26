@@ -174,16 +174,8 @@ fn a_chats_row_offers_its_number_as_a_terminal_command() {
             &mut 0,
             &mut Queue::with_capacity(limits.patches),
         );
-        let mut print = skein_ui_text::Print::new(&limits).expect("row print bounds");
-        skein_ui_text::render(&tree, b"Chats", None, &mut print);
-        let text = print.text.as_slice();
-        assert!(skein_lib::bytes::find(text, b"Shop").is_some(), "project remains visible");
-        assert!(skein_lib::bytes::find(text, b"[1] T9\n").is_some(), "chat number offers a terminal command");
-        let skein_ui_text::Command::Act { node, first, .. } =
-            skein_ui_text::command(b"1", Some(print.numbers.as_slice()), &tree, TEXT)
-        else {
-            panic!("chat command activates its link")
-        };
+        let control = fixtures::find(&tree, Role::Link, b"T9").expect("chat number link");
+        let (node, first) = fixtures::terminal_command(&tree, &limits, control, b"T9", b"Shop");
         let mut binding = None;
         for item in tree.nodes() {
             if item.id == node {

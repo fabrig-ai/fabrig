@@ -796,3 +796,38 @@ fn signing_in_elsewhere_draws_the_sign_ins_link_and_the_paste_unfolded() {
     );
     assert!(!words(&root).contains("Go forward to that page"));
 }
+
+#[test]
+fn the_connected_model_offers_accounts_as_a_terminal_command() {
+    let mut root = ending(c::OwnerAccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
+    fixtures::root_event(
+        &mut root,
+        d::Event::Went {
+            place: d::Place::Address(d::Address::Welcome {
+                step: d::Step::Model {
+                    way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: None }),
+                },
+            }),
+        },
+    );
+    let mut view = fixtures::page_view(&root);
+    let control = view
+        .tree()
+        .nodes()
+        .iter()
+        .rev()
+        .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Accounts"))
+        .unwrap()
+        .id;
+    let (node, first) = fixtures::terminal_command(
+        view.tree(),
+        &view.limits().tree,
+        control,
+        b"Accounts",
+        "ChatGPT · alice@example.com is on the ".as_bytes(),
+    );
+    assert_eq!(
+        crate::act(&mut view, node, first),
+        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Accounts }))
+    );
+}

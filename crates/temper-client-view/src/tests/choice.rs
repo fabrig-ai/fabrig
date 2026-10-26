@@ -1453,3 +1453,22 @@ fn chooser_groups_use_the_providers_words() {
 fn the_no_model_line_keeps_the_tasks_wait_feedback() {
     assert!(text(&no_model_root(true)).contains("Waiting for a credential"));
 }
+
+#[test]
+fn the_no_model_composer_offers_connect_a_model_as_a_terminal_command() {
+    for task_page in [false, true] {
+        let mut view = fixtures::page_view(&no_model_root(task_page));
+        let control = fixtures::find(view.tree(), Role::Link, b"Connect a model").unwrap();
+        let (node, first) = fixtures::terminal_command(
+            view.tree(),
+            &view.limits().tree,
+            control,
+            b"Connect a model",
+            "No model yet · ".as_bytes(),
+        );
+        assert_eq!(
+            crate::act(&mut view, node, first),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::ConnectModel { way: None } }))
+        );
+    }
+}

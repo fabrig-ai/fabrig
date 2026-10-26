@@ -297,10 +297,13 @@ fn model_line(
         } else if let Some(provider) = super::accounts::own_signing_name(root, w) {
             crate::cards::text(b, Role::Paragraph, &w.say(Word::WelcomeModelSigningIn, &[Hole::Name(provider)]));
         } else {
-            b.open(Role::Paragraph);
+            b.open(Role::Slot);
+            b.style(look::ACCOUNT_LINE);
             b.name(&w.say(Word::WelcomeNoModel, &[]));
-            w.text(b, Word::WelcomeNoModel, &[]);
-            b.text(Run::Plain, b" \xc2\xb7 ");
+            b.open(Role::Text);
+            b.run(Run::Plain, &w.say(Word::WelcomeNoModel, &[]));
+            b.run(Run::Plain, b" \xc2\xb7 ");
+            b.close();
             go(b, w, bindings, Word::WelcomeModelTitle, Step::Model { way: None });
             b.close();
             b.open(Role::Slot);

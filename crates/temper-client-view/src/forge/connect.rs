@@ -723,7 +723,8 @@ pub(crate) fn ready_card(
         app_line(b, w, row);
         adopt(b, root, w, bindings);
     }
-    b.open(Role::Paragraph);
+    b.open(Role::Slot);
+    b.style(look::FLOW_SUBTITLE);
     w.text(b, Word::ForgeOnForges, &[Hole::Name(name(w, row, root))]);
     link(b, w, bindings, Word::ForgesTitle, Address::Forges);
     w.text(b, Word::ForgeOnForgesTail, &[]);
@@ -1120,7 +1121,7 @@ fn github_picker(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBin
     {
         adoption_outcome(b, w, &adoption.value, answer);
     }
-    b.open(Role::Paragraph);
+    b.open(Role::Slot);
     b.style(look::FLOW_MUTED);
     w.text(b, Word::GitHubNotListed, &[]);
     let label = w.say(Word::GitHubChooseRepositories, &[]);
