@@ -1780,8 +1780,6 @@ section 17; the records are `../protocol/store.md`, 4.4.
 
 ### 17.2 A change
 
-Until held charter versions are implemented, a settings change is refused as full when a live agent task selects a model not present in the prospective charters, or its charter is removed. This newest-only refusal names the current revision and incompatible tasks; Stays and Moves do not avoid it. It is not the retained-version capacity rule of 17.8. A refused acceptance keeps the proposal pending.
-
 - **A set, against a revision.** An owner's `ChangeSettings` (people.md,
   5.1) names the revision it was made against and its items, at most
   one per setting, each a setting and what becomes of it: *set* to a
@@ -2105,7 +2103,9 @@ Its code comes after the rest (`../STATUS.md`).
     any, and what fails, as a document failing its check always was;
   - *past limits:* held revisions or charter versions past limits
     lowered since, or a release's revision that would pass them, refuse
-    the start, saying which, as a live set past lowered limits does.
+    the start, saying which, as a live set past lowered limits does; so
+    does a task or a claim naming a revision the store holds no record
+    of.
 
   A saved project policy above the current policy byte budget refuses the
   start naming its project and policy; the named restore failure is retained
@@ -2132,7 +2132,10 @@ Its code comes after the rest (`../STATUS.md`).
   run bytes and the core's part of a charter), the tasks child's models
   for it and the fleet's needs. The core's worst case prices both, and
   the tasks child's and the fleet's tables are sized for the charters
-  and the versions together.
+  and the versions together: the tasks child's for twice the charters
+  and every version. A release's decision adds two journal writes per
+  held revision, one per charter version and one more, which the
+  journal's room per commit prices.
 - **The current settings** cost the defaults and the changes, each
   within its kind's bounds (17.1): at most two whole sets, priced so;
   of an application's kinds, the core prices only what it keeps of
