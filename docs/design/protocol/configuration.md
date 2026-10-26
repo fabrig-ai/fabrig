@@ -1669,11 +1669,19 @@ section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
   optionally a heading. temper's stock charters name none.
 - **The forge gathers each** for a run of the charter, as a brief
   section of its own (`../domain/root.md`, 7.2): the file at the
-  branch's head when the run is prepared, read as `read_file` reads one
-  (`../domain/forge.md`, section 2), or, with a heading, the lines from
-  that heading to the next of its level or above, within the `document`
-  budget (4,096 bytes in `small`). A repository not adopted, a file or
-  heading not there, or a read that failed, is a section saying so.
+  branch's head as the forge resolves it when it gathers the section,
+  one commit named in the section and kept for its whole life, read as
+  `read_file` reads one (`../domain/forge.md`, section 2). With a
+  heading, the part from the first Markdown heading line whose text,
+  after its `#`s and one space, equals the heading byte for byte, to
+  the line before the next heading of its level or above. Cut to the
+  section's allotment at the last line end within it, saying how many
+  bytes were left out, as the brief's other cuts do. Its budget is
+  `document`, a limit of the forge's beside `ci`, `reviews` and `pull`
+  (section 7), 4,096 bytes in `small`, priced in the forge's worst case
+  for the documents of every run it prepares at once. A repository not
+  adopted, a file or heading not there, or a read that failed, is a
+  section saying so.
 - **In a settings file** (`../client/tools.md`, 5.3), a charter's value
   carries `"documents": [{"forge": F, "repository": "owner/name",
   "branch": B, "path": P, "heading": H}]`, `heading` optional, which
