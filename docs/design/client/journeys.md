@@ -97,8 +97,11 @@ journeys, 10 what is open.
   facts once, then each turn's clocks, each report given to
   `Host::report` with the duties it returned, and the turn's deadline.
   It keeps them in memory as the file's lines (3.2), through
-  `journey::Recorder`, which is platform-independent: the wasm part
-  only reads the keys and saves.
+  `journey::Recorder`, which is platform-independent and wraps the
+  seam: `Recorder::report(host, page, report) -> Duties` gives the
+  report to the host and keeps both, and `Duties::departs()` says when
+  the duties leave the page. The shell and the host's tests call it
+  alike; the wasm part only reads the keys and saves.
 - **Two keys,** read by their `code` on the document before the page
   sees them, so that the page never does: Alt+Shift+M marks the page
   as it is drawn, with no act, for a state the page reaches by itself,
@@ -136,7 +139,7 @@ comment, no blank.
 | `start`, `due`, `place`, `heard`, `carried`, `act` | the report | each report, in its turn's order |
 | `exchange`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show` | what the host asked | after its report, in order |
 | `deadline` | nanoseconds, or `none` | each turn's end |
-| `mark` | the live page's html | before its act, or between turns at the key |
+| `mark` | the live page's html | before its act, or at the key, in a turn of its own (`turn`, `mark`, `deadline`) |
 | `end` | the live page's html | the last line |
 
 - **The reports:** `place PATH`; `heard answered EXCHANGE STATUS BODY`,
@@ -158,7 +161,9 @@ comment, no blank.
   with `-` for a space (`button`, `text-field`); its accessible name,
   the node's name or else its subtree's text, as the fake person reads
   it; and its order, from 1, among the tree's nodes with that role and
-  exactly that name, in tree order (`act button "Choose" 2 press`).
+  exactly that name, in tree order (`act button "Choose" 2 press`;
+  the welcome's "Set up temper" is a link, `act link "Set up temper" 1
+  press`).
 - **The act** is skein-ui's: `press`, `submit`, `toggle`, `input` with
   its value, or `drawing` with its bytes.
 
@@ -166,7 +171,8 @@ comment, no blank.
 
 - **A mark is a page as the person saw it:** as drawn when an act came,
   before the act's turn changes it; as drawn when the mark key was
-  pressed; and at the recording's end. Each keeps the live page's
+  pressed; and at the recording's end. Either way it is the page as the
+  last turn's end drew it, so the replay takes a mark wherever it sits. Each keeps the live page's
   `Page::html()`, for the first replay's proof.
 - **Typing marks nothing.** An `input` act is recorded and replayed but
   marks no page: a printed field takes typing as the live one does
@@ -251,7 +257,9 @@ Under `docs/design/client/journeys/`:
   generated files, owned by `scripts/regenerate.sh`, which rewrites them
   by the reprint, so that a rebase that conflicts in them is resolved
   by reprinting (agents' `landing-flow.md`, 3). A recording and the
-  overlay are sources, never regenerated.
+  overlay are sources, never regenerated. A stale journey fails the
+  reprint, and so the regeneration: such a landing stops until the
+  journey is recorded again (section 8).
 
 ### 5.3 A page
 
@@ -308,6 +316,8 @@ python3 -m http.server 8766
   journey reprinted into a scratch directory equals its directory and
   the files beside it, byte for byte; one that differs or is stale
   fails, naming `cargo run -p temper-client-journeys`.
+- **The recording bundle stays built:** the gate's browser-target
+  check builds the shell with `loopback-navigation` and `record` too.
 - **The recorder's keys and download** have no browser story: the first
   journey's recording proves them, and the browser tier proves only
   what a browser alone shows (`browser.md`, section 4).
@@ -342,6 +352,9 @@ python3 -m http.server 8766
   box are needed only when the client's exchange with the engine
   changes, never for a change to the view or the look alone, which a
   reprint carries.
+- **By a person, for now:** skein's browser driver, `skein-browser`,
+  presses no modifier chord and takes no download, so an agent records
+  only through Chromium's DevTools protocol directly (section 10).
 - **A new recording reads anew:** its times are the new walk's, and so
   are the fake box's loopback ports wherever a page shows one, so the
   print's diff holds those as well as what changed.
@@ -363,11 +376,17 @@ python3 -m http.server 8766
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.
+- **Recording by an agent** (section 8): a landing that changes the
+  client's exchange on a recorded walk stops until the journey is
+  recorded again, which an agent can't do with the kit's driver. Its
+  shape would be `skein-browser` gaining modifier chords and a download
+  directory, then the recorder walking a stale recording's acts itself
+  (by role, name and order, through skein's fake person in Chromium),
+  so that the person only watches.
 - **Later, if wanted:** fixed loopback ports for the fake box, so that a
-  new recording differs from the last only where the client does; the
-  recorder walking a stale recording's acts itself, so that the person
-  only watches; and the one-tag-per-line print as skein-ui-web's, for
-  another application's journeys.
+  new recording differs from the last only where the client does; and
+  the one-tag-per-line print as skein-ui-web's, for another
+  application's journeys.
 - **Real accounts:** a recording against a box with real accounts would
   need its secrets kept out (the printed link's, a typed key's); not
   designed.
