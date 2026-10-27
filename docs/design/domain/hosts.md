@@ -902,7 +902,10 @@ agent for ever.
   Proposals and escalations waiting for the task are relayed the same
   way. What a decision about a task names travels with it: a notice of
   a delegate held, and an escalation, carry the hold's revision
-  (section 8). The run names the last it read with each turn and when it
+  (section 8); a question carries its kind and its number, the one an
+  answer to it names (tasks.md, 8.1), and an answer the question it
+  answers, so a run that relays or answers a question never guesses
+  its number. The run names the last it read with each turn and when it
   waits. A proposal or an escalation relayed to a run and decided before
   its turn commits, often by a call in that very turn, still ends read
   when the turn names it (tasks.md, section 9).
