@@ -9,6 +9,7 @@ use skein_lib::{Deadlines, Env, Queue};
 mod accounts;
 pub(crate) mod acts;
 mod moves;
+pub(crate) mod proposal;
 pub(crate) mod reads;
 mod recovery;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

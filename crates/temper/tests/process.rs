@@ -3861,7 +3861,16 @@ fn temper_ctl_proposal() {
     let seen = support::ctl::run(Story::new(scratch.path(), steps));
     ctl_assert_success(&seen.calls);
     let calls = &seen.calls;
-    assert!(String::from_utf8_lossy(&calls[6].stdout).contains("would be"));
+    let text = String::from_utf8_lossy(&calls[6].stdout);
+    assert!(text.contains("would be"));
+    let current = support::ctl::json(&calls[4])["value"]["instructions"].clone();
+    assert!(text.contains(&serde_json::to_string(&current).expect("whole current instructions")));
+    assert!(text.contains("Settings proposed by the member."));
+    assert!(!text.contains("too large"));
+    let whole = support::ctl::json(&calls[7]);
+    let item = &whole["action"]["settings"]["review"]["items"][0];
+    assert_eq!(item["now"]["value"]["value"]["charter"]["instructions"], current);
+    assert_eq!(item["would_be"]["value"]["value"]["charter"]["instructions"], "Settings proposed by the member.");
     let review = support::ctl::json(&calls[7]);
     assert_eq!(review["action"]["settings"]["against"], support::ctl::json(&calls[3])["newest"]);
     let item = &review["action"]["settings"]["review"]["items"][0];
@@ -3870,6 +3879,47 @@ fn temper_ctl_proposal() {
     assert!(!item["would_be"].is_null());
     assert!(String::from_utf8_lossy(&calls[9].stdout).contains("withdrawn"));
     scratch.remove();
+}
+
+#[test]
+fn temper_ctl_repeated_settings_decisions() {
+    use support::ctl::{Call, Step, Story};
+    for accepted in [false, true] {
+        let scratch = ctl_scratch(if accepted { "ctl_repeat_accepted" } else { "ctl_repeat_rejected" });
+        let mut steps = ctl_settings_member_setup(scratch.path());
+        for (key, accept) in [
+            ("first-decision", accepted),
+            ("first-decision", accepted),
+            ("fresh-accept", true),
+            ("fresh-reject", false),
+        ] {
+            steps.push(Step::Then(Box::new(move |calls| {
+                let proposal = support::ctl::proposal_key(&calls[5]);
+                let mut argv = vec!["proposal", "decide", &proposal, if accept { "accept" } else { "reject" }];
+                if accept {
+                    argv.extend(["--running", "stays"]);
+                } else {
+                    argv.push("Keep it");
+                }
+                argv.extend(["--key", key]);
+                Call::new(&argv)
+            })));
+        }
+        steps.push(Step::Run(Call::new(&["settings", "show", "--json"])));
+        let seen = support::ctl::run(Story::new(scratch.path(), steps));
+        ctl_assert_success(&seen.calls);
+        let calls = &seen.calls;
+        assert_eq!(calls[6].stdout, b"done: decide\n");
+        assert_eq!(calls[6].stdout, calls[7].stdout, "identical key replays the original output");
+        for call in &calls[8..=9] {
+            let output = String::from_utf8_lossy(&call.stdout);
+            assert!(output.starts_with("decided first: by "), "{output}");
+            assert!(output.contains(if accepted { "accepted" } else { "rejected" }), "{output}");
+        }
+        let before = support::ctl::newest(&calls[3]);
+        assert_eq!(support::ctl::newest(&calls[10]), before + u64::from(accepted), "repeats make no revision");
+        scratch.remove();
+    }
 }
 
 #[test]

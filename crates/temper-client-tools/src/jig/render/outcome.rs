@@ -264,6 +264,11 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             me,
             out,
         ),
+        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProposalDecided {
+            by, at, choice, repeated: true, ..
+        })) => {
+            repeated_text(*by, *at, *choice, me, out);
+        }
         c::Answer::Done(c::Outcome::DecidedFirst { by, how, at }) => {
             out.put(b"decided first: by ");
             out.put(by.name.bytes());
@@ -327,6 +332,21 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
     }
     out.put(b"\n");
 }
+fn repeated_text(by: u64, at: skein_lib::Wall, choice: c::OwnerProposalChoice, me: Option<&c::Me>, out: &mut Text) {
+    out.put(b"decided first: by ");
+    acts::party(by, me, out);
+    out.put(b", ");
+    out.put(match choice {
+        c::OwnerProposalChoice::Accepted => b"accepted",
+        c::OwnerProposalChoice::Rejected => b"rejected",
+        c::OwnerProposalChoice::Passed => b"passed up",
+        c::OwnerProposalChoice::Withdrawn => b"withdrawn",
+        c::OwnerProposalChoice::Stale => b"stale",
+    });
+    out.put(b", ");
+    document::utc(at, out);
+}
+
 fn proposed(proposal: c::ProposalKey, operation: &Operation, me: Option<&c::Me>, out: &mut Text) {
     out.put(b"proposed: ");
     let name = crate::jig::argv::value::encode(

@@ -391,7 +391,7 @@ fn read_rules(driver: &mut Driver, revision: u32) -> core::reads::SettingDocumen
     driver.send(Event::Party(PartyInput::Read {
         reply_to: ReplyTo::new(Token::new(990)),
         sign_in: driver.session(),
-        read: core::reads::Read::Setting { setting: s::Setting::Rules, revision },
+        read: core::reads::Read::Setting { setting: s::Setting::Rules, revision, proposal: None },
     }));
     driver.settle();
     driver

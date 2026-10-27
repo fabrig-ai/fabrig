@@ -1,6 +1,7 @@
 //! Proposal reads and the settings review supplied by wire 19 (client/tools.md, 5.2).
 use super::{Cut, Limits, Text, settings};
-use jig_client::contract as c;
+use crate::jig::runner::{proposal::slot, reads::Reading};
+use jig_client::{Readout, contract as c};
 use skein_json::writer::Encoder;
 
 #[derive(Clone, Copy)]
@@ -43,7 +44,7 @@ fn selected(value: &c::ReadValue) -> Proposal<'_> {
     }
 }
 
-pub(super) fn text(value: &c::ReadValue, limits: &Limits, out: &mut Text) {
+pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out: &mut Text) {
     let (key, reason, action) = match selected(value) {
         Proposal::Owner(p) => (p.key, p.reason.bytes.bytes(), owner_action(&p.action)),
         Proposal::Legacy(p) => (p.key, p.why.bytes(), legacy_action(&p.action)),
@@ -69,12 +70,12 @@ pub(super) fn text(value: &c::ReadValue, limits: &Limits, out: &mut Text) {
         && let c::OwnerProposalAction::Settings(s) = &p.action
         && let Some(review) = &s.review
     {
-        for item in &review.items {
+        for (index, item) in review.items.iter().enumerate() {
             settings::setting_text(item.setting, out);
             out.put(b" \xc2\xb7 ");
             out.put(review_change(item));
             out.put(b" \xc2\xb7 now ");
-            review_value_text(&item.now, limits, out);
+            review_value_text(&item.now, item.setting, reading.pages.get(&slot(index, false)), limits, out);
             out.put(b" (");
             match &item.origin {
                 c::SettingOrigin::Change(r) => {
@@ -85,7 +86,7 @@ pub(super) fn text(value: &c::ReadValue, limits: &Limits, out: &mut Text) {
                 c::SettingOrigin::NotOffered => out.put(b"not offered"),
             }
             out.put(b") \xc2\xb7 would be ");
-            review_value_text(&item.would_be, limits, out);
+            review_value_text(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), limits, out);
             out.put(b"\n");
         }
         if review.cut {
@@ -106,15 +107,49 @@ fn review_change(item: &c::ReviewItem) -> &'static [u8] {
         }
     }
 }
-fn review_value_text(value: &c::ReviewValue, limits: &Limits, out: &mut Text) {
+fn resolved<'a>(
+    value: &'a c::ReviewValue,
+    setting: c::Setting,
+    page: Option<&'a Readout>,
+) -> Result<Option<&'a c::SettingValue>, &'static [u8]> {
     match value {
-        c::ReviewValue::Value(set) => settings::value_inline(&set.value, limits, out),
-        c::ReviewValue::TooLarge(size) => {
-            out.put(b"too large, ");
-            out.number(size.bytes);
-            out.put(b" bytes");
-        }
-        c::ReviewValue::None => out.put(b"none"),
+        c::ReviewValue::Value(set) => Ok(Some(&set.value)),
+        c::ReviewValue::None => Ok(None),
+        c::ReviewValue::TooLarge(_) => match page {
+            Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document))))
+                if document.setting == setting =>
+            {
+                Ok(Some(&document.value))
+            }
+            Some(Readout::Jig(c::ReadResult::None(why))) => Err(match why {
+                c::ReadNone::Refused => b"refused",
+                c::ReadNone::Unknown => b"unknown",
+                c::ReadNone::Gone => b"gone",
+                c::ReadNone::Busy => b"busy",
+                c::ReadNone::SignedOut => b"signed out",
+                c::ReadNone::Unreachable => b"unreachable",
+                c::ReadNone::Malformed => b"malformed document",
+                c::ReadNone::TooLarge { .. } => b"document limit",
+            }),
+            Some(Readout::Limit) => Err(b"read table limit"),
+            Some(Readout::NotServed { .. }) => Err(b"version not served"),
+            Some(Readout::Jig(c::ReadResult::Value(_)) | Readout::Family { .. }) | None => {
+                Err(b"tools' bug; unexpected setting document; report it as a finding")
+            }
+        },
+    }
+}
+fn review_value_text(
+    value: &c::ReviewValue,
+    setting: c::Setting,
+    page: Option<&Readout>,
+    limits: &Limits,
+    out: &mut Text,
+) {
+    match resolved(value, setting, page) {
+        Ok(Some(value)) => settings::value_inline(value, limits, out),
+        Ok(None) => out.put(b"none"),
+        Err(why) => out.put(why),
     }
 }
 fn owner_action(action: &c::OwnerProposalAction) -> &'static [u8] {
@@ -136,7 +171,7 @@ fn legacy_action(action: &c::ProposalAction) -> &'static [u8] {
         c::ProposalAction::Amend { .. } => b"amend",
     }
 }
-pub(super) fn encode(value: &c::ReadValue, out: &mut Encoder, budget: &mut Cut) {
+pub(super) fn encode(value: &c::ReadValue, reading: &Reading, out: &mut Encoder, budget: &mut Cut) {
     out.object_start();
     let proposal = selected(value);
     let (key, project, acts) = match proposal {
@@ -153,7 +188,7 @@ pub(super) fn encode(value: &c::ReadValue, out: &mut Encoder, budget: &mut Cut) 
             super::encode_document_text(&p.reason, out, budget);
             out.key(b"action");
             match &p.action {
-                c::OwnerProposalAction::Settings(s) => encode_settings(s, out),
+                c::OwnerProposalAction::Settings(s) => encode_settings(s, reading, out),
                 action @ (c::OwnerProposalAction::Batch(_)
                 | c::OwnerProposalAction::Effect { .. }
                 | c::OwnerProposalAction::ProcedureEffect { .. }
@@ -233,14 +268,15 @@ fn holder_number(kind: &[u8], n: u64, out: &mut Encoder) {
     out.object_end();
 }
 
-fn encode_settings(s: &c::OwnerProposalActionSettings, out: &mut Encoder) {
-    encode_settings_fields(s.against, &s.items, s.review.as_ref(), s.made, out);
+fn encode_settings(s: &c::OwnerProposalActionSettings, reading: &Reading, out: &mut Encoder) {
+    encode_settings_fields(s.against, &s.items, s.review.as_ref(), s.made, Some(reading), out);
 }
 fn encode_settings_fields(
     against: u32,
     items: &skein_lib::List<c::RevisionItemHead>,
     review: Option<&c::SettingsReview>,
     made: Option<u32>,
+    reading: Option<&Reading>,
     out: &mut Encoder,
 ) {
     out.object_start();
@@ -261,7 +297,7 @@ fn encode_settings_fields(
     out.array_end();
     out.key(b"review");
     match review {
-        Some(review) => encode_review(review, out),
+        Some(review) => encode_review(review, reading.expect("pending review reads"), out),
         None => out.null(),
     }
     out.key(b"made");
@@ -272,20 +308,20 @@ fn encode_settings_fields(
     out.object_end();
     out.object_end();
 }
-fn encode_review(review: &c::SettingsReview, out: &mut Encoder) {
+fn encode_review(review: &c::SettingsReview, reading: &Reading, out: &mut Encoder) {
     out.object_start();
     out.key(b"newest");
     out.unsigned(u64::from(review.newest));
     out.key(b"items");
     out.array_start();
-    for item in &review.items {
+    for (index, item) in review.items.iter().enumerate() {
         out.object_start();
         out.key(b"setting");
         settings::encode_setting(item.setting, out);
         out.key(b"edit");
         out.string(settings::edit_word(&item.edit));
         out.key(b"now");
-        encode_review_value(&item.now, out);
+        encode_review_value(&item.now, item.setting, reading.pages.get(&slot(index, false)), out);
         out.key(b"origin");
         match &item.origin {
             c::SettingOrigin::Default(r) => origin_revision(b"default", r.revision, out),
@@ -293,7 +329,7 @@ fn encode_review(review: &c::SettingsReview, out: &mut Encoder) {
             c::SettingOrigin::NotOffered => out.string(b"not_offered"),
         }
         out.key(b"would_be");
-        encode_review_value(&item.would_be, out);
+        encode_review_value(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), out);
         out.object_end();
     }
     out.array_end();
@@ -311,35 +347,32 @@ fn origin_revision(kind: &[u8], revision: u32, out: &mut Encoder) {
     out.object_end();
 }
 
-fn encode_review_value(value: &c::ReviewValue, out: &mut Encoder) {
-    match value {
-        c::ReviewValue::Value(set) => {
+fn encode_review_value(value: &c::ReviewValue, setting: c::Setting, page: Option<&Readout>, out: &mut Encoder) {
+    match resolved(value, setting, page) {
+        Ok(Some(value)) => {
             out.object_start();
             out.key(b"value");
             out.object_start();
             out.key(b"value");
             out.object_start();
-            out.key(match &set.value {
+            out.key(match value {
                 c::SettingValue::Charter(_) => b"charter",
                 c::SettingValue::Template(_) => b"template",
                 c::SettingValue::Policy(_) => b"policy",
                 c::SettingValue::Rules(_) => b"rules",
             });
-            settings::encode_value(&set.value, out);
+            settings::encode_value(value, out);
             out.object_end();
             out.object_end();
             out.object_end();
         }
-        c::ReviewValue::TooLarge(size) => {
+        Ok(None) => out.string(b"none"),
+        Err(why) => {
             out.object_start();
-            out.key(b"too_large");
-            out.object_start();
-            out.key(b"bytes");
-            out.unsigned(size.bytes);
-            out.object_end();
+            out.key(b"refused");
+            out.string(why);
             out.object_end();
         }
-        c::ReviewValue::None => out.string(b"none"),
     }
 }
 
@@ -410,7 +443,9 @@ pub(super) fn encode_history(value: &c::OwnerHistorical, out: &mut Encoder, budg
     match &value.value {
         c::OwnerHistoricalValue::Proposal(history) => {
             match &history.action {
-                c::OwnerRetainedAction::Settings(s) => encode_settings_fields(s.against, &s.items, None, s.made, out),
+                c::OwnerRetainedAction::Settings(s) => {
+                    encode_settings_fields(s.against, &s.items, None, s.made, None, out);
+                }
                 other @ (c::OwnerRetainedAction::Batch(_)
                 | c::OwnerRetainedAction::Effect { .. }
                 | c::OwnerRetainedAction::ProcedureEffect { .. }

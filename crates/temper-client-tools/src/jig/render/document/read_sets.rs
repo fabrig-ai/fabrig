@@ -21,7 +21,7 @@ pub(super) fn text(
         super::super::activity::chat(thread, call, limits, out);
         return;
     }
-    for page in reading.pages.values() {
+    for (_, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
         match page {
             Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerProject(project))) => {
                 super::projects::text(project, call, limits, vocabulary, out);
@@ -34,7 +34,7 @@ pub(super) fn text(
             )) => super::settings::text(value, crate::jig::call::number(call, 0), limits, out),
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Proposal(_) | c::ReadValue::OwnerProposal(_)),
-            )) => super::proposal::text(value, limits, out),
+            )) => super::proposal::text(value, reading, limits, out),
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
                 super::task_text(task, me, book, vocabulary, out);
                 vocabulary.task_next(task, out);
@@ -114,7 +114,7 @@ pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budg
     if compound {
         out.object_start();
     }
-    for (local, page) in &reading.pages {
+    for (local, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
         if reading.called.call.tool == 1 && *local == 5 && !super::super::lists::updates_fit(reading, limits.rows) {
             continue;
         }
@@ -133,7 +133,7 @@ pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budg
             )) => super::settings::encode(value, out),
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Proposal(_) | c::ReadValue::OwnerProposal(_)),
-            )) => super::proposal::encode(value, out, budget),
+            )) => super::proposal::encode(value, reading, out, budget),
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
                 if compound {
                     out.key(b"task");

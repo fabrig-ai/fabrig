@@ -24,7 +24,8 @@ fn handle(runner: &Runner, prefix: u32, local: u32) -> Handle {
     Handle { asker: runner.asker, number: (u64::from(prefix) << 32u32) | u64::from(local) }
 }
 fn read(runner: &Runner, reading: &mut Reading, local: u32, what: c::Read, out: &mut Queue<Out>) {
-    reading.pending |= 1u8.checked_shl(local).expect("fixed read slot");
+    // Supplemental review reads (slots 8 and up) run one at a time and share bit 7.
+    reading.pending |= 1u8.checked_shl(local.min(7)).expect("fixed read slot");
     out.push(Out::Client {
         event: Event::Read { handle: handle(runner, reading.called.call_number, local), read: Readable::Jig(what) },
     });
@@ -169,7 +170,7 @@ pub(super) fn page(
     let prefix = u32::try_from(handle.number >> 32u32).expect("high half");
     let local = u32::try_from(handle.number & u64::from(u32::MAX)).expect("low half");
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
-    reading.pending &= !1u8.checked_shl(local).expect("fixed read slot");
+    reading.pending &= !1u8.checked_shl(local.min(7)).expect("fixed read slot");
     // An opening Unknown can mean an ended task, but proves no identity or
     // authority. Only the authorized task read may establish that end.
     if local == 6 && (reading.called.call.tool == 3 || reading.called.call.tool == 4) {
@@ -183,7 +184,7 @@ pub(super) fn page(
         && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = &page
     {
         let setting = super::super::settings_file::selector(&reading.called.call);
-        let what = c::Read::Setting(c::ReadSetting { setting, revision: settings.newest });
+        let what = c::Read::Setting(c::ReadSetting { setting, revision: settings.newest, proposal: None });
         read(runner, &mut reading, 1, what, out);
         complete(runner, client, env, reading, out);
         return;
@@ -297,6 +298,13 @@ fn close(runner: &Runner, reading: &Reading, out: &mut Queue<Out>) {
 }
 fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
     if reading.pending != 0 {
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
+    if reading.called.call.tool == rows::PROPOSAL_AT
+        && let Some((local, what)) = super::proposal::next(&reading)
+    {
+        read(runner, &mut reading, local, what, out);
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
@@ -430,7 +438,13 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
             match number(call, 2) {
                 Some(n) => {
                     let revision = u32::try_from(n).expect("parsed revision");
-                    read(runner, reading, 1, c::Read::Setting(c::ReadSetting { setting, revision }), out);
+                    read(
+                        runner,
+                        reading,
+                        1,
+                        c::Read::Setting(c::ReadSetting { setting, revision, proposal: None }),
+                        out,
+                    );
                 }
                 None => read(runner, reading, 6, c::Read::Settings, out),
             }

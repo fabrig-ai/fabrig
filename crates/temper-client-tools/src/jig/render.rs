@@ -392,6 +392,9 @@ pub(crate) fn reads(
         None => None,
     };
     for (local, page) in &reading.pages {
+        if reading.called.call.tool == crate::jig::rows::PROPOSAL_AT && *local >= crate::jig::runner::proposal::FIRST {
+            continue;
+        }
         match page {
             Readout::Jig(ReadResult::Value(ReadValue::Revision(answer)))
                 if reading.called.call.tool == crate::jig::rows::REVISION_AT

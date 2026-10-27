@@ -270,12 +270,36 @@ pub(super) fn page(
     };
     prepared(runner, client, env, called, ask, out);
 }
+fn settings_history(call: &Call, document: &c::ReadValue) -> bool {
+    if call.tool == rows::DECIDE_AT
+        && let c::ReadValue::Historical(history) = document
+        && let Some(Value::Proposal(key)) = value(call, 0)
+        && render::historical_proposal(history) == Some(*key)
+        && let c::OwnerHistoricalValue::Proposal(proposal) = &history.value
+        && match proposal.action {
+            c::OwnerRetainedAction::Settings(_) => true,
+            c::OwnerRetainedAction::Batch(_)
+            | c::OwnerRetainedAction::Effect { .. }
+            | c::OwnerRetainedAction::ProcedureEffect { .. }
+            | c::OwnerRetainedAction::Amend { .. }
+            | c::OwnerRetainedAction::Widen { .. }
+            | c::OwnerRetainedAction::Release { .. } => false,
+        }
+    {
+        return true;
+    }
+    false
+}
+
 fn build(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits, project: Option<u32>) -> Prepared {
     if call.tool == rows::AMEND_AT {
         return Err(Failed::Fixed(b"unexpected amendment document"));
     }
     if call.tool == rows::CLOSE_AT {
         return close_request(call, document, me, limits);
+    }
+    if settings_history(call, document) {
+        return Ok((Request::Ask(c::Ask::Decide { project: 0, on: decide(call, 0, limits)? }), None));
     }
     let (project, offers) = match document {
         c::ReadValue::Task(task) => (task.project, &task.acts),

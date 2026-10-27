@@ -162,6 +162,18 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
         newest_for_setting(&mut root, call);
     }
     root.serve(call, c::ReadResult::Value(value));
+    while let Some((_, c::Read::Setting(request))) = root.reads.get(&call).cloned() {
+        let (_, value) =
+            values().into_iter().find(|(setting, _)| *setting == request.setting).expect("fixture setting");
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting: request.setting,
+                revision: 6,
+                value,
+            }))),
+        );
+    }
     root.answer(call).expect("read completed")
 }
 fn newest_for_setting(root: &mut fixtures::Harness, call: u32) {
@@ -482,6 +494,7 @@ fn settings_reads_request_the_exact_contract_and_do_not_watch_settings() {
             c::Read::Setting(c::ReadSetting {
                 setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
                 revision: 5,
+                proposal: None,
             }),
         ),
         (vec!["settings", "show", "rules"], c::Read::Settings),
@@ -508,7 +521,7 @@ fn an_unqualified_setting_reads_the_inventoried_revision_before_its_value() {
         assert!(root.answer(call).is_none());
         assert_eq!(
             root.reads.get(&call).expect("value read").1,
-            c::Read::Setting(c::ReadSetting { setting, revision: 5 })
+            c::Read::Setting(c::ReadSetting { setting, revision: 5, proposal: None })
         );
         root.serve(call, c::ReadResult::None(c::ReadNone::Unknown));
         assert_eq!(root.answer(call).expect("value refusal").status, 2);
@@ -1194,6 +1207,136 @@ fn settings_refusals_propose_the_called_tool_without_a_retry_call() {
                     printed.stderr.as_ref(),
                     format!("{tool}: Authority missing\npropose instead: {tool}\n").as_bytes()
                 );
+            }
+        }
+    }
+}
+
+#[test]
+fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
+    for json in [false, true] {
+        for refused in [false, true] {
+            let (setting, value) = values().remove(0);
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
+            let large = c::ReviewValue::TooLarge(c::Size { bytes: 8192 });
+            root.serve(
+                call,
+                c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
+                    newest: 6,
+                    cut: false,
+                    items: list([c::ReviewItem {
+                        setting,
+                        edit: c::RevisionItemEdit::Set,
+                        now: large.clone(),
+                        would_be: large,
+                        origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
+                    }]),
+                }))),
+            );
+            assert_eq!(
+                root.reads.get(&call).expect("now read").1,
+                c::Read::Setting(c::ReadSetting { setting, revision: 6, proposal: None })
+            );
+            assert!(root.answer(call).is_none());
+            root.serve(
+                call,
+                c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                    setting,
+                    revision: 6,
+                    value: value.clone(),
+                }))),
+            );
+            assert_eq!(
+                root.reads.get(&call).expect("proposed read").1,
+                c::Read::Setting(c::ReadSetting {
+                    setting,
+                    revision: 0,
+                    proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
+                })
+            );
+            if refused {
+                root.serve(call, c::ReadResult::None(c::ReadNone::Refused));
+            } else {
+                root.serve(
+                    call,
+                    c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                        setting,
+                        revision: 6,
+                        value,
+                    }))),
+                );
+            }
+            let answer = root.answer(call).expect("whole review");
+            assert_eq!(answer.status, 0);
+            let output = core::str::from_utf8(&answer.stdout).expect("text or JSON");
+            assert!(output.contains("boundaries"));
+            assert!(!output.contains("too large"));
+            assert!(!output.contains("too_large"));
+            if refused {
+                assert!(output.contains("refused"));
+            } else {
+                assert_eq!(output.matches("boundaries").count(), 2);
+            }
+        }
+    }
+}
+
+#[test]
+fn repeated_settings_decisions_send_the_given_key_and_print_the_engine_answer() {
+    let proposal = c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 };
+    for accepted in [false, true] {
+        for (key, accept) in [("first", accepted), ("new-accept", true), ("new-reject", false)] {
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let mut argv = vec!["proposal", "decide", "p73/7", if accept { "accept" } else { "reject" }];
+            if accept {
+                argv.extend(["--running", "stays"]);
+            } else {
+                argv.push("because");
+            }
+            argv.extend(["--key", key]);
+            let call = root.submit(&argv);
+            let mut history = retained_proposal(
+                proposal,
+                c::OwnerRetainedAction::Settings(c::OwnerRetainedActionSettings {
+                    against: 5,
+                    items: list([]),
+                    made: if accepted { Some(6) } else { None },
+                }),
+            );
+            if !accepted {
+                let c::ReadValue::Historical(history) = &mut history else { unreachable!() };
+                let c::OwnerHistoricalValue::Proposal(proposal) = &mut history.value else { unreachable!() };
+                proposal.state = c::OwnerProposalHistoryState::Rejected {
+                    by: c::OwnerRequester::Person(19),
+                    reason: c::DocumentText::complete(words("first reason")),
+                };
+            }
+            root.serve(call, c::ReadResult::Value(history));
+            assert_eq!(root.sent_name(call), Some(fixtures::named(key)));
+            let c::Ask::Decide { project, on: c::DecideOn::Proposal { proposal: sent, .. } } =
+                fixtures::act_ask(&root, call)
+            else {
+                panic!("proposal decision")
+            };
+            assert_eq!((*project, *sent), (0, proposal));
+            root.done(
+                call,
+                c::Outcome::Owner(c::OwnerOutcome::ProposalDecided {
+                    proposal,
+                    by: 19,
+                    at: fixtures::DECIDED_AT,
+                    choice: if accepted { c::OwnerProposalChoice::Accepted } else { c::OwnerProposalChoice::Rejected },
+                    repeated: key != "first",
+                }),
+            );
+            let answer = root.answer(call).expect("first decision answer");
+            assert_eq!(answer.status, 0);
+            let output = core::str::from_utf8(&answer.stdout).expect("text");
+            if key == "first" {
+                assert_eq!(output, "done: decide\n");
+            } else {
+                assert!(output.starts_with("decided first: by party 19,"));
             }
         }
     }

@@ -495,7 +495,7 @@ fn owner_moved(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, _b
     out.object_end();
 }
 fn owner_proposal_decided(value: &jig_client::contract::OwnerOutcome, out: &mut Encoder, budget: &mut super::Cut) {
-    let jig_client::contract::OwnerOutcome::ProposalDecided { proposal, by, at, choice } = value else {
+    let jig_client::contract::OwnerOutcome::ProposalDecided { proposal, by, at, choice, repeated } = value else {
         unreachable!("dispatched outcome")
     };
 
@@ -510,6 +510,8 @@ fn owner_proposal_decided(value: &jig_client::contract::OwnerOutcome, out: &mut 
     out.unsigned((at).as_nanos());
     out.key(b"choice");
     encode_owner_proposal_choice(*choice, out, budget);
+    out.key(b"repeated");
+    out.boolean(*repeated);
     out.object_end();
     out.object_end();
 }
