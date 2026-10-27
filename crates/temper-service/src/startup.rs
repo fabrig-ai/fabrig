@@ -3,6 +3,7 @@ pub(crate) mod application;
 #[cfg(test)]
 mod calls_tests;
 pub(crate) mod checks;
+mod memory;
 mod problems;
 #[cfg(test)]
 #[path = "tests/welcome_policy.rs"]
@@ -305,6 +306,7 @@ struct Parsed {
     application: application::Members,
     engine_call_answer: CallAnswer,
     worker_call_answers: Box<[CallAnswer]>,
+    jig_memory: Requirements,
 }
 impl Parsed {
     fn compose(&mut self, agent: &settings::Agent) -> Result<(), Problems> {
@@ -372,7 +374,7 @@ fn indexed(index: usize) -> Path {
 /// (the transitional first slice of protocol/configuration.md, 13.6).
 /// # Errors
 /// The document's problems at its paths under `engine`.
-pub fn engine_with(
+fn engine_checked(
     document: &skein_json::Document,
     at: u32,
     directories: &config::Directories,
@@ -411,6 +413,23 @@ pub fn engine_with(
     }
     Ok(engine)
 }
+/// Parse the engine past a sole memory refusal; startup checks the whole envelope.
+pub fn engine_with(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+) -> Result<config::Engine, config::Problems> {
+    let found = match engine_checked(document, at, directories, given) {
+        Ok(engine) => return Ok(engine),
+        Err(found) => found,
+    };
+    let Some(envelope) = memory::envelope(document, at, &found) else { return Err(found) };
+    let copy = memory::raised(document, member(document, at, b"memory_bytes").expect("checked memory"), envelope.need);
+    let Ok(mut engine) = engine_checked(&copy, at, directories, given) else { return Err(found) };
+    engine.memory = envelope.declared;
+    Ok(engine)
+}
 pub fn engine(
     document: &skein_json::Document,
     at: u32,
@@ -433,7 +452,6 @@ fn parse(input: &[u8], directories: &config::Directories) -> Result<Parsed, Prob
 
 // Readers need the typed document alone. Startup also checks cross-part and
 // raw-path constraints here, preserving the order of its accumulated problems.
-#[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
 fn load_with(
     input: &[u8],
     directories: &config::Directories,
@@ -446,30 +464,55 @@ fn load_with(
             Ok(document) => document,
             Err(found) => return Err(problem(found.path, What::Jig(found.what))),
         };
-    let shape = nearest(&document);
+    let found = match load_document(&document, directories, check_start, given) {
+        Ok(parsed) => return Ok(parsed),
+        Err(found) => found,
+    };
+    let Some(retry) = memory::Retry::new(&document, &found) else { return Err(found) };
+    let Ok((shape, mut parsed)) = load_document(retry.document(), directories, check_start, given) else {
+        return Err(found);
+    };
+    if let Some(parsed) = &mut parsed {
+        parsed.jig_memory.engine_bytes =
+            retry.restore(&Path::root().member(b"engine").member(b"memory_bytes"), &mut parsed.engine.memory);
+        for (index, worker) in parsed.workers.iter_mut().enumerate() {
+            let need = retry.restore(&indexed(index).member(b"memory_bytes"), &mut worker.memory);
+            parsed.jig_memory.worker_bytes = parsed.jig_memory.worker_bytes.max(need);
+        }
+    }
+    Ok((shape, parsed))
+}
+#[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
+fn load_document(
+    document: &skein_json::Document,
+    directories: &config::Directories,
+    check_start: bool,
+    given: &crate::stock::Given,
+) -> Result<(Shape, Option<Parsed>), Problems> {
+    let shape = nearest(document);
     let mut problems = Problems::empty();
     let mut found = config::Problems::empty();
-    let mut whole = match read::Object::new(&document, 0) {
+    let mut whole = match read::Object::new(document, 0) {
         Ok(object) => object,
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
     let root = Path::root();
     // Keep the empty object's established missing-member diagnostics.
     let engine_at = if document.len() == 2 {
-        whole.required(&document, b"engine", &root, &mut found)
+        whole.required(document, b"engine", &root, &mut found)
     } else {
-        whole.member(&document, b"engine")
+        whole.member(document, b"engine")
     };
-    let worker_at = whole.required(&document, b"workers", &root, &mut found);
-    let application_at = whole.required(&document, b"application", &root, &mut found);
+    let worker_at = whole.required(document, b"workers", &root, &mut found);
+    let application_at = whole.required(document, b"application", &root, &mut found);
     if shape == Shape::WorkerAlone {
-        finish_shape(&document, whole, &root, &mut problems);
+        finish_shape(document, whole, &root, &mut problems);
     } else {
-        whole.finish(&document, &root, &mut found);
+        whole.finish(document, &root, &mut found);
     }
     problems.append(found, &root);
     let engine = match engine_at {
-        Some(at) => match engine_with(&document, at, directories, given) {
+        Some(at) => match engine_checked(document, at, directories, given) {
             Ok(mut engine) => {
                 engine.limits.clients.watches_per_stream = temper_engine_domain::WATCHES_PER_STREAM;
                 Some(engine)
@@ -482,7 +525,7 @@ fn load_with(
         None => None,
     };
     let ats = match worker_at {
-        Some(at) => match read::list(&document, at, document.len()) {
+        Some(at) => match read::list(document, at, document.len()) {
             Ok(ats) => ats,
             Err(what) => {
                 problems.push(root.member(b"workers"), What::Jig(what));
@@ -498,12 +541,12 @@ fn load_with(
             continue;
         }
         if check_start {
-            checks::raw_worker(&document, *at, &indexed(index), &mut problems);
+            checks::raw_worker(document, *at, &indexed(index), &mut problems);
         }
-        match config::worker(&document, *at, directories) {
+        match config::worker(document, *at, directories) {
             Ok(worker) => {
                 workers.push(worker).expect("bounded workers");
-                worker_call_answers.push(CallAnswer::read(&document, *at)).expect("bounded workers");
+                worker_call_answers.push(CallAnswer::read(document, *at)).expect("bounded workers");
             }
             Err(found) => problems.append(found, &indexed(index)),
         }
@@ -518,13 +561,13 @@ fn load_with(
             }
         }
         if let Some(at) = application_at {
-            let _part = application::worker_alone(&document, at, directories, &mut problems);
+            let _part = application::worker_alone(document, at, directories, &mut problems);
         }
         return if problems.is_empty() { Ok((shape, None)) } else { Err(problems) };
     }
     let application = match &engine {
         Some(engine) => match application_at {
-            Some(at) => application::parse(&document, at, engine, directories, &mut problems),
+            Some(at) => application::parse(document, at, engine, directories, &mut problems),
             None => None,
         },
         None => None,
@@ -535,7 +578,7 @@ fn load_with(
     let application = application.expect("required application checked");
     let workers = workers.into_boxed();
     let worker_call_answers = worker_call_answers.into_boxed();
-    let engine_call_answer = CallAnswer::read(&document, engine_at.expect("required engine checked"));
+    let engine_call_answer = CallAnswer::read(document, engine_at.expect("required engine checked"));
     if !check_start {
         return Ok((
             shape,
@@ -545,6 +588,7 @@ fn load_with(
                 application,
                 engine_call_answer,
                 worker_call_answers,
+                jig_memory: Requirements { engine_bytes: 0, worker_bytes: 0 },
             }),
         ));
     }
@@ -604,9 +648,11 @@ fn load_with(
             application,
             engine_call_answer,
             worker_call_answers,
+            jig_memory: Requirements { engine_bytes: 0, worker_bytes: 0 },
         }),
     ))
 }
+
 fn load(
     input: &[u8],
     directories: &config::Directories,
@@ -814,7 +860,8 @@ pub fn memory_requirements(
         return Ok(Requirements {
             engine_bytes: 0,
             worker_bytes: crate::system::worker_alone_worst_case(&part.worker, agent, &part.limits)
-                .ok_or(problem(indexed(0).member(b"memory_bytes"), What::Jig(config::What::Bound)))?,
+                .ok_or(problem(indexed(0).member(b"memory_bytes"), What::Jig(config::What::Bound)))?
+                .max(part.jig_memory),
         });
     }
     Ok(checked_start(document, directories, files, Some(agent), seeds, accounts, forges, setup)?.requirements)
@@ -1012,7 +1059,10 @@ fn checked_start_with(
         not_set_up,
         engine,
         worker,
-        requirements: Requirements { engine_bytes, worker_bytes: bytes },
+        requirements: Requirements {
+            engine_bytes: engine_bytes.max(parsed.jig_memory.engine_bytes),
+            worker_bytes: bytes.max(parsed.jig_memory.worker_bytes),
+        },
         io,
         forges: prepared_forges,
     })
@@ -1203,6 +1253,7 @@ fn prepare_forges(
     reason = "the shell reads the worker handover; raw override provenance stays service-private"
 )]
 pub struct WorkerPart {
+    jig_memory: u64,
     call_answer: CallAnswer,
     pub worker: settings::Worker,
     pub limits: crate::limits::Limits,
@@ -1225,7 +1276,8 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
     .expect("checked shape document");
     let at = member(&document, 0, b"workers").expect("checked workers");
     let ats = read::list(&document, at, document.len()).expect("checked worker list");
-    let jig = config::worker(&document, *ats.get(0).expect("one worker"), directories).expect("checked worker");
+    let (jig, jig_memory) =
+        memory::worker(&document, *ats.get(0).expect("one worker"), directories).expect("checked worker");
     let mut problems = Problems::empty();
     let (own, limits) = application::worker_alone(
         &document,
@@ -1243,6 +1295,7 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
         file.at = path;
     }
     Ok(WorkerPart {
+        jig_memory,
         call_answer: CallAnswer::read(&document, *ats.get(0).expect("one worker")),
         named: NamedWorker { root: own.root.clone(), agent: jig.agent.configuration.clone() },
         worker: settings::Worker { jig, root: own.root, git: own.git },
@@ -1259,7 +1312,7 @@ pub fn worker_alone(
     seed: u64,
 ) -> Result<Service, Problems> {
     check_worker_part(&mut part, files, agent)?;
-    match Service::worker_alone(&part.worker, &part.limits, agent, files, runtime, seed) {
+    match Service::worker_alone(&part.worker, &part.limits, agent, files, runtime, seed, part.jig_memory) {
         Ok(service) => Ok(service),
         Err(found) => Err(Problems::jig(found, &Path::root())),
     }

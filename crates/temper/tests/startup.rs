@@ -1045,22 +1045,38 @@ fn check_bounded_startup(bounded: &support::owned::Bounded, required: temper_ser
         "{}",
         String::from_utf8_lossy(&temper_service::startup::lines(&started.err().expect("startup refusal")))
     );
-    for (engine, path) in [(true, "engine.memory_bytes"), (false, "workers[0].memory_bytes")] {
-        let mut short = value.clone();
-        if engine {
-            short["engine"]["memory_bytes"] = (required.engine_bytes - 1).into();
-        } else {
-            short["workers"][0]["memory_bytes"] = (required.worker_bytes - 1).into();
+    for (engine, path, need) in [
+        (true, "engine.memory_bytes", required.engine_bytes),
+        (false, "workers[0].memory_bytes", required.worker_bytes),
+    ] {
+        for declared in [1, need - 1] {
+            let mut short = value.clone();
+            if engine {
+                short["engine"]["memory_bytes"] = declared.into();
+            } else {
+                short["workers"][0]["memory_bytes"] = declared.into();
+            }
+            let refused = bounded
+                .startup(&serde_json::to_vec(&short).expect("short memory JSON"))
+                .err()
+                .expect("refused before construction");
+            assert_eq!(
+                String::from_utf8_lossy(&temper_service::startup::lines(&refused)),
+                format!("{path}: the worst case passes memory_bytes by {} bytes\n", need - declared)
+            );
         }
-        let refused = bounded
-            .startup(&serde_json::to_vec(&short).expect("one-byte-short JSON"))
-            .err()
-            .expect("refused before construction");
-        assert_eq!(
-            String::from_utf8_lossy(&temper_service::startup::lines(&refused)),
-            format!("{path}: the worst case passes memory_bytes by 1 bytes\n")
-        );
     }
+    value["engine"]["memory_bytes"] = 1.into();
+    value["workers"][0]["memory_bytes"] = 1.into();
+    let refused = bounded.startup(&serde_json::to_vec(&value).expect("both one-byte JSON")).err().expect("both short");
+    assert_eq!(
+        String::from_utf8_lossy(&temper_service::startup::lines(&refused)),
+        format!(
+            "engine.memory_bytes: the worst case passes memory_bytes by {} bytes\nworkers[0].memory_bytes: the worst case passes memory_bytes by {} bytes\n",
+            required.engine_bytes - 1,
+            required.worker_bytes - 1,
+        )
+    );
 }
 
 #[test]
@@ -1412,14 +1428,8 @@ fn a_boxed_binary_starts_after_raising_memory_by_its_named_deficit_once() {
     value["application"]["limits"]["overrides"]["box.line_bytes"] = 4096.into();
     value["engine"]["memory_bytes"] = 1.into();
     let refusal = temper::envelope_in(&directories, &serde_json::to_vec(&value).expect("JSON"))
-        .expect_err("derive the unboxed engine need");
-    // Jig first checks its own smaller envelope while parsing. Raise through
-    // that preliminary guard to derive temper's composed unboxed envelope.
-    value["engine"]["memory_bytes"] = (memory_deficit(&refusal) + 1).into();
-    let refusal = temper::envelope_in(&directories, &serde_json::to_vec(&value).expect("JSON"))
-        .expect_err("derive temper's composed engine need");
-    let unboxed = value["engine"]["memory_bytes"].as_u64().expect("declaration") + memory_deficit(&refusal);
-    value["engine"]["memory_bytes"] = (unboxed - 1).into();
+        .expect_err("derive the whole unboxed engine need");
+    let unboxed = 1 + memory_deficit(&refusal);
     let document = serde_json::to_vec(&value).expect("JSON");
     support::write_private(&scratch.path().join("temper.json"), &document);
     let output = std::process::Command::new("/bin/sh")
@@ -1438,13 +1448,19 @@ fn a_boxed_binary_starts_after_raising_memory_by_its_named_deficit_once() {
     for line in stderr.lines().filter(|line| line.starts_with("temper serve:")) {
         writeln!(&mut refusal, "{line}").expect("refusal line");
     }
-    assert_eq!(refusal, "temper serve: engine.memory_bytes: the worst case passes memory_bytes by 8195 bytes\n");
+    assert_eq!(
+        refusal,
+        format!(
+            "temper serve: engine.memory_bytes: the worst case passes memory_bytes by {} bytes\n",
+            unboxed + 8194 - 1
+        )
+    );
     assert_eq!(
         temper::boxed_envelope_in(&directories, &document).expect_err("boxed recheck refused"),
         refusal,
         "recheck agrees"
     );
-    let before = unboxed - 1;
+    let before = 1;
     value["engine"]["memory_bytes"] = (before + memory_deficit(&refusal)).into();
     let document = serde_json::to_vec(&value).expect("JSON");
     support::write_private(&scratch.path().join("temper.json"), &document);
@@ -1457,8 +1473,9 @@ fn a_boxed_binary_starts_after_raising_memory_by_its_named_deficit_once() {
     assert!(support::printed_link(&ended.stdout).is_some(), "{}", String::from_utf8_lossy(&ended.stderr));
     assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)));
     eprintln!(
-        "boxed one-raise: unboxed engine {unboxed}; boxed {}; declaration {before} raised by 8195",
-        unboxed + 8194
+        "boxed one-raise: unboxed engine {unboxed}; boxed {}; declaration {before} raised by {}",
+        unboxed + 8194,
+        memory_deficit(&refusal)
     );
     scratch.remove();
 }

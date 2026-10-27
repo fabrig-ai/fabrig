@@ -268,6 +268,7 @@ impl Service {
         files: &settings::Files,
         runtime: crate::WorkerRuntime,
         seed: u64,
+        jig_memory: u64,
     ) -> Result<Self, Problems> {
         let io_limits = settings.jig.limits.io;
         let prepared = crate::worker_settings::prepare(settings, agent, limits)?;
@@ -278,9 +279,10 @@ impl Service {
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
         let bytes = worker_alone_worst_case(settings, agent, limits)
             .ok_or(crate::worker_settings::problem(b"memory_bytes", What::Bound))?;
-        if let Err(what) =
-            jig_protocol_config::fits(settings.jig.memory, &[jig_protocol_config::Share { name: b"service", bytes }])
-        {
+        if let Err(what) = jig_protocol_config::fits(
+            settings.jig.memory,
+            &[jig_protocol_config::Share { name: b"service", bytes: bytes.max(jig_memory) }],
+        ) {
             return Err(crate::worker_settings::problem(b"memory_bytes", what));
         }
         Ok(Self {
