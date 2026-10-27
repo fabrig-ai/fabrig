@@ -222,3 +222,33 @@ in `../draft/agent-docs.md` 6's voice.
   member `temper init` writes and every member the decoder takes is a
   row, and every row is one of them. Where the decoder is jig's, its
   members' rows are jig's, as `limits`' are.
+
+## 9. Errors
+
+What an agent meets when something goes wrong is documentation at the
+point of use (`../draft/agent-docs.md`, section 3), and the most read.
+
+- **An error is one line, at most 240 bytes:** what is wrong, in the
+  concept's words; the value or bound that made it so; and the act that
+  mends it, as a call to copy, or the page that explains, as `temper
+  help NAME`. `temper ctl: settings file item 2: charter.alternatives:
+  at most 16; remove one` is one; `invalid form` is none.
+- **Its areas,** each with its own renderer: ctl's own failures (exit
+  1, `temper-client-tools` and `temper-client-shell-cli`); the
+  engine's refusals as ctl renders them (exit 2, jig's and the forge's
+  words, `temper-client-domain` and `temper-client-tools`); the
+  binary's refusals at a command's start (`temper`, `temper-service`'s
+  startup, the box's and setup's); a run's host tools' error answers
+  (`temper-engine-smith`).
+- **Typed refusals are rendered from one table** per area, a row per
+  refusal with its words: the engine's refusals are enums, so a step
+  test holds that every variant has a row. A free-form error (a start's
+  check of the document) keeps its words where it is made, under the
+  same rule, and the area's golden tests hold its lines.
+- **The words are documentation:** written in the pages' voice, never
+  quoting a design's section; a remedy names the tool by its words
+  (`settings show`), as `help` prints it.
+- **An area is brought to the rule** by an inventory of its lines
+  (each line, where it is made, what makes it fire), its words
+  rewritten, and its golden tests updated, in one landing per area; a
+  page that quotes a changed line changes with it.
