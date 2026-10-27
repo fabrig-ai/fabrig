@@ -14,14 +14,15 @@ temper ctl is the command line through which an agent works in a deployment for 
   the sign-in's token, the engine's address, and the requests the
   engine has not yet answered. It is private to the user who owns it.
   Every call names it; ctl never chooses a deployment.
-- **A read** prints a document: a header, its fields, `acts:`, the
-  calls that can follow, ready to copy, and a `digest:`.
+- **A read** prints a document: a header and its fields, then, where
+  something can follow, `acts:`, the calls ready to copy, and, where a
+  wait can follow, a `digest:`.
 - **An act** asks the engine for a change and prints its outcome.
 - **A wait** blocks until a read's subject changes, or meets a
   condition, or its timeout passes.
-- **The party** is who `DIR` is signed in as: a person or a service.
-  `temper ctl DIR me` prints it, with its projects, its bounds and
-  how long the engine keeps its requests.
+- **The party** is who `DIR` is signed in as. `temper ctl DIR me`
+  prints it, with its projects, its bounds and how long the engine
+  keeps its requests.
 
 ## How it changes
 
@@ -40,7 +41,7 @@ empty; a call then exits 1 until the next sign-in.
 the engine's answer is durable. A call cut short, by a signal or a
 link down past its deadline, leaves its request kept, and the next
 call that sends sends it again under its key, printing the answer on
-stderr: `kept: create done: task 41, chat`. `temper ctl DIR pending`
+stderr: `kept: message, done: task 41, message`. `temper ctl DIR pending`
 lists what `DIR` keeps, and sends nothing.
 
 ## What temper guarantees
@@ -61,9 +62,9 @@ lists what `DIR` keeps, and sends nothing.
 
   An exit 1 that says unconfirmed, or a key conflict found by ctl
   itself, is a bug of ctl's: report it as a finding.
-- **A key makes an act happen once.** The same key, from the same
-  party, within the retention `me` prints, answers the first outcome
-  again and changes nothing.
+- **A key makes an act happen once.** The same key for the same
+  request, from the same party, within the retention `me` prints,
+  answers the first outcome again and changes nothing.
 - **A wait outlives the engine's restart:** it reconnects, and fails
   only past the link's deadline.
 - **A decision names the revision it saw.** When the revision has
@@ -87,10 +88,10 @@ returns when the subject differs from it; with `--until`, when the
 condition holds; with both, when both do. `temper ctl help wait`
 lists the subjects, their conditions and the timeouts.
 
-- **Keys:** every act takes `--key KEY`, required or optional as its
-  usage shows; reads and waits take none. Agents that share a party
-  give their keys a prefix of their own, such as `review-41-`. A key
-  is never reused for new work.
+- **Keys:** an act takes `--key KEY` where its usage shows one,
+  required or optional; reads and waits take none. Agents that share
+  a party give their keys a prefix of their own, such as
+  `review-41-`. A key is never reused for new work.
 - **TEXT** is one argument, or `-` to read stdin to its end; a call
   reads stdin once.
 - **Secrets** (a model's key, a forge's token or private key, an
@@ -106,7 +107,9 @@ lists the subjects, their conditions and the timeouts.
 - **JSON:** `--json` prints one object, its keys in snake case.
   `--call FILE` reads one call as JSON, `{"tool": "message",
   "arguments": {...}}`, the arguments named as `temper ctl help TOOL
-  --json` names them; `--call -` reads it from stdin.
+  --json` names them and `key` among them; `--call -` reads it from
+  stdin. A tool that reads a file, such as a secret or `sign-in`'s
+  link, takes its arguments on the command line, never in `--call`.
 - **The forge:** read its diffs, reviews, CI runs, logs and branches
   with tools of your own, at the numbers and links ctl prints. What
   temper owns there, its branches, its pull requests and their
@@ -115,8 +118,13 @@ lists the subjects, their conditions and the timeouts.
 ## Limits
 
 - ctl reaches an engine on loopback alone: `127.0.0.0/8` or `[::1]`.
+- The link's deadline is 30 seconds: an engine that does not answer
+  within it fails the call (exit 1).
+- A malformed call prints the usage line alone:
+  `temper ctl: usage: temper ctl DIRECTORY TOOL [ARGUMENT...]`.
+  `temper ctl help TOOL` says what the tool takes.
 - A `DIR` holds one party's sign-in; several parties take several
-  directories. A `DIR` is ctl's alone, never `temper open`'s.
+  directories. Give `temper open` a directory of its own.
 - Calls that send take `DIR` in turns: a second waits up to 60
   seconds, then exits 1. Reads and waits never wait for `DIR`.
 - A kept request is answered only within its retention; past it, its
