@@ -1,6 +1,6 @@
 # The forge connector
 
-Provisional, 2026-10-04, revised 2026-10-26. How temper drives a forge,
+Provisional, 2026-10-04, revised 2026-10-27. How temper drives a forge,
 Forgejo or GitHub: the forge as a connector on jig's contract (jig's
 `domain/connectors.md`), with its resources, effects, topics, procedures,
 requirements and reads; a forge connected or not; adopting repositories,
@@ -1254,8 +1254,13 @@ What the connector makes of a change for the client's panel
   that head pending until it reports; and its repairs, resolutions and
   updates used, with their limits from `change_policy`.
 - **CI at its head** is what its last step read (5.3), kept in memory
-  beside its record, one verdict per change: a restart forgets it, and
-  the panel says unknown until the change's next step reads it again.
+  beside its record, one verdict per change, while the change is live: a
+  restart forgets it, and the panel says unknown until the change's next
+  step reads it again. A change that has landed or ended keeps its last
+  verdict at its exact head with its record (`ChangeRow`'s `ci`, written
+  by the save its finish already makes), restored with the row, since no
+  step will read it again and its panel stays as long as its record
+  (`../client/forge.md`, 9.2).
 - **Its place in its queue** is computed as the document is made,
   in section 9's order among the changes queued or first in its
   landing branch at the core's time: its place from 1, and the tasks
