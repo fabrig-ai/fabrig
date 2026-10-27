@@ -23,9 +23,9 @@ const STEPS: u32 = 200;
 
 fn park(driver: &mut Driver, run: &engine::Assignment) {
     driver.send(protocol::turn(CHANNEL, run.task, run.attempt, 1, 1, None, b"kept turn"));
-    driver.settle();
+    driver.pump();
     driver.answer(CHANNEL, run.task, run.attempt, 1, jig_domain_tasks::End::Parked, engine::Parts::none());
-    driver.settle();
+    driver.pump();
 }
 
 fn signed_in(store: Store) -> Driver {
