@@ -1374,7 +1374,7 @@ fn a_fresh_init_s_first_chat_reads_its_forge() {
             Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
         ],
         BOX_DEADLINE,
-        || support::first_repository::turns(&client, "1"),
+        |_| support::first_repository::turns(&client, "1"),
         support::first_repository::forge_read_llm(&paths[0]),
     );
     let stderr = String::from_utf8_lossy(&ended.stderr);
@@ -1387,7 +1387,7 @@ fn a_fresh_init_s_first_chat_reads_its_forge() {
     assert!(turns.contains("read_branch"), "{turns}");
     assert!(turns.lines().any(|line| line.starts_with("result ") && !line.contains("failed")), "{turns}");
     assert!(
-        turns.lines().any(|line| line.len() == 64 && line.bytes().all(|byte| byte.is_ascii_hexdigit())),
+        turns.lines().any(|line| line.len() == 40 && line.bytes().all(|byte| byte.is_ascii_hexdigit())),
         "branch head returned: {turns}"
     );
     assert!(turns.contains("Read widget's main branch."), "{turns}");
