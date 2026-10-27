@@ -205,7 +205,7 @@ in `../draft/agent-docs.md` 6's voice.
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/tools.md`, 5.3) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent.md`, 4.3) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
 | `limits`, a page per owner prefix where one page would pass 32,768 bytes | the limits' names: temper's (`temper-service`, today the overrides' match) and jig's (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
-| `configuration` | the configuration document's members, beside the document's decoder (`configuration.md`) | a member: its path from the document's root, its type and bound, what `temper init` writes, a line |
+| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: jig's shapes beside jig's, temper's beside temper's (`configuration.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper init` writes, a line; a member whose shape is a setting's (a charter, a template, a policy, the rules) is one row linking `settings-fields` |
 
 - **`host-tools`' text is the run's:** the page renders the same
   description a run reads beside each tool, at most 160 bytes, and a
