@@ -465,8 +465,14 @@ a person says they work into a proposal of settings
   - to say what temper cannot model, offering the nearest thing, and
     what needs a restart (the document's members: a provider, a forge,
     a listener, a worker, a limit), never proposing it;
-  - to explain from the settings and the documentation (`read_docs`):
-    what happens when work starts, which role runs where, why a task's
+  - to explain from the settings and the documentation (`read_docs`),
+    naming its pages, never their sections or offsets: the concepts
+    `settings`, `revision` (moving running work and restoring a version
+    among it), `proposal`, `charter`, `template`, `policy` and
+    `landing-rule`, each with what it cannot do and what needs a
+    restart; `settings-fields`, each setting's fields, bounds and
+    defaults; `configuration`, the document's members; and the recipes.
+    What happens when work starts, which role runs where, why a task's
     run had what it had, given the task's `settings:` line the person
     reads to it;
   - on its proposal's outcome, heard in its inbox (jig's
