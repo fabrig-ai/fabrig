@@ -252,7 +252,15 @@ deployment's rules       the most any project may have; requirements on effects
 - **The deployment** is the requester of what configuration or a
   connector starts on a project's behalf (a recurring task, a standing
   watch), with the authority the project's policy gives such tasks,
-  funded from the project's spend.
+  funded from the project's spend. Designed, not built: a procedure task
+  it starts that runs no agent (a forge's landing or tier run, which
+  only make effects) is made with a budget of zero, so that a period its
+  people have reserved whole never stops it; an effect it asks for that
+  has a price is funded at the effect from the period's unreserved
+  spend, and waits while there is none. A deployment-started task that
+  runs an agent (a queue's repair, whose producer is one) is funded as
+  before, and cannot be made while nothing of the period is
+  unreserved.
 - **Effective authority.** What a task may do when it decides is its own
   authority within the deployment's rules, the project's policy and what
   adoption found the application may do, as all three stand then:
