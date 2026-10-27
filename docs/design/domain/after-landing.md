@@ -48,7 +48,8 @@ keeps them in its own record. What is still open is section 13.
 ## 2. Tiers
 
 - **A repository's tiers** are settings beside its gates (section 11):
-  each a name, a workflow's file, its ignored paths, and its report: the
+  each a name (letters, digits, `-` and `_`, at most 32 bytes), a
+  workflow's file, its ignored paths, and its report: the
   name of the artifact its run uploads and its format, a JUnit file or
   one test id per line.
 - **A tier's key** is a gate's (`landing.md`, 6.1), over the tier's own
@@ -57,8 +58,12 @@ keeps them in its own record. What is still open is section 13.
   6.2). A failed receipt keeps the failing tests' ids.
 - **Dispatched as a gate is** (`landing.md`, 7.1), never on the
   landing branch, which may move under the run: on a branch of
-  temper's own made at the commit to run, `temper/tier/<tier>/<n>`
-  (skein's `Write::CreateBranch`), deleted once the run has ended, with
+  temper's own made at the commit to run, `temper/tier/<tier>.<n>`, n
+  the run's number in the tier's sequence, and a bisect's probe
+  `temper/tier/<tier>.<n>.<k>` (skein's `Write::CreateBranch`), each
+  within the authority's eight segments of a resource and parsed back
+  by its dots, since a tier's name has none; deleted once the run has
+  ended, with
   the inputs `temper_commit` and `temper_key`, and, for a rerun or a
   bisect's probe, `temper_tests`, the ids to run alone, one per line. A
   tier's workflow runs only those when it is given them. The run is

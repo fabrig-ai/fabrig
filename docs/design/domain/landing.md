@@ -315,7 +315,8 @@ For a project with no prepare command, one member per repository:
 - **A baseline at main's tip.** When a repository first lands by turn,
   or a gate is added or changed, and the key at main's tip has no
   receipt, the gate is dispatched once at main's tip, on a branch of
-  temper's own made at that commit (`after-landing.md`, section 2), so
+  temper's own made at that commit, `temper/gate/<gate>.<n>`, as a
+  tier's are (`after-landing.md`, section 2), so
   that a landing whose keys equal main's (a documentation landing) has a
   receipt to land on.
 - **A failed receipt** makes a key that fails at once, with its run's
@@ -520,8 +521,12 @@ the forge's, judged in the change's decision:
   are, and read at the start.
 - **`turn` is refused** for a project with a repository on a forge that
   cannot merge fast-forward only, saying which (section 8).
-- **A gate's name** is a branch-name-safe word, unique in its
+- **A gate's name** is letters, digits, `-` and `_`, unique in its
   repository, and its status context's last segment.
+- **The stock's deployment ceiling** admits what landings and tiers are
+  granted (kinds 3, 4, 6, 7, 9, 12, 15, 16 and 17, and the forge's
+  procedures `landing` and `tier`), since a project's ceiling may not
+  pass the deployment's.
 
 ### 13.2 What adoption says
 
