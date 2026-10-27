@@ -604,8 +604,20 @@ area lands with its stories (section 11).
      | `--spec FILE` | its spec's words, whole; its parameters and inputs kept |
      | `--dependency TASK`... \| `--no-dependencies` | its dependencies, whole: those named, in order; what it names anew is added, what it leaves out removed |
      | `--model MODEL [--effort EFFORT]` | its main model and effort (area 5) |
+     | `--budget AMOUNT` | its authority's spend, AMOUNT in the unit the client shows budgets in, the rest of its authority restated as shown |
+     | `--tasks N` | the tasks its subtree may make over its life, the rest of its authority restated as shown |
 
      FILE is a path, or `-` for stdin, used once, as TEXT is.
+   - **A budget or tasks raised is a widening,** funded by the party who
+     gives it, who becomes the task's funder (jig's `domain/authority.md`,
+     section 7, "Whoever widens a task funds it"): from their role's pool,
+     within what the policy lets them give alone, or proposed past it, as
+     the next bullets say. It is the way out a hold for a task's own
+     budget or tasks names (jig's `domain/tasks.md`, 5.5; `../domain/forge.md`,
+     8.4): `task amend 41 --rev 8 --budget 2000 "room for its review"`,
+     then `task release 41 --hold 3`; a hold whose lack the task's
+     authority does not hold (a project's period, a pool) names `project
+     fund` instead, and a hold no amendment lifts names the cancel.
    - **`--rev REV` is the spec's revision** that `task show TASK`
      prints, as the task's offered `amend` act carries it: `task show
      TASK`'s acts print it as `task amend 41 --rev 8 CHANGE... REASON
@@ -617,8 +629,8 @@ area lands with its stories (section 11).
      the document's revision is no longer REV: `temper ctl: task 41
      moved: its spec revision is 9, not 7; read again: task show 41`,
      exit 1.
-   - **What the document must hold whole:** a deadline restates the
-     task's authority, a spec's words its spec. Where the document cut
+   - **What the document must hold whole:** a deadline, a budget or
+     tasks restates the task's authority, a spec's words its spec. Where the document cut
      it to the client's bounds, the tool sends nothing and exits 1,
      `temper ctl: task 41's authority is cut in this read; amend its
      deadline from a client with wider bounds` (or `spec`, `words`).
