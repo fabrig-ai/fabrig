@@ -22,7 +22,9 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   empty, and `DIR`, private to you. Nothing else may use them.
 - **The model's account,** on real backends, one of: a login exported
   from another deployment to a private file; a browser on this
-  machine, for a provider's sign-in; an API key in a private file.
+  machine, for a provider's sign-in; an API key in a private file;
+  Claude Code, `claude` on `PATH`, signed in at step 5 or a signed-in
+  Claude Code configuration directory you hold.
 - `BUNDLE`: the loopback bundle's directory, on fake backends.
 - `REQUEST`: a file of the words that ask for the change.
 - `CHANGE`: the change task's number, which step 6 reads.
@@ -39,6 +41,40 @@ backends, leave `CONFIG` as `temper init` wrote it.
 
 Expect: `init: wrote DATA/worker.secret`, with `DATA` the path you
 gave; the last line names the step 2 command for real backends.
+
+**Claude Code** needs a provider `temper init` does not write. Give it
+Anthropic's in OpenAI's place, so that every agent runs on Claude Code:
+`MODEL` is a model Claude Code takes, such as `sonnet` or `opus`;
+`PROGRAMS` is the private directory that holds its logins, such as
+`DATA/programs`, or the parent of a signed-in Claude Code directory you
+hold (step 5); `DIR/temper.json` and `DIR/agent.json` are scratch
+copies.
+
+```
+jq --arg model MODEL '.engine.llm |= (
+  (.endpoints[] | select(.name == "openai")) as $openai
+  | (.models[] | select(.endpoint == "openai")) as $first
+  | .providers = [{name: "anthropic", number: 2, signed_in_plan: false,
+      manage_usage: "https://claude.ai/settings/usage", models: [$model],
+      sources: {programs: ["claude_code"]}}] + [.providers[] | select(.name != "openai")]
+  | .endpoints = [$openai + {name: "claude", number: 2, dialect: 2, provider: "anthropic",
+      program: "claude_code", address: {host: "api.anthropic.com", port: 443},
+      server_name: "api.anthropic.com"}] + [.endpoints[] | select(.name != "openai")]
+  | .models = [$first + {name: $model, endpoint: "claude"}] + [.models[] | select(.endpoint != "openai")])' \
+  CONFIG/temper.json > DIR/temper.json && cat DIR/temper.json > CONFIG/temper.json
+jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS '
+  (.endpoints[] | select(.name == "openai")) as $openai
+  | .endpoints = [$openai + {name: "claude", number: 2, dialect: 2, provider: "anthropic",
+      program: "claude_code", address: "api.anthropic.com:443", server_name: "api.anthropic.com",
+      models: [$openai.models[0] + {name: $model}]}] + [.endpoints[] | select(.name != "openai")]
+  | .programs.claude_code = {path: $claude, directory: $programs}' \
+  CONFIG/agent.json > DIR/agent.json && cat DIR/agent.json > CONFIG/agent.json
+```
+
+Expect: no output; `jq -c '[.engine.llm.models[].name]'
+CONFIG/temper.json` prints `["MODEL","demo"]`, and `me` later lists
+provider 2, Anthropic, with its program `claude_code`. Provider 1 is
+gone: step 5's way is then Claude Code's.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
 `CONFIG` holds a configuration; start from empty directories.
@@ -153,14 +189,33 @@ the box printed:
 temper ctl DIR account add-key PROVIDER FILE --deployment --key KEY
 ```
 
+A Claude Code login, on the configuration step 1 gave Claude Code;
+`NAME` is the login's name, 1 to 32 lower-case letters, digits or
+hyphens, and `ACCOUNT` the account `account list` shows for provider
+2:
+
+```
+temper ctl DIR account declare 2 claude_code NAME --key KEY
+temper program-login --config CONFIG --data DATA --cache CACHE NAME
+temper ctl DIR account list
+temper ctl DIR account verify ACCOUNT --source program
+```
+
+`program-login` runs Claude Code's own sign-in in this terminal, into
+`PROGRAMS/NAME`. A signed-in Claude Code configuration directory you
+already hold is used in place instead: `PROGRAMS` is its parent, `NAME`
+its own name, and `program-login` is skipped. temper neither moves nor
+reads it, and one box uses it at a time.
+
 Then:
 
 ```
 temper ctl DIR account list --until usable
 ```
 
-Expect: `moved in: account N`, the address to open, or `done:
-add-key`; the wait ends with `met`.
+Expect: `moved in: account N`, the address to open, `done: add-key`,
+or `Program source S: NAME` and the command to run on each host,
+then `asked` for the verify; the wait ends with `met`.
 
 If not: `key file mode 0o644 permits group or other access` (exit 1):
 `chmod 600 FILE`, then the same call with the same key. The person's
