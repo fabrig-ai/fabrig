@@ -27,6 +27,56 @@ fn ledger(world: &World, funder: tasks::Funder) -> &tasks::FundingRecord {
 }
 
 #[test]
+fn a_role_raise_after_reserved_cuts_and_chat_end_answers_and_allows_a_later_act() {
+    let (_, limits) = jig_core_world::effects::fixture(611, false);
+    let mut world = World::configured(611, false, world::config(611), limits);
+    let period = tasks::Funder::Period { project: 1, period: 1 };
+    let pool = tasks::Funder::Pool { project: 1, person: 1, period: 1 };
+    assert_eq!(ledger(&world, pool).numbers.reserved, 100);
+    ask(
+        &mut world,
+        25,
+        people::Ask::ChangePolicy { project: 1, change: people::PolicyChange::RoleSpend { role: 0, period_spend: 0 } },
+    );
+    assert_eq!(ledger(&world, pool).numbers.budget, 100);
+    ask(
+        &mut world,
+        26,
+        people::Ask::ChangePolicy { project: 1, change: people::PolicyChange::ProjectSpend { period_spend: 0 } },
+    );
+    assert_eq!(ledger(&world, period).numbers.budget, 100);
+    jig_core_world::fixtures::finish_chat(&mut world, 25, b"reserved cut completed");
+    assert_eq!(ledger(&world, pool).numbers.reserved, 0);
+    assert_eq!(ledger(&world, pool).numbers.spent_below, 25);
+    ask(
+        &mut world,
+        27,
+        people::Ask::ChangePolicy { project: 1, change: people::PolicyChange::ProjectSpend { period_spend: 1000 } },
+    );
+    assert_eq!(ledger(&world, period).numbers.budget, 1000);
+    ask(
+        &mut world,
+        28,
+        people::Ask::ChangePolicy {
+            project: 1,
+            change: people::PolicyChange::RoleSpend { role: 0, period_spend: 500 },
+        },
+    );
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::PolicyChanged { project: 1 }))
+    );
+    assert_eq!(ledger(&world, pool).numbers.budget, 500);
+    assert_eq!(ledger(&world, period).numbers.reserved, 500);
+    ask(&mut world, 29, people::Ask::SetPool { project: 1, person: 1, budget: 400 });
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::PoolSet { project: 1, person: 1 }))
+    );
+    assert_eq!(ledger(&world, pool).numbers.budget, 400);
+}
+
+#[test]
 fn two_projects_with_different_spends_fund_their_own_periods() {
     let (config, limits) = two_projects(601);
     let mut world = World::configured(601, false, config, limits);
