@@ -559,69 +559,84 @@ today's, until those land.
 
 v0.1.0's rung D (`../draft/v0.1.0.md`, section 3): the reference case's
 process told to the configuring agent in words, on real backends, its
-proposal scored against a golden set of settings and accepted, and
-rung C then run under the revision it made. Its walk is QA's
-(`../qa.md`); this section is what it walks with.
+proposal scored against a golden and accepted, and rung C then run
+under the revision it made. Its walk is QA's (`../qa.md`); this section
+is what it walks with.
 
 - **The words,** `crates/temper/tests/fixtures/golden/words.md`: the
   case's section 3 (`../draft/reference-case.md`) as its person would
   say it, frozen with the case, in five paragraphs a QA driver types
   into a configuring chat (`temper ctl chat start --template 3`), one
-  per turn: the cast and their models (coordinators on Claude, the
-  delegates on GPT, an advisor called once two tries have missed); the
-  repositories and their gates (kit's `check`; app's `check` and its
-  `browser` tier after landing; both ignoring `docs/`; app pinning
-  kit); the tooling (`prepare`'s three steps, the default key); the
-  forge (an owned Forgejo, every workflow dispatch-only); and how
-  landings and their aftermath go (the case's settings table). No
-  setting's name or number appears in them. The agent's questions are
-  answered from the golden's notes, each answer a sentence the case
-  already says.
-- **The golden,** `crates/temper/tests/fixtures/golden/reference-case.json`,
-  in the settings file's form (`../client/tools.md`, 5.3), one item per
-  setting, each with a note naming the case's sentence it encodes:
-  - *charters by role:* a coordinator's on Claude (the director, D, L
-    and the owners), an implementer's, a reviewer's and a tester's on
-    GPT, an advisor's on Claude; compared by structure (models, tool
-    families, delegation, hosts, resume), never their instructions'
-    words, and matched to the proposal's by role, their numbers free;
-  - *the forge's charters* (kind 3): the change's, the implementer's;
-    its reviews', the reviewer's;
-  - *a project's landing* (kind 4, design/process-model's,
-    `../domain/landing.md` 13.1): by turn; app's `prepare` with its key
-    the default; dependencies joining a landing; app pinned to kit,
+  per turn: the cast and their models; the repositories, their gates
+  and app's tier; the tooling; the forge; how landings and their
+  aftermath go (section 3's settings table). No setting's name or
+  number appears in them. The agent's questions are answered from the
+  golden's notes, each answer a sentence the case already says.
+- **Each fact of section 3, sorted** as `../draft/configuring.md` 2
+  sorts a description:
+  - *settings,* scored: the charters' models and delegation by role;
+    the forge's change charter (kind 3, number 1); the landing rule
+    (kind 1) without the stock's agent-review gate, since the case's
+    reviews are delegates inside goals, not gates (its section 12);
+    a project's landing (kind 4: by turn; the project's `prepare`, run
+    in app, its home, preparing both repositories, the key the
+    default; dependencies joining a landing; app pinned to kit,
     following kit's main; two stale proofs before a reservation;
     suspects bisected; a red pausing nothing; a verification bound of
-    2 hours; findings on, the director triager and chooser, the tester
-    charter; the person's questions on the forge;
-  - *a repository's gates* (kind 5): kit's `check`, `docs/` ignored,
-    blocking, no tier; app's the same and its `browser` tier;
-  - *the landing rule* (kind 1) and policy 1: as the stock has them,
-    which the case keeps.
-- **What is said, not proposed:** the director's check every 2 hours
-  is a recurring task the person starts (jig's `domain/tasks.md`,
-  section 10), not a setting; budgets are the person's (`temper ctl
-  project fund`). The agent names each in its reason, offering the
-  nearest thing, as 8.1 says.
-- **Scored** by `tools/golden` in this repository, from the walk's
-  `temper ctl proposal show PROPOSAL --json` and the golden, each item
-  one line: *match*, the kind, scope and value equal (charters by
-  structure); *miss*, a golden item the proposal lacks or sets
-  otherwise; *extra*, a proposal item the golden lacks; *gap*, an item
-  of a kind not yet built when the walk runs, scored on whether the
-  reason names it as what temper cannot model yet. D passes when every
-  built kind matches, no extra changes structure the case never said,
-  and every gap is named. A miss or an unnamed gap is a finding against
-  the agent's instructions or the pages it read.
-- **Then** the owner accepts with `--running stays`, and rung C runs
-  under the revision it made, its acts' live stories as C's own
-  (`testing.md`, 2.7). D's spend ceiling is the user's (temper#6).
-- **When:** once the agent lands (8.1) and C's acts can run. Kinds 4
-  and 5 arrive with design/process-model's parts, kind 4's `by` and
-  kind 5's gates first; until each lands, its items are gaps, so an
-  early D measures the agent on what exists. D is walked again when
-  the agent's instructions or the help's pages change
-  (`../draft/configuring.md`, section 8).
+    2 hours; findings on, the director triager and chooser, the tester's
+    charter; the person's questions on the forge); a repository's gates
+    (kind 5: kit's `check` and app's, `docs/` ignored, blocking, and
+    app's `browser` tier). Values the case does not give (retries,
+    areas, the review charter, hosts, resume, tool families) are not
+    scored;
+  - *rules,* which the reason lists under "your agents follow": D has
+    each part reviewed once; F starts from a finding with no designer;
+    an advisor is called once two tries have missed; `STATUS.md` is
+    generated from one file per part, by `prepare`;
+  - *named, never proposed:* the director's check every 2 hours, a
+    wake of a live chat that no setting holds (jig's recurring
+    procedures make delegates, they wake no chat), so a gap; budgets,
+    the person's (`temper ctl project fund`);
+  - *setup, not the agent's:* app as the project's home (its
+    adoption), the owned Forgejo with dispatch-only workflows, and
+    hour 0 (P running, nothing held, no finding open, `browser` green),
+    which C's start establishes after D's acceptance.
+- **The golden,** `crates/temper/tests/fixtures/golden/reference-case.json`,
+  a file of its own, not the settings form: one entry per scored
+  setting, its kind, its scope (a repository by name, `kit` or `app`,
+  bound to its adoption's number at the walk), its number or role, the
+  fields the case gives with their values, and the case's sentence it
+  encodes. The models are scored by provider (Claude or GPT), the
+  workflows and the prepare command by the names C's fixture gives
+  them.
+- **Charters matched by role,** mechanically, from the proposal's
+  would-be settings (`temper ctl proposal show PROPOSAL --json`, each
+  value whole): the implementer is kind 3's number 1; the tester,
+  kind 4's tester charter; the coordinator, the charter of the
+  template the director's chat starts from; the advisor, the Claude
+  charter the coordinator may delegate to that none of these names;
+  each then compared on its main model's provider and on whether it
+  may delegate, and the advisor on its one-shot contract. A role with
+  no charter is a miss.
+- **Scored** by `tools/golden` in this repository, on the effective
+  settings the proposal would make (an unchanged default need not
+  appear in it), each entry's fields one line each: *match*; *miss*,
+  absent or otherwise; *extra*, a changed setting the golden lacks;
+  *gap*, a field of a kind not yet built when the walk runs (kinds 4
+  and 5 arrive field by field with design/process-model's parts,
+  `../domain/landing.md` 13.1). Whether the reason names each gap and
+  lists each rule is read by the walk's QA session, a judgement it
+  records, not the tool's. D passes when every built field matches,
+  no extra changes structure the case never said, and every gap and
+  rule is named. A miss or an unnamed gap is a finding against the
+  agent's instructions or the pages it read.
+- **Then** the owner accepts with `--running stays`, and rung C starts
+  under the revision it made, its hour 0 set up as C's start says. D's
+  spend ceiling is the user's (temper#6).
+- **When:** once the agent lands (8.1) and C's acts can run. Until a
+  kind lands, its fields are gaps, so an early D measures the agent on
+  what exists. D is walked again when the agent's instructions or the
+  help's pages change (`../draft/configuring.md`, section 8).
 
 ## 9. The world
 
