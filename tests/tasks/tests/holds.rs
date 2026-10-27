@@ -3,8 +3,8 @@ const CHILD: u64 = 2;
 const SUBSCRIPTION: u64 = 10;
 const REPLY: u64 = 500;
 use jig_domain_tasks::{
-    Class, End, Event, Funder, Hold, HoldKind, Holding, Kind, MessageKind, Name, NoticeState, Party, Phase, Refusal,
-    Stored, Subscription, SubscriptionKind, Taken, Writer,
+    Class, End, Event, Funder, Hold, HoldKind, Holding, Kind, MessageKind, Name, New, NoticeState, Party, Phase,
+    Refusal, Stored, Subscription, SubscriptionKind, Taken, Writer,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, ReplyTo, Token};
@@ -155,24 +155,60 @@ fn a_refusing_kind_rejects_the_whole_batch_and_names_the_holder() {
         if problem.why == Refusal::HoldTaken && problem.blocked_by.as_deref() == Some(&[1][..])));
 }
 
+const HOLDER: u64 = 1;
+const FIRST_WAITER: u64 = 2;
+const SECOND_WAITER: u64 = 3;
+const GOAL: u64 = 4;
+const QUEUED_RESOURCE: u8 = 1;
+
+fn hold_waiter(number: u64, priority: Option<u32>) -> New {
+    let mut waiter = task(number, &[]);
+    waiter.holdings = Box::new([resource(QUEUED_RESOURCE)]);
+    waiter.tracked = priority;
+    waiter
+}
+
+fn held_world(seed: u64) -> World {
+    let mut world = configured(seed);
+    world.make(Party::Person(REQUESTER), vec![hold_waiter(HOLDER, None)]);
+    world
+}
+
+fn free_holder(world: &mut World) {
+    world.claim(HOLDER, HOLDER);
+    world.finish(HOLDER);
+    world.settle(HOLDER);
+}
+
 #[test]
-fn the_higher_priority_goal_gets_a_freed_hold_first() {
-    let mut world = configured(304);
-    let mut holder = task(1, &[]);
-    holder.holdings = Box::new([resource(1)]);
-    let mut low = task(2, &[]);
-    low.holdings = Box::new([resource(1)]);
-    low.tracked = Some(1);
-    let mut high = task(3, &[]);
-    high.holdings = Box::new([resource(1)]);
-    high.tracked = Some(9);
-    assert_eq!(world.make(Party::Person(1), vec![holder]), Reply::Made(vec![1]));
-    assert_eq!(world.make(Party::Person(1), vec![low, high]), Reply::Made(vec![2, 3]));
-    world.claim(1, 1);
-    world.finish(1);
-    world.settle(1);
-    assert!(world.record(3).holds_taken);
-    assert!(!world.record(2).holds_taken);
+fn the_lower_priority_number_gets_a_freed_hold_first() {
+    let mut world = held_world(304);
+    // The earlier task number and tied wait time favour priority 9.
+    world.make(Party::Person(REQUESTER), vec![hold_waiter(FIRST_WAITER, Some(9)), hold_waiter(SECOND_WAITER, Some(1))]);
+    free_holder(&mut world);
+    assert!(world.record(SECOND_WAITER).holds_taken);
+    assert!(!world.record(FIRST_WAITER).holds_taken);
+}
+
+#[test]
+fn a_task_serving_no_goal_waits_behind_every_goal() {
+    let mut world = held_world(319);
+    world.make(Party::Person(REQUESTER), vec![hold_waiter(FIRST_WAITER, None), hold_waiter(SECOND_WAITER, Some(9))]);
+    free_holder(&mut world);
+    assert!(world.record(SECOND_WAITER).holds_taken);
+    assert!(!world.record(FIRST_WAITER).holds_taken);
+}
+
+#[test]
+fn a_delegate_waits_at_its_goals_priority() {
+    let mut world = held_world(320);
+    let mut goal = task(GOAL, &[]);
+    goal.tracked = Some(1);
+    world.make(Party::Person(REQUESTER), vec![hold_waiter(FIRST_WAITER, Some(5)), goal]);
+    world.make(Party::Task(GOAL), vec![hold_waiter(SECOND_WAITER, None)]);
+    free_holder(&mut world);
+    assert!(world.record(SECOND_WAITER).holds_taken);
+    assert!(!world.record(FIRST_WAITER).holds_taken);
 }
 
 #[test]

@@ -418,27 +418,32 @@ pub(crate) fn free(domain: &Domain, number: u64) -> bool {
     true
 }
 
-fn priority(domain: &Domain, number: u64, bound: u32) -> u32 {
+fn priority(domain: &Domain, number: u64, bound: u32) -> Option<u32> {
     let mut current = Some(number);
     for _ in 0..bound {
         let Some(at) = current else { break };
         let row = record(domain, at).expect("live ancestor");
         if let Some(priority) = row.tracked {
-            return priority;
+            return Some(priority);
         }
         current = match row.requester {
             Party::Task(parent) => Some(parent),
             Party::Person(_) | Party::Deployment { .. } => None,
         };
     }
-    0
+    None
 }
 
+/// Order goal-serving tasks first, lower priority number first, then earlier
+/// hold wait (or creation), then lower task number (domain/tasks.md, 6.2).
 pub(crate) fn earlier(domain: &Domain, left: u64, right: u64, limits: &Limits) -> bool {
     let lp = priority(domain, left, limits.tasks);
     let rp = priority(domain, right, limits.tasks);
-    if lp != rp {
-        return lp > rp;
+    match (lp, rp) {
+        (Some(lp), Some(rp)) if lp != rp => return lp < rp,
+        (Some(_), None) => return true,
+        (None, Some(_)) => return false,
+        (Some(_), Some(_)) | (None, None) => {}
     }
     let l = record(domain, left).expect("candidate live");
     let r = record(domain, right).expect("candidate live");
