@@ -120,6 +120,8 @@ pub(crate) fn describe(id: usize, proc: &mut Proc, now: Time, out: &mut String) 
             writeln!(out, "ctl call={} setup={}", recorded.call, recorded.setup).expect("string writer");
         }
         Proc::Agent(host) => header(id, "smith agent", host.as_ref(), 0, now, out),
+        Proc::Claude(host) => header(id, "fake Claude", host.as_ref(), 0, now, out),
+        Proc::Relay(host) => header(id, "smith relay", host.as_ref(), 0, now, out),
         Proc::Git(host) => header(id, "hosted git", host.as_ref(), 0, now, out),
         Proc::GitRoute(host) => header(id, "git route", host.as_ref(), 0, now, out),
         Proc::Issuer(host) => header(id, "issuer", host.as_ref(), 0, now, out),

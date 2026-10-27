@@ -84,7 +84,9 @@ impl Host for Proc {
                 | Self::Terminal(_)
                 | Self::Agent(_)
                 | Self::Git(_)
-                | Self::GitRoute(_) => {}
+                | Self::GitRoute(_)
+                | Self::Claude(_)
+                | Self::Relay(_) => {}
             }
             let host = self.host_mut();
             if pending
