@@ -27,7 +27,7 @@ const QUEUE: u32 = 64;
 const FILE_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Descriptors transferred by the kernel entry point or hosted factory.
-/// `observations` appends beneath `config`; `mcp` contains the MCP configuration.
+/// `observations` appends beneath `config`; `mcp` contains both invocation files.
 #[derive(Debug)]
 pub struct Faces {
     pub stdin: Option<Fd>,
@@ -114,6 +114,16 @@ impl Fake {
     /// Takes the invocation's arguments (without argv[0]), `NAME=value`
     /// environment entries and owned startup descriptors.
     pub fn new(arguments: &[Box<[u8]>], environment: &[Box<[u8]>], faces: Faces) -> Self {
+        Self::new_in(arguments, environment, faces, std::path::Path::new("."))
+    }
+
+    pub(crate) fn new_in(
+        arguments: &[Box<[u8]>],
+        environment: &[Box<[u8]>],
+        faces: Faces,
+        directory: &std::path::Path,
+    ) -> Self {
+        let command_arguments = crate::faces::file_arguments(arguments, directory).map(|files| files.arguments);
         let limits = limits();
         let mut io = Io::new(&limits);
         let input = faces.stdin.map(|fd| io.adopt_read_pipe(fd).expect("input slot"));
@@ -176,6 +186,10 @@ impl Fake {
             None
         };
         let story = if file_request.is_none() { Some(Story::default()) } else { None };
+        let arguments = match command_arguments {
+            Some(arguments) => arguments.iter().map(|bytes| String::from_utf8_lossy(bytes).into_owned()).collect(),
+            None => arguments,
+        };
         let mut fake = Self {
             io,
             files,
@@ -233,7 +247,11 @@ impl Fake {
                     }
                 }
                 Effect::Seen(seen) => {
-                    let mut bytes = serde_json::to_vec(&serde_json::json!({"seen":seen})).expect("seen JSON");
+                    let value = match seen {
+                        crate::Seen::Selected { .. } => serde_json::json!({"selection": seen}),
+                        _ => serde_json::json!({"seen": seen}),
+                    };
+                    let mut bytes = serde_json::to_vec(&value).expect("seen JSON");
                     bytes.push(b'\n');
                     if self.observation.token().is_some() {
                         self.observation.push(&bytes);
@@ -254,9 +272,10 @@ impl Fake {
                         });
                     }
                 }
-                Effect::McpStart(configuration) => self.mcp.start(
+                Effect::McpStart { configuration, directory } => self.mcp.start(
                     configuration,
                     self.config.mcp_directory.expect("MCP root"),
+                    directory.as_bytes(),
                     &self.environment,
                     &mut self.io_requests,
                 ),
