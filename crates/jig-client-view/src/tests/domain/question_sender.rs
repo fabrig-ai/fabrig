@@ -26,7 +26,7 @@ fn question_sender_closed_widths_and_absence_keep_whole_facts_and_original_answe
         let mut supplied = question();
         supplied.from = from;
         supplied.message = u64::MAX;
-        supplied.words = text(UTF8_TEXT);
+        supplied.words = DocumentText::complete(text(UTF8_TEXT));
         supplied.since = Wall::from_nanos(u64::MAX);
         supplied.acts = List::with_capacity(2);
         supplied.acts.push(Offered { effect: None, act: ActKind::Answer, admission: Admission::Allowed }).unwrap();

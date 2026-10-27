@@ -471,7 +471,7 @@ pub struct Question {
     pub task: Chip,
     pub from: Option<super::OwnerRequester>,
     pub message: u64,
-    pub words: Text,
+    pub words: DocumentText,
     pub since: Wall,
     pub acts: List<Offered>,
     pub ending: Option<Ending>,

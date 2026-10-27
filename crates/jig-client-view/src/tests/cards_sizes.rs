@@ -252,7 +252,7 @@ fn full_cards(words: &crate::words::Words, sized: &Limits) {
         card_tree(&d, id, words, sized, crate::proposal_nodes(&CLIENT).unwrap());
     }
     let mut question_value = question();
-    question_value.words = full_text();
+    question_value.words = DocumentText { bytes: full_text(), cut: true };
     question_value.task = full_chip(8);
     let (d, id) = loaded(ObjectKey::Question { task: 8, message: 1 }, ReadValue::Question(Box::new(question_value)));
     card_tree(&d, id, words, sized, crate::question_nodes(&CLIENT).unwrap());

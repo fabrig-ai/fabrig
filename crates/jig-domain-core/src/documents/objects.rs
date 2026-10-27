@@ -126,7 +126,7 @@ pub struct Escalation {
     pub acts: List<crate::acts::Offered>,
     pub task: Box<Task>,
 }
-/// An unanswered question's words are whole; over its byte bound it is refused.
+/// A question has bounded words with their loss stated; its activity keeps them whole.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Question {
     pub acts: List<crate::acts::Offered>,
@@ -134,7 +134,7 @@ pub struct Question {
     pub message: u64,
     pub from: tasks::Party,
     pub at: Wall,
-    pub words: Box<[u8]>,
+    pub words: Text,
 }
 /// A shown dependency result; content not in live memory is named for a store read.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -636,9 +636,6 @@ pub(super) fn question(
         let tasks::Line::Words { by, kind: tasks::MessageKind::Question, words, .. } = &fact.line else {
             return Err(Missing::Unknown);
         };
-        if words.len() > usize::try_from(limits.documents.text_bytes).expect("text bound fits") {
-            return Err(Missing::TooLarge);
-        }
         return Ok(Question {
             acts: super::offers::subject(
                 core,
@@ -651,7 +648,7 @@ pub(super) fn question(
             message,
             from: *by,
             at: fact.at,
-            words: skein_lib::bytes::copy_of(words),
+            words: super::small::text(words, limits.documents.text_bytes),
         });
     }
     Err(Missing::Ended)

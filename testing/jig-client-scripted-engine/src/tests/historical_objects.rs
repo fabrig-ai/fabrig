@@ -66,7 +66,7 @@ fn question() -> Question {
         task: super::task().chip,
         from: Some(OwnerRequester::Deployment { project: u32::MAX }),
         message: u64::MAX,
-        words: super::text(UTF8_TEXTS[0]),
+        words: DocumentText::complete(super::text(UTF8_TEXTS[0])),
         since: Wall::EPOCH,
         acts: List::with_capacity(0),
         ending: None,

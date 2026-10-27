@@ -8,7 +8,7 @@ use skein_lib::List;
 use skein_lib::bytes::copy_of;
 
 #[expect(clippy::disallowed_methods, reason = "client/domain/contract.md, 5.3 requires UTF-8 text validation")]
-pub(super) fn text(bytes: &[u8], maximum: u32) -> Text {
+pub(crate) fn text(bytes: &[u8], maximum: u32) -> Text {
     let source = core::str::from_utf8(bytes).expect("source text is UTF-8 at the engine entrance");
     let mut length = bytes.len().min(usize::try_from(maximum).expect("text bound fits usize"));
     for _ in 0_u8..3 {

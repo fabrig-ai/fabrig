@@ -20,7 +20,7 @@ use skein_ui::{Builder, Tree};
 fn fixture(from: Option<OwnerRequester>) -> (Fixture, Id<Object>, Question) {
     let mut value = question();
     value.from = from;
-    value.words = text(UTF8_TEXTS[0]);
+    value.words = DocumentText::complete(text(UTF8_TEXTS[0]));
     value.since = Wall::from_nanos(23);
     let (d, id) = loaded(
         ObjectKey::Question { task: value.task.task, message: value.message },
@@ -149,7 +149,7 @@ fn question_sender_maximum_card_has_finite_bounds_and_retains_independent_older_
     ] {
         let mut value = question();
         value.from = Some(OwnerRequester::Deployment { project: u32::MAX });
-        value.words = text(UTF8_TEXTS[1]);
+        value.words = DocumentText::complete(text(UTF8_TEXTS[1]));
         value.task.title = DocumentText::complete(text(UTF8_TEXTS[2]));
         let mut dependencies = List::with_capacity(CLIENT.rows);
         for number in [0, u64::MAX] {

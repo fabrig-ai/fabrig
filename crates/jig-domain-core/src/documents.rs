@@ -64,6 +64,7 @@ pub use project_note::{
     Ledger, Member, Note, NoteLocation, Policy, PolicyRole, Project, ProjectResource, Recurring, Requirement,
     ResourceRole, SpendLine, note_from_entry,
 };
+pub(crate) use small::text as bounded_text;
 mod live_delegates;
 pub use live_delegates::LiveDelegate;
 pub(crate) mod task_tree;

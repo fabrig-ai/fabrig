@@ -89,7 +89,7 @@ pub fn read_value_question() -> c::Question {
         task: chip(),
         from: None,
         message: 7,
-        words: text(b""),
+        words: jig_client_domain::contract::DocumentText::complete(text(b"")),
         since: Wall::from_nanos(7),
         acts: List::with_capacity(0),
         ending: None,

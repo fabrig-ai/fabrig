@@ -1289,8 +1289,60 @@ fn documents_every_escalation_reason_keeps_the_task_story_and_independent_revisi
     }
 }
 
+fn question_document(words: &[u8], bound: u32) -> Question {
+    let (mut core, mut limits) = make_tree();
+    limits.documents.text_bytes = bound;
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Message {
+            reply_to: ReplyTo::new(Token::new(60)),
+            project: 1,
+            task: 1,
+            word: tasks::Word {
+                number: 60,
+                from: tasks::Party::Task(2),
+                kind: tasks::MessageKind::Question,
+                words: words.into(),
+                at: Wall::from_nanos(9),
+                hits: 1,
+                eligible: true,
+            },
+        },
+    );
+    let Document::Question(question) =
+        make(&core, &limits, 1, &Subject::Question { task: 1, message: 60 }, &window(), Wall::EPOCH).unwrap()
+    else {
+        panic!("question document")
+    };
+    question
+}
+
 #[test]
-fn documents_question_words_are_whole_or_refused_and_answered_questions_end() {
+fn a_question_past_the_text_bound_is_cut_and_marked() {
+    let bound = 4;
+    let whole = question_document(b"plan", bound);
+    assert_eq!(whole.words.bytes.as_ref(), b"plan");
+    assert!(!whole.words.cut);
+    let cut = question_document(b"plan?", bound);
+    assert_eq!(cut.words.bytes.as_ref(), b"plan");
+    assert!(cut.words.cut);
+    let mut answerable = false;
+    for offer in &cut.acts {
+        answerable |= offer.act == crate::acts::Act::Answer && offer.admission == crate::acts::Admission::Allowed;
+    }
+    assert!(answerable);
+}
+
+#[test]
+fn a_question_is_cut_before_a_character_straddling_the_text_bound() {
+    let cut = question_document("plané?".as_bytes(), 5);
+    assert_eq!(cut.words.bytes.as_ref(), b"plan");
+    assert!(cut.words.cut);
+}
+
+#[test]
+fn documents_question_words_are_bounded_and_answered_questions_end() {
     let (mut core, mut limits) = make_tree();
     send_task(
         &mut core,
@@ -1356,10 +1408,12 @@ fn documents_question_words_are_whole_or_refused_and_answered_questions_end() {
         answerable |= offer.act == crate::acts::Act::Answer && offer.admission == crate::acts::Admission::Allowed;
     }
     assert!(answerable);
-    assert_eq!(question.words.as_ref(), b"Whole question?");
+    assert_eq!(question.words.bytes.as_ref(), b"Whole question?");
     assert_eq!(question.at, Wall::from_nanos(9));
     limits.documents.text_bytes = 5;
-    assert_eq!(make(&core, &limits, 1, &target, &window(), Wall::EPOCH), Err(Missing::TooLarge));
+    let Document::Question(cut) = make(&core, &limits, 1, &target, &window(), Wall::EPOCH).unwrap() else { panic!() };
+    assert_eq!(cut.words.bytes.as_ref(), b"Whole");
+    assert!(cut.words.cut);
     limits.documents.text_bytes = 256;
     send_task(
         &mut core,

@@ -44,7 +44,7 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
         task: task.chip.clone(),
         from: Some(OwnerRequester::Person(7)),
         message: 1,
-        words: text(b"Which option?"),
+        words: DocumentText::complete(text(b"Which option?")),
         since: Wall::EPOCH,
         acts: test::list([]),
         ending: None,

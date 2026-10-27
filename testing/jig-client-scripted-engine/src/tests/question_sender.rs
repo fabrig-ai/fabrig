@@ -8,7 +8,7 @@ fn question_sender_kit_rejects_malformed_original_packet_before_engine_state_exi
         task: task().chip,
         from: Some(OwnerRequester::Person(u64::MAX)),
         message: u64::MAX,
-        words: text(b"whole original words"),
+        words: DocumentText::complete(text(b"whole original words")),
         since: Wall::from_nanos(u64::MAX),
         acts: List::with_capacity(2),
         ending: None,

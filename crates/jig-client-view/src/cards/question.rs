@@ -1,4 +1,4 @@
-//! A whole question and its one answer (client/domain/objects.md, section 6).
+//! A bounded question and its one answer (client/domain/objects.md, section 6).
 use crate::{JigBindings, phrases::jig::JigPhrase, words::Words};
 use skein_ui::Builder;
 
@@ -38,7 +38,7 @@ pub fn question(
         };
         words.text(b, phrase, &[skein_ui::phrases::Hole::Number(number)]);
     }
-    skein_ui::markdown::read(document.words.bytes(), 2, b);
+    crate::document_text::markdown(b, &document.words, words);
     words.waiting(b, client.wall(), document.since);
     if super::common::answering(client, object) {
         super::common::field(b, client, Purpose::Answer, JigPhrase::AnswerField, words, bindings);

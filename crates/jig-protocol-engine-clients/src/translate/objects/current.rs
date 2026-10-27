@@ -3,7 +3,7 @@
 use super::super::{chips, owner, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;
-use skein_lib::{List, Writer, bytes};
+use skein_lib::{List, Writer};
 pub fn result(
     models: &[crate::Model],
     value: &d::ResultDoc,
@@ -156,7 +156,7 @@ pub fn question(models: &[crate::Model], value: &d::Question, limits: &w::Limits
             task: chips::chip(&value.task, limits)?,
             from: Some(owner::requester(value.from, limits)?),
             message: value.message,
-            words: bytes::copy_of(&value.words),
+            words: owner::text(&value.words, limits)?,
             since: value.at.as_nanos(),
             acts: task::offered(models, &value.acts, limits, limits.question_acts, w::Path::QuestionActs)?,
             ending: None,

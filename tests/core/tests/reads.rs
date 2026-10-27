@@ -334,7 +334,7 @@ fn a_question_read_after_its_task_ended_finds_both_lines_by_key() {
     finish_chat(&mut world, task);
     ask(&mut world, 901, reads::Read::Question { task, message });
     let reads::Past::Question { question, answer, ending } = past(&world) else { panic!("question") };
-    assert_eq!(question.words.as_ref(), b"original question?");
+    assert_eq!(question.words.bytes.as_ref(), b"original question?");
     let answer = answer.as_ref().expect("answer by key");
     assert!(matches!(&answer.line, tasks::Line::Words { kind: tasks::MessageKind::Answer { question }, words, .. }
         if *question == message && words.as_ref() == b"the answer"));
@@ -422,7 +422,18 @@ fn take_message(world: &mut jig_core_world::effects::World, task: u64, turn: u32
 }
 
 fn question_world(seed: u64, bound: Option<u32>) -> (jig_core_world::effects::World, u64) {
+    question_world_with_text_bound(seed, bound, None)
+}
+
+fn question_world_with_text_bound(
+    seed: u64,
+    bound: Option<u32>,
+    text: Option<u32>,
+) -> (jig_core_world::effects::World, u64) {
     let (configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
+    if let Some(text) = text {
+        limits.core.documents.text_bytes = text;
+    }
     if let Some(bound) = bound {
         limits.core.tasks.inbox_messages = bound;
         limits.core.tasks.run_inbox = bound;
@@ -645,7 +656,7 @@ fn a_delegates_question_waits_for_the_person_after_the_director_reads_it() {
         ask(&mut world, 907, reads::Read::Question { task: director, message });
         let reads::Answer::Document(frame) = latest(&world) else { panic!("live question: {:?}", latest(&world)) };
         let documents::Document::Question(question) = frame.as_ref() else { panic!("question document") };
-        assert_eq!(question.words.as_ref(), b"original question?");
+        assert_eq!(question.words.bytes.as_ref(), b"original question?");
         assert_eq!(question.at, original_at);
         assert!(
             question
@@ -689,4 +700,32 @@ fn a_delegates_question_waits_for_the_person_after_the_director_reads_it() {
     let reads::Past::Question { question, answer, .. } = past(&world) else { panic!("historical question") };
     assert!(question.acts.is_empty());
     assert!(answer.is_some());
+}
+
+#[test]
+fn a_stored_question_past_the_text_bound_is_cut_and_marked() {
+    stored_cut_question(b"plan?", 4, b"plan");
+}
+
+#[test]
+fn a_stored_question_is_cut_before_a_character_straddling_the_text_bound() {
+    stored_cut_question("plané?".as_bytes(), 5, b"plan");
+}
+
+fn stored_cut_question(words: &[u8], bound: u32, expected: &[u8]) {
+    let (mut world, task) = question_world_with_text_bound(799, None, Some(bound));
+    let sender = chat_task(&world);
+    let message = message(&mut world, sender, task, 1, tasks::MessageKind::Question, words);
+    request(
+        &mut world,
+        91,
+        people::Ask::AnswerQuestion { project: 1, task, question: message, words: b"Go ahead.".as_slice().into() },
+    );
+    finish_chat(&mut world, sender);
+    finish_chat(&mut world, task);
+    ask(&mut world, 901, reads::Read::Question { task, message });
+    let reads::Past::Question { question, answer, .. } = past(&world) else { panic!("stored question") };
+    assert_eq!(question.words.bytes.as_ref(), expected);
+    assert!(question.words.cut);
+    assert!(answer.is_some(), "the full stored question remains answerable");
 }

@@ -19,7 +19,7 @@ fn question(from: Option<OwnerRequester>) -> Question {
         },
         from,
         message: u64::MAX,
-        words: Text::new(copy_of(UTF8_TEXTS[1]), 3).unwrap(),
+        words: DocumentText::complete(Text::new(copy_of(UTF8_TEXTS[1]), 3).unwrap()),
         since: Wall::from_nanos(u64::MAX),
         acts,
         ending: None,
@@ -82,7 +82,7 @@ fn question_sender_malformed_nested_capacity_and_words_are_refused_whole_without
     bounds.text = 3;
     assert!(!fits(&ReadValue::Question(Box::new(empty_offers)), &bounds), "reserved empty offer capacity is checked");
     let mut malformed = value;
-    malformed.words = Text::new(copy_of(b"abcd"), 4).unwrap();
+    malformed.words = DocumentText::complete(Text::new(copy_of(b"abcd"), 4).unwrap());
     assert!(!fits(&ReadValue::Question(Box::new(malformed)), &bounds));
 }
 

@@ -759,7 +759,7 @@ record OwnerProposalWaiting { holder: OwnerHistoryHolder since: u64 }
 record OwnerFundingOffer { source: Funder needed: u64 left: option u64 after: option u64 }
 record OwnerProposal { key: ProposalKey project: u32 reason: DocumentText action: OwnerProposalAction as_holder: bool waiting: OwnerProposalWaiting funding: list 32 OwnerFundingOffer acts: bytes 16777216 }
 record OwnerEscalation { acts: bytes 16777216 task: Task }
-record Question { task: Chip from: option OwnerRequester message: u64 words: text 65536 since: u64 acts: bytes 16777216 ending: option Ending }
+record Question { task: Chip from: option OwnerRequester message: u64 words: DocumentText since: u64 acts: bytes 16777216 ending: option Ending }
 record OptionLine { number: u32 words: text 65536 words_max: u32 followups: u32 fields: list 32 FieldRule }
 record PersonContractChoice { options: bytes 16777216 }
 record PersonContractApproval { state: text 65536 part: Part }

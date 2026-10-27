@@ -733,9 +733,6 @@ fn object(
             if number != message || line.task != *task || !owner_matches(&row, *task) {
                 return Ok(None);
             }
-            if words.len() > usize::try_from(limits.documents.text_bytes).expect("text cap") {
-                return Err(Missing::TooLarge);
-            }
             let owner = row_owner(&row).expect("matched owner");
             let answer = match &row.related {
                 Some(record) => match activity_record(record) {
@@ -772,7 +769,7 @@ fn object(
                         message: *number,
                         from: *by,
                         at: line.at,
-                        words: words.clone(),
+                        words: documents::bounded_text(words, limits.documents.text_bytes),
                     },
                     answer,
                     ending,

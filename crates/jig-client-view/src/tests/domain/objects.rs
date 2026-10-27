@@ -113,7 +113,7 @@ pub(super) fn question() -> Question {
         task: chip(8),
         from: None,
         message: 1,
-        words: text(b"whole question"),
+        words: DocumentText::complete(text(b"whole question")),
         since: Wall::EPOCH,
         acts: List::with_capacity(0),
         ending: None,

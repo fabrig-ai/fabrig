@@ -231,7 +231,7 @@ pub fn render(
                 crate::owner_result::requester(b, by, words);
             }
             at(b, words, P::Since, question.since);
-            raw(b, &question.words);
+            crate::document_text::plain(b, &question.words, words);
             if let Some(how) = &question.ending {
                 words.ending(b, how);
             }
@@ -523,7 +523,7 @@ pub fn required(value: &OwnerHistorical, l: &Limits, words: &Words) -> Option<Hi
         }
         OwnerHistoricalValue::Question { question, answer, ending } => {
             chip_fits(&question.task, l, words)?;
-            if !question.words.fits(l.text) {
+            if !question.words.bytes.fits(l.text) {
                 return None;
             }
             if let Some(value) = answer {

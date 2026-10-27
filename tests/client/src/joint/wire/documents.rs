@@ -260,7 +260,7 @@ pub fn result_read(
     Ok(value)
 }
 
-/// An admitted live Question supplies whole words and no retained ending.
+/// An admitted live Question supplies bounded words and no retained ending.
 /// # Errors
 /// Refuses any source text, chip, offer or complete receiving envelope above bounds.
 pub fn question_read(
@@ -272,7 +272,7 @@ pub fn question_read(
         task: chips::chip(&source.task, limits).map_err(Invalid::Owner)?,
         from: Some(results::requester(source.from)),
         message: source.message,
-        words: raw_text(&source.words, limits)?,
+        words: owner::text(&source.words, limits).map_err(Invalid::Owner)?,
         since: source.at,
         acts: offers::offered(&source.acts, limits, models).map_err(Invalid::Owner)?,
         ending: None,
@@ -526,11 +526,11 @@ pub(crate) mod tests {
             message: u64::MAX,
             from: jig_domain_tasks::Party::Task(0),
             at: Wall::EPOCH,
-            words: Box::from(UTF8_TEXTS[0]),
+            words: documents::Text { bytes: Box::from(UTF8_TEXTS[0]), cut: true },
         }
     }
     #[test]
-    fn whole_question_reads_keep_exact_sender_identity_words_clock_chip_and_actual_answer_offer() {
+    fn bounded_question_reads_keep_exact_sender_identity_words_clock_chip_and_actual_answer_offer() {
         let mut source = question_source();
         let limits = rows::tests::limits();
         for sender in [
@@ -549,6 +549,7 @@ pub(crate) mod tests {
             assert_eq!(value.from, Some(results::requester(sender)));
             assert_eq!(value.message, u64::MAX);
             assert_eq!(value.words.bytes(), UTF8_TEXTS[0]);
+            assert!(value.words.cut);
             assert_eq!(value.since, Wall::EPOCH);
             assert_eq!(value.ending, None);
             assert!(value.task.title.cut);
@@ -583,7 +584,7 @@ pub(crate) mod tests {
                 Err(Invalid::Owner(owner::Invalid::TooLarge))
             );
         }
-        source.words = Box::new([]);
+        source.words = documents::Text { bytes: Box::new([]), cut: false };
         let client::ReadValue::Question(value) =
             question_read(&source, &limits, &[jig_core_world::world::scripted_model()])
                 .expect("whole empty source words")

@@ -209,7 +209,7 @@ fn nested_chip_payload_bounds(chip: &Chip) {
                 task: invalid_chip,
                 from: None,
                 message: 1,
-                words: text(b"question"),
+                words: DocumentText::complete(text(b"question")),
                 since: Wall::EPOCH,
                 acts: list(vec![]),
                 ending: None,

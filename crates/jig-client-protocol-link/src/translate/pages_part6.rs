@@ -66,7 +66,7 @@ pub(crate) fn question_fields(value: &w::Question, limits: &Limits) -> Result<c:
         task: chip_fields(value.task(), limits)?,
         from: opt0,
         message: value.message(),
-        words: text(value.words(), limits)?,
+        words: crate::translate::facts::document_text(value.words(), limits)?,
         since: Wall::from_nanos(value.since()),
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
         ending: opt1,

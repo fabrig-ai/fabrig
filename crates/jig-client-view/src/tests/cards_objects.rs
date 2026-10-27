@@ -100,7 +100,7 @@ pub(super) fn question() -> Question {
         task: chip(),
         from: None,
         message: 1,
-        words: text(b"whole question"),
+        words: DocumentText::complete(text(b"whole question")),
         since: Wall::EPOCH,
         acts: offered(ActKind::Answer),
         ending: None,

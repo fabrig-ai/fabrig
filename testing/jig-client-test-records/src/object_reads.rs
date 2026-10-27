@@ -231,7 +231,7 @@ pub fn read_wire_question() -> w::Question {
             task: chip_record(),
             from: None,
             message: 7,
-            words: Box::from([]),
+            words: w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from([]), cut: false }).expect("text"),
             since: 7,
             acts: Box::from([]),
             ending: None,

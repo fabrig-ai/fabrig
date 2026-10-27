@@ -130,7 +130,6 @@ fn receiving_part1(checked: &mut Limits, limits: &Limits) {
     checked.wire.proposal_action_amend_before = limits.client.text;
     checked.wire.proposal_action_batch_tasks =
         u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.question_words = limits.client.text;
     checked.wire.question_acts = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
     checked.wire.recipient_roles_roles = limits.client.rows;
 }
