@@ -1827,7 +1827,11 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   one that is short at its path, naming by how much (jig's
   `What::Memory`), and the box raises it by that. A boxed start (`temper
   box`) counts its two pipes' buffers in the engine's sum before it
-  names the figure, so one raise starts it; a pipe the engine cannot
+  names the figure, so one raise starts it. From any `memory_bytes`,
+  however small, the start names the deficit against the whole worst
+  case, the larger of jig's own envelope and temper's composed service,
+  the engine's and each worker's alike, never one stage of it (QA
+  20261027-1642-temper finding 1); a pipe the engine cannot
   then adopt is refused naming what it lacks, never a bare `fd N
   refused` (QA 20261027-1254-temper finding 2). `docs/examples/owned.json`'s
   declarations are the user's budget for the owned deployment and
