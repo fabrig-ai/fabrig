@@ -632,7 +632,8 @@ deadline, circles, a procedure's need) keep their rules.
   - its owner;
   - a party whose role in the project stands above the owner's: the
     project's policy ranks its roles, owner over maintainer over member
-    by default (people.md, section 4);
+    over observer by default, a role of the policy's own with member
+    unless it says otherwise (people.md, section 4);
   - for a hold a task placed: that task, any task above it, and the
     parties in whose tree it is.
 
@@ -665,7 +666,11 @@ deadline, circles, a procedure's need) keep their rules.
 - **Lifted as one, released one by one.** Lifting a placed hold, naming
   its revision, ends it: nothing more is held by it, and a task it held
   stays held, so that the person resumes goals one at a time, each
-  released as section 7 says, by those this section names. A lift may
+  released as section 7 says, by those this section names. A subtree
+  hold's root is the exception: released by one who may lift its hold,
+  or by an accepted proposal of its release, it lifts the hold with
+  every task it holds that nothing else holds, so that a stopped goal
+  resumes whole. A lift may
   ask to release with it every task it holds that nothing else holds.
   The record of a lifted hold stays, ended, while a task it held is
   still held by it, and goes with the last one's release. A task
@@ -685,9 +690,14 @@ deadline, circles, a procedure's need) keep their rules.
   inbox and a task's among its entries, and only those who may lift the
   hold accept it, which releases the task as their own release would. A
   hold lifted, or its revision moved, withdraws it.
-- **Bounded:** placed holds per project and per party, the exemptions
-  one keeps, and their subscriptions among the subscriptions per task
-  (section 11).
+- **One at a time:** a task is held by one placed hold, the first
+  standing one that covers it; released from it, it is judged afresh
+  against the others.
+- **Ended with its root:** a subtree hold whose root ends is erased, its
+  tasks released from it.
+- **Bounded:** placed holds in the deployment, per project and per
+  party, the exemptions one keeps, and their subscriptions among the
+  subscriptions per task (section 11).
 - **Restart** restores placed holds and their subscriptions with the
   tasks they hold; a drain in progress goes on draining.
 
