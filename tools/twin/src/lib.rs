@@ -30,6 +30,8 @@ pub struct Twin {
 pub struct Report {
     pub turns: Box<[(u64, u32)]>,
     pub replaced: Box<[u32]>,
+    /// Opaque blocks omitted from each task, including tasks with none.
+    pub dropped: Box<[(u64, u32)]>,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Refusal {
@@ -43,7 +45,6 @@ pub enum Refusal {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Unheld {
-    Opaque,
     CutShort,
     Compaction,
 }
@@ -77,12 +78,22 @@ pub fn twin(input: &Input) -> Result<Twin, Refusal> {
     let mut turns = Vec::new();
     let mut replaced = vec![0; input.replaces.len()];
     let mut scripts = Vec::new();
+    let mut dropped = Vec::new();
     for take in &input.takes {
         let completions = frames::read(&input.data, take.task)?;
         let count = u32::try_from(completions.len()).expect("eight turns");
-        scripts.push(document::script(take, &completions, &input.replaces, &mut replaced)?);
+        let mut blocks = 0;
+        scripts.push(document::script(take, &completions, &input.replaces, &mut replaced, &mut blocks)?);
+        dropped.push((take.task, blocks));
         turns.push((take.task, count));
     }
     let document = document::finish(&mut base, &scripts)?;
-    Ok(Twin { document, report: Report { turns: turns.into_boxed_slice(), replaced: replaced.into_boxed_slice() } })
+    Ok(Twin {
+        document,
+        report: Report {
+            turns: turns.into_boxed_slice(),
+            replaced: replaced.into_boxed_slice(),
+            dropped: dropped.into_boxed_slice(),
+        },
+    })
 }

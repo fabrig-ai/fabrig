@@ -66,6 +66,9 @@ fn run() -> Result<(), String> {
     for (task, turns) in &twin.report.turns {
         println!("task {task}: {turns} turns");
     }
+    for (task, blocks) in &twin.report.dropped {
+        println!("task {task}: {blocks} opaque blocks dropped");
+    }
     for (replace, count) in input.replaces.iter().zip(&twin.report.replaced) {
         println!("{}: {count}", String::from_utf8_lossy(&replace.old).escape_debug());
     }

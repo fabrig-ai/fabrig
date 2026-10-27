@@ -118,7 +118,6 @@ fn check(turn: &smith::Turn, task: u64, number: u32) -> Result<(), Refusal> {
         }
         for block in message.blocks() {
             match block {
-                Block::Opaque(_) => return Err(Refusal::Turn { task, turn: number, why: Unheld::Opaque }),
                 Block::Result(result) => {
                     if let Returned::Invalid(invalid) = result.returned()
                         && matches!(invalid.problem(), CallProblem::CutOff(_))
@@ -134,7 +133,7 @@ fn check(turn: &smith::Turn, task: u64, number: u32) -> Result<(), Refusal> {
                         return Err(Refusal::Turn { task, turn: number, why: Unheld::CutShort });
                     }
                 }
-                Block::Text(_) | Block::Refusal(_) => {}
+                Block::Opaque(_) | Block::Text(_) | Block::Refusal(_) => {}
             }
         }
     }

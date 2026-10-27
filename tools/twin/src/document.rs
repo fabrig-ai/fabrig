@@ -28,6 +28,7 @@ pub(crate) fn script(
     turns: &[smith_transcript::Turn],
     replaces: &[Replace],
     counts: &mut [u32],
+    dropped: &mut u32,
 ) -> Result<String, Refusal> {
     let mut script = format!("{{\"cue\":{},\"turns\":[", quoted(&take.cue)?);
     for (i, turn) in turns.iter().enumerate() {
@@ -38,10 +39,14 @@ pub(crate) fn script(
         let mut lines = 0;
         let mut calls = false;
         for message in turn.messages() {
-            if *message.role() != Role::Assistant {
-                continue;
-            }
             for block in message.blocks() {
+                if matches!(block, Block::Opaque(_)) {
+                    *dropped = dropped.checked_add(1).ok_or(Refusal::Bounds { what: "opaque count" })?;
+                    continue;
+                }
+                if *message.role() != Role::Assistant {
+                    continue;
+                }
                 if lines == temper_fake::ENTRIES {
                     return Err(Refusal::Bounds { what: "lines" });
                 }

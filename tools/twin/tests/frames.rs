@@ -131,6 +131,7 @@ fn a_chat_and_its_delegates_become_cued_scripts() {
     let (_scratch, input) = fixture(&TASKS);
     let converted = twin(&input).expect("convert frames");
     assert_eq!(&*converted.report.turns, &[(CHAT, 6), (WORK, 5), (CODER, 4), (REVIEWER, 1)]);
+    assert_eq!(&*converted.report.dropped, &[(CHAT, 0), (WORK, 0), (CODER, 0), (REVIEWER, 0)]);
     let doc: Value = serde_json::from_slice(&converted.document).expect("twin JSON");
     let before: Value = serde_json::from_slice(&input.base).expect("base JSON");
     for name in ["listen", "key", "tls", "models", "otherwise", "asked", "added_keys", "control"] {
@@ -239,18 +240,29 @@ fn an_older_smith_turn_version_is_refused() {
 }
 
 #[test]
-fn an_opaque_completion_is_refused_naming_task_and_turn() {
+fn opaque_blocks_are_dropped_and_counted_without_changing_text_and_calls() {
     let (_scratch, input) = fixture(&[CHAT]);
     let mut parts = first(&input);
     let opaque =
         smith::Opaque::new(&smith::CEILINGS, smith::OpaqueParts { dialect: 1, bytes: b"opaque".as_slice().into() })
             .expect("opaque");
-    completion(&mut parts, vec![Block::Opaque(opaque)]);
-    save_first(&input, parts);
-    assert_eq!(
-        twin(&input).expect_err("opaque completion"),
-        Refusal::Turn { task: CHAT, turn: FIRST, why: Unheld::Opaque }
+    completion(
+        &mut parts,
+        vec![Block::Opaque(opaque.clone()), text("before"), call(b"{}"), Block::Opaque(opaque), text("after")],
     );
+    save_first(&input, parts);
+    let converted = twin(&input).expect("opaque blocks dropped");
+    assert_eq!(&*converted.report.dropped, &[(CHAT, 2)]);
+    let doc: Value = serde_json::from_slice(&converted.document).expect("twin JSON");
+    let turn = &doc["cued"][0]["turns"][0];
+    assert_eq!(
+        turn["lines"],
+        json!([
+            {"text":"before"}, {"call":"delegate","arguments":{}}, {"text":"after"}
+        ])
+    );
+    assert_eq!(turn["finish"], "tool_calls");
+    assert_eq!(turn["tokens"], 20);
 }
 
 #[test]

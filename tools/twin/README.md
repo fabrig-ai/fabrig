@@ -33,14 +33,15 @@ normal compact JSON encoding when it serves them. `--replace OLD=NEW` applies
 literal, non-overlapping byte substitutions to arguments alone, in option
 order, counting occurrences per option. An empty OLD or a replacement that
 produces invalid object JSON is refused. Reports list turns per task and
-occurrences per replacement. A refusal prints one line and exits 2; no output
-is opened on a conversion refusal.
+occurrences per replacement and opaque blocks dropped per task. A refusal
+prints one line and exits 2; no output is opened on a conversion refusal.
 
 The bounds are the fake's: eight scripts, eight turns per script, eight lines
 per turn, 256-byte nonempty cues, 64 KiB answers, 256 KiB total scripts and
 a 1 MiB document. The fake's decoder checks its detailed JSON and byte bounds.
-Opaque blocks, cut calls and compactions are refused with task and turn;
-bad or partial frames include task and byte offset. Versions must be those
+Opaque blocks are dropped, keeping text and calls in order. Cut calls and
+compactions are refused with task and turn; bad or partial frames include
+task and byte offset. Versions must be those
 of this build's Jig and Smith codecs. There are no upgrades and the store is
 never opened. Jig's `protocol/store.md`, 8.1–8.4, owns frame layout and the
 clean-stop guarantee: a complete checksummed frame does not independently
