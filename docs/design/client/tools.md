@@ -313,6 +313,8 @@ agent must name.
 | `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items; prints the proposal's number and the settings of temper's kinds it leaves out; `proposal show` then shows its items, and an owner decides it | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
 | `task release TASK --hold REV [--again]` | lifts a hold | `Release` | |
 | `task stop TASK` | cancels a task's run, the task held | `Stop` | |
+| `task move TASK --under TASK`, designed, not built | makes the second task the first's requester (jig's `domain/tasks.md`, section 7) | `Move` | yes |
+| `task succeed TASK --by TASK`, designed, not built | names a live task the successor of an ended one: its open questions, subscriptions and kept news go to it | `Succeed` | yes |
 | `task hold TASK --stop\|--drain REASON`, designed, not built | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks.md`, 5.9) | `Hold` | yes |
 | `project hold PROJECT --stop\|--drain REASON`, designed, not built | places a hold of the party's over the whole project, the party's chats exempt | `Hold` | yes |
 | `hold lift HOLD --rev REV [--with-tasks]`, designed, not built | ends a placed hold; with `--with-tasks`, releases every task it held that nothing else holds | `Lift` | yes |

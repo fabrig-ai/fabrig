@@ -522,6 +522,13 @@ today's, until those land.
   changed goes to such a delegate, which tells its plan, asks, and calls
   `change` only after the answer; the chat relays the person's answer to
   it.
+- **Designed, not built (J7, J8):** the goal's question stays with the
+  chat (jig's `domain/tasks.md`, 8.5): the chat, woken by it, answers
+  from what it knows (its person's priorities, its notes), or asks its
+  person a question of its own in its own words, which is an entry of
+  the person's inbox, and answers the goal once it has the person's
+  answer. The rest of this section is today's route, which this
+  replaces once jig's rule is built.
 - **The goal asks its requester,** the chat, with `message` in the
   question form, before it calls `change`, and waits. jig puts the
   question in the inbox of the chat's person, since the person requested

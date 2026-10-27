@@ -1531,6 +1531,31 @@ history they keep if temper is unplugged. Issues are projections (jig's
 - **Issues others open** in an adopted repository are participating
   objects, which may become intake later.
 
+### 12.1 Questions on the forge
+
+Designed, not built (draft process-model.md, section 9; T14). Off by
+default: a project's setting turns it on.
+
+- **A question to a person on the forge:** a person task asking in
+  words (jig's `domain/people.md`, section 8), addressed to a party
+  whose forge account adoption mapped (section 4), is projected as an
+  issue in the repository it concerns (its goal's changes' repository,
+  else the project's home), labelled `waiting-on-person`, carrying the
+  question's words and the asking task, keyed by the person task (a
+  purpose of tag 10: the task, 8 bytes).
+- **The person answers in a comment.** A comment on that issue by the
+  mapped account, the first after the issue's opening, is the person
+  task's answer, admitted as that party's `Answer` (jig's
+  `domain/people.md`, 5.1); the inbox shows the same question, and
+  whichever answer commits first wins, the other refused as decided.
+  The issue is subscribed as a participating object (section 13) for
+  that account's comments alone.
+- **Closed when the question ends:** answered, by either way, with a
+  comment saying so; cancelled; or ended with its asker's cancel.
+- **The one exception** to section 13's rule that what people write on
+  temper's objects reaches no task: one issue per question, the mapped
+  account only, its first comment only, nothing else read.
+
 ## 13. Participating objects
 
 Not needed first, and kept possible with one mechanism (jig's
