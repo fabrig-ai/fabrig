@@ -4559,7 +4559,7 @@ fn a_green_light_answers_the_goals_207_byte_question_from_the_inbox_and_lands_it
 
 // Match configuration::documents' cheap fake prices in both protocol views.
 // Init's real model prices would refuse the controls' ten-unit change before
-// a producer ran; only these isolated fixtures take the fake price table.
+// a producer ran. The seed references stock policy 1, priced from these models.
 fn restart_deployment(paths: &[std::path::PathBuf; 3]) -> skein_fake_peers::oauth::Peer {
     let issuer = support::forge_land::fake_deployment(paths);
     for file in ["temper.json", "agent.json"] {
@@ -4574,20 +4574,6 @@ fn restart_deployment(paths: &[std::path::PathBuf; 3]) -> skein_fake_peers::oaut
         };
         for model in models.as_array_mut().expect("fixture models") {
             model["prices"] = serde_json::json!({"input":1,"cached":1,"output":1,"unit":1_000_000});
-        }
-        if file == "temper.json" {
-            let configured = temper_real_loop_world::settings::configuration(&value);
-            let defaults = temper_service::stock::defaults(&configured.llm);
-            let stock = &defaults.policies.get(&1).expect("stock policy").policy;
-            for project in value["engine"]["projects"].as_array_mut().expect("seed projects") {
-                let policy = &mut project["policy"];
-                policy["period_spend"] = stock.period_spend.into();
-                policy["ceiling"]["budget"]["spend"] = stock.ceiling.budget.spend.into();
-                for role in policy["roles"].as_array_mut().expect("seed roles") {
-                    role["period_spend"] = stock.roles[0].period_spend.into();
-                    role["authority"]["budget"]["spend"] = stock.roles[0].authority.budget.spend.into();
-                }
-            }
         }
         support::write_private(&path, &serde_json::to_vec(&value).expect("restart fixture JSON"));
     }
@@ -4692,27 +4678,33 @@ const RESTART_CONTROL: RestartProbe =
 // The same owned deployment must answer ctl after a settled stop with its review held.
 #[test]
 fn a_restart_over_a_budget_held_review_answers_ctl() {
-    held_review_restart(RESTART_CONTROL);
+    held_review_restart("restart-budget-held-review", RESTART_CONTROL);
 }
 
 #[test]
 fn a_restart_over_an_imported_then_exported_account_answers_ctl() {
-    held_review_restart(RestartProbe { imported: true, ..RESTART_CONTROL });
+    held_review_restart("restart-imported-exported-account", RestartProbe { imported: true, ..RESTART_CONTROL });
 }
 
 #[test]
 fn a_restart_after_a_cut_at_listening_answers_ctl() {
-    held_review_restart(RestartProbe { imported: true, cut_start: true, ..RESTART_CONTROL });
+    held_review_restart(
+        "restart-cut-at-listening",
+        RestartProbe { imported: true, cut_start: true, ..RESTART_CONTROL },
+    );
 }
 
 #[test]
 fn a_restart_with_another_box_sharing_its_cache_answers_ctl() {
-    held_review_restart(RestartProbe { imported: true, shared_cache: true, ..RESTART_CONTROL });
+    held_review_restart("restart-shared-cache", RestartProbe { imported: true, shared_cache: true, ..RESTART_CONTROL });
 }
 
 #[test]
 fn a_restart_over_reviews_held_before_their_first_call_answers_ctl() {
-    held_review_restart(RestartProbe { imported: true, hold: ReviewHold::BeforeCall, ..RESTART_CONTROL });
+    held_review_restart(
+        "restart-review-held-before-call",
+        RestartProbe { imported: true, hold: ReviewHold::BeforeCall, ..RESTART_CONTROL },
+    );
 }
 
 fn imported_restart_account(scratch: &std::path::Path, paths: &[std::path::PathBuf; 3]) {
@@ -4753,9 +4745,9 @@ fn imported_restart_account(scratch: &std::path::Path, paths: &[std::path::PathB
 }
 
 #[expect(clippy::too_many_lines, reason = "one restart story follows setup, stop, restart and its ctl reads")]
-fn held_review_restart(probe: RestartProbe) {
+fn held_review_restart(case: &str, probe: RestartProbe) {
     use support::ctl::{Call, Step};
-    let scratch = support::Scratch::new("restart-held-review");
+    let scratch = support::Scratch::new(case);
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
     let issuer = restart_deployment(&paths);
     let issuer = if probe.imported {
