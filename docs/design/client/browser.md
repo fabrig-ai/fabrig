@@ -778,10 +778,12 @@ real key in that restored form.
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (2.6).
-- **A guide: at most 12 tests, and about 120 seconds** (60 seconds before
-  the user's doubling of 10-22, provisional) on the slowest of the machines
-  that build temper. Past it, a story moves to a world or goes, and the
-  budget stays.
+- **A cap: at most 12 tests, and 120 seconds** on the slowest of the
+  machines that build temper (the user, 10-27, temper#15). Past it,
+  stories that share a setup become one test of several steps before
+  any browser-only proof is dropped, and what must leave the browser
+  goes to the lowest world that still shows it, named in its line of
+  4.6; the cap stays. The tests are 4.6's.
 - **Chromium** is the machine's, at the path its owner configures
   (skein's `browser.md`), which skein's, jig's and temper's browser
   tiers read from `SKEIN_TEST_CHROMIUM`. A missing Chromium or
@@ -850,6 +852,44 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
   harness's page and follows its link; temper's page sends `Authorize`,
   and the browser's address becomes the callback's, its `code` and the
   link's `state` there. Nothing of the token's is the browser's.
+
+### 4.6 The twelve
+
+The tier's tests, each one test of the steps it names, each on its own
+`temper serve` (the playground's on its built playground):
+
+1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
+   chat signs in by the cookie, and the link spent shows the
+   signed-out words.
+2. **History** (4.1, 2): from the chats to a chat by its link, Back and
+   Forward; a new chat's composer focused, and its filter's address and
+   pressed state kept across a reload and Back.
+3. **An address that is no page** opens the inbox at `/` (4.1, 2).
+4. **The composer** (4.1, 3).
+5. **A panic** (4.1, 4).
+6. **jig's attacks that need a browser** (4.1, 5): a cross-site request
+   from another port and from another host does nothing, and a framed
+   page shows nothing, from one attacker's origin.
+7. **A cross-site authorization** returns its code and the link's state
+   (4.5).
+8. **The accounts page after a key's send:** Back restores an emptied
+   field, Forward the chats (4.2).
+9. **`ConnectModel`'s round trip** (4.2).
+10. **GitHub's manifest page** posts itself once, and Back shows it
+    without posting again until Continue (4.4).
+11. **The task pages** by their addresses (4.2).
+12. **The playground's story A** on the built playground, its log
+    downloaded and replayed natively (`../playground.md`, 9).
+
+Gone from the tier, each to the lowest world that shows it:
+- **A chat's day and turn clocks beside its speakers:** words and roles
+  alone, which the view's tests (`temper-client-view`'s chat tests:
+  order, day lines, midnight) and the client world's chat already hold.
+- **GitHub's connect after the manifest** (conversion, installation,
+  the forge chosen, adoption, the Model summary): plain requests and the
+  client's events, in the real loop's GitHub world and the client
+  world's welcome, forge and adoption stories; the manifest's post, the
+  one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
 
