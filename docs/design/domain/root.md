@@ -376,6 +376,43 @@ Designed, not built (`../protocol/configuration.md`, section 13).
 - **The forge's charter is the forge's own value,** read from its kind
   3 when a change is made, and kept on the change (section 6).
 
+### 5.7 Periods, from the calendar
+
+A project's spend is per period (jig's `domain/authority.md`, section 7),
+and jig keeps no calendar: a period begins when the root says so (jig's
+`protocol/configuration.md`, section 5). temper's root has a third
+child, the calendar, which renews each project's period.
+
+- **One span for the deployment,** the stock's 7 days
+  (`../protocol/configuration.md`, 13.4), from each project's first
+  period: a project's periods are weeks from the moment it was first
+  funded. The calendar decides; the protocol layer only fires its
+  deadline.
+- **At a deployment's first start** the smallest source's periods open
+  as they do now (`../protocol/configuration.md`, section 8), and the
+  calendar says each one's next start, a span after its start.
+- **A project made after it** has its first period opened by the core
+  in the decision that makes it, with no next start (jig's
+  `domain/people.md`, 5.2); the root hears it was made, and the
+  calendar says that period's next start, a span after it began.
+- **At a next start** the calendar says the project's next period to
+  the core (jig's `Event::Period`: the project, the period's number one
+  more, its budget the project's spend per period as its policy holds
+  it then, its next start a span later). What the last period reserved
+  stays its own and returns to it (jig's `domain/authority.md`, section
+  7); the new one starts full.
+- **At each start,** once the core's records are restored, the calendar
+  learns each project's current period and its next start from the
+  core, and arms its deadline for the earliest. A next start already
+  past opens one new period at once, from the start's time, and not one
+  per span missed: a deployment down for three weeks opens one week.
+- **Bounded:** one deadline armed, the earliest; one record per project
+  in memory, within jig's project limit; nothing stored of its own, the
+  periods being the core's records.
+- **Seen:** a project's document carries its period's start and next
+  start (jig's `client/domain/contract.md`, 5.1), and `temper ctl
+  project show` prints them with what the period has left.
+
 ## 6. Translation
 
 Small total functions, one per pair of vocabularies, matching

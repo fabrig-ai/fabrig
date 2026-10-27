@@ -1160,11 +1160,6 @@ one owned forge, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
-- **A calendar for periods.** The smallest source opens one period per
-  configured project at the first start and none after, so a project's
-  budget is not renewed. Default: the smallest source; a calendar child
-  of temper's root, as `ops`'s (jig's `protocol/configuration.md`,
-  section 5; jig's `examples.md`, section 4), would renew it.
 - **A made project's own landing rules.** `landing.projects` names
   seeded projects, so a project made after the first start has the
   deployment's rules alone. Default: the deployment's. Designed in
@@ -1586,6 +1581,7 @@ into the binary.
 | the rules | today's: tools 515, delegation, messages and reads, the forge's grants under `forge`, delegation to charters 1, 2, 3 and 4 and the change procedure, 14 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4 |
+| a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 48K is a week's; the user's to confirm (temper#14). A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
 - **The configuring agent is a setting** like any other (`../draft/configuring.md`, 5.1): "Tell temper how you work" starts template 3,
   which an owner may change or remove as any template. Its runs read
