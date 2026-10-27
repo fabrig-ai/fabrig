@@ -2403,7 +2403,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         // Entries hand off in number order (skein's forge-client.md, 7.2);
         // the newest wake reserves the restart's entry and reads jig's current kept answer.
         pending.entry = entry;
-        pending.heard = heard;
+        pending.heard.lacking = heard.lacking;
+        pending.heard.spend = heard.spend;
         pending.kept = kept;
         pending.queue_repair_active = queue_repair_active;
         pending.gates = gates;

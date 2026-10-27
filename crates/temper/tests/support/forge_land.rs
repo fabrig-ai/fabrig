@@ -143,6 +143,9 @@ pub fn held_scripts(plan: &Plan<'_>) -> Box<[Script]> {
     scripts
 }
 
+/// The chat reports a review hold.
+pub const REVIEW_HELD: &str = "The change is held: its review could not run.";
+
 /// Every fresh reviewer fails, while the coder follows the owned-forge story.
 #[must_use]
 pub fn failed_review_scripts(plan: &Plan<'_>) -> Box<[Script]> {
@@ -159,7 +162,7 @@ pub fn failed_review_scripts(plan: &Plan<'_>) -> Box<[Script]> {
     chat.truncate(2);
     for _ in 0..8 {
         chat.push(Turn {
-            lines: Box::new([Line::Text { text: HELD.as_bytes().into() }]),
+            lines: Box::new([Line::Text { text: REVIEW_HELD.as_bytes().into() }]),
             finish: Finish::Stop,
             tokens: 20,
         });

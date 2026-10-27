@@ -1240,7 +1240,7 @@ fn a_change_whose_reviews_exhaust_its_tasks_holds_and_a_bare_release_holds_it_ag
         steps,
         BOX_DEADLINE,
         || support::first_repository::live(&paths[0], &paths[1], &client),
-        CtlFace { face: forge_land::fake_face(issuer, scripts), first: true, reply: forge_land::HELD },
+        CtlFace { face: forge_land::fake_face(issuer, scripts), first: true, reply: forge_land::REVIEW_HELD },
     );
     let stderr = String::from_utf8_lossy(&outcome.stderr);
     assert_plan_box("first", true, &outcome, &stderr);

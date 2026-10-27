@@ -3,7 +3,6 @@
 //! The top keeps the returned state and commits each decision before it sends
 //! a delegate or effect. Pending states make a repeated step wait. This policy
 //! never reads the forge or commits an outbox entry itself.
-#![expect(clippy::trivially_copy_pass_by_ref, reason = "the policy entry point borrows one coherent standing snapshot")]
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
@@ -73,20 +72,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         next = released(&next, now);
     }
     if let Some(why) = next.released.take() {
-        if let Hold::Authority(prior) = why
-            && let Some(current) = missing(
-                standing,
-                match next.state {
-                    State::Gating { head, .. } => Delegate::Gate { number: 0, head },
-                    _ => Delegate::Produce,
-                },
-            )
-            && current.lack == prior.lack
-        {
-            return hold(next, Hold::Authority(AuthorityHold { released: true, ..current }));
-        }
-        let was = next.state.clone();
-        return release(next, &was, why, facts);
+        return released_step(next, why, facts, standing);
     }
     if held {
         return Stepped { change: next, decision: Decision::None };
@@ -169,6 +155,22 @@ pub fn released(change: &Change, now: Wall) -> Change {
         | State::Ended => {}
     }
     next
+}
+
+fn released_step(change: Change, why: Hold, facts: &Facts, standing: &Heard) -> Stepped {
+    let delegate = if let State::Gating { head, .. } = change.state {
+        Delegate::Gate { number: 0, head }
+    } else {
+        Delegate::Produce
+    };
+    if let Hold::Authority(prior) = why
+        && let Some(current) = missing(standing, delegate)
+        && current.lack == prior.lack
+    {
+        return hold(change, Hold::Authority(AuthorityHold { released: true, ..current }));
+    }
+    let was = change.state.clone();
+    release(change, &was, why, facts)
 }
 
 fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped {

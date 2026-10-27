@@ -499,7 +499,7 @@ fn an_authority_hold_prints_its_precise_cause_in_text_and_json() {
     ));
     let panel = w::ChangePanel::new(&w::CEILINGS, value).unwrap();
     for json in [false, true] {
-        let printed = change::print(Some(&panel), json, None, b"", &f::limits_root());
+        let printed = change::print(Some(&panel), json, None, b"", &f::limits_root(), None);
         assert_eq!(printed.status, 0);
         contains(&printed.stdout, reason);
     }

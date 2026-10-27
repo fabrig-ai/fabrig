@@ -700,7 +700,15 @@ fn assert_authority_hold(
     let State::Held { why: Hold::Authority(cause), .. } = row.change.state else { panic!("{:?}", row.change.state) };
     assert_eq!(cause.lack, lack);
     assert_eq!(cause.released, released);
-    assert!(matches!(live_task(world, task).phase, tasks::Phase::Held { .. }), "never left due");
+    let expected = if lack == temper_engine_domain_forge_change::AuthorityLack::Spend {
+        tasks::Hold::Budget
+    } else {
+        tasks::Hold::Procedure
+    };
+    assert!(
+        matches!(live_task(world, task).phase, tasks::Phase::Held { why, .. } if why == expected),
+        "never left due"
+    );
     let parent = requester(world, task);
     assert!(
         live_task(world, parent)

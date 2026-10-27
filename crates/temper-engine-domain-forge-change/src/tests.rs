@@ -1,5 +1,4 @@
 //! Procedure cells, queue order and landing-rule agreement.
-#![expect(clippy::trivially_copy_pass_by_ref, reason = "test helper borrows the standing snapshot")]
 use crate::{
     Change, Ci, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, GateReport,
     Heard, Hold, Limits, Pull, Ready, Repair, State, Status, first, released, step,
@@ -520,7 +519,7 @@ fn every_delegate_checks_authority_before_becoming_pending() {
         State::Resolving { requested: false, base: BASE },
     ] {
         let c = change(state);
-        if matches!(c.state, State::Producing { .. }) {
+        if let State::Producing { .. } = c.state {
             f.branch = None;
         } else {
             f.branch = Some(HEAD);

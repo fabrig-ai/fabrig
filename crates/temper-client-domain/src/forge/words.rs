@@ -734,17 +734,14 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
             }
         }
         ChangeWord::QueueSt | ChangeWord::QueueNd | ChangeWord::QueueRd | ChangeWord::QueueTh if index == 1 => 256,
-        ChangeWord::FirstLine | ChangeWord::UpdateLine | ChangeWord::ResolveLine | ChangeWord::RepairSemantic => 256,
-        ChangeWord::AuthorityHold => 256,
+        ChangeWord::Held if index == 0 => 18,
+        ChangeWord::FirstLine
+        | ChangeWord::UpdateLine
+        | ChangeWord::ResolveLine
+        | ChangeWord::RepairSemantic
+        | ChangeWord::AuthorityHold
+        | ChangeWord::Held => 256,
         ChangeWord::LandedLine => 7,
-        ChangeWord::Held => {
-            if index == 0 {
-                18
-            } else {
-                // "its pull request was retargeted on the forge".
-                256
-            }
-        }
         ChangeWord::QueueSt
         | ChangeWord::QueueNd
         | ChangeWord::QueueRd

@@ -923,7 +923,7 @@ fn change_record_words_use_the_task_bound_instead_of_operation_bytes() {
 #[test]
 fn an_authority_hold_keeps_its_cause_and_release_across_restart() {
     use temper_engine_domain_forge_change::{AuthorityHold, AuthorityLack, Hold, State};
-    let bounds = crate::bounds(&fixtures::LIMITS).expect("fixture limits fit");
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for lack in [AuthorityLack::Tasks, AuthorityLack::Depth, AuthorityLack::Spend] {
         for released in [false, true] {
             let why = Hold::Authority(AuthorityHold { lack, had: u64::MAX, released });

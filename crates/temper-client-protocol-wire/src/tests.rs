@@ -59,6 +59,7 @@ fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(
         fixtures::limits(),
         v1::Limits {
+            authority_hold_reason: 256,
             owned_forge_forgejo: 64,
             owned_forge_runner_some: 64,
             owned_forge_password: 512,
