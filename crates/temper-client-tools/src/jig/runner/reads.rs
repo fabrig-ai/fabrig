@@ -182,6 +182,7 @@ pub(super) fn page(
     let prefix = u32::try_from(handle.number >> 32u32).expect("high half");
     let local = u32::try_from(handle.number & u64::from(u32::MAX)).expect("low half");
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
+    // Joined setting reads share the last bit; inbox question details use slot 6.
     reading.pending &= !1u8.checked_shl(local.min(7)).expect("fixed read slot");
     if reading.called.call.tool == 1 && local == 6 {
         let key = reading.question.take().expect("one question read in flight");
