@@ -542,7 +542,7 @@ pub const EXPORT: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 5,
-    notes: b"It takes no --key. It creates FILE, mode 0600, before sending\nanything, writes and syncs the account's record, and only then\ntells the engine; the account then leaves this deployment. A\nfailure before that removes FILE, and the engine keeps the account\nand cancels the move at its deadline: export again after it.\nOn the deployment it moves to, account import FILE, as it is.\n",
+    notes: b"It takes no --key. It creates FILE, mode 0600, before sending\nanything, writes and syncs the account's record, and only then\ntells the engine; the account then leaves this deployment. A\nfailure before that removes FILE, and the account stays here.\n`unsent`: the engine did not take the move (busy, its room for\nthe answers it keeps full, say) and nothing moved: export again\nlater; me prints how long answers are kept. Any other failure:\nthe engine cancels the move at its deadline: export again after it.\nOn the deployment it moves to, account import FILE, as it is.\n",
 };
 pub const IMPORT: Tool = Tool {
     name: b"account import",

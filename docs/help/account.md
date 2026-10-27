@@ -52,7 +52,8 @@ An account is how a deployment pays an LLM provider for its runs, through its so
   never their values.
 - **One account, one deployment:** a moved source leaves only once its
   file is written and synced; an export that fails before keeps it
-  here, and the engine cancels the move at its deadline.
+  here: one the engine did not take moved nothing, and one it took is
+  cancelled at its deadline.
 - **Which account pays:** a task that names an account uses it, and
   waits while it is not usable. Otherwise temper takes a usable account
   by who pays and by the accounts' order; within an account, its

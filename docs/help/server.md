@@ -206,8 +206,10 @@ temper ctl DIR account import FILE --key KEY
 Expect: `moved out: account ACCOUNT to FILE`; after the start,
 `moved in: account ACCOUNT`, and `FILE` removed.
 
-If not: an export refused or lost: the engine kept the account, and
-the store loses it; an owner signs in to it again. An import refused
+If not: an export answered `unsent` moved nothing: keep `DATA`,
+export again later, and remove `DATA` only once it is out. An export
+refused or lost: the engine kept the account, and the store loses it;
+an owner signs in to it again. An import refused
 keeps `FILE`: leave it as it is. A key's account does not cross: add
 its key again. A worker's document from an older `temper init` stops the
 worker's start at `agent.arguments`,

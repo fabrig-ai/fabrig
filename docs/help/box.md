@@ -227,9 +227,12 @@ Expect: `moved out: account ACCOUNT to FILE`; the box's last line
 ends `Stopped`.
 
 If not: `account export: not signed in` (exit 2): the account holds no
-sign-in to move; a key is added again where it is needed. Any other
-failure: keep the box running; the engine keeps the account and
-cancels the move at its deadline: account export again after it.
+sign-in to move; a key is added again where it is needed.
+`temper ctl: unsent` (exit 1): the engine did not take the move (busy,
+its room for the answers it keeps full, say) and nothing moved: keep
+the box running and account export again later. Any other failure:
+keep the box running; the engine keeps the account and cancels the
+move at its deadline: account export again after it.
 
 ## Clean up
 
