@@ -1,6 +1,6 @@
 # The forge's setup
 
-Provisional, 2026-10-16, revised 2026-10-23. How a forge comes to be
+Provisional, 2026-10-16, revised 2026-10-27. How a forge comes to be
 ready for temper, in three modes: connected, where a person runs and sets
 up the forge and gives temper only what it strictly needs; managed,
 where a person runs it and temper sets itself up on it, with a Forgejo
@@ -1076,7 +1076,13 @@ temper box
   first run the box keeps the sockets `temper init` chose (8.2); on a later
   start it opens each at the document's address before any step, with
   skein's `open_listener`, and a port taken refuses its start, naming
-  the port and the document, as any start is refused. It holds each
+  the port and the document, as any start is refused. A box started with
+  listeners of its own (`LISTEN_FDS`, systemd's convention, as `temper
+  internal serve`, `temper fake` and `temper forge run` read it: skein's
+  `shell.md`, 6.6) takes each one given for a step's address, matched by
+  its address, and opens only the rest, so a person's socket activation
+  and a test's held port reach the box's steps as they reach serve; one
+  given for no step's address refuses its start, naming it. It holds each
   one, never accepting, and gives it to its step at every spawn, a
   restart's among them, as the descriptors 3, 4, … in the step's order,
   with `LISTEN_FDS` set to their count in the step's environment and
