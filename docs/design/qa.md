@@ -95,6 +95,14 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   where its model is named; template 1's choice (`settings apply`,
   `{"main": {"model": "gpt-6.1-sol", "effort": "high"}}`) sets it for
   every chat of a running box.
+- **Its room is raised beside it,** in `temper.json` before the start:
+  `engine.limits`' overrides `"people.requests": 128` and
+  `application.limits`' overrides `"root.loads.loads": 32`. The small
+  profile keeps each deciding request's answer a day in 32 places, which
+  one busy pass fills, after which every keyed request answers busy
+  (jig's `domain/people.md`, 5.1); and its 2 load slots are too few for
+  a restart with held work loaded. These are a QA box's, as the budget
+  is (below); the product's own values are the user's, settled apart.
 - **A budget never stops a walk** (the user, 10-27, "raise the budget if
   needed"): the stock holds a rung in arithmetic (a 100k-token turn is
   about 100 units against a run's K of 4,324), but a walk raises its
