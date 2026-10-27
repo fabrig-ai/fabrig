@@ -862,7 +862,12 @@ branch. Its parameters:
   of its producing task;
 - **its gates** (8.3);
 - **the pull request's title and body,** or what to make them from, and
-  the goal it is part of;
+  the goal it is part of. The change's words are its spec, kept whole
+  for its producer's brief and bounded by the task's own limits, never
+  by the forge's; only what goes to the forge is: the title and body are
+  cut to the forge client's bounds (an operation's bytes, the forge's
+  title), marked cut, and a change is never refused or held for the
+  length of its words;
 - **its bounds:** repairs, resolutions, updates, and the stall of each
   wait.
 
