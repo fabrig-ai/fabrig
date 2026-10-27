@@ -141,10 +141,12 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lacked, and the run may `propose` it instead.
 - **The host part's budget.** smith refuses a run whose host part (its
   tools' names, descriptions and schemas) passes its bound, 33,419 bytes
-  in the small profile, before any turn. The stock's tools for every run
-  take 29,020 of it (10-27; with the two `settings` tools in every run,
-  31,510, past it with a charter's own), so a new host tool is offered
-  only where a family and the charter gate it, never to every run.
+  in the small profile, before any turn. On 10-27, with an empty brief,
+  charter 2's producer took 31,055 of it with its 37 tools, 2,364 left,
+  and a role-0 chat with the two `settings` tools 32,716, 703 left; a
+  gathered brief spends the rest. So a new host tool is offered only
+  where a family and the charter gate it, never to every run, and a
+  charter's room is measured before a tool joins it.
 - **Checked before a run meets it:** at start and at each change of
   settings that touches a charter, temper sums each charter's offered
   host part and refuses one past smith's bound, naming the charter and
