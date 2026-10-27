@@ -211,9 +211,19 @@ red by earlier failures it does not run (5.3).
 
 ## 10. Effects, reads and the store
 
+- **A run is a task:** each tier run is a procedure task of the
+  forge's, `tier`, made when the run starts, requested by the
+  deployment on the project's behalf, funded from the project's spend,
+  with the authority the project's policy gives tiers (kinds 6, 7, 9,
+  15, 16 and 17 on its repository), as a landing is (`landing.md`,
+  4.2). It owns the run's branch, its dispatch, reruns, probes, status
+  and comments, and the branch's deletion, and ends done with the
+  verdict as its result. A fault past `tier_retries` holds it. The
+  tier's record names its task; at most one per tier and repository
+  lives, so they are bounded by the repositories and `tiers`.
 - **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's
-  kinds 16 and 17, their branches kinds 9 and 15, by the deployment on
-  the project's behalf; statuses and comments are kinds 6 and 7.
+  kinds 16 and 17, their branches kinds 9 and 15; statuses and comments
+  are kinds 6 and 7; each its run's task's.
 - **A purpose of its own,** tag 8 in `forge.md`'s table: a tier's step,
   the repository (16 bytes), the tier (2), the judged run's number in
   the tier's sequence (8), the operation (1: the branch, the dispatch,
