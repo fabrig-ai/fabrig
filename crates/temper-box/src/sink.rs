@@ -254,6 +254,11 @@ impl Sink {
     pub fn closed(&mut self) {
         self.phase = Phase::Closed;
     }
+    /// Whether io's terminal Closed has been consumed.
+    #[must_use]
+    pub fn is_closed(&self) -> bool {
+        self.phase == Phase::Closed
+    }
     /// Demand the entire io output budget, so Room proves previous sends finished.
     pub fn flush(&mut self, output: u32, out: &mut Queue<Request>) {
         if self.needs_flush() {

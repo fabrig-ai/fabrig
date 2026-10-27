@@ -111,13 +111,20 @@ enum Root {
     Closing,
     Closed,
 }
+/// EOF requests Close; only Closed settles the reader's lifetime.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ReadPhase {
+    Open,
+    Ended,
+    Closed,
+}
 #[derive(Debug)]
 struct Control {
     read: Token,
     sink: Sink,
     reader: Reader,
     reading: bool,
-    ended: bool,
+    read_phase: ReadPhase,
     line: Option<Line>,
     line_wall: Wall,
 }
@@ -342,12 +349,8 @@ impl Service {
             Event::Exited { owner, exit } => {
                 for (step, state) in self.children.iter().enumerate() {
                     if state.owner == Some(owner) {
-                        if self.steps.get(step).expect("step").step.name() == self.settings.serve.as_ref()
-                            && let Some(control) = self.control.take()
-                        {
-                            self.closing_control = [Some(control.read), Some(control.sink.token)];
-                            self.requests.push(Request::Close { entity: control.read });
-                            self.requests.push(Request::Close { entity: control.sink.token });
+                        if self.steps.get(step).expect("step").step.name() == self.settings.serve.as_ref() {
+                            self.retire_control();
                         }
                         policy_input(
                             &mut self.machine,
@@ -371,7 +374,7 @@ impl Service {
                         control.sink.closed();
                     }
                     if control.read == owner {
-                        control.ended = true;
+                        control.read_phase = ReadPhase::Closed;
                         control.reading = false;
                     }
                 }
@@ -420,6 +423,28 @@ impl Service {
             | Event::Window { .. } => {}
         }
     }
+    fn retire_control(&mut self) {
+        let Some(control) = self.control.take() else {
+            return;
+        };
+        // Either pipe may have reported Closed before Exited. Carry only
+        // outstanding Closed obligations into the replacement's spawn gate.
+        let read = match control.read_phase {
+            ReadPhase::Open => {
+                self.requests.push(Request::Close { entity: control.read });
+                Some(control.read)
+            }
+            ReadPhase::Ended => Some(control.read),
+            ReadPhase::Closed => None,
+        };
+        let reply = if control.sink.is_closed() {
+            None
+        } else {
+            self.requests.push(Request::Close { entity: control.sink.token });
+            Some(control.sink.token)
+        };
+        self.closing_control = [read, reply];
+    }
     fn spawned(&mut self, owner: Token, child: Token, pipes: &[Token]) {
         for (step, state) in self.children.iter_mut().enumerate() {
             if state.owner == Some(owner) {
@@ -438,7 +463,7 @@ impl Service {
                         sink: Sink::new(*pipes.get(3).expect("serve answers pipe"), self.reply_entries),
                         reader: Reader::new(self.line_bytes),
                         reading: false,
-                        ended: false,
+                        read_phase: ReadPhase::Open,
                         line: None,
                         line_wall: Wall::EPOCH,
                     });
@@ -472,7 +497,7 @@ impl Service {
                         }
                     }
                     Up::End | Up::Failed(_) => {
-                        control.ended = true;
+                        control.read_phase = ReadPhase::Ended;
                         self.requests.push(Request::Close { entity: owner });
                     }
                     Up::Room => {}
@@ -648,12 +673,8 @@ impl Service {
                 if let Some(ready) = &mut self.children.get_mut(step).expect("step").ready {
                     ready.cancel(&mut self.requests);
                 }
-                if self.steps.get(step).expect("step").step.name() == self.settings.serve.as_ref()
-                    && let Some(control) = self.control.take()
-                {
-                    self.closing_control = [Some(control.read), Some(control.sink.token)];
-                    self.requests.push(Request::Close { entity: control.read });
-                    self.requests.push(Request::Close { entity: control.sink.token });
+                if self.steps.get(step).expect("step").step.name() == self.settings.serve.as_ref() {
+                    self.retire_control();
                 }
                 if let Some(child) = self.children.get(step).expect("machine step").process {
                     self.requests.push(Request::Close { entity: child });
@@ -964,7 +985,7 @@ impl Service {
         let Some(control) = &self.control else {
             return false;
         };
-        !control.ended
+        control.read_phase == ReadPhase::Open
             && !control.reading
             && control.line.is_none()
             && self.control_ready()
