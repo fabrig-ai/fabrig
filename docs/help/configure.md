@@ -74,7 +74,9 @@ temper ctl DIR proposal decide PROPOSAL accept --running stays --key KEY
 Expect: `revision` and the new revision's number, which is `NEWEST`
 from now on; or `proposed: PROPOSAL, to ` and who decides, then
 `proposal PROPOSAL · settings · against revision NEWEST, newest
-NEWEST`; the owner's decision prints `done: decide`.
+NEWEST` and a line per item, `charter 1 · set · now {...} (default) ·
+would be {...}`, each value whole; the owner's decision prints `done:
+decide`, and prints it again when asked again under its key.
 
 If not:
 
@@ -93,6 +95,9 @@ If not:
 - A pending proposal is withdrawn as stale once another change makes a
   new revision: read the settings again and propose again (temper help
   proposal).
+- `decided first: by party 2, accepted, 14:02` (exit 0): the proposal
+  was decided already, by the party it names (`you` when it was you),
+  how and when; this decision changes nothing.
 
 ## 4. See that it took
 

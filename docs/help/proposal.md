@@ -21,7 +21,7 @@ its name.
 
 A proposal of settings carries its items, the revision it was made
 against, and its reason. Its review shows, for each item, the value now
-and the value it would be.
+and the value it would be, each whole.
 
 ## How it changes
 
@@ -45,6 +45,9 @@ change, or a start, makes a new revision.
 - A proposal of settings is accepted only by an owner of the deployment,
   with a running choice: running work stays on its revision, or moves.
 - Its proposer reads the outcome with `proposal show`.
+- A decision asked again under its key gets its first answer again. A
+  decision of a proposal decided already, by anyone, answers `decided
+  first:` with who decided it, how and when, and changes nothing.
 
 ## Acting on it
 
