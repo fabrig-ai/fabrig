@@ -101,7 +101,10 @@ pub enum Step {
     Resume,
     NextLink,
     /// Release a scripted response after observing the pending review.
-    ReleaseLlm(&'static [u8]),
+    ReleaseLlm {
+        name: &'static [u8],
+        cue: &'static [u8],
+    },
     /// Provision a service with only a project member role through jig.
     Member {
         scratch: PathBuf,
@@ -332,7 +335,7 @@ enum Action {
     ProgramLogin(&'static str),
     Signal,
     NextLink,
-    ReleaseLlm(&'static [u8]),
+    ReleaseLlm { name: &'static [u8], cue: &'static [u8] },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -417,9 +420,9 @@ impl Calls {
     pub(super) fn last_unmet(&self) -> Option<&Ended> {
         self.last_unmet.as_ref()
     }
-    pub(super) fn llm_release(&self) -> Option<&'static [u8]> {
+    pub(super) fn llm_release(&self) -> Option<(&'static [u8], &'static [u8])> {
         match self.action {
-            Some(Action::ReleaseLlm(name)) => Some(name),
+            Some(Action::ReleaseLlm { name, cue }) => Some((name, cue)),
             _ => None,
         }
     }
@@ -649,7 +652,7 @@ impl Calls {
             }
             Action::Visit => panic!("a visit has no child"),
             Action::Stderr(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
-            Action::NextLink | Action::ReleaseLlm(_) => unreachable!("referee action has no child"),
+            Action::NextLink | Action::ReleaseLlm { .. } => unreachable!("referee action has no child"),
             Action::Signal => assert_eq!(
                 ended.exit,
                 Some(Exit::Code(0)),
@@ -721,7 +724,7 @@ impl Calls {
                         | Action::ProgramLogin(_)
                         | Action::NextLink
                         | Action::Visit
-                        | Action::ReleaseLlm(_)
+                        | Action::ReleaseLlm { .. }
                 )
             )
             || self.retry.is_some_and(|retry| retry > now)
@@ -808,8 +811,8 @@ impl Calls {
                 );
                 self.child.as_mut().expect("open child").typing = until.map_or(Input::Hold, Input::After);
             }
-            Some(Step::ReleaseLlm(name)) => {
-                self.action = Some(Action::ReleaseLlm(name));
+            Some(Step::ReleaseLlm { name, cue }) => {
+                self.action = Some(Action::ReleaseLlm { name, cue });
                 self.referee_work = RefereeWork::Ready;
             }
             Some(Step::Visit) => {
