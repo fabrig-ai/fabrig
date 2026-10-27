@@ -52,7 +52,6 @@ pub const ENDINGS: &[&str] = &[
     "signed out",
     "restart before durable",
     "restart after durable",
-    "busy",
     "answers full",
     "waiter busy",
 ];
