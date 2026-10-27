@@ -190,7 +190,9 @@ on the timer, or after a message:
   parameter: past it, the log stops and says it was cut, and a replay
   runs to the cut.
 - **Offered as a file** on a failure, or by a key the page's frame
-  gives: never sent anywhere.
+  gives: never sent anywhere. Offered while the visit runs, it is a
+  snapshot: its end is what its last digest proves, and a replay runs
+  to that point and stops there, with no teardown of its own to check.
 - **Its format,** a stored one: a first line naming the format and its
   version, the bundle's digest, the seed and the start; then a line per
   input, its stamp, the input, and the digest of what the world said
