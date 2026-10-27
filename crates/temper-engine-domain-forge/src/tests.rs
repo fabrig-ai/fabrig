@@ -8,6 +8,7 @@ mod demo;
 mod fixtures;
 mod flight;
 mod panel;
+mod projection;
 mod purpose;
 mod reconcile;
 mod stopping;

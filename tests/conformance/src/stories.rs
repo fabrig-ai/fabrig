@@ -264,6 +264,31 @@ fn projection_held(world: &World) -> bool {
             })
     })
 }
+
+fn goal_run(world: &mut World, goal: u64) -> Result<engine::Assignment, Violation> {
+    wait(world, |world| world.peers.assignments.iter().any(|run| run.task == goal))?;
+    let run = world.peers.assignments.iter().rev().find(|run| run.task == goal).expect("goal run").clone();
+    let branch = run.workspace.repositories[0].push.as_ref().expect("goal workspace branch");
+    world.systems.create(world.clock(), branch);
+    world.peers.reported.insert(goal, world.systems.head);
+    Ok(run)
+}
+
+fn lost_open_settles(world: &mut World, goal: u64) -> Result<(), Violation> {
+    scenarios::wake(world, goal)?;
+    wait(world, |world| {
+        world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(goal))))
+            && issue_row(world).is_some_and(|issue| issue.failed && issue.pending.is_none() && issue.number.is_none())
+    })?;
+    require(
+        !world
+            .systems
+            .native_observations
+            .iter()
+            .any(|event| matches!(event, Observation::Opened { kind: raw::Kind::Issue, by: 1, .. })),
+        "a failed lost Open must have made no issue",
+    )
+}
 #[expect(
     clippy::too_many_lines,
     reason = "one complete goal story tracks its plan, subtree milestones and final closure"
@@ -281,15 +306,14 @@ fn goal_issue(world: &mut World) -> Result<(), Violation> {
             jig_core_world::fixtures::Goal { budget: 100, priority: 3, deadline: None },
         ),
     );
-    wait(world, |world| issue_row(world).is_some_and(|issue| issue.number.is_some() && issue.pending.is_none()))?;
+    wait(world, |world| {
+        issue_row(world).is_some_and(|issue| issue.pending.is_none() && (issue.number.is_some() || issue.failed))
+    })?;
     let issue = issue_row(world).expect("goal issue");
     let goal = issue.goal;
-    let number = issue.number.expect("opened issue");
-    wait(world, |world| world.peers.assignments.iter().any(|run| run.task == goal))?;
-    let run = world.peers.assignments.iter().rev().find(|run| run.task == goal).expect("goal run").clone();
-    let branch = run.workspace.repositories[0].push.as_ref().expect("goal workspace branch");
-    world.systems.create(world.clock(), branch);
-    world.peers.reported.insert(goal, world.systems.head);
+    let number = issue.number;
+    let run = goal_run(world, goal)?;
+    let Some(number) = number else { return lost_open_settles(world, goal) };
     let mut authority = run.run.authority.clone();
     authority.budget.spend = 10;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };

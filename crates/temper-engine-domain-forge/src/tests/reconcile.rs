@@ -31,6 +31,44 @@ fn issue(closed: bool) -> Stored {
         desired: None,
     })
 }
+
+#[test]
+fn an_ended_goals_pending_projection_entry_restores() {
+    for (pending, repository, expected) in [
+        (Some(ENTRY), REPO, true),
+        (Some(ENTRY + 1), REPO, false),
+        (None, REPO, false),
+        (Some(ENTRY), OTHER_REPOSITORY, false),
+    ] {
+        let mut d = domain();
+        let mut entry = held_issue();
+        entry.effect.write = skein_forge::api::Write::Post {
+            number: 1,
+            key: Box::from(b"milestone".as_slice()),
+            body: Box::from(b"Goal finished".as_slice()),
+        };
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restore { record: Stored::Entry { entry: entry.clone(), held: false } });
+        let Stored::Issue(mut row) = issue(false) else { unreachable!("issue fixture") };
+        row.pending = pending;
+        row.repository = repository;
+        row.number = Some(1);
+        row.state.opened = true;
+        row.desired = Some(issues::GoalView {
+            phase: issues::Phase::Done,
+            goal: TASK,
+            repository: u64::from(REPO.repository),
+            title: "Work".into(),
+            goal_text: "Complete the work".into(),
+            plan: Box::new([]),
+            milestones: Box::new([]),
+            finished: Some("Goal finished".into()),
+        });
+        outputs(&mut d, Event::Restore { record: Stored::Issue(row) });
+        assert_eq!(resolved(&d, &Stored::Entry { entry, held: false }, false), expected);
+        assert_eq!(resolved(&d, &Stored::Flight { task: TASK, entry: ENTRY }, false), expected);
+    }
+}
 fn release() -> Stored {
     Stored::Release(ReleaseRow {
         task: TASK,

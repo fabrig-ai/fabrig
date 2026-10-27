@@ -1520,19 +1520,26 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 for (_, row) in &d.issues {
                     projection |= row.pending == Some(entry);
                 }
+                let lost_comment = projection && outcome == skein_forge_client::Outcome::Held && posting(d, entry);
                 d.named_outcome(entry, outcome);
                 outcome_facts(d, env, entry, task, outcome, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
                     skein_forge_client::Outcome::Held => {
-                        // It stays in the outbox, keeping its room, until a
-                        // person or its task's close settles it.
-                        if let Some(row) = d.entries.get_mut(&entry) {
-                            row.held = true;
-                            let record = Stored::Entry { entry: row.entry.clone(), held: true };
-                            emit(out, Request::Save { read_afresh: None, release: None, record });
+                        if lost_comment {
+                            // domain/forge.md, 12: an unfindable milestone counts
+                            // as posted. Retire its entry without sending it again.
+                            not_made(d, entry, out);
+                        } else {
+                            // It stays in the outbox, keeping its room, until a
+                            // person or its task's close settles it.
+                            if let Some(row) = d.entries.get_mut(&entry) {
+                                row.held = true;
+                                let record = Stored::Entry { entry: row.entry.clone(), held: true };
+                                emit(out, Request::Save { read_afresh: None, release: None, record });
+                            }
+                            erase_flight(d, task, entry, out);
                         }
-                        erase_flight(d, task, entry, out);
                     }
                     skein_forge_client::Outcome::Made { .. }
                     | skein_forge_client::Outcome::Failed(_)
@@ -3518,7 +3525,10 @@ fn project(
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Issue(prior.clone()) });
     }
     if prior.failed {
-        if view.finished.is_some() {
+        // An Open lost to a crash consumes its committed open bit without
+        // yielding an issue number. It can never be sent again, even after
+        // its held outbox entry has settled (domain/forge.md, 6 and 12).
+        if view.finished.is_some() || (prior.state.opened && prior.number.is_none()) {
             settled_projection(d, goal, out);
             return;
         }
@@ -3707,6 +3717,7 @@ fn projection_outcome(
     outcome: skein_forge_client::Outcome,
     out: &mut Queue<Request>,
 ) {
+    let lost_comment = outcome == skein_forge_client::Outcome::Held && posting(d, entry);
     let mut goal = None;
     for (number, row) in &d.issues {
         if row.pending == Some(entry) {
@@ -3717,6 +3728,13 @@ fn projection_outcome(
     let Some(row) = d.issues.get_mut(&goal) else { unreachable!("found issue row") };
     match outcome {
         skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => return,
+        // The projected milestone prefix already includes this comment. A
+        // crash-lost creation must never be resent (domain/forge.md, 6 and 12).
+        skein_forge_client::Outcome::Held if lost_comment => {}
+        skein_forge_client::Outcome::Held if row.number.is_none() => {
+            // Keep the consumed Open bit so future feeds cannot create again.
+            row.failed = true;
+        }
         skein_forge_client::Outcome::Made { made, .. } => {
             if row.number.is_none() {
                 match made {
@@ -3760,6 +3778,27 @@ fn projection_outcome(
         }
     } else {
         emit(out, Request::ProjectAfter { goal, when: None });
+    }
+}
+
+fn posting(d: &Domain, entry: u64) -> bool {
+    match d.entries.get(&entry) {
+        Some(row) => match &row.entry.effect.write {
+            skein_forge::api::Write::Post { .. } => true,
+            skein_forge::api::Write::CreateIssue { .. }
+            | skein_forge::api::Write::OpenPull { .. }
+            | skein_forge::api::Write::Review { .. }
+            | skein_forge::api::Write::SetReviewers { .. }
+            | skein_forge::api::Write::Edit { .. }
+            | skein_forge::api::Write::Close { .. }
+            | skein_forge::api::Write::Reopen { .. }
+            | skein_forge::api::Write::Merge { .. }
+            | skein_forge::api::Write::Update { .. }
+            | skein_forge::api::Write::CreateBranch { .. }
+            | skein_forge::api::Write::DeleteBranch { .. }
+            | skein_forge::api::Write::Status { .. } => false,
+        },
+        None => false,
     }
 }
 

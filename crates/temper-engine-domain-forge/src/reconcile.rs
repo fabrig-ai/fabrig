@@ -40,6 +40,7 @@ pub(crate) enum Need {
     Demo(u16),
     Repository(Repository),
     Task { task: u64, retired: Option<u16> },
+    EntryOwner { task: u64, entry: u64 },
     Entry { task: u64, entry: u64 },
 }
 #[derive(Clone, Copy, Debug)]
@@ -143,7 +144,10 @@ impl Reconciliation {
             Stored::BranchHead(row) => self.name(RecordKind::BranchHead, &row.name),
             Stored::PullState(row) => self.name(RecordKind::PullState, &row.name),
             Stored::Ci(row) => self.repository(RecordKind::Ci, row.repository),
-            Stored::Entry { entry, .. } => self.entry(RecordKind::Entry, entry),
+            Stored::Entry { entry, .. } => {
+                self.repository(RecordKind::Entry, entry.repository);
+                self.need(RecordKind::Entry, Need::EntryOwner { task: entry.task, entry: entry.number });
+            }
             Stored::Client(row) => match row {
                 skein_forge_client::Stored::Live(row) => {
                     self.repository(RecordKind::Client, row.watch.resource.repository);
@@ -191,7 +195,9 @@ impl Domain {
         let mut failed = None;
         for reference in &self.reconciliation.references {
             let live = match reference.need {
-                Need::Task { task, .. } | Need::Entry { task, .. } => tasks.task(task).is_some(),
+                Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {
+                    tasks.task(task).is_some()
+                }
                 Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
             };
             if !self.reference_resolves(reference.need, live) && failed != Some(reference.row) {
@@ -225,10 +231,37 @@ impl Domain {
                     None => false,
                 }
             }
+            Need::EntryOwner { task, entry } => {
+                live || match self.entries.get(&entry) {
+                    Some(row) => {
+                        self.forge_ended(row.entry.repository.forge)
+                            || (row.entry.task == task
+                                && self.closing_projection_entry(task, entry, row.entry.repository))
+                    }
+                    None => false,
+                }
+            }
             Need::Entry { task, entry } => match self.entries.get(&entry) {
-                Some(row) => row.entry.task == task && (live || self.forge_ended(row.entry.repository.forge)),
+                Some(row) => {
+                    row.entry.task == task
+                        && (live
+                            || self.forge_ended(row.entry.repository.forge)
+                            || self.closing_projection_entry(task, entry, row.entry.repository))
+                }
                 None => false,
             },
+        }
+    }
+
+    fn closing_projection_entry(&self, task: u64, entry: u64, repository: Repository) -> bool {
+        // Closing projections outlive their goals (domain/forge.md, 12). The
+        // retained issue must own this exact entry in the same repository.
+        match self.issues.get(&task) {
+            Some(row) if row.pending == Some(entry) && row.repository == repository => match &row.desired {
+                Some(view) => view.finished.is_some(),
+                None => false,
+            },
+            Some(_) | None => false,
         }
     }
 }
@@ -245,7 +278,9 @@ pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live
     reconciliation.restore(row);
     for reference in &reconciliation.references {
         let live = match reference.need {
-            Need::Task { task, .. } | Need::Entry { task, .. } => live_tasks.contains(&task),
+            Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {
+                live_tasks.contains(&task)
+            }
             Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
         };
         if !d.reference_resolves(reference.need, live) {
