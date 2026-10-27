@@ -825,6 +825,19 @@ impl Referee<Process> for SupervisedJudge {
 
     fn observe(&mut self, now: Time, procs: &[Process]) {
         let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+        // A forced cleanup gives the live TERM-delivered tree its grace before
+        // the leader wait completes. The exit may first reach this referee
+        // after escalation; its history survives the current membership poll.
+        if self.cleanup == Cleanup::Kill {
+            let tree = child.tree_status();
+            self.saw_retained_exit |= tree.live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
+            if self.term_at.is_some_and(|at| now < at.saturating_add(self.grace))
+                && tree.live_pids.iter().any(|pid| tree.terminated_pids.contains(pid))
+            {
+                assert!(tree.killed_pids.is_empty(), "the keeper leaves escalation to its referee");
+                self.saw_grace = true;
+            }
+        }
         if child.exit_status().is_some() && !child.tree_status().live_pids.is_empty() {
             assert!(child.counts().is_none(), "a living tree retains its keeper after leader exit");
             self.saw_retained_exit = true;
@@ -1253,6 +1266,107 @@ fn supervised_stderr_overflow_is_observed_before_the_referees_term_grace_and_who
         assert!(child.counts().is_some(), "the keeper and all descendants genuinely settled");
         assert!(child.is_empty());
     }
+}
+
+// The detached descendant is retained by Linux's tree keeper.
+#[cfg(target_os = "linux")]
+fn late_retained_exit(trigger: SupervisedTrigger, limit: usize) {
+    struct LateExit {
+        judge: SupervisedJudge,
+        delivered: bool,
+        exited: bool,
+        late: Time,
+    }
+    impl Referee<Process> for LateExit {
+        fn act(&mut self, now: Time, procs: &mut [Process]) {
+            if !self.delivered {
+                self.judge.act(now, procs);
+            } else if self.exited {
+                if self.judge.kill_at.is_none() {
+                    let end = self.judge.term_at.expect("TERM preceded leader exit").saturating_add(self.judge.grace);
+                    self.judge.act(Time::from_nanos(end.as_nanos().saturating_sub(1)), procs);
+                    assert!(self.judge.kill_at.is_none(), "the tree keeps the full 20 ms grace");
+                }
+                self.judge.act(now.max(self.late), procs);
+            }
+        }
+        fn observe(&mut self, now: Time, procs: &[Process]) {
+            let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+            if !self.delivered {
+                self.judge.observe(now, procs);
+                if let Some(at) = self.judge.term_at {
+                    assert_eq!(
+                        child.stderr_overflowed(),
+                        matches!(self.judge.trigger, SupervisedTrigger::StderrOverflow),
+                        "the trigger precedes TERM"
+                    );
+                    assert!(!child.tree_status().terminated_pids.is_empty(), "TERM was delivered");
+                    assert!(!child.tree_status().live_pids.is_empty(), "the TERM-ignoring tree remains live");
+                    assert_eq!(child.exit_status(), None, "TERM delivery precedes consuming the leader wait");
+                    self.delivered = true;
+                    self.late = at.saturating_add(self.judge.grace).saturating_add(Duration::from_nanos(1));
+                }
+            } else if self.judge.kill_at.is_none() {
+                // Withhold the leader exit from the referee until its next act
+                // has escalated on a clock beyond the grace deadline.
+                self.exited = child.exit_status().is_some();
+            } else if child.counts().is_some() && !self.judge.saw_retained_exit {
+                assert!(child.tree_status().live_pids.is_empty(), "the current poll no longer has the exit evidence");
+                self.judge.observe(now.max(self.late), procs);
+            }
+        }
+        fn next_deadline(&self) -> Option<Time> {
+            if self.exited && self.judge.kill_at.is_none() { Some(Time::ZERO) } else { self.judge.next_deadline() }
+        }
+        fn overdue(&self, now: Time) -> Option<String> {
+            self.judge.overdue(now)
+        }
+        fn passed(&self) -> bool {
+            self.judge.passed()
+        }
+    }
+    let binary = Binary::start_with_tree(
+        fixture("supervise-ignore"),
+        Mode::Pipes,
+        limit,
+        skein_world::end_to_end::Expectation::Supervise,
+        true,
+    )
+    .expect("a supervised overflow fixture starts");
+    let judge = LateExit {
+        judge: SupervisedJudge::new(trigger, Duration::from_millis(20), Cleanup::Kill),
+        delivered: false,
+        exited: false,
+        late: Time::ZERO,
+    };
+    let mut world = real::World::new(judge);
+    world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
+    let outcome = world.run(&Clock::new(), WORLD_PATIENCE);
+    let child = tree_child(&outcome);
+    assert_eq!(child.exit_status(), Some(Exit::Signal(15)));
+    assert_eq!(child.tree_status().cleanup(), Cleanup::Kill);
+    assert!(child.tree_status().forced_cleanup);
+    assert!(!child.tree_status().killed_pids.is_empty());
+    assert_eq!(
+        child.tree_status().killed_pids,
+        *child.tree_status().live_at_leader_exit.as_ref().expect("the retained exit was recorded")
+    );
+    assert!(child.counts().is_some());
+    assert!(child.is_empty(), "the whole tree and its stderr drain");
+}
+
+// The detached descendant is retained by Linux's tree keeper.
+#[cfg(target_os = "linux")]
+#[test]
+fn an_overflow_referee_observes_a_late_retained_exit_after_kill_and_settlement() {
+    late_retained_exit(SupervisedTrigger::StderrOverflow, 8);
+}
+
+// The detached descendant is retained by Linux's tree keeper.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_forced_kill_referee_observes_a_late_retained_exit_after_kill_and_settlement() {
+    late_retained_exit(SupervisedTrigger::Ready, 4096);
 }
 
 #[test]
