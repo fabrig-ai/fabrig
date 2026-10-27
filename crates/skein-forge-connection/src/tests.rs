@@ -304,16 +304,16 @@ fn duplicate_forge_numbers_are_refused_before_any_connection() {
 
 // Complete Forgejo fixture (forge-connection.md, 7.5), in bytes on the
 // 64-bit layout. Decoder = 32*128 + 8*(3*128 + 2*48 + 2*16)
-// + 2*1042 + 16*128 + 4096 + size_of::<forgejo::client::Decoder>() (248)
-// = 16_668. Socket = 32768 + 4096 + 32768 + 4*16 = 69_696.
+// + 2*1042 + 16*128 + 4096 + fixed decoder 272 = 16_692.
+// Socket = 32768 + 4096 + 32768 + 4*16 = 69_696.
 // Each of two pooled connections = HTTP 44_032 + TLS 456_809 + tokenizer
-// 2082 + decoder 16_668 + raw 2*65536 + routing 5056 + send 32768
+// 2082 + decoder 16_692 + raw 2*65536 + routing 5056 + send 32768
 // + encoding (6*1042 + 1024) + socket 69_696
-// + local JSON intake/delivery 2*1024 = 767_507.
-// Four hooks = 4*(HTTP 18_418 + tokenizer 2082 + decoder 16_668
+// + local JSON intake/delivery 2*1024 = 767_531.
+// Four hooks = 4*(HTTP 18_418 + tokenizer 2082 + decoder 16_692
 // + socket 69_696 + HMAC 208 + hint 88 + text/body 1170 + queues 368
-// + head 8192 + chunks 2048) + hook slab/index 4832 = 480_584.
-// Common calls = 2*552 (Waiting slab slots) + 288 (holders tree)
+// + head 8192 + chunks 2048) + hook slab/index 4832 = 480_680.
+// Common calls = 2*560 (Waiting slab slots) + 288 (holders tree)
 // + 2*16 (drive list) + 288 (call index) + 2*3*512 (operation copies)
 // + 2752 (held tree) + 2*65536 (held answers) = 138_608.
 // Forgejo's call payload = read/write boxes 1216+408, staging 64*8
@@ -324,7 +324,7 @@ fn duplicate_forge_numbers_are_refused_before_any_connection() {
 // Directory names share the answer envelope. Its tables = repository tree 904 + 2*3*128
 // + user tree 1104 + 8*128 = 3800. Tree bounds include internal nodes.
 // Configured lists = 2*(Forge 168 + Start 24 + optional GitHub box 8
-// + optional token 16 + optional OwnPlan 344) = 1120. Each forge's
+// + optional token 16 + optional OwnPlan 360) = 1152. Each forge's
 // common credential/secret/send/TLS = 64 + 128 + 32768 + 456_809 = 489_769.
 // Owner/framing/answer = 2*16 + (3+9) + 16 + Answered 224 = 284.
 // Total = 2*767507 + connection index 288 + slab 2*1472 + 480584

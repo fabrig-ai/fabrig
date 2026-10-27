@@ -220,6 +220,10 @@ impl Store {
             | Request::Compare { .. }
             | Request::Contents { .. }
             | Request::Raw { .. }
+            | Request::Tree { .. }
+            | Request::WorkflowRuns { .. }
+            | Request::Dispatch { .. }
+            | Request::Rerun { .. }
             | Request::Runs { .. }
             | Request::Run { .. }
             | Request::Jobs { .. }
@@ -290,6 +294,10 @@ impl Store {
             | Request::Compare { .. }
             | Request::Contents { .. }
             | Request::Raw { .. }
+            | Request::Tree { .. }
+            | Request::WorkflowRuns { .. }
+            | Request::Dispatch { .. }
+            | Request::Rerun { .. }
             | Request::Runs { .. }
             | Request::Run { .. }
             | Request::Jobs { .. }

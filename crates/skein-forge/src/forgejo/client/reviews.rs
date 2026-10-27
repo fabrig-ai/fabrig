@@ -129,6 +129,8 @@ fn target(request: &Request, out: &mut Target) {
         | Request::Compare { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
+        | Request::Tree { .. }
+        | Request::WorkflowRuns { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
         | Request::Job { .. }
@@ -154,6 +156,8 @@ fn target(request: &Request, out: &mut Target) {
         | Request::EditIssue { .. }
         | Request::RequestReviewers { .. }
         | Request::RemoveReviewers { .. }
+        | Request::Dispatch { .. }
+        | Request::Rerun { .. }
         | Request::Merge { .. }
         | Request::Update { .. }
         | Request::PostStatus { .. }
@@ -282,6 +286,7 @@ impl Reviews {
     }
     fn scalar(&mut self, kind: Kind, key: &'static [u8], value: Value) -> Result<(), Malformed> {
         match value {
+            Value::Input(_) => unreachable!("dispatch input table"),
             Value::Number(n) => match key {
                 b"id" => {
                     if kind == Kind::User {

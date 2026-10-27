@@ -43,6 +43,8 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
         | Request::Compare { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
+        | Request::Tree { .. }
+        | Request::WorkflowRuns { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
         | Request::Job { .. }
@@ -70,6 +72,8 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
         | Request::EditIssue { .. }
         | Request::RequestReviewers { .. }
         | Request::RemoveReviewers { .. }
+        | Request::Dispatch { .. }
+        | Request::Rerun { .. }
         | Request::Merge { .. }
         | Request::Update { .. }
         | Request::PostStatus { .. }
@@ -110,6 +114,7 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
     let target = out.finish();
     Ok(Encoded { method: Method::Get, target, body: None })
 }
+#[expect(clippy::too_many_lines, reason = "exhaustive request selection names every dialect request")]
 fn target(request: &Request, out: &mut Writer) -> Result<(), skein_lib::Overflow> {
     out.put(b"/api/v1/")?;
     match request {
@@ -153,6 +158,8 @@ fn target(request: &Request, out: &mut Writer) -> Result<(), skein_lib::Overflow
         | Request::Compare { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
+        | Request::Tree { .. }
+        | Request::WorkflowRuns { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
         | Request::Job { .. }
@@ -179,6 +186,8 @@ fn target(request: &Request, out: &mut Writer) -> Result<(), skein_lib::Overflow
         | Request::EditIssue { .. }
         | Request::RequestReviewers { .. }
         | Request::RemoveReviewers { .. }
+        | Request::Dispatch { .. }
+        | Request::Rerun { .. }
         | Request::Merge { .. }
         | Request::Update { .. }
         | Request::PostStatus { .. }
@@ -305,6 +314,7 @@ impl Start {
     }
     fn scalar(&mut self, kind: Kind, key: &'static [u8], value: Value) -> Result<(), Malformed> {
         match value {
+            Value::Input(_) => unreachable!("dispatch input table"),
             Value::Number(number) => match kind {
                 Kind::User => self.user.id = number,
                 Kind::Repository => self.repo.id = number,

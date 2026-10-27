@@ -26,6 +26,8 @@ pub(crate) fn answered(
         }
     };
     match answer {
+        Answer::Runs { runs, more } => super::find::runs_found(d, env, number, phase, &runs, more, out),
+        Answer::Run(run) => super::find::rerun_found(d, env, number, &run, out),
         Answer::Items { items, more, now } => {
             super::find::listed(d, env, number, phase, &items, super::find::Listing { more, now }, out);
         }
@@ -58,6 +60,7 @@ pub(crate) fn answered(
         | Answer::Protection(_)
         | Answer::Settings(_)
         | Answer::Collaborators { .. }
+        | Answer::Tree { .. }
         | Answer::Located { .. }
         | Answer::Permission(_) => unreachable!("outbox operation has another answer shape"),
     }
@@ -65,6 +68,7 @@ pub(crate) fn answered(
 fn branch_found(d: &mut Domain, env: &Env<Limits>, number: u64, commit: Commit, out: &mut Queue<Request>) {
     let w = d.outbox.entries.get(&number).expect("find owns entry");
     match w.entry.effect.write {
+        Write::Dispatch { .. } => super::next(d, number, Phase::DispatchRuns { head: commit, page: 1 }),
         Write::CreateBranch { commit: expected, .. } => {
             if commit == expected {
                 super::finished(d, env, number, Made::Branch(commit), true, out);
@@ -72,7 +76,7 @@ fn branch_found(d: &mut Domain, env: &Env<Limits>, number: u64, commit: Commit, 
                 super::finish(d, env, number, Outcome::Failed(Error::Exists), out);
             }
         }
-        Write::DeleteBranch { .. } => super::retry::not_found(d, env, number, out),
+        Write::Rerun { .. } | Write::DeleteBranch { .. } => super::retry::not_found(d, env, number, out),
         Write::CreateIssue { .. }
         | Write::OpenPull { .. }
         | Write::Post { .. }
@@ -109,6 +113,8 @@ fn branch_created(
                 | Write::Merge { .. }
                 | Write::Update { .. }
                 | Write::Status { .. }
+                | Write::Dispatch { .. }
+                | Write::Rerun { .. }
                 | Write::DeleteBranch { .. } => unreachable!("branch creation terminal"),
             };
             super::finished(d, env, number, Made::Branch(commit), false, out);
@@ -128,6 +134,8 @@ fn done(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>
         | Write::Close { .. }
         | Write::Reopen { .. }
         | Write::Status { .. }
+        | Write::Dispatch { .. }
+        | Write::Rerun { .. }
         | Write::DeleteBranch { .. } => super::finished(d, env, number, Made::Set, false, out),
         Write::CreateIssue { .. }
         | Write::OpenPull { .. }
@@ -138,6 +146,7 @@ fn done(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "pull observations check each write phase and condition explicitly")]
 fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: api::Pull, out: &mut Queue<Request>) {
     let w = d.outbox.entries.get(&number).expect("pull belongs to retained entry");
     match phase {
@@ -161,6 +170,8 @@ fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: ap
                         | Write::Update { .. }
                         | Write::Status { .. }
                         | Write::CreateBranch { .. }
+                        | Write::Dispatch { .. }
+                        | Write::Rerun { .. }
                         | Write::DeleteBranch { .. } => unreachable!("merge condition checked at admission"),
                     };
                     pull.base == *base && pull.commit == head
@@ -222,6 +233,8 @@ fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: ap
             | Write::Reopen { .. }
             | Write::Status { .. }
             | Write::CreateBranch { .. }
+            | Write::Dispatch { .. }
+            | Write::Rerun { .. }
             | Write::DeleteBranch { .. } => unreachable!("pull find belongs to pull creation or transition"),
         },
         Phase::Queued => super::queue::looked(d, env, number, pull, out),
@@ -235,7 +248,7 @@ fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: ap
             };
             super::next(d, number, Phase::Compare { head: pull.commit, base });
         }
-        Phase::Clock | Phase::Make | Phase::Compare { .. } => {
+        Phase::Clock | Phase::Make | Phase::DispatchRuns { .. } | Phase::Compare { .. } => {
             unreachable!("pull answers conditional checks and recovery")
         }
     }
@@ -269,6 +282,8 @@ pub(super) fn merge_verified(
         | Write::Update { .. }
         | Write::Status { .. }
         | Write::CreateBranch { .. }
+        | Write::Dispatch { .. }
+        | Write::Rerun { .. }
         | Write::DeleteBranch { .. } => unreachable!("merge effect admitted"),
     };
     let made = Made::Merged(merged);

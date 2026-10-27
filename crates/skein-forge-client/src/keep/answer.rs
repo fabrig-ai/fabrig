@@ -97,6 +97,9 @@ pub(crate) fn answered_repository(
         // Only a merge is answered Queued; it never reaches a read.
         | Answer::Queued
         | Answer::Branch(_)
+        | Answer::Runs { .. }
+        | Answer::Run(_)
+        | Answer::Tree { .. }
         | Answer::Located { .. }
         | Answer::Done => unreachable!("listing answer shape"),
     }
@@ -190,6 +193,9 @@ pub(crate) fn answered_resource(
             branch_compared(d, env, key, before, after, contains_before, out);
         }
         Answer::Items { .. }
+        | Answer::Runs { .. }
+        | Answer::Run(_)
+        | Answer::Tree { .. }
         | Answer::Located { .. }
         | Answer::Branches(_)
         | Answer::Statuses { .. }

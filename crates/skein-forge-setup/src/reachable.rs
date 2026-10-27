@@ -440,6 +440,7 @@ impl Reachable {
                     | Row::Entry { .. }
                     | Row::File(_)
                     | Row::Commit(_)
+                    | Row::Entry(_)
                     | Row::Run(_)
                     | Row::Job(_)
                     | Row::Step(_),

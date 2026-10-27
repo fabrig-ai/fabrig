@@ -120,6 +120,10 @@ pub enum Answer {
         commits: Box<[crate::forgejo::id::ObjectId]>,
         files: Box<[crate::forgejo::document::ChangedFile]>,
     },
+    Tree {
+        entries: Box<[crate::forgejo::document::Entry]>,
+        truncated: bool,
+    },
     Runs {
         total_count: u64,
         runs: Box<[crate::forgejo::document::Run]>,
@@ -210,7 +214,7 @@ fn write(json: &mut writer::Encoder, answer: &Answer) -> Result<(), writer::Refu
             crate::directory::write(json, entries);
             Ok(())
         }
-        Answer::Files(_) | Answer::Compare { .. } => {
+        Answer::Tree { .. } | Answer::Files(_) | Answer::Compare { .. } => {
             files::write(json, answer);
             Ok(())
         }

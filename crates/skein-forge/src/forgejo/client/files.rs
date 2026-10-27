@@ -13,8 +13,11 @@ use alloc::boxed::Box;
 use skein_lib::Writer;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum FileKind {
-    Entry,
+    Tree,
     Entries,
+    Entry,
+    DirectoryEntries,
+    DirectoryEntry,
     File,
     Files,
     Commit,
@@ -26,7 +29,25 @@ const fn field(key: &'static [u8], read: Read, required: bool) -> Field {
 }
 pub(crate) fn fields(kind: FileKind) -> &'static [Field] {
     match kind {
-        FileKind::Entry => const { &[field(b"name", Read::Text, true), field(b"type", Read::Text, true)] },
+        FileKind::DirectoryEntry => const { &[field(b"name", Read::Text, true), field(b"type", Read::Text, true)] },
+        FileKind::Tree => {
+            const {
+                &[
+                    field(b"tree", Read::Array(Kind::File(FileKind::Entries)), true),
+                    field(b"truncated", Read::Boolean, true),
+                ]
+            }
+        }
+        FileKind::Entry => {
+            const {
+                &[
+                    field(b"path", Read::Text, true),
+                    field(b"mode", Read::Text, true),
+                    field(b"type", Read::Text, true),
+                    field(b"sha", Read::Id { empty: false }, true),
+                ]
+            }
+        }
         FileKind::File => {
             const {
                 &[
@@ -46,15 +67,16 @@ pub(crate) fn fields(kind: FileKind) -> &'static [Field] {
                 ]
             }
         }
-        FileKind::Entries | FileKind::Files | FileKind::Commits => &[],
+        FileKind::DirectoryEntries | FileKind::Entries | FileKind::Files | FileKind::Commits => &[],
     }
 }
 pub(crate) fn element(kind: FileKind) -> Option<Kind> {
     match kind {
+        FileKind::DirectoryEntries => Some(Kind::File(FileKind::DirectoryEntry)),
         FileKind::Entries => Some(Kind::File(FileKind::Entry)),
         FileKind::Files => Some(Kind::File(FileKind::File)),
         FileKind::Commits => Some(Kind::File(FileKind::Commit)),
-        FileKind::Entry | FileKind::File | FileKind::Commit | FileKind::Compare => None,
+        FileKind::DirectoryEntry | FileKind::Tree | FileKind::Entry | FileKind::File | FileKind::Commit | FileKind::Compare => None,
     }
 }
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
@@ -70,6 +92,27 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
 #[expect(clippy::too_many_lines, reason = "exhaustive request selection lists every dialect request")]
 fn target(request: &Request, out: &mut Target) {
     match request {
+        Request::Tree { at, object, page } => {
+            out.repo(at);
+            out.put(b"/git/trees/");
+            out.put(&id::write(object));
+            if let Some(n) = page.page {
+                out.put(b"?page=");
+                out.number(u64::from(n));
+            }
+            if let Some(n) = page.limit {
+                out.put(b"&per_page=");
+                out.number(u64::from(n));
+            }
+        }
+        Request::WorkflowRuns { at, workflow, head_sha, page } => {
+            out.repo(at);
+            out.put(b"/actions/runs?workflow=");
+            out.segment(workflow);
+            out.put(b"&head_sha=");
+            out.put(&id::write(head_sha));
+            out.page(*page, true);
+        }
         Request::PullFiles { at, number, page } => {
             out.numbered(at, b"/pulls/", *number);
             out.put(b"/files");
@@ -152,6 +195,8 @@ fn target(request: &Request, out: &mut Target) {
         | Request::EditIssue { .. }
         | Request::RequestReviewers { .. }
         | Request::RemoveReviewers { .. }
+        | Request::Dispatch { .. }
+        | Request::Rerun { .. }
         | Request::Merge { .. }
         | Request::Update { .. }
         | Request::PostStatus { .. }
@@ -203,6 +248,8 @@ pub(super) struct Files {
     file: ChangedFile,
     commit: ObjectId,
     compare: Compare,
+    entry: crate::forgejo::document::Entry,
+    truncated: bool,
 }
 impl Files {
     pub(super) fn new(root: FileKind) -> Self {
@@ -210,6 +257,8 @@ impl Files {
             root,
             name: Box::from([]),
             kind: None,
+            entry: entry(),
+            truncated: false,
             file: file(),
             commit: ObjectId { format: ObjectFormat::Sha1, bytes: [0; 32] },
             compare: Compare { total_commits: 0 },
@@ -222,8 +271,12 @@ impl Files {
                 Ok(()) => Step::Demand(skein_json::tokenizer::Request::Next),
                 Err(error) => Step::Malformed(error),
             },
-            Move::End(Kind::File(FileKind::Entry)) => Step::Row(
+            Move::End(Kind::File(FileKind::DirectoryEntry)) => Step::Row(
                 Row::Entry { name: core::mem::replace(&mut self.name, Box::from([])), kind: self.kind.take() },
+                skein_json::tokenizer::Request::Next,
+            ),
+            Move::End(Kind::File(FileKind::Entry)) => Step::Row(
+                Row::Entry(core::mem::replace(&mut self.entry, entry())),
                 skein_json::tokenizer::Request::Next,
             ),
             Move::End(Kind::File(FileKind::File)) => {
@@ -232,9 +285,9 @@ impl Files {
             Move::End(Kind::File(FileKind::Commit)) => {
                 Step::Row(Row::Commit(self.commit), skein_json::tokenizer::Request::Next)
             }
-            Move::End(Kind::File(FileKind::Entries | FileKind::Files | FileKind::Commits | FileKind::Compare)) => {
-                Step::Demand(skein_json::tokenizer::Request::Next)
-            }
+            Move::End(Kind::File(
+                FileKind::DirectoryEntries | FileKind::Tree | FileKind::Entries | FileKind::Files | FileKind::Commits | FileKind::Compare,
+            )) => Step::Demand(skein_json::tokenizer::Request::Next),
             Move::End(
                 Kind::User
                 | Kind::Reachable(_)
@@ -252,9 +305,11 @@ impl Files {
                 | Kind::Action(_),
             ) => unreachable!("file tables"),
             Move::Done => Step::Done(match self.root {
+                FileKind::Tree => Document::Tree { truncated: self.truncated },
+                FileKind::Entries | FileKind::Entry => unreachable!("tree root selection"),
                 FileKind::Compare => Document::Compare(self.compare),
-                FileKind::Entries | FileKind::Files => Document::Listed { skipped: walk.skipped() },
-                FileKind::Entry | FileKind::File | FileKind::Commit | FileKind::Commits => {
+                FileKind::DirectoryEntries | FileKind::Files => Document::Listed { skipped: walk.skipped() },
+                FileKind::DirectoryEntry | FileKind::File | FileKind::Commit | FileKind::Commits => {
                     unreachable!("file root selection")
                 }
             }),
@@ -262,18 +317,59 @@ impl Files {
     }
     fn scalar(&mut self, key: &'static [u8], value: Value) -> Result<(), Malformed> {
         match value {
+            Value::Input(_) => unreachable!("dispatch input table"),
             Value::Number(n) => self.compare.total_commits = n,
-            Value::Id(id) => self.commit = id.expect("required comparison commit"),
+            Value::Id(id) => {
+                let id = id.expect("required object id");
+                if self.root == FileKind::Tree {
+                    self.entry.sha = id;
+                } else {
+                    self.commit = id;
+                }
+            }
             Value::Text(text) => match key {
                 b"name" => self.name = text,
-                b"type" => self.kind = crate::directory::kind(&text),
+                b"path" => self.entry.path = text,
+                b"mode" => {
+                    let mut mode = 0u32;
+                    for byte in &text {
+                        if !(b'0'..=b'7').contains(byte) {
+                            return Err(Malformed::Value { field: key });
+                        }
+                        mode = mode
+                            .checked_mul(8)
+                            .ok_or(Malformed::Range { field: key })?
+                            .checked_add(u32::from(byte.saturating_sub(b'0')))
+                            .ok_or(Malformed::Range { field: key })?;
+                    }
+                    self.entry.mode = mode;
+                }
+                b"type" if self.root == FileKind::DirectoryEntries => self.kind = crate::directory::kind(&text),
+                b"type" => {
+                    self.entry.kind = match text.as_ref() {
+                        b"blob" => crate::api::EntryKind::Blob,
+                        b"tree" => crate::api::EntryKind::Tree,
+                        b"commit" => crate::api::EntryKind::Commit,
+                        _ => return Err(Malformed::Value { field: key }),
+                    }
+                }
                 b"filename" => self.file.filename = text,
                 b"previous_filename" => self.file.previous_filename = Some(text),
                 b"status" => self.file.status = status(&text).ok_or(Malformed::Value { field: key })?,
                 _ => unreachable!("file text table"),
             },
-            Value::Boolean(_) | Value::Body(_) | Value::Time(_) => unreachable!("file scalar table"),
+            Value::Boolean(value) => self.truncated = value,
+            Value::Body(_) | Value::Time(_) => unreachable!("file scalar table"),
         }
         Ok(())
+    }
+}
+
+fn entry() -> crate::forgejo::document::Entry {
+    crate::forgejo::document::Entry {
+        path: Box::new([]),
+        mode: 0,
+        kind: crate::api::EntryKind::Blob,
+        sha: ObjectId { format: ObjectFormat::Sha1, bytes: [0; 32] },
     }
 }

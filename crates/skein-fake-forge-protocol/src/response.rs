@@ -133,6 +133,10 @@ pub fn follow(request: &Request, answer: &Answer) -> Result<Option<(a::Read, Sel
         | Request::Compare { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
+        | Request::Tree { .. }
+        | Request::WorkflowRuns { .. }
+        | Request::Dispatch { .. }
+        | Request::Rerun { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
         | Request::Job { .. }
@@ -207,6 +211,10 @@ pub fn select(config: &Config, request: &Request, range: Option<Range>) -> Resul
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Tree { .. }
+        | Request::WorkflowRuns { .. }
+        | Request::Dispatch { .. }
+        | Request::Rerun { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
         | Request::Job { .. }
@@ -234,7 +242,9 @@ fn status(request: &Request) -> u16 {
         | crate::Route::PostComment
         | crate::Route::PostStatus
         | crate::Route::CreateBranch => 201,
-        crate::Route::RemoveReviewers | crate::Route::DeleteBranch => 204,
+        crate::Route::Dispatch | crate::Route::Rerun | crate::Route::RemoveReviewers | crate::Route::DeleteBranch => {
+            204
+        }
         crate::Route::UserOf
         | crate::Route::Tokens
         | crate::Route::CreateToken
@@ -285,6 +295,8 @@ fn status(request: &Request) -> u16 {
         | crate::Route::Compare
         | crate::Route::Contents
         | crate::Route::Raw
+        | crate::Route::Tree
+        | crate::Route::WorkflowRuns
         | crate::Route::Runs
         | crate::Route::Run
         | crate::Route::Job

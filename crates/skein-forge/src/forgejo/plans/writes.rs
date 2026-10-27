@@ -89,6 +89,8 @@ impl Plan {
         self.stage = Stage::Write;
         let at = self.at();
         let request = match self.write.clone() {
+            api::Write::Dispatch { workflow, branch, inputs } => Request::Dispatch { at, workflow, branch, inputs },
+            api::Write::Rerun { job } => Request::Rerun { at, job: job.job },
             api::Write::CreateIssue { key, title, body } => {
                 Request::CreateIssue { at, title, body: marked(word, &key, &body, bounds)? }
             }
@@ -110,14 +112,21 @@ impl Plan {
             api::Write::Reopen { number } => {
                 Request::EditIssue { at, number, title: None, body: None, state: Some(d::IssueState::Open) }
             }
-            api::Write::Update { number } => Request::Update { at, number, style: Some(r::UpdateStyle::Merge) },
-            api::Write::Status { commit, context, check } => {
+            api::Write::Update { number, style } => Request::Update {
+                at,
+                number,
+                style: Some(match style {
+                    api::UpdateStyle::Merge => r::UpdateStyle::Merge,
+                    api::UpdateStyle::Rebase => r::UpdateStyle::Rebase,
+                }),
+            },
+            api::Write::Status { commit, context, check, description, link } => {
                 let state = match check {
                     api::Check::Pending => d::StatusState::Pending,
                     api::Check::Passed => d::StatusState::Success,
                     api::Check::Failed => d::StatusState::Failure,
                 };
-                Request::PostStatus { at, commit: self.id(commit), state, context }
+                Request::PostStatus { at, commit: self.id(commit), state, context, description, link }
             }
             api::Write::CreateBranch { branch, commit } => Request::CreateBranch { at, branch, from: self.id(commit) },
             api::Write::DeleteBranch { branch } => Request::DeleteBranch { at, branch },
@@ -129,9 +138,15 @@ impl Plan {
                 self.stage = Stage::Reviewers;
                 Request::Pull { at, number }
             }
-            api::Write::Merge { number, head } => {
-                Request::Merge { at, number, style: self.row.as_ref().expect("style").merge_style, head: self.id(head) }
-            }
+            api::Write::Merge { number, head, how } => Request::Merge {
+                at,
+                number,
+                style: match how {
+                    api::MergeHow::Style => self.row.as_ref().expect("style").merge_style,
+                    api::MergeHow::FastForwardOnly => d::MergeStyle::FastForwardOnly,
+                },
+                head: self.id(head),
+            },
         };
         Ok(Step::send(request))
     }
@@ -147,7 +162,9 @@ impl Plan {
             api::Write::Merge { .. } => Asked::Merge,
             api::Write::Update { .. } => Asked::Update,
             api::Write::DeleteBranch { .. } => Asked::DeleteBranch,
-            api::Write::CreateIssue { .. }
+            api::Write::Dispatch { .. }
+            | api::Write::Rerun { .. }
+            | api::Write::CreateIssue { .. }
             | api::Write::Post { .. }
             | api::Write::Review { .. }
             | api::Write::Edit { .. }
@@ -170,7 +187,7 @@ impl Plan {
         }
         match self.write {
             api::Write::Update { .. } | api::Write::Merge { .. } | api::Write::Review { .. } => 200,
-            api::Write::DeleteBranch { .. } => 204,
+            api::Write::Dispatch { .. } | api::Write::Rerun { .. } | api::Write::DeleteBranch { .. } => 204,
             api::Write::CreateIssue { .. }
             | api::Write::Post { .. }
             | api::Write::Edit { .. }
@@ -182,6 +199,10 @@ impl Plan {
             api::Write::SetReviewers { .. } => unreachable!("reviewer exchanges have their own stages"),
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "write exchanges classify refusals before retaining their answer document"
+    )]
     pub fn heard(
         &mut self,
         heard: Heard,
@@ -214,6 +235,7 @@ impl Plan {
                 | d::Row::Entry { .. }
                 | d::Row::File(_)
                 | d::Row::Commit(_)
+                | d::Row::Entry(_)
                 | d::Row::Run(_)
                 | d::Row::Hook(_)
                 | d::Row::Team(_)
@@ -227,6 +249,9 @@ impl Plan {
                         api::Write::CreateBranch { .. } => {
                             return Ok(Some(Step::Done(Ok(api::Answer::Branch(api::BranchCreation::Exists)))));
                         }
+                        api::Write::Update { style: api::UpdateStyle::Rebase, .. } => {
+                            return Ok(Some(Step::Done(Err(api::Error::Conflict))));
+                        }
                         api::Write::CreateIssue { .. }
                         | api::Write::Post { .. }
                         | api::Write::Review { .. }
@@ -234,7 +259,9 @@ impl Plan {
                         | api::Write::Close { .. }
                         | api::Write::Reopen { .. }
                         | api::Write::Status { .. }
-                        | api::Write::Update { .. }
+                        | api::Write::Update { style: api::UpdateStyle::Merge, .. }
+                        | api::Write::Dispatch { .. }
+                        | api::Write::Rerun { .. }
                         | api::Write::DeleteBranch { .. }
                         | api::Write::OpenPull { .. }
                         | api::Write::SetReviewers { .. }
@@ -317,6 +344,7 @@ impl Plan {
             | d::Document::Protection(_)
             | d::Document::Permission(_)
             | d::Document::Compare(_)
+            | d::Document::Tree { .. }
             | d::Document::Runs { .. }
             | d::Document::Job(_)
             | d::Document::Run(_)
@@ -352,6 +380,8 @@ impl Plan {
             | api::Write::Update { .. }
             | api::Write::Status { .. }
             | api::Write::CreateBranch { .. }
+            | api::Write::Dispatch { .. }
+            | api::Write::Rerun { .. }
             | api::Write::DeleteBranch { .. } => false,
         }
     }
@@ -386,6 +416,7 @@ impl Plan {
             | d::Document::Protection(_)
             | d::Document::Permission(_)
             | d::Document::Compare(_)
+            | d::Document::Tree { .. }
             | d::Document::Runs { .. }
             | d::Document::Job(_)
             | d::Document::Run(_)
@@ -428,6 +459,8 @@ impl Plan {
                 | api::Write::Update { .. }
                 | api::Write::Status { .. }
                 | api::Write::CreateBranch { .. }
+                | api::Write::Dispatch { .. }
+                | api::Write::Rerun { .. }
                 | api::Write::DeleteBranch { .. } => Ok(Step::Done(Ok(self.answer(document)?))),
             },
             Stage::Head | Stage::Base => self.branch(document),
@@ -457,6 +490,8 @@ impl Plan {
                     | api::Write::Update { .. }
                     | api::Write::Status { .. }
                     | api::Write::CreateBranch { .. }
+                    | api::Write::Dispatch { .. }
+                    | api::Write::Rerun { .. }
                     | api::Write::DeleteBranch { .. } => unreachable!("opening's comparison"),
                 };
                 self.stage = Stage::Write;
@@ -513,6 +548,8 @@ impl Plan {
             | api::Write::Update { .. }
             | api::Write::Status { .. }
             | api::Write::CreateBranch { .. }
+            | api::Write::Dispatch { .. }
+            | api::Write::Rerun { .. }
             | api::Write::DeleteBranch { .. } => unreachable!("reviewer plan"),
         };
         let capacity = u32::try_from(reviewers.len()).expect("bounded op");
@@ -555,6 +592,8 @@ impl Plan {
             | api::Write::Update { .. }
             | api::Write::Status { .. }
             | api::Write::CreateBranch { .. }
+            | api::Write::Dispatch { .. }
+            | api::Write::Rerun { .. }
             | api::Write::DeleteBranch { .. } => unreachable!("opening's branches"),
         };
         let request = match self.stage {
@@ -605,6 +644,8 @@ impl Plan {
             | api::Write::Update { .. }
             | api::Write::Status { .. }
             | api::Write::CreateBranch { .. }
+            | api::Write::Dispatch { .. }
+            | api::Write::Rerun { .. }
             | api::Write::DeleteBranch { .. } => unreachable!("reviewer plan"),
         };
         match self.stage {
@@ -666,7 +707,10 @@ impl Plan {
                 }
                 Some(_) | None => Err(api::Error::Timeout),
             },
-            api::Write::Update { .. } | api::Write::DeleteBranch { .. } => match document {
+            api::Write::Dispatch { .. }
+            | api::Write::Rerun { .. }
+            | api::Write::Update { .. }
+            | api::Write::DeleteBranch { .. } => match document {
                 None => Ok(api::Answer::Done),
                 Some(_) => Err(api::Error::Timeout),
             },
@@ -712,9 +756,23 @@ fn validate(write: &api::Write) -> Result<(), api::Error> {
             }
             Ok(())
         }
-        api::Write::Status { context, .. } => text(context),
+        api::Write::Status { context, description, link, .. } => {
+            text(context)?;
+            text(description)?;
+            text(link)
+        }
+        api::Write::Dispatch { workflow, branch, inputs } => {
+            text(workflow)?;
+            text(branch)?;
+            for input in inputs {
+                text(&input.name)?;
+                text(&input.value)?;
+            }
+            Ok(())
+        }
         api::Write::CreateBranch { branch, .. } | api::Write::DeleteBranch { branch } => text(branch),
-        api::Write::SetReviewers { .. }
+        api::Write::Rerun { .. }
+        | api::Write::SetReviewers { .. }
         | api::Write::Close { .. }
         | api::Write::Reopen { .. }
         | api::Write::Merge { .. }
