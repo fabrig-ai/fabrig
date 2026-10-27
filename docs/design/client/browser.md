@@ -408,7 +408,13 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   length of a rule for a part inside main at that scale, to two
   decimals, rather than zoom it (the user, 2026-10-26). What a zoom
   would leave stays: hairlines, the media queries' widths, and the
-  banner with its wordmark, at the mockups' own.
+  banner with its wordmark, at the mockups' own. What a zoom scales
+  but no length of temper's names is written out at the scale too:
+  main's own text size, which its parts inherit with their `em`
+  spacing; a native control's own size; skein's sheet's lengths inside
+  main (its focus ring, its visually hidden boxes); and a viewport
+  length, which a zoom grows like any other. Dialogs are drawn inside
+  main, and scale with it.
 - **Connection flows:** the welcome steps use compact 14 px headings and
   9 px card corners; its opening introduction keeps its larger heading.
   Standalone connection cards use 5 px corners. The
