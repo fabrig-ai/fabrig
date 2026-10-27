@@ -10,6 +10,8 @@ use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::{Duration, Time, Token, Wall};
 
+#[path = "credentials/move_retention.rs"]
+mod move_retention;
 #[path = "credentials/moves.rs"]
 mod moves;
 
