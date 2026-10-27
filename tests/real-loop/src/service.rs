@@ -273,6 +273,10 @@ impl ServiceHost {
         self.cluster.as_ref().is_none_or(crate::cluster::Shape::ready)
             && ((self.fixture.is_none() && self.github.is_none()) || self.forge_address.is_some())
     }
+    fn prepare_service(&self) -> temper_service::Service {
+        temper::prepare_in_with(&Self::directories(&self.path, self.cluster.is_some()), &fixtures::given(&self.path))
+            .expect("standalone preparation")
+    }
     #[must_use]
     pub fn end(&self) -> Option<&crate::End> {
         self.service.as_ref().and_then(temper_service::Service::end)
@@ -342,11 +346,7 @@ impl Host for ServiceHost {
                     shape.write(self.path.parent().expect("cluster scratch"));
                 }
             }
-            let mut service = temper::prepare_in_with(
-                &Self::directories(&self.path, self.cluster.is_some()),
-                &fixtures::given(&self.path),
-            )
-            .expect("standalone preparation");
+            let mut service = self.prepare_service();
             if self.cluster.is_some() {
                 assert!(service.worst_case() <= self.envelope.0, "cluster fits admission");
                 assert!(service.operations() <= self.envelope.1, "cluster operations fit admission");

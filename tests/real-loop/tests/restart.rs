@@ -10,6 +10,8 @@ static HEAP: Counting = Counting;
 // One chat is created after sign-in; its last read follows the restarted sign-in.
 const CHAT: usize = 2;
 const READ: usize = 1;
+const SETTINGS: usize = 2;
+const CHARTER: usize = 3;
 // Only that chat's first run consumes a scripted turn; the restart consumes none.
 const CHATS: usize = 1;
 #[test]
@@ -52,8 +54,9 @@ fn a_restarted_service_keeps_the_chat_with_its_reply() {
     );
     let asked = second.llm().iter().any(|seen| matches!(seen, skein_fake_peers::llm::Observation::Query { .. }));
     assert!(!asked, "the restarted service asked the model again");
-    let inventory: serde_json::Value = serde_json::from_slice(&second.calls()[2].stdout).expect("settings inventory");
+    let inventory: serde_json::Value =
+        serde_json::from_slice(&second.calls()[SETTINGS].stdout).expect("settings inventory");
     assert_eq!(inventory["newest"], 2, "the ctl change survives restart");
-    let charter: serde_json::Value = serde_json::from_slice(&second.calls()[3].stdout).expect("charter setting");
+    let charter: serde_json::Value = serde_json::from_slice(&second.calls()[CHARTER].stdout).expect("charter setting");
     assert_eq!(charter["value"]["waiting"], 2_000_000, "the saved value overrides the world's 1 ms default");
 }
