@@ -29,3 +29,5 @@ mod settings;
 mod task_settings;
 
 mod projects;
+
+mod replays;

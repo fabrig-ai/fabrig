@@ -84,21 +84,21 @@ fn amend_sends_within_a_bounded_offer() {
     );
 }
 #[test]
-fn amend_refuses_a_denied_offer_locally() {
+fn a_named_amend_reaches_the_engine_even_when_the_offer_is_denied() {
     let (mut root, call) =
         f::send_choice_amend(f::MODEL_AMEND, f::choice_task(c::Admission::Refused(c::Refusal::NotOffered)));
-    assert!(root.sends.is_empty());
-    let answer = root.answer(call).expect("not offered");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"amendment not offered\n".as_slice()));
+    assert!(root.sent_name(call).is_some());
+    root.answered(call, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+    assert_eq!(root.answer(call).expect("engine refused").status, 2);
 }
 #[test]
-fn amend_requires_an_offer() {
+fn a_named_amend_without_an_offer_still_reaches_the_engine() {
     let mut task = f::choice_task(c::Admission::Allowed);
     task.acts.clear();
     let (mut root, call) = f::send_choice_amend(f::MODEL_AMEND, task);
-    assert!(root.sends.is_empty());
-    let answer = root.answer(call).expect("not offered");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"amendment not offered\n".as_slice()));
+    assert!(root.sent_name(call).is_some());
+    root.answered(call, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+    assert_eq!(root.answer(call).expect("engine refused").status, 2);
 }
 #[test]
 fn amend_requires_a_change() {

@@ -20,11 +20,13 @@ fn an_act_without_key_draws_one() {
     assert_eq!(root.sent_name(call), Some(*root.saved.get(&call).expect("drawn key saved")));
 }
 #[test]
-fn an_act_not_offered_exits_1_with_nothing_sent() {
+fn an_act_not_offered_reaches_the_engine_for_replay_or_refusal() {
     let mut root = fixtures::signed_in(fixtures::PARTY);
     let call = root.submit(fixtures::MESSAGE_CALL);
     root.serve(call, fixtures::task_result(fixtures::offered(&[])));
-    assert_eq!((root.answer(call).expect("locally refused").status, root.sent_name(call)), (1, None));
+    assert!(root.sent_name(call).is_some());
+    root.answered(call, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+    assert_eq!(root.answer(call).expect("engine refused").status, 2);
 }
 #[test]
 fn an_engine_key_conflict_exits_2() {

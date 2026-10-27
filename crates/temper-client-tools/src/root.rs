@@ -242,6 +242,9 @@ fn drain(
                 }
             }
         } else if let Some(request) = child.pop() {
+            // All client outputs, including a retired request's erase, have
+            // been taken. A follow-on ask may now reuse its engine name.
+            root.client.reclaim();
             match request {
                 runner::Out::Client { event } => {
                     if let jig_client::Event::Send { key, name: Some(name), request } = &event

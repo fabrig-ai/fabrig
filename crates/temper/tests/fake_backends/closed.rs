@@ -84,3 +84,55 @@ fn a_closed_chat_keeps_its_turns_and_replays_its_first_close() {
     assert_eq!(outcome.left, Some(Vec::new()), "no process outlives box");
     scratch.remove();
 }
+
+#[test]
+fn a_cancel_replays_after_the_task_ends_and_a_new_key_is_refused() {
+    let scratch = support::Scratch::new("fake-backends-cancel-replay");
+    let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
+    for path in &paths {
+        private(path);
+    }
+    let supplied = scratch.path().join("bundle");
+    bundle(&supplied, super::SOURCE_PAGE);
+    let cancel = Call::new(&["task", "cancel", "1", "finished", "--key", "cancel"]);
+    let outcome = support::boxed::run_ctl_with_exits(
+        scratch.path(),
+        flags(&paths[0], &paths[1], &paths[2], Some(&supplied)),
+        scratch.path(),
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["chat", "start", "--project", "1", "hello", "--key", "chat"])),
+            Step::Run(cancel.clone()),
+            Step::Run(Call::new(&["task", "show", "1", "--until", "ended", "--timeout", "20s"])),
+            Step::Run(cancel.clone()),
+            Step::Run(cancel.json()),
+            Step::Run(Call::new(&["task", "cancel", "1", "again", "--key", "new"])),
+            Step::Run(Call::new(&["task", "cancel", "1", "again", "--grace", "0s", "--key", "zero"]).json()),
+        ],
+        crate::BOX_DEADLINE,
+        || (),
+        &[(6, 2), (7, 2)],
+    );
+    let diagnostic = String::from_utf8_lossy(&outcome.stderr);
+    assert_eq!(outcome.calls.len(), 8, "whole cancel story: {diagnostic}");
+    for (index, call) in outcome.calls.iter().enumerate() {
+        assert_eq!(
+            call.exit,
+            Some(Exit::Code(if index >= 6 { 2 } else { 0 })),
+            "call {index}: {}; box: {diagnostic}",
+            String::from_utf8_lossy(&call.stderr)
+        );
+    }
+    assert_eq!(outcome.calls[2].stdout, outcome.calls[4].stdout, "first cancel outcome replayed");
+    let replay = ctl::json(&outcome.calls[5]);
+    assert_eq!(replay["operation"], "cancel");
+    assert!(!replay["outcome"]["done"].is_null(), "JSON replay: {replay}");
+    let refused = String::from_utf8_lossy(&outcome.calls[6].stderr);
+    assert!(refused.contains("task 1 has ended: cancelled"), "ended refusal: {refused}");
+    let refused: serde_json::Value = serde_json::from_slice(&outcome.calls[7].stderr).expect("refusal JSON");
+    assert_eq!(refused["task"], 1);
+    assert_eq!(refused["ended"], "cancelled");
+    assert_eq!(outcome.exit, Some(Exit::Code(0)), "box drained: {diagnostic}");
+    assert_eq!(outcome.left, Some(Vec::new()), "no child outlives box");
+    scratch.remove();
+}

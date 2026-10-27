@@ -16,6 +16,7 @@ pub(crate) fn prepare(call: &Call, task: &c::Task, me: &c::Me, limits: &Limits) 
         None => None,
     };
     if let Some(shown) = shown
+        && call.key.is_none()
         && draft.revision() != shown
     {
         return Err(amend_error(
@@ -26,7 +27,8 @@ pub(crate) fn prepare(call: &Call, task: &c::Task, me: &c::Me, limits: &Limits) 
         ));
     }
     controls(&mut draft, call, task, me, limits)?;
-    let Some(drafted) = draft.amendment() else {
+    let drafted = if call.key.is_some() { Some(named_draft(call, task, me, limits)?) } else { draft.amendment() };
+    let Some(drafted) = drafted else {
         return Err(amend_error(task, b"", None, b"amend changes nothing on task "));
     };
     if drafted.revision.is_some() && shown.is_none() {
@@ -58,9 +60,115 @@ pub(crate) fn prepare(call: &Call, task: &c::Task, me: &c::Me, limits: &Limits) 
             Some(to),
         ),
         Some(c::Admission::Bounded { .. }) => return Err(Failed::Fixed(b"amendment has no bounded draft")),
+        Some(c::Admission::Refused(_)) | None if call.key.is_some() => {
+            (c::Ask::Amend { project: task.project, task: task.chip.task, revision, change, reason }, None)
+        }
         Some(c::Admission::Refused(_)) | None => return Err(Failed::Fixed(b"amendment not offered")),
     };
-    Ok((Request::Ask(ask), to))
+    let request = if call.key.is_some() {
+        let alternate = alternate(&ask, revision, draft.revision());
+        Request::Amend { ask, alternate: Some(alternate) }
+    } else {
+        Request::Ask(ask)
+    };
+    Ok((request, to))
+}
+
+// The first retained ask may have been direct or proposed. Only a key conflict
+// (or a locally held name) permits trying the other representation, once, under
+// the same engine key. Neither answer admits a new action under that key.
+fn alternate(ask: &c::Ask, direct_revision: Option<c::Revision>, shown: c::Revision) -> c::Ask {
+    if let c::Ask::Amend { project, task, revision, change, reason } = ask {
+        return c::Ask::Propose {
+            project: *project,
+            action: c::ProposeAction::Amendment {
+                task: *task,
+                revision: revision.unwrap_or(shown),
+                change: change.clone(),
+            },
+            reason: reason.clone(),
+        };
+    }
+    if let c::Ask::Propose { project, action: c::ProposeAction::Amendment { task, change, .. }, reason } = ask {
+        return c::Ask::Amend {
+            project: *project,
+            task: *task,
+            revision: direct_revision,
+            change: change.clone(),
+            reason: reason.clone(),
+        };
+    }
+    unreachable!("amendment request")
+}
+
+// A named replacement is written even when it already equals today's value.
+// Comparing it away (or rejecting yesterday's revision locally) prevents the
+// engine from recognizing its retained key after the amendment has taken effect.
+fn named_draft(
+    call: &Call,
+    task: &c::Task,
+    me: &c::Me,
+    limits: &Limits,
+) -> Result<temper_client_domain::amend::Drafted, Failed> {
+    let mut change = c::Amendment {
+        addressed: None,
+        spec: None,
+        wake: None,
+        dependencies: None,
+        authority: None,
+        instructions: None,
+        tracked: None,
+        llm: None,
+    };
+    if let Some(priority) = number(call, 2) {
+        change.tracked = Some(c::Tracking::Tracked { priority: u32::try_from(priority).expect("priority fits") });
+    } else if value(call, 3).is_some() {
+        change.tracked = Some(c::Tracking::Untracked);
+    }
+    if value(call, 4).is_some() || value(call, 5).is_some() {
+        let Some(mut authority) = task.authority.whole() else {
+            return Err(Failed::Fixed(b"task authority is cut"));
+        };
+        authority.deadline = match value(call, 4) {
+            Some(Value::Text(text)) => Some(crate::jig::argv::deadline(text).expect("checked deadline")),
+            _ => None,
+        };
+        change.authority = Some(authority);
+    }
+    if value(call, 6).is_some() {
+        change.instructions = Some(words(call, 6, limits)?);
+    }
+    if value(call, 7).is_some() {
+        let mut spec = task.spec.clone();
+        spec.specification.words = c::DocumentText::complete(words(call, 7, limits)?);
+        change.spec = Some(spec.whole().ok_or(Failed::Fixed(b"task spec is cut"))?);
+    }
+    if let Some(Some(crate::jig::call::Values::Many(values))) = call.values.get(8) {
+        let mut dependencies = List::with_capacity(u32::try_from(values.len()).expect("dependencies fit"));
+        for value in values {
+            let Value::Number(number) = value else { return Err(Failed::Fixed(b"dependency not loaded")) };
+            dependencies.push(*number).expect("same count");
+        }
+        change.dependencies = Some(dependencies);
+    } else if value(call, 9).is_some() {
+        change.dependencies = Some(List::with_capacity(0));
+    }
+    if value(call, 10).is_some() {
+        change.llm = Some(choice::llm(call, 10, 11, me, task.project, task.llm.as_ref())?.expect("model supplied"));
+    }
+    let other = change.spec.is_some()
+        || change.authority.is_some()
+        || change.instructions.is_some()
+        || change.dependencies.is_some()
+        || change.llm.is_some();
+    let priority_alone = !other
+        && task.priority.is_some()
+        && match change.tracked {
+            Some(c::Tracking::Tracked { .. }) => true,
+            Some(c::Tracking::Untracked) | None => false,
+        };
+    let revision = if priority_alone { None } else { Some(task.spec_revision) };
+    Ok(temper_client_domain::amend::Drafted { revision, change })
 }
 
 fn amend_error(task: &c::Task, suffix: &[u8], moved: Option<(u64, u64)>, prefix: &[u8]) -> Failed {

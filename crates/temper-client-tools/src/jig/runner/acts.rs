@@ -1,5 +1,6 @@
 //! Offered acts are read once, then kept by the shared client's request table.
 pub(crate) mod choice;
+mod subject;
 use super::{Called, Out, Runner, finish};
 use crate::jig::{
     Limits,
@@ -21,6 +22,7 @@ pub(super) struct Sent {
     pub(super) operation: Operation,
     pub(super) holder: Option<c::AccountHolder>,
     pub(super) dispatched: bool,
+    alternate: Option<c::Ask>,
 }
 pub(crate) fn me<'a>(runner: &Runner, client: &'a Client) -> Option<&'a c::Me> {
     match client.document(runner.me())?.latest? {
@@ -185,11 +187,14 @@ pub(super) fn page(
     let Some(mut reading) = runner.acts.remove(&prefix) else { return };
     if let Some(document) = reading.document.take() {
         let called = reading.called;
-        let ask = match page {
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
-                let Some(me) = me(runner, client) else { return };
-                build(&called.call, &document, me, &env.limits, Some(task.project))
-            }
+        let ask = match &page {
+            Readout::Jig(c::ReadResult::Value(value)) => match render::read_task(value) {
+                Some((task, _)) if subject::routes_through(&called.call, &document, task.chip.task) => {
+                    let Some(me) = me(runner, client) else { return };
+                    build(&called.call, &document, me, &env.limits, Some(task.project))
+                }
+                Some(_) | None => Err(Failed::Fixed(b"task project unavailable")),
+            },
             Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {
                 Err(Failed::Fixed(b"task project unavailable"))
             }
@@ -197,49 +202,13 @@ pub(super) fn page(
         prepared(runner, client, env, called, ask, out);
         return;
     }
-    if let Readout::Jig(c::ReadResult::Value(document)) = &page {
-        let chip = match document {
-            c::ReadValue::Question(q) => Some(&q.task),
-            c::ReadValue::Escalation(e) => Some(&e.task),
-            c::ReadValue::Settings(_)
-            | c::ReadValue::Setting(_)
-            | c::ReadValue::Revision(_)
-            | c::ReadValue::Revisions(_)
-            | c::ReadValue::Tasks(_)
-            | c::ReadValue::OwnerProject(_)
-            | c::ReadValue::Historical(_)
-            | c::ReadValue::Me(_)
-            | c::ReadValue::Turn(_)
-            | c::ReadValue::Task(_)
-            | c::ReadValue::Proposal(_)
-            | c::ReadValue::OwnerProposal(_)
-            | c::ReadValue::OwnerEscalation(_)
-            | c::ReadValue::PersonTask(_)
-            | c::ReadValue::OwnerPersonTask(_)
-            | c::ReadValue::Result(_)
-            | c::ReadValue::Ended(_)
-            | c::ReadValue::OwnerEnded(_)
-            | c::ReadValue::History(_)
-            | c::ReadValue::Activity(_)
-            | c::ReadValue::Inbox(_)
-            | c::ReadValue::OwnerInbox(_)
-            | c::ReadValue::Spend(_)
-            | c::ReadValue::OwnerSpend(_)
-            | c::ReadValue::Project(_)
-            | c::ReadValue::Notes(_)
-            | c::ReadValue::Deployment(_)
-            | c::ReadValue::OwnerDeployment(_) => None,
-        };
-        if let Some(chip) = chip
-            && chip_project(chip).is_none()
-        {
-            out.push(Out::Client {
-                event: Event::Read { handle, read: Readable::Jig(c::Read::Task { task: chip.task }) },
-            });
-            reading.document = Some(document.clone());
-            runner.acts.insert(prefix, reading);
-            return;
-        }
+    if let Readout::Jig(c::ReadResult::Value(document)) = &page
+        && let Ok(subject::Scope::Task(task)) = subject::scope(&reading.called.call, document)
+    {
+        out.push(Out::Client { event: Event::Read { handle, read: Readable::Jig(c::Read::Task { task }) } });
+        reading.document = Some(document.clone());
+        runner.acts.insert(prefix, reading);
+        return;
     }
     let called = reading.called;
     let Some(me) = me(runner, client) else {
@@ -248,9 +217,11 @@ pub(super) fn page(
         return;
     };
     if called.call.tool == rows::AMEND_AT
-        && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) = &page
+        && let Readout::Jig(c::ReadResult::Value(document)) = &page
+        && let Some((task, _)) = render::read_task(document)
+        && task.chip.task == number(&called.call, 0).expect("task")
     {
-        out.push(Out::DraftAmendment { called: Box::new(called), task: task.clone() });
+        out.push(Out::DraftAmendment { called: Box::new(called), task: Box::new(task.clone()) });
         return;
     }
     let ask = match &page {
@@ -301,56 +272,26 @@ fn build(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits, proj
     if settings_history(call, document) {
         return Ok((Request::Ask(c::Ask::Decide { project: 0, on: decide(call, 0, limits)? }), None));
     }
-    let (project, offers) = match document {
-        c::ReadValue::Task(task) => (task.project, &task.acts),
-        c::ReadValue::Question(question) => {
-            (chip_project(&question.task).or(project).ok_or(Failed::Fixed(b"project unavailable"))?, &question.acts)
-        }
-        c::ReadValue::Proposal(proposal) => (proposal.project, &proposal.acts),
-        c::ReadValue::OwnerProposal(proposal) => (proposal.project, &proposal.acts),
-        c::ReadValue::Escalation(escalation) => {
-            (chip_project(&escalation.task).or(project).ok_or(Failed::Fixed(b"project unavailable"))?, &escalation.acts)
-        }
-        c::ReadValue::OwnerEscalation(escalation) => (escalation.task.project, &escalation.acts),
-        c::ReadValue::Settings(_)
-        | c::ReadValue::Setting(_)
-        | c::ReadValue::Revision(_)
-        | c::ReadValue::Revisions(_)
-        | c::ReadValue::Tasks(_)
-        | c::ReadValue::OwnerProject(_)
-        | c::ReadValue::Historical(_)
-        | c::ReadValue::Me(_)
-        | c::ReadValue::Turn(_)
-        | c::ReadValue::PersonTask(_)
-        | c::ReadValue::OwnerPersonTask(_)
-        | c::ReadValue::Result(_)
-        | c::ReadValue::Ended(_)
-        | c::ReadValue::OwnerEnded(_)
-        | c::ReadValue::History(_)
-        | c::ReadValue::Activity(_)
-        | c::ReadValue::Inbox(_)
-        | c::ReadValue::OwnerInbox(_)
-        | c::ReadValue::Spend(_)
-        | c::ReadValue::OwnerSpend(_)
-        | c::ReadValue::Project(_)
-        | c::ReadValue::Notes(_)
-        | c::ReadValue::Deployment(_)
-        | c::ReadValue::OwnerDeployment(_) => {
-            return Err(Failed::Fixed(b"tools' bug; unexpected act document; report it as a finding"));
-        }
+    let project = match subject::scope(call, document)? {
+        subject::Scope::Project(project) => project,
+        subject::Scope::Task(_) => project.ok_or(Failed::Fixed(b"project unavailable"))?,
     };
+    let offers = subject::offers(document);
     let act = kind(call);
     let mut admission = None;
-    for offer in offers {
-        if offer.act == act {
-            admission = Some(&offer.admission);
+    if let Some(offers) = offers {
+        for offer in offers {
+            if offer.act == act {
+                admission = Some(&offer.admission);
+            }
         }
     }
     let to = match admission {
-        Some(c::Admission::Allowed) => None,
         Some(c::Admission::Proposed { to }) => Some(to.clone()),
         Some(c::Admission::Bounded { .. }) => return Err(Failed::Fixed(b"act has no bounded draft")),
-        Some(c::Admission::Refused(_)) | None => return Err(Failed::Fixed(b"act not offered")),
+        // A replay must reach the engine even when its subject no longer
+        // offers this act. The engine alone refuses a fresh key.
+        Some(c::Admission::Allowed | c::Admission::Refused(_)) | None => None,
     };
     let task = number(call, 0).unwrap_or(0);
     let ask = match call.tool {
@@ -382,7 +323,8 @@ fn build(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits, proj
         },
         _ => unreachable!("act tool"),
     };
-    Ok((Request::Ask(ask), to))
+    let phase = subject::ended(document);
+    Ok((Request::Act { ask, phase }, to))
 }
 fn decide(call: &Call, task: u64, limits: &Limits) -> Result<c::DecideOn, Failed> {
     Ok(if call.tool == rows::DECIDE_AT {
@@ -475,7 +417,8 @@ pub(crate) enum Request {
     Written { holder: c::AccountHolder, account: u32, number: u32 },
     MoveIn,
     Ask(c::Ask),
-    Close { ask: c::Ask, ended: bool },
+    Amend { ask: c::Ask, alternate: Option<c::Ask> },
+    Act { ask: c::Ask, phase: Option<c::Phase> },
     Account { ask: c::Ask, context: render::outcome::Account },
     AddKey { holder: c::AccountHolder, provider: u32, join: Option<u32> },
     ReplaceKey { holder: c::AccountHolder, source: u32 },
@@ -505,20 +448,40 @@ pub(crate) fn prepared(
     };
     send(runner, client, called, request, to, out);
 }
-fn context(request: Request) -> (Request, Option<render::outcome::Account>, bool) {
+fn context(request: Request) -> (Request, Option<render::outcome::Account>, Option<c::Phase>) {
     match request {
-        Request::Close { ask, ended } => (Request::Ask(ask), None, ended),
-        Request::Account { ask, context } => (Request::Ask(ask), Some(context), false),
+        Request::Act { ask, phase } => (Request::Ask(ask), None, phase),
+        Request::Account { ask, context } => (Request::Ask(ask), Some(context), None),
         request @ (Request::MoveOut { .. }
         | Request::Written { .. }
         | Request::MoveIn
         | Request::Ask(_)
+        | Request::Amend { .. }
+        | Request::AddKey { .. }
+        | Request::ReplaceKey { .. }
+        | Request::DeclareProgram { .. }
+        | Request::CheckProgram { .. }) => (request, None, None),
+    }
+}
+fn amendment_request(request: Request) -> (Request, Option<c::Ask>, bool) {
+    match request {
+        Request::Amend { ask, alternate } => {
+            let retry = alternate.is_none();
+            (Request::Ask(ask), alternate, retry)
+        }
+        request @ (Request::MoveOut { .. }
+        | Request::Written { .. }
+        | Request::MoveIn
+        | Request::Ask(_)
+        | Request::Act { .. }
+        | Request::Account { .. }
         | Request::AddKey { .. }
         | Request::ReplaceKey { .. }
         | Request::DeclareProgram { .. }
         | Request::CheckProgram { .. }) => (request, None, false),
     }
 }
+
 fn send(
     runner: &mut Runner,
     client: &Client,
@@ -527,7 +490,11 @@ fn send(
     to: Option<c::Recipient>,
     out: &mut Queue<Out>,
 ) {
-    let key = crate::jig::key::local(runner.asker, called.call_number);
+    let (request, alternate, retry) = amendment_request(request);
+    let mut key = crate::jig::key::local(runner.asker, called.call_number);
+    if retry {
+        key.number = (u64::from(called.call_number) << 32u32) | 2;
+    }
     if client.pending(key).is_some() {
         let printed = render::failure(b"tools' bug; client key collision; report it as a finding", called.json, 1);
         finish(called, printed, out);
@@ -538,7 +505,7 @@ fn send(
         Some(name) => Some(crate::jig::key::named(runner.salt, name)),
         None => None,
     };
-    let (request, account, ended_chat) = context(request);
+    let (request, account, ended_task) = context(request);
     let mut holder = None;
     let mut exported = None;
     let event = match request {
@@ -556,7 +523,9 @@ fn send(
             c::AccountHolder::Own,
             called.value.take().expect("record supplied"),
         ),
-        Request::Account { .. } | Request::Close { .. } => unreachable!("request context extracted"),
+        Request::Account { .. } | Request::Act { .. } | Request::Amend { .. } => {
+            unreachable!("request context extracted")
+        }
         Request::DeclareProgram { holder, provider, join, name: program } => {
             jig_client::accounts::declare_program(key, name.expect("declaration name"), holder, provider, join, program)
         }
@@ -589,7 +558,7 @@ fn send(
         operation.file = Some(file.clone());
     }
     operation.account = account;
-    operation.ended_chat = ended_chat;
+    operation.ended_task = ended_task;
     if called.call.tool != rows::EXPORT_AT
         && called.call.tool != rows::CHANGE_SETTINGS_AT
         && called.call.tool != rows::PROPOSE_SETTINGS_AT
@@ -618,7 +587,7 @@ fn send(
         // Printed operation words stay unchanged until the calls-rendering task.
         operation.word = render::outcome::account_word(called.call.tool);
     }
-    runner.sent.insert(key, Sent { called, operation, holder, dispatched: false });
+    runner.sent.insert(key, Sent { called, operation, holder, dispatched: false, alternate });
     out.push(Out::Client { event });
 }
 pub(super) fn answered(
@@ -630,6 +599,12 @@ pub(super) fn answered(
     out: &mut Queue<Out>,
 ) {
     if let Some(mut sent) = runner.sent.remove(&key) {
+        if amendment_conflict(outcome)
+            && let Some(alternate) = sent.alternate.take()
+        {
+            send(runner, client, sent.called, Request::Amend { ask: alternate, alternate: None }, None, out);
+            return;
+        }
         if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
             c::OwnerOutcome::Proposed { to, .. },
         )))) = outcome
@@ -676,6 +651,20 @@ pub(super) fn answered(
     }
 }
 
+fn amendment_conflict(outcome: &jig_client::Outcome) -> bool {
+    if let jig_client::Outcome::Held = outcome {
+        return true;
+    }
+    if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::KeyConflict,
+        ..
+    })) = outcome
+    {
+        return true;
+    }
+    false
+}
+
 fn close_request(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits) -> Prepared {
     let (task, _) = render::read_task(document).ok_or(Failed::Fixed(b"unexpected close document"))?;
     if task.chip.task != number(call, 0).expect("chat argument") {
@@ -683,8 +672,8 @@ fn close_request(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limi
     }
     // Only immutable routing scope enters the ask. Terminal history is kept
     // as answer context: an archived task can be Unknown to a fresh act.
-    let ended = render::terminal_phase(task.chip.phase);
-    Ok((Request::Close { ask: close(call, me, task.project, limits)?, ended }, None))
+    let phase = subject::ended(document);
+    Ok((Request::Act { ask: close(call, me, task.project, limits)?, phase }, None))
 }
 
 fn close(call: &Call, me: &c::Me, project: u32, limits: &Limits) -> Result<c::Ask, Failed> {

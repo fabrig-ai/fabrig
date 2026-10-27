@@ -15,7 +15,7 @@ pub(crate) struct Operation {
     pub tool: Option<&'static crate::jig::table::Tool>,
     pub account: Option<Account>,
     pub task: Option<u64>,
-    pub ended_chat: bool,
+    pub ended_task: Option<c::Phase>,
     pub to: Option<c::Recipient>,
     pub party: Option<u64>,
     pub retry: Option<Box<[u8]>>,
@@ -132,7 +132,7 @@ impl Operation {
             tool: None,
             account: None,
             task,
-            ended_chat: false,
+            ended_task: None,
             to: None,
             party: None,
             retry: None,
@@ -462,6 +462,7 @@ fn encode(
         }
     }
     if let Outcome::Answered(Answered::Jig(c::Answer::Refused { refusal, .. })) = outcome {
+        ended_json(operation, refusal, out);
         if let c::Refusal::Moved { .. } = refusal
             && let Some(task) = operation.task
         {
@@ -667,12 +668,28 @@ fn moved_in(account: u32, renewed: bool, out: &mut Text) {
 
 fn refused_text(operation: &Operation, refusal: &c::Refusal, me: Option<&c::Me>, limits: &Limits, out: &mut Text) {
     if operation.word == b"close"
-        && ended_refusal(refusal, operation.ended_chat)
+        && ended_refusal(refusal, operation.ended_task.is_some())
         && let Some(task) = operation.task
     {
         out.put(b"chat ");
         out.number(task);
         out.put(b" has ended");
+        return;
+    }
+    if operation.word == b"cancel"
+        && ended_refusal(refusal, operation.ended_task.is_some())
+        && let Some(task) = operation.task
+    {
+        out.put(b"task ");
+        out.number(task);
+        out.put(b" has ended");
+        if let Some(phase) = operation.ended_task {
+            out.put(b": ");
+            out.put(ended_word(phase));
+        } else {
+            out.put(b": ");
+            acts::refusal(refusal, &document::phrasebook(limits.text), out);
+        }
         return;
     }
     if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
@@ -819,6 +836,28 @@ fn moved_text(operation: &Operation, value: &c::OutcomeMovedToNewest, out: &mut 
         out.number(u64::from(value.stayed));
         out.put(if value.stayed == 1 { b" could not, and finishes on " } else { b" could not, and finish on " });
         out.number(u64::from(operation.revision.expect("move request's revision")));
+    }
+}
+
+fn ended_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) {
+    if operation.word == b"cancel"
+        && ended_refusal(refusal, operation.ended_task.is_some())
+        && let Some(phase) = operation.ended_task
+    {
+        out.key(b"ended");
+        out.string(ended_word(phase));
+    }
+}
+
+fn ended_word(phase: c::Phase) -> &'static [u8] {
+    if phase == c::Phase::Done {
+        b"done"
+    } else if phase == c::Phase::Cancelled {
+        b"cancelled"
+    } else if phase == c::Phase::Failed {
+        b"failed"
+    } else {
+        b"ended"
     }
 }
 
