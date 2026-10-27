@@ -4014,7 +4014,7 @@ fn temper_ctl_decide_settings() {
             assert_eq!(call.exit, Some(Exit::Code(2)), "member must get the engine's refusal");
             assert_eq!(
                 call.stderr.as_slice(),
-                b"proposal decide: out of shape; running\n",
+                b"proposal decide: The held role does not permit this action\n",
                 "engine refusal diagnostic"
             );
             assert!(call.stdout.is_empty(), "refusal has no successful answer");
