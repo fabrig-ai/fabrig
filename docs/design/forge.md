@@ -193,7 +193,7 @@ and no policy. Every type is a plain value.
 
 ### 3.2 The calls
 
-24 reads and 15 writes, in families. Each call has one answer.
+24 reads and 17 writes, in families. Each call has one answer.
 
 | Family | Calls | Answer |
 |---|---|---|
@@ -207,6 +207,7 @@ and no policy. Every type is a plain value.
 | Contents | `PullFiles`, `Compare`, `File`, `Tree` | `PullFiles`; `Compare`; `File`; `Tree` |
 | The repository | `Protection`, `Settings`, `Collaborators`, `Permission` | the same names |
 | Creations | `CreateIssue` (keyed), `OpenPull` | `Created` |
+| Labels | `Labels`, `CreateLabel` | `Done`; `Done` |
 | Comments, keyed | `Post`, `Review` | `Commented`; `Reviewed` |
 | Edits | `Edit`, `SetReviewers`, `Close`, `Reopen` | `Done` |
 | Merging | `Merge`, `Update` | `Merged` or `Queued`; `Done` |
@@ -753,7 +754,9 @@ first failure, but where a row says otherwise.
 | `Read::Collaborators { page }` | `GET R/collaborators?page=<page>&limit=<size>`; for each user, `GET R/collaborators/<login>/permission` | each user's `id` and permission; `more` when the page came full |
 | `Read::Permission { user }` | `GET R/collaborators/<login>/permission` | `permission`: `none`, `read`, `write`, `admin`, and `owner` as `Admin` |
 | `Read::Locate { owner, name }` | `GET /api/v1/repos/<owner>/<name>` | `Located { repository }` from `id`; the repository's row kept |
-| `Write::CreateIssue { key, title, body }` | `POST R/issues` `{title, body}`, the body behind the key's marker | `Created` from `number` |
+| `Write::CreateIssue { key, title, body, labels }` | `GET R/labels` for the labels' ids, when it names any; `POST R/issues` `{title, body, labels}`, the body behind the key's marker | `Created` from `number`; `Missing` for a label the repository lacks |
+| `Write::Labels { number, labels }` | `GET R/labels`; `PUT R/issues/<number>/labels` `{labels: [ids]}` | `Done`; `Missing` for a label the repository lacks |
+| `Write::CreateLabel { name, color }` | `POST R/labels` `{name, color}` | `Done`; `Exists` for a `409` |
 | `Write::OpenPull { title, body, head, base }` | `GET R/branches/<head>`; `GET R/branches/<base>`; `GET R/compare/<base's commit.id>...<head's commit.id>?files=false&verification=false`, of which only `total_commits` is kept; when it is 0, nothing more; else `POST R/pulls` `{head, base, title, body}` | `Created` from `number`; `NothingToMerge` when `total_commits` is 0, the pull request not written |
 | `Write::Post { number, key, body }` | `POST R/issues/<number>/comments` `{body}`, behind the key's marker | `Commented` from `id` |
 | `Write::Review { number, key, verdict, body }` | `POST R/pulls/<number>/reviews` `{event, body}`, `event` `APPROVED`, `REQUEST_CHANGES` or `COMMENT`, the body behind the key's marker | `Reviewed` from `id` |
@@ -1067,8 +1070,10 @@ call. An absent branch or contents leaf alone keeps the row that answered.
 
 What the kit writes inside what it creates: keys' markers, and nothing
 else. No record, outcome or page of the owner's is written into the
-forge, and no call of 5.2 writes a label: labels are for display only,
-and no decision reads one.
+forge. Labels are written only by the calls that name them
+(`CreateIssue`'s, `Labels`, `CreateLabel`), designed, not built; the
+kit decides nothing by one, and whether its owner reads them back is
+the owner's.
 
 - **A creation's key,** at the head of an issue's body, a comment or a
   review: `<!-- `, the word, `:key `, the key in lowercase hexadecimal,
