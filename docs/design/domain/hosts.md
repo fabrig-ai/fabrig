@@ -681,6 +681,47 @@ reach past the grace.
   composes them. Never the hub, the core, or jig's channel's components,
   which pass smith's bytes through (`../protocol/channel.md`, 6.1).
 
+### 6.9 Jobs
+
+Designed, not built. A job task (core.md, 3.2) is hosted as a run is,
+with no agent:
+
+- **Its assignment** is a run's but for the agent's part: the job's
+  kind, a number the application gives; its spec, the application's
+  bytes, carried and never read; its workspace's items and workstream;
+  its deadline; and the application's credentials its workspace needs,
+  which the workspace keeps and the job is never given. No LLM account,
+  charter, transcript, message or ask for live content.
+- **Its lifecycle** is 6.2's with steps 3 to 5 replaced, and no save:
+  1. admit; 2. prepare the workspace;
+  3. **run:** the root's **job capability** runs the job of that kind
+     in the prepared workspace, with its spec, until it ends or its
+     deadline passes;
+  4. **deliver** what the job made, through the workspace (section 9's
+     delivery, asked by the job capability rather than by a run's
+     call), when the job ended well; a delivery once begun settles, and
+     what it made counts;
+  5. **stop:** wait until the job capability says every process of the
+     job is gone;
+  then release and answer as ever. A cancel, a lost link, shutdown or
+  a passed deadline stops the job at once, kills its processes, makes
+  no delivery that has not begun, and takes the same tail. A job saves
+  nothing: a job cut short is run again from the start.
+- **Its answer** is finished, with a result of the application's bytes
+  within the result's bound, or failed: the job's own failure (it said
+  so), its deadline passed, a workspace that would not prepare or
+  deliver, or the host's loss, each typed as a run's are (6.3), and
+  retried by the core within the task's tries (tasks.md, 5.5).
+- **The job capability is the application's,** a capability of the
+  worker's root beside the agent capability: it knows the kinds it
+  runs and declares them in the host's hello, and the fleet places a
+  job only on a host that declared its kind (engine.md, section 8). It
+  runs nothing the assignment did not name, and gives the job no
+  credential: what reaches a system is the workspace's, by identity.
+- **No turns, no relay, no calls:** a job reports nothing until its
+  answer; the hub keeps that answer until it is acknowledged, as a
+  run's.
+
 ## 7. Workspaces
 
 A workspace is what a run works in, prepared from the items the

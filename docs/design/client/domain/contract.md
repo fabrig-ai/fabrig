@@ -988,6 +988,14 @@ Designed, not built (`../../domain/tasks.md`, 5.9).
 - **A party's inbox** shows a proposal to release a task from a hold of
   theirs as any proposal waiting for them, naming the hold.
 
+### 5.7 Job tasks
+
+Designed, not built (`../../domain/tasks.md`, 5.3.1). A job task's
+document shows its executor's kind, `Job { kind }`, its spec and result
+as its application's part describes them (5.3), its host and its
+attempts. No party creates one: `Create` naming a job is refused as an
+executor not offered.
+
 ## 6. Reads
 
 A read asks for one document, or one page of a list, and is answered

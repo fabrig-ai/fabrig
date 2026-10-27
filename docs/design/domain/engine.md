@@ -930,6 +930,28 @@ call writes over a change its run was not shown.
   work has it saved by its host, where its connectors say, and the next
   run of its task starts from it (connectors.md, section 10).
 
+### 7.5 Jobs
+
+Designed, not built (core.md, 3.2; hosts.md, 6.9; tasks.md, 5.3.1). A
+job task becomes a hosted run with no agent:
+
+- **Its check** needs no LLM account, no charter, no model and no
+  program's login: its kind among those the application declares, its
+  items within the workspace's bounds, its spec and deadline within the
+  tasks child's bounds, and its requester's authority over what its
+  items write.
+- **Its claim** goes to a host whose hello declared its kind, whose
+  bounds for that kind (its spec's and result's bytes, its deadline)
+  cover the job's, and that has a free slot, as a run's does (section
+  8), fenced by its attempt. Nothing of a run's placement applies: no
+  charter's hosts, no model, no account's source, no login.
+- **Its answer** commits its result as a delegate's result (tasks.md,
+  5.6), which its procedure reads at its next step; a failure is tried
+  again within its tries, then holds it, its procedure hearing why.
+- **Nothing of it is a transcript:** its spec and result are its
+  record; a restart finds a claimed job's attempt as a run's (section
+  6) and settles it lost or answered.
+
 ## 8. The fleet
 
 The fleet child domain knows the hosts and the runs they host:

@@ -135,9 +135,16 @@ Who carries a task out. A task has one:
   turns.
 - **A person:** a party who answers through a client: a choice, a
   decision, an approval, an answer (people.md, section 8).
+- **A job,** designed, not built: a program of the application's, run
+  on a host in a workspace its items prepare, with no LLM: given its
+  spec, it runs to an end within its deadline and answers a result in
+  the application's bytes, or fails. A procedure delegates one for
+  mechanical work that needs a workspace (a build's step, a candidate
+  prepared by a project's own tooling, a check). It costs no LLM turns,
+  delegates nothing and asks nothing (hosts.md, 6.9).
 
-All three can delegate, each within its authority: an agent with its
-tools, a procedure in its code, a person through the client.
+The first three can delegate, each within its authority: an agent with
+its tools, a procedure in its code, a person through the client.
 
 ### 3.3 Message
 

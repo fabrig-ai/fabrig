@@ -401,6 +401,21 @@ arrives, and whenever what it reads changes, which its owner knows
 dependencies are pending; a step that asks an effect waiting for them,
 or ends the task done, is refused whole (5.7).
 
+### 5.3.1 Job tasks
+
+Designed, not built (core.md, 3.2; hosts.md, 6.9). A job task is made by
+a procedure's step, as its delegate, with the job's kind, its spec, its
+workspace's items and its deadline. It is due once its dependencies are
+done, claimed by the fleet on a host that runs its kind, active while
+it runs, and ends done with its result; past its tries it is held, as
+any task is (5.5), and its procedure, hearing it, decides what that
+means for its own work. It
+holds what its items write as any task does (section 6), or writes
+under its requester's hold. It takes no messages: words, questions and
+amendments to it are refused, and a cancel ends its job at once. It
+costs nothing from a budget but the host's time, which its deadline
+bounds.
+
 ### 5.4 Person tasks
 
 An active person task is in the inbox of the party, or of the parties
