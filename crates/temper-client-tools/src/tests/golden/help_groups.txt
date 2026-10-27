@@ -59,8 +59,9 @@ lists what `DIR` keeps, and sends nothing.
     signed out, a bound of ctl's, the engine unreachable past the
     link's deadline. The engine refused nothing;
   - 2: the engine refused, and only the engine: a key conflict, a
-    revision that moved, a subject no longer visible. Its line says
-    what to do instead where there is something;
+    revision that moved, a subject no longer visible, no room for
+    another answer (below). Its line says what to do instead where
+    there is something;
   - 3: a wait's timeout, or its watch ended, its condition not met;
     it prints the last document;
   - 130 or 143: ended by `SIGINT` or `SIGTERM`; what it sent stays
@@ -71,6 +72,13 @@ lists what `DIR` keeps, and sends nothing.
 - **A key makes an act happen once.** The same key for the same
   request, from the same party, within the retention `me` prints,
   answers the first outcome again and changes nothing.
+- **A full engine says when it has room.** The engine keeps each
+  act's answer for that retention, and a set number of them:
+  `temper ctl: the engine holds its N answers of the last day; room
+  again at TIME` (exit 2) means it has no room for another, and
+  nothing was made. A call that can wait until TIME waits and goes
+  on; one that can't stops at once. Send the same act with the same
+  key after TIME.
 - **A wait outlives the engine's restart:** it reconnects, and fails
   only past the link's deadline.
 - **A decision names the revision it saw.** When the revision has
