@@ -193,7 +193,7 @@ and no policy. Every type is a plain value.
 
 ### 3.2 The calls
 
-24 reads and 17 writes, in families. Each call has one answer.
+24 reads and 18 writes, in families. Each call has one answer.
 
 | Family | Calls | Answer |
 |---|---|---|
@@ -210,7 +210,7 @@ and no policy. Every type is a plain value.
 | Labels | `Labels`, `CreateLabel` | `Done`; `Done` |
 | Comments, keyed | `Post`, `Review` | `Commented`; `Reviewed` |
 | Edits | `Edit`, `SetReviewers`, `Close`, `Reopen` | `Done` |
-| Merging | `Merge`, `Update` | `Merged` or `Queued`; `Done` |
+| Merging | `Merge`, `Update`, `UpdateRef` | `Merged` or `Queued`; `Done`; `Done` |
 | Marks and branches | `Status`, `CreateBranch`, `DeleteBranch` | `Done`; `Branch`; `Done` |
 
 - **The change feed** is one listing of items since a time, least
@@ -239,6 +239,12 @@ and no policy. Every type is a plain value.
   **`Update { number, style }`** brings a pull request's branch up to
   its base by a merge of the base into it (`Merge`), or by a rebase of
   its commits onto the base (`Rebase`), which rewrites the branch.
+- **`UpdateRef { branch, to }`** moves a branch to a commit as a
+  fast-forward only, refused (`Stale`) when the commit does not
+  descend from the branch's tip; designed, not built, for an owner that
+  fast-forwards a branch where the forge merges no pull request so. A
+  dialect whose forge has no such route answers `Refused`: Forgejo's
+  owner fast-forwards by a merge instead.
 - **`Status { commit, context, check, description, link }`** writes a
   context's state with its words, at most `DESCRIPTION_BYTES` (140), and
   its link, an absolute URL, either empty for none.
@@ -405,7 +411,9 @@ By name; the code holds the fields.
   approvals and whether it dismisses stale approvals; whether a merge
   queue guards it, and whether it requires signatures, linear history
   or code owners' reviews; and `Bypass`, whether the credential may pass
-  it: `Never`, `PullsOnly` or `Always`. Forgejo's dialect reads signatures
+  it: `Never`, `PullsOnly` or `Always`. Designed, not built: `pulls_required`,
+  whether a rule requires a pull request, and `pulls_bypass`, the
+  credential's bypass of the rules that do (forge-github.md, 4.5). Forgejo's dialect reads signatures
   from `require_signed_commits`, and answers no queue, no linear history,
   no code owners and `Never`.
 - **`Settings`:** a repository's default branch and the merge styles it
@@ -437,7 +445,8 @@ body the forge keeps changes (5.3).
   App lacks `statuses` write (forge-github.md, section 4.2). Until the
   Actions calls, `Tree`, `Artifact`, `Commits`, a fast-forward-only
   merge and an update by rebase are designed for GitHub, its dialect
-  answers each `Refused` at no cost.
+  answers each `Refused` at no cost; their GitHub routes are
+  forge-github.md, 4.5, designed, not built.
 - **An answer fits its call.** The client checks each answer against
   its call before it takes it (forge-client.md, section 2.3):
 

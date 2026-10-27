@@ -275,6 +275,41 @@ Batched reads are later (temper's draft 18).
 - **An Actions job** is the check run whose `app.slug` is
   `github-actions`; its id is the job's.
 
+### 4.5 Actions, trees, refs and labels
+
+Designed, not built: the GitHub routes of forge.md 3.2's later calls.
+
+| Call | Requests | Answer from |
+|---|---|---|
+| `Write::Dispatch { workflow, branch, inputs }` | `POST R/actions/workflows/<workflow>/dispatches` `{ref, inputs}` | `Done`; the owner finds the run by `Runs`, as on Forgejo (GitHub's `return_run_details` is not asked: one way to find a run on both forges) |
+| `Read::Runs { workflow, commit, page }` | `GET R/actions/workflows/<workflow>/runs?head_sha=<commit>&page=<page>&per_page=<size>` | each run as a `Run`, its event from `event`, its user from `triggering_actor.id` |
+| `Read::Run { run }` | `GET R/actions/runs/<run>`; `GET R/actions/runs/<run>/jobs` | as forge.md's row, the failed step from each job's `steps` |
+| `Write::Rerun { attempt }` | `POST R/actions/jobs/<job>/rerun` | `Done`; `Refused` for a run not completed (`403` naming it) |
+| `Read::Artifact { run, name, max_bytes }` | `GET R/actions/runs/<run>/artifacts?name=<name>`; its `archive_download_url` | as forge.md's row |
+| `Read::Tree { object, page }` | `GET R/git/trees/<object>` | entries from `tree`; GitHub answers a tree whole up to its own cut, `truncated` past it, which is `TooLarge` |
+| `Read::Commits { before, after, page }` | `GET R/compare/<before>...<after>?page=<page>&per_page=<size>` | its `commits`, oldest first |
+| `Write::UpdateRef { branch, to }` | `PATCH R/git/refs/heads/<branch>` `{sha: <to>, force: false}` | `Done`; `Stale` for a `422` "Update is not a fast forward"; `Protected` for a rule the credential may not bypass |
+| `Write::Labels`, `Write::CreateLabel`, `CreateIssue`'s labels | `PUT R/issues/<number>/labels` `{labels}`; `POST R/labels`; `POST R/issues` `{labels}` | as forge.md's rows |
+
+- **A ref update is a push** to GitHub's rules: it passes a rule that
+  requires a pull request only for a credential on that rule's
+  ruleset's bypass list with `Always`. `Protection` carries both apart
+  (5.3): `pulls_required`, whether any rule on the branch requires a
+  pull request, and `pulls_bypass`, the App's bypass of the rulesets
+  that do (`Never`, `PullsOnly` or `Always`, the least of them), beside
+  the aggregate `bypass` it has today.
+- **Stories against the fake GitHub** (fake-forge.md, sections 10 and
+  11), designed, not built: a workflow dispatched and its run found; a
+  status posted on a commit; a ref update fast-forwarded under `Always`;
+  one refused as not a fast-forward; one refused under a rule without
+  `Always`; a lost ref update's answer found made by its branch.
+- **To check before relying on them** (section 13): a dispatched run
+  found by `Runs` at its commit; a rerun's refusal; a ref update's refusal when not a
+  fast-forward and under a rule; whether a ref update bringing a change
+  under `.github/workflows/` is refused without `workflows`; the
+  per-repository "Auto-close issues with merged linked pull requests"
+  read by `Read::Settings`.
+
 ## 5. Merging, updating, and the rules
 
 ### 5.1 The merge
