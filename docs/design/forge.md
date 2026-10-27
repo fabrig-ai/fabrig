@@ -193,7 +193,7 @@ and no policy. Every type is a plain value.
 
 ### 3.2 The calls
 
-22 reads and 15 writes, in families. Each call has one answer.
+24 reads and 15 writes, in families. Each call has one answer.
 
 | Family | Calls | Answer |
 |---|---|---|
@@ -202,8 +202,8 @@ and no policy. Every type is a plain value.
 | One item | `Item`, `Pull`, `PullFor` | `Item`; `Pull`; `Pull` |
 | Review | `Reviews`, `Remarks` | `Reviews`; `Remarks` |
 | CI | `Statuses`, `Checks`, `Job` | `Statuses`; `Checks`; `Job` |
-| Actions | `Runs`, `Run`; `Dispatch`, `Rerun` | `Runs`; `Run`; `Done`; `Done` |
-| Branches | `Branch`, `Branches` | `Commit`; `Branches` |
+| Actions | `Runs`, `Run`, `Artifact`; `Dispatch`, `Rerun` | `Runs`; `Run`; `File`; `Done`; `Done` |
+| Branches | `Branch`, `Branches`, `Commits` | `Commit`; `Branches`; `Commits` |
 | Contents | `PullFiles`, `Compare`, `File`, `Tree` | `PullFiles`; `Compare`; `File`; `Tree` |
 | The repository | `Protection`, `Settings`, `Collaborators`, `Permission` | the same names |
 | Creations | `CreateIssue` (keyed), `OpenPull` | `Created` |
@@ -249,8 +249,18 @@ and no policy. Every type is a plain value.
   commit, page }`, the runs of one workflow at one commit, newest
   first. `Run { run }` reads one run: its number, workflow, commit,
   status, conclusion and jobs, each job with its id, name, attempt,
-  status, conclusion and failed step. `Rerun { job }` runs one job
-  again, with the jobs that need it, once its run has completed.
+  status, conclusion and failed step. `Rerun { attempt }` runs one job
+  again, named by its `JobAttempt`, with the jobs that need it, once its
+  run has completed; its find reads the run for the job's next
+  attempt.
+- **`Artifact { run, name, max_bytes }`** reads one file of a run's
+  artifact by the artifact's name: the archive's single file, stored or
+  deflated, cut to `max_bytes`, answered as a `File` at the run's
+  commit with the file's path. An archive of several files, or one
+  compressed otherwise, is `Refused`.
+- **`Commits { before, after, page }`** lists the commits after
+  `before` up to `after`, oldest first, each its id, its parents and its
+  message, in pages from 1.
 - **`Tree { object, page }`** reads one tree, not recursively: a
   commit's root tree, or a tree by its id, as its parent's entry names
   it. Each entry is a name, a mode, a kind and an object id, in name
@@ -258,8 +268,8 @@ and no policy. Every type is a plain value.
 
 ### 3.3 The answers
 
-28 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
-`Remarks`, `Commit`, `Branches`, `PullFiles`, `Compare`, `Checks`,
+29 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
+`Remarks`, `Commit`, `Branches`, `Commits`, `PullFiles`, `Compare`, `Checks`,
 `Job`, `File`, `Tree`, `Runs`, `Run`, `Protection`, `Settings`,
 `Collaborators`, `Permission`, `Created`, `Commented`, `Reviewed`,
 `Merged`, `Queued`, `Branch`, `Done`.
@@ -273,7 +283,8 @@ and no policy. Every type is a plain value.
   `BranchCreation`: `Created`, or `Exists`.
 - **`Done`** answers `Update`, `Edit`, `SetReviewers`, `Close`,
   `Reopen`, `Status`, `DeleteBranch`, `Dispatch` and `Rerun`.
-- **`Runs` and `Tree` are paged,** and say whether more follows.
+- **`Runs`, `Tree` and `Commits` are paged,** and say whether more
+  follows.
 - **`Pull` answers both `Pull` and `PullFor`;** the `Commit` answer is a
   branch's tip.
 - **`Queued` is final for its call.** It answers `Merge` alone, and
@@ -422,7 +433,10 @@ body the forge keeps changes (5.3).
 - **Every dialect answers every call.** A call that a dialect cannot
   answer as Forgejo does is named when that dialect is designed (section
   10). GitHub's one is `Status`, which answers `Forbidden` where the
-  App lacks `statuses` write (forge-github.md, section 4.2).
+  App lacks `statuses` write (forge-github.md, section 4.2). Until the
+  Actions calls, `Tree`, `Artifact`, `Commits`, a fast-forward-only
+  merge and an update by rebase are designed for GitHub, its dialect
+  answers each `Refused` at no cost.
 - **An answer fits its call.** The client checks each answer against
   its call before it takes it (forge-client.md, section 2.3):
 
@@ -440,6 +454,8 @@ body the forge keeps changes (5.3).
   | `Runs` | each run's workflow and commit are the call's; ids are unique |
   | `Run` | the id is the call's |
   | `Tree` | names rise strictly |
+  | `Commits` | the ids are unique |
+  | `Artifact` | the bytes are within `max_bytes` |
   | `File` | the head and path are the call's, and the bytes are within `max_bytes` |
   | `Locate` | the id is nonzero |
 
@@ -456,6 +472,9 @@ body the forge keeps changes (5.3).
   | a `Comment` | 96 |
   | a `Remark`, a `File` | 64 |
   | a `Commit` | 32 |
+  | a `Run` | 128 |
+  | a `RunJob`, an `Entry` | 64 |
+  | an input | 32 |
   | a `Collaborator`; a string in a list (a label, a branch, a context) | 16 |
   | an id in a list (a reviewer) | 8 |
 
@@ -748,8 +767,10 @@ first failure, but where a row says otherwise.
 | `Read::Tree { object, page }` | `GET R/git/trees/<object>?page=<page>&per_page=<size>` | each entry's `path` as its name, `mode`, `type` (`blob`, `tree`, `commit`) and `sha`; `more` when the page came full or `truncated` is true |
 | `Read::Runs { workflow, commit, page }` | `GET R/actions/runs?workflow=<workflow>&head_sha=<commit>&page=<page>&limit=<size>` | each run as a `Run` without its jobs, newest first, its event from `event` and its user from `trigger_actor.id`; `more` when the page came full |
 | `Read::Run { run }` | `GET R/actions/runs/<run>`; `GET R/actions/runs/<run>/jobs`; for each failed job, `GET R/actions/jobs/<job>` for its steps | the `Run` with its jobs and each failed job's failed step (5.2's notes, "A failed job's log") |
+| `Read::Artifact { run, name, max_bytes }` | `GET R/actions/runs/<run>/artifacts?name=<name>`; `GET R/actions/artifacts/<id>/zip` | the archive's one entry, inflated where deflated, its first `max_bytes` bytes; `truncated` when more came; `Missing` when no artifact has the name; `Refused` for an archive of several entries or another compression |
+| `Read::Commits { before, after, page }` | `GET R/compare/<before>...<after>?files=false&verification=false`, its `commits` from the page's offset | each commit's `sha`, `parents[].sha` and `commit.message`, oldest first; `more` when a page's worth is left |
 | `Write::Dispatch { workflow, branch, inputs }` | `POST R/actions/workflows/<workflow>/dispatches` `{ref: <branch>, inputs}` | `Done`; `Missing` for a `404` (no such workflow, or no such branch) |
-| `Write::Rerun { job }` | `POST R/actions/jobs/<job>/rerun` | `Done`; `Refused` for a `400` (the run has not completed) |
+| `Write::Rerun { attempt }` | `POST R/actions/jobs/<attempt's job>/rerun` | `Done`; `Refused` for a `400` (the run has not completed) |
 | `Write::CreateBranch { branch, commit }` | `POST R/branches` `{new_branch_name: <branch>, old_ref_name: <commit>}` | `Branch(Created)`; a `409` (the branch exists) `Branch(Exists)` |
 | `Write::DeleteBranch { branch }` | `DELETE R/branches/<branch>` | `Done` |
 
@@ -1382,7 +1403,8 @@ on. What no run records yet has its own bullet, near the end.
   branch onto the base's tip and refuses a conflict with `409`; a
   status's `description` and `target_url` read back as written; a tree
   read by a commit's id answers its root tree, paged, with `truncated`
-  past its page.
+  past its page; a run's artifact is listed by name and downloaded as a
+  zip; a comparison's commits are oldest first with their messages.
 - **The setup's, and the owner's git.** What reconcile relies on
   (Forgejo's command line, its admin routes, orgs, repositories'
   collaborators and hooks, the runner) is forge-setup.md, section 8's.

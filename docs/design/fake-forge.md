@@ -140,6 +140,13 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   base's tip and refuses a conflict, as a merge update does.
 - **Trees:** every commit's tree is read through `Read::Tree`, its
   entries in name order, paged.
+- **A run's report:** a workflow may name failing tests by id (`fails:
+  [id]`, or `Cue::Tests` reading them from a file at the commit); each
+  completed run uploads an artifact of one file, JUnit or one id per
+  line as the workflow declares, naming the ids it failed; a run given
+  the workflow's selection input (`select`, its name as the workflow
+  declares it) runs only the ids it lists. `Read::Artifact` reads it, and
+  `Read::Commits` a range's commits with their messages.
 
 ### 2.4 Seen from outside
 
