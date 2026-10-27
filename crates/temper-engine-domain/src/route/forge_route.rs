@@ -2178,8 +2178,9 @@ fn change_delegate(
     let row = domain.forge.change(task)?;
     let context = domain.core.tasks.delegation(task)?;
     let mut authority = child_authority(&context)?;
-    // domain/agent.md, 8.2: every agent below a change asks no one.
-    authority.tools.0 &= !domain.core.settings.tools.message.0;
+    // Every agent below a change asks no one (domain/agent.md, 8.2) and
+    // leaves deployment settings to its requester.
+    authority.tools.0 &= !(domain.core.settings.tools.message.0 | domain.core.settings.tools.settings);
     let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     parameters
         .push(tasks::Parameter::Resource {

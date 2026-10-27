@@ -552,6 +552,11 @@ fn a_stock_reviewer_reads_and_gives_a_verdict_but_cannot_delegate() {
     b2::reviewer();
 }
 
+#[test]
+fn a_changes_delegates_do_not_inherit_settings_tools() {
+    b2::changes_without_settings();
+}
+
 // The host boundary is real here: JSON goes to smith's decoder and the core's
 // document goes back through smith's ctl-shared renderer, over the root's fleet.
 fn settings_agent_config(allowed: bool) -> engine::Config {

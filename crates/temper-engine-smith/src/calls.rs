@@ -201,12 +201,24 @@ pub(crate) const SPECS: [Spec; 39] = [
     Spec { name: b"read_docs", description: b"Read temper's pages: {topic, from} gives a page from an offset, then next: OFFSET or end; {search} the sections holding every word, a line each.", schema: br#"{"type":"object","properties":{"topic":{"type":"string","description":"A page's name, such as index."},"from":{"type":"integer","description":"The offset to read from, as next: gave it; 0 when absent.","minimum":0},"search":{"type":"string","description":"The words a section must hold, every one: at most 8."}}}"#, effect: run::HostEffect::Read },
 ];
 
-/// Host declarations offered to Smith with exact schemas and write effects.
-/// Root authority still decides each accepted call by its durable name.
+/// The complete host-tool registry, with exact schemas and write effects.
 #[must_use]
 pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
+    offered_tools(timeout, true)
+}
+
+/// Settings declarations require the run's settings family. Root authority
+/// still decides each accepted call by its durable name.
+pub(crate) fn tools_for(timeout: Duration, authority: tasks::Tools) -> Box<[run::HostTool]> {
+    offered_tools(timeout, authority.0 & jig_domain_core::ToolFamilies::JIG.settings != 0)
+}
+
+fn offered_tools(timeout: Duration, settings: bool) -> Box<[run::HostTool]> {
     let mut tools = List::with_capacity(u32::try_from(SPECS.len()).expect("fixed tool list"));
     for spec in SPECS {
+        if !settings && (spec.name == b"settings" || spec.name == b"propose_settings") {
+            continue;
+        }
         tools
             .push(run::HostTool {
                 name: bytes::copy_of(spec.name),

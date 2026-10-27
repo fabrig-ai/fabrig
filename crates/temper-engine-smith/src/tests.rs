@@ -117,9 +117,35 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert_eq!(charter.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(charter.brief.sections[0].text.as_ref(), b"Say hello");
     assert_eq!(charter.budget.spend, 40);
-    assert_eq!(charter.grants.host_tools.len(), tools(Duration::from_secs(10)).len());
+    assert_eq!(charter.grants.host_tools.len(), 37);
     assert_eq!(grants[0].name.generation, 2);
     assert!(transcript.is_none());
+}
+
+#[test]
+fn settings_tools_are_offered_only_with_the_runs_settings_family() {
+    for allowed in [false, true] {
+        let mut assignment = assignment();
+        if allowed {
+            assignment.run.authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.settings;
+        }
+        let charter = crate::charter(&assignment);
+        assert_eq!(charter.grants.host_tools.len(), if allowed { 39 } else { 37 });
+        for name in [b"settings".as_slice(), b"propose_settings"] {
+            let mut found = false;
+            for tool in &charter.grants.host_tools {
+                if tool.name.as_ref() == name {
+                    found = true;
+                }
+            }
+            assert_eq!(found, allowed);
+        }
+        for tool in tools(Duration::from_secs(10)) {
+            if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
+                assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
+            }
+        }
+    }
 }
 
 #[test]

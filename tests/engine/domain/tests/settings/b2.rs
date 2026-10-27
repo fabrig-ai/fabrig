@@ -181,8 +181,13 @@ fn inbox(driver: &Driver, target: u64, from: u64, kind: &tasks::MessageKind, wor
 }
 
 fn chat() -> (Driver, engine::Assignment) {
+    chat_in([configuration(), configuration()])
+}
+
+fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     let limits = limits();
-    let mut driver = Driver::configured(Store::with_limits(&limits), [configuration(), configuration()], &limits);
+    let template = config[0].core.defaults.templates[0].clone();
+    let mut driver = Driver::configured(Store::with_limits(&limits), config, &limits);
     driver.period_sent = true;
     driver.forge = Some(ForgeStand::with_checks(&[(b"org", b"repo", 2)], &[b"build"]));
     let mut greeting = protocol::hello_slots(CHANNEL, limits.fleet.slots, Box::new([]));
@@ -215,7 +220,6 @@ fn chat() -> (Driver, engine::Assignment) {
     }));
     driver.settle();
     let mut ask = driver.chat_ask(1, b"Advise, then land two dependent changes");
-    let template = configuration().core.defaults.templates[0].clone();
     let people::Ask::Create { batch, .. } = &mut ask else { unreachable!("chat creation") };
     let tasks::Contract::Report { words } = template.contract else { unreachable!("stock chat report") };
     batch[0].contract = people::Contract::Report { words };
@@ -253,6 +257,11 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
         panic!("change admitted: {answer:?}");
     };
     let change = made[0].task;
+    assert_eq!(
+        driver.task(change).expect("procedure").authority.tools.0 & core::ToolFamilies::JIG.settings,
+        coordinator.run.authority.tools.0 & core::ToolFamilies::JIG.settings,
+        "the change keeps its requester's settings family"
+    );
     assert_eq!(driver.task(change).expect("procedure").numbers.budget, 5 * K);
     let mut worker = child_run(driver, change);
     let tasks::Parameter::Bytes { value: branch, .. } = &driver.task(worker.task).expect("producer").spec.parameters[2]
@@ -262,6 +271,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
     let branch = branch.clone();
     let mut workers = Vec::new();
     for round in 0..3 {
+        no_settings_tools(&worker);
         assert_eq!(worker.charter, 2);
         assert_eq!(worker.run.policy.model, box_model());
         workers.push(worker.task);
@@ -279,6 +289,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
         worker = child_run(driver, change);
     }
     assert_eq!(worker.charter, 4);
+    no_settings_tools(&worker);
     assert!(matches!(worker.run.contract, tasks::Contract::Verdict { .. }), "one review follows both repairs");
     workers.push(worker.task);
     workers.sort_unstable();
@@ -310,6 +321,39 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
         driver.store.rows.get(&Key::Forge(forge::Key::Change(change))),
         driver.task(change)
     );
+}
+
+fn no_settings_tools(run: &engine::Assignment) {
+    assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
+    let charter = temper_engine_smith::charter(run);
+    assert_eq!(charter.grants.host_tools.len(), 37);
+    for tool in &charter.grants.host_tools {
+        assert!(tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings");
+    }
+}
+
+pub(super) fn changes_without_settings() {
+    let mut config = [configuration(), configuration()];
+    for config in &mut config {
+        config.core.defaults.rules.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;
+        for project in &mut config.core.seed_projects {
+            project.policy.policy.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;
+            for role in &mut project.policy.policy.roles {
+                role.authority.tools.0 |= core::ToolFamilies::JIG.settings;
+            }
+        }
+    }
+    let (mut driver, chat) = chat_in(config);
+    assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
+    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 39);
+    let coordinator = delegate(&driver, chat.task, b"Land a change", 5, 11 * K);
+    let engine::CallAnswer::Delegated(made) =
+        call(&mut driver, &chat, 42, engine::Tool::Delegate { batch: Box::new([coordinator]) })
+    else {
+        panic!("coordinator admitted");
+    };
+    let coordinator = assigned(&driver, made[0].task).expect("coordinator run");
+    repair_change(&mut driver, &coordinator, 43);
 }
 
 pub(super) fn story() {
