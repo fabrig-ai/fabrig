@@ -363,14 +363,17 @@ deployment's rules       the most any project may have; requirements on effects
   recurring task's budget is carved again each period (tasks.md,
   section 10).
 - **A change of spend per period resizes what it opened,** in the
-  decision that commits it, as setting a party's pool resizes the pool
-  (people.md, 5.1): the project's spend its open period, and a role's
-  the open pools of the parties holding it, each budget becoming the
-  new spend with what it reserved and spent kept. A raise funds the
-  next root task at once; a cut below what is used funds nothing more
-  until the next period, and takes nothing back. A pool set by hand
-  keeps its number until the next period, and a pool takes no more
-  from its project's period than the period has left.
+  decision that commits it: the project's spend its open period, and a
+  role's (`RoleSpend`, its spend alone) the open pool of each party
+  holding it, one set by hand among them (people.md, 5.1). Each budget
+  becomes the new spend, or what it has reserved and spent when that is
+  more: a raise funds the next root task at once, and a cut takes
+  nothing back. A pool reserves its budget from the project's period,
+  so a role's raise that the open period has no room for is refused
+  whole, naming what the period has left: its owners raise the
+  project's first. Its writes are a pool per party in the role, within
+  the project's parties (engine.md, section 13), all checked before
+  any is made.
 - **Periods are the application's to say.** The engine keeps no
   calendar: a period begins when the application's root says so
   (engine.md, 4.1), and the root may say when the next begins, if its
