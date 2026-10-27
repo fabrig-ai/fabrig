@@ -189,3 +189,36 @@ to a suite's time beyond milliseconds.
   a release's revision changed a default (`../draft/configuring.md`,
   3.2). Default: a page `releases`, newest first, joining the map with
   the first release.
+
+## 8. The reference pages
+
+Each reference page is rendered from one table by the crate that holds
+the table, checked in under `docs/help/reference/`, and held equal to
+its rendering by `temper`'s step test (section 6), which prints the page
+as it should be. A table's text (its lines and notes) is documentation,
+in `../draft/agent-docs.md` 6's voice.
+
+| Page | Its table | A row |
+|---|---|---|
+| `commands` | the binary's commands (`crates/temper`; `README.md`, 4) | a command: its words, usage, line, arguments and notes |
+| `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/tools.md`, 5.1) | a tool: its usage, line, arguments, result line, keyedness and notes |
+| `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/tools.md`, 5.3) | a member of a shape |
+| `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent.md`, 4.3) | a host tool: its name, its description, then each member of its input's schema with its type, bound, whether it is required and its description |
+| `limits`, a page per owner prefix where one page would pass 32,768 bytes | the limits' names: temper's (`temper-service`, today the overrides' match) and jig's (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
+| `configuration` | the configuration document's members, beside the document's decoder (`configuration.md`) | a member: its path from the document's root, its type and bound, what `temper init` writes, a line |
+
+- **`host-tools`' text is the run's:** the page renders the same
+  description a run reads beside each tool, at most 160 bytes, and a
+  member's, at most 120, bounds that `temper-engine-smith`'s step tests
+  hold; so a run's tool and its page never differ.
+- **`limits`:** the overrides' parser becomes a lookup in the names
+  table, so that a name the parser takes is a row and a row a name it
+  takes. jig gives its own names as a list beside its parser, each with
+  its unit and line, generic to jig's applications, which temper's
+  table renders with its own.
+- **`configuration`:** every member is read at a start, so a change to
+  any of them needs a restart; the page says so once, and the concepts'
+  `Limits` link it. A step test holds the table to the decoder: every
+  member `temper init` writes and every member the decoder takes is a
+  row, and every row is one of them. Where the decoder is jig's, its
+  members' rows are jig's, as `limits`' are.
