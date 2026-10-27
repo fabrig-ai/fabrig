@@ -645,10 +645,15 @@ fn output_and_memory_bounds_cover_replacement_and_a_full_panel() {
     };
     assert_ne!(handle, first);
     let (mut root, watch, _) = opened();
-    let panel = p::panel(TASK, p::queued());
+    let mut parts = p::panel(TASK, p::queued()).into_parts();
+    parts.hold = Some(w::Hold::Authority(
+        w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: Box::from([b'a'; 512]) }).unwrap(),
+    ));
+    let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
     deliver(&mut root, watch, &panel);
     assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(panel.clone())));
     let panel_heap = size_of::<w::ChangePanel>()
+        + 512 // The full authority hold reason.
         + panel.owner().len()
         + panel.name().len()
         + panel.branch().len()
