@@ -839,6 +839,11 @@ LLM:
 - **no overlap:** kept, for its next run to read;
 - **overlap unknown** (a landing too large to list, a read that failed):
   wakes, since a wasted turn is cheaper than a missed conflict.
+- **A hold parked until a landing** (jig's `domain/tasks.md`, 5.9),
+  designed, not built: subscribed to the landings on a branch, with
+  path prefixes or none; a landing wakes it, and so lifts it, when one
+  of its files lies under a prefix, or with none named, or when the
+  overlap is unknown.
 
 The files are read from the forge (a pull request's files, or the
 comparison of the branch's old and new tips), cached per head and cut at
@@ -1277,6 +1282,15 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   grants that charter's delegation alone, and is never rewritten. A
   change whose charter the newest settings no longer offer is held when
   it next needs a delegate, saying so; it is cancelled, or made again.
+
+### 8.10 Drained
+
+Designed, not built (jig's `domain/connectors.md`, 6.7). A change in a
+draining hold's scope is idle, and held, at its next step unless it is
+landing: under the queue, while its merge is sent and not yet settled;
+under the turn, while its landing has begun its proof and not yet
+landed (`landing.md`, 4.2). Its producing, repair or resolution run finishes
+its turn and parks, as every run under a drain does.
 
 ## 9. Landing queues
 

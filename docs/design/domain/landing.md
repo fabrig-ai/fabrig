@@ -163,6 +163,11 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
 - **Held** for a fault past its bound (7.4), or a member's bound of
   repairs or resolutions past, saying which; its members' goals hear
   it. A release lifts it, and it prepares again.
+- **Drained** (jig's `domain/connectors.md`, 6.7): a landing in a
+  draining hold's scope that has begun its proof goes on, through its
+  wait for the turn and the turn, to land; one still preparing is idle,
+  and held. A repair, a stale base or a fault that would send it back
+  to prepare makes it idle there.
 
 ## 5. Prepare
 

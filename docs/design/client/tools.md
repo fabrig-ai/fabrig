@@ -209,6 +209,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `inbox [--project PROJECT] [--kind needs\|updates] [--root TASK] [--after CURSOR]` | what needs the party, then updates, each with its acts | `inbox` |
 | `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract.md`, 6.1, its parent key) |
 | `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
+| `hold list --project PROJECT`, designed, not built | the project's placed holds: owner, mode, scope, reason, what lifts it, the tasks it holds and exempts, and whether the party may lift it | `holds{project}` |
 | `chat show TASK [--before CURSOR]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
 | `task activity TASK [--before CURSOR] [--limit COUNT]` | a task's activity, a page from its end | `activity{n}` |
 | `task turn TASK TURN [--part PART] [--from OFFSET]` | one turn of the task, TURN as `A.T`, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract.md`, section 6) |
@@ -312,6 +313,9 @@ agent must name.
 | `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items; prints the proposal's number and the settings of temper's kinds it leaves out; `proposal show` then shows its items, and an owner decides it | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
 | `task release TASK --hold REV [--again]` | lifts a hold | `Release` | |
 | `task stop TASK` | cancels a task's run, the task held | `Stop` | |
+| `task hold TASK --stop\|--drain REASON`, designed, not built | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks.md`, 5.9) | `Hold` | yes |
+| `project hold PROJECT --stop\|--drain REASON`, designed, not built | places a hold of the party's over the whole project, the party's chats exempt | `Hold` | yes |
+| `hold lift HOLD --rev REV [--with-tasks]`, designed, not built | ends a placed hold; with `--with-tasks`, releases every task it held that nothing else holds | `Lift` | yes |
 | `task cancel TASK [--grace DURATION] REASON` | cancels a task and its tree | `Cancel` | |
 
 - **Settings FILE is JSON:** `{"items": [ITEM, ...]}`, at most one item per
