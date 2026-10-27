@@ -80,7 +80,9 @@ simulator.md; a world run in a browser is playground.md.
   its root, is handed to the child with its pipes and roots, owned by
   it and closed at its exit. A program that works where it was
   launched (a shell) writes beneath it; one that doesn't ignores it.
-  The harness's real loop does the same at a hosted spawn.
+  A world whose machine opens no launch directory, and a process the
+  world starts itself, give none. The harness's real loop gives one at
+  every hosted spawn.
 - **Counted:** the world's step count starts at 0 and grows by one per
   step; a moment of the world is its count and its clock's instant.
 - **What a loop asks of it,** between steps: whether it is busy (a
@@ -95,8 +97,8 @@ simulator.md; a world run in a browser is playground.md.
   (shell.md, 12). In a world, the world supplies it: a printer for a
   process and a stream, handed to the process at its making, which the
   world keeps whole lines from, in the order written, until its loop
-  takes them; a bounded unread backlog, past which a write would block,
-  as a pipe's does. A playground's loop brings them to the page
+  takes them; one unread backlog for the whole world, bounded, past
+  which a write would block, as a pipe's does. A playground's loop brings them to the page
   (playground.md, 5), the printed link among them; the harness may read
   them as a referee reads any output.
 - **The harness's run** is the loop of examples.md, section 6 over these
