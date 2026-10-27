@@ -133,3 +133,47 @@ fn scripted_history_pages_keep_all_change_milestone_and_line_rows_under_opaque_s
         cursor = page.after.clone();
     }
 }
+
+#[test]
+fn a_history_hold_prices_its_box_and_nested_reason_before_admission() {
+    let bounds = live_script().bounds;
+    let reason = b"pause";
+    let hold = Hold {
+        placed: Some(PlacedHold {
+            number: 12,
+            owner: HoldOwner::Party { person: 1 },
+            mode: HoldMode::Stop,
+            scope: HoldScope::Subtree { task: 8 },
+            reason: reason.as_slice().into(),
+            placed_at: Wall::EPOCH,
+            revision: Revision { value: 1 },
+            lifted: false,
+            may_lift: true,
+        }),
+        revision: Revision { value: 1 },
+        reason: HoldReason::Budget { spent: 1, limit: 1 },
+        before: Phase::Idle,
+        since: Wall::EPOCH,
+        result: None,
+        spend: List::with_capacity(0),
+    };
+    let row = HistoryRow::Line(Box::new(HistoryLine {
+        position: 1,
+        task: 8,
+        by: Actor::Party(1),
+        at: Wall::EPOCH,
+        change: HistoryChange::Held(Box::new(hold)),
+    }));
+    let required = u64::try_from(size_of::<HistoryRow>() + size_of::<HistoryLine>() + size_of::<Hold>()).unwrap()
+        + u64::try_from(reason.len()).unwrap()
+        + List::<SpendLine>::worst_case(0).unwrap();
+    assert_eq!(row.heap(&bounds).unwrap() + u64::try_from(size_of::<HistoryRow>()).unwrap(), required);
+    let source = Source {
+        party: 1,
+        read: Read::History { task: 8, subtree: false, after: None },
+        rows: Rows::History(vec![row.clone()]),
+    };
+    assert!(source.validate(&Bounds { document_bytes: required, ..bounds }).is_ok());
+    assert_eq!(source.validate(&Bounds { document_bytes: required - 1, ..bounds }), Err(Invalid::Payload));
+    assert_eq!(source.rows, Rows::History(vec![row]));
+}

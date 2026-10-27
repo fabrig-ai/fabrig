@@ -11,7 +11,7 @@ pub(crate) fn history_change_fields(value: &w::HistoryChange, limits: &Limits) -
         w::HistoryChange::Amended(row) => {
             c::HistoryChange::Amended { before: text(row.before(), limits)?, after: text(row.after(), limits)? }
         }
-        w::HistoryChange::Held(row) => c::HistoryChange::Held(hold_fields(row.value(), limits)?),
+        w::HistoryChange::Held(row) => c::HistoryChange::Held(Box::new(hold_fields(row.value(), limits)?)),
         w::HistoryChange::Released => c::HistoryChange::Released,
         w::HistoryChange::Cancelled(row) => c::HistoryChange::Cancelled { reason: text(row.reason(), limits)? },
         w::HistoryChange::Moved(row) => c::HistoryChange::Moved {
