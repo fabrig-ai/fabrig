@@ -1102,10 +1102,11 @@ starts from current code. It never updates only because its base moved.
   make all made, its depth, its spend below a run's reserve) holds the
   change, naming what it lacks and what it had ("its 6 tasks are
   made"), and its requester hears; it never waits due with nothing to
-  run. Released, it asks again: a release that gives what it lacks
-  (jig's `authority.md`, section 9, a release needing what the task
-  lacks) lets it go on, a bare one holds it again, saying so, and the
-  hold's way out names the cancel and a fresh ask beside it.
+  run. Released, it asks again: a release after an amendment that gives
+  what it lacks (more tasks or budget, a widening its giver funds:
+  `../client/tools.md`, area 2's `task amend`) lets it go on, a bare one
+  holds it again, saying so; the hold's way out names that amendment,
+  then the release, and the cancel beside them.
 - **Stalls:** each wait on the forge (CI that never reports, a
   mergeability never known, a forge's merge queue that neither lands
   nor ejects it, a gate's task stuck) is bounded by a stall counted from
