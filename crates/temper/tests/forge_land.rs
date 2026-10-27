@@ -81,7 +81,7 @@ fn a_readme_keeps_its_last_nonempty_line_exactly() {
     }
 }
 
-// The facts read by discovery, in task --json's owner shape. The encoders live
+// The facts read by discovery, in task show --json's owner shape. The encoders live
 // in temper-client-tools/src/jig/render/document/{chips,owner_chips,
 // owner_authority,tasks,parts,llm}.rs.
 fn empty_park() -> Value {
@@ -358,10 +358,18 @@ fn a_claude_plan_declares_without_import_or_sign_in() {
     use std::path::Path;
     use support::forge_land::{LiveModel, live_commands};
     let (commands, account_at) = live_commands(true, LiveModel::ClaudeCode { login: Path::new("/held/claude-login") });
-    assert_eq!(&commands[account_at - 1], &["declare", "2", "claude_code", "claude-login", "--key", "live-program"]);
-    assert!(commands.iter().all(|args| !matches!(args[0].as_str(), "connect" | "import" | "program-login")));
+    assert_eq!(
+        &commands[account_at - 1],
+        &["account", "declare", "2", "claude_code", "claude-login", "--key", "live-program"]
+    );
+    assert!(commands.iter().all(|args| args[0] != "program-login"
+        && (args[0] != "account" || !matches!(args[1].as_str(), "connect" | "import"))));
     let (restart, _) = live_commands(false, LiveModel::ClaudeCode { login: Path::new("/held/claude-login") });
-    assert!(restart.iter().all(|args| !matches!(args[0].as_str(), "declare" | "connect" | "import" | "verify")));
+    assert!(
+        restart.iter().all(
+            |args| args[0] != "account" || !matches!(args[1].as_str(), "declare" | "connect" | "import" | "verify")
+        )
+    );
 }
 
 fn stubbed_launcher(case: &str, body: &str, source: &str) -> (support::Scratch, std::process::Output) {
@@ -437,12 +445,12 @@ fn a_claude_source_is_verified_by_its_declared_account() {
     assert_eq!(
         program_verification(std::path::Path::new("/held/claude-login"), &program_accounts()),
         Ok(vec![
-            vec!["verify", "7", "--source", "program", "--json"].into_iter().map(str::to_owned).collect(),
-            vec!["wait", "accounts", "--until", "usable", "--timeout", "600s", "--json"]
+            vec!["account", "verify", "7", "--source", "program", "--json"].into_iter().map(str::to_owned).collect(),
+            vec!["account", "list", "--until", "usable", "--timeout", "600s", "--json"]
                 .into_iter()
                 .map(str::to_owned)
                 .collect(),
-            vec!["accounts", "--json"].into_iter().map(str::to_owned).collect(),
+            vec!["account", "list", "--json"].into_iter().map(str::to_owned).collect(),
         ])
     );
 }

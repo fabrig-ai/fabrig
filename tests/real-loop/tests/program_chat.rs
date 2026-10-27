@@ -47,15 +47,15 @@ fn a_chat_on_a_program_source_replies_parks_and_resumes() {
         || {
             let mut steps = claude::sign_in();
             steps.extend([
-                call(D1, argv!["chat", "--project", fixtures::PROJECT, "--key", "program-chat", FIRST]),
-                call(D1, argv!["wait", "task", task(CHAT), "--until", "replied"]),
-                until(D1, argv!["chat", task(CHAT)], ONE.as_bytes(), b"One"),
-                call(D1, argv!["wait", "task", task(CHAT), "--until", "phase:idle"]),
-                call(D1, argv!["message", task(CHAT), SECOND, "--key", "program-second"]),
-                call(D1, argv!["wait", "task", task(CHAT), "--until", "replied"]),
-                until(D1, argv!["chat", task(CHAT)], TWO.as_bytes(), b"Two"),
-                call(D1, argv!["wait", "task", task(CHAT), "--until", "phase:idle", "--json"]),
-                call(D1, argv!["chat", task(CHAT)]),
+                call(D1, argv!["chat", "start", "--project", fixtures::PROJECT, "--key", "program-chat", FIRST]),
+                call(D1, argv!["task", "show", task(CHAT), "--until", "replied"]),
+                until(D1, argv!["chat", "show", task(CHAT)], ONE.as_bytes(), b"One"),
+                call(D1, argv!["task", "show", task(CHAT), "--until", "phase:idle"]),
+                call(D1, argv!["task", "message", task(CHAT), SECOND, "--key", "program-second"]),
+                call(D1, argv!["task", "show", task(CHAT), "--until", "replied"]),
+                until(D1, argv!["chat", "show", task(CHAT)], TWO.as_bytes(), b"Two"),
+                call(D1, argv!["task", "show", task(CHAT), "--until", "phase:idle", "--json"]),
+                call(D1, argv!["chat", "show", task(CHAT)]),
             ]);
             steps
         },

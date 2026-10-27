@@ -81,9 +81,9 @@ if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ]; then
     store=$(readlink -f -- "$store")
     export TEMPER_LIVE_STORE="$store"
     if [ -n "${TEMPER_LIVE_ACCOUNT-}" ]; then
-        # A held record moved in by ctl import (qa-live.md, 4.3), which removes it.
+        # A held record moved in by ctl account import (qa-live.md, 4.3), which removes it.
         [ "$rerun" = false ] || { printf '%s\n' 'a held account moves into a fresh store only' >&2; exit 2; }
-        # Its path goes to ctl import alone, never into this script's words.
+        # Its path goes to ctl account import alone, never into this script's words.
         if [ -L "$TEMPER_LIVE_ACCOUNT" ] || [ ! -f "$TEMPER_LIVE_ACCOUNT" ]; then
             printf '%s\n' 'TEMPER_LIVE_ACCOUNT names no regular file' >&2
             exit 2

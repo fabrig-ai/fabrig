@@ -1062,7 +1062,15 @@ pub fn live_commands(fresh: bool, model: LiveModel<'_>) -> (Vec<Vec<String>>, us
                 });
             }
             LiveModel::ClaudeCode { login } => {
-                commands.push(vec!["declare", "2", "claude_code", source_name(login), "--key", "live-program"]);
+                commands.push(vec![
+                    "account",
+                    "declare",
+                    "2",
+                    "claude_code",
+                    source_name(login),
+                    "--key",
+                    "live-program",
+                ]);
             }
         }
     }
@@ -1169,9 +1177,9 @@ pub fn program_verification(login: &std::path::Path, accounts: &serde_json::Valu
         .ok_or("program account number missing")?
         .to_string();
     Ok([
-        vec!["verify", &account, "--source", "program", "--json"],
-        vec!["wait", "accounts", "--until", "usable", "--timeout", "600s", "--json"],
-        vec!["accounts", "--json"],
+        vec!["account", "verify", &account, "--source", "program", "--json"],
+        vec!["account", "list", "--until", "usable", "--timeout", "600s", "--json"],
+        vec!["account", "list", "--json"],
     ]
     .into_iter()
     .map(|args| args.into_iter().map(str::to_owned).collect())

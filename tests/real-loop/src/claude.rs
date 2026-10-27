@@ -22,12 +22,12 @@ pub fn sign_in() -> Vec<crate::calls::Step> {
     };
     vec![
         sign_in(D1),
-        call(D1, argv!["declare", "2", "claude_code", SOURCE, "--key", "declare-program"]),
-        call(D1, argv!["accounts", "--json"]),
-        call(D1, argv!["verify", number(ACCOUNT), "--source", "program", "--json"]),
-        call(D1, argv!["wait", "accounts", "--until", "settled", "--json"]),
-        call(D1, argv!["wait", "accounts", "--until", "usable", "--json"]),
-        call(D1, argv!["accounts", "--json"]),
+        call(D1, argv!["account", "declare", "2", "claude_code", SOURCE, "--key", "declare-program"]),
+        call(D1, argv!["account", "list", "--json"]),
+        call(D1, argv!["account", "verify", number(ACCOUNT), "--source", "program", "--json"]),
+        call(D1, argv!["account", "list", "--until", "settled", "--json"]),
+        call(D1, argv!["account", "list", "--until", "usable", "--json"]),
+        call(D1, argv!["account", "list", "--json"]),
     ]
 }
 

@@ -32,6 +32,7 @@ fn a_chat_on_claude_code_lands_its_change_on_the_forge() {
                 call(
                     D1,
                     argv![
+                        "repository",
                         "adopt",
                         "--project",
                         "1",
@@ -45,17 +46,17 @@ fn a_chat_on_claude_code_lands_its_change_on_the_forge() {
                         "adopt-app"
                     ],
                 ),
-                call(D1, argv!["chat", "--project", "1", "--key", "program-land", landing::PROGRAM_WORDS]),
-                call(D1, argv!["wait", "task", task(CHAT), "--until", "replied"]),
-                until(D1, argv!["chat", task(CHAT)], landing::REQUESTED.as_bytes(), b"Change"),
-                call(D1, argv!["task", task(CHAT), "--tree", "--json"]),
-                call(D1, argv!["wait", "task", delegate(TREE), "--until", "ended"]),
-                call(D1, argv!["wait", "task", task(CHAT), "--since", digest(TREE), "--until", "replied"]),
-                until(D1, argv!["chat", task(CHAT)], landing::LANDED.as_bytes(), b"The change"),
-                call(D1, argv!["wait", "task", task(CHAT), "--until", "phase:idle"]),
+                call(D1, argv!["chat", "start", "--project", "1", "--key", "program-land", landing::PROGRAM_WORDS]),
+                call(D1, argv!["task", "show", task(CHAT), "--until", "replied"]),
+                until(D1, argv!["chat", "show", task(CHAT)], landing::REQUESTED.as_bytes(), b"Change"),
+                call(D1, argv!["task", "tree", task(CHAT), "--json"]),
+                call(D1, argv!["task", "show", delegate(TREE), "--until", "ended"]),
+                call(D1, argv!["task", "show", task(CHAT), "--since", digest(TREE), "--until", "replied"]),
+                until(D1, argv!["chat", "show", task(CHAT)], landing::LANDED.as_bytes(), b"The change"),
+                call(D1, argv!["task", "show", task(CHAT), "--until", "phase:idle"]),
                 // The ordinary Open chat belongs to its person, who closes it after the reply.
-                call(D1, argv!["cancel", task(CHAT), "Change landed"]),
-                call(D1, argv!["wait", "task", task(CHAT), "--until", "ended", "--json"]),
+                call(D1, argv!["task", "cancel", task(CHAT), "Change landed"]),
+                call(D1, argv!["task", "show", task(CHAT), "--until", "ended", "--json"]),
             ]);
             steps
         },
