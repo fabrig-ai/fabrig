@@ -132,6 +132,7 @@ pub fn adoption_page(form: &client::forge::Form, words: &temper_client_view::wor
         forge,
         &mut bindings,
         limits.text_per_node,
+        None,
     );
     builder.close();
     builder.close();
