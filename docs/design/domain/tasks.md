@@ -720,7 +720,8 @@ deadline, circles, a procedure's need) keep their rules.
   party, the exemptions one keeps, and their subscriptions among the
   subscriptions per task (section 11).
 - **Restart** restores placed holds and their subscriptions with the
-  tasks they hold; a drain in progress goes on draining.
+  tasks they hold, resolving each hold's owner once the people child's
+  parties are restored; a drain in progress goes on draining.
 
 ## 6. Holds
 
