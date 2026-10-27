@@ -38,7 +38,7 @@ impl Referee<Proc> for Recording {
 
 fn startup(
     scratch: &skein_scratch::Scratch,
-    occupied: Option<std::net::SocketAddr>,
+    occupied: Option<&TcpListener>,
     receipt: Rc<Receipt>,
 ) -> skein_world::real::Outcome<Proc> {
     let patience = crate::PATIENCE;
@@ -61,14 +61,9 @@ fn startup(
         }))
     });
     world.spawn_signals(|signals| {
-        let service = ServiceHost::github(scratch.path().into(), signals, fixture);
-        if let Some(address) = occupied {
-            let path = scratch.path().join("temper.json");
-            let mut config: serde_json::Value =
-                serde_json::from_slice(&std::fs::read(&path).expect("config")).expect("JSON");
-            config["application"]["clients"]["listener"] = serde_json::json!({"socket":address.to_string()});
-            fixtures::private(&path, &serde_json::to_vec(&config).expect("config JSON"))
-                .expect("occupied listener config");
+        let mut service = ServiceHost::github(scratch.path().into(), signals, fixture);
+        if let Some(listener) = occupied {
+            service.clients_occupied_by(listener);
         }
         Proc::Service(Box::new(service))
     });
@@ -80,12 +75,11 @@ fn startup(
 #[test]
 fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("occupied listener");
-    let address = listener.local_addr().expect("occupied address");
     let scratch = skein_scratch::Scratch::new("failed-start");
     let receipt = Rc::new(Receipt::default());
     let descriptors = std::fs::read_dir("/proc/self/fd").expect("own descriptors").count();
     let result =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| startup(&scratch, Some(address), receipt.clone())));
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| startup(&scratch, Some(&listener), receipt.clone())));
     let Err(payload) = result else { panic!("a service exit before its link must fail the story") };
     let message = payload.downcast_ref::<String>().expect("failure message");
     assert!(message.contains("service 1 exited before caller release: Code(1)"), "{message}");

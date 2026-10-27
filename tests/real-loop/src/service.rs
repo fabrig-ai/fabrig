@@ -198,6 +198,18 @@ impl ServiceHost {
     pub(crate) fn github(path: PathBuf, signals: Fd, fixture: crate::github::Fixture) -> Self {
         Self::with_shape(path, signals, None, false, None, Some(fixture), None)
     }
+    #[cfg(test)]
+    pub(crate) fn clients_occupied_by(&mut self, listener: &TcpListener) {
+        let address = listener.local_addr().expect("occupied clients address");
+        let path = self.path.join("temper.json");
+        let mut config: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("config")).expect("JSON");
+        config["application"]["clients"]["listener"] = serde_json::json!({"socket":address.to_string()});
+        fixtures::private(&path, &serde_json::to_vec(&config).expect("config JSON")).expect("occupied listener config");
+        // This endpoint must fail to bind; no reserved listener belongs to its service.
+        self.clients_listener = None;
+        self.clients = Some(address);
+    }
     pub(crate) fn make_github_app(&mut self, peer: &mut skein_fake_peers::forge::Peer) {
         if let Some(fixture) = self.github
             && !fixture.connected
