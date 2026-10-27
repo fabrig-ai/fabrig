@@ -194,7 +194,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `setting charter N [--revision R]`, `setting template\|policy N`, `setting rules` | one setting's value whole, as the newest reads it, or a charter as held revision R reads it; with `--json`, the value in the form `change-settings` takes | `setting{kind, number, revision}` |
 | `setting landing-rule N [--project P]`, `setting forge-charter` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of project P's, or the forge's charter; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `change-settings` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
 | `revision R` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `setting`), removed or reset, temper's kinds' items with their sizes alone, their past values not kept; a revision forgotten past the history names the oldest kept | `revision{n}` |
-| `proposal tN/K\|pN/K` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision; a decided or withdrawn proposal retains its state | `proposal{proposer, number}` |
+| `proposal tN/K\|pN/K` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `setting{…}` |
 | `revisions [--before R]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 
 - **A revision's value too large to print** says `too large, N bytes; read
@@ -301,7 +301,12 @@ agent must name.
   value's bounds are jig's (`ChangeSettings`' own, and the limits the engine's
   `me` gives where it gives them). Past a bound it is refused before anything
   is sent, naming the item and the bound. Unknown members are refused,
-  naming them. jig's kinds are the deployment's; a landing rule names
+  naming them. Every refusal a person reads numbers items from 1, the
+  decoder's and the engine's alike (jig's index plus one), and names a
+  member by its path in the file, `charter.alternatives`, never by the
+  wire's limit's name. `null` is refused where a member takes a value:
+  a charter's or an authority's models are `"all"` or a list of model
+  names. jig's kinds are the deployment's; a landing rule names
   its scope, the deployment's or a project's, and a set that touches a
   project's needs an owner of it (jig's `domain/people.md`, 5.1).
   `proposal` prints the values of temper's items from the forge's

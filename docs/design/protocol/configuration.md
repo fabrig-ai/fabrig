@@ -1673,7 +1673,11 @@ side never waits on the part of jig it does not use:
    derived at each start from the document as now: a document whose
    landing rules change between starts gives new defaults, which make
    a revision recorded as the release's (jig's `domain/engine.md`,
-   17.7). The document's checks that read the four members (section 3:
+   17.7). Until step 2, the rules' default carries those requirements,
+   so once the rules hold a stored change, a landing rule edited in the
+   document reaches no decision until the rules are reset or changed
+   again; step 2 ends that, the rules' standing requirements reading
+   the forge's rules (13.3). The document's checks that read the four members (section 3:
    `application.charter` among the charters, a landing rule's
    approvals' roles in the policies) read the stock defaults instead,
    which the binary knows before the store is read. A change that
