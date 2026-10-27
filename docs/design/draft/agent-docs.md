@@ -133,7 +133,8 @@ with the part that makes it true of `main`.
 | forge | `forge` | `forge` | kinds, modes (connected, managed, owned), GitHub's App and installations, the repositories a forge reaches |
 | repository | `repository` | `repository` | adoption, its role, the home, the landing branch, CI and checks |
 | account | `account` | `account`, `model` | LLM providers, accounts, sources, keys, a provider's sign-in, a program's login, a move between deployments, models |
-| task | `task` | `task` | tasks and their parts (tree, activity, turns, run), delegates, phases, holds, stop and cancel, amendments, a task's settings revision |
+| task | `task` | `task` | tasks and their parts (tree, activity, turns, run), delegates, phases, a task's own holds and their release, stop and cancel, amendments, a task's settings revision |
+| hold | `hold` | `hold` | a placed hold: its owner, its mode (stop or drain), its scope (a task's subtree or a project), what lifts it; placed by `task hold` and `project hold` |
 | chat | `chat` | `chat` | a conversation, its template, following it as a task, closing it |
 | goal | `goal` | `goal` | tracked work, priority, plans, advisors |
 | change | `change` | `change` | a change's way to landing: its pull request, CI, gates, queue, repairs, holds, merge; what the forge shows and temper does not |
@@ -226,7 +227,8 @@ temper ctl help [GROUP [VERB]]
     by the part's name, as its concept names it: `task tree`, `task
     activity`, `task turn`, `task run`, `forge repositories`;
   - acts: `start`, `close`, `message`, `answer`, `amend`, `stop`,
-    `cancel`, `release`, `decide`, `withdraw`, `take`, `hand-back`,
+    `cancel`, `release`, `hold` (a placed hold, over the group's object),
+    `lift` (a placed hold, ended), `decide`, `withdraw`, `take`, `hand-back`,
     `move` (a task to another party), `seen`, `apply`, `propose`,
     `restore`, `advance` (running work to the newest revision), `adopt`,
     `setup`, `connect`, `disconnect`, `install`, `accept`, `add-key`,
