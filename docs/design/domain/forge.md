@@ -651,18 +651,13 @@ judged on (8.7).
   which folds every row of its head the same way (skein's
   `forge-github.md`, 4.4), is the head's CI when it is at the head, and
   no second read is made.
-- **Passed only once the head's runs are done,** where no required
-  checks are named: a forge's Actions publish a job's status only when
-  the job starts (Forgejo's commit statuses; a workflow's jobs on
-  GitHub), so rows that all passed may still be followed by one that
-  fails, and a combined success read between them is no verdict. So a
-  fold of passed counts only when the head's Actions runs read done,
-  every job of every run ended, by the runs' and jobs' reads that a
-  failed job's log already uses (skein's `forge.md`, 5.2); until then
-  it is pending. A failed row is failed at once. Where the branch's
-  rules name the required contexts, those contexts are the judge, and
-  the runs are not read. The fake forge publishes a status per job as
-  it starts, so that the worlds meet the same order.
+- **Every page folded, never a page's combined state.** A forge may
+  compute a combined state and a count over the page it was asked for
+  (Forgejo 17 does: a read of one status reads success while a job is
+  still pending), so CI on a commit, a pull request's included, is
+  every row of every page, folded as above, and a combined state read
+  from a limited page is never a verdict. The fake forge computes a
+  page's combined state as Forgejo does, so that the worlds meet it.
 
 ### 5.4 The request budget
 
