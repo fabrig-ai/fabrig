@@ -768,8 +768,9 @@ keeps (`../protocol/configuration.md`, section 2).
     forges and the plans v0.1.0 supports (the user, 2026-10-26), not
     the offered `me.providers` ways.
   - *Forge* is `ConnectForge`'s Choose, less a configured admin
-    Forgejo's card and A Forgejo elsewhere, and Details (`forge.md`,
-    5.4), its choice in the welcome's address (`browser.md`, 2.3);
+    Forgejo's card and A Forgejo elsewhere, with its one Forgejo card
+    in Forgejo on this machine's place, and Details (`forge.md`, 5.4),
+    its choice in the welcome's address (`browser.md`, 2.3);
     inside a choice, the foot's one "‹ Back" returns to Forge's Choose. The
     welcome has no "‹ All forges"; `ConnectForge` keeps it. A forge
     already setting up, connecting or connected is no choice: the
@@ -782,15 +783,19 @@ keeps (`../protocol/configuration.md`, section 2).
     adopted, the welcome moves on to Model. Forgejo on this machine
     has no Details on the welcome under the box (the user, 2026-10-27,
     a stop-gap until they review these pages: `forge.md`, 10): its
-    card's action sends `SetUp` at once, with the organization `work`,
-    the repository `hello` and a new project named `Default`, none of
-    them asked, and the Details' words, its notes on CI's isolation
-    and on Forgejo stopping with the box among them, are not shown.
-    Refused, the refusal shows under the card's action, in the set
-    up's words (4.6). Not under the box, the card opens its Details,
-    as on `ConnectForge`. Once the `SetUp` is accepted, from the card
-    or from Details, the welcome moves on to Model, the set up running
-    on.
+    card's "Run on this machine" sends `SetUp` at once, with the
+    organization `work`, the repository `hello` and a new project
+    named `Default`, none of them asked: fixed values of the client
+    domain's set up, never words, since the engine stores them. The
+    Details' words, its notes on CI's isolation and on Forgejo
+    stopping with the box among them, are not shown. Refused, the
+    refusal shows under the button, in the set up's words (4.6); while
+    a set up is pending, or the page is out of date, the button is
+    disabled, as Details' "Set up" is. Under the box, its address,
+    `/welcome?at=forge&forge=N`, draws the Forge step's choices. Not
+    under the box, the button opens its Details, as on `ConnectForge`.
+    Once the `SetUp` is accepted, from the card or from Details, the
+    welcome moves on to Model, the set up running on.
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
     (above), its way in the welcome's address (`browser.md`, 2.3).
     Its ways sit directly under the lead, with neither the standalone

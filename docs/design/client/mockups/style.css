@@ -168,7 +168,7 @@ h3 { font-size: 14px; line-height: 1.35; letter-spacing: -.015em; margin-bottom:
 .steps { display: grid; grid-template-columns: repeat(6,1fr); gap: 3px; margin: 22px 0; }
 .step { border-top: 3px solid #e8e3db; padding-top: 9px; font-size: 11px; color: var(--faint); }
 .step.done { border-color: var(--green); color: var(--green); }
-.step.current { border-color: var(--accent); color: var(--accent-dark); font-weight: 700; }
+.step.current { border-color: var(--ink); color: var(--ink); font-weight: 700; }
 .queue-row { display: grid; grid-template-columns: 25px minmax(0,1fr) 115px 140px; gap: 12px; align-items: center; padding: 15px 18px; }
 .queue-row .queue-no { font: 500 19px Georgia, serif; color: #a99d90; }
 .queue-row h3 { margin-bottom: 3px; }

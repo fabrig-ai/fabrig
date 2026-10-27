@@ -418,13 +418,17 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **Connection flows:** the welcome steps use compact 14 px headings and
   9 px card corners; its opening introduction keeps its larger heading.
   Standalone connection cards use 5 px corners. The
-  current step takes the accent. The view assigns `FLOW_PRIMARY` to
+  current step is ink, its bar and its bold label, never the accent,
+  which beside the done steps' green reads as a step gone wrong; the
+  accent is for what to press. The view assigns `FLOW_PRIMARY` to
   filled terracotta acts, `FLOW_SECONDARY` to neutral small buttons and
   `FLOW_QUIET` to quiet terracotta links. Connect a forge's choices use
   three equal columns, the welcome's Forge step's two, as its own cards
   do, and model choices two, stacking below 760 px. Choice cards keep
   small headings, ink body text, muted metadata and bottom-aligned acts;
-  details share their padding. `FLOW_PAIR` groups organization/repository
+  on the welcome's Forge step a card's quiet link sits beside its
+  button, in a row that wraps under it at phone width, as the
+  welcome's foot keeps its links; details share their padding. `FLOW_PAIR` groups organization/repository
   and the half-width project field, stacking below 760 px. Setup field
   labels are small and muted, and setup notes are a muted bulleted list.
   Setup and Ready repository subtitles are muted and tight beneath their

@@ -39,6 +39,12 @@ Where the client does otherwise:
   `/welcome?at=ready`, draws "Almost ready" with its forge and model
   lines, as the client README's 3.5 allows; the mockup goes back to
   the picker.
+- **Forgejo's "Run on this machine" under the box** sends the set up at
+  once, with `work`, `hello` and a new project `Default`, and the
+  welcome moves on to Model, with no Details (the client README's 3.5,
+  the user's stop-gap of 2026-10-27, `../forge.md` 10); the mockup's
+  `world-first-run-real.js` still walks Forgejo on this machine's
+  Details.
 
 Not yet known: whether GitHub keeps the state through its
 installation's Configure and Save, and whether the picker reads the

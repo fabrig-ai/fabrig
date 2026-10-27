@@ -503,14 +503,25 @@ and `connect-forge.html`.
     is offered or not under the box (`README.md`, 4.6): "A forge of
     your own, run by temper box. No account needed: temper makes your
     first repository, and you start in it." · "Here · about a minute",
-    or, not under the box, "Needs four commands and a restart";
+    or, not under the box, "Needs four commands and a restart". On the
+    welcome's Forge step it is the one Forgejo card, holding both of
+    Forgejo's ways, owned and connected (the user, 2026-10-27; 10):
+    its heading "Forgejo", its words "A forge of your own. temper can
+    start it and manage it, or you can connect your own deployment.",
+    its muted line as above, its button "Run on this machine" in
+    "Choose"'s place, and beside it the quiet link "Or connect your
+    deployment" to the help page `server`, "Run temper on a server",
+    on GitHub (`https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md`),
+    since the browser serves no help pages. Under the box the button
+    sends the set up at once (`README.md`, 3.5); not under it, it opens
+    the card's Details, as "Choose" does;
   - *Forgejo at HOST,* a configured Forgejo whose `admin` is true and
     which is not connected: "temper connects as its site admin, makes
     its bot and your first repository." and "Connect as its admin".
     HOST is `row.web` when present, otherwise "forge N". The legacy
     managed object configuration has `admin` false and offers no card.
     It is Connect a forge's alone: the welcome's Forge step leaves it
-    out, and offers GitHub and Forgejo on this machine, as its mockup
+    out, and offers GitHub and its one Forgejo card, as its mockup
     draws them (the user, 2026-10-26, a stop-gap: 10). An address that
     names the forge still opens its Details there;
   - *A Forgejo elsewhere,* always on Connect a forge: "Your own Forgejo
