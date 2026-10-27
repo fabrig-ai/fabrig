@@ -281,7 +281,7 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
                 .as_slice()
                 .contains(&skein_ui::State::Disabled)
         );
-        f::demo_start_answer(
+        let _: Option<skein_lib::Token> = f::demo_start_answer(
             &mut root,
             attempt,
             w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
@@ -289,6 +289,9 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         let mut view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, b"Not started").is_some());
         assert!(f::find(view.tree(), Role::Alert, expected.as_bytes()).is_some(), "{expected}");
+        let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("editable draft after failure");
+        assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None);
+        assert!(crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(*b"kept draft") }).is_some());
         let again = f::find(view.tree(), Role::Button, b"Try again").unwrap();
         assert_eq!(
             crate::act(&mut view, again, skein_ui::Act::Press),
@@ -317,7 +320,7 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
     let why = w::StartFailure::Group(
         w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: Box::from([255_u8; 256]) }).unwrap(),
     );
-    f::demo_start_answer(
+    let _: Option<skein_lib::Token> = f::demo_start_answer(
         &mut root,
         attempt,
         w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
@@ -344,4 +347,31 @@ fn a_retired_reload_removes_the_welcome_playground_card() {
         assert!(f::find(tree, Role::Heading { level: 2 }, b"Try the playground").is_none());
         assert!(f::find(tree, Role::Link, b"Set up temper").is_some());
     }
+}
+
+#[test]
+fn enter_and_start_wait_for_the_demo_start_answer() {
+    use temper_client_domain::{Action, pages::Act};
+    use temper_client_protocol_wire::v1 as w;
+
+    let mut root =
+        f::demo_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::DemoState::NotStarted);
+    let attempt = f::demo_start_attempt(&mut root);
+    assert_eq!(f::type_into(&mut root, b"Start a chat", b"Add CSV export").as_ref(), b"Add CSV export");
+    assert!(root.forge().demo_starting());
+    let mut view = f::page_view(&root);
+    let button = f::find(view.tree(), Role::Button, b"Start chat").expect("start button");
+    let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("editable composer");
+    assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), None);
+    assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None, "Enter waits as the button does");
+
+    let read = f::demo_start_answer(&mut root, attempt, w::Outcome::Running).expect("fresh demo read");
+    f::demo_read_answer(&mut root, read, f::PROJECT, w::DemoState::Running);
+    assert_eq!(root.pages().chats().expect("kept draft").words.as_ref(), b"Add CSV export");
+    let mut view = f::page_view(&root);
+    let button = f::find(view.tree(), Role::Button, b"Start chat").expect("ready start button");
+    let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("kept draft");
+    assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), Some(Action::Pages(Act::StartChat)));
+    let action = crate::act(&mut view, field, skein_ui::Act::Submit).expect("ready Enter");
+    assert_eq!(action, Action::Pages(Act::StartChat));
 }

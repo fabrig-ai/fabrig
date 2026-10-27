@@ -55,8 +55,22 @@ fn enter_in_the_start_composer_starts_one_chat_titled_by_its_first_line() {
         vec![
             Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: fixtures::WITHIN },
             Step::Type { find: Find::named(Role::TextArea, b"Start a chat"), words: Box::from(*b"Hello\nthere") },
-            Step::Send { find: Find::named(Role::TextArea, b"Start a chat") },
-            Step::Send { find: Find::named(Role::TextArea, b"Start a chat") },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    // Both Enters reach the domain before the view blocks a pending submission.
+    let field = world
+        .tree(person)
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::TextArea && node.name.as_deref() == Some(b"Start a chat"))
+        .expect("chat composer")
+        .id;
+    world.act(person, field, skein_ui::Act::Submit);
+    world.act(person, field, skein_ui::Act::Submit);
+    world.person(
+        person,
+        vec![
             Step::See { find: Find::named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
             Step::See {
                 find: Find::exactly_named(Role::Heading { level: 1 }, b"T1 \xc2\xb7 Hello"),

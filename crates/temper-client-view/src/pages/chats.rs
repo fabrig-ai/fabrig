@@ -24,6 +24,15 @@ fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], ac
     }
     b.close();
 }
+/// Enter and Start share the composer's send readiness (client/README.md, 3.5 and 5.6):
+/// the model is usable, no playground start is pending or failed, and no chat start is in flight.
+fn ready_to_start(root: &Domain) -> bool {
+    let Some(chats) = root.pages().chats() else { return false };
+    crate::choice::can_send(root)
+        && chats.start.is_none()
+        && !root.forge().demo_starting()
+        && root.forge().demo_failure().is_none()
+}
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -50,6 +59,10 @@ pub(crate) fn main(
                 text(b, Role::Heading { level: 2 }, &words.say(Word::StartChat, &[]));
             }
             crate::choice::composer(b, root, None, words, bindings, times);
+            let ready = ready_to_start(root);
+            if !ready {
+                bindings.block_submissions();
+            }
             b.open(Role::Slot);
             b.style(crate::look::ENTRY);
             b.open(Role::TextArea);
@@ -57,7 +70,7 @@ pub(crate) fn main(
             if let Address::Chats { start: true, .. } = root.pages().address() {
                 b.focus(0);
             }
-            if crate::choice::can_send(root) {
+            if ready {
                 b.state(State::SubmitsOnEnter);
             }
             b.style(crate::look::COMPOSER);
@@ -73,11 +86,7 @@ pub(crate) fn main(
             {
                 b.open(Role::Button);
                 b.name(&words.say(Word::Start, &[]));
-                if !crate::choice::can_send(root)
-                    || chats.start.is_some()
-                    || root.forge().demo_starting()
-                    || root.forge().demo_failure().is_some()
-                {
+                if !ready {
                     b.state(State::Disabled);
                 }
                 b.bind(bindings.insert(Act::StartChat));

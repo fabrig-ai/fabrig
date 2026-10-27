@@ -12,6 +12,14 @@ use temper_client_world::{
 };
 
 fn pump(front: &mut Joint, root: &mut Root, event: d::Event) -> usize {
+    pump_holding_start(front, root, event, None)
+}
+fn pump_holding_start(
+    front: &mut Joint,
+    root: &mut Root,
+    event: d::Event,
+    mut held: Option<&mut Option<d::Request>>,
+) -> usize {
     let limits = f::domain_limits();
     let mut now = Time::ZERO.saturating_add(Duration::from_secs(1));
     let mut out = Queue::with_capacity(Temper::max_out(&limits));
@@ -20,6 +28,21 @@ fn pump(front: &mut Joint, root: &mut Root, event: d::Event) -> usize {
     for _ in 0..64 {
         Temper::take(root, &Env { now, wall: Wall::EPOCH, limits }, &mut out);
         while let Some(request) = out.pop() {
+            if let Some(held) = &mut held
+                && let d::Request::Client {
+                    request:
+                        jig_client::Request::Down {
+                            down: jig_client::Down::Send { request: jig_client::Ask::Family { record, .. }, .. },
+                        },
+                } = &request
+                && *temper_client_protocol_wire::decode_requesting(&record.bytes, &w::CEILINGS)
+                    .expect("demo request")
+                    .request()
+                    == w::Request::StartDemo
+            {
+                assert!(held.replace(request).is_none(), "one held playground start");
+                continue;
+            }
             if let d::Request::Show { address, replace } = &request {
                 replaced += usize::from(*replace);
                 Temper::step(
@@ -260,4 +283,89 @@ fn a_forge_connected_clears_the_demo_everywhere_and_welcome_moves_when_a_model_i
     assert_eq!(root.person().pages().address(), &Address::Chats { filter: ChatsFilter::All, start: false });
     assert_eq!(front.demo_starts.len(), 0);
     assert_eq!(front.demo_removals.len(), 0);
+}
+
+fn submit_chat(front: &mut Joint, root: &mut Root) -> bool {
+    let mut view = view(root);
+    let field = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::TextArea && node.name.as_deref() == Some(b"Start a chat"))
+        .expect("chat composer")
+        .id;
+    let Some(action) = temper_client_view::act(&mut view, field, skein_ui::Act::Submit) else { return false };
+    pump(front, root, d::Event::Act { action });
+    true
+}
+
+fn delegate_to_repository(front: &mut Joint, root: &Root) -> temper_engine_domain::CallAnswer {
+    use jig_domain_tasks as tasks;
+    use temper_engine_domain as engine;
+    let Address::Chat { task } = *root.person().pages().address() else { panic!("chat opened") };
+    let attempt = front.hosted_attempt(task).expect("chat assigned to the scripted worker");
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Change the title", Box::new([]));
+    delegate.authority.tools = tasks::Tools(0);
+    delegate.spec.parameters = Box::new([tasks::Parameter::Resource {
+        name: 1,
+        connector: f::FORGE,
+        resource: temper_engine_domain_forge::tag(1, 7),
+    }]);
+    front.engine.call(
+        skein_lib::Token::new(7),
+        task,
+        attempt,
+        99,
+        engine::Call { completion: 1, position: 1, tool: engine::Tool::Delegate { batch: Box::new([delegate]) } },
+    );
+    // The parent occupies the fixture's worker; an admitted child can wait for
+    // placement. Drain immediate work without requiring that deadline to clear.
+    front.engine.pump();
+    front.engine.answered(99).expect("real delegation answer").clone()
+}
+
+#[test]
+fn enter_waits_for_adoption_then_the_chat_can_delegate() {
+    let (mut front, mut root) = accounts::demo_adoption_fixture(f::SEED);
+    let mut held = None;
+    pump_holding_start(
+        &mut front,
+        &mut root,
+        d::Event::Act { action: d::Action::Pages(Act::Playground) },
+        Some(&mut held),
+    );
+    assert!(held.is_some(), "startup's adoption has not completed");
+    assert!(root.person().forge().demo_starting());
+    assert!(root.person().demo().expect("playground").1.model, "model is usable before adoption");
+    assert!(!front.engine_adopted(1, 7));
+    pump(
+        &mut front,
+        &mut root,
+        d::Event::Act { action: d::Action::Pages(Act::ChatWords { words: b"Change the title".as_slice().into() }) },
+    );
+    if submit_chat(&mut front, &mut root) {
+        assert_eq!(f::chats(&front.engine), 1, "Enter started a chat while adoption was held");
+        let answer = delegate_to_repository(&mut front, &root);
+        assert!(
+            matches!(&answer, temper_engine_domain::CallAnswer::DelegationRefused(problem)
+            if problem.why == jig_domain_tasks::Refusal::Holds),
+            "missing repository: {answer:?}"
+        );
+        panic!("Enter started the chat before adoption; its delegation was refused: {answer:?}");
+    }
+    assert_eq!(f::chats(&front.engine), 0, "Enter waits without creating a chat");
+    front.engine.send(temper_engine_domain::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+        forge: 1,
+        state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
+    })));
+    f::adopt_change_repository(&mut front);
+    assert!(front.engine_adopted(1, 7), "the held adoption completes");
+    let Duty::Wire(request) = Temper::duty(held.take().expect("held start")) else { panic!("start wire") };
+    front.wire(ClientId(0), Time::from_nanos(1_000_000_000), Wall::EPOCH, request);
+    accounts::settle(&mut front, &mut root);
+    assert!(!root.person().forge().demo_starting());
+    assert!(has(&root, Role::Status, b"Ready"));
+    assert!(submit_chat(&mut front, &mut root), "Enter now starts the kept draft");
+    assert_eq!(f::chats(&front.engine), 1);
+    assert!(matches!(delegate_to_repository(&mut front, &root), temper_engine_domain::CallAnswer::Delegated(_)));
 }

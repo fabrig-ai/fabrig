@@ -51,6 +51,7 @@ enum WelcomeForge {
     Owned,
     Demo { running: bool, github: bool },
     DemoWithProjects,
+    DemoAdoption,
 }
 #[must_use]
 pub fn program_fixture(seed: u64) -> (Joint, Root) {
@@ -119,6 +120,8 @@ fn fixture_root(
     forge: WelcomeForge,
     program: bool,
 ) -> (Joint, Root) {
+    let adoption = forge == WelcomeForge::DemoAdoption;
+    let forge = if adoption { WelcomeForge::Demo { running: false, github: false } } else { forge };
     let surviving_projects = forge == WelcomeForge::DemoWithProjects;
     let forge = if surviving_projects { WelcomeForge::Demo { running: true, github: false } } else { forge };
     let welcome = forge != WelcomeForge::None;
@@ -185,6 +188,15 @@ fn fixture_root(
             }]);
         }
         let mut engine_limits = engine_limits();
+        if adoption {
+            // The chat needs one delegation below its own template's depth.
+            engine_limits.tasks.depth = 2;
+            engine_limits.brief.sections = 5;
+            config.core.defaults.rules.ceiling.delegation.depth = 2;
+            let policy = &mut config.core.seed_projects[0].policy.policy;
+            policy.ceiling.delegation.depth = 2;
+            policy.roles[0].authority.delegation.depth = 2;
+        }
         if surviving_projects {
             demo_surviving_projects(&mut config, &mut engine_limits);
         }
@@ -212,7 +224,14 @@ fn fixture_root(
         front.engine.settle();
     }
     if let WelcomeForge::Demo { running, .. } = forge {
-        front.demo = Some(demo_answer(running));
+        let mut demo = demo_answer(running).into_parts();
+        if adoption {
+            demo.forge = 1;
+        }
+        front.demo = Some(
+            temper_client_protocol_wire::v1::DemoAnswer::new(&temper_client_protocol_wire::v1::CEILINGS, demo)
+                .expect("demo fixture"),
+        );
     }
     front.bind(CLIENT, fixtures::PARTY);
     let mut root = if tools {
@@ -397,6 +416,12 @@ pub fn demo_fixture(seed: u64, state: &temper_client_protocol_wire::v1::DemoStat
         WelcomeForge::Demo { running: *state == temper_client_protocol_wire::v1::DemoState::Running, github: false },
         false,
     )
+}
+
+/// The playground starts against the real fixture forge, whose repository is not adopted yet.
+#[must_use]
+pub fn demo_adoption_fixture(seed: u64) -> (Joint, Root) {
+    fixture_root(seed, false, 2, None, false, WelcomeForge::DemoAdoption, false)
 }
 
 /// The playground plus two real projects; ordinary demo fixtures keep their single project.

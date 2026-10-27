@@ -1442,14 +1442,7 @@ fn demo_accounts(model: bool) -> c::OwnerAccounts {
     }
 }
 
-fn deliver_demo(
-    root: &mut temper_client_domain::Domain,
-    read: Token,
-    watch: Token,
-    project: u32,
-    model: bool,
-    state: w::DemoState,
-) {
+pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::DemoState) {
     let mut cues = List::with_capacity(2);
     cues.push(Box::from(DEMO_CUE)).expect("first cue");
     cues.push(Box::from(DEMO_OTHER_CUE)).expect("second cue");
@@ -1480,6 +1473,17 @@ fn deliver_demo(
             },
         },
     );
+}
+
+fn deliver_demo(
+    root: &mut temper_client_domain::Domain,
+    read: Token,
+    watch: Token,
+    project: u32,
+    model: bool,
+    state: w::DemoState,
+) {
+    demo_read_answer(root, read, project, state);
     let accounts = demo_accounts(model);
     root_event(
         root,
@@ -1571,9 +1575,16 @@ pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
     }
     panic!("demo start sent");
 }
-pub fn demo_start_answer(root: &mut temper_client_domain::Domain, attempt: Token, outcome: w::Outcome) {
-    root_event(
+pub fn demo_start_answer(
+    root: &mut temper_client_domain::Domain,
+    attempt: Token,
+    outcome: w::Outcome,
+) -> Option<Token> {
+    let limits = domain_limits();
+    let mut out = Queue::with_capacity(temper_client_domain::max_out(&limits));
+    temper_client_domain::step(
         root,
+        &Env { now: Time::ZERO, wall: NOW, limits },
         temper_client_domain::Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Answer {
@@ -1588,7 +1599,17 @@ pub fn demo_start_answer(root: &mut temper_client_domain::Domain, attempt: Token
                 },
             },
         },
+        &mut out,
     );
+    while let Some(request) = out.pop() {
+        if let temper_client_domain::Request::Client {
+            request: jig_client::Request::Down { down: jig_client::Down::Read { read, .. } },
+        } = request
+        {
+            return Some(read);
+        }
+    }
+    None
 }
 
 /// A forge flow that can receive subsequent watch deliveries.

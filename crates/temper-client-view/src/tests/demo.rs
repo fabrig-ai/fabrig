@@ -144,6 +144,12 @@ fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
         }
         let start = start.expect("start button");
         assert_eq!(start.states.as_slice().contains(&State::Disabled), pending, "{row}: composer send");
+        let field = f::find(view.tree(), Role::TextArea, b"Start a chat").expect("chat field");
+        assert_eq!(
+            crate::act(&mut view, field, skein_ui::Act::Submit),
+            if pending { None } else { Some(Action::Pages(Act::StartChat)) },
+            "{row}: Enter shares send readiness"
+        );
     }
 }
 
