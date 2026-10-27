@@ -307,16 +307,21 @@ agent must name.
   `proposal` prints the values of temper's items from the forge's
   `ProposalItems` read, and `settings` lists temper's settings with
   jig's, by the names above.
-- **The form's fields are one table,** `FIELDS`: a row per member of a
-  value, by its path from the kind (`charter.model.name`,
-  `policy.roles[].role`), with its JSON type, its bound where the
-  settings' limits give one, and a line saying what it does to work;
-  jig's kinds' rows in the module `jig`, temper's in temper's part. The
-  reference page `settings-fields` is rendered from it
-  (`../protocol/documentation.md`, section 6), and a step test holds it
-  to the form: every member that `setting … --json` prints for each
-  stock value, and every member the decoder takes, is a row, and every
-  row is one of them.
+- **The form's fields are one table,** `FIELDS`, beside the form's
+  decoder in the crate ctl and the runs' `propose_settings` share
+  (`temper-settings-form`): a row per member of a shape, by the shape's
+  name and the member's (`authority.spend`, `model.name`), with its JSON
+  type, its bound where the settings' limits give one, and a line saying
+  what it does to work. A shape that recurs (an authority in a policy's
+  ceiling, its roles and the rules; a model in a charter's model and its
+  alternatives) has its rows once. `resolve` walks a path from a kind
+  through the shapes (`policy.ceiling.spend`, `charter.model.name`) to
+  its row. The reference page `settings-fields` is rendered from it, a
+  section per shape (`../protocol/documentation.md`, section 6), and a
+  step test holds it to the form: every member that `setting … --json`
+  prints for each stock value, and every member the decoder takes,
+  resolves to a row, and every row is reached. temper's own kinds'
+  rows come with their decoder.
 - **The arguments are jig's,** named as its operations name them, with
   the revisions they need (jig's `client/domain/contract.md`, 5.2): a
   proposal by its proposer and number, `t41/3` for task 41's third,
