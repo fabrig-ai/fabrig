@@ -883,6 +883,10 @@
                                 {
                                   "kind": "agent",
                                   "number": 2
+                                },
+                                {
+                                  "kind": "agent",
+                                  "number": 4
                                 }
                               ],
                               "tasks": 4,
@@ -899,7 +903,7 @@
                   }
                 ],
                 "finish": "tool_calls",
-                "tokens": 262
+                "tokens": 269
               },
               {
                 "lines": [
@@ -957,7 +961,7 @@
         ],
         "cued": [
           {
-            "cue": "Export widget's table as CSV",
+            "cue": "## Task\n\nExport widget's table as CSV",
             "turns": [
               {
                 "lines": [

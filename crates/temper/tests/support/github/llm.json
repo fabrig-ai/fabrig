@@ -152,7 +152,7 @@
       ]
     }},
     {{
-      "cue": "@coding Fix",
+      "cue": "## Task\n\n@coding Fix",
       "turns": [
         {{
           "lines": [

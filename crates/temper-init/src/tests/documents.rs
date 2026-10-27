@@ -272,7 +272,7 @@ fn demo(port: u16) -> Value {
             ],
             "cued": [
                 {
-                    "cue": "Export widget's table as CSV",
+                    "cue": "## Task\n\nExport widget's table as CSV",
                     "turns": csv_coding()
                 },
                 {
@@ -304,7 +304,7 @@ fn csv_chat() -> Value {
                 ]},
                 "contract": {"kind": "change", "connector": 1, "change_kind": 1, "words": 128},
                 "authority": {"tools": 1, "grants": [demo_grant(2), demo_grant(3), demo_grant(4), demo_grant(10), demo_grant(11), demo_grant(12)],
-                    "delegation": {"kinds": [{"kind": "agent", "number": 2}], "tasks": 4, "depth": 2},
+                    "delegation": {"kinds": [{"kind": "agent", "number": 2}, {"kind": "agent", "number": 4}], "tasks": 4, "depth": 2},
                     "budget": {"spend": 21_140}, "notes": 0}
             }]}}
         ])),

@@ -457,7 +457,7 @@ pub fn assert_requests(seen: &Seen, count: usize, words: &[u8], first: bool) {
         let has = |cue: &[u8]| query.system.windows(cue.len()).any(|part| part == cue);
         let kind = if has(words) {
             0
-        } else if has(b"@coding Append this README line:") {
+        } else if has(b"## Task\n\n@coding Append this README line:") {
             1
         } else if has(b"Review this change at the named head") {
             2

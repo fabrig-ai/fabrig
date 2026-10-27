@@ -217,7 +217,7 @@
       ]
     }},
     {{
-      "cue": "@coding NOTICE",
+      "cue": "## Task\n\n@coding NOTICE",
       "turns": [
         {{
           "lines": [

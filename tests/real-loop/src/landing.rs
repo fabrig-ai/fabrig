@@ -286,7 +286,7 @@ pub fn change_scripts(
             ]),
         },
         Script {
-            cue: coding_words.as_bytes().into(),
+            cue: [b"## Task\n\n".as_slice(), coding_words.as_bytes()].concat().into(),
             turns: Box::new([
                 call(b"read", json!({"path":"README.md"})),
                 call(b"edit", json!({"path":"README.md","edits":[{"old":original,"new":changed}]})),
@@ -350,7 +350,7 @@ pub fn program_story(repository: u64, readme: &[u8]) -> smith_fake_claude::Story
                 ],
             },
             Script {
-                cue: CODING_WORDS.into(),
+                cue: format!("## Task\n\n{CODING_WORDS}"),
                 turns: vec![Turn {
                     steps: vec![
                         Step::Act { tool: "Read".into(), input: json!({"file_path":"README.md"}) },

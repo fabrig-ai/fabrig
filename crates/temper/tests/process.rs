@@ -2278,7 +2278,7 @@ fn demo_landed(config: &std::path::Path, root: &std::path::Path) {
         .as_array()
         .expect("demo scripts")
         .iter()
-        .find(|script| script["cue"] == "Export widget's table as CSV")
+        .find(|script| script["cue"] == "## Task\n\nExport widget's table as CSV")
         .expect("coding script");
     let edit = &script["turns"][1]["lines"][0]["arguments"]["edits"][0];
     let old = edit["old"].as_str().expect("old main");

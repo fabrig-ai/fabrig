@@ -38,7 +38,8 @@ fn call(name: &[u8], value: &Value) -> Turn {
 }
 fn scripts(at: std::net::SocketAddr) -> Box<[Script]> {
     let mut scripts = landing::scripts(at, u64::from(forge::ID), landing::README);
-    let coder = scripts.iter_mut().find(|script| script.cue.as_ref() == b"@coding Fix").expect("producer script");
+    let coder =
+        scripts.iter_mut().find(|script| script.cue.as_ref() == b"## Task\n\n@coding Fix").expect("producer script");
     let mut turns = std::mem::take(&mut coder.turns).into_vec();
     let mut finish = turns.pop().expect("producer finish");
     turns.push(call(b"deliver", &json!({"fields":{"title":"Update README","body":"Changed by temper."}})));

@@ -488,13 +488,17 @@ fn the_csv_chat_delegates_waits_and_reports_landing_before_waiting_again() {
     assert_eq!(answers[0].parts[0], Part::Text { text: "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge.".as_bytes().into() });
     let delegate = call(&answers[0], b"delegate");
     assert_eq!(delegate["batch"][0]["executor"], json!({"kind":"procedure","connector":1,"code":2}));
+    assert_eq!(
+        delegate["batch"][0]["authority"]["delegation"]["kinds"],
+        json!([{"kind":"agent","number":2}, {"kind":"agent","number":4}])
+    );
     assert_eq!(delegate["batch"][0]["spec"]["words"], "Export widget's table as CSV");
     assert_eq!(answers[1].parts.len(), 1);
     assert_eq!(call(&answers[1], b"wait"), json!({}));
     assert_eq!(answers[2].parts.len(), 2);
     assert_eq!(answers[2].parts[0], Part::Text { text: "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.".as_bytes().into() });
     assert_eq!(call(&answers[2], b"wait"), json!({}));
-    assert_eq!(answers.iter().map(|a| a.usage.output).collect::<Vec<_>>(), [Some(262), Some(2), Some(30)]);
+    assert_eq!(answers.iter().map(|a| a.usage.output).collect::<Vec<_>>(), [Some(269), Some(2), Some(30)]);
 }
 
 #[test]
@@ -556,4 +560,13 @@ fn the_csv_cues_select_only_their_own_agents_briefs() {
             }
         }
     }
+}
+
+#[test]
+fn the_csv_review_uses_its_verdict_script_with_the_changes_words_quoted() {
+    let review = "Review the change with read-only authority.\n\n## Task\n\nReview this change at the named head\nChange words:\nExport widget's table as CSV\n[Requested by task 2]\n";
+    let answers = answers(review, review, 1);
+    let verdict = call(&answers[0], b"finish");
+    assert_eq!(verdict["form"], "verdict");
+    assert_eq!(verdict["label"], "1");
 }
