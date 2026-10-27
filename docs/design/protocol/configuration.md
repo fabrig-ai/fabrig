@@ -1656,6 +1656,15 @@ into the binary.
   settings live in the store; read them with `temper ctl settings show`".
   Section 3's `landing` and `charter`, and `Config`'s `landing` and
   `forge_charter` fields, go with them, in 13.6's second step.
+- **A seeded project names its policy by number.** jig's
+  `engine.projects` stays, but temper refuses a project whose policy is
+  inline, naming its path: "`engine.projects[0].policy`: name a policy,
+  `policy: 1`; change it with `temper ctl settings apply`". A policy is
+  then written in one form alone, the settings file's
+  (`../client/tools.md`, 5.3), and the document's older forms of an
+  authority, a pattern and a role's permissions (milliseconds, text
+  segments) meet nothing. It lands with the refusal of a member below
+  the floors (o/configuring-stock's T10), after the seed's `policy: 1`.
 - **Before the baseline** (`../draft/upgrades.md`, 4.1), when planned implementation
   is planned to land: the settings change the store's families, so a
   deployment is made again, and nothing is imported. A document `temper
