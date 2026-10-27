@@ -407,8 +407,13 @@ child's vocabulary and the driver's, both ways, exhaustive on both:
   also read the hand-written form before it, `JIGM` and its version, by
   its magic before any version is read, and never write it: accounts
   moved out before the schema keep importing, and their next move out
-  writes the schema's form. That reader goes before the first release,
-  once those files are moved out again.
+  writes the schema's form. Such a file carries skein's record in its
+  own hand-written form, `SKOT` and its version, which skein no longer
+  reads (skein's `oauth.md`, 6.4): the same reader reads it, rebuilds
+  the record and checks it through skein's current code. That reader
+  goes, whole, before the first release, once those files are moved out
+  again. A file the moves cannot decode is refused as unreadable, never
+  as another application's.
 - **Out.** The child releases the source and asks to withdraw it,
   giving its account's display name for the file. The
   routing removes it from the driver; at `removed`, it reads the
