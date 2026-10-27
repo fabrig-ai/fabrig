@@ -36,6 +36,7 @@ enum LifeState {
     reason = "restart, completion, bootstrap and signal ownership are independent"
 )]
 pub struct ServiceHost {
+    pub(crate) pending_streak: crate::patience::PendingStreak,
     restartable: bool,
     lives: Vec<Life>,
     state: LifeState,
@@ -144,6 +145,7 @@ impl ServiceHost {
         let restartable = matches!(cluster, Some(crate::cluster::Shape::Worker { .. }));
         let queued = if restartable { envelope.1 } else { 1 };
         Self {
+            pending_streak: crate::patience::PendingStreak::default(),
             restartable,
             lives: Vec::with_capacity(if restartable { LIVES } else { 0 }),
             state: LifeState::First,

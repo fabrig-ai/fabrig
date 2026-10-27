@@ -41,15 +41,17 @@ fn startup(
     occupied: Option<std::net::SocketAddr>,
     receipt: Rc<Receipt>,
 ) -> skein_world::real::Outcome<Proc> {
+    let patience = crate::PATIENCE;
     let fixture = crate::github::fixture();
     let (state, peer) = crate::github::State::new(fixture);
     let mut world = World::new_controlled(|controls| {
-        let mut judge = cluster_judge(controls, &[], None);
+        let mut judge = cluster_judge(controls, &[], None, patience);
         judge.github = Some(state);
         Recording { judge, receipt }
     });
     world.spawn(|| {
         Proc::Llm(Box::new(Llm {
+            pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred LLM"),
             scripts: Some(|_| Box::new([])),
             rules: None,
@@ -71,8 +73,8 @@ fn startup(
         Proc::Service(Box::new(service))
     });
     host(&mut world, scratch.path(), || vec![crate::calls::sign_in(crate::calls::D1)], true, 1);
-    world.spawn(|| Proc::Forge(Box::new(peer)));
-    world.run(&skein_shell::Clock::new(), crate::PATIENCE)
+    world.spawn(|| Proc::Forge(Box::new(ForgePeer::new(peer))));
+    world.run(&skein_shell::Clock::new(), patience)
 }
 
 #[test]
