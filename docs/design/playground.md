@@ -215,13 +215,20 @@ desktop browsers are well supported (the user, 10-26).
 - **At the site's playground address,** which the site's design names.
 - **The page's policy** is temper's (`client/browser.md`, 2.2) with
   `worker-src 'self'`, and no `connect-src` beyond `'self'`: after the
-  load, nothing is fetched.
+  load, nothing is fetched. One function of temper's gives it, for the
+  service and the playground alike; the build writes it beside the
+  files as `headers`, one `path: header` line each (the policy on every
+  answer, the digest directory cached for good, the page `no-cache`),
+  for whatever host serves them to map, and a test holds the two
+  equal. How the site's host takes them is the site's design.
 - **Built by `scripts/bundle.sh --playground OUT`:** the web shell with
   `playground` and `temper-playground` for wasm32, in the `web`
   profile, bundled by skein's bundler with the worker's module (skein's
   `playground.md`, 7).
 - **Released with temper,** built at each release tag from the commit
-  the download is built from, and linked from the site and the guide.
+  the download is built from, by the release's own build calling
+  `bundle.sh --playground` beside the binary's, and linked from the site
+  and the guide.
   Between releases, a preview of `main` is private, for the user and QA.
 - **Nothing is collected.** A log reaches us only as a file a visitor
   attaches to an issue.
