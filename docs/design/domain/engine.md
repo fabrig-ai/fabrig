@@ -521,7 +521,15 @@ an account's source to its account, a read position to its
 conversation, an application's records to theirs (its root's, by the
 same rule); where a restore checks a record's shape and not what it
 names, its child gains the check, with the facts it consumes restored
-before it. Over a pending generation it is strict: a record the
+before it. It checks what a record names, never again who might have
+written it: authority was judged at the record's commit
+(authority.md), so a record the engine wrote restores whatever the
+roles and policies say since. A check stricter than the writers of what
+it reads refuses a deployment that did nothing wrong, so each restore
+check is proved against every writer of its records (section 15): a
+person's words to a delegate in their tree, an issued name beside the
+accounts, an open question beside a party's results. Over a pending
+generation it is strict: a record the
 accounts child counts and leaves (its `unrestored`, once its terminal
 rows are restored and its empty accounts removed) refuses the restart
 at the switch step, naming the child, as a broken record in any other
