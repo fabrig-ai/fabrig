@@ -2242,7 +2242,7 @@ fn change_delegate(
             gate_authority(domain, env, &mut authority, gate.kind)?;
             (
                 gate_executor(row, gate.kind),
-                review_words(&row.title, parameters.as_slice(), env.limits.tasks.spec_bytes),
+                review_words(row, number, head, parameters.as_slice(), env.limits.tasks.spec_bytes),
                 tasks::Contract::Verdict {
                     choices: Box::new([
                         tasks::Verdict {
@@ -2307,7 +2307,27 @@ fn gate_authority(
     Some(())
 }
 
-fn review_words(title: &[u8], parameters: &[tasks::Parameter], bound: u32) -> Box<[u8]> {
+fn review_failure(row: &forge::ChangeRow, number: u64, head: skein_forge::api::Commit) -> Option<&[u8]> {
+    for failure in &row.change.gate_failures {
+        if failure.number != number || failure.count == 0 {
+            continue;
+        }
+        for remark in &row.gate_remarks {
+            if remark.number == number && remark.head == head {
+                return Some(&remark.words);
+            }
+        }
+    }
+    None
+}
+
+fn review_words(
+    row: &forge::ChangeRow,
+    number: u64,
+    head: skein_forge::api::Commit,
+    parameters: &[tasks::Parameter],
+    bound: u32,
+) -> Box<[u8]> {
     // The spec's byte bound includes its base, branch and named head.
     let mut room = bound;
     for parameter in parameters {
@@ -2316,11 +2336,17 @@ fn review_words(title: &[u8], parameters: &[tasks::Parameter], bound: u32) -> Bo
         }
     }
     let mut words = List::with_capacity(room);
+    // domain/forge.md, 8.3: the retry's own context precedes the common review words.
+    if let Some(failure) = review_failure(row, number, head) {
+        append(&mut words, b"This review is asked again at the same head: the first review failed: ");
+        append(&mut words, failure);
+        append(&mut words, b"\n");
+    }
     append(
         &mut words,
         b"Review this change at the named head\nVerdict 1 approves; verdict 2 requests changes. Change: ",
     );
-    append(&mut words, title);
+    append(&mut words, &row.title);
     words.into_boxed()
 }
 

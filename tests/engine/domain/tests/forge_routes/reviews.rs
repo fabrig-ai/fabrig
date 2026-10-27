@@ -346,6 +346,28 @@ fn a_failed_review_is_asked_again_at_the_same_head() {
 }
 
 #[test]
+fn a_reviews_retry_says_it_is_asked_again_naming_the_failure() {
+    const FAILURE: &[u8] = b"cannot read the pull";
+    const OPENING: &[u8] =
+        b"This review is asked again at the same head: the first review failed: cannot read the pull\n";
+    let (mut world, first, head) = review_world();
+    let original = live_task(&world, first.task).spec.words.clone();
+    assert!(original.starts_with(b"Review this change at the named head\n"));
+    finish_review(&mut world, &first, tasks::TaskResult::Failure { reason: FAILURE.into() });
+    let second = next_assignment(&mut world, 3);
+    assert_review_head(&world, &second, head);
+    let retry = &live_task(&world, second.task).spec.words;
+    assert_ne!(retry, &original);
+    assert!(retry.starts_with(OPENING), "retry names the first failure: {retry:?}");
+    assert_eq!(&retry[OPENING.len()..], original.as_ref());
+    assert!(
+        second.sections.iter().any(|section| matches!(&section.body,
+        engine::BriefBody::Text(words) if words.starts_with(OPENING))),
+        "the assigned brief carries the retry words"
+    );
+}
+
+#[test]
 fn a_second_failed_review_holds_the_change_naming_it() {
     use temper_engine_domain_forge_change::{GateFailure, Hold, State};
     const SECOND_FAILURE: &[u8] = b"cannot judge the second review";
