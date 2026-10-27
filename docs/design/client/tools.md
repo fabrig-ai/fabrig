@@ -1145,6 +1145,14 @@ may change with them.
   history remains status 2; a nonterminal or wrong-number result fails
   visibly, never reports completion. Busy, sign-out and other read
   failures keep their ordinary statuses.
+- **An act refused for want of a retained answer's place** (jig's busy,
+  *answers full*, with the table's size and its oldest answer's expiry:
+  jig's `domain/people.md`, 5.1) prints `temper ctl: the engine holds its
+  N answers of the last day; room again at TIME` and exits 2, never
+  retrying past its patience when TIME is past it; nothing was made,
+  and the same key sends it again once there is room. The carried
+  export path (an account's give-back, 5.5) says the same, never a bare
+  `unsent` (QA 20261027-1202-temper finding 3).
 - **A call cut by a signal** ends at once and exits 128 plus the
   signal's number, never 0 (8.2).
 - **A call whose link stays down** past its deadline exits 1, and what
