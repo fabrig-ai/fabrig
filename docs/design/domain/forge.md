@@ -1545,6 +1545,12 @@ history they keep if temper is unplugged. Issues are projections (jig's
   of it that still fails holds the projection alone, retried after the
   policy's interval while the goal lives and settled failed when the
   goal closes, never holding the goal, its runs or its close.
+  A creation lost to a crash and not found again (section 6: never
+  sent again by temper on its own) keeps the projection's at most once:
+  a milestone comment so lost counts as posted, and the projection goes
+  on to its next milestone, the finishing one and the close; the issue's
+  open so lost fails the projection, which has nothing to write on, and
+  settles failed at the goal's close.
 - **Issues others open** in an adopted repository are participating
   objects, which may become intake later.
 
