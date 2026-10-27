@@ -319,12 +319,7 @@ impl Ring {
     /// Pushes an `Open` that failed with `EAGAIN` again, in its slot under the
     /// same `user_data`; the next enter submits it.
     fn resubmit(&mut self, index: u32) {
-        let slot = self.table.slots.get(slot_index(index)).expect("an index in flight names a slot");
-        let flight = slot.flight.as_ref().expect("an operation submitted again is in its slot");
-        let Op::Open { root, .. } = flight.kind else {
-            unreachable!("only an Open is submitted again");
-        };
-        let entry = open_entry(root, &flight.path, &flight.open_how).user_data(user_data(index, slot.generation));
+        let entry = self.table.resubmission(index);
         // SAFETY: as at the first push (`start`): the path and the
         // `open_how` the entry points at are this slot's, which stays in
         // place, untouched by Rust code, until the new completion is reaped;
@@ -432,6 +427,16 @@ impl Drop for Ring {
 }
 
 impl Table {
+    /// The next entry for an `Open` whose raw completion asked for a retry.
+    fn resubmission(&self, index: u32) -> squeue::Entry {
+        let slot = self.slots.get(slot_index(index)).expect("an index in flight names a slot");
+        let flight = slot.flight.as_ref().expect("an operation submitted again is in its slot");
+        let Op::Open { root, .. } = flight.kind else {
+            unreachable!("only an Open is submitted again");
+        };
+        open_entry(root, &flight.path, &flight.open_how).user_data(user_data(index, slot.generation))
+    }
+
     fn new(operations: u32) -> Table {
         let capacity = slot_index(operations);
         let mut slots = Vec::with_capacity(capacity);
@@ -765,6 +770,8 @@ mod tests {
     use super::{Config, Ring, Wait};
     use crate::Clock;
     use crate::open_termination_signals;
+
+    mod open_retries;
 
     #[test]
     fn blocked_termination_signal_arrives_through_the_ring() {
