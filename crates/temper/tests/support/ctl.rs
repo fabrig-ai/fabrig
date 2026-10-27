@@ -100,6 +100,8 @@ pub enum Step {
     Pause,
     Resume,
     NextLink,
+    /// Cleanly stop the supervised engine while a started ctl remains live.
+    RestartEngine,
     /// Release a scripted response after observing the pending review.
     ReleaseLlm {
         name: &'static [u8],
@@ -358,6 +360,7 @@ enum Action {
     ProgramLogin(&'static str),
     Signal,
     NextLink,
+    RestartEngine,
     ReleaseLlm { name: &'static [u8], cue: &'static [u8] },
 }
 
@@ -442,6 +445,16 @@ impl Calls {
     }
     pub(super) fn last_unmet(&self) -> Option<&Ended> {
         self.last_unmet.as_ref()
+    }
+    pub(super) fn restarting_engine(&self) -> bool {
+        matches!(self.action, Some(Action::RestartEngine))
+    }
+    pub(super) fn engine_restarting(&mut self) -> usize {
+        let (child, index) = self.started.as_ref().expect("live change wait");
+        assert!(child.pidfd.is_some() && child.ended.exit.is_none(), "wait is running before restart");
+        self.action = None;
+        self.referee_work = RefereeWork::Waiting;
+        *index
     }
     pub(super) fn llm_release(&self) -> Option<(&'static [u8], &'static [u8])> {
         match self.action {
@@ -691,7 +704,9 @@ impl Calls {
             }
             Action::Visit => panic!("a visit has no child"),
             Action::Stderr(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
-            Action::NextLink | Action::ReleaseLlm { .. } => unreachable!("referee action has no child"),
+            Action::NextLink | Action::RestartEngine | Action::ReleaseLlm { .. } => {
+                unreachable!("referee action has no child")
+            }
             Action::Signal => assert_eq!(
                 ended.exit,
                 Some(Exit::Code(0)),
@@ -762,6 +777,7 @@ impl Calls {
                     Action::Stderr(_)
                         | Action::ProgramLogin(_)
                         | Action::NextLink
+                        | Action::RestartEngine
                         | Action::Visit
                         | Action::ReleaseLlm { .. }
                 )
@@ -828,6 +844,7 @@ impl Calls {
                 }
                 self.advance(now);
             }
+            Some(Step::RestartEngine) => self.await_box(Action::RestartEngine),
             Some(Step::Stderr(bytes)) => self.await_box(Action::Stderr(bytes)),
             Some(Step::ProgramLogin(name)) => self.await_box(Action::ProgramLogin(name)),
             Some(Step::NextLink) => {
