@@ -1,6 +1,6 @@
 # Tasks
 
-Provisional, 2026-10-07, revised 2026-10-23. The core's tasks: what a
+Provisional, 2026-10-07, revised 2026-10-27. The core's tasks: what a
 task is, how tasks are made, how each moves from asked to ended, the
 resources it holds, what it hears and when it wakes, and how proposals
 and escalations travel the tree. It is the first primitive of core.md
@@ -1190,7 +1190,10 @@ worst case (engine.md, section 13):
   amendment or an accepted proposal tracks them;
 - tasks per tree, and the depth of a tree;
 - delegates and dependencies per task, and batch size;
-- a spec's and a result's bytes, and inputs per task;
+- a spec's and a result's bytes, and inputs per task; a verdict's
+  fields are counted apart, at most 512 (`VERDICT_FIELDS`, the store's
+  schema's ceiling), never from a result's bytes, so a result's byte
+  bound may grow without moving what the store can hold of a verdict;
 - messages and bytes per inbox, and a message's bytes, within what a run
   reads (8.2);
 - subscriptions, references, holds and saved resources per task;
