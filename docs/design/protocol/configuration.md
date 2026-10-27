@@ -1594,14 +1594,13 @@ into the binary.
   of a coarse one, that floor costing a run nothing it needs; C, and so
   every budget above, scales with it.
 - **The box's limits for that work.** `temper init`'s document raises
-  `tasks.result_bytes` to 2,048, within the message bound, so that an
-  advisor's report fits, jig's settings-v1 ceiling for it raised in
-  place to the message bound, and `tasks.inbox_bytes` to 8,192, two
-  messages, so that a goal that asked a question holds its answer's
-  credit and a news credit beside it; their worst case is priced before
-  they land, and a
-  declared figure that rises goes to the director. The box's live tasks
-  stay jig's small profile's unless a story shows them binding.
+  `tasks.inbox_bytes` to 8,192, two messages, so that a goal that asked
+  a question holds its answer's credit and a news credit beside it,
+  priced before it lands; a declared figure that rises goes to the
+  director. `tasks.result_bytes` stays small's 512, about 80 words,
+  which holds a goal's and an advisor's report: jig's settings schema
+  caps the record field it sizes, a tie for the format freeze. The
+  box's live tasks stay small's unless a story shows them binding.
 - **The stock sets floors under the limits.** Its own values must fit
   the limits they are checked against: a configuration whose
   `core.policy_bytes` is below policy 1's encoding, or whose
