@@ -133,7 +133,7 @@ pub(super) fn placeholders(entry: &Page) -> Result<(), String> {
             if heading == "Before you start" {
                 for line in section.lines() {
                     if let Some(after) = line.strip_prefix("- `")
-                        && let Some((word, _)) = after.split_once("` ")
+                        && let Some((word, _)) = after.split_once('`')
                         && !word.is_empty()
                         && word.starts_with(|c: char| c.is_ascii_uppercase())
                         && word.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
