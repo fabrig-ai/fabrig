@@ -1,6 +1,6 @@
 # Tools: temper for agents
 
-Provisional, 2026-10-17, revised 2026-10-26. How agents drive temper:
+Provisional, 2026-10-17, revised 2026-10-27. How agents drive temper:
 they read what it holds, act through jig's operations and wait for what
 changes, with `temper ctl`, a command line. It serves any agent working
 with temper for a person, which reaches the systems temper works with,
@@ -25,8 +25,8 @@ section 13; an MCP endpoint and the tools' extraction into jig are later
   prints them as the calls that make them, with the revisions they name
   (section 6).
 - **One table of tools.** Each tool is defined once: its name, its
-  arguments, its result, its line of help. The parser, the help, the
-  JSON and the agents' guide are derived from it (5.1).
+  arguments, its result, its text. The parser, the help, the JSON and
+  the tool names the pages may use are derived from it (5.1).
 - **Waiting is a tool.** `wait` blocks on a watch until a subject
   changes from what the agent saw, or meets a condition, or a timeout
   passes (5.4).
@@ -104,7 +104,7 @@ section 13; an MCP endpoint and the tools' extraction into jig are later
 
 ```
 temper-client-tools          the table, a call, the runner, digests and conditions, the rendering (text,
-│                            JSON), the argv parser and help, the guide, the limits; the tools' root
+│                            JSON), the argv parser and help, the limits; the tools' root
 ├── jig-client               jig's client and its helpers (shapes, facts, thread, words)
 ├── jig-client-protocol-link the configured settings wire limits
 ├── jig-client-protocol-wire bounded whole settings values
@@ -153,13 +153,17 @@ temper                       the binary: `temper ctl` runs the host
 
 - **A tool is a record of the table:** its name; a line saying what it
   does; its arguments, each a name, a type (a number, a word from a set,
-  a text, a file, a duration), whether it is required, and a line; its
-  result, a typed record; whether it is keyed (section 7); its area
-  (5.5).
+  a text, a file, a duration) with its bound where it has one, whether
+  it is required, and a line; its result, a typed record, and a line
+  saying what it prints; whether it is keyed (section 7); its area
+  (5.5); and its notes, at most 1,024 bytes, what this tool alone does
+  beyond its line: a file's life, a refusal's words and what mends it,
+  a step that follows.
 - **Everything else is derived from it:** the parser and `temper ctl
   help [TOOL]`, the JSON of arguments and results, and the tool names
-  the guide may use (11.5). A test checks that each derivation names
-  every tool.
+  the pages may use (11.5). A test checks that each derivation names
+  every tool. Its lines and notes are documentation, in the voice of
+  `../draft/agent-docs.md`, section 6.
 - **A call is a value:** a tool's name and its arguments, decoded from
   argv or from JSON and checked against the table before anything is
   sent. The runner takes a call and gives back its result; the host
@@ -303,6 +307,16 @@ agent must name.
   `proposal` prints the values of temper's items from the forge's
   `ProposalItems` read, and `settings` lists temper's settings with
   jig's, by the names above.
+- **The form's fields are one table,** `FIELDS`: a row per member of a
+  value, by its path from the kind (`charter.model.name`,
+  `policy.roles[].role`), with its JSON type, its bound where the
+  settings' limits give one, and a line saying what it does to work;
+  jig's kinds' rows in the module `jig`, temper's in temper's part. The
+  reference page `settings-fields` is rendered from it
+  (`../protocol/documentation.md`, section 6), and a step test holds it
+  to the form: every member that `setting … --json` prints for each
+  stock value, and every member the decoder takes, is a row, and every
+  row is one of them.
 - **The arguments are jig's,** named as its operations name them, with
   the revisions they need (jig's `client/domain/contract.md`, 5.2): a
   proposal by its proposer and number, `t41/3` for task 41's third,
@@ -813,7 +827,7 @@ area lands with its stories (section 11).
 | `sign-in FILE\|-` | signs in by the link `temper serve` printed, read from FILE, or from stdin for `-`; writes `token` and `address` (8.1) |
 | `sign-out` | ends the sign-in and leaves `token` empty, zero bytes, read as signed out (8.1) |
 | `pending` | lists what DIRECTORY's store keeps: each request's operation, its party and when it was first sent, and how many records these tools cannot read |
-| `help [TOOL]` | the guide, then the tools (11.5); with TOOL, its record of the table |
+| `help [TOOL]` | the page `ctl`, then the tools (11.5); with TOOL, its record of the table |
 
 - **`pending` reads the store's file only:** it takes no lock, starts
   no client and sends nothing (8.3).
@@ -1028,8 +1042,8 @@ may change with them.
   are 1. Two of them never reach a call: unconfirmed, since the runner
   sends nothing before `me` is live (8.2, step 3), and the client's key
   conflict, since each call's keys are its own (section 4). Either is
-  the tools' bug: it exits 1, says so, and the guide says to report it
-  as a finding (11.5).
+  the tools' bug: it exits 1, says so, and the page `ctl` says to report
+  it as a finding (11.5).
 - **A task wait's final read** follows 5.4 on both an `Unknown`
   opening and `SubjectEnded`: status 0 requires N and a terminal phase,
   for both `Historical` and live-form records. Unknown or hidden
@@ -1120,7 +1134,7 @@ may change with them.
   under a name another party's parked request holds (8.2), meets
   `Held`, and exits 1.
 - **Names are the party's.** Agents sharing a party give their names a
-  prefix of their own; the guide says so (11.5).
+  prefix of their own; the page `ctl` says so (11.5).
 - **Acts that decide name the revision the agent saw;** a moved one is
   refused, and the agent reads again. A repeat of a decision is answered
   as decided first, by the party itself.
@@ -1616,17 +1630,26 @@ moving, the refusals' decisions) is not repeated here.
 
 ### 11.5 The agents' guide
 
-`temper ctl help` prints a short guide, then the tools from the table:
-how to sign in, the loop of 5.4, naming keys and their prefix, reading
-acts, the exit statuses, the forge read with whatever the agent
-chooses and what temper owns there changed only through temper (5.2),
-and an LLM account's key read from a
-private file, never typed, with a sign-in followed by `wait accounts`
-(5.5, area 5), and a forge's pasted value read from a private file,
-never typed, with a connect's link printed as text, never opened, and
-followed by `wait forges` (5.5, area 6). The guide is text of
-`temper-client-tools`; a
-test fails when it names a tool the table lacks.
+- **`temper ctl help`** prints the page `ctl` of `temper-docs`
+  (`../protocol/documentation.md`), then the tools from the table, a
+  line each, its usage and its line. The page is the driver's first
+  read (`../draft/agent-docs.md`, section 4): how to sign in, the loop
+  of 5.4 (read, act, wait), naming keys and their prefix, reading acts
+  and the revisions they name, the exit statuses of 6.3, JSON, the forge
+  read with whatever the agent chooses and what temper owns there
+  changed only through temper (5.2), and a secret read from a private
+  file, never typed or given as an argument, with a link printed as
+  text, never opened, and followed by a wait (5.5, areas 5 and 6).
+- **`temper ctl help TOOL`** prints the tool's record (5.1): its usage,
+  its line, each argument's name, type, bound and line, its result's
+  line and record's name, whether it is keyed, and its notes; for
+  `wait`, its subjects and conditions as the table's kinds give them.
+  Enough to make every call of a walk without the source.
+- **What a goal takes across tools is a walk's,** `box` and `github`
+  among them, never the page `ctl`'s.
+- **Checked:** every `temper ctl` line of the page parses
+  (`../protocol/documentation.md`, section 6); a tool named in it that
+  the table lacks fails the gate.
 
 ### 11.6 Findings into stories
 

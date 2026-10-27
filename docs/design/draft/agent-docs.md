@@ -11,7 +11,9 @@ be renamed and regrouped where that serves. For agents it replaces
 `../protocol/documentation.md` 1, 2, 4 and 7 (the register, the
 directory, the kinds and their bounds, `--help`, the site); it reshapes
 `../client/tools.md`'s names, its 5.4 (`wait`), 8.1 and 11.5, and
-`../qa.md` 3's citations of the box walk. Nothing here is adopted.
+`../qa.md` 3's citations of the box walk. Approved by the user on
+temper#13 (10-27), the command line regrouped as section 7 has it; each
+part becomes contract in the documents it names as it is built.
 
 ## 1. In one page
 

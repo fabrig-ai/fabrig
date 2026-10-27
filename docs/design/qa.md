@@ -65,15 +65,15 @@ parked as `draft/qa-lab.md`. What is still open is section 8.
 
 ## 3. The deployment
 
-- **A box in the pass's scratch directory,** started as
-  `docs/guide/box.md` says, with the flags of the brief's rung, and
-  stopped by the pass before it ends.
+- **A box in the pass's scratch directory,** started as the walk
+  `box` says (`temper help box`), with the flags of the brief's rung,
+  and stopped by the pass before it ends.
 - **The rungs:**
 
   | Rung | Forges | Model | Accounts held |
   |---|---|---|---|
   | fakes | `--fake-backends` (`protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
-  | a real model | Forgejo here, set up through ctl (`../guide/box.md` 4); the box walked as `../guide/box.md` 2 to 7 | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5) | the model's |
+  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5) | the model's |
   | GitHub | GitHub, through an App kept for QA, on a repository kept for it | as the rung below | the App's key and its installation |
   | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, a held configuration directory used in place (`protocol/credentials.md`, 3) | the model's |
 
@@ -99,8 +99,8 @@ parked as `draft/qa-lab.md`. What is still open is section 8.
   model key, a fake's admin token, a PEM) reaches temper through ctl,
   as the welcome's paste does.
 - **What the box prints** today: its sign-in link, and on fake backends
-  the fakes' addresses and the files a person pastes
-  (`docs/guide/box.md`, its last section). For the forge's two hands it
+  the fakes' addresses and the files a person pastes (the walk `box`,
+  on fake backends). For the forge's two hands it
   is to print, for each forge it sets up or fakes, the forge's API and
   the person (section 7):
 

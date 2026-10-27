@@ -1,106 +1,145 @@
 # Documentation in the binary
 
-Provisional, 2026-10-26. temper's user documentation: one source in the
-repository, compiled into the binary, read by people at the command line
-and by agents through a host tool, and by the site from the same files.
-It builds the draft `../draft/configuring.md`, section 7.
+Provisional, 2026-10-26, revised 2026-10-27. temper's documentation,
+for agents: pages in the repository, compiled into the binary, read at
+the command line by the agents that run and drive temper and by
+temper's own runs through a host tool. It builds `../draft/agent-docs.md`
+(the readers, the map, the kinds and the voice), which takes over
+`../draft/configuring.md` 7 for agents; this document is its contract
+for the pages and their machinery, and `../client/tools.md` for ctl's
+help. People read the site, which is outside temper's design.
 
 ## 1. In one page
 
-- **One source, three readers.** The topics are Markdown files in
-  `docs/guide/`. `temper help` prints them; every run reads them with
-  the `read_docs` host tool; the site renders the same files at a
-  release's tag. Nothing is written twice.
-- **For people who run temper,** not in the design's register: walks
-  through a setup (a box, a server, a forge), the concepts (a task, a
-  goal, a chat, a charter, a template, a policy, a landing rule, the
-  settings and their revisions), recipes ("review before landing", "a
-  tester that cannot land", "a weekly budget") and the limits (what
-  temper cannot do, what needs a restart).
-- **Compiled in, as data.** `temper-docs` holds every topic as static
-  text with its name, kind, title and summary, and the functions that
-  list, find, page and search them. It decides nothing and has no state:
-  the same binary always says the same thing.
-- **An agent reads it as it reads a file:** a page of a topic from an
-  offset, or the sections matching some words. The read is answered
-  where the call is decoded, deciding nothing and recorded nowhere, so
-  it costs a run no authority, no commit and no spend beyond its tokens.
-- **Checked against the code it describes.** A step test holds the table
-  to the directory, every topic to its bounds, and every `temper ctl`
-  line in a topic's examples to ctl's parser, so a recipe that no longer
-  parses fails the gate.
+- **For agents.** The operator's agent runs the binary, the driver
+  works through `temper ctl`, and temper's runs read with `read_docs`
+  (`../draft/agent-docs.md`, section 2). Every page is written for an
+  agent about to act.
+- **Pages in `docs/help/`, one table.** `temper-docs` holds a row per
+  page: its name, kind, title, summary and text. The table is the map
+  (`../draft/agent-docs.md`, section 4), and the directory equals it.
+- **Five kinds, each with its template and bound:** `index`, `concept`,
+  `walk`, `recipe` and `reference`, the last generated from the code's
+  tables. Today's guides are a sixth, `guide`, transitional, for their
+  eight names alone, until each is rewritten into the others (2.2).
+- **Compiled in, as data.** `temper-docs` holds every page as static
+  text, and the functions that find, page and search them. It decides
+  nothing and has no state: the same binary always says the same thing.
+- **An agent reads a page as it reads a file:** a page of it from an
+  offset, or the sections matching some words. A run's read is answered
+  where the call is decoded, deciding nothing and recorded nowhere
+  (section 5).
+- **Checked against the code it describes.** Step tests hold the table
+  to the directory, each page to its kind's template and bound, every
+  command line in a page to its parser, every address to a page, every
+  named setting field to its table, the placeholders to their set, and
+  the generated pages to what their tables render (section 6).
 
 ## 2. The source
 
-- **A topic is one file** of `docs/guide/`, named by its stem in lower
-  case, letters, digits and `-`: `docs/guide/landing-rules.md` is
-  `landing-rules`. Its first line is its title, `# ` and at most 80
-  bytes; its first paragraph after it is its summary, one sentence of
-  at most 200 bytes; its sections are its `## ` headings, each at most
-  80 bytes.
-- **Four kinds,** said by a line under the title, `Kind: walk`,
-  `Kind: concept`, `Kind: recipe` or `Kind: limits`, which `temper help`
-  groups by. The walks are today's guides (`box`, `server`, `forgejo`,
-  `github`); the others are written with the parts they describe and
-  land with them, so that no topic describes what `main` does not do.
-- **Bounds:** a topic at most 32,768 bytes of printable ASCII and line
-  ends, so that its rendered size is known (section 3); a name at most
-  32 bytes; at most 64 topics; a topic's examples, in fenced blocks, as
-  a person types them.
-- **Links** between topics are `temper help NAME` in the text, which
-  the site renders as a link and the step test resolves.
-- **Where it lives** is the repository, beside the design (the draft's
-  default): a change of behaviour and the topic that tells it land in
-  one change.
+### 2.1 A page
+
+- **One file** of `docs/help/`, the generated ones under
+  `docs/help/reference/`, named by its stem in lower case, letters,
+  digits and `-`, at most 32 bytes, unique across both: `landing-rule`.
+- **Its head:** its first line is its title, `# ` and at most 80 bytes;
+  then a line `Kind: K`; then its summary, one paragraph of one
+  sentence of at most 200 bytes. Its sections are its `## ` headings,
+  each at most 80 bytes.
+- **Printable ASCII and line ends,** so that its rendered size is known
+  (section 3). Its examples are fenced blocks, as an agent types them.
+- **Links** between pages are `temper help NAME` in the text, which the
+  step test resolves.
+- **Placeholders,** in written pages, are `../draft/agent-docs.md` 5's
+  set alone: `DIR`, `CONFIG`, `DATA`, `CACHE`, `FILE`, `TEXT`, `KEY`,
+  `TASK`, `PROJECT`, `FORGE`, `INSTALLATION`, `ACCOUNT`, `REVISION`,
+  `PROPOSAL`, `PROVIDER`. In a fenced line that starts `temper `, a
+  word of capitals is one of them, or one that a walk's `Before you
+  start` declares, in a bullet that starts with it in a code span.
+- **Where it lives** is the repository: a change of behaviour and the
+  page that tells it land in one change.
+
+### 2.2 The kinds
+
+| Kind | Bound | Headings, in order | Names |
+|---|---|---|---|
+| `index` | 4,096 bytes | free; it names every other page but the reference and the guides once, by `temper help NAME` | `index` alone |
+| `concept` | 8,192 bytes | `What it is`; `How it changes` (optional); `What temper guarantees`; `Acting on it`; `Limits` | the map's nouns |
+| `walk` | 12,288 bytes | `Before you start`; numbered steps, `## 1. …`; `Clean up`; `Next` | the map's walks |
+| `recipe` | 3,072 bytes | `Goal`; `Settings`; `Enforced and followed`; `Checking it took` | the map's recipes |
+| `reference` | 32,768 bytes | a heading per row, its usage's words | generated (8.1 of the draft) |
+| `guide` | 32,768 bytes | free | `box`, `budgets`, `charters`, `forgejo`, `github`, `server`, `settings`, `tasks`, while each is not yet rewritten |
+
+- **A walk's step** holds its commands, then a paragraph that starts
+  `Expect:` with the output's first line verbatim, then one that starts
+  `If not:` with each other outcome a sound temper gives and its act.
+- **A concept** gives no verb's arguments or flags (`Acting on it` names
+  its ctl tools and host tools), and its `Limits` link the page
+  `configuration` for what needs a restart once that page exists.
+- **A rewritten guide** takes its place in the map under its new name
+  and kind in the same change that removes its `guide` row: `tasks`
+  becomes `task`, `chat` and `goal`; `charters` becomes `charter`,
+  `template` and `policy`; `settings` becomes `settings`, `revision` and
+  `proposal`; `budgets` becomes `budget`.
+- **At most 96 pages,** `MAX_PAGES`.
+
+### 2.3 The voice, checked
+
+Outside code spans and fenced blocks, a written page holds none of these
+words of the design's: `jig`, `smith`, `skein`, `.md`, `temper-` (a
+crate's prefix). The rest of the voice (`../draft/agent-docs.md`,
+section 6) is the writer's and the review's.
 
 ## 3. `temper-docs`
 
 A crate of no side (`README.md`, section 9), `#![no_std]` with `alloc`,
-that depends on nothing of temper's and that `temper` and
-`temper-engine-smith` depend on.
+that depends on nothing of temper's and that `temper`,
+`temper-client-tools` and `temper-engine-smith` depend on.
 
-- **The table:** `TOPICS: [Topic; N]`, each `Topic { name, kind, title,
-  summary, text }` as `&'static str`, its text the file's whole bytes by
-  `include_str!`, in the order the table lists them (walks, concepts,
-  recipes, limits, each by name). The table is written by hand; the
-  step test (section 6) keeps it equal to the directory.
-- **`find(name) -> Option<&Topic>`**, by the exact name.
-- **`page(topic, from, bytes) -> Page`:** the topic's text from byte
+- **The table:** `PAGES: [Page; N]`, each `Page { name, kind, title,
+  summary, text }` as `&'static str` (kind an enum of section 2.2's six),
+  its text the file's whole bytes by `include_str!`, in this order:
+  `index`, then the concepts, walks, recipes, reference pages and guides,
+  each by name. The table is written by hand; the step test (section 6)
+  keeps it equal to the directory.
+- **`find(name) -> Option<&Page>`**, by the exact name.
+- **`page(page, from, bytes) -> Cut`:** the page's text from byte
   `from`, cut at the last line end whose rendered size is within
   `bytes`, or, for a line longer than that, inside it; with `next`, the
-  exact offset where the page stopped, or none at the end. Sizes are
+  exact offset where the cut stopped, or none at the end. Sizes are
   rendered sizes, as the text renders in a JSON string: 2 bytes for
   `"`, `\` and a line end, 1 for every other byte. A `from` past the
-  end answers an empty page with no `next`.
+  end answers an empty cut with no `next`.
 - **`search(words, limit) -> Hits`:** the sections in which every word
-  appears, a topic's head (its title, kind line and summary) being a
-  section of its own, headed by its title, at offset 0, case folded on ASCII, in the table's order, then the
-  section's: each hit the topic's name, the section's heading, the
-  section's offset, and the section's first line holding the first
-  word, cut to 120 bytes; at most `limit` hits, with whether more
-  matched. Words are split on whitespace, at most 8 of at most 32 bytes
-  each; more, or longer, is refused naming the bound.
+  appears, a page's head (its title, kind line and summary) being a
+  section of its own, headed by its title, at offset 0, case folded on
+  ASCII, in the table's order, then the section's: each hit the page's
+  name, the section's heading, the section's offset, and the section's
+  first line holding the first word, cut to 120 bytes; at most `limit`
+  hits, with whether more matched. Words are split on whitespace, at
+  most 8 of at most 32 bytes each; more, or longer, is refused naming
+  the bound.
 
 ## 4. `temper help`
 
-- `temper help` prints the topics by kind, a line each: the name, the
-  title and the summary.
-- `temper help NAME` prints the topic whole, as its file holds it, and
-  exits 0; a name that is no topic exits 1, printing `temper: no topic
+- `temper help` prints the page `index` whole.
+- `temper help NAME` prints the page whole, as its file holds it, and
+  exits 0; a name that is no page exits 1, printing `temper: no page
   NAME; temper help lists them`.
 - `temper help --search WORDS...` prints at most 20 hits, a line each:
   `NAME: HEADING: LINE`, then `and more; narrow the words` when more
   matched; none exits 1, printing `temper: nothing matches`.
 - It reads no directory and no configuration: it works before `temper
-  init`. `temper --help` stays the commands' usage, and `temper ctl help`
-  the guide to ctl's tools (`../client/tools.md`, 11.5).
+  init`. `temper --help` stays the commands' usage until the binary's
+  table (`../draft/agent-docs.md`, 7.1); `temper ctl help` prints the
+  page `ctl`, then the tools (`../client/tools.md`, 11.5).
 
 ## 5. `read_docs`, for agents
 
 - **Declared in every charter** by `temper-engine-smith`, beside the
   forge's reads (`../domain/agent.md`, 4.3): `read_docs` with either
   `{"topic": NAME, "from": OFFSET}`, `from` 0 when absent, or
-  `{"search": "WORDS"}`, never both.
+  `{"search": "WORDS"}`, never both. A topic is a page.
 - **Answered at decode.** The engine's protocol layer decodes every
   admitted call (`../domain/root.md`, 5.2); a `read_docs` call it
   decodes is answered there, from `temper-docs`, as an undecodable call
@@ -109,11 +148,11 @@ that depends on nothing of temper's and that `temper` and
   same for every run, so no authority covers or refuses it, and a call
   asked again is answered the same.
 - **Its answer,** rendered by `temper-engine-smith` as every answer
-  is, never past `DOC_ANSWER`, 2,048 bytes whole: for a topic, its name
-  and title, a page of at most 1,536 rendered bytes, and either `next:
-  OFFSET` or `end`; for a search, at most 8 hits, each its topic's name,
+  is, never past `DOC_ANSWER`, 2,048 bytes whole: for a page, its name
+  and title, a cut of at most 1,536 rendered bytes, and either `next:
+  OFFSET` or `end`; for a search, at most 8 hits, each its page's name,
   heading, offset and line, with whether more matched; for a name that
-  is no topic, `no topic NAME` and the hits of a search for NAME's
+  is no page, `no topic NAME` and the hits of a search for NAME's
   words. Each part's bounds (a name's 32 bytes, a heading's 80, a
   line's 120, a title's 80) make the whole fit `DOC_ANSWER`, which a
   step test proves at the bounds. The start refuses a configuration
@@ -128,9 +167,9 @@ that depends on nothing of temper's and that `temper` and
 
 | Where | What |
 |---|---|
-| `temper-docs`' step tests | the table equals `docs/guide/`'s files, in name and bytes; each topic's title, kind line, summary and headings within section 2's bounds; every `temper help NAME` in a topic names a topic; `page` over a topic's lines (a cut at a line end, a long line cut at a character, `from` past the end, `next`); `search` over a small fixture table (all words, case, order, the limit and more) |
-| `temper`'s step tests | every fenced line of every topic that starts `temper ctl ` parses with ctl's argument parser to a tool; `temper help`, `help NAME`, an unknown name and `--search` print and exit as section 4 says |
-| `temper-engine-smith`'s step tests | `read_docs`' schema; a topic's first and next page; a search; an unknown topic; both members, or neither, answered as an error naming what is wrong |
+| `temper-docs`' step tests | the table equals `docs/help/`'s files, in name, kind and bytes; each page's head within 2.1's bounds; each page within its kind's bound, its headings its kind's (2.2), a walk's steps each with `Expect:`; the `guide` rows among the eight names alone; `index` names every concept, walk and recipe once; every `temper help NAME` in a page names a page; placeholders (2.1) and the voice's words (2.3) in written pages; `page` over a page's lines (a cut at a line end, a long line cut at a character, `from` past the end, `next`); `search` over a small fixture table (all words, case, order, the limit and more) |
+| `temper`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, and every one that starts `temper ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/tools.md` 5.3), printing the page as it should be; every setting field a written page names in a code span as `KIND.FIELD` is a row of `FIELDS`; `temper help`, `help NAME`, an unknown name and `--search` print and exit as section 4 says |
+| `temper-engine-smith`'s step tests | `read_docs`' schema; a page's first and next cut; a search; an unknown page; both members, or neither, answered as an error naming what is wrong |
 | the engine's domain world | a run's `read_docs` call answered with no commit, no record, and the run going on (one story) |
 
 None is a story of the real loop or of the process tier, and none adds
@@ -139,10 +178,8 @@ to a suite's time beyond milliseconds.
 ## 7. Open questions
 
 - **Translations.** Default: English only.
-- **The site.** Default: it renders `docs/guide/` at a release's tag;
-  temper serves no documentation page of its own until the user's pages
-  ask for one.
-- **A topic per release's changes,** read by the configuring agent when
+- **The site.** The user's: whatever it renders of `docs/help/`.
+- **A page of a release's changes,** read by the configuring agent when
   a release's revision changed a default (`../draft/configuring.md`,
-  3.2). Default: the release notes are a topic, `releases`, newest
-  first.
+  3.2). Default: a page `releases`, newest first, joining the map with
+  the first release.
