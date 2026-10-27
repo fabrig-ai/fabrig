@@ -1550,14 +1550,14 @@ into the binary.
 
 | Setting | Its value |
 |---|---|
-| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, worded by v0.1.0's ladder, whose walks test them (`../draft/v0.1.0.md`); this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of 20; the inspect, modify and agents tool families, no shell; a call's timeout 10 s |
+| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, worded by v0.1.0's ladder, whose walks test them (`../draft/v0.1.0.md`); this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect, modify and agents tool families, no shell; a call's timeout 10 s |
 | charter 2, a coding agent's | as charter 1, with today's `charters/coding.txt` |
 | template 1, a chat | jig's chat, run by charter 1, as `temper init` writes it today |
 | charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
 | template 2, a goal | jig's goal, its executor chosen |
 | template 3, the configuring chat | a chat, flagged conversation and labelled as jig's chat is, run by charter 3 |
-| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 100 for the project and for role 0, an authority's spend of 40, with the rules' grants and delegation; its ceiling's and role 0's tool families 515, delegation, messages and reads (jig's `ToolFamilies` Delegate, Message and Read), so that a chat reads the forge it works on and answers its delegates' questions; its ceiling's and role 0's delegation 12 tasks 4 deep, so that a chat's advisor and two dependent delegates, each with its change's procedure, producer, repair and review, fit (`../draft/v0.1.0.md`, rung B2) |
-| the rules | today's: tools 515, delegation, messages and reads, the forge's grants under `forge`, delegation to charters 1, 2 and 3 and the change procedure, 12 tasks 4 deep, a spend of 100, a run's spend from 1 to 10; and 13.3's two requirements |
+| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 515, delegation, messages and reads (jig's `ToolFamilies` Delegate, Message and Read), so that a chat reads the forge it works on and answers its delegates' questions; its ceiling's and role 0's delegation 13 tasks 4 deep, so that a chat's advisor and two dependent delegates, each with its change's procedure, producer, review and two repairs, fit (`../draft/v0.1.0.md`, rung B2) |
+| the rules | today's: tools 515, delegation, messages and reads, the forge's grants under `forge`, delegation to charters 1, 2 and 3 and the change procedure, 13 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | charter 2 |
 
@@ -1575,6 +1575,29 @@ into the binary.
   defaults of its own in that field's place, the settings its stories
   need, so that a story not about settings makes no change to reach
   them; the binary always passes the stock.
+- **Budgets in runs of the default model.** The stock computes C at
+  each start: one worst-case completion of the default model (the first
+  `engine.llm` configures), in the deployment's units, as jig prices it
+  for a run's admission (its window and output at its costliest
+  prices). A run is admitted only with two of them free (its reserve,
+  reserve turns 1 + 1), so its allowance is K = 4C: its admission and
+  room for its working turns. A delegate is given half of what its
+  parent has left (`../domain/agent.md`, 4.3.1, for `change`; a goal
+  likewise), so the stock sizes for the work it is used for (`../draft/v0.1.0.md`,
+  rungs A to B2): a change 5K, a producer, a review, two repairs and a
+  spare; an advisor K; a coordinator 11K, its own run and a change; a
+  chat 24K, its run, an advisor and two coordinators; the ceilings and
+  the periods 48K, twice a chat. A deployment whose models change
+  between starts gets new defaults, a release's revision (13.6, step 1).
+- **A fine unit.** smith charges each completion at least one whole
+  unit, so `temper init` states its models' prices in a unit a thousandth
+  of a coarse one, that floor costing a run nothing it needs; C, and so
+  every budget above, scales with it.
+- **The box's limits for that work.** `temper init`'s document raises
+  `tasks.result_bytes` to 2,048, within the message bound, so that an
+  advisor's report fits; its worst case is priced before it lands, and a
+  declared figure that rises goes to the director. The box's live tasks
+  stay jig's small profile's unless a story shows them binding.
 - **The stock sets floors under the limits.** Its own values must fit
   the limits they are checked against: a configuration whose
   `core.policy_bytes` is below policy 1's encoding, or whose
