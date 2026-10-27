@@ -1025,7 +1025,7 @@ starts from current code. It never updates only because its base moved.
   naming the review's failure, for its requester or a person to
   release or amend. Released, the change's own hold goes with its
   task's, in the same decision, and it asks for the gate afresh at that
-  head, its tries counted anew; amended, it decides as any amended
+  head, its tries counted anew, though not its tasks (8.4); amended, it decides as any amended
   change. Cancelled, its panel ends with it: a change's state is never
   left held or gating under a task that has ended. It never starts a repair, which would spend a
   repair's bound on nothing the change's diff did. A change's agents
@@ -1094,6 +1094,18 @@ starts from current code. It never updates only because its base moved.
 - **Bounded apart:** repairs past their limit, resolutions past theirs,
   updates past theirs, hold the change, saying why, and its requester
   hears.
+- **A step its authority no longer covers holds it too.** A change's
+  delegates (its producer, a review, a review asked again, a repair, a
+  resolution) are made under the change's own authority, its tasks
+  consumed by each (jig's `authority.md`, section 5). A step whose
+  delegate that authority no longer covers (the tasks its subtree may
+  make all made, its depth, its spend below a run's reserve) holds the
+  change, naming what it lacks and what it had ("its 4 tasks are
+  made"), and its requester hears; it never waits due with nothing to
+  run. Released, it asks again: a release that gives what it lacks
+  (jig's `authority.md`, section 9, a release needing what the task
+  lacks) lets it go on, a bare one holds it again, saying so, and the
+  hold's way out names the cancel and a fresh ask beside it.
 - **Stalls:** each wait on the forge (CI that never reports, a
   mergeability never known, a forge's merge queue that neither lands
   nor ejects it, a gate's task stuck) is bounded by a stall counted from
