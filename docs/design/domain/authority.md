@@ -364,8 +364,9 @@ deployment's rules       the most any project may have; requirements on effects
   section 10).
 - **A change of spend per period resizes what it opened,** in the
   decision that commits it: the project's spend its open period, and a
-  role's (`RoleSpend`, its spend alone) the open pool of each party
-  holding it, one set by hand among them (people.md, 5.1). Each budget
+  role's (`RoleSpend`, its spend alone, or a whole role's edit that
+  changes it) the open pool of each party holding it, one set by hand
+  among them (people.md, 5.1). Each budget
   becomes the new spend, or what it has reserved and spent when that is
   more: a raise funds the next root task at once, and a cut takes
   nothing back. A pool reserves its budget from the project's period,
