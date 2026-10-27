@@ -256,8 +256,11 @@ any `delegate` (jig's authority, named and decided once):
   the repository's resource and its default branch as the landing
   branch; a change's contract;
 - **its authority, the run's own narrowed:** the run's grants of the
-  kinds a change makes (forge.md, section 6: a push, open, merge, edit,
-  update, close or reopen a pull request); the forge's charter as the
+  forge's reads (kind 1, forge.md, section 2) and of the kinds a change
+  makes (forge.md, section 6: a push, open, merge, edit, update, close
+  or reopen a pull request), on the change's repository, which every
+  agent of the change holds, so that its reviewer and its repairs read
+  the pull request, its files and CI's logs; the forge's charter as the
   only kind it may delegate, and a person's role where a landing rule
   covering the branch names a person gate; at most 4 tasks, one fewer
   than the run has left, and a depth of at most 2; no notes; half of

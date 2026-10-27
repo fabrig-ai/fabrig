@@ -862,6 +862,11 @@ branch. Its parameters:
 A chat asks for one with `change`, giving the words alone, and the root
 fills in the rest from the project (`agent.md`, 4.3.1).
 
+Its agents hold the forge's reads (kind 1, section 2) on its
+repository, beside the kinds it makes (`agent.md`, 4.3.1): a reviewer
+reads its own pull request and its files, and a repair a failed job's
+log, through the reads an agent may call, past what its brief carries.
+
 A change asks no one. What to change is agreed before it is asked for,
 by a goal that asks first where its person wants to agree a plan
 (`agent.md`, 8.2), and the procedure delegates its agents without the
