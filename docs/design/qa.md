@@ -103,6 +103,24 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   (jig's `domain/people.md`, 5.1); and its 2 load slots are too few for
   a restart with held work loaded. These are a QA box's, as the budget
   is (below); the product's own values are the user's, settled apart.
+- **One configuration, checked before the first start.** Every change
+  above (the model, its output and efforts, the room) is made in
+  `CONFIG` after `temper init` and before the box's first start, with
+  the limits a 32,000 output needs (a turn larger than init's stock
+  holds: its turn, transcript and load bytes raised to the figures
+  `protocol/configuration.md` names for it). Then, before the first
+  start and before every restart, the pass or walk checks it, and stops
+  if any line prints other than `true`, reporting a setup to redo, never
+  a finding:
+
+  ```
+  jq -e '.engine.llm.models[0] | .name == "gpt-6.1-sol" and .output == 32000 and .efforts[0] == "high"' CONFIG/temper.json
+  jq -e '.engine.limits.overrides["people.requests"] == 128 and .application.limits.overrides["root.loads.loads"] == 32' CONFIG/temper.json
+  jq -e '.endpoints[0].models[0] | .name == "gpt-6.1-sol" and .output == 32000' CONFIG/agent.json
+  ```
+
+  A QA brief carries these three lines, and a box set up by an earlier
+  `main` than this section's is set up again.
 - **A budget never stops a walk** (the user, 10-27, "raise the budget if
   needed"): the stock holds a rung in arithmetic (a 100k-token turn is
   about 100 units against a run's K of 4,324), but a walk raises its
