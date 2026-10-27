@@ -693,7 +693,11 @@ deadline, circles, a procedure's need) keep their rules.
   the hold's owner, whatever the tree's authority, a party's in their
   inbox and a task's among its entries, and only those who may lift the
   hold accept it, which releases the task as their own release would. A
-  hold lifted, or its revision moved, withdraws it.
+  hold lifted, or its revision moved, withdraws it. Accepting one is one
+  step: the release judged as the accepter's own, then made (a root's
+  lifting the hold whole), then the proposal accepted and the hold's
+  other proposals withdrawn; a release refused refuses the acceptance,
+  and changes nothing.
 - **One at a time:** a task is held by one placed hold, the first
   standing one that covers it; released from it, it is judged afresh
   against the others.
