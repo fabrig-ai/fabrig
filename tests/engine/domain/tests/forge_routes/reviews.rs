@@ -806,6 +806,53 @@ fn change_authority(world: &mut World, task: u64, tasks: Option<u32>, depth: Opt
     panic!("amendment committed: {:?}", world.answers);
 }
 
+// review_world has consumed the producer and review; the chat is also assigned.
+const PRODUCER_AND_REVIEW: u32 = 2;
+const BEFORE_REPAIR: usize = 3;
+
+fn rejected_review_with_tasks(tasks: u32) -> (World, u64) {
+    let (mut world, reviewer, _) = review_world();
+    let change = requester(&world, reviewer.task);
+    change_authority(&mut world, change, Some(tasks), None, None);
+    finish_review(
+        &mut world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 2, fields: Box::new([]), words: b"repair the diff".as_slice().into() },
+    );
+    (world, change)
+}
+
+#[test]
+fn one_task_left_admits_the_reviews_repair() {
+    use temper_engine_domain_forge_change::{Repair, State};
+    const WITH_REPAIR: u32 = PRODUCER_AND_REVIEW + 1;
+    let (mut world, change) = rejected_review_with_tasks(WITH_REPAIR);
+    let repair = next_assignment(&mut world, BEFORE_REPAIR);
+    assert_eq!(requester(&world, repair.task), change, "jig admitted the change's repair");
+    assert!(matches!(live_task(&world, repair.task).contract, tasks::Contract::Change { .. }));
+    assert_eq!(change_row(&world, change).change.state, State::Repairing { requested: true, why: Repair::Gate(1) });
+    let row = live_task(&world, change);
+    assert_eq!(row.authority.delegation.tasks, WITH_REPAIR);
+    assert_eq!(row.made, WITH_REPAIR + 1, "made counts the change itself; its final task was admitted");
+    assert!(!matches!(row.phase, tasks::Phase::Held { .. }));
+}
+
+#[test]
+fn no_tasks_left_holds_before_the_reviews_repair() {
+    let (mut world, change) = rejected_review_with_tasks(PRODUCER_AND_REVIEW);
+    wait_held(&mut world, change);
+    assert_authority_hold(
+        &world,
+        change,
+        temper_engine_domain_forge_change::AuthorityLack::Tasks,
+        b"its 2 tasks are made",
+        false,
+    );
+    assert_eq!(live_task(&world, change).made, PRODUCER_AND_REVIEW + 1);
+    assert_eq!(world.assigned.len(), BEFORE_REPAIR, "no repair was attempted");
+    assert_eq!(change_row(&world, change).change.repairs, 0);
+}
+
 #[test]
 fn a_release_with_more_tasks_lets_it_go_on() {
     let (mut world, task, head) = past_tasks();

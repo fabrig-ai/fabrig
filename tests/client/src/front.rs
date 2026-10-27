@@ -525,6 +525,9 @@ impl Joint {
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
         const SLOTS: u32 = 1;
+        // domain/forge.md, 8.4: six descendants, plus the change itself.
+        const CHANGE_DESCENDANTS: u32 = 6;
+        const TREE_TASKS: u32 = CHANGE_DESCENDANTS + 1;
         use jig_domain_authority as a;
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
             let (mut config, mut limits) = Self::procedure_config(seed);
@@ -552,6 +555,7 @@ impl Joint {
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
             rules.ceiling.delegation.kinds = Box::new([a::Executor::Charter(1), a::Executor::Procedure(2)]);
             rules.ceiling.delegation.depth = 2;
+            rules.ceiling.delegation.tasks = TREE_TASKS;
             // This pushed-branch path needs read, push, open, land and its goal's issue.
             let grants: Box<[a::Grant]> = [1, 2, 3, 4, 8]
                 .map(|kind| a::Grant {
@@ -589,7 +593,7 @@ impl Joint {
             limits.documents.lines = 3;
             limits.tasks.tasks = 3;
             limits.tasks.project_tasks = 3;
-            limits.tasks.tree_tasks = 3;
+            limits.tasks.tree_tasks = TREE_TASKS;
             limits.tasks.depth = 2;
             limits.tasks.parameters = 5;
             // A gate's brief spec includes its branch and hexadecimal head.

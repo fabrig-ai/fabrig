@@ -288,7 +288,7 @@ fn leaving_a_live_change_page_releases_its_watch() {
 fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     let (mut world, task) = change_world();
     let client = world.client(fixtures::PARTY, fixtures::task_page(task));
-    review(&mut world, client);
+    let delegate = review(&mut world, client);
     let head = panel(&world, client).head().expect("pushed head");
     let limits = world.front().engine.env.limits.forge.client;
     let stand = world.front().engine.forge.as_mut().expect("fake forge");
@@ -307,6 +307,13 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
         panel(&world, client).ci(),
         &wire::Ci::Passed,
         "design domain/forge.md 8.8: the panel keeps the last step's CI, until another step reads it"
+    );
+    // The running review owns the remaining spend. End it so jig can fund
+    // the repair when the next step reads the failed CI.
+    finish_review(
+        &mut world,
+        delegate,
+        jig_domain_tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
     );
     for _ in 0..150 {
         tick(&mut world);
