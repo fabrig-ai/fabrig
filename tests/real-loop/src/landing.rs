@@ -206,6 +206,7 @@ pub(crate) fn size_journal_writes(value: &mut Value) {
         + core.people.pending * 2
         + jig_domain_fleet::max_out(&core.fleet) * 4
         + temper_engine_domain_forge::max_out(&own.forge)
+        + 2 * core.authority.projects
         + core.tasks.tasks
         + 4;
     let settings = jig_domain_core::settings::writes_worst_case(core).expect("fixture settings writes");
