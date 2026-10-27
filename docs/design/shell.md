@@ -190,7 +190,10 @@ reads with the kit (6.1). Then `main` makes the service and calls `drive`
 
 A panic is fail-stop, and a supervisor restarts the process. Before
 step 1, `main` installs `skein_fail_stop`'s hook, which aborts on a
-panic in a build that unwinds (programming-model.md, 2).
+panic in a build that unwinds (programming-model.md, 2). Its report
+carries the panic's backtrace, once, whatever the environment says
+(`RUST_BACKTRACE` set or not): an abort in a deployment is often seen
+once, in a log, and its frames are what says where it was.
 
 ### 6.1 Reading files at startup
 
