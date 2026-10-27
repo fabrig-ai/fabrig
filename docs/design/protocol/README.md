@@ -234,6 +234,22 @@ default; the document is `temper.json` in the configuration directory
     key, at most 64, then how many more, and exits 1:
     `temper serve: task {task}'s forge write {entry} is still in flight; start the build before this one and stop it to settle it`;
     `temper serve: and {n} more forge writes in flight`.
+  - A start refused at a step of its restart (jig's `domain/engine.md`,
+    section 6; `../domain/root.md`, 9.1) prints the refusal in the
+    restart's own words, `temper serve: ` then the step and what it
+    refused (`restore census: row outside requested range`), and exits
+    1. The catch-all `unknown reference` is left for a refusal nothing
+    names. The refused process ends whole: it closes every listener it
+    holds, the box's given ones too, whether or not a component took
+    one, and its ended root settles each worker's pending release at
+    once, so neither a listener nor a worker keeps it open.
+  - Under the box, a refused start is a long step's exit like any other
+    (setup.md, 7.2): restarted after its backoff, its refusal printed
+    at each exit, the box giving up, exit 1, past `box.restarts` within
+    `box.window_ms`. No refusal is told apart as lasting. The box reads
+    no step's reasons, and a retry is a restart, which makes nothing
+    twice; a cause repaired during the backoff (a setting, the disk)
+    lets the next attempt start.
 - **`temper init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
   configuration directory holds a document (setup.md, 8.2).
