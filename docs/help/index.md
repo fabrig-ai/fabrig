@@ -60,6 +60,8 @@ temper runs software work for people: agents take tasks on the repositories of a
   its site admin.
 - temper help server: a long-lived deployment on a server, its
   workers on another host, and its redeploy.
+- temper help configure: the settings changed while the deployment
+  runs, running work moved, and a value restored.
 
 ## Placeholders
 

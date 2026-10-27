@@ -79,7 +79,7 @@ pub struct Page {
 
 /// `index`, then the concepts, walks, recipes, reference pages and guides, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 45] = [
+pub static PAGES: [Page; 46] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -240,6 +240,13 @@ pub static PAGES: [Page; 45] = [
         title: "Run a local box",
         summary: "Run a whole deployment on one machine, on loopback, from its configuration to a change landed on its own Forgejo, then stop it without losing the model's account.",
         text: include_str!("../../../docs/help/box.md"),
+    },
+    Page {
+        name: "configure",
+        kind: Kind::Walk,
+        title: "Change how work runs",
+        summary: "Change a deployment's settings while it runs: read them, write a settings file, apply or propose it, see that it took, move running work to it, and restore what was there.",
+        text: include_str!("../../../docs/help/configure.md"),
     },
     Page {
         name: "forgejo",
