@@ -550,7 +550,7 @@ Every gap of `process-model.md` 12, with its steps:
 | T15 views and acts | every step, through `temper ctl` |
 | B1, B4 the forge's calls and adoption | 4.3, 5.1, 5.2 |
 
-B2 and B3, GitHub's, come when the case runs on GitHub. The first pair
+B2, B3, B5 and B6, GitHub's, come when the case runs on GitHub. The first pair
 of backends is an owned Forgejo.
 
 ## 12. Left out, and why

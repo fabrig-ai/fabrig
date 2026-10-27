@@ -256,7 +256,12 @@ Unqualified, forge.md is temper's `../domain/forge.md`.
 - **Where candidates go:** temper pushes each candidate to its member's
   own branch, so the pull request shows what will land (gap T5):
   - **a rebase is a forced update** of that branch, guarded by the head
-    temper last read, and allowed only on branches the change holds;
+    temper last read, and allowed only on branches the change holds.
+    Where the forge's rules dismiss approvals on a push, it dismisses
+    the forge's approvals as well, though the member's diff is the
+    same. temper's receipt for a judgement holds (4.4), but the forge's
+    required approvals then refuse a merge commit (4.6) until a person
+    approves again;
   - **a pin-only member** gets a branch and a pull request of its own;
   - **a repository with several members** gets the stack on its last
     member's branch.
@@ -285,6 +290,7 @@ Unqualified, forge.md is temper's `../domain/forge.md`.
   `temper/gate/<name>`, with the key in its description and the run as
   its link. A fast-forward makes main's commit the candidate, so main
   shows the statuses that proved it, and protection can require them.
+  On GitHub, temper's App must be able to write statuses (gap B3).
 
 ### 4.5 Proof
 
@@ -316,23 +322,39 @@ Unqualified, forge.md is temper's `../domain/forge.md`.
 - **First, it checks the bases.** If a member's main is not its
   candidate's parent any more, the proof is stale. The landing goes
   back to prepare, and its other members keep their receipts.
-- **Then it lands each member, upstream first:**
+- **Then it lands each member, upstream first,** by a fast-forward of
+  its main to the candidate:
   - on Forgejo, by merging the pull request with `fast-forward-only` at
     `head_commit_id`, the candidate;
-  - elsewhere, by a fast-forward update of the branch's ref, refused if
-    it is not a fast-forward;
+  - on GitHub, which merges no pull request fast-forward, by updating
+    main's ref to the candidate, refused if it is not a fast-forward
+    (gap B2). The update is a push, so it passes a rule that requires a
+    pull request only where temper's App may always bypass it
+    (`Always`; `PullsOnly` is not enough). A ruleset's bypass covers
+    every rule in it, so it may waive required checks as well, but the
+    candidate carries temper's statuses (4.4) and meets them either
+    way;
   - where neither is open to temper, by the forge's merge commit at the
     guarded head. Its tree is the candidate's, because the candidate's
-    parent is main's tip (gap B2).
+    parent is main's tip. main's commit is then not the candidate:
+    temper posts the candidate's receipts on it as statuses, since its
+    key is the same, and runs nothing again; a downstream pins its
+    upstream's candidate, which is main's second parent, not its tip;
+    and a branch that requires linear history cannot land this way.
 
-  Either way, temper reads main's new tree and compares it to the
+  Each way, temper reads main's new tree and compares it to the
   candidate's. A rebase or squash merge is never used for a repository
   that others pin, because the pinned commit has to stay on its main.
+- **A branch whose rules require the forge's merge queue** takes no
+  turn: the queue lands by its own method, at a commit temper did not
+  prove. Adoption says so, with the bypass that would let temper land
+  (gap B2).
 - **The pull request is marked merged** by the merge itself, or, after
   a ref update, by the forge once main holds its head. In a stack, the
-  members below the top are marked the second way, which on Forgejo
-  needs the repository's "autodetect manual merge". temper never pushes
-  main from a checkout, and never runs a gate inside the turn.
+  members below the top are marked the second way. GitHub always does
+  this; Forgejo needs the repository's "autodetect manual merge". temper
+  never pushes main from a checkout, and never runs a gate inside the
+  turn.
 - **Partial:** if the turn ends with some members landed (a forge
   error, or a main moved by someone outside temper), the landing is
   partly landed. The landed members stay landed. A downstream that has
@@ -514,6 +536,11 @@ finding, a flake, a red whose goal has ended, or a review's follow-up.
 - **A landing whose change says `Fixes #n`** (in its commit or its pull
   request) closes finding *n* once the landing is **cleared**, not when
   it lands.
+- **The forge's own closing keywords** would close it when the change
+  lands. In a member repository other than the home, they would close
+  that repository's issue *n* instead. Forgejo's setup turns them off.
+  GitHub has a per-repository setting, "Auto-close issues with merged
+  linked pull requests", which adoption names (gap B6).
 - **A finding a person closes** on the forge is closed in temper as
   well.
 
@@ -645,10 +672,12 @@ Its paths are jig's, unless marked temper's.
 
 | Id | Gap | Grade | Today |
 |---|---|---|---|
-| B1 | Calls in skein's forge protocol: dispatch a workflow with inputs, rerun failed jobs, read a run's artifacts, write a commit status, merge fast-forward only at a head | design | skein's `forge.md` reads CI and statuses; Forgejo 17's API has every call (`actions/workflows/{file}/dispatches`, `actions/runs/{id}/rerun`, `actions/runs/{id}/artifacts`, `statuses/{sha}`, merge `Do: fast-forward-only` with `head_commit_id`) |
-| B2 | GitHub: no fast-forward merge; a ref update needs a bypass of the pull-request rule, or the member lands by a merge commit whose tree is checked | to check | temper's App has `statuses: read` and no more (`../domain/forge.md`, 8.3) |
-| B3 | GitHub App permissions: statuses and actions written | design | `../protocol/setup.md`, 17.1 |
-| B4 | Adoption checks a repository's workflows are dispatch-only, and Forgejo's "autodetect manual merge" is on where landings stack | design | adoption reads the branch's rules (`../domain/forge.md`, 4.4) |
+| B1 | Calls in skein's forge protocol: dispatch a workflow with inputs, rerun failed jobs, read a run's artifacts, write a commit status, merge fast-forward only at a head, update a ref fast-forward only | design | skein's `forge.md` reads CI and statuses; Forgejo 17's API has every call (`actions/workflows/{file}/dispatches`, `actions/runs/{id}/rerun`, `actions/runs/{id}/artifacts`, `statuses/{sha}`, merge `Do: fast-forward-only` with `head_commit_id`); GitHub's has each but the fast-forward merge (B2): `actions/workflows/{file}/dispatches`, which since 2026-02 answers the run's id with `return_run_details`, `actions/runs/{id}/rerun-failed-jobs`, `actions/runs/{id}/artifacts`, `statuses/{sha}`, and `PATCH git/refs/heads/{branch}` with `force: false` |
+| B2 | GitHub: no fast-forward merge. The turn updates main's ref to the candidate, which needs the App's `Always` bypass of the pull-request rule. Without it, the member lands by a merge commit at the guarded head: its tree is checked, the receipts are posted again on it, and a branch requiring linear history cannot land. A required merge queue takes no turn | design | `turn` is refused on GitHub (`../domain/landing.md`, 8 and 13.1); the App's bypass is read as `Never`, `PullsOnly` or `Always` (`../domain/forge.md`, 4.4) |
+| B3 | GitHub App permissions: statuses and actions written, so that receipts are mirrored, verdicts posted and gates dispatched; the bypass `Always` asked where landings take the turn | conflict | the App reads statuses and actions and writes neither, and GitHub's rules cannot require temper's statuses (`../domain/forge.md`, 4.4 and 8.3; `../protocol/setup.md`, 17.1) |
+| B4 | Adoption checks a repository's workflows are dispatch-only, and Forgejo's "autodetect manual merge" is on where landings stack (GitHub always marks such a pull request merged) | design | adoption reads the branch's rules (`../domain/forge.md`, 4.4) |
+| B5 | GitHub's `workflows` permission, so that temper can push a change under `.github/workflows/`: a gate's or a tier's definition, or a member rebased over one. It widens what an agent can make CI run. Whether GitHub also refuses a ref update or a merge that brings such a change, without it, is to check | design | the App never takes it, and GitHub refuses its push (`github.md`, 10.3; asked for later, 18) |
+| B6 | The forge's closing keywords: GitHub's "Auto-close issues with merged linked pull requests" named at adoption. To check: whether it also stops a keyword in a commit pushed to main by a ref update. To design: a reference to a finding, in a member repository other than the home, that no forge reads as that repository's own issue | to check | Forgejo's setup turns its keywords off; on other forges temper reopens what a keyword closed (`../domain/findings.md`, section 7) |
 
 ## 13. Open questions
 
@@ -661,5 +690,8 @@ Its paths are jig's, unless marked temper's.
   commits on main. The project chooses. Which should be the default?
 - **The bound and the goal:** whether a goal can close at *landed,
   uncleared* on its own judgement before the bound.
+- **GitHub without `Always`:** land by merge commit, with main's commit
+  not the candidate (4.6), or refuse `turn`, as `../domain/landing.md`,
+  8 does today.
 - **Tiers on the forge's runners or on workers:** both are allowed
   here. Which is the default for a box with an owned Forgejo?
