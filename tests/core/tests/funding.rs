@@ -32,22 +32,27 @@ fn a_role_raise_after_reserved_cuts_and_chat_end_answers_and_allows_a_later_act(
     let mut world = World::configured(611, false, world::config(611), limits);
     let period = tasks::Funder::Period { project: 1, period: 1 };
     let pool = tasks::Funder::Pool { project: 1, person: 1, period: 1 };
+    jig_core_world::fixtures::finish_chat(&mut world, 25, b"earlier settled chat");
+    let chat = jig_core_world::fixtures::chat(&world, 1, b"work reserved during cuts".as_slice().into());
+    ask(&mut world, 30, chat);
+    assert!(matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Created { .. }))));
+    assert_eq!(ledger(&world, pool).numbers.spent_below, 25);
     assert_eq!(ledger(&world, pool).numbers.reserved, 100);
     ask(
         &mut world,
         25,
         people::Ask::ChangePolicy { project: 1, change: people::PolicyChange::RoleSpend { role: 0, period_spend: 0 } },
     );
-    assert_eq!(ledger(&world, pool).numbers.budget, 100);
+    assert_eq!(ledger(&world, pool).numbers.budget, 125);
     ask(
         &mut world,
         26,
         people::Ask::ChangePolicy { project: 1, change: people::PolicyChange::ProjectSpend { period_spend: 0 } },
     );
-    assert_eq!(ledger(&world, period).numbers.budget, 100);
-    jig_core_world::fixtures::finish_chat(&mut world, 25, b"reserved cut completed");
+    assert_eq!(ledger(&world, period).numbers.budget, 125);
+    jig_core_world::fixtures::finish_chat(&mut world, 5, b"reserved cut completed");
     assert_eq!(ledger(&world, pool).numbers.reserved, 0);
-    assert_eq!(ledger(&world, pool).numbers.spent_below, 25);
+    assert_eq!(ledger(&world, pool).numbers.spent_below, 30);
     ask(
         &mut world,
         27,
