@@ -487,6 +487,22 @@ pub(crate) fn continued(
 
 pub(crate) use jobs::cancel as cancel_jobs;
 
+/// Relay the run's one yield request only while this session owes a completion.
+pub(crate) fn yield_completion(domain: &Domain, session: Token, out: &mut Queue<Request>) {
+    let Some(id) = addressed(&domain.sessions, session) else {
+        return;
+    };
+    match domain.sessions.get(id).expect("addressed session").state {
+        State::Calling { .. } => out.push(Request::Yield { owner: id.token() }),
+        State::Backoff { .. }
+        | State::Tooling { .. }
+        | State::Resting { .. }
+        | State::Yielded
+        | State::Closing { .. }
+        | State::Closed => {}
+    }
+}
+
 pub(crate) fn close(domain: &mut Domain, env: &Env<Limits>, session: Token, out: &mut Queue<Request>) {
     let mark = out.len();
     let Some(id) = addressed(&domain.sessions, session) else {
@@ -1353,6 +1369,7 @@ fn tell(facts: &mut Facts, runs: &Slab<Run>, session: &mut Session, out: &Queue<
             | Request::Turn { .. }
             | Request::Priced { .. }
             | Request::Cancel { .. }
+            | Request::Yield { .. }
             | Request::Withdraw { .. }
             | Request::Io { .. }
             | Request::Job { .. }
@@ -1375,6 +1392,7 @@ fn tell(facts: &mut Facts, runs: &Slab<Run>, session: &mut Session, out: &Queue<
             | Request::Turn { .. }
             | Request::Priced { .. }
             | Request::Cancel { .. }
+            | Request::Yield { .. }
             | Request::Withdraw { .. }
             | Request::Io { .. }
             | Request::Job { .. }

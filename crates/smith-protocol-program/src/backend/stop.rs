@@ -24,24 +24,26 @@ pub(super) enum Stop {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum WindDown {
     Ordinary,
+    /// A one-shot domain request waits for startup or a window switch to settle.
+    YieldRequested,
     Finishing,
 }
 
 impl Backend {
-    /// Whether the service can relay a domain wind-down decision without
+    /// Whether the backend can act on a domain yield request without
     /// repeating an interrupt already waiting on its result (programs.md 5.9).
     #[must_use]
-    pub fn can_yield_for_wind_down(&self) -> bool {
+    fn can_yield_for_wind_down(&self) -> bool {
         self.phase == Phase::Running
             && self.owner.is_some()
             && self.stop == Stop::None
-            && self.winding == WindDown::Ordinary
+            && self.winding != WindDown::Finishing
             && !self.turns.result
     }
 
     /// Relay the domain's request to end main's in-flight program turn before
     /// its finishing note. The result remains this Complete's one terminal.
-    pub fn yield_for_wind_down(
+    pub(super) fn yield_for_wind_down(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
         up: &mut Queue<ToDomain>,
@@ -50,6 +52,7 @@ impl Backend {
         if !self.can_yield_for_wind_down() {
             return;
         }
+        self.winding = WindDown::Ordinary;
         if self.active_turn() {
             self.stop(env.now, true, true);
             self.stop = Stop::Yielding;
@@ -83,7 +86,7 @@ impl Backend {
     ) -> Option<FromDomain> {
         let (prompt, capture) = match &mut request {
             FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
-            FromDomain::Cancel { .. } => unreachable!("completion route"),
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
         };
         match &prompt.choice {
             llm::ToolChoice::Only(_) | llm::ToolChoice::None if self.winding == WindDown::Ordinary => {}

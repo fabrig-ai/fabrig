@@ -94,6 +94,8 @@ pub enum Event {
     Close { session: Token },
     /// Cancel the session's jobs; `JobsCancelled` follows their settlement.
     CancelJobs { session: Token },
+    /// The run asks this session to yield its outstanding Complete; its terminal remains owed.
+    Yield { session: Token },
     /// The program reports a built-in call's result after its completion (protocol/programs.md, 5.5).
     BuiltinResult { session: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// Terminal for `Complete`: the LLM produced its next message.
@@ -233,6 +235,11 @@ pub enum Request {
     /// Abandon the `Complete` in flight for `owner`. Its terminal event still
     /// comes: `Cancelled`, or whichever outcome won the race.
     Cancel { owner: Token },
+    /// End the owner's outstanding completion at the backend's next boundary,
+    /// delivering what it holds as that completion. A backend that cannot end
+    /// it early lets it complete normally. No terminal of its own is owed;
+    /// an owner with no outstanding completion is ignored.
+    Yield { owner: Token },
     /// Ask io for `op` for the tools, giving up at `deadline`: io runs the
     /// race (programming-model.md, section 5.3).
     Io {

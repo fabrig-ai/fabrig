@@ -438,6 +438,7 @@ pub(super) fn tell(conversation: &mut Conversation, facts: &mut crate::facts::Fa
         | Request::Used { .. }
         | Request::Priced { .. }
         | Request::Cancel { .. }
+        | Request::Yield { .. }
         | Request::Io { .. }
         | Request::Job { .. }
         | Request::CancelIo { .. }

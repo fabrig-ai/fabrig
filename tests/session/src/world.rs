@@ -1139,6 +1139,7 @@ impl World {
                 | agent::Request::Withdraw { .. } => sent += 1,
                 agent::Request::Complete { .. }
                 | agent::Request::Cancel { .. }
+                | agent::Request::Yield { .. }
                 | agent::Request::Io { .. }
                 | agent::Request::Job { .. }
                 | agent::Request::CancelIo { .. } => {}
@@ -1162,7 +1163,7 @@ impl World {
                 );
                 session.priced += 1;
             }
-            agent::Request::JobsCancelled { .. } => {}
+            agent::Request::JobsCancelled { .. } | agent::Request::Yield { .. } => {}
             agent::Request::Opened { opener, session } => self.opened(opener.raw(), session),
             agent::Request::Yielded { opener, stop, text } => self.yielded(opener.raw(), stop, text),
             agent::Request::Used { opener, usage } => {
@@ -2078,6 +2079,7 @@ fn ended_run(event: &agent::Event) -> Option<Token> {
         | agent::Event::Open { .. }
         | agent::Event::Continue { .. }
         | agent::Event::CancelJobs { .. }
+        | agent::Event::Yield { .. }
         | agent::Event::Close { .. }
         | agent::Event::Completed { .. }
         | agent::Event::Overflowed { .. }
@@ -2095,6 +2097,7 @@ fn describe_agent_event(event: &agent::Event) -> String {
         agent::Event::BuiltinResult { session, id, text, error } => {
             format!("builtin result {} {id:?} {text:?} {error}", session.raw())
         }
+        agent::Event::Yield { session } => format!("yield completion {}", session.raw()),
         agent::Event::CancelJobs { session } => format!("cancel jobs {}", session.raw()),
         agent::Event::AnswerWithheld { owner } => format!("answer withheld {}", owner.raw()),
         agent::Event::AnswerCancelled { owner, spent, .. } => format!("answer cancelled {} {spent}", owner.raw()),
@@ -2143,6 +2146,7 @@ fn describe_agent_request(request: &agent::Request) -> String {
             let (messages, most) = (prompt.messages.len(), prompt.max_tokens);
             format!("complete {} with {messages} messages, at most {most} tokens, deadlines {deadlines:?}", owner.raw())
         }
+        agent::Request::Yield { owner } => format!("yield completion {}", owner.raw()),
         agent::Request::Cancel { owner } => format!("cancel {}", owner.raw()),
         agent::Request::Io { owner, op, deadline } => format!("io {} {op:?} by {}", owner.raw(), deadline.as_nanos()),
         agent::Request::Job { .. } => unreachable!("the tools issue no job act yet"),

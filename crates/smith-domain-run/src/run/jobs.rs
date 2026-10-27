@@ -22,7 +22,8 @@ pub(crate) fn cancelled(domain: &mut Domain, env: &Env<Limits>, conversation: To
     let Some(id) = domain.calls.exclusive(conversation) else { return };
     let call = domain.calls.get_mut(id).expect("exclusive call waits for jobs");
     domain.facts.about(call.run.token());
-    let run = domain.runs.get_mut(call.run).expect("writer retains its run");
+    let run_id = call.run;
+    let run = domain.runs.get_mut(run_id).expect("writer retains its run");
     match &mut call.work {
         Work::Landing(landing) => {
             if !may_finish(&run.state) {
@@ -68,6 +69,7 @@ pub(crate) fn cancelled(domain: &mut Domain, env: &Env<Limits>, conversation: To
                     domain.conversations.retire(child);
                     retire_call(&mut domain.calls, &mut domain.alarms, &mut domain.conversations, id);
                     if finishing {
+                        domain.ready.keep(run_id);
                         child_ready(run, out);
                     }
                 }

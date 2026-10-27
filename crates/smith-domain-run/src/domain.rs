@@ -1,9 +1,9 @@
 //! The run child domain's state and its entry points (domain/run.md, sections
 //! 3, 5, 6 and 10; programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains seeded admission randomness, runs, conversations, delegated calls,
-//! alarms, deferred child closures and bounded facts.
+//! alarms, deferred wind-down effects and bounded facts.
 //! [`step`] accepts parent events, [`fire`] handles due alarms and [`resume`]
-//! settles deferred child closures after a reclaim point. All three emit
+//! emits deferred child closures and main's yield after a reclaim point. All three emit
 //! bounded requests. This module never knows provider syntax, credential
 //! secrets, host policy or the contents of a delivered receipt.
 
@@ -90,15 +90,6 @@ impl Domain {
             Some(at) => at <= now,
             None => false,
         }
-    }
-
-    /// Whether Open main must yield its in-flight completion for the run's
-    /// first finishing note (domain/run.md 9.1; protocol/programs.md 5.9).
-    /// The service relays this decision to its program adapter; no turn is
-    /// counted and no reply is chosen by observing it.
-    #[must_use]
-    pub fn needs_wind_down_yield(&self, run: Token) -> bool {
-        run::needs_wind_down_yield(&self.runs, run)
     }
 
     /// Calls of conversations to the run, returned ones included until they

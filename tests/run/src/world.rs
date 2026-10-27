@@ -1018,7 +1018,7 @@ impl World {
                 current = Some(self.observed_turn(host_run, number, read, spent));
             }
             run::Request::CompletionReady { conversation } => self.completion_ready(conversation),
-            run::Request::MessageRefused { .. } => {}
+            run::Request::MessageRefused { .. } | run::Request::Yield { .. } => {}
             run::Request::Waiting { host_run, read } => {
                 current = Some(self.observed_waiting(host_run, read));
             }
@@ -1363,6 +1363,7 @@ impl World {
             | run::Request::Open { .. }
             | run::Request::Say { .. }
             | run::Request::CancelJobs { .. }
+            | run::Request::Yield { .. }
             | run::Request::Close { .. }
             | run::Request::Return { .. }
             | run::Request::Check { .. }

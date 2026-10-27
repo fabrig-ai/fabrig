@@ -13,7 +13,9 @@ impl Backend {
     pub(super) fn grants(&self) -> Grants {
         match &self.request {
             Some(FromDomain::Complete { prompt, .. }) => prompt.tools,
-            Some(FromDomain::Cancel { .. }) | None => Grants { inspect: false, modify: false, shell: false },
+            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
+                Grants { inspect: false, modify: false, shell: false }
+            }
         }
     }
 

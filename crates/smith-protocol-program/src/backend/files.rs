@@ -208,7 +208,7 @@ impl Backend {
     pub(super) fn tools(&self) -> Box<[mcp::Tool]> {
         let (prompt, outcome, deliver) = match &self.request {
             Some(FromDomain::Complete { prompt, outcome, deliver, .. }) => (prompt, outcome, deliver),
-            Some(FromDomain::Cancel { .. }) | None => return Box::default(),
+            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => return Box::default(),
         };
         let Ok(schemas) = protocol::schemas_for_contract(
             prompt,
@@ -254,7 +254,9 @@ impl Backend {
         self.files.port = port;
         let bytes = match &self.request {
             Some(FromDomain::Complete { prompt, .. }) => prompt.system.clone(),
-            Some(FromDomain::Cancel { .. }) | None => unreachable!("startup retains its prompt"),
+            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
+                unreachable!("startup retains its prompt")
+            }
         };
         self.file(
             Step::Instructions,

@@ -993,6 +993,7 @@ impl Counted {
                     assert_eq!(host_run, WORKER);
                     self.long_open = self.long_open.checked_sub(1).expect("terminal belongs to actual provider work");
                 }
+                Request::Yield { .. } => {}
                 Request::Cancel { owner } => {
                     let complete = self.complete.as_ref().expect("pending compaction is cancelled before native work");
                     assert_eq!(complete.owner, owner);

@@ -380,6 +380,7 @@ pub(crate) fn tell(
             | Request::WithdrawHost { .. }
             | Request::Say { .. }
             | Request::CancelJobs { .. }
+            | Request::Yield { .. }
             | Request::Close { .. }
             | Request::Read { .. }
             | Request::Probe { .. }

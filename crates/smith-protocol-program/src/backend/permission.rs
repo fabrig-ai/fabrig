@@ -39,7 +39,7 @@ impl Backend {
                     mcp::Verdict::Deny { message: b"not run: allowed calls now: none".as_slice().into() }
                 }
             },
-            Some(FromDomain::Cancel { .. }) | None => return,
+            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => return,
         };
         self.server.as_mut().expect("permission server").verdict(call, verdict, &mut self.io);
     }

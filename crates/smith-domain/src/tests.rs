@@ -419,6 +419,7 @@ impl Harness {
                 | Request::Refused { .. }
                 | Request::Limited { .. }
                 | Request::Cancel { .. }
+                | Request::Yield { .. }
                 | Request::Io { .. }
                 | Request::Job { .. }
                 | Request::CancelIo { .. }
@@ -1283,6 +1284,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
             | Request::Refused { .. }
             | Request::Limited { .. }
             | Request::Cancel { .. }
+            | Request::Yield { .. }
             | Request::Io { .. }
             | Request::Job { .. }
             | Request::CancelIo { .. }

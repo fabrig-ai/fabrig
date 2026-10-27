@@ -200,6 +200,7 @@ fn observe_fill(out: &mut Queue<Request>, observed: &mut [(bool, u32, u32, u32, 
             }
             Request::Ended { .. } => panic!("maximum payload is held for compaction, not ended"),
             Request::Cancel { .. }
+            | Request::Yield { .. }
             | Request::Job { .. }
             | Request::CancelIo { .. }
             | Request::Delegate { .. }
@@ -506,6 +507,7 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
                 | Request::Yielded { .. }
                 | Request::Used { .. }
                 | Request::Cancel { .. }
+                | Request::Yield { .. }
                 | Request::Io { .. }
                 | Request::Job { .. }
                 | Request::CancelIo { .. }
@@ -891,6 +893,7 @@ fn memory_seen(out: &mut Queue<Request>) -> MemorySeen {
                 assert!(seen.end.replace(end).is_none());
             }
             Request::Cancel { .. }
+            | Request::Yield { .. }
             | Request::Job { .. }
             | Request::CancelIo { .. }
             | Request::Delegate { .. }

@@ -358,7 +358,7 @@ pub(super) fn complete(service: &mut Service, request: llm::FromDomain) {
                 Some(_) | None => false,
             }
         }
-        llm::FromDomain::Cancel { owner } => match &service.program {
+        llm::FromDomain::Cancel { owner } | llm::FromDomain::Yield { owner } => match &service.program {
             Some(program) => program.backend.pending(*owner),
             None => false,
         },
@@ -389,16 +389,12 @@ pub(super) fn fire(service: &mut Service) {
     if !room(service) {
         return;
     }
-    let yield_for_note = wind_down_requested(service);
     if let Some(program) = &mut service.program {
         match service.teardown {
             super::Teardown::Live => {}
             super::Teardown::Answered { .. } | super::Teardown::Closing { .. } | super::Teardown::Closed { .. } => {
                 program.backend.close(&service.llm_env, &mut service.llm_events, &mut program.below);
             }
-        }
-        if yield_for_note {
-            program.backend.yield_for_wind_down(&service.llm_env, &mut service.llm_events, &mut program.below);
         }
         program.backend.fire(&service.llm_env, &mut service.llm_events, &mut program.below);
     }
@@ -428,21 +424,9 @@ pub(super) fn closed(service: &Service) -> bool {
     }
 }
 
-fn wind_down_requested(service: &Service) -> bool {
-    match &service.domain {
-        Some(domain) => match service.admitted {
-            Some(run) => domain.needs_wind_down_yield(run),
-            None => false,
-        },
-        None => false,
-    }
-}
-
 pub(super) fn pending(service: &Service) -> bool {
     match &service.program {
-        Some(program) => {
-            !program.below.is_empty() || (program.backend.can_yield_for_wind_down() && wind_down_requested(service))
-        }
+        Some(program) => !program.below.is_empty(),
         None => false,
     }
 }
@@ -620,6 +604,7 @@ fn answer_head(service: &Service) -> bool {
         Some(
             domain::Request::Complete { .. }
             | domain::Request::Cancel { .. }
+            | domain::Request::Yield { .. }
             | domain::Request::Io { .. }
             | domain::Request::Job { .. }
             | domain::Request::CancelIo { .. }

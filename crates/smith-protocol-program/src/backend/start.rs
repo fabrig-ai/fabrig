@@ -43,7 +43,7 @@ impl Backend {
     ) {
         let (owner, name) = match &request {
             FromDomain::Complete { owner, grant, .. } => (*owner, *grant),
-            FromDomain::Cancel { .. } => unreachable!("start receives Complete"),
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("start receives Complete"),
         };
         if self.phase != Phase::Idle {
             self.owner = Some(owner);
@@ -121,6 +121,9 @@ impl Backend {
         self.checked(env, up, below);
         self.server_events(env, up, below);
         self.switch_progress(env, up, below);
+        if self.winding == super::stop::WindDown::YieldRequested {
+            self.yield_for_wind_down(env, up, below);
+        }
         if self.phase == Phase::Ending
             && self.child.is_none()
             && !self.spawning
@@ -256,11 +259,11 @@ impl Backend {
     pub(super) fn launch_spec(&mut self) -> Option<kernel::Spawn> {
         let prompt = match self.request.as_ref()? {
             FromDomain::Complete { prompt, .. } => prompt,
-            FromDomain::Cancel { .. } => return None,
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
         };
         let outcome = match self.request.as_ref()? {
             FromDomain::Complete { outcome, .. } => outcome,
-            FromDomain::Cancel { .. } => return None,
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
         };
         if !super::compact::is_compaction(prompt) {
             match &prompt.choice {

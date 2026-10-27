@@ -136,7 +136,7 @@ impl Backend {
     ) {
         let (owner, prompt) = match &request {
             FromDomain::Complete { owner, prompt, .. } => (*owner, prompt),
-            FromDomain::Cancel { .. } => unreachable!("completion route"),
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
         };
         let keep = !compact::is_compaction(prompt)
             && !self.switching
@@ -184,7 +184,9 @@ impl Backend {
         self.switching = false;
         self.running = None;
         self.stop = super::stop::Stop::None;
-        self.winding = super::stop::WindDown::Ordinary;
+        if self.winding != super::stop::WindDown::YieldRequested {
+            self.winding = super::stop::WindDown::Ordinary;
+        }
         self.stopping = 0;
         self.exit = None;
         self.eof_deadline = None;
@@ -220,7 +222,7 @@ impl Backend {
     ) {
         let prompt = match &self.request {
             Some(FromDomain::Complete { prompt, .. }) => prompt,
-            Some(FromDomain::Cancel { .. }) | None => unreachable!("startup request"),
+            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => unreachable!("startup request"),
         };
         if compact::is_compaction(prompt) {
             self.resuming = false;

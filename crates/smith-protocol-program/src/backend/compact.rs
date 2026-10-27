@@ -78,14 +78,14 @@ impl Backend {
     pub(super) fn compaction(&self) -> bool {
         match &self.request {
             Some(protocol::FromDomain::Complete { prompt, .. }) => is_compaction(prompt),
-            Some(protocol::FromDomain::Cancel { .. }) | None => false,
+            Some(protocol::FromDomain::Cancel { .. } | protocol::FromDomain::Yield { .. }) | None => false,
         }
     }
 
     pub(super) fn compaction_input(&mut self) -> Option<()> {
         let (prompt, observed) = match self.request.as_mut()? {
             protocol::FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
-            protocol::FromDomain::Cancel { .. } => return None,
+            protocol::FromDomain::Cancel { .. } | protocol::FromDomain::Yield { .. } => return None,
         };
         let text = render(prompt, &self.settings.adapter, self.settings.input_bytes)?;
         self.outgoing = Some(stream::text_message(&text, self.settings.input_bytes)?);

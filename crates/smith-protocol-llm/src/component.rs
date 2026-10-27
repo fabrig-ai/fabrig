@@ -309,6 +309,7 @@ impl Component {
                     io,
                 );
             }
+            FromDomain::Yield { .. } => {}
             FromDomain::Cancel { owner } => {
                 self.next.remove(&owner);
                 let child_env = self.child_env(env);

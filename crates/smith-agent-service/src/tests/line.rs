@@ -82,6 +82,7 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
                 | session::Request::Used { .. }
                 | session::Request::Ended { .. }
                 | session::Request::Cancel { .. }
+                | session::Request::Yield { .. }
                 | session::Request::CancelIo { .. }
                 | session::Request::Job { .. }
                 | session::Request::Delegate { .. }

@@ -105,6 +105,7 @@ impl Effects {
         match request {
             request @ (domain::Request::Complete { .. }
             | domain::Request::Cancel { .. }
+            | domain::Request::Yield { .. }
             | domain::Request::Io { .. }
             | domain::Request::Job { .. }
             | domain::Request::CancelIo { .. }

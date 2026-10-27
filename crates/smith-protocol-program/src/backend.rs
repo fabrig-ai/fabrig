@@ -1,9 +1,8 @@
 //! One lazy program conversation (protocol/programs.md, sections 3 and 5).
 //! Keeps a source grant, private run files, status child, MCP listener and
-//! program pipes; never reads login contents. `from_domain` starts on demand,
-//! `from_io` and `fire` advance startup, `settled` observes each finish verdict,
-//! `yield_for_wind_down` relays the run's interruption decision, and `close`
-//! settles every resource.
+//! program pipes; never reads login contents. `from_domain` starts on demand and
+//! handles cancellation and yield requests. `from_io` and `fire` advance startup,
+//! `settled` observes each finish verdict, and `close` settles every resource.
 
 use alloc::boxed::Box;
 use skein_io::{self as io, file, kernel};
@@ -343,7 +342,7 @@ impl Backend {
         }
     }
 
-    /// Begin the lazy startup or cancel its outstanding completion (sections 3, 5.7).
+    /// Begin startup, cancel, or yield the outstanding completion (sections 3, 5.7, 5.9).
     pub fn from_domain(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
@@ -353,6 +352,9 @@ impl Backend {
     ) {
         match request {
             request @ FromDomain::Complete { owner, .. } => {
+                if self.winding == stop::WindDown::YieldRequested {
+                    self.winding = stop::WindDown::Ordinary;
+                }
                 self.begin_prompt(&request);
                 if let Some((failure, detail)) = self.pending_failure.take() {
                     self.terminal_measure(env.now, owner);
@@ -371,6 +373,15 @@ impl Backend {
                         self.start(env, request, up, below);
                     }
                 }
+            }
+            FromDomain::Yield { owner } => {
+                if self.pending(owner) {
+                    if self.winding == stop::WindDown::Ordinary {
+                        self.winding = stop::WindDown::YieldRequested;
+                    }
+                    self.yield_for_wind_down(env, up, below);
+                }
+                return;
             }
             FromDomain::Cancel { owner } => {
                 if self.owner == Some(owner) {
@@ -442,7 +453,8 @@ impl Backend {
                 Phase::Running => {
                     let phase = match &self.request {
                         Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => llm::Phase::Whole,
-                        Some(FromDomain::Complete { .. } | FromDomain::Cancel { .. }) | None => self.response_phase,
+                        Some(FromDomain::Complete { .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. })
+                        | None => self.response_phase,
                     };
                     self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
                 }

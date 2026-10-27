@@ -517,6 +517,7 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
             };
             return complete(domain, env, pending, out);
         }
+        session::Request::Yield { owner } => return out.push(Request::Yield { owner }),
         session::Request::Cancel { owner } => {
             let id = *domain.sessions.get(&owner).expect("a call owner retains its session");
             let conversation = domain.peers.get(id).expect("session retains peer").conversation;
@@ -659,6 +660,7 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
             return open(domain, env, conversation, opening);
         }
         run::Request::Say { peer, text } => session::Event::Continue { session: peer, content: text },
+        run::Request::Yield { peer } => session::Event::Yield { session: peer },
         run::Request::CancelJobs { peer } => session::Event::CancelJobs { session: peer },
         run::Request::Close { peer } => {
             // A close of a session that has ended is stale.

@@ -1638,7 +1638,10 @@ impl World {
                 assert!(self.host_pending.contains_key(&(relay.owner.raw(), relay.attempt)));
             }
             Request::Unauthorized { grant } => self.unauthorized.push((self.now, grant)),
-            Request::MessageRefused { .. } | Request::Refused { .. } | Request::Limited { .. } => {}
+            Request::MessageRefused { .. }
+            | Request::Refused { .. }
+            | Request::Limited { .. }
+            | Request::Yield { .. } => {}
         }
     }
 

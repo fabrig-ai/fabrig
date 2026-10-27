@@ -20,7 +20,7 @@ impl Backend {
     ) {
         let owner = match &request {
             FromDomain::Complete { owner, .. } => *owner,
-            FromDomain::Cancel { .. } => unreachable!("completion route"),
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
         };
         self.begin_prompt(&request);
         self.owner = Some(owner);
@@ -46,7 +46,7 @@ impl Backend {
         };
         let (prompt, capture) = match &mut request {
             FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
-            FromDomain::Cancel { .. } => unreachable!("completion route"),
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
         };
         let messages = core::mem::replace(&mut prompt.messages, Box::new([]));
         let Some(resumed) = super::replies::resume(self, messages, prompt, capture) else {
@@ -145,7 +145,7 @@ impl Backend {
                 self.turns.result = true;
                 let structured = match &self.request {
                     Some(FromDomain::Complete { prompt, .. }) => prompt.served.contains(&llm::Served::Finish),
-                    Some(FromDomain::Cancel { .. }) | None => false,
+                    Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => false,
                 };
                 let completed = match json::field(&document, 0, b"structured_output") {
                     Some(index) if structured && token_kind(&document, Some(index)) != Some(Kind::Null) => {
@@ -293,7 +293,9 @@ impl Backend {
         };
         let (prompt, outcome, deliver) = match &self.request {
             Some(FromDomain::Complete { prompt, outcome, deliver, .. }) => (prompt, outcome, deliver),
-            Some(FromDomain::Cancel { .. }) | None => unreachable!("active completion contract"),
+            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
+                unreachable!("active completion contract")
+            }
         };
         // The previous message's replies have been consumed before a new
         // Complete. Keep unbound answered records until their MCP call arrives.
@@ -430,7 +432,7 @@ impl Backend {
                     env.now.saturating_add(if head { deadlines.head } else { deadlines.idle }).min(deadlines.whole),
                 );
             }
-            Some(FromDomain::Cancel { .. }) | None => {}
+            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {}
         }
     }
 

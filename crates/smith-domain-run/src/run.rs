@@ -889,8 +889,13 @@ fn begin_wind_down(run: &mut Run, ready: &mut crate::wind_down::Ready, id: Id<Ru
         Some(_) => false,
         None => {
             run.wind_down = Some(crate::wind_down::WindDown::new(run.children.len(), cause));
-            if !run.children.is_empty() {
-                ready.keep(id);
+            match run.charter.mode {
+                Mode::Open => ready.keep(id),
+                Mode::Finite => {
+                    if !run.children.is_empty() {
+                        ready.keep(id);
+                    }
+                }
             }
             true
         }
@@ -1496,6 +1501,7 @@ pub(crate) fn ended(
         out.push(Request::Return { spent: bill, call: call.owner, result });
         retire_call(calls, alarms, conversations, asker);
         if finishing {
+            ready.keep(run_id);
             child_ready(run, out);
         }
         return;
@@ -2683,7 +2689,7 @@ fn host_recover(
     None
 }
 
-/// Drain one deferred budget close; actual child terminals unlock main.
+/// Drain one wind-down effect: a child close or main's one yield request.
 pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
     let Some(id) = domain.ready.pop() else {
         return;
@@ -2691,7 +2697,11 @@ pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
     let run = domain.runs.get(id).expect("ready run is retained until its answer");
     let exhausted = match &run.wind_down {
         Some(crate::wind_down::WindDown::Settling { cause, .. }) => cause.exhausted(),
-        Some(crate::wind_down::WindDown::Finishing { .. }) | None => return,
+        Some(crate::wind_down::WindDown::Finishing { noted: false, .. }) => {
+            yield_main(run, &domain.conversations, out);
+            return;
+        }
+        Some(crate::wind_down::WindDown::Finishing { noted: true, .. }) | None => return,
     };
     match run.state {
         State::Working { .. } => {}
@@ -2724,30 +2734,28 @@ pub(crate) fn resumed(runs: &Slab<Run>, run: Token) -> bool {
     runs.get(Id::from_token(run)).expect("an admitted run lives through its facts").resumed
 }
 
-/// The program's currently reserved turn must end before the finishing note.
-pub(crate) fn needs_wind_down_yield(runs: &Slab<Run>, token: Token) -> bool {
-    let Some(run) = runs.get(Id::from_token(token)) else {
-        return false;
-    };
+/// One deferred request when the wind-down reaches main, after child settlement.
+fn yield_main(run: &Run, conversations: &Slab<Conversation>, out: &mut Queue<Request>) {
     match run.charter.mode {
-        Mode::Finite => return false,
+        Mode::Finite => return,
         Mode::Open => {}
     }
-    match &run.wind_down {
-        Some(crate::wind_down::WindDown::Finishing { noted: false, .. }) => {}
-        Some(
-            crate::wind_down::WindDown::Finishing { noted: true, .. } | crate::wind_down::WindDown::Settling { .. },
-        )
-        | None => return false,
-    }
-    match run.state {
-        State::Working { .. } => run.reserved_turns > 0,
+    let main = match run.state {
+        State::Working { main, .. } => main,
         State::Preparing { .. }
         | State::Awaiting { .. }
         | State::Listening { .. }
         | State::Waiting { .. }
         | State::Stopping { .. }
         | State::Winding { .. }
-        | State::Closed => false,
+        | State::Closed => return,
+    };
+    let main = conversations.get(main).expect("working main is retained");
+    if main.reservation.is_none() {
+        return;
+    }
+    match main.phase {
+        Phase::Running { peer } => out.push(Request::Yield { peer }),
+        Phase::Pending | Phase::Opening | Phase::Unwanted | Phase::Closing | Phase::Closed => {}
     }
 }

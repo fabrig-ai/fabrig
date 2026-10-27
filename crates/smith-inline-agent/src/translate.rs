@@ -433,6 +433,7 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                     },
                 });
             }
+            smith::Request::Yield { .. } => {}
             smith::Request::Cancel { owner } => match slot.completions.get_mut(&owner) {
                 Some(cancelled) => {
                     if !*cancelled {

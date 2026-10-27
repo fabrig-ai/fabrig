@@ -1404,7 +1404,8 @@ impl World {
             Request::MessageRefused { .. }
             | Request::Unauthorized { .. }
             | Request::Refused { .. }
-            | Request::Limited { .. } => {}
+            | Request::Limited { .. }
+            | Request::Yield { .. } => {}
         }
     }
 

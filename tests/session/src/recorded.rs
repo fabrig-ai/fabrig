@@ -246,6 +246,7 @@ impl World {
             }
             session::Event::BuiltinResult { .. }
             | session::Event::CancelJobs { .. }
+            | session::Event::Yield { .. }
             | session::Event::Open { .. }
             | session::Event::Continue { .. }
             | session::Event::Close { .. } => {}
@@ -340,7 +341,7 @@ impl World {
                 self.used.push(usage);
             }
             session::Request::Yielded { stop, text, .. } => self.yielded.push((stop, text)),
-            session::Request::Cancel { .. } | session::Request::Withdraw { .. } => {}
+            session::Request::Cancel { .. } | session::Request::Yield { .. } | session::Request::Withdraw { .. } => {}
             session::Request::Io { owner, op, .. } => {
                 assert!(!self.operations.iter().any(|(pending, _)| pending == &owner));
                 self.operations.push((owner, op));

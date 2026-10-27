@@ -381,6 +381,11 @@ pub enum Request {
     /// Abandon the `Complete` in flight for `owner`. Its terminal event still
     /// comes: `Cancelled`, or whichever outcome won the race.
     Cancel { owner: Token },
+    /// End the owner's outstanding completion at the backend's next boundary,
+    /// delivering what it holds as that completion. A backend that cannot end
+    /// it early lets it complete normally. No terminal of its own is owed;
+    /// an owner with no outstanding completion is ignored.
+    Yield { owner: Token },
     /// Ask io for `op` for a session's tools, giving up at `deadline`.
     Io {
         owner: Token,

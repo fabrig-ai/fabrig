@@ -150,7 +150,8 @@ impl Driver {
                 | Request::LongDone { .. }
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
-                | Request::Limited { .. } => {}
+                | Request::Limited { .. }
+                | Request::Yield { .. } => {}
                 Request::Deliver { owner, host_run, .. } => {
                     self.seen[4] += 1;
                     self.ask(Asked::Delivery { owner, host_run, stopped: false });

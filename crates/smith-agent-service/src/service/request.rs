@@ -278,6 +278,9 @@ pub(super) fn domain_request(service: &mut Service, request: domain::Request) {
                 service.mark_failed(Failure::Send);
             }
         }
+        domain::Request::Yield { owner } => {
+            program::complete(service, llm::FromDomain::Yield { owner });
+        }
         domain::Request::Cancel { owner } => {
             program::complete(service, llm::FromDomain::Cancel { owner });
         }

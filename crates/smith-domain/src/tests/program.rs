@@ -185,3 +185,18 @@ fn opaque_and_refusal_blocks_never_become_open_text_replies() {
         assert_eq!(text.as_ref(), b"You ended your turn with no text, so you have not replied. Carry on, and reply with text or call `wait`. This is reminder 1 of 1: if you stop again without replying after the last one, the run ends unfinished.");
     }
 }
+
+#[test]
+fn an_open_finish_yields_the_main_completion_owner_once() {
+    let mut harness = program();
+    let (run, owner, _) = harness.admit(7, open_policy());
+    drop(harness.step(Event::Message {
+        run,
+        name: Token::new(99),
+        label: bytes(b"person"),
+        text: bytes(b"Please finish"),
+        finish_requested: true,
+    }));
+    assert_eq!(harness.next().as_ref(), &[Request::Yield { owner }]);
+    assert!(harness.next().is_empty());
+}

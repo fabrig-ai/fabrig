@@ -182,6 +182,7 @@ impl Harness {
                 | Request::Answer { .. }
                 | Request::Open { .. }
                 | Request::Say { .. }
+                | Request::Yield { .. }
                 | Request::Close { .. }
                 | Request::Read { .. }
                 | Request::Probe { .. }

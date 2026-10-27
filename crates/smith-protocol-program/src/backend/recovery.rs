@@ -33,7 +33,7 @@ impl Backend {
     pub(super) fn resume_input(&mut self) -> Option<()> {
         let (prompt, capture) = match self.request.as_mut()? {
             FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
-            FromDomain::Cancel { .. } => return None,
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
         };
         let rendered =
             tail::render_observed(prompt, &self.ledger, &self.settings.adapter, self.settings.input_bytes, capture)?;

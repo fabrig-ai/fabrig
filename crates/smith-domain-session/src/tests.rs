@@ -173,6 +173,7 @@ impl Harness {
                 | Request::Ended { .. }
                 | Request::Complete { .. }
                 | Request::Cancel { .. }
+                | Request::Yield { .. }
                 | Request::Io { .. }
                 | Request::Job { .. }
                 | Request::CancelIo { .. }
@@ -215,6 +216,7 @@ impl Harness {
                 | Request::Ended { .. }
                 | Request::Complete { .. }
                 | Request::Cancel { .. }
+                | Request::Yield { .. }
                 | Request::Io { .. }
                 | Request::Job { .. }
                 | Request::CancelIo { .. }
@@ -247,7 +249,8 @@ impl Harness {
                 | Request::Yielded { .. }
                 | Request::Ended { .. }
                 | Request::Complete { .. }
-                | Request::Cancel { .. }) => panic!("expected a batch, not {other:?}"),
+                | Request::Cancel { .. }
+                | Request::Yield { .. }) => panic!("expected a batch, not {other:?}"),
             }
         }
         runs
@@ -2067,6 +2070,7 @@ fn completion_name_exhaustion_ends_before_any_owned_or_delegated_effect() {
                 | Request::Yielded { .. }
                 | Request::Complete { .. }
                 | Request::Cancel { .. }
+                | Request::Yield { .. }
                 | Request::Io { .. }
                 | Request::Job { .. }
                 | Request::CancelIo { .. }

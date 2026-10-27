@@ -261,6 +261,8 @@ pub enum MessageRefusal {
 pub enum Request {
     /// Internal notice after the last child settles; the root may release a held main completion.
     CompletionReady { conversation: Token },
+    /// Ask main's session to yield its outstanding completion for the wind-down note; no separate terminal.
+    Yield { peer: Token },
     /// A host message refused at ingress; this is its one terminal.
     MessageRefused { host_run: Token, name: Token, reason: MessageRefusal },
 

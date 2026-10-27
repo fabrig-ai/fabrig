@@ -273,6 +273,7 @@ fn observed_request(request: Request, selected: Option<&smith_domain_run::Conven
         | Request::ChecksEnded { .. }
         | Request::Deliver { .. }
         | Request::CompletionReady { .. }
+        | Request::Yield { .. }
         | Request::Return { .. } => Asked::Other,
     }
 }
@@ -575,6 +576,7 @@ fn delivery_memory_step(
             | Request::ChecksEnded { .. }
             | Request::Close { .. } => {}
             unexpected @ (Request::CompletionReady { .. }
+            | Request::Yield { .. }
             | Request::HostCall { .. }
             | Request::WithdrawHost { .. }
             | Request::Answer { .. }
@@ -788,6 +790,7 @@ fn host_memory_take(
             | Request::Close { .. }
             | Request::Answer { .. } => {}
             unexpected @ (Request::CompletionReady { .. }
+            | Request::Yield { .. }
             | Request::Return { .. }
             | Request::Say { .. }
             | Request::Abort { .. }

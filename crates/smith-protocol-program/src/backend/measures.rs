@@ -54,14 +54,17 @@ impl Backend {
         self.prompt_pending = None;
         self.prompt_due = match request {
             FromDomain::Complete { observation, .. } => observation.is_some(),
-            FromDomain::Cancel { .. } => false,
+            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => false,
         };
     }
 
     pub(super) fn first_prompt_measure(&mut self, _at: Time) {
         let prompt = match &self.request {
             Some(FromDomain::Complete { prompt, observation: Some(_), .. }) => prompt,
-            Some(FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. }) | None => return,
+            Some(
+                FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. },
+            )
+            | None => return,
         };
         let mut count = 0_u32;
         for message in &prompt.messages {
@@ -124,7 +127,10 @@ impl Backend {
             Some(FromDomain::Complete { owner, prompt, observation: Some(observation), .. }) => {
                 (*owner, prompt, observation)
             }
-            Some(FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. }) | None => return,
+            Some(
+                FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. },
+            )
+            | None => return,
         };
         let (system, tools) = if self.compaction() {
             (Some(prompt.system.clone()), Some(List::with_capacity(0)))
@@ -166,7 +172,10 @@ impl Backend {
         self.flush_prompt_measure(at);
         match &self.request {
             Some(FromDomain::Complete { observation: Some(_), .. }) => {}
-            Some(FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. }) | None => return,
+            Some(
+                FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. },
+            )
+            | None => return,
         }
         let mut blocks = List::with_capacity(u32::try_from(completion.content.len()).expect("bounded blocks"));
         for block in &completion.content {
@@ -189,7 +198,9 @@ impl Backend {
         let owner = match &self.request {
             Some(FromDomain::Complete { owner, deltas: protocol::Deltas { text: true, .. }, .. }) => *owner,
             Some(
-                FromDomain::Complete { deltas: protocol::Deltas { text: false, .. }, .. } | FromDomain::Cancel { .. },
+                FromDomain::Complete { deltas: protocol::Deltas { text: false, .. }, .. }
+                | FromDomain::Cancel { .. }
+                | FromDomain::Yield { .. },
             )
             | None => return Some(()),
         };

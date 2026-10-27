@@ -1,4 +1,4 @@
-//! The run's finishing phase and deferred child closures (domain/run.md,
+//! The run's finishing phase and deferred wind-down effects (domain/run.md,
 //! sections 6 and 9.1). This keeps the cause, final requests made,
 //! and bounded ready runs. It never knows provider syntax or child results.
 
@@ -65,7 +65,7 @@ impl WindDown {
     }
 }
 
-/// Runs whose child closures wait until the next reclaim point.
+/// Runs whose child closures or main yield wait until the next reclaim point.
 #[derive(Debug)]
 pub(crate) struct Ready {
     now: Set<Id<Run>>,

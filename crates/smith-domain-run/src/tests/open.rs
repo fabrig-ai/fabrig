@@ -524,12 +524,9 @@ fn final_note(harness: &mut Harness, main: Token) {
 
 #[test]
 fn a_finish_mid_completion_requires_the_note_before_last_reply() {
-    let mut harness = Harness::new(LIMITS);
-    let (run, main) = harness.running_on(HOST, PEER, finish_policy());
+    let (mut harness, _, main) = finishing_with_completion();
     let owner = Token::new(500);
-    crate::reserve(&mut harness.domain, main, owner, crate::Most::Unreserved).expect("ordinary program completion");
-    drop(harness.step(finish_request(run, FIRST, b"Please finish")));
-    assert!(harness.domain.needs_wind_down_yield(run));
+    assert_eq!(harness.resume().as_ref(), &[Request::Yield { peer: Token::new(PEER) }]);
     assert!(crate::settle_reservation(&mut harness.domain, main, owner, 0));
     assert_eq!(
         harness.step(reply(main, Stop::EndTurn, b"Interrupted text")).as_ref(),
@@ -537,9 +534,45 @@ fn a_finish_mid_completion_requires_the_note_before_last_reply() {
     );
     let permit = crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Unreserved);
     let crate::CompletionPermit::Final { note: Some(_) } = permit else { panic!("final request carries the note") };
-    assert!(!harness.domain.needs_wind_down_yield(run));
+    assert!(harness.resume().is_empty());
     assert_eq!(
         harness.step(reply(main, Stop::EndTurn, b"Last reply")).as_ref(),
         &[Request::Waiting { host_run: Token::new(HOST), read: None }, Request::Close { peer: Token::new(PEER) },]
     );
+}
+
+fn finishing_with_completion() -> (Harness, Token, Token) {
+    let mut harness = Harness::new(LIMITS);
+    let (run, main) = harness.running_on(HOST, PEER, finish_policy());
+    let owner = Token::new(500);
+    crate::reserve(&mut harness.domain, main, owner, crate::Most::Unreserved).expect("program completion");
+    drop(harness.step(finish_request(run, FIRST, b"Please finish")));
+    (harness, run, main)
+}
+
+#[test]
+fn a_finish_with_completion_emits_one_yield_for_main() {
+    let (mut harness, _, _) = finishing_with_completion();
+    assert_eq!(harness.resume().as_ref(), &[Request::Yield { peer: Token::new(PEER) }]);
+    assert!(harness.resume().is_empty());
+}
+
+#[test]
+fn a_finish_while_listening_emits_no_yield() {
+    let (mut harness, run, _) = listening();
+    let requests = harness.step(finish_request(run, FIRST, b"Please finish"));
+    assert_eq!(requests.as_ref(), &[Request::Say { peer: Token::new(PEER), text: bytes(b"person: Please finish") }]);
+    assert!(harness.resume().is_empty());
+}
+
+#[test]
+fn a_second_finish_emits_no_second_yield() {
+    let (mut harness, run, _) = finishing_with_completion();
+    drop(harness.resume());
+    let requests = harness.step(finish_request(run, NEXT, b"Finish again"));
+    assert_eq!(
+        requests.as_ref(),
+        &[Request::MessageRefused { host_run: Token::new(HOST), name: NEXT, reason: crate::MessageRefusal::Ending }]
+    );
+    assert!(harness.resume().is_empty());
 }
