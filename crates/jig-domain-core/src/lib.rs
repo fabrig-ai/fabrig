@@ -387,8 +387,8 @@ pub struct Core {
     pub(crate) procedure_proposals: Map<Token, effects::ProcedureProposal>,
     /// Correlations while the notes child loads a page for a caller.
     pub(crate) note_routes: Map<Token, routing::NoteRoute>,
-    /// Preparations waiting for the notes child's current load or write.
-    pub(crate) pending_note_briefs: Map<u64, bool>,
+    /// Preparations waiting for notes, or deferring their next activation for load room.
+    pub(crate) pending_note_briefs: Map<u64, routing::NoteBrief>,
     /// Transient owner names for notes routes; pending calls are restored from their records.
     pub(crate) next_note_owner: u64,
     /// Durable deployment numbers.

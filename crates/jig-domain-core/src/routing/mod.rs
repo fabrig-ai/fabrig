@@ -289,6 +289,14 @@ pub(crate) enum NoteRoute {
     Brief { task: u64 },
 }
 
+/// One brief's wait within the existing `limits.brief.briefs` table.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum NoteBrief {
+    Operation,
+    /// The tasks child's next Activate returns to the owner's due queue.
+    Activation,
+}
+
 impl Core {
     pub(crate) fn begin_note_route(&mut self, route: NoteRoute) -> Token {
         let owner = Token::new(self.next_note_owner);

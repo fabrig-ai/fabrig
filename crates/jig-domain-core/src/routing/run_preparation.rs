@@ -287,7 +287,7 @@ pub(super) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<E
         return super::result_reads::begin(core, work, task, ids);
     }
     if core.notes.busy() {
-        core.pending_note_briefs.insert(task, true).expect("brief count bounds waiting notes");
+        core.pending_note_briefs.insert(task, super::NoteBrief::Operation).expect("brief count bounds waiting notes");
         out.push(Request::Decided);
         return Requests::Out(out);
     }

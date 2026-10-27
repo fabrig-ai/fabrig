@@ -3475,6 +3475,7 @@ fn configured_worker_name(length: u32) -> Box<[u8]> {
     name
 }
 
+mod notes_room;
 mod result_reads;
 
 mod amendment_reads;

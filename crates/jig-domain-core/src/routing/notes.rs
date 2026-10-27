@@ -1,9 +1,9 @@
 //! Party note edits and run note requests translated through the notes child
 //! (`domain/engine.md`, section 4.4; `domain/people.md`, section 5.1).
 
-use super::NoteRoute;
 use super::refusals::note_person_refusal;
 use super::runs::call_decision;
+use super::{NoteBrief, NoteRoute};
 use crate::{CallPart, Core, Event, Held, Key, Limits, Now, Record, Request, Requests, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -129,7 +129,13 @@ pub(super) fn tag_notes(
                 }
                 Some(NoteRoute::Brief { task }) => match why {
                     notes::Refusal::Busy => {
-                        core.pending_note_briefs.insert(task, true).expect("brief count bounds waiting notes");
+                        if core.notes.busy() {
+                            core.pending_note_briefs
+                                .insert(task, NoteBrief::Operation)
+                                .expect("brief count bounds waiting notes");
+                        } else {
+                            defer_brief(core, work, task);
+                        }
                     }
                     notes::Refusal::Oversized
                     | notes::Refusal::Full
@@ -144,14 +150,30 @@ pub(super) fn tag_notes(
             },
         }
     }
-    if !core.notes.busy()
-        && let Some((&task, _)) = core.pending_note_briefs.iter().next()
-    {
-        core.pending_note_briefs.remove(&task);
-        work.push(Event::StartBrief { task });
+    if !core.notes.busy() {
+        let mut waiting = None;
+        for (&task, state) in &core.pending_note_briefs {
+            if *state == NoteBrief::Operation {
+                waiting = Some(task);
+                break;
+            }
+        }
+        if let Some(task) = waiting {
+            let _pending = core.pending_note_briefs.remove(&task);
+            work.push(Event::StartBrief { task });
+        }
     }
     out.push(Request::Decided);
     Requests::Out(out)
+}
+
+fn defer_brief(core: &mut Core, work: &mut Queue<Event>, task: u64) {
+    super::result_reads::clear(core, task);
+    drop(core.contexts.remove(&task));
+    drop(core.dependency_results.remove(&task));
+    drop(core.transcripts.remove(&task));
+    core.pending_note_briefs.insert(task, NoteBrief::Activation).expect("brief count bounds deferred activations");
+    work.push(Event::Tasks(tasks::Event::PreparationWaiting { task }));
 }
 
 pub(super) fn recalled_part(core: &Core, task: u64, entries: List<notes::Entry>, more: bool) -> CallPart {

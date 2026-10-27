@@ -1143,6 +1143,7 @@ pub(super) fn tag_tasks(
                 continue;
             }
             tasks::Request::Ended { task, requester, ending } => {
+                let _pending = core.pending_note_briefs.remove(&task);
                 let position = core.ending_positions.remove(&task).expect("ended row assigned its result position");
                 let Requests::Out(mut ended) = super::view_routes::route_view(
                     core,
@@ -1448,7 +1449,14 @@ pub(super) fn tag_tasks(
             tasks::Request::EscalationDecided { .. } => {
                 unreachable!("named and person escalation terminals are routed in the core")
             }
-            tasks::Request::Activate { context } => Request::Now(Box::new(Now::Activate { context })),
+            tasks::Request::Activate { context } => {
+                if core.pending_note_briefs.get(&context.task) == Some(&super::NoteBrief::Activation) {
+                    let _pending = core.pending_note_briefs.remove(&context.task);
+                    super::children::remember_due(core, context);
+                    continue;
+                }
+                Request::Now(Box::new(Now::Activate { context }))
+            }
         };
         out.push(request);
     }
