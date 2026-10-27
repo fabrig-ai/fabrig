@@ -1026,7 +1026,8 @@ starts from current code. It never updates only because its base moved.
   them (a commit at the forge's own length, never padded), before the
   pull section (section 3, brief sections) of its title, body, files
   and what differs from the base. The pull section's budget is a
-  review's working room, 4,096 bytes on the stock, as CI's is: the
+  review's working room, 4,608 bytes on the stock, within the assembled
+  brief's and the journal result's 9,984: the
   number, branch, base, head and title are kept whole, and the body,
   the files and the diff cut from their end, the cut marked; a budget
   that leaves no diff is a configuration a test refuses. The reviewer's
