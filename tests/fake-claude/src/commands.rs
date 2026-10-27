@@ -136,21 +136,23 @@ impl LoginCommand {
 
     fn input(&mut self, bytes: Option<&[u8]>, config: Config) -> Vec<Effect> {
         let Self::Code { method, nonempty } = self else { return Vec::new() };
-        match bytes {
-            Some(b"\n" | b"\r") if *nonempty => {
-                let method = std::mem::take(method);
-                *self = Self::Saving { announce: false };
-                vec![save(method, config)]
-            }
-            Some(b"\n" | b"\r") | None => {
+        let Some(bytes) = bytes else {
+            *self = Self::Done;
+            return vec![Effect::End(1)];
+        };
+        for byte in bytes {
+            if matches!(byte, b'\n' | b'\r') {
+                if *nonempty {
+                    let method = std::mem::take(method);
+                    *self = Self::Saving { announce: false };
+                    return vec![save(method, config)];
+                }
                 *self = Self::Done;
-                vec![Effect::End(1)]
+                return vec![Effect::End(1)];
             }
-            Some(_) => {
-                *nonempty = true;
-                vec![Effect::ReadCode]
-            }
+            *nonempty = true;
         }
+        vec![Effect::ReadCode]
     }
 
     fn file(&mut self, event: file::Event) -> Vec<Effect> {
@@ -218,4 +220,24 @@ fn reply(bytes: Vec<u8>, code: u8) -> Vec<Effect> {
 
 pub(crate) fn error(message: &str, code: u8) -> Vec<Effect> {
     vec![Effect::Error(format!("fake claude: {message}\n").into_bytes()), Effect::End(code)]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Config, Effect, LoginCommand};
+    use skein_lib::Token;
+
+    #[test]
+    fn login_saves_a_code_delivered_with_its_terminator() {
+        for bytes in [b"pasted-code\n".as_slice(), b"pasted-code\r", b"pasted-code\r\n"] {
+            let mut login = LoginCommand::Code { method: "claude.ai".into(), nonempty: false };
+            let effects = login.input(
+                Some(bytes),
+                Config { root: Some(Token::new(1)), directory: None, mcp: None, mcp_directory: None },
+            );
+            assert!(
+                matches!(effects.as_slice(), [Effect::File(skein_io::file::Request::Store { bytes, .. })] if bytes.as_ref() == b"claude.ai")
+            );
+        }
+    }
 }

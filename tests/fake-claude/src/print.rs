@@ -379,10 +379,12 @@ impl Print {
             }
             None => error("incomplete input line", 1),
             Some(bytes) => {
-                self.input.extend_from_slice(bytes);
-                if self.input.len() > super::fake::FILE_BYTES as usize {
+                let remaining =
+                    (super::fake::FILE_BYTES as usize).checked_sub(self.input.len()).expect("bounded input");
+                if bytes.len() > remaining {
                     return error("input line too long", 1);
                 }
+                self.input.extend_from_slice(bytes);
                 if self.input.last() != Some(&b'\n') {
                     return vec![Effect::ReadCode];
                 }

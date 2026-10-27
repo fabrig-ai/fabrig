@@ -488,3 +488,48 @@ fn an_unread_session_id_is_still_new() {
     let run = print::sequence(Story::default(), vec![print::without_input(), print::invocation(1)]);
     assert!(run.records.iter().all(|record| record.exit == Some(Exit::Code(0))));
 }
+
+#[test]
+fn adjacent_json_lines_run_their_turns_in_order() {
+    let first = json!({"type":"user", "message":{"role":"user", "content":"first"}});
+    let second = json!({"type":"user", "message":{"role":"user", "content":"second"}});
+    let bytes = format!("{first}\n{second}\n");
+    let run = print::run(
+        story(vec![Step::Text("first answer".into())], End::default()),
+        print::unpaced(bytes.as_bytes()),
+        None,
+        Some(MCP),
+    );
+    assert_eq!(smith_fake_claude::received(run.observations.as_deref().expect("observations")), [first, second]);
+    let result = results(&run);
+    assert_eq!(
+        result.iter().map(|value| value["result"].as_str().expect("result text")).collect::<Vec<_>>(),
+        ["first answer", "Done."]
+    );
+    assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
+}
+
+// The fake's existing whole-line bound, including its LF (fake::FILE_BYTES).
+const INPUT_LINE_BYTES: usize = 65_536;
+
+fn input_line(length: usize) -> Vec<u8> {
+    let mut value = json!({"type":"user", "message":{"role":"user", "content":""}});
+    let envelope = serde_json::to_vec(&value).expect("user JSON").len() + 1;
+    value["message"]["content"] = json!("x".repeat(length - envelope));
+    format!("{value}\n").into_bytes()
+}
+
+#[test]
+fn an_input_line_at_the_bound_runs_its_turn() {
+    let run = print::run(Story::default(), print::unpaced(&input_line(INPUT_LINE_BYTES)), None, Some(MCP));
+    assert_eq!(results(&run).len(), 1);
+    assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
+}
+
+#[test]
+fn an_input_line_past_the_bound_is_refused() {
+    let run = print::run(Story::default(), print::unpaced(&input_line(INPUT_LINE_BYTES + 1)), None, Some(MCP));
+    assert!(results(&run).is_empty());
+    assert_eq!(run.records[0].exit, Some(Exit::Code(1)));
+    assert!(String::from_utf8_lossy(&run.records[0].stderr).contains("input line too long"));
+}

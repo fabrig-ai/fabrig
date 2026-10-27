@@ -11,7 +11,7 @@ use skein_io::{
 };
 use skein_lib::{
     Env, Queue, Time, Token, Wall,
-    stream::{Down, Read, Up},
+    stream::{Delimiter, Down, Read, Up},
 };
 use skein_shell::Host;
 use skein_world::{HostedProgram, Inherited};
@@ -137,7 +137,10 @@ impl Server {
     }
 
     fn read(&mut self) {
-        self.requests.push(Request::Stream { stream: self.input, down: Down::Demand { read: Read::Fill(1), room: 0 } });
+        self.requests.push(Request::Stream {
+            stream: self.input,
+            down: Down::Demand { read: Read::Scan { until: Delimiter::LF, max: crate::fake::FILE_BYTES }, room: 0 },
+        });
     }
 
     fn end(&mut self) {

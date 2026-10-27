@@ -10,7 +10,7 @@ use skein_io::{
 };
 use skein_lib::{
     Queue, Token,
-    stream::{Down, Read, Up},
+    stream::{Delimiter, Down, Read, Up},
 };
 use std::collections::{BTreeMap, VecDeque};
 
@@ -187,7 +187,10 @@ impl Mcp {
 
     fn read(&self, requests: &mut Queue<Request>) {
         if let Some(input) = self.input {
-            requests.push(Request::Stream { stream: input, down: Down::Demand { read: Read::Fill(1), room: 0 } });
+            requests.push(Request::Stream {
+                stream: input,
+                down: Down::Demand { read: Read::Scan { until: Delimiter::LF, max: crate::fake::FILE_BYTES }, room: 0 },
+            });
         }
     }
 
@@ -276,5 +279,51 @@ impl Mcp {
 
     pub fn is_empty(&self) -> bool {
         !self.spawning && self.child.is_none() && self.input.is_none() && self.output.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Mcp, Notice, Pending};
+    use serde_json::json;
+    use skein_io::{Event, Request};
+    use skein_lib::{
+        Queue, Token,
+        stream::{Down, Held, Up},
+    };
+
+    // T1's measured relay tools/list wire size, including LF.
+    const RELAY_LIST_BYTES: usize = 25_566;
+    // One complete JSON line should require one delivery, regardless of its size.
+    const MAX_DELIVERIES: usize = 1;
+
+    #[test]
+    fn a_relay_sized_tool_list_arrives_in_one_delivery() {
+        let input = Token::new(1);
+        let mut mcp = Mcp::new();
+        mcp.input = Some(input);
+        mcp.pending = Some((1, Pending::List));
+        let mut value = json!({"jsonrpc":"2.0", "id":1, "result":{"tools":[{"name":"finish"}]}, "padding":""});
+        let envelope = serde_json::to_vec(&value).expect("JSON").len() + 1;
+        value["padding"] = json!("x".repeat(RELAY_LIST_BYTES - envelope));
+        let mut bytes = serde_json::to_vec(&value).expect("JSON");
+        bytes.push(b'\n');
+        let mut stream = Held::new(bytes.into_boxed_slice());
+        let mut requests = Queue::with_capacity(8);
+        mcp.read(&mut requests);
+        let mut deliveries = 0;
+        while mcp.notices.is_empty() {
+            let Request::Stream { down: Down::Demand { read, .. }, .. } = requests.pop().expect("read demand") else {
+                panic!("MCP reads its response");
+            };
+            let up = stream.answer(read).expect("response available");
+            assert!(matches!(up, Up::Bytes(_)), "a complete response is delivered");
+            deliveries += 1;
+            mcp.event(Event::Stream { owner: input, up }, &mut requests);
+        }
+        assert!(deliveries <= MAX_DELIVERIES, "tool-list deliveries: {deliveries}");
+        assert!(
+            matches!(mcp.notices.pop_front(), Some(Notice::Settled { connected: true, tools }) if tools == ["finish"])
+        );
     }
 }

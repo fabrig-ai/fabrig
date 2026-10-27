@@ -198,3 +198,23 @@ fn a_late_server_answer_is_dropped() {
     assert_eq!(tool_result(&run)["tool_use_id"], "toolu_2");
     assert_eq!(run.calls, ["finish", "finish"]);
 }
+
+// T1 measured a relay tools/list line of 25,566 bytes. A long tool name
+// exercises that scale through the hosted fake and its actual I/O driver.
+const RELAY_LIST_BYTES: usize = 25_566;
+
+#[test]
+fn a_relay_sized_tool_list_fits_the_memory_envelope() {
+    let run = print::with_server(
+        Story::default(),
+        print::invocation(0),
+        ServerScript {
+            tools: vec![Tool { name: "x".repeat(RELAY_LIST_BYTES), answer: Answer::default() }],
+            ..ServerScript::default()
+        },
+    );
+    assert_eq!(messages(&run)[0]["mcp_servers"][0]["status"], "connected");
+    let heap = run.heap.expect("world checks memory");
+    eprintln!("relay-sized tool list process (peak, envelope): {heap:?}");
+    assert!(heap.iter().all(|(peak, envelope)| peak <= envelope));
+}

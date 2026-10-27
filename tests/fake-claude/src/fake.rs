@@ -12,6 +12,7 @@ use skein_lib::{
     stream::{Down, Read, Up},
 };
 use skein_shell::Host;
+use std::collections::VecDeque;
 
 use crate::{
     Observation, STORY_FILE, Story,
@@ -49,6 +50,9 @@ pub struct Fake {
     config: Config,
     input: Option<Token>,
     input_ended: bool,
+    // At most one FILE_BYTES delivery, consumed only when the command asks.
+    input_bytes: VecDeque<u8>,
+    input_requested: bool,
     signal: Token,
     stdout: Output,
     stderr: Output,
@@ -78,8 +82,8 @@ pub(crate) fn limits() -> Limits {
         sockets: 8,
         names: 0,
         refusals: 1,
-        intake: 1,
-        receive: 1,
+        intake: FILE_BYTES,
+        receive: FILE_BYTES,
         output: u32::try_from(OUTPUT_BYTES).expect("output limit fits"),
         sends: 2,
         accepts: 1,
@@ -198,6 +202,8 @@ impl Fake {
             config,
             input,
             input_ended: input.is_none(),
+            input_bytes: VecDeque::new(),
+            input_requested: false,
             signal,
             stdout,
             stderr,
@@ -262,18 +268,7 @@ impl Fake {
                 Effect::DelayedInit { after_ms, bytes } => {
                     self.delayed_init = Some((self.now.saturating_add(Duration::from_millis(after_ms)), bytes));
                 }
-                Effect::ReadCode => {
-                    if self.input_ended {
-                        let effects =
-                            self.command.as_mut().map(|command| command.input(None, self.config)).unwrap_or_default();
-                        self.effects(effects);
-                    } else {
-                        self.io_requests.push(Request::Stream {
-                            stream: self.input.expect("code input is present"),
-                            down: Down::Demand { read: Read::Fill(1), room: 0 },
-                        });
-                    }
-                }
+                Effect::ReadCode => self.input_requested = true,
                 Effect::McpStart { configuration, directory } => self.mcp.start(
                     configuration,
                     self.config.mcp_directory.expect("MCP root"),
@@ -377,21 +372,49 @@ impl Fake {
                 if matches!(up, Up::End | Up::Failed(_)) {
                     self.input_ended = true;
                 }
-                let effects = match &mut self.command {
-                    Some(command) => match up {
-                        Up::Bytes(bytes) => command.input(Some(&bytes), self.config),
-                        Up::End | Up::Failed(_) => command.input(None, self.config),
-                        Up::Room => Vec::new(),
-                    },
-                    None => Vec::new(),
-                };
-                self.effects(effects);
+                match up {
+                    Up::Bytes(bytes) => {
+                        assert!(self.input_bytes.is_empty(), "read only after the last delivery is consumed");
+                        assert!(bytes.len() <= FILE_BYTES as usize, "stdin delivery fits its demand");
+                        self.input_bytes = bytes.into_vec().into();
+                        self.effects(vec![Effect::ReadCode]);
+                    }
+                    Up::End | Up::Failed(_) => self.effects(vec![Effect::ReadCode]),
+                    Up::Room => {}
+                }
             }
             Event::Closed { owner } if Some(owner) == self.stdout.token() => self.stdout.closed(),
             Event::Closed { owner } if Some(owner) == self.stderr.token() => self.stderr.closed(),
             Event::Closed { owner } if Some(owner) == self.observation.token() => self.observation.closed(),
             Event::Failed { .. } => self.end(1),
             _ => {}
+        }
+    }
+
+    fn read_input(&mut self) {
+        if self.code.is_some() || !self.input_requested || self.file_request.is_some() {
+            return;
+        }
+        self.input_requested = false;
+        if let Some(bytes) = take_input(&mut self.input_bytes) {
+            let effects =
+                self.command.as_mut().map(|command| command.input(Some(&bytes), self.config)).unwrap_or_default();
+            self.effects(effects);
+        } else if self.input_ended {
+            let effects = self.command.as_mut().map(|command| command.input(None, self.config)).unwrap_or_default();
+            self.effects(effects);
+        } else {
+            self.io_requests.push(Request::Stream {
+                stream: self.input.expect("code input is present"),
+                down: Down::Demand {
+                    // Login accepts CR or LF; JSON framing is buffered above I/O.
+                    read: match &self.command {
+                        Some(Command::Login(_)) => Read::Line { max: FILE_BYTES },
+                        _ => Read::Arrived { max: FILE_BYTES },
+                    },
+                    room: 0,
+                },
+            });
         }
     }
 
@@ -421,6 +444,9 @@ impl Fake {
                 );
             }
         }
+        // Defer buffered reads until queued file effects have been submitted,
+        // just as an I/O demand used to answer on a later loop iteration.
+        self.read_input();
         self.mcp.progress(&mut self.io_requests);
         self.stdout.progress(self.code.is_some(), &mut self.io_requests);
         self.stderr.progress(self.code.is_some(), &mut self.io_requests);
@@ -500,6 +526,7 @@ impl Host for Fake {
             || !self.file_events.is_empty()
             || !self.io_events.is_empty()
             || self.file_request.is_some()
+            || (self.input_requested && self.code.is_none())
             || (self.code.is_some() && (self.config.root.is_some() || self.config.mcp.is_some()) && self.files.takes())
     }
 
@@ -545,5 +572,30 @@ impl Host for Fake {
 
     fn operations(&self) -> u32 {
         operations()
+    }
+}
+
+// A delivery may hold several JSON lines. Keep the remainder until the next
+// ReadCode so file stores, tool calls and results keep their original pacing.
+fn take_input(bytes: &mut VecDeque<u8>) -> Option<Vec<u8>> {
+    if bytes.is_empty() {
+        return None;
+    }
+    let end = bytes.iter().position(|byte| *byte == b'\n').map_or(bytes.len(), |at| at + 1);
+    Some(bytes.drain(..end).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::take_input;
+
+    #[test]
+    fn one_delivery_keeps_adjacent_json_lines_in_order() {
+        let first = b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"first\"}}\n";
+        let second = b"{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"second\"}}\n";
+        let mut delivery = [first.as_slice(), second.as_slice()].concat().into();
+        assert_eq!(take_input(&mut delivery).as_deref(), Some(first.as_slice()));
+        assert_eq!(take_input(&mut delivery).as_deref(), Some(second.as_slice()));
+        assert_eq!(take_input(&mut delivery), None);
     }
 }
