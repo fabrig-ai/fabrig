@@ -28,6 +28,11 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
 
 - **The listing's order:** `tasks` ordered by priority lists the lower
   number first, then by task number.
+- **Waiting work in the same order:** among tasks waiting for the same
+  write hold, or for a slot to run in, temper starts the one under the
+  lower priority number first, each task taking its nearest goal's
+  priority; a task under no goal waits behind every goal's, then the
+  earlier wait goes first.
 - **No interruption:** a new priority does not stop or restart a run
   in progress.
 
@@ -45,6 +50,3 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   delegation, an accepted proposal, or an amendment of a task.
 - temper has no board to reorder goals: each changes by its own
   amendment.
-- Among tasks waiting for the same resources, temper starts the one
-  under the higher priority number first, each task taking its nearest
-  goal's priority: the reverse of the listing's order.
