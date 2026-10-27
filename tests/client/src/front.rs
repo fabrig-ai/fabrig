@@ -602,11 +602,7 @@ impl Joint {
             limits.tasks.contract_choices = 2;
             limits.tasks.executor_kinds = 3;
             limits.tasks.charters = 4;
-            let mut reviewer = config.core.defaults.charters[0].clone();
-            reviewer.number = 4;
-            reviewer.policy.modify = false;
-            reviewer.policy.agents = false;
-            config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), reviewer]);
+            Self::landing_reviewer(&mut config);
             limits.tasks.authority_grants = 5;
             limits.tasks.authority_segments = 9;
             limits.tasks.authority_bytes = 512;
@@ -635,6 +631,13 @@ impl Joint {
             (config, limits)
         });
         Self::with_engine(seed, limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, SLOTS)
+    }
+    fn landing_reviewer(config: &mut engine::Config) {
+        let mut reviewer = config.core.defaults.charters[0].clone();
+        reviewer.number = 4;
+        reviewer.policy.modify = false;
+        reviewer.policy.agents = false;
+        config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), reviewer]);
     }
     fn with_engine(
         seed: u64,
