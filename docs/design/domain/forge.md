@@ -966,6 +966,18 @@ starts from current code. It never updates only because its base moved.
     with, a task at exactly the head.
 - **Blocking or advisory.** A blocking gate's verdict holds the landing;
   an advisory one's is read, and reported, and holds nothing.
+- **A review that cannot review fails; it never asks for changes.** A
+  reviewer that could not read what it judges (the pull request, its
+  files, the head), or could not judge it for any other reason of its
+  own, ends its task failed, saying why, within the verdict contract's
+  failure (`agent.md`, 4.4); its charter's words say so. A failed
+  review is no verdict: the change asks for the gate again once, a
+  fresh review at the same head, and a second failure holds the change,
+  naming the review's failure, for its requester or a person to
+  release or amend. It never starts a repair, which would spend a
+  repair's bound on nothing the change's diff did. A change's agents
+  hold the forge's reads (kind 1) beside the kinds it makes (section 6),
+  so that a reviewer can read its own pull request.
 - **A blocking gate that says no:** a review that asks for changes, or a
   check that fails, is a repair, given its remarks (8.4); a declined
   approval holds the change, with the person's reason. The verdict
