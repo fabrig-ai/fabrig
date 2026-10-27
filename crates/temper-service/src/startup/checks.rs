@@ -143,7 +143,13 @@ pub fn standalone(
             (Some(first), Some(second)) => first.as_ref() == b"internal" && second.as_ref() == b"agent",
             _ => false,
         };
-        if command {
+        let old_command = match worker.agent.arguments.first() {
+            Some(first) => first.as_ref() == b"agent",
+            None => false,
+        };
+        if old_command {
+            problems.push(path.member(b"agent").member(b"arguments"), What::OldAgentCommand);
+        } else if command {
             let absolute = match worker.agent.arguments.get(2) {
                 Some(value) => value.starts_with(b"/"),
                 None => false,

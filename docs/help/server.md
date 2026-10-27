@@ -259,7 +259,7 @@ git diff --stat LIVE NEW -- ':(glob)crates/*/golden*/**'
   new one.
 
 1. **Build** at `main` (section 2), and remake both documents from the
-   new commit's example (sections 3 and 7).
+   new commit's example (sections 3 and 7). A document kept from before 10-27 names each worker's agent.arguments as ["agent", PATH]; write ["internal", "agent", PATH], PATH the worker's agent.configuration.
 2. **Export** the LLM account from the running engine (section 10),
    then **stop** temper's and Forgejo's units on `engine`, and the
    worker and runner on `worker`.

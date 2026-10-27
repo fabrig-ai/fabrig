@@ -13,6 +13,7 @@ pub enum What {
     Loopback,
     Connectors,
     Absolute,
+    OldAgentCommand,
     NoWebhooks,
     Profile,
     Override(limits::Refused),
@@ -126,6 +127,7 @@ fn words(what: What) -> &'static [u8] {
         What::Loopback => b"must be a socket address on loopback",
         What::Connectors => b"must be [1], the forge connector",
         What::Absolute => b"must be an absolute path",
+        What::OldAgentCommand => b"\"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's",
         What::NoWebhooks => b"needs application.webhooks",
         What::Profile => b"the only profile is \"small\"",
         What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
@@ -425,6 +427,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             | What::Loopback
             | What::Connectors
             | What::Absolute
+            | What::OldAgentCommand
             | What::NoWebhooks
             | What::Profile
             | What::Override(_)

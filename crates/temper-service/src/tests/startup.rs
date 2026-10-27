@@ -1156,6 +1156,20 @@ fn a_webhook_listener_with_a_bundle_is_refused() {
 }
 
 #[test]
+fn an_old_agent_command_is_refused_with_its_fix() {
+    let document =
+        fixtures::with(&fixtures::document(), b"workers[0].agent.arguments", br#"["agent", "/c/agent.json"]"#);
+    let refused = crate::named(&document, &config::Directories::working()).unwrap_err();
+    assert_eq!(
+        lines(&refused).as_ref(),
+        b"workers[0].agent.arguments: \"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's\n"
+    );
+    let document =
+        fixtures::with(&document, b"workers[0].agent.arguments", br#"["internal", "agent", "/c/agent.json"]"#);
+    crate::named(&document, &config::Directories::working()).expect("the replacement agent command passes");
+}
+
+#[test]
 fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values() {
     let directories = config::Directories::given(b"/configuration", b"/data", b"/cache").unwrap();
     for (member, input, expected, refused) in [
