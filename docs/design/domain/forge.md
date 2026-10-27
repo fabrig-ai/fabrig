@@ -996,7 +996,13 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    landing (the pull request, the merge commit, the queue's group's
    where the forge's queue landed it, whose id in hexadecimal is the
    result's words' first line, the pull request with its address the
-   second: `root.md`, section 6). It then verifies until its landing
+   second: `root.md`, section 6; then what the landing passed, as facts
+   the change itself saw: each check at the landed head with its
+   conclusion, the repairs with their count and why each was asked (a
+   check that failed, a review's remarks), and each review's verdict,
+   cut to the result's bound from the end and marked; a check or a test
+   the change never saw is never named, so whoever reports the landing
+   reports only what ran). It then verifies until its landing
    is cleared (`after-landing.md`, section 6), and closes, its branch
    deleted as its hold is released (section 11).
 
