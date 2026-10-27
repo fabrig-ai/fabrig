@@ -68,6 +68,8 @@ pub fn fixture() -> forge::Fixture {
             // o/configuring-stock has not landed Message in stock; tools 3 keeps it for the chat.
             value["engine"]["rules"]["ceiling"]["tools"] = 3.into();
             crate::fixtures::own_policy(value);
+            // Keep this delegation story on its own ten-unit runs as stock K grows.
+            value["world_settings"]["maximum_run_spend"] = 10.into();
             // A tracked goal reserves one full news message beside its question's answer credit.
             value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 8192.into();
             value["engine"]["rules"]["ceiling"]["delegation"]["depth"] = 5.into();
@@ -353,7 +355,7 @@ pub fn check(ran: &Ran) {
     let temper_service::stock::Given::Own(defaults) = crate::fixtures::given(ran.path()) else {
         panic!("the green-light fixture supplies its own defaults")
     };
-    let run_spend = defaults.charters[0].spend;
+    let run_spend = defaults.charters[0].spend.min(defaults.rules.maximum_run_spend);
     assert_eq!(
         child["spend"],
         (CHAT_SPEND - run_spend) / 2,
