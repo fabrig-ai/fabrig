@@ -82,6 +82,11 @@ temper runs software work for people: agents take tasks on the repositories of a
 - temper help configure: the settings changed while the deployment
   runs: applied or proposed, running work moved, a value restored.
 
+## The recipes
+
+- temper help weekly-budget: a project's spend capped each week, and
+  renewed.
+
 ## Placeholders
 
 In a page's commands, each of these words stands for a value you
@@ -98,5 +103,7 @@ supply; a walk names any other in its `Before you start`.
   hyphens.
 - `TASK`, `PROJECT`, `FORGE`, `INSTALLATION`, `ACCOUNT`, `REVISION`,
   `PROVIDER`: numbers, as a read prints them.
+- `AMOUNT`: units of spend, a whole number, in the deployment's unit.
+- `ROLE`: a role's number, as `project show` prints it.
 - `PROPOSAL`: a proposal, as a read prints it: `t41/3`, task 41's
   third, or `p2/1`, party 2's first.

@@ -64,5 +64,6 @@ A project is where work happens: the repositories adopted into it, one of them i
   repository.
 - temper has no call that moves a task or a repository to another
   project.
-- A project's period never renews: its budget is its period spend,
-  raised with `project fund` (temper help budget).
+- A project's period lasts a week: each week the next opens at its
+  period spend then, and `project fund` raises it at once (temper help
+  weekly-budget).
