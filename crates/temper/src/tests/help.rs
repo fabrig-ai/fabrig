@@ -2,53 +2,65 @@ use crate::{Command, configure_with, help};
 use std::{fs, os::unix::ffi::OsStrExt};
 use temper_client_tools::jig::call::Parsed;
 
-fn fenced_lines(text: &str) -> Vec<&str> {
+fn fenced_lines(text: &str) -> Vec<(usize, &str)> {
     let mut fenced = false;
     let mut lines = Vec::new();
-    for line in text.lines() {
+    for (at, line) in text.lines().enumerate() {
         if line.trim_start().starts_with("```") {
             fenced = !fenced;
         } else if fenced {
-            lines.push(line);
+            lines.push((at + 1, line));
         }
     }
     lines
 }
 
-// Shell words up to the first unquoted comment, pipe, redirect or command separator.
-fn command_words(line: &str) -> Vec<String> {
+// Only whole unquoted shell separator words end a command example.
+fn command_words(line: &str) -> Result<Vec<String>, &'static str> {
     let mut words = Vec::new();
     let mut word = String::new();
     let mut started = false;
+    let mut quoted = false;
     let mut quote = None;
-    let mut chars = line.chars().peekable();
-    while let Some(ch) = chars.next() {
+    for ch in line.chars() {
         if let Some(delimiter) = quote {
             if ch == delimiter {
                 quote = None;
             } else {
                 word.push(ch);
             }
+        } else if ch == '#' && !started {
+            return Ok(words);
         } else if ch == '\'' || ch == '"' {
             quote = Some(ch);
+            quoted = true;
             started = true;
-        } else if matches!(ch, '#' | '|' | '>' | '<' | ';') || (ch == '&' && chars.peek() == Some(&'&')) {
-            break;
         } else if ch.is_ascii_whitespace() {
             if started {
-                words.push(std::mem::take(&mut word));
+                if !quoted && is_command_cut(&word) {
+                    return Ok(words);
+                }
+                words.push(substitute_placeholders(&word));
+                word.clear();
                 started = false;
+                quoted = false;
             }
         } else {
             word.push(ch);
             started = true;
         }
     }
-    assert!(quote.is_none(), "closed quote: {line}");
-    if started {
-        words.push(word);
+    if quote.is_some() {
+        return Err("unclosed quote");
     }
-    words.into_iter().map(|word| substitute_placeholders(&word)).collect()
+    if started && (quoted || !is_command_cut(&word)) {
+        words.push(substitute_placeholders(&word));
+    }
+    Ok(words)
+}
+
+fn is_command_cut(word: &str) -> bool {
+    matches!(word, "|" | "||" | ">" | ">>" | "<" | "&&" | ";") || word.starts_with('#')
 }
 
 fn substitute_placeholders(word: &str) -> String {
@@ -58,7 +70,7 @@ fn substitute_placeholders(word: &str) -> String {
         let end =
             word[start..].find(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).map_or(word.len(), |at| start + at);
         let run = &word[start..end];
-        if run.len() >= 2
+        if !run.is_empty()
             && run.as_bytes()[0].is_ascii_uppercase()
             && run.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
         {
@@ -80,44 +92,87 @@ fn substitute_placeholders(word: &str) -> String {
 fn every_command_line_in_the_pages_parses() {
     let mut ctl = 0;
     let mut binary = 0;
+    let mut failures = Vec::new();
     let environment = [(Box::from(b"HOME".as_slice()), Box::from(b"/home/test".as_slice()))];
     for page in &temper_docs::PAGES {
-        for line in fenced_lines(page.text) {
+        for (at, line) in fenced_lines(page.text) {
             if line.split_ascii_whitespace().next() != Some("temper") {
                 continue;
             }
-            let words = command_words(line);
+            let words = match command_words(line) {
+                Ok(words) => words,
+                Err(why) => {
+                    failures.push(format!("{}:{at}: {line}: {why}", page.name));
+                    continue;
+                }
+            };
             let arguments = words[1..].iter().map(|word| word.as_bytes()).collect::<Vec<_>>();
-            if words.get(1).is_some_and(|word| word == "ctl") {
-                let (_, parsed) =
-                    crate::ctl::parse(&arguments[1..]).unwrap_or_else(|why| panic!("{}: {line}: {why}", page.name));
-                assert!(matches!(parsed, Parsed::Call { .. } | Parsed::File { .. }), "{}: {line}: a tool", page.name);
+            let result = if words.get(1).is_some_and(|word| word == "ctl") {
                 ctl += 1;
+                match crate::ctl::parse(&arguments[1..]) {
+                    Ok((_, Parsed::Call { .. } | Parsed::File { .. })) => Ok(()),
+                    Err(why) => Err(why.to_string()),
+                }
             } else {
-                let arguments = arguments.into_iter().map(Box::from).collect::<Vec<_>>();
-                configure_with(&arguments, &environment, b"/")
-                    .unwrap_or_else(|why| panic!("{}: {line}: {why}", page.name));
                 binary += 1;
+                let arguments = arguments.into_iter().map(Box::from).collect::<Vec<_>>();
+                configure_with(&arguments, &environment, b"/").map(|_| ())
+            };
+            if let Err(why) = result {
+                failures.push(format!("{}:{at}: {line}: {why}", page.name));
             }
         }
     }
+    assert!(failures.is_empty(), "{} command lines refused:\n{}", failures.len(), failures.join("\n"));
     assert!(ctl > 0 && binary > 0, "checked {ctl} ctl and {binary} binary lines");
+    println!("checked {ctl} ctl and {binary} binary command lines");
 }
 
 #[test]
 fn page_commands_keep_quoted_arguments_and_replace_only_capital_words() {
     assert_eq!(
-        command_words("temper ctl DIR message TASK 'two words' --key KEY # comment"),
+        command_words("temper ctl DIR message TASK 'two words' --key KEY # comment").expect("words"),
         ["temper", "ctl", "1", "message", "1", "two words", "--key", "1"]
     );
     assert_eq!(
-        command_words("  temper ctl DIR decide PROPOSAL accept \"two words\""),
+        command_words("  temper ctl DIR decide PROPOSAL accept \"two words\"").expect("words"),
         ["temper", "ctl", "1", "decide", "t1/1", "accept", "two words"]
     );
-    for ending in ["# comment", "| cat", "> file", "< file", "&& next", "; next"] {
-        assert_eq!(command_words(&format!("temper help {ending}")), ["temper", "help"]);
+    for ending in
+        ["# comment", "#don't parse quotes", "| cat", "|| cat", "> file", ">> file", "< file", "&& next", "; next"]
+    {
+        assert_eq!(command_words(&format!("temper help {ending}")).expect("words"), ["temper", "help"]);
     }
-    assert_eq!(substitute_placeholders("connected:FORGE/taskTASK/N/_TASK/A2"), "connected:1/taskTASK/N/_TASK/1");
+    assert_eq!(substitute_placeholders("connected:FORGE/taskTASK/N/_TASK/A2"), "connected:1/taskTASK/1/_TASK/1");
+}
+
+#[test]
+fn only_whole_unquoted_separator_words_cut_a_page_command() {
+    assert_eq!(
+        command_words("temper ctl DIR forge-connect 2 github-app 12345 <slug>.private-key.pem --key github-app")
+            .expect("words"),
+        [
+            "temper",
+            "ctl",
+            "1",
+            "forge-connect",
+            "2",
+            "github-app",
+            "12345",
+            "<slug>.private-key.pem",
+            "--key",
+            "github-app"
+        ]
+    );
+    assert_eq!(
+        command_words("temper help '<' \"|\" '#' '&&' '||' '>' '>>' ';'").expect("quoted separators"),
+        ["temper", "help", "<", "|", "#", "&&", "||", ">", ">>", ";"]
+    );
+    assert_eq!(
+        command_words("temper help a|b >file <file a;b").expect("argument words"),
+        ["temper", "help", "a|b", ">file", "<file", "a;b"]
+    );
+    assert_eq!(command_words("temper help 'unclosed"), Err("unclosed quote"));
 }
 
 fn configured(words: &[&str]) -> help::Request {

@@ -131,7 +131,7 @@ pub(super) fn placeholders(entry: &Page) -> Result<(), String> {
                 for line in section.lines() {
                     if let Some(after) = line.strip_prefix("- `")
                         && let Some((word, _)) = after.split_once("` ")
-                        && word.len() >= 2
+                        && !word.is_empty()
                         && word.starts_with(|c: char| c.is_ascii_uppercase())
                         && word.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
                     {
@@ -151,7 +151,6 @@ pub(super) fn placeholders(entry: &Page) -> Result<(), String> {
             continue;
         }
         for word in line.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')) {
-            // The required N refusal also excludes the old one-letter placeholders.
             if word.starts_with(|c: char| c.is_ascii_uppercase())
                 && word.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
                 && !allowed.contains(&word)
