@@ -14,6 +14,7 @@ pub(super) fn client(inventory: &mut Inventory, limits: &skein_llm::client::Limi
         reasoning,
         metadata,
         output_items,
+        calls_per_response,
         strings,
         tokens,
         retained,
@@ -34,6 +35,7 @@ pub(super) fn client(inventory: &mut Inventory, limits: &skein_llm::client::Limi
     inventory.value("reasoning", Value::Bytes(u64::from(reasoning)))?;
     inventory.value("metadata", Value::Bytes(u64::from(metadata)))?;
     inventory.value("output_items", Value::Count(u64::from(output_items)))?;
+    inventory.value("calls_per_response", Value::Count(u64::from(calls_per_response)))?;
     inventory.value("strings", Value::Bytes(u64::from(strings)))?;
     inventory.value("tokens", Value::Count(u64::from(tokens)))?;
     inventory.value("retained", Value::Bytes(u64::from(retained)))?;

@@ -132,6 +132,9 @@ fn each_endpoint_names_its_own_request_bound() {
     let header = header(&named, &names(), &configuration).expect("names fit");
     assert_eq!(value(&header, b"llm.request[endpoint=codex]"), Some(LimitValue::Integer(3_145_728)));
     assert_eq!(value(&header, b"llm.request[endpoint=other]"), Some(LimitValue::Integer(6_291_456)));
+    for name in [b"llm.calls_per_response[endpoint=codex]".as_slice(), b"llm.calls_per_response[endpoint=other]"] {
+        assert_eq!(value(&header, name), Some(LimitValue::Integer(u64::from(profile().declared.calls_per_response))));
+    }
 }
 
 #[test]
