@@ -8,8 +8,8 @@ which fast-forwards each main to its proved candidate. It replaces, for
 such a project, the change's CI, its queue, its updates and its merge
 in the repository's style (`forge.md`, 8.2 steps 3 and 5 to 7,
 sections 9 and 10). What follows a landing, its tiers and its verdict,
-is not here: a change ends at landed (section 3). The forge's calls it
-makes are skein's `forge.md`, 3.2. What is still open is section 17.
+is `after-landing.md`. The forge's calls it makes are skein's
+`forge.md`, 3.2. What is still open is section 17.
 
 ## 1. In one page
 
@@ -106,7 +106,7 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   tip, so the next prepare takes the head as it is (5.2).
 - **Landed** when its member's main is its candidate. Its result is the
   landing: the candidate, which is main's commit, and its pull request.
-  It ends here, as under `queue`.
+  It then verifies, and ends at cleared (`after-landing.md`, section 6).
 - **Judgement gates carry over clean prepares,** where their freshness
   is `clean` (`forge.md`, 8.3): a verdict given at a head counts at the
   candidates temper's prepare made from it without settling a conflict,
@@ -262,8 +262,8 @@ For a project with no prepare command, one member per repository:
   repository's forge and id, eight bytes each; the gate's name and its
   definition's bytes, each after its length in two bytes; then each
   entry of the filtered tree: its path's length in two bytes and its
-  path from the root, its mode as four bytes, its object id's length
-  in one byte and the id's bytes.
+  path from the root, its mode as four bytes, and its object id as 32
+  bytes, as skein's vocabulary carries every id, a SHA-1 one padded.
 - **Read from the forge:** the top reads the trees it needs (the root,
   and each directory above an ignored path) with skein's `Read::Tree`,
   and the landing computes the key. A project's `key` command gives its
@@ -286,9 +286,10 @@ For a project with no prepare command, one member per repository:
   repository's main tip, which stays while it is main's.
 - **A baseline at main's tip.** When a repository first lands by turn,
   or a gate is added or changed, and the key at main's tip has no
-  receipt, the gate is dispatched once at main's tip, on the landing
-  branch itself, so that a landing whose keys equal main's (a
-  documentation landing) has a receipt to land on.
+  receipt, the gate is dispatched once at main's tip, on a branch of
+  temper's own made at that commit (`after-landing.md`, section 2), so
+  that a landing whose keys equal main's (a documentation landing) has a
+  receipt to land on.
 - **A failed receipt** makes a key that fails at once, with its run's
   output, until the tree changes.
 
@@ -421,7 +422,12 @@ Two kinds join `forge.md`'s section 6, each a row of its own:
   (kind 11), merge or rebase.
 - **The landing's own effects** are its dispatches, reruns and statuses
   (kinds 16, 17 and 6), on the repositories of its members; its
-  members' updates and merges are theirs, under their holds.
+  members' updates and merges are theirs (kinds 11 and 4, which a
+  change holds already), under their holds.
+- **The grant:** the project's policy gives the landing procedure kinds
+  6, 16 and 17 on the project's repositories, as it gives a queue's
+  repair its kinds (`forge.md`, section 9); temper's root grants them
+  to each landing task it makes.
 - **A purpose of its own,** tag 6 in `forge.md`'s table: a landing's
   step, its task (8 bytes), the member (2), the gate (2), the
   operation (1: a dispatch, a rerun, a pending status, a verdict's

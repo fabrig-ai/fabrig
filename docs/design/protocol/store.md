@@ -94,7 +94,12 @@ section 7).
 - **Designed, not built** (`../domain/landing.md`, section 12): 23
   `Landing`, keyed by the landing's task, a landing's state; 24
   `Receipt`, keyed by the project, the repository, the gate and the
-  key, a gate's result under a key, bounded by `receipts_per_gate`.
+  key, a gate's result under a key, bounded by `receipts_per_gate`;
+  25 `Tier`, keyed by repository and tier, its run in flight, last
+  judged tip, failures and flakes; 26 `Verification`, keyed by
+  repository and landing commit, a landing's tier verdicts, the
+  failures blamed on it and what repaired it
+  (`../domain/after-landing.md`, section 10).
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads them: the engine serves none of the forge's
   client parts but the adoption form (`../client/README.md`, section 4).

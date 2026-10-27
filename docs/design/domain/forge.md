@@ -802,7 +802,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 
 | Topic | Published when | Read by |
 |---|---|---|
-| landings on a repository's branch | a landing branch's tip moves | goals working in that repository; landing queues |
+| landings on a repository's branch | a landing branch's tip moves | goals working in that repository; landing queues; tiers (`after-landing.md`, section 3); a subscription naming trailers (`after-landing.md`, section 8) |
 | CI on a head | a head's CI, as 5.3 reads it, changes | changes; tasks that subscribe |
 | a pull request's state | opened, closed, merged, its head moved, its mergeability known | changes; tasks that subscribe |
 | comments and reviews on a participating object | another party writes there | the task dealing with it (section 13) |
@@ -975,7 +975,8 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    landing (the pull request, the merge commit, the queue's group's
    where the forge's queue landed it, whose id in hexadecimal is the
    result's words' first line, the pull request with its address the
-   second: `root.md`, section 6), and it closes, its branch
+   second: `root.md`, section 6). It then verifies until its landing
+   is cleared (`after-landing.md`, section 6), and closes, its branch
    deleted as its hold is released (section 11).
 
 Lazy, too, for runs: before a repair or a resolution is created, the
@@ -1328,8 +1329,10 @@ are comparable.
 - **Derived, not kept.** A queue is the ready changes into a branch,
   their priorities and their times; nothing of it is stored beyond the
   changes' own states, so a restart rebuilds it from them.
-- **The branch's own CI.** A landing temper did not make may break the
-  branch. Once CI fails on the branch's tip, the queue pauses and one
+- **The branch's own CI,** for a repository with no tier: a repository
+  with tiers is judged by their verdicts instead, and its queue never
+  pauses for them (`after-landing.md`, section 7). A landing temper did
+  not make may break the branch. Once CI fails on the branch's tip, the queue pauses and one
   repair is made: a change task into that branch, first in its queue,
   requested by the deployment on the project's behalf with the
   authority its policy gives such repairs, funded from the project's

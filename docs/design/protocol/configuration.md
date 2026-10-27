@@ -294,11 +294,15 @@ it, they are configured here.
 ```
 
 - **`by` and `gates`,** designed, not built, until kinds 4 and 5
-  (section 13) are: how the project lands, `queue` when absent, and,
-  under `turn`, each repository's test gates, a `gates` entry being
+  (section 13) are: how the project lands, `queue` when absent; under
+  `turn`, each repository's test gates; and, by either way, its tiers;
+  a `gates` entry being
   `{"forge": u16, "repository": u64, "gates": [{"name": string,
-  "workflow": string, "ignored": [string], "blocking": boolean}]}`, a
-  repository at most once (`../domain/landing.md`, 13.1).
+  "workflow": string, "ignored": [string], "blocking": boolean}],
+  "tiers": [{"name": string, "workflow": string, "ignored": [string],
+  "artifact": string, "format": "junit" | "lines"}]}`, a repository at
+  most once (`../domain/landing.md`, 13.1; `../domain/after-landing.md`,
+  section 11).
 
 A rule is a `LandingRule`, member for member:
 

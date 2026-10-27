@@ -33,6 +33,9 @@ all. Then temper's:
 6. **landing.md:** a project that lands by turn: landings across
    repositories and goals, prepare, receipts by key, proof by dispatch,
    and the project's landing turn.
+7. **after-landing.md:** tiers on the newest main, verdicts by test,
+   and a change that lives until its landing is cleared, by queue or by
+   turn.
 
 ## 2. Structure
 
