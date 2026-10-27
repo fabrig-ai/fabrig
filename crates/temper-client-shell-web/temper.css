@@ -945,7 +945,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-flow-choice { display: flex; flex-direction: column; align-items: flex-start; margin: 0; }
 .temper-flow-choice, :is(.temper-flow-details, .temper-model-key) { padding: 17.5px 21px; }
 .temper-main :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > h2 { margin: 0 0 4.67px; font: 700 14px/1.35 var(--temper-mono); }
-.temper-main .temper-flow-choice > h2 { margin-bottom: 0; }
+.temper-main .temper-flow-choice > h2 { margin-bottom: 11.67px; }
 .temper-main :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > :is(p, :where(.temper-flow-muted, .temper-flow-subtitle)) { margin: 0 0 1em; color: var(--temper-ink); font-size: 12.83px; line-height: 1.6; }
 .temper-main :is(.temper-flow-details, .temper-model-key) > :is(p, :where(.temper-flow-muted, .temper-flow-subtitle)) { margin-bottom: 11.67px; }
 .temper-welcome :is(.temper-flow-choice, .temper-flow-details, .temper-model-key) > :is(p, :where(.temper-flow-muted, .temper-flow-subtitle)) { font-size: 14px; line-height: 1.7; }
