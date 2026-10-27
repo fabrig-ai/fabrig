@@ -72,10 +72,19 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   | Rung | Forges | Model | Accounts held |
   |---|---|---|---|
   | fakes | `--fake-backends` (`protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
-  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5) | the model's |
+  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5); the box's agents on `gpt-6.1-sol` (below) | the model's |
   | GitHub | GitHub, through an App kept for QA, on a repository kept for it | as the rung below | the App's key and its installation |
   | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, a held configuration directory used in place (`protocol/credentials.md`, 3) | the model's |
 
+- **The real model's agents run `gpt-6.1-sol`** (the user, 10-27), set
+  as a person sets a box's model, before its start (the walk `box`'s
+  first step): the configuration's ChatGPT provider lists `gpt-6.1-sol`
+  first, and its model entry, in `temper.json` and in the agent's
+  configuration, copies `gpt-6-luna`'s as `temper init` writes it, the
+  name changed. Every charter takes the first configured model as its
+  default (`protocol/configuration.md`, 13.4), and the stock's spends
+  are sized from it at the start, so nothing else is raised. A chat is
+  started with `--model gpt-6.1-sol` where its model is named.
 - **Down before up:** the director opens a rung once the rung below has
   run clean at a `main` no older, and a rung's open findings hold the
   rungs above it (`draft/qa-live.md`, 3.2, without the lab's verdicts).
