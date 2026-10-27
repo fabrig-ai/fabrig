@@ -34,8 +34,8 @@ fn page_cuts_at_character_boundaries_and_counts_non_ascii_bytes_once() {
 #[test]
 fn page_from_inside_a_character_starts_at_the_next_boundary() {
     static ENTRY: Page = fixture(Kind::Guide, "ab·cd");
-    assert_eq!(page(&ENTRY, 3, 2), Cut { text: "cd", next: None });
     static LAST: Page = fixture(Kind::Guide, "ab·");
+    assert_eq!(page(&ENTRY, 3, 2), Cut { text: "cd", next: None });
     assert_eq!(page(&LAST, 3, 2), Cut { text: "", next: None });
 }
 
