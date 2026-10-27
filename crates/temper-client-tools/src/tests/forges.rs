@@ -1078,7 +1078,41 @@ fn setup_makes_the_default_or_named_project_then_adopts_the_answered_number() {
 }
 
 #[test]
-fn refused_make_project_prints_jigs_words_and_sends_no_adoption() {
+fn a_refusal_names_the_tool_called() {
+    use crate::jig::{
+        call::{Value, Values},
+        render::outcome,
+    };
+    const FILE: &[u8] = br#"{"items":[{"setting":{"kind":"rules"},"edit":"reset"}]}"#;
+    for (verb, expected) in [
+        ("apply", b"settings apply: stale; newest revision 2; read settings show again\n".as_slice()),
+        ("propose", b"settings propose: stale; newest revision 2; read settings show again\n".as_slice()),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let mut call = f::call(&["settings", verb, "FILE", "--against", "1", "--key", "refused-settings"]);
+        *call.values.get_mut(0).expect("FILE") = Some(Values::One(Value::Text(FILE.into())));
+        let number = root.submit_prepared(call, false, None);
+        if verb == "apply" {
+            let (_, _, request) = root.sends.get(&number).expect("sent settings request");
+            let operation = outcome::Operation::of(request);
+            let kept = outcome::kept(
+                &operation,
+                &client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(c::Outcome::SettingsChanged(
+                    c::OutcomeSettingsChanged { revision: 2 },
+                )))),
+                false,
+                None,
+                &root.limits.tools,
+            );
+            assert_eq!(kept.as_ref(), b"kept: change-settings, revision 2\n");
+        }
+        root.answered(
+            number,
+            c::Answer::Refused { refusal: c::Refusal::Stale(c::RefusalStale { newest: 2 }), at: None },
+        );
+        let printed = root.answer(number).expect("settings refusal");
+        assert_eq!((printed.status, printed.stderr.as_ref()), (2, expected));
+    }
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["forge", "setup", "3"]);
     root.adoption_answer(call, w::Outcome::SettingUp);
@@ -1097,13 +1131,13 @@ fn refused_make_project_prints_jigs_words_and_sends_no_adoption() {
         up: client::Up::Answer {
             attempt: *attempt,
             envelope: skein_lib::RequestEnvelope::Final,
-            answer: Some(client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NameTaken, at: None })),
+            answer: Some(client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None })),
             why: None,
         },
     });
     let printed = root.answer(call).unwrap();
     assert_eq!(printed.status, 2);
-    assert!(skein_lib::bytes::find(&printed.stderr, b"Another project has that name").is_some());
+    assert_eq!(printed.stderr.as_ref(), b"forge setup: This act is not offered\n");
     let client::Ask::Jig(_) = root.adoption_bytes(call) else { panic!("no adoption after refusal") };
 }
 

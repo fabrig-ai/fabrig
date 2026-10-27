@@ -192,7 +192,7 @@ fn amend_renders_an_engine_llm_refusal() {
     let answer = root.answer(call).expect("refusal");
     assert_eq!(
         (answer.status, answer.stderr.as_ref()),
-        (2, b"amend: This model cannot be chosen: chosen-model\n".as_slice())
+        (2, b"task amend: This model cannot be chosen: chosen-model\n".as_slice())
     );
 }
 #[test]
@@ -220,7 +220,7 @@ fn amend_renders_an_engine_account_refusal() {
     let answer = root.answer(call).expect("refusal");
     assert_eq!(
         (answer.status, answer.stderr.as_ref()),
-        (2, b"amend: Kept account is limited; cannot switch to account 43\n".as_slice())
+        (2, b"task amend: Kept account is limited; cannot switch to account 43\n".as_slice())
     );
 }
 #[test]
@@ -236,7 +236,7 @@ fn amend_renders_a_moved_spec_refusal() {
     let answer = root.answer(call).expect("refusal");
     assert_eq!(
         (answer.status, answer.stderr.as_ref()),
-        (2, b"amend: The object changed\nread again: task show 41\n".as_slice())
+        (2, b"task amend: The object changed\nread again: task show 41\n".as_slice())
     );
 }
 #[test]
@@ -260,7 +260,7 @@ fn amend_refusal_keeps_the_named_retry() {
         },
     );
     assert_eq!(root.answer(call).expect("refusal").stderr.as_ref(),
-        b"amend: Authority missing\npropose instead: task amend 41 because --rev 7 --model chosen-model --effort high --key model-amend\n");
+        b"task amend: Authority missing\npropose instead: task amend 41 because --rev 7 --model chosen-model --effort high --key model-amend\n");
 }
 #[test]
 fn a_named_amend_is_stable_across_clocks() {

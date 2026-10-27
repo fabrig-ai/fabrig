@@ -1167,3 +1167,34 @@ fn move_to_newest_sends_the_revision_and_renders_both_counts() {
         }
     }
 }
+
+#[test]
+fn settings_refusals_propose_the_called_tool_without_a_retry_call() {
+    let file = br#"{"items":[{"setting":{"kind":"rules"},"edit":"reset"}]}"#;
+    for (propose, tool, operation) in
+        [(false, "settings apply", "change-settings"), (true, "settings propose", "propose_settings")]
+    {
+        for json in [false, true] {
+            let (mut root, call) = if propose { proposed(file, json) } else { changed(file, json) };
+            root.answered(
+                call,
+                c::Answer::Refused {
+                    refusal: c::Refusal::Authority { lacking: c::Lacking::Approver, proposable: Some(true) },
+                    at: None,
+                },
+            );
+            let printed = root.answer(call).expect("authority refusal");
+            assert_eq!(printed.status, 2);
+            if json {
+                let text = core::str::from_utf8(&printed.stderr).expect("JSON");
+                assert!(text.contains(&format!(r#""operation":"{operation}""#)));
+                assert!(text.contains(&format!(r#""propose_instead":"{tool}""#)));
+            } else {
+                assert_eq!(
+                    printed.stderr.as_ref(),
+                    format!("{tool}: Authority missing\npropose instead: {tool}\n").as_bytes()
+                );
+            }
+        }
+    }
+}

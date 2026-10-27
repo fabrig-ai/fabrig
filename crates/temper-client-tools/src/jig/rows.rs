@@ -660,7 +660,7 @@ pub const CHANGE_SETTINGS: Tool = Tool {
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `stale; newest revision R; read settings again` (exit 2): read\nthe settings, then decide again.\n",
+    notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `settings apply: stale; newest revision R; read settings show\nagain` (exit 2): read the settings, then decide again.\n",
 };
 
 /// New rows append to preserve every earlier durable call identity.

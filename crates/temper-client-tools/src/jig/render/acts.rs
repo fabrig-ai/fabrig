@@ -257,7 +257,7 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         Refusal::Stale(value) => {
             out.put(b"stale; newest revision ");
             out.number(u64::from(value.newest));
-            out.put(b"; read settings again");
+            out.put(b"; read settings show again");
             return;
         }
         Refusal::Full(value) => {

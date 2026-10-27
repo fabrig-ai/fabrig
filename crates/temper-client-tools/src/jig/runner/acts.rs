@@ -531,7 +531,7 @@ fn send(
         ),
     };
     let (Event::Send { request, .. } | Event::Carry { request, .. }) = &event else { unreachable!("act event") };
-    let mut operation = Operation::of(request);
+    let mut operation = Operation::for_call(request, render::outcome::act_tool(called.call.tool));
     operation.to = to;
     operation.exported = exported;
     if called.call.tool == rows::EXPORT_AT {

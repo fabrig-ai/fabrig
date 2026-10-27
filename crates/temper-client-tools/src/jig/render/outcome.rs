@@ -10,6 +10,8 @@ pub(crate) struct Operation {
     pub exported: Option<(u32, u32)>,
     pub file: Option<Box<[u8]>>,
     pub word: &'static [u8],
+    /// Present only for a live call; restored requests retain their operation word.
+    pub tool: Option<&'static crate::jig::table::Tool>,
     pub account: Option<Account>,
     pub task: Option<u64>,
     pub to: Option<c::Recipient>,
@@ -27,6 +29,17 @@ pub(crate) struct Account {
     pub sign_in: bool,
 }
 impl Operation {
+    pub(crate) fn for_call(ask: &Ask, tool: &'static crate::jig::table::Tool) -> Self {
+        let mut operation = Self::of(ask);
+        operation.tool = Some(tool);
+        operation
+    }
+    fn tool_name(&self) -> &'static [u8] {
+        match self.tool {
+            Some(tool) => tool.name,
+            None => self.word,
+        }
+    }
     pub(crate) fn of(ask: &Ask) -> Self {
         let (word, task): (&[u8], Option<u64>) = match ask {
             Ask::Family { .. } => (b"adopt", None),
@@ -109,6 +122,7 @@ impl Operation {
             exported: None,
             file: None,
             word,
+            tool: None,
             account: None,
             task,
             to: None,
@@ -419,7 +433,7 @@ fn encode(
         }
         if let c::Refusal::Authority { proposable: Some(true), .. } = refusal {
             out.key(b"propose_instead");
-            out.string(operation.retry.as_deref().unwrap_or(operation.word));
+            out.string(operation.retry.as_deref().unwrap_or(operation.tool_name()));
         }
     }
     out.object_end();
@@ -435,8 +449,21 @@ pub(crate) fn newline(bytes: &[u8]) -> Box<[u8]> {
     out.finish()
 }
 pub(crate) fn retry(call: &crate::jig::call::Call) -> Box<[u8]> {
-    use crate::jig::{argv, rows};
-    let tool = match call.tool {
+    use crate::jig::argv;
+    let tool = act_tool(call.tool);
+    let mut call = call.clone();
+    call.tool = 0;
+    let mut words = skein_lib::List::with_capacity(128);
+    argv::back(&[tool], &call, &mut words).expect("parsed act");
+    let mut measure = Text::measure();
+    retry_words(words.as_slice(), &mut measure);
+    let mut out = Text::writing_exact(measure);
+    retry_words(words.as_slice(), &mut out);
+    out.finish()
+}
+pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
+    use crate::jig::rows;
+    match tool {
         rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
         rows::MESSAGE_AT => &rows::MESSAGE,
         rows::CLOSE_AT => &rows::CLOSE,
@@ -447,21 +474,14 @@ pub(crate) fn retry(call: &crate::jig::call::Call) -> Box<[u8]> {
         rows::STOP_AT => &rows::STOP,
         rows::CANCEL_AT => &rows::CANCEL,
         rows::CONNECT_AT..=rows::RETRY_AT | rows::DECLARE_AT | rows::VERIFY_AT | rows::EXPORT_AT | rows::IMPORT_AT => {
-            account_tool(call.tool)
+            account_tool(tool)
         }
         rows::AMEND_AT => &rows::AMEND,
+        rows::CHANGE_SETTINGS_AT => &rows::CHANGE_SETTINGS,
+        rows::PROPOSE_SETTINGS_AT => &rows::PROPOSE_SETTINGS,
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
         _ => unreachable!("act tool"),
-    };
-    let mut call = call.clone();
-    call.tool = 0;
-    let mut words = skein_lib::List::with_capacity(128);
-    argv::back(&[tool], &call, &mut words).expect("parsed act");
-    let mut measure = Text::measure();
-    retry_words(words.as_slice(), &mut measure);
-    let mut out = Text::writing_exact(measure);
-    retry_words(words.as_slice(), &mut out);
-    out.finish()
+    }
 }
 fn retry_words(words: &[Box<[u8]>], out: &mut Text) {
     for (index, word) in words.iter().enumerate() {
@@ -604,7 +624,7 @@ fn moved_in(account: u32, renewed: bool, out: &mut Text) {
 }
 
 fn refused_text(operation: &Operation, refusal: &c::Refusal, limits: &Limits, out: &mut Text) {
-    out.put(operation.word);
+    out.put(operation.tool_name());
     out.put(b": ");
     acts::refusal(refusal, &document::phrasebook(limits.text), out);
     if let c::Refusal::Moved { .. } = refusal
@@ -617,7 +637,7 @@ fn refused_text(operation: &Operation, refusal: &c::Refusal, limits: &Limits, ou
         out.put(b"\npropose instead: ");
         match &operation.retry {
             Some(call) => out.put(call),
-            None => out.put(operation.word),
+            None => out.put(operation.tool_name()),
         }
     }
 }

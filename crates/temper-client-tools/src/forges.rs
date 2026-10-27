@@ -422,8 +422,9 @@ pub(crate) fn told(state: &mut Forges, client: &Client, env: &Env<Limits>, told:
                 if let Some(adoption) = starting.value.answered(outcome) {
                     send_adoption(state, env, starting.called, adoption, starting.value.name, out);
                 } else {
-                    let mut operation = render::outcome::Operation::of(
+                    let mut operation = render::outcome::Operation::for_call(
                         &starting.value.ask(&env.limits.domain.forge).expect("admitted project name"),
+                        crate::table::TOOLS.get(usize::from(starting.called.call.tool)).expect("parsed tool"),
                     );
                     operation.word =
                         if connection::owns(&starting.called.call) { b"forge-connect" } else { b"forge-setup" };

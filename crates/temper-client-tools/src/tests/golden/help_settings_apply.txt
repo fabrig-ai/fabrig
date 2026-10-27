@@ -10,5 +10,5 @@ The file is `{"items": [ITEM, ...]}`, at most 1024 items; an item
 is `{"setting": {"kind": KIND, "number": NUMBER}, "set": VALUE}`, or
 `"edit": "removed"` or `"reset"` in place of `set`; rules takes no
 number. A file out of form names the item, member and rule (exit
-1). `stale; newest revision R; read settings again` (exit 2): read
-the settings, then decide again.
+1). `settings apply: stale; newest revision R; read settings show
+again` (exit 2): read the settings, then decide again.

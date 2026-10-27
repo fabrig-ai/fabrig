@@ -65,8 +65,8 @@ fn an_export_writes_the_record_private_and_synced_before_written() {
 #[test]
 fn an_export_refused_by_the_engine_removes_the_file() {
     for (why, line) in [
-        (w::AccountMoveWhy::NotSignedIn, b"export: not signed in\n".as_slice()),
-        (w::AccountMoveWhy::Moving, b"export: moving\n"),
+        (w::AccountMoveWhy::NotSignedIn, b"account export: not signed in\n".as_slice()),
+        (w::AccountMoveWhy::Moving, b"account export: moving\n"),
     ] {
         let f = exporting([Answer::Refused(why)]);
         done(&f, 2, true);
@@ -78,7 +78,7 @@ fn an_export_refused_by_the_engine_removes_the_file() {
 fn a_written_refused_cancelled_removes_the_file() {
     let f = exporting([Answer::Moving(RECORD), Answer::Refused(w::AccountMoveWhy::Cancelled)]);
     done(&f, 2, true);
-    assert_eq!(f.stderr(), b"export: cancelled\n");
+    assert_eq!(f.stderr(), b"account export: cancelled\n");
 }
 #[test]
 fn an_export_whose_write_fails_removes_the_file_and_sends_no_written() {
@@ -246,7 +246,7 @@ fn an_export_removal_failure_does_not_add_a_second_error() {
     f.move_answers.push_back(Answer::Refused(w::AccountMoveWhy::Moving));
     f.sign_in_then_deliver_me();
     done(&f, 2, false);
-    assert_eq!(f.stderr(), b"export: moving\n");
+    assert_eq!(f.stderr(), b"account export: moving\n");
 }
 #[test]
 fn an_import_cut_by_a_signal_or_deadline_keeps_the_file() {
