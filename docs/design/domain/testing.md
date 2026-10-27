@@ -1480,6 +1480,17 @@ section 8; testing-strategy.md, 2.9).
   run moves it in by `temper ctl import FILE --key connect-plan`, which
   removes FILE, and waits for it usable in place of the person's sign-in, as
   `qa-live.md`'s 0b seed does (4.3); the script refuses it with a kept store.
+- **The owned-forge landing story on Claude Code,**
+  `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
+  by `scripts/proof-live.sh forge-land-claude`: the same story, every
+  role on Claude Code, on a held login used in place
+  (../protocol/credentials.md, 3): `TEMPER_LIVE_CLAUDE` names the
+  login's resting path, a signed-in configuration directory; the box's
+  programs directory is its parent, and the source is declared by the
+  directory's own name. Nothing of it is read or copied, and once the
+  box has stopped the script checks the path by `stat` alone: a
+  private directory, still there. Whoever runs it holds the login for
+  the run (agents' `qa-flow.md`, 10.2).
 - **Its referee:** the process tier's, without the restart; and the
   completions, counted from the engine's transcripts. Each completion is
   a turn of main's conversation on either backend: on the program
