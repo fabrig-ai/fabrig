@@ -1398,7 +1398,9 @@ worst case (engine.md, section 13):
   of an agent task idle with delegates still live;
 - a grace's span: the longest grace a cancel may give;
 - placed holds per project and per party, live at once, and the
-  exemptions one holds (5.9).
+  exemptions one holds (5.9), which a start refuses past the live
+  tasks: a profile that shrinks its live tasks shrinks the exemption
+  bound it inherits.
 
 A live task is never evicted: when the deployment is full, new batches
 are refused, and the creator hears why.
