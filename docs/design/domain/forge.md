@@ -1469,11 +1469,16 @@ history they keep if temper is unplugged. Issues are projections (jig's
   bytes); what it projects is cut to them, never refused: the goal's
   words to their share, each plan item's text to an equal share of what
   is left, marked cut; past the plan items' bound, the last item says
-  how many more; past the milestones' bound, the oldest are folded into
-  one comment that counts them. A projection is a reading of the goal,
-  not its work: a write of it that still fails holds the projection
-  alone, which is retried as its effects are, never the goal or its
-  runs.
+  how many more. Comments are written once and never edited, so past
+  the milestones' bound the newest wait rather than the oldest fold:
+  milestones are posted one each while more than two of the bound's
+  slots remain; when the goal finishes, one comment counts those that
+  waited and gives the last one's words, then the finishing milestone,
+  then the close. What is posted is always a prefix, so nothing new is
+  stored. A projection is a reading of the goal, not its work: a write
+  of it that still fails holds the projection alone, retried after the
+  policy's interval while the goal lives and settled failed when the
+  goal closes, never holding the goal, its runs or its close.
 - **Issues others open** in an adopted repository are participating
   objects, which may become intake later.
 
