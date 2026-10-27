@@ -71,9 +71,9 @@ beside `temper`, as `Before you start` says. `not in current init
 shape`: `CONFIG` was changed after `temper init`; start again from
 empty directories. `retained documents must be private files`: an
 effective document lost its mode; `chmod 600` it. A start refused for
-its memory names by how many bytes the worst case passes
-`engine.memory_bytes`, the box's two pipes included: raise it by that
-and start again. `--box: the box's pipes need ...`: the pipes lack what
+its memory names by how many bytes the whole worst case passes
+`engine.memory_bytes`, from any value, the box's two pipes included:
+raise it by that once and start again. `--box: the box's pipes need ...`: the pipes lack what
 the line names (memory, socket slots, or a nonzero
 `application.limits.overrides.box.line_bytes`); give it.
 

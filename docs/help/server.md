@@ -160,9 +160,10 @@ Expect: on `worker`, the worker's stderr says `linked w1` and the
 engine's address; Forgejo's site administration lists the runner
 online.
 
-If not: a start refused for its memory names by how many bytes the
-worst case passes `memory_bytes`: raise it by that (under the box, the
-figure includes the box's two pipes).
+If not: a start refused for its memory names by how many bytes its
+whole worst case passes `memory_bytes`, the engine's or a worker's,
+from any value however small: raise it by that once (under the box,
+the figure includes the box's two pipes).
 
 ## 6. Sign in, through a tunnel
 
