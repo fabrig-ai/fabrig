@@ -192,6 +192,12 @@ pub enum ToolChoice {
   today (sections 4.6 to 4.8).
 - **The client does not filter.** A call outside the choice arrives as any
   call does, and the caller answers it, as not run.
+- **One call at a time where the caller takes one.** Where the declared
+  `calls_per_response` is 1 (4.1), every dialect asks the model for at
+  most one call per completion (4.7, 4.8), so no model is invited past
+  what its caller declared; above 1, parallel calls are allowed. A
+  completion that still makes more is the caller's to answer, as any
+  call outside the choice is.
 
 ### 2.3 Usage
 
@@ -724,7 +730,10 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
 - **Tool choice.** `Auto` sends no `tool_choice`, which is the provider's
   default; `None` sends `{"type":"none"}`; `Only` renders `Auto`
   (section 2.2): Anthropic's `tool` and `any` force a call, which `Only`
-  does not mean, and do not combine with thinking. A change of choice
+  does not mean, and do not combine with thinking. Where
+  `calls_per_response` is 1, `Auto` and `Only` send
+  `{"type":"auto","disable_parallel_tool_use":true}` instead (section
+  2.2), a deployment's constant, so the cache holds. A change of choice
   keeps the cached tools and system text but not the cached messages.
 - **Usage.** `input_tokens` is input, `cache_read_input_tokens` cache
   read, `cache_creation_input_tokens` cache write and `output_tokens`
@@ -791,7 +800,8 @@ bounds still hold.
   reserved names, which an endpoint's configured headers may not use. A
   prompt without affinity sends no cache key.
 - **Tool choice.** `Auto` sends `"auto"`, `None` sends `"none"`, and
-  `Only` sends `"auto"` (section 2.2). `parallel_tool_calls` stays true.
+  `Only` sends `"auto"` (section 2.2). `parallel_tool_calls` is false
+  where `calls_per_response` is 1, and true above it (section 2.2).
 - **Usage.** `input_tokens_details.cached_tokens` is cache read;
   `input_tokens_details.cache_write_tokens`, when present, is cache write;
   `input_tokens` less the parts that are reported is input, and `None`
