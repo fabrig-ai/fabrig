@@ -678,6 +678,10 @@ pub enum CallPayload {
 
 /// The connector's durable records, wrapped by the root store.
 #[derive(Clone, PartialEq, Eq, Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "durable rows move whole through the bounded store queue priced at startup"
+)]
 pub enum Stored {
     /// The connector part of a live named call.
     Call {

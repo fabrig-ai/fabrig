@@ -718,11 +718,17 @@ fn assert_authority_hold(
                 && word.words.windows(words.len()).any(|part| part == words)),
         "requester heard the precise cause"
     );
-    assert!(
-        temper_engine_domain_forge_change::authority_words(cause)
-            .windows(b"cancel it, or ask for the change afresh".len())
-            .any(|part| part == b"cancel it, or ask for the change afresh")
+    let live = live_task(world, task);
+    assert_eq!(cause.recovery.task, task);
+    assert_eq!(cause.recovery.spec, live.revisions.spec);
+    assert_eq!(cause.recovery.hold, live.revisions.hold);
+    let needed = u64::from(live.made);
+    assert_eq!(cause.recovery.tasks, needed);
+    let way = format!(
+        "give it more and release it: `task amend {task} --rev {} --tasks {needed} REASON`, then `task release {task} --hold {}`; or cancel it: `task cancel {task}`",
+        live.revisions.spec, live.revisions.hold,
     );
+    assert!(temper_engine_domain_forge_change::authority_words(cause).ends_with(way.as_bytes()));
 }
 
 #[test]

@@ -2113,7 +2113,18 @@ fn change_authority_lack(domain: &Domain, task: u64) -> Option<forge_change::Aut
         }
         (AuthorityLack::Spend, available)
     };
-    Some(AuthorityHold { lack, had, released: false })
+    Some(AuthorityHold { recovery: change_recovery(domain, task)?, lack, had, released: false })
+}
+
+fn change_recovery(domain: &Domain, task: u64) -> Option<forge_change::AuthorityRecovery> {
+    let row = domain.core.tasks.task(task)?;
+    Some(forge_change::AuthorityRecovery {
+        task,
+        spec: row.revisions.spec,
+        hold: row.revisions.hold.checked_add(1)?,
+        // made includes the change itself; that count admits one more descendant.
+        tasks: u64::from(row.made),
+    })
 }
 
 fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpend> {
@@ -2125,6 +2136,7 @@ fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpen
         .saturating_sub(context.numbers.spent_below)
         .saturating_sub(context.numbers.reserved);
     Some(forge_change::DelegateSpend {
+        recovery: change_recovery(domain, task)?,
         left,
         coding: jig_domain_core::reserve_floor(&domain.core.charter(domain.config.forge_charter)?.policy)
             .unwrap_or(u64::MAX),

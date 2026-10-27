@@ -101,7 +101,7 @@ pub const CEILINGS: Limits = Limits {
     demo_answer_cues_item: 256,
     pull_address: 2_048,
     queued_ahead: 64,
-    authority_hold_reason: 256,
+    authority_hold_reason: 512,
     change_panel_owner: 1_024,
     change_panel_name: 1_024,
     change_panel_branch: 1_024,

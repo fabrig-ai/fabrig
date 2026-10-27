@@ -1249,6 +1249,11 @@ fn a_change_whose_reviews_exhaust_its_tasks_holds_and_a_bare_release_holds_it_ag
     for index in [authority_at, bare_at] {
         let panel = support::ctl::json(&outcome.calls[index]);
         assert!(panel["hold"].as_str().expect("held cause").contains("its 6 tasks are made"), "{panel}");
+        let revision = if index == authority_at { 3 } else { 4 };
+        let way = format!(
+            "give it more and release it: `task amend 2 --rev 0 --tasks 7 REASON`, then `task release 2 --hold {revision}`; or cancel it: `task cancel 2`"
+        );
+        assert!(panel["hold"].as_str().expect("held cause").ends_with(&way), "{panel}");
         let task = support::ctl::json(&outcome.calls[index - 1]);
         assert_eq!(task["task"]["chip"]["phase"], "held", "never due: {task}");
     }

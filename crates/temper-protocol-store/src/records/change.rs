@@ -67,6 +67,10 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
                         d::AuthorityLack::Spend => w::AuthorityLack::Spend,
                     },
                     had: cause.had,
+                    task: cause.recovery.task,
+                    spec: cause.recovery.spec,
+                    hold: cause.recovery.hold,
+                    tasks: cause.recovery.tasks,
                     released: cause.released,
                 },
             )
@@ -93,6 +97,12 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
                 w::AuthorityLack::Spend => d::AuthorityLack::Spend,
             },
             had: cause.had(),
+            recovery: d::AuthorityRecovery {
+                task: cause.task(),
+                spec: cause.spec(),
+                hold: cause.hold(),
+                tasks: cause.tasks(),
+            },
             released: cause.released(),
         }),
     }

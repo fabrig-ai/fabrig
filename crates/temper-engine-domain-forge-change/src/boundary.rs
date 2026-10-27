@@ -87,9 +87,19 @@ pub enum AuthorityLack {
     Spend,
 }
 
+/// The amendment and release coordinates at the authority decision.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct AuthorityRecovery {
+    pub task: u64,
+    pub spec: u64,
+    pub hold: u64,
+    pub tasks: u64,
+}
+
 /// A precise, durable authority hold (domain/forge.md, 8.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct AuthorityHold {
+    pub recovery: AuthorityRecovery,
     pub lack: AuthorityLack,
     pub had: u64,
     pub released: bool,
@@ -239,6 +249,7 @@ pub enum EffectResult {
 /// Remaining spend and the reserves of the two agent charters.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct DelegateSpend {
+    pub recovery: AuthorityRecovery,
     pub left: u64,
     pub coding: u64,
     pub review: u64,

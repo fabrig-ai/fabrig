@@ -508,8 +508,13 @@ fn a_cancel_ends_every_held_cause_unless_the_change_landed() {
 
 #[test]
 fn every_delegate_checks_authority_before_becoming_pending() {
-    use crate::{AuthorityHold, AuthorityLack};
-    let cause = AuthorityHold { lack: AuthorityLack::Tasks, had: 6, released: false };
+    use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
+    let cause = AuthorityHold {
+        recovery: AuthorityRecovery { task: 2, spec: 0, hold: 3, tasks: 7 },
+        lack: AuthorityLack::Tasks,
+        had: 6,
+        released: false,
+    };
     let mut standing = heard();
     standing.lacking = Some(cause);
     let mut f = facts();
@@ -533,11 +538,16 @@ fn every_delegate_checks_authority_before_becoming_pending() {
 
 #[test]
 fn a_bare_authority_release_holds_again_and_a_funded_one_retries() {
-    use crate::{AuthorityHold, AuthorityLack};
+    use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
     let mut f = facts();
     f.branch = None;
     for lack in [AuthorityLack::Tasks, AuthorityLack::Depth, AuthorityLack::Spend] {
-        let cause = AuthorityHold { lack, had: 6, released: false };
+        let cause = AuthorityHold {
+            recovery: AuthorityRecovery { task: u64::MAX, spec: u64::MAX, hold: u64::MAX, tasks: u64::MAX },
+            lack,
+            had: 6,
+            released: false,
+        };
         let c =
             change(State::Held { was: Box::new(State::Producing { requested: false }), why: Hold::Authority(cause) });
         let lifted = released(&c, at(1));

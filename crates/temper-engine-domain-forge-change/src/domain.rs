@@ -771,7 +771,7 @@ pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, li
 /// The hold's reason, shared by the requester and change panel.
 #[must_use]
 pub fn authority_words(why: AuthorityHold) -> Box<[u8]> {
-    let mut words = List::with_capacity(256);
+    let mut words = List::with_capacity(512);
     match why.lack {
         AuthorityLack::Tasks => {
             put(&mut words, b"its ");
@@ -796,7 +796,19 @@ pub fn authority_words(why: AuthorityHold) -> Box<[u8]> {
             },
         );
     }
-    put(&mut words, b"; cancel it, or ask for the change afresh");
+    put(&mut words, b"; give it more and release it: `task amend ");
+    put(&mut words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
+    put(&mut words, b" --rev ");
+    put(&mut words, skein_lib::Decimal::of(why.recovery.spec).as_bytes());
+    put(&mut words, b" --tasks ");
+    put(&mut words, skein_lib::Decimal::of(why.recovery.tasks).as_bytes());
+    put(&mut words, b" REASON`, then `task release ");
+    put(&mut words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
+    put(&mut words, b" --hold ");
+    put(&mut words, skein_lib::Decimal::of(why.recovery.hold).as_bytes());
+    put(&mut words, b"`; or cancel it: `task cancel ");
+    put(&mut words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
+    put(&mut words, b"`");
     words.into_boxed()
 }
 
@@ -815,5 +827,10 @@ fn missing(standing: &Heard, delegate: Delegate) -> Option<AuthorityHold> {
         Delegate::Gate { .. } => spend.review,
         Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } => spend.coding,
     };
-    (spend.left < reserve).then_some(AuthorityHold { lack: AuthorityLack::Spend, had: spend.left, released: false })
+    (spend.left < reserve).then_some(AuthorityHold {
+        recovery: spend.recovery,
+        lack: AuthorityLack::Spend,
+        had: spend.left,
+        released: false,
+    })
 }
