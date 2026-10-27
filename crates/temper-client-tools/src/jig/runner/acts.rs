@@ -262,6 +262,18 @@ fn settings_history(call: &Call, document: &c::ReadValue) -> bool {
     false
 }
 
+fn settings_action(action: &c::OwnerProposalAction) -> bool {
+    match action {
+        c::OwnerProposalAction::Settings(_) => true,
+        c::OwnerProposalAction::Batch(_)
+        | c::OwnerProposalAction::Effect { .. }
+        | c::OwnerProposalAction::ProcedureEffect { .. }
+        | c::OwnerProposalAction::Amend { .. }
+        | c::OwnerProposalAction::Widen { .. }
+        | c::OwnerProposalAction::Release { .. } => false,
+    }
+}
+
 fn build(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits, project: Option<u32>) -> Prepared {
     if call.tool == rows::AMEND_AT {
         return Err(Failed::Fixed(b"unexpected amendment document"));
@@ -270,7 +282,7 @@ fn build(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits, proj
         return close_request(call, document, me, limits);
     }
     if settings_history(call, document) {
-        return Ok((Request::Ask(c::Ask::Decide { project: 0, on: decide(call, 0, limits)? }), None));
+        return Ok((Request::Ask(c::Ask::Decide { project: 0, on: decide(call, 0, limits, true)? }), None));
     }
     let project = match subject::scope(call, document)? {
         subject::Scope::Project(project) => project,
@@ -293,6 +305,8 @@ fn build(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits, proj
         // offers this act. The engine alone refuses a fresh key.
         Some(c::Admission::Allowed | c::Admission::Refused(_)) | None => None,
     };
+    let settings =
+        if let c::ReadValue::OwnerProposal(proposal) = document { settings_action(&proposal.action) } else { false };
     let task = number(call, 0).unwrap_or(0);
     let ask = match call.tool {
         rows::MESSAGE_AT => c::Ask::Message { project, task, words: words(call, 1, limits)? },
@@ -304,7 +318,7 @@ fn build(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits, proj
                 words: words(call, 2, limits)?,
             },
         },
-        rows::DECIDE_AT | rows::TASK_DECIDE_AT => c::Ask::Decide { project, on: decide(call, task, limits)? },
+        rows::DECIDE_AT | rows::TASK_DECIDE_AT => c::Ask::Decide { project, on: decide(call, task, limits, settings)? },
         rows::RELEASE_AT => c::Ask::Release {
             project,
             task,
@@ -326,18 +340,17 @@ fn build(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limits, proj
     let phase = subject::ended(document);
     Ok((Request::Act { ask, phase }, to))
 }
-fn decide(call: &Call, task: u64, limits: &Limits) -> Result<c::DecideOn, Failed> {
+fn decide(call: &Call, task: u64, limits: &Limits, settings: bool) -> Result<c::DecideOn, Failed> {
     Ok(if call.tool == rows::DECIDE_AT {
         let Some(Value::Proposal(proposal)) = value(call, 0) else { unreachable!("proposal form") };
-        c::DecideOn::Proposal {
-            proposal: *proposal,
-            decision: decision(call, limits)?,
-            running: match value(call, 3) {
-                Some(Value::Word(0)) => Some(c::Running::Stays),
-                Some(Value::Word(1)) => Some(c::Running::Moves),
-                Some(_) | None => None,
-            },
-        }
+        let decision = decision(call, limits)?;
+        let running = match value(call, 3) {
+            Some(Value::Word(0)) => Some(c::Running::Stays),
+            Some(Value::Word(1)) => Some(c::Running::Moves),
+            None if settings && decision == c::Decision::Accepted => Some(c::Running::Stays),
+            Some(_) | None => None,
+        };
+        c::DecideOn::Proposal { proposal: *proposal, decision, running }
     } else {
         c::DecideOn::Escalation {
             task,
