@@ -1,6 +1,6 @@
 # Charters, templates and policies
 
-Kind: concept
+Kind: guide
 
 What decides how temper's agents work: a charter for each run, a template
 for each new task, and the policies and rules that bound what work may do.

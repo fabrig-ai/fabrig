@@ -1,6 +1,6 @@
 # Settings, revisions and proposals
 
-Kind: concept
+Kind: guide
 
 How you read and change temper's settings with temper ctl, what a revision
 is, how a proposal asks the deployment's owners, and what still needs a restart.

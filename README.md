@@ -36,14 +36,14 @@ draft to landed change.
 
 - [`docs/design/README.md`](docs/design/README.md): what temper is, what
   it is built from, and where each part of its design lives.
-- [`docs/guide/box.md`](docs/guide/box.md): a local temper box, with its
+- [`docs/help/box.md`](docs/help/box.md): a local temper box, with its
   own Forgejo, on loopback; also [trying the welcome with nothing
-  real](docs/guide/box.md#trying-the-welcome-with-nothing-real).
-- [`docs/guide/github.md`](docs/guide/github.md): GitHub connected from
+  real](docs/help/box.md#trying-the-welcome-with-nothing-real).
+- [`docs/help/github.md`](docs/help/github.md): GitHub connected from
   temper's client, through temper's own App.
-- [`docs/guide/forgejo.md`](docs/guide/forgejo.md): a Forgejo connected
+- [`docs/help/forgejo.md`](docs/help/forgejo.md): a Forgejo connected
   from temper's client, managed, owned or connected.
-- [`docs/guide/server.md`](docs/guide/server.md): temper on a server,
+- [`docs/help/server.md`](docs/help/server.md): temper on a server,
   behind a TLS proxy, with Google's sign-in and a worker on another
   host, redeployed from `main`.
 - [`docs/design/STATUS.md`](docs/design/STATUS.md): how far the code is

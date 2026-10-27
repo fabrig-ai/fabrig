@@ -1,6 +1,6 @@
 # Start a local temper box
 
-Kind: walk
+Kind: guide
 
 Run temper, an owned Forgejo and its runner on one machine, on
 loopback, from a checkout of temper, then adopt a repository and ask

@@ -1,6 +1,6 @@
 # Run temper on a server
 
-Kind: walk
+Kind: guide
 
 Run temper as a long-lived deployment on a server, behind a TLS proxy,
 with Google sign-in, an owned Forgejo and its workers on another host.

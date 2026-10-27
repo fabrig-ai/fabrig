@@ -1,6 +1,6 @@
 # Tasks, goals and chats
 
-Kind: concept
+Kind: guide
 
 What temper's work is made of, tasks with their delegates, goals and
 chats, and how you follow, answer, steer and stop them.

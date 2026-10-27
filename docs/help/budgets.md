@@ -1,6 +1,6 @@
 # Budgets
 
-Kind: concept
+Kind: guide
 
 How temper counts what work spends, where a task's budget comes from,
 what happens when it runs out, and what you can do then.

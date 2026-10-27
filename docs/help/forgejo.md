@@ -1,6 +1,6 @@
 # Connect Forgejo
 
-Kind: walk
+Kind: guide
 
 Connect temper to a Forgejo as its bot, in one of three modes:
 connected, managed or owned.

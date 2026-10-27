@@ -1,6 +1,6 @@
 # Connect GitHub
 
-Kind: walk
+Kind: guide
 
 Connect temper to GitHub through a GitHub App, temper's own or one you
 make, and install it on the accounts whose repositories it works on.

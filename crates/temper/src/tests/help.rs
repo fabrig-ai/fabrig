@@ -63,7 +63,7 @@ fn help_lists_topics_before_init_with_no_environment_or_configuration() {
 fn help_prints_a_whole_topic_and_names_an_unknown_one() {
     assert_eq!(
         help::answer(&configured(&["help", "server"])).expect("server topic").as_bytes(),
-        include_bytes!("../../../../docs/guide/server.md")
+        include_bytes!("../../../../docs/help/server.md")
     );
     assert_eq!(
         help::answer(&configured(&["help", "nope"])),

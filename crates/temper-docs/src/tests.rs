@@ -43,7 +43,7 @@ fn sections(topic: &Topic) -> Vec<(&str, usize, &str)> {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the step test locates the topics through CARGO_MANIFEST_DIR")]
 fn the_table_is_the_directory() {
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/guide");
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help");
     let mut names = Vec::new();
     for entry in fs::read_dir(directory).expect("guide directory") {
         let path = entry.expect("guide file").path();

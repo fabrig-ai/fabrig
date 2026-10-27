@@ -265,7 +265,7 @@ fn the_moves_places_name_their_rows_in_the_table() {
 
 #[test]
 fn every_call_line_of_the_task_settings_topic_parses() {
-    let source = std::fs::read_to_string("../../docs/guide/tasks.md").expect("tasks guide");
+    let source = std::fs::read_to_string("../../docs/help/tasks.md").expect("tasks guide");
     let mut calls = 0_u32;
     for line in source.lines() {
         if let Some(call) = line.as_bytes().strip_prefix(b"temper ctl me ".as_slice()) {
