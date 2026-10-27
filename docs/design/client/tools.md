@@ -936,7 +936,7 @@ subject, its digest (5.4). A goal waiting on the agent:
 ```
 task 41 · goal · Running · shop · priority 2
 asked: Add a /health endpoint that reports the store's state
-requester: you · spent 1.20 of 5.00 · deadline 2026-10-24 17:00 UTC
+requester: you · spent 120 of 500 · deadline 2026-10-24 17:00 UTC
 instructions: Answer on port 8080 unless the store's file names another one, and keep the /hea… (412 bytes; --json prints them whole)
 waiting on: you: question 3 of task 44, "Which port should it listen on?"
 plan: 4 live (2 running, 1 waiting, 1 held below)
@@ -947,6 +947,9 @@ acts:
 digest: task 7c1e09a2b44f0d13
 ```
 
+- **Spend in the deployment's units,** as `me`, the settings and the
+  stock state budgets (`../protocol/configuration.md`, 13.4): a task's
+  spent and budget print as those numbers, never scaled.
 - **The header** is the task's number, its kind, its phase in jig's
   words, its project and its tracking. Its kind is `chat` for a
   conversation, `goal` for a goal (the task its own goal), and
