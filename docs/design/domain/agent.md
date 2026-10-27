@@ -555,6 +555,74 @@ today's, until those land.
 - **Its stories:** `fuzzy_green_light` on fakes (testing.md, 2.4), and
   rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
 
+### 8.3 The golden: rung D
+
+v0.1.0's rung D (`../draft/v0.1.0.md`, section 3): the reference case's
+process told to the configuring agent in words, on real backends, its
+proposal scored against a golden set of settings and accepted, and
+rung C then run under the revision it made. Its walk is QA's
+(`../qa.md`); this section is what it walks with.
+
+- **The words,** `crates/temper/tests/fixtures/golden/words.md`: the
+  case's section 3 (`../draft/reference-case.md`) as its person would
+  say it, frozen with the case, in five paragraphs a QA driver types
+  into a configuring chat (`temper ctl chat start --template 3`), one
+  per turn: the cast and their models (coordinators on Claude, the
+  delegates on GPT, an advisor called once two tries have missed); the
+  repositories and their gates (kit's `check`; app's `check` and its
+  `browser` tier after landing; both ignoring `docs/`; app pinning
+  kit); the tooling (`prepare`'s three steps, the default key); the
+  forge (an owned Forgejo, every workflow dispatch-only); and how
+  landings and their aftermath go (the case's settings table). No
+  setting's name or number appears in them. The agent's questions are
+  answered from the golden's notes, each answer a sentence the case
+  already says.
+- **The golden,** `crates/temper/tests/fixtures/golden/reference-case.json`,
+  in the settings file's form (`../client/tools.md`, 5.3), one item per
+  setting, each with a note naming the case's sentence it encodes:
+  - *charters by role:* a coordinator's on Claude (the director, D, L
+    and the owners), an implementer's, a reviewer's and a tester's on
+    GPT, an advisor's on Claude; compared by structure (models, tool
+    families, delegation, hosts, resume), never their instructions'
+    words, and matched to the proposal's by role, their numbers free;
+  - *the forge's charters* (kind 3): the change's, the implementer's;
+    its reviews', the reviewer's;
+  - *a project's landing* (kind 4, design/process-model's,
+    `../domain/landing.md` 13.1): by turn; app's `prepare` with its key
+    the default; dependencies joining a landing; app pinned to kit,
+    following kit's main; two stale proofs before a reservation;
+    suspects bisected; a red pausing nothing; a verification bound of
+    2 hours; findings on, the director triager and chooser, the tester
+    charter; the person's questions on the forge;
+  - *a repository's gates* (kind 5): kit's `check`, `docs/` ignored,
+    blocking, no tier; app's the same and its `browser` tier;
+  - *the landing rule* (kind 1) and policy 1: as the stock has them,
+    which the case keeps.
+- **What is said, not proposed:** the director's check every 2 hours
+  is a recurring task the person starts (jig's `domain/tasks.md`,
+  section 10), not a setting; budgets are the person's (`temper ctl
+  project fund`). The agent names each in its reason, offering the
+  nearest thing, as 8.1 says.
+- **Scored** by `tools/golden` in this repository, from the walk's
+  `temper ctl proposal show PROPOSAL --json` and the golden, each item
+  one line: *match*, the kind, scope and value equal (charters by
+  structure); *miss*, a golden item the proposal lacks or sets
+  otherwise; *extra*, a proposal item the golden lacks; *gap*, an item
+  of a kind not yet built when the walk runs, scored on whether the
+  reason names it as what temper cannot model yet. D passes when every
+  built kind matches, no extra changes structure the case never said,
+  and every gap is named. A miss or an unnamed gap is a finding against
+  the agent's instructions or the pages it read.
+- **Then** the owner accepts with `--running stays`, and rung C runs
+  under the revision it made, its acts' live stories as C's own
+  (`testing.md`, 2.7). D's spend ceiling is the user's (temper#6).
+- **When:** once the agent lands (8.1) and C's acts can run. Kinds 4
+  and 5 arrive with design/process-model's parts, kind 4's `by` and
+  kind 5's gates first; until each lands, its items are gaps, so an
+  early D measures the agent on what exists. D is walked again when
+  the agent's instructions or the help's pages change
+  (`../draft/configuring.md`, section 8).
+
 ## 9. The world
 
 smith's worlds test the agent itself (smith's documents, each section
