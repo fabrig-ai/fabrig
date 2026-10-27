@@ -660,6 +660,7 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
         vec![
             Step::Run(Call::sign_in()),
             Step::Run(Call::new(&["me", "--json"])),
+            Step::Until(Call::new(&["forges", "--json"]), b"\"state\":\"connected\""),
             Step::Pause,
             Step::Start(Call::new(adopt)),
             Step::Until(Call::new(&["pending"]), b"adopt"),
@@ -670,7 +671,8 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
             Step::Run(Call::new(&["pending"])),
         ],
     ));
-    let [_, me, cut, _, listed, again, empty] = seen.calls.as_slice() else { panic!("seven ctl ends") };
+    let [_, me, connected, cut, _, listed, again, empty] = seen.calls.as_slice() else { panic!("eight ctl ends") };
+    assert_eq!(json(connected)["forges"][0]["state"], "connected");
     assert_eq!((cut.exit, cut.stdout.as_slice()), (Some(Exit::Code(143)), b"".as_slice()), "128 + SIGTERM");
     let (party, listed) = (json(me)["party"]["number"].as_u64().expect("signed in"), json(listed));
     let first_sent = listed["pending"][0]["first_sent"].clone();
@@ -723,6 +725,10 @@ fn temper_open_adopts_a_repository_by_commands() {
     let open = support::terminal::open(scratch.path(), &scratch.path().join("client"), link.as_ref());
     let mut typist = support::terminal::Typist::new(open, serve, link);
     typist.wait_for(b"== Inbox == Live", support::WITHIN);
+    typist.wait_for(b"All goals (pressed)\n", support::WITHIN);
+    typist.type_on(b"Forges", b"");
+    typist.wait_for(b"forge 1 \xc2\xb7 Forgejo \xc2\xb7 Connected as temper", support::WITHIN);
+    typist.type_on(b"Inbox", b"");
     typist.wait_for(b"All goals (pressed)\n", support::WITHIN);
     typist.type_on(b"Adopt a repository", b"");
     for (control, words, printed) in [

@@ -314,6 +314,7 @@ pub struct Person {
     pub finished: bool,
     project: ProjectSelection,
     pub failed: Option<String>,
+    adopting: bool,
     begin: Begin,
     directory: Box<[u8]>,
     seed: u64,
@@ -453,6 +454,7 @@ impl Person {
                 ProjectSelection::Pending
             },
             failed: None,
+            adopting: false,
             begin: script.begin,
             directory: b"private".as_slice().into(),
             // Fresh demo clients must not reuse the same request names when
@@ -530,6 +532,11 @@ impl Person {
     }
     fn notices(&mut self) {
         let client = self.client.as_mut().expect("native client");
+        if self.adopting
+            && let Some(refusal) = adoption_refusal(client.tree())
+        {
+            self.failed = Some(format!("native adoption refused: {refusal}"));
+        }
         while let Some(notice) = client.notices() {
             if let temper_client_shell_terminal::client::Shown::Notice(
                 temper_client_shell_terminal::route::Notice::Leave { to },
@@ -622,8 +629,16 @@ impl Person {
         {
             let before = self.actor.at();
             match self.actor.next(&mut ReplyFace::new(client.tree()), now) {
-                Next::Do(Doing::Act { node, act }) => assert!(client.act(node, act), "offered person act"),
-                Next::Do(Doing::Go { address }) => client.go(address),
+                Next::Do(Doing::Act { node, act }) => {
+                    self.adopting |= client.tree().nodes().iter().any(|item| {
+                        item.id == node && item.role == skein_ui::Role::Button && item.name.as_deref() == Some(b"Adopt")
+                    });
+                    assert!(client.act(node, act), "offered person act");
+                }
+                Next::Do(Doing::Go { address }) => {
+                    self.adopting = false;
+                    client.go(address);
+                }
                 Next::Do(Doing::Reload) => panic!("chat script has no reload"),
                 Next::Wait { until } => self.wake = until,
                 Next::Done => {
@@ -652,6 +667,31 @@ impl Person {
             self.submissions.push(submit);
         }
     }
+}
+fn adoption_refusal(tree: &skein_ui::Tree) -> Option<String> {
+    let nodes = tree.nodes();
+    let (at, alert) = nodes.iter().enumerate().find(|(_, node)| node.role == skein_ui::Role::Alert)?;
+    let end = at.checked_add(usize::try_from(alert.size).expect("bounded alert subtree")).expect("alert end");
+    let mut reason = String::new();
+    for node in &nodes[at..end] {
+        for run in &node.text {
+            reason.push_str(&String::from_utf8_lossy(&run.text));
+        }
+    }
+    Some(reason)
+}
+
+#[test]
+fn a_native_adoption_refusal_names_the_alert_without_a_wait() {
+    let (view, _) = temper_client_shell_terminal::limits::view(&temper_client_shell_terminal::limits::native())
+        .expect("native view bounds");
+    let mut builder = skein_ui::Builder::new(&view.tree);
+    builder.open(skein_ui::Role::Page);
+    builder.open(skein_ui::Role::Alert);
+    builder.text(skein_ui::Run::Plain, b"Forge 1 did not answer; nothing was adopted.");
+    builder.close();
+    builder.close();
+    assert_eq!(adoption_refusal(&builder.finish()).as_deref(), Some("Forge 1 did not answer; nothing was adopted."));
 }
 /// The banner's button for a project `me` leaves unnamed, "Project N"
 /// (client/README.md, 5.1).
@@ -724,6 +764,15 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
     use skein_ui::Role;
     let mut steps = answered_chat(b"Hello", super::ANSWER).steps.into_vec();
     steps.extend([
+        Step::Go { address: Address::Forges },
+        // The Account slot of this row is rendered only for Connected.
+        Step::See {
+            find: Find::named(Role::Description, b"temper \xc2\xb7 user ").within(Box::new([Target::ExactRole {
+                role: Role::Disclosure,
+                name: b"Forgejo on this machine".as_slice().into(),
+            }])),
+            within: super::WITHIN,
+        },
         Step::Go {
             address: Address::Inbox {
                 filter: temper_client_domain::address::Filter {

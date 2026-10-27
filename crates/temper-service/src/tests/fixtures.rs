@@ -268,7 +268,7 @@ pub fn records_store() -> crate::store::Store {
     mark_store(&mut store);
     store
 }
-fn memory_store_for(
+pub(super) fn memory_store_for(
     root: &temper_engine_domain::Limits,
     profile: &jig_protocol_store::Limits,
     models: &[jig_domain_core::Model],

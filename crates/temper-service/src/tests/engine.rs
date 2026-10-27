@@ -248,6 +248,145 @@ fn an_unwatch_refused_behind_owner_work_is_admitted() {
 
 // The service's existing restart fixture drains within 256 iterations.
 const STARTUP_PASSES: u32 = 256;
+
+#[test]
+fn startup_admission_does_not_promise_a_connected_forge() {
+    use skein_lib::{Queue, ReplyTo, Token};
+    use temper_engine_domain_forge as forge;
+    let mut config = fixtures::engine();
+    // An ordinary temper/ branch prefix needs eight authority segments.
+    config.jig.limits.core.authority.segments = 8;
+    fixtures::fill_files(&mut config);
+    let limits = crate::limits::engine(&config.jig.limits, &config.limits).expect("root limits");
+    let models = jig_protocol_config::core(&config.jig, [7; 16], 7).settings.models;
+    let store = fixtures::memory_store_for(&limits, &config.jig.limits.store, &models);
+    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+    service.engine.as_mut().expect("engine").store = store;
+    service.engine.as_mut().expect("engine").store.hold_mark = true;
+    for _ in 0..STARTUP_PASSES {
+        fixtures::turn(&mut service);
+    }
+    let engine = service.engine.as_mut().expect("engine");
+    assert!(!engine.store.component.mark_durable());
+    assert!(engine.clients.starting.is_some());
+    let mark = engine.store.held_mark.take().expect("held startup mark");
+    engine.store.hold_mark = false;
+    assert!(engine.store.down(mark));
+    // The fixture kernel holds Connect completions, independently of the mark.
+    for _ in 0..STARTUP_PASSES {
+        fixtures::turn(&mut service);
+    }
+    let engine = service.engine.as_mut().expect("engine");
+    assert!(engine.store.component.mark_durable());
+    assert!(engine.domain.ready());
+    assert!(engine.clients.starting.is_none());
+    assert_eq!(engine.domain.forge_connection(1), forge::Connection::NotConnected);
+    engine.step(root::Event::Party(root::PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(100)),
+        identity: jig_domain_people::Identity {
+            key: jig_domain_people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
+            login: b"owner".as_slice().into(),
+            name: b"Owner".as_slice().into(),
+        },
+    }));
+    fixtures::settle_root(&mut service, &mut Queue::with_capacity(32));
+    service.engine.as_mut().expect("engine").step(startup_adopt(88));
+    fixtures::settle_root(&mut service, &mut Queue::with_capacity(32));
+    let rows = fixtures::load(&mut service.engine.as_mut().expect("engine").store, root::Range::Forge);
+    let [root::Record::Forge { row }] = rows.as_ref() else { panic!("one durable application row: {rows:?}") };
+    let forge::Stored::Application { token, outcome, .. } = row.as_ref() else { panic!("application row: {row:?}") };
+    assert_eq!(*token, 1);
+    assert_eq!(outcome, &forge::ApplicationOutcome::ForgeRefused(forge::AdoptionRefusal::Unreachable));
+    let engine = service.engine.as_mut().expect("engine");
+    engine.step(root::Event::Forge(Box::new(forge::Event::Connection {
+        forge: 1,
+        state: forge::Connection::Connected { id: 42, login: b"temper".as_slice().into() },
+    })));
+    fixtures::settle_root(&mut service, &mut Queue::with_capacity(32));
+    let engine = service.engine.as_mut().expect("engine");
+    engine.step(startup_adopt(89));
+    let (repository, op) = startup_locate(engine);
+    assert_eq!(repository.forge, 1);
+    assert_eq!(
+        op,
+        skein_forge::api::Op::Read(skein_forge::api::Read::Locate {
+            owner: b"acme".as_slice().into(),
+            name: b"widget".as_slice().into(),
+        })
+    );
+}
+
+fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repository, skein_forge::api::Op) {
+    for _ in 0..STARTUP_PASSES {
+        root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        if engine.requests.is_empty() {
+            engine.step(root::Event::Resume);
+            root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        }
+        while let Some(request) = engine.requests.pop() {
+            match request {
+                root::Request::Forge { repository, op, .. } => {
+                    return (repository, op);
+                }
+                root::Request::Party(root::PartyRequest::Deliver(root::Delivery::Application { outcome, .. })) => {
+                    panic!("no terminal answer before Locate: {outcome:?}");
+                }
+                root::Request::Party(_) => {}
+                other @ (root::Request::Unsettled(_)
+                | root::Request::Bound { .. }
+                | root::Request::StopGroup { .. }
+                | root::Request::SetUpGroup { .. }
+                | root::Request::Return { .. }
+                | root::Request::SetUp { .. }
+                | root::Request::Connect { .. }
+                | root::Request::Manifest { .. }
+                | root::Request::Reachable { .. }
+                | root::Request::Accept { .. }
+                | root::Request::Install { .. }
+                | root::Request::EraseCarried { .. }
+                | root::Request::Setup { .. }
+                | root::Request::Store(_)
+                | root::Request::Worker(_)
+                | root::Request::Account(_)
+                | root::Request::ToChild(_)
+                | root::Request::Busy(_)
+                | root::Request::Drained
+                | root::Request::Stop) => crate::route::request(engine, other),
+            }
+        }
+        crate::engine::answer(engine);
+        engine.domain.reclaim();
+    }
+    panic!("Connected releases adoption's Locate");
+}
+
+fn startup_adopt(key: u8) -> root::Event {
+    use skein_lib::{ReplyTo, Token};
+    use temper_engine_domain_forge as forge;
+    root::Event::Party(root::PartyInput::Application {
+        scope: jig_domain_people::ApplicationScope::Project(1),
+        reply_to: ReplyTo::new(Token::new(101)),
+        sign_in: 1,
+        key: [key; 16],
+        digest: [key; 32],
+        carried: None,
+        request: root::Application::Forge(forge::Ask::Adopt(forge::Adoption {
+            project: 1,
+            home: true,
+            forge: 1,
+            host: b"forge.example".as_slice().into(),
+            owner: b"acme".as_slice().into(),
+            name: b"widget".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+            role: forge::Role::Owned,
+            landing: b"main".as_slice().into(),
+            ci: true,
+            checks: Box::new([]),
+        })),
+    })
+}
+
 #[test]
 fn nothing_leaves_before_the_mark() {
     let previous = fixtures::ready().engine.expect("previous engine");

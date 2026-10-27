@@ -159,7 +159,13 @@ enum Input {
     Hold,
     After(&'static [u8]),
 }
+#[derive(PartialEq, Eq)]
+enum CallKind {
+    Ordinary,
+    Adoption,
+}
 struct Child {
+    kind: CallKind,
     base: u64,
     pidfd: Option<Fd>,
     pipes: [Option<Fd>; 3],
@@ -177,6 +183,7 @@ struct Child {
 impl Child {
     fn new(input: Vec<u8>, base: u64) -> Self {
         Self {
+            kind: CallKind::Ordinary,
             base,
             pidfd: None,
             pipes: [None; 3],
@@ -321,6 +328,16 @@ impl Child {
     }
     fn finished(&self) -> bool {
         self.ended.exit.is_some() && self.pidfd.is_none() && self.closing == 0 && self.signals == 0
+    }
+    fn check_adoption(&self, cut: bool) {
+        assert!(
+            self.kind != CallKind::Adoption
+                || self.ended.exit == Some(Exit::Code(0))
+                || cut && self.ended.exit == Some(Exit::Code(143)),
+            "adoption ended refused: exit={:?}; {}",
+            self.ended.exit,
+            String::from_utf8_lossy(&self.ended.stderr)
+        );
     }
 }
 
@@ -599,6 +616,11 @@ impl Calls {
         }
     }
     fn start(&mut self, call: Call, started: bool) {
+        let kind = if call.arguments.first().is_some_and(|word| word.as_ref() == b"adopt") {
+            CallKind::Adoption
+        } else {
+            CallKind::Ordinary
+        };
         let mut args: Vec<Box<[u8]>> = vec![b"ctl".as_slice().into()];
         if call.directory {
             args.push(call.client.unwrap_or_else(|| self.client.clone()));
@@ -613,10 +635,18 @@ impl Calls {
             }
         };
         self.spawn(skein_scratch::paths::binary("temper").as_os_str().as_bytes().into(), args, input, started);
+        if started {
+            self.started.as_mut().expect("started call").0.kind = kind;
+        } else {
+            self.child.as_mut().expect("running call").kind = kind;
+        }
     }
     fn finish(&mut self, now: Time) {
         if self.started.as_ref().is_some_and(|(child, _)| child.finished()) {
             let (child, index) = self.started.take().expect("finished started call");
+            if !self.cancelling {
+                child.check_adoption(self.awaiting_started);
+            }
             self.ends[index] = child.ended;
             self.observed_at[index] = Some(self.wall);
             self.awaiting_started = false;
@@ -624,7 +654,11 @@ impl Calls {
         if !self.child.as_ref().is_some_and(Child::finished) {
             return;
         }
-        let ended = self.child.take().expect("finished ctl").ended;
+        let child = self.child.take().expect("finished ctl");
+        if !self.cancelling {
+            child.check_adoption(false);
+        }
+        let ended = child.ended;
         self.finish_step(true);
         match self.action.take().expect("current action") {
             Action::Run => {
@@ -1156,6 +1190,19 @@ pub fn proposal_key(ended: &Ended) -> String {
 #[cfg(test)]
 mod read_condition_tests {
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "adoption ended refused: exit=Some(Code(2)); unreachable")]
+    fn a_refused_started_adoption_fails_before_polling_pending() {
+        let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
+        let mut child = completed(b"");
+        child.kind = CallKind::Adoption;
+        child.ended.exit = Some(Exit::Code(2));
+        child.ended.stderr = b"unreachable".to_vec();
+        calls.started = Some((child, 0));
+        calls.action = Some(Action::Until(Call::new(&["pending"]), ReadCondition::Contains(b"adopt")));
+        calls.finish(Time::ZERO);
+    }
 
     struct VisitJudge {
         settled: bool,

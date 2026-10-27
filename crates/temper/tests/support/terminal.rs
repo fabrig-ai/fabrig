@@ -153,6 +153,12 @@ impl Host for Pipes {
                 Some(Action::Wait(_)) | None => {}
             }
         }
+        if let Some(Action::Wait(words)) = self.actions.front()
+            && words.starts_with(b"Adopted ")
+            && let Some(reason) = adoption_refusal(&self.bytes)
+        {
+            panic!("terminal adoption refused: {reason}");
+        }
         if !self.writing
             && let Some((bytes, written)) = &self.typed
         {
@@ -211,6 +217,23 @@ impl Host for Pipes {
     fn operations(&self) -> u32 {
         4
     }
+}
+fn adoption_refusal(bytes: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(bytes);
+    let frame = text.rsplit("\n== ").next().expect("at least one frame");
+    frame.lines().find_map(|line| line.trim_start().strip_prefix("! ").map(str::to_owned))
+}
+
+#[test]
+fn a_terminal_adoption_refusal_uses_the_current_frame() {
+    let refused = include_bytes!("../../../temper-client-shell-terminal/src/tests/golden/adopt_refused_not_found.txt");
+    assert_eq!(
+        adoption_refusal(refused).as_deref(),
+        Some("No repository acme/shop on forge 1 that temper's forge user can see.")
+    );
+    let mut frames = refused.to_vec();
+    frames.extend_from_slice(b"\n== Adopt a repository == Live\nAdopted acme/shop on forge 1 as owned.\n");
+    assert_eq!(adoption_refusal(&frames), None, "an old alert does not decide the next frame");
 }
 enum Process {
     Binary(Box<Binary>),
