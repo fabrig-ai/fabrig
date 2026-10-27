@@ -151,7 +151,10 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   entrances of a change of settings that touches a charter (the
   engine's `ChangeSettings` and `ProposeSettings` routes and a run's
   `propose_settings`), temper sums each charter's offered host part and
-  refuses one past the bound, naming the charter and both figures
+  refuses one whose tools and largest brief (the brief's sections at
+  their bounds, the charter's instructions, the finish and deliver
+  schemas: smith counts them all) pass the bound, naming the charter and
+  both figures
   (`../protocol/configuration.md`, section 7). A stored proposal's
   acceptance, a restore and a reset carry values that passed an
   entrance or the start, and the bound does not move while the engine

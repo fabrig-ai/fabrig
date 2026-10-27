@@ -1594,11 +1594,17 @@ into the binary.
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 48K is a week's: the user's, confirmed on temper#14 (10-27). A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
 - **Each charter's host families** (its `tools`, jig's
-  `domain/engine.md`, 7.1): charters 1 and 2 name every host family
-  but settings, as every run was offered before; charter 4, the
-  reviewer's, names the read family alone, as its row says, which
-  leaves its brief, a change's whole review, the room smith's host part
-  gives; charter 3 names those its row lists, settings among them. A run is offered a family's tools
+  `domain/engine.md`, 7.1): charter 1, a chat's, names every host
+  family but settings, as every run was offered before; charter 2, a
+  coding agent's (a change's producer, repairs and resolutions, and the
+  implementers a coordinator delegates), names the read and message
+  families alone, since it reads the change and CI, asks its requester,
+  and delivers through smith's own `deliver`, never delegating or
+  effecting; charter 4, the reviewer's, names the read family alone, as
+  its row says; charter 3 names those its row lists, settings among
+  them. smith's host part counts a run's brief beside its tools
+  (`../domain/agent.md`, 4.3), so these leave each charter's largest
+  brief its room. A run is offered a family's tools
   where its charter names the family and its task's authority holds it,
   and each charter's offered host part is checked against smith's bound
   (`../domain/agent.md`, 4.3).
