@@ -235,7 +235,8 @@ temper ctl help [GROUP [VERB]]
     `lift` (a placed hold, ended), `decide`, `withdraw`, `take`, `hand-back`,
     `succeed` (a successor named), `choose` (what QA tries next), `route`
     (a finding to a goal), `backlog` (a finding set aside), `drop` (a
-    finding dismissed, with a reason),
+    finding dismissed, with a reason), `fund` (what a period may spend,
+    resizing what is open),
     `move` (a task to another party), `seen`, `apply`, `propose`,
     `restore`, `advance` (running work to the newest revision), `adopt`,
     `setup`, `connect`, `disconnect`, `install`, `accept`, `add-key`,
