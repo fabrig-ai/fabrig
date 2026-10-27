@@ -7,5 +7,6 @@ mod logs;
 mod machine;
 mod pipe;
 mod ready;
+mod restart;
 mod sink;
 mod terminal;

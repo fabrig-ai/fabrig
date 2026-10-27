@@ -131,12 +131,21 @@ pub struct Launch {
 pub struct Hosted {
     pub name: Box<[u8]>,
     pub stdio: [Option<Fd>; 3],
+    pub parent_pipes: Box<[Fd]>,
     pub pid: Pid,
     pub descriptors: Box<[Fd]>,
     pub listeners: Box<[Fd]>,
     pub closed: bool,
     pub input: Option<Fd>,
     pub output: Option<Fd>,
+}
+/// Completions delayed at the shell boundary, grouped by ending endpoint.
+#[derive(Debug)]
+pub struct HeldEndings {
+    // Four child pipes and the version probe.
+    pub fds: [Option<Fd>; 5],
+    pub exit: bool,
+    pub completions: Queue<Complete>,
 }
 #[derive(Debug)]
 pub struct Harness {
@@ -166,6 +175,7 @@ pub struct Harness {
     pub stderr_bytes: List<u8>,
     pub hold_terminal_ack: bool,
     pub held_terminal_ack: Queue<Complete>,
+    pub endings: HeldEndings,
 }
 impl Harness {
     pub fn new(steps: &[Step]) -> Self {
@@ -239,6 +249,8 @@ impl Harness {
             stderr,
         };
         let service = Service::new(limits, steps, settings).expect("valid limits");
+        // Retaining completions cannot exceed the host's operation bound.
+        let ending_operations = service.operations();
         Self {
             sim,
             pid,
@@ -266,6 +278,7 @@ impl Harness {
             stderr_bytes: List::with_capacity(65_536),
             hold_terminal_ack: false,
             held_terminal_ack: Queue::with_capacity(2),
+            endings: HeldEndings { fds: [None; 5], exit: false, completions: Queue::with_capacity(ending_operations) },
         }
     }
     fn answer(&mut self) {
@@ -364,8 +377,12 @@ impl Harness {
                     }
                     descriptors.push(fd).expect("four inherited pipes");
                 }
+                let mut parent_pipes = List::with_capacity(u32::try_from(spawn.pipes.len()).unwrap());
                 if let Op::Spawn { spawn } = &complete.kind {
                     for pipe in &spawn.pipes {
+                        if let Some(fd) = pipe.parent {
+                            parent_pipes.push(fd).unwrap();
+                        }
                         if serve && pipe.child == answer {
                             self.control_fds.push(pipe.parent.expect("parent pipe")).unwrap();
                         }
@@ -377,6 +394,7 @@ impl Harness {
                     .push(Hosted {
                         name: spawn.args.last().unwrap().clone(),
                         stdio,
+                        parent_pipes: parent_pipes.into_boxed(),
                         pid,
                         descriptors: descriptors.into_boxed(),
                         listeners: listeners.into_boxed(),
@@ -411,6 +429,10 @@ impl Harness {
         self.sim.reap(self.pid, self.service.completions());
         for _ in 0..self.service.completions().len() {
             let complete = self.service.completions().pop().unwrap();
+            if self.holds_ending(&complete) {
+                self.endings.completions.push(complete);
+                continue;
+            }
             let mut terminal = false;
             if let Op::PipeWrite { fd, bytes, from } = &complete.kind
                 && (*fd == self.stdout || *fd == self.stderr)
@@ -431,8 +453,20 @@ impl Harness {
             }
         }
         self.bind();
+        // run_until_idle starts with a turn, and run_to_end can turn even
+        // without a wakeup. Such a turn must never hide runnable host work:
+        // check exactly where the real shell would still be asleep.
+        let due = match self.service.next_deadline() {
+            Some(at) => at <= self.sim.now(),
+            None => false,
+        };
+        let would_wait = self.service.completions().is_empty() && !due && !self.service.work_pending(self.sim.now());
         self.service.iterate(self.sim.now(), self.wall);
         self.service.drain();
+        assert!(
+            !would_wait || self.service.submissions().is_empty(),
+            "box submitted work on a turn with no completion, due deadline or work_pending"
+        );
         for submission in self.service.submissions().iter() {
             if let Op::PipeWrite { fd, bytes, from } = &submission.kind
                 && self.control_fds.as_slice().contains(fd)
@@ -531,8 +565,11 @@ impl Harness {
     }
     pub fn close_requests(&mut self) {
         let index = self.serve_index();
-        let child = self.hosted.get_mut(index).expect("live serve");
-        let fd = child.output.take().expect("serve requests pipe");
+        let fd = self.hosted.get_mut(index).expect("live serve").output.take().expect("serve requests pipe");
+        self.close_child_fd(index, fd);
+    }
+    pub fn close_child_fd(&mut self, index: u32, fd: Fd) {
+        let child = self.hosted.get_mut(index).expect("hosted child");
         let mut descriptors = List::with_capacity(u32::try_from(child.descriptors.len()).unwrap());
         for descriptor in &child.descriptors {
             if *descriptor != fd {
@@ -540,12 +577,50 @@ impl Harness {
             }
         }
         child.descriptors = descriptors.into_boxed();
-        let mut submissions = Queue::with_capacity(1);
-        submissions.push(Submit { op: Token::new(103), kind: Op::Close { fd } });
-        self.sim.submit(child.pid, &mut submissions);
-        let mut completions = Queue::with_capacity(1);
-        self.sim.reap(child.pid, &mut completions);
-        assert_eq!(completions.pop().unwrap().result, Ok(Done::Nothing));
+        assert_eq!(call(&mut self.sim, child.pid, Op::Close { fd }).result, Ok(Done::Nothing));
+    }
+    fn holds_ending(&self, complete: &Complete) -> bool {
+        let fd = match complete.kind {
+            Op::PipeRead { fd, .. }
+            | Op::PipeWrite { fd, .. }
+            | Op::Close { fd }
+            | Op::Recv { fd, .. }
+            | Op::Send { fd, .. }
+            | Op::Connect { fd, .. } => Some(fd),
+            Op::Wait { reap, .. } => return self.endings.exit && !reap,
+            Op::Socket { .. }
+            | Op::Bind { .. }
+            | Op::Listen { .. }
+            | Op::Accept { .. }
+            | Op::Shutdown { .. }
+            | Op::Open { .. }
+            | Op::Read { .. }
+            | Op::Write { .. }
+            | Op::Append { .. }
+            | Op::Truncate { .. }
+            | Op::Sync { .. }
+            | Op::Lock { .. }
+            | Op::Stat { .. }
+            | Op::Rename { .. }
+            | Op::Remove { .. }
+            | Op::MakeDirectory { .. }
+            | Op::List { .. }
+            | Op::Spawn { .. }
+            | Op::Signal { .. }
+            | Op::Usage
+            | Op::Window { .. }
+            | Op::ReadSignal { .. }
+            | Op::Cancel { .. } => None,
+        };
+        if let Some(fd) = fd {
+            return self.endings.fds.contains(&Some(fd));
+        }
+        false
+    }
+    pub fn release_endings(&mut self) {
+        while let Some(complete) = self.endings.completions.pop() {
+            self.service.completions().push(complete);
+        }
     }
     pub fn read_reply(&mut self, most: u32) -> Box<[u8]> {
         let child = self.hosted.get(self.serve_index()).unwrap();

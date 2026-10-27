@@ -294,7 +294,12 @@ fn a_serve_restarts_when_its_requests_pipe_closes_before_its_exit() {
     harness.run_until_idle();
     harness.sim.advance_to(harness.sim.now().saturating_add(Duration::from_millis(500)));
     harness.run_until_idle();
-    assert_eq!(harness.spawn_times(b"serve").len(), 2, "the closed old requests pipe cannot hold a fresh spawn");
+    assert_eq!(
+        harness.spawn_times(b"serve").len(),
+        2,
+        "the closed old requests pipe cannot hold a fresh spawn: {:?}",
+        crate::host::pressure::restart_gate(&harness.service)
+    );
     harness.terminate();
     assert_eq!(harness.run_to_end(), Exit::Code(0));
     harness.sim.assert_quiescent(harness.pid);

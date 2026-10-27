@@ -1577,6 +1577,53 @@ impl skein_shell::Host for Service {
 pub(crate) mod pressure {
     use super::{Event, Fact, Item, Order, Service, Target, Told};
     use skein_lib::{Wall, bytes};
+    #[derive(Debug)]
+    #[expect(clippy::struct_excessive_bools, reason = "read-only test snapshot of independent gate predicates")]
+    pub struct RestartGate {
+        pub spawn: bool,
+        pub pipes_settled: [bool; 2],
+        pub ready_settled: bool,
+        pub stdin_settled: bool,
+        pub room: bool,
+        pub closing_control: [Option<skein_lib::Token>; 2],
+        pub logs_take: bool,
+        pub failure: bool,
+        pub withdraw: bool,
+    }
+    impl RestartGate {
+        pub fn open(&self) -> bool {
+            self.spawn
+                && self.pipes_settled == [true, true]
+                && self.ready_settled
+                && self.stdin_settled
+                && self.room
+                && self.closing_control == [None, None]
+                && self.logs_take
+                && !self.failure
+                && !self.withdraw
+        }
+    }
+    pub fn restart_gate(service: &Service) -> RestartGate {
+        let mut serve = None;
+        for (index, placed) in service.steps.iter().enumerate() {
+            if placed.step.name() == service.settings.serve.as_ref() {
+                serve = Some(index);
+            }
+        }
+        let step = serve.expect("serve step");
+        let state = &service.children[step];
+        RestartGate {
+            spawn: state.spawn,
+            pipes_settled: [state.pipes[0].settled(), state.pipes[1].settled()],
+            ready_settled: state.ready_settled(),
+            stdin_settled: state.stdin.is_none(),
+            room: service.requests.room() >= 8 && service.orders.room() >= service.machine.max_out(),
+            closing_control: service.closing_control,
+            logs_take: service.logs.takes(),
+            failure: service.failure.is_some(),
+            withdraw: super::withdraw_queued(&service.orders, step),
+        }
+    }
     pub fn saturate(service: &mut Service) -> (u32, u32) {
         let mut queued = 0_u32;
         while service.terminal.takes(1) {
