@@ -1617,7 +1617,11 @@ section 8; testing-strategy.md, 2.9).
 - **The ladder's rungs,** a story of their own each once its brief
   passes on real backends (`../draft/v0.1.0.md`, 3): the brief's
   scenario as a test in `crates/temper/tests/live.rs`, run by
-  `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`.
+  `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
+  same code, also walks the whole story offline in the process profile
+  on the rung's twin (2.4), so a driver's own fault is met there, never
+  by spending a held login: a live story is run live only once its
+  offline walk passes.
   - **Their stories are the second edition's** of the reference case
     (`../draft/reference-case.md`; the user, 10-27), with
     the retired first edition's citations mapped below:
