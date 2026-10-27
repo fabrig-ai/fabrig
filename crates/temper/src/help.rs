@@ -1,11 +1,11 @@
 //! `temper help` (protocol/documentation.md, section 4).
 use std::fmt::Write;
-use temper_docs::{Kind, TOPICS};
+use temper_docs::PAGES;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
-    List,
-    Topic(Box<[u8]>),
+    Index,
+    Page(Box<[u8]>),
     Search(Box<[u8]>),
 }
 
@@ -14,11 +14,11 @@ pub enum Request {
 #[must_use]
 pub fn request(words: &[Box<[u8]>]) -> Option<Request> {
     match words {
-        [] => Some(Request::List),
+        [] => Some(Request::Index),
         [flag, rest @ ..] if flag.as_ref() == b"--search" && !rest.is_empty() => {
             Some(Request::Search(rest.join(&b' ').into_boxed_slice()))
         }
-        [name] if !name.is_empty() && !name.starts_with(b"-") => Some(Request::Topic(name.clone())),
+        [name] if !name.is_empty() && !name.starts_with(b"-") => Some(Request::Page(name.clone())),
         _ => None,
     }
 }
@@ -26,40 +26,19 @@ pub fn request(words: &[Box<[u8]>]) -> Option<Request> {
 /// What it prints on stdout, or its error line for stderr.
 pub fn answer(request: &Request) -> Result<String, String> {
     match request {
-        Request::List => {
-            let mut text = String::new();
-            let mut previous = None;
-            for topic in &TOPICS {
-                if previous != Some(topic.kind) {
-                    if previous.is_some() {
-                        text.push('\n');
-                    }
-                    let heading = match topic.kind {
-                        Kind::Walk => "Walks",
-                        Kind::Concept => "Concepts",
-                        Kind::Recipe => "Recipes",
-                        Kind::Limits => "Limits",
-                    };
-                    writeln!(text, "{heading}").expect("writing into a string");
-                    previous = Some(topic.kind);
-                }
-                writeln!(text, "  {}: {}. {}", topic.name, topic.title, topic.summary).expect("writing into a string");
-            }
-            text.push_str("\ntemper help NAME prints a topic; temper help --search WORDS... finds its sections.\n");
-            Ok(text)
-        }
-        Request::Topic(name) => match temper_docs::find(name) {
+        Request::Index => Ok(temper_docs::find(b"index").expect("compiled index page").text.into()),
+        Request::Page(name) => match temper_docs::find(name) {
             Some(topic) => Ok(topic.text.into()),
-            None => Err(format!("temper: no topic {}; temper help lists them\n", String::from_utf8_lossy(name))),
+            None => Err(format!("temper: no page {}; temper help lists them\n", String::from_utf8_lossy(name))),
         },
         Request::Search(words) => {
-            let found = temper_docs::search(&TOPICS, words, 20).map_err(|why| format!("temper: {}\n", why.says()))?;
+            let found = temper_docs::search(&PAGES, words, 20).map_err(|why| format!("temper: {}\n", why.says()))?;
             if found.hits.is_empty() {
                 return Err("temper: nothing matches\n".into());
             }
             let mut text = String::new();
             for hit in found.hits.as_slice() {
-                writeln!(text, "{}: {}: {}", hit.topic, hit.heading, hit.line).expect("writing into a string");
+                writeln!(text, "{}: {}: {}", hit.page, hit.heading, hit.line).expect("writing into a string");
             }
             if found.more {
                 text.push_str("and more; narrow the words\n");
