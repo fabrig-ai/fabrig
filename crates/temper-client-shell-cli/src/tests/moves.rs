@@ -10,8 +10,11 @@ const IMPORT: &[&[u8]] = &[b"import", b"/linked-parent/record", b"--key", b"move
 const LOST: &[u8] = b"temper ctl: the record of the move was lost on its way; the engine keeps the account and cancels the move at its deadline; export again after it\n";
 const AT_BOUND: &[u8] = &[0; 131_072]; // tools.md, 12: 128 KiB whole.
 const OVER_BOUND: &[u8] = &[b'r'; 131_073];
-// The old encoder's fixture(false), kept by jig's moved-file tests.
-const OLD: &[u8] = b"JIGM\0\x01\0\0\0\x01a\0\0\0\x01i\0\0\0\x01c\0\0\0\x01s\0\0\0\0\0\0\0\x22\0\x03\0\0\0\x07\0\0\0\0\0\0\0\x09\0\0\0\0\0\0\0\x7b\0\0\0\x01a\0\0\0\0\0\0\0";
+// R5's kept 109-byte literal, transcribed from jig 365afd554^'s outer
+// encoder and skein cad332f2 record.rs: JIGM around SKOT v3, all options
+// present. Refresh and metadata have lengths without presence marks.
+const OLD: &[u8] = b"JIGM\x00\x01\x00\x00\x00\x01a\x00\x00\x00\x01i\x00\x00\x00\x01c\x00\x00\x00\x01s\x00\x00\x00\x01d\x00\x00\x00JSKOT\x00\x03\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00{\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x01m\x01\x00\x00\x00\x01c\x01\x00\x00\x00\x01g\x01\x00\x00\x00\x01s\x01\x00\x00\x00\x01i\x01\x00\x00\x00\x00\x00\x00\x00d";
+
 fn exporting(answers: impl IntoIterator<Item = Answer>) -> Frame {
     let mut f = Frame::act(EXPORT);
     f.move_answers.extend(answers);
