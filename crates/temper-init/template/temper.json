@@ -597,6 +597,7 @@
         "program": "$binary",
         "configuration": "$agent",
         "arguments": [
+          "internal",
           "agent",
           "$agent"
         ]

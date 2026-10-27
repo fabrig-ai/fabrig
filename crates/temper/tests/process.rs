@@ -2350,7 +2350,7 @@ fn prepare_owned_worker(members: &mut support::cluster::Members) {
     worker["secret"] = "secrets/w1.secret".into();
     worker["agent"] = serde_json::json!({
         "program": skein_scratch::paths::binary("temper"), "configuration": agent_path,
-        "arguments": ["agent", agent_path]
+        "arguments": ["internal", "agent", agent_path]
     });
     // Derive through the binary's actual agent reader and process preparation.
     worker["memory_bytes"] = (1_u64 << 52).into();
