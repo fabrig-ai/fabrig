@@ -458,8 +458,13 @@ the forge's, judged in the change's decision:
 | Kind | Scope | Numbers | Value |
 |---|---|---|---|
 | 4, a project's landing | each project | 1 | `by`: `queue` or `turn`; `gate_retries` (2); and, as their parts are built, the prepare and key commands, the home's pinned revision, whether a dependency across repositories joins a landing (yes), whether downstream pins follow their upstream's main (no), `stale_proofs` (2) |
-| 5, a repository's gates | each project | a repository's, from 1 | the repository (its forge and id); its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks |
+| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks |
 
+- **Until both kinds are built** on jig's application settings (jig's
+  `domain/engine.md`, 17.5), a project's `by` and its repositories'
+  gates are configured in the document's `landing` member
+  (`../protocol/configuration.md`, section 3), as the landing rules
+  are, and read at the start.
 - **`turn` is refused** for a project with a repository on a forge that
   cannot merge fast-forward only, saying which (section 8).
 - **A gate's name** is a branch-name-safe word, unique in its

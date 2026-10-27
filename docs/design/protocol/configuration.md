@@ -289,9 +289,16 @@ it, they are configured here.
 ```
 "landing": {
   "deployment": [ rule ],
-  "projects": [ {"project": u32, "rules": [ rule ]} ]
+  "projects": [ {"project": u32, "rules": [ rule ], "by": "queue" | "turn", "gates": [ gates ]} ]
 }
 ```
+
+- **`by` and `gates`,** designed, not built, until kinds 4 and 5
+  (section 13) are: how the project lands, `queue` when absent, and,
+  under `turn`, each repository's test gates, a `gates` entry being
+  `{"forge": u16, "repository": u64, "gates": [{"name": string,
+  "workflow": string, "ignored": [string], "blocking": boolean}]}`, a
+  repository at most once (`../domain/landing.md`, 13.1).
 
 A rule is a `LandingRule`, member for member:
 
@@ -1447,7 +1454,7 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 
 ### 13.2 temper's kinds
 
-temper declares three kinds of its own beside jig's, each owned by the
+temper declares five kinds of its own beside jig's, each owned by the
 forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 
 | Kind | Scope | Numbers | Value | Decided by |
@@ -1456,7 +1463,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 | 2, a project's landing rules | each project | a rule's, from 1; at most `forge.landing_rules` per project | a landing rule | that project's owners |
 | 3, the forge's charters | the deployment | 1, the change's; 2, its reviews' | a charter's number, a u32 | the deployment's owners |
 | 4, a project's landing (designed, not built) | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../domain/landing.md`, 13.1) | that project's owners |
-| 5, a repository's gates (designed, not built) | each project | a repository's, from 1 | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
+| 5, a repository's gates (designed, not built) | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
 
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, section 3's rule member for member but `connector` and `kind`,
