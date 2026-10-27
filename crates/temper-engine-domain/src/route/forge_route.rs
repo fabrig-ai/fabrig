@@ -2242,7 +2242,7 @@ fn change_delegate(
             gate_authority(domain, env, &mut authority, gate.kind)?;
             (
                 gate_executor(row, gate.kind),
-                review_words(row, number, head, parameters.as_slice(), env.limits.tasks.spec_bytes),
+                review_words(row, number, &head, parameters.as_slice(), env.limits.tasks.spec_bytes)?,
                 tasks::Contract::Verdict {
                     choices: Box::new([
                         tasks::Verdict {
@@ -2321,13 +2321,14 @@ fn review_failure(row: &forge::ChangeRow, number: u64, head: skein_forge::api::C
     None
 }
 
+/// domain/forge.md, 8.3: identity precedes the change's words and pull section.
 fn review_words(
     row: &forge::ChangeRow,
-    number: u64,
-    head: skein_forge::api::Commit,
+    gate: u64,
+    head: &skein_forge::api::Commit,
     parameters: &[tasks::Parameter],
     bound: u32,
-) -> Box<[u8]> {
+) -> Option<Box<[u8]>> {
     // The spec's byte bound includes its base, branch and named head.
     let mut room = bound;
     for parameter in parameters {
@@ -2337,17 +2338,34 @@ fn review_words(
     }
     let mut words = List::with_capacity(room);
     // domain/forge.md, 8.3: the retry's own context precedes the common review words.
-    if let Some(failure) = review_failure(row, number, head) {
+    if let Some(failure) = review_failure(row, gate, *head) {
         append(&mut words, b"This review is asked again at the same head: the first review failed: ");
         append(&mut words, failure);
         append(&mut words, b"\n");
     }
-    append(
-        &mut words,
-        b"Review this change at the named head\nVerdict 1 approves; verdict 2 requests changes. Change: ",
-    );
+    let number = skein_lib::Decimal::of(row.pull?);
+    let head = commit_text(head);
+    let identity: [&[u8]; 9] = [
+        b"Review this change at the named head\nPull request: #",
+        number.as_bytes(),
+        b"\nBranch: ",
+        &row.branch,
+        b"\nBase: ",
+        &row.base,
+        b"\nHead: ",
+        &head,
+        b"\n",
+    ];
+    for part in identity {
+        // The identity is required; a too-small spec cannot start an unnamed review.
+        if part.len() > usize::try_from(words.room()).expect("bounded spec room") {
+            return None;
+        }
+        append(&mut words, part);
+    }
+    append(&mut words, b"Verdict 1 approves; verdict 2 requests changes. Change: ");
     append(&mut words, &row.title);
-    words.into_boxed()
+    Some(words.into_boxed())
 }
 
 fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u8]> {

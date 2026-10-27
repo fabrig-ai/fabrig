@@ -1535,7 +1535,7 @@ fn task_cue(words: &[u8]) -> Box<[u8]> {
 fn review_cue(head: u64) -> Box<[u8]> {
     use std::fmt::Write;
     let mut hex = String::new();
-    for byte in skein_fake_forge_domain::object_bytes(head) {
+    for byte in &skein_fake_forge_domain::object_bytes(head)[..20] {
         write!(hex, "{byte:02x}").expect("head hex");
     }
     format!("Pull request at head {hex}").into_bytes().into()
