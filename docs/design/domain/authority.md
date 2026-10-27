@@ -372,7 +372,9 @@ deployment's rules       the most any project may have; requirements on effects
   nothing back. A pool reserves its budget from the project's period,
   so a role's raise that the open period has no room for is refused
   whole, naming what the period has left: its owners raise the
-  project's first. Its writes are a pool per party in the role, within
+  project's first. A project's spend below a role's is refused as well,
+  so a cut goes the other way, the role's first (o/configuring-periods'
+  raise, jig 5c8420d15). Its writes are a pool per party in the role, within
   the project's parties (engine.md, section 13), all checked before
   any is made.
 - **Periods are the application's to say.** The engine keeps no
