@@ -93,3 +93,18 @@ mod handles;
 mod shapes;
 
 mod address;
+
+// Match production English's checked segment sum, once per loaded language.
+// These selected-language fixtures change literal bytes, retaining the segment shapes.
+fn english_phrase_segments(languages: u32) -> u32 {
+    let language = crate::phrases::english::language();
+    let mut segments = 0_u32;
+    for phrase in &language.phrases {
+        for form in &phrase.forms {
+            segments = segments
+                .checked_add(u32::try_from(form.segments.len()).expect("fixture segments fit u32"))
+                .expect("whole vocabulary segments fit u32");
+        }
+    }
+    segments.checked_mul(languages).expect("loaded fixture languages fit u32")
+}

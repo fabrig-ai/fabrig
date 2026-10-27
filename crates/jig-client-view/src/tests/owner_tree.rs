@@ -219,7 +219,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
                 languages: 2,
                 phrases: crate::owner_words::phrase_count(),
                 holes: 4,
-                segments: 5000,
+                segments: super::english_phrase_segments(2),
                 text_bytes: 100_000,
                 hole_bytes: 256,
             },

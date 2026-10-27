@@ -339,7 +339,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
         languages: 2,
         phrases: crate::owner_words::phrase_count(),
         holes: 4,
-        segments: 5000,
+        segments: super::english_phrase_segments(2),
         text_bytes: 200_000,
         hole_bytes: super::cards::CLIENT.text,
     };

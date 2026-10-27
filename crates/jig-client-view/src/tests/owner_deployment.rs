@@ -316,7 +316,7 @@ fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wro
         languages: 2,
         phrases: crate::owner_words::phrase_count(),
         holes: 4,
-        segments: 5000,
+        segments: super::english_phrase_segments(2),
         text_bytes: 100_000,
         hole_bytes: CLIENT.text,
     };
