@@ -507,7 +507,8 @@ impl Core {
 pub(crate) const fn placed_release(action: &tasks::ProposalAction) -> bool {
     match action {
         tasks::ProposalAction::ReleasePlaced { .. } => true,
-        tasks::ProposalAction::Batch(_)
+        tasks::ProposalAction::Settings { .. }
+        | tasks::ProposalAction::Batch(_)
         | tasks::ProposalAction::Effect { .. }
         | tasks::ProposalAction::ProcedureEffect { .. }
         | tasks::ProposalAction::Amend { .. }
