@@ -403,7 +403,12 @@ child's vocabulary and the driver's, both ways, exhaustive on both:
   record with skein's `decode_record`, as today, refusing one skein does
   not read;
   a file of another version is refused by name, and the account is
-  moved again from a deployment of the same release.
+  moved again from a deployment of the same release. For now the moves
+  also read the hand-written form before it, `JIGM` and its version, by
+  its magic before any version is read, and never write it: accounts
+  moved out before the schema keep importing, and their next move out
+  writes the schema's form. That reader goes before the first release,
+  once those files are moved out again.
 - **Out.** The child releases the source and asks to withdraw it,
   giving its account's display name for the file. The
   routing removes it from the driver; at `removed`, it reads the
