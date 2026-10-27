@@ -180,7 +180,7 @@ fn landed(ran: &Ran) -> u64 {
 #[test]
 fn checked_head_lands_once_and_repeated_reads_name_main() {
     // QA: domain/forge.md 8.2, 8.7, 8.8; domain/testing.md 2.4 story 1.
-    let ran = run_github(fixture(), scripts, landed_steps);
+    let ran = run_github(github::Fixture { keep_heads: true, ..fixture() }, scripts, landed_steps);
     landed(&ran);
     let before = document(&ran, 7);
     let after = document(&ran, 9);

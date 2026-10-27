@@ -54,6 +54,7 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
     fixture.connected = false;
     fixture.manifest = true;
     fixture.unaccepted_after_install = true;
+    fixture.keep_heads = true;
     let ran = run_github(fixture, scripts, steps);
     for (index, result) in ran.calls().iter().enumerate() {
         assert_eq!(result.exit, Some(Exit::Code(if index == UMBRA { 2 } else { 0 })), "call {index}: {result:?}");

@@ -180,6 +180,7 @@ fn a_read_only_app_keeps_its_hook_and_old_stray_through_paste_and_reconcile() {
     const KEPT: usize = 2;
     let fixture = github::Fixture {
         old_stray: true,
+        keep_heads: true,
         pasted_hook: OTHER_HOOK,
         configure: |value, _, _| {
             value["application"]["forges"][0]["app_read_only"] = true.into();

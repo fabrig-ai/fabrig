@@ -51,6 +51,8 @@ pub struct Fixture {
     pub pasted_hook: &'static [u8],
     /// Repository contents, CI and notifications; the world supplies ids and names.
     pub setup: fn() -> api::Setup,
+    /// Keep HTTP heads when the story asserts on App requests.
+    pub keep_heads: bool,
     /// Fake timings and history capacity, before the domain allocates them.
     pub configure_domain: fn(&mut domain::Config),
     /// Seed repository history before the peer starts; setup itself starts no CI.
@@ -67,6 +69,7 @@ pub fn fixture() -> Fixture {
         unaccepted_after_install: false,
         pasted_hook: b"https://temper-test.invalid/",
         setup,
+        keep_heads: false,
         configure_domain: |_| {},
         prepare: |_, _| {},
         config,
@@ -337,7 +340,11 @@ impl State {
             handle.clone(),
             fixtures::SEED,
         )
-        .expect("GitHub peer");
+        .expect("GitHub peer")
+        // Domain changes, git calls and installation facts have their own
+        // observers. Freeze no read replies or connection churn, and keep
+        // HTTP heads only for stories that assert on App requests.
+        .keeping(skein_fake_peers::forge::Kept { heads: fixture.keep_heads, ..skein_fake_peers::forge::Kept::NONE });
         if fixture.connected {
             let id = peer
                 .github_layer_mut()
