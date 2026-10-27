@@ -592,11 +592,13 @@ is what it walks with.
   - *rules,* which the reason lists under "your agents follow": D has
     each part reviewed once; F starts from a finding with no designer;
     an advisor is called once two tries have missed; `STATUS.md` is
-    generated from one file per part, by `prepare`;
-  - *named, never proposed:* the director's check every 2 hours, a
-    wake of a live chat that no setting holds (jig's recurring
-    procedures make delegates, they wake no chat), so a gap; budgets,
-    the person's (`temper ctl project fund`);
+    generated from one file per part, by `prepare`; the director checks
+    every 2 hours, subscribing itself to a timer with its `subscribe`
+    tool (jig's `domain/tasks.md`, 8.3 and 8.4; `process-model.md` 3.1,
+    graded exact), which D's walk checks is built, citing it as a built
+    gap if not;
+  - *named, never proposed:* budgets, the person's (`temper ctl project
+    fund`);
   - *setup, not the agent's:* app as the project's home (its
     adoption), the owned Forgejo with dispatch-only workflows, and
     hour 0 (P running, nothing held, no finding open, `browser` green),
