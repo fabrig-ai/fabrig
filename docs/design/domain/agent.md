@@ -305,7 +305,10 @@ it as any `delegate`:
   budget has left, refused when that is no more than a run's minimum, as
   `change`'s. A change the goal then makes has half of the goal's,
   so at most a quarter of the chat's: defaults, open to tuning;
-- **an advisor,** with `advisor` set, its report bounded as a goal's:
+- **an advisor,** with `advisor` set, its report bounded as a goal's,
+  its brief opening with the root's own line that it is an advisor,
+  which reads and reports and changes nothing, before the run's words,
+  so that it knows what it is without a convention in those words:
   untracked, so that no goal of its
   is projected on the forge; reads alone, no grant of a forge effect, no
   delegation (no kinds, tasks or depth) and no notes, so that it reads
