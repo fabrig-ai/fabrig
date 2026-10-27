@@ -99,8 +99,10 @@ section 7).
   judged tip, failures and flakes; 26 `Verification`, keyed by
   repository and landing commit, a landing's tier verdicts, the
   failures blamed on it and what repaired it
-  (`../domain/after-landing.md`, section 10); 27 `Finding`, 28 `Mark`
-  and 29 `QaPass` (`../domain/findings.md`, section 9).
+  (`../domain/after-landing.md`, section 10); 27 `LandingLog`, keyed by
+  repository, its last landings with their times, changes, trailers and
+  verdicts (`../domain/after-landing.md`, section 10); 28 `Finding`, 29
+  `Mark` and 30 `QaPass` (`../domain/findings.md`, section 9).
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads them: the engine serves none of the forge's
   client parts but the adoption form (`../client/README.md`, section 4).

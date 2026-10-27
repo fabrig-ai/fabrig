@@ -203,7 +203,10 @@ red by earlier failures it does not run (5.3).
   reads the rest at its next run.
 - **A read of landings since a time,** per project, with their
   verdicts and trailers, for a coordinator catching up: `landing list
-  --project PROJECT --since TIME`.
+  --project PROJECT --newer-than TIME`, from the landing log (section 10):
+  every landing on each adopted repository's landing branch, temper's
+  and those by queue or by anyone else, with the time the engine saw
+  it.
 
 ## 9. What the forge shows
 
@@ -251,7 +254,16 @@ red by earlier failures it does not run (5.3).
   repaired it; the `Change` family's landed state means verifying, and
   `Red` and `Cleared` join it. Through the baseline's rules
   (`landing.md`, section 12).
-- **Limits,** the forge's: `tiers` per repository (2 in `small`),
+- **The landing log,** a family of its own, `LandingLog`, per adopted
+  repository: its last `landings_kept` landings, each with its commit,
+  the engine's wall time when it saw the move, its changes (none for a
+  push from outside temper), its trailers within `trailers` and
+  `trailer_bytes`, and each tier's verdict (verifying, cleared, or red
+  with its count); a ring, written at each move of the landing branch
+  and at each verdict, so that a landing's record outlives its changes'
+  close and a range's judging.
+- **Limits,** the forge's: `landings_kept` per repository (16 in
+  `small`); `tiers` per repository (2 in `small`),
   `failing_tests` per run (16), `test_id_bytes` (256), and a tier's
   name at most 32 bytes.
 
