@@ -1015,6 +1015,14 @@ starts from current code. It never updates only because its base moved.
     with, a task at exactly the head.
 - **Blocking or advisory.** A blocking gate's verdict holds the landing;
   an advisory one's is read, and reported, and holds nothing.
+- **A review's brief names what it judges,** so the reviewer reads
+  nothing to find it: the pull request's number, its branch, its base
+  and the head the verdict is asked at, each as the forge's reads take
+  them (a commit at the forge's own length, never padded), before the
+  pull section (section 3, brief sections) of its title, body, files
+  and what differs from the base. The reviewer's reads go to what the
+  brief leaves out (a file's whole, a check's log), never to finding
+  its own pull request.
 - **A review that cannot review fails; it never asks for changes.** A
   reviewer that could not read what it judges (the pull request, its
   files, the head), or could not judge it for any other reason of its
