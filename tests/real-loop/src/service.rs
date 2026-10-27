@@ -56,6 +56,7 @@ pub struct ServiceHost {
     pub(crate) fixture: Option<crate::forge::Fixture>,
     pub(crate) seen: crate::forge::Seen,
     github: Option<crate::github::Fixture>,
+    github_seeded: bool,
     clients: Option<SocketAddr>,
     pub(crate) github_seen: crate::github::Seen,
     cues: Vec<Cue>,
@@ -159,6 +160,7 @@ impl ServiceHost {
             forge_address: None,
             fixture,
             github,
+            github_seeded: github.is_none_or(|fixture| !fixture.connected),
             clients,
             github_seen: crate::github::Seen::default(),
             seen: crate::forge::Seen::default(),
@@ -335,7 +337,6 @@ impl Host for ServiceHost {
                 .unwrap_or_else(|| self.forge.as_ref().expect("held forge").local_addr().expect("forge address"));
             if self.state != LifeState::Second {
                 fixtures::bind(&self.path, address, forge).expect("bound standalone documents");
-                self.github_documents(forge);
                 if let Some(shape) = &self.cluster {
                     shape.write(self.path.parent().expect("cluster scratch"));
                 }
@@ -360,8 +361,10 @@ impl Host for ServiceHost {
                     "preparation preserves admission"
                 );
             }
-            service.adopt_signals(self.signals).expect("service signal pipe");
-            self.started_at.get_or_insert(now);
+            if self.github_seeded {
+                service.adopt_signals(self.signals).expect("service signal pipe");
+                self.started_at.get_or_insert(now);
+            }
             self.service = Some(service);
         }
         if let Some(service) = &mut self.service {
@@ -402,15 +405,29 @@ impl Host for ServiceHost {
                 self.notes.push(note);
             }
             while let Some(link) = service.links().pop() {
+                if !self.github_seeded {
+                    // domain/root.md, 9.1: the first start seeds settings and
+                    // owners before its durable mark permits secret writes.
+                    // Drain that real deployment before the App fixture opens
+                    // its store; only the following start releases the caller.
+                    service.shutdown();
+                    continue;
+                }
                 self.links += 1;
                 self.link.clear();
                 self.link.extend_from_slice(&link);
                 self.link.push(b'\n');
                 fixtures::private(&self.path.join("link"), &self.link).expect("private printed link");
             }
-            if service.is_empty() {
+            if service.is_empty() && self.github_seeded {
                 self.forge = None;
             }
+        }
+        if !self.github_seeded && self.service.as_ref().is_some_and(temper_service::Service::is_empty) {
+            assert_eq!(self.end(), Some(&crate::End::Drained), "GitHub fixture first start");
+            self.service = None;
+            self.github_documents(self.forge_address.expect("GitHub peer address"));
+            self.github_seeded = true;
         }
         self.record_life();
     }

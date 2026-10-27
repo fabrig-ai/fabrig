@@ -16,6 +16,32 @@ const UMBRA: usize = 6;
 const CHAT: usize = 8;
 const PROCEDURE: u64 = 2;
 const DELIVERED: usize = 11;
+// The seeded-App story signs in before reading the restored connection.
+const SEEDED_FORGES: usize = 1;
+
+#[test]
+fn a_seeded_app_reopens_with_its_deployments_settings_and_owner() {
+    let ran = run_github(
+        github::fixture(),
+        |_| Box::new([]),
+        || {
+            vec![
+                sign_in(D1),
+                call(D1, argv!["wait", "forges", "--until", "settled", "--json"]),
+                call(D1, argv!["me", "--json"]),
+            ]
+        },
+    );
+    for (index, result) in ran.calls().iter().enumerate() {
+        assert_eq!(result.exit, Some(Exit::Code(0)), "call {index}: {result:?}");
+    }
+    let settled: Value = serde_json::from_slice(&ran.calls()[SEEDED_FORGES].stdout).expect("settled forges JSON");
+    let [forge] = settled["forges"]["forges"].as_array().expect("forges rows").as_slice() else {
+        panic!("one forge: {settled}")
+    };
+    assert_eq!(forge["state"], "connected");
+    assert_eq!(forge["login"], "temper-test[bot]");
+}
 
 fn installed(body: &[u8]) {
     let said = b"temper has the installation; you may close this tab.";
