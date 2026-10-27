@@ -147,12 +147,22 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   gathered brief spends the rest. So a new host tool is offered only
   where a family and the charter gate it, never to every run, and a
   charter's room is measured before a tool joins it.
-- **Checked before a run meets it:** at start and at each change of
-  settings that touches a charter, temper sums each charter's offered
-  host part and refuses one past smith's bound, naming the charter and
-  both figures (`../protocol/configuration.md`, section 7). A run smith
-  refuses for it anyway is held with smith's reason, the bound and the
-  figure, never a bare "invalid".
+- **Checked before a run meets it:** at start, and at temper's three
+  entrances of a change of settings that touches a charter (the
+  engine's `ChangeSettings` and `ProposeSettings` routes and a run's
+  `propose_settings`), temper sums each charter's offered host part and
+  refuses one past the bound, naming the charter and both figures
+  (`../protocol/configuration.md`, section 7). A stored proposal's
+  acceptance, a restore and a reset carry values that passed an
+  entrance or the start, and the bound does not move while the engine
+  runs. The sum is a table of each host family's declaration bytes and
+  the charter's own text, where the domain reads it, not a call into
+  smith; a step test in `temper-engine-smith` holds the table equal to
+  smith's own measure. The bound is the engine's size profile's, the
+  one its workers are configured from (33,419 in the small one); an
+  engine without that figure skips the start's check. A run smith
+  refuses for its host part anyway is held with smith's reason, the
+  bound and the figure, never a bare "invalid".
 
 | Tool | Family | What it does | What it names, as the run saw it | What it answers |
 |---|---|---|---|---|
