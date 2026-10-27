@@ -393,7 +393,7 @@ pub fn success(output: &Output) {
 }
 pub fn refused(output: &Output, why: &str) {
     assert_eq!(output.status.code(), Some(2), "{}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(String::from_utf8_lossy(&output.stderr), format!("export: {why}\n"));
+    assert_eq!(String::from_utf8_lossy(&output.stderr), format!("account export: {why}\n"));
 }
 
 #[derive(Clone, Copy)]

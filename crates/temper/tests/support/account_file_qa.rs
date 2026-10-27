@@ -103,7 +103,7 @@ fn probes(directory: &Path, record: &[u8]) -> Vec<Probe> {
         ("over-bound", vec![b'x'; 131_073], 0o600, "record file must contain 1 to 131072 bytes"),
         // The generated decoder refuses a current version with missing fields
         // (jig's protocol/llm.md, 5.6), after the CLI's version precheck.
-        ("malformed", b"\0\x01".to_vec(), 0o600, "import: not ours"),
+        ("malformed", b"\0\x01".to_vec(), 0o600, "account import: not ours"),
         ("newer", newer, 0o600, ""),
     ] {
         let file = directory.join(format!("{name}.move"));

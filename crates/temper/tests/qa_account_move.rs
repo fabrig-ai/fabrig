@@ -121,6 +121,6 @@ fn dead_copy_and_another_holder(fixture: &mut Fixture) {
     fixture.another_holder_on_b();
     let output = fixture.b.call(&["account", "import", held.to_str().expect("held path"), "--key", "qa-held"], None);
     assert_eq!(output.status.code(), Some(2), "{}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(output.stderr, b"import: held by another holder\n");
+    assert_eq!(output.stderr, b"account import: held by another holder\n");
     assert!(held.exists(), "a refusal keeps the only file the caller holds");
 }

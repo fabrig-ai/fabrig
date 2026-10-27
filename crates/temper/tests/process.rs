@@ -362,7 +362,7 @@ fn temper_ctl_change_settings() {
     assert!(stale.stdout.is_empty());
     assert_eq!(
         stale.stderr,
-        format!("change-settings: stale; newest revision {newest}; read settings again\n").as_bytes()
+        format!("settings apply: stale; newest revision {newest}; read settings show again\n").as_bytes()
     );
     scratch.remove();
 }
@@ -3914,7 +3914,7 @@ fn temper_ctl_move_to_newest() {
     );
     assert_eq!(calls[6].exit, Some(Exit::Code(2)));
     assert!(calls[6].stdout.is_empty());
-    assert_eq!(calls[6].stderr.as_slice(), b"move-to-newest: No visible object with that name\n");
+    assert_eq!(calls[6].stderr.as_slice(), b"revision advance: No visible object with that name\n");
     scratch.remove();
 }
 
