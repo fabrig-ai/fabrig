@@ -17,8 +17,8 @@ pub(super) fn head(entry: &Page) -> Result<(), String> {
         return Err(refused(entry, "name: a-z, 0-9 and -, at most 32 bytes", 1));
     }
     for (at, line) in entry.text.split('\n').enumerate() {
-        if !line.bytes().all(|b| (0x20..=0x7e).contains(&b)) {
-            return Err(refused(entry, "printable ASCII and line ends", at + 1));
+        if line.chars().any(char::is_control) {
+            return Err(refused(entry, "no control character but \\n", at + 1));
         }
     }
     let mut paragraphs = entry.text.split("\n\n");

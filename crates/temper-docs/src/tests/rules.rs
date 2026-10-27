@@ -185,12 +185,13 @@ fn the_designs_words_stay_in_code() {
 fn a_head_refuses_wrong_fields_and_tests_each_byte_bound_on_both_sides() {
     let text = "# Fixture\n\nKind: index\n\nFixture.\n";
     head(&fixture(Kind::Index, text)).expect("valid head");
+    head(&fixture(Kind::Index, leaked(format!("{text}\n·")))).expect("UTF-8 accepted");
     for (text, rule) in [
         (text.replace("# Fixture", "Fixture"), "title"),
         (text.replace("Kind: index", "Kind: walk"), "kind"),
         (text.replace("Fixture.\n", "Other.\n"), "summary"),
-        (format!("{text}\t"), "ASCII"),
-        (format!("{text}é"), "ASCII"),
+        (format!("{text}\t"), "control character"),
+        (format!("{text}\r"), "control character"),
     ] {
         fails(head, &fixture(Kind::Index, leaked(text)), rule);
     }

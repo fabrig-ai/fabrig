@@ -184,7 +184,10 @@ pub struct Cut {
 #[must_use]
 pub fn page(entry: &Page, from: u32, bytes: u32) -> Cut {
     assert!(bytes >= 2, "a page must fit every rendered byte");
-    let from = usize::try_from(from).expect("offset fits usize");
+    let mut from = usize::try_from(from).expect("offset fits usize");
+    while from < entry.text.len() && !entry.text.is_char_boundary(from) {
+        from = from.checked_add(1).expect("entry offset fits usize");
+    }
     if from >= entry.text.len() {
         return Cut { text: "", next: None };
     }
@@ -206,13 +209,17 @@ pub fn page(entry: &Page, from: u32, bytes: u32) -> Cut {
         }
     }
     if end == entry.text.len() {
-        return Cut { text: entry.text.get(from..).expect("ASCII entry"), next: None };
+        return Cut { text: entry.text.get(from..).expect("cut at character boundaries"), next: None };
     }
     if line_end > from {
         end = line_end;
+    } else {
+        while !entry.text.is_char_boundary(end) {
+            end = end.checked_sub(1).expect("cut after start");
+        }
     }
     Cut {
-        text: entry.text.get(from..end).expect("ASCII entry"),
+        text: entry.text.get(from..end).expect("cut at character boundaries"),
         next: Some(u32::try_from(end).expect("entry offset fits u32")),
     }
 }
@@ -283,7 +290,11 @@ fn contains(text: &str, word: &[u8]) -> bool {
 fn matching_line(section: &'static str, word: &[u8]) -> &'static str {
     for line in section.split('\n') {
         if contains(line, word) {
-            return line.get(..line.len().min(LINE_BYTES)).expect("ASCII entry");
+            let mut end = line.len().min(LINE_BYTES);
+            while !line.is_char_boundary(end) {
+                end = end.checked_sub(1).expect("cut after start");
+            }
+            return line.get(..end).expect("cut at character boundaries");
         }
     }
     unreachable!("matching section has a line holding its first word")

@@ -24,6 +24,22 @@ fn page_cuts_a_long_line_then_continues_at_its_next_offset() {
 }
 
 #[test]
+fn page_cuts_at_character_boundaries_and_counts_non_ascii_bytes_once() {
+    static ENTRY: Page = fixture(Kind::Guide, "ab·cd");
+    assert_eq!(page(&ENTRY, 0, 3), Cut { text: "ab", next: Some(2) });
+    assert_eq!(page(&ENTRY, 0, 4), Cut { text: "ab·", next: Some(4) });
+    assert_eq!(page(&ENTRY, 2, 2), Cut { text: "·", next: Some(4) });
+}
+
+#[test]
+fn page_from_inside_a_character_starts_at_the_next_boundary() {
+    static ENTRY: Page = fixture(Kind::Guide, "ab·cd");
+    assert_eq!(page(&ENTRY, 3, 2), Cut { text: "cd", next: None });
+    static LAST: Page = fixture(Kind::Guide, "ab·");
+    assert_eq!(page(&LAST, 3, 2), Cut { text: "", next: None });
+}
+
+#[test]
 fn page_counts_quotes_backslashes_and_line_ends_twice() {
     static ENTRY: Page = fixture(Kind::Guide, "\"\\\"\\\nend");
     assert_eq!(page(&ENTRY, 0, 5), Cut { text: "\"\\", next: Some(2) });
@@ -140,6 +156,24 @@ fn search_cuts_the_matching_line_to_its_byte_bound() {
     let line = found.hits.as_slice()[0].line;
     assert_eq!(line.len(), LINE_BYTES, "line is cut to LINE_BYTES");
     assert_eq!(line, &LONG[0].text.lines().nth(1).expect("long line")[..LINE_BYTES]);
+}
+
+#[test]
+fn search_cuts_before_a_character_straddling_its_byte_bound() {
+    static LONG: [Page; 1] = [fixture(
+        Kind::Guide,
+        concat!(
+            "# Fixture\n",
+            "alpha ",
+            "012345678901234567890123456789012345678901234567890123456789",
+            "01234567890123456789012345678901234567890123456789012",
+            "·tail\n"
+        ),
+    )];
+    let source = LONG[0].text.lines().nth(1).expect("long line");
+    assert_eq!(source.find('·'), Some(LINE_BYTES - 1), "character crosses byte 120");
+    let found = search(&LONG, b"alpha", 1).expect("words");
+    assert_eq!(found.hits.as_slice()[0].line, &source[..LINE_BYTES - 1]);
 }
 
 #[test]
