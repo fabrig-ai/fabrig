@@ -130,6 +130,12 @@ fn pause(cast: &Cast) -> Vec<calls::Step> {
     use super::scripts::{DIRECTION, PROPOSAL};
     let mut steps = Vec::with_capacity(12 + 7 * cast.members.len());
     steps.push(call(D1, argv!["task", "stop", number(cast.number("P")), "--key", "case2-stop-p"]));
+    // Stop has committed the hold and requested cancellation. Let the fake
+    // finish each held stream now, so cancellation can drain without waiting
+    // for a peer response that only this script can release.
+    for member in &cast.members[1..] {
+        steps.push(calls::release_hold(member.cue.as_bytes()));
+    }
     for member in &cast.members[1..] {
         steps.push(calls::until(
             D1,
@@ -138,7 +144,6 @@ fn pause(cast: &Cast) -> Vec<calls::Step> {
             b"\"task\"",
         ));
         steps.push(call(D1, argv!["task", "run", number(cast.number(member.name)), "--json"]));
-        steps.push(calls::release_hold(member.cue.as_bytes()));
     }
     // The director was never stopped. Finish its held response and park before
     // delivering the person's direction, so the next scripted turn sees it.
@@ -158,8 +163,8 @@ fn pause(cast: &Cast) -> Vec<calls::Step> {
         steps.push(calls::writing_task(D1, cast.number(member.name)));
         steps.push(call(D1, argv!["task", "show", number(cast.number(member.name)), "--activity", "32", "--json"]));
     }
-    // Let the implementers' stock waiting periods overlap. Their scripts all
-    // finish before the unchanged world patience, without changing any period.
+    // Let all resumed responses finish before waiting for their idle reads.
+    // The fixture owns their short parking periods.
     for member in &cast.members[1..] {
         steps.push(calls::release_hold(member.cue.as_bytes()));
     }

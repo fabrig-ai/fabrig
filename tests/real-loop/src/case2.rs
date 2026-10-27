@@ -148,6 +148,9 @@ pub(crate) fn defaults(defaults: &mut jig_domain_core::settings::Defaults, flags
         let number = configured["number"].as_u64().expect("charter number");
         for charter in &mut defaults.charters {
             if u64::from(charter.number) == number {
+                if let Some(waiting) = configured["waiting_ms"].as_u64() {
+                    charter.policy.waiting = skein_lib::Duration::from_millis(waiting);
+                }
                 if charter.number == COORDINATORS_CHARTER {
                     charter.policy.instructions = skein_lib::bytes::copy_of(COORDINATORS.as_bytes());
                 }
@@ -190,6 +193,11 @@ pub fn fixture_step_8_1() -> forge::Fixture {
 }
 fn configure_step_8_1(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
     configure_hour_0(value, agent, forge);
+    // This story proves parking after resumption, not the stock coding wait.
+    // Give its own coding charter the same short wait as its coordinators.
+    for charter in value["world_settings"]["case2_charters"].as_array_mut().expect("case charters") {
+        charter["waiting_ms"] = 1.into();
+    }
     // Proposing is within this story's director authority. The seeded defaults
     // inherit this policy through the existing own_policy fixture hook.
     for project in value["engine"]["projects"].as_array_mut().expect("projects") {
