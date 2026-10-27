@@ -45,7 +45,10 @@ change, or a start, makes a new revision.
 - A proposal of settings is accepted only by an owner of the deployment,
   with a running choice: running work stays on its revision, as when no
   choice is given, or moves.
-- Its proposer reads the outcome with `proposal show`.
+- Its proposer reads the outcome with `proposal show`. A run that
+  proposed settings hears it in its task's messages:
+  `accepted: revision N made`, `rejected: REASON`, or
+  `withdrawn as stale: the newest is N`.
 - A decision asked again under its key gets its first answer again. A
   decision of a proposal decided already, by anyone, answers `decided
   first:` with who decided it, how and when, and changes nothing.
@@ -59,6 +62,8 @@ change, or a start, makes a new revision.
 - A run proposes with the host tool `propose` (a batch, an effect, an
   amendment, a widening or a release), decides with `decide`, and
   withdraws its own with `withdraw`.
+- A run proposes a change of settings with the host tool
+  `propose_settings`.
 
 ## Limits
 

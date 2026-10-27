@@ -31,6 +31,9 @@ A template holds:
 - the grace a chat's close gives its runs;
 - the models the task asks for, or none for its charter's default.
 
+Each member, with its type and bound, is in
+`temper help settings-fields`.
+
 ## How it changes
 
 A change of a template reaches the tasks made from it after the change.
@@ -58,6 +61,7 @@ policy's override naming it is refused.
   the project's chat template.
 - `me` gives each project's templates, with its policy's overrides
   applied.
+- A run reads templates with the host tool `settings`.
 
 ## Limits
 

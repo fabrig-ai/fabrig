@@ -35,6 +35,9 @@ whatever any authority says: a connector's criterion, judged by that
 connector. The forge's criteria are CI passed at the head, the head up
 to date with its base, a gate, and approvals.
 
+Each member, with its type and bound, is in
+`temper help settings-fields`.
+
 ## How it changes
 
 - A change of the rules reaches every decision after it. A narrowing
@@ -65,24 +68,24 @@ to date with its base, a gate, and approvals.
 
 - `temper ctl`: `settings show policy` and `settings show rules` read
   them; `settings apply` and `settings propose` change them.
+- A run reads them with the host tool `settings`.
 - A project's own policy: `project show PROJECT` reads its spends, its
   open period and its pools; `project fund PROJECT AMOUNT` raises its
   period spend, and with `--role ROLE` a role's.
-- A task's authority is in `task show`'s result; a proposal asks a holder for
-  more than a task has (`temper help proposal`).
+- A task's authority is in `task show`'s result; a proposal asks a
+  holder for more than a task has (`temper help proposal`).
 
 ## Limits
 
 - temper may spend, for a project, its period spend a week: each week
   a new period opens, full, at the spend its policy holds then
-  (`temper help weekly-budget`). `project fund PROJECT AMOUNT` raises it, the open
-  period's budget at once; with `--role ROLE` it raises a role's, which
-  each of its parties' pools takes, and a role's raise the period has no
-  room for is refused, naming what the period has left. When it is
-  spent, nothing more in the project is funded until the next week, or
-  until it is raised. A
-  project made after a change of `policy 1` starts with the new period
-  spend.
+  (`temper help weekly-budget`). `project fund PROJECT AMOUNT` raises
+  it, the open period's budget at once; with `--role ROLE` it raises a
+  role's, which each of its parties' pools takes, and a role's raise the
+  period has no room for is refused, naming what the period has left.
+  When it is spent, nothing more in the project is funded until the next
+  week, or until it is raised. A project made after a change of
+  `policy 1` starts with the new period spend.
 - temper does not change a project's own policy through settings; ctl
   changes its spends alone (`project fund`).
 - temper does not check, when settings change, that a grant's kind, a

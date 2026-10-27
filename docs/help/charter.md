@@ -27,6 +27,9 @@ repairs under the forge's charter, the one the configuration's
 its reviews under the reviewer's charter, `charter 4`, which reads the
 change and gives its verdict, and edits, pushes and runs nothing.
 
+Each member, with its type and bound, is in
+`temper help settings-fields`.
+
 ## How it changes
 
 A change of a charter reaches the tasks made after it. A task made
@@ -59,6 +62,7 @@ Tasks made before keep it, on their revision.
 
 - `temper ctl`: `settings show` reads one, as the newest revision or a
   held one has it; `settings apply` and `settings propose` change it.
+- A run reads charters with the host tool `settings`.
 
 ## Limits
 

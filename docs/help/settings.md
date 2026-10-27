@@ -20,8 +20,9 @@ them. The current settings are the defaults with the stored changes over
 them: a setting no change names follows its default. The settings live
 in the store, never in the configuration document.
 
-A setting's value is whole: one JSON object, as `settings show` prints it in
-JSON.
+A setting's value is whole: one JSON object, as `settings show` prints
+it in JSON. Its members, with their types and bounds, are in
+`temper help settings-fields`.
 
 ## How it changes
 
@@ -71,6 +72,11 @@ default that changed.
   number, its whole value; `settings apply` makes a change; `settings
   propose` proposes one. Each verb's arguments are its help: `temper
   ctl help settings apply`.
+- A settings file holds a change's items: its form is
+  `temper help settings-fields`.
+- A run whose authority holds the settings tool family reads with the
+  host tool `settings` and proposes with `propose_settings`
+  (`temper help host-tools`).
 
 ## Limits
 
@@ -78,8 +84,9 @@ default that changed.
 - temper does not hold its landing rules or the forge's charter as
   settings: `temper help landing-rule`.
 - The person's client has no page to change settings.
-- A value within ctl's bounds may still be refused by the deployment,
-  past one of its own limits.
+- A value's bound in `temper help settings-fields` is what ctl sends;
+  the deployment may refuse a value within it, past one of its own
+  limits.
 - The providers, models, forges, listeners, workers and limits are not
   settings: they are the configuration document's, read at a start, and
   a change to them needs a restart.
