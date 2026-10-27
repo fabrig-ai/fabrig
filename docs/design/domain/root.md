@@ -49,10 +49,11 @@ and the agent agent.md. What is still open is listed in section 13.
 ```
 temper-engine-domain                       the root: the journal, routing, translation, putting outputs together
 ├── jig-domain-core                        jig's core and its children (jig's domain/engine.md, section 3)
-└── temper-engine-domain-forge             the forge connector's top (forge.md, section 3)
+├── temper-engine-domain-forge             the forge connector's top (forge.md, section 3)
     ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
     ├── temper-engine-domain-forge-change  the change procedure and the landing queues
     └── temper-engine-domain-forge-issues  the goals' issues
+└── calendar                               each project's funding period, renewed on a span (5.7)
 ```
 
 - **One connector, the forge.** Configuration names the core one
@@ -79,8 +80,8 @@ temper-engine-domain                       the root: the journal, routing, trans
   fleet takes it, a run's brief sections and workspace while its claim is
   prepared, its assignment until the claim's decision, the loads it makes
   for the core, host calls being decoded and rendered, and the forge's
-  reads, effects, subscriptions and adoptions in flight. None of it is
-  stored.
+  reads, effects, subscriptions and adoptions in flight; the calendar's
+  record per project and its one deadline (5.7). None of it is stored.
 - **Siblings share no types.** The core never names the forge's types,
   nor the forge the core's; the forge's top names jig's people child's
   outcomes alone, for its keyed adoptions (forge.md, section 4).
@@ -402,11 +403,25 @@ child, the calendar, which renews each project's period.
   it then, its next start a span later). What the last period reserved
   stays its own and returns to it (jig's `domain/authority.md`, section
   7); the new one starts full.
-- **At each start,** once the core's records are restored, the calendar
-  learns each project's current period and its next start from the
-  core, and arms its deadline for the earliest. A next start already
-  past opens one new period at once, from the start's time, and not one
-  per span missed: a deployment down for three weeks opens one week.
+- **At each start,** before decisions open (section 9.1, step 6), the
+  root gives the calendar each restored project's current period (its
+  number, start and next start) and its policy's spend per period, from
+  the core, and the calendar:
+  - for a period with no next start (a first period whose decision
+    committed before the calendar said one, as after a crash), says one,
+    a span after the period's start;
+  - for a next start already past, opens one new period at once, from
+    the start's time, and not one per span missed: a deployment down
+    for three weeks opens one week, and that project's later periods
+    count from it, its alignment to its first period given up;
+  - arms its deadline for the earliest next start.
+- **Its deadline** is a timer of the root's, as the forge's are (5.1):
+  armed through the journal for the earliest next start, a wall time,
+  and armed again after each period it says, at each start, and when a
+  project is made. When it fires, the calendar says, in one decision,
+  every project whose next start has come, each its own `Event::Period`,
+  within jig's project limit; a clock that moved meets the next firing.
+  A stopping engine arms none (9.2).
 - **Bounded:** one deadline armed, the earliest; one record per project
   in memory, within jig's project limit; nothing stored of its own, the
   periods being the core's records.
@@ -685,7 +700,11 @@ each step the core asks for:
    workers settled at once (section 2).
 5. **The forge reads afresh,** then **settles its outbox** (forge.md,
    section 16).
-6. **Decisions open:** every due task is activated.
+6. **The calendar is given the periods** (5.7): for each restored
+   project, its current period's number, start and next start, and its
+   policy's spend per period, from the core; it says what each needs and
+   arms its deadline.
+7. **Decisions open:** every due task is activated.
 
 Until decisions open, the forge's hints are dropped and its timers fire
 from its restore on.
@@ -792,7 +811,8 @@ Startup also checks the seed policy after enforced landing requirements are join
 - **The store's fill mark and a read's bytes** are jig's small profile's
   numbers, 268,435,456 and 65,536 bytes, held as the root's constants
   (section 13).
-- **The worst case:** the core's, the forge's, the journal's, the loads',
+- **The worst case:** the core's, the forge's, the calendar's (a record
+  per project, within jig's project limit), the journal's, the loads',
   the landing policy's (designed, not built: the forge's rules and its
   kinds' values, priced by the forge, and their states, by jig) and
   the permission

@@ -978,7 +978,9 @@ have one, an engine alone none. Each:
     section 5);
   - the branch namespace is derived from the deployment's id, the same
     at every start;
-  - a later start gives no period: the store keeps each project's
+  - a later start gives no period from the smallest source, but the
+    calendar's (`../domain/root.md`, 5.7) where a project's next start
+    has passed: the store keeps each project's
     current one (jig's `domain/engine.md`, 5.4).
 - **Repositories are never configured.** A person adopts each at runtime
   through the client, by the forge's number, the owner and the name, and
