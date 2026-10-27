@@ -35,8 +35,8 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `instructions`: text, at most 1,048,576 bytes. What the run's agent reads first, before its task's brief.
 - `waiting`: nanoseconds. How long a run with nothing to do waits for words or news before it parks.
 - `resume`: true or false. Whether a run resumes its task's transcript, when there is one, rather than start afresh.
-- `turns`: integer, 0 to 4,294,967,295. The most model turns a run takes; more than `reserve_turns`, or `budget`.
-- `time`: nanoseconds. The longest a run lasts before it is cancelled; more than `reserve_time`, or `budget`.
+- `turns`: integer, 0 to 4,294,967,295. The most model turns a run takes; more than `reserve_turns`, else refused as `budget`.
+- `time`: nanoseconds. The longest a run lasts before it is cancelled; more than `reserve_time`, else refused as `budget`.
 - `reserve_turns`: integer, 0 to 4,294,967,295. Of `turns`, those kept for the run to finish its work and report.
 - `reserve_time`: nanoseconds. Of `time`, the part kept for the run to finish its work and report.
 - `model`: `model`. The default model: a task that names none takes the first of `model` and `alternatives` whose provider has an account that can pay.
@@ -47,11 +47,11 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `agents`: true or false. Whether the run's agent may open sub-agents, each with no more tools than its own.
 - `call_timeout`: nanoseconds. The longest one of the run's calls to temper's tools may take.
 - `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: The deployment's workers alone. `"engine"`: The engine's own slots alone. `"both"`: Either.
-- `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, or `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
+- `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
 
 ## model
 
-One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, or `reference`: copy them from a charter's value.
+One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, else refused as `reference`: copy them from a charter's value.
 
 - `dialect`: integer, 0 to 4,294,967,295. The protocol the model is spoken to in, as configured.
 - `endpoint`: integer, 0 to 4,294,967,295. The number of the configured endpoint that serves it.
@@ -81,7 +81,7 @@ How a new task of one shape is filled: its executor, result, budget, deadline an
 - `tracked`: integer, 0 to 4,294,967,295, or null. Its default priority as tracked work, lower first, or null for untracked.
 - `flags`: `flags`. How the task behaves and is kept.
 - `label`: integer, 0 to 4,294,967,295. A number that groups the task in the lists of ended tasks; temper reads nothing else from it.
-- `grace`: nanoseconds, or null. How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, `grace`.
+- `grace`: nanoseconds, or null. How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, refused as `grace`.
 - `llm`: `llm`, or null. The models the task asks for, or null for its charter's default.
 
 ## text
@@ -96,7 +96,7 @@ A text, whole.
 Who runs a task: a word, or an object with one member.
 
 - `"chosen"`: The creator chooses a charter or procedure their role may create with.
-- `charter`: integer, 0 to 4,294,967,295. An agent under this charter, which must be offered, or `reference`.
+- `charter`: integer, 0 to 4,294,967,295. An agent under this charter, which must be offered, else refused as `reference`.
 
 ## contract
 
@@ -195,7 +195,7 @@ How a task behaves and is kept.
 - `conversation`: true or false. Whether the task is a conversation: its requester's words are its turns, and it moves to the newest revision at its next run.
 - `listed`: true or false. Whether it is listed, by project and label, once it has ended.
 - `retention`: `"kept"` or `"forgotten_once_read"`. How long it is kept. `"kept"`: Until the deployment's retention horizon. `"forgotten_once_read"`: Until its requester has read it and no live task names it.
-- `ended_by`: `"result"` or `"requester"`. What ends it. `"result"`: Its run's result. `"requester"`: Its requester alone; it needs `conversation` and a charter as `executor`, or `shape`.
+- `ended_by`: `"result"` or `"requester"`. What ends it. `"result"`: Its run's result. `"requester"`: Its requester alone; it needs `conversation` and a charter as `executor`, else refused as `shape`.
 
 ## llm
 
@@ -217,7 +217,7 @@ A model, by name, and its effort.
 What a project made from it starts with, as a copy it keeps. A change reaches the projects made after it, never an existing project's own policy.
 
 - `escalation_role`: integer, 0 to 4,294,967,295, or null. The role an escalation reaches last, or null; that role must accept proposals and decide escalations.
-- `ceiling`: `authority`. The most any task in the project may have; within the rules, or `rules`.
+- `ceiling`: `authority`. The most any task in the project may have; within the rules, else refused as `rules`.
 - `projections`: list of at most 32, each `grant`. The grants under which temper writes goals' projections into the project's homes; each within `ceiling`.
 - `period_spend`: integer. What the project may spend in a period; within `rules.period_spend`.
 - `roles`: list of at most 32, each `role`. The project's roles: what a party in each may do.
@@ -229,7 +229,7 @@ What a project made from it starts with, as a copy it keeps. A change reaches th
 
 A role in a project.
 
-- `number`: integer, 0 to 4,294,967,295. Its number: 0 is owner, 1 maintainer, 2 member, 3 observer; others are the policy's own. Role 0 must be able to create tasks, or `owner`.
+- `number`: integer, 0 to 4,294,967,295. Its number: 0 is owner, 1 maintainer, 2 member, 3 observer; others are the policy's own. Role 0 must be able to create tasks, else refused as `owner`.
 - `authority`: `authority`. The most a party in it may give a task; within the policy's `ceiling`.
 - `period_spend`: integer. What a party in it may allot in a period; within the policy's `period_spend`.
 - `requests`: integer, 0 to 65,535. What a party in it may ask, a bit each: 1 create, 2 allot, 4 accept, 8 amend, 16 cancel, 32 release, 64 move, 128 watch, 256 change the policy.

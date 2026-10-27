@@ -4,7 +4,7 @@ pub static FORMS: [Form; 41] = [
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and, but for the rules, its number." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in." },
-    Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, or `reference`: copy them from a charter's value." },
+    Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, else refused as `reference`: copy them from a charter's value." },
     Form { shape: Shape::Template, name: b"template", choice: Choice::Every, line: b"How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it." },
     Form { shape: Shape::Text, name: b"text", choice: Choice::Every, line: b"A text, whole." },
     Form {
@@ -138,9 +138,9 @@ pub static FIELDS: [Field; 152] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"The most model turns a run takes; more than `reserve_turns`, or `budget`.",
+        line: b"The most model turns a run takes; more than `reserve_turns`, else refused as `budget`.",
     },
-    Field { shape: Shape::Charter, name: b"time", value: Value::Nanoseconds, list: None, null: false, line: b"The longest a run lasts before it is cancelled; more than `reserve_time`, or `budget`." },
+    Field { shape: Shape::Charter, name: b"time", value: Value::Nanoseconds, list: None, null: false, line: b"The longest a run lasts before it is cancelled; more than `reserve_time`, else refused as `budget`." },
     Field {
         shape: Shape::Charter,
         name: b"reserve_turns",
@@ -203,7 +203,7 @@ pub static FIELDS: [Field; 152] = [
         value: Value::Integer(Width::U64),
         list: None,
         null: false,
-        line: b"A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, or `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.",
+        line: b"A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.",
     },
     Field {
         shape: Shape::Model,
@@ -389,7 +389,7 @@ pub static FIELDS: [Field; 152] = [
         null: false,
         line: b"A number that groups the task in the lists of ended tasks; temper reads nothing else from it.",
     },
-    Field { shape: Shape::Template, name: b"grace", value: Value::Nanoseconds, list: None, null: true, line: b"How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, `grace`." },
+    Field { shape: Shape::Template, name: b"grace", value: Value::Nanoseconds, list: None, null: true, line: b"How long a chat's close lets its runs finish before it cancels them, or null; past the deployment's limit, refused as `grace`." },
     Field { shape: Shape::Template, name: b"llm", value: Value::Shape(Shape::Llm), list: None, null: true, line: b"The models the task asks for, or null for its charter's default." },
     Field {
         shape: Shape::Text,
@@ -406,7 +406,7 @@ pub static FIELDS: [Field; 152] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"An agent under this charter, which must be offered, or `reference`.",
+        line: b"An agent under this charter, which must be offered, else refused as `reference`.",
     },
     Field {
         shape: Shape::Contract,
@@ -617,7 +617,7 @@ pub static FIELDS: [Field; 152] = [
     Field {
         shape: Shape::Flags,
         name: b"ended_by",
-        value: Value::Words(&[Word { word: b"result", line: b"Its run's result." }, Word { word: b"requester", line: b"Its requester alone; it needs `conversation` and a charter as `executor`, or `shape`." }]),
+        value: Value::Words(&[Word { word: b"result", line: b"Its run's result." }, Word { word: b"requester", line: b"Its requester alone; it needs `conversation` and a charter as `executor`, else refused as `shape`." }]),
         list: None,
         null: false,
         line: b"What ends it.",
@@ -669,7 +669,7 @@ pub static FIELDS: [Field; 152] = [
         value: Value::Shape(Shape::Authority),
         list: None,
         null: false,
-        line: b"The most any task in the project may have; within the rules, or `rules`.",
+        line: b"The most any task in the project may have; within the rules, else refused as `rules`.",
     },
     Field {
         shape: Shape::Policy,
@@ -725,7 +725,7 @@ pub static FIELDS: [Field; 152] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"Its number: 0 is owner, 1 maintainer, 2 member, 3 observer; others are the policy's own. Role 0 must be able to create tasks, or `owner`.",
+        line: b"Its number: 0 is owner, 1 maintainer, 2 member, 3 observer; others are the policy's own. Role 0 must be able to create tasks, else refused as `owner`.",
     },
     Field {
         shape: Shape::Role,
