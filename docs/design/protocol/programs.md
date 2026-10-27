@@ -222,8 +222,13 @@ open is section 9.
 
   `--tools` names exactly these for the run's granted families, so the
   program's other built-in tools, its sub-agents, web access and task
-  lists among them, are absent. A `system/init` that lists a built-in
-  tool the run did not grant, or lacks one it granted, fails the start
+  lists among them, are absent. A run with a result contract, which
+  asks `--json-schema`, also has the program's `StructuredOutput`: the
+  program lists it and the model calls it to give its outcome, which
+  comes back as the turn's `structured_output` (5.5); its call is the
+  program's own, never one the agent answers or asks about. A
+  `system/init` that lists a built-in tool the run did not grant (but
+  that one under a contract), or lacks one it granted, fails the start
   (5.6).
 - **Every built-in call asks.** The settings the agent writes give each
   of these tools an ask rule (`permissions.ask`, by bare name). Claude
@@ -439,6 +444,12 @@ backend (domain/run.md, sections 6, 7.2 and 9.1).
   the process, so a next user message is answered. SIGINT ends the
   program's turn and its process with it, so it is a cancel's alone
   (5.7).
+- **An interrupt is the agent's, and says so.** Claude Code records
+  an interrupted turn as the user's (`[Request interrupted by user]`),
+  which a model reads as its person stopping it. The next user message
+  after an interrupt of the agent's opens with one line saying the agent
+  paused the turn and why: the run parked and resumed, or the finishing
+  note; so the model never believes the person stopped it.
 - **An interrupted turn is expected.** A turn the agent ends with an
   interrupt, to park while it is held on `wait` or to wind down, ends with
   a `result` the agent asked for, never 5.6's error: the calls it left
