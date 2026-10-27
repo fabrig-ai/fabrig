@@ -243,10 +243,13 @@ open is section 9.
   from the MCP configuration, and it relays each call to its agent,
   which answers it as on the direct backend. The settings allow its
   tools by rule, since the run answers them itself. Each tool's
-  `inputSchema` is an object schema, `"type": "object"` at its top,
-  `finish`'s choice of contracts nested within it as a `oneOf`: MCP
-  asks it, and Claude Code drops every tool of a server one of whose
-  schemas is not, so the server would serve none. Claude Code shows
+  `inputSchema` is an object schema, `"type": "object"` at its top and
+  no `oneOf`, `allOf` or `anyOf` beside it: MCP asks the first, and
+  Claude Code drops every tool of a server one of whose schemas lacks
+  it; the provider's API refuses the second. A choice of alternatives
+  goes in one property, `outcome`, required, which holds the `oneOf`,
+  and the agent unwraps it; a host tool whose declared schema has a
+  top-level combinator is refused at the server's start, naming it. Claude Code shows
   them to its model under its MCP prefix; the agent tells their calls
   under smith's names.
 - **The prompt tool's name is reserved:** a host tool may not take it,
@@ -310,8 +313,10 @@ open is section 9.
   (events.md, 3.5), and nothing else.
 - **The outcome, one path:** a run with a result contract gives its
   outcome through the program's `StructuredOutput` alone (5.3), the
-  outcome `--json-schema` asked for, its failure form included: the
-  turn's `structured_output`, taken as a `finish` call's input and
+  outcome `--json-schema` asked for, its failure form included. The
+  schema is the contract wrapped as 5.3 says: an object whose one
+  required property, `outcome`, holds the contract's alternatives. The
+  turn's `structured_output.outcome`, taken as a `finish` call's input and
   judged by the same contract, ends the run as an accepted `finish`
   does on the direct backend (domain/run.md, 7.2), the agent closing
   the program's input. Such a run is not offered `finish` over MCP, so
