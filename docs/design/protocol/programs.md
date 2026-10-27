@@ -281,10 +281,18 @@ open is section 9.
   user message after the first, is checked the same way, and a change
   in it fails the run as a start's would.
 - **`system/status`,** which the program sends before a completion, is
-  a notice of its state, told as nothing: not a turn, not a failure.
+  a notice of its state, told as nothing: not a turn, not a failure. So
+  is `system/thinking_tokens`, and so is any `system` subtype the agent
+  does not know: the program adds notices between versions, and a new
+  one never fails a person's run. A subtype the agent knows whose
+  meaning it can no longer read (`init` without what 5.3 needs) still
+  fails it.
 - **Each assistant message is a completion,** told as a turn of main's
   conversation (transcript.md, section 2): its text and calls in
   position, its usage as the program reported it, and the run's spend.
+  The program may send one message as several assistant records, one
+  per content block, under one message id: they are one completion, its
+  blocks in order and its usage counted once.
   A built-in tool's call is a call with its name and input as the model
   wrote them, and its result is text the program wrote. The program's
   opaque blocks, its thinking and their signatures, are not kept: no
