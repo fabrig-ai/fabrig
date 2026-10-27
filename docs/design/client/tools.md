@@ -1095,7 +1095,11 @@ may change with them.
   one object per dependency, `number`, `pending`, `added` (`null`, or
   `at`, a wall in nanoseconds, and `by`, the requester as `requester`
   prints it), `keeps` and `status`.
-- **`help GROUP VERB --json`** prints the tool's record of the table.
+- **`help --json`** prints one JSON array, whatever it names: with no
+  group, the groups and the client's tools, a record each; with GROUP,
+  every record of the group; with GROUP VERB, every record of that name
+  (`settings show` has two). Each record is whole: its name, line,
+  every form with every argument, result, keyedness and notes.
 - **`--call`'s arguments** are named as the table names them: `proposal
   decide`'s are `proposal`, and `task decide`'s `task` and `hold`, then
   `outcome` and `reason`.
