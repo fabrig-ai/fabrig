@@ -199,7 +199,7 @@ fn restarting_keeps_only_the_moves_stored_answer_place() {
 }
 
 #[test]
-fn a_legacy_full_store_waits_for_answers_to_expire() {
+fn an_existing_full_store_waits_for_answers_to_expire() {
     let (mut world, account, source, _) = moving(WHOLE_MOVE);
     // These three committed rows are also the old admission's last-slot result.
     // Cold restore at that table size has no memory-only Written reservation.
