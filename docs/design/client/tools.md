@@ -943,9 +943,11 @@ area lands with its stories (section 11).
 A new owner proposal outcome prints the original returned role in the request's
 project. A restored kept line prints its identity alone; read the proposal for
 its present recipient. Replaying the same key retains the original outcome;
-`settings propose` forwards an optional reason, and `proposal decide
---running` forwards only an explicitly supplied choice. The engine keeps its
-default when omitted.
+`settings propose` forwards an optional reason, and `proposal decide`
+on a settings proposal's acceptance sends `--running`'s choice, or stays
+when it is absent, live or repeated, since jig refuses an acceptance of
+settings without one; a reject or a pass-up sends none, which jig
+refuses there (QA 20261027-1434-temper finding 1).
 
 The default: plain UTF-8 lines, no colour, no wrapping. A document
 prints its header line, its fields, its acts and, for a watch's
