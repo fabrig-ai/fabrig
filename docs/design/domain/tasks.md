@@ -618,8 +618,12 @@ deadline, circles, a procedure's need) keep their rules.
 
 - **It is a record of its own,** numbered in the deployment: its owner,
   its mode, its scope, what lifts it, its reason in words, when it was
-  placed, its revision, which moves when the hold changes, and the
-  tasks it exempts. Each task it holds is held by `Placed { hold }`,
+  placed, its revision, and the tasks it exempts. Its revision moves
+  when it is lifted, never when it exempts a task, so that accepting
+  one task's release leaves its siblings' proposals standing. A lift
+  names the hold by its number alone: the core finds its project and
+  judges the party's role there, and a hold unknown to them is refused
+  as unknown. Each task it holds is held by `Placed { hold }`,
   naming it. It replaces `StoppedBy`: a party's `Stop` is a placed
   hold.
 - **No escalation.** A task held by a placed hold raises none: it waits
@@ -693,6 +697,11 @@ deadline, circles, a procedure's need) keep their rules.
 - **One at a time:** a task is held by one placed hold, the first
   standing one that covers it; released from it, it is judged afresh
   against the others.
+- **Moving a held task:** a task a standing placed hold holds, whose
+  scope's root lies outside what is moved, is moved by no one (section
+  7): the move is refused, naming the hold, so that a move never
+  releases an owner's hold unseen. Moving the hold's whole scope, its
+  root with it, is allowed.
 - **Ended with its root:** a subtree hold whose root ends is erased, its
   tasks released from it.
 - **Bounded:** placed holds in the deployment, per project and per
