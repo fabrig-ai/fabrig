@@ -385,8 +385,12 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 
 What a task hears while its run is live reaches smith as messages, as
 jig's `domain/hosts.md`, section 9 says: each named, with its sender's
-label and its words whole, the start carrying those waiting in the
-task's inbox. Proposals and escalations waiting for the task's decision
+label, its kind and its words whole, the start carrying those waiting
+in the task's inbox. Words read `2: …`; a question reads `2 asks
+(question 4): …`, its number the one `message`'s answer form takes;
+an answer reads `1 answers question 4: …`. So a chat that hears its
+goal's question and then its person's answer relays the answer to
+question 4, the number it heard, never a guess. Proposals and escalations waiting for the task's decision
 are relayed the same way, each naming what `decide` or
 `decide_escalation` takes.
 
@@ -542,7 +546,8 @@ today's, until those land.
 - **The person answers in the inbox,** `temper ctl task answer TASK
   QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page. The
   chat, woken by the answer, relays it to the goal as the answer to the
-  question's number, and says so. The goal then calls `change` with what
+  question's number, the one it heard with the question and the
+  answer (section 5), and says so. The goal then calls `change` with what
   was agreed, waits for its result and reports; the chat says what
   landed.
 - **Nothing is changed before the answer:** no change task, branch or
