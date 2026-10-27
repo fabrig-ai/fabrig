@@ -78,12 +78,12 @@ NEWEST`; the owner's decision prints `done: decide`.
 
 If not:
 
-- `change-settings: stale; newest revision NEWEST; read settings
+- `settings apply: stale; newest revision NEWEST; read settings show
   again` (exit 2): a change came first; go back to step 1 and decide
   again on what you read.
-- `change-settings: settings unchanged` (exit 2): the file sets what is
+- `settings apply: settings unchanged` (exit 2): the file sets what is
   there already.
-- `change-settings: out of shape; item 0; charter 1: budget` (exit 2):
+- `settings apply: out of shape; item 0; charter 1: budget` (exit 2):
   a value breaks a bound or a reference; the line names the item,
   counted from 0, its setting and its fault. Mend `FILE`, then a new
   key.

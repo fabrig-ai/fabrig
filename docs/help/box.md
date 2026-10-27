@@ -217,10 +217,10 @@ temper ctl DIR account export ACCOUNT FILE
 Expect: `moved out: account ACCOUNT to FILE`; the box's last line
 ends `Stopped`.
 
-If not: `export: not signed in` (exit 2): the account holds no
+If not: `account export: not signed in` (exit 2): the account holds no
 sign-in to move; a key is added again where it is needed. Any other
 failure: keep the box running; the engine keeps the account and
-cancels the move at its deadline: export again after it.
+cancels the move at its deadline: account export again after it.
 
 ## Clean up
 
