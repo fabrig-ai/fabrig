@@ -1713,7 +1713,7 @@ refuses the refresh token FILE held.
 What jig's worlds show of the move (a late *written*, a restart while
 moving, the refusals' decisions) is not repeated here.
 
-### 11.5 The agents' guide
+### 11.5 The agents' help
 
 - **`temper ctl help`** prints the page `ctl` of `temper-docs`
   (`../protocol/documentation.md`), then the tools from the table, a

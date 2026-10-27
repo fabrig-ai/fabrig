@@ -871,7 +871,7 @@ is cited by its probe's number across this document.
   account" and "Forget the admin's token"; the adoption form
   (`README.md`, 4.4) as a picker, with "not listed" and its words;
   `tools.md`'s tools for each.
-- **`../../guide/`:** connecting GitHub; connecting Forgejo, each mode.
+- **`../../help/`:** connecting GitHub; connecting Forgejo, each mode.
 
 ## 15. Where each piece goes
 
@@ -908,7 +908,7 @@ is cited by its probe's number across this document.
   manifest page, its redirect and its setup URL; the setup's host in the
   engine; the connector's connected state, writer, picker reads,
   GitHub's rules at adoption and its merge queue; the client's pages and
-  tools; the box's steps; the guide.
+  tools; the box's steps; the help.
 
 ## 16. Order
 

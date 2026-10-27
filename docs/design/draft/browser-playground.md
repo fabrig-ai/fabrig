@@ -247,7 +247,7 @@ the page                                          a Web Worker
 - **One transcript, three uses.** A rung's passing live transcript
   becomes a script of the fake LLM (`qa-live.md`, section 8). It serves
   as the rung's fake twin in the worlds, as the playground's story, and
-  as the guide's example of that story.
+  as the help's example of that story.
 - **A story is added with no code,** as data. None is in the bar but
   A's.
 - **The visitor's answer** in B0 is free text. The delegate's script
@@ -302,7 +302,7 @@ the page                                          a Web Worker
   the starter), as `--record` builds the recorder, and
   `temper-playground` for wasm32, in the `web` profile.
 - **Released with temper:** built at each release tag from the commit
-  the download is built from, and linked from the site and the guide.
+  the download is built from, and linked from the site and the help.
   Between releases, a preview of `main` is kept private, for the user
   and QA.
 - **Nothing is collected.** No analytics, no error reporting, no
@@ -358,7 +358,7 @@ section 1). Each seam with where it stands on 10-26:
   page that answers while the world steps.
 - **A failure offers its log,** and a log replays natively (4.5).
 - **Published** at the site's playground address with the release,
-  from the release's commit, and linked from the site and the guide.
+  from the release's commit, and linked from the site and the help.
 - **B0 to B2 are not in the bar:** each is added once its rung passes.
 
 ## 11. Order

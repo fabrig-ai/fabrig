@@ -11,7 +11,7 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
 ## 1. In one page
 
 - **A pass is one of temper's users:** an agent working with temper for
-  a person. It has what any such agent has: temper's guide (`temper
+  a person. It has what any such agent has: temper's help (`temper
   help`, `temper ctl help`), `temper ctl`, and the tools it chooses for
   the systems temper works with (section 2).
 - **temper is agnostic about those tools.** It serves its own part, and
@@ -31,7 +31,7 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   that a pass reads no design to set up (section 4).
 - **A check compares two accounts,** temper's through ctl and the
   forge's through its API. A finding is temper not saying where to
-  look, the two disagreeing, temper stale past its bound, a guide that
+  look, the two disagreeing, temper stale past its bound, help that
   does not get the pass there, or temper's words wrong; reading the
   forge is none (section 6).
 - **What the design has and the code does not yet** is named once as
@@ -176,7 +176,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
     its merge commit; CI green in temper and red on the forge.
   - **temper stale past its bound:** the forge shows what a wait on
     temper does not see within the wait's timeout.
-  - **The guide does not get there:** a step the pass could find only
+  - **The help does not get there:** a step the pass could find only
     in the design or the source, or a refusal that does not name what
     is missing.
   - **temper's words wrong:** a state said that is not so.
@@ -190,7 +190,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
   fakes, its API's address, the person's login, and a read and a write
   token as header files, printed with its other lines
   (`protocol/setup.md`, 7.3).
-- **ctl's guide** in these terms: the forge read as the agent chooses,
+- **ctl's help** in these terms: the forge read as the agent chooses,
   and what temper owns there changed only through temper
   (`client/tools.md`, 11.5).
 
@@ -202,7 +202,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
   area 6).
 - **Real accounts' holding and spend:** `qa-flow.md`, section 9.
 - **Holding section 5 to the fake:** a step test that decodes each read
-  with skein-forge's Forgejo requests, as the guide's ctl lines are held
+  with skein-forge's Forgejo requests, as the help's ctl lines are held
   to ctl's parser (`protocol/documentation.md`, section 1). Default:
   none, until a pass meets a read the fake refuses.
 - **The browser:** a pass drives ctl; driving temper's pages waits in

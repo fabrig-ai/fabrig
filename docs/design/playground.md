@@ -168,7 +168,7 @@ desktop browsers are well supported (the user, 10-26).
 
 - **B0 to B2 become stories as their rungs pass,** each from its passing
   live transcript, which serves as the rung's fake twin, the
-  playground's story and the guide's example at once. A story is added
+  playground's story and the help's example at once. A story is added
   as data, with no code.
 - **A visitor's answer** in B0 is free text: the delegate's script goes
   on whatever it says, or branches on cue words by the fake's turn rules
@@ -228,7 +228,7 @@ desktop browsers are well supported (the user, 10-26).
 - **Released with temper,** built at each release tag from the commit
   the download is built from, by the release's own build calling
   `bundle.sh --playground` beside the binary's, and linked from the site
-  and the guide.
+  and the help.
   Between releases, a preview of `main` is private, for the user and QA.
 - **Nothing is collected.** A log reaches us only as a file a visitor
   attaches to an issue.

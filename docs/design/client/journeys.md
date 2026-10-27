@@ -213,7 +213,7 @@ comment, no blank.
 ### 3.5 Fake only
 
 A recording is made on a fresh `temper box --fake-backends`
-(`../../guide/box.md`, "Trying the welcome with nothing real") and
+(`../../help/box.md`, "Trying the welcome with nothing real") and
 keeps what the page was given as it was: the printed link's secret, a
 typed value, the fakes' loopback addresses, all of them the fake box's
 dummies, spent or gone with the box. Recording against real accounts
@@ -513,7 +513,7 @@ over skein's harness.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | on a fresh `temper box --fake-backends`, as `../../guide/box.md` walks it: the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then "Choose" on "Forgejo on this machine" | `01.html`, the welcome as it was when "Set up temper" was pressed, which leads to `02.html`, the Forge step's choices as they were when "Choose" was pressed, which leads to `03.html`, Forgejo on this machine's details as they were when the recording ended; its `README.md` says so |
+| `welcome-set-up` | on a fresh `temper box --fake-backends`, as `../../help/box.md` walks it: the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then "Choose" on "Forgejo on this machine" | `01.html`, the welcome as it was when "Set up temper" was pressed, which leads to `02.html`, the Forge step's choices as they were when "Choose" was pressed, which leads to `03.html`, Forgejo on this machine's details as they were when the recording ended; its `README.md` says so |
 
 ## 10. Open questions
 

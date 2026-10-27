@@ -191,7 +191,7 @@ changes, or what the client can do on a page; never for a change to the
 view or the look alone, since its acts are events, not controls.
 
 - **While its acts hold,** `again NAME` records it again. It starts a
-  fresh fake box (`../../guide/box.md`, "Trying the welcome with nothing
+  fresh fake box (`../../help/box.md`, "Trying the welcome with nothing
   real"), drives headless Chromium with the recording bundle as the
   browser tier does (`client/browser.md`, 4), gives the recorded acts in
   order, marks where the recording marked, and adds the result, its
@@ -207,7 +207,7 @@ view or the look alone, since its acts are events, not controls.
 ## 7. The first journey
 
 `welcome-set-up`, on a fresh `temper box --fake-backends`, as
-`../../guide/box.md` walks it: the box's printed sign-in link opened, the
+`../../help/box.md` walks it: the box's printed sign-in link opened, the
 welcome drawn, "Set up temper" chosen. Two pages: `01.html`, the
 welcome as it was when "Set up temper" was pressed, its "Set up temper"
 leading to `02.html`, the Forge step's choices as they were when the

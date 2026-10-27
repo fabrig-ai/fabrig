@@ -525,7 +525,7 @@ and `connect-forge.html`.
     address: "An App of your own", "Its id, and its private key as GitHub
     gives it.", "On GitHub, set the App’s setup URL to temper’s address
     followed by /forges/N/github/setup, and give it the permissions and
-    events temper’s guide lists." (the client knows no address of its
+    events temper’s help lists." (the client knows no address of its
     own to print), its fields "App id" and "Private key" and its
     button, "Connect the App"; then "A pasted value is sent once and
     shown nowhere, then or after." "App id" is a line of digits, the

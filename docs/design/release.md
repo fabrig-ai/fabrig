@@ -19,7 +19,7 @@ it is `draft/first-release.md`'s, the user's; macOS is
   2.39 or later, x86-64; the binary is built against the oldest glibc
   it promises, so that Debian 13 and Ubuntu 24.04 with a 6.12 kernel
   both run it (section 2).
-- **What the machine must have** is a short list the guide gives and
+- **What the machine must have** is a short list the help gives and
   `temper box` checks at its start, naming what is missing: git 2.41 or
   later, `/usr/bin/rg`, `/bin/sh` and the system's CA certificates;
   Forgejo and its runner are fetched by the box, pinned; Claude Code
@@ -30,7 +30,7 @@ it is `draft/first-release.md`'s, the user's; macOS is
   the checksum; the files go among temper's releases at the tag
   (section 5).
 - **Proved on a fresh machine:** rung A walked from the downloaded file,
-  by the guide alone, on a machine that has only what section 4 lists
+  by the help alone, on a machine that has only what section 4 lists
   (section 6).
 
 ## 2. The file
@@ -90,7 +90,7 @@ it is `draft/first-release.md`'s, the user's; macOS is
   Nothing is installed by temper.
 - **A browser** for a person's sign-ins, on the machine or through a
   forwarded port; a held record or a key needs none
-  (`../guide/box.md`, 5).
+  (`../help/box.md`, 5).
 
 ## 5. A release
 
@@ -122,18 +122,18 @@ it is `draft/first-release.md`'s, the user's; macOS is
 ## 6. Proved on a fresh machine
 
 - **The walk is rung A's** (`draft/v0.1.0.md`, 2.1), its brief's
-  scenario from the guide's install step, with the downloaded file in
+  scenario from the help's install step, with the downloaded file in
   place of a build: downloaded, its checksum checked, installed as the
-  guide's download path says, then the guide followed as written. The
-  guide's install step gains that path beside the checkout's, when the
-  guide is next written (its draft is the user's).
+  help's download path says, then the help followed as written. The
+  help's install step gains that path beside the checkout's, when the
+  help is next written (its draft is the user's).
 - **A fresh machine** is section 5's root of the floor's distribution
   with only section 4's programs installed (no Rust, no checkout),
   entered with bubblewrap as a user with an empty home, on the
   machine's kernel, its network shared; the held login's resting
   directory is bound in at its own path, so that the walk's import and
   export use the path the login rests at. Anything the walk must add
-  beyond section 4 is a finding against the guide or this document.
+  beyond section 4 is a finding against the help or this document.
 - **The file walked** is the one the release script built, until the
   tag; at the tag, the published one, fetched by its address.
 

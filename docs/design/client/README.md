@@ -3885,7 +3885,7 @@ own tests:
   saying why and sending nothing; an amendment of a goal's
   specification from its page, and one refused as moved asking to look
   again; roadmap B2 whole, on fixtures shaped on the reference case
-  (`../draft/reference-case.md`, 4.1 and 4.2): a goal's advisor
+  (`../draft/reference-case.md`, 4.2 and 5.1): a goal's advisor
   reports, the goal's latest activity names it by its link, and its
   page, opened from there, shows its result and reaches the goal by
   its lineage bar; the goal declares two delegates, the second
@@ -4054,7 +4054,7 @@ own tests:
   reaches the engine on loopback; a browser elsewhere lands on its own
   error page, and its person finishes by pasting that page's address
   (3.5, `ConnectModel`, From another computer), or through a tunnel
-  (`../../guide/box.md`, step 4). The person says which (with the
+  (`../../help/box.md`, section 5). The person says which (with the
   user, 2026-10-23, and decision 971). Candidates for telling by
   itself: before the browser leaves, the page asks the listener for a
   one-time code the engine gave it for this sign-in, and only a browser
