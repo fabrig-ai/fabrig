@@ -64,6 +64,7 @@ fn answered(root: &mut Domain, env: &Env<Limits>, key: Key, outcome: Outcome, ou
         | Outcome::Limit
         | Outcome::Held
         | Outcome::Unsent
+        | Outcome::Full { .. }
         | Outcome::Lost
         | Outcome::Unconfirmed
         | Outcome::Unknown => d::Event::Progress { request, progress: RequestProgress::Unknown },
