@@ -597,10 +597,5 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
         "the worker cloned the starter workflow: {producer}"
     );
     assert!(page.contains("work/hello"), "{run}: {page}");
-    if run == "first" {
-        assert!(page.contains("CI at its head\nPassed"), "{run}: starter CI must pass at the pull's head: {page}");
-    } else {
-        // A restart forgets CI at the head, and a landed change's is not read again (domain/forge.md, 8.8).
-        assert!(page.contains("CI at its head\nNot read since the restart"), "{run}: a restart forgets CI: {page}");
-    }
+    assert!(page.contains("CI at its head\nPassed"), "{run}: terminal CI stays at the pull's head: {page}");
 }
