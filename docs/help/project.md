@@ -49,18 +49,20 @@ A project is where work happens: the repositories adopted into it, one of them i
   can make one with its first repository (temper help forge);
   `repository adopt` adds a repository; `task list`, `inbox` and
   `model list` read one project's, and `chat start` starts a chat in
-  one.
+  one; `project show` reads a project: its homes, its roles with their
+  parties, its spends, its open period and each party's pool in it;
+  `project fund` raises its period spend or a role's.
 - **temper's runs** work in their task's project: `change` writes to
   one of its repositories, and the forge's reads name one by
   `owner/name`.
 
 ## Limits
 
-- temper has no ctl group `project`: no call reads a project's home,
-  members or period, renames it, or changes its roles.
+- ctl's group `project` reads a project and changes its spends alone:
+  no call renames a project or changes its roles.
 - temper does not make a project from ctl but with its first
   repository.
 - temper has no call that moves a task or a repository to another
   project.
-- A project's period never renews: its budget is what its first period
-  holds (temper help budget).
+- A project's period never renews: its budget is its period spend,
+  raised with `project fund` (temper help budget).
