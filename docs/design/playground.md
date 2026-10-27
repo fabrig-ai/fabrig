@@ -243,8 +243,9 @@ desktop browsers are well supported (the user, 10-26).
   and through each story, and which of it the documents control.
 - **Its figures,** the world's memory at its high water and the download
   compressed, are measured by the browser tier and reported. The
-  draft's defaults, 256 MiB and 6 MB, were set for a phone; with phones
-  out, the bars for a desktop browser are the user's (section 11).
+  download's bar is 6 MB gzipped (agents' `release-testing.md`, 6); the
+  memory's, set for a phone at 256 MiB in the draft, is the user's for a
+  desktop browser, once measured (section 11).
 - **The first paint does not wait for the world:** the frame and the
   loading line come first, and the world's module compiles as it
   streams, in the worker.
@@ -294,8 +295,8 @@ desktop browsers are well supported (the user, 10-26).
   the client tells nothing of it today, and the welcome is the user's
   page. Default: the welcome as it is, Set up temper unpressed, until
   the user says what replaces it.
-- **The memory and download bars for a desktop browser:** the draft's
-  256 MiB and 6 MB were a phone's; measured first, then the user's.
+- **The memory bar for a desktop browser:** the draft's 256 MiB was a
+  phone's; measured first, then the user's.
 - **The welcome, or straight in.** Default: the welcome, the product's
   path.
 - **The address,** and the crate's name `temper-playground`: the site's
