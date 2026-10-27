@@ -59,7 +59,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   made later included, and ends their runs; releasing the stopped task
   runs them all again.
 - **Cancelled:** cancelling ends the task and its tree: at once, or
-  after a grace the canceller gives, in which its run may finish.
+  after a grace the canceller gives, in which its run may finish. A
+  task that has ended refuses a cancel, saying how it ended; the same
+  cancel again, under its key, gets its first answer.
 - **Amended:** an amendment replaces the controls it names (priority
   and tracking, deadline, instructions, spec, dependencies, model) and
   keeps the rest; all but a tracked task's priority name the spec
