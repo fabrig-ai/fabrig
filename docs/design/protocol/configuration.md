@@ -1594,8 +1594,9 @@ into the binary.
   of a coarse one, that floor costing a run nothing it needs; C, and so
   every budget above, scales with it.
 - **The box's limits for that work.** `temper init`'s document raises
-  `tasks.inbox_bytes` to 8,192, two messages, so that a goal that asked
-  a question holds its answer's credit and a news credit beside it,
+  `tasks.inbox_bytes` to 12,288, so that a goal that asked a question
+  holds its news slot and an answer slot (two messages), four live
+  delegates' 512 bytes each and one unread result (10,752 in all),
   priced before it lands; a declared figure that rises goes to the
   director. `tasks.result_bytes` stays small's 512, about 80 words,
   which holds a goal's and an advisor's report: jig's settings schema
