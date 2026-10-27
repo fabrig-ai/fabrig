@@ -131,10 +131,25 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `domain/hosts.md`, section 8; smith's `domain/run.md`, 8.4), but
   never in an Open run (4.6).
 - **Every host tool below,** declared in every charter, each with the
-  charter's call timeout. The task's authority decides each call by its
-  family (jig's `domain/authority.md`, sections 3 and 8.5): a call beyond
-  it is answered beyond authority, naming what it lacked, and the run may
-  `propose` it instead.
+  charter's call timeout, but those of the `settings` family, declared
+  only where the run's charter declares that family and its task's
+  authority has it: charter 3 alone in the stock
+  (`../protocol/configuration.md`, 13.4). The task's authority decides
+  each call by its family (jig's `domain/authority.md`, sections 3 and
+  8.5): a call beyond it is answered beyond authority, naming what it
+  lacked, and the run may `propose` it instead.
+- **The host part's budget.** smith refuses a run whose host part (its
+  tools' names, descriptions and schemas) passes its bound, 33,419 bytes
+  in the small profile, before any turn. The stock's tools for every run
+  take 29,020 of it (10-27; with the two `settings` tools in every run,
+  31,510, past it with a charter's own), so a new host tool is offered
+  only where a family and the charter gate it, never to every run.
+- **Checked before a run meets it:** at start and at each change of
+  settings that touches a charter, temper sums each charter's offered
+  host part and refuses one past smith's bound, naming the charter and
+  both figures (`../protocol/configuration.md`, section 7). A run smith
+  refuses for it anyway is held with smith's reason, the bound and the
+  figure, never a bare "invalid".
 
 | Tool | Family | What it does | What it names, as the run saw it | What it answers |
 |---|---|---|---|---|
@@ -671,9 +686,11 @@ host:
 
 - **Which host tools a charter offers.** jig's charter carries the tools
   its task's authority gives (jig's `domain/engine.md`, 7.1); temper's
-  declares every host tool, and the authority refuses what it does not
-  allow. Whether to declare only what it allows, and how a brief teaches
-  an LLM when to delegate a task rather than a sub-agent.
+  declares every host tool but the `settings` family's (4.3), and the
+  authority refuses what it does not allow. Whether to declare only what
+  it allows for the other families too, which the host part's budget
+  (4.3) may force, and how a brief teaches an LLM when to delegate a task
+  rather than a sub-agent.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP
