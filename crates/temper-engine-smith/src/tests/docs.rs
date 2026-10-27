@@ -6,17 +6,17 @@
 
 use super::{decoded, run};
 use crate::{CALL_NAME_BYTES, DOC_ANSWER, Decoded, Problem, docs};
-use temper_docs::{Kind, Topic};
+use temper_docs::{Kind, Page};
 
-static STORIES: [Topic; 2] = [
-    Topic {
+static STORIES: [Page; 2] = [
+    Page {
         name: "small",
         kind: Kind::Concept,
         title: "Small",
         summary: "A short guide.",
         text: "# Small\n\nKind: concept\n\nA short guide.\n\n## Rules\nLanding rules work.",
     },
-    Topic {
+    Page {
         name: "many",
         kind: Kind::Concept,
         title: "Many",
@@ -32,7 +32,7 @@ fn answered(json: &[u8]) -> run::HostAnswer {
 
 // The public decoder always uses the compiled table. Fixtures exercise the
 // same read/answer functions with named static topics, without replacing it.
-fn fixture(table: &'static [Topic], json: &[u8]) -> run::HostAnswer {
+fn fixture(table: &'static [Page], json: &[u8]) -> run::HostAnswer {
     let public = answered(json);
     let answer = match docs::read(&crate::json::parse(json).unwrap()).unwrap() {
         Ok(read) => docs::answer(table, &read),
@@ -161,8 +161,8 @@ const BOUND_HEADING: &str = "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 const BOUND_WORDS: &str = "needle aaaaaaaaaaaaaaaaaaaaaaaaa";
 
 #[expect(clippy::large_stack_arrays, reason = "the const function builds one static fixture at compile time")]
-const fn bound_text() -> [u8; temper_docs::TOPIC_BYTES] {
-    let mut text = [b'p'; temper_docs::TOPIC_BYTES];
+const fn bound_text() -> [u8; temper_docs::PAGE_BYTES] {
+    let mut text = [b'p'; temper_docs::PAGE_BYTES];
     let mut section = 0;
     while section < 9 {
         let start = 10_000 + section * 2_500;
@@ -187,8 +187,8 @@ const fn bound_text() -> [u8; temper_docs::TOPIC_BYTES] {
     }
     text
 }
-static BOUND_TEXT: [u8; temper_docs::TOPIC_BYTES] = bound_text();
-static BOUNDS: [Topic; 1] = [Topic {
+static BOUND_TEXT: [u8; temper_docs::PAGE_BYTES] = bound_text();
+static BOUNDS: [Page; 1] = [Page {
     name: BOUND_NAME,
     kind: Kind::Concept,
     title: BOUND_HEADING,
@@ -204,7 +204,7 @@ fn read_docs_answers_fit_doc_answer_at_their_bounds() {
     assert_eq!(BOUND_NAME.len(), temper_docs::NAME_BYTES);
     assert_eq!(BOUND_HEADING.len(), temper_docs::TITLE_BYTES);
     assert_eq!(BOUND_HEADING.len(), temper_docs::HEADING_BYTES);
-    assert_eq!(BOUNDS[0].text.len(), temper_docs::TOPIC_BYTES);
+    assert_eq!(BOUNDS[0].text.len(), temper_docs::PAGE_BYTES);
     let line = &BOUNDS[0].text[10_084..12_499];
     assert!(line.len() > temper_docs::LINE_BYTES);
     assert!(line.contains('"') && line.contains('\\'));

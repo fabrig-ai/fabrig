@@ -1,4 +1,4 @@
-//! Compiled user topics, paging and search (protocol/documentation.md, sections 2 and 3).
+//! Compiled pages, paging and search (protocol/documentation.md, sections 2 and 3).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 
@@ -6,134 +6,185 @@ extern crate alloc;
 
 use skein_lib::List;
 
-pub const TOPIC_BYTES: usize = 32_768;
-pub const TOPICS_MAX: usize = 64;
+/// The maximum number of compiled pages.
+pub const MAX_PAGES: usize = 96;
+/// The largest bound of any kind (a reference's, a guide's).
+pub const PAGE_BYTES: usize = 32_768;
+/// The maximum bytes in a page name.
 pub const NAME_BYTES: usize = 32;
+/// The maximum bytes in a title.
 pub const TITLE_BYTES: usize = 80;
+/// The maximum bytes in a summary.
 pub const SUMMARY_BYTES: usize = 200;
+/// The maximum bytes in a section heading.
 pub const HEADING_BYTES: usize = 80;
+/// The maximum bytes in a search hit line.
 pub const LINE_BYTES: usize = 120;
+/// The maximum number of search words.
 pub const WORDS: usize = 8;
+/// The maximum bytes in a search word.
 pub const WORD_BYTES: usize = 32;
 
+/// A page's template and byte bound.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-    Walk,
+    Index,
     Concept,
+    Walk,
     Recipe,
-    Limits,
+    Reference,
+    Guide,
 }
 impl Kind {
-    /// The word of its kind line: "walk", "concept", "recipe", "limits".
+    /// The word of its kind line: "index", "concept", "walk", "recipe", "reference", "guide".
     #[must_use]
     pub fn word(self) -> &'static str {
         match self {
-            Self::Walk => "walk",
+            Self::Index => "index",
             Self::Concept => "concept",
+            Self::Walk => "walk",
             Self::Recipe => "recipe",
-            Self::Limits => "limits",
+            Self::Reference => "reference",
+            Self::Guide => "guide",
+        }
+    }
+
+    /// Its bound in bytes: 4,096; 8,192; 12,288; 3,072; 32,768; 32,768.
+    #[must_use]
+    pub fn bound(self) -> usize {
+        match self {
+            Self::Index => 4_096,
+            Self::Concept => 8_192,
+            Self::Walk => 12_288,
+            Self::Recipe => 3_072,
+            Self::Reference | Self::Guide => PAGE_BYTES,
         }
     }
 }
 
+/// A compiled page and its head.
 #[derive(Debug)]
-pub struct Topic {
+pub struct Page {
+    /// The page's name.
     pub name: &'static str,
+    /// The page's template and bound.
     pub kind: Kind,
+    /// The title without its Markdown prefix.
     pub title: &'static str,
+    /// The summary paragraph joined with spaces.
     pub summary: &'static str,
+    /// The whole page, or the selected cut.
     pub text: &'static str,
 }
 
-/// Walks, concepts, recipes, limits; each kind by name.
-#[expect(clippy::disallowed_macros, reason = "topics compile their single Markdown source as static data")]
-pub static TOPICS: [Topic; 8] = [
-    Topic {
+/// `index`, then the concepts, walks, recipes, reference pages and guides, each by name.
+#[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
+pub static PAGES: [Page; 10] = [
+    Page {
+        name: "index",
+        kind: Kind::Index,
+        title: "temper",
+        summary: "temper runs software work for people: agents take tasks on the repositories of a forge and land their changes there, and this page is where an agent starts.",
+        text: include_str!("../../../docs/help/index.md"),
+    },
+    Page {
+        name: "ctl",
+        kind: Kind::Concept,
+        title: "temper ctl",
+        summary: "temper ctl is the command line through which an agent works in a deployment for a person, each call a read, an act or a wait in a process of its own.",
+        text: include_str!("../../../docs/help/ctl.md"),
+    },
+    Page {
         name: "box",
-        kind: Kind::Walk,
+        kind: Kind::Guide,
         title: "Start a local temper box",
         summary: "Run temper, an owned Forgejo and its runner on one machine, on loopback, from a checkout of temper, then adopt a repository and ask for work.",
         text: include_str!("../../../docs/help/box.md"),
     },
-    Topic {
-        name: "forgejo",
-        kind: Kind::Walk,
-        title: "Connect Forgejo",
-        summary: "Connect temper to a Forgejo as its bot, in one of three modes: connected, managed or owned.",
-        text: include_str!("../../../docs/help/forgejo.md"),
-    },
-    Topic {
-        name: "github",
-        kind: Kind::Walk,
-        title: "Connect GitHub",
-        summary: "Connect temper to GitHub through a GitHub App, temper's own or one you make, and install it on the accounts whose repositories it works on.",
-        text: include_str!("../../../docs/help/github.md"),
-    },
-    Topic {
-        name: "server",
-        kind: Kind::Walk,
-        title: "Run temper on a server",
-        summary: "Run temper as a long-lived deployment on a server, behind a TLS proxy, with Google sign-in, an owned Forgejo and its workers on another host.",
-        text: include_str!("../../../docs/help/server.md"),
-    },
-    Topic {
+    Page {
         name: "budgets",
-        kind: Kind::Concept,
+        kind: Kind::Guide,
         title: "Budgets",
         summary: "How temper counts what work spends, where a task's budget comes from, what happens when it runs out, and what you can do then.",
         text: include_str!("../../../docs/help/budgets.md"),
     },
-    Topic {
+    Page {
         name: "charters",
-        kind: Kind::Concept,
+        kind: Kind::Guide,
         title: "Charters, templates and policies",
         summary: "What decides how temper's agents work: a charter for each run, a template for each new task, and the policies and rules that bound what work may do.",
         text: include_str!("../../../docs/help/charters.md"),
     },
-    Topic {
+    Page {
+        name: "forgejo",
+        kind: Kind::Guide,
+        title: "Connect Forgejo",
+        summary: "Connect temper to a Forgejo as its bot, in one of three modes: connected, managed or owned.",
+        text: include_str!("../../../docs/help/forgejo.md"),
+    },
+    Page {
+        name: "github",
+        kind: Kind::Guide,
+        title: "Connect GitHub",
+        summary: "Connect temper to GitHub through a GitHub App, temper's own or one you make, and install it on the accounts whose repositories it works on.",
+        text: include_str!("../../../docs/help/github.md"),
+    },
+    Page {
+        name: "server",
+        kind: Kind::Guide,
+        title: "Run temper on a server",
+        summary: "Run temper as a long-lived deployment on a server, behind a TLS proxy, with Google sign-in, an owned Forgejo and its workers on another host.",
+        text: include_str!("../../../docs/help/server.md"),
+    },
+    Page {
         name: "settings",
-        kind: Kind::Concept,
+        kind: Kind::Guide,
         title: "Settings, revisions and proposals",
         summary: "How you read and change temper's settings with temper ctl, what a revision is, how a proposal asks the deployment's owners, and what still needs a restart.",
         text: include_str!("../../../docs/help/settings.md"),
     },
-    Topic {
+    Page {
         name: "tasks",
-        kind: Kind::Concept,
+        kind: Kind::Guide,
         title: "Tasks, goals and chats",
         summary: "What temper's work is made of, tasks with their delegates, goals and chats, and how you follow, answer, steer and stop them.",
         text: include_str!("../../../docs/help/tasks.md"),
     },
 ];
 
+/// Find a page by its exact name.
 #[must_use]
 #[expect(clippy::manual_find, reason = "the programming model uses bounded loops without closures")]
-pub fn find(name: &[u8]) -> Option<&'static Topic> {
-    for topic in &TOPICS {
-        if topic.name.as_bytes() == name {
-            return Some(topic);
+pub fn find(name: &[u8]) -> Option<&'static Page> {
+    for entry in &PAGES {
+        if entry.name.as_bytes() == name {
+            return Some(entry);
         }
     }
     None
 }
 
+/// A cut of a page and its continuation offset.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Page {
+pub struct Cut {
+    /// The whole page, or the selected cut.
     pub text: &'static str,
+    /// The next byte offset, absent at the end.
     pub next: Option<u32>,
 }
 
+/// Cut a page within a rendered byte budget.
 #[must_use]
-pub fn page(topic: &Topic, from: u32, bytes: u32) -> Page {
+pub fn page(entry: &Page, from: u32, bytes: u32) -> Cut {
     assert!(bytes >= 2, "a page must fit every rendered byte");
     let from = usize::try_from(from).expect("offset fits usize");
-    if from >= topic.text.len() {
-        return Page { text: "", next: None };
+    if from >= entry.text.len() {
+        return Cut { text: "", next: None };
     }
     let mut end = from;
     let mut line_end = from;
     let mut rendered = 0_u32;
-    for byte in topic.text.as_bytes().get(from..).expect("offset within text") {
+    for byte in entry.text.as_bytes().get(from..).expect("offset within text") {
         let size = match byte {
             b'"' | b'\\' | b'\n' => 2,
             _ => 1,
@@ -142,35 +193,44 @@ pub fn page(topic: &Topic, from: u32, bytes: u32) -> Page {
             break;
         }
         rendered = rendered.checked_add(size).expect("page within budget");
-        end = end.checked_add(1).expect("topic offset fits usize");
+        end = end.checked_add(1).expect("entry offset fits usize");
         if *byte == b'\n' {
             line_end = end;
         }
     }
-    if end == topic.text.len() {
-        return Page { text: topic.text.get(from..).expect("ASCII topic"), next: None };
+    if end == entry.text.len() {
+        return Cut { text: entry.text.get(from..).expect("ASCII entry"), next: None };
     }
     if line_end > from {
         end = line_end;
     }
-    Page {
-        text: topic.text.get(from..end).expect("ASCII topic"),
-        next: Some(u32::try_from(end).expect("topic offset fits u32")),
+    Cut {
+        text: entry.text.get(from..end).expect("ASCII entry"),
+        next: Some(u32::try_from(end).expect("entry offset fits u32")),
     }
 }
 
+/// One matching section of a page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Hit {
-    pub topic: &'static str,
+    /// The matching page's name.
+    pub page: &'static str,
+    /// The section's heading.
     pub heading: &'static str,
+    /// The section's first byte offset.
     pub offset: u32,
+    /// The first line holding the first search word.
     pub line: &'static str,
 }
+/// Search hits in table order, with whether more matched.
 #[derive(Debug)]
 pub struct Hits {
+    /// The matching sections.
     pub hits: List<Hit>,
+    /// Whether another section matched.
     pub more: bool,
 }
+/// A refusal of invalid search words.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refused {
     NoWords,
@@ -193,13 +253,13 @@ impl Refused {
 fn section_end(text: &str, from: usize) -> usize {
     let mut at = from;
     let mut fenced = false;
-    for line in text.get(from..).expect("section in topic").split_inclusive('\n') {
+    for line in text.get(from..).expect("section in entry").split_inclusive('\n') {
         if line.starts_with("```") {
             fenced = !fenced;
         } else if at != from && !fenced && line.starts_with("## ") {
             return at;
         }
-        at = at.checked_add(line.len()).expect("topic offset fits usize");
+        at = at.checked_add(line.len()).expect("entry offset fits usize");
     }
     at
 }
@@ -216,7 +276,7 @@ fn contains(text: &str, word: &[u8]) -> bool {
 fn matching_line(section: &'static str, word: &[u8]) -> &'static str {
     for line in section.split('\n') {
         if contains(line, word) {
-            return line.get(..line.len().min(LINE_BYTES)).expect("ASCII topic");
+            return line.get(..line.len().min(LINE_BYTES)).expect("ASCII entry");
         }
     }
     unreachable!("matching section has a line holding its first word")
@@ -239,7 +299,8 @@ fn next_word(words: &[u8], mut at: usize) -> Option<(&[u8], usize)> {
     if at == start { None } else { Some((words.get(start..at).expect("word in input"), at)) }
 }
 
-pub fn search(table: &'static [Topic], words: &[u8], limit: u32) -> Result<Hits, Refused> {
+/// Find sections holding every search word, folded on ASCII.
+pub fn search(table: &'static [Page], words: &[u8], limit: u32) -> Result<Hits, Refused> {
     let mut asked = List::with_capacity(u32::try_from(WORDS).expect("word count fits u32"));
     let mut at = 0_usize;
     while let Some((word, next)) = next_word(words, at) {
@@ -254,11 +315,11 @@ pub fn search(table: &'static [Topic], words: &[u8], limit: u32) -> Result<Hits,
     }
     let Some(first) = asked.as_slice().first() else { return Err(Refused::NoWords) };
     let mut hits = List::with_capacity(limit);
-    for topic in table {
+    for entry in table {
         let mut from = 0_usize;
-        while from < topic.text.len() {
-            let end = section_end(topic.text, from);
-            let section = topic.text.get(from..end).expect("section within topic");
+        while from < entry.text.len() {
+            let end = section_end(entry.text, from);
+            let section = entry.text.get(from..end).expect("section within entry");
             let mut matches = true;
             for word in asked.as_slice() {
                 if !contains(section, word) {
@@ -271,14 +332,14 @@ pub fn search(table: &'static [Topic], words: &[u8], limit: u32) -> Result<Hits,
                     return Ok(Hits { hits, more: true });
                 }
                 let heading = if from == 0 {
-                    topic.title
+                    entry.title
                 } else {
                     section.lines().next().expect("section heading").strip_prefix("## ").expect("section heading")
                 };
                 hits.push(Hit {
-                    topic: topic.name,
+                    page: entry.name,
                     heading,
-                    offset: u32::try_from(from).expect("topic offset fits u32"),
+                    offset: u32::try_from(from).expect("entry offset fits u32"),
                     line: matching_line(section, first),
                 })
                 .expect("hit count checked");

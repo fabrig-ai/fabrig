@@ -51,7 +51,7 @@ pub(crate) fn read(input: &Value) -> Result<Result<Read, run::HostAnswer>, Probl
     }
 }
 
-pub(crate) fn answer(table: &'static [temper_docs::Topic], read: &Read) -> run::HostAnswer {
+pub(crate) fn answer(table: &'static [temper_docs::Page], read: &Read) -> run::HostAnswer {
     let mut text = Text::new();
     match read {
         Read::Topic { name, from } => {
@@ -92,13 +92,13 @@ pub(crate) fn answer(table: &'static [temper_docs::Topic], read: &Read) -> run::
     }
 }
 
-fn search(table: &'static [temper_docs::Topic], words: &[u8], mut text: Text) -> run::HostAnswer {
+fn search(table: &'static [temper_docs::Page], words: &[u8], mut text: Text) -> run::HostAnswer {
     let hits = match temper_docs::search(table, words, HITS) {
         Ok(hits) => hits,
         Err(refused) => return error(refused.says().as_bytes()),
     };
     for hit in &hits.hits {
-        text.add(hit.topic.as_bytes());
+        text.add(hit.page.as_bytes());
         text.add(b"@");
         text.add(Decimal::of(u64::from(hit.offset)).as_bytes());
         text.add(b": ");

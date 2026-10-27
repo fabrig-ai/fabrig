@@ -209,7 +209,7 @@ pub fn call(name: run::CallName, tool: &[u8], input: &run::HostInput) -> Result<
     let tool = match tool {
         b"read_docs" => {
             let answer = match docs::read(&value)? {
-                Ok(read) => docs::answer(&temper_docs::TOPICS, &read),
+                Ok(read) => docs::answer(&temper_docs::PAGES, &read),
                 Err(answer) => answer,
             };
             return Ok(Decoded::Answered(answer));
