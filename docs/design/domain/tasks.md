@@ -644,7 +644,9 @@ deadline, circles, a procedure's need) keep their rules.
   Anyone else who could otherwise release the task (section 7) is
   refused, naming the owner and whether a proposal could be accepted,
   and may propose the release (section 9), which waits for the owner. A
-  task above a party's hold never lifts it.
+  task above a party's hold never lifts it. A release attached to an
+  amendment (an amended task released in the same request) takes the
+  same rule.
 - **Two modes:**
   - **Stop.** Each live run in scope is cancelled at once, and each task
     in scope is held.
