@@ -13,14 +13,18 @@ A budget is what a task may spend, in units its models' prices make of their usa
   a task prints them divided by 100, `spent 0.01 of 0.40`.
 - **A task's budget** is the spend its authority allows, and its
   deadline, a wall time, where it has one.
-- **Funding** comes from a person's pool in a project's period, from
-  an ancestor task, or from a recurring task.
-- **A run** draws a share of its task's budget, within the
-  deployment's run cap; its charter (temper help charters) sets its
-  turns, its time, a reserve to finish in, and its default spend. The
-  stock rules' floor is 1 unit and their run cap 10; the stock
-  charters' spend is 20 units, 8 turns and 120 seconds, with a reserve
-  of 1 turn and 60 seconds; `setting` reads the current ones.
+- **A project's period** funds all of its work: temper may spend up
+  to N units in all for a project, N its period spend when it was
+  made. Its one period opens at the project's making and never
+  renews.
+- **Funding** comes from a person's pool, carved from the project's
+  period up to their role's period spend, from an ancestor task, or
+  from a recurring task.
+- **A run** draws what its task has left, up to the deployment's run
+  cap; its charter (temper help charters) sets its turns, its time and
+  a reserve to finish in. The stock rules' floor is 1 unit and their
+  run cap 10; the stock charters give 8 turns and 120 seconds, with a
+  reserve of 1 turn and 60 seconds; `setting` reads the current ones.
 
 ## How it changes
 
@@ -35,9 +39,13 @@ A budget is what a task may spend, in units its models' prices make of their usa
   below zero.
 - **Spent out:** a run that runs out of its turns, spend or time
   fails as a run fails: retried with a growing pause, then held, out
-  of tries. A task without enough for its next run is held,
-  `Insufficient activation budget`; one past its deadline is held,
-  `Deadline passed`, which comes first when both hold.
+  of tries. A task without enough for its next run is held for its
+  budget, one past its deadline for its deadline, which comes first
+  when both hold; `task` prints `Held`, and its record names the
+  reason.
+- **The period spent:** nothing more in the project is funded. Raising
+  the period spend afterwards does not refill it; a project made after
+  a change of policy 1 starts with the new period spend.
 
 ## What temper guarantees
 
@@ -55,8 +63,10 @@ A budget is what a task may spend, in units its models' prices make of their usa
 ## Acting on it
 
 - **ctl:** `task` shows a task's spend, its budget and its funding;
-  `setting` reads the rules' run cap and floor and a charter's spend
-  and turns; `decide` accepts a proposal that widens a task's
+  `me` prints what is left of your pool in each project; `setting`
+  reads the rules' run cap and floor, a charter's turns, and policy
+  1's period spend, which a new project takes; `change-settings`
+  changes policy 1; `decide` accepts a proposal that widens a task's
   authority; `amend` changes a deadline; `release` lifts a budget's
   or a deadline's hold once its cause is mended.
 - **temper's runs** give a delegate its budget with `delegate`, raise
@@ -67,5 +77,10 @@ A budget is what a task may spend, in units its models' prices make of their usa
 - temper gives no task an amount on demand: more comes from an
   accepted proposal or an amendment within its funder's authority.
 - temper does not refill a task when settings change: a new run cap
-  or charter spend applies to later runs.
-- A project's period is not a week: temper has no weekly budget.
+  applies to later runs.
+- temper does not renew a project's period, nor refill it when the
+  period spend is raised: what it funded is all the project gets.
+  temper has no weekly budget.
+- temper has no ctl tool that reads a project's own period or
+  changes its own policy: `setting` reads policy 1, which only new
+  projects copy.
