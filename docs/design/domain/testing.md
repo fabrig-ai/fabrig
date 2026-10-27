@@ -2499,7 +2499,11 @@ and one smoke above:
   the service in the stock's place (`../protocol/configuration.md`,
   13.4), so that no story pays for a change of settings it is not
   about; one story per world makes its change through ctl after sign-in.
-  Their times do not change.
+  A story on a cheap fake model gives its own run floor and cap: the
+  stock sizes them from C, the default model's worst completion, so a
+  fake's run would be capped at a few units (o/configuring-stock's L11,
+  temper 985ee2837: the fuzzy repair and case 6.4 keep 1 unit, cases 4.1
+  and 4.3 a 10-unit cap). Their times do not change.
 - **Its QA:** planned implementation changes the facts of the forge's world and the
   engine's domain world (how a merge is judged), so their `qa_*`
   profiles run before it lands.
