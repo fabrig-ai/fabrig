@@ -26,17 +26,26 @@ pub use face::{Error, Limits};
 pub use transport::Transport;
 
 /// A listening peer borrowed by a real loop (ui-web.md, section 14.2).
-/// The loop delivers a successful kernel listen completion and drives the
-/// host before reading its address; this trait does not poll readiness.
+/// The loop drives the host before reading its listening address. A listener
+/// may be opened by the host or adopted and claimed without a kernel listen.
 pub trait Listening: skein_shell::Host {
     /// The bound address, read only after the host has processed listening.
     fn address(&self) -> std::net::SocketAddr;
+    /// The primary address once listening has been processed, including a
+    /// claimed adopted listener. Peers without this query use the loop's
+    /// successful kernel listen completion before `address` is read.
+    fn listening_address(&self) -> Option<std::net::SocketAddr> {
+        None
+    }
     /// Ends admission once the peer's clients have settled. Drive the host
     /// until `Host::is_empty` before returning it to its owner.
     fn shutdown(&mut self);
 }
 
 impl Listening for forge::Peer {
+    fn listening_address(&self) -> Option<std::net::SocketAddr> {
+        self.address()
+    }
     fn address(&self) -> std::net::SocketAddr {
         self.address().expect("the forge peer has processed its successful listen completion")
     }
@@ -47,6 +56,9 @@ impl Listening for forge::Peer {
 }
 
 impl Listening for oauth::Peer {
+    fn listening_address(&self) -> Option<std::net::SocketAddr> {
+        self.address()
+    }
     fn address(&self) -> std::net::SocketAddr {
         self.address().expect("the OAuth peer has processed its successful listen completion")
     }
@@ -57,6 +69,9 @@ impl Listening for oauth::Peer {
 }
 
 impl Listening for llm::Peer {
+    fn listening_address(&self) -> Option<std::net::SocketAddr> {
+        self.address()
+    }
     fn address(&self) -> std::net::SocketAddr {
         self.address().expect("the LLM peer has processed its successful listen completion")
     }

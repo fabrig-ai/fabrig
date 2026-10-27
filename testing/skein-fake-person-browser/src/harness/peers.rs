@@ -5,6 +5,9 @@ use skein_lib::{Queue, Time, Token, Wall};
 use skein_world::ring::Ring;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
+#[cfg(test)]
+mod tests;
+
 pub(super) const FIRST: usize = 2;
 #[derive(Default)]
 struct State {
@@ -102,6 +105,9 @@ impl<'a, 'b> Peers<'a, 'b> {
                 }
                 lent.peer.iterate(now, wall);
                 lent.peer.drain();
+                if state.address.is_none() {
+                    state.address = lent.peer.listening_address().map(|address| address.to_string());
+                }
                 if state.address.is_none()
                     && state.delivered.is_some_and(|token| !lent.peer.completions().iter().any(|c| c.op == token))
                 {
