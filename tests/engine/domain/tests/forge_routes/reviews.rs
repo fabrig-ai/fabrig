@@ -350,3 +350,37 @@ fn a_request_for_changes_is_still_a_repair() {
     assert!(row.change.gate_failures.is_empty());
     assert_eq!(row.verdicts[0].status, temper_engine_domain_forge_change::Status::Failed);
 }
+
+// domain/forge.md, 8.5: the procedure retains the precise hold while its review waits.
+#[test]
+fn an_external_close_holds_the_change_during_review() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    const OUTSIDE_AUTHOR: u64 = 2; // The forge world's other collaborator.
+    const REVIEW_GATE: u64 = 1; // review_world's configured agent gate.
+    let (mut world, reviewer, head) = review_world();
+    let change = requester(&world, reviewer.task);
+    let pull = change_row(&world, change).pull.expect("reviewed pull");
+    world.external(OUTSIDE_AUTHOR, raw::Op::Write(raw::Write::Close { number: pull }));
+    // A keep may have backed off to poll_max; allow its close read and the
+    // procedure's fresh-read chain one queue window to finish.
+    let until = world
+        .env
+        .now
+        .saturating_add(world.env.limits.forge.client.poll_max)
+        .saturating_add(world.env.limits.forge.queue_window);
+    while world.env.now < until {
+        world.tick();
+    }
+    let row = change_row(&world, change);
+    assert_eq!(
+        row.change.state,
+        State::Held { was: Box::new(State::Gating { head, asked: Box::new([REVIEW_GATE]) }), why: Hold::PullClosed },
+        "the procedure records the close before jig holds its task"
+    );
+    assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { why: tasks::Hold::Drift, .. }));
+    assert_eq!(
+        row.delegate,
+        Some((reviewer.task, temper_engine_domain_forge_change::Delegate::Gate { number: REVIEW_GATE, head }))
+    );
+    assert_eq!(world.merges, 0);
+}

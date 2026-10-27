@@ -2790,7 +2790,14 @@ pub(crate) fn outputs(
                 projection_failed(domain, goal, domain.core.tasks.task(goal).is_none());
             }
             forge::Request::Drift { task, .. } => {
-                domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Drift }));
+                if domain.forge.change(task).is_some() {
+                    // domain/forge.md, 8.5: let the procedure retain its precise
+                    // hold and current step before holding the task. A generic
+                    // hold here prevents its pending wake from running.
+                    domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                } else {
+                    domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Drift }));
+                }
             }
             forge::Request::ChangeDecision { task, decision: choice, entry, evidence } => match choice {
                 forge_change::Decision::Effect(effect) => {
