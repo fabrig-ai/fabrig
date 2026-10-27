@@ -492,7 +492,14 @@ pub enum Outcome {
         task: u64,
     },
     /// Keyed answer to one current or historical proposal decision.
-    ProposalDecided { proposer: Proposer, proposal: u64, by: u64, at: Wall, choice: ProposalChoice, repeated: bool },
+    ProposalDecided {
+        proposer: Proposer,
+        proposal: u64,
+        by: u64,
+        at: Wall,
+        choice: ProposalChoice,
+        repeated: bool,
+    },
     /// Words were durably admitted under the root-issued message number.
     Said {
         task: u64,

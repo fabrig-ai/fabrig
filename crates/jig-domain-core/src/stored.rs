@@ -20,7 +20,12 @@ use skein_lib::Wall;
 pub enum CallPart {
     SettingsRefused(jig_domain_people::Refusal),
     /// A placed hold can be released only by its owner (domain/tasks.md, 5.9).
-    HoldOwner { task: u64, hold: u64, revision: u64, owner: jig_domain_people::HoldOwner },
+    HoldOwner {
+        task: u64,
+        hold: u64,
+        revision: u64,
+        owner: jig_domain_people::HoldOwner,
+    },
     /// A release must name again exactly when its effect is uncertain.
     Again {
         task: u64,
