@@ -406,33 +406,50 @@ struct Running<P, R> {
     dying: BTreeSet<usize>,
 }
 
-fn thread_cpu_nanos() -> Option<u64> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Sched {
+    cpu: u64,
+    waited: u64,
+}
+
+fn thread_sched() -> Option<Sched> {
     if !cfg!(target_os = "linux") {
         return None;
     }
-    // Linux scheduler/sched-stats documents field one in nanoseconds;
+    // Linux scheduler/sched-stats documents runtime and runnable wait in nanoseconds;
     // thread-self selects this thread's scheduler accounting.
     let source = std::fs::read_to_string("/proc/thread-self/schedstat").ok()?;
     let mut fields = source.split_whitespace();
     let runtime = fields.next()?.parse::<u64>().ok()?;
-    let _delay = fields.next()?.parse::<u64>().ok()?;
+    let waited = fields.next()?.parse::<u64>().ok()?;
     let _slices = fields.next()?.parse::<u64>().ok()?;
     // Disabled accounting emits zeros; a saturated counter has no usable delta.
-    if fields.next().is_some() || runtime == 0 || runtime == u64::MAX {
+    if fields.next().is_some() || runtime == 0 || runtime == u64::MAX || waited == u64::MAX {
         return None;
     }
-    Some(runtime)
+    Some(Sched { cpu: runtime, waited })
 }
 
-fn deadline_diagnostic(patience: Duration, iterations: u32, thread_cpu_start: Option<u64>) -> String {
-    let elapsed = thread_cpu_nanos().zip(thread_cpu_start).and_then(|(end, start)| end.checked_sub(start));
+fn sched_elapsed(start: Option<Sched>, end: Option<Sched>) -> Option<Sched> {
+    let (start, end) = start.zip(end)?;
+    Some(Sched { cpu: end.cpu.checked_sub(start.cpu)?, waited: end.waited.checked_sub(start.waited)? })
+}
+
+fn starved(patience: Duration, cpu: u64, waited: u64) -> bool {
+    // Rounding the thresholds up keeps both comparisons exact without multiplication.
+    waited >= patience.as_nanos().div_ceil(2) && cpu < patience.as_nanos().div_ceil(10)
+}
+
+fn deadline_diagnostic(patience: Duration, iterations: u32, elapsed: Option<Sched>) -> String {
+    let nanos = |value: Option<u64>| match value {
+        Some(nanos) => format!("{nanos} ns"),
+        None => String::from("UNAVAILABLE (ns)"),
+    };
     format!(
-        "the real loop settles within {} ms; iterations (including failing iteration): {iterations}; thread CPU elapsed (schedstat): {}",
+        "the real loop settles within {} ms; iterations (including failing iteration): {iterations}; thread CPU elapsed (schedstat): {}; thread runnable wait elapsed (schedstat): {}",
         patience.as_nanos().div_euclid(1_000_000),
-        match elapsed {
-            Some(nanos) => format!("{nanos} ns"),
-            None => String::from("UNAVAILABLE (ns)"),
-        }
+        nanos(elapsed.map(|sched| sched.cpu)),
+        nanos(elapsed.map(|sched| sched.waited)),
     )
 }
 
@@ -451,11 +468,11 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         &self,
         patience: Duration,
         iterations: u32,
-        thread_cpu_start: Option<u64>,
+        elapsed: Option<Sched>,
         now: Time,
         last_word: Option<Time>,
     ) -> String {
-        let mut text = deadline_diagnostic(patience, iterations, thread_cpu_start);
+        let mut text = deadline_diagnostic(patience, iterations, elapsed);
         writeln!(&mut text, "\nnow: {} ns", now.as_nanos()).expect("String formatting");
         let word = match last_word {
             Some(at) => format!("Some({} ns)", at.as_nanos()),
@@ -496,10 +513,36 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         any
     }
 
+    #[expect(clippy::print_stderr, reason = "testing.md, section 5 requires the starvation verdict on stderr")]
+    fn deadline_reached(
+        self,
+        patience: Duration,
+        iterations: u32,
+        sched_start: Option<Sched>,
+        now: Time,
+        last_word: Option<Time>,
+    ) -> ! {
+        let elapsed = sched_elapsed(sched_start, thread_sched());
+        if let Some(sched) = elapsed
+            && starved(patience, sched.cpu, sched.waited)
+            && std::env::var_os("NEXTEST").is_some()
+        {
+            self.forced_cleanup();
+            eprintln!(
+                "skein-world: starved: waited {} ms runnable, used {} ms of CPU, patience {} ms",
+                sched.waited.div_euclid(1_000_000),
+                sched.cpu.div_euclid(1_000_000),
+                patience.as_nanos().div_euclid(1_000_000),
+            );
+            std::process::exit(0);
+        }
+        crate::fail(&self.deadline_diagnostic(patience, iterations, elapsed, now, last_word));
+    }
+
     fn run(mut self, clock: &Clock, patience: Duration) -> Outcome<P> {
         let start = clock.now().now;
         let deadline = start.saturating_add(patience);
-        let thread_cpu_start = thread_cpu_nanos();
+        let sched_start = thread_sched();
         let mut iterations: u32 = 0;
         let mut last_word = None;
         let mut policy_wake: Vec<(usize, Time)> = Vec::new();
@@ -508,7 +551,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             let Now { now, wall } = clock.now();
             check_policy_wake(&mut policy_wake, now);
             if now >= deadline {
-                crate::fail(&self.deadline_diagnostic(patience, iterations, thread_cpu_start, now, last_word));
+                self.deadline_reached(patience, iterations, sched_start, now, last_word);
             }
             self.world.referee.act(now, &mut self.world.procs);
             self.signals();
@@ -596,6 +639,39 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             let until = self.wait_until(deadline);
             self.policy_wake(last_word, &mut policy_wake);
             self.ring.enter(Wait::Until(until));
+        }
+    }
+
+    fn forced_cleanup(mut self) {
+        // Host destructors end their trees as on a failed run. Exit skips
+        // destructors, so finish them and cancel and drain the shared kernel first.
+        drop(self.world);
+        let mut targets: VecDeque<Token> = self
+            .ring
+            .bindings
+            .keys()
+            .filter(|token| !self.waiting_children.contains_key(token))
+            .chain(self.housekeeping.keys())
+            .copied()
+            .collect();
+        self.ring.enter(Wait::No);
+        loop {
+            self.ring.kernel.reap(&mut self.ring.arrived);
+            while let Some(complete) = self.ring.arrived.pop() {
+                drop(complete);
+            }
+            if self.ring.kernel.in_flight() == 0 {
+                break;
+            }
+            if self.ring.kernel.room() > 0
+                && let Some(target) = targets.pop_front()
+            {
+                let op = self.ring.fresh();
+                self.ring.queue(Submit { op, kind: Op::Cancel { target } });
+                self.ring.enter(Wait::No);
+            } else {
+                self.ring.enter(Wait::Forever);
+            }
         }
     }
 
@@ -1052,13 +1128,69 @@ fn check_policy_wake(deadlines: &mut Vec<(usize, Time)>, now: Time) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Child, Process, Running, World};
+    use super::{Child, Process, Running, Sched, World, deadline_diagnostic, sched_elapsed, starved};
     use crate::{Host, Referee, ring::Ring};
     use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
     use alloc::rc::Rc;
     use core::cell::RefCell;
     use skein_io::kernel::{Complete, Done, Error, Exit, Family, Fd, Op, Submit};
-    use skein_lib::{Queue, Time, Token, Wall};
+    use skein_lib::{Duration, Queue, Time, Token, Wall};
+
+    #[test]
+    fn starvation_includes_exactly_half_the_patience_waiting() {
+        let patience = Duration::from_nanos(100);
+        assert!(!starved(patience, 9, 49));
+        assert!(starved(patience, 9, 50));
+    }
+
+    #[test]
+    fn starvation_excludes_exactly_a_tenth_of_the_patience_on_cpu() {
+        let patience = Duration::from_nanos(100);
+        assert!(starved(patience, 9, 50));
+        assert!(!starved(patience, 10, 50));
+    }
+
+    #[test]
+    fn starvation_thresholds_preserve_fractional_nanoseconds() {
+        let patience = Duration::from_nanos(101);
+        assert!(!starved(patience, 10, 50));
+        assert!(starved(patience, 10, 51));
+        assert!(!starved(patience, 11, 51));
+    }
+
+    #[test]
+    fn starvation_handles_zero_and_maximum_counters_without_overflow() {
+        assert!(!starved(Duration::ZERO, 0, 0));
+        assert!(!starved(Duration::from_nanos(100), 0, 0));
+        let patience = Duration::from_nanos(u64::MAX);
+        assert!(starved(patience, 0, u64::MAX));
+        assert!(!starved(patience, u64::MAX, u64::MAX));
+        assert!(!starved(patience, 0, u64::MAX.div_euclid(2)));
+    }
+
+    #[test]
+    fn starvation_requires_accounting_at_both_ends() {
+        let start = Sched { cpu: 1, waited: 1 };
+        let end = Sched { cpu: 2, waited: 101 };
+        for (start, end) in [(None, Some(end)), (Some(start), None), (None, None)] {
+            let elapsed = sched_elapsed(start, end);
+            assert_eq!(elapsed, None);
+            assert!(!elapsed.is_some_and(|sched| starved(Duration::from_nanos(100), sched.cpu, sched.waited)));
+        }
+        assert_eq!(sched_elapsed(Some(start), Some(end)), Some(Sched { cpu: 1, waited: 100 }));
+        assert_eq!(sched_elapsed(Some(end), Some(start)), None);
+        assert_eq!(sched_elapsed(Some(start), Some(Sched { cpu: 2, waited: 0 })), None);
+    }
+
+    #[test]
+    fn deadline_header_names_cpu_and_runnable_wait_even_without_accounting() {
+        let header = deadline_diagnostic(Duration::from_millis(1), 2, Some(Sched { cpu: 3, waited: 4 }));
+        assert!(
+            header.ends_with("thread CPU elapsed (schedstat): 3 ns; thread runnable wait elapsed (schedstat): 4 ns")
+        );
+        let header = deadline_diagnostic(Duration::from_millis(1), 2, None);
+        assert!(header.ends_with("thread CPU elapsed (schedstat): UNAVAILABLE (ns); thread runnable wait elapsed (schedstat): UNAVAILABLE (ns)"));
+    }
 
     struct Idle {
         completions: Queue<Complete>,
@@ -1212,7 +1344,7 @@ mod tests {
         let mut running = children_with(Observations(seen.clone()));
         retain_exited(&mut running, 1);
         retain_exited(&mut running, 2);
-        let outcome = running.run(&super::Clock::new(), skein_lib::Duration::from_secs(1));
+        let outcome = running.run(&super::Clock::new(), Duration::from_secs(1));
         assert_eq!(outcome.iterations, 1);
         assert_eq!(*seen.borrow(), [vec![1_u32, 0_u32, 0_u32]]);
     }
@@ -1224,7 +1356,7 @@ mod tests {
         for host in 0_usize..3 {
             retain_exited(&mut running, host);
         }
-        let outcome = running.run(&super::Clock::new(), skein_lib::Duration::from_secs(1));
+        let outcome = running.run(&super::Clock::new(), Duration::from_secs(1));
         assert_eq!(outcome.iterations, 1);
         assert_eq!(*seen.borrow(), [vec![0_u32, 0_u32, 0_u32]]);
     }
@@ -1235,7 +1367,7 @@ mod tests {
         let mut running = children_with(Observations(seen.clone()));
         retain_exited(&mut running, 2);
         running.kill(1);
-        let outcome = running.run(&super::Clock::new(), skein_lib::Duration::from_secs(1));
+        let outcome = running.run(&super::Clock::new(), Duration::from_secs(1));
         assert_eq!(outcome.iterations, 1);
         assert_eq!(outcome.killed.len(), 1);
         assert_eq!(*seen.borrow(), [vec![1_u32, 0_u32, 0_u32], vec![1_u32, 0_u32, 0_u32]]);
