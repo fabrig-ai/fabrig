@@ -435,9 +435,9 @@ fn sched_elapsed(start: Option<Sched>, end: Option<Sched>) -> Option<Sched> {
     Some(Sched { cpu: end.cpu.checked_sub(start.cpu)?, waited: end.waited.checked_sub(start.waited)? })
 }
 
-fn starved(patience: Duration, cpu: u64, waited: u64) -> bool {
-    // Rounding the thresholds up keeps both comparisons exact without multiplication.
-    waited >= patience.as_nanos().div_ceil(2) && cpu < patience.as_nanos().div_ceil(10)
+fn starved(patience: Duration, waited: u64) -> bool {
+    // Rounding the threshold up keeps the comparison exact without multiplication.
+    waited >= patience.as_nanos().div_ceil(2)
 }
 
 fn deadline_diagnostic(patience: Duration, iterations: u32, elapsed: Option<Sched>) -> String {
@@ -524,7 +524,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     ) -> ! {
         let elapsed = sched_elapsed(sched_start, thread_sched());
         if let Some(sched) = elapsed
-            && starved(patience, sched.cpu, sched.waited)
+            && starved(patience, sched.waited)
             && std::env::var_os("NEXTEST").is_some()
         {
             self.forced_cleanup();
@@ -1139,33 +1139,34 @@ mod tests {
     #[test]
     fn starvation_includes_exactly_half_the_patience_waiting() {
         let patience = Duration::from_nanos(100);
-        assert!(!starved(patience, 9, 49));
-        assert!(starved(patience, 9, 50));
+        assert!(!starved(patience, 49));
+        assert!(starved(patience, 50));
     }
 
     #[test]
-    fn starvation_excludes_exactly_a_tenth_of_the_patience_on_cpu() {
+    fn starvation_includes_a_run_with_much_cpu_and_half_the_patience_waiting() {
         let patience = Duration::from_nanos(100);
-        assert!(starved(patience, 9, 50));
-        assert!(!starved(patience, 10, 50));
+        let elapsed = sched_elapsed(Some(Sched { cpu: 1, waited: 1 }), Some(Sched { cpu: 1001, waited: 51 }))
+            .expect("increasing scheduler counters");
+        assert_eq!(elapsed.cpu, 1000);
+        assert!(starved(patience, elapsed.waited));
     }
 
     #[test]
-    fn starvation_thresholds_preserve_fractional_nanoseconds() {
+    fn starvation_threshold_preserves_fractional_nanoseconds() {
         let patience = Duration::from_nanos(101);
-        assert!(!starved(patience, 10, 50));
-        assert!(starved(patience, 10, 51));
-        assert!(!starved(patience, 11, 51));
+        assert!(!starved(patience, 50));
+        assert!(starved(patience, 51));
     }
 
     #[test]
     fn starvation_handles_zero_and_maximum_counters_without_overflow() {
-        assert!(!starved(Duration::ZERO, 0, 0));
-        assert!(!starved(Duration::from_nanos(100), 0, 0));
+        assert!(starved(Duration::ZERO, 0));
+        assert!(!starved(Duration::from_nanos(100), 0));
         let patience = Duration::from_nanos(u64::MAX);
-        assert!(starved(patience, 0, u64::MAX));
-        assert!(!starved(patience, u64::MAX, u64::MAX));
-        assert!(!starved(patience, 0, u64::MAX.div_euclid(2)));
+        assert!(starved(patience, u64::MAX));
+        assert!(starved(patience, u64::MAX.div_ceil(2)));
+        assert!(!starved(patience, u64::MAX.div_euclid(2)));
     }
 
     #[test]
@@ -1175,7 +1176,7 @@ mod tests {
         for (start, end) in [(None, Some(end)), (Some(start), None), (None, None)] {
             let elapsed = sched_elapsed(start, end);
             assert_eq!(elapsed, None);
-            assert!(!elapsed.is_some_and(|sched| starved(Duration::from_nanos(100), sched.cpu, sched.waited)));
+            assert!(!elapsed.is_some_and(|sched| starved(Duration::from_nanos(100), sched.waited)));
         }
         assert_eq!(sched_elapsed(Some(start), Some(end)), Some(Sched { cpu: 1, waited: 100 }));
         assert_eq!(sched_elapsed(Some(end), Some(start)), None);

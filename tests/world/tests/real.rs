@@ -280,6 +280,25 @@ fn a_never_settling_world_names_each_hosts_pending_work_and_deadlines() {
 
 #[test]
 fn a_zero_patience_deadline_reports_the_failing_iteration() {
+    // Zero patience meets the runnable-wait threshold. Exercise its failure
+    // diagnostic outside nextest so a successful process exit cannot skip it.
+    const CHILD: &str = "SKEIN_ZERO_PATIENCE_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args(["--exact", "a_zero_patience_deadline_reports_the_failing_iteration", "--nocapture"])
+            .env(CHILD, "1")
+            .env_remove("NEXTEST")
+            .output()
+            .expect("run the isolated zero-patience diagnostic check");
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
+        return;
+    }
     let failure = std::panic::catch_unwind(|| {
         let mut world = real::World::new(Judge);
         world.spawn(|| Script::new(&[]));
