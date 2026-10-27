@@ -355,24 +355,29 @@ fn party_reply(reply: &people::Reply) -> parties::Reply {
             parties::Reply::Refused(party_refusal(why.clone()))
         }
         people::Reply::SignedOut | people::Reply::Outcome(people::Outcome::SignedOut) => parties::Reply::SignedOut,
-        people::Reply::Outcome(people::Outcome::ProposalDecided { proposer, proposal, by, at, choice }) => {
-            parties::Reply::ProposalDecided {
-                proposer: match proposer {
-                    people::Proposer::Task(number) => parties::Proposer::Task(*number),
-                    people::Proposer::Party(number) => parties::Proposer::Party(*number),
-                },
-                proposal: *proposal,
-                by: *by,
-                at: *at,
-                choice: match choice {
-                    people::ProposalChoice::Accepted => parties::Choice::Accepted,
-                    people::ProposalChoice::Rejected => parties::Choice::Rejected,
-                    people::ProposalChoice::Passed => parties::Choice::Passed,
-                    people::ProposalChoice::Withdrawn => parties::Choice::Withdrawn,
-                    people::ProposalChoice::Stale => parties::Choice::Stale,
-                },
-            }
-        }
+        people::Reply::Outcome(people::Outcome::ProposalDecided {
+            proposer,
+            proposal,
+            by,
+            at,
+            choice,
+            repeated: _,
+        }) => parties::Reply::ProposalDecided {
+            proposer: match proposer {
+                people::Proposer::Task(number) => parties::Proposer::Task(*number),
+                people::Proposer::Party(number) => parties::Proposer::Party(*number),
+            },
+            proposal: *proposal,
+            by: *by,
+            at: *at,
+            choice: match choice {
+                people::ProposalChoice::Accepted => parties::Choice::Accepted,
+                people::ProposalChoice::Rejected => parties::Choice::Rejected,
+                people::ProposalChoice::Passed => parties::Choice::Passed,
+                people::ProposalChoice::Withdrawn => parties::Choice::Withdrawn,
+                people::ProposalChoice::Stale => parties::Choice::Stale,
+            },
+        },
         people::Reply::Outcome(people::Outcome::EscalationDecided { task, revision, by, at, choice }) => {
             parties::Reply::EscalationDecided {
                 task: *task,

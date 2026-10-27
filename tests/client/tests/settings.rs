@@ -142,7 +142,7 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     story.event(client::Event::Watch { handle: watch, subject: client::Watchable::Jig(c::Subject::Settings) });
     let queries = [
         c::Read::Settings,
-        c::Read::Setting(c::ReadSetting { setting: c::Setting::Rules, revision: 6 }),
+        c::Read::Setting(c::ReadSetting { setting: c::Setting::Rules, revision: 6, proposal: None }),
         c::Read::Revision(c::ReadRevision { number: 6 }),
         c::Read::Revisions(c::ReadRevisions { before: None }),
     ];

@@ -265,7 +265,7 @@ record OutcomePersonTaken { task: u64 }
 record OutcomePersonHandedBack { task: u64 }
 record OutcomePersonAnswered { task: u64 }
 record OutcomeMoved { task: u64 }
-record OutcomeProposalDecided { proposer: Proposer proposal: u64 by: u64 at: u64 choice: ProposalChoice }
+record OutcomeProposalDecided { proposer: Proposer proposal: u64 by: u64 at: u64 choice: ProposalChoice repeated: bool }
 record OutcomeSaid { task: u64 message: u64 }
 record OutcomeQuestionAnswered { task: u64 question: u64 message: u64 }
 record OutcomeAmended { task: u64 released: bool }

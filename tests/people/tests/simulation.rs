@@ -206,6 +206,7 @@ fn two_maintainers_decide_one_proposal_and_the_second_is_told_who_how_and_when()
         by: first_person,
         at: skein_lib::Wall::EPOCH,
         choice: ProposalChoice::Accepted,
+        repeated: false,
     }));
     assert_eq!(world.reply(first), expected);
     world.advance(Duration::from_secs(1));

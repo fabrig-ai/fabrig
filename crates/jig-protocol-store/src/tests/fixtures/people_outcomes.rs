@@ -208,6 +208,7 @@ pub fn outcome_values() -> Box<[domain::Outcome]> {
             by: 4,
             at: Wall::from_nanos(19),
             choice: domain::ProposalChoice::Rejected,
+            repeated: false,
         },
         domain::Outcome::Said { task: 2, message: 3 },
         domain::Outcome::QuestionAnswered { task: 2, question: 3, message: 4 },

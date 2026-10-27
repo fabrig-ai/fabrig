@@ -603,3 +603,15 @@ fn move_to_newest_retains_its_revision_and_hears_both_counts() {
         Ok(c::Answer::Done(c::Outcome::MovedToNewest(c::OutcomeMovedToNewest { newest: 9, moved: 3, stayed: 1 })))
     );
 }
+
+#[test]
+fn proposed_setting_read_round_trips_its_exact_proposal_key() {
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..fixtures::limits().client }, 4).unwrap();
+    let client = c::ReadSetting {
+        setting: c::Setting::Rules,
+        revision: 0,
+        proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
+    };
+    let wire = t::wire_read_setting(&client, &limits.wire).unwrap();
+    assert_eq!(t::restore_read_setting(&wire, &limits), Ok(client));
+}

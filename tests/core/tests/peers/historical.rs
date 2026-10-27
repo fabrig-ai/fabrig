@@ -65,7 +65,7 @@ fn a_second_authenticated_decider_reads_the_first_task_proposal_choice_and_clock
             .values()
             .filter(|row| matches!(row,
                 root::Record::Core(core::Record::People(people::Stored::Answer { outcome, .. }))
-                if matches!(outcome, people::Outcome::ProposalDecided { proposer, proposal, by, at, choice }
+                if matches!(outcome, people::Outcome::ProposalDecided { proposer, proposal, by, at, choice , repeated: _,}
                     if *proposer == original.proposer && *proposal == original.proposal && *by == maintainer
                         && *at == original.at && *choice == original.choice)
             ))

@@ -9,7 +9,21 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
     Some(match value {
         w::Read::Settings => reads::Read::Settings,
         w::Read::Setting(value) => {
-            reads::Read::Setting { setting: super::settings::setting(value.setting()), revision: value.revision() }
+            let mut proposal = None;
+            if let Some(key) = value.proposal() {
+                proposal = Some((
+                    match key.proposer() {
+                        w::Proposer::Party(party) => people::Proposer::Party(party.value()),
+                        w::Proposer::Task(task) => people::Proposer::Task(task.value()),
+                    },
+                    key.number(),
+                ));
+            }
+            reads::Read::Setting {
+                setting: super::settings::setting(value.setting()),
+                revision: value.revision(),
+                proposal,
+            }
         }
         w::Read::Revision(value) => reads::Read::Revision { number: value.number() },
         w::Read::Revisions(value) => reads::Read::Revisions { before: *value.before() },

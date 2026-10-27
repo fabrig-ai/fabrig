@@ -432,11 +432,25 @@ pub fn restore_malformed_settings(
 pub fn wire_read_setting(value: &c::ReadSetting, limits: &w::Limits) -> Result<w::ReadSetting, w::Problem> {
     w::ReadSetting::new(
         limits,
-        w::ReadSettingParts { setting: wire_setting(&value.setting, limits)?, revision: value.revision },
+        w::ReadSettingParts {
+            setting: wire_setting(&value.setting, limits)?,
+            revision: value.revision,
+            proposal: match &value.proposal {
+                Some(proposal) => Some(super::asks::wire_proposal_key(proposal, limits)?),
+                None => None,
+            },
+        },
     )
 }
 pub fn restore_read_setting(value: &w::ReadSetting, limits: &Limits) -> Result<c::ReadSetting, w::Problem> {
-    Ok(c::ReadSetting { setting: restore_setting(value.setting(), limits)?, revision: value.revision() })
+    Ok(c::ReadSetting {
+        setting: restore_setting(value.setting(), limits)?,
+        revision: value.revision(),
+        proposal: match value.proposal() {
+            Some(proposal) => Some(super::answers::proposal_key(proposal, limits)),
+            None => None,
+        },
+    })
 }
 pub fn wire_read_revision(value: &c::ReadRevision, limits: &w::Limits) -> Result<w::ReadRevision, w::Problem> {
     w::ReadRevision::new(limits, w::ReadRevisionParts { number: value.number })

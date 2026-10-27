@@ -283,6 +283,7 @@ fn every_owner_outcome_remains_whole_on_its_original_card_after_duplicate_termin
         O::PersonAnswered { task: 116 },
         O::Moved { task: 117 },
         O::ProposalDecided {
+            repeated: false,
             proposal: ProposalKey { proposer: Proposer::Party(118), number: 119 },
             by: 120,
             at: Wall::from_nanos(121),
@@ -352,6 +353,7 @@ fn owner_historical_proposal_choices_keep_the_named_winner_and_clock_without_exp
                 by: 71,
                 at: Wall::from_nanos(91),
                 choice,
+                repeated: false,
             });
             answered(&mut domain, request, Answer::Done(outcome.clone()));
             assert_eq!(

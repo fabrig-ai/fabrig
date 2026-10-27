@@ -1856,6 +1856,7 @@ fn a_proposal_makers_kind_is_kept_in_its_key_and_restored_answer() {
             by: 1,
             at: Wall::EPOCH,
             choice: ProposalChoice::Accepted,
+            repeated: false,
         };
         let completed = test.send(Event::Decided { request, outcome: outcome.clone() });
         assert_eq!(reply(&completed), Reply::Outcome(outcome.clone()));

@@ -145,6 +145,7 @@ pub struct MalformedSettings {
 pub struct ReadSetting {
     pub setting: Setting,
     pub revision: u32,
+    pub proposal: Option<ProposalKey>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReadRevision {

@@ -102,6 +102,7 @@ fn each_proposal_choice_reads_back() {
             by: 5,
             at: Wall::from_nanos(19),
             choice: value,
+            repeated: false,
         }));
     }
 }

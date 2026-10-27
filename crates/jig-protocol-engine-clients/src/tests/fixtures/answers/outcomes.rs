@@ -166,6 +166,7 @@ pub fn decision_outcomes() -> [(p::Reply, w::Final); 2] {
                 by: 11,
                 at: Wall::from_nanos(13),
                 choice: p::ProposalChoice::Passed,
+                repeated: false,
             }),
             owner(w::OwnerOutcome::ProposalDecided(
                 w::OwnerOutcomeProposalDecided::new(
@@ -175,6 +176,7 @@ pub fn decision_outcomes() -> [(p::Reply, w::Final); 2] {
                         by: 11,
                         at: 13,
                         choice: w::OwnerProposalChoice::Passed,
+                        repeated: false,
                     },
                 )
                 .expect("decision"),

@@ -60,8 +60,11 @@ fn settings_reads_and_watch_reach_the_core() {
     for read in [
         w::Read::Settings,
         w::Read::Setting(
-            w::ReadSetting::new(&limits, w::ReadSettingParts { setting: w::Setting::Rules, revision: 4 })
-                .expect("setting"),
+            w::ReadSetting::new(
+                &limits,
+                w::ReadSettingParts { setting: w::Setting::Rules, revision: 4, proposal: None },
+            )
+            .expect("setting"),
         ),
         w::Read::Revision(w::ReadRevision::new(&limits, w::ReadRevisionParts { number: 4 }).expect("revision")),
         w::Read::Revisions(w::ReadRevisions::new(&limits, w::ReadRevisionsParts { before: Some(5) }).expect("page")),

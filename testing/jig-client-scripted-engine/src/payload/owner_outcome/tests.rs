@@ -21,6 +21,7 @@ fn maximum_outcomes() -> [OwnerOutcome; 26] {
         OwnerOutcome::PersonAnswered { task: u64::MAX },
         OwnerOutcome::Moved { task: u64::MAX },
         OwnerOutcome::ProposalDecided {
+            repeated: false,
             proposal: ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX },
             by: u64::MAX,
             at: Wall::from_nanos(u64::MAX),
@@ -73,6 +74,7 @@ fn closed_decision_choices_and_release_flags_need_no_explanation_payload() {
             OwnerProposalChoice::Stale,
         ] {
             let value = OwnerOutcome::ProposalDecided {
+                repeated: false,
                 proposal: ProposalKey { proposer, number: u64::MAX },
                 by: 23,
                 at: Wall::from_nanos(31),

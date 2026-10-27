@@ -110,6 +110,7 @@ fn max_cases() -> [(OwnerOutcome, &'static [&'static [u8]]); 23] {
                 by: u64::MAX,
                 at: Wall::from_nanos(u64::MAX),
                 choice: OwnerProposalChoice::Accepted,
+                repeated: false,
             },
             &[
                 b"Proposal decided",
@@ -187,6 +188,7 @@ fn proposal_decisions_keep_both_makers_and_every_closed_choice_without_explanati
                 by: 23,
                 at: Wall::from_nanos(31),
                 choice,
+                repeated: false,
             };
             let tree = render(&value, &words);
             let maker: &[u8] = match proposer {
@@ -287,6 +289,7 @@ fn selected_outcome_language_is_checked_and_maximum_fragment_fits() {
         by: u64::MAX,
         at: Wall::EPOCH,
         choice: OwnerProposalChoice::Rejected,
+        repeated: false,
     };
     let tree = render(&value, &words);
     assert!(tree.len() <= view::required(&words).unwrap().nodes);
@@ -361,6 +364,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
         by: 23,
         at: Wall::EPOCH,
         choice: OwnerProposalChoice::Rejected,
+        repeated: false,
     };
     let tree = render(&value, &words);
     assert_eq!(tree.len(), 8);

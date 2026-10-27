@@ -21,10 +21,13 @@ fn every_settings_read_waits_for_the_core_answer() {
         (w::Read::Settings, reads::Read::Settings),
         (
             w::Read::Setting(
-                w::ReadSetting::new(&limits, w::ReadSettingParts { setting: w::Setting::Rules, revision: 6 })
-                    .expect("setting"),
+                w::ReadSetting::new(
+                    &limits,
+                    w::ReadSettingParts { setting: w::Setting::Rules, revision: 6, proposal: None },
+                )
+                .expect("setting"),
             ),
-            reads::Read::Setting { setting: settings::Setting::Rules, revision: 6 },
+            reads::Read::Setting { setting: settings::Setting::Rules, revision: 6, proposal: None },
         ),
         (
             w::Read::Revision(w::ReadRevision::new(&limits, w::ReadRevisionParts { number: 3 }).expect("revision")),

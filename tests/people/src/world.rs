@@ -842,7 +842,8 @@ impl World {
                                     }
                                     winner
                                 };
-                                let outcome = Outcome::ProposalDecided { proposer, proposal, by, at, choice };
+                                let outcome =
+                                    Outcome::ProposalDecided { proposer, proposal, by, at, choice, repeated: false };
                                 people::step(
                                     &mut self.domain,
                                     &self.env,

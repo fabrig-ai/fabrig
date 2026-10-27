@@ -437,7 +437,7 @@ pub enum Outcome {
     /// The task now belongs to the requesting person, with its remaining funding transferred.
     Moved { task: u64 },
     /// Keyed answer to one current or historical proposal decision.
-    ProposalDecided { proposer: Proposer, proposal: u64, by: u64, at: Wall, choice: ProposalChoice },
+    ProposalDecided { proposer: Proposer, proposal: u64, by: u64, at: Wall, choice: ProposalChoice, repeated: bool },
     /// Words were durably admitted under the root-issued message number.
     Said { task: u64, message: u64 },
     /// A named question was answered with a durable message.

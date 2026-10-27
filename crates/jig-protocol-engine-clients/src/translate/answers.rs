@@ -223,7 +223,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::P
             limits,
             w::OwnerOutcomeMarkedSeenParts { seen: self::seen(*seen, limits)? },
         )?),
-        p::Outcome::ProposalDecided { proposer, proposal, by, at, choice } => {
+        p::Outcome::ProposalDecided { proposer, proposal, by, at, choice, repeated } => {
             let proposer = match proposer {
                 p::Proposer::Task(value) => {
                     w::Proposer::Task(w::ProposerTask::new(limits, w::ProposerTaskParts { value: *value })?)
@@ -240,6 +240,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::P
                     by: *by,
                     at: at.as_nanos(),
                     choice: proposal_choice(*choice),
+                    repeated: *repeated,
                 },
             )?)
         }

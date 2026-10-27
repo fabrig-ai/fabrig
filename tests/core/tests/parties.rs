@@ -596,7 +596,8 @@ fn withdrawing_a_proposal_decided_first_says_by_whom_and_how() {
             proposal,
             by: OTHER_PARTY,
             at,
-            choice: people::ProposalChoice::Rejected
+            choice: people::ProposalChoice::Rejected,
+            repeated: true,
         }))
     );
 }
@@ -626,6 +627,7 @@ fn assert_withdrawn(value: &mut Withdrawn) {
             by: PARTY,
             at: value.at,
             choice: people::ProposalChoice::Withdrawn,
+            repeated: true,
         }))
     );
 }

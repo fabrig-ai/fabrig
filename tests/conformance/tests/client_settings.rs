@@ -50,7 +50,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     assert_eq!(translate::settings::restore_change_settings(&wire, &limits), Ok(values::settings_change()));
     for read in [
         c::Read::Settings,
-        c::Read::Setting(c::ReadSetting { setting: c::Setting::Rules, revision: 6 }),
+        c::Read::Setting(c::ReadSetting { setting: c::Setting::Rules, revision: 6, proposal: None }),
         c::Read::Revision(c::ReadRevision { number: 6 }),
         c::Read::Revisions(c::ReadRevisions { before: Some(8) }),
     ] {

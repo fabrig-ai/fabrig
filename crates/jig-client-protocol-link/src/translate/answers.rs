@@ -77,6 +77,7 @@ pub(crate) fn owner_outcome(value: &w::OwnerOutcome, limits: &Limits) -> Result<
             by: row.by(),
             at: Wall::from_nanos(row.at()),
             choice: owner_proposal_choice(row.choice(), limits),
+            repeated: row.repeated(),
         },
         w::OwnerOutcome::Said(row) => c::OwnerOutcome::Said { task: row.task(), message: row.message() },
         w::OwnerOutcome::QuestionAnswered(row) => {

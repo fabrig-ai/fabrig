@@ -100,6 +100,7 @@ pub enum OwnerOutcome {
         by: u64,
         at: Wall,
         choice: OwnerProposalChoice,
+        repeated: bool,
     },
     /// Words were admitted under a message number, with the supplied release fact.
     Said {

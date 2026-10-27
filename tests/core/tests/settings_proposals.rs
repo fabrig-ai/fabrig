@@ -466,3 +466,147 @@ fn full_version_configuration() -> (root::Config, root::Limits) {
     peers::journal(&mut limits);
     (config, limits)
 }
+
+#[test]
+fn proposed_settings_read_whole_set_removed_and_reset_with_the_reviews_audience() {
+    for edit in [reads::RevisionEdit::Set, reads::RevisionEdit::Removed, reads::RevisionEdit::Reset] {
+        let mut world = start(64);
+        let owner = sign_in(&mut world);
+        let (member, signed) = party(&mut world, b"proposer", Some((1, people::Role::Member)));
+        let (_, outsider) = party(&mut world, b"project owner", Some((1, people::Role::Owner)));
+        let setting = if edit == reads::RevisionEdit::Removed {
+            settings::Setting::Template(1)
+        } else {
+            settings::Setting::Charter(1)
+        };
+        let default = world.domain.settings().charter(1).expect("default").clone();
+        let mut proposed_charter = default.clone();
+        proposed_charter.policy.instructions = b"A charter's proposed instructions, read whole.".as_slice().into();
+        let value = settings::Value::Charter(Box::new(proposed_charter));
+        let (proposed_edit, expected) = match edit {
+            reads::RevisionEdit::Set => (settings::Edit::Set(value.clone()), Some(value)),
+            reads::RevisionEdit::Removed => (settings::Edit::Removed, None),
+            reads::RevisionEdit::Reset => {
+                changed(
+                    &change(
+                        &mut world,
+                        owner,
+                        1,
+                        1,
+                        Box::new([settings::Item { setting, edit: settings::Edit::Set(value) }]),
+                    ),
+                    2,
+                );
+                (settings::Edit::Reset, Some(settings::Value::Charter(Box::new(default))))
+            }
+        };
+        let newest = world.domain.settings().newest();
+        let proposal = proposed(&propose(
+            &mut world,
+            signed,
+            2,
+            newest,
+            Box::new([settings::Item { setting, edit: proposed_edit }]),
+        ));
+        let point =
+            reads::Read::Setting { setting, revision: 0, proposal: Some((people::Proposer::Party(member), proposal)) };
+        for reader in [owner, signed] {
+            let review = proposal_document(&mut world, reader, member, proposal);
+            let documents::ProposalAction::Settings { review: Some(review), .. } = review.action else {
+                panic!("pending review")
+            };
+            assert_eq!(review.items.get(0).expect("review item").would_be, expected);
+            let answer = read(&mut world, reader, point.clone());
+            match &expected {
+                Some(value) => assert!(matches!(answer, reads::Answer::Setting(document) if document.value == *value)),
+                None => assert_eq!(answer, reads::Answer::None(reads::Why::Unknown)),
+            }
+        }
+        let review = reads::Read::Proposal { proposer: people::Proposer::Party(member), proposal };
+        assert_eq!(read(&mut world, outsider, point.clone()), read(&mut world, outsider, review));
+        assert_eq!(
+            read(
+                &mut world,
+                owner,
+                reads::Read::Setting {
+                    setting,
+                    revision: newest,
+                    proposal: Some((people::Proposer::Party(member), proposal)),
+                }
+            ),
+            reads::Answer::None(reads::Why::Malformed)
+        );
+        assert_eq!(
+            read(
+                &mut world,
+                owner,
+                reads::Read::Setting {
+                    setting: settings::Setting::Template(999),
+                    revision: 0,
+                    proposal: Some((people::Proposer::Party(member), proposal)),
+                }
+            ),
+            reads::Answer::None(reads::Why::Unknown)
+        );
+        decide(
+            &mut world,
+            owner,
+            3,
+            member,
+            proposal,
+            people::ProposalDecision::Reject { reason: b"Keep the current value".as_slice().into() },
+            None,
+        );
+        assert_eq!(read(&mut world, owner, point), reads::Answer::None(reads::Why::Unknown));
+    }
+}
+
+#[test]
+fn accepted_and_rejected_settings_decisions_replay_and_fresh_keys_get_the_first_decision() {
+    for accepted in [true, false] {
+        let mut world = start(64);
+        let owner = sign_in(&mut world);
+        let item = template_edit(&world, 7);
+        let proposal = proposed(&propose(&mut world, owner, 1, 1, Box::new([item])));
+        let choice = if accepted {
+            people::ProposalDecision::Accept
+        } else {
+            people::ProposalDecision::Reject { reason: b"Keep it".as_slice().into() }
+        };
+        let running = if accepted { Some(people::Running::Stays) } else { None };
+        let first = decide(&mut world, owner, 2, OWNER, proposal, choice.clone(), running);
+        assert!(matches!(first, people::Reply::Outcome(people::Outcome::ProposalDecided { .. })));
+        let before = settings_rows(&world);
+        assert_eq!(decide(&mut world, owner, 2, OWNER, proposal, choice, running), first);
+        let mut repeated = first.clone();
+        let people::Reply::Outcome(people::Outcome::ProposalDecided { repeated: marker, .. }) = &mut repeated else {
+            panic!("decision")
+        };
+        *marker = true;
+        assert_eq!(
+            decide(
+                &mut world,
+                owner,
+                3,
+                OWNER,
+                proposal,
+                people::ProposalDecision::Accept,
+                Some(people::Running::Stays)
+            ),
+            repeated
+        );
+        assert_eq!(
+            decide(
+                &mut world,
+                owner,
+                4,
+                OWNER,
+                proposal,
+                people::ProposalDecision::Reject { reason: b"A new reason".as_slice().into() },
+                None
+            ),
+            repeated
+        );
+        assert_eq!(settings_rows(&world), before);
+    }
+}

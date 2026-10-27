@@ -176,7 +176,9 @@ fn details(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
         | OwnerOutcome::PersonHandedBack { task }
         | OwnerOutcome::PersonAnswered { task }
         | OwnerOutcome::Moved { task } => number(b, words, P::Task, *task),
-        OwnerOutcome::ProposalDecided { proposal: key, by, at, choice } => proposal(b, key, *by, *at, *choice, words),
+        OwnerOutcome::ProposalDecided { proposal: key, by, at, choice, repeated: _ } => {
+            proposal(b, key, *by, *at, *choice, words);
+        }
         OwnerOutcome::Compound { project, operations, first_message } => {
             number(b, words, P::Project, u64::from(*project));
             number(b, words, P::Operations, u64::from(*operations));

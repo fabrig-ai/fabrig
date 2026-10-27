@@ -366,6 +366,7 @@ fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_
                 by: 1,
                 at: Wall::EPOCH,
                 choice: OwnerProposalChoice::Accepted,
+                repeated: false,
             })),
         },
     );

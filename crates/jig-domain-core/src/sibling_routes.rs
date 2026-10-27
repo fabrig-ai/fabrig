@@ -377,6 +377,7 @@ impl Core {
                 by,
                 at,
                 choice,
+                repeated: false,
             },
         }
     }
@@ -419,6 +420,7 @@ impl Core {
                         by,
                         at,
                         choice,
+                        repeated: false,
                     },
                 })
             }

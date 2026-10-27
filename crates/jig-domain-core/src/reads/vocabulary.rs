@@ -128,6 +128,7 @@ pub enum Read {
     Setting {
         setting: crate::settings::Setting,
         revision: u32,
+        proposal: Option<(Proposer, u64)>,
     },
     Revision {
         number: u32,

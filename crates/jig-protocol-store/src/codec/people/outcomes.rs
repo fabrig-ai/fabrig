@@ -126,8 +126,10 @@ pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> 
         domain::Outcome::Moved { task } => {
             wire::Outcome::Moved(wire::OutcomeMoved::new(limits, wire::OutcomeMovedParts { task: *task })?)
         }
-        domain::Outcome::ProposalDecided { proposer, proposal, by, at, choice } => {
-            wire::Outcome::ProposalDecided(encode_proposal_decided(proposer, *proposal, *by, *at, *choice, limits)?)
+        domain::Outcome::ProposalDecided { proposer, proposal, by, at, choice, repeated } => {
+            wire::Outcome::ProposalDecided(encode_proposal_decided(
+                proposer, *proposal, *by, *at, *choice, *repeated, limits,
+            )?)
         }
         domain::Outcome::Said { task, message } => wire::Outcome::Said(encode_said(*task, *message, limits)?),
         domain::Outcome::QuestionAnswered { task, question, message } => {
@@ -306,6 +308,7 @@ fn encode_proposal_decided(
     by: u64,
     at: Wall,
     choice: domain::ProposalChoice,
+    repeated: bool,
     limits: &wire::Limits,
 ) -> Result<wire::OutcomeProposalDecided, wire::Problem> {
     wire::OutcomeProposalDecided::new(
@@ -316,17 +319,19 @@ fn encode_proposal_decided(
             by,
             at: at.as_nanos(),
             choice: encode_proposal_choice(choice, limits),
+            repeated,
         },
     )
 }
 fn decode_proposal_decided(value: wire::OutcomeProposalDecided) -> domain::Outcome {
-    let wire::OutcomeProposalDecidedParts { proposer, proposal, by, at, choice } = value.into_parts();
+    let wire::OutcomeProposalDecidedParts { proposer, proposal, by, at, choice, repeated } = value.into_parts();
     domain::Outcome::ProposalDecided {
         proposer: super::asks::decode_proposer(proposer),
         proposal,
         by,
         at: Wall::from_nanos(at),
         choice: decode_proposal_choice(choice),
+        repeated,
     }
 }
 fn encode_escalation_decided(

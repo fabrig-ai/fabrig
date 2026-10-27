@@ -79,7 +79,7 @@ pub fn outcome(value: &people::Outcome, limits: &Limits) -> Result<Outcome, owne
                 }
             },
         },
-        people::Outcome::ProposalDecided { proposer, proposal, by, at, choice } => {
+        people::Outcome::ProposalDecided { proposer, proposal, by, at, choice, repeated } => {
             client::OwnerOutcome::ProposalDecided {
                 proposal: client::ProposalKey {
                     proposer: match proposer {
@@ -97,6 +97,7 @@ pub fn outcome(value: &people::Outcome, limits: &Limits) -> Result<Outcome, owne
                     people::ProposalChoice::Withdrawn => client::OwnerProposalChoice::Withdrawn,
                     people::ProposalChoice::Stale => client::OwnerProposalChoice::Stale,
                 },
+                repeated: *repeated,
             }
         }
         people::Outcome::EscalationDecided { task, revision, by, at, choice } => {
@@ -228,13 +229,15 @@ mod tests {
                         proposal: 41,
                         by: 37,
                         at,
-                        choice: before
+                        choice: before,
+                        repeated: false,
                     }),
                     Outcome::Owner(client::OwnerOutcome::ProposalDecided {
                         proposal: client::ProposalKey { proposer, number: 41 },
                         by: 37,
                         at,
-                        choice: after
+                        choice: after,
+                        repeated: false,
                     })
                 );
             }

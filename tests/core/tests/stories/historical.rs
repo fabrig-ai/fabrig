@@ -58,6 +58,7 @@ fn a_second_party_proposal_request_reads_the_original_committed_decision_after_r
             by: original.by,
             at: original.at,
             choice: original.choice,
+            repeated: true,
         }))
     );
     assert_eq!(
@@ -66,7 +67,7 @@ fn a_second_party_proposal_request_reads_the_original_committed_decision_after_r
     );
     assert_eq!(world.store.rows.values().filter(|row| matches!(row,
         root::Record::Core(core::Record::People(people::Stored::Answer { outcome, .. }))
-        if matches!(outcome, people::Outcome::ProposalDecided { proposer: maker, proposal: number, by, at, choice }
+        if matches!(outcome, people::Outcome::ProposalDecided { proposer: maker, proposal: number, by, at, choice , repeated: _,}
             if *maker == proposer && *number == proposal && *by == original.by && *at == original.at && *choice == original.choice)
     )).count(), 2);
     for (request, maker, number) in [(83, people::Proposer::Task(1), proposal), (84, proposer, proposal + 1)] {

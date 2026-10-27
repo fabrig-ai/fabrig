@@ -141,7 +141,14 @@ pub(super) fn route_historical_proposal(
             if allowed && !running_valid {
                 people::Outcome::Refused(people::Refusal::NotWellFormed { at: 0, why: people::Malformed::Running })
             } else if allowed {
-                people::Outcome::ProposalDecided { proposer, proposal, by: row.by, at: row.at, choice: row.choice }
+                people::Outcome::ProposalDecided {
+                    proposer,
+                    proposal,
+                    by: row.by,
+                    at: row.at,
+                    choice: row.choice,
+                    repeated: true,
+                }
             } else {
                 people::Outcome::Refused(people::Refusal::Unknown)
             }

@@ -661,7 +661,8 @@ fn offered_proposal_decisions_are_made_at_the_named_holder_and_another_holder_is
                 proposal: 10,
                 by: 1,
                 at: Wall::EPOCH,
-                choice: expected
+                choice: expected,
+                repeated: false,
             }
         );
     }
@@ -906,6 +907,7 @@ fn a_task_and_a_party_with_identical_proposal_numbers_are_decided_separately() {
                     by: 1,
                     at: Wall::EPOCH,
                     choice: people::ProposalChoice::Rejected,
+                    repeated: false,
                 }
             );
             for request in &out {
@@ -1005,7 +1007,14 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
                 if other_store {
                     people::Outcome::Refused(people::Refusal::Unknown)
                 } else {
-                    people::Outcome::ProposalDecided { proposer, proposal: 10, by: 1, at: row.at, choice: row.choice }
+                    people::Outcome::ProposalDecided {
+                        proposer,
+                        proposal: 10,
+                        by: 1,
+                        at: row.at,
+                        choice: row.choice,
+                        repeated: true,
+                    }
                 }
             );
         }

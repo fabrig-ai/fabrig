@@ -45,6 +45,59 @@ pub(super) fn setting(core: &Core, reply: ReplyTo, party: u64, setting: settings
     terminal(reply, answer)
 }
 
+/// The same pending row and audience as the proposal review, without its value cut.
+pub(super) fn proposed_setting(
+    core: &Core,
+    reply: ReplyTo,
+    party: u64,
+    setting: settings::Setting,
+    proposal: (people::Proposer, u64),
+) -> Requests {
+    let (people::Proposer::Party(proposer), number) = proposal else {
+        return terminal(reply, Answer::None(Why::Unknown));
+    };
+    let Some(row) = core.tasks.person_proposal(proposer, number) else {
+        return terminal(reply, Answer::None(Why::Unknown));
+    };
+    let pending = match row.state {
+        jig_domain_tasks::PersonProposalState::Pending { .. } => true,
+        jig_domain_tasks::PersonProposalState::SettingsAccepted { .. }
+        | jig_domain_tasks::PersonProposalState::Accepted { .. }
+        | jig_domain_tasks::PersonProposalState::Rejected { .. }
+        | jig_domain_tasks::PersonProposalState::Withdrawn { .. } => false,
+    };
+    if (party != proposer && core.people.role(party, row.project).is_none()) || !pending {
+        return terminal(reply, Answer::None(Why::Unknown));
+    }
+    let Ok(number) = u32::try_from(number) else {
+        return terminal(reply, Answer::None(Why::Unknown));
+    };
+    let Some(proposal) = core.settings_proposals.get(&(people::Proposer::Party(proposer), number)) else {
+        return terminal(reply, Answer::None(Why::Unknown));
+    };
+    for item in &proposal.items {
+        if item.setting == setting {
+            let value = match &item.edit {
+                settings::Edit::Set(value) => Some(value),
+                settings::Edit::Removed => None,
+                settings::Edit::Reset => core.current.default_value(setting),
+            };
+            return terminal(
+                reply,
+                match value {
+                    Some(value) => Answer::Setting(Box::new(SettingDocument {
+                        setting,
+                        revision: core.current.newest(),
+                        value: value.clone(),
+                    })),
+                    None => Answer::None(Why::Unknown),
+                },
+            );
+        }
+    }
+    terminal(reply, Answer::None(Why::Unknown))
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Selection {
     Unknown,

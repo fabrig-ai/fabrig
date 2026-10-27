@@ -36,9 +36,13 @@ fn settings_reads_enter_the_core_in_its_vocabulary() {
         (w::Read::Settings, reads::Read::Settings),
         (
             w::Read::Setting(
-                w::ReadSetting::new(&wire, w::ReadSettingParts { setting: w::Setting::Rules, revision: 6 }).unwrap(),
+                w::ReadSetting::new(
+                    &wire,
+                    w::ReadSettingParts { setting: w::Setting::Rules, revision: 6, proposal: None },
+                )
+                .unwrap(),
             ),
-            reads::Read::Setting { setting: s::Setting::Rules, revision: 6 },
+            reads::Read::Setting { setting: s::Setting::Rules, revision: 6, proposal: None },
         ),
         (
             w::Read::Revision(w::ReadRevision::new(&wire, w::ReadRevisionParts { number: 5 }).unwrap()),

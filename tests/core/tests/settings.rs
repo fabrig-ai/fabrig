@@ -680,22 +680,28 @@ fn settings_inventory_is_unknown_without_a_deployment_role() {
 fn a_setting_reads_whole_only_from_the_newest() {
     let mut world = released_history();
     let signed = sign_in(&mut world);
-    let reads::Answer::Setting(value) =
-        client_read(&mut world, signed, reads::Read::Setting { setting: settings::Setting::Template(1), revision: 6 })
-    else {
+    let reads::Answer::Setting(value) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Template(1), revision: 6, proposal: None },
+    ) else {
         panic!("whole template")
     };
     let settings::Value::Template(template) = value.value else { panic!("template value") };
     assert_eq!(template.grace, Some(Duration::from_secs(10)));
     assert_eq!(
-        client_read(&mut world, signed, reads::Read::Setting { setting: settings::Setting::Template(1), revision: 5 }),
+        client_read(
+            &mut world,
+            signed,
+            reads::Read::Setting { setting: settings::Setting::Template(1), revision: 5, proposal: None }
+        ),
         reads::Answer::None(reads::Why::Unknown)
     );
     assert_eq!(
         client_read(
             &mut world,
             signed,
-            reads::Read::Setting { setting: settings::Setting::Template(999), revision: 6 }
+            reads::Read::Setting { setting: settings::Setting::Template(999), revision: 6, proposal: None }
         ),
         reads::Answer::None(reads::Why::Unknown)
     );
@@ -823,7 +829,11 @@ fn a_removed_setting_keeps_its_inventory_line_and_reads_unknown() {
     assert_eq!(line.follows, documents::Follows::Change);
     assert_eq!(line.last, 1);
     assert_eq!(
-        client_read(&mut world, signed, reads::Read::Setting { setting: settings::Setting::Template(2), revision: 1 }),
+        client_read(
+            &mut world,
+            signed,
+            reads::Read::Setting { setting: settings::Setting::Template(2), revision: 1, proposal: None }
+        ),
         reads::Answer::None(reads::Why::Unknown)
     );
 }
@@ -987,9 +997,11 @@ fn a_delegate_is_made_on_the_newest_whatever_its_parents_revision() {
 fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
     let (mut world, signed, _) = held_run();
     change_instructions(&mut world, signed);
-    let reads::Answer::Setting(value) =
-        client_read(&mut world, signed, reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1 })
-    else {
+    let reads::Answer::Setting(value) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1, proposal: None },
+    ) else {
         panic!("held charter")
     };
     let settings::Value::Charter(charter) = value.value else { panic!("charter value") };
@@ -997,7 +1009,11 @@ fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
     let document = inventory(&mut world, signed);
     assert_eq!(document.held.iter().map(|row| (row.head.number, row.holders)).collect::<Vec<_>>(), [(1, 1), (2, 0)]);
     assert_eq!(
-        client_read(&mut world, signed, reads::Read::Setting { setting: settings::Setting::Template(1), revision: 1 }),
+        client_read(
+            &mut world,
+            signed,
+            reads::Read::Setting { setting: settings::Setting::Template(1), revision: 1, proposal: None }
+        ),
         reads::Answer::None(reads::Why::Unknown)
     );
     let reads::Answer::Revision(value) = client_read(&mut world, signed, reads::Read::Revision { number: 1 }) else {
@@ -1047,7 +1063,11 @@ fn a_revision_leaves_memory_as_its_last_holder_ends() {
     assert_eq!(revision(&world, 1, true).head.number, 1);
     assert_eq!(inventory(&mut world, signed).held.iter().map(|row| row.head.number).collect::<Vec<_>>(), [2]);
     assert_eq!(
-        client_read(&mut world, signed, reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1 }),
+        client_read(
+            &mut world,
+            signed,
+            reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 1, proposal: None }
+        ),
         reads::Answer::None(reads::Why::Unknown)
     );
     let reads::Answer::Revision(value) = client_read(&mut world, signed, reads::Read::Revision { number: 1 }) else {

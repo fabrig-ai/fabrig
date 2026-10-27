@@ -359,7 +359,7 @@ record OwnerOutcomePersonTaken { task: u64 }
 record OwnerOutcomePersonHandedBack { task: u64 }
 record OwnerOutcomePersonAnswered { task: u64 }
 record OwnerOutcomeMoved { task: u64 }
-record OwnerOutcomeProposalDecided { proposal: ProposalKey by: u64 at: u64 choice: OwnerProposalChoice }
+record OwnerOutcomeProposalDecided { proposal: ProposalKey by: u64 at: u64 choice: OwnerProposalChoice repeated: bool }
 record OwnerOutcomeSaid { task: u64 message: u64 }
 record OwnerOutcomeQuestionAnswered { task: u64 question: u64 message: u64 }
 record OwnerOutcomeAmended { task: u64 }

@@ -39,7 +39,7 @@ record RefusalStale { newest: u32 }
 record RefusalFull { revision: u32 tasks: list 32 u64 more: u32 }
 enum SettingFault { shape, count, reference, rules, budget, grace, owner }
 record MalformedSettings { setting: Setting fault: SettingFault }
-record ReadSetting { setting: Setting revision: u32 }
+record ReadSetting { setting: Setting revision: u32 proposal: option ProposalKey }
 record ReadRevision { number: u32 }
 record ReadRevisions { before: option u32 }
 enum SettingFollows { default, change }
