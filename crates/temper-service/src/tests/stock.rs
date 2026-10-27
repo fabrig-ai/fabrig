@@ -229,7 +229,10 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     let mut own = crate::stock::defaults(&stock.llm);
     own.charters[0].policy.waiting = skein_lib::Duration::from_millis(1);
     own.templates[0].flags.listed = true;
-    own.policies.get_mut(&1).unwrap().policy.period_spend = 41;
+    let policy = &mut own.policies.get_mut(&1).unwrap().policy;
+    policy.period_spend = 41;
+    // Init's seed copies this policy, whose role allowance must fit its period.
+    policy.roles[0].period_spend = 41;
     own.rules.maximum_run_spend = 2;
     let given = crate::stock::Given::Own(Box::new(own));
     let engine = crate::startup::engine_with(&document, at, &config::Directories::working(), &given).unwrap();
@@ -237,6 +240,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     assert_eq!(engine.charters[0].policy.waiting, skein_lib::Duration::from_millis(1));
     assert!(engine.templates[0].flags.listed);
     assert_eq!(engine.policies.iter().find(|policy| policy.number == 1).unwrap().policy.period_spend, 41);
+    assert_eq!(engine.projects[0].policy.period_spend, 41);
     assert_eq!(engine.rules.maximum_run_spend, 2);
 }
 
