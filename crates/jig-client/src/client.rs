@@ -77,6 +77,11 @@ pub struct LinkView<'a> {
     pub credential: Option<&'a Secret>,
 }
 #[derive(Debug)]
+pub(crate) struct DeferredRead {
+    read: Token,
+    what: Readable,
+}
+#[derive(Debug)]
 pub struct Client {
     domain: domain::Domain,
     link: Option<link::Link>,
@@ -94,6 +99,7 @@ pub struct Client {
     rng: Rng,
     saves: List<Record>,
     erases: List<Box<[u8]>>,
+    reads: Queue<DeferredRead>,
 }
 impl Client {
     /// # Errors
@@ -133,6 +139,7 @@ impl Client {
             rng: Rng::new(seed),
             saves: List::with_capacity(bound),
             erases: List::with_capacity(bound),
+            reads: Queue::with_capacity(limits.domain.reads),
         }
     }
     pub fn step(&mut self, now: Time, wall: Wall, event: Event, out: &mut Queue<Request>) {
@@ -404,7 +411,32 @@ impl Client {
     fn up(&mut self, env: &Env<DomainLimits>, up: Up) {
         self.domain_step(env, domain::Event::Up { up });
     }
+    fn prune_reads(&mut self) {
+        for _ in 0..self.reads.len() {
+            let read = self.reads.pop().expect("counted deferred read");
+            if self.domain.has_read(read.read) {
+                self.reads.push(read);
+            }
+        }
+    }
+    fn defer_read(&mut self, now: Time, read: Token, what: Readable) {
+        self.prune_reads();
+        if self.reads.is_empty() && self.link.as_ref().expect("linked read").has_exchange_room() {
+            self.link_step(now, link::Event::Read { read, what });
+            return;
+        }
+        // Validate before retaining cursor/filter/family payloads within their wire envelope.
+        // Invalid reads keep their existing terminal; only local exchange pressure waits.
+        let bounds = link::Limits::new(self.limits.domain, self.limits.exchanges).expect("validated link limits");
+        if link::translate::reads::owned(what.clone(), &bounds.wire).is_err() {
+            self.link_step(now, link::Event::Read { read, what });
+            return;
+        }
+        assert!(self.reads.room() > 0, "one queued demand per current domain read");
+        self.reads.push(DeferredRead { read, what });
+    }
     fn drain(&mut self, env: &Env<DomainLimits>, out: &mut Queue<Request>) {
+        self.prune_reads();
         let bound = self.domain_out.capacity();
         for _ in 0..bound {
             if let Some(request) = self.link_out.pop() {
@@ -413,6 +445,11 @@ impl Client {
                 match request {
                     domain::Request::Told { told } => out.push(Request::Told { told }),
                     domain::Request::Down { down } if self.link.is_none() => out.push(Request::Down { down }),
+                    domain::Request::Down { down: Down::Read { read, what } } => {
+                        if self.domain.link() != Link::OutOfDate && self.domain.has_read(read) {
+                            self.defer_read(env.now, read, what);
+                        }
+                    }
                     domain::Request::Down { down } => {
                         let local = match &down {
                             Down::Save { .. } | Down::Erase { .. } => true,
@@ -436,10 +473,28 @@ impl Client {
                         }
                     }
                 }
+            } else if !self.reads.is_empty() {
+                let token = self.reads.iter().next().expect("deferred read").read;
+                let refusal = self.domain.read_refusal(token);
+                if self.domain.has_read(token)
+                    && refusal.is_none()
+                    && !self.link.as_ref().expect("linked deferred read").has_exchange_room()
+                {
+                    break;
+                }
+                let read = self.reads.pop().expect("deferred read");
+                if !self.domain.has_read(read.read) {
+                    continue;
+                }
+                match refusal {
+                    Some(result) => self.up(env, Up::ReadDone { read: read.read, result }),
+                    None => self.link_step(env.now, link::Event::Read { read: read.read, what: read.what }),
+                }
             } else {
                 break;
             }
         }
+        self.prune_reads();
         assert!(self.link_out.is_empty() && self.domain_out.is_empty(), "bounded composition settles");
         if !self.saves.is_empty() {
             self.store.write();

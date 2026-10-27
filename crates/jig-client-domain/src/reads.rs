@@ -12,6 +12,39 @@ pub(crate) struct PendingRead {
 }
 
 impl Domain {
+    /// Whether this token still owns a current read, before a queued transport admission.
+    #[must_use]
+    pub fn has_read(&self, read: Token) -> bool {
+        for (_, pending) in &self.reads {
+            if pending.token == read {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// A current queued read whose owner stopped serving must keep that terminal's meaning.
+    #[must_use]
+    pub fn read_refusal(&self, read: Token) -> Option<Readout> {
+        for (_, pending) in &self.reads {
+            if pending.token != read {
+                continue;
+            }
+            if self.link == crate::Link::OutOfDate {
+                return Some(Readout::NotServed { family: None, served: self.jig_versions });
+            }
+            if let Some(family) = pending.family {
+                for owner in &self.owners {
+                    if owner.spoken.family == family && !owner.served {
+                        return Some(Readout::NotServed { family: Some(family), served: owner.versions });
+                    }
+                }
+            }
+            return None;
+        }
+        None
+    }
+
     pub(crate) fn read(&mut self, env: &Env<Limits>, handle: Handle, what: Readable, out: &mut Queue<Request>) {
         self.reads.remove(&handle);
         let refused = match &what {

@@ -76,6 +76,11 @@ impl Link {
         let Some(stream) = &self.stream else { return None };
         Some(stream.silence())
     }
+    /// Whether a read can own an exchange now; a completion or cancellation releases room.
+    #[must_use]
+    pub fn has_exchange_room(&self) -> bool {
+        self.attempts.len() < self.attempts.capacity()
+    }
     pub fn reclaim(&mut self) {}
     #[must_use]
     pub fn worst_case(limits: &Limits) -> Option<u64> {
