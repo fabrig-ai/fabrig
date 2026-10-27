@@ -136,7 +136,11 @@ pub(crate) fn body(
     choice: Option<Choice>,
     place: Place,
 ) {
-    match connect::step(choice, root.forges(), root.forge().demo()) {
+    let shown = match place {
+        Place::Connect => connect::step(choice, root.forges(), root.forge().demo()),
+        Place::Welcome => connect::welcome_step(choice, root.forges(), root.forge().demo()),
+    };
+    match shown {
         Shown::Choose => choose(b, root, w, bindings, forge, place),
         Shown::Details(choice) => {
             if let Place::Connect = place {
@@ -246,29 +250,10 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
         };
         if heading == Word::ForgeHere
             && let Place::Welcome = place
+            && let Choice::Forge(number) = *choice
+            && let Some(row) = connect::row(number, root.forges(), root.forge().demo())
         {
-            flow::choice_card(b, &w.say(Word::WelcomeForgejo, &[]));
-            text(b, w, Role::Paragraph, Word::WelcomeForgejoDescription);
-            b.open(Role::Paragraph);
-            b.style(look::FLOW_MUTED);
-            b.name(&w.say(note, &[]));
-            w.text(b, note, &[]);
-            b.close();
-            b.open(Role::Slot);
-            b.style(look::FLOW_ACTIONS);
-            flow::control(
-                b,
-                Control::SecondaryLink {
-                    name: &w.say(Word::WelcomeForgejoRun, &[]),
-                    to: bindings.insert(Act::Go { address: place.address(Some(*choice)) }),
-                },
-            );
-            flow::control(
-                b,
-                Control::External { name: &w.say(Word::WelcomeForgejoDeployment, &[]), address: DEPLOYMENT },
-            );
-            b.close();
-            b.close();
+            welcome_forgejo(b, root, w, bindings, forge, row);
             continue;
         }
         if heading == Word::ForgeGitHub {
@@ -298,6 +283,46 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
                 to: bindings.insert(Act::Go { address: place.address(Some(*choice)) }),
             },
         );
+    }
+    b.close();
+}
+fn welcome_forgejo(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    forge: &mut ForgeBindings,
+    row: &Row,
+) {
+    let note = if row.offer == Offer::NotUnderTheBox { Word::ForgeCommandsTime } else { Word::ForgeHereTime };
+    flow::choice_card(b, &w.say(Word::WelcomeForgejo, &[]));
+    text(b, w, Role::Paragraph, Word::WelcomeForgejoDescription);
+    b.open(Role::Paragraph);
+    b.style(look::FLOW_MUTED);
+    b.name(&w.say(note, &[]));
+    w.text(b, note, &[]);
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::FLOW_ACTIONS);
+    let at_once = connect::at_once(row);
+    let name = w.say(Word::WelcomeForgejoRun, &[]);
+    let action = if at_once {
+        if setup_disabled(root) {
+            Control::Disabled { name: &name }
+        } else {
+            Control::Button { name: &name, to: forge.insert(Meaning::SetUpAtOnce(row.number)) }
+        }
+    } else {
+        Control::SecondaryLink {
+            name: &name,
+            to: bindings.insert(Act::Go { address: Place::Welcome.address(Some(Choice::Forge(row.number))) }),
+        }
+    };
+    flow::control(b, action);
+    flow::control(b, Control::External { name: &w.say(Word::WelcomeForgejoDeployment, &[]), address: DEPLOYMENT });
+    b.close();
+    if at_once {
+        setup_refusal(b, root, w, row.number);
     }
     b.close();
 }
@@ -485,12 +510,8 @@ pub(crate) fn setup_control(
     word: Word,
 ) {
     let primary = word == Word::ForgeSetUp;
-    let pending = match root.forge().set_up() {
-        Some(last) => last.progress.is_some(),
-        None => false,
-    };
     let name = w.say(word, &[]);
-    if pending || root.forge().served() == forge::Served::OutOfDate {
+    if setup_disabled(root) {
         flow::control(
             b,
             if primary { Control::PrimaryDisabled { name: &name } } else { Control::Disabled { name: &name } },
@@ -502,6 +523,16 @@ pub(crate) fn setup_control(
             if primary { Control::PrimaryButton { name: &name, to } } else { Control::Button { name: &name, to } },
         );
     }
+    setup_refusal(b, root, w, number);
+}
+fn setup_disabled(root: &Domain) -> bool {
+    let pending = match root.forge().set_up() {
+        Some(last) => last.progress.is_some(),
+        None => false,
+    };
+    pending || root.forge().served() == forge::Served::OutOfDate
+}
+fn setup_refusal(b: &mut Builder, root: &Domain, w: &Words, number: u16) {
     if let Some(last) = root.forge().set_up()
         && last.forge == number
         && let Some(answer) = &last.answer

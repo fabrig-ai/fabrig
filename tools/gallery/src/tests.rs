@@ -234,7 +234,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Region, name: "Forgejo" },
-            Part::Named { role: Role::Link, name: "Run on this machine" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
             Part::Named { role: Role::Link, name: "Or connect your deployment" },
             Part::Absent { role: Role::Region, name: "A Forgejo elsewhere" },
         ],
@@ -243,8 +243,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-forge-details",
         heading: "Connect a forge",
         parts: &[
-            Part::Named { role: Role::TextField, name: "Organization" },
-            Part::Named { role: Role::TextField, name: "Repository" },
+            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+            Part::Named { role: Role::Link, name: "Or connect your deployment" },
+            Part::Absent { role: Role::TextField, name: "Organization" },
         ],
     },
     Holds {
@@ -991,7 +993,7 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     use temper_client_view::look;
     for (name, expected) in [
         ("welcome-forge-choose", vec!["Connect GitHub"]),
-        ("welcome-forge-details", vec!["Set up a Forgejo here"]),
+        ("welcome-forge-details", vec!["Connect GitHub"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
         ("github-app-details", vec!["Connect the App"]),
         ("github-install", vec!["Install on GitHub"]),
@@ -1012,7 +1014,7 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         if name == "welcome-forge-details" {
             assert_eq!(
                 view.tree().nodes().iter().filter(|node| node.styles.as_slice().contains(&look::FLOW_PAIR)).count(),
-                2
+                0
             );
         }
     }

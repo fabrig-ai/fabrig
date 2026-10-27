@@ -930,7 +930,7 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
     let mut world = world();
     connection(&mut world, OWNED, forge::Connection::NotSetUp);
     let client = open(&mut world, Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(OWNED)) } });
-    press_pending(&mut world, client, b"Set up a Forgejo here");
+    press_pending(&mut world, client, b"Run on this machine");
     answer_setup(&mut world, forge::SetUpAnswer::SettingUp);
     connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) });
     follow(
@@ -948,7 +948,7 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
         vec![
             PersonStep::Go { address: Address::Welcome { step: Step::Ready } },
             see(Role::Heading { level: 1 }, b"Almost ready"),
-            see(Role::Paragraph, b"Project hello, with work/hello"),
+            see(Role::Paragraph, b"Project Default, with work/hello"),
             see(Role::Disclosure, b"Each step"),
             gone(Role::Heading { level: 2 }, b"Setting up Forgejo on this machine"),
             gone(Role::Link, b"Later"),
@@ -956,7 +956,7 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
     );
     node(&world, client, Role::Paragraph, "Forge: Forgejo on this machine · Connected as qa-bot (1)".as_bytes());
     assert!(!node(&world, client, Role::Disclosure, b"Each step").states.as_slice().contains(&State::Expanded));
-    assert!(node(&world, client, Role::Button, b"Open hello").states.as_slice().contains(&State::Disabled));
+    assert!(node(&world, client, Role::Button, b"Open Default").states.as_slice().contains(&State::Disabled));
     assert_eq!(world.front().set_ups().len(), ONE_SETUP);
 }
 

@@ -260,6 +260,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::Install { forge, back } => github::send(side, limits, forge, Some(back), out),
         Act::StartDemo => demo::start(side, limits, out),
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
+        Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
         Act::SetupWrite { field, text } => forges::write(side, limits, field, text),
         Act::StartIn { forge } => forges::retry_start(side, limits, forge, out),
         Act::Adopt => {

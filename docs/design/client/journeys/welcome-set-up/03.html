@@ -4,7 +4,7 @@
 ><meta charset="utf-8"
 ><meta name="viewport" content="width=device-width, initial-scale=1"
 ><title
->Connect a forge · temper</title
+>Connect a model · temper</title
 ><link rel="stylesheet" href="../skein-ui.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/temper.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/task-pages.css"
@@ -35,11 +35,11 @@
 ><span
 >Welcome</span
 ></li
-><li aria-current="true" class="temper-flow-step"
+><li class="temper-flow-step temper-flow-done"
 ><span
 >Forge</span
 ></li
-><li class="temper-flow-step"
+><li aria-current="true" class="temper-flow-step"
 ><span
 >Model</span
 ></li
@@ -48,55 +48,112 @@
 >Ready</span
 ></li
 ></ul
-><h1 aria-label="Connect a forge"
+><div class="temper-welcome-status"
+><p aria-label="Forgejo on this machine · Setting up: fetching · work/hello, into the new project Default"
 ><span
->Connect a forge</span
-></h1
-><p aria-label="Where your code lives: you file issues, agents push and land code." class="temper-welcome-lead"
-><span
->Where your code lives: you file issues, agents push and land code.</span
+>Forgejo on this machine · Setting up: fetching · work/hello, into the new project Default</span
 ></p
-><section aria-label="Forgejo on this machine" class="temper-flow-card temper-flow-details"
-><h2 aria-label="Forgejo on this machine"
+><details
+><summary
+>Each step</summary
+><ul aria-label="Each step" class="temper-flow-progress"
+><li aria-current="true"
 ><span
->Forgejo on this machine</span
-></h2
-><p aria-label="temper box downloads Forgejo 17.0.0 and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."
+>Fetching Forgejo 17.0.0 and its runner 13.2.0</span
+><div role="status" aria-label="under way" class="temper-flow-muted"
 ><span
->temper box downloads Forgejo 17.0.0 and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart.</span
-></p
-><div class="temper-flow-pair"
-><div class="temper-flow-field"
-><label for="skein-ui-label-76"
->Organization</label
-><input type="text" value="work" id="skein-ui-label-76"
+>under way</span
 ></div
-><div class="temper-flow-field"
-><label for="skein-ui-label-78"
->Repository</label
-><input type="text" value="hello" id="skein-ui-label-78"
-></div
-></div
-><div class="temper-flow-pair"
-><div class="temper-flow-field"
-><label for="skein-ui-label-81"
->Into a new project, named</label
-><input type="text" value="hello" id="skein-ui-label-81"
-></div
-></div
-><ul class="temper-flow-facts"
-><li aria-label="Its CI jobs run on this machine, as you, with no isolation."
-><span
->Its CI jobs run on this machine, as you, with no isolation.</span
 ></li
-><li aria-label="Forgejo stops when temper box stops. Its repositories are kept in temper’s data directory."
+><li
 ><span
->Forgejo stops when temper box stops. Its repositories are kept in temper’s data directory.</span
+>Preparing: its database, temper’s admin, your account</span
+></li
+><li
+><span
+>Starting Forgejo and its runner</span
+></li
+><li
+><span
+>Connecting as temper</span
+></li
+><li
+><span
+>Making work/hello, and adopting it into Default</span
 ></li
 ></ul
+></details
+></div
+><h1 aria-label="Connect a model"
+><span
+>Connect a model</span
+></h1
+><p aria-label="temper’s agents run on it: on a plan you sign in to, or on a key." class="temper-welcome-lead"
+><span
+>temper’s agents run on it: on a plan you sign in to, or on a key.</span
+></p
+><div class="temper-model-choices"
+><section aria-label="ChatGPT" class="temper-flow-card temper-flow-choice"
+><h2 aria-label="ChatGPT"
+><span
+>ChatGPT</span
+></h2
+><p aria-label="Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s agents use your plan’s included usage."
+><span
+>Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s agents use your plan’s included usage.</span
+></p
+><p aria-label="In a browser on the engine’s machine · about a minute" class="temper-flow-muted"
+><span
+>In a browser on the engine’s machine · about a minute</span
+></p
+><div class="temper-flow-actions"
 ><button type="button" class="temper-flow-primary"
->Set up a Forgejo here</button
+>Continue with ChatGPT</button
+><button type="button" class="temper-flow-secondary"
+>This browser isn't on temper's computer ›</button
+></div
 ></section
+><section aria-label="An OpenAI API key" class="temper-flow-card temper-flow-choice"
+><h2 aria-label="An OpenAI API key"
+><span
+>An OpenAI API key</span
+></h2
+><p aria-label="A key from OpenAI’s platform. What temper’s agents use is billed to the key’s organization."
+><span
+>A key from OpenAI’s platform. What temper’s agents use is billed to the key’s organization.</span
+></p
+><p aria-label="Pasted here · at once" class="temper-flow-muted"
+><span
+>Pasted here · at once</span
+></p
+><div class="temper-flow-actions"
+><a aria-label="Use an API key" class="temper-flow-secondary" href="/welcome?at=model&amp;provider=1&amp;way=key"
+><span
+>Use an API key</span
+></a
+></div
+></section
+><section aria-label="Use your Claude subscription" class="temper-flow-card temper-flow-choice"
+><h2 aria-label="Use your Claude subscription"
+><span
+>Use your Claude subscription</span
+></h2
+><p aria-label="temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there."
+><span
+>temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there.</span
+></p
+><p aria-label="Claude Code asks you to sign in. temper never reads its login." class="temper-flow-muted"
+><span
+>Claude Code asks you to sign in. temper never reads its login.</span
+></p
+><div class="temper-flow-actions"
+><a aria-label="Use your Claude subscription" class="temper-flow-secondary" href="/welcome?at=model&amp;provider=2&amp;way=program"
+><span
+>Use your Claude subscription</span
+></a
+></div
+></section
+></div
 ><div class="temper-welcome-foot"
 ><a aria-label="‹ Back" class="temper-flow-quiet" href="/welcome?at=forge"
 ><span

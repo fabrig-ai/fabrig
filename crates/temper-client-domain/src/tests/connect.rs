@@ -1262,3 +1262,86 @@ fn github_adoption_advances_only_the_welcome() {
         };
     }
 }
+
+#[test]
+fn welcome_skips_owned_details_only_when_offered_under_the_box() {
+    for (offer, expected) in
+        [(Offer::Offered, Shown::Choose), (Offer::NotUnderTheBox, Shown::Details(Choice::Forge(HERE)))]
+    {
+        let state = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, offer)]));
+        assert_eq!(connect::welcome_step(Some(Choice::Forge(HERE)), &state, None), expected);
+        assert_eq!(connect::step(Some(Choice::Forge(HERE)), &state, None), Shown::Details(Choice::Forge(HERE)));
+    }
+    let mut candidate = row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered);
+    assert!(connect::at_once(&candidate));
+    candidate.admin = true;
+    assert!(!connect::at_once(&candidate));
+    candidate.admin = false;
+    candidate.kind = Kind::GitHub;
+    assert!(!connect::at_once(&candidate));
+    candidate.kind = Kind::Forgejo;
+    candidate.mode = Mode::Managed;
+    assert!(!connect::at_once(&candidate));
+    candidate.mode = Mode::Owned;
+    candidate.connection = C::SettingUp { step: None };
+    assert!(!connect::at_once(&candidate));
+    candidate.connection = C::NotSetUp;
+    candidate.offer = Offer::NotOffered;
+    assert!(!connect::at_once(&candidate));
+}
+#[test]
+fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
+    let (mut root, _, _) = opened(true);
+    write_setup(&mut root, forges::SetupField::Organization, b"another");
+    write_setup(&mut root, forges::SetupField::Repository, b"repository");
+    write_setup(&mut root, forges::SetupField::Project, b"");
+    let before = root.forge().setup_form();
+    let before = (before.fields.clone(), before.written, before.named, before.checked);
+    let (_, _, w::Request::SetUp(value)) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE })) else {
+        panic!("setup")
+    };
+    assert_eq!(value.forge(), HERE);
+    assert_eq!((value.org(), value.repository(), value.playground()), (b"work".as_slice(), b"hello".as_slice(), false));
+    let w::SetUpProject::New(project) = value.project() else { panic!("new project") };
+    assert_eq!(project.name(), b"Default");
+    let last = root.forge().set_up().unwrap();
+    assert_eq!(
+        (&*last.org, &*last.repository, &last.project, last.playground),
+        (b"work".as_slice(), b"hello".as_slice(), &forges::SetUpProject::New(b"Default".as_slice().into()), false)
+    );
+    let after = root.forge().setup_form();
+    assert_eq!((after.fields.clone(), after.written, after.named, after.checked), before);
+    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }).is_empty());
+}
+#[test]
+fn at_once_sends_nothing_without_a_party_or_when_out_of_date() {
+    let mut root = crate::unlinked(&f::limits(), f::SEED);
+    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }).is_empty());
+    assert!(root.forge().set_up().is_none());
+    let (mut root, _, _) = opened(true);
+    event(&mut root, Event::Forge(forge::Event::Served { served: forge::Served::OutOfDate }));
+    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }).is_empty());
+    assert!(root.forge().set_up().is_none());
+    assert!(!root.forge().setup_form().checked);
+}
+#[test]
+fn accepting_at_once_on_either_welcome_forge_address_moves_to_model() {
+    for choice in [None, Some(Choice::Forge(HERE))] {
+        let (mut root, _, _) = opened(true);
+        event(
+            &mut root,
+            Event::Went { place: Place::Address(Address::Welcome { step: Step::Forge { forge: choice } }) },
+        );
+        let (attempt, _, _) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }));
+        let out = reply(&mut root, attempt, w::Outcome::SettingUp);
+        let mut moved = false;
+        for request in &out {
+            if let Request::Show { address: Address::Welcome { step: Step::Model { way: None } }, replace: false } =
+                request
+            {
+                moved = true;
+            }
+        }
+        assert!(moved, "accepted setup opens Model");
+    }
+}

@@ -19,6 +19,7 @@ pub enum Meaning {
     ConnectManifest { forge: u16, back: temper_client_domain::Address },
     Install { forge: u16, back: temper_client_domain::Address },
     SetUp(u16),
+    SetUpAtOnce(u16),
     SetupField(forge::forges::SetupField),
     StartIn(u16),
     Picker { forge: u16, act: forge::picker::Act },
@@ -84,6 +85,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::Home => Action::Forge(forge::Act::Home),
                 Meaning::Ci => Action::Forge(forge::Act::Ci),
                 Meaning::SetUp(forge) => Action::Forge(forge::Act::SetUp { forge }),
+                Meaning::SetUpAtOnce(forge) => Action::Forge(forge::Act::SetUpAtOnce { forge }),
                 Meaning::ConnectAdmin(forge) => Action::Forge(forge::Act::ConnectAdmin { forge }),
                 Meaning::ConnectApp(forge) => Action::Forge(forge::Act::ConnectApp { forge }),
                 Meaning::ConnectManifest { forge, back } => Action::Forge(forge::Act::ConnectManifest {

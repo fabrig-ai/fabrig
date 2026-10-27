@@ -53,7 +53,7 @@ fn owned_fixture(runner: Option<&[u8]>) -> (Joint, Root) {
     h::event(
         &mut front,
         &mut root,
-        Temper::start(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(1)) } }, Vec::new(), 0),
+        Temper::start(Address::ConnectForge { forge: Some(Choice::Forge(1)) }, Vec::new(), 0),
     );
     (front, root)
 }
@@ -101,6 +101,7 @@ fn act(front: &mut Joint, root: &mut Root, role: skein_ui::Role, name: &[u8], ac
 fn owned_setup_progress_names_both_pins_on_welcome_and_standalone() {
     let (mut front, mut root) = owned_fixture(Some(b"64.5.6"));
     act(&mut front, &mut root, skein_ui::Role::Button, b"Set up a Forgejo here", skein_ui::Act::Press);
+    h::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Model { way: None } }));
     let (forge, request) = front.set_ups()[0];
     front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
         forge,
@@ -157,17 +158,12 @@ fn owned_missing_runner_pin_keeps_the_progress_unversioned() {
 }
 
 #[test]
-fn owned_details_without_pins_use_the_same_fallback_in_both_flows() {
+fn owned_details_without_pins_use_the_fallback_on_connect_a_forge() {
     let (mut front, mut root) = h::forge_fixture(fixtures::SEED);
-    for at in [
-        Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(1)) } },
-        Address::ConnectForge { forge: Some(Choice::Forge(1)) },
-    ] {
-        h::event(&mut front, &mut root, Temper::went(at));
-        let shown = text(&root);
-        assert!(shown.contains("downloads Forgejo and its runner"), "{shown}");
-        assert!(!shown.contains("71.2.3"), "{shown}");
-    }
+    h::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: Some(Choice::Forge(1)) }));
+    let shown = text(&root);
+    assert!(shown.contains("downloads Forgejo and its runner"), "{shown}");
+    assert!(!shown.contains("71.2.3"), "{shown}");
 }
 
 #[test]
@@ -179,7 +175,7 @@ fn accepted_owned_setup_keeps_its_target_on_model_before_box_status_arrives() {
         &mut root,
         Temper::went(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(1)) } }),
     );
-    act(&mut front, &mut root, skein_ui::Role::Button, b"Set up a Forgejo here", skein_ui::Act::Press);
+    act(&mut front, &mut root, skein_ui::Role::Button, b"Run on this machine", skein_ui::Act::Press);
     let (forge, request) = front.set_ups()[0];
     // Admission precedes the box's first status: the request still supplies the target.
     front.engine.send(engine::Event::Forge(Box::new(forge::Event::SetUpAnswered {
@@ -196,5 +192,5 @@ fn accepted_owned_setup_keeps_its_target_on_model_before_box_status_arrives() {
         }),
         "{shown}"
     );
-    assert!(shown.contains("work/hello, into the new project hello"), "{shown}");
+    assert!(shown.contains("work/hello, into the new project Default"), "{shown}");
 }

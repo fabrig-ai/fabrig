@@ -354,13 +354,7 @@ pub(crate) fn set_up(
     forge: u16,
     out: &mut skein_lib::Queue<super::Request>,
 ) {
-    let Some(party) = side.party else { return };
-    if side.served == super::Served::OutOfDate {
-        return;
-    }
-    if let Some(last) = &side.set_up
-        && last.progress.is_some()
-    {
+    if !can_set_up(side) {
         return;
     }
     let previous = retry_fields(side, forge);
@@ -376,6 +370,56 @@ pub(crate) fn set_up(
             (draft.fields[0].clone(), draft.fields[1].clone(), SetUpProject::New(draft.fields[2].clone()), false)
         }
     };
+    send_setup(side, limits, forge, SetupValues { playground, org, repository, project }, out);
+}
+/// The welcome's set up under the box sends these, none of them asked
+/// (client/README.md, 3.5).
+pub const AT_ONCE_ORG: &[u8] = b"work";
+pub const AT_ONCE_REPOSITORY: &[u8] = b"hello";
+pub const AT_ONCE_PROJECT: &[u8] = b"Default";
+
+pub(crate) fn set_up_at_once(
+    side: &mut super::Side,
+    limits: super::Limits,
+    forge: u16,
+    out: &mut skein_lib::Queue<super::Request>,
+) {
+    if !can_set_up(side) {
+        return;
+    }
+    send_setup(
+        side,
+        limits,
+        forge,
+        SetupValues {
+            playground: false,
+            org: Box::from(AT_ONCE_ORG),
+            repository: Box::from(AT_ONCE_REPOSITORY),
+            project: SetUpProject::New(Box::from(AT_ONCE_PROJECT)),
+        },
+        out,
+    );
+}
+fn can_set_up(side: &super::Side) -> bool {
+    if side.party.is_none() || side.served == super::Served::OutOfDate {
+        return false;
+    }
+    if let Some(last) = &side.set_up
+        && last.progress.is_some()
+    {
+        return false;
+    }
+    true
+}
+fn send_setup(
+    side: &mut super::Side,
+    limits: super::Limits,
+    forge: u16,
+    values: SetupValues,
+    out: &mut skein_lib::Queue<super::Request>,
+) {
+    let Some(party) = side.party else { return };
+    let SetupValues { playground, org, repository, project } = values;
     let Some(ask) = ask(forge, org.clone(), repository.clone(), project.clone(), playground, &limits) else {
         return;
     };

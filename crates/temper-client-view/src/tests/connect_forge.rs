@@ -326,30 +326,22 @@ fn ready_names_the_forge_and_offers_adopt_a_repository() {
     assert_eq!(press(&root, Role::Link, b"Forges"), d::Action::Pages(pages::Act::Go { address: Address::Forges }));
 }
 #[test]
-fn the_welcomes_forge_step_is_choose_and_details() {
-    let mut root = f::forge_root(
-        Address::Welcome { step: Step::Forge { forge: None } },
-        rows(w::Connection::NotSetUp, w::Offer::Offered),
-    );
-    assert_eq!(
-        press(&root, Role::Link, b"Run on this machine"),
-        d::Action::Pages(pages::Act::Go {
-            address: Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(HERE)) } }
-        })
-    );
-    f::root_event(
-        &mut root,
-        d::Event::Went {
-            place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(HERE)) } }),
-        },
-    );
-    let view = f::page_view(&root);
-    node(view.tree(), Role::Button, b"Set up a Forgejo here");
-    assert_eq!(
-        press(&root, Role::Link, "‹ Back".as_bytes()),
-        d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Forge { forge: None } } })
-    );
+fn the_welcome_runs_owned_forgejo_without_details_at_either_address() {
+    for choice in [None, Some(Choice::Forge(HERE))] {
+        let root = f::forge_root(
+            Address::Welcome { step: Step::Forge { forge: choice } },
+            rows(w::Connection::NotSetUp, w::Offer::Offered),
+        );
+        let view = f::page_view(&root);
+        node(view.tree(), Role::Region, b"Forgejo");
+        assert!(f::find(view.tree(), Role::TextField, b"Organization").is_none());
+        assert_eq!(
+            press(&root, Role::Button, b"Run on this machine"),
+            d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE })
+        );
+    }
 }
+
 #[test]
 fn a_forge_under_way_is_no_choice_in_the_welcome() {
     let root = f::forge_root(
@@ -2367,4 +2359,79 @@ fn the_connected_forge_and_repository_picker_offer_their_links_as_terminal_comma
             }))
         );
     }
+}
+
+fn welcome_owned(offer: w::Offer) -> d::Domain {
+    f::forge_root(
+        Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(HERE)) } },
+        rows(w::Connection::NotSetUp, offer),
+    )
+}
+#[test]
+fn welcome_run_is_disabled_while_setup_is_pending_or_out_of_date() {
+    for pending in [true, false] {
+        let mut root = welcome_owned(w::Offer::Offered);
+        if pending {
+            act(&mut root, d::forge::Act::SetUpAtOnce { forge: HERE });
+        } else {
+            drive(&mut root, d::Event::Forge(d::forge::Event::Served { served: d::forge::Served::OutOfDate }));
+        }
+        let view = f::page_view(&root);
+        assert!(has_state(view.tree(), Role::Button, b"Run on this machine", State::Disabled));
+    }
+}
+#[test]
+fn welcome_setup_refusals_follow_the_actions_inside_the_card_without_fields() {
+    for (why, refusal) in [
+        (w::SetUpRefusal::Busy, d::forge::forges::SetUpRefusal::Busy),
+        (w::SetUpRefusal::Invalid, d::forge::forges::SetUpRefusal::Invalid),
+    ] {
+        let mut root = welcome_owned(w::Offer::Offered);
+        let token = attempt(act(&mut root, d::forge::Act::SetUpAtOnce { forge: HERE }));
+        answer(
+            &mut root,
+            token,
+            w::Outcome::SetUpRefused(w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why }).unwrap()),
+        );
+        let view = f::page_view(&root);
+        let tree = view.tree();
+        let card = node(tree, Role::Region, b"Forgejo");
+        let actions = tree
+            .nodes()
+            .iter()
+            .position(|n| n.styles.as_slice().contains(&crate::look::FLOW_ACTIONS) && parent(tree, n.id) == Some(card))
+            .unwrap();
+        let after_actions = actions + usize::try_from(tree.nodes()[actions].size).unwrap();
+        let alert = &tree.nodes()[after_actions];
+        assert_eq!(alert.role, Role::Alert);
+        assert_eq!(parent(tree, alert.id), Some(card));
+        assert_eq!(alert.name.as_deref(), Some(d::forge::words::set_up_refusal(refusal)));
+        assert!(!tree.nodes().iter().any(|n| n.role == Role::TextField));
+        assert!(!root.forge().setup_form().checked);
+        assert!(!has_state(tree, Role::Button, b"Run on this machine", State::Disabled));
+    }
+}
+#[test]
+fn welcome_not_under_the_box_links_to_details_with_all_four_commands() {
+    let mut root = f::forge_root(
+        Address::Welcome { step: Step::Forge { forge: None } },
+        rows(w::Connection::NotSetUp, w::Offer::NotUnderTheBox),
+    );
+    let action = press(&root, Role::Link, b"Run on this machine");
+    let d::Action::Pages(pages::Act::Go { address }) = &action else { panic!("details link") };
+    let address = address.clone();
+    drive(&mut root, d::Event::Act { action });
+    drive(&mut root, d::Event::Went { place: d::Place::Address(address) });
+    let view = f::page_view(&root);
+    words_in_order(
+        view.tree(),
+        &[
+            "Set it up from a terminal",
+            "temper forge fetch 3",
+            "temper forge prepare 3",
+            "temper forge run 3 forgejo",
+            "temper forge run 3 runner",
+        ],
+    );
+    assert!(f::find(view.tree(), Role::Button, b"Run on this machine").is_none());
 }

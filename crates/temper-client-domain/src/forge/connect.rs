@@ -65,6 +65,25 @@ pub fn step(choice: Option<Choice>, rows: &State, demo: Option<&Demo>) -> Shown 
         }
     }
 }
+/// The welcome skips Details only for an offered owned Forgejo under the box.
+#[must_use]
+pub fn at_once(row: &Row) -> bool {
+    row.kind == Kind::Forgejo
+        && row.mode == Mode::Owned
+        && !row.admin
+        && row.connection == Connection::NotSetUp
+        && row.offer == Offer::Offered
+}
+#[must_use]
+pub fn welcome_step(choice: Option<Choice>, rows: &State, demo: Option<&Demo>) -> Shown {
+    if let Some(Choice::Forge(number)) = choice
+        && let Some(row) = row(number, rows, demo)
+        && at_once(row)
+    {
+        return Shown::Choose;
+    }
+    step(choice, rows, demo)
+}
 #[must_use]
 pub(crate) fn admin_stopped(row: &Row) -> bool {
     if let Connection::Stopped { .. } = row.connection {

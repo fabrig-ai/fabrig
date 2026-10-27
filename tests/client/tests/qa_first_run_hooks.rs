@@ -2,7 +2,7 @@
 use jig_client_world::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};
-use temper_client_domain::{Address, Step};
+use temper_client_domain::{Address, Choice, Step};
 use temper_client_protocol_wire::v1 as wire;
 use temper_client_world::{
     app::{Root, Temper, View},
@@ -95,12 +95,12 @@ fn failed_steps(tree: &Tree) {
 #[test]
 fn qa_fifth_setup_step_fails_on_welcome_and_forges() {
     let (mut front, mut root) = harness::forge_fixture(fixtures::SEED);
-    press(&mut front, &mut root, Role::Link, b"Set up temper");
-    press(&mut front, &mut root, Role::Link, b"Run on this machine");
+    harness::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: Some(Choice::Forge(1)) }));
     for (name, value) in [(b"Organization".as_slice(), b"acme".as_slice()), (b"Repository", b"shop")] {
         act(&mut front, &mut root, Role::TextField, name, skein_ui::Act::Input { value: value.into() });
     }
     press(&mut front, &mut root, Role::Button, b"Set up a Forgejo here");
+    harness::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Model { way: None } }));
     let (forge, request) = *front.set_ups().last().expect("setup reached the fake host");
     front.engine.send(engine::Event::Forge(Box::new(forge::Event::SetUpAnswered {
         forge,

@@ -88,7 +88,7 @@ fn model_names_the_new_project_while_forgejo_sets_up() {
         Address::Welcome { step: Step::Forge { forge: None } },
         forge::rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
-    f::root_event(&mut root, d::Event::Act { action: d::Action::Forge(d::forge::Act::SetUp { forge: HERE }) });
+    f::root_event(&mut root, d::Event::Act { action: d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE }) });
     // The setup request supplies the names until the watch's row carries them.
     forge::deliver(
         &mut root,
@@ -103,7 +103,7 @@ fn model_names_the_new_project_while_forgejo_sets_up() {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
     );
     let view = f::page_view(&root);
-    line_before_model(view.tree(), "Forgejo on this machine · Setting up · work/hello, into the new project hello");
+    line_before_model(view.tree(), "Forgejo on this machine · Setting up · work/hello, into the new project Default");
     each_step(view.tree(), true);
 }
 
@@ -1134,13 +1134,13 @@ fn ready_offers_connect_a_model_as_a_terminal_command() {
 }
 
 #[test]
-fn welcome_forgejo_card_links_to_details_and_deployment_help() {
+fn welcome_forgejo_card_runs_under_the_box_and_links_to_details_elsewhere() {
     for (offer, time) in
         [(w::Offer::Offered, "Here · about a minute"), (w::Offer::NotUnderTheBox, "Needs four commands and a restart")]
     {
         let root = f::forge_root(
             Address::Welcome { step: Step::Forge { forge: None } },
-            forge::rows(w::Connection::NotSetUp, offer),
+            forge::rows(w::Connection::NotSetUp, offer.clone()),
         );
         let mut view = f::browser_page_view(&root);
         node(view.tree(), Role::Region, "Forgejo");
@@ -1160,7 +1160,8 @@ fn welcome_forgejo_card_links_to_details_and_deployment_help() {
                 .as_slice()
                 .contains(&crate::look::FLOW_MUTED)
         );
-        let run = node(view.tree(), Role::Link, "Run on this machine");
+        let role = if offer == w::Offer::Offered { Role::Button } else { Role::Link };
+        let run = node(view.tree(), role, "Run on this machine");
         assert!(
             view.tree()
                 .nodes()
@@ -1171,7 +1172,14 @@ fn welcome_forgejo_card_links_to_details_and_deployment_help() {
                 .as_slice()
                 .contains(&crate::look::FLOW_SECONDARY)
         );
-        assert_eq!(crate::href(&mut view, run).as_deref(), Some(b"/welcome?at=forge&forge=3".as_slice()));
+        if offer == w::Offer::Offered {
+            assert_eq!(
+                crate::act(&mut view, run, Act::Press),
+                Some(d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE }))
+            );
+        } else {
+            assert_eq!(crate::href(&mut view, run).as_deref(), Some(b"/welcome?at=forge&forge=3".as_slice()));
+        }
         let deployment = node(view.tree(), Role::Link, "Or connect your deployment");
         assert!(
             view.tree()
