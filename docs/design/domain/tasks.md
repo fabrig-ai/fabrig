@@ -1446,7 +1446,10 @@ that one task released and ending while the stop stands, and the stop
 lifted with its tasks; a coordinator parking a delegate until a news
 event, the hold lifting itself as the event's commit delivers it, and
 another parked until a time; a restart in the middle of a drain,
-draining on.
+draining on. With moving under a task, successors and a
+conversation's questions (section 7, 8.5), they open the stories of
+temper's reference case acts 4 to 6 (steps 7.2, 7.3, 8.1 to 8.3, 9.1
+and 9.2), which temper's worlds and rung C hold.
 
 Its stories of added dependencies (5.7; 6.7; section 7): the
 reordering, two tasks waiting for one write hold, the first given a
