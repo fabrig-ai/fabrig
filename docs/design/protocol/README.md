@@ -110,6 +110,8 @@ its tests and its lab, is section 15.
     temper's client.
 15. **documentation.md:** the user documentation compiled into the
     binary, `temper help`, and agents' `read_docs`.
+16. **tooling.md:** the contract with a project's own `prepare` and
+    `key` commands, run as jobs on a worker for a landing by turn.
 
 ## 3. Names
 

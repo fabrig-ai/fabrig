@@ -303,6 +303,13 @@ it, they are configured here.
   "artifact": string, "format": "junit" | "lines"}]}`, a repository at
   most once (`../domain/landing.md`, 13.1; `../domain/after-landing.md`,
   section 11).
+- **The turn's project settings,** designed, not built, beside `by`:
+  `prepare` and `key`, paths in the project's home, or absent for
+  temper's own; `home_revision`, the home's commit they run at;
+  `prepare_timeout`; `pins`, a list of `{"downstream": REPOSITORY,
+  "upstream": REPOSITORY}`, each a repository as `gates` names one;
+  `pins_follow_main`, false when absent; `dependencies_join`, true when
+  absent (`../domain/landing.md`, 4.1 and 5.3).
 
 A rule is a `LandingRule`, member for member:
 

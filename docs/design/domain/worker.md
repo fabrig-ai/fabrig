@@ -274,6 +274,36 @@ it a unit the tag does not identify.
   the nine call bounds. Other completion failures retain their `Model`
   classification.
 
+### 4.4 Jobs
+
+Designed, not built (jig's `domain/hosts.md`, 6.9). The worker's root
+composes a job capability, `temper-worker-domain-tooling`, beside smith's
+agent processes, and declares in its hello the kinds it runs:
+
+| Kind | What it runs | Its spec | Its result |
+|---|---|---|---|
+| 1, prepare | a landing's candidate for one repository (`landing.md`, 5.3): the project's prepare command, or temper's own rebase of a stack when the project names none | the repository, its main's tip, its members' heads in order, the upstream candidates and the pins between them, the command and the home's revision | the candidate's commit, or the conflict's member and files; each gate's key, when the project's key command is named |
+| 2, key | a gate's key at a candidate, by the project's key command (`landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
+
+- **In the checkout,** prepared from the job's items as a run's
+  workspace is (section 5): the repository at its main's tip, each
+  member's head fetched beside it, each upstream at its candidate, and
+  the project's home at the pinned revision, read-only.
+- **A command is a process** of the protocol layer's, its argument list
+  the contract's (`../protocol/tooling.md`), its directory the job's,
+  its environment free of credentials and of the worker's own, its
+  wall time the job's deadline, its output files bounded; it reaches no
+  forge, since the checkout fetched everything it reads.
+- **Then the delivery:** the candidate rewritten onto the branch the
+  items name as writable, with a lease on the head the items name
+  (`../protocol/git.md`, 4.10, `Rewrite`), the one push of temper's that
+  may not be a fast-forward, made only for a prepare job's candidate;
+  a lease refused fails the job as permanent until the branch is read
+  afresh, and the landing prepares again. The rewrite is the change's,
+  not drift (`forge.md`, 8.5). A key job delivers nothing.
+- **The worker's limits** bound a job's spec, its result, its output
+  files and its processes, and a job beyond them is refused as invalid.
+
 ## 5. Checkouts
 
 The checkout child domain is the worker's workspace capability (jig's

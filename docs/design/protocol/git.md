@@ -46,9 +46,10 @@ credentials.md's (section 4). What is open is listed in section 10.
   lines, NUL-separated paths and object ids. Standard error only
   classifies a failure, read in the C locale, and its tail is kept as the
   run's diagnostic (`PushDiagnostic`).
-- **Never forced.** A push moves a branch only as a fast-forward; an
-  expected head adds a compare-and-swap; a branch is created only where
-  none exists.
+- **Never forced,** but for one rewrite. A push moves a branch only as a
+  fast-forward; an expected head adds a compare-and-swap; a branch is
+  created only where none exists. The one exception is `Rewrite`
+  (4.10), a prepare job's candidate onto its branch, under a lease.
 - **Commits on the parents the domain names,** by git's plumbing
   (`write-tree`, `commit-tree`), so a merge always records both parents;
   HEAD stays where the checkout put it.
@@ -454,6 +455,23 @@ and other exits fail as `Broken`. The same command inside Push retains
 section 4.8's separate contract: exit 1 rejects that push. The checkout
 uses this operation to compare an existing producer head with the landing
 tip frozen by its prepare; the comparison alone is never a push receipt.
+
+
+### 4.10 Rewrite
+
+Designed, not built (`../domain/worker.md`, 4.4). `Rewrite { at,
+remote, commit, branch, expected, identity }`: the branch moved to
+`commit` only if it is still at `expected`, whether or not `commit`
+descends from it:
+
+```
+git push --porcelain --force-with-lease=refs/heads/<branch>:<e> -- <url> <commit>:refs/heads/<branch>
+```
+
+- **Only for a prepare job's candidate,** onto the change's own branch
+  or a landing's: the checkout refuses it for any other item.
+- **The lease is the guard:** a branch not at `e` is `Rejected`, and
+  nothing moves. `--force` and a `+` refspec are still never used.
 
 ## 5. Credentials and environment
 

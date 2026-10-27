@@ -871,6 +871,9 @@ branch. Its parameters:
 - **what to produce,** when nothing is pushed yet: the spec and charter
   of its producing task;
 - **its gates** (8.3);
+- **`with`,** under its project's turn: the changes it must land with,
+  in any repository and of any goal its requester may name
+  (`landing.md`, 4.1);
 - **the pull request's title and body,** or what to make them from, and
   the goal it is part of. The change's words are its spec, kept whole
   for its producer's brief and bounded by the task's own limits, never
@@ -1100,8 +1103,9 @@ the change reads the head afresh once the slot is freed. Otherwise:
   when. A release reopens it; a cancel closes the change.
 - **Its branch moved** while nothing of temper's writes it, or by another
   identity, or not forward: held, the head kept as it is. Under its
-  project's turn, the rebase its own prepare asked for is the change's
-  (`landing.md`, 5.2). A release
+  project's turn, the rewrite its own prepare made is the change's: the
+  forge's rebase (`landing.md`, 5.2) or a prepare job's delivery
+  (`worker.md`, 4.4). A release
   takes the new head as the change's and checks it, gates asked again.
 - **Its branch deleted:** held. A release creates the branch again at
   the head temper last knew, which the forge keeps under the pull
@@ -1428,6 +1432,8 @@ instead (`landing.md`, section 5).
   - a change's own branch: `temper/<root>/c<task>`;
   - a task's saved work: `temper/<root>/s<task>`, never the change's
     branch, so it starts no CI and moves no pull request;
+  - a landing's own branch, for a pin-only member: `temper/<root>/l<task>`,
+    the landing's task, held by the landing (`landing.md`, 4.1);
   - an agent's task's own branch, for runs that push outside a change,
     as a chat making a small fix does: `temper/<root>/r<task>`, in each
     repository its runs may write, the project's home among them, which

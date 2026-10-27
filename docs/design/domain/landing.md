@@ -94,9 +94,9 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   pushed.
 - **Then its landing's phases:** preparing, proving and the turn are
   the landing's (sections 5 to 8). The change steps on its landing's
-  news, and makes the effects on its own branch and pull request that
-  the landing asks of it, under its own hold and authority: the
-  prepare's update and the turn's merge.
+  news, and makes what its landing asks of it on its own branch, under
+  its own hold: the forge's rebase (5.2), or a prepare job delegated
+  (5.3). The turn's merge of its pull request is the landing's (8).
 - **Repairing** (`forge.md`, 8.4): a gate's real failure at the
   candidate, given its failing output. Its new head makes the change
   ready again, and the landing prepares again.
@@ -126,17 +126,31 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   the last one's branch carrying the stack.
 - **From any goals.** Each member stays its own goal's: its repairs and
   resolutions are its change's delegates, under that goal.
-- **How changes join one** (designed; built after the landing of one):
-  - **`with`:** a change names the changes it must land with, when it
-    is made or by an amendment of a task that may name the other one
-    (jig's `domain/tasks.md`, section 7's rule for dependencies). `with`
-    is symmetric and transitive.
+- **How changes join one:**
+  - **`with`:** a change names the changes it must land with, a
+    parameter of its own (`forge.md`, 8.1), when it is made or by an
+    amendment of a task that may name the other one (jig's
+    `domain/tasks.md`, section 7's rule for dependencies). `with` is
+    symmetric and transitive: the connector joins the closure into one
+    landing, and a change is ready to land only when every change of its
+    closure is.
   - **A dependency across repositories** joins its two changes, unless
     the project's setting says such dependencies only order them.
+    Joined, it orders their preparation and their merges, upstream
+    first, and never keeps the dependent from its landing: the merges
+    are the landing's, which has no dependency (section 8). The
+    dependent's result still waits for its dependency's, as jig's
+    dependencies order results (jig's `domain/tasks.md`, 5.7).
   - **Pin-only members:** where the project keeps downstream pins at
-    their upstream's main, prepare adds a member in each downstream
-    repository whose only change is the bumped pin, with a branch and a
-    pull request of its own (5.3).
+    their upstream's main, a landing with a member upstream gains a
+    member in each downstream repository the project's pins name that
+    has none of its own, whose only change is the bumped pin, on a
+    branch the landing makes and holds, `temper/<root>/l<task>`, with a
+    pull request of its own that the landing opens (5.3; `forge.md`,
+    11). It has no change task: its prepare job is the landing's
+    delegate, its gates are its repository's test gates, with no
+    judgement gate, its merge is the landing's, and its branch is
+    deleted as the landing closes.
 - **Ready** when every member is ready (section 3). A member that goes
   back to repairing or resolving takes its landing back to preparing
   once it is ready again; the other members keep what holds.
@@ -219,29 +233,39 @@ For a project with no prepare command, one member per repository:
   checks no head); a head moved by another identity at any other time
   is drift.
 
-### 5.3 The project's tooling (designed; built after the landing of one)
+### 5.3 The project's tooling, and stacks
 
-- **Two commands,** `prepare` and `key`, named by the project's
-  settings (section 13) as paths in the project's home, run at a
-  revision of the home the settings pin, on a worker, with a timeout,
-  with no model and no forge credentials in their environment.
-- **The worker gives them** a directory per repository, fetched at its
-  main's tip, with each member's head fetched beside it, and a file
-  naming the members, the tips and the pin graph. It fetches and pushes
-  itself; the commands never reach the forge.
-- **`prepare` writes** each repository's candidate as a commit in its
-  directory, or a conflict with its files, and may rebase, merge, bump
-  a downstream's pin to its upstream's candidate, regenerate derived
-  files and settle conflicts its rules know. **`key`**, given a
-  candidate and a gate, writes its key, when a gate reads more than its
-  tree.
-- **The worker pushes** each candidate to its member's branch with a
-  lease on the head temper last read, and a pin-only member's to a
-  branch of its own under temper's prefix; a stack to its last
-  member's branch.
-- **Its contract** (the files, their formats, the environment, the
-  exit codes) is a protocol document of its own, designed with the
-  landing across repositories.
+- **Per repository, upstream first.** A landing whose project names a
+  prepare command, or with a stack of several members in a repository,
+  prepares each repository by a job (`worker.md`, 4.4), in the order of
+  the project's pins, upstream first: a downstream's job starts once
+  its upstreams' candidates are known, and is given them.
+- **Delegated by the task that holds the branch it writes,** so the job
+  writes under its holder's hold (jig's `domain/tasks.md`, 6.1): the
+  last member's change, for a repository with members, asked by its
+  landing as it asks for the forge's rebase (5.2); the landing itself,
+  for a pin-only member's branch, which the landing makes and holds
+  (`forge.md`, 11).
+- **The job runs the project's command,** at the home's pinned
+  revision, with no model and no forge credentials, or, with none
+  named, temper's own rebase of the stack in dependency order. It may
+  rebase or merge, bump a downstream's pin to its upstream's candidate,
+  regenerate derived files and settle conflicts its rules know.
+- **Its result** is the candidate, pushed by the worker to the branch
+  with a lease on the head temper last read (`worker.md`, 4.4), or the
+  conflict: the member, its files, and the main's tip, kept in the
+  landing's state. The conflict makes a resolution under that member
+  (section 3), whose workspace is main's tip merged into the member's
+  head with those files marked, made afresh from the forge, never the
+  job's discarded one; its pushed merge contains main's tip, and the
+  next prepare takes it. And each gate's key when the project's key
+  command is named (6.1).
+- **A job's own failure** (a command that fails, times out or writes
+  what the contract refuses) is the project's, not a member's: it is
+  tried again within the job's tries, then holds the landing, saying
+  so, and its members' goals hear it.
+- **Its contract** (the arguments, the files, their formats, the
+  environment, the exit codes) is `../protocol/tooling.md`.
 
 ## 6. Keys and receipts
 
@@ -266,8 +290,12 @@ For a project with no prepare command, one member per repository:
   bytes, as skein's vocabulary carries every id, a SHA-1 one padded.
 - **Read from the forge:** the top reads the trees it needs (the root,
   and each directory above an ignored path) with skein's `Read::Tree`,
-  and the landing computes the key. A project's `key` command gives its
-  own instead (5.3).
+  and the landing computes the key.
+- **A project's `key` command** gives its own instead: in its prepare
+  job's result when the project names a prepare command too, and
+  otherwise by a key job (`worker.md`, 4.4) per repository and gate at
+  the candidate, delegated by the landing; the engine reads only the
+  job's result.
 - **A judgement gate's key** is not a tree: it is the gate and the head
   its verdict was given at, carried over clean prepares (section 3).
 
@@ -365,19 +393,23 @@ For a project with no prepare command, one member per repository:
   did, keep their candidates and receipts.
 - **Then each member lands, upstream first,** by the forge's merge of
   its pull request, fast-forward only, at exactly its candidate
-  (skein's `Write::Merge { how: FastForwardOnly }`), made in the
-  member change's name and judged by the landing rules (`forge.md`,
-  8.7, where `ci` is the test gates by receipt at the candidate). Each
-  merge's outcome is read back: main's tip is the candidate.
+  (skein's `Write::Merge { how: FastForwardOnly }`), made by the
+  landing task and judged by the landing rules (`forge.md`, 8.7, where
+  `ci` is the test gates by receipt at the candidate), a pin-only
+  member's pull request as any other. Each merge's outcome is read
+  back: main's tip is the candidate, and its member is landed.
 - **Nothing runs inside the turn:** no gate, no prepare, no run of an
   agent's. A merge refused or uncertain is settled as `forge.md`,
   section 6 settles any merge.
-- **Partial** (designed; built with several repositories): if the turn
+- **Partial:** if the turn
   ends with some members landed (a forge's error, a main moved by
-  someone outside temper), the landed members stay landed; a
-  downstream not landed still pins its upstream's previous commit, a
-  consistent state; the rest of the landing prepares and proves again,
-  and takes the turn again.
+  someone outside temper), the landed members stay landed, each
+  repository's landed commit kept in the landing's state; a downstream
+  not landed still pins its upstream's previous commit, a consistent
+  state. The rest prepares and proves again, each landed upstream given
+  as its main and its candidate at once, its landed commit, so that a
+  downstream's pin bump points at what landed; then takes the turn
+  again for the repositories not landed.
 - **Never a rebase or squash merge** where others pin the repository:
   the pinned commit must stay on its main.
 - **No turn without a fast-forward:** a project whose forge cannot
@@ -420,14 +452,16 @@ Two kinds join `forge.md`'s section 6, each a row of its own:
 - **Two change their parameters:** the merge (kind 4) carries how it
   merges, the repository's style or fast-forward only; the update
   (kind 11), merge or rebase.
-- **The landing's own effects** are its dispatches, reruns and statuses
-  (kinds 16, 17 and 6), on the repositories of its members; its
-  members' updates and merges are theirs (kinds 11 and 4, which a
-  change holds already), under their holds.
+- **The landing's own effects** are its dispatches, reruns, statuses and
+  merges (kinds 16, 17, 6 and 4), on the repositories of its members,
+  and, for a pin-only member, its branch's creation and deletion and
+  its pull request's opening and closing (kinds 9, 15, 3 and 12); its
+  members' rebases are theirs (kind 11, which a change holds already),
+  under their holds.
 - **The grant:** the project's policy gives the landing procedure kinds
-  6, 16 and 17 on the project's repositories, as it gives a queue's
-  repair its kinds (`forge.md`, section 9); temper's root grants them
-  to each landing task it makes.
+  3, 4, 6, 9, 12, 15, 16 and 17 on the project's repositories, as it
+  gives a queue's repair its kinds (`forge.md`, section 9); temper's
+  root grants them to each landing task it makes.
 - **A purpose of its own,** tag 6 in `forge.md`'s table: a landing's
   step, its task (8 bytes), the member (2), the gate (2), the
   operation (1: a dispatch, a rerun, a pending status, a verdict's
@@ -439,9 +473,11 @@ Two kinds join `forge.md`'s section 6, each a row of its own:
 ## 12. In the store
 
 - **`Landing`,** keyed by its task: its project, phase, members (each
-  repository, change task, pull request, the head prepared from, the
-  main tip, the candidate, and each gate's key and state), when its
-  proof completed, its stale proofs and its faults per key.
+  repository, change task or none for a pin-only member, pull request,
+  the head prepared from, the main tip, the candidate, and each gate's
+  key and state), its jobs in flight, a conflict (member, files, main's
+  tip), each repository's landed commit once landed, when its proof
+  completed, its stale proofs and its faults per key.
 - **`Receipt`,** keyed by the project, the repository, the gate and the
   key: the verdict, the run, the candidate and the time.
 - **A change's state** grows its landing, its clean prepares' heads and
