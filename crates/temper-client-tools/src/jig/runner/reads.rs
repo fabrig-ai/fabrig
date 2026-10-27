@@ -82,24 +82,7 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
                 watch(runner, &mut reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
             }
         }
-        4 => {
-            let mut thread = Thread::new(
-                task,
-                &thread::Limits { lines: env.limits.rows, bytes: env.limits.ask_bytes, text: env.limits.text },
-            );
-            let next = match cursor(&reading.called.call, 1) {
-                Some(cursor) => {
-                    thread.lines.edges.after = thread::window::Edge::More(cursor);
-                    thread.older()
-                }
-                None => thread.moved(1),
-            };
-            if let Some(next) = next {
-                read(runner, &mut reading, 1, next, out);
-            }
-            reading.thread = Some(thread);
-            watch(runner, &mut reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
-        }
+        4 => thread_start(runner, env, &mut reading, task, out),
         5 => {
             let before = cursor(&reading.called.call, 1);
             read(runner, &mut reading, 1, c::Read::Activity { task, before }, out);
@@ -142,6 +125,24 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         _ => unreachable!("read tool"),
     }
     runner.active.insert(reading.called.call_number, reading);
+}
+fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task: u64, out: &mut Queue<Out>) {
+    let mut thread = Thread::new(
+        task,
+        &thread::Limits { lines: env.limits.rows, bytes: env.limits.ask_bytes, text: env.limits.text },
+    );
+    let next = match cursor(&reading.called.call, 1) {
+        Some(cursor) => {
+            thread.lines.edges.after = thread::window::Edge::More(cursor);
+            thread.older()
+        }
+        None => thread.moved(1),
+    };
+    if let Some(next) = next {
+        read(runner, reading, 1, next, out);
+    }
+    reading.thread = Some(thread);
+    watch(runner, reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
 }
 pub(crate) fn project(call: &Call, me: &c::Me) -> Option<u32> {
     match value(call, 0) {
