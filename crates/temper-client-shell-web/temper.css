@@ -852,6 +852,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-welcome-step { border-top: 3.25px solid var(--temper-line); padding-top: 9.75px; font-size: 10.83px; color: var(--temper-faint); }
 .temper-welcome-step[aria-current] { border-color: var(--temper-accent); color: var(--temper-accent-dark); font-weight: 700; }
 .temper-welcome-lead { margin: 13px 0 26px; }
+.temper-welcome-lead:has(+ .temper-welcome-lead) { margin-bottom: 0; }
+.temper-welcome-lead + .temper-welcome-lead { margin-top: 0; }
 .temper-welcome-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17.33px; }
 .temper-welcome-card { border: 1px solid var(--temper-line); border-radius: 5.42px; background: var(--temper-paper); padding: 16.25px 19.5px; display: flex; flex-direction: column; align-items: flex-start; }
 .temper-welcome-card > button, .temper-welcome-card > a { margin-top: auto; display: inline-flex; border: 1px solid var(--temper-accent); border-radius: 5.42px; padding: 7.58px 11.92px; background: var(--temper-paper); color: var(--temper-accent-dark); }
