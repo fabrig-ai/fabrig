@@ -6,9 +6,10 @@ use temper_engine_domain_forge as forge;
 fn the_application_sizes_are_the_largest_key_and_row() {
     // Change's eight remarks hold 4096 bytes each; eight failure counts add 100 bytes.
     // Authority causes add 42 bytes to each of eight holds, drift and released.
+    // Terminal CI adds a presence byte, a 32-byte head and a one-byte status.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
-        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 35_933 })
+        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 35_967 })
     );
 }
 #[test]
@@ -81,6 +82,6 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&after), Some(7705));
     assert_eq!(crate::v10::IssueRow::worst_case_heap(&before), Some(5888));
     assert_eq!(crate::v10::IssueRow::worst_case_heap(&after), Some(7936));
-    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(35_933));
-    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(35_933));
+    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(35_967));
+    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(35_967));
 }

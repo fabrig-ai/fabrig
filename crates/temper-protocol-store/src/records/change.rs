@@ -428,6 +428,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         body,
         priority,
         change,
+        ci,
         pull,
         pending,
         effect,
@@ -453,6 +454,16 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             body: body.clone(),
             priority: u32::from_be_bytes(priority.to_be_bytes()),
             change: encode_change(change),
+            ci: match ci {
+                Some(read) => Some(
+                    w::ChangeCi::new(
+                        &w::CEILINGS,
+                        w::ChangeCiParts { head: read.head, status: encode_status(read.status) },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
             pull: *pull,
             pending: *pending,
             effect: encode_effect_result(*effect),
@@ -493,6 +504,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         body,
         priority,
         change,
+        ci,
         pull,
         pending,
         effect,
@@ -516,6 +528,13 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         body,
         priority: i32::from_be_bytes(priority.to_be_bytes()),
         change: decode_change(change),
+        ci: match ci {
+            Some(read) => {
+                let w::ChangeCiParts { head, status } = read.into_parts();
+                Some(d::Ci { head, status: decode_status(status) })
+            }
+            None => None,
+        },
         pull,
         pending,
         effect: decode_effect_result(effect),

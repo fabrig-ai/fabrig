@@ -1743,6 +1743,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                     None => context.spec.words.clone(),
                 },
                 priority,
+                ci: None,
                 change: forge_change::Change {
                     task,
                     state: forge_change::State::Producing { requested: false },

@@ -620,6 +620,8 @@ pub struct ChangeRow {
     pub body: Box<[u8]>,
     pub priority: i32,
     pub change: change::Change,
+    /// Last exact-head CI observation retained when the change lands or ends (domain/forge.md, 8.8).
+    pub ci: Option<change::Ci>,
     pub pull: Option<u64>,
     pub pending: Option<u64>,
     pub effect: change::EffectResult,
@@ -640,6 +642,11 @@ pub struct ChangeRow {
     /// Charter numbers captured when the change is made (protocol/configuration.md, 13.6).
     pub producing_charter: u32,
     pub review_charter: u32,
+}
+impl ChangeRow {
+    pub(crate) fn terminal(&self) -> bool {
+        matches!(self.change.state, change::State::Landed { .. } | change::State::Ended)
+    }
 }
 /// One gate's explanation, retained with its verdict for a repair brief.
 #[derive(Clone, PartialEq, Eq, Debug)]
