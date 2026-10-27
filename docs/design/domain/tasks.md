@@ -999,6 +999,51 @@ circle, each for another of the set, so that none of them could end.
   it as for a delegate. It becomes the root of a tree of the party's, so
   a move needs their escalations to have a holder, as their batch does
   (section 4).
+- **Moving a task under another task,** designed, not built (draft
+  process-model.md, J5): whoever may amend both a live task and another
+  live task may make the second the first's requester. The second must
+  not be the first or below it, must be in the same project, and must
+  have the depth and delegates' room the move needs; the tree it makes
+  must close no circle of waits, checked as 6.7 checks a new wait (a
+  task moved under one it depends on is refused, naming the circle);
+  the first's authority must be within the second's, or the move is
+  refused, naming what it lacked, and may be proposed. Its reservation
+  is taken from the new requester's available budget, in the move's
+  decision, and refused, naming the shortfall, when it is not there;
+  what it spent stays its old funder's. Its results, questions and
+  escalations go to the new requester from then on; the old requester
+  keeps a reference to it, and does not wait for it as for a delegate.
+  A party's `Move` and a run's `move` make it (people.md, 5.1;
+  engine.md, 7.3).
+- **A successor,** designed, not built (J6): a live task in the same
+  project that takes on what an ended task leaves.
+  - *Named in the result,* by the ending task: one it references (a
+    delegate of its requester it was introduced to, or its own
+    delegate's), within the reach an amendment's dependency has
+    (above).
+  - *Named later,* while the ended task's handoff record lives (below):
+    by its requester, a task above it, or a party in whose tree it is,
+    or a maintainer, naming a live task within their own reach.
+  - *What goes to it,* in the decision that names it, admitted whole
+    against its bounds (its inbox's messages and bytes, its open
+    questions, its subscriptions) or refused whole, naming the bound:
+    the open questions the ended task left (below), each keeping its
+    identity, so that its answer is delivered once, to the successor;
+    the news the ended task kept unread, as news; its notes, by a
+    reference to their scope (engine.md, section 10); and, only when
+    named in the result, its subscriptions. Its requester still hears
+    its result.
+- **Questions outlive their asker,** designed, not built: a task that
+  finishes done or failed with person tasks still open that ask in
+  words detaches them in its finish's decision, before its closing
+  waits for its delegates (5.1), so that they never keep it from
+  ending. They move to its successor if its result named one, and
+  otherwise stay in a handoff record of the ended task's, which keeps
+  its stub until they end or a successor takes them. An answer to one
+  reaches the successor, if one has been named by then, as the answer
+  to the question; otherwise its requester, as news naming the question
+  and the ended task. A cancelled task's questions are cancelled with
+  it.
 - **Several operations, one decision.** A party's compound request
   (people.md, 5.1) cancels, moves, amends, releases, messages and stops
   in one decision, all or none: so a conversation is closed in one
@@ -1147,6 +1192,15 @@ connectors offer for goals are the core's to keep, not its executor's
 - **Parties** message the tasks their role lets them see (people.md,
   section 5).
 - **No broadcast.** Who may talk to whom stays visible and bounded.
+- **A conversation's questions,** designed, not built (draft
+  process-model.md, J7 and J8): a question a delegate asks its
+  requester that is a conversation is the conversation's alone: it
+  wakes it, and is no entry of its person's. The conversation answers
+  it itself, in the answer form, or asks its own person in its own
+  words: by a person task addressed to its requester, asking in words
+  (people.md, section 8), which its charter's authority allows, an
+  entry of that party's inbox, whose answer reaches the conversation
+  as that delegate's result.
 
 ## 9. Proposals and escalations
 

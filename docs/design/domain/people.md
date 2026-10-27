@@ -334,7 +334,8 @@ The operations as the client sends them are
 | `Stop` | the task in their tree, or maintainer | its run cancelled and its task held for a party's stop; designed, not built: a placed hold of theirs in the stop mode over the task's subtree (tasks.md, 5.9) |
 | `Hold`, designed, not built | a mode, stop or drain; a scope, a task in their tree (or maintainer) for its subtree, or the project for a maintainer; a reason; never in a compound request | a placed hold of theirs (tasks.md, 5.9), its number and revision answered |
 | `Lift`, designed, not built | a placed hold they may lift (tasks.md, 5.9); its revision; whether every task it holds that nothing else holds is released with it; never in a compound request | the hold ended; with the release, those tasks judged afresh |
-| `Move` | they may amend the task; a holder for its escalations (below) | the party its requester, funded from their pool (tasks.md, section 7) |
+| `Move` | they may amend the task; a holder for its escalations (below); designed, not built: or another live task they may amend, as its new requester | the party its requester, funded from their pool (tasks.md, section 7); or the task its requester, funded from its funding |
+| `Succeed`, designed, not built | a task in their tree that ended, or any of the project's for a maintainer, while its handoff record lives; a live task within their reach | the live task its successor, what passes to it admitted whole (tasks.md, section 7) |
 | `Decide` | the proposal or escalation waiting for them, as the requester of its tree or in a role the policy names; for an escalation, its hold's revision; for a proposal of settings, whether running work moves | accepted, if their authority covers it, and funded from their pool (authority.md, section 9: a batch's tasks, an effect's price, the task an amendment or a widening changes), or, for a proposal of settings, by an owner of each item it names, funding nothing (engine.md, 17.6); rejected, with a reason; or passed up (tasks.md, section 9) |
 | `Answer` | addressed to them or their role; a person task's revision as they saw it; for a person task, none of its dependencies pending (section 8) | an answer to a question, or a person task's result (section 8) |
 | `Take`, `HandBack` | a person task addressed to a role they hold | held by them, so no other answers it; or back to the role (section 8) |
@@ -603,6 +604,9 @@ What waits for a party, across every project they hold a role in, each
 entry naming the task or proposal it is and its project:
 
 - **questions** from tasks they asked for, conversations included;
+  designed, not built: but a question a delegate asks a conversation,
+  which stays with the conversation, which answers it or asks its
+  person itself in its own words (J7, J8);
 - **proposals** routed to them, or to a role they hold;
 - **escalations** that reached them: a held task nobody below could
   decide;
@@ -728,7 +732,10 @@ entry naming the task or proposal it is and its project:
 - **What a chat does:** answers; delegates; hands work to a procedure; or
   proposes a goal, which its requester accepts in the conversation, as a
   proposal in their inbox, and which is theirs once accepted, not the
-  chat's (tasks.md, section 9).
+  chat's (tasks.md, section 9). Designed, not built: it answers its
+  delegates' questions, which stay with it, and asks its person a
+  question of its own by a person task addressed to them, in their
+  inbox (tasks.md, 8.5).
 - **What it waits on** is the engine's, computed with the tree and the
   inbox (tasks.md, section 3); **its status** (its phase, its run and
   what it waits on, read together) is a fact jig's helpers derive from

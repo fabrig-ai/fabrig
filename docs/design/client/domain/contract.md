@@ -213,7 +213,8 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Stop` | a task | its run cancelled, the task held for the party; designed, not built: a placed hold of the party's, stop, over the task's subtree (`../../domain/tasks.md`, 5.9) |
 | `Hold`, designed, not built | a mode, `Stop` or `Drain`; a scope, `Subtree(task)` or `Project`; a reason | a placed hold, its number and revision answered (`../../domain/tasks.md`, 5.9) |
 | `Lift`, designed, not built | a placed hold by its number; its revision; `with_tasks` | the hold ended; with `with_tasks`, each task it held that nothing else holds released |
-| `Move` | a task the party may amend; a reason | the party its requester, its reservation moved to their pool (`../../domain/tasks.md`, section 7) |
+| `Move` | a task the party may amend; a reason; designed, not built: a live task the party may amend as its new requester | the party its requester, its reservation moved to their pool (`../../domain/tasks.md`, section 7); or that task its requester |
+| `Succeed`, designed, not built | an ended task in the party's tree, a live task in their tree | the live task the ended one's successor (`../../domain/tasks.md`, section 7) |
 | `Decide` | a proposal, by its proposer and number: accept, for a proposal of settings with whether running work moves, reject with a reason, or pass up; or an escalation, by its held task and its hold's revision: release, leave held with a reason, or pass up | as `../../domain/tasks.md`, section 9 has it; or decided first, by whom and how |
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
