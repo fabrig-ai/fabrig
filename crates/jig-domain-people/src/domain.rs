@@ -52,18 +52,25 @@ pub(crate) struct PartyPending {
 pub(crate) enum Pending {
     Party(PartyPending),
     Act(acts::PendingAct),
+    /// The answered move keeps its slab slot and key index for Written's answer.
+    MoveOut {
+        holder: crate::AccountHolder,
+        account: u32,
+        number: u32,
+        source: u32,
+    },
 }
 impl Pending {
     pub(super) fn party(&self) -> Option<&PartyPending> {
         match self {
             Self::Party(party) => Some(party),
-            Self::Act(_) => None,
+            Self::Act(_) | Self::MoveOut { .. } => None,
         }
     }
     pub(super) fn party_mut(&mut self) -> Option<&mut PartyPending> {
         match self {
             Self::Party(party) => Some(party),
-            Self::Act(_) => None,
+            Self::Act(_) | Self::MoveOut { .. } => None,
         }
     }
 }
@@ -152,6 +159,25 @@ impl Domain {
 
     fn party_pending_mut(&mut self, id: Id<Pending>) -> Option<&mut PartyPending> {
         self.pending.get_mut(id)?.party_mut()
+    }
+
+    /// Release a cancelled move's volatile Written place (protocol/llm.md, 5.6).
+    /// `None` cancels all moves when the accounts component closes.
+    pub fn cancel_moves(&mut self, source: Option<u32>) {
+        for _ in 0..self.flights.capacity() {
+            let mut found = None;
+            for (key, id) in &self.flights {
+                if let Pending::MoveOut { source: held, .. } = self.pending.get(*id).expect("indexed pending")
+                    && (source.is_none() || source == Some(*held))
+                {
+                    found = Some((*key, *id));
+                    break;
+                }
+            }
+            let Some((key, id)) = found else { break };
+            assert!(self.flights.remove(&key) == Some(id), "one cancelled move index");
+            self.pending.retire(id);
+        }
     }
 
     /// Create restoring state with capacities from validated `limits` and at most
@@ -1635,6 +1661,11 @@ fn admit_ask(
     }
 
     if let Some(id) = domain.flights.get(&key).copied() {
+        if let Pending::MoveOut { holder, account, .. } = domain.pending.get(id).expect("indexed move") {
+            let same = ask
+                == Ask::AccountChange { holder: *holder, change: crate::AccountChange::MoveOut { account: *account } };
+            return if same { again(to, Again::Busy, out) } else { refused(to, Refusal::KeyConflict, out) };
+        }
         let flight = domain.party_pending_mut(id).expect("key index names live pending request");
         if flight.ask != ask || flight.models != models {
             return refused(to, Refusal::KeyConflict, out);
@@ -1646,11 +1677,12 @@ fn admit_ask(
         flight.replies.push(to).expect("bounded list room checked");
         return;
     }
-    // Only ordinary flights reserve answers; Seen uses the existing pending room.
-    if reserves_answer(&ask)
-        && domain.answers.len().saturating_add(domain.acted.len()).saturating_add(answer_reservations(domain))
-            >= env.limits.requests
-    {
+    let written = written_place(domain, key.person, &ask);
+    // A move is admitted whole; Written transfers its already reserved place.
+    // Seen still uses only pending room (protocol/llm.md, 5.6; people.md, 5.1).
+    let occupied = domain.answers.len().saturating_add(domain.acted.len()).saturating_add(answer_reservations(domain));
+    let credit = u32::from(written.is_some());
+    if occupied.saturating_sub(credit).saturating_add(answer_places(&ask)) > env.limits.requests {
         room_pressure(domain, env, key, &ask, crate::CapacityCause::Requests { limit: env.limits.requests });
         return again(to, Again::Busy, out);
     }
@@ -1667,18 +1699,29 @@ fn admit_ask(
     };
     let refusal = admission(domain, key.person, project, role, &ask);
     if let Some(refusal) = refusal {
+        if let Some((previous, id)) = written {
+            assert!(domain.flights.remove(&previous) == Some(id), "Written consumes its reserved place");
+            domain.pending.retire(id);
+        }
         let outcome = Outcome::Refused(refusal);
         save_answer(domain, env, key, ask, models, outcome.clone(), out);
         return out.push(Request::Reply { to, reply: outcome_reply(outcome) });
     }
-    if domain.pending.is_full() {
+    if written.is_none() && domain.pending.is_full() {
         room_pressure(domain, env, key, &ask, crate::CapacityCause::Pending { limit: env.limits.pending });
         return again(to, Again::Busy, out);
     }
     let mut replies = List::with_capacity(env.limits.waiters);
     replies.push(to).expect("bounded list room checked");
     let flight = Pending::Party(PartyPending { key, ask: ask.clone(), models: models.clone(), replies, part: None });
-    let id = domain.pending.insert(flight).expect("pending request admitted");
+    let id = match written {
+        Some((previous, id)) => {
+            assert!(domain.flights.remove(&previous) == Some(id), "Written takes its move's index");
+            *domain.pending.get_mut(id).expect("reserved Written slot") = flight;
+            id
+        }
+        None => domain.pending.insert(flight).expect("pending request admitted"),
+    };
     let indexed = domain.flights.insert(key, id);
     assert!(indexed == Ok(None), "one key per flight within pending capacity");
     out.push(Request::Route { request: id.token(), person: key.person, project, role, ask: Box::new(ask), models });
@@ -1736,12 +1779,35 @@ fn save_answer(
 fn answer_reservations(domain: &Domain) -> u32 {
     let mut reserved = domain.act_flights.len();
     for (_, id) in &domain.flights {
-        let flight = domain.party_pending(*id).expect("key index names live pending request");
-        if reserves_answer(&flight.ask) {
-            reserved = reserved.saturating_add(1);
+        match domain.pending.get(*id).expect("key index names live pending request") {
+            Pending::Party(flight) => reserved = reserved.saturating_add(answer_places(&flight.ask)),
+            Pending::MoveOut { .. } => reserved = reserved.saturating_add(1),
+            Pending::Act(_) => unreachable!("acts have their own index"),
         }
     }
     reserved
+}
+
+fn answer_places(ask: &Ask) -> u32 {
+    if let Ask::AccountChange { change: crate::AccountChange::MoveOut { .. }, .. } = ask {
+        2
+    } else {
+        u32::from(reserves_answer(ask))
+    }
+}
+
+fn written_place(domain: &Domain, person: u64, ask: &Ask) -> Option<(RequestKey, Id<Pending>)> {
+    let Ask::AccountChange { holder, change: crate::AccountChange::Written { number } } = ask else { return None };
+    for (key, id) in &domain.flights {
+        if let Pending::MoveOut { holder: held, number: moving, .. } = domain.pending.get(*id).expect("indexed move")
+            && key.person == person
+            && holder == held
+            && number == moving
+        {
+            return Some((*key, *id));
+        }
+    }
+    None
 }
 
 fn reserves_answer(ask: &Ask) -> bool {
@@ -1803,9 +1869,18 @@ pub(super) fn answer_decided(
     let ask = flight.ask.clone();
     let models = flight.models.clone();
     let replies = core::mem::replace(&mut flight.replies, List::with_capacity(0));
-    domain.pending.retire(id);
-    let removed = domain.flights.remove(&key);
-    assert!(removed == Some(id), "flight has one key index");
+    if let (
+        Ask::AccountChange { holder, change: crate::AccountChange::MoveOut { .. } },
+        Outcome::AccountMovingOut { account, number, source },
+    ) = (&ask, &outcome)
+    {
+        *domain.pending.get_mut(id).expect("admitted move") =
+            Pending::MoveOut { holder: *holder, account: *account, number: *number, source: *source };
+    } else {
+        domain.pending.retire(id);
+        let removed = domain.flights.remove(&key);
+        assert!(removed == Some(id), "flight has one key index");
+    }
 
     match outcome {
         // A refused admission is retryable with the same key, including

@@ -543,6 +543,14 @@ pub(super) fn tag_account(
             // The accounts' component starts a party's sign-in and revokes a signed-out
             // record (accounts.md, 3.3 and section 5), as it grants and releases.
             request @ (accounts::Request::Component(_) | accounts::Request::Signing(_) | accounts::Request::Closed) => {
+                if let accounts::Request::Signing(
+                    accounts::Signing::Return { source } | accounts::Signing::Forget { source },
+                ) = &request
+                {
+                    core.people.cancel_moves(Some(*source));
+                } else if let accounts::Request::Component(accounts::ToComponent::Close) = &request {
+                    core.people.cancel_moves(None);
+                }
                 out.push(Request::Now(Box::new(Now::Account(request))));
             }
             // The accounts family (protocol/store.md, 4.4 item 9) keeps each record in the

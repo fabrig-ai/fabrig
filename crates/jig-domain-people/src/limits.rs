@@ -37,13 +37,14 @@ pub struct Limits {
     pub holdings: u32,
     /// Maximum retained configured first-owner entries; also bounds bootstrap output matches.
     pub initial_owners: u32,
-    /// Maximum retained completed keys plus slots reserved by ordinary pending flights, engine-wide.
+    /// Maximum retained completed keys plus ordinary flights' answer reservations, engine-wide.
+    /// A move out reserves two places, retaining Written's until completion or cancellation.
     /// New Seen flights use pending room independently and reserve no answer slot.
     pub requests: u32,
     /// Maximum unsaved entrance-pressure records, independent of diagnostic capacity.
     /// Permanent room refusals remain in the bounded keyed-answer table.
     pub room_refusals: u32,
-    /// Maximum simultaneous routed keyed flights.
+    /// Maximum simultaneous keyed flights, including answered moves waiting for Written.
     pub pending: u32,
     /// Positive maximum reply destinations per flight, including its first caller.
     pub waiters: u32,
