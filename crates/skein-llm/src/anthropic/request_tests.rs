@@ -10,6 +10,7 @@ const LIMITS: openai::Limits = openai::Limits {
     depth: 16,
     tokens: 1024,
     output_items: 16,
+    calls_per_response: 7,
     input: 2048,
     reasoning: 2048,
     answer: 4096,
@@ -612,4 +613,39 @@ fn a_reasoning_run_validates_each_native_items_signature_and_limit() {
         encode_request(&prompt(Role::Assistant, reasoning(valid)), 4096, &openai::Limits { reasoning: 32, ..LIMITS }),
         Err(Error::Limit { which: crate::Cap::Reasoning, bound: 32 })
     );
+}
+
+#[test]
+fn request_tool_choice_keeps_none_and_only_semantics_at_one_and_two_calls() {
+    for calls_per_response in [1, 2] {
+        for choice in [
+            crate::ToolChoice::Auto,
+            crate::ToolChoice::None,
+            crate::ToolChoice::Only(Box::new([bytes::copy_of(b"read")])),
+        ] {
+            let limits = openai::Limits { calls_per_response, ..LIMITS };
+            let mut prompt = prompt(Role::User, text(b"hello"));
+            prompt.tools = Box::new([Tool {
+                name: bytes::copy_of(b"read"),
+                description: Box::new([]),
+                schema: Json::from_bytes(b"{}", &limits.document()).unwrap(),
+            }]);
+            prompt.choice = choice.clone();
+            let wire = encode_request(&prompt, 4096, &limits).unwrap();
+            let expected: Option<&[u8]> = match choice {
+                crate::ToolChoice::None => Some(br#""tool_choice":{"type":"none"}"#),
+                crate::ToolChoice::Auto | crate::ToolChoice::Only(_) => {
+                    if calls_per_response == 1 {
+                        Some(br#""tool_choice":{"type":"auto","disable_parallel_tool_use":true}"#)
+                    } else {
+                        None
+                    }
+                }
+            };
+            match expected {
+                Some(expected) => assert!(bytes::find(&wire, expected).is_some()),
+                None => assert!(bytes::find(&wire, b"tool_choice").is_none()),
+            }
+        }
+    }
 }

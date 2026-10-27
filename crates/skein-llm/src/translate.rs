@@ -14,7 +14,7 @@ pub(crate) fn measure_request(provider: Provider, prompt: &Prompt, limits: &open
     validate_codex(provider, prompt, limits)?;
     let bounded = writer::Limits { depth: limits.depth, length: limits.request };
     let mut out = writer::Encoder::measure(&bounded);
-    write_request(&mut out, prompt)?;
+    write_request(&mut out, prompt, limits)?;
     match openai::measured(out, bounded, crate::Cap::Request) {
         Ok(length) => Ok(length),
         Err(error) => Err(decode(error)),
@@ -35,7 +35,7 @@ pub(crate) fn encode_measured_request(
     length: u32,
 ) -> Result<Box<[u8]>, Error> {
     let mut out = writer::Encoder::write(length, &writer::Limits { depth: limits.depth, length: limits.request });
-    write_request(&mut out, prompt)?;
+    write_request(&mut out, prompt, limits)?;
     Ok(out.finish())
 }
 
@@ -46,7 +46,7 @@ fn validate_codex(provider: Provider, prompt: &Prompt, limits: &openai::Limits) 
     validate(prompt, provider, limits)
 }
 
-fn write_request(out: &mut writer::Encoder, prompt: &Prompt) -> Result<(), Error> {
+fn write_request(out: &mut writer::Encoder, prompt: &Prompt, limits: &openai::Limits) -> Result<(), Error> {
     out.object_start();
     out.key(b"model");
     out.string(&prompt.model);
@@ -83,7 +83,7 @@ fn write_request(out: &mut writer::Encoder, prompt: &Prompt) -> Result<(), Error
         crate::ToolChoice::None => b"none",
     });
     out.key(b"parallel_tool_calls");
-    out.boolean(true);
+    out.boolean(limits.calls_per_response > 1);
     out.key(b"input");
     out.array_start();
     for message in &prompt.messages {
@@ -838,6 +838,7 @@ mod tests {
         depth: 16,
         tokens: 1024,
         output_items: 16,
+        calls_per_response: 7,
         input: 2048,
         reasoning: 2048,
         answer: 4096,

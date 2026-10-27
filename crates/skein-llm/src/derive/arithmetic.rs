@@ -68,6 +68,7 @@ pub(super) fn dialect(declared: &Declared, constants: &Constants) -> Result<clie
         detail_bytes: constants.detail_bytes,
         drop_reasoning: false,
         declared_output_tokens: declared.output,
+        calls_per_response: declared.calls_per_response,
     };
     relationships(declared, &limits)?;
     Ok(limits)

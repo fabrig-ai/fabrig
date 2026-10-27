@@ -35,7 +35,7 @@ pub fn encode_request(request: &Request, limits: &Limits) -> Result<Box<[u8]>, D
     let len = measure_request(request, limits)?;
     let bounded = skein_json::writer::Limits { depth: limits.depth, length: limits.request };
     let mut write = Encoder::write(len, &bounded);
-    write_request(&mut write, request);
+    write_request(&mut write, request, limits);
     Ok(write.finish())
 }
 /// Validates and measures without allocating the request's body.
@@ -43,7 +43,7 @@ pub fn measure_request(request: &Request, limits: &Limits) -> Result<u32, Decode
     validate(request, limits)?;
     let bounded = skein_json::writer::Limits { depth: limits.depth, length: limits.request };
     let mut measure = Encoder::measure(&bounded);
-    write_request(&mut measure, request);
+    write_request(&mut measure, request, limits);
     crate::openai::common::measured(measure, bounded, crate::Cap::Request)
 }
 fn validate(request: &Request, limits: &Limits) -> Result<(), DecodeError> {
@@ -95,7 +95,7 @@ pub(crate) fn write_tools(out: &mut Encoder, tools: &[Tool]) {
     }
     out.array_end();
 }
-fn write_request(out: &mut Encoder, request: &Request) {
+fn write_request(out: &mut Encoder, request: &Request, limits: &Limits) {
     out.object_start();
     out.key(b"model");
     out.string(&request.model);
@@ -117,7 +117,7 @@ fn write_request(out: &mut Encoder, request: &Request) {
         crate::ToolChoice::None => b"none",
     });
     out.key(b"parallel_tool_calls");
-    out.boolean(true);
+    out.boolean(limits.calls_per_response > 1);
     out.key(b"input");
     out.array_start();
     for input in &request.input {

@@ -65,6 +65,8 @@ pub struct Limits {
     pub drop_reasoning: bool,
     /// The endpoint model's declared completion ceiling, in tokens.
     pub declared_output_tokens: u32,
+    /// Tool calls the caller accepts in one completion.
+    pub calls_per_response: u32,
 }
 
 impl Limits {
@@ -72,6 +74,7 @@ impl Limits {
     #[must_use]
     pub const fn native(&self) -> openai::Limits {
         openai::Limits {
+            calls_per_response: self.calls_per_response,
             request: self.request,
             answer: self.answer,
             input: self.input,

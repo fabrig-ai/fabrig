@@ -284,7 +284,17 @@ fn write_request(
         write_tools(out, &prompt.tools);
     }
     match &prompt.choice {
-        crate::ToolChoice::Auto | crate::ToolChoice::Only(_) => {}
+        crate::ToolChoice::Auto | crate::ToolChoice::Only(_) => {
+            if limits.calls_per_response <= 1 {
+                out.key(b"tool_choice");
+                out.object_start();
+                out.key(b"type");
+                out.string(b"auto");
+                out.key(b"disable_parallel_tool_use");
+                out.boolean(true);
+                out.object_end();
+            }
+        }
         crate::ToolChoice::None => {
             out.key(b"tool_choice");
             out.object_start();

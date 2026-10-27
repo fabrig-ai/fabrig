@@ -30,6 +30,7 @@ fn limits() -> Limits {
         error_bytes: 4096,
         drop_reasoning: false,
         declared_output_tokens: 4096,
+        calls_per_response: 7,
     }
 }
 
@@ -522,6 +523,56 @@ fn the_encoder_checks_written_bytes_against_the_measurement() {
             checked.measured.body = checked.measured.body.checked_add_signed(difference).unwrap();
             let failed = std::panic::catch_unwind(|| Client::prepare_measured(checked));
             assert!(failed.is_err(), "{provider:?}/{difference}: an incorrect measure must fail at the writer");
+        }
+    }
+}
+
+#[test]
+fn request_goldens_follow_the_declared_calls_per_response() {
+    for calls in [1, 2] {
+        let declared = crate::Declared {
+            window: 4096,
+            output: 4096,
+            tool_payload: 256,
+            tools: 2,
+            history_items: 8,
+            calls_per_response: calls,
+            reasoning_item: 256,
+            conversations: 1,
+        };
+        let derived = crate::Limits::derive(&declared).unwrap();
+        for provider in [Provider::OpenAi, Provider::OpenAiCodex, Provider::Anthropic] {
+            let bounds = derived.dialect(provider);
+            let prompt = call().prompt;
+            let expected: &[u8] = match provider {
+                Provider::OpenAi | Provider::OpenAiCodex => {
+                    if calls == 1 {
+                        br#"{"model":"test-model","instructions":"","stream":true,"store":false,"include":["reasoning.encrypted_content"],"tools":[],"tool_choice":"auto","parallel_tool_calls":false,"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"text":{"verbosity":"low"}}"#
+                    } else {
+                        br#"{"model":"test-model","instructions":"","stream":true,"store":false,"include":["reasoning.encrypted_content"],"tools":[],"tool_choice":"auto","parallel_tool_calls":true,"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"text":{"verbosity":"low"}}"#
+                    }
+                }
+                Provider::Anthropic => {
+                    if calls == 1 {
+                        br#"{"model":"test-model","max_tokens":4096,"stream":true,"tool_choice":{"type":"auto","disable_parallel_tool_use":true},"messages":[{"role":"user","content":[{"type":"text","text":"hi","cache_control":{"type":"ephemeral"}}]}]}"#
+                    } else {
+                        br#"{"model":"test-model","max_tokens":4096,"stream":true,"messages":[{"role":"user","content":[{"type":"text","text":"hi","cache_control":{"type":"ephemeral"}}]}]}"#
+                    }
+                }
+            };
+            let encoded = match provider {
+                Provider::OpenAi | Provider::OpenAiCodex => {
+                    translate::encode_request(provider, &prompt, &bounds.native()).unwrap()
+                }
+                Provider::Anthropic => {
+                    anthropic::encode_request(&prompt, bounds.declared_output_tokens, &bounds.native()).unwrap()
+                }
+            };
+            assert_eq!(encoded.as_ref(), expected, "{provider:?}, {calls} calls");
+            if provider == Provider::OpenAiCodex {
+                let native = translate::request(&prompt, provider, &bounds.native()).unwrap();
+                assert_eq!(openai::encode_request(&native, &bounds.native()).unwrap().as_ref(), expected);
+            }
         }
     }
 }

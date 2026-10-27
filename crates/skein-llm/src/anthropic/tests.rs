@@ -4,6 +4,7 @@ use alloc::format;
 use skein_lib::{Queue, Wall, bytes};
 
 const LIMITS: Limits = Limits {
+    calls_per_response: 7,
     request: 8192,
     retained: 8192,
     strings: 2048,

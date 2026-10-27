@@ -9,6 +9,8 @@ use skein_lib::{Duration, List, Wall, bytes};
 /// Native codec bounds for one endpoint; each dialect receives its own value.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
+    /// Tool calls the caller accepts in one completion.
+    pub calls_per_response: u32,
     pub request: u32,
     pub retained: u32,
     pub strings: u32,

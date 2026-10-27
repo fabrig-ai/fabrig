@@ -675,6 +675,7 @@ mod tests {
     use super::*;
 
     const LIMITS: openai::Limits = openai::Limits {
+        calls_per_response: 7,
         request: 8192,
         retained: 8192,
         strings: 2048,
