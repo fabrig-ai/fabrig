@@ -1096,7 +1096,8 @@ may change with them.
   `at`, a wall in nanoseconds, and `by`, the requester as `requester`
   prints it), `keeps` and `status`.
 - **`help --json`** prints one JSON array, whatever it names: with no
-  group, the groups and the client's tools, a record each; with GROUP,
+  group, each group and each of the client's tools by its name and line
+  (its whole records are `help NAME --json`'s); with GROUP,
   every record of the group; with GROUP VERB, every record of that name
   (`settings show` has two). Each record is whole: its name, line,
   every form with every argument, result, keyedness and notes.
