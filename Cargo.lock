@@ -2357,6 +2357,7 @@ dependencies = [
  "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
  "temper-forge-setup",

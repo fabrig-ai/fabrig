@@ -1119,6 +1119,7 @@ fn change_repository_refusals_render_the_three_choices() {
 }
 
 mod docs;
+mod reference;
 
 #[test]
 fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {

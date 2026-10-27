@@ -9,11 +9,11 @@ use temper_engine_domain as engine;
 
 use crate::{Decoded, Problem, docs, forge, json::Value, nested, notes};
 
-struct Spec {
-    name: &'static [u8],
-    description: &'static [u8],
-    schema: &'static [u8],
-    effect: run::HostEffect,
+pub(crate) struct Spec {
+    pub(crate) name: &'static [u8],
+    pub(crate) description: &'static [u8],
+    pub(crate) schema: &'static [u8],
+    pub(crate) effect: run::HostEffect,
 }
 
 const ITEMS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"owner/name of one of the project's repositories; leave out when it has one"},"since":{"type":"integer","description":"a time in nanoseconds; defaults to 0","minimum":0,"maximum":18446744073709551615,"default":0},"page":{"type":"integer","description":"a page number, from 1; defaults to 1","minimum":1,"maximum":4294967295,"default":1},"item_kind":{"type":"string","description":"issue or pull; leave out for both","enum":["issue","pull"]}},"required":[]}"#;
@@ -143,7 +143,7 @@ const PERMISSION_SPEC: Spec = Spec {
     effect: run::HostEffect::Read,
 };
 
-const SPECS: [Spec; 36] = [
+pub(crate) const SPECS: [Spec; 36] = [
     ITEMS_SPEC,
     ITEM_SPEC,
     PULL_SPEC,

@@ -210,6 +210,20 @@ fn the_page_commands_is_what_the_table_renders() {
 }
 
 #[test]
+fn the_page_host_tools_is_what_the_declarations_render() {
+    let mut measured = skein_lib::Writer::new(temper_docs::PAGE_BYTES);
+    temper_engine_smith::reference(&mut measured).expect("host-tools fits PAGE_BYTES");
+    let mut out = skein_lib::Writer::new(measured.written());
+    temper_engine_smith::reference(&mut out).expect("host-tools fits measured length");
+    let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
+    assert_eq!(
+        include_str!("../../../../docs/help/reference/host-tools.md"),
+        rendered,
+        "the page should be:\n{rendered}"
+    );
+}
+
+#[test]
 fn every_ctl_group_page_is_what_the_table_renders() {
     use temper_client_tools::{help, table::GROUPS};
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference");

@@ -20,11 +20,13 @@ mod forge;
 mod json;
 mod nested;
 mod notes;
+mod reference;
 mod start;
 
 pub use answers::answer;
 pub use calls::{call, tools};
 pub use finish::{ChangeResource, Terminal, result, turn};
+pub use reference::reference;
 pub use start::{charter, model, section, start};
 
 fn decimal(bytes: &[u8], member: &'static [u8]) -> Result<u64, Problem> {
