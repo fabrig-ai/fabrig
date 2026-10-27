@@ -1012,7 +1012,11 @@ starts from current code. It never updates only because its base moved.
   review is no verdict: the change asks for the gate again once, a
   fresh review at the same head, and a second failure holds the change,
   naming the review's failure, for its requester or a person to
-  release or amend. It never starts a repair, which would spend a
+  release or amend. Released, the change's own hold goes with its
+  task's, in the same decision, and it asks for the gate afresh at that
+  head, its tries counted anew; amended, it decides as any amended
+  change. Cancelled, its panel ends with it: a change's state is never
+  left held or gating under a task that has ended. It never starts a repair, which would spend a
   repair's bound on nothing the change's diff did. A change's agents
   hold the forge's reads (kind 1) beside the kinds it makes (section 6),
   so that a reviewer can read its own pull request.
