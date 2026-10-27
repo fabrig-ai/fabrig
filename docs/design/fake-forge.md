@@ -145,7 +145,11 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   completed run uploads an artifact of one file, JUnit or one id per
   line as the workflow declares, naming the ids it failed; a run given
   the workflow's selection input (`select`, its name as the workflow
-  declares it) runs only the ids it lists. `Read::Artifact` reads it, and
+  declares it) runs only the ids it lists. A workflow may also name flaky ids
+  (`flaky: [id]`, bounded as `fails`, empty by default): each fails in
+  a run not given the selection input and passes in a run whose
+  selection lists it, stateless, so that a world shows a flake's rerun
+  passing. `Read::Artifact` reads it, and
   `Read::Commits` a range's commits with their messages.
 
 ### 2.4 Seen from outside
