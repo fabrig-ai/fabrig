@@ -497,12 +497,14 @@ other. A rename reaches every client through `me`
 (`../client/domain/contract.md`, 5.1) and changes nothing else (core.md,
 6.1). A policy change applies to every decision after it, the decisions
 of tasks already made included: a narrowing makes their grants beyond it
-unusable, and a widening does not widen them. What was committed before
-it is made, and pending proposals are judged against it when accepted
-(authority.md, section 6, effective authority). An owner who wants work
-in flight stopped cancels it. The policy's overrides of the
-application's templates (authority.md, section 6) reach only what
-clients create after them: a task keeps the values it was made with
+unusable, and a widening does not widen them; a change of its spend per
+period, or a role's, resizes the open period's budget, or its parties'
+pools (authority.md, section 7). What was committed before it is made,
+and pending proposals are judged against it when accepted (authority.md,
+section 6, effective authority). An owner who wants work in flight
+stopped cancels it. The policy's overrides of the application's
+templates (authority.md, section 6) reach only what clients create after
+them: a task keeps the values it was made with
 (`../protocol/configuration.md`, 3.1).
 
 A project made after the first start (`MakeProject`, 5.1) is made in
