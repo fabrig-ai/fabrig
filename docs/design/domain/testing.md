@@ -1777,9 +1777,14 @@ skein's (skein's `fake-llm.md`):
     the calls' arguments as recorded; a turn's `finish` is `tool_calls`
     where it has a call and `stop` otherwise, and its `tokens` the
     completion's output tokens as recorded, or 1 where the turn kept
-    none. A turn the form cannot hold (an opaque block, a call cut
-    short, a window's compaction) is refused, naming the task and the
-    turn, and so is a document past the twin's bounds, which are the
+    none. An opaque block, a provider's reasoning that no other task
+    reads, is dropped, the turn's text and calls kept in order, and the
+    twin's report counts the blocks dropped per task: the fake replays
+    what a run said and called, not how it reasoned, and the twin's run
+    proves the story holds without them. A turn the form cannot hold
+    otherwise (a call cut short, a window's compaction) is refused,
+    naming the task and the turn, and so is a document past the twin's
+    bounds, which are the
     fake's, sized for twins from the first passing walk's transcripts
     and checked as the demo's are.
   - **Frames of the version its binary writes,** read from a deployment
