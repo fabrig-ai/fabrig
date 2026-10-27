@@ -208,7 +208,10 @@ Expect: `moved out: account ACCOUNT to FILE`; after the start,
 If not: an export refused or lost: the engine kept the account, and
 the store loses it; an owner signs in to it again. An import refused
 keeps `FILE`: leave it as it is. A key's account does not cross: add
-its key again.
+its key again. A worker's document from an older `temper init` stops the
+worker's start at `agent.arguments`,
+`"agent" is now "internal", "agent"`: write them
+`["internal", "agent", PATH]`, `PATH` its `agent.configuration`.
 
 ## Clean up
 
