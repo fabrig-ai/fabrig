@@ -552,8 +552,22 @@ the forge's, judged in the change's decision:
 
 | Kind | Scope | Numbers | Value |
 |---|---|---|---|
-| 4, a project's landing | each project | 1 | `by`: `queue` or `turn`; `gate_retries` (2); and, as their parts are built, the prepare and key commands, the home's pinned revision, whether a dependency across repositories joins a landing (yes), whether downstream pins follow their upstream's main (no), `stale_proofs` (2) |
-| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks |
+| 4, a project's landing | each project | 1 | the members below |
+| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks; `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format (`after-landing.md`, section 2) |
+
+Kind 4's members, each with its default and the document it serves
+(`../draft/process-model.md`, section 11):
+
+| Member | Default | Serves |
+|---|---|---|
+| `by`: `queue` or `turn` | `queue` | section 1 |
+| `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | 5.3, 6.1 |
+| `dependencies_join` | yes | 4.1 |
+| `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | 4.1, 5.3 |
+| `stale_proofs`; `gate_retries` | 2; 2 | 9; 7.4 |
+| `tier_retries`; `verification_bound`; `suspects`: `bisect` or `tell_all`; `red_pauses` | 2; two hours; `bisect`; no | `after-landing.md`, 3, 5.2, 6, 7 |
+| `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
+| `questions_on_forge` | off | `forge.md`, 12.1 |
 
 - **Until both kinds are built** on jig's application settings (jig's
   `domain/engine.md`, 17.5), a project's `by` and its repositories'
