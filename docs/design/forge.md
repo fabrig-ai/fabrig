@@ -660,7 +660,10 @@ sections 4.3 and 4.5, list them.
   `answer_bytes` holds (5.3), each row by the measure of 3.7, so the
   size is the same on every target. A listing has
   more after it when it came full, or when Forgejo says so (`X-HasMore`
-  on a pull request's files, `total_count` on a combined status).
+  on a pull request's files). A combined status's `state` and
+  `total_count` are the page's, not the commit's (Forgejo 17 computes
+  them over the page asked for), so neither is a verdict or a count:
+  its pages are read until one comes short, and folded.
   Listings Forgejo does not page are read whole and cut as they stream.
 - **Users by id.** The vocabulary names people by their forge user id;
   the API names them by login in paths and bodies. The component keeps
@@ -677,10 +680,10 @@ first failure, but where a row says otherwise.
 |---|---|---|
 | `Read::Items { since, page, kind }` | `GET R/issues?state=all&type=issues\|pulls&since=<since>&sort=leastupdate&page=<page>&limit=<size>`, `type` only with a kind | each row a `Summary` (5.3): `number`; a `pull_request` object makes it a pull; `state`; `user.id`; `labels[].name`, for display; `updated_at`; `title`; `body` and its key; `more` when the page came full; `now` from `Date` |
 | `Read::Item { number, after }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments` (unpaged) | the issue as a `Summary`; its comments with ids above `after`, oldest first, as many as the answer holds (5.3): `id`, `user.id`, `created_at`, `body` and its key, its provenance and revision; `more` when one is left |
-| `Read::Pull { number }` | `GET R/pulls/<number>`; `GET R/commits/<head.sha>/status?page=1&limit=1` | `number`; `state`; `head.ref`, `base.ref`; `head.sha` as `commit`; `base.sha` as `base_commit`, none when empty; `merge_commit_sha` when `merged`; `mergeable`; `requested_reviewers[].id`; CI from the combined `state` and `total_count` |
+| `Read::Pull { number }` | `GET R/pulls/<number>`; then `Read::Checks`' status pages for `head.sha`, every page | `number`; `state`; `head.ref`, `base.ref`; `head.sha` as `commit`; `base.sha` as `base_commit`, none when empty; `merge_commit_sha` when `merged`; `mergeable`; `requested_reviewers[].id`; CI folded from every context's latest status, as `Checks` folds them, never a page's combined `state` |
 | `Read::PullFor { head, base }` | `GET R/pulls/<base>/<head>`; when it names a pull request that is not open, `GET R/pulls?state=open&sort=oldest&page=<n>&limit=<size>` from page 1, until a row has the head and base or a page comes short; then the status read, as `Pull`, of the pull request answered | the open pull request for the head and base, else the one the lookup named; as `Pull` |
 | `Read::Reviews { number, page }` | `GET R/pulls/<number>/reviews?page=<page>&limit=<size>` | submitted reviews, oldest first: `id`, `user.id`, `state` as the verdict, `commit_id`, `body` and its key, `submitted_at` as `at`, `official`, provenance and revision; `more` when the page came full |
-| `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?page=<page>&limit=<size>` | CI from `state` and `total_count`; each context's latest status: `updated_at`, `context`, `status`, `description`, `target_url` as its link (links are absolute, below), no job; `more` while the pages read fall short of `total_count` |
+| `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?page=<page>&limit=<size>` | each context's latest status on the page: `updated_at`, `context`, `status`, `description`, `target_url` as its link (links are absolute, below), no job; `more` when the page came full; the page's own `state` is not CI (5.1) |
 | `Read::Remarks { number, review, page }` | `GET R/pulls/<number>/reviews/<review>/comments` (unpaged) | the `page`th slice of `<size>`, cut as it streams: `id`, `user.id`, `path`, `position` as `line`, `body`; `more` when a comment follows the slice |
 | `Read::Branch { branch }` | `GET R/branches/<branch>` | `commit.id` |
 | `Read::Branches { prefix }` | `GET R/git/refs/heads/<prefix>` | branch names from matching `refs/heads/` refs; no matches (`404`) gives an empty list and keeps the repository row; past the matching answer's bound, `TooLarge` |
