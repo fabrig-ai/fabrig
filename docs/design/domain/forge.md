@@ -1495,6 +1495,9 @@ history they keep if temper is unplugged. Issues are projections (jig's
   which the issue is closed.
 - **Pull requests refer to it** ("Part of `ai/temper#12`"), so the forge
   links each change to its goal, across repositories too.
+- **Findings,** designed, not built, are `findings.md`'s: labelled
+  issues whose labels temper reads back, the one exception to "never
+  read back" here. Until it is built, as follows.
 - **Findings as issues:** a bug found while exploring, a follow-up a
   review raised, a flaky test, created by an agent's `effect_forge` tool
   (`agent.md`, 4.3; jig's `domain/connectors.md`, 4.5), keyed. Their

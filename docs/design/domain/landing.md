@@ -319,7 +319,8 @@ For a project with no prepare command, one member per repository:
   that a landing whose keys equal main's (a documentation landing) has a
   receipt to land on.
 - **A failed receipt** makes a key that fails at once, with its run's
-  output, until the tree changes.
+  output, until the tree changes. A failure whose tests all match open
+  flake findings is rerun once first (`findings.md`, section 5).
 
 ## 7. Proof
 

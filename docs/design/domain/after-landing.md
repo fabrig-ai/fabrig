@@ -7,7 +7,7 @@ is cleared, so that a goal ends only when its work is verified. It
 holds for every landing on a repository's landing branch, by queue
 (`forge.md`, sections 8 to 10), by turn (`landing.md`), or by anyone
 outside temper. Findings, where a verdict files a flake or a red whose
-goal has ended, are their own design; until they are built, a verdict
+goal has ended, are `findings.md`'s; until they are built, a verdict
 keeps them in its own record. What is still open is section 13.
 
 ## 1. In one page
@@ -180,8 +180,8 @@ red by earlier failures it does not run (5.3).
   (or queue merges) into that repository while one of its landings is
   red, instead.
 - **A goal that has ended,** or a landing temper did not make: the red
-  is kept as a red of no goal's, which findings file (to be designed),
-  and the parties the project names for its triage are told.
+  is kept as a red of no goal's, which findings file (`findings.md`,
+  section 4), and the project's triager is told.
 
 ## 8. What a landing tells
 

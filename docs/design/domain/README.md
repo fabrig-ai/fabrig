@@ -36,6 +36,8 @@ all. Then temper's:
 7. **after-landing.md:** tiers on the newest main, verdicts by test,
    and a change that lives until its landing is cleared, by queue or by
    turn.
+8. **findings.md:** findings as labelled issues read back, matched,
+   triaged and closed when their fix clears; QA after landing.
 
 ## 2. Structure
 
