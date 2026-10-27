@@ -44,14 +44,14 @@ change, or a start, makes a new revision.
 - A holder decides only the kinds of proposal their role decides.
 - A proposal of settings is accepted only by an owner of the deployment,
   with a running choice: running work stays on its revision, or moves.
-- Its proposer reads the outcome with `proposal`.
+- Its proposer reads the outcome with `proposal show`.
 
 ## Acting on it
 
 - `temper ctl`: `inbox` lists what waits on you, proposals among it;
-  `proposal` reads one, with its review for settings; `decide` accepts,
-  rejects or passes it up; `propose-settings` proposes a change of
-  settings.
+  `proposal show` reads one, with its review for settings; `proposal
+  decide` accepts, rejects or passes it up; `settings propose`
+  proposes a change of settings.
 - A run proposes with the host tool `propose` (a batch, an effect, an
   amendment, a widening or a release), decides with `decide`, and
   withdraws its own with `withdraw`.
@@ -62,7 +62,7 @@ change, or a start, makes a new revision.
   its values, and can reject it but not accept it: accept it with
   `temper ctl`.
 - A party's proposal withdrawn as stale names the revision it was made
-  against, not the newest: read `settings`, and propose again.
+  against, not the newest: read `settings show`, and propose again.
 - temper does not let ctl withdraw a proposal.
 - A proposal of a batch names amounts: a budget of as much as fits is
   not proposable.

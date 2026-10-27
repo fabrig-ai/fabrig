@@ -63,9 +63,9 @@ to date with its base, a gate, and approvals.
 
 ## Acting on it
 
-- `temper ctl`: `setting policy` and `setting rules` read them;
-  `change-settings` and `propose-settings` change them.
-- A task's authority is in `task`'s result; a proposal asks a holder for
+- `temper ctl`: `settings show policy` and `settings show rules` read
+  them; `settings apply` and `settings propose` change them.
+- A task's authority is in `task show`'s result; a proposal asks a holder for
   more than a task has (`temper help proposal`).
 
 ## Limits

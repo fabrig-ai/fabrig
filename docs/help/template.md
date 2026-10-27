@@ -53,15 +53,15 @@ policy's override naming it is refused.
 
 ## Acting on it
 
-- `temper ctl`: `setting template` reads one; `change-settings` and
-  `propose-settings` change it; `chat` starts a chat from the project's
-  chat template.
+- `temper ctl`: `settings show template` reads one; `settings apply`
+  and `settings propose` change it; `chat start` starts a chat from
+  the project's chat template.
 - `me` gives each project's templates, with its policy's overrides
   applied.
 
 ## Limits
 
-- temper does not let ctl pick a template: `chat` fills the chat
+- temper does not let ctl pick a template: `chat start` fills the chat
   template, and no ctl tool starts a goal.
 - A template whose result is an approval is accepted, but an agent given
   one can only fail.

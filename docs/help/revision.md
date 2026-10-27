@@ -51,16 +51,17 @@ when its last task ends or moves.
 
 ## Acting on it
 
-- `temper ctl`: `revisions` reads the history, a page at a time;
-  `revision` reads one revision's record; `setting` reads a charter as a
-  held revision has it; `move-to-newest` moves a held revision's tasks.
-- `task` prints an agent task's `settings:` line: its revision, its live
+- `temper ctl`: `revision list` reads the history, a page at a time;
+  `revision show` reads one revision's record; `settings show` reads a
+  charter as a held revision has it; `revision advance` moves a held
+  revision's tasks.
+- `task show` prints an agent task's `settings:` line: its revision, its live
   run's when that differs, and the newest when that differs.
 
 ## Limits
 
 - A revision records what it changed, not every setting's value:
-  `revision` prints a set item's whole value, and `setting` reads a past
+  `revision show` prints a set item's whole value, and `settings show` reads a past
   value of a held revision's charter alone.
 - temper keeps a bounded number of held revisions and of charter
   versions. A change that would hold more is refused as full, naming the

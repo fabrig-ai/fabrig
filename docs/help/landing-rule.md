@@ -58,9 +58,9 @@ more, such as a person's approval or a second gate, add it to a rule.
 ## Acting on it
 
 - The configuration's `application.landing`, then a restart.
-- `temper ctl`: `change` reads a change's way to landing; `setting`
-  shows, in the rules, the requirements the deployment's landing rules
-  became.
+- `temper ctl`: `change show` reads a change's way to landing;
+  `settings show rules` shows the requirements the deployment's landing
+  rules became.
 
 ## Limits
 

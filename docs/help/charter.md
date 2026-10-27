@@ -55,8 +55,8 @@ Tasks made before keep it, on their revision.
 
 ## Acting on it
 
-- `temper ctl`: `setting` reads one, as the newest revision or a held
-  one has it; `change-settings` and `propose-settings` change it.
+- `temper ctl`: `settings show` reads one, as the newest revision or a
+  held one has it; `settings apply` and `settings propose` change it.
 
 ## Limits
 

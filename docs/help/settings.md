@@ -20,7 +20,7 @@ them. The current settings are the defaults with the stored changes over
 them: a setting no change names follows its default. The settings live
 in the store, never in the configuration document.
 
-A setting's value is whole: one JSON object, as `setting` prints it in
+A setting's value is whole: one JSON object, as `settings show` prints it in
 JSON.
 
 ## How it changes
@@ -65,11 +65,12 @@ default that changed.
 
 ## Acting on it
 
-- `temper ctl`: `settings` reads the inventory (the newest revision,
-  each setting and where its value comes from, the held revisions and
-  the pending proposals); `setting` reads one whole value;
-  `change-settings` makes a change; `propose-settings` proposes one.
-  Each verb's arguments are its help: `temper ctl help change-settings`.
+- `temper ctl`: `settings show` reads the inventory (the newest
+  revision, each setting and where its value comes from, the held
+  revisions and the pending proposals) and, given a setting's kind and
+  number, its whole value; `settings apply` makes a change; `settings
+  propose` proposes one. Each verb's arguments are its help: `temper
+  ctl help settings apply`.
 
 ## Limits
 
