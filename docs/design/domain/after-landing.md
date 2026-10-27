@@ -284,6 +284,10 @@ with failing tests by id and uploading their artifacts:
 - **a documentation landing** every tier ignores clears at once;
 - **a landing temper did not make** is in a range like any other;
 - **under queue and by turn,** the same stories.
+- **The reference case** (`../draft/reference-case.md`): these
+  mechanics open its step 4.4, act 2's steps 5.1 and 5.4, step 6.1's
+  clearing and step 9.3's ends, whose stories on fakes run in this
+  world, and which rung C walks on real backends.
 
 ## 13. Open questions
 

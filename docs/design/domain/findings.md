@@ -201,3 +201,15 @@ is open is section 10.
 - **A review's follow-up as a finding** (the draft's kind `review`):
   filed by a review's verdict contract's follow-ups, or only by an
   agent's tool.
+
+## 11. The world
+
+Stories in the forge's world, the fake forge keeping labels and
+reading them back: a verdict's flake filed as a labelled finding,
+counted when seen again; a person relabelling one `state:backlog`,
+read back; the triager routing one to a goal; a landing with `Fixes
+#n` closing it once cleared, and the forge's keyword closing reopened
+before; a gate's failure matching only flakes rerun once; a QA pass on
+the newest cleared main, its tester's report filed. They open the
+reference case's act 2 steps 5.2 to 5.4 (`../draft/reference-case.md`),
+which rung C walks on real backends.

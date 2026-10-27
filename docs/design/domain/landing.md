@@ -585,6 +585,10 @@ runner (`testing.md`, 2.7):
   lands as it is;
 - **a restart** mid-proof finds its run, and mid-turn settles its merge;
 - **under `queue`,** every story of `forge.md`'s world passes unchanged.
+- **The reference case** (`../draft/reference-case.md`): these
+  mechanics open its act 1's steps 4.1 and 4.3 and its act 3's steps
+  6.1 to 6.3, whose stories on fakes (`fuzzy_case2_4_1`, ...) run in
+  this world, and which rung C walks on real backends.
 
 ## 17. Open questions
 
