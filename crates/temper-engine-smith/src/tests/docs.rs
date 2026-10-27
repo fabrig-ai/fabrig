@@ -53,7 +53,7 @@ fn read_docs_answers_a_topics_first_page_and_its_next() {
     let topic = temper_docs::find(b"box").unwrap();
     let first = temper_docs::page(topic, 0, 1_536);
     let next = first.next.expect("box spans pages");
-    let header = "box: Start a local temper box\n";
+    let header = "box: Run a local box\n";
     exact(answered(br#"{"topic":"box"}"#), &format!("{header}{}next: {next}\n", first.text), false);
     let second = temper_docs::page(topic, next, 1_536);
     assert_eq!(first.text.len(), usize::try_from(next).unwrap());

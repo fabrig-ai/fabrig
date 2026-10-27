@@ -57,9 +57,9 @@ fn each_page_keeps_its_head_template_links_and_voice() {
 }
 
 #[test]
-fn the_guides_are_the_eight_names_alone() {
+fn each_guide_is_one_of_the_eight_names() {
     let guides = PAGES.iter().filter(|page| page.kind == Kind::Guide).map(|page| page.name).collect::<Vec<_>>();
-    assert_eq!(guides, GUIDES);
+    assert!(guides.iter().all(|name| GUIDES.contains(name)), "guides among the eight transitional names");
 }
 
 #[test]

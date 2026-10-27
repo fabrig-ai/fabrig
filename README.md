@@ -36,11 +36,12 @@ draft to landed change.
 
 - [`docs/design/README.md`](docs/design/README.md): what temper is, what
   it is built from, and where each part of its design lives.
-- [`docs/help/box.md`](docs/help/box.md): a local temper box, with its
-  own Forgejo, on loopback; also [trying the welcome with nothing
-  real](docs/help/box.md#trying-the-welcome-with-nothing-real).
-- [`docs/help/github.md`](docs/help/github.md): GitHub connected from
-  temper's client, through temper's own App.
+- [`docs/help/box.md`](docs/help/box.md): a deployment on one
+  machine, on loopback, with its own Forgejo, driven with
+  `temper ctl`.
+- [`docs/help/github.md`](docs/help/github.md): GitHub connected
+  through a GitHub App, an installation accepted and a repository
+  adopted, with `temper ctl`.
 - [`docs/help/forgejo.md`](docs/help/forgejo.md): a Forgejo connected
   from temper's client, managed, owned or connected.
 - [`docs/help/server.md`](docs/help/server.md): temper on a server,

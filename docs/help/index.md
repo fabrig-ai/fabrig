@@ -30,15 +30,20 @@ temper runs software work for people: agents take tasks on the repositories of a
   deployment for a person: calls, keys, kept requests, waits, exit
   statuses.
 
+## The walks
+
+- temper help box: a deployment on one machine, from its
+  configuration to a change landed, and its account kept at the stop.
+- temper help github: GitHub through a GitHub App, an installation
+  accepted, a repository adopted.
+
 ## The guides
 
 Written before this map, for people; each becomes walks and concepts
 of its own.
 
-- temper help box: a local box, from nothing to a change landed.
 - temper help server: a long-lived deployment on a server.
 - temper help forgejo: connecting a Forgejo.
-- temper help github: connecting GitHub through a GitHub App.
 - temper help tasks: tasks, goals and chats.
 - temper help budgets: what work spends, and its budgets.
 - temper help charters: charters, templates and policies.

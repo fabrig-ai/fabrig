@@ -95,18 +95,25 @@ pub static PAGES: [Page; 11] = [
         text: include_str!("../../../docs/help/ctl.md"),
     },
     Page {
+        name: "box",
+        kind: Kind::Walk,
+        title: "Run a local box",
+        summary: "Run a whole deployment on one machine, on loopback, from its configuration to a change landed on its own Forgejo, then stop it without losing the model's account.",
+        text: include_str!("../../../docs/help/box.md"),
+    },
+    Page {
+        name: "github",
+        kind: Kind::Walk,
+        title: "Connect GitHub",
+        summary: "Connect a box to GitHub through a GitHub App, accept or make its installation, and adopt one of its repositories, with no browser when the App and its installation exist already.",
+        text: include_str!("../../../docs/help/github.md"),
+    },
+    Page {
         name: "commands",
         kind: Kind::Reference,
         title: "temper's commands",
         summary: "Every command of the temper binary, by who runs it: its usage, what it does, its arguments and its notes.",
         text: include_str!("../../../docs/help/reference/commands.md"),
-    },
-    Page {
-        name: "box",
-        kind: Kind::Guide,
-        title: "Start a local temper box",
-        summary: "Run temper, an owned Forgejo and its runner on one machine, on loopback, from a checkout of temper, then adopt a repository and ask for work.",
-        text: include_str!("../../../docs/help/box.md"),
     },
     Page {
         name: "budgets",
@@ -128,13 +135,6 @@ pub static PAGES: [Page; 11] = [
         title: "Connect Forgejo",
         summary: "Connect temper to a Forgejo as its bot, in one of three modes: connected, managed or owned.",
         text: include_str!("../../../docs/help/forgejo.md"),
-    },
-    Page {
-        name: "github",
-        kind: Kind::Guide,
-        title: "Connect GitHub",
-        summary: "Connect temper to GitHub through a GitHub App, temper's own or one you make, and install it on the accounts whose repositories it works on.",
-        text: include_str!("../../../docs/help/github.md"),
     },
     Page {
         name: "server",
