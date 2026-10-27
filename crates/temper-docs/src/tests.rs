@@ -13,7 +13,7 @@ mod paging_search;
 mod rules;
 
 const KINDS: [Kind; 6] = [Kind::Index, Kind::Concept, Kind::Walk, Kind::Recipe, Kind::Reference, Kind::Guide];
-const GUIDES: [&str; 8] = ["box", "budgets", "charters", "forgejo", "github", "server", "settings", "tasks"];
+const GUIDES: [&str; 6] = ["box", "budgets", "forgejo", "github", "server", "tasks"];
 
 const fn fixture(kind: Kind, text: &'static str) -> Page {
     Page { name: "fixture", kind, title: "Fixture", summary: "Fixture.", text }

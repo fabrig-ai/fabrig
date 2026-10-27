@@ -21,7 +21,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
   period up to their role's period spend, from an ancestor task, or
   from a recurring task.
 - **A run** draws what its task has left, up to the deployment's run
-  cap; its charter (temper help charters) sets its turns, its time and
+  cap; its charter (temper help charter) sets its turns, its time and
   a reserve to finish in. The stock sizes its spends at each start
   from C, one costliest completion of the first configured model at
   its prices: its rules' floor is 2C and their run cap K, 4C; a

@@ -79,7 +79,7 @@ pub struct Page {
 
 /// `index`, then the concepts, walks, recipes, reference pages and guides, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 13] = [
+pub static PAGES: [Page; 18] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -93,6 +93,13 @@ pub static PAGES: [Page; 13] = [
         title: "Budgets",
         summary: "A budget is what a task may spend, in units its models' prices make of their usage, and by when; each run draws a share of it, and a task without enough is held.",
         text: include_str!("../../../docs/help/budget.md"),
+    },
+    Page {
+        name: "charter",
+        kind: Kind::Concept,
+        title: "Charter",
+        summary: "How an agent's run works: the instructions its agent reads, the models it may use, its tools in the workspace, the hosts that may run it, and its limits.",
+        text: include_str!("../../../docs/help/charter.md"),
     },
     Page {
         name: "chat",
@@ -116,11 +123,53 @@ pub static PAGES: [Page; 13] = [
         text: include_str!("../../../docs/help/goal.md"),
     },
     Page {
+        name: "landing-rule",
+        kind: Kind::Concept,
+        title: "Landing rule",
+        summary: "What a change must meet before temper merges it into a branch: CI, being up to date, gates and approvals, by rules the configuration holds.",
+        text: include_str!("../../../docs/help/landing-rule.md"),
+    },
+    Page {
+        name: "policy",
+        kind: Kind::Concept,
+        title: "Policy",
+        summary: "What work in a project may do and spend: a policy a project is made from, the project's own copy, and the deployment's rules above every project.",
+        text: include_str!("../../../docs/help/policy.md"),
+    },
+    Page {
+        name: "proposal",
+        kind: Kind::Concept,
+        title: "Proposal",
+        summary: "A request for an act beyond its proposer's authority, which waits for a party or task that may decide it: a batch of tasks, an effect, a widening, an amendment, or a change of settings.",
+        text: include_str!("../../../docs/help/proposal.md"),
+    },
+    Page {
+        name: "revision",
+        kind: Kind::Concept,
+        title: "Revision",
+        summary: "A numbered record of one settings decision, the history of such records, and the revision each agent task's runs read their charter from.",
+        text: include_str!("../../../docs/help/revision.md"),
+    },
+    Page {
+        name: "settings",
+        kind: Kind::Concept,
+        title: "Settings",
+        summary: "How work runs in a deployment: its charters, templates, policies and rules, which its owners change while it runs, one checked decision at a time.",
+        text: include_str!("../../../docs/help/settings.md"),
+    },
+    Page {
         name: "task",
         kind: Kind::Concept,
         title: "Tasks",
         summary: "A task is one numbered piece of work in a project, done by an agent, a procedure or a person, within an authority, toward a result of a declared kind; tasks make trees of delegates.",
         text: include_str!("../../../docs/help/task.md"),
+    },
+    Page {
+        name: "template",
+        kind: Kind::Concept,
+        title: "Template",
+        summary: "How a new task of one shape is filled: who runs it, the result it gives, what it may spend, by when it ends, and how it is kept.",
+        text: include_str!("../../../docs/help/template.md"),
     },
     Page {
         name: "box",
@@ -156,20 +205,6 @@ pub static PAGES: [Page; 13] = [
         title: "temper's commands",
         summary: "Every command of the temper binary, by who runs it: its usage, what it does, its arguments and its notes.",
         text: include_str!("../../../docs/help/reference/commands.md"),
-    },
-    Page {
-        name: "charters",
-        kind: Kind::Guide,
-        title: "Charters, templates and policies",
-        summary: "What decides how temper's agents work: a charter for each run, a template for each new task, and the policies and rules that bound what work may do.",
-        text: include_str!("../../../docs/help/charters.md"),
-    },
-    Page {
-        name: "settings",
-        kind: Kind::Guide,
-        title: "Settings, revisions and proposals",
-        summary: "How you read and change temper's settings with temper ctl, what a revision is, how a proposal asks the deployment's owners, and what still needs a restart.",
-        text: include_str!("../../../docs/help/settings.md"),
     },
 ];
 

@@ -34,6 +34,21 @@ temper runs software work for people: agents take tasks on the repositories of a
 - temper help chat: a conversation with an agent, parked between
   messages, closed by its party.
 - temper help goal: a tracked task, its priority and its plan.
+- temper help proposal: an act beyond its proposer's authority, which
+  waits for one who may decide it; a change of settings among them.
+- temper help settings: the charters, templates, policies and rules
+  a deployment's owners change while it runs, one checked decision at
+  a time.
+- temper help revision: each settings decision as a numbered record,
+  their history, and the revision a task's runs read their charter
+  from.
+- temper help charter: how an agent's run works: its instructions,
+  models, workspace tools, hosts and limits.
+- temper help template: how a new task of one shape is filled.
+- temper help policy: what work in a project may do and spend: the
+  policies, roles and rules, and the requirements on effects.
+- temper help landing-rule: what a change must meet before temper
+  merges it.
 - temper help budget: what work spends, where it comes from, and what
   happens when it runs out.
 
@@ -47,14 +62,6 @@ temper runs software work for people: agents take tasks on the repositories of a
   its site admin.
 - temper help server: a long-lived deployment on a server, its
   workers on another host, and its redeploy.
-
-## The guides
-
-Written before this map, for people; each becomes concepts of its
-own.
-
-- temper help charters: charters, templates and policies.
-- temper help settings: settings, revisions and proposals.
 
 ## Placeholders
 
