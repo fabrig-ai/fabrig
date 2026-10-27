@@ -424,7 +424,10 @@ child, the calendar, which renews each project's period.
   A stopping engine arms none (9.2).
 - **Bounded:** one deadline armed, the earliest; one record per project
   in memory, within jig's project limit; nothing stored of its own, the
-  periods being the core's records.
+  periods being the core's records. A renewal's decision takes two
+  journal writes per project it renews (its period's ledger and its next
+  start), so every journal bound derived from the projects grows by two
+  per project (o/configuring-periods' calendar, temper 7e3f4df67).
 - **Seen and raised:** a project's document carries its period's start
   and next start (jig's `client/domain/contract.md`, 5.1), and `temper
   ctl project show` prints them with what the period has left; `temper
