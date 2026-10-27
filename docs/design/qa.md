@@ -99,20 +99,21 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   needed"): the stock holds a rung in arithmetic (a 100k-token turn is
   about 100 units against a run's K of 4,324), but a walk raises its
   box's anyway, as a person would, and says the figures in its report.
-  Raising a period does not refill a project already made, so, until
-  `temper ctl project fund` exists, the walk raises right after its
-  sign-in, before `forge setup` makes its project, in one `settings
-  apply` edited from `settings show rules --json` and `settings show
-  policy 1 --json`: the rules' spend 207,552 and period spend 449,696;
-  policy 1's ceiling's spend 207,552 and period spend 449,696, the
-  project's period spend 449,696, role 0's authority spend 207,552 and
-  its period spend 415,104. The period stays larger than role 0's pool,
-  so that the deployment's own work (a landing task, a tier run, a
-  queue's repair) is still funded. Nothing per run; the chat's template
-  stays as allowed. Once `project fund` exists, it does the same on a
-  made project: `project fund P AMOUNT`, and `--role 0` for the
-  owner's pool. The stock's own defaults are not a QA box's to change
-  (temper#16).
+  Raising a period does not refill a project already made, so the walk
+  raises right after its sign-in, before `forge setup` makes its
+  project, in one `settings apply` edited from `settings show rules
+  --json` and `settings show policy 1 --json`: the rules' spend 207,552
+  and period spend 449,696; policy 1's ceiling's spend 207,552 and
+  period spend 449,696, the project's period spend 449,696, role 0's
+  authority spend 207,552 and its period spend 415,104. The period
+  stays larger than role 0's pool, so that the deployment's own work (a
+  landing task, a tier run, a queue's repair) is still funded. Nothing
+  per run; the chat's template stays as allowed. A walk that meets a
+  made project short funds it instead: `project fund P AMOUNT`, then
+  `project fund P AMOUNT --role 0`, the project first, since the
+  owner's pool reserves from its period; each refills the open period
+  at once, and `project show P` reads what is left. The stock's own
+  defaults are not a QA box's to change (temper#16).
 - **Down before up:** the director opens a rung once the rung below has
   run clean at a `main` no older, and a rung's open findings hold the
   rungs above it (`draft/qa-live.md`, 3.2, without the lab's verdicts).
