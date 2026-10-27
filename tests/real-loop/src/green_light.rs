@@ -300,11 +300,18 @@ fn check_queries(ran: &Ran) {
     let sent = format!("Message {QUESTION} sent");
     assert!(heard_tool(asked, &sent), "T2 was told the question's returned message number: {asked:?}");
     let relay = told(query_at(ran, CHAT_CUE, CHAT_RELAY));
-    let question_at = relay.find(QUESTION_WORDS).expect("T1 was told T2's question before its relay");
-    let answer_at = relay.find(ANSWER).expect("T1 was told the person's answer before its relay");
+    let question_at = relay
+        .find(&format!("{WORK} asks (question {QUESTION}): {QUESTION_WORDS}"))
+        .expect("T1 was told T2's question before its relay");
+    let answer_at = relay
+        .find(&format!("1 answers question {QUESTION}: {ANSWER}"))
+        .expect("T1 was told the person's answer before its relay");
     assert!(question_at < answer_at, "T1 hears the question before the person's answer: {relay}");
     let delegate = told(query_at(ran, WORK_CUE, WORK_DELEGATE));
-    assert!(delegate.contains(&format!("{CHAT}: {ANSWER}")), "T2 hears T1's answer before delegating: {delegate}");
+    assert!(
+        delegate.contains(&format!("{CHAT} answers question {QUESTION}: {ANSWER}")),
+        "T2 hears T1's answer before delegating: {delegate}"
+    );
     assert!(
         heard_tool(query_at(ran, WORK_CUE, CHANGE_DELEGATED), &format!("Delegated tasks: {CHANGE}")),
         "T2 was told the fresh change's task number"

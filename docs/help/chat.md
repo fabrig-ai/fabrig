@@ -23,8 +23,10 @@ A chat is a conversation between a party and an agent in a project: an untracked
   will wait in the party's inbox. The goal asks its plan with
   `message`; the question waits in the party's inbox; the party
   answers it there (`task answer`), the chat relays the answer to the goal,
-  and only then does the goal call `change`. The chat says what
-  landed.
+  and only then does the goal call `change`. In the chat's
+  conversation the goal's question reads `G asks (question Q): ...`
+  and the party's answer `P answers question Q: ...`: the chat relays
+  it to the goal by that number. The chat says what landed.
 
 ## How it changes
 

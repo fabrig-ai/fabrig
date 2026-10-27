@@ -1111,10 +1111,10 @@ fn pace_inbox(misses: &mut Vec<Miss>, observed: &Observed) {
     );
     let asked =
         observed.told.iter().position(|told| told.agent == Agent::Director && contains(&told.words, PACE_QUESTION));
-    let answered = observed
-        .told
-        .iter()
-        .position(|told| told.agent == Agent::Director && contains(&told.words, &format!("1: {PACE_ANSWER}")));
+    let answered = observed.told.iter().position(|told| {
+        told.agent == Agent::Director
+            && contains(&told.words, &format!("1 answers question {PACE_QUESTION_MESSAGE}: {PACE_ANSWER}"))
+    });
     step_check(
         misses,
         "4.4",
@@ -1284,7 +1284,12 @@ mod pace_tests {
             told: vec![
                 told(Agent::A, &format!("Message {PACE_QUESTION_MESSAGE} sent"), OWNER_MODEL, 0),
                 told(Agent::Director, PACE_QUESTION, DEFAULT_MODEL, 0),
-                told(Agent::Director, &format!("1: {PACE_ANSWER}\nNote 1 revision 1 written"), DEFAULT_MODEL, 0),
+                told(
+                    Agent::Director,
+                    &format!("1 answers question {PACE_QUESTION_MESSAGE}: {PACE_ANSWER}\nNote 1 revision 1 written"),
+                    DEFAULT_MODEL,
+                    0,
+                ),
                 told(Agent::A, PACE_ANSWER, DEFAULT_MODEL, 0),
                 told(Agent::Survey, "Begin", DEFAULT_MODEL, 1),
                 told(Agent::Director, &format!("Note 1 revision 1: {PACE_NOTE}\n{PACE_ANSWER}\n"), DEFAULT_MODEL, 0),
@@ -2020,7 +2025,7 @@ mod rules_tests {
         )
     }
     fn met() -> Observed {
-        let fresh = vec![user(&format!("{SCOPE}: {SCOPE_QUESTION}"))];
+        let fresh = vec![user(&format!("{SCOPE} asks (question {SCOPE_QUESTION_NUMBER}): {SCOPE_QUESTION}"))];
         let mut later = fresh.clone();
         later.extend([assistant("Answer A."), user("Answer sent")]);
         Observed {

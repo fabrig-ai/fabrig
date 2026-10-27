@@ -169,6 +169,45 @@ fn a_starting_run_hears_its_met_dependency_by_name() {
 }
 
 #[test]
+fn a_starting_inbox_keeps_question_and_answer_references() {
+    let mut assignment = assignment();
+    assignment.messages = Box::new([
+        tasks::Word {
+            number: 4,
+            from: tasks::Party::Task(2),
+            kind: tasks::MessageKind::Question,
+            words: b"The plan?".as_slice().into(),
+            at: skein_lib::Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        },
+        tasks::Word {
+            number: 9,
+            from: tasks::Party::Person(1),
+            kind: tasks::MessageKind::Answer { question: 4 },
+            words: b"Approved.".as_slice().into(),
+            at: skein_lib::Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        },
+    ]);
+    let smith::Event::Start { messages, .. } = start(
+        &assignment,
+        None,
+        None,
+        ReplyTo::new(Token::new(50)),
+        Token::new(23),
+        smith::Window { turns: 1, bytes: 100_000 },
+    ) else {
+        panic!("start conversion")
+    };
+    assert_eq!(messages[0].label.as_ref(), b"2 asks (question 4)");
+    assert_eq!(messages[0].text.as_ref(), b"The plan?");
+    assert_eq!(messages[1].label.as_ref(), b"1 answers question 4");
+    assert_eq!(messages[1].text.as_ref(), b"Approved.");
+}
+
+#[test]
 fn selected_llm_bindings_reach_smith() {
     let mut assignment = assignment();
     assignment.run.policy.model.effort = Some(b"high".as_slice().into());

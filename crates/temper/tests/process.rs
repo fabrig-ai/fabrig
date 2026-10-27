@@ -4250,7 +4250,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
 }
 
 #[test]
-fn a_goals_207_byte_question_is_answered_from_the_inbox_and_the_goal_calls_change() {
+fn a_green_light_answers_the_goals_207_byte_question_from_the_inbox_and_lands_its_change() {
     use std::{fs, os::unix::fs::PermissionsExt};
     use support::{
         forge_land::{self, Plan},
@@ -4282,7 +4282,13 @@ fn a_goals_207_byte_question_is_answered_from_the_inbox_and_the_goal_calls_chang
         &client,
         steps,
         BOX_DEADLINE,
-        || (),
+        || {
+            (
+                support::first_repository::turns(&client, "1"),
+                support::first_repository::turns(&client, "2"),
+                support::ctl::alone(&client, support::ctl::Call::new(&["change", "show", "3", "--json"])),
+            )
+        },
         forge_land::plan_face(issuer, scripts, true),
     );
     let stderr = String::from_utf8_lossy(&outcome.stderr);
@@ -4297,5 +4303,31 @@ fn a_goals_207_byte_question_is_answered_from_the_inbox_and_the_goal_calls_chang
     let task = change.get("task").unwrap_or(&change);
     assert_eq!(task.pointer("/chip/task").and_then(serde_json::Value::as_u64), Some(3));
     assert!(seen.answers.iter().all(Result::is_ok));
+    let (chat, goal, panel) = outcome.checked.expect("conversation and landing evidence");
+    let question = format!("2 asks (question 1): {}", long_question::words());
+    // ctl can cut a long transcript part; the fake observes the complete model input.
+    let heard = |line: &[u8]| {
+        seen.requests.iter().flat_map(|query| &query.messages).flat_map(|message| &message.parts).any(|part| {
+            matches!(part,
+                skein_fake_llm_domain::api::Part::Text { text }
+                | skein_fake_llm_domain::api::Part::ToolOutput { output: text, .. }
+                    if text.windows(line.len()).any(|part| part == line))
+        })
+    };
+    assert!(heard(question.as_bytes()), "chat hears the goal's whole numbered question");
+    assert!(heard(b"1 answers question 1: Go ahead."), "chat hears the person's numbered answer");
+    assert!(goal.contains("1 answers question 1: Go ahead."), "the original goal hears the relay: {goal}");
+    assert_eq!(chat.matches(" · goal\n").count(), 1, "the chat makes only the original goal: {chat}");
+    assert!(!chat.contains("Refused:"), "the numbered relay succeeds: {chat}");
+    assert_eq!(panel.exit, Some(Exit::Code(0)));
+    let panel = support::ctl::json(&panel);
+    assert_eq!(panel["step"], "landed", "the original goal's change lands: {panel}");
+    // The fake's answer form names exactly the number received by this run.
+    let relayed = chat.lines().any(|line| {
+        serde_json::from_str::<serde_json::Value>(line).is_ok_and(|args| {
+            args["target"] == 2 && args["form"] == "answer" && args["question"] == 1 && args["words"] == "Go ahead."
+        })
+    });
+    assert!(relayed, "the chat relays the question number it heard");
     scratch.remove();
 }

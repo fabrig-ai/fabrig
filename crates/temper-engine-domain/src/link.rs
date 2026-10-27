@@ -424,13 +424,13 @@ fn report(activity: host::Activity) -> fleet::Report {
     }
 }
 
-/// One committed inbox word for its live host, its kind kept in its words.
+/// One committed inbox word for its live host, its kind kept in its rendered line.
 pub(crate) fn message(run: Token, attempt: Token, word: &tasks::Word) -> host::LinkDown {
     host::LinkDown::Message {
         run,
         attempt,
         name: Token::new(word.number),
-        sender: sender(word.from),
+        sender: inbox_sender(word),
         words: inbox_words(word),
         finish_requested: word.finish_requested(),
     }
@@ -497,6 +497,40 @@ fn met_words(dependency: u64, removed: bool, words: &[u8]) -> Box<[u8]> {
     writer.put(line).expect("measured notice");
     writer.put(separator).expect("measured separator");
     writer.put(words).expect("measured words");
+    writer.finish()
+}
+
+/// The sender label and question reference that smith prefixes to the words.
+/// Shared by live delivery and the inbox carried at start (domain/agent.md, 5).
+#[must_use]
+pub fn inbox_sender(word: &tasks::Word) -> Box<[u8]> {
+    let label = sender(word.from);
+    let (kind, question, end) = match word.kind {
+        tasks::MessageKind::Question => (b" asks (question ".as_slice(), word.number, b")".as_slice()),
+        tasks::MessageKind::Answer { question } => (b" answers question ".as_slice(), question, b"".as_slice()),
+        tasks::MessageKind::Words
+        | tasks::MessageKind::Result(_)
+        | tasks::MessageKind::ProposalDecision { .. }
+        | tasks::MessageKind::PersonStalled { .. }
+        | tasks::MessageKind::EffectNotMade { .. }
+        | tasks::MessageKind::Met { .. }
+        | tasks::MessageKind::Notice { .. }
+        | tasks::MessageKind::News { .. }
+        | tasks::MessageKind::Timer { .. }
+        | tasks::MessageKind::FinishRequested { .. }
+        | tasks::MessageKind::Amendment { .. }
+        | tasks::MessageKind::Proposal { .. }
+        | tasks::MessageKind::Escalation { .. } => return label,
+    };
+    let question = Decimal::of(question);
+    let bytes = label.len().checked_add(kind.len()).expect("bounded message kind");
+    let bytes = bytes.checked_add(question.as_bytes().len()).expect("bounded question number");
+    let bytes = bytes.checked_add(end.len()).expect("bounded message label");
+    let mut writer = Writer::new(bytes);
+    writer.put(&label).expect("measured sender");
+    writer.put(kind).expect("measured kind");
+    writer.put(question.as_bytes()).expect("measured question");
+    writer.put(end).expect("measured end");
     writer.finish()
 }
 
@@ -686,6 +720,57 @@ mod tests {
             .is_none()
         );
         assert_eq!(domain.pieces_dropped(), u64::MAX);
+    }
+
+    fn rendered_line(from: tasks::Party, kind: tasks::MessageKind) -> Box<[u8]> {
+        let word = tasks::Word {
+            number: 4,
+            from,
+            kind,
+            words: b"Go ahead?\nKeep the newline.".as_slice().into(),
+            at: skein_lib::Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        };
+        let host::LinkDown::Message { sender, words, name, .. } = message(Token::new(1), Token::new(2), &word) else {
+            panic!("message translation")
+        };
+        assert_eq!(name, Token::new(4));
+        let bytes = sender.len().checked_add(2).expect("test sender and separator");
+        let bytes = bytes.checked_add(words.len()).expect("test line");
+        let mut line = Writer::new(bytes);
+        line.put(&sender).expect("sender fits");
+        line.put(b": ").expect("separator fits");
+        line.put(&words).expect("words fit");
+        line.finish()
+    }
+
+    #[test]
+    fn words_render_with_their_sender() {
+        assert_eq!(
+            rendered_line(tasks::Party::Task(2), tasks::MessageKind::Words).as_ref(),
+            b"2: Go ahead?\nKeep the newline."
+        );
+        assert_eq!(
+            rendered_line(tasks::Party::Person(1), tasks::MessageKind::Words).as_ref(),
+            b"1: Go ahead?\nKeep the newline."
+        );
+    }
+
+    #[test]
+    fn a_question_renders_its_number_for_the_answer_form() {
+        assert_eq!(
+            rendered_line(tasks::Party::Task(2), tasks::MessageKind::Question).as_ref(),
+            b"2 asks (question 4): Go ahead?\nKeep the newline."
+        );
+    }
+
+    #[test]
+    fn an_answer_renders_the_question_it_answers() {
+        assert_eq!(
+            rendered_line(tasks::Party::Person(1), tasks::MessageKind::Answer { question: 3 }).as_ref(),
+            b"1 answers question 3: Go ahead?\nKeep the newline."
+        );
     }
 
     #[test]

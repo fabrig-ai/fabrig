@@ -77,14 +77,10 @@ pub fn start(
     charter.resume = assignment.run.policy.resume && transcript.is_some();
     let mut messages = List::with_capacity(assignment.messages.len().try_into().expect("bounded start messages"));
     for word in &assignment.messages {
-        let sender = match word.from {
-            tasks::Party::Task(number) | tasks::Party::Person(number) => bytes::copy_of(Decimal::of(number).as_bytes()),
-            tasks::Party::Deployment { .. } => bytes::copy_of(b"deployment"),
-        };
         messages
             .push(run::Message {
                 name: Token::new(word.number),
-                label: sender,
+                label: engine::inbox_sender(word),
                 text: engine::inbox_words(word),
                 finish_requested: word.finish_requested(),
             })

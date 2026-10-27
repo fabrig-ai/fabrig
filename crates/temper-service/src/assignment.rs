@@ -5,7 +5,7 @@ use jig_domain_core as core;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
 use jig_protocol_engine_workers as kit;
-use skein_lib::{Decimal, List, Time, Token, Writer};
+use skein_lib::{List, Time, Token, Writer};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire as wire;
 
@@ -140,14 +140,10 @@ fn identity(deployment: &[u8; 16], task: u64, conversation: u64) -> [u8; 16] {
 fn messages(words: &[tasks::Word]) -> Box<[host::StartMessage]> {
     let mut messages = List::with_capacity(u32::try_from(words.len()).expect("bounded messages"));
     for word in words {
-        let sender = match word.from {
-            tasks::Party::Task(number) | tasks::Party::Person(number) => Decimal::of(number).as_bytes().into(),
-            tasks::Party::Deployment { .. } => b"deployment".as_slice().into(),
-        };
         messages
             .push(host::StartMessage {
                 name: Token::new(word.number),
-                sender,
+                sender: root::inbox_sender(word),
                 words: root::inbox_words(word),
                 finish_requested: word.finish_requested(),
             })
@@ -210,6 +206,35 @@ fn answered(calls: &[core::Settled]) -> Box<[host::AnsweredCall]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_host_start_carries_the_question_and_answer_references() {
+        let words = [
+            tasks::Word {
+                number: 4,
+                from: tasks::Party::Task(2),
+                kind: tasks::MessageKind::Question,
+                words: b"The plan?".as_slice().into(),
+                at: skein_lib::Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            },
+            tasks::Word {
+                number: 9,
+                from: tasks::Party::Person(1),
+                kind: tasks::MessageKind::Answer { question: 4 },
+                words: b"Approved.".as_slice().into(),
+                at: skein_lib::Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            },
+        ];
+        let messages = messages(&words);
+        assert_eq!(messages[0].sender.as_ref(), b"2 asks (question 4)");
+        assert_eq!(messages[0].words.as_ref(), b"The plan?");
+        assert_eq!(messages[1].sender.as_ref(), b"1 answers question 4");
+        assert_eq!(messages[1].words.as_ref(), b"Approved.");
+    }
 
     #[test]
     fn a_starting_run_hears_its_met_dependency_by_name() {
