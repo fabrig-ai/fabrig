@@ -593,3 +593,11 @@ host:
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP
   tool source once smith has one.
+- **The person's answer, relayed or routed.** Today the chat relays a
+  person's inbox answer to its goal (8.2), by the number it heard
+  (section 5), a step that rests on the model. jig's client contract
+  already makes the person's answer the chat's, as the task the
+  question was put to; jig could route it to the asking goal directly,
+  the chat told, with no relay. Kept as the relay while it holds on the
+  ladder's walks, since the second edition keeps the goal's question
+  with the chat (J7, J8); taken if a walk shows the relay failing.
