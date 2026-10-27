@@ -587,7 +587,9 @@ and `connect-forge.html`.
     "Required.". The set up's refusals show under the button in its
     words (`README.md`, 4.6): `invalid`, which also marks the organization and
     repository fields invalid, the fields kept for the person to fix.
-    "Set up again" sends the fields the last `SetUp` sent. Not under
+    "Set up again" sends the fields the last `SetUp` sent. The
+    welcome skips these Details under the box: its card sends the
+    `SetUp` itself, with fixed fields (`README.md`, 3.5). Not under
     the box: "Set it up from a terminal", "temper was not started by
     temper box, so it does not start a Forgejo itself. Run these, keep
     the last two running (a service manager is best), then restart
@@ -882,7 +884,7 @@ admin", with its forge number and bot (`../protocol/setup.md`, section
 | Install the App; Install on another account | GitHub, connected: "Install on GitHub" before any accepted installation (Connecting), "Install on another account" after one, and Ready's "Choose its repositories on GitHub" | a fresh link to temper's App's install page, with `back`, where the browser goes in the page's own tab; the person picks the account and its repositories on GitHub, keeping GitHub's default, all of them, or choosing some, and the setup route sends the tab back to `back` |
 | New repository | Forgejo owned or managed, connected | the set up's same fields: organization (default `work`), repository (default `hello`) and a project, one of the person's or a new one; the general form of the first repository (`../protocol/setup.md`, section 15) |
 | Forget the admin's token | managed | the admin's token erased; the forge is connected, its bot and tokens kept, and adopting a repository grants nothing more: the person makes the bot a collaborator |
-| Set up a Forgejo here | the row's offer offered, not set up (`README.md`, 4.6) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../draft/first-run.md`, 2.4); then the box asked to run the forge's steps (`../protocol/setup.md`, 7.1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../protocol/setup.md`, 6.7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../protocol/setup.md`, 6.5) |
+| Set up a Forgejo here | the row's offer offered, not set up (`README.md`, 4.6) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../draft/first-run.md`, 2.4), or, from the welcome's card under the box, `work`, `hello` and a new project `Default`, none of them asked (`README.md`, 3.5); then the box asked to run the forge's steps (`../protocol/setup.md`, 7.1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../protocol/setup.md`, 6.7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../protocol/setup.md`, 6.5) |
 | Set up again | the row's offer offered, set up failed | the same ask again: what the last one left is kept, a fetched binary hashed and not fetched again |
 
 Connect, but on a stopped forge or one whose records say why it is not
@@ -1280,7 +1282,13 @@ made by the forge connector from what it keeps of the change
   a forge's, less a configured admin Forgejo's card and A Forgejo
   elsewhere, which v0.1.0 offers on Connect a forge alone. The user's
   direction (2026-10-26) is that the welcome's items be fixed rather
-  than taken from the configuration; its shape is open.
+  than taken from the configuration; its shape is open. On 2026-10-27
+  the user asked for one Forgejo card, run on this machine or a
+  deployment of one's own (the look request `welcome-forgejo-card`),
+  and, for now, no Details for Forgejo on this machine under the box:
+  the card sets it up at once with `work`, `hello` and a project
+  `Default` (`README.md`, 3.5). Both wait on the user's review of
+  these pages.
 - **An App of one's own, offered again** (5.4). Default: GitHub's card
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor

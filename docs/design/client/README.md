@@ -779,8 +779,18 @@ keeps (`../protocol/configuration.md`, section 2).
     shows `ConnectForge`'s Connecting or Ready in the step, its `back`
     the welcome's Forge step, `/welcome?at=forge&forge=N`, so that the
     tab GitHub sends back finds its choice there. Once a repository is
-    adopted, the welcome moves on to Model. Once "Set up a Forgejo here"
-    is accepted, the welcome moves on to Model, the set up running on.
+    adopted, the welcome moves on to Model. Forgejo on this machine
+    has no Details on the welcome under the box (the user, 2026-10-27,
+    a stop-gap until they review these pages: `forge.md`, 10): its
+    card's action sends `SetUp` at once, with the organization `work`,
+    the repository `hello` and a new project named `Default`, none of
+    them asked, and the Details' words, its notes on CI's isolation
+    and on Forgejo stopping with the box among them, are not shown.
+    Refused, the refusal shows under the card's action, in the set
+    up's words (4.6). Not under the box, the card opens its Details,
+    as on `ConnectForge`. Once the `SetUp` is accepted, from the card
+    or from Details, the welcome moves on to Model, the set up running
+    on.
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
     (above), its way in the welcome's address (`browser.md`, 2.3).
     Its ways sit directly under the lead, with neither the standalone
