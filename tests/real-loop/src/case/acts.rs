@@ -51,6 +51,7 @@ pub enum Read {
     HangActivityFirst,
     RulesWaiting,
     RulesHeld,
+    ScopeHeld,
     RulesQuestionWaiting,
     ScopeEnded,
     RulesEnded,
@@ -491,11 +492,12 @@ const RULES_ENDED: usize = 3;
 pub const READS_5_1: &[(Read, usize)] = &[
     (Read::RulesWaiting, 5),
     (Read::RulesHeld, 7),
-    (Read::RulesQuestionWaiting, 8),
+    (Read::ScopeHeld, 8),
+    (Read::RulesQuestionWaiting, 11),
     (Read::RulesEnded, RULES_ENDED),
-    (Read::ScopeEnded, 11),
-    (Read::RulesActivity, 12),
-    (Read::ScopeActivity, 13),
+    (Read::ScopeEnded, 12),
+    (Read::RulesActivity, 13),
+    (Read::ScopeActivity, 14),
 ];
 
 #[must_use]
@@ -530,27 +532,21 @@ pub fn step_5_1() -> Vec<calls::Step> {
         // full task document through the director's answer and both reports.
         start(D1, argv!["task", "show", number(RULES), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(RULES), "--until", "replied"]),
-        calls::until(
-            D1,
-            argv!["task", "show", number(RULES), "--json"],
-            b"\"work\":\"waiting\"",
-            b"\"phase\":\"running\"",
-        ),
+        calls::until(D1, argv!["task", "show", number(RULES), "--json"], b"\"work\":\"waiting\"", b"\"phase\":\"running\""),
         call(D1, argv!["task", "stop", number(RULES), "--key", "rules-stop"]),
-        calls::until(D1, argv!["task", "show", number(RULES), "--json"], b"\"stopped_by\"", b"\"phase\":\"running\""),
+        calls::until(D1, argv!["task", "show", number(RULES), "--json"], b"\"placed\"", b"\"phase\":\"running\""),
+        calls::until(D1, argv!["task", "show", number(SCOPE), "--json"], b"\"phase\":\"held\"", b"\"task\""),
+        // Both old responses and the resumed response have their own fake hold.
+        calls::release_hold(SCOPE_QUESTION_HOLD),
+        calls::push(RULES_FILE.as_bytes(), NEW_RULES.as_bytes()),
+        call(D1, argv!["task", "release", number(RULES), "--hold", number(RULES_HOLD_REVISION), "--key", "rules-release"]),
+        calls::writing_task(D1, SCOPE),
         calls::release_hold(SCOPE_QUESTION_HOLD),
         calls::until(
             D1,
             argv!["task", "show", number(RULES), "--activity", "32", "--json"],
             SCOPE_QUESTION.as_bytes(),
-            b"\"stopped_by\"",
-        ),
-        // A must park before the answer: its next run then fetches main's guide.
-        call(D1, argv!["task", "show", number(SCOPE), "--until", "phase:idle"]),
-        calls::push(RULES_FILE.as_bytes(), NEW_RULES.as_bytes()),
-        call(
-            D1,
-            argv!["task", "release", number(RULES), "--hold", number(RULES_HOLD_REVISION), "--key", "rules-release"],
+            b"\"task\"",
         ),
         join(RULES_ENDED),
         call(D1, argv!["task", "show", number(SCOPE), "--json"]),
