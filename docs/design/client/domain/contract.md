@@ -1,6 +1,6 @@
 # The client and the engine
 
-Provisional, 2026-10-09, revised 2026-10-24. jig's API: what crosses
+Provisional, 2026-10-09, revised 2026-10-27. jig's API: what crosses
 between a party's client and the engine, at the level of the two
 domains. It says who the party is; the plumbing operations a party asks,
 alone or several in one compound request, each keyed and answered once
@@ -530,7 +530,9 @@ Every request has one answer, of one of these kinds:
   - *account move:* an account's move refused, saying why: *not signed
     in* (no signed-in source holding a record that reads), *not ours*
     (a moved file of another application, or of no configured LLM
-    provider's registration), *held* (its subject held by another
+    provider's registration), *unreadable* (a moved file that does not
+    decode, of a form or version this build does not read, or damaged),
+    *held* (its subject held by another
     holder), *cancelled* (a *written* for a move no longer under way:
     the client removes the file it wrote), or *moving* (the source is
     out with a move, or back from one and not yet refreshed:

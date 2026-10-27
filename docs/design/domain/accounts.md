@@ -1,6 +1,6 @@
 # LLM accounts
 
-Provisional, 2026-10-19, revised 2026-10-24. How an application on jig pays for its runs'
+Provisional, 2026-10-19, revised 2026-10-27. How an application on jig pays for its runs'
 LLMs: who holds an account, the sources by which a run may use it, the
 states the accounts child keeps of each, whose work it pays for, which
 account each run gets, what people do with their accounts, and how an
@@ -520,7 +520,7 @@ among their own (`../client/domain/contract.md`, 7.1).
 | remove an account | signs each of its sources out, as sign out does, and erases its keys; its number is never reused, and a task that kept it chooses again (4.3); the deployment's also by the deployment's `RemoveAccount` (people.md, 5.3) |
 | move out | withdraws the account's signed-in source and hands its record to the client that asked, once, never in a committed answer, naming the move; sent once, never kept by the client (`../client/domain/contract.md`, 3.1); refused "not signed in" without a signed-in source holding a record (section 6) |
 | written | the client wrote the moved record: erases the source, and the account with it when no source is left; refused "cancelled" for a move not under way |
-| move in | takes a moved record carried as a key is: refused "not ours" for another application's, "held" for a subject another holder holds; makes the account or renews the holder's of its subject, refreshing the record once before it is usable (section 6) |
+| move in | takes a moved record carried as a key is: refused "unreadable" for a file that does not decode, "not ours" for another application's, "held" for a subject another holder holds; makes the account or renews the holder's of its subject, refreshing the record once before it is usable (section 6) |
 
 - **A value is never committed.** A key, or a moved record, is
   taken out by the clients' protocol layer as it decodes the request,
@@ -600,7 +600,9 @@ construction, never by a person deleting a copy.
   into the secrets' store as a key is (section 5). The protocol layer
   reads them and checks that they are this application's: its name, and
   the issuer and client id of a configured LLM provider's registration;
-  otherwise the request is refused "not ours". The child then decides
+  otherwise the request is refused "not ours"; bytes that do not decode
+  as a moved file are refused "unreadable" before any of these checks.
+  The child then decides
   as for a sign-in (3.2, 3.3): it refuses the deployment where the LLM
   provider's sign-in brings a plan, and a subject another holder holds
   ("held"), else makes the account, or renews the holder's account of
