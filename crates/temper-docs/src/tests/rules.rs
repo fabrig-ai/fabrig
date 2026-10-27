@@ -66,7 +66,7 @@ fn the_guides_are_the_eight_names_alone() {
 fn the_index_names_every_concept_walk_and_recipe_once() {
     let text = find(b"index").expect("index").text;
     for entry in &PAGES {
-        if matches!(entry.kind, Kind::Concept | Kind::Walk | Kind::Recipe) {
+        if written(entry) && entry.kind != Kind::Index {
             let count = text
                 .split("temper help ")
                 .skip(1)
@@ -100,7 +100,7 @@ fn a_page_at_its_kinds_bound_passes_and_one_byte_more_fails() {
             Kind::Concept => CONCEPT,
             Kind::Walk => WALK,
             Kind::Recipe => RECIPE,
-            _ => "",
+            Kind::Index | Kind::Reference | Kind::Guide => "",
         };
         let mut padded = String::from(text);
         padded.push_str(&"x".repeat(kind.bound() - text.len()));

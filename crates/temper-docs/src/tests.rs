@@ -1,7 +1,8 @@
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
-    reason = "step tests read files and assemble expected text with ordinary Rust"
+    clippy::disallowed_macros,
+    reason = "step tests read files, format fixture errors and assemble text with ordinary Rust"
 )]
 #![expect(clippy::arithmetic_side_effects, reason = "test fixture offsets and counts are small")]
 use super::*;

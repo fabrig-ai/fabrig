@@ -106,7 +106,7 @@ fn every_command_line_in_the_pages_parses() {
                     continue;
                 }
             };
-            let arguments = words[1..].iter().map(|word| word.as_bytes()).collect::<Vec<_>>();
+            let arguments = words[1..].iter().map(String::as_bytes).collect::<Vec<_>>();
             let result = if words.get(1).is_some_and(|word| word == "ctl") {
                 ctl += 1;
                 match crate::ctl::parse(&arguments[1..]) {

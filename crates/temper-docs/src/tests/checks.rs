@@ -101,7 +101,10 @@ pub(super) fn links(entry: &Page) -> Result<(), String> {
 }
 
 pub(super) fn written(entry: &Page) -> bool {
-    matches!(entry.kind, Kind::Index | Kind::Concept | Kind::Walk | Kind::Recipe)
+    match entry.kind {
+        Kind::Index | Kind::Concept | Kind::Walk | Kind::Recipe => true,
+        Kind::Reference | Kind::Guide => false,
+    }
 }
 
 pub(super) fn placeholders(entry: &Page) -> Result<(), String> {
