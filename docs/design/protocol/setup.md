@@ -3386,7 +3386,17 @@ listener's (`../client/forge.md`, the browser's steps).
   contents, pull requests, issues and merge queues, write; checks,
   statuses, actions, administration and metadata, read; never
   workflows, never administration's write. Its events are skein's
-  (5.6).
+  (5.6). Designed, not built (`../domain/landing.md`, 8;
+  `../draft/process-model.md`, B3 and B5): statuses and actions, write,
+  so that a project landing by turn has its gates dispatched and its
+  receipts and verdicts posted; installations made before keep reading
+  only until their owner accepts the new permissions, and adoption says
+  so. The `Always` bypass the turn needs is a repository's ruleset's,
+  granted by its admin, never asked by the App. `workflows` stays
+  unasked: a change under `.github/workflows/` (a gate's or a tier's
+  definition, or a member rebased over one) is pushed by a person, and
+  whether GitHub refuses a ref update or a merge that brings one
+  without it is to check.
 - **Its hook** points at `https://<slug>.invalid/`, an address that
   never resolves, so GitHub delivers nowhere and holds no secret of
   temper's; the App's changes come from its delivery log (17.6).

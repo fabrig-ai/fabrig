@@ -221,7 +221,15 @@ For a project with no prepare command, one member per repository:
   branch, so the heads before it are kept in the change's state, and
   the pull request's timeline shows each candidate (`worker.md`,
   section 5's rule that no push is forced is temper's runs'; the
-  forge's rebase is the prepare's).
+  forge's rebase is the prepare's). Where the forge's rules dismiss
+  approvals on a push, it dismisses the forge's approvals too, though
+  the member's diff is the same: temper's judgement gates still hold
+  (section 3), and on GitHub the turn's ref update under `Always`
+  passes the rule; a person's approval the landing rules require is
+  asked again.
+- **On GitHub,** whose REST API updates a pull request only by a merge,
+  temper's default prepare is the worker's rebase job (5.3), never the
+  forge's.
 - **Not drift.** The update is asked while the change's writer slot is
   its own (jig's `domain/tasks.md`, 6.3), after a fresh read finds the
   head temper last knew; the head it leads to is the change's, though
@@ -395,13 +403,25 @@ For a project with no prepare command, one member per repository:
   stale: the landing goes back to preparing and frees the turn; its
   members whose repositories did not move, and none of whose upstreams
   did, keep their candidates and receipts.
-- **Then each member lands, upstream first,** by the forge's merge of
-  its pull request, fast-forward only, at exactly its candidate
-  (skein's `Write::Merge { how: FastForwardOnly }`), made by the
-  landing task and judged by the landing rules (`forge.md`, 8.7, where
-  `ci` is the test gates by receipt at the candidate), a pin-only
-  member's pull request as any other. Each merge's outcome is read
-  back: main's tip is the candidate, and its member is landed.
+- **Then each member lands, upstream first,** by a fast-forward of its
+  main to exactly its candidate, made by the landing task and judged by
+  the landing rules (`forge.md`, 8.7, where `ci` is the test gates by
+  receipt at the candidate), a pin-only member's as any other:
+  - **on Forgejo,** by the merge of its pull request, fast-forward
+    only, at the candidate (skein's `Write::Merge { how:
+    FastForwardOnly }`);
+  - **on GitHub,** which merges no pull request fast-forward, by
+    updating main's ref to the candidate, fast-forward only (skein's
+    `Write::UpdateRef`), designed, not built. The update is a push, so
+    it passes a rule requiring a pull request only where temper's App
+    may always bypass it (`Always`; `PullsOnly` is not enough:
+    `forge.md`, 4.4). A ruleset's bypass covers every rule in it, so it
+    may waive required checks too, but the candidate carries temper's
+    statuses (10) and meets them either way. GitHub marks the pull
+    request merged once main holds its head.
+
+  Each landing's outcome is read back: main's tip is the candidate, and
+  its member is landed.
 - **Nothing runs inside the turn:** no gate, no prepare, no run of an
   agent's. A merge refused or uncertain is settled as `forge.md`,
   section 6 settles any merge: a fast-forward-only merge raced by
@@ -419,9 +439,20 @@ For a project with no prepare command, one member per repository:
   again for the repositories not landed.
 - **Never a rebase or squash merge** where others pin the repository:
   the pinned commit must stay on its main.
-- **No turn without a fast-forward:** a project whose forge cannot
-  merge fast-forward only (GitHub, until its gap B2 is designed) cannot
-  choose `turn`, and the setting is refused saying so.
+- **No turn without a fast-forward:** a repository where temper cannot
+  fast-forward main to a candidate cannot land by turn: on GitHub, one
+  whose landing branch's rules require a pull request that temper's App
+  may not always bypass, or that requires the forge's merge queue, which
+  lands by its own method at a commit temper did not prove. Its
+  project's `turn` is refused, naming the repository and the one setting
+  that would let temper land (the App's `Always` bypass; the queue's
+  removal). There is no merge-commit fallback: the user's answer to the
+  draft's open question (`../draft/process-model.md`, 13), 2026-10-27,
+  "for now if GitHub doesn't have the bypass, let's fail". The refusal
+  says what is missing, the App's `Always` bypass on the landing
+  branch's rule, and how a person grants it: in the repository's
+  ruleset for that branch, the App added to the bypass list with
+  "Always allow".
 
 ## 9. Fairness
 
@@ -449,10 +480,11 @@ For a project with no prepare command, one member per repository:
 
 ## 11. Effects and kinds
 
-Two kinds join `forge.md`'s section 6, each a row of its own:
+Three kinds join `forge.md`'s section 6, each a row of its own:
 
 | Kind | Effect | What it is | Recovery class | Found again after an uncertain failure |
 |---|---|---|---|---|
+| 19 | update a branch's ref, fast-forward only (GitHub's turn, designed, not built) | a transition: main moved to the candidate | conditional: the forge refuses a move that is not a fast-forward | main at the candidate, or at a commit containing it |
 | 16 | dispatch a workflow | a creation: a run of a workflow at a branch, with inputs | unrecoverable: the forge keeps no key for it | among the runs of its workflow at its commit made after the entry's start |
 | 17 | rerun a job | a transition: the job's next attempt | unrecoverable: the forge checks no attempt | the job's attempt moved past the one named |
 
@@ -465,8 +497,12 @@ Two kinds join `forge.md`'s section 6, each a row of its own:
   its pull request's opening and closing (kinds 9, 15, 3 and 12); its
   members' rebases are theirs (kind 11, which a change holds already),
   under their holds.
+- **The landing rules govern kind 19 as they govern kind 4,** the merge
+  (`forge.md`, 8.7): each requirement judged at the candidate, CI being
+  the test gates by receipt.
 - **The grant:** the project's policy gives the landing procedure kinds
-  3, 4, 6, 9, 12, 15, 16 and 17 on the project's repositories, as it
+  3, 4, 6, 9, 12, 15, 16, 17 and, on GitHub, 19 on the project's
+  repositories, as it
   gives a queue's repair its kinds (`forge.md`, section 9); temper's
   root grants them to each landing task it makes. Until jig gives the
   tasks the deployment starts on a project's behalf only what the
@@ -524,8 +560,12 @@ the forge's, judged in the change's decision:
   gates are configured in the document's `landing` member
   (`../protocol/configuration.md`, section 3), as the landing rules
   are, and read at the start.
-- **`turn` is refused** for a project with a repository on a forge that
-  cannot merge fast-forward only, saying which (section 8).
+- **`turn` is refused** for a project with a repository where temper
+  cannot fast-forward main to a candidate (section 8: on GitHub, no
+  `Always` bypass of a rule requiring a pull request, or a required
+  merge queue; or an installation that cannot write statuses or
+  dispatch workflows), naming the repository and the setting that
+  would let it land.
 - **A gate's name** is letters, digits, `-` and `_`, unique in its
   repository, and its status context's last segment.
 - **The stock's deployment ceiling** admits what landings and tiers are
@@ -590,6 +630,11 @@ runner (`testing.md`, 2.7):
   lands as it is;
 - **a restart** mid-proof finds its run, and mid-turn settles its merge;
 - **under `queue`,** every story of `forge.md`'s world passes unchanged.
+- **on the fake GitHub,** designed, not built: a landing of one under
+  the App's `Always` bypass, its gate dispatched and its receipt posted,
+  main fast-forwarded by a ref update; a lost ref update found made; a
+  repository without `Always` refused, naming the bypass and how a
+  person grants it; a required merge queue refused.
 - **The reference case** (`../draft/reference-case.md`): these
   mechanics open its act 1's steps 4.1 and 4.3 and its act 3's steps
   6.1 to 6.3, whose stories on fakes (`fuzzy_case2_4_1`, ...) run in

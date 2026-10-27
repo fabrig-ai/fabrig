@@ -539,7 +539,12 @@ narrowed, and its changes wait.
   none: `status` is false in the kinds there from adoption on, and
   nothing is held for it. Every adoption on GitHub says that the gates'
   verdicts (8.3) stay temper's own, and that GitHub's rules cannot
-  require them.
+  require them. Designed, not built (`../draft/process-model.md`, B3):
+  for a project that lands by turn, the App writes statuses and
+  dispatches workflows (`../protocol/setup.md`, 17.1), so that its
+  receipts and verdicts are mirrored (`landing.md`, 10), and adoption
+  says, for each landing branch, whether its bypass is `Always`, which
+  the turn needs (`landing.md`, 8).
 
 ## 5. What it holds, and keeping up
 
@@ -1072,7 +1077,11 @@ starts from current code. It never updates only because its base moved.
   there (4.4), the post, `Write::Status`, is refused at the connector,
   and nothing waits for it (skein's `forge-github.md`, 4.2). Every
   adoption there says so, and the verdict stays temper's own; the App
-  asks for no more (`../protocol/setup.md`, 17.1).
+  asks for no more (`../protocol/setup.md`, 17.1). Designed, not built:
+  where an installation grants `statuses: write` (B3, `../protocol/setup.md`,
+  17.1), adoption reads it, `status` is true in that repository's kinds,
+  and statuses are posted there as on Forgejo; an installation that has
+  not accepted the new permission keeps today's refusal.
 - **When they run:** once CI passes on the head, by default, so a head
   CI fails costs no review; the change may ask to run them at once.
 

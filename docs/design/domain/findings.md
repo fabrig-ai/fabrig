@@ -138,10 +138,18 @@ is open is section 10.
   nothing until it is repaired.
 - **The forge's own keywords** would close it at the merge: an owned
   Forgejo's setup turns its closing keywords off (`../protocol/setup.md`,
-  `CLOSE_KEYWORDS` empty); on any other forge, a finding closed in the
-  minute after a landing whose commits name it is the keyword's, and
-  temper reopens it with a comment saying it closes once its landing is
-  cleared.
+  `CLOSE_KEYWORDS` empty); GitHub's per-repository setting,
+  "Auto-close issues with merged linked pull requests", is named at
+  adoption, with whether it is off. On GitHub, whatever it says, and on
+  any other forge, a finding closed in the minute after a landing whose
+  commits name it is the keyword's, and temper reopens it with a
+  comment saying it closes once its landing is cleared, until the
+  draft's B6 check (whether the setting also stops a commit's keyword
+  under a ref update) says the reopening can go.
+- **From a repository other than the home,** `Fixes #n` would name that
+  repository's own issue n. There a change names a finding by the
+  trailer `Fixes-finding: n`, which no forge reads; temper reads it in
+  any member repository, and `Fixes #n` in the home alone.
 - **A finding closed on the forge** is closed in temper (section 3).
 
 ## 8. QA after landing
