@@ -1162,6 +1162,10 @@ one owned forge, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **A Claude-only box on the small profile.** Its largest turn's store
+  frame passes small's page ceiling (13.8): a page decision of jig's or
+  skein's profile, or the standard profile for such a box. Default:
+  keep the demo endpoint configured, which sizes the room to fit.
 - **A made project's own landing rules.** `landing.projects` names
   seeded projects, so a project made after the first start has the
   deployment's rules alone. Default: the deployment's. Designed in
@@ -1808,9 +1812,19 @@ from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 
 - **T,** smith's largest turn (`smith-agent-service`'s `profile.rs`),
-  on init's window and other declarations: T = 580,792 + 24 × output +
-  4 × `reasoning_item`. Init's output 8,192 at `reasoning_item` 65,536
-  gives its 1,039,544.
+  from the smallest shared room over every configured model, on purpose,
+  so that one set of bounds holds whichever model a charter names
+  (smith's `limits.md`, 3.9). With `temper init`'s demo endpoint
+  configured, its 131,072-token window sets that room: T = 580,791 + 24
+  × output + 4 × `reasoning_item`, init's 1,039,543. A box without the
+  demo is sized by its own models: an OpenAI model of window 1,048,576
+  alone gives T = 1,143,581 + ⌈45 × output / 2⌉ + 4 × `reasoning_item`,
+  luna's 1,590,045, past init's limits, so such a box overrides them
+  as below, its declarations measured (`docs/examples/owned.json`'s
+  fit); a Claude model alone gives 1,593,449, whose store frame passes
+  small's page ceiling by 3,403 bytes, so a Claude-only box does not
+  start on the small profile (an open question, below). `temper init`
+  keeps the demo, and its limits stay sized for it (T17, 10-27).
 - **The store's ceiling:** small's page holds a loaded transcript of at
   most 1,590,046 bytes (its 1,590,110 less the frame's 64), so T is at
   most that. At output 32,000, `reasoning_item` is at most 60,313; a box
