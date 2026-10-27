@@ -1,6 +1,6 @@
 //! Requests carrying a value (client/domain/client.md, 6): sent once beside
 //! the table, never saved nor sent again; one answer each.
-use super::fixtures::{Client, KEY, NAME, OTHER_KEY, me, stop};
+use super::fixtures::{Client, FULL_HELD, FULL_ROOM, KEY, NAME, OTHER_KEY, me, stop};
 use crate::contract::Scope;
 use crate::*;
 use alloc::boxed::Box;
@@ -287,4 +287,23 @@ fn a_finish_is_carried_once_never_saved_and_answered_once() {
     answer(&mut c, *attempt, RequestEnvelope::Final, Some(done));
     assert!(c.told().is_empty());
     assert!(c.downs().is_empty());
+}
+
+#[test]
+fn a_carried_full_answer_preserves_the_engines_facts() {
+    let (mut c, attempt) = carried();
+    c.step(Event::Up {
+        up: Up::Answer {
+            attempt,
+            envelope: RequestEnvelope::Again,
+            answer: None,
+            why: Some(Retry::Full { held: FULL_HELD, room_at: FULL_ROOM }),
+        },
+    });
+    assert_eq!(
+        c.told().as_ref(),
+        &[Told::Answered { key: KEY, outcome: Outcome::Full { held: FULL_HELD, room_at: FULL_ROOM } }]
+    );
+    assert_eq!(c.domain.pending(KEY), None);
+    never_sent_again(&mut c);
 }

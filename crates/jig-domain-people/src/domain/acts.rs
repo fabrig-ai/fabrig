@@ -18,6 +18,12 @@ pub(crate) struct Acted {
     due: Time,
 }
 
+impl Acted {
+    pub(super) const fn at(&self) -> Wall {
+        self.at
+    }
+}
+
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
         Act::Close { task, reason, .. } => {

@@ -159,6 +159,11 @@ pub enum Outcome {
     Held,
     /// A request carrying a value the engine did not make; its caller asks again.
     Unsent,
+    /// The engine refused admission because its retained-answer table is full.
+    Full {
+        held: u32,
+        room_at: skein_lib::Wall,
+    },
     /// A request carrying a value whose exchange ended with no whole answer:
     /// the engine may have made it; its caller asks again under its name.
     Lost,
@@ -174,6 +179,7 @@ pub enum Progress {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Retry {
     Busy,
+    Full { held: u32, room_at: skein_lib::Wall },
     NotReady,
     Lost,
     Undecodable,

@@ -100,7 +100,7 @@ impl Component {
             people::Reply::Again(why) => {
                 let refusal = match why {
                     people::Again::NotReady => MintRefusal::NotReady,
-                    people::Again::Busy => MintRefusal::Busy,
+                    people::Again::Busy | people::Again::Full { .. } => MintRefusal::Busy,
                 };
                 if !self.mint_refused(exchange, refusal, out) {
                     // Retry answers give the same secret back without extending its expiry.

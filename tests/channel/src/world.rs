@@ -345,6 +345,7 @@ pub(crate) fn answer_parties(engine: &mut jig_test_service::Engine, party: &mut 
                     }
                     people::Reply::Again(reason) => parties::Reply::Again(match reason {
                         people::Again::Busy => parties::Again::Busy,
+                        people::Again::Full { held, room_at } => parties::Again::Full { held, room_at },
                         people::Again::NotReady => parties::Again::NotReady,
                     }),
                     other @ (people::Reply::SignedOut | people::Reply::Outcome(_) | people::Reply::Refused(_)) => {

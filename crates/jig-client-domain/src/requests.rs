@@ -144,7 +144,7 @@ impl Domain {
         let envelope =
             if answer.is_none() && envelope == RequestEnvelope::Final { RequestEnvelope::Lost } else { envelope };
         if let Some(key) = self.carried_by(attempt) {
-            self.carried_answered(key, envelope, answer, out);
+            self.carried_answered(key, envelope, answer, why, out);
             return;
         }
         match self.table.answered(env.now, attempt, envelope) {

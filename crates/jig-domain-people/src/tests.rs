@@ -155,7 +155,10 @@ fn a_full_answer_table_still_routes_seen() {
     let request = route(&test.request(10, 1, ask(1)));
     let ordinary = Outcome::Created { first: 90, last: 90, given: None };
     test.send(Event::Decided { request, outcome: ordinary.clone() });
-    assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Busy));
+    assert_eq!(
+        reply(&test.request(10, 2, ask(1))),
+        Reply::Again(Again::Full { held: 1, room_at: Wall::from_nanos(120_000_000_000) })
+    );
     let seen = Seen::Results { through: 1 };
     for outcome in [
         Outcome::MarkedSeen { seen },
@@ -168,7 +171,10 @@ fn a_full_answer_table_still_routes_seen() {
         assert_eq!(reply(&completed), Reply::Outcome(outcome));
         assert!(!completed.iter().any(is_answer));
         assert_eq!(completed.iter().filter(|row| is_reply(row)).count(), 1);
-        assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Busy));
+        assert_eq!(
+            reply(&test.request(10, 2, ask(1))),
+            Reply::Again(Again::Full { held: 1, room_at: Wall::from_nanos(120_000_000_000) })
+        );
         assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::Outcome(ordinary.clone()));
         assert_eq!(reply(&test.request(10, 1, Ask::MarkSeen { seen })), Reply::Refused(Refusal::KeyConflict));
     }
@@ -198,7 +204,9 @@ fn seen_and_ordinary_flights_use_independent_room_in_both_completion_orders() {
                 let ordinary_request = route(&test.request(10, 2, ask(1)));
                 (route(&test.request(10, 1, mark.clone())), ordinary_request)
             };
-            assert_eq!(reply(&test.request(10, 3, ask(1))), Reply::Again(Again::Busy));
+            let Reply::Again(Again::Full { held: 1, .. }) = reply(&test.request(10, 3, ask(1))) else {
+                panic!("full answer table")
+            };
             assert_eq!(test.d.capacity_refusals().get(0).unwrap().cause, CapacityCause::Requests { limit: 1 });
             assert!(test.request(10, 1, mark.clone()).is_empty(), "the duplicate joins without routing");
             let last_waiter = test.serial;
@@ -229,7 +237,9 @@ fn seen_and_ordinary_flights_use_independent_room_in_both_completion_orders() {
                     (Token::new(last_waiter), Reply::Outcome(Outcome::MarkedSeen { seen })),
                 ]
             );
-            assert_eq!(reply(&test.request(10, 3, ask(1))), Reply::Again(Again::Busy));
+            let Reply::Again(Again::Full { held: 1, .. }) = reply(&test.request(10, 3, ask(1))) else {
+                panic!("full answer table")
+            };
             if finish_seen_first {
                 let completed = test
                     .send(Event::Decided { request: ordinary_request, outcome: Outcome::Refused(Refusal::Unknown) });
@@ -253,7 +263,10 @@ fn a_completed_seen_key_accepts_a_different_ordinary_ask() {
     let completed = test.send(Event::Decided { request, outcome: Outcome::Refused(Refusal::Unknown) });
     assert!(completed.iter().any(is_answer));
     assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::Outcome(Outcome::Refused(Refusal::Unknown)));
-    assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Busy));
+    assert_eq!(
+        reply(&test.request(10, 2, ask(1))),
+        Reply::Again(Again::Full { held: 1, room_at: Wall::from_nanos(120_000_000_000) })
+    );
 }
 
 #[test]
@@ -295,7 +308,10 @@ fn kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry(
             assert_eq!(replay.len(), 1);
             assert_eq!(reply(&replay), Reply::Outcome(outcome.clone()));
             assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::Refused(Refusal::KeyConflict));
-            assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Busy));
+            assert_eq!(
+                reply(&test.request(10, 2, ask(1))),
+                Reply::Again(Again::Full { held: 1, room_at: Wall::from_nanos(120_000_000_000) })
+            );
             let request = route(&test.request(10, 3, Ask::MarkSeen { seen }));
             let completed = test.send(Event::Decided { request, outcome: Outcome::Refused(Refusal::Unknown) });
             assert!(!completed.iter().any(is_answer));
@@ -757,7 +773,7 @@ fn pending_duplicates_share_one_route_and_reserve_answer_room() {
     let token = route(&routed);
     assert!(test.request(10, 1, ask(1)).is_empty());
     assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::Again(Again::Busy));
-    assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Busy));
+    assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Full { held: 1, room_at: Wall::EPOCH }));
     assert_eq!(reply(&test.request(10, 1, ask(2))), Reply::Refused(Refusal::KeyConflict));
     let completed =
         test.send(Event::Decided { request: token, outcome: Outcome::Created { first: 90, last: 90, given: None } });
@@ -1578,10 +1594,13 @@ fn application_admission_shares_capacity_and_retention_and_requires_a_live_sign_
     test.member();
     test.send(Event::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Observer }]) });
     let request = route(&test.request(10, 1, application(1)));
-    assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Busy));
+    assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Full { held: 1, room_at: Wall::EPOCH }));
     let outcome = Outcome::Applied { connector: 2, token: Token::new(42) };
     test.send(Event::Decided { request, outcome: outcome.clone() });
-    assert_eq!(reply(&test.request(10, 2, application(1))), Reply::Again(Again::Busy));
+    assert_eq!(
+        reply(&test.request(10, 2, application(1))),
+        Reply::Again(Again::Full { held: 1, room_at: Wall::from_nanos(120_000_000_000) })
+    );
     test.env.now = test.env.now.saturating_add(LIMITS.request_retention);
     test.env.wall = Wall::from_nanos(LIMITS.request_retention.as_nanos());
     test.signin(1, 11, identity(0, 1));
@@ -1710,7 +1729,10 @@ fn capacity_facts_keep_actual_times_replay_and_diagnostics_independent() {
     assert_eq!(first.get(0).expect("waiter refusal").cause, CapacityCause::Waiters { limit: 2 });
     assert_eq!(first.get(0).expect("actual time").at, test.env.wall);
     test.env.wall = Wall::from_nanos(8);
-    assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Busy));
+    assert_eq!(
+        reply(&test.request(10, 2, ask(1))),
+        Reply::Again(Again::Full { held: 1, room_at: Wall::from_nanos(8) })
+    );
     assert_eq!(test.d.capacity_refusals_lost(), 1);
     let entrance = test.d.capacity_refusals();
     let value = entrance.get(0).expect("request pressure");
@@ -2374,3 +2396,43 @@ fn whose_destination() -> ReplyTo {
 }
 
 mod settings_proposals;
+
+// Admission counts two retained answers and one pending reservation here.
+const FULL_PLACES: u32 = 3;
+const RESERVED_PLACES: u32 = 2; // LIMITS.pending: both places can still be reservations
+fn full_answers() -> Test {
+    let mut test = Test::new(Limits { requests: FULL_PLACES, ..LIMITS });
+    test.member();
+    for (key, at) in [(1, 11), (2, 17)] {
+        test.env.wall = Wall::from_nanos(at);
+        let request = route(&test.request(10, key, ask(1)));
+        test.send(Event::Decided { request, outcome: Outcome::Refused(Refusal::Unknown) });
+    }
+    test
+}
+#[test]
+fn full_answers_name_the_count_and_oldest_expiry() {
+    let mut test = full_answers();
+    let _pending = route(&test.request(10, 3, ask(1)));
+    assert_eq!(
+        reply(&test.request(10, 4, ask(1))),
+        Reply::Again(Again::Full { held: FULL_PLACES, room_at: Wall::from_nanos(120_000_000_011) })
+    );
+}
+#[test]
+fn one_place_short_of_full_admits_the_request() {
+    let mut test = full_answers();
+    let rows = test.request(10, 3, ask(1));
+    let _request = route(&rows);
+}
+#[test]
+fn reservations_alone_report_now_and_the_exact_count() {
+    let mut test = Test::new(Limits { requests: RESERVED_PLACES, ..LIMITS });
+    test.member();
+    let _first = route(&test.request(10, 1, ask(1)));
+    let _second = route(&test.request(10, 2, ask(1)));
+    assert_eq!(
+        reply(&test.request(10, 3, ask(1))),
+        Reply::Again(Again::Full { held: RESERVED_PLACES, room_at: Wall::EPOCH })
+    );
+}

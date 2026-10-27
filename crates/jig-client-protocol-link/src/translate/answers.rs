@@ -592,7 +592,11 @@ pub(crate) fn credential(record: &w::Owned, limits: &Limits) -> Option<(u64, ske
 pub fn answer(record: w::KeyedAnswer, limits: &Limits) -> Result<c::Answer, super::Undecodable> {
     let value = match record {
         w::KeyedAnswer::FinalAnswer(value) => value,
-        w::KeyedAnswer::NotServed(_) | w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady | w::KeyedAnswer::SignedOut => {
+        w::KeyedAnswer::NotServed(_)
+        | w::KeyedAnswer::Busy
+        | w::KeyedAnswer::NotReady
+        | w::KeyedAnswer::AnswersFull(_)
+        | w::KeyedAnswer::SignedOut => {
             return Err(super::Undecodable::Malformed);
         }
     };

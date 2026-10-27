@@ -31,6 +31,9 @@ fn each_answer_kind_round_trips_unchanged() {
         KeyedAnswer::NotServed(fixtures::not_served()),
         KeyedAnswer::FinalAnswer(fixtures::owned()),
         KeyedAnswer::Busy,
+        KeyedAnswer::AnswersFull(
+            AnswersFull::new(&limits, AnswersFullParts { held: u32::MAX, room_at: u64::MAX }).expect("full facts"),
+        ),
         KeyedAnswer::NotReady,
         KeyedAnswer::SignedOut,
     ] {

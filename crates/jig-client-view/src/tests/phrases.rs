@@ -108,3 +108,15 @@ fn translation(bytes: u32, letter: u8) -> Box<[u8]> {
     text.fill(letter);
     text
 }
+
+#[test]
+fn full_answers_phrase_names_the_count_and_room_time() {
+    use skein_ui::phrases::Hole;
+    const HELD: u64 = 3; // three occupied answer places
+    const ROOM: skein_lib::Wall = skein_lib::Wall::from_nanos(3_720_000_000_000); // 01:02 in the clock vocabulary
+    let book = crate::phrases::english::english(CLIENT.text).expect("the vocabulary declarations fit");
+    let said = book
+        .say(0, crate::phrases::jig::JigPhrase::AnswersFull.id(), &[Hole::Number(HELD), Hole::Wall(ROOM)])
+        .expect("typed full facts");
+    assert_eq!(said.text.as_ref(), b"The engine's answer table is full: 3 places held; room again at 01:02");
+}

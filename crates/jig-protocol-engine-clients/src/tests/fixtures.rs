@@ -156,8 +156,11 @@ impl Exchange {
         Self::with_env(env())
     }
     pub fn with_env(env: Env<Limits>) -> Self {
+        Self::configured(env, settings())
+    }
+    pub fn configured(env: Env<Limits>, settings: Settings) -> Self {
         let mut out = Queue::with_capacity(8);
-        let component = Component::new(settings(), &env, &mut out).expect("starts");
+        let component = Component::new(settings, &env, &mut out).expect("starts");
         out.pop();
         let mut token = Writer::new(40);
         token.put(&NUMBER.to_be_bytes()).expect("number");
@@ -665,7 +668,10 @@ mod answers;
 pub use answers::*;
 impl Exchange {
     pub fn ask(&mut self) -> (Token, ReplyTo) {
-        let body = keyed(w::Owner::Jig, 19, encode_ask(&start(&self.env.limits.wire)));
+        self.ask_version(19)
+    }
+    pub fn ask_version(&mut self, version: u32) -> (Token, ReplyTo) {
+        let body = keyed(w::Owner::Jig, version, encode_ask(&start(&self.env.limits.wire)));
         let owner = self.send(crate::Message::Request(body));
         self.authenticate();
         let Some(Request::Core(event)) = self.out.pop() else {
@@ -746,6 +752,7 @@ pub fn final_record(record: w::KeyedAnswer, limits: &w::Limits) -> w::Final {
         }
         other @ (w::KeyedAnswer::NotServed(_)
         | w::KeyedAnswer::Busy
+        | w::KeyedAnswer::AnswersFull(_)
         | w::KeyedAnswer::NotReady
         | w::KeyedAnswer::SignedOut) => {
             panic!("expected final, got {other:?}")

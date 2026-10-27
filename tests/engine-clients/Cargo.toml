@@ -24,6 +24,9 @@ skein-http.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 [dev-dependencies]
+jig-client.workspace = true
+jig-client-protocol-link.workspace = true
+jig-client-world = { path = "../client" }
 skein-tls.workspace = true
 skein-oauth-issuer.workspace = true
 serde_json = "1.0"

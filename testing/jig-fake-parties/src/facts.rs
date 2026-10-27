@@ -220,6 +220,10 @@ pub enum Ending {
 pub enum Again {
     /// Temporary admission pressure.
     Busy,
+    Full {
+        held: u32,
+        room_at: skein_lib::Wall,
+    },
     /// Restoration or a required neighbour is not ready.
     NotReady,
 }

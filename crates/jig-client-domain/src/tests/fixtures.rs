@@ -15,6 +15,9 @@ pub(crate) const OTHER: Handle = Handle { asker: Asker::JIG, number: 5 };
 pub(crate) const SUBJECT_TASK: u64 = 9;
 pub(crate) const OTHER_SUBJECT: u64 = 10;
 pub(crate) const INITIAL_TASK_WATCH: Token = Token::new(2);
+// The receiving fixture has four request places; a full engine reports this count and expiry.
+pub(crate) const FULL_HELD: u32 = 4;
+pub(crate) const FULL_ROOM: Wall = Wall::from_nanos(120_000_000_000);
 pub(crate) fn limits() -> Limits {
     Limits {
         owners: &[Spoken { family: 19, version: 1 }, Spoken { family: 1, version: 1 }],

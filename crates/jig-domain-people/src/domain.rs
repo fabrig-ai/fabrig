@@ -1684,7 +1684,7 @@ fn admit_ask(
     let credit = u32::from(written.is_some());
     if occupied.saturating_sub(credit).saturating_add(answer_places(&ask)) > env.limits.requests {
         room_pressure(domain, env, key, &ask, crate::CapacityCause::Requests { limit: env.limits.requests });
-        return again(to, Again::Busy, out);
+        return again(to, full_answers(domain, env, occupied), out);
     }
     let project = project(&ask);
     // An account request's check is its holder, never a role (domain/authority.md, 8.4).
@@ -1726,6 +1726,24 @@ fn admit_ask(
     assert!(indexed == Ok(None), "one key per flight within pending capacity");
     out.push(Request::Route { request: id.token(), person: key.person, project, role, ask: Box::new(ask), models });
     fact(domain, Fact::Routed { person: key.person });
+}
+
+fn full_answers(domain: &Domain, env: &Env<Limits>, held: u32) -> Again {
+    let mut oldest = None;
+    for (_, answer) in &domain.answers {
+        oldest = Some(oldest.unwrap_or(answer.at).min(answer.at));
+    }
+    for (_, answer) in &domain.acted {
+        oldest = Some(oldest.unwrap_or(answer.at()).min(answer.at()));
+    }
+    // Reservations have no expiry yet. With no retained answer, report
+    // now: keep the ordinary backoff and the caller's patience, rather
+    // than inventing an expiry for a decision still in flight.
+    let room_at = match oldest {
+        Some(at) => answer_expiry(at, &env.limits),
+        None => env.wall,
+    };
+    Again::Full { held, room_at }
 }
 
 fn room_pressure(domain: &mut Domain, env: &Env<Limits>, key: RequestKey, ask: &Ask, cause: crate::CapacityCause) {

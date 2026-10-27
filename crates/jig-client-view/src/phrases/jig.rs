@@ -63,6 +63,7 @@ pub enum JigPhrase {
 
     Word(jig_client::words::Word),
     RequestNotKept,
+    AnswersFull,
     RequestUnconfirmed,
     RequestsInFlight,
     RequestsDropped,
@@ -1164,6 +1165,7 @@ impl JigPhrase {
             Self::PolicyPeriodSpend => 590,
             Self::PolicyEditRole => 591,
             Self::RequestNotKept => 7404,
+            Self::AnswersFull => 7499,
             Self::RequestUnconfirmed => 7405,
             Self::RequestsInFlight => 7406,
             Self::RequestsDropped => 7407,
@@ -1731,7 +1733,7 @@ impl JigPhrase {
         let holes: Box<[HoleShape]> = match self {
             Self::Word(word) => return word.shape(text),
 
-            Self::DependencyByTask | Self::DependencyByParty | Self::DependencyByDeployment => {
+            Self::DependencyByTask | Self::DependencyByParty | Self::DependencyByDeployment | Self::AnswersFull => {
                 Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }, HoleShape { kind: HoleKind::Wall, bytes: 0 }])
             }
 
@@ -2413,7 +2415,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 643] = [
+pub const ALL: [JigPhrase; 644] = [
     JigPhrase::SettingsChanged,
     JigPhrase::MovedToNewest,
     JigPhrase::SettingsStale,
@@ -2503,6 +2505,7 @@ pub const ALL: [JigPhrase; 643] = [
     JigPhrase::PolicyPeriodSpend,
     JigPhrase::PolicyEditRole,
     JigPhrase::RequestNotKept,
+    JigPhrase::AnswersFull,
     JigPhrase::RequestUnconfirmed,
     JigPhrase::RequestsInFlight,
     JigPhrase::RequestsDropped,

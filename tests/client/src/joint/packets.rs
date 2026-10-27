@@ -358,6 +358,17 @@ pub(super) fn translated_reply(
             Incoming::SignedOut { client, sign_in }
         }
         Reply::Keyed { client, attempt, owner, .. } => {
+            let why = match &translated {
+                wire::answers::Reply::Again(people::Again::Full { held, room_at }) => {
+                    Some(jig_client::Retry::Full { held: *held, room_at: *room_at })
+                }
+                wire::answers::Reply::SignedIn { .. }
+                | wire::answers::Reply::Final(_)
+                | wire::answers::Reply::MovingOut { .. }
+                | wire::answers::Reply::Again(people::Again::Busy | people::Again::NotReady)
+                | wire::answers::Reply::SignedOut
+                | wire::answers::Reply::Applied { .. } => None,
+            };
             let (envelope, body) = wire::answers::keyed(translated).map_err(|_| Invalid::OwnerRoute)?;
             let answer = match body {
                 None => None,
@@ -381,7 +392,7 @@ pub(super) fn translated_reply(
             }
             Incoming::Callback {
                 client,
-                event: crate::test::up(jig_client::Up::Answer { attempt, envelope, answer, why: None }),
+                event: crate::test::up(jig_client::Up::Answer { attempt, envelope, answer, why }),
             }
         }
         Reply::Read { .. } | Reply::ApplicationRead { .. } => return Err(Invalid::OwnerRoute),

@@ -219,7 +219,7 @@ pub(super) fn ending(value: people::Ending) -> application::Ending {
 
 pub(super) fn again(value: people::Again) -> application::Again {
     match value {
-        people::Again::Busy => application::Again::Busy,
+        people::Again::Busy | people::Again::Full { .. } => application::Again::Busy,
         people::Again::NotReady => application::Again::NotReady,
     }
 }

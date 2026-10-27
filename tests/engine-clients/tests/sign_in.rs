@@ -379,7 +379,8 @@ fn busy_and_full_return_the_same_printed_link_and_it_can_sign_in() {
                 )
                 .expect("full answer within wire bounds"),
             ),
-            jig_domain_people::Reply::SignedIn { .. }
+            jig_domain_people::Reply::Again(jig_domain_people::Again::Full { .. })
+            | jig_domain_people::Reply::SignedIn { .. }
             | jig_domain_people::Reply::Signer(_)
             | jig_domain_people::Reply::SignedOut
             | jig_domain_people::Reply::Outcome(_)

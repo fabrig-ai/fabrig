@@ -91,9 +91,14 @@ impl Domain {
         key: Key,
         envelope: RequestEnvelope,
         answer: Option<crate::Answered>,
+        why: Option<crate::Retry>,
         out: &mut Queue<Request>,
     ) {
         self.carried.remove(&key);
+        if let (RequestEnvelope::Again, Some(crate::Retry::Full { held, room_at })) = (envelope, why) {
+            tell(out, Told::Answered { key, outcome: Outcome::Full { held, room_at } });
+            return;
+        }
         let outcome = match (envelope, answer) {
             (
                 RequestEnvelope::Final,

@@ -460,3 +460,27 @@ fn project_refusals_keep_their_facts() {
         assert_eq!(value.refusal(), &expected);
     }
 }
+
+// Three retained answers; the oldest expires one day after the epoch.
+const FULL_HELD: u32 = 3;
+const FULL_ROOM: skein_lib::Wall = skein_lib::Wall::from_nanos(86_400_000_000_000);
+#[test]
+fn answers_full_carries_its_facts_on_the_current_wire() {
+    let mut exchange = Exchange::new();
+    let (owner, to) = exchange.ask();
+    exchange.reply(to, p::Reply::Again(p::Again::Full { held: FULL_HELD, room_at: FULL_ROOM }));
+    let w::KeyedAnswer::AnswersFull(value) = exchange.answer(owner) else { panic!("answers full") };
+    assert_eq!((value.held(), value.room_at()), (FULL_HELD, FULL_ROOM.as_nanos()));
+}
+#[test]
+fn older_client_versions_receive_plain_busy_for_full_answers() {
+    for version in [15, 17] {
+        let mut settings = f::settings();
+        settings.served.get_mut(0).expect("jig owner range").first = version;
+        let mut exchange = Exchange::configured(f::env(), settings);
+        let (owner, to) = exchange.ask_version(version);
+        exchange.reply(to, p::Reply::Again(p::Again::Full { held: FULL_HELD, room_at: FULL_ROOM }));
+        assert_eq!(exchange.answer(owner), w::KeyedAnswer::Busy);
+        assert_eq!(exchange.response(owner).1, &[2], "legacy busy tag is unchanged");
+    }
+}

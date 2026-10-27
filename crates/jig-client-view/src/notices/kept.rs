@@ -8,8 +8,14 @@ use skein_lib::{Duration, Id, Map, Slab, Time, Token};
 /// Facts the view phrases as a short-lived notice.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Kind {
+    Full {
+        held: u32,
+        room_at: skein_lib::Wall,
+    },
     /// Kept requests could not be read at start and were not sent.
-    Dropped { count: u32 },
+    Dropped {
+        count: u32,
+    },
     /// A local refusal has no page or card left to show it on.
     NotSent(crate::intents::NotSent),
     /// A request restored without a UI intent ended without a known answer.
@@ -20,13 +26,23 @@ pub enum Kind {
     /// The frame's link went away or came back.
     Link(Link),
     /// A durable answer for a card no longer shown.
-    Answer { object: ObjectKey, answer: Answer },
+    Answer {
+        object: ObjectKey,
+        answer: Answer,
+    },
     /// A durable page request answer whose page no longer shows it.
-    PageAnswer { answer: Answer },
+    PageAnswer {
+        answer: Answer,
+    },
     /// A table retention expired for a card no longer shown.
-    Unknown { object: ObjectKey, act: jig_client::contract::ActKind },
+    Unknown {
+        object: ObjectKey,
+        act: jig_client::contract::ActKind,
+    },
     /// A page request expired without a known outcome.
-    PageUnknown { purpose: crate::page::IntentPurpose },
+    PageUnknown {
+        purpose: crate::page::IntentPurpose,
+    },
     /// A refusal with no page or card to show it on.
     Refused(Limit),
 }

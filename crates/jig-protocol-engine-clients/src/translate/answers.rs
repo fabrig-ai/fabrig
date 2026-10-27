@@ -28,7 +28,7 @@ pub(crate) fn answer(
                 )?),
             },
         )?),
-        p::Reply::Outcome(p::Outcome::Again(why)) | p::Reply::Again(why) => return Ok(again(*why)),
+        p::Reply::Outcome(p::Outcome::Again(why)) | p::Reply::Again(why) => return again(*why, limits),
         p::Reply::Outcome(p::Outcome::SignedOut) | p::Reply::SignedOut => return Ok(w::KeyedAnswer::SignedOut),
         p::Reply::Outcome(p::Outcome::Refused(why)) | p::Reply::Refused(why) => w::Final::Refused(w::Refused::new(
             limits,
@@ -97,11 +97,15 @@ pub(crate) fn owned(
 ) -> Result<w::KeyedAnswer, w::Problem> {
     Ok(w::KeyedAnswer::FinalAnswer(w::Owned::new(limits, w::OwnedParts { owner, version, record })?))
 }
-fn again(value: p::Again) -> w::KeyedAnswer {
-    match value {
+fn again(value: p::Again, limits: &w::Limits) -> Result<w::KeyedAnswer, w::Problem> {
+    Ok(match value {
         p::Again::Busy => w::KeyedAnswer::Busy,
+        p::Again::Full { held, room_at } => w::KeyedAnswer::AnswersFull(w::AnswersFull::new(
+            limits,
+            w::AnswersFullParts { held, room_at: room_at.as_nanos() },
+        )?),
         p::Again::NotReady => w::KeyedAnswer::NotReady,
-    }
+    })
 }
 fn problem() -> w::Problem {
     w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Malformed }

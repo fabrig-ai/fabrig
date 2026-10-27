@@ -4,6 +4,8 @@ use skein_lib::Wall;
 pub(super) fn encode_again(value: domain::Again, _limits: &wire::Limits) -> wire::Again {
     match value {
         domain::Again::Busy => wire::Again::Busy,
+        // Admission-only facts are never retained in the store.
+        domain::Again::Full { .. } => unreachable!("answers-full is never a stored outcome"),
         domain::Again::NotReady => wire::Again::NotReady,
     }
 }

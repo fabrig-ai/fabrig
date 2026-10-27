@@ -508,14 +508,14 @@ mod tests {
         assert!(peer.delivered.iter().any(|(_, value)| matches!(
             value,
             jig_test_domain::Delivery::Core(jig_domain_core::Held::PeopleReply {
-                reply: people::Reply::Again(people::Again::Busy),
+                reply: people::Reply::Again(people::Again::Full { held: 1, .. }),
                 ..
             })
         )));
         let callbacks = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
         assert!(
             matches!(callbacks.as_slice(), [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer {
-            attempt, envelope: RequestEnvelope::Again, answer: None, why: None } } })] if *attempt == Token::new(31))
+            attempt, envelope: RequestEnvelope::Again, answer: None, why: Some(jig_client::Retry::Full { held: 1, room_at }) } } })] if *attempt == Token::new(31) && *room_at == Wall::from_nanos(1_001_000_000_000))
         );
         assert_eq!(front.session.driver.world.store.rows, rows);
         assert_eq!(front.session.driver.world.store.applied, applied);

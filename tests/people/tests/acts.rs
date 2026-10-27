@@ -1,6 +1,6 @@
 use jig_domain_people::{Act, ActGrant, ActKind, Again, InitialOwner, LimitKind, Outcome, Refusal, Reply};
 use jig_people_world::{Settings, World, identity};
-use skein_lib::Duration;
+use skein_lib::{Duration, Wall};
 
 const CONNECTOR: u16 = 1;
 const OTHER: u16 = 2;
@@ -178,26 +178,38 @@ fn busy_acts_and_retryable_decisions_are_not_saved() {
     answer(&world, call, DECIDED);
     assert_eq!(world.stats().routes, 2);
 }
-#[test]
-fn acts_share_the_answer_room_and_retention() {
-    let mut settings = Settings::calm(954);
-    settings.limits.requests = 1;
+const ANSWER_PLACES: u32 = 1; // one deployment act reserves the whole tiny table
+const PARTY_SIGN_IN: u64 = 100;
+const REQUESTER: u64 = 1;
+const PARTY_KEY: [u8; 16] = [8; 16];
+const ANSWER_RETENTION: Duration = Duration::from_secs(120); // the people world's calm profile
+const ACT_WALL: Wall = Wall::from_nanos(1_000_000_000);
+fn reserved_answer_world(seed: u64) -> World {
+    let mut settings = Settings::calm(seed);
+    settings.limits.requests = ANSWER_PLACES;
+    settings.limits.request_retention = ANSWER_RETENTION;
     let mut world = World::configured(settings, owners(), grants());
     world.roles(PROJECT, Box::new([]));
-    world.signin(100, 1);
+    world.signin(PARTY_SIGN_IN, REQUESTER);
     world.commit_all();
+    world.set_wall(ACT_WALL);
     world.act(CONNECTOR, KEY, close());
+    world
+}
+#[test]
+fn acts_share_the_answer_room_and_retention() {
+    let mut world = reserved_answer_world(954);
     let blocked = world.request(
-        100,
+        PARTY_SIGN_IN,
         KEY,
         jig_domain_people::Ask::Cancel { project: PROJECT, task: TASK, grace: None, reason: Box::new([]) },
     );
-    assert_eq!(world.reply(blocked), Some(Reply::Again(Again::Busy)));
+    assert_eq!(world.reply(blocked), Some(Reply::Again(Again::Full { held: ANSWER_PLACES, room_at: ACT_WALL })));
     world.decide_acts(&DECIDED);
     world.commit_all();
     let busy = world.act(OTHER, KEY, close());
     answer(&world, busy, Outcome::Again(Again::Busy));
-    world.advance(settings.limits.request_retention);
+    world.advance(ANSWER_RETENTION);
     let call = world.act(OTHER, KEY, close());
     world.decide_acts(&DECIDED);
     world.commit_all();
@@ -263,4 +275,20 @@ fn adoption_bounds_refuse_before_retaining_a_key() {
     world.decide_acts(&Outcome::Adopted { project: PROJECT });
     world.commit_all();
     answer(&world, call, Outcome::Adopted { project: PROJECT });
+}
+
+#[test]
+fn full_party_answers_name_the_oldest_deployment_answer_expiry() {
+    let mut world = reserved_answer_world(955);
+    world.decide_acts(&DECIDED);
+    world.commit_all();
+    let blocked = world.request(
+        PARTY_SIGN_IN,
+        PARTY_KEY,
+        jig_domain_people::Ask::Cancel { project: PROJECT, task: TASK, grace: None, reason: Box::new([]) },
+    );
+    assert_eq!(
+        world.reply(blocked),
+        Some(Reply::Again(Again::Full { held: ANSWER_PLACES, room_at: Wall::from_nanos(121_000_000_000) }))
+    );
 }

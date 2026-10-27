@@ -36,6 +36,7 @@ pub fn facts(b: &mut Builder, kind: &Kind, words: &Words, text_limit: u32) {
     b.name(&words.say(JigPhrase::Notice, &[]));
     match kind {
         Kind::Dropped { count } => words.text(b, JigPhrase::RequestsDropped, &[Hole::Number(u64::from(*count))]),
+        Kind::Full { held, room_at } => words.answers_full(b, *held, *room_at),
         Kind::NotSent(why) => words.text(b, why.phrase(), &[]),
         Kind::KeptUnknown => words.text(b, JigPhrase::UnknownAction, &[]),
         Kind::SignOutLost => words.text(b, JigPhrase::SignOutLost, &[]),

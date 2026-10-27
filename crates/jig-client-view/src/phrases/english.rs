@@ -281,6 +281,12 @@ pub fn language() -> Language {
             JigPhrase::RequestUnconfirmed => Box::new([Segment::Text(copy_of(
                 b"Party not confirmed; request was not made. Try again once connected.",
             ))]),
+            JigPhrase::AnswersFull => Box::new([
+                Segment::Text(copy_of(b"The engine's answer table is full: ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" places held; room again at ")),
+                Segment::Hole { index: 1, kind: HoleKind::Wall },
+            ]),
             JigPhrase::RequestsInFlight => Box::new([Segment::Text(copy_of(b"Too many requests in flight"))]),
             JigPhrase::RequestsDropped => Box::new([
                 Segment::Hole { index: 0, kind: HoleKind::Number },

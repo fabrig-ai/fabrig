@@ -510,7 +510,16 @@ impl Component {
         out: &mut Queue<Request>,
         waiting: Waiting,
     ) {
-        let Waiting::Ask { sign_in, .. } = waiting else { unreachable!("ask reply route") };
+        let Waiting::Ask { sign_in, family, version } = waiting else { unreachable!("ask reply route") };
+        let reply = if family.is_none()
+            && version < jig_client_protocol_wire::VERSION
+            && let people::Reply::Again(people::Again::Full { .. })
+            | people::Reply::Outcome(people::Outcome::Again(people::Again::Full { .. })) = reply
+        {
+            people::Reply::Again(people::Again::Busy)
+        } else {
+            reply
+        };
         match reply {
             people::Reply::Outcome(people::Outcome::AccountMovingOut { account, number, source }) => {
                 self.pending

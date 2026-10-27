@@ -13,6 +13,10 @@ pub enum Progress {
     InFlight,
     /// Waiting to send again.
     Retrying,
+    Full {
+        held: u32,
+        room_at: skein_lib::Wall,
+    },
     /// Waiting for the link or its party.
     Parked,
     /// Retention ended without a known outcome.

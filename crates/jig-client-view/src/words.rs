@@ -125,10 +125,15 @@ impl Words {
             Progress::Confirming => JigPhrase::Confirming,
             Progress::InFlight => JigPhrase::InFlight,
             Progress::Retrying => JigPhrase::Word(Word::Phase(Phase::BackingOff)),
+            Progress::Full { held, room_at } => return self.answers_full(b, held, room_at),
             Progress::Parked => JigPhrase::Parked,
             Progress::Unknown => JigPhrase::Unknown,
         };
         self.status(b, phrase, &[]);
+    }
+    /// The engine's shared retained-answer table has no free place.
+    pub fn answers_full(&self, b: &mut Builder, held: u32, room_at: Wall) {
+        self.status(b, JigPhrase::AnswersFull, &[Hole::Number(u64::from(held)), Hole::Wall(room_at)]);
     }
     /// Say the executor kind; its connector content belongs in a slot.
     pub fn executor(&self, b: &mut Builder, executor: Executor) {

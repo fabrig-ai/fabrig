@@ -121,7 +121,7 @@ fn two_free_places_admit_the_move_and_written() {
         (
             written,
             replay,
-            after,
+            matches!(after, Some(people::Reply::Again(people::Again::Full { held: WHOLE_MOVE, .. }))),
             answer_count(&world),
             world.domain.accounts().account(account).is_none(),
             world.domain.accounts().source(source).is_none()
@@ -129,7 +129,7 @@ fn two_free_places_admit_the_move_and_written() {
         (
             Some(people::Reply::Outcome(people::Outcome::AccountChanged)),
             Some(people::Reply::Outcome(people::Outcome::AccountChanged)),
-            Some(people::Reply::Again(people::Again::Busy)),
+            true,
             usize::try_from(WHOLE_MOVE).expect("tiny answer count"),
             true,
             true
@@ -148,7 +148,7 @@ fn one_free_place_refuses_without_touching_the_source() {
     let fact = world.domain.accounts().source(source).expect("source unchanged");
     assert_eq!(
         (
-            refused,
+            matches!(refused, Some(people::Reply::Again(people::Again::Full { held: 2, .. }))),
             fact.state,
             fact.usable,
             fact.generation,
@@ -156,15 +156,7 @@ fn one_free_place_refuses_without_touching_the_source() {
             world.domain.accounts().next_number(),
             world.take_moved(source).is_none()
         ),
-        (
-            Some(people::Reply::Again(people::Again::Busy)),
-            accounts::State::Granted,
-            true,
-            generation,
-            before,
-            next,
-            true
-        )
+        (true, accounts::State::Granted, true, generation, before, next, true)
     );
 }
 
@@ -175,9 +167,13 @@ fn the_deadline_frees_the_unwritten_moves_second_place() {
     deadline(&mut world);
     let after = retry(&mut world, source);
     assert_eq!(
-        (before, after, answer_count(&world)),
         (
-            Some(people::Reply::Again(people::Again::Busy)),
+            matches!(before, Some(people::Reply::Again(people::Again::Full { held: WHOLE_MOVE, .. }))),
+            after,
+            answer_count(&world)
+        ),
+        (
+            true,
             Some(people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotOffered))),
             usize::try_from(WHOLE_MOVE).expect("tiny answer count")
         )
@@ -213,11 +209,8 @@ fn an_existing_full_store_waits_for_answers_to_expire() {
     let number = world.domain.accounts().next_number();
     let after = ask(&mut world, FRESH_EXPORT, change(people::AccountChange::MoveOut { account })).cloned();
     assert_eq!(
-        (before, after),
-        (
-            Some(people::Reply::Again(people::Again::Busy)),
-            Some(people::Reply::Outcome(people::Outcome::AccountMovingOut { account, number, source }))
-        )
+        (matches!(before, Some(people::Reply::Again(people::Again::Full { held: LAST_REQUEST, .. }))), after),
+        (true, Some(people::Reply::Outcome(people::Outcome::AccountMovingOut { account, number, source })))
     );
 }
 

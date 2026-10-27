@@ -304,6 +304,8 @@ pub enum Ending {
 pub enum Again {
     /// Temporary admission pressure.
     Busy,
+    /// The shared retained-answer table has no unreserved place.
+    Full { held: u32, room_at: Wall },
     /// Restoration or a required neighbour is not ready.
     NotReady,
 }

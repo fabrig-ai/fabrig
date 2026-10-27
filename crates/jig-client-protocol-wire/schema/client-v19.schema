@@ -24,7 +24,8 @@ record Keyed { key: fixed 16 owner: Owner version: u32 request: bytes 1114240 va
 record Owned { owner: Owner version: u32 record: bytes 16777216 }
 record Served { owner: Owner first: u32 last: u32 }
 record NotServed { owner: Owner served: list 16 Served }
-enum KeyedAnswer { not_served: NotServed, final_answer: Owned, busy, not_ready, signed_out }
+record AnswersFull { held: u32, room_at: u64 }
+enum KeyedAnswer { not_served: NotServed, final_answer: Owned, busy, not_ready, signed_out, answers_full: AnswersFull }
 record LinkSignIn { secret: bytes 64 }
 record SignedIn { token: option secret 48 party: u64 expires: u64 }
 record SignInsFull { sign_ins: u32, earliest: u64, link_until: u64 }

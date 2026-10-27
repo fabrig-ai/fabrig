@@ -19,6 +19,9 @@ pub(crate) fn told(
             let Some(pending) = client.pending(key) else { return };
             let progress = match pending.progress {
                 Progress::InFlight => intents::Progress::InFlight,
+                Progress::Retrying { why: jig_client::Retry::Full { held, room_at } } => {
+                    intents::Progress::Full { held, room_at }
+                }
                 Progress::Retrying { .. } => intents::Progress::Retrying,
                 Progress::Parked | Progress::NotServed => intents::Progress::Parked,
                 Progress::Unknown => intents::Progress::Unknown,

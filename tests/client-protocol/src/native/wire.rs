@@ -125,7 +125,7 @@ impl Wire {
                     }
                     w::KeyedAnswer::FinalAnswer(value) => compound::receipt(*exchange, *words, value.record()),
                     w::KeyedAnswer::NotServed(_) | w::KeyedAnswer::SignedOut => vec![Receipt::Parked],
-                    w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady => {
+                    w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady | w::KeyedAnswer::AnswersFull(_) => {
                         vec![Receipt::Answer { attempt: *exchange, final_answer: false, words: None }]
                     }
                 }

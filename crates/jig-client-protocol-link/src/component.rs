@@ -248,13 +248,16 @@ impl Link {
         }
         let why = match &record {
             w::KeyedAnswer::Busy => Some(Retry::Busy),
+            w::KeyedAnswer::AnswersFull(value) => {
+                Some(Retry::Full { held: value.held(), room_at: skein_lib::Wall::from_nanos(value.room_at()) })
+            }
             w::KeyedAnswer::NotReady => Some(Retry::NotReady),
             w::KeyedAnswer::SignedOut | w::KeyedAnswer::NotServed(_) => None,
             w::KeyedAnswer::FinalAnswer(_) => Some(Retry::Undecodable),
         };
         let envelope = match record {
             w::KeyedAnswer::NotServed(_) => unreachable!("version refusal returned"),
-            w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady => RequestEnvelope::Again,
+            w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady | w::KeyedAnswer::AnswersFull(_) => RequestEnvelope::Again,
             w::KeyedAnswer::SignedOut => RequestEnvelope::SignedOut,
             w::KeyedAnswer::FinalAnswer(record) => {
                 let credential = translate::answers::credential(&record, &self.limits);

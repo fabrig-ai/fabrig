@@ -182,6 +182,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: Told, out: &mut Q
             | Outcome::NotKept
             | Outcome::Limit
             | Outcome::Held
+            | Outcome::Full { .. }
             | Outcome::Unsent
             | Outcome::Lost
             | Outcome::Unconfirmed

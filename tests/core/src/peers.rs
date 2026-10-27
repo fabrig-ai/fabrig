@@ -348,6 +348,7 @@ fn party_reply(reply: &people::Reply) -> parties::Reply {
         people::Reply::Again(again) | people::Reply::Outcome(people::Outcome::Again(again)) => {
             parties::Reply::Again(match again {
                 people::Again::Busy => parties::Again::Busy,
+                people::Again::Full { held, room_at } => parties::Again::Full { held: *held, room_at: *room_at },
                 people::Again::NotReady => parties::Again::NotReady,
             })
         }

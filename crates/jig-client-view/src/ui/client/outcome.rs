@@ -27,6 +27,7 @@ pub(super) fn answered(
                     );
                 }
                 Outcome::Answered(Answered::Jig(jig_client::contract::Answer::Done(_)) | Answered::Family(_)) => {}
+                Outcome::Full { held, room_at } => kept::show(domain, Kind::Full { held, room_at }),
                 Outcome::Unknown => kept::show(domain, Kind::KeptUnknown),
                 Outcome::NotKept => kept::show(domain, Kind::NotSent(NotSent::NotKept)),
                 Outcome::Limit => kept::show(domain, Kind::NotSent(NotSent::Limit)),
@@ -42,6 +43,10 @@ pub(super) fn answered(
         Outcome::Answered(Answered::Jig(answer)) => intents::answered(domain, env, token, answer, out, client),
         Outcome::Answered(Answered::Family(_)) | Outcome::Unknown => {
             intents::progress(domain, token, intents::Progress::Unknown, out, client);
+        }
+        Outcome::Full { held, room_at } => {
+            kept::show(domain, Kind::Full { held, room_at });
+            intents::progress(domain, token, intents::Progress::Full { held, room_at }, out, client);
         }
         Outcome::NotKept => not_sent(domain, token, NotSent::NotKept),
         Outcome::Limit => not_sent(domain, token, NotSent::Limit),

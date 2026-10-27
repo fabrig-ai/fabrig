@@ -119,8 +119,9 @@ fn a_kept_record_whose_engine_key_is_held_is_dropped_and_told() {
 }
 #[test]
 fn a_retrying_request_says_why_once_per_answer() {
-    const ROWS: [(RequestEnvelope, Retry); 4] = [
+    const ROWS: [(RequestEnvelope, Retry); 5] = [
         (RequestEnvelope::Again, Retry::Busy),
+        (RequestEnvelope::Again, Retry::Full { held: fixtures::FULL_HELD, room_at: fixtures::FULL_ROOM }),
         (RequestEnvelope::Again, Retry::NotReady),
         (RequestEnvelope::Lost, Retry::Lost),
         (RequestEnvelope::Final, Retry::Undecodable),
@@ -342,6 +343,7 @@ fn seen_under_the_same_key_with_another_name_conflicts() {
 fn seen_retries_under_the_same_key_without_saving() {
     for (envelope, why) in [
         (RequestEnvelope::Again, Retry::Busy),
+        (RequestEnvelope::Again, Retry::Full { held: fixtures::FULL_HELD, room_at: fixtures::FULL_ROOM }),
         (RequestEnvelope::Again, Retry::NotReady),
         (RequestEnvelope::Lost, Retry::Lost),
     ] {
