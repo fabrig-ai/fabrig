@@ -595,7 +595,7 @@ fn start_with_git_program(
         Some(fixtures::worker_runtime()),
         fixtures::forge_runtime(),
         checked,
-        false,
+        None,
     )
 }
 
@@ -1527,6 +1527,57 @@ fn startup_admits_the_full_setup_total_and_refuses_one_byte_short() {
     }
 }
 #[test]
+fn a_boxed_start_names_the_memory_its_pipes_need() {
+    use skein_io::kernel::Fd;
+    let document = core::str::from_utf8(&fixtures::document()).unwrap().to_string();
+    let required = crate::startup::memory_requirements(
+        document.as_bytes(),
+        &config::Directories::working(),
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        &fixtures::seeds(),
+        None,
+        fixtures::forge_runtime(),
+        None,
+    )
+    .unwrap();
+    // Exercise a configured line beyond the box's small-profile default too.
+    for line_bytes in [256, 4096] {
+        let pipes = 2 * (u64::from(line_bytes) + 1);
+        let whole = required.engine_bytes + pipes;
+        for (declared, deficit) in [(required.engine_bytes, pipes), (whole - 1, 1), (whole, 0)] {
+            let input = document
+                .replacen("1152921504606846976", &declared.to_string(), 1)
+                .replace("1152921504606846976", &required.worker_bytes.to_string());
+            let started = crate::startup::with_setup(
+                input.as_bytes(),
+                &config::Directories::working(),
+                &fixtures::files(),
+                Some(&fixtures::startup_agent()),
+                &fixtures::seeds(),
+                None,
+                Some(fixtures::worker_runtime()),
+                fixtures::forge_runtime(),
+                None,
+                Some(line_bytes),
+            );
+            if deficit != 0 {
+                assert_eq!(
+                    lines(&started.err().unwrap()).as_ref(),
+                    format!("engine.memory_bytes: the worst case passes memory_bytes by {deficit} bytes\n").as_bytes(),
+                );
+            } else {
+                let mut service = started.unwrap();
+                let counted = whole + required.worker_bytes;
+                assert_eq!(service.worst_case(), counted);
+                service.adopt_box(Fd::new(3), Fd::new(4), line_bytes).unwrap();
+                assert_eq!(service.worst_case(), counted, "adoption consumes the reserved memory once");
+            }
+        }
+    }
+}
+
+#[test]
 fn startup_maps_refused_setup_and_total_overflow_to_memory_bound() {
     let mut engine = fixtures::engine();
     let (endpoints, _) = crate::forge::prepare(&engine, fixtures::forge_runtime()).unwrap();
@@ -1627,7 +1678,7 @@ fn an_engine_alone_prepares_without_a_worker_or_its_files_and_agent() {
         None,
         fixtures::forge_runtime(),
         None,
-        false,
+        None,
     )
     .unwrap();
     assert!(service.worker.is_none());
@@ -1676,7 +1727,7 @@ fn an_engine_alone_admits_its_own_worst_case_and_names_an_insufficient_memory_de
             None,
             fixtures::forge_runtime(),
             None,
-            false,
+            None,
         );
         if accepted {
             assert!(result.is_ok(), "at the calculated worst case");
@@ -1809,7 +1860,7 @@ fn fake_start(
         Some(fixtures::worker_runtime()),
         fixtures::forge_runtime(),
         Some(checked),
-        false,
+        None,
     )
 }
 
@@ -2082,7 +2133,7 @@ fn records_only_local_entries_need_the_checked_boundary_and_name_no_files() {
             Some(fixtures::worker_runtime()),
             fixtures::forge_runtime(),
             setup,
-            false,
+            None,
         );
         assert_eq!(result.is_ok(), admitted, "checked local input: {:?}", result.err());
     }
@@ -2261,7 +2312,7 @@ fn string_managed_starts_disconnected_without_a_setup_run() {
         Some(fixtures::worker_runtime()),
         fixtures::forge_runtime(),
         Some(&checked),
-        false,
+        None,
     )
     .unwrap();
     service.engine.as_mut().unwrap().store = fixtures::records_store();

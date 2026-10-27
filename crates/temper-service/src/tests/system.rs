@@ -166,7 +166,7 @@ fn the_box_pipes_carry_no_service_data_and_close_on_drain_or_abort() {
     for abort in [false, true] {
         let mut stand = fixtures::one_process();
         stand.service.adopt_box(Fd::new(3), Fd::new(4), 128).unwrap();
-        assert_eq!(stand.service.adopt_box(Fd::new(5), Fd::new(6), 128), Err(Fd::new(5)));
+        assert_eq!(stand.service.adopt_box(Fd::new(5), Fd::new(6), 128), Err(crate::system::BoxRefusal::Adopted));
         fixtures::until_hosting(&mut stand);
         let mut pending_reads = 0_u32;
         for submit in &stand.service.submissions {

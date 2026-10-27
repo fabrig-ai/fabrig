@@ -1727,7 +1727,7 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             None,
             0,
             io,
-            under_box,
+            if under_box { Some(256) } else { None },
         )
         .unwrap();
         service.engine.as_mut().unwrap().store = local_store(retained);

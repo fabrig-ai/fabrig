@@ -247,7 +247,7 @@ fn configured(forge: &Forge) -> crate::Service {
     let (endpoints, roots) = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
     let owned = skein_forge_connection::settings::owned_bytes(&endpoints).unwrap();
     let mut service =
-        crate::Service::prepared(config, &fixtures::seeds(), None, (endpoints, roots, owned), None, 0, io, true)
+        crate::Service::prepared(config, &fixtures::seeds(), None, (endpoints, roots, owned), None, 0, io, Some(256))
             .unwrap();
     service.engine.as_mut().unwrap().store = store;
     service.engine.as_mut().unwrap().box_link = crate::route::box_link::Link::new(256, true);

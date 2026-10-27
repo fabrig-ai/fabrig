@@ -525,7 +525,7 @@ fn start_with_worker(
         worker,
         worker_bytes,
         io,
-        under_box,
+        if under_box { Some(system::BOX_BYTES) } else { None },
     )
     .unwrap();
 

@@ -471,7 +471,7 @@ fn prepare_with_limits(
         runtime,
         forges,
         Some(&checked),
-        under_box,
+        if under_box { Some(limits.line_bytes) } else { None },
         given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
@@ -507,9 +507,17 @@ fn close(owned: Vec<Fd>) {
 }
 /// Derive the standalone admission envelope without retaining its descriptors.
 pub fn envelope_in(directories: &Directories, config: &[u8]) -> Result<(u64, u32), String> {
+    envelope_in_mode(directories, config, false)
+}
+/// Recheck a boxed start, including its configured pipe buffers in the engine's envelope.
+pub fn boxed_envelope_in(directories: &Directories, config: &[u8]) -> Result<(u64, u32), String> {
+    envelope_in_mode(directories, config, true)
+}
+fn envelope_in_mode(directories: &Directories, config: &[u8], boxed: bool) -> Result<(u64, u32), String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare(directories, config, &mut owned).map(|service| (service.worst_case(), service.operations()));
+    let result = prepare_with_limits(directories, config, &mut owned, boxed, &service::stock::Given::Stock)
+        .map(|(service, _, _)| (service.worst_case(), service.operations()));
     close(owned);
     result.map_err(|why| prefixed("temper serve", &why))
 }
@@ -558,6 +566,19 @@ fn listeners_refusal(why: skein_shell::ListenersRefusal) -> String {
         Why::Kernel { fd, errno } => format!("LISTEN_FDS: fd {}: errno {errno}", fd.raw()),
     }
 }
+fn box_refusal(why: service::system::BoxRefusal) -> String {
+    use service::system::BoxRefusal;
+    let words = match why {
+        BoxRefusal::Memory { over } => format!("the box's pipes need {over} more bytes of engine.memory_bytes"),
+        BoxRefusal::Sockets { limit } => {
+            format!("the box's pipes need two free socket slots; the service socket limit is {limit}")
+        }
+        BoxRefusal::Adopted => "the box's pipes were already adopted".into(),
+        BoxRefusal::NoEngine => "the box's pipes need an engine".into(),
+        BoxRefusal::ZeroLine => "the box's pipes need a nonzero application.limits.overrides.box.line_bytes".into(),
+    };
+    format!("--box: {words}")
+}
 fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
     let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
@@ -587,9 +608,9 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     }
     if boxed {
         owned.extend([Fd::new(requests), Fd::new(answers)]);
-        if let Err(fd) = service.adopt_box(Fd::new(requests), Fd::new(answers), line_bytes) {
+        if let Err(why) = service.adopt_box(Fd::new(requests), Fd::new(answers), line_bytes) {
             close(owned);
-            return Err(format!("--box: fd {} refused", fd.raw()));
+            return Err(box_refusal(why));
         }
     }
     let opened = skein_shell::open_termination_signals()

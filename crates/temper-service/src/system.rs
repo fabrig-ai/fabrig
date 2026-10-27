@@ -31,6 +31,15 @@ pub struct Service {
     memory_limit: u64,
     links: Queue<Box<[u8]>>,
 }
+/// A refused adoption leaves both pipe descriptors with the caller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BoxRefusal {
+    Memory { over: u64 },
+    Sockets { limit: u32 },
+    Adopted,
+    NoEngine,
+    ZeroLine,
+}
 struct BoxPipe {
     requests: Token,
     answers: Token,
@@ -104,7 +113,7 @@ impl Service {
         let (forges, roots) = crate::forge::prepare(&settings, forges)?;
         let owned = skein_forge_connection::settings::owned_bytes(&forges)
             .ok_or(start_problem(b"memory_bytes", What::Bound))?;
-        Self::prepared(settings, seeds, accounts, (forges, roots, owned), worker, worker_bytes, io_limits, false)
+        Self::prepared(settings, seeds, accounts, (forges, roots, owned), worker, worker_bytes, io_limits, None)
     }
     #[expect(clippy::too_many_arguments, reason = "startup supplies runtime facts before the domain is built")]
     #[expect(
@@ -119,7 +128,7 @@ impl Service {
         worker: Option<Worker>,
         worker_bytes: u64,
         io_limits: io::Limits,
-        under_box: bool,
+        box_line_bytes: Option<u32>,
     ) -> Result<Self, Problems> {
         let limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
@@ -149,6 +158,7 @@ impl Service {
             &io_limits,
             (forge_roots, forge_owned, &forge_settings),
         )?;
+        let bytes = with_box_memory(bytes, box_line_bytes)?;
 
         if let Err(what) =
             jig_protocol_config::fits(settings.jig.memory, &[jig_protocol_config::Share { name: b"service", bytes }])
@@ -186,7 +196,8 @@ impl Service {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
         let setup_room = max.checked_add(SETUP_ROUTING_HEADROOM).expect("setup routing headroom");
-        let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, setup_room, under_box)?;
+        let setup =
+            crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, setup_room, box_line_bytes.is_some())?;
         let forge = crate::forge::Layer::new(
             forge_settings,
             settings.limits.forge_component,
@@ -211,7 +222,7 @@ impl Service {
             identities,
             forge_charter: settings.charter,
             forges: configured,
-            under_box,
+            under_box: box_line_bytes.is_some(),
             demo: demo_config,
         };
         let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
@@ -219,17 +230,21 @@ impl Service {
         let own = settings.limits;
         let memory_limit =
             settings.jig.memory.checked_add(worker_bytes).ok_or(start_problem(b"memory_bytes", What::Bound))?;
+        let mut engine = engine::Engine::new(
+            config,
+            &limits,
+            store,
+            engine::Children { accounts, workers, clients, demo, forge, setup, notes, limits: own },
+            values,
+            first_periods,
+        )?;
+        if let Some(line_bytes) = box_line_bytes {
+            engine.box_link = box_link::Link::new(line_bytes, false);
+        }
         Ok(Self {
             memory_limit,
             worker,
-            engine: Some(engine::Engine::new(
-                config,
-                &limits,
-                store,
-                engine::Children { accounts, workers, clients, demo, forge, setup, notes, limits: own },
-                values,
-                first_periods,
-            )?),
+            engine: Some(engine),
             io: Io::new(&io_limits),
             io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io_limits },
             completions: Queue::with_capacity(queue),
@@ -458,18 +473,30 @@ impl Service {
     /// Adopt the box's lines and requests (protocol/setup.md, 7.1).
     /// io may keep a bounded read pending until close cancels it.
     /// On refusal the caller retains both descriptors.
-    pub fn adopt_box(&mut self, requests: Fd, answers: Fd, line_bytes: u32) -> Result<(), Fd> {
-        if self.box_pipe.is_some() || self.io_env.limits.sockets.saturating_sub(self.io.sockets()) < 2 {
-            return Err(requests);
+    pub fn adopt_box(&mut self, requests: Fd, answers: Fd, line_bytes: u32) -> Result<(), BoxRefusal> {
+        if self.box_pipe.is_some() {
+            return Err(BoxRefusal::Adopted);
+        }
+        let engine = self.engine.as_ref().ok_or(BoxRefusal::NoEngine)?;
+        if line_bytes == 0 {
+            return Err(BoxRefusal::ZeroLine);
+        }
+        if self.io_env.limits.sockets.saturating_sub(self.io.sockets()) < 2 {
+            return Err(BoxRefusal::Sockets { limit: self.io_env.limits.sockets });
         }
         // io's envelope already counts pipe intake, output and operation buffers.
-        // The link adds its partial and outgoing lines, including LF.
-        // The temporary output queue is counted at startup, even without a pipe.
-        let Some(extra) = box_bytes(line_bytes) else { return Err(requests) };
-        let Some(bytes) = self.bytes.checked_add(extra) else { return Err(requests) };
-        if bytes > self.memory_limit || self.engine.is_none() || line_bytes == 0 {
-            return Err(requests);
+        // A boxed start reserved the link's partial and outgoing lines, including LF.
+        let reserved = match engine.box_link.line_bytes() {
+            0 => 0,
+            bytes => box_bytes(bytes),
+        };
+        let extra = box_bytes(line_bytes).saturating_sub(reserved);
+        // Compare the remaining room before adding, keeping even an overflow's deficit exact.
+        let room = self.memory_limit.saturating_sub(self.bytes);
+        if extra > room {
+            return Err(BoxRefusal::Memory { over: extra.checked_sub(room).expect("pipe memory exceeds room") });
         }
+        let bytes = self.bytes.checked_add(extra).expect("box memory fits its ceiling");
         self.bytes = bytes;
         self.engine.as_mut().expect("box engine").box_link = box_link::Link::new(line_bytes, true);
         let requests = self.io.adopt_write_pipe(requests, None).expect("two reserved pipe slots");
@@ -1301,8 +1328,16 @@ fn box_io(service: &mut Service) {
     }
 }
 
-fn box_bytes(line_bytes: u32) -> Option<u64> {
-    u64::from(line_bytes).checked_add(1)?.checked_mul(2)
+pub(crate) fn box_bytes(line_bytes: u32) -> u64 {
+    // A u32 line and its LF, twice, always fit u64.
+    u64::from(line_bytes).checked_add(1).expect("u32 line and LF").checked_mul(2).expect("two u32 lines and LFs")
+}
+/// The box link's buffers belong to the engine's startup envelope (protocol/configuration.md, 13.8).
+pub(crate) fn with_box_memory(bytes: u64, line_bytes: Option<u32>) -> Result<u64, Problems> {
+    match line_bytes {
+        Some(line_bytes) => bytes.checked_add(box_bytes(line_bytes)).ok_or(start_problem(b"memory_bytes", What::Bound)),
+        None => Ok(bytes),
+    }
 }
 
 impl Service {
@@ -1327,4 +1362,44 @@ impl Service {
 // One forge cohort and the end's bounded act answers can be named together.
 fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) -> Option<u32> {
     u32::try_from(settings.forges.len()).ok()?.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
+}
+
+#[cfg(test)]
+mod box_tests {
+    use super::{BoxRefusal, box_bytes};
+    use crate::tests::fixtures;
+    use skein_io::kernel::Fd;
+
+    #[test]
+    fn box_adoption_names_each_refusal_and_keeps_both_descriptors() {
+        for expected in [
+            BoxRefusal::Memory { over: 1 },
+            BoxRefusal::Sockets { limit: 1 },
+            BoxRefusal::Adopted,
+            BoxRefusal::NoEngine,
+            BoxRefusal::ZeroLine,
+        ] {
+            let mut service = fixtures::started();
+            let mut line_bytes = 256;
+            match expected {
+                BoxRefusal::Memory { .. } => service.memory_limit = service.bytes + box_bytes(line_bytes) - 1,
+                BoxRefusal::Sockets { limit } => service.io_env.limits.sockets = limit,
+                BoxRefusal::Adopted => service.adopt_box(Fd::new(3), Fd::new(4), line_bytes).unwrap(),
+                BoxRefusal::NoEngine => service.engine = None,
+                BoxRefusal::ZeroLine => line_bytes = 0,
+            }
+            let before = (service.bytes, service.io.sockets(), service.submissions.len());
+            assert_eq!(service.adopt_box(Fd::new(5), Fd::new(6), line_bytes), Err(expected));
+            assert_eq!((service.bytes, service.io.sockets(), service.submissions.len()), before);
+            // In particular, no close or adoption was submitted for either fd.
+        }
+    }
+
+    #[test]
+    fn a_boxed_memory_sum_refuses_overflow_without_changing_an_unboxed_sum() {
+        assert_eq!(super::with_box_memory(u64::MAX, None).unwrap(), u64::MAX);
+        let refused = super::with_box_memory(u64::MAX, Some(u32::MAX)).unwrap_err();
+        assert_eq!(refused.problems.get(0).unwrap().what, jig_protocol_config::What::Bound);
+        assert_eq!(box_bytes(u32::MAX), 8_589_934_592);
+    }
 }

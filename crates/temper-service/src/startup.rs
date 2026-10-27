@@ -834,6 +834,7 @@ fn checked_start_with(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
     given: &crate::stock::Given,
+    box_line_bytes: Option<u32>,
 ) -> Result<CheckedStart, Problems> {
     let mut parsed = parse_with(document, directories, given)?;
     let agent = match parsed.workers.first() {
@@ -1003,6 +1004,10 @@ fn checked_start_with(
         Ok(bytes) => bytes,
         Err(found) => return Err(Problems::jig(found, &Path::root())),
     };
+    let engine_bytes = match crate::system::with_box_memory(engine_bytes, box_line_bytes) {
+        Ok(bytes) => bytes,
+        Err(found) => return Err(Problems::jig(found, &Path::root())),
+    };
     Ok(CheckedStart {
         not_set_up,
         engine,
@@ -1023,7 +1028,18 @@ fn checked_start(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_with(document, directories, files, agent, seeds, accounts, forges, setup, &crate::stock::Given::Stock)
+    checked_start_with(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        accounts,
+        forges,
+        setup,
+        &crate::stock::Given::Stock,
+        None,
+    )
 }
 fn read_instructions(core: &mut jig_domain_core::Config, files: &settings::Files) {
     for charter in &mut core.defaults.charters {
@@ -1055,7 +1071,7 @@ pub fn startup_with(
         Some(runtime),
         forges,
         None,
-        false,
+        None,
         given,
     )
 }
@@ -1084,11 +1100,21 @@ pub fn with_setup_given(
     runtime: Option<WorkerRuntime>,
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
-    under_box: bool,
+    box_line_bytes: Option<u32>,
     given: &crate::stock::Given,
 ) -> Result<Service, Problems> {
-    let CheckedStart { engine, worker, requirements, io, forges, not_set_up } =
-        checked_start_with(document, directories, files, agent, seeds, accounts.as_ref(), forges, setup, given)?;
+    let CheckedStart { engine, worker, requirements, io, forges, not_set_up } = checked_start_with(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        accounts.as_ref(),
+        forges,
+        setup,
+        given,
+        box_line_bytes,
+    )?;
     let mut problems = Problems::empty();
     let worker_memory = if let Some(worker) = &worker { worker.jig.memory } else { 0 };
     checks::memory(
@@ -1115,7 +1141,7 @@ pub fn with_setup_given(
         },
         None => None,
     };
-    match Service::prepared(engine, seeds, accounts, forges, worker, requirements.worker_bytes, io, under_box) {
+    match Service::prepared(engine, seeds, accounts, forges, worker, requirements.worker_bytes, io, box_line_bytes) {
         Ok(mut service) => {
             for number in &not_set_up {
                 crate::setup::lifecycle::state(
@@ -1140,7 +1166,7 @@ pub fn with_setup(
     runtime: Option<WorkerRuntime>,
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
-    under_box: bool,
+    box_line_bytes: Option<u32>,
 ) -> Result<Service, Problems> {
     with_setup_given(
         document,
@@ -1152,7 +1178,7 @@ pub fn with_setup(
         runtime,
         forges,
         setup,
-        under_box,
+        box_line_bytes,
         &crate::stock::Given::Stock,
     )
 }

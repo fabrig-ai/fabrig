@@ -1403,6 +1403,73 @@ fn serve_box_refuses_closed_or_non_pipe_descriptors_before_starting() {
 }
 
 #[test]
+fn a_boxed_binary_starts_after_raising_memory_by_its_named_deficit_once() {
+    let scratch = support::Scratch::startup("boxed-one-raise");
+    let mut value = box_document(&scratch);
+    let directories = support::configuration::directories(scratch.path());
+    value["application"]["limits"]["overrides"]["box.line_bytes"] = 4096.into();
+    value["engine"]["memory_bytes"] = 1.into();
+    let refusal = temper::envelope_in(&directories, &serde_json::to_vec(&value).expect("JSON"))
+        .expect_err("derive the unboxed engine need");
+    // Jig first checks its own smaller envelope while parsing. Raise through
+    // that preliminary guard to derive temper's composed unboxed envelope.
+    value["engine"]["memory_bytes"] = (memory_deficit(&refusal) + 1).into();
+    let refusal = temper::envelope_in(&directories, &serde_json::to_vec(&value).expect("JSON"))
+        .expect_err("derive temper's composed engine need");
+    let unboxed = value["engine"]["memory_bytes"].as_u64().expect("declaration") + memory_deficit(&refusal);
+    value["engine"]["memory_bytes"] = (unboxed - 1).into();
+    let document = serde_json::to_vec(&value).expect("JSON");
+    support::write_private(&scratch.path().join("temper.json"), &document);
+    let output = std::process::Command::new("/bin/sh")
+        .args(["-c", "exec \"$@\" 3>&1 4<&0 0</dev/null", "boxed-memory"])
+        .arg(skein_scratch::paths::binary("temper"))
+        .args(["internal", "serve", "--box"])
+        .args(support::configuration::flags(scratch.path()))
+        .env_clear()
+        .stdin(std::process::Stdio::piped())
+        .output()
+        .expect("boxed serve");
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr).expect("UTF-8 refusal");
+    // The agent's preflight also reports its TLS trust roots on stderr.
+    let mut refusal = String::new();
+    for line in stderr.lines().filter(|line| line.starts_with("temper serve:")) {
+        writeln!(&mut refusal, "{line}").expect("refusal line");
+    }
+    assert_eq!(refusal, "temper serve: engine.memory_bytes: the worst case passes memory_bytes by 8195 bytes\n");
+    assert_eq!(
+        temper::boxed_envelope_in(&directories, &document).expect_err("boxed recheck refused"),
+        refusal,
+        "recheck agrees"
+    );
+    let before = unboxed - 1;
+    value["engine"]["memory_bytes"] = (before + memory_deficit(&refusal)).into();
+    let document = serde_json::to_vec(&value).expect("JSON");
+    support::write_private(&scratch.path().join("temper.json"), &document);
+    let (plain, operations) = temper::envelope_in(&directories, &document).expect("unboxed recheck");
+    assert_eq!(
+        temper::boxed_envelope_in(&directories, &document).expect("boxed recheck starts"),
+        (plain + 8194, operations)
+    );
+    let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
+    assert!(support::printed_link(&ended.stdout).is_some(), "{}", String::from_utf8_lossy(&ended.stderr));
+    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)));
+    eprintln!(
+        "boxed one-raise: unboxed engine {unboxed}; boxed {}; declaration {before} raised by 8195",
+        unboxed + 8194
+    );
+    scratch.remove();
+}
+fn memory_deficit(refusal: &str) -> u64 {
+    refusal
+        .strip_prefix("temper serve: engine.memory_bytes: the worst case passes memory_bytes by ")
+        .and_then(|line| line.strip_suffix(" bytes\n"))
+        .expect("engine memory refusal")
+        .parse()
+        .expect("byte deficit")
+}
+
+#[test]
 fn serve_claims_its_clients_listener_and_box_pipes_follow_it() {
     for boxed in [false, true] {
         let scratch = support::Scratch::startup(if boxed { "inherited-boxed" } else { "inherited-serve" });
