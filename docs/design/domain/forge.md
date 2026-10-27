@@ -1468,6 +1468,17 @@ history they keep if temper is unplugged. Issues are projections (jig's
   policy gives its goals' projections (jig's `domain/authority.md`,
   section 6), in its home; the last ones, the closing milestone and
   closing the issue, are made as the goal closes.
+- **It fits its bounds, and never holds the goal.** The issue's body,
+  its edit and its milestones have the forge's bounds (the issue
+  policy's body, plan items and milestones; the client's operation
+  bytes); what it projects is cut to them, never refused: the goal's
+  words to their share, each plan item's text to an equal share of what
+  is left, marked cut; past the plan items' bound, the last item says
+  how many more; past the milestones' bound, the oldest are folded into
+  one comment that counts them. A projection is a reading of the goal,
+  not its work: a write of it that still fails holds the projection
+  alone, which is retried as its effects are, never the goal or its
+  runs.
 - **Issues others open** in an adopted repository are participating
   objects, which may become intake later.
 
