@@ -22,6 +22,14 @@ pub fn group_live(group: u32) -> Result<bool, Error> {
     crate::system::group::group_live(group)
 }
 
+/// Whether a group has members other than its leader, including zombies.
+/// The caller must retain its unreaped leader while observing and settling
+/// the group; the leader itself can then remain a zombie without preventing
+/// descendant settlement. Groups <= 1 are refused.
+pub fn group_has_other_members(group: u32) -> Result<bool, Error> {
+    crate::system::group::group_has_other_members(group)
+}
+
 /// Whether process `pid` exists (shell.md, 7.5), including a zombie that
 /// has not been reaped. PIDs 0 and 1 and values beyond `pid_t` are refused.
 pub fn process_live(pid: u32) -> Result<bool, Error> {

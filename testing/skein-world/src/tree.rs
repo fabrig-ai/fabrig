@@ -295,10 +295,15 @@ impl Tree {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.signal(leader, signal),
             Self::Group(tree) => {
+                if tree.finished {
+                    return (Vec::new(), false);
+                }
+                skein_shell::poll_child(leader, false)
+                    .unwrap_or_else(|error| crate::fail(&format!("retaining group leader: {error:?}")));
                 let id = tree.leader.expect("a started group has its leader");
                 let mut delivered = Vec::new();
                 if group_live(id).unwrap_or_else(|why| crate::fail(&why)) {
-                    match skein_shell::signal_group(id, signal) {
+                    match skein_shell::signal_kept_child(leader, signal, Target::Group) {
                         Ok(()) => delivered.push(id),
                         Err(Error::Other(3_i32)) => {} // The group may end between probe and signal.
                         Err(error) => {
@@ -331,9 +336,6 @@ impl Tree {
                     return;
                 }
                 let _killed = skein_shell::signal_kept_child(leader, Signal::Kill, Target::Group);
-                if let Some(id) = tree.leader {
-                    let _killed = skein_shell::signal_group(id, Signal::Kill);
-                }
                 if !retain_leader {
                     let _settled = tree.finish(leader, Expectation::Measure, false);
                 }
@@ -364,29 +366,39 @@ impl GroupTree {
         let mut kernel = Kernel::open(Config { operations: 4 }).map_err(|error| format!("tree ring: {error}"))?;
         let clock = Clock::new();
         let until = clock.now().now.saturating_add(Duration::from_secs(2));
-        if !observed {
+        if observed {
+            skein_shell::poll_child(leader, false)
+                .map_err(|error| format!("retaining group leader before settlement: {error:?}"))?;
+        } else {
             call(&mut kernel, Op::Wait { pidfd: leader, reap: false }, until)?;
         }
-        call(&mut kernel, Op::Wait { pidfd: leader, reap: true }, until)?;
         let id = self.leader.expect("a started group has its leader");
-        let lingering = expectation == Expectation::EndsWithBinary && group_live(id)?;
-        loop {
-            if !group_live(id)? {
-                break;
-            }
-            if expectation != Expectation::Supervise {
-                match skein_shell::signal_group(id, Signal::Kill) {
+        let lingering = settle_group(expectation, |step| {
+            match step {
+                GroupStep::Reap => {
+                    call(&mut kernel, Op::Wait { pidfd: leader, reap: true }, until)?;
+                }
+                GroupStep::Others => {
+                    return skein_shell::group_has_other_members(id)
+                        .map_err(|error| format!("observing process group {id}: {error:?}"));
+                }
+                GroupStep::Kill => match skein_shell::signal_kept_child(leader, Signal::Kill, Target::Group) {
                     Ok(()) | Err(Error::Other(3_i32)) => {}
                     Err(error) => return Err(format!("killing process group {id}: {error:?}")),
+                },
+                GroupStep::Pause => {
+                    if clock.now().now >= until {
+                        return Err("tree did not settle within its kill deadline".into());
+                    }
+                    std::thread::sleep(core::time::Duration::from_millis(10));
                 }
             }
-            if clock.now().now >= until {
-                return Err("tree did not settle within its kill deadline".into());
-            }
-            std::thread::sleep(core::time::Duration::from_millis(10));
-        }
-        let Done::Usage(usage) = call(&mut kernel, Op::Usage, until)? else { unreachable!("Usage returns usage") };
+            Ok(false)
+        })?;
+        // A later usage failure must not authorize emergency group signals
+        // after the final reap has released the leader's identity.
         self.finished = true;
+        let Done::Usage(usage) = call(&mut kernel, Op::Usage, until)? else { unreachable!("Usage returns usage") };
         let counts = Counts {
             method: Method::Group,
             user: difference(usage.children.user, self.baseline.user),
@@ -399,6 +411,35 @@ impl GroupTree {
         }
         Ok(counts)
     }
+}
+
+#[derive(Clone, Copy)]
+enum GroupStep {
+    Others,
+    Kill,
+    Pause,
+    Reap,
+}
+
+// The adapter supplies group observations, signals and the final child wait.
+fn settle_group<F: FnMut(GroupStep) -> Result<bool, String>>(
+    expectation: Expectation,
+    mut act: F,
+) -> Result<bool, String> {
+    let lingering = act(GroupStep::Others)?;
+    // A proc census can race forks and exits. Fence further forks with the
+    // final group kill even when that first census found no descendant.
+    if expectation != Expectation::Supervise {
+        act(GroupStep::Kill)?;
+    }
+    while act(GroupStep::Others)? {
+        if expectation != Expectation::Supervise {
+            act(GroupStep::Kill)?;
+        }
+        act(GroupStep::Pause)?;
+    }
+    act(GroupStep::Reap)?;
+    Ok(expectation == Expectation::EndsWithBinary && lingering)
 }
 
 fn group_live(id: u32) -> Result<bool, String> {
@@ -425,6 +466,7 @@ pub(crate) struct LinuxTree {
     // Descendants still parented beneath the leader cannot be waited on yet.
     members: BTreeMap<u32, Fd>,
     leader: Option<u32>,
+    leader_fd: Option<Fd>,
     finished: bool,
 }
 
@@ -472,6 +514,7 @@ impl LinuxTree {
             children: BTreeMap::new(),
             members: BTreeMap::new(),
             leader: None,
+            leader_fd: None,
             finished: false,
         })
     }
@@ -483,36 +526,30 @@ impl LinuxTree {
     pub(crate) fn started(&mut self, pidfd: Fd) {
         let leader = skein_shell::child_id(pidfd).expect("a live child handle names its leader");
         self.leader = Some(leader);
+        self.leader_fd = Some(pidfd);
     }
 
     pub(crate) fn refresh(&mut self) {
         for pid in children() {
-            if Some(pid) == self.leader || self.ignored.contains(&pid) || self.children.contains_key(&pid) {
+            if pid <= 1 || Some(pid) == self.leader || self.ignored.contains(&pid) || self.children.contains_key(&pid) {
                 continue;
             }
-            if let Some(group) = &self.cgroup {
-                let Ok(membership) = fs::read_to_string(format!("/proc/{pid}/cgroup")) else {
-                    continue;
-                };
-                let path = group.binary.strip_prefix("/sys/fs/cgroup").expect("a cgroup beneath its mount");
-                if !membership
-                    .lines()
-                    .filter_map(|line| line.strip_prefix("0::"))
-                    .any(|member| Path::new(member.trim_start_matches('/')).starts_with(path))
-                {
-                    continue;
-                }
-            }
-            if let Some(descriptor) = self.members.remove(&pid) {
+            let descriptor = match self.members.remove(&pid) {
+                Some(descriptor) => descriptor,
+                None => match skein_shell::open_pidfd(pid) {
+                    Ok(descriptor) => descriptor,
+                    Err(Error::Other(3_i32)) => continue,
+                    Err(error) => crate::fail(&format!("opening tree member {pid}: {error:?}")),
+                },
+            };
+            // Direct children remain unreaped on this single thread. A wait
+            // probe also validates a retained descendant after its adoption.
+            let ours = skein_shell::poll_child(descriptor, false).is_ok()
+                && self.cgroup.as_ref().is_none_or(|group| in_cgroup(pid, &group.binary));
+            if ours {
                 self.children.insert(pid, descriptor);
-                continue;
-            }
-            match skein_shell::open_pidfd(pid) {
-                Ok(descriptor) => {
-                    self.children.insert(pid, descriptor);
-                }
-                Err(Error::Other(3_i32)) => {} // The child can disappear between listing and opening.
-                Err(error) => crate::fail(&format!("opening tree member {pid}: {error:?}")),
+            } else {
+                skein_shell::close_keeper_fd(descriptor);
             }
         }
     }
@@ -529,30 +566,41 @@ impl LinuxTree {
                 true
             }
         });
-        let mut pending: Vec<_> =
-            self.leader.into_iter().chain(self.children.keys().copied()).chain(self.members.keys().copied()).collect();
+        let mut pending: Vec<_> = self
+            .leader
+            .into_iter()
+            .chain(self.children.keys().copied())
+            .chain(self.members.keys().copied())
+            .map(|pid| (pid, None))
+            .collect();
         if let Some(group) = &self.cgroup {
-            pending.extend(group.members());
+            pending.extend(group.members().into_iter().map(|pid| (pid, None)));
         }
         let mut visited = BTreeSet::new();
-        while let Some(pid) = pending.pop() {
-            if !visited.insert(pid) || self.ignored.contains(&pid) {
+        while let Some((pid, parent)) = pending.pop() {
+            if pid <= 1 || !visited.insert(pid) || self.ignored.contains(&pid) {
                 continue;
             }
             if Some(pid) != self.leader && !self.children.contains_key(&pid) && !self.members.contains_key(&pid) {
-                match skein_shell::open_pidfd(pid) {
-                    Ok(descriptor) => {
-                        self.members.insert(pid, descriptor);
-                    }
-                    Err(Error::Other(3_i32 | 22_i32)) => continue,
-                    Err(error) => crate::fail(&format!("opening supervised tree member {pid}: {error:?}")),
-                }
+                let descriptor =
+                    match open_tree_member(pid, parent, self.cgroup.as_ref().map(|group| group.binary.as_path())) {
+                        Ok(Some(descriptor)) => descriptor,
+                        Ok(None) | Err(Error::NotFound | Error::InvalidArgument | Error::Other(3_i32 | 22_i32)) => {
+                            continue;
+                        }
+                        Err(error) => crate::fail(&format!("opening supervised tree member {pid}: {error:?}")),
+                    };
+                self.members.insert(pid, descriptor);
             }
+            let descriptor = if Some(pid) == self.leader {
+                self.leader_fd.expect("a started leader has its handle")
+            } else {
+                *self.children.get(&pid).or_else(|| self.members.get(&pid)).expect("an admitted identity")
+            };
             let found = process_children(pid);
-            // A non-child may be reaped by its parent during proc traversal;
-            // never attach a reused PID's descendants to the old identity.
-            if self.members.get(&pid).is_none_or(|descriptor| !exited(*descriptor)) {
-                pending.extend(found);
+            // The enumerated parent must still be this opened identity.
+            if !exited(descriptor) {
+                pending.extend(found.into_iter().map(|child| (child, Some((pid, descriptor)))));
             }
         }
         self.refresh();
@@ -784,6 +832,35 @@ fn deliver(descriptor: Fd, signal: Signal) -> bool {
 }
 
 #[cfg(target_os = "linux")]
+fn open_tree_member(pid: u32, parent: Option<(u32, Fd)>, cgroup: Option<&Path>) -> Result<Option<Fd>, Error> {
+    let descriptor = match parent {
+        Some((parent, _descriptor)) => skein_shell::open_child_pidfd(pid, parent)?,
+        None => skein_shell::open_pidfd(pid)?,
+    };
+    // Ownership is checked after open. A final poll binds every proc read
+    // to that identity even if exit, reap and reuse raced the read.
+    let ours = match parent {
+        Some((_parent, parent_fd)) => !exited(parent_fd),
+        None => cgroup.is_some_and(|binary| in_cgroup(pid, binary)),
+    };
+    if !ours || exited(descriptor) {
+        skein_shell::close_keeper_fd(descriptor);
+        return Ok(None);
+    }
+    Ok(Some(descriptor))
+}
+
+#[cfg(target_os = "linux")]
+fn in_cgroup(pid: u32, binary: &Path) -> bool {
+    let Ok(membership) = fs::read_to_string(format!("/proc/{pid}/cgroup")) else { return false };
+    let path = binary.strip_prefix("/sys/fs/cgroup").expect("a cgroup beneath its mount");
+    membership
+        .lines()
+        .filter_map(|line| line.strip_prefix("0::"))
+        .any(|member| Path::new(member.trim_start_matches('/')).starts_with(path))
+}
+
+#[cfg(target_os = "linux")]
 fn process_children(pid: u32) -> BTreeSet<u32> {
     let mut result = BTreeSet::new();
     if let Ok(tasks) = fs::read_dir(format!("/proc/{pid}/task")) {
@@ -979,6 +1056,46 @@ impl Drop for LinuxTree {
 #[cfg(test)]
 mod tests {
     use super::{BUSY, Choice, Containment, NOT_SUPPORTED, choose};
+
+    #[test]
+    fn group_signals_precede_the_leaders_reap() {
+        for present in [false, true] {
+            let mut owned = true;
+            let mut killed = false;
+            super::settle_group(super::Expectation::Measure, |step| {
+                match step {
+                    super::GroupStep::Others => return Ok(present && !killed),
+                    super::GroupStep::Kill => {
+                        assert!(owned, "a reaped leader cannot authorize a signal");
+                        killed = true;
+                    }
+                    super::GroupStep::Reap => {
+                        assert!(killed, "settle the group before releasing its leader");
+                        owned = false;
+                    }
+                    super::GroupStep::Pause => {}
+                }
+                Ok(false)
+            })
+            .expect("recorded settlement");
+            assert!(!owned && killed, "the recorded group settled before the leader was released");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_cgroup_candidate_must_prove_its_opened_membership() {
+        let pid = std::process::id();
+        let foreign = std::path::Path::new("/sys/fs/cgroup/skein-foreign-candidate");
+        assert_eq!(super::open_tree_member(pid, None, Some(foreign)), Ok(None), "a foreign cgroup grants no ownership");
+        assert_eq!(super::open_tree_member(pid, None, None), Ok(None), "a number alone grants no ownership");
+        let membership = std::fs::read_to_string("/proc/self/cgroup").expect("own cgroup");
+        let relative = membership.lines().find_map(|line| line.strip_prefix("0::")).expect("cgroup v2");
+        let own = std::path::Path::new("/sys/fs/cgroup").join(relative.trim_start_matches('/'));
+        let descriptor =
+            super::open_tree_member(pid, None, Some(&own)).expect("validate membership").expect("own member");
+        skein_shell::close_keeper_fd(descriptor);
+    }
 
     #[test]
     fn containment_choice_respects_platform_and_accounting() {

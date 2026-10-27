@@ -49,6 +49,33 @@ pub(crate) fn group_live(group: u32) -> Result<bool, Error> {
     }
 }
 
+pub(crate) fn group_has_other_members(group: u32) -> Result<bool, Error> {
+    negative_group(group)?;
+    let entries = std::fs::read_dir("/proc").map_err(|error| map_error(error.raw_os_error().unwrap_or(libc::EIO)))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| map_error(error.raw_os_error().unwrap_or(libc::EIO)))?;
+        let Some(pid) = entry.file_name().to_str().and_then(|name| name.parse::<u32>().ok()) else { continue };
+        if pid == group {
+            continue;
+        }
+        let stat = match std::fs::read_to_string(entry.path().join("stat")) {
+            Ok(stat) => stat,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound || error.raw_os_error() == Some(libc::ESRCH) => {
+                continue;
+            }
+            Err(error) => return Err(map_error(error.raw_os_error().unwrap_or(libc::EIO))),
+        };
+        let member = stat
+            .rsplit_once(") ")
+            .and_then(|(_, fields)| fields.split_whitespace().nth(2))
+            .and_then(|field| field.parse::<u32>().ok());
+        if member == Some(group) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 pub(crate) fn process_live(pid: u32) -> Result<bool, Error> {
     let pid = libc::pid_t::try_from(pid).map_err(|_| Error::InvalidArgument)?;
     if pid <= 1 {
@@ -67,7 +94,7 @@ pub(crate) fn process_live(pid: u32) -> Result<bool, Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::{group_live, negative_group, process_live, signal_group};
+    use super::{group_has_other_members, group_live, negative_group, process_live, signal_group};
     use skein_io::kernel::{Error, Signal};
 
     #[test]
@@ -75,6 +102,7 @@ mod tests {
         for group in [0, 1, u32::MAX] {
             assert_eq!(negative_group(group), Err(Error::InvalidArgument));
             assert_eq!(group_live(group), Err(Error::InvalidArgument));
+            assert_eq!(group_has_other_members(group), Err(Error::InvalidArgument), "reserved groups are refused");
             assert_eq!(signal_group(group, Signal::Kill), Err(Error::InvalidArgument));
         }
         assert_eq!(negative_group(2), Ok(-2));

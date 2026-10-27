@@ -412,8 +412,20 @@ fn browser_death_ends_hand_with_diagnostic_and_status_one() {
     let pid = hand.child.0.id();
     let children = fs::read_to_string(format!("/proc/{pid}/task/{pid}/children")).expect("hand child PIDs");
     assert!(!children.trim().is_empty(), "8.1 spawned browser");
-    for child in children.split_whitespace() {
-        assert!(Command::new("kill").args(["-KILL", child]).status().expect("kill browser").success());
+    // Hand is our unreaped child. Bind each candidate before checking that
+    // the opened identity is still its child, then signal only kept pidfds.
+    let browsers: Vec<_> = children
+        .split_whitespace()
+        .map(|child| {
+            let child = child.parse().expect("browser PID");
+            skein_shell::open_child_pidfd(child, pid).expect("validate hand's browser identity")
+        })
+        .collect();
+    for browser in browsers {
+        let sent =
+            skein_shell::signal_kept_child(browser, skein_io::kernel::Signal::Kill, skein_io::kernel::Target::Child);
+        skein_shell::close_keeper_fd(browser);
+        assert!(sent.is_ok(), "kill kept browser: {sent:?}");
     }
     let deadline = hand.reader.now().saturating_add(skein_lib::Duration::from_secs(10));
     loop {

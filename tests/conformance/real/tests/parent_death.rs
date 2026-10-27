@@ -28,6 +28,7 @@ fn until(mut ready: impl FnMut() -> bool) {
 
 struct Tree {
     parent: Child,
+    parent_fd: Fd,
     child: Option<Fd>,
     scratch: Scratch,
 }
@@ -43,14 +44,16 @@ impl Tree {
             .stdin(Stdio::piped())
             .spawn()
             .expect("spawn parent fixture");
-        let mut tree = Self { parent, child: None, scratch };
+        let parent_fd = skein_shell::open_pidfd(parent.id()).expect("keep unreaped group leader");
+        let mut tree = Self { parent, parent_fd, child: None, scratch };
         let mut pid = None;
         until(|| {
             pid = fs::read_to_string(tree.scratch.path().join("child-pid")).ok().and_then(|s| s.parse().ok());
             pid.is_some()
         });
         let pid = pid.expect("parent reported child PID");
-        tree.child = Some(skein_shell::open_pidfd(pid).expect("keep child identity across exec"));
+        tree.child =
+            Some(skein_shell::open_child_pidfd(pid, tree.parent.id()).expect("validate child identity before exec"));
         tree.parent.stdin.take().expect("parent input").write_all(b"x").expect("release exec child");
         let sleep = fs::canonicalize("/bin/sleep").expect("sleep executable");
         until(|| fs::read_link(format!("/proc/{pid}/exe")).ok().as_ref() == Some(&sleep));
@@ -59,7 +62,8 @@ impl Tree {
 
     fn kill_parent(&mut self) {
         self.parent.kill().expect("SIGKILL parent");
-        self.parent.wait().expect("reap parent");
+        // Retain the zombie leader until Drop has settled its owned group.
+        until(|| skein_shell::poll_child(self.parent_fd, false).expect("retain parent exit").is_some());
     }
 
     fn child_exited(&self) -> bool {
@@ -70,13 +74,25 @@ impl Tree {
 impl Drop for Tree {
     fn drop(&mut self) {
         // The private group also covers a child not yet reported during failed startup.
-        let _killed = skein_shell::signal_group(self.parent.id(), Signal::Kill);
+        let _killed = skein_shell::signal_kept_child(self.parent_fd, Signal::Kill, skein_io::kernel::Target::Group);
         let _killed = self.parent.kill();
-        let _reaped = self.parent.wait();
         if let Some(child) = self.child {
+            let _killed = skein_shell::signal_kept_child(child, Signal::Kill, skein_io::kernel::Target::Child);
+            // Observe without reaping: adoption and group settlement retain the leader.
+            until(|| skein_shell::poll_child(self.parent_fd, false).expect("observe retained parent").is_some());
             skein_shell::abandon_binary(Some(child), &[child]);
         }
+        let _reaped = self.parent.wait();
+        skein_shell::close_keeper_fd(self.parent_fd);
     }
+}
+
+#[test]
+fn a_killed_parent_is_retained_until_its_group_is_settled() {
+    let mut tree = Tree::start("plain");
+    tree.kill_parent();
+    assert_eq!(skein_shell::poll_child(tree.parent_fd, false), Ok(Some(Exit::Signal(9))));
+    assert!(!tree.child_exited(), "plain exec remains for owned cleanup");
 }
 
 #[test]

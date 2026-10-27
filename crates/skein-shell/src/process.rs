@@ -146,6 +146,24 @@ pub fn open_pidfd(pid: u32) -> Result<Fd, Error> {
     system::process::open_pidfd(pid)
 }
 
+/// Opens and validates a discovered child's identity. The caller must keep
+/// `parent` alive or unreaped throughout this call (or name itself). The
+/// returned pidfd is admitted only after its parent relationship is checked
+/// and a final exit poll binds that proc observation to the opened identity.
+/// PIDs and parent IDs <= 1 are refused. macOS returns ENOTSUP: it has no
+/// pidfd to retain a discovered non-child identity.
+pub fn open_child_pidfd(pid: u32, parent: u32) -> Result<Fd, Error> {
+    #[cfg(target_os = "linux")]
+    {
+        system::process::open_child_pidfd(pid, parent)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _unused = (pid, parent);
+        Err(Error::Other(45))
+    }
+}
+
 /// Opens a cgroup directory for the binary's atomic placement at spawn.
 #[cfg(target_os = "linux")]
 pub fn open_cgroup(path: &Path) -> Result<Fd, Error> {

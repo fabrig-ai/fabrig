@@ -71,15 +71,16 @@ pub use drive::drive;
 pub(crate) use linux as system;
 
 #[cfg(unix)]
-pub use group::{child_id, group_live, process_live, signal_group};
+pub use group::{child_id, group_has_other_members, group_live, process_live, signal_group};
 #[cfg(unix)]
 pub use kernel::{Backend, Chosen, Config, Kernel, OpenError, Wait};
 #[cfg(unix)]
 pub use listeners::{ListenersRefusal, MAX_INHERITED_LISTENERS, inherited_listeners, listener_at, open_listener};
 #[cfg(unix)]
 pub use process::{
-    HostedPipes, abandon_binary, close_keeper_fd, exec_dying_with_parent, hosted_pipes, open_signal_pipe,
-    open_termination_signals, poll_child, signal_current_thread, signal_kept_child, start_binary, write_service_signal,
+    HostedPipes, abandon_binary, close_keeper_fd, exec_dying_with_parent, hosted_pipes, open_child_pidfd,
+    open_signal_pipe, open_termination_signals, poll_child, signal_current_thread, signal_kept_child, start_binary,
+    write_service_signal,
 };
 #[cfg(unix)]
 pub use seed::{crypto_seed, seed};

@@ -579,6 +579,9 @@ pub(crate) fn set_subreaper(enabled: bool) -> Result<(), Error> {
 
 /// Opens one discovered child's stable identity; no wait on any child is used.
 pub(crate) fn open_pidfd(pid: u32) -> Result<Fd, Error> {
+    if pid <= 1 || i32::try_from(pid).is_err() {
+        return Err(Error::InvalidArgument);
+    }
     // SAFETY: pidfd_open accepts a numeric PID and returns a uniquely owned descriptor.
     let raw = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
     if raw < 0 {
@@ -586,6 +589,31 @@ pub(crate) fn open_pidfd(pid: u32) -> Result<Fd, Error> {
     } else {
         Ok(Fd::new(i32::try_from(raw).expect("a descriptor fits i32")))
     }
+}
+
+/// Bind first, then check the opened identity's current parent. A final poll
+/// rejects a proc read that raced exit, reaping and numeric PID reuse.
+pub(crate) fn open_child_pidfd(pid: u32, parent: u32) -> Result<Fd, Error> {
+    if parent <= 1 || i32::try_from(parent).is_err() {
+        return Err(Error::InvalidArgument);
+    }
+    let descriptor = open_pidfd(pid)?;
+    let validation = (|| {
+        let stat = std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .map_err(|error| map_error(error.raw_os_error().unwrap_or(libc::ENOENT)))?;
+        let actual = stat
+            .rsplit_once(") ")
+            .and_then(|(_, fields)| fields.split_whitespace().nth(1))
+            .and_then(|field| field.parse::<u32>().ok());
+        if actual != Some(parent) || pidfd_exited(descriptor)? {
+            return Err(Error::NotFound);
+        }
+        Ok(descriptor)
+    })();
+    if validation.is_err() {
+        close_keeper_fd(descriptor);
+    }
+    validation
 }
 
 /// Opens a cgroup directory for `CLONE_INTO_CGROUP` at binary startup.

@@ -10,12 +10,73 @@ fn main() {
     use skein_io::{self as io, Event, Request};
     use skein_lib::{Duration, Env, Queue, Token};
     use skein_shell::{Backend, Clock, Config, Kernel, Wait};
+    use std::os::unix::ffi::OsStrExt;
 
     // Three entities give io 14 operation slots; 32 records hold a complete
     // batch and the events produced while it lands.
     const RECORDS: u32 = 32;
     skein_fail_stop::install();
-    let mut args = std::env::args().skip(1);
+    let mut args = std::env::args().skip(1).peekable();
+    match args.peek().map(String::as_str) {
+        Some("delayed-parent") => {
+            use std::io::Write;
+            let _mode = args.next();
+            let record = args.next().expect("record path");
+            let selection = args.next().expect("record selection");
+            #[expect(
+                clippy::zombie_processes,
+                reason = "this recording-only orphan is adopted and waited on by the test's subreaper"
+            )]
+            let child = std::process::Command::new(std::env::current_exe().expect("fixture path"))
+                .args(["record", &std::process::id().to_string(), &record, &selection])
+                .stdin(std::process::Stdio::inherit())
+                .spawn()
+                .expect("spawn recording sender");
+            println!("{}", child.id());
+            std::io::stdout().flush().expect("report sender");
+            return;
+        }
+        Some("record") => {
+            use std::io::BufRead;
+            let _mode = args.next();
+            let parent: u32 = args.next().expect("intended parent").parse().expect("parent PID");
+            let record = args.next().expect("record path");
+            let selection = args.next().expect("selection");
+            let mut line = String::new();
+            if std::io::stdin().lock().read_line(&mut line).expect("release recording sender") == 0 {
+                return;
+            }
+            // A fake target records the adoption hazard; this mode never sends a signal.
+            let target = if selection == "legacy" {
+                std::os::unix::process::parent_id().to_string()
+            } else if let Some(descriptor) = intended_parent(parent) {
+                let target = skein_shell::child_id(descriptor).expect("validated parent").to_string();
+                skein_shell::close_keeper_fd(descriptor);
+                target
+            } else {
+                "refused".into()
+            };
+            std::fs::write(record, target).expect("record target");
+            return;
+        }
+        Some("sender") => {
+            use skein_io::kernel::{Signal, Target};
+            use std::io::BufRead;
+            let _mode = args.next();
+            let parent: u32 = args.next().expect("intended parent").parse().expect("parent PID");
+            if let Some(descriptor) = intended_parent(parent) {
+                let sent = skein_shell::signal_kept_child(descriptor, Signal::Terminate, Target::Child);
+                skein_shell::close_keeper_fd(descriptor);
+                // The intended parent can exit after validation. ESRCH is a safe refusal.
+                if sent.is_ok() {
+                    let mut line = String::new();
+                    std::io::stdin().lock().read_line(&mut line).expect("parent settled its signal");
+                }
+            }
+            return;
+        }
+        _ => {}
+    }
     let backend = match args.next().as_deref() {
         Some("ring") => Backend::Ring,
         Some("readiness") => Backend::Readiness,
@@ -54,7 +115,19 @@ fn main() {
     let mut events = Queue::with_capacity(RECORDS);
     let now = clock.now();
     let env = Env { now: now.now, wall: now.wall, limits };
-    let script = if from_child { b"kill -TERM \"$PPID\"; read line".as_slice() } else { b"read line".as_slice() };
+    let executable = std::env::current_exe().expect("sender fixture path");
+    let parent = std::process::id().to_string();
+    let (program, arguments) = if from_child {
+        (
+            Box::from(executable.as_os_str().as_bytes()),
+            vec![Box::from(b"sender".as_slice()), Box::from(parent.as_bytes())].into_boxed_slice(),
+        )
+    } else {
+        (
+            Box::from(b"/bin/sh".as_slice()),
+            vec![Box::from(b"-c".as_slice()), Box::from(b"read line".as_slice())].into_boxed_slice(),
+        )
+    };
     io::down(
         &mut state,
         &env,
@@ -63,8 +136,8 @@ fn main() {
             spawn: Spawn {
                 root,
                 dir: Box::from(b".".as_slice()),
-                program: Box::from(b"/bin/sh".as_slice()),
-                args: Box::new([Box::from(b"-c".as_slice()), Box::from(script)]),
+                program,
+                args: arguments,
                 env: Box::new([]),
                 pipes: Box::new([Pipe { child: 0, way: Way::In, parent: None }]),
             },
@@ -138,6 +211,19 @@ fn main() {
         }
         let wait = if state.is_ready() || !events.is_empty() { Wait::No } else { Wait::Until(deadline) };
         kernel.submit(&mut submissions, wait);
+    }
+}
+
+// The starter supplies its own PID. Open before validating the relationship,
+// then reject an exited handle so a proc observation cannot validate a replacement.
+#[cfg(target_os = "linux")]
+fn intended_parent(parent: u32) -> Option<skein_io::kernel::Fd> {
+    let descriptor = skein_shell::open_pidfd(parent).ok()?;
+    if std::os::unix::process::parent_id() == parent && skein_shell::pidfd_exited(descriptor) == Ok(false) {
+        Some(descriptor)
+    } else {
+        skein_shell::close_keeper_fd(descriptor);
+        None
     }
 }
 
