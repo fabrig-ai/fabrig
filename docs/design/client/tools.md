@@ -209,6 +209,7 @@ watch's subject, its digest (5.4). It needs no key.
 |---|---|---|
 | `me` | the party, its projects with their roles and pools, what waits for it counted, the bounds of what it may create, configured provider offers and key-byte ceilings, the retention | `me` |
 | `inbox [--project PROJECT] [--kind needs\|updates] [--root TASK] [--after CURSOR]` | what needs the party, then updates, each with its acts | `inbox` |
+| `project show PROJECT` | the project: its name and homes, its roles, each with its parties and its spend per period, and its policy's spend per period; its open period, its number, start and next start (`../domain/root.md`, 5.7), its budget and what is reserved, spent and left of it; and each party's pool in it, with the same numbers | a project, and its spend's first page |
 | `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract.md`, 6.1, its parent key) |
 | `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
 | `landing show LANDING`, designed, not built | a landing: its members, each candidate with its base, each gate's key with its receipt or run, the proof's state, the turn, its stale proofs and faults (`../domain/landing.md`, section 14) | the forge's family |
@@ -330,6 +331,7 @@ agent must name.
 | `qa choose LANDING`, designed, not built | chooses a landing's mark for the next QA pass (`../domain/findings.md`, section 8) | the forge's request | yes |
 | `task hold TASK --stop\|--drain REASON`, designed, not built | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks.md`, 5.9) | `Hold` | yes |
 | `project hold PROJECT --stop\|--drain REASON`, designed, not built | places a hold of the party's over the whole project, the party's chats exempt | `Hold` | yes |
+| `project spend PROJECT AMOUNT [--role ROLE]` | sets the project's spend per period to AMOUNT, in the deployment's unit, or with `--role` that role's; either resizes what the open period gave (jig's `domain/authority.md`, section 7), so a raise funds the next chat at once, and each period the calendar opens takes it (`../domain/root.md`, 5.7). An owner's chats are funded from their pool, their role's, so a raise for them is two calls: the project's, then the role's. Prints the open period's budget and what it has left, then the role's pools' with `--role` | the project's policy edit, `ProjectSpend`, or `Role` with the role's other values as the project's read gives them | yes |
 | `hold lift HOLD --rev REV [--with-tasks]`, designed, not built | ends a placed hold; with `--with-tasks`, releases every task it held that nothing else holds | `Lift` | yes |
 | `task cancel TASK [--grace DURATION] REASON` | cancels a task and its tree | `Cancel` | |
 
@@ -630,10 +632,11 @@ area lands with its stories (section 11).
      `--dependency` alone may repeat.
 3. **Several parties:** `party make --project PROJECT --role ROLE --out
    FILE` (jig's `MakeService`, keyed; section 9), `sign-in --service
-   FILE`, `project show PROJECT`, `deployment show`, `task move TASK
-   REASON`, a person task's `task take`, `task hand-back` and `task
-   answer TASK --rev REV`, and the project's own operations, `policy`,
-   `role`, `pool` (jig's `domain/people.md`, 5.2).
+   FILE`, `deployment show`, `task move TASK REASON`, a person task's
+   `task take`, `task hand-back` and `task answer TASK --rev REV`, and
+   the project's own operations, `policy`, `role`, `pool` (jig's
+   `domain/people.md`, 5.2), past the spend per period that `project
+   spend` sets (5.3).
 4. **jig's plumbing whole:** `create`, `propose`, `compound --project
    PROJECT FILE`, a batch, a proposal or a compound request as JSON
    (keyed).

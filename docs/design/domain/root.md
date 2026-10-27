@@ -425,9 +425,11 @@ child, the calendar, which renews each project's period.
 - **Bounded:** one deadline armed, the earliest; one record per project
   in memory, within jig's project limit; nothing stored of its own, the
   periods being the core's records.
-- **Seen:** a project's document carries its period's start and next
-  start (jig's `client/domain/contract.md`, 5.1), and `temper ctl
-  project show` prints them with what the period has left.
+- **Seen and raised:** a project's document carries its period's start
+  and next start (jig's `client/domain/contract.md`, 5.1), and `temper
+  ctl project show` prints them with what the period has left; `temper
+  ctl project spend` raises the project's spend and a role's, the open
+  period's with them (`../client/tools.md`, 5.3).
 
 ## 6. Translation
 
