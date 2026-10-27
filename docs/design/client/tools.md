@@ -425,8 +425,10 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   one form, the watch's document: for `inbox` and `task list`, whose
   read is a page and whose watch a window, the rows the watch's first
   window holds, in its order, and whether more follow, within the tools'
-  page of rows (section 12). The read makes that form from its own rows and
-  prints its cursor beside it, outside the digest. A read's digest is
+  page of rows (section 12). `task list`'s read makes that form from its
+  own rows; an unfiltered `inbox` read opens the inbox's watch once for
+  it, since a needs page leaves unfetched the updates the watch's window
+  holds. Each prints its cursor beside the digest, outside it. A read's digest is
   therefore a wait's first delivery's while nothing moved between them,
   so a wait `--since` a read's digest never answers at once. Two calls
   of the same tools, under the same limits, print the same digest for
