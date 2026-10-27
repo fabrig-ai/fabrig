@@ -610,3 +610,17 @@ Each within jig's suites' budgets.
   many `smith-inline-agent` runs' completions share one connection
   component and one loop; whether each run gets a share of each
   iteration.
+- **An account moved out of a stopped deployment,** one whose start
+  is refused, without starting its engine: an application's tool,
+  holding the deployment's lock as `store.md`, 10.5's operations do,
+  opens the active generation with no patch or restore (so only a
+  store this build keeps), finds the account's source in the accounts'
+  family by its schema, makes the file's bytes from its record (5.6),
+  and erases the source's row in the same act, one secrets' commit
+  stating its digest: a later start would otherwise refresh the
+  record and the file would be dead (5.6, "The file left behind").
+  The next start finds the source with no record, needing sign-in
+  (5.4). It would write the secrets' store outside the engine's
+  routing, which `store.md`, section 9 rules out. Until then a refused
+  start names its refusal and ends, and a build that repairs the cause
+  starts the deployment, from which the account moves out as 5.6 says.
