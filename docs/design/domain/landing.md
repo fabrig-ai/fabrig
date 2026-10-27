@@ -339,7 +339,9 @@ For a project with no prepare command, one member per repository:
   at the candidate (skein's `Read::Runs`), one made by a dispatch,
   triggered by temper's own user on that forge, after the dispatch's
   start; then read as it goes (`Read::Run`), on the job deliveries'
-  hints and the keep's polling (`../protocol/forge.md`, section 5). A
+  hints where they come and on the landing's own polling of its runs in
+  flight: a dispatch-only job publishes no commit status on its head
+  (skein's `forge.md`, section 9), so no status read wakes it. A
   run another user triggered is never taken. Two that match are two of
   temper's own dispatches of one key at one commit, either of which
   proves it: the first to complete makes the receipt. A run whose
@@ -401,7 +403,10 @@ For a project with no prepare command, one member per repository:
   back: main's tip is the candidate, and its member is landed.
 - **Nothing runs inside the turn:** no gate, no prepare, no run of an
   agent's. A merge refused or uncertain is settled as `forge.md`,
-  section 6 settles any merge.
+  section 6 settles any merge: a fast-forward-only merge raced by
+  another landing on Forgejo answers uncertain, its find reads the pull
+  request unmerged, and the stale check of the next try sends the
+  landing back to prepare.
 - **Partial:** if the turn
   ends with some members landed (a forge's error, a main moved by
   someone outside temper), the landed members stay landed, each
