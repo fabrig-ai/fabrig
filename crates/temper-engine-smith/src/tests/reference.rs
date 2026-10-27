@@ -4,7 +4,8 @@ use skein_lib::Writer;
 use smith_domain_run::HostEffect;
 
 use crate::{
-    calls::{SPECS, Spec},
+    calls::{DESCRIPTION_BYTES, MEMBER_BYTES, SPECS, Spec},
+    json::{self, Value},
     reference::{reference, render},
 };
 
@@ -89,16 +90,12 @@ fn the_page_holds_every_declared_tool_in_the_tables_order() {
 fn member_types_keep_enum_order_and_json_defaults() {
     let schema = br#"{"properties":{
         "one":{"enum":["a"],"type":"integer"},
+        "two":{"enum":["b","a"]},
         "three":{"enum":["a","b","c"]},
-        "number":{"type":"number","minimum":-1.20e2,"maximum":4.5},
-        "integer":{"type":"integer"},
-        "unknown":{"type":"null","default":null},
-        "text":{"type":"string","default":"a\"b"},
-        "object":{"type":"object","default":{ "list": [true, false, 1e+2] }},
-        "escaped":{"default":"\u0061"},
-        "empty":{"default":[]}
+        "number":{"type":"number","minimum":-1.20e2,"maximum":4.5,"default":1e+2},
+        "integer":{"type":"integer"}
     }}"#;
-    let expected = br#"
+    let expected = br"
 ## fixture_read
 
 Read a fixture.
@@ -106,14 +103,53 @@ Read a fixture.
 A read.
 
 - `one`: one of `a`; optional.
+- `two`: one of `b` or `a`; optional.
 - `three`: one of `a`, `b` or `c`; optional.
-- `number`: a number from -1.20e2 to 4.5; optional.
+- `number`: a number from -1.20e2 to 4.5, 1e+2 when absent; optional.
 - `integer`: an integer; optional.
-- `unknown`: any value, null when absent; optional.
-- `text`: text, "a\"b" when absent; optional.
-- `object`: an object, { "list": [true, false, 1e+2] } when absent; optional.
-- `escaped`: any value, "\u0061" when absent; optional.
-- `empty`: any value, [] when absent; optional.
-"#;
+";
     assert_eq!(fixture(schema, HostEffect::Read).as_ref(), [HEAD, expected].concat());
+}
+
+#[test]
+fn every_description_is_within_its_bound() {
+    for spec in &SPECS {
+        let tool = core::str::from_utf8(spec.name).expect("tool name UTF-8");
+        assert!(spec.description.len() <= DESCRIPTION_BYTES, "{tool}: description exceeds {DESCRIPTION_BYTES} bytes");
+        let schema = json::parse(spec.schema).expect("declared schema");
+        member_descriptions(&schema, tool, "input");
+    }
+}
+
+fn member_descriptions(schema: &Value, tool: &str, member: &str) {
+    match schema {
+        Value::Object(fields) => {
+            for (key, value) in fields {
+                match key.as_ref() {
+                    b"description" => {
+                        let Value::String(text) = value else { panic!("{tool}.{member}: description is text") };
+                        assert!(
+                            text.len() <= MEMBER_BYTES,
+                            "{tool}.{member}: description exceeds {MEMBER_BYTES} bytes"
+                        );
+                    }
+                    b"properties" => {
+                        let Value::Object(properties) = value else { panic!("declared properties are an object") };
+                        for (name, property) in properties {
+                            let name = core::str::from_utf8(name).expect("member name UTF-8");
+                            member_descriptions(property, tool, &format!("{member}.{name}"));
+                        }
+                    }
+                    b"items" => member_descriptions(value, tool, &format!("{member}[]")),
+                    _ => member_descriptions(value, tool, member),
+                }
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                member_descriptions(value, tool, member);
+            }
+        }
+        Value::String(_) | Value::Number(_) | Value::Boolean(_) | Value::Null => {}
+    }
 }

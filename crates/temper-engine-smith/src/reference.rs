@@ -41,12 +41,11 @@ pub(crate) fn render(specs: &[Spec], out: &mut Writer) -> Result<(), Overflow> {
             continue;
         }
         out.put(b"\n")?;
-        let source = raw_field(&schema, spec.schema, b"properties").expect("declared properties");
-        for (index, (name, member)) in properties.iter().enumerate() {
+        for (name, member) in properties {
             out.put(b"- `")?;
             out.put(name)?;
             out.put(b"`: ")?;
-            member_type(member, raw_at(source, index), out)?;
+            member_type(member, out)?;
             out.put(b"; ")?;
             let mut required = false;
             if let Some(Value::Array(names)) = field(&schema, b"required") {
@@ -71,10 +70,9 @@ fn field<'a>(value: &'a Value, name: &'static [u8]) -> Option<&'a Value> {
     value.field(name).expect("declared schema member is an object")
 }
 
-fn member_type(member: &Value, source: &[u8], out: &mut Writer) -> Result<(), Overflow> {
+fn member_type(member: &Value, out: &mut Writer) -> Result<(), Overflow> {
     if let Some(values) = field(member, b"enum") {
         let values = values.array(b"enum").expect("declared enum is an array");
-        let source = raw_field(member, source, b"enum").expect("declared enum");
         out.put(b"one of ")?;
         for (index, value) in values.iter().enumerate() {
             if index != 0 {
@@ -84,7 +82,7 @@ fn member_type(member: &Value, source: &[u8], out: &mut Writer) -> Result<(), Ov
             match value {
                 Value::String(text) => out.put(text)?,
                 Value::Object(_) | Value::Array(_) | Value::Number(_) | Value::Boolean(_) | Value::Null => {
-                    out.put(raw_at(source, index))?;
+                    unreachable!("declared enum values are strings");
                 }
             }
             out.put(b"`")?;
@@ -123,9 +121,14 @@ fn member_type(member: &Value, source: &[u8], out: &mut Writer) -> Result<(), Ov
             }
         }
     }
-    if let Some(default) = raw_field(member, source, b"default") {
+    if let Some(default) = field(member, b"default") {
         out.put(b", ")?;
-        out.put(default)?;
+        match default {
+            Value::Number(text) => out.put(text)?,
+            Value::Object(_) | Value::Array(_) | Value::String(_) | Value::Boolean(_) | Value::Null => {
+                unreachable!("declared default is a number")
+            }
+        }
         out.put(b" when absent")?;
     }
     Ok(())
@@ -138,80 +141,4 @@ fn number_text(value: &Value) -> &[u8] {
             unreachable!("declared numeric bound is a number")
         }
     }
-}
-
-// Use the validated tree's member positions to borrow source spellings.
-// Defaults retain their JSON bytes, including escapes and internal spaces.
-fn raw_field<'a>(value: &Value, source: &'a [u8], name: &[u8]) -> Option<&'a [u8]> {
-    match value {
-        Value::Object(fields) => {
-            for (index, (key, _)) in fields.iter().enumerate() {
-                if key.as_ref() == name {
-                    return Some(raw_at(source, index));
-                }
-            }
-            None
-        }
-        Value::Array(_) | Value::String(_) | Value::Number(_) | Value::Boolean(_) | Value::Null => {
-            unreachable!("declared schema member is an object")
-        }
-    }
-}
-
-// The nth value of an already parsed object or array; keys are skipped.
-fn raw_at(source: &[u8], index: usize) -> &[u8] {
-    let source = source.trim_ascii_start();
-    let object = source.first() == Some(&b'{');
-    let mut rest = source.get(1..).expect("parsed container").trim_ascii_start();
-    for at in 0..=index {
-        if object {
-            rest = rest.get(value_end(rest)..).expect("parsed key").trim_ascii_start();
-            rest = rest.strip_prefix(b":").expect("parsed key separator").trim_ascii_start();
-        }
-        let end = value_end(rest);
-        if at == index {
-            return rest.get(..end).expect("parsed value");
-        }
-        rest = rest.get(end..).expect("parsed value end").trim_ascii_start();
-        rest = rest.strip_prefix(b",").expect("parsed value separator").trim_ascii_start();
-    }
-    unreachable!("parsed member position")
-}
-
-// Locate one validated value's end without decoding or normalizing it.
-fn value_end(source: &[u8]) -> usize {
-    let mut depth = 0_u32;
-    let mut string = false;
-    let mut escaped = false;
-    for (index, byte) in source.iter().enumerate() {
-        if string {
-            if escaped {
-                escaped = false;
-            } else if *byte == b'\\' {
-                escaped = true;
-            } else if *byte == b'"' {
-                string = false;
-                if depth == 0 {
-                    return index.checked_add(1).expect("parsed string end");
-                }
-            }
-            continue;
-        }
-        match byte {
-            b'"' => string = true,
-            b'{' | b'[' => depth = depth.checked_add(1).expect("parsed JSON depth"),
-            b'}' | b']' => {
-                if depth == 0 {
-                    return index;
-                }
-                depth = depth.checked_sub(1).expect("parsed JSON depth");
-                if depth == 0 {
-                    return index.checked_add(1).expect("parsed container end");
-                }
-            }
-            b',' | b' ' | b'\t' | b'\r' | b'\n' if depth == 0 => return index,
-            _ => {}
-        }
-    }
-    source.len()
 }

@@ -1257,8 +1257,9 @@ fn job_and_attempt_zero_decode_but_run_and_explicit_byte_limit_remain_positive()
     }
     let schema = schema.expect("read_job tool");
     for property in [
-        br#""job":{"type":"integer","description":"a CI job id, which may be 0 on Forgejo","minimum":0"#.as_slice(),
-        br#""attempt":{"type":"integer","description":"a CI attempt number, which may be 0 on Forgejo","minimum":0"#
+        br#""job":{"type":"integer","description":"The CI job's id, which may be 0 on Forgejo.","minimum":0"#
+            .as_slice(),
+        br#""attempt":{"type":"integer","description":"The attempt's number, which may be 0 on Forgejo.","minimum":0"#
             .as_slice(),
     ] {
         assert!(skein_lib::bytes::find(schema, property).is_some());
