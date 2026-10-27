@@ -6,7 +6,7 @@ use jig_domain_accounts::{DISPLAY, SUBJECT};
 use skein_lib::{Reader, Wall, Writer, bytes};
 use skein_oauth::{Limits, SavedToken};
 
-fn limits() -> Limits {
+pub(crate) fn limits() -> Limits {
     Limits {
         document_bytes: 512,
         string_bytes: 128,
@@ -62,7 +62,17 @@ fn assert_same(expected: &Moved, actual: &Moved) {
     assert_eq!(expected.client_id, actual.client_id);
     assert_eq!(expected.subject, actual.subject);
     assert_eq!(expected.display, actual.display);
-    assert!(expected.record == actual.record, "all saved-token fields retained");
+    assert_eq!(expected.record.key, actual.record.key);
+    assert_eq!(expected.record.generation, actual.record.generation);
+    assert_eq!(expected.record.expires_at, actual.record.expires_at);
+    assert_eq!(expected.record.access_token, actual.record.access_token);
+    assert_eq!(expected.record.refresh_token, actual.record.refresh_token);
+    assert_eq!(expected.record.metadata, actual.record.metadata);
+    assert_eq!(expected.record.issued_client_id, actual.record.issued_client_id);
+    assert_eq!(expected.record.granted_scopes, actual.record.granted_scopes);
+    assert_eq!(expected.record.subject, actual.record.subject);
+    assert_eq!(expected.record.id_token, actual.record.id_token);
+    assert_eq!(expected.record.earliest_refresh_at, actual.record.earliest_refresh_at);
 }
 
 // The version plus six length prefixes (protocol/llm.md, 5.6).
@@ -436,4 +446,123 @@ fn a_runtime_allowance_above_the_schema_covers_old_files() {
             + u64::from(DISPLAY)
             + u64::from(u32::MAX)
     );
+}
+
+// Kept bytes transcribed from jig 365afd554^'s outer encoder and skein
+// cad332f2 record.rs: big-endian header, key/generation/expiry, three
+// u32-length fields, four marked fields and marked wall for v3. V2 ends
+// after metadata. The full row is R5's 109-byte literal; absent refresh
+// and metadata are zero u32 lengths, not option marks. No current encoder
+// produces these fixtures.
+pub(crate) const SKOT_FULL: &[u8] = b"JIGM\x00\x01\x00\x00\x00\x01a\x00\x00\x00\x01i\x00\x00\x00\x01c\x00\x00\x00\x01s\x00\x00\x00\x01d\x00\x00\x00JSKOT\x00\x03\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00{\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x01m\x01\x00\x00\x00\x01c\x01\x00\x00\x00\x01g\x01\x00\x00\x00\x01s\x01\x00\x00\x00\x01i\x01\x00\x00\x00\x00\x00\x00\x00d";
+const SKOT_ABSENT: &[u8] = b"JIGM\x00\x01\x00\x00\x00\x01a\x00\x00\x00\x01i\x00\x00\x00\x01c\x00\x00\x00\x01s\x00\x00\x00\x01d\x00\x00\x00,SKOT\x00\x03\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00{\x00\x00\x00\x01a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+const SKOT_TWO: &[u8] = b"JIGM\x00\x01\x00\x00\x00\x01a\x00\x00\x00\x01i\x00\x00\x00\x01c\x00\x00\x00\x01s\x00\x00\x00\x01d\x00\x00\x00)SKOT\x00\x02\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00{\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x01m";
+
+fn skot_fixture(version: u16, full: bool) -> Moved {
+    let mut value = fixture(false);
+    value.display = bytes::copy_of(b"d");
+    if full {
+        value.record.refresh_token = Some(bytes::copy_of(b"r"));
+        value.record.metadata = Some(bytes::copy_of(b"m"));
+        if version == 3 {
+            value.record.issued_client_id = Some(bytes::copy_of(b"c"));
+            value.record.granted_scopes = Some(bytes::copy_of(b"g"));
+            value.record.subject = Some(bytes::copy_of(b"s"));
+            value.record.id_token = Some(bytes::copy_of(b"i"));
+            value.record.earliest_refresh_at = Some(Wall::from_nanos(100));
+        }
+    }
+    value
+}
+
+#[test]
+fn skot_literals_decode_every_field_and_convert_to_schema_records() {
+    for (input, version, full) in [(SKOT_FULL, 3, true), (SKOT_ABSENT, 3, false), (SKOT_TWO, 2, true)] {
+        let decoded = moved::decode(input, &limits()).expect("JIGM/SKOT");
+        assert_same(&skot_fixture(version, full), &decoded);
+        let encoded = moved::encode(&decoded, &limits()).expect("schema export");
+        assert_eq!(&encoded.expose()[..2], b"\0\x01");
+        assert_same(&decoded, &moved::decode(encoded.expose(), &limits()).expect("schema record"));
+    }
+}
+
+// Six outer parts; retain the nested record's bytes for corruptions.
+fn skot_record(input: &[u8]) -> &[u8] {
+    let offset = MAGIC_BYTES.checked_add(prefix(&input[MAGIC_BYTES..], 5)).expect("record prefix");
+    &input[offset.checked_add(4).expect("record payload")..]
+}
+
+#[test]
+fn skot_record_corruption_is_refused_inside_the_envelope() {
+    const SKOT_HEADER: usize = 6; // four magic bytes and u16 version
+    const PRESENCE: [usize; 5] = [41, 47, 53, 59, 65]; // three L(1), then four marked L(1)
+    let record = skot_record(SKOT_FULL);
+    for end in MAGIC_BYTES..record.len() {
+        refused(&old_part(5, &record[..end]), &limits(), Unread::Record, "nested truncation");
+    }
+    refused(&old_part(5, &append_byte(record)), &limits(), Unread::Record, "nested tail");
+    for version in [1_u16, 4] {
+        let mut changed = bytes::copy_of(record);
+        for (target, byte) in changed[MAGIC_BYTES..SKOT_HEADER].iter_mut().zip(version.to_be_bytes()) {
+            *target = byte;
+        }
+        refused(&old_part(5, &changed), &limits(), Unread::Record, "nested version");
+    }
+    for offset in PRESENCE {
+        let mut changed = bytes::copy_of(record);
+        changed[offset] = 2;
+        refused(&old_part(5, &changed), &limits(), Unread::Record, "invalid presence");
+    }
+}
+
+#[test]
+fn skot_fields_accept_their_bounds() {
+    // Each field of R5's full literal is one byte, all seven caps at one.
+    let bounded = Limits {
+        token_bytes: 1,
+        issued_client_bytes: 1,
+        granted_bytes: 1,
+        subject_bytes: 1,
+        id_token_bytes: 1,
+        ..limits()
+    };
+    assert_same(&skot_fixture(3, true), &moved::decode(SKOT_FULL, &bounded).expect("fields at bounds"));
+}
+
+#[test]
+fn skot_fields_and_current_record_validation_refuse_overflow() {
+    const FIELD_PREFIXES: [usize; 7] = [26, 31, 36, 42, 48, 54, 60]; // fixed header, three L(1), four marked L(1)
+    const FIELD_PAYLOADS: [usize; 3] = [30, 35, 40]; // header 26, then three L(1)
+    const OVER_CAP: u32 = 129; // one past the largest test cap, token_bytes 128
+    const V2_RECORD_BYTES: u32 = 41; // 38 fixed bytes plus a, r and m
+    for bounded in [
+        Limits { token_bytes: 0, ..limits() },
+        Limits { issued_client_bytes: 0, ..limits() },
+        Limits { granted_bytes: 0, ..limits() },
+        Limits { subject_bytes: 0, ..limits() },
+        Limits { id_token_bytes: 0, ..limits() },
+    ] {
+        refused(SKOT_FULL, &bounded, Unread::Record, "field past limit");
+    }
+    // Each length is refused before attempting its oversized payload.
+
+    for offset in FIELD_PREFIXES {
+        let mut changed = bytes::copy_of(skot_record(SKOT_FULL));
+        let end = offset.checked_add(4).expect("prefix end");
+        for (target, byte) in changed[offset..end].iter_mut().zip(OVER_CAP.to_be_bytes()) {
+            *target = byte;
+        }
+        refused(&old_part(5, &changed), &limits(), Unread::Record, "oversized nested prefix");
+    }
+    // V2 is 41 bytes; the equivalent schema record is 44. Current size
+    // validation still applies even when the old record fits its allowance.
+    refused(SKOT_TWO, &Limits { record_bytes: V2_RECORD_BYTES, ..limits() }, Unread::Record, "current encoded size");
+    // The old reader permits any field bytes; the current codec must still
+    // refuse a malformed bearer, refresh text and metadata.
+
+    for offset in FIELD_PAYLOADS {
+        let mut changed = bytes::copy_of(skot_record(SKOT_FULL));
+        changed[offset] = 0xff;
+        refused(&old_part(5, &changed), &limits(), Unread::Record, "current semantic validation");
+    }
 }

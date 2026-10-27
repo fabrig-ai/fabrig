@@ -169,3 +169,45 @@ fn a_removed_account_frees_its_number() {
 fn cancelling_a_sign_in_reaches_the_driver_as_cancel() {
     assert_eq!(translate::down_signing(child::Signing::CancelSignIn { source: 55 }), Down::CancelSignIn { source: 55 });
 }
+
+fn opened_skot(client: &[u8]) -> crate::moves::Next {
+    const OUTER_CLIENT: usize = 20; // JIGM header and L(a), L(i), client prefix
+    use crate::moves::Moves;
+    use skein_lib::{Map, Secret};
+    let mut registration = registration();
+    registration.issuer = bytes::copy_of(b"i");
+    registration.client = bytes::copy_of(b"c");
+    let account = party::party_account(
+        &registration,
+        driver::Endpoint { address: ([127, 0, 0, 1], 31000).into(), transport: driver::Transport::Plaintext },
+        List::with_capacity(0),
+        &[5; 16],
+    );
+    // Issued client ids take precedence over the configured client id.
+    let mut file = bytes::copy_of(crate::moved_tests::SKOT_FULL);
+    file[OUTER_CLIENT] = client[0];
+    let mut providers = Map::with_capacity(1);
+    providers.insert(1, account).ok().expect("provider fits");
+    let mut moves = Moves::new(bytes::copy_of(b"a"), 1);
+    let _read = moves.open(7, 9);
+    moves.opened(7, Some(Secret::new(file)), &providers, &crate::moved_tests::limits())
+}
+
+#[test]
+fn a_skot_import_opens_against_its_matching_registration() {
+    let crate::moves::Next::Child(child::Event::Opened { source, provider, subject, display }) = opened_skot(b"c")
+    else {
+        panic!("matching SKOT account opens")
+    };
+    assert_eq!((source, provider), (7, 1));
+    assert_eq!(&*subject, b"s");
+    assert_eq!(&*display, b"d");
+}
+
+#[test]
+fn a_skot_import_with_a_different_client_is_not_ours() {
+    let crate::moves::Next::Child(child::Event::NotOurs { source }) = opened_skot(b"x") else {
+        panic!("different client refused as not ours")
+    };
+    assert_eq!(source, 7);
+}

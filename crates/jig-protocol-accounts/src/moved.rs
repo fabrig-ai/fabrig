@@ -3,8 +3,8 @@ use crate::v1;
 use alloc::boxed::Box;
 use jig_domain_accounts::{DISPLAY, SUBJECT};
 use skein_codec::Reason;
-use skein_lib::{Reader, Secret, Writer, bytes};
-use skein_oauth::{Limits, SavedToken};
+use skein_lib::{Reader, Secret, Wall, Writer, bytes};
+use skein_oauth::{DecodeError, Limits, SavedToken};
 
 /// The application's name, in bytes (nonempty).
 pub const APPLICATION: u32 = 64;
@@ -110,7 +110,8 @@ pub fn decode(input: &[u8], limits: &Limits) -> Result<Moved, Unread> {
 }
 
 /// Temporary JIGM reader (decision 1345): until the held logins are
-/// re-exported, before the release. Encoding always uses the generated form.
+/// re-exported, before the release. Its nested SKOT reader goes with it.
+/// Encoding always uses the generated form.
 fn decode_old(input: &[u8], limits: &Limits) -> Result<Moved, Unread> {
     let mut version = Reader::new(input.get(4..6).ok_or(Unread::Malformed)?);
     if version.u16().ok_or(Unread::Malformed)? != 1 {
@@ -146,7 +147,12 @@ fn decode_old(input: &[u8], limits: &Limits) -> Result<Moved, Unread> {
         return Err(Unread::Trailing);
     }
     let [application, issuer, client_id, subject, display, record] = parts;
-    let record = skein_oauth::decode_record(record, limits).or(Err(Unread::Record))?;
+    let record = if record.starts_with(b"SKOT") {
+        decode_skot(record, limits)
+    } else {
+        skein_oauth::decode_record(record, limits)
+    }
+    .or(Err(Unread::Record))?;
     Ok(Moved {
         application: bytes::copy_of(application),
         issuer: bytes::copy_of(issuer),
@@ -155,6 +161,82 @@ fn decode_old(input: &[u8], limits: &Limits) -> Result<Moved, Unread> {
         display: bytes::copy_of(display),
         record,
     })
+}
+
+/// Temporary nested reader for JIGM (decision 1345), matching skein cad332f2.
+/// Remove with `decode_old` after held logins are re-exported, before release.
+fn decode_skot(input: &[u8], limits: &Limits) -> Result<SavedToken, DecodeError> {
+    if input.len() > usize::try_from(limits.record_bytes).expect("u32 fits usize") {
+        return Err(DecodeError::TooLarge);
+    }
+    let mut reader = Reader::new(input);
+    if reader.bytes(4).ok_or(DecodeError::Malformed)? != b"SKOT" {
+        return Err(DecodeError::Malformed);
+    }
+    let version = reader.u16().ok_or(DecodeError::Malformed)?;
+    if version != 2 && version != 3 {
+        return Err(DecodeError::Version);
+    }
+    let key = reader.u32().ok_or(DecodeError::Malformed)?;
+    let generation = reader.u64().ok_or(DecodeError::Malformed)?;
+    let expires_at = Wall::from_nanos(reader.u64().ok_or(DecodeError::Malformed)?);
+    let access_token = read_field(&mut reader, limits.token_bytes)?;
+    let refresh = read_field(&mut reader, limits.token_bytes)?;
+    let refresh_token = if refresh.is_empty() { None } else { Some(refresh) };
+    let id = read_field(&mut reader, limits.token_bytes)?;
+    let metadata = if id.is_empty() { None } else { Some(id) };
+    let (issued_client_id, granted_scopes, subject, id_token, earliest_refresh_at) = if version == 2 {
+        (None, None, None, None, None)
+    } else {
+        let issued = read_optional(&mut reader, limits.issued_client_bytes)?;
+        let granted = read_optional(&mut reader, limits.granted_bytes)?;
+        let subject = read_optional(&mut reader, limits.subject_bytes)?;
+        let id = read_optional(&mut reader, limits.id_token_bytes)?;
+        let earliest = if presence(&mut reader)? {
+            Some(Wall::from_nanos(reader.u64().ok_or(DecodeError::Malformed)?))
+        } else {
+            None
+        };
+        (issued, granted, subject, id, earliest)
+    };
+    if !reader.is_empty() {
+        return Err(DecodeError::Malformed);
+    }
+    let record = SavedToken {
+        key,
+        generation,
+        access_token,
+        refresh_token,
+        metadata,
+        expires_at,
+        issued_client_id,
+        granted_scopes,
+        subject,
+        id_token,
+        earliest_refresh_at,
+    };
+    // Current validation also enforces schema ceilings and the encoded size.
+    let encoded = Secret::new(skein_oauth::encode_record(&record, limits)?);
+    skein_oauth::decode_record(encoded.expose(), limits)
+}
+fn read_field(reader: &mut Reader<'_>, cap: u32) -> Result<Box<[u8]>, DecodeError> {
+    let len = reader.u32().ok_or(DecodeError::Malformed)?;
+    if len > cap {
+        return Err(DecodeError::TooLarge);
+    }
+    let value = reader.bytes(len).ok_or(DecodeError::Malformed)?;
+    Ok(bytes::copy_of(value))
+}
+
+fn presence(reader: &mut Reader<'_>) -> Result<bool, DecodeError> {
+    match reader.bytes(1).ok_or(DecodeError::Malformed)? {
+        [0] => Ok(false),
+        [1] => Ok(true),
+        _ => Err(DecodeError::Malformed),
+    }
+}
+fn read_optional(reader: &mut Reader<'_>, cap: u32) -> Result<Option<Box<[u8]>>, DecodeError> {
+    if presence(reader)? { Ok(Some(read_field(reader, cap)?)) } else { Ok(None) }
 }
 
 fn required(fields: &[&[u8]]) -> Result<(), Unread> {
