@@ -357,8 +357,11 @@ the person who accepts it, not by the chat, so it outlives the
 conversation it came from (tasks.md, section 9). A tracked task gets:
 
 - **a priority** among the project's goals, which orders what competes
-  for one resource: the queues of write holds (tasks.md, 6.2), and what
-  connectors order (a landing queue, a pool's slots);
+  for one resource: the queues of write holds (tasks.md, 6.2), the runs
+  waiting for room on their hosts, and what connectors order (a landing
+  queue, a pool's slots); everywhere a task serving a goal before one
+  serving none, then the lower number first, then when it began to
+  wait;
 - **projections:** what each connector that projects goals writes of it
   for people to read (connectors.md, section 8);
 - **news** of what its subtree's work changed, through the topics its
