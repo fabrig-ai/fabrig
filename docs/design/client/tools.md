@@ -171,19 +171,20 @@ temper                       the binary: `temper ctl` runs the host
 - **A tool's name is its words** (`../draft/agent-docs.md`, 7.2): a
   group, one of the map's nouns (`task`, `chat`, `goal`, `change`,
   `proposal`, `settings`, `revision`, `account`, `model`, `forge`,
-  `repository`, `playground`, `hold`, and area 3's `project`, `party`
-  and `deployment`), then a verb of the closed vocabulary, `task show`; or
+  `repository`, `playground`, `hold`, `landing`, `finding`, `qa`, and
+  area 3's `project`, `party` and `deployment`), then a verb of the closed vocabulary, `task show`; or
   one of the six names of the client and the party, `me`, `inbox`,
   `sign-in`, `sign-out`, `pending` and `help`. A read of a part of the
   group's noun is the part's name: `task tree`, `task run`, `task
-  activity`, `task turn`, `forge repositories`. `help GROUP` lists a
+  activity`, `task turn`, `forge repositories`, `repository receipts`,
+  `qa marks`, `qa passes`. `help GROUP` lists a
   group's rows; `--call`'s `tool` is the name's words, one space
   between (8.1).
 - **One vocabulary of placeholders** shows the arguments, in the usage
   and in the pages alike (`../draft/agent-docs.md`, section 5): `TASK`,
   `PROJECT`, `FORGE`, `INSTALLATION`, `ACCOUNT`, `PROVIDER`, `ADAPTER`,
   `SOURCE`, `POSITION`, `NAME` (a program source's), `HOLD` (a placed
-  hold's number), `REVISION` (a
+  hold's number), `LANDING`, `FINDING`, `REVISION` (a
   settings revision), `REV` (a revision a read printed of the object
   acted on: a spec's, a hold's), `PROPOSAL`, `QUESTION`, `NUMBER` (a
   setting's), `TEMPLATE`, `CURSOR`, `COUNT`, `PART`, `OFFSET`, `PAGE`,
