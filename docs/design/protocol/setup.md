@@ -666,11 +666,12 @@ files: at a first preparation, and for a runner older than its pin
   `KillParent`, which no setting turns off), so forge run doesn't exec,
   which would make the box that parent. It holds the lock for Forgejo's
   whole life, adopts the listener into skein-io, and spawns `temper
-  forge child --parent PID --signal kill -- forgejo web …`, PID its own, with the
-  listener at the child's descriptor 3, the spec's environment ending
-  in `LISTEN_FDS=1`, and the spec's directory. Forgejo's standard input
-  is empty; its output and errors are relayed to forge run's own.
-  - **The hidden `forge child`** reads no document and takes no
+  internal forge-child --parent PID --signal kill -- forgejo web …`, PID
+  its own, with the listener at the child's descriptor 3, the spec's
+  environment ending in `LISTEN_FDS=1`, and the spec's directory.
+  Forgejo's standard input is empty; its output and errors are relayed
+  to forge run's own.
+  - **The hidden `internal forge-child`** reads no document and takes no
     directories. It execs its program with what it was given, through
     skein's `exec_dying_with_parent` (skein's `shell.md`, 3) with the
     parent-death signal its caller names, Kill for forge run, so that a
@@ -680,7 +681,7 @@ files: at a first preparation, and for a runner older than its pin
     (QA, `qa_forgejo_dies_when_its_forge_run_parent_is_killed`).
     Forgejo's graceful stop is forge run's forwarded Terminate. A
     failure, the parent changed or the program missing, prints `temper
-    forge child: WHY` and exits 1.
+    internal forge-child: WHY` and exits 1.
   - **Its shutdowns:** one that io names as Forgejo's (skein's `io.md`,
     section 7) is ignored, every time; every other is forwarded to
     Forgejo as the same Terminate or Interrupt. Forgejo's exit ends
@@ -705,10 +706,11 @@ files: at a first preparation, and for a runner older than its pin
   `programming-model.md`, 2.1; skein's `io.md`, section 5). So the lock and
   the exec are std's, `File::try_lock` and `CommandExt::exec`, with no
   `unsafe`, in one module of `temper-forge-setup-shell`, which the
-  preparation's lock uses too, and which builds `forge child`'s command
-  for skein's parent-death exec; the preparation's commands and
-  Forgejo's parent loop are not in it, and run on skein-io (6.3). It is
-  the one place temper locks a file or uses `std::process` outside
+  preparation's lock uses too, and which builds `internal
+  forge-child`'s command for skein's parent-death exec; the
+  preparation's commands and Forgejo's parent loop are not in it, and
+  run on skein-io (6.3). It is the one place temper locks a file or
+  uses `std::process` outside
   skein: a boundary test scans the production crates' sources (`crates/*/src`, test files aside) and
   fails the gate when either appears outside that module, but
   `std::process::ExitCode` in the binary's `main`. Test crates
@@ -924,7 +926,7 @@ its own for any other host.
   made through its API the Actions unit (skein's `forge-setup.md`,
   section 8). The step needs no network and no action from elsewhere.
 - **The playground's copy,** asked with `SetUp`'s `playground`
-  (`../client/tools.md`, 5.5, `forge-setup --playground`): the first
+  (`../client/tools.md`, 5.5, `forge setup --playground`): the first
   repository is `playground/widget`, its organization and name fixed,
   made with the playground's `src/main.rs` (8.4, `temper-fake`'s
   constant, one source for both) beside the starter workflow, in one
@@ -950,7 +952,7 @@ its own for any other host.
   project, its name and policy 1, the default document's (8.3), then
   `Adopt`: the project, the forge,
   `ORG`, `NAME`, landing on `main`, owned, the project's home, with CI.
-  `temper ctl forge-setup` does it (`../client/tools.md`, 5.5), and so
+  `temper ctl forge setup` does it (`../client/tools.md`, 5.5), and so
   does the set up flow's Ready step (`../client/forge.md`, 5.4). It is
   transitional, until jig carries a deployment owner's act after
   `SetUp`'s admission (section 15).
@@ -1024,10 +1026,10 @@ temper box
 ├── temper forge fetch DIRS 3         once, per owned forge whose binaries are fetched (6.6)
 ├── temper forge prepare DIRS 3       once, per owned forge
 ├── temper forge run DIRS 3 forgejo    long: Forgejo's parent on Linux with fd 3 (6.4)
-│   └── forgejo web                   via temper forge child; execs without fd 3
+│   └── forgejo web                   via temper internal forge-child; execs without fd 3
 ├── forgejo-runner daemon             long: temper forge run DIRS 3 runner
 │                                     these, the forge's group: here, or asked (below)
-└── temper serve DIRS --box           long: its own tree (README.md, section 4); its setup
+└── temper internal serve DIRS --box  long: its own tree (README.md, section 4); its setup
 │                                     host takes each handover and reconciles (section 5);
 │                                     its listeners from fd 3, then its pipe to the box (below)
 ```
@@ -1092,14 +1094,14 @@ temper box
   It changes at each restart, as it does without the box. `LISTEN_FDS`
   counts only the sockets given.
 - **The pipe,** two of them, made again at each spawn of `temper
-  serve`, at the two descriptors after its listeners: 3 + *n*, serve to
-  box, and 4 + *n*, box to serve, *n* its listeners' count, so fds 5
-  and 6 under the default document's two. `--box` tells `temper serve`
-  to adopt them, and a serve given `--box` whose descriptor 3 + *n* or
-  4 + *n* is not an open pipe refuses its start, naming the fd, *n*
-  being the `LISTEN_FDS` it was given, 0 without it; without `--box`, as
-  under every other arrangement (7.4), serve has no pipe and leaves
-  those descriptors alone. One line each, ending in a line
+  internal serve`, at the two descriptors after its listeners: 3 + *n*,
+  serve to box, and 4 + *n*, box to serve, *n* its listeners' count, so
+  fds 5 and 6 under the default document's two. `--box` tells `temper
+  internal serve` to adopt them, and a serve given `--box` whose
+  descriptor 3 + *n* or 4 + *n* is not an open pipe refuses its start,
+  naming the fd, *n* being the `LISTEN_FDS` it was given, 0 without it;
+  without `--box`, as under every other arrangement (7.4), serve has no
+  pipe and leaves those descriptors alone. One line each, ending in a line
   feed, `FORGE` the forge's number:
 
   | Line | From | Says |
@@ -1599,9 +1601,9 @@ not a reason to bind another port or regenerate the retained document.
   configured: GitHub's redirect and setup URLs name it, so its port is
   never 0, checked at start (17.1).
 - **`temper serve` checks `setup`,** and reads one file of it, an owned
-  or fake forge's handover (section 3). Under the box, with `--box`, it
-  adopts the box's pipe, over which it asks for an owned forge's steps
-  whose `start` is `"asked"` (7.1).
+  or fake forge's handover (section 3). Under the box, as `temper
+  internal serve --box`, it adopts the box's pipe, over which it asks
+  for an owned forge's steps whose `start` is `"asked"` (7.1).
 - **`application.demo`,** the demo's fake LLM, forge and project, or
   null for none (8.4).
 - **An owned example** ships for a person, a test or QA's host to start
@@ -1833,9 +1835,9 @@ directory is empty (7.1).
 
 - **What it finds,** each written absolute:
   - *the binary,* the running `temper`'s own path: the worker's agent's
-    `program`, with `arguments` `["agent", <configuration>/agent.json]`
-    and `configuration` that same path (configuration.md, section 5),
-    and the demo's link's target;
+    `program`, with `arguments` `["internal", "agent",
+    <configuration>/agent.json]` and `configuration` that same path
+    (configuration.md, section 5), and the demo's link's target;
   - *git,* the `git` found on `PATH`: the worker's `git`; with none,
     `null`, written without refusing, and init says so (git.md, section
     3). The demo's link, `<data>/demo/bin/git`, is the fake entry's
@@ -3152,7 +3154,7 @@ it checks of this document:
   line for no browser among its lines only from a binary built without
   one: the test checks the build it runs in, `../client/browser.md`,
   2.6), and prints one sign-in link, which signs the owner in, the demo's fakes
-  dormant; the owner starts the demo with `temper ctl demo-start`
+  dormant; the owner starts the demo with `temper ctl playground start`
   (`../client/tools.md`, 5.5), answered once the demo forge is
   connected and `playground/widget` adopted into Playground, project 1,
   which the start made. The owner sends
@@ -3178,9 +3180,10 @@ it checks of this document:
   directories, its document given a second fake forge, which runs in
   its place, unasked, and connects at serve's start: the demo ends
   (8.4), the box's terminal says `Playground: stopped` (7.2),
-  `wait forges` lists the second forge alone, and `temper ctl
-  demo-start` is answered not offered. A third box starts nothing of
-  the demo's group, and answers the same. Before the end, a chat is
+  `forge list` lists the second forge alone, and
+  `temper ctl playground start` is answered not offered. A third box
+  starts nothing of the demo's group, and answers the same. Before the
+  end, a chat is
   opened on the demo, and no client watches the end: once the third
   box is up, the chat reads cancelled by the deployment, `Ended with
   the playground`, and the deployment holds no account of the demo's
@@ -3206,8 +3209,8 @@ it checks of this document:
   `<cache>/forgejo-runner/RUNNER_VERSION/forgejo-runner`, so that the
   fetch hashes them against the pins and fetches nothing (6.6): no
   mirror, no TLS and no call off the machine. The owner asks "Set up a
-  Forgejo here" through the client, `temper ctl DIRECTORY forge-setup
-  3`, answered setting up; forge 3's row, followed by `wait forges
+  Forgejo here" through the client, `temper ctl DIRECTORY forge setup
+  3`, answered setting up; forge 3's row, followed by `forge list
   --until settled`, goes through "Setting up" and "Connecting" to
   "Connected as temper", with no restart, and its first repository made,
   `work/hello`; the call adopts it into the new project `hello`,
@@ -3237,15 +3240,15 @@ it checks of this document:
 - **The first run whole,** a test of its own: one box on three empty
   scratch directories, forge 3's binaries placed where its fetch looks,
   with no restart. The person signs in and starts the playground
-  (`temper ctl DIRECTORY demo-start`), and its chat in project 1 is
-  answered by the scripted model. Then "Set up a Forgejo here",
-  `forge-setup 3` and `wait forges --until settled`: forge 3 reads
+  (`temper ctl DIRECTORY playground start`), and its chat in project 1
+  is answered by the scripted model. Then "Set up a Forgejo here",
+  `forge setup 3` and `forge list --until settled`: forge 3 reads
   "Connected as temper", `work/hello` made and adopted into the new
   project `hello`, project 2. That connect ends the playground at
   runtime (8.4): the box's terminal says `Playground: stopped`
   once, no list shows forge 1, the playground's chat reads cancelled by
   the deployment, `Ended with the playground`, the deployment holds no
-  account of the demo's provider, and `demo-start` is answered not
+  account of the demo's provider, and `playground start` is answered not
   offered. The owner's first task in project 2 then lands on
   `work/hello`, read as in the test above. On Linux, Forgejo's step is
   given the listener the box held from its start (6.4, 7.1).
@@ -3502,7 +3505,7 @@ listener's (`../client/forge.md`, the browser's steps).
   once older than a state's life, unless the App is read-only (17.7);
   one deleted on GitHub leaves `Accepted`; one suspended is shown.
 - **Accepting a stray,** `Accept { forge, installation }` (the tools'
-  `forge-accept`, `../client/tools.md`, 5.5): an installation that
+  `forge accept`, `../client/tools.md`, 5.5): an installation that
   exists already, made on GitHub before temper knew it, is taken by the
   deployment's owner's own act, with no browser. The setup host runs
   `Accept` with no state (skein's `forge-setup.md`, 5.4): the person's

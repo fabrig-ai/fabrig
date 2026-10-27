@@ -368,14 +368,14 @@ temper-engine-domain-forge              the connector's top: resources and holds
   saves ended, ends the demo's forge, asks the box link for `stop
   FORGE` when the demo ran and the pipe is open (`../protocol/forge.md`,
   2.8), and answers a start held for its acts *not offered*. An ended
-  forge is in no list: no row of `forges`, so that `temper ctl wait
-  forges` names it no more, no offer, so that `SetUp` is refused "not
-  offered", nothing in the picker (4.3), and nothing in the setup host's
-  scans, which read the same state; the routing's events for it change
-  nothing (`../protocol/forge.md`, 8.1), so that a read waiting on its
-  connection (16) is never asked again. Its writer stays the forge
-  client's record, and its rows stay, so that what it did reads as
-  before.
+  forge is in no list: no row of `forges`, so that `temper ctl forge
+  list` names it no more, no offer, so that `SetUp` is
+  refused "not offered", nothing in the picker (4.3), and nothing in the
+  setup host's scans, which read the same state; the routing's events
+  for it change nothing (`../protocol/forge.md`, 8.1), so that a read
+  waiting on its connection (16) is never asked again. Its writer stays
+  the forge client's record, and its rows stay, so that what it did
+  reads as before.
 - **A repository ended** is one adopted from an ended forge. Nothing
   is stored for it: it ends with its forge. It leaves every list of a
   project's repositories: the project's home, so that the project's

@@ -27,31 +27,31 @@ section 13; an MCP endpoint and the tools' extraction into jig are later
 - **One table of tools.** Each tool is defined once: its name, its
   arguments, its result, its text. The parser, the help, the JSON and
   the tool names the pages may use are derived from it (5.1).
-- **Waiting is a tool.** `wait` blocks on a watch until a subject
-  changes from what the agent saw, or meets a condition, or a timeout
-  passes (5.4).
+- **A wait is a read.** A read of a watched subject, given `--since` or
+  `--until`, blocks until the subject changes from what the agent saw,
+  or meets a condition, or a timeout passes (5.4).
 - **Each request once.** A tool that makes something requires a key the
   agent names; asked again under that name, it gets the first answer,
   never a second chat. Acts that decide name the revision the agent saw
   (section 7). The named key is jig's (section 13).
 - **A turn too large for a page is read alone,** by jig's read of one
   turn (5.2, section 13).
-- **Thin command line.** `temper ctl DIRECTORY TOOL ...` makes one call
-  per process, in `jig-client`'s one-shot mode, over jig's native
+- **Thin command line.** `temper ctl DIRECTORY GROUP VERB ...` makes one
+  call per process, in `jig-client`'s one-shot mode, over jig's native
   transport, and prints its result (section 8).
 - **The deployment under test is a box** (`../protocol/setup.md`, section
   7): the agent's harness starts it, signs in by its printed link, adds
   the deployment's LLM key, and throws it away (section 10).
 - **LLM accounts are an area of their own** (5.5, area 5): a sign-in
   prints the address to open and returns, and the agent follows it with
-  `wait accounts`; a key is read from a private file and sent in a
-  request that is never kept (section 7).
-- **Forges are an area of their own** (5.5, area 6): `forges` reads
+  `account list --until settled`; a key is read from a private file and
+  sent in a request that is never kept (section 7).
+- **Forges are an area of their own** (5.5, area 6): `forge list` reads
   each configured forge as the `Forges` page shows it; a connect prints
   its link as text, never opened, or reads its pasted value from a
-  private file, and returns, and the agent follows it with `wait
-  forges`; `repositories` reads the picker's page, whose rows ride
-  `adopt`.
+  private file, and returns, and the agent follows it with `forge list
+  --until settled`; `forge repositories` reads the picker's page, whose
+  rows ride `repository adopt`.
 - **Grown by areas,** the first, the fifth and the sixth designed in
   full, the others named (5.5); **later, named:** the MCP endpoint and
   the extraction into `jig-client-tools` (section 14).
@@ -160,14 +160,37 @@ temper                       the binary: `temper ctl` runs the host
   beyond its line: a file's life, a refusal's words and what mends it,
   a step that follows.
 - **Everything else is derived from it:** the parser and `temper ctl
-  help [TOOL]`, the JSON of arguments and results, and the tool names
-  the pages may use (11.5). A test checks that each derivation names
-  every tool. Its lines and notes are documentation, in the voice of
-  `../draft/agent-docs.md`, section 6.
+  help [GROUP [VERB]]`, the JSON of arguments and results, and the tool
+  names the pages may use (11.5). A test checks that each derivation
+  names every tool. Its lines and notes are documentation, in the voice
+  of `../draft/agent-docs.md`, section 6.
 - **A call is a value:** a tool's name and its arguments, decoded from
   argv or from JSON and checked against the table before anything is
   sent. The runner takes a call and gives back its result; the host
   interprets neither.
+- **A tool's name is its words** (`../draft/agent-docs.md`, 7.2): a
+  group, one of the map's nouns (`task`, `chat`, `goal`, `change`,
+  `proposal`, `settings`, `revision`, `account`, `model`, `forge`,
+  `repository`, `playground`, and area 3's `project`, `party` and
+  `deployment`), then a verb of the closed vocabulary, `task show`; or
+  one of the six names of the client and the party, `me`, `inbox`,
+  `sign-in`, `sign-out`, `pending` and `help`. A read of a part of the
+  group's noun is the part's name: `task tree`, `task run`, `task
+  activity`, `task turn`, `forge repositories`. `help GROUP` lists a
+  group's rows; `--call`'s `tool` is the name's words, one space
+  between (8.1).
+- **One vocabulary of placeholders** shows the arguments, in the usage
+  and in the pages alike (`../draft/agent-docs.md`, section 5): `TASK`,
+  `PROJECT`, `FORGE`, `INSTALLATION`, `ACCOUNT`, `PROVIDER`, `ADAPTER`,
+  `SOURCE`, `POSITION`, `NAME` (a program source's), `REVISION` (a
+  settings revision), `REV` (a revision a read printed of the object
+  acted on: a spec's, a hold's), `PROPOSAL`, `QUESTION`, `NUMBER` (a
+  setting's), `TEMPLATE`, `CURSOR`, `COUNT`, `PART`, `OFFSET`, `PAGE`,
+  `TURN`, `DIGEST`, `CONDITION`, `DURATION`, `TIME`, `PRIORITY`,
+  `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
+  `PREFIX`, `GATE`, `LABEL`, `IDS`, `APP`, `ROLE`, `FILE`, `TEXT`,
+  `REASON`, `KEY`. The table's `shown` names are these; a step test refuses any
+  other.
 - **Projects by name or number;** a name is resolved through `me`. A
   name is never decimal digits alone, and no two projects share one
   (jig's `domain/core.md`, 6.1), so an argument is a number or a name,
@@ -183,35 +206,37 @@ watch's subject, its digest (5.4). It needs no key.
 | Tool | What it answers | jig's |
 |---|---|---|
 | `me` | the party, its projects with their roles and pools, what waits for it counted, the bounds of what it may create, configured provider offers and key-byte ceilings, the retention | `me` |
-| `inbox [--project P] [--kind K] [--root N] [--after C]` | what needs the party, then updates, each with its acts | `inbox` |
-| `tasks --project P [--parent N] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after C]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, task N's delegates alone | `tasks{query}` (jig's `client/domain/contract.md`, 6.1, its parent key) |
-| `task N [--tree] [--activity K] [--run]` | a task's document, with its acts; with its live tree, its K latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
-| `chat N [--before C]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
-| `activity N [--before C] [--limit K]` | a task's activity, a page from its end | `activity{n}` |
-| `turn N A.T [--part K] [--from B]` | one turn of task N, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract.md`, section 6) |
-| `run N` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
-| `settings` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
-| `setting charter N [--revision R]`, `setting template\|policy N`, `setting rules` | one setting's value whole, as the newest reads it, or a charter as held revision R reads it; with `--json`, the value in the form `change-settings` takes | `setting{kind, number, revision}` |
-| `setting landing-rule N [--project P]`, `setting forge-charter` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of project P's, or the forge's charter; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `change-settings` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
-| `revision R` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `setting`), removed or reset, temper's kinds' items with their sizes alone, their past values not kept; a revision forgotten past the history names the oldest kept | `revision{n}` |
-| `proposal tN/K\|pN/K` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `setting{…}` |
-| `revisions [--before R]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
+| `inbox [--project PROJECT] [--kind needs\|updates] [--root TASK] [--after CURSOR]` | what needs the party, then updates, each with its acts | `inbox` |
+| `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract.md`, 6.1, its parent key) |
+| `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
+| `chat show TASK [--before CURSOR]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
+| `task activity TASK [--before CURSOR] [--limit COUNT]` | a task's activity, a page from its end | `activity{n}` |
+| `task turn TASK TURN [--part PART] [--from OFFSET]` | one turn of the task, TURN as `A.T`, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract.md`, section 6) |
+| `task tree TASK` | a task's live tree: its root and each row its window holds, a chip a line, and what it folds (6.1) | `tree{root}` |
+| `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
+| `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
+| `settings show charter NUMBER [--revision REVISION]`, `settings show template\|policy NUMBER`, `settings show rules` | one setting's value whole, as the newest reads it, or a charter as held REVISION reads it; with `--json`, the value in the form `settings apply` takes | `setting{kind, number, revision}` |
+| `settings show landing-rule NUMBER [--project PROJECT]`, `settings show forge-charter` | one of temper's settings (`../protocol/configuration.md`, 13.2): a landing rule of the deployment's, or of PROJECT's, or the forge's charter; its state from jig's `settings`, its value from the forge's read; with `--json`, the value in the form `settings apply` takes | the forge's `Setting { kind, scope, number }` (`forge.md`, section 9) |
+| `revision show REVISION` | a revision: the revision it was made against, when, who decided it (a party, the release or the first start), the proposal it came from, whether it moved running work, and its items, each set with its value whole (or its size, too large, to read with `settings show`), removed or reset, temper's kinds' items with their sizes alone, their past values not kept; a revision forgotten past the history names the oldest kept | `revision{n}` |
+| `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine.md`, 17.10) and the current one with `setting{…}`, so a review never shows a value as too large; a decided or withdrawn proposal retains its state | `proposal{proposer, number}`, `setting{…}` |
+| `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 
-- **A revision's value too large to print** says `too large, N bytes; read
-  with setting charter N --revision R` for a charter, and `too large, N
-  bytes; read current value with setting KIND [N]` for a template, policy
-  or rules. Only a charter takes `--revision`; the other reads serve the
-  current value, including when the hint appears in a historical revision.
-- **`tasks` reads one group a call.** jig answers a task query in two
-  groups, live then ended, each with its own cursor (jig's
+- **A revision's value too large to print** says `too large, N bytes;
+  read with settings show charter NUMBER --revision REVISION` for a
+  charter, and `too large, N bytes; read current value with settings
+  show KIND [NUMBER]` for a template, policy or rules. Only a charter
+  takes `--revision`; the other reads serve the current value, including
+  when the hint appears in a historical revision.
+- **`task list` reads one group a call.** jig answers a task query in
+  two groups, live then ended, each with its own cursor (jig's
   `client/domain/contract.md`, 6.1), and a printed cursor is one
-  group's. Without `--ended`, `tasks` reads the live group, `--after C`
-  its cursor; with `--ended`, the ended group alone, as jig's view reads
-  it, `--after C` the ended group's. The call that reads on keeps
-  `--ended`, whose help reads "Only ended tasks". An agent that wants
-  both groups makes two calls; the printed cursor is jig's, with nothing
-  added.
-- **`tasks`' order:** by number, ascending, without `--order`, with
+  group's. Without `--ended`, `task list` reads the live group, `--after
+  CURSOR` its cursor; with `--ended`, the ended group alone, as jig's
+  view reads it, `--after CURSOR` the ended group's. The call that reads
+  on keeps `--ended`, whose help reads "Only ended tasks". An agent that
+  wants both groups makes two calls; the printed cursor is jig's, with
+  nothing added.
+- **`task list`'s order:** by number, ascending, without `--order`, with
   `--ended` or without; by activity or priority with it. The tools never
   send jig's other orders, `Changed` and `Ended`: no command line makes
   a call with either, and such a call is refused a command line, never
@@ -228,27 +253,29 @@ watch's subject, its digest (5.4). It needs no key.
   for updates, then jig's cursor, whole, or none when the call that
   reads on starts updates; to the agent it stays opaque. The call that
   reads on stays in needs while needs has more, then moves to updates.
-  `--after C` reads C's group; with `--kind K`, a C of the other group
-  is a usage error, exit 1.
-- **A page cut by `--limit K`** reads on with the same read without
-  `--limit`, `activity N`, or `activity N --before C` with the C it was
-  given, which prints the page whole, its K rows again, then reads on
-  at jig's `before`. `task N --activity K` that cuts a page prints
-  `read with: activity N`. The printed cursor stays jig's: at most a
-  page's rows repeat, and no row is skipped.
+  `--after CURSOR` reads CURSOR's group; with `--kind`, a CURSOR of the
+  other group is a usage error, exit 1.
+- **A page cut by `--limit COUNT`** reads on with the same read without
+  `--limit`, `task activity TASK`, or `task activity TASK --before
+  CURSOR` with the CURSOR it was given, which prints the page whole, its
+  COUNT rows again, then reads on at jig's `before`. `task show TASK
+  --activity COUNT` that cuts a page prints `read with: task activity
+  TASK`. The printed cursor stays jig's: at most a page's rows repeat,
+  and no row is skipped.
 - **Provisional text is the run's host's.** An agent process gives none
-  (`../protocol/llm.md`, section 7), and `chat` and `run` then print none:
-  a run shows by its activity, and its words as each turn commits.
+  (`../protocol/llm.md`, section 7), and `chat show` and `task run` then
+  print none: a run shows by its activity, and its words as each turn
+  commits.
 - **A turn too large for a page** comes in a page by its size in place
-  of its bytes (jig's `client/domain/contract.md`, 5.1).
-  `activity`, `chat` and `task --activity` print it as one line, its
-  number, its size and the call that reads it: `turn 3.7 · 412 KB ·
-  read with: turn 41 3.7`.
-- **`turn`** prints each part of the turn cut to the tools' window, each
-  cut with the call that reads on (`--part K --from B`). A turn past the
-  engine's bound on one read, or the client's limit for one document, is
-  answered with its size and that it is past the limit, exit 0; the
-  agent reports it as a finding (section 12).
+  of its bytes (jig's `client/domain/contract.md`, 5.1). `task
+  activity`, `chat show` and `task show --activity` print it as one
+  line, its number, its size and the call that reads it: `turn 3.7 ·
+  412 KB · read with: task turn 41 3.7`.
+- **`task turn`** prints each part of the turn cut to the tools' window,
+  each cut with the call that reads on (`--part PART --from OFFSET`). A
+  turn past the engine's bound on one read, or the client's limit for
+  one document, is answered with its size and that it is past the limit,
+  exit 0; the agent reports it as a finding (section 12).
 - **The forge's changes are read on the forge,** with whatever the agent
   chooses, its API, `git` or a command line of the forge's, as a person
   reads them there: temper is agnostic about how (the user, 10-26). The
@@ -260,9 +287,9 @@ watch's subject, its digest (5.4). It needs no key.
   landings, changes only through temper; what a person does there, a
   review or an approval at a head, they do on the forge as themselves,
   and temper reads it (`forge.md`, sections 4 and 6). Of the forge's
-  read family (`forge.md`, section 9), the deployment's part is a tool, `forges`,
-  and a change's panel another, `change` (5.5, area 6); the others join
-  the table as tools of their own (section 14).
+  read family (`forge.md`, section 9), the deployment's part is a tool,
+  `forge list`, and a change's panel another, `change show` (5.5, area
+  6); the others join the table as tools of their own (section 14).
 
 ### 5.3 Acts
 
@@ -272,20 +299,20 @@ agent must name.
 
 | Tool | What it does | jig's | K |
 |---|---|---|---|
-| `chat --project P [--template N] TEXT` | starts a chat from template N, the project's chat template when none is named: template 3 is the configuring chat (`../domain/agent.md`, 8.1); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
-| `message N TEXT` | words to a task | `Message` | yes |
-| `close N [--move D]... [--reason TEXT]` | closes a chat: its live delegates cancelled, or moved to the party where named; the reason empty unless given, as jig's reference UI sends it | `shapes::close_chat`, a compound request | yes |
-| `adopt --project P [--forge F] --owner O --name N [--ids R/U] --landing B [--role owned\|fork\|context] [--prefix X] [--no-home] [--no-ci] [--check G]...` | adopts a repository | the forge family's request (`README.md`, 4.4) | yes |
-| `answer N M TEXT` | answers question M of task N | `Answer` | |
-| `decide tN/K\|pN/K accept\|reject\|pass-up [REASON] [--running stays\|moves]` | decides a proposal: P is `tN` for task N's, `pN` for party N's | `Decide` | |
-| `decide N --hold R release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |
-| `propose-settings FILE [REASON] --against R` | proposes the whole settings set to the deployment owners; FILE or `-` shares the change-settings format and bounds; the optional reason is forwarded unchanged | `Propose` settings | yes |
-| `change-settings FILE --against R [--running stays\|moves]` | changes the settings in one decision: FILE (or `-`) holds the items; R is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
-| `move-to-newest R` | moves every live agent task on held revision R that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
-| `restore R [REASON]` | proposes the settings as revision R left them, against the newest, to the owners of its items; prints the proposal's number and the settings of temper's kinds it leaves out; `proposal` then shows its items, and an owner decides it | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
-| `release N --hold R [--again]` | lifts a hold | `Release` | |
-| `stop N` | cancels a task's run, the task held | `Stop` | |
-| `cancel N [--grace D] REASON` | cancels a task and its tree | `Cancel` | |
+| `chat start --project PROJECT [--template TEMPLATE] TEXT` | starts a chat from TEMPLATE, the project's chat template when none is named: template 3 is the configuring chat (`../domain/agent.md`, 8.1); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
+| `task message TASK TEXT` | words to a task | `Message` | yes |
+| `chat close TASK [--move TASK]... [--reason TEXT]` | closes a chat: its live delegates cancelled, or moved to the party where named; the reason empty unless given, as jig's reference UI sends it | `shapes::close_chat`, a compound request | yes |
+| `repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY [--ids IDS] --landing BRANCH [--role owned\|fork\|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]...` | adopts a repository | the forge family's request (`README.md`, 4.4) | yes |
+| `task answer TASK QUESTION TEXT` | answers question QUESTION of the task | `Answer` | |
+| `proposal decide PROPOSAL accept\|reject\|pass-up [REASON] [--running stays\|moves]` | decides a proposal: PROPOSAL is `tN/K` for task N's, `pN/K` for party N's | `Decide` | |
+| `task decide TASK --hold REV release\|leave\|pass-up [REASON]` | decides an escalation | `Decide` | |
+| `settings propose FILE [REASON] --against REVISION` | proposes the whole settings set to the deployment owners; FILE or `-` shares the format and bounds of `settings apply`; the optional reason is forwarded unchanged | `Propose` settings | yes |
+| `settings apply FILE --against REVISION [--running stays\|moves]` | changes the settings in one decision: FILE (or `-`) holds the items; REVISION is the newest revision the caller read; running work stays unless `--running moves`; answered the new revision's number | `ChangeSettings` | yes |
+| `revision advance REVISION` | moves every live agent task on held REVISION that may move to the newest, each at its next run; prints jig's answer, `moved 3 tasks to revision 9; 1 could not, and finishes on 7` | `MoveToNewest` | yes |
+| `revision restore REVISION [REASON]` | proposes the settings as REVISION left them, against the newest, to the owners of its items; prints the proposal's number and the settings of temper's kinds it leaves out; `proposal show` then shows its items, and an owner decides it | `Restore` (jig's `domain/engine.md`, 17.10) | yes |
+| `task release TASK --hold REV [--again]` | lifts a hold | `Release` | |
+| `task stop TASK` | cancels a task's run, the task held | `Stop` | |
+| `task cancel TASK [--grace DURATION] REASON` | cancels a task and its tree | `Cancel` | |
 
 - **Settings FILE is JSON:** `{"items": [ITEM, ...]}`, at most one item per
   setting, each `{"setting": SETTING, "set": VALUE}`,
@@ -295,7 +322,7 @@ agent must name.
   `{"kind": "rules"}`, `{"kind": "landing-rule", "number": N}` for the
   deployment's, `{"kind": "landing-rule", "project": P, "number": N}`
   for project P's, or `{"kind": "forge-charter"}`; VALUE is exactly the
-  `value` member `setting … --json` prints: for a landing rule, section
+  `value` member `settings show … --json` prints: for a landing rule, section
   3's rule member as `temper.json` wrote it (`../protocol/configuration.md`,
   13.2), for the forge's charter a charter's number. Decoded bounded (6.4): the file's size, the item count and every
   value's bounds are jig's (`ChangeSettings`' own, and the limits the engine's
@@ -309,8 +336,8 @@ agent must name.
   names. jig's kinds are the deployment's; a landing rule names
   its scope, the deployment's or a project's, and a set that touches a
   project's needs an owner of it (jig's `domain/people.md`, 5.1).
-  `proposal` prints the values of temper's items from the forge's
-  `ProposalItems` read, and `settings` lists temper's settings with
+  `proposal show` prints the values of temper's items from the forge's
+  `ProposalItems` read, and `settings show` lists temper's settings with
   jig's, by the names above.
 - **The form's fields are one table,** `FIELDS`, beside the form's
   decoder in the crate ctl and the runs' `propose_settings` share
@@ -323,8 +350,8 @@ agent must name.
   through the shapes (`policy.ceiling.spend`, `charter.model.name`) to
   its row. The reference page `settings-fields` is rendered from it, a
   section per shape (`../protocol/documentation.md`, section 6), and a
-  step test holds it to the form: every member that `setting … --json`
-  prints for each stock value, and every member the decoder takes,
+  step test holds it to the form: every member that `settings show …
+  --json` prints for each stock value, and every member the decoder takes,
   resolves to a row, and every row is reached. temper's own kinds'
   rows come with their decoder.
 - **The arguments are jig's,** named as its operations name them, with
@@ -334,16 +361,16 @@ agent must name.
   escalation and a release by the hold's revision. An agent copies them
   from the acts a result printed (6.1); it never has to know which an
   act needs.
-- **`adopt` takes the adoption form's fields and defaults** (`README.md`,
-  4.4): forge 1, role `owned`, prefix `temper/`, the home and CI on.
-  `--landing` names the landing branch. A context repository is never
-  the home: `--role context` turns the home off. `--no-ci` needs at
-  least one `--check`, a gate number, each number once. `--ids R/U` is
-  a picker row's repository id and owner id, as `repositories` prints
-  them (5.5, area 6), carried with that row's `--owner` and `--name`;
-  without it the request carries no ids (`README.md`, 4.6). The form's
-  checks are the parser's: a call that fails one exits 1 before
-  anything is sent.
+- **`repository adopt` takes the adoption form's fields and defaults**
+  (`README.md`, 4.4): forge 1, role `owned`, prefix `temper/`, the home
+  and CI on. `--landing` names the landing branch. A context repository
+  is never the home: `--role context` turns the home off. `--no-ci`
+  needs at least one `--check`, a gate number, each number once. `--ids
+  IDS` is a picker row's repository id and owner id, `R/U`, as `forge
+  repositories` prints them (5.5, area 6), carried with that row's
+  `--owner` and `--name`; without it the request carries no ids
+  (`README.md`, 4.6). The form's checks are the parser's: a call that
+  fails one exits 1 before anything is sent.
 - **No confirmation.** The person's client says what an act will do
   before sending it (`README.md`, 3.6); an agent reads it in the
   document's acts and their effects, and the revision is its promise.
@@ -357,23 +384,26 @@ agent must name.
 ### 5.4 Waiting
 
 ```
-wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
+READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 ```
 
-- **The subject** is a watch's (jig's `client/domain/contract.md`, 7.1):
-  `me`, `inbox`, `task N`, `tree N`, `run N`, `accounts` (area 5 of
-  5.5), `forges` and `change N` (area 6), or a task query as `tasks` takes it, with
-  what its watch takes alone: `inbox` with no flag, the inbox's watch
-  being the party's whole inbox; `tasks` without
-  `--after` or `--ended`, `tasks{query}` following live tasks. Any
-  other is a usage error, exit 1.
+- **A watched read** is one whose arguments are a watch's subject (jig's
+  `client/domain/contract.md`, 7.1): `me`; `inbox` with no flag, the
+  inbox's watch being the party's whole inbox; `task show TASK` with no
+  flag; `task tree TASK`; `task run TASK`; `task list` with what its
+  watch takes alone, without `--after` or `--ended`, `tasks{query}`
+  following live tasks; `account list` (area 5 of 5.5); `forge list`
+  and `change show TASK` (area 6). Given `--since` or `--until`, it
+  waits; given neither, it reads at once and prints its digest. A wait's
+  flag on any other read, `task show TASK --tree` among them, is a usage
+  error, exit 1. There is no `wait` tool.
 - **A digest** is the first 8 bytes of the SHA-256 (skein's `lib.md`,
   6.2) of the subject's document as `--json` prints it (6.2), without
   its `digest` field, printed as 16 hex digits. A read and a wait digest
-  one form, the watch's document: for `inbox` and `tasks`, whose read is
-  a page and whose watch a window, the rows the watch's first window
-  holds, in its order, and whether more follow, within the tools' page
-  of rows (section 12). The read makes that form from its own rows and
+  one form, the watch's document: for `inbox` and `task list`, whose
+  read is a page and whose watch a window, the rows the watch's first
+  window holds, in its order, and whether more follow, within the tools'
+  page of rows (section 12). The read makes that form from its own rows and
   prints its cursor beside it, outside the digest. A read's digest is
   therefore a wait's first delivery's while nothing moved between them,
   so a wait `--since` a read's digest never answers at once. Two calls
@@ -383,32 +413,30 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   that a document changed; the digest can, and needs nothing of jig. It
   is not the mark the engine keeps per watch (jig's
   `client/domain/contract.md`, 7.2), which no tool prints.
-- **Which reads print one:** a read whose arguments are a watch's
-  subject, with every wait's answer: `me`; `inbox` and `tasks` with the
-  arguments a wait takes (above); `task N`; `run N`; `accounts`;
-  `forges`; `change N`.
-  `task N --tree --run` prints one for each subject, `task N`, `tree N`
-  and `run N`, each over its own part of the result. `--activity`'s
-  lines, `chat`, `activity` and `turn` are pages, not subjects, and
-  print none.
+- **Which reads print one:** every watched read, and every wait's
+  answer. `task show TASK --tree --run` prints one for each of its
+  parts, `task show`, `task tree` and `task run`, each over its own part
+  of the result. `--activity`'s lines, `chat show`, `task activity` and
+  `task turn` are pages, not subjects, and print none.
 - **`--since DIGEST`:** answered at the first delivery whose digest
-  differs; without it, at the first change after the watch's first
-  delivery.
+  differs. **`--until changed`,** a condition of every watched read:
+  answered at the first change after the watch's first delivery.
 - **`--until CONDITION`:** answered at the first delivery that meets it,
   the first delivery included; with `--since`, at the first delivery
   whose digest differs and that meets it. Conditions are named facts
   over the document:
 
-  | Subject | Conditions |
+  | Read | Conditions, beside `changed` |
   |---|---|
   | `me` | `waiting` (something waits for the party) |
   | `inbox` | `waiting`; `updates` (an unread update) |
-  | `task N` | `ended`; `waiting-on-me`; `held`; `replied` (a chat's run done for now); `phase:<phase>` |
-  | `tree N` | `ended` |
-  | `run N` | `ended` |
-  | `accounts` | `usable` (an account the party's work may use has a source usable on a host); `settled` (no sign-in or check the party asked is in progress) |
-  | `forges` | `settled` (no forge setting up or connecting: no set up, connect or install the deployment asked is in progress); `connected:F` (forge F is connected); `made:F` (forge F's first repository is made, `../protocol/setup.md`, 6.7) |
-  | `change N` | `pull` (its pull request opened: the panel names its number, which it keeps after the pull request closes or lands); `ci:pending`, `ci:passed`, `ci:failed` (CI at its head, as the panel says it); `held` (it is held); `landed` (its step is landed) |
+  | `task show TASK` | `ended`; `waiting-on-me`; `held`; `replied` (a chat's run done for now); `phase:<phase>` |
+  | `task tree TASK` | `ended` |
+  | `task run TASK` | `ended` |
+  | `task list` | none |
+  | `account list` | `usable` (an account the party's work may use has a source usable on a host); `settled` (no sign-in or check the party asked is in progress) |
+  | `forge list` | `settled` (no forge setting up or connecting: no set up, connect or install the deployment asked is in progress); `connected:FORGE` (forge FORGE is connected); `made:FORGE` (forge FORGE's first repository is made, `../protocol/setup.md`, 6.7) |
+  | `change show TASK` | `pull` (its pull request opened: the panel names its number, which it keeps after the pull request closes or lands); `ci:pending`, `ci:passed`, `ci:failed` (CI at its head, as the panel says it); `held` (it is held); `landed` (its step is landed) |
 
 - **A change's wait outlives its panel's watch,** as the change's page
   does (`../client/forge.md`, 9.2, **Its subject**): when the panel's
@@ -431,12 +459,13 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `client/domain/client.md`, section 19, its facts) is parked, waiting
   for you, waiting for them, held, closing or ended. A chat wakes on its
   person's words (jig's `domain/tasks.md`, 8.3), so a wait begun once
-  `chat` or `message` has answered is not met by the reply before them:
-  `message 41 TEXT --key k`, then `wait task 41 --until replied`.
+  `chat start` or `task message` has answered is not met by the reply
+  before them: `task message 41 TEXT --key k`, then `task show 41
+  --until replied`.
 - **`waiting-on-me`** covers task N's tree: what a task waits on is
   computed over its tree (jig's `domain/tasks.md`, section 3), so a
-  question or a proposal below for the party meets it on `task N`, and
-  `tree N` needs no condition of its own.
+  question or a proposal below for the party meets it on `task show
+  TASK`, and `task tree TASK` needs no condition of its own.
 - **`phase:<phase>`** names the client's phase in lower case, hyphenated:
   `waiting`, `idle`, `due`, `preparing`, `claimed`, `running`,
   `backing-off`, `active`, `closing`, `held`. The ended phases, `ended`,
@@ -450,25 +479,25 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   progress from its request's answer until it ends: made, renewed,
   refused, or past the sign-in's deadline (skein's `oauth.md`, section
   3); a check, until each host it asks has reported (jig's
-  `domain/accounts.md`, 3.4). So a wait begun once `connect` or `verify`
-  has answered is not met before them: `connect 1 --key chatgpt`, then
-  `wait accounts --until settled`, then the account's state in its
-  answer. On `forges`, a connect or an install is in progress from its
-  request's answer until its run ends: connected, refused, lacking, or
-  failed, or its link's state past its life (`setup.state_life_ms`,
-  `../protocol/configuration.md`); `forge-connect 1 github --key gh`,
-  then `wait forges --until settled`, then the forge's row in its
-  answer. A set up is in progress from its request's answer, setting
-  up, until the forge's row leaves setting up and connecting: set up
-  failed, connected, stopped, or not connected; `forge-setup 3`, then
-  `wait forges --until settled`. `connected:F` is met by a delivery where forge F is
-  connected, whoever connected it.
+  `domain/accounts.md`, 3.4). So a wait begun once `account connect` or
+  `account verify` has answered is not met before them: `account
+  connect 1 --key chatgpt`, then `account list --until settled`, then
+  the account's state in its answer. On `forge list`, a connect or an
+  install is in progress from its request's answer until its run ends:
+  connected, refused, lacking, or failed, or its link's state past its
+  life (`setup.state_life_ms`, `../protocol/configuration.md`); `forge
+  connect 1 github --key gh`, then `forge list --until settled`, then
+  the forge's row in its answer. A set up is in progress from its
+  request's answer, setting up, until the forge's row leaves setting up
+  and connecting: set up failed, connected, stopped, or not connected;
+  `forge setup 3`, then `forge list --until settled`. `connected:FORGE` is
+  met by a delivery where forge F is connected, whoever connected it.
 - **`usable`** counts the party's own accounts, those whose uses name
   the party, and the deployment's (jig's `domain/accounts.md`, 4.3), on
   any host: the box's harness waits on it once it has added the
   deployment's key (section 10).
 - **`ended`** is met by a delivery that shows the subject ended, or by
-  its watch's end because it ended. For `task N`, completion is checked
+  its watch's end because it ended. For `task show`, completion is checked
   by the task's number and terminal phase as below; its answer says
   how it ended.
 - **A task wait whose condition a terminal task can hold watches first.**
@@ -497,7 +526,7 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   (6.3).
 - **A watch that ends under a wait** (jig's `client/domain/contract.md`,
   7.2) answers it: met where the condition is `ended` and the subject
-  ended. For `task N`, `ended` and `replied` first require the matching
+  ended. For `task show`, `ended` and `replied` first require the matching
   terminal read above and answer according to the condition on that task;
   refused where the party may no longer see the subject; failed
   where the sign-in ended; otherwise, not met, with the last document
@@ -510,9 +539,9 @@ wait SUBJECT [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `client/domain/contract.md`, 7.2): deliveries between are coalesced,
   and the answer is the document as it is when answered. A change before
   the wait began is in its first delivery, which `--since` compares.
-- **The loop:** `wait me --until waiting`; `inbox`; act; again. An agent
-  following one chat: `wait task N --until waiting-on-me`, or
-  `wait task N --until ended`.
+- **The loop:** `me --until waiting`; `inbox`; act; again. An agent
+  following one chat: `task show TASK --until waiting-on-me`, or `task
+  show TASK --until ended`.
 - **On a box,** the forge's webhooks make the engine's documents move
   soon after the forge does; with polling alone, the same waits answer
   later (`../protocol/setup.md`, section 10).
@@ -524,42 +553,46 @@ area lands with its stories (section 11).
 
 1. **A chat to a landed change** (the first QA loop, the milestone's
    story, `../README.md`, section 2): the host's tools of 5.6; every read
-   of 5.2 other than the general proposal read of area 2; `wait`; every act of 5.3.
-2. **Goals and plans:** `goal --project P [--priority I] [--budget A |
-   --as-allowed] [--deadline T] TEXT` (`shapes::set_goal`, keyed),
-   `proposal P/K`, `amend N [--rev R] CHANGE... REASON`, `withdraw P/K`,
+   of 5.2 other than the general proposal read of area 2; the watched
+   reads' waits (5.4); every act of 5.3.
+2. **Goals and plans:** `goal start --project PROJECT [--priority
+   PRIORITY] [--budget AMOUNT | --as-allowed] [--deadline TIME] TEXT`
+   (`shapes::set_goal`, keyed), `proposal show PROPOSAL`, `task amend
+   TASK [--rev REV] CHANGE... REASON`, `proposal withdraw PROPOSAL`,
    `seen`.
 
-   The general `proposal tN/K|pN/K` reads every proposal kind. For settings it
-   prints the engine's current/origin/would-be review and its newest revision;
-   ended and withdrawn records retain their state. It uses the same read
-   vocabulary independently of the first area's settings proposal act.
+   The general `proposal show PROPOSAL` reads every proposal kind. For
+   settings it prints the engine's current/origin/would-be review and its
+   newest revision; ended and withdrawn records retain their state. It
+   uses the same read vocabulary independently of the first area's
+   settings proposal act.
 
-   - **`amend`'s changes,** one or more, each a control of the task,
+   - **`task amend`'s changes,** one or more, each a control of the task,
      the rest kept as the task's document shows them (jig's
      `domain/tasks.md`, section 7), drafted by the client domain's
      amendment editor (`README.md`, 3.7):
 
      | Change | Sets |
      |---|---|
-     | `--priority P` \| `--untracked` | its tracking: tracked at priority P, or untracked |
-     | `--deadline T` \| `--no-deadline` | its authority's deadline, T as `2026-10-24T17:00Z` (UTC, to the minute), the rest of its authority restated as shown |
+     | `--priority PRIORITY` \| `--untracked` | its tracking: tracked at PRIORITY, or untracked |
+     | `--deadline TIME` \| `--no-deadline` | its authority's deadline, TIME as `2026-10-24T17:00Z` (UTC, to the minute), the rest of its authority restated as shown |
      | `--instructions FILE` | its instructions, whole: FILE's bytes, less a final newline; empty is none, said explicitly |
      | `--spec FILE` | its spec's words, whole; its parameters and inputs kept |
-     | `--dependency M`... \| `--no-dependencies` | its dependencies, whole: those named, in order; what it names anew is added, what it leaves out removed |
-     | `--model M [--effort E]` | its main model and effort (area 5) |
+     | `--dependency TASK`... \| `--no-dependencies` | its dependencies, whole: those named, in order; what it names anew is added, what it leaves out removed |
+     | `--model MODEL [--effort EFFORT]` | its main model and effort (area 5) |
 
      FILE is a path, or `-` for stdin, used once, as TEXT is.
-   - **`--rev R` is the spec's revision** that `task N` prints, as the
-     task's offered `amend` act carries it: `task N`'s acts print it as
-     `amend 41 --rev 8 CHANGE... REASON --key NAME`. A change of a
-     tracked task's priority alone names none (jig's `domain/tasks.md`, section 7;
-     `../domain/agent.md`, 4.3); every other amendment does, and one
-     without it exits 1, `temper ctl: amend needs --rev R`, nothing
-     sent. The tool reads the task's document, drafts the change on
-     it, and sends nothing when the document's revision is no longer R:
-     `temper ctl: task 41 moved: its spec revision is 9, not 7; read
-     again: task 41`, exit 1.
+   - **`--rev REV` is the spec's revision** that `task show TASK`
+     prints, as the task's offered `amend` act carries it: `task show
+     TASK`'s acts print it as `task amend 41 --rev 8 CHANGE... REASON
+     --key NAME`. A change of a tracked task's priority alone names none
+     (jig's `domain/tasks.md`, section 7; `../domain/agent.md`, 4.3);
+     every other amendment does, and one without it exits 1, `temper
+     ctl: task amend needs --rev REV`, nothing sent. The tool reads the
+     task's document, drafts the change on it, and sends nothing when
+     the document's revision is no longer REV: `temper ctl: task 41
+     moved: its spec revision is 9, not 7; read again: task show 41`,
+     exit 1.
    - **What the document must hold whole:** a deadline restates the
      task's authority, a spec's words its spec. Where the document cut
      it to the client's bounds, the tool sends nothing and exits 1,
@@ -576,13 +609,15 @@ area lands with its stories (section 11).
      exit 2.
    - **The same flag twice, or both of a pair,** exits 1 as usage;
      `--dependency` alone may repeat.
-3. **Several parties:** `service --project P --role R --out FILE`
-   (jig's `MakeService`, keyed; section 9), `sign-in --service FILE`,
-   `project P`, `deployment`, `move N REASON`, a person task's `take`,
-   `hand-back` and `answer N --rev R`, and the project's own operations,
-   `policy`, `role`, `pool` (jig's `domain/people.md`, 5.2).
-4. **jig's plumbing whole:** `create`, `propose`, `compound --project P
-   FILE`, a batch, a proposal or a compound request as JSON (keyed).
+3. **Several parties:** `party make --project PROJECT --role ROLE --out
+   FILE` (jig's `MakeService`, keyed; section 9), `sign-in --service
+   FILE`, `project show PROJECT`, `deployment show`, `task move TASK
+   REASON`, a person task's `task take`, `task hand-back` and `task
+   answer TASK --rev REV`, and the project's own operations, `policy`,
+   `role`, `pool` (jig's `domain/people.md`, 5.2).
+4. **jig's plumbing whole:** `create`, `propose`, `compound --project
+   PROJECT FILE`, a batch, a proposal or a compound request as JSON
+   (keyed).
 5. **LLM accounts** (jig's `domain/accounts.md`, section 5): the party's
    accounts and, for an owner, the deployment's, as temper's accounts
    page shows them (`README.md`, 3.5). Each act is one of jig's
@@ -590,75 +625,78 @@ area lands with its stories (section 11).
 
    | Tool | What it does | jig's | K |
    |---|---|---|---|
-   | `accounts` | the party's accounts, then, for an owner, the deployment's: each with its number, LLM provider, display name and holder; its sources in order, each with its kind, its name for a program's, and its state, per host for a program's, with the reset where the provider gave one; the runs on it and the tasks waiting for it; the sign-ins and checks in progress; its acts | the `accounts` watch (5.4) | |
-   | `models [--project P]` | the models the party may use, by LLM provider: each with its efforts, what it is good at and its prices, and "needs an account" beside a provider no account of the party's work serves | `me`'s models, with the `accounts` watch's states | |
-   | `connect PROVIDER` | starts a sign-in with an LLM provider: prints the address to open in a browser on the engine's machine, and the call that follows it, `wait accounts --until settled`; exits 0 once the request is durable | sign in | yes |
-   | `disconnect ACCOUNT [--source S]` | signs a source out: a signed-in source's record revoked at the provider, a program's login signed out on each host; the source removed. Unconfirmed, the answer says to disconnect temper in the provider's settings, or names the hosts that did not sign out | sign out | |
-   | `add-key PROVIDER FILE [--account A] [--deployment]` | adds a key read from FILE: to account A, or as a new key-only account; the deployment's with `--deployment`, by an owner | add a key | yes |
-   | `replace-key ACCOUNT FILE` | replaces the account's key with the one read from FILE | replace a key | |
-   | `forget ACCOUNT [--source S]` | removes a source, or the account with every source, each signed out as `disconnect` does | remove | |
-   | `declare PROVIDER ADAPTER NAME [--account A]` | declares a program's login under the source's NAME (1 to 32 of `a` to `z`, `0` to `9` and `-`): a new account, or a source of account A; the answer names the command to run on each host, `temper program-login NAME` (`../protocol/credentials.md`, section 3) | declare a program's login | yes |
-   | `verify ACCOUNT [--source S]` | has each host check a program source's login now; answered once asked, then `wait accounts --until settled` | check | |
-   | `rank ACCOUNT POSITION [--source S]` | the account's place among its holder's accounts of its LLM provider, from 1; with `--source`, the source's place in the account's order | order | |
-   | `retry ACCOUNT [--source S]` | resumes a limited source, so that the runs it holds start again | resume | |
-   | `export ACCOUNT FILE` | moves a signed-in account out, by its holder: FILE made new and private before anything is sent; the signed-in source withdrawn, so that no run takes it and no refresh follows; its record written to FILE and synced; then *written*, and the engine erases it. Prints `moved out: account N to FILE`. FILE already there, exit 1, nothing sent. Refused, exit 2, FILE removed: "not signed in" (no signed-in source: a key is added again, a program's login is per host), "moving", "cancelled" (*written* past the move's deadline). A record not written, or lost on its way, is not erased: exit 1, FILE removed, and the engine cancels the move at its deadline | move out, then *written* | |
-   | `import FILE` | moves a record in from FILE, read as a key's file is: taken into the secrets' store, checked as this application's and its subject held by no other holder, the account made or the one of its subject renewed; prints `moved in: account N`, `, renewed` after it for a renewal, then removes FILE. FILE refused (not private, a link, empty, past the bound), exit 1, nothing sent. Refused, exit 2, FILE kept: "not ours" (another application's or LLM provider's record), "held" (its subject held by another holder), "moving" (its subject's account moving out here) | move in | yes |
+   | `account list` | the party's accounts, then, for an owner, the deployment's: each with its number, LLM provider, display name and holder; its sources in order, each with its kind, its name for a program's, and its state, per host for a program's, with the reset where the provider gave one; the runs on it and the tasks waiting for it; the sign-ins and checks in progress; its acts | the `accounts` watch (5.4) | |
+   | `model list [--project PROJECT]` | the models the party may use, by LLM provider: each with its efforts, what it is good at and its prices, and "needs an account" beside a provider no account of the party's work serves | `me`'s models, with the `accounts` watch's states | |
+   | `account connect PROVIDER` | starts a sign-in with an LLM provider: prints the address to open in a browser on the engine's machine, and the call that follows it, `account list --until settled`; exits 0 once the request is durable | sign in | yes |
+   | `account disconnect ACCOUNT [--source SOURCE]` | signs a source out: a signed-in source's record revoked at the provider, a program's login signed out on each host; the source removed. Unconfirmed, the answer says to disconnect temper in the provider's settings, or names the hosts that did not sign out | sign out | |
+   | `account add-key PROVIDER FILE [--account ACCOUNT] [--deployment]` | adds a key read from FILE: to ACCOUNT, or as a new key-only account; the deployment's with `--deployment`, by an owner | add a key | yes |
+   | `account replace-key ACCOUNT FILE` | replaces the account's key with the one read from FILE | replace a key | |
+   | `account forget ACCOUNT [--source SOURCE]` | removes a source, or the account with every source, each signed out as `account disconnect` does | remove | |
+   | `account declare PROVIDER ADAPTER NAME [--account ACCOUNT]` | declares a program's login under the source's NAME (1 to 32 of `a` to `z`, `0` to `9` and `-`): a new account, or a source of ACCOUNT; the answer names the command to run on each host, `temper program-login NAME` (`../protocol/credentials.md`, section 3) | declare a program's login | yes |
+   | `account verify ACCOUNT [--source SOURCE]` | has each host check a program source's login now; answered once asked, then `account list --until settled` | check | |
+   | `account rank ACCOUNT POSITION [--source SOURCE]` | the account's place among its holder's accounts of its LLM provider, from 1; with `--source`, the source's place in the account's order | order | |
+   | `account retry ACCOUNT [--source SOURCE]` | resumes a limited source, so that the runs it holds start again | resume | |
+   | `account export ACCOUNT FILE` | moves a signed-in account out, by its holder: FILE made new and private before anything is sent; the signed-in source withdrawn, so that no run takes it and no refresh follows; its record written to FILE and synced; then *written*, and the engine erases it. Prints `moved out: account N to FILE`. FILE already there, exit 1, nothing sent. Refused, exit 2, FILE removed: "not signed in" (no signed-in source: a key is added again, a program's login is per host), "moving", "cancelled" (*written* past the move's deadline). A record not written, or lost on its way, is not erased: exit 1, FILE removed, and the engine cancels the move at its deadline | move out, then *written* | |
+   | `account import FILE` | moves a record in from FILE, read as a key's file is: taken into the secrets' store, checked as this application's and its subject held by no other holder, the account made or the one of its subject renewed; prints `moved in: account N`, `, renewed` after it for a renewal, then removes FILE. FILE refused (not private, a link, empty, past the bound), exit 1, nothing sent. Refused, exit 2, FILE kept: "not ours" (another application's or LLM provider's record), "held" (its subject held by another holder), "moving" (its subject's account moving out here) | move in | yes |
 
-   - **The names are plain verbs, and reads nouns,** as the other
-     tools' are. Eight are not jig's words: `sign-in` and `sign-out` are
-     the host's (5.6), so a sign-in with a provider is `connect` and its
-     end `disconnect`; `forget`, `rank`, `verify` and `retry` are
-     jig's remove, order, check and resume; `export` and `import`, its
-     move out and in.
+   - **The verbs are plain verbs,** as the other tools' are. Eight are
+     not jig's words: `sign-in` and `sign-out` are the host's (5.6), so
+     a sign-in with a provider is `account connect` and its end `account
+     disconnect`; `account forget`, `account rank`, `account verify` and
+     `account retry` are jig's remove, order, check and resume; `account
+     export` and `account import`, its move out and in.
    - **Offers and readiness are supplied facts.** `me` prints `providers`,
-     `providers_cut` and `key_bytes`. `accounts` prints the party's
+     `providers_cut` and `key_bytes`. `account list` prints the party's
      `readiness` and `readiness_cut`; for an owner its `deployment_facts`
      holds the deployment's offers and readiness beside the existing
      `deployment` account rows. Nested loss contributes to the document's
      `cut`. Each readiness list has its own window, preserving both supplied
      observations. These fields enter the same digest for reads and waits.
-   - **One result per call.** `connect` prints the address and returns;
-     the sign-in goes on at the engine, and `wait accounts --until
-     settled` follows it (5.4). It never opens a browser, and the
-     provider's redirect reaches the engine's loopback, so the browser
-     that approves runs on the engine's machine
-     (`../protocol/credentials.md`, section 3). `verify` alike: asked, then
-     waited for.
+   - **One result per call.** `account connect` prints the address and
+     returns; the sign-in goes on at the engine, and `account list
+     --until settled` follows it (5.4). It never opens a browser, and
+     the provider's redirect reaches the engine's loopback, so the
+     browser that approves runs on the engine's machine
+     (`../protocol/credentials.md`, section 3). `account verify` alike:
+     asked, then waited for.
    - **A key is read from FILE,** never an argument and never printed:
      a private file, the user's own with no group or other bits and not
      reached through a link, as the engine reads a secret's file
      (`../protocol/configuration.md`, section 6); its bytes, less a final
      newline, within the bound of section 12. The tool reads it, sends
      it once, and keeps no copy (section 7).
-   - **`PROVIDER` is an LLM provider's number,** as `models` and
-     `accounts` print it (jig's `protocol/configuration.md`, section 3);
-     `ADAPTER` is the program's name in smith's agent configuration,
+   - **`PROVIDER` is an LLM provider's number,** as `model list` and
+     `account list` print it (jig's `protocol/configuration.md`, section
+     3); `ADAPTER` is the program's name in smith's agent configuration,
      `claude_code` (smith's `protocol/agent.md`, section 4).
-   - **`S` names one of the account's sources** by its kind, `sign_in`,
-     `key` or `program`, as `accounts` prints it (section 15).
-   - **A program's login is never the tools'.** `declare` makes the
-     source; the person, or the harness, runs `temper program-login` on
-     each host, outside `temper ctl`, since it hands the terminal to the
-     program's own sign-in (`../protocol/credentials.md`, section 3).
-   - **The task's model** is chosen with this area: `chat` and area 2's
-     `goal` take `--model M [--effort E]`, the task's LLM choice, the
-     charter's default without them (jig's `domain/tasks.md`, section
-     3), and area 2's `amend` changes it. The bracket applies only to a model
-     with no declared efforts: when a model declares efforts, `--effort E` is
-     required, naming one of them. An amendment replaces the main choice whole;
-     its effort is the caller's, never inherited from the task's old main.
+   - **`SOURCE` names one of the account's sources** by its kind,
+     `sign_in`, `key` or `program`, as `account list` prints it (section
+     15).
+   - **A program's login is never the tools'.** `account declare` makes
+     the source; the person, or the harness, runs `temper program-login`
+     on each host, outside `temper ctl`, since it hands the terminal to
+     the program's own sign-in (`../protocol/credentials.md`, section 3).
+   - **The task's model** is chosen with this area: `chat start` and area
+     2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
+     LLM choice, the charter's default without them (jig's
+     `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
+     The bracket applies only to a model with no declared efforts: when
+     a model declares efforts, `--effort EFFORT` is required, naming one
+     of them. An amendment replaces the main choice whole; its effort is
+     the caller's, never inherited from the task's old main.
    - **An account's uses** have no tool: each takes jig's default (jig's
      `domain/accounts.md`, 4.2) until the QA loop asks for one (section
      15).
-   - **An account moved,** `export` and `import`, is jig's move (jig's
-     `domain/accounts.md`, section 6) through `jig-client`'s `move_out`,
-     `written` and `move_in` (jig's `client/domain/client.md`, section
-     6). The QA loop on real backends needs it first: each run's fresh
-     deployment takes the one signed-in account in and gives it back
-     (`../draft/qa-live.md`, 4.3), as a host with no browser takes a
-     record signed in on a computer with one. The record is never
-     printed, never an argument, and in no request or answer kept
-     (section 7). `move` and `take` are area 3's names.
+   - **An account moved,** `account export` and `account import`, is
+     jig's move (jig's `domain/accounts.md`, section 6) through
+     `jig-client`'s `move_out`, `written` and `move_in` (jig's
+     `client/domain/client.md`, section 6). The QA loop on real backends
+     needs it first: each run's fresh deployment takes the one signed-in
+     account in and gives it back (`../draft/qa-live.md`, 4.3), as a
+     host with no browser takes a record signed in on a computer with
+     one. The record is never printed, never an argument, and in no
+     request or answer kept (section 7). `task move` and `task take` are
+     area 3's names.
    - **The file's form is jig's,** opaque to temper: a moved record,
      `JIGM` and its version, then the application's name, the issuer,
      the client id, the subject, the display name and skein's record
@@ -674,13 +712,14 @@ area lands with its stories (section 11).
      OAuth record (its `RECORD_VERSION`). It holds one value, not a
      store, so no store's levels; the nesting fixes a patch's order,
      the form's patches first, then skein's on the record inside it.
-     `export` writes the form the engine's jig makes. A newer `import`
-     reads every older form and patches it, the form's patches and then
-     the record's, before the engine's checks (section 14). An older
-     `import` refuses a newer form in its own words before anything is
-     sent (below), since the older one is whatever is deployed: the
-     words must be in form 1's `import`.
-   - **`export`, step by step,** in the shell
+     `account export` writes the form the engine's jig makes. A newer
+     `account import` reads every older form and patches it, the form's
+     patches and then the record's, before the engine's checks (section
+     14). An older `account import` refuses a newer form in its own
+     words before anything is sent (below), since the older one is
+     whatever is deployed: the words must be in form 1's `account
+     import`.
+   - **`account export`, step by step,** in the shell
      (`temper-client-shell-cli`), the tools' root deciding each step:
      1. FILE is made new before anything is sent: an exclusive create,
         so that no name already there, a link among them, is opened,
@@ -713,7 +752,7 @@ area lands with its stories (section 11).
         holder if the engine took `written`, and a dead record if the
         move was cancelled. The call exits as 6.3 says, and the next
         call sends the kept `written` (section 15).
-   - **`import`, step by step:** FILE is read as a key's file is
+   - **`account import`, step by step:** FILE is read as a key's file is
      (above), its bytes whole, nothing trimmed, within the bound of
      section 12; refused, exit 1, nothing sent, the line naming FILE's
      fault and never its bytes. Its magic and form version are read
@@ -736,25 +775,25 @@ area lands with its stories (section 11).
    temper's `Forges` page shows it, its connects, and the adoption
    form's picker. Each act is one of the FORGE requests (`README.md`,
    section 8), made through `jig-client` as the forge family's bytes,
-   as `adopt` is.
+   as `repository adopt` is.
 
    | Tool | What it does | temper's | K |
    |---|---|---|---|
-   | `forges` | each configured forge by its number, kind and `web` address: its connection, "connected as LOGIN (ID)", connecting and what it waits for, stopped and why, not set up, setting up and at which step, set up failed and why, or not connected and why; how its last connect ended, a GitHub App's lacking permissions and events each named; its mode, and "admin's token kept" for managed and owned; on GitHub, the App's slug and its installations, each with its id, its account's login, all or selected repositories, suspended, or not accepted (a stray), "uninstalled at the next reconcile", or, the App read-only, "kept: the App is read-only", with its act, `forge-accept F I`; a job's log on a host it does not read, with how to add it; its load; its acts | the forge's deployment part, read and watched (`forge.md`, section 9) | |
-   | `forge-connect F github` | starts GitHub's manifest flow, the App made under the person's own account and installed on any account GitHub offers them: prints the link to open in a browser, the manifest's page on the clients' listener, and the call that follows it, `wait forges --until settled`; exits 0 once the request is durable | `Connect { forge, how: GitHubManifest { back: none } }` | yes |
-   | `forge-connect F github-app ID FILE` | connects an App of the person's own: ID its id, FILE its private key, PEM as GitHub gives it; no webhook secret, since temper points the App's hook at `https://SLUG.invalid/`; then `wait forges --until settled` | `Connect { forge, how: GitHubApp { id, key } }` | yes |
-   | `forge-connect F forgejo FILE` (not offered) | connects a Forgejo through its bot's tokens, FILE a tokens file (below) naming `api`, `git` and, where the person made hooks to temper's listener, `webhook_secret`; then `wait forges --until settled` | `Connect { forge, how: ForgejoTokens { api, git, webhook_secret? } }` | yes |
-   | `forge-connect F forgejo-admin FILE [--first ORG/NAME [--project P] [--label L]]` | connects a Forgejo as its site admin, FILE the admin's token; the string-managed setup entry is required; Reconcile makes or finds its marked bot, never TakeOver; with `--first`, makes ORG/NAME with the starter workflow, project P a number or name as for `forge-setup`, default a new project named NAME, runner label L default `docker`; the token is kept only after Reconcile and Create are Done, and every end erases the carried value; without `--first`, prints `connecting` and `wait forges --until connected:F`; with `--first`, prints `connecting`, waits for Made and Connected, then shares `forge-setup`'s MakeProject and adoption continuation, as P's home unless it has one, with key `first-repository-F`; prints the project number and adoption (JSON: `project` and `outcome`) and exits 0; a stop or failed Create exits 1 naming the reason or step; an ORG equal to the bot's login, case-folded, is refused before any write and exits 2, `first_is_bot`, "the organization is the bot's login: name another organization" | `Connect { forge, how: ForgejoAdmin { first? } }`, token carried as AdminToken | yes |
-   | `forge-install F` | prints a fresh link to install temper's App on another account, GitHub alone; the installation shows on `forges` once the person's browser comes back | `Install { forge, back: none }` | |
-   | `forge-accept F I` | accepts installation I of temper's App, one that exists already on GitHub and that `forges` shows not accepted, with no browser: read on GitHub as the App's, then kept as an installation accepted through the setup route is (`../protocol/setup.md`, 17.4); prints `accepted: installation I on forge F` and the call that follows, `repositories F --installation I`, exit 0, and the same when it is accepted already; refused, exit 2, as `forge-install` is, or, its run stopped, in the forge's words for its reason (`README.md`, 4.6): "GitHub has no installation I of this App", "GitHub refused the App's read of installation I", "GitHub did not answer: try again", "temper keeps at most N installations" | `Accept { forge, installation }` | |
-   | `forge-replace F FILE` | replaces what a person pasted: on GitHub, FILE the App's new key; on a connected Forgejo, a tokens file naming `api`, `git` or both; it must answer as the forge's user, and the old is erased once the new is kept | `Replace { forge, value }` | |
-   | `forge-forget F` | erases a managed forge's admin's token; the forge is connected, its bot and tokens kept | `Forget { forge }` | |
-   | `forge-setup F [--org O] [--repository R] [--project P] [--playground]` | sets up an owned Forgejo here, under the box, with its first repository: the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `O/R` (default `work/hello`) with the starter workflow, or with `--playground` makes `playground/widget` as the playground's copy, its files beside the starter workflow, taking no `--org` or `--repository` (a usage error, exit 1, with either), and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `wait forges --until made:F` does, then adopts `O/R` into project P, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named R (`../draft/first-run.md`, 2.4), as `adopt --project P --forge F --owner O --name R --landing main` would, as P's home unless P already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption and exits 0. Refused, exit 2: "not offered" (the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "a new project" (a new one, by no `--project` or a P no project holds, waits on jig's projects at runtime), "invalid" (O or R not a name Forgejo takes, or O, R or P's name empty or too long), or, without the box, "not under the box", with the commands to run (`../client/forge.md`, 5.4). Set up failed, or its first repository failed, exit 1, naming the step. With `--playground`, O and R above are `playground` and `widget`, and the default project a new one named `widget` | `SetUp { forge, org, repository, project, playground }`; then `Adopt` | |
-   | `demo-start` | starts the playground, the demo (`../protocol/setup.md`, 8.4): the box starts its fakes, and the engine adds the demo model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (no demo, or the demo ended). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartDemo` | |
-   | `change N [--project P]` | change task N's panel (`../client/forge.md`, 9.2; `README.md`, 4.6), read as the change's page watches it, in the scope of P, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../client/forge.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; then the call that follows it, `wait change N --until landed` while it is live. A landed or ended change keeps its last panel. `task N` of a change task, live or ended, prints `change N` among the calls that follow it. A task that is no change into a repository of P, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`forge.md`, 9.2) | |
-   | `repositories F [--installation I] [--page N]` | the picker's page N, from 1 (`README.md`, 4.4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `adopt --ids`; then the call that reads page N plus one while more follow, or that none do. `--installation I` is an accepted installation's id, as `forges` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
+   | `forge list` | each configured forge by its number, kind and `web` address: its connection, "connected as LOGIN (ID)", connecting and what it waits for, stopped and why, not set up, setting up and at which step, set up failed and why, or not connected and why; how its last connect ended, a GitHub App's lacking permissions and events each named; its mode, and "admin's token kept" for managed and owned; on GitHub, the App's slug and its installations, each with its id, its account's login, all or selected repositories, suspended, or not accepted (a stray), "uninstalled at the next reconcile", or, the App read-only, "kept: the App is read-only", with its act, `forge accept FORGE INSTALLATION`; a job's log on a host it does not read, with how to add it; its load; its acts | the forge's deployment part, read and watched (`forge.md`, section 9) | |
+   | `forge connect FORGE github` | starts GitHub's manifest flow, the App made under the person's own account and installed on any account GitHub offers them: prints the link to open in a browser, the manifest's page on the clients' listener, and the call that follows it, `forge list --until settled`; exits 0 once the request is durable | `Connect { forge, how: GitHubManifest { back: none } }` | yes |
+   | `forge connect FORGE github-app APP FILE` | connects an App of the person's own: APP its id, FILE its private key, PEM as GitHub gives it; no webhook secret, since temper points the App's hook at `https://SLUG.invalid/`; then `forge list --until settled` | `Connect { forge, how: GitHubApp { id, key } }` | yes |
+   | `forge connect FORGE forgejo FILE` (not offered) | connects a Forgejo through its bot's tokens, FILE a tokens file (below) naming `api`, `git` and, where the person made hooks to temper's listener, `webhook_secret`; then `forge list --until settled` | `Connect { forge, how: ForgejoTokens { api, git, webhook_secret? } }` | yes |
+   | `forge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY [--project PROJECT] [--label LABEL]]` | connects a Forgejo as its site admin, FILE the admin's token; the string-managed setup entry is required; Reconcile makes or finds its marked bot, never TakeOver; with `--first`, makes ORG/REPOSITORY with the starter workflow, PROJECT a number or name as for `forge setup`, default a new project named REPOSITORY, runner LABEL default `docker`; the token is kept only after Reconcile and Create are Done, and every end erases the carried value; without `--first`, prints `connecting` and `forge list --until connected:FORGE`; with `--first`, prints `connecting`, waits for Made and Connected, then shares `forge setup`'s MakeProject and adoption continuation, as PROJECT's home unless it has one, with key `first-repository-F`; prints the project number and adoption (JSON: `project` and `outcome`) and exits 0; a stop or failed Create exits 1 naming the reason or step; an ORG equal to the bot's login, case-folded, is refused before any write and exits 2, `first_is_bot`, "the organization is the bot's login: name another organization" | `Connect { forge, how: ForgejoAdmin { first? } }`, token carried as AdminToken | yes |
+   | `forge install FORGE` | prints a fresh link to install temper's App on another account, GitHub alone; the installation shows on `forge list` once the person's browser comes back | `Install { forge, back: none }` | |
+   | `forge accept FORGE INSTALLATION` | accepts INSTALLATION, an installation of temper's App that exists already on GitHub and that `forge list` shows not accepted, with no browser: read on GitHub as the App's, then kept as an installation accepted through the setup route is (`../protocol/setup.md`, 17.4); prints `accepted: installation I on forge F` and the call that follows, `forge repositories FORGE --installation INSTALLATION`, exit 0, and the same when it is accepted already; refused, exit 2, as `forge install` is, or, its run stopped, in the forge's words for its reason (`README.md`, 4.6): "GitHub has no installation I of this App", "GitHub refused the App's read of installation I", "GitHub did not answer: try again", "temper keeps at most N installations" | `Accept { forge, installation }` | |
+   | `forge replace FORGE FILE` | replaces what a person pasted: on GitHub, FILE the App's new key; on a connected Forgejo, a tokens file naming `api`, `git` or both; it must answer as the forge's user, and the old is erased once the new is kept | `Replace { forge, value }` | |
+   | `forge forget FORGE` | erases a managed forge's admin's token; the forge is connected, its bot and tokens kept | `Forget { forge }` | |
+   | `forge setup FORGE [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground]` | sets up an owned Forgejo here, under the box, with its first repository: the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `ORG/REPOSITORY` (default `work/hello`) with the starter workflow, or with `--playground` makes `playground/widget` as the playground's copy, its files beside the starter workflow, taking no `--org` or `--repository` (a usage error, exit 1, with either), and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `forge list --until made:FORGE` does, then adopts `ORG/REPOSITORY` into PROJECT, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named REPOSITORY (`../draft/first-run.md`, 2.4), as `repository adopt --project PROJECT --forge FORGE --owner ORG --name REPOSITORY --landing main` would, as PROJECT's home unless PROJECT already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption and exits 0. Refused, exit 2: "not offered" (the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "a new project" (a new one, by no `--project` or a PROJECT no project holds, waits on jig's projects at runtime), "invalid" (ORG or REPOSITORY not a name Forgejo takes, or ORG, REPOSITORY or PROJECT's name empty or too long), or, without the box, "not under the box", with the commands to run (`../client/forge.md`, 5.4). Set up failed, or its first repository failed, exit 1, naming the step. With `--playground`, ORG and REPOSITORY above are `playground` and `widget`, and the default project a new one named `widget` | `SetUp { forge, org, repository, project, playground }`; then `Adopt` | |
+   | `playground start` | starts the playground, the demo (`../protocol/setup.md`, 8.4): the box starts its fakes, and the engine adds the demo model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (no demo, or the demo ended). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartDemo` | |
+   | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../client/forge.md`, 9.2; `README.md`, 4.6), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../client/forge.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; then the call that follows it, `change show TASK --until landed` while it is live. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`forge.md`, 9.2) | |
+   | `forge repositories FORGE [--installation INSTALLATION] [--page PAGE]` | the picker's PAGE, from 1 (`README.md`, 4.4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `repository adopt --ids`; then the call that reads page PAGE plus one while more follow, or that none do. `--installation INSTALLATION` is an accepted installation's id, as `forge list` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
 
-   - **`forges`' text,** one line per forge, in number order: `forge N
+   - **`forge list`'s text,** one line per forge, in number order: `forge N
      · KIND · MODE · STATE`, the state in the row's words
      (`../client/forge.md`, 5.4), such as `forge 3 · Forgejo · owned ·
      Setting up: preparing`, then, when it has one, its first
@@ -762,22 +801,22 @@ area lands with its stories (section 11).
      Default`; then the digest (5.4). Its JSON is the
      rows' fields, the state by its name with its step, its why, or its
      user.
-   - **The names are the forge's and the page's.** A `forge-` prefix
-     keeps them apart from area 5's `connect`, `forget` and
-     `replace-key`, which are an LLM account's; `forges` and
-     `repositories` are reads, nouns as the others are.
+   - **The names are the forge's and the page's.** The group `forge`
+     keeps them apart from area 5's `account connect`, `account forget`
+     and `account replace-key`, which are an LLM account's; `forge list`
+     and `forge repositories` are reads, as the others are.
    - **Who may:** a party whose role holds the deployment's connectors;
      in standalone, the deployment's owner (`README.md`, section 8). Any
      other call of this area is refused by the engine, exit 2, in its
-     words, before a forge is called; `adopt` without `--ids` stays the
-     way of a party that may adopt and not read the picker.
+     words, before a forge is called; `repository adopt` without `--ids`
+     stays the way of a party that may adopt and not read the picker.
    - **One result per call.** A connect or an install prints the link
      as text and returns; a pasted connect returns once the request is
-     durable. The run goes on at the engine, and `wait forges --until
+     durable. The run goes on at the engine, and `forge list --until
      settled` follows it (5.4); its end, connected or why not, is the
-     forge's row in `forges`, never the call's status. No tool opens a
-     link: the person opens it in a browser where the clients' listener
-     reaches (`forge.md`, 9.1).
+     forge's row in `forge list`, never the call's status. No tool opens
+     a link: the person opens it in a browser where the clients'
+     listener reaches (`forge.md`, 9.1).
    - **A pasted value is read from FILE,** never an argument, never
      typed and never printed: a private file, as area 5's key is (the
      user's own, no group or other bits, not reached through a link),
@@ -785,8 +824,8 @@ area lands with its stories (section 11).
      before reading, naming the file and its mode in octal. An admin's
      token is item 1, with six bytes of framing within 4096 bytes; it
      is never restored as an RSA key or replayed from a carried request.
-     `--project` and `--label` require `--first`; ORG and NAME are
-     nonempty within the wire's bounds, and L is 1 to 64 letters,
+     `--project` and `--label` require `--first`; ORG and REPOSITORY are
+     nonempty within the wire's bounds, and LABEL is 1 to 64 letters,
      digits, dots, dashes or underscores. A key's file and an admin's
      token's are their bytes, less a final newline. A tokens file is
      one item a line, `NAME VALUE`, NAME one of `api`, `git` and
@@ -797,7 +836,7 @@ area lands with its stories (section 11).
      (`../protocol/credentials.md`, pasted values), sends it once and
      keeps no copy (section 7).
    - **No pasted value is echoed:** not in a result, a `kept:` line,
-     `--json`, an error or the help. `forges` says that a value was
+     `--json`, an error or the help. `forge list` says that a value was
      given, and what the forge answered of it, never the value; an act
      it offers that takes one prints its call with `FILE`, the agent's
      own path to give.
@@ -808,19 +847,19 @@ area lands with its stories (section 11).
      one); busy, since a forge runs one writing plan, a connect, an
      install or a reconcile, and one picker's read beside it, a second
      of either kind refused, as is one past `setup.runs`, which counts
-     both; and, for `repositories`, the forge's reason (not connected,
-     not installed, unreachable) and, on a managed or owned Forgejo, the
-     admin's token's, missing or not a site admin's (skein's
+     both; and, for `forge repositories`, the forge's reason (not
+     connected, not installed, unreachable) and, on a managed or owned
+     Forgejo, the admin's token's, missing or not a site admin's (skein's
      `forge-setup.md`, 4.3 and 4.8).
    - **A page** is at most `picker.page` rows
      (`../protocol/configuration.md`, its limits), clipped to the
      forge's own page cap, and says more follow when it is full; so a
      page past the last, the one after a full last page among them,
      answers no rows and no more, exit 0.
-   - **"Not listed"** is `adopt` by `--owner` and `--name` without
-     `--ids`; a repository temper cannot reach is refused, exit 2, with
-     what would make it reachable, the installation's page among it
-     (`README.md`, 4.7; `forge.md`, 5.5).
+   - **"Not listed"** is `repository adopt` by `--owner` and `--name`
+     without `--ids`; a repository temper cannot reach is refused, exit
+     2, with what would make it reachable, the installation's page among
+     it (`README.md`, 4.7; `forge.md`, 5.5).
 
 - **Areas 1, 5 and 6 are designed here in full.** Areas 2 to 4 name their
   tools and jig's operations; each area's arguments are checked against
@@ -837,7 +876,7 @@ area lands with its stories (section 11).
 | `sign-in FILE\|-` | signs in by the link `temper serve` printed, read from FILE, or from stdin for `-`; writes `token` and `address` (8.1) |
 | `sign-out` | ends the sign-in and leaves `token` empty, zero bytes, read as signed out (8.1) |
 | `pending` | lists what DIRECTORY's store keeps: each request's operation, its party and when it was first sent, and how many records these tools cannot read |
-| `help [TOOL]` | the page `ctl`, then the tools (11.5); with TOOL, its record of the table |
+| `help [GROUP [VERB]]` | the page `ctl`, then the tools (11.5); with GROUP, its rows; with GROUP VERB, its record of the table |
 
 - **`pending` reads the store's file only:** it takes no lock, starts
   no client and sends nothing (8.3).
@@ -867,8 +906,9 @@ area lands with its stories (section 11).
 A new owner proposal outcome prints the original returned role in the request's
 project. A restored kept line prints its identity alone; read the proposal for
 its present recipient. Replaying the same key retains the original outcome;
-`propose-settings` forwards an optional reason, and `decide --running` forwards
-only an explicitly supplied choice. The engine keeps its default when omitted.
+`settings propose` forwards an optional reason, and `proposal decide
+--running` forwards only an explicitly supplied choice. The engine keeps its
+default when omitted.
 
 The default: plain UTF-8 lines, no colour, no wrapping. A document
 prints its header line, its fields, its acts and, for a watch's
@@ -882,9 +922,9 @@ instructions: Answer on port 8080 unless the store's file names another one, and
 waiting on: you: question 3 of task 44, "Which port should it listen on?"
 plan: 4 live (2 running, 1 waiting, 1 held below)
 acts:
-  answer 44 3 TEXT
-  stop 41
-  cancel 41 REASON
+  task answer 44 3 TEXT
+  task stop 41
+  task cancel 41 REASON
 digest: task 7c1e09a2b44f0d13
 ```
 
@@ -914,7 +954,7 @@ digest: task 7c1e09a2b44f0d13
   `settings: revision 7`, the revision its runs read their charter
   from, jig's `Task.settings.task` (jig's `domain/engine.md`, 17.3);
   then ` · its run on 6` while a live run was prepared under another,
-  and ` · newest 9` when the newest is another, which `move-to-newest
+  and ` · newest 9` when the newest is another, which `revision advance
   7` moves it to if the newest offers its charter and allows its LLM
   choice (17.4). A procedure's or a person's task prints no line.
 - **Its dependencies,** when it has any, after its instructions: a
@@ -944,11 +984,11 @@ digest: task 7c1e09a2b44f0d13
   (forty characters), the pull request by its number, as the result's
   settled resource gives it (its repository and host too where the
   resource is a path, `README.md`, 4.1), then the call that reads its
-  panel, `change N`; the id is the words' first line, and their second,
-  the same pull request with its address (`../domain/root.md`, section
-  6), prints as `pull request: ADDRESS` when the task's document carries
-  it whole: a line the document's text window cut prints nothing, and
-  `change N` has the address; a change's words that
+  panel, `change show TASK`; the id is the words' first line, and their
+  second, the same pull request with its address (`../domain/root.md`,
+  section 6), prints as `pull request: ADDRESS` when the task's document
+  carries it whole: a line the document's text window cut prints
+  nothing, and `change show TASK` has the address; a change's words that
   are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
   as they are; a connector's its summary and its part in the forge's
   words; a failed or cancelled task's its reason, if it gave one. Words
@@ -978,13 +1018,13 @@ digest: task 7c1e09a2b44f0d13
   own rows (jig's `client/domain/contract.md`, 7.2), so a tree larger
   than either folds the rest, and its text says so on one line after
   the rows: `cut: 3 more not shown (1 Waiting, 2 Running); read on
-  with: tasks --project 1 --parent 41`, the folded tasks' count, then
+  with: task list --project 1 --parent 41`, the folded tasks' count, then
   each phase that has any, in a chip's words and jig's order of phases,
   then the call that lists the root's delegates, the project's number
   from the root's document. A tree's window opens at its start only
   (jig's wire carries no cursor for it), so the rest is read as the
   root's delegates, a page at a time by `--after`, and each one's tree
-  by `task M --tree`. With nothing folded, no line. Under `--json`,
+  by `task show TASK --tree`. With nothing folded, no line. Under `--json`,
   `more` and `folded` as the document carries them.
 - **An activity page** cut before its first row (jig's
   `protocol/store.md`, 7.3) prints no rows and its `read on with:` call,
@@ -992,8 +1032,8 @@ digest: task 7c1e09a2b44f0d13
   on from.
 - **An act's outcome** prints what was made or decided and its numbers:
   `done: task 41, chat`; `proposed: p3/17, to maintainers`; `decided
-  first: by ada, accepted, 14:02`; for `adopt`, `README.md`, 4.7's
-  words.
+  first: by ada, accepted, 14:02`; for `repository adopt`, `README.md`,
+  4.7's words.
 - **What a call sends first** (8.2, step 4) prints on stderr, a line
   each: `kept: `, the request's operation, jig's or the forge's (`stop`,
   `adopt`), then its outcome as an act's prints, which names what it
@@ -1029,10 +1069,10 @@ may change with them.
   one object per dependency, `number`, `pending`, `added` (`null`, or
   `at`, a wall in nanoseconds, and `by`, the requester as `requester`
   prints it), `keeps` and `status`.
-- **`help TOOL --json`** prints the tool's record of the table.
-- **`--call`'s arguments** are named as the table names them:
-  `decide`'s are `proposal`, or `task` and `hold`, then `outcome` and
-  `reason`.
+- **`help GROUP VERB --json`** prints the tool's record of the table.
+- **`--call`'s arguments** are named as the table names them: `proposal
+  decide`'s are `proposal`, and `task decide`'s `task` and `hold`, then
+  `outcome` and `reason`.
 - **The `kept:` lines,** under `--json`, are one JSON object a line on
   stderr: `operation` and `outcome`, as the act's; another party's,
   `party` and `unsent`; the dropped, `dropped`.
@@ -1067,9 +1107,9 @@ may change with them.
 - **An account's move** (5.5, area 5) keeps the rule: 2 is the
   engine's refusal alone, "not signed in", "not ours", "held",
   "moving" and "cancelled"; FILE's faults are the tool's own, exit 1,
-  nothing sent: `export`'s FILE already there, `import`'s FILE not
-  private, a link, empty, past its bound or of a newer form than it
-  reads; so are a record not
+  nothing sent: `account export`'s FILE already there, `account
+  import`'s FILE not private, a link, empty, past its bound or of a
+  newer form than it reads; so are a record not
   written and an answer lost or unsent, exit 1, each line saying what
   the engine does with the account.
 - **Only `sign-in` creates DIRECTORY.** Three of 1's lines, word for
@@ -1079,17 +1119,17 @@ may change with them.
   `temper ctl: the engine at ADDRESS did not answer within 30 s`, the
   link down past its deadline (section 12), ADDRESS as `address` holds
   it.
-- **`adopt`:** adopted exits 0, with branch protection unknown or not
-  (`README.md`, 4.7, prints "temper's forge user may not read the
-  branch protection: the forge shows it to repository administrators
-  only." then); unknown past the retention exits 1; each other outcome
-  there, not found, no access and refused among them, exits 2, in its
-  words.
+- **`repository adopt`:** adopted exits 0, with branch protection
+  unknown or not (`README.md`, 4.7, prints "temper's forge user may not
+  read the branch protection: the forge shows it to repository
+  administrators only." then); unknown past the retention exits 1; each
+  other outcome there, not found, no access and refused among them,
+  exits 2, in its words.
 
 ### 6.4 Bounded
 
 - **Every result has a ceiling,** in rows and bytes: a list's page, the
-  activity lines `task` adds, a conversation's page, a turn's part. A
+  activity lines `task show` adds, a conversation's page, a turn's part. A
   text cut prints how much was left and the call that reads the rest.
 - **`me` prints a `cut:` line** in text and a `cut` field in JSON. It is
   true for supplied document loss, omitted provider/program rows, a cut
@@ -1099,8 +1139,9 @@ may change with them.
 - **Program identifiers and manage URLs are whole or omitted.** If one
   cannot fit the text budget, JSON prints null and text omits its bytes;
   the document's cut flag is true. A displayed prefix is never a target.
-- **Long texts are paged, never whole by default:** `chat`, `activity`
-  and `turn` take a cursor or an offset. An agent's context is the
+- **Long texts are paged, never whole by default:** `chat show`, `task
+  activity` and `task turn` take a cursor or an offset. An agent's
+  context is the
   budget the defaults are chosen for.
 - **The numbers** are section 12's. A path is never cut: the tools
   print it whole, within the client's bound on a path's segments
@@ -1148,13 +1189,13 @@ may change with them.
 - **Acts that decide name the revision the agent saw;** a moved one is
   refused, and the agent reads again. A repeat of a decision is answered
   as decided first, by the party itself.
-- **The other acts** (`stop`, `cancel`, `decide`, ...) take `--key`
-  optionally; without it the table draws one, which the small store
-  keeps until answered (8.2).
-- **A request carrying a value,** `add-key`'s and `replace-key`'s (5.5,
-  area 5), and area 6's `forge-connect` with a FILE and `forge-replace`,
-  is sent once and never kept: `jig-client` writes no record of
-  it to DIRECTORY's store and never sends it again (jig's
+- **The other acts** (`task stop`, `task cancel`, `proposal decide`,
+  ...) take `--key` optionally; without it the table draws one, which
+  the small store keeps until answered (8.2).
+- **A request carrying a value,** `account add-key`'s and `account
+  replace-key`'s (5.5, area 5), and area 6's `forge connect` with a FILE
+  and `forge replace`, is sent once and never kept: `jig-client` writes
+  no record of it to DIRECTORY's store and never sends it again (jig's
   `client/domain/client.md`, section 6; jig's `protocol/client.md`,
   sections 5 and 10), and the engine takes the value out as it decodes
   the request, so no committed request or answer holds it (jig's
@@ -1167,33 +1208,39 @@ may change with them.
   (the engine did not make it) and *lost* (it may have) exit 1 with
   nothing kept, as a call cut or a link down before its answer does, and
   `pending` lists nothing of it. The agent asks again with the same
-  `--key` and the same FILE: within the engine's retention, `add-key`
-  gets the first answer, never a second account, and `forge-connect`
-  never a second connect. `replace-key` and `forge-replace` take
-  `--key` optionally, as the other acts do, but the name drawn is not
-  kept, so only a name the agent gives can be asked again; a rerun
-  without one replaces the key or the tokens again.
-- **An account's move** (5.5, area 5): `import`'s `move_in` is a
-  request carrying a value, as `add-key`'s is, under its `--key`.
-  `export`'s `move_out` is a request whose answer carries one, the
-  record: sent once under a name the table draws, never kept and never
-  sent again, since the record comes with the first answer alone and
-  the name asked again is answered with none, *lost* (jig's
-  `client/domain/contract.md`, 3.1). So `export` takes no `--key`: an
-  export asked again is a new request, refused "moving" until the
-  first move is cancelled at its deadline. Its `written` is an
-  ordinary request under a drawn name, kept in DIRECTORY until
-  answered (8.2).
+  `--key` and the same FILE: within the engine's retention, `account
+  add-key` gets the first answer, never a second account, and `forge
+  connect` never a second connect. `account replace-key` and `forge
+  replace` take `--key` optionally, as the other acts do, but the name
+  drawn is not kept, so only a name the agent gives can be asked again;
+  a rerun without one replaces the key or the tokens again.
+- **An account's move** (5.5, area 5): `account import`'s `move_in` is
+  a request carrying a value, as `account add-key`'s is, under its
+  `--key`. `account export`'s `move_out` is a request whose answer
+  carries one, the record: sent once under a name the table draws,
+  never kept and never sent again, since the record comes with the
+  first answer alone and the name asked again is answered with none,
+  *lost* (jig's `client/domain/contract.md`, 3.1). So `account export`
+  takes no `--key`: an export asked again is a new request, refused
+  "moving" until the first move is cancelled at its deadline. Its
+  `written` is an ordinary request under a drawn name, kept in
+  DIRECTORY until answered (8.2).
 
 ## 8. The command line: `temper ctl`
 
 ### 8.1 Its shape
 
 ```
-temper ctl DIRECTORY TOOL [ARGUMENT...] [--json]
+temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
+temper ctl DIRECTORY me | inbox | sign-in | sign-out | pending [ARGUMENT...] [--json]
 temper ctl DIRECTORY --call FILE [--json]
-temper ctl help [TOOL]
+temper ctl help [GROUP [VERB]]
 ```
+
+- **DIRECTORY stays explicit,** first, in every call: an unattended
+  agent never acts on a deployment it did not name.
+- **`GROUP VERB`** is a tool's name (5.1); `temper ctl DIRECTORY GROUP
+  VERB --help` prints its row, as `temper ctl help GROUP VERB` does.
 
 - **DIRECTORY** is the client's private directory, as for `temper open`
   (`README.md`, 6.1): its credential, `token`, its small store, `store`,
@@ -1301,7 +1348,7 @@ as the terminal's host is:
 
 ### 8.3 Several calls at once
 
-An agent runs a `wait` while it acts, or several agents share a party.
+An agent runs a wait while it acts, or several agents share a party.
 
 - **A call that sends** takes an exclusive lock on DIRECTORY before it
   loads the small store's records (8.2, step 2), so two never write the
@@ -1339,7 +1386,7 @@ An agent runs a `wait` while it acts, or several agents share a party.
 - **The person's own:** the printed link's sign-in. The QA loop's first
   identity is the deployment's first owner.
 - **Its own, a service's** (area 3): an owner makes a service in a
-  project, with a role (`service`), and jig's clients' component answers
+  project, with a role (`party make`), and jig's clients' component answers
   its credential once; the tool writes it to the file `--out` names,
   `0o600`, refused if the file exists, and never prints it. The agent
   signs in with it (`sign-in --service FILE`) and acts within that
@@ -1366,19 +1413,19 @@ directory of its harness's; a QA pass's is `../qa.md`, section 3:
   serve`'s sign-in links, and the harness passes the first to `temper
   ctl DIRECTORY sign-in -` on stdin.
 - **The deployment's LLM key:** a fresh box has no LLM account, so no
-  run starts (`../protocol/credentials.md`, section 3). Once signed in, the
-  harness adds one before the agent's first act: `add-key PROVIDER FILE
-  --deployment --key box-llm`, from a private file of its own, then
-  `wait accounts --until usable` (5.4). The key is QA's own, with limits
-  of its own (`../draft/qa.md`, section 7); the agent is never handed its
-  file, and the harness removes the file with the box. On the process
-  tier and in the real loop, it is a key skein's fake LLM peer accepts
-  (`../domain/testing.md`, 2.4 and 2.6).
+  run starts (`../protocol/credentials.md`, section 3). Once signed in,
+  the harness adds one before the agent's first act: `account add-key
+  PROVIDER FILE --deployment --key box-llm`, from a private file of its
+  own, then `account list --until usable` (5.4). The key is QA's own,
+  with limits of its own (`../draft/qa.md`, section 7); the agent is
+  never handed its file, and the harness removes the file with the box.
+  On the process tier and in the real loop, it is a key skein's fake
+  LLM peer accepts (`../domain/testing.md`, 2.4 and 2.6).
 - **The person on Forgejo:** the harness plays the person of
   `../protocol/setup.md`, 6.5: it signs in on Forgejo's web with
   `person_password` and changes it, and makes the repository to adopt
-  in an org, which the agent adopts with `adopt` as the first act of
-  area 1.
+  in an org, which the agent adopts with `repository adopt` as the first
+  act of area 1.
 - **The forge beside temper:** its API and `git` on `owned.listen`,
   reached as the agent chooses (5.2), as the person, never with the
   preparation's `admin_token`, which the engine's setup host alone
@@ -1387,10 +1434,11 @@ directory of its harness's; a QA pass's is `../qa.md`, section 3:
   files the box names for them, are `../qa.md`, section 4.
 - **The forge through temper:** the box's Forgejo is owned, connected by
   the box's own preparation and the setup host's plans
-  (`../protocol/setup.md`, owned), so it takes no connect, and the agent is never handed a value
-  to paste. With area 6, the agent reads it with `forges` and the
-  repositories to adopt with `repositories`, every one the site admin
-  can see, and adopts one with `adopt --ids`.
+  (`../protocol/setup.md`, owned), so it takes no connect, and the agent
+  is never handed a value to paste. With area 6, the agent reads it with
+  `forge list` and the repositories to adopt with `forge repositories`,
+  every one the site admin can see, and adopts one with `repository
+  adopt --ids`.
 - **Logs:** each step's, the engine's and the worker's among them, in
   its file under `<data>/box/logs/`, and on the box's stderr prefixed
   by its step with `--echo steps` (`../protocol/setup.md`, 7.2);
@@ -1402,8 +1450,8 @@ A person's first run is the box's demo (`../protocol/setup.md`, 8.4),
 its fakes dormant until the person chooses the playground; the engine
 then adds the demo model's account and adopts its repository itself. A
 harness does as the person does: `sign-in -` with serve's first link,
-then `demo-start` (5.5, area 6), which answers once the playground is
-ready.
+then `playground start` (5.5, area 6), which answers once the
+playground is ready.
 
 ## 11. Testing
 
@@ -1430,17 +1478,17 @@ ready.
   record of a store version the tools do not read counted by `pending`,
   and the next call that sends saying it dropped it.
 - **An account's move,** in `temper-client-shell-cli`'s tests, the
-  engine's answers scripted (5.5, area 5; 6.3): `export`'s FILE already
-  there, a link among them, exit 1 with nothing sent; FILE made with
-  mode 0600, the record written whole and synced, then its directory,
-  before `written` is sent; each of the engine's refusals, exit 2, FILE
-  removed; `written` refused "cancelled", exit 2, FILE removed; a write
-  that fails, and an answer lost, exit 1, FILE removed and no `written`
-  sent; `written`'s answer not come, FILE kept. `import`'s FILE not
-  private, a link, empty and past its bound, exit 1 with nothing sent;
-  *moved in*, the account printed and FILE removed; each refusal, exit
-  2, and *lost*, exit 1, FILE kept. No record's byte on stdout, stderr
-  or in DIRECTORY's store.
+  engine's answers scripted (5.5, area 5; 6.3): `account export`'s FILE
+  already there, a link among them, exit 1 with nothing sent; FILE made
+  with mode 0600, the record written whole and synced, then its
+  directory, before `written` is sent; each of the engine's refusals,
+  exit 2, FILE removed; `written` refused "cancelled", exit 2, FILE
+  removed; a write that fails, and an answer lost, exit 1, FILE removed
+  and no `written` sent; `written`'s answer not come, FILE kept.
+  `account import`'s FILE not private, a link, empty and past its bound,
+  exit 1 with nothing sent; *moved in*, the account printed and FILE
+  removed; each refusal, exit 2, and *lost*, exit 1, FILE kept. No
+  record's byte on stdout, stderr or in DIRECTORY's store.
 
 ### 11.2 `tests/client`
 
@@ -1450,43 +1498,43 @@ section 10; `../domain/testing.md`, 6.3). Area 1's stories: a chat started, its
 reply waited for, a message, a turn too large for a page read whole,
 the chat closed; a repository adopted; a held task released. The
 existing agent story also waits for a task whose end was observed before
-`wait task N --until ended` begins, checking the matching terminal
+`task show TASK --until ended` begins, checking the matching terminal
 answer (5.4). A turn too large for a page exists only where the engine's
 bound on a turn passes its page bound, so the world's profile sets it
-so. The world's
-faults hold: a call cut by a link drop or an engine restart, asked
-again under its named key, is made once. Each area adds its
-stories. Area 5's, over the engine root's accounts child with each
+so. The world's faults hold: a call cut by a link drop or an engine
+restart, asked again under its named key, is made once. Each area adds
+its stories. Area 5's, over the engine root's accounts child with each
 source's mechanism scripted: a key added, then the deployment's,
-`accounts` showing both with no value in DIRECTORY's store or in any
-document the tools print; an `add-key` cut before its answer and asked
-again with its key and file, one account made; a sign-in started, its
-answer scripted made, refused and past its deadline, each meeting
-`wait accounts --until settled`; a limited notice, the next task
-waiting for its account and `task N` saying why, then `retry` and the
-run started; `rank` and
-`forget`; a program source declared, and `verify` answered as each host
-reports. Area 6's, over the engine root's forge connector and the
-setup's host with skein's fake forge (`../domain/testing.md`, 2.4): a
-GitHub connect printing its link, never opening it, the browser's
-steps driven by the world, then `wait forges --until settled` and the
-forge connected; a pasted connect cut before its answer and asked
-again with its key and file, one connect; an App lacking a permission
-and an event, each named on the forge's row; a tokens file with a
-line broken, exit 1 naming the line and never its value;
-`repositories` by page number, a full last page's next and a page past
-the last answering no rows, and one row adopted with `--ids`; a second
-picker's read while one runs, busy; a call by a party whose role does
-not hold the deployment's connectors, exit 2; `forge-forget` on a
-managed Forgejo; `forge-setup` without the box, refused naming the
-commands; `forge-setup` on an asked owned forge, answered `setting up`,
-then `wait forges --until settled` following the routing's told states,
-setting up at each step to not connected, and to set up failed with its
-why; a `forge-setup` of the same forge while it sets up, not offered,
-and of another asked forge while one sets up, busy; `demo-start`
-answered `running`, run again answered the same, adding and adopting
-nothing twice, and refused "not offered" with no demo. After each, no pasted value in DIRECTORY's store or
-in any document the tools print.
+`account list` showing both with no value in DIRECTORY's store or in
+any document the tools print; an `account add-key` cut before its
+answer and asked again with its key and file, one account made; a
+sign-in started, its answer scripted made, refused and past its
+deadline, each meeting `account list --until settled`; a limited
+notice, the next task waiting for its account and `task show TASK`
+saying why, then `account retry` and the run started; `account rank`
+and `account forget`; a program source declared, and `account verify`
+answered as each host reports. Area 6's, over the engine root's forge
+connector and the setup's host with skein's fake forge
+(`../domain/testing.md`, 2.4): a GitHub connect printing its link,
+never opening it, the browser's steps driven by the world, then `forge
+list --until settled` and the forge connected; a pasted connect cut
+before its answer and asked again with its key and file, one connect;
+an App lacking a permission and an event, each named on the forge's
+row; a tokens file with a line broken, exit 1 naming the line and
+never its value; `forge repositories` by page number, a full last
+page's next and a page past the last answering no rows, and one row
+adopted with `--ids`; a second picker's read while one runs, busy; a
+call by a party whose role does not hold the deployment's connectors,
+exit 2; `forge forget` on a managed Forgejo; `forge setup` without the
+box, refused naming the commands; `forge setup` on an asked owned
+forge, answered `setting up`, then `forge list --until settled`
+following the routing's told states, setting up at each step to not
+connected, and to set up failed with its why; a `forge setup` of the
+same forge while it sets up, not offered, and of another asked forge
+while one sets up, busy; `playground start` answered `running`, run
+again answered the same, adding and adopting nothing twice, and
+refused "not offered" with no demo. After each, no pasted value in
+DIRECTORY's store or in any document the tools print.
 
 ### 11.3 The real loop
 
@@ -1518,19 +1566,21 @@ that made it, which the checked world fails (skein's
 Over the git route the program shares nothing, and they run checked.
 Every other story here is checked.
 
-Every story whose agents run first adds a key the fake LLM peer accepts, `add-key` from a scratch
-file, as section 10's harness does, and waits for `usable`. Area 5's
-stories (`../domain/testing.md`, 2.4):
+Every story whose agents run first adds a key the fake LLM peer
+accepts, `account add-key` from a scratch file, as section 10's harness
+does, and waits for `usable`. Area 5's stories (`../domain/testing.md`,
+2.4):
 
-- **A sign-in:** `connect` against skein's fake issuer, the browser's
-  visit and the redirect to the engine's loopback listener driven by the
-  test, then `wait accounts --until settled`, the account usable, and a
-  run on it whose request the peer observes with its bearer.
-- **A program's login:** `declare`, with smith's fake `claude` as the
-  agent's program, its login signed in in the source's directory under
-  the agent's programs directory; `verify`, then `wait accounts --until
-  settled`, the source usable on the worker's host, and a run on it
-  through the program backend.
+- **A sign-in:** `account connect` against skein's fake issuer, the
+  browser's visit and the redirect to the engine's loopback listener
+  driven by the test, then `account list --until settled`, the account
+  usable, and a run on it whose request the peer observes with its
+  bearer.
+- **A program's login:** `account declare`, with smith's fake `claude`
+  as the agent's program, its login signed in in the source's directory
+  under the agent's programs directory; `account verify`, then `account
+  list --until settled`, the source usable on the worker's host, and a
+  run on it through the program backend.
 - **No value kept:** after each, neither DIRECTORY's store nor the
   engine's store holds a key's or a record's value in a request, an
   answer or a fact; the secrets' store alone does.
@@ -1542,24 +1592,25 @@ and its install page `302` (skein's `fake-forge.md`, 10.1), so the test
 drives a browser's steps as plain requests, following the link as a
 person clicks it, and no story calls github.com:
 
-- **GitHub through the manifest:** `forge-connect F github`, the printed
-  link followed as plain requests on the clients' listener and the
-  fake's pages, then `wait forges --until settled`, and `forges`
+- **GitHub through the manifest:** `forge connect FORGE github`, the
+  printed link followed as plain requests on the clients' listener and
+  the fake's pages, then `forge list --until settled`, and `forge list`
   showing the forge connected as the App's user.
-- **A repository added later,** from the picker: `repositories F`, then
-  `adopt --ids` of one of its rows into a project holding another.
+- **A repository added later,** from the picker: `forge repositories
+  FORGE`, then `repository adopt --ids` of one of its rows into a
+  project holding another.
 - **A repository granted on GitHub:** the fake grants one to an
-  installation of selected repositories, and the next `repositories F`
-  lists it.
-- **Forgejo connected, managed and owned** from the tools:
-  `forge-connect F forgejo-admin FILE --key NAME`, with and without
-  `--first work/hello --project P --label docker`: with the first repository,
-  waits for creation and connection, makes a missing project, adopts once
-  under `first-repository-F`, and prints its project and adoption; existing
-  projects by name or number, reruns, stops and failed Create are covered.
-  Without `--first`, prints `wait forges --until connected:F`.
-  Also an owned forge's `repositories`.
-  Plain `forgejo FILE` stays unoffered.
+  installation of selected repositories, and the next `forge
+  repositories FORGE` lists it.
+- **Forgejo connected, managed and owned** from the tools: `forge
+  connect FORGE forgejo-admin FILE --key NAME`, with and without
+  `--first work/hello --project PROJECT --label docker`: with the first
+  repository, waits for creation and connection, makes a missing
+  project, adopts once under `first-repository-F`, and prints its
+  project and adoption; existing projects by name or number, reruns,
+  stops and failed Create are covered. Without `--first`, prints `forge
+  list --until connected:FORGE`. Also an owned forge's `forge
+  repositories`. Plain `forgejo FILE` stays unoffered.
 - **No secret kept:** after each, no pasted value, key, token or secret
   in a root, a fact, a record but the secrets' store's, a request or an
   answer, nor in DIRECTORY's store.
@@ -1575,7 +1626,7 @@ as two processes do.
 These are smoke, one end-to-end path per feature, at the gate
 (`../domain/testing.md`, 2.4). A tool's behaviour and corner cases are
 `tests/client`'s (11.2) and the lower worlds' (11.1): a sign-in refused
-or past its deadline, a limit and `retry`, a record the tools do not
+or past its deadline, a limit and `account retry`, a record the tools do not
 read. These stories reuse lower worlds' scripts and outside expectations
 where applicable, and add checks of the full transport, persistence and
 teardown on the real kernel; the harness checks memory ownership,
@@ -1585,12 +1636,12 @@ where possible; its seed does not replay the kernel's schedule.
 
 One story reads at `temper init`'s template's bounds, its documents'
 rows below the tools' 32-row window: a goal with more delegates than
-those rows, one of them ended with an ended dependency, and `task N
---tree` answering within a second, cut and saying so, and `activity N
---json` of the ended one answering its rows, newest first, and reading
-on to its first; the tree's `cut:` line's call followed, page by page,
-to the last delegate. Its fixture sets that bound itself, whatever the
-others' fixtures raise.
+those rows, one of them ended with an ended dependency, and `task show
+TASK --tree` answering within a second, cut and saying so, and `task
+activity TASK --json` of the ended one answering its rows, newest
+first, and reading on to its first; the tree's `cut:` line's call
+followed, page by page, to the last delegate. Its fixture sets that
+bound itself, whatever the others' fixtures raise.
 
 ### 11.4 The process tier
 
@@ -1601,15 +1652,15 @@ and revision back, and refuse a stale request naming the newest revision.
 Running work keeps its revision, one story: a ctl chat whose run, on
 the fake LLM, delegates one task and waits, the delegate parked between
 two runs under revision R, the chat and its delegate the deployment's
-only live agent tasks; an owner's `change-settings` of the delegate's
-charter's instructions makes R+1; `task N` on the delegate prints
-`settings: revision R · newest R+1`, `settings` counts two live tasks
-on R, and `setting charter C --revision R` prints the old instructions;
-`move-to-newest R` answers two moved and none that could not; the
-delegate's next run, woken by a message, reads R+1's instructions, as
-the fake LLM's request shows, and R is no longer held. What jig's worlds
-show of revisions (a restart with R held, a removed charter's task
-finishing on R, the bound reached) is not repeated here.
+only live agent tasks; an owner's `settings apply` of the delegate's
+charter's instructions makes R+1; `task show` on the delegate prints
+`settings: revision R · newest R+1`, `settings show` counts two live
+tasks on R, and `settings show charter C --revision R` prints the old
+instructions; `revision advance R` answers two moved and none that
+could not; the delegate's next run, woken by a message, reads R+1's
+instructions, as the fake LLM's request shows, and R is no longer held.
+What jig's worlds show of revisions (a restart with R held, a removed
+charter's task finishing on R, the bound reached) is not repeated here.
 
 `temper serve` and `temper ctl` as processes over skein's fake LLM peer
 (`../domain/testing.md`, 2.6), on a scratch directory of their own, for
@@ -1620,21 +1671,23 @@ section 10, and a key's file refused when it is not private, as a
 forge's pasted value's file is), an act
 cut by a termination signal, its status 128 plus the signal's number
 (8.2), then asked again under its key, made once, and agent process
-launch; an account moved between two deployments (below). Under `temper box`, `forge-setup` of the default document's
-forge 3 and `wait forges --until settled` against the real Forgejo and
-runner (`../domain/testing.md`, 2.6). One landing on the owned Forgejo proves a change against real
-git and CI (`../domain/testing.md`, 2.6). The lock, DIRECTORY's files
-and a call's exit are the real loop's (11.3).
+launch; an account moved between two deployments (below). Under
+`temper box`, `forge setup` of the default document's forge 3 and
+`forge list --until settled` against the real Forgejo and runner
+(`../domain/testing.md`, 2.6). One landing on the owned Forgejo proves
+a change against real git and CI (`../domain/testing.md`, 2.6). The
+lock, DIRECTORY's files and a call's exit are the real loop's (11.3).
 
 **An account moved,** one story (5.5, area 5): two `temper serve`
 processes, deployments A and B on directories of their own, and one
 fake issuer. A person signs in to A with the LLM provider through
-`connect`, the fake browser approving; `export ACCOUNT FILE` exits 0
-and A's `accounts` no longer has the account; the owner of B, signed in
-to B by its printed link, runs `import FILE --key NAME`, which prints
-the account and exits 0, FILE gone; B, stopped and started again on its
-directories, holds the account, and a grant is lent on it after its one
-refresh at the issuer; the issuer refuses the refresh token FILE held.
+`account connect`, the fake browser approving; `account export ACCOUNT
+FILE` exits 0 and A's `account list` no longer has the account; the
+owner of B, signed in to B by its printed link, runs `account import
+FILE --key NAME`, which prints the account and exits 0, FILE gone; B,
+stopped and started again on its directories, holds the account, and a
+grant is lent on it after its one refresh at the issuer; the issuer
+refuses the refresh token FILE held.
 What jig's worlds show of the move (a late *written*, a restart while
 moving, the refusals' decisions) is not repeated here.
 
@@ -1650,10 +1703,10 @@ moving, the refusals' decisions) is not repeated here.
   changed only through temper (5.2), and a secret read from a private
   file, never typed or given as an argument, with a link printed as
   text, never opened, and followed by a wait (5.5, areas 5 and 6).
-- **`temper ctl help TOOL`** prints the tool's record (5.1): its usage,
-  its line, each argument's name, type, bound and line, its result's
-  line and record's name, whether it is keyed, and its notes; for
-  `wait`, its subjects and conditions as the table's kinds give them.
+- **`temper ctl help GROUP VERB`** prints the tool's record (5.1): its
+  usage, its line, each argument's name, type, bound and line, its
+  result's line and record's name, whether it is keyed, and its notes;
+  for a watched read, its conditions as the table's kinds give them.
   Enough to make every call of a walk without the source.
 - **What a goal takes across tools is a walk's,** `box` and `github`
   among them, never the page `ctl`'s.
@@ -1679,7 +1732,7 @@ Four bounds decide how much of a document a call prints:
 | Bound | Whose | It decides | Past it |
 |---|---|---|---|
 | a page's bytes | the engine's (jig's `client/domain/contract.md`, 5.1) | whether a turn comes in a page by its bytes or by its size | the turn's line, its size and the call that reads it (5.2) |
-| one read's bytes | the engine's (the read of one turn, jig's `client/domain/contract.md`, section 6) | whether `turn` is answered whole | its size, and that it is past the limit |
+| one read's bytes | the engine's (the read of one turn, jig's `client/domain/contract.md`, section 6) | whether `task turn` is answered whole | its size, and that it is past the limit |
 | one document's bytes | the client's, `document_bytes` | whether the client takes a document whole | a turn: its size, and that it is past the limit; any other document: the client's `Limit`, exit 1 |
 | the tools' window | the tools' | how much of a result prints | the rest by its cursor, or `--part` and `--from` (6.4) |
 
@@ -1696,7 +1749,7 @@ terminal's, whose window shows two rows:
 
 | What | Bound |
 |---|---|
-| rows: a list's page, the inbox's needs and updates together, the activity lines `task` adds, a conversation's page; the client's rows per window | 32, the most jig's client wire takes in a limit of rows (its schemas' ceilings; jig's `protocol/client.md`, section 3) |
+| rows: a list's page, the inbox's needs and updates together, the activity lines `task show` adds, a conversation's page; the client's rows per window | 32, the most jig's client wire takes in a limit of rows (its schemas' ceilings; jig's `protocol/client.md`, section 3) |
 | a result's text | 32 KiB |
 | a turn's part | 16 KiB |
 | one document, the client's `document_bytes` | 1 MiB |
@@ -1706,7 +1759,7 @@ terminal's, whose window shows two rows:
 | a key's file, less a final newline (5.5, area 5) | 4 KiB; past it, or empty, exit 1 with nothing sent; a key the engine refuses is its refusal, exit 2 |
 | a moved record's file, whole (5.5, area 5) | 128 KiB, jig's bound on a keyed request's value (jig's `protocol/client.md`, section 5); past it, or empty, exit 1 with nothing sent; a file past its form's bound at the engine is its refusal, a limit, exit 2 |
 | a forge's pasted value: its file, and the bundle the tool makes of it (5.5, area 6) | 4 KiB, jig's bound on a carried value; past it, or empty, exit 1 with nothing sent; a value the engine refuses, one past the deployment's `records.value_bytes` among them, is its refusal, exit 2 |
-| a picker's page, `repositories` (5.5, area 6) | 100 rows, the most `picker.page` takes, printed whole: temper's own family carries them, not jig's rows; a step test fails when 100 rows at the client's bound on a field's bytes pass a result's text (11.1) |
+| a picker's page, `forge repositories` (5.5, area 6) | 100 rows, the most `picker.page` takes, printed whole: temper's own family carries them, not jig's rows; a step test fails when 100 rows at the client's bound on a field's bytes pass a result's text (11.1) |
 | a wait's timeout | 300 s by default, at most 3600 (5.4) |
 
 The client's other limits are the terminal's (`README.md`, section 2).
@@ -1730,7 +1783,8 @@ contract's reads, watches and requests, they take:
   `client/domain/contract.md`, 3.2), so that a named request is built
   without the clock (section 7).
 - **For area 5,** jig's accounts (jig's `domain/accounts.md`, section 5)
-  and their move (its section 6, for `export` and `import`):
+  and their move (its section 6, for `account export` and `account
+  import`):
   their requests (jig's `client/domain/contract.md`, 3.2), each under a
   key as the others, a key's bytes held to the tools' own bound
   (section 12) and the engine's refusal past its own exit 2; the
@@ -1770,15 +1824,15 @@ Each is named here and designed when it comes.
   print a call, a call per asker.
 - **Extraction into jig,** `temper-client-tools`' module `jig` moved to
   `jig-client-tools`, when a second application wants the tools.
-- **The forge's read family's tools,** beside `forges` (area 6), as the
+- **The forge's read family's tools,** beside `forge list` (area 6), as the
   engine serves each of the forge's other parts (`forge.md`, section 9).
 - **A service's credential reissued, or a service removed** (jig's
   `domain/people.md`, section 3): tools of area 3.
 - **An account's uses** set, as a tool of area 5, when the QA loop asks
   for one (section 15).
-- **An older moved form patched at `import`** (5.5, area 5, the file's
-  versions): jig's form patches, then skein's record patches, before
-  the engine's checks, when a form 2 exists.
+- **An older moved form patched at `account import`** (5.5, area 5, the
+  file's versions): jig's form patches, then skein's record patches,
+  before the engine's checks, when a form 2 exists.
 
 ## 15. Open questions
 
@@ -1788,7 +1842,7 @@ Each is named here and designed when it comes.
 - **The one-shot host's place:** temper's, in `temper-client-shell-cli`.
   Default: it moves into `jig-client-shell-native` with the extraction
   (section 14), if jig wants one.
-- **Naming a source** in area 5's `--source S`: by its kind, which
+- **Naming a source** in area 5's `--source SOURCE`: by its kind, which
   names one source while an account holds one of each kind. Default:
   by kind, and by a program source's name once an account may hold two
   of a kind.
@@ -1796,22 +1850,22 @@ Each is named here and designed when it comes.
   (jig's `domain/accounts.md`, 4.2). Default: a tool of area 5 once the
   QA loop plays a service paid by a person's account (section 14).
 - **An export's `written` answered to a later call** (5.5, area 5): when
-  `export` ends before `written` is answered, the next call that sends
-  it reports its answer as any kept request's, and nothing removes
-  FILE when it is refused "cancelled", though FILE's record is then
-  dead (an import of it makes an account needing sign-in at its first
-  refresh). Default: so, until the QA loop meets it; the alternative
-  keeps FILE's path with the kept request, a stored format. Until then
-  the agent tells which by `accounts`, which sends the kept `written`
-  first: the account's `sign_in` source gone (or the account), FILE is
-  its only holder; the source still listed, signed in or moving, the
-  move was cancelled and FILE's record is dead.
+  `account export` ends before `written` is answered, the next call
+  that sends it reports its answer as any kept request's, and nothing
+  removes FILE when it is refused "cancelled", though FILE's record is
+  then dead (an import of it makes an account needing sign-in at its
+  first refresh). Default: so, until the QA loop meets it; the
+  alternative keeps FILE's path with the kept request, a stored format.
+  Until then the agent tells which by `account list`, which sends the
+  kept `written` first: the account's `sign_in` source gone (or the
+  account), FILE is its only holder; the source still listed, signed in
+  or moving, the move was cancelled and FILE's record is dead.
 - **Why a moved record is "not ours"** (5.5, area 5): jig's refusal
   carries no reason, so a form newer than the engine's jig reads, another
   application's record and another registration's read alike. Default:
-  `import`'s own check of the form (5.5) covers ctl's jig; a reason on
-  jig's refusal (form, application, registration) is jig's, when a form
-  2 exists.
+  `account import`'s own check of the form (5.5) covers ctl's jig; a
+  reason on jig's refusal (form, application, registration) is jig's,
+  when a form 2 exists.
 - **A tokens file's layout** (5.5, area 6): temper's bundle is items by
   number (`../protocol/credentials.md`, pasted values), which no person
   writes. Default: `NAME VALUE` lines, as 5.5 has them; JSON, or a file
@@ -1821,16 +1875,17 @@ Each is named here and designed when it comes.
   print the link for a person and open nothing; tests drive its steps as
   plain requests on skein's fake forge (11.2, 11.3); an agent alone
   connects a Forgejo, or an App of its own with `github-app`.
-- **The picker's read as a keyed request:** `repositories` draws a key
-  as the other unmarked acts do, and the engine keeps its answer for the
-  retention (`README.md`, section 11, the picker's page as a read).
+- **The picker's read as a keyed request:** `forge repositories` draws
+  a key as the other unmarked acts do, and the engine keeps its answer
+  for the retention (`README.md`, section 11, the picker's page as a
+  read).
   Default: kept as any keyed request; a read of the forge's family once
   the engine serves one.
 - **Instructions, the charter's or an amendment's:** a task's document
   carries the instructions in force, and nothing says whether an
-  amendment set them (6.1). Default: `task N` prints them as they are;
+  amendment set them (6.1). Default: `task show` prints them as they are;
   a word for their source once jig's document says it.
-- **A milestone's phase in `activity`:** the activity line holds only
+- **A milestone's phase in `task activity`:** the activity line holds only
   the position of the task's history row (jig's `OwnerActivity::
   Milestone`), and the phase is on that row (`OwnerMilestoneLine`).
   Printing it costs a second read per page, a history read of the task
@@ -1855,7 +1910,8 @@ Each is named here and designed when it comes.
     header, as `change, connector C kind K`;
   - a choice's option in a result, as `option N`, not the option's
     words, which the contract holds.
-- **Waiting on one forge:** `wait forges` watches every forge's row, so
-  another forge's change answers a wait with no condition. Default:
-  `--until settled` or `--until connected:F` names what is waited for; a
-  subject per forge, `forge F`, if the QA loop asks.
+- **Waiting on one forge:** `forge list`'s wait watches every forge's
+  row, so another forge's change answers `--until changed`. Default:
+  `--until settled` or `--until connected:FORGE` names what is waited
+  for; a watched read of one forge, `forge show FORGE`, if the QA loop
+  asks.

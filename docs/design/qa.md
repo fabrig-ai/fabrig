@@ -47,7 +47,7 @@ parked as `draft/qa-lab.md`. What is still open is section 8.
 - **temper's part, through ctl:** tasks, chats and their activity; a
   change's way to landing, its step in words, its hold, its place in a
   queue, its gates' verdicts and, landed, its merge commit, read with
-  `change N`; the forges and their repositories. Each comes with the ids
+  `change show TASK`; the forges and their repositories. Each comes with the ids
   and links that find it on the forge (`client/tools.md`, 5.5, area 6).
 - **The forge's part, on the forge:** a pull request's diff, files and
   reviews; CI's runs, jobs and logs; branches and their heads. A part
@@ -175,7 +175,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
     link to its place there, such as "Landed" with no pull request.
   - **The two disagree:** landed in temper while `main`'s head is not
     its merge commit; CI green in temper and red on the forge.
-  - **temper stale past its bound:** the forge shows what a `wait` on
+  - **temper stale past its bound:** the forge shows what a wait on
     temper does not see within the wait's timeout.
   - **The guide does not get there:** a step the pass could find only
     in the design or the source, or a refusal that does not name what
@@ -199,7 +199,8 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
 
 - **The GitHub rung's App:** made by the user for QA, or from temper's
   manifest. An installation that exists already is accepted with no
-  browser, by `forge-accept F I` (`client/tools.md`, 5.5, area 6).
+  browser, by `forge accept FORGE INSTALLATION` (`client/tools.md`, 5.5,
+  area 6).
 - **Real accounts' holding and spend:** `qa-flow.md`, section 9.
 - **Holding section 5 to the fake:** a step test that decodes each read
   with skein-forge's Forgejo requests, as the guide's ctl lines are held

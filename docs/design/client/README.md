@@ -995,7 +995,7 @@ keeps (`../protocol/configuration.md`, section 2).
 
 One editor drafts a person's amendment of a task, for every page and
 command that amends one: the task's pages (5.8, 5.9) and `temper ctl
-amend` (`tools.md`, 5.5). It is `temper-client-domain`'s `amend`
+task amend` (`tools.md`, 5.5). It is `temper-client-domain`'s `amend`
 module, beside `acts.rs`, and pure: it reads a document and builds
 jig's `Amendment`; it sends nothing, judges no bounds and keeps no
 clock. Each caller lays out its own fields, compares the change with
@@ -1029,7 +1029,7 @@ amendment`), and sends it, as `Amend` or `Propose`, as 3.6 says.
 - **Its revision.** `Draft::revision()` is the base's. `Draft::moved
   (&c::Task)` says whether a document read since has another
   `spec_revision`: a page's draft is then stale, and says so before
-  sending; `ctl` compares it with its `--rev R`.
+  sending; `ctl` compares it with its `--rev REV`.
 - **The change,** `Draft::amendment() -> Option<Drafted>`: none
   without a change; else `Drafted { revision: Option<Revision>,
   change: c::Amendment }`, the revision absent exactly when the change
@@ -1477,7 +1477,7 @@ for its kind, its user's login and its installations. Its nodes:
   offer, the forge domain's (`../domain/forge.md`, 4.1): offered, not
   under the box, or not offered, which is what "Set up a Forgejo here", "Set up again"
   and the commands to run by hand follow (`forge.md`, 5.4). The read of the forges, the
-  tools' `forges` (`tools.md`, 5.5, area 6), is the watch's first
+  tools' `forge list` (`tools.md`, 5.5, area 6), is the watch's first
   document. *The client's forge side watches it once,* for the
   session, from when `me` is first delivered while the link is live,
   for every person, so that the engine judges the role: a watch
@@ -2444,8 +2444,8 @@ or difference of their amounts (jig's `client/domain/contract.md`,
   when the person signed in added it, "Added by party P", "Added by
   task M" or "Added by the deployment" otherwise; then, while it keeps
   the row's task (jig's `keeps`, jig's `domain/tasks.md`, 5.7), " ·
-  keeps task N from ending". No time is drawn: `ctl task N` prints
-  when (`tools.md`, 6.1). A dependency the facts
+  keeps task N from ending". No time is drawn: `ctl task show TASK`
+  prints when (`tools.md`, 6.1). A dependency the facts
   don't name, or one not added, has no mark; the line keeps its shape
   (section 11).
 - **Latest activity,** a region after "Plan": the latest page of the
@@ -2852,7 +2852,7 @@ Its rules:
   - "Specification", a text area holding the spec's words, its edit
     `words`; where the read cut the spec (`Cut::Spec`), the words read
     only and "This task's specification is too long to edit here: use
-    `temper ctl amend`";
+    `temper ctl task amend`";
   - on a goal, "Tracked", a check, and "Priority", a number, its edit
     `track`: `Tracked { priority }` or, unchecked, `Untracked`.
 
@@ -2873,7 +2873,7 @@ Its rules:
   nothing. The model choice for the next runs stays the choice line's
   (3.5), its own amendment, not repeated in the editor. Instructions,
   dependencies, the deadline, wake and an addressee are `temper ctl
-  amend`'s alone (`tools.md`, 5.5).
+  task amend`'s alone (`tools.md`, 5.5).
 - **Their outcome.** One request per kind of act at a time; a double
   press joins the pending one (3.6). Pending, its progress as a card
   says it; answered, the outcome in jig's words, or the refusal in
@@ -3258,8 +3258,8 @@ command.
   command `n KEY` writes it (skein's `ui-text.md`, sections 5 and 6);
   the terminal's line editing echoes the key as it is typed, which
   skein's text shell cannot turn off (skein's `ui-text.md`, section 9).
-  `temper ctl add-key` reads a key from a file instead (`tools.md`,
-  5.5, area 5).
+  `temper ctl account add-key` reads a key from a file instead
+  (`tools.md`, 5.5, area 5).
 - **A forge's pasted value** prints the same way: each of the forges'
   page's secret fields (3.6) prints `(hidden)` once written, and the
   terminal echoes it as it is typed. A PEM key spans lines, which one
@@ -4068,8 +4068,8 @@ own tests:
   dismissal kept by the engine, as jig's seen is. Default: a card in
   the conversation (5.5), with nothing to dismiss.
 - **A key typed in the terminal** is echoed by its line editing (6.5).
-  Default: accepted on one person's machine; `temper ctl add-key` reads
-  one from a file.
+  Default: accepted on one person's machine; `temper ctl account
+  add-key` reads one from a file.
 - **The picker for a person who may adopt but not connect:** the
   `Reachable` request's who-may is the deployment's connectors', so a
   project's maintainer without that role sees no list. Default: refused
@@ -4176,7 +4176,7 @@ own tests:
   `Dependency.added` says when and by whom a dependency was added.
   Default: a mark in its item of the dependency line, who added it and
   whether it keeps the task, which keeps the line's shape; when, in
-  `ctl task N` alone.
+  `ctl task show TASK` alone.
 - **The rest of a goal's authority:** its tools, grants, executor kinds
   and note scopes, which jig supplies as codes and patterns, not
   words. Default: not on the goal's page.
@@ -4225,7 +4225,7 @@ own tests:
   - the amendment's editor on the pages: the specification's words
     and, on a goal, its tracking and priority, the model choice being
     the choice line's; the rest of an amendment is `temper ctl
-    amend`'s. A draft whose task moved is discarded and opened again,
+    task amend`'s. A draft whose task moved is discarded and opened again,
     not carried onto the new revision: the person rereads what
     changed;
   - a goal's page has no composer, as the mockup, though the engine

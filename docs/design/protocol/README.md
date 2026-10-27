@@ -44,12 +44,12 @@ its tests and its lab, is section 15.
 - **Standalone first.** `temper serve` runs the engine and one worker in
   one process, on one loop, joined by jig's in-process address; the
   worker's agents are child processes of temper's own binary (`temper
-  agent`); a person's client reaches the engine on loopback; the forge is
-  polled, and hinted by its webhooks on loopback when they are
-  configured (section 8; forge.md, section 5). Hosts apart, webhooks from
-  another host, the forge as a sign-in provider and the forge's client
-  documents come after (section 14). The browser is a person's client
-  on loopback too (`../client/browser.md`).
+  internal agent`); a person's client reaches the engine on loopback;
+  the forge is polled, and hinted by its webhooks on loopback when they
+  are configured (section 8; forge.md, section 5). Hosts apart,
+  webhooks from another host, the forge as a sign-in provider and the
+  forge's client documents come after (section 14). The browser is a
+  person's client on loopback too (`../client/browser.md`).
 - **The cluster, for tests and the lab.** The same `temper serve`, on a
   document of another shape, is an engine alone or a worker alone. One
   engine alone and its workers alone, each a process of its own on one
@@ -57,9 +57,9 @@ its tests and its lab, is section 15.
   processes beside them, are the cluster that temper's process tier and
   the QA lab both run, from one description (section 15). It is no
   deployment's shape: a box keeps its one worker inside `temper serve`.
-- **One binary:** `serve`, `agent`, `open`, `program-login`, the forge's
-  setup's `forge prepare`, `forge run` and `box`, and
-  the agents' `ctl`, which `../client/tools.md` designs (section 4).
+- **One binary:** `serve`, `internal agent`, `open`, `program-login`,
+  the forge's setup's `forge prepare`, `forge run` and `box`, and the
+  agents' `ctl`, which `../client/tools.md` designs (section 4).
 - **No retries below the domain.** A call goes out once and ends once,
   with the failure the domain's vocabulary defines (section 5).
 - **The forge's load follows its changes.** The calls a pass makes grow
@@ -158,22 +158,40 @@ the pin (6.1), the preparation (6.3), the box and its steps (section 7).
 ## 4. The processes and the binary
 
 One binary, `temper` (`crates/temper`), ordinary Rust: a shell, copied
-from jig's reference binary. Its commands, `temper ctl`'s as
-`../client/tools.md` designs them:
+from jig's reference binary. Its commands, sorted by who runs them
+(`../draft/agent-docs.md`, 7.1), `temper ctl`'s as `../client/tools.md`
+designs them:
 
 ```
-temper serve [DIRECTORIES] [--box]
-temper init [DIRECTORIES]
-temper agent AGENT.json
-temper open DIRECTORY LINK_OR_ADDRESS
-temper ctl DIRECTORY TOOL [ARGUMENT...] [--json]
-temper ctl DIRECTORY --call FILE [--json]
-temper ctl help [TOOL]
-temper program-login [DIRECTORIES] NAME
-temper forge prepare [DIRECTORIES] FORGE
-temper forge run [DIRECTORIES] FORGE forgejo|runner
-temper box [DIRECTORIES]
+documentation  temper help [NAME | --search WORDS...]
+deployment     temper init [DIRECTORIES]
+               temper serve [DIRECTORIES]
+               temper box [DIRECTORIES] [--echo none|steps] [--fake-backends [--bundle DIR]]
+               temper versions
+               temper upgrade --check DIRECTORY | --back
+               temper program-login [DIRECTORIES] NAME
+               temper forge fetch|prepare|sign-in [DIRECTORIES] FORGE
+               temper forge run [DIRECTORIES] FORGE forgejo|runner
+clients        temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
+               temper ctl DIRECTORY --call FILE [--json]
+               temper ctl help [GROUP [VERB]]
+               temper open DIRECTORY LINK_OR_ADDRESS
+spawned        temper internal agent AGENT.json
+               temper internal serve [DIRECTORIES] --box
+               temper internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...
+test doubles   temper fake llm|forge|oauth|git ...
 ```
+
+- **Every command is a row of the binary's table,** as ctl's tools are
+  (`../client/tools.md`, 5.1): its words, its usage, its line, its
+  arguments with a line each, and its notes. The parser, `temper
+  COMMAND --help`, `temper --help` (the rows by who runs them, a line
+  each) and the reference page `commands` derive from it.
+- **What temper spawns itself** is under `temper internal`, absent from
+  `temper --help`'s first groups and from every page but `commands`; a
+  person or an agent never runs it. `temper forge reconcile`, the
+  managed and connected forms' transition, is a row marked so, until it
+  goes (setup.md, 6.5).
 
 `DIRECTORIES` is `[--config DIR] [--data DIR] [--cache DIR]`, given
 anywhere among the command's arguments, each with its variable and its
@@ -194,10 +212,11 @@ default; the document is `temper.json` in the configuration directory
     notes, the lines of 15.3 (each TCP listener once bound, and a worker
     alone's link at each opening) and the reason of a failure. A worker
     alone prints no sign-in link.
-  - `--box`, given by `temper box` alone, adopts the box's pipe, the two
-    fds after the listeners the box gives it (setup.md, 7.1). Given
-    listeners, `LISTEN_FDS` of them from fd 3, its clients' and webhooks'
-    listeners take them by their addresses (skein's `shell.md`, 6.6).
+  - `--box`, given by `temper box` alone, as `temper internal serve
+    --box`, adopts the box's pipe, the two fds after the listeners the
+    box gives it (setup.md, 7.1). Given listeners, `LISTEN_FDS` of them
+    from fd 3, its clients' and webhooks' listeners take them by their
+    addresses (skein's `shell.md`, 6.6).
   - A first termination signal settles the engine's forge writes, then
     drains it (`../domain/root.md`, 9.2; jig's `protocol/service.md`,
     section 5), and a worker alone's runs its worker's ending (jig's
@@ -216,7 +235,7 @@ default; the document is `temper.json` in the configuration directory
 - **`temper init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
   configuration directory holds a document (setup.md, 8.2).
-- **`temper agent AGENT.json`:** smith's agent shell,
+- **`temper internal agent AGENT.json`:** smith's agent shell,
   `smith_agent_shell::run`, on smith's agent configuration
   (configuration.md, section 5). The worker's protocol layer spawns it,
   one process per run; a person never does.
@@ -294,10 +313,10 @@ temper serve                           one process, one loop: temper-service's s
 │   └── connects: each configured forge's API (HTTP; TLS unless the forge is on loopback)
 ├── the worker's service               section 7
 │   └── dials: the in-process name "workers"
-├── temper agent AGENT.json            a child process per run, in a process group of its own
+├── temper internal agent AGENT.json   a child process per run, in a process group of its own
 └── git ...                              a child process per git invocation, in a process group of its own (git.md, section 7)
 temper open DIRECTORY LINK_OR_ADDRESS  a process of its own, reaching the engine on loopback
-temper ctl DIRECTORY TOOL ...          a process per call, reaching the engine on loopback
+temper ctl DIRECTORY GROUP VERB ...    a process per call, reaching the engine on loopback
 temper program-login NAME              run by hand on a host, replaced by the program's sign-in
 temper versions                        prints this binary's levels, versions and wires
 temper upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
@@ -534,7 +553,7 @@ temper-service, worker module           iterate
 └── the protocol layer
     ├── jig-protocol-worker-link        the link to the engine; temper's parts as bytes (channel.md)
     ├── smith-host-protocol             one channel per agent process, over its pipes; LLM grants filled into its start
-    ├── agent processes                 temper agent, each in a process group of its own
+    ├── agent processes                 temper internal agent, each in a process group of its own
     ├── the identities' table           git identities' values, from grants (credentials.md, section 4)
     └── temper-worker-protocol-git      the git component: the checkout's io (git.md)
 ```
@@ -542,9 +561,9 @@ temper-service, worker module           iterate
 No store; starting, ending and smith's payloads are jig's (jig's
 `protocol/service.md`, section 6). What temper adds:
 
-- **Agents run as `temper agent`:** the agent program is temper's own
-  binary, with the arguments configuration gives (configuration.md,
-  section 5), its environment holding no credential.
+- **Agents run as `temper internal agent`:** the agent program is
+  temper's own binary, with the arguments configuration gives
+  (configuration.md, section 5), its environment holding no credential.
 - **temper's parts.** The routing decodes the workspace items into the
   root's `wire::Workspace` before the root sees the assignment, and
   encodes the root's `wire::Work` and `wire::Preparation` beside an
@@ -860,7 +879,7 @@ Each document keeps its own; these cross them:
   durable commit.
 - **Agents in the worker's process** (`smith-inline-agent`), with no
   containment, for one person's machine (jig's `protocol/service.md`,
-  section 10). Default: agent processes, as `temper agent`.
+  section 10). Default: agent processes, as `temper internal agent`.
 - **After standalone,** each designed where it is named, and needed only
   beyond one person's machine: webhooks from another host, over TLS
   (forge.md, section 5); hosts apart: TLS on the engine's listeners,

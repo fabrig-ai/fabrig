@@ -568,7 +568,7 @@ and `connect-forge.html`.
     The terminal shell has no secret field of several lines: its
     Details for an App of your own say, in place of the fields and the
     button, "Paste the key on this page in a browser, or run temper
-    ctl forge-connect N github-app ID FILE, FILE the key's file,
+    ctl forge connect N github-app APP FILE, FILE the key's file,
     readable by you alone." (`tools.md`, 5.5);
   - *Forgejo on this machine,* under the box: "temper box downloads
     Forgejo and its runner, starts them, and makes your first
@@ -723,7 +723,7 @@ and `connect-forge.html`.
   first repository made, the forge's side, which keeps the `SetUp` it
   sent, sends `Adopt` of it into its project, once, on whatever page
   the person is (`../protocol/setup.md`, 6.7), as `temper ctl
-  forge-setup` does (`tools.md`, 5.5): keyed `first-repository-F`, F
+  forge setup` does (`tools.md`, 5.5): keyed `first-repository-F`, F
   the forge's number, as the project's home unless it has one, so that
   the two never adopt it twice; and "Open PROJECT"
   waits for its outcome; refused, the adoption's outcome shows in its
@@ -821,7 +821,7 @@ says:
   token", "making the organization", "making the repository" (its
   bot's access with it) or "adding the starter workflow", beside "Set
   up failed". It is the engine's memory alone: a restart drops the
-  line. The set up flow's Ready step and `temper ctl forge-setup`
+  line. The set up flow's Ready step and `temper ctl forge setup`
   adopt the made repository into its project (`tools.md`, 5.5).
 - **Its mode** (`../protocol/setup.md`, the modes): owned, where the
   configuration's setup owns the forge; managed, where temper keeps a
@@ -847,7 +847,7 @@ says:
   accepted, "not accepted · uninstalled at the next reconcile", or, the
   App read-only (`../protocol/setup.md`, 17.7), "not accepted · kept:
   the App is read-only". The tools accept a stray (`tools.md`, 5.5,
-  `forge-accept`); the page offers no act for it yet. When
+  `forge accept`); the page offers no act for it yet. When
   connected, it shows the setup URL the person must set on GitHub:
   `http://<listener>/forges/<n>/github/setup`, with redirect on update,
   no callback URL and no user's authorization at install

@@ -50,9 +50,9 @@ section 8.
   fake forge (jig's `README.md`, section 6).
 - **One binary, standalone first** (`protocol/README.md`). `temper
   serve` runs the engine and one worker in one process on one person's
-  machine; `temper open` is the person's terminal; `temper agent` is
-  smith's agent, one process per run; `temper forge` and `temper box`
-  set a forge up and run it (`protocol/setup.md`).
+  machine; `temper open` is the person's terminal; `temper internal
+  agent` is smith's agent, one process per run; `temper forge` and
+  `temper box` set a forge up and run it (`protocol/setup.md`).
 - **Tested at every tier** (`domain/testing.md`): domains and fakes in worlds,
   then through bytes, then the standalone service, hosted agents and
   fake peers on one real ring, then the real binary with an owned
@@ -109,7 +109,7 @@ person    temper open: temper's terminal, its pages around jig's client (client/
 engine    temper serve: temper's root around jig's core and the forge connector (domain/root.md)
 store     jig's store in the engine's process: jig's records and temper's, committed together (protocol/store.md)
 worker    standalone, in the engine's process: temper's worker root on jig's hub, the checkout (domain/worker.md)
-agents    smith's, one `temper agent` process per run, on the worker (domain/agent.md)
+agents    smith's, one `temper internal agent` process per run, on the worker (domain/agent.md)
 forge     Forgejo and its runner: polled, hinted by its webhooks (domain/forge.md; protocol/forge.md)
 ```
 

@@ -546,11 +546,12 @@ of the routing in `temper-service`, its lines and the root's asks in,
 its lines, the root's states and its answers out, hosted on the
 service's io.
 
-- **Under the box alone.** `temper serve --box` adopts the box's pipe,
-  the two fds after its listeners (setup.md, 7.1), and the link writes
-  its lines on the first and holds one read on the second, a line at most `box.line_bytes` (configuration.md,
-  section 7), its line feed included, as the box counts it. Without `--box` there is no pipe and
-  no link; the engine's forge domain, told so at its construction,
+- **Under the box alone.** `temper internal serve --box` adopts the
+  box's pipe, the two fds after its listeners (setup.md, 7.1), and the
+  link writes its lines on the first and holds one read on the second,
+  a line at most `box.line_bytes` (configuration.md, section 7), its
+  line feed included, as the box counts it. Without `--box` there is no
+  pipe and no link; the engine's forge domain, told so at its construction,
   refuses every ask "not under the box" (`../domain/forge.md`, 4.1).
   The link decides nothing: it carries the domain's asks out and the
   box's lines in.

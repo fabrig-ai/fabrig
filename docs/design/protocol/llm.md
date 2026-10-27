@@ -15,8 +15,8 @@ section 7.
 
 - **temper's engine makes no LLM call.** Its runs are on workers, jig's
   third shape (jig's `domain/hosts.md`, section 3), each in an agent
-  process: `temper agent`, smith's agent shell over skein's LLM client
-  (section 2).
+  process: `temper internal agent`, smith's agent shell over skein's LLM
+  client (section 2).
 - **LLM providers, endpoints and models are configuration,** jig's `llm`
   member on the engine and smith's agent configuration on the worker, by
   the same names, checked at start (section 3). **Accounts are not:**
@@ -54,12 +54,12 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
          (the direct backend) or through a program (the program backend)
 ```
 
-- **The agent process** is temper's binary as `temper agent AGENT.json`,
-  spawned by the worker's protocol layer for each run (configuration.md,
-  section 5; jig's `protocol/service.md`, section 6). It reads smith's
-  agent configuration, dials the endpoints it declares, and takes its
-  run's grants from smith's host half (smith's `protocol/hosts.md`,
-  section 2).
+- **The agent process** is temper's binary as `temper internal agent
+  AGENT.json`, spawned by the worker's protocol layer for each run
+  (configuration.md, section 5; jig's `protocol/service.md`, section 6).
+  It reads smith's agent configuration, dials the endpoints it declares,
+  and takes its run's grants from smith's host half (smith's
+  `protocol/hosts.md`, section 2).
 - **What a call does is smith's:** its session retries a failed
   completion, and its run holds the budget (jig's `protocol/llm.md`,
   sections 1 and 3).

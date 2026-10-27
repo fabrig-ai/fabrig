@@ -281,8 +281,8 @@ sources in its holder's order. temper configures the LLM providers
   `protocol/llm.md`, 5.4), and its grant is a bearer with no account's
   id (jig's `protocol/llm.md`, 5.3). The one record read from a file is
   a moved one: a signed-in account moved out of another temper
-  deployment by `temper ctl export` and in by `temper ctl import`
-  (`../client/tools.md`, 5.5, area 5), jig's move (jig's
+  deployment by `temper ctl account export` and in by `temper ctl
+  account import` (`../client/tools.md`, 5.5, area 5), jig's move (jig's
   `domain/accounts.md`, section 6), in jig's form (jig's
   `protocol/llm.md`, 5.6) under the application's name `temper`,
   temper's root's constant. The file is the person's, written new and
@@ -354,7 +354,7 @@ sources in its holder's order. temper configures the LLM providers
 - **`temper program-login [DIRECTORIES] NAME`:**
   - `NAME` is a program source's name, 1 to 32 of `a` to `z`, `0` to `9`
     and `-` (jig's `domain/accounts.md`, 3.4), as the accounts page and
-    `temper ctl declare` give it with this command.
+    `temper ctl account declare` give it with this command.
   - It reads and checks the document in its configuration directory
     (configuration.md, section 12) as `temper serve` does
     (configuration.md, section 8), and the agent's configuration it

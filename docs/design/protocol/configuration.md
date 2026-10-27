@@ -471,14 +471,14 @@ have one, an engine alone none. Each:
   4), a file of smith's, named by jig's worker part's `agent` member:
   - `program`: the absolute path of temper's binary;
   - `configuration`: the absolute path of smith's agent configuration;
-  - `arguments`: `["agent", <that same path>]`,
+  - `arguments`: `["internal", "agent", <that same path>]`,
 
-  so each agent process is `temper agent AGENT.json` (README.md,
-  section 4). They are absolute because the worker spawns the agent
-  with its arguments as written (jig's `protocol/configuration.md`,
-  section 10); `temper init` writes them so, with smith's agent
-  configuration as `agent.json` in the configuration directory
-  (setup.md, 8.2).
+  so each agent process is `temper internal agent AGENT.json`
+  (README.md, section 4). They are absolute because the worker spawns
+  the agent with its arguments as written (jig's
+  `protocol/configuration.md`, section 10); `temper init` writes them
+  so, with smith's agent configuration as `agent.json` in the
+  configuration directory (setup.md, 8.2).
 - **Read twice:** by `temper serve` at start, for smith's host limits,
   the channel's limits and the agent's bounds, as jig's reference binary
   reads it; and by each agent process as it starts.
@@ -947,12 +947,12 @@ have one, an engine alone none. Each:
     forge whose setup says `"start": "asked"`, with neither a handover
     nor a record of one, is not set up until the client asks the box
     for it (setup.md, 6.5);
-  - under the box, `temper serve` takes the listeners the box gives it,
-    from fd 3, `LISTEN_FDS` of them, its clients' and webhooks' listeners
-    claiming them by their addresses, and `--box` adopts the box's pipe,
-    the two fds after them, refusing its start, naming the fd, when
-    either is not an open pipe (setup.md, 7.1); a start without the flag
-    has no pipe, and leaves those fds alone;
+  - under the box, `temper internal serve` takes the listeners the box
+    gives it, from fd 3, `LISTEN_FDS` of them, its clients' and webhooks'
+    listeners claiming them by their addresses, and `--box` adopts the
+    box's pipe, the two fds after them, refusing its start, naming the
+    fd, when either is not an open pipe (setup.md, 7.1); a start without
+    the flag has no pipe, and leaves those fds alone;
   - every identity whose forge has a value is announced at generation 1
     before the root's restart; a GitHub forge's, once its first tokens
     are minted (credentials.md, section 4). Every connected forge's user
@@ -995,7 +995,7 @@ have one, an engine alone none. Each:
   (credentials.md, section 3). `DIRECTORIES` is `[--config DIR] [--data
   DIR] [--cache DIR]`, each with its variable and its default (section
   12), given anywhere among the command's arguments.
-- **`temper agent AGENT.json`** reads smith's agent configuration
+- **`temper internal agent AGENT.json`** reads smith's agent configuration
   (section 5).
 - **`temper forge prepare|run [DIRECTORIES] FORGE`** and **`temper box
   [DIRECTORIES]`** read the same document as `temper serve` (section 8;
@@ -1126,7 +1126,7 @@ not itself valid JSON):
     "agent": {
       "program": "/usr/local/bin/temper",
       "configuration": "/home/me/.config/temper/agent.json",
-      "arguments": ["agent", "/home/me/.config/temper/agent.json"]
+      "arguments": ["internal", "agent", "/home/me/.config/temper/agent.json"]
     },
     "limits": {"profile": "small", "overrides": {"hub.event_bytes": ..., ...}},
     "memory_bytes": ...
@@ -1627,7 +1627,7 @@ into the binary.
   none), and temper reads no `application.landing` or `charter`. A
   document naming one is refused as any unknown member is (section 1),
   naming its path and saying where it went: "`engine.charters`:
-  settings live in the store; read them with `temper ctl settings`".
+  settings live in the store; read them with `temper ctl settings show`".
   Section 3's `landing` and `charter`, and `Config`'s `landing` and
   `forge_charter` fields, go with them, in 13.6's second step.
 - **Before the baseline** (`../draft/upgrades.md`, 4.1), when planned implementation

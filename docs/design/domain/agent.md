@@ -14,7 +14,7 @@ still open is listed in section 10.
 ## 1. In one page
 
 - **temper runs smith's stock agent,** on workers, one process per run:
-  temper's own binary run as `temper agent`, smith's agent shell
+  temper's own binary run as `temper internal agent`, smith's agent shell
   (`../protocol/README.md`, section 4). temper builds no code into it. A
   run's charter and its host's answers are all that make it temper's.
 - **The engine writes the charter** (section 4): the task's instructions,
@@ -489,9 +489,9 @@ a person says they work into a proposal of settings
   and proposes; only an owner's decision changes settings (jig's
   `domain/engine.md`, 17.6). A member's configuring chat proposes as
   an owner's does, and its proposal waits for an owner.
-- **Started from ctl** with `chat --project P --template 3 TEXT`
-  (`../client/tools.md`, 5.3), and, once the user's pages land, from
-  "Tell temper how you work".
+- **Started from ctl** with `chat start --project PROJECT --template 3
+  TEXT` (`../client/tools.md`, 5.3), and, once the user's pages land,
+  from "Tell temper how you work".
 - **Its tests** are `testing.md`, 6.4's: scripted runs in the engine's
   domain world for its flows, and one process story through ctl.
 
@@ -524,11 +524,12 @@ rung B0 of `../draft/v0.1.0.md`.
   the chat (jig's `domain/tasks.md`, 8.1; jig's `domain/people.md`,
   section 6). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
-- **The person answers in the inbox,** `temper ctl answer N M TEXT`
-  (`../client/tools.md`, 5.3) or the inbox's page. The chat, woken by
-  the answer, relays it to the goal as the answer to the question's
-  number, and says so. The goal then calls `change` with what was
-  agreed, waits for its result and reports; the chat says what landed.
+- **The person answers in the inbox,** `temper ctl task answer TASK
+  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page. The
+  chat, woken by the answer, relays it to the goal as the answer to the
+  question's number, and says so. The goal then calls `change` with what
+  was agreed, waits for its result and reports; the chat says what
+  landed.
 - **Nothing is changed before the answer:** no change task, branch or
   pull request exists until the goal calls `change`.
 - **Its stories:** `fuzzy_green_light` on fakes (testing.md, 2.4), and
