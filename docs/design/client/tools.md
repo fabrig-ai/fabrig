@@ -476,7 +476,11 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   condition on that last panel, its digest the last panel's. Any other
   end answers not met, exit 3, with the last panel and its digest, and
   a task that ended with no change result prints `no change panel for
-  task N`, exit 2.
+  task N`, exit 2. A watch the engine let go as it stopped is no end
+  (below): the wait goes on through jig's client's reopening, and its
+  read of task N, like every read a wait makes, waits out a link down
+  within the link's deadline (section 12) and fails only past it, as
+  the link down's line (6.3), never as a task it could not read.
 - **A change's wait follows its task,** since the panel of a change
   that ended without landing keeps its last step (`../domain/forge.md`,
   8.8): the wait watches task N beside the panel, and when the task
