@@ -96,14 +96,14 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   `{"main": {"model": "gpt-6.1-sol", "effort": "high"}}`) sets it for
   every chat of a running box.
 - **Its room is raised beside it,** in `temper.json` before the start:
-  `engine.limits`' overrides `"people.requests": 256` and
+  `engine.limits`' overrides `"people.requests": 128` and
   `application.limits`' overrides `"root.loads.loads": 32`. The small
   profile keeps each deciding request's answer a day in 32 places, which
   one busy pass fills, after which every keyed request answers busy
   (jig's `domain/people.md`, 5.1); and its 2 load slots are too few for
   a restart with held work loaded. Its retention stays a day, and the
   memory the start then names is raised as 13.8 says (below). A box
-  that still answers busy past 256 has met that finding again, not a
+  that still answers busy past 128 has met that finding again, not a
   new one. These are a QA box's, as the budget is (below); the
   product's own values are the user's, settled apart.
 - **One configuration, checked before the first start.** Every change
@@ -120,7 +120,7 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
 
   ```
   jq -e '.engine.llm.models[0] | .name == "gpt-6.1-sol" and .output == 32000 and .efforts[0] == "high"' CONFIG/temper.json
-  jq -e '.engine.limits.overrides | .["people.requests"] == 256 and .["hub.turn_bytes"] == 1479864' CONFIG/temper.json
+  jq -e '.engine.limits.overrides | .["people.requests"] == 128 and .["hub.turn_bytes"] == 1479864' CONFIG/temper.json
   jq -e '.application.limits.overrides["root.loads.loads"] == 32' CONFIG/temper.json
   jq -e '.endpoints[0].models[0] | .name == "gpt-6.1-sol" and .output == 32000 and .reasoning_item == 32768' CONFIG/agent.json
   ```
