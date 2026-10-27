@@ -764,15 +764,15 @@ first failure, but where a row says otherwise.
 | `Write::SetReviewers { number, reviewers }` | `GET R/pulls/<number>`; `POST R/pulls/<number>/requested_reviewers` `{reviewers: [logins]}` for those missing; `DELETE R/pulls/<number>/requested_reviewers` with the same body for those extra | `Done` |
 | `Write::Close { number }` | `PATCH R/issues/<number>` `{state: closed}` | `Done` |
 | `Write::Reopen { number }` | `PATCH R/issues/<number>` `{state: open}` | `Done` |
-| `Write::Merge { number, head, how }` | `POST R/pulls/<number>/merge` `{Do, head_commit_id: <head>}`, `Do` the repository's style or `fast-forward-only`; `GET R/pulls/<number>` | `Merged` from `merge_commit_sha` (the merge answers with no body) |
+| `Write::Merge { number, head, how }` | `POST R/pulls/<number>/merge` `{Do, head_commit_id: <head>}`, `Do` the repository's style or `fast-forward-only`; `GET R/pulls/<number>` | `Merged` from `merge_commit_sha` (the merge answers with no body); a fast-forward-only merge whose head no longer contains the base's tip answers `500` ("DivergingFastForwardOnly"), the base unchanged, which the dialect keeps as `Timeout`, so the client settles it by its find (forge-client.md, 7.5) |
 | `Write::Update { number, style }` | `POST R/pulls/<number>/update?style=merge\|rebase` | `Done` |
 | `Write::Status { commit, context, check, description, link }` | `POST R/statuses/<commit>` `{state: pending\|success\|failure, context, description, target_url}`, the last two only when not empty | `Done` |
-| `Read::Tree { object, page }` | `GET R/git/trees/<object>?page=<page>&per_page=<size>` | each entry's `path` as its name, `mode`, `type` (`blob`, `tree`, `commit`) and `sha`; `more` when the page came full or `truncated` is true |
-| `Read::Runs { workflow, commit, page }` | `GET R/actions/runs?workflow=<workflow>&head_sha=<commit>&page=<page>&limit=<size>` | each run as a `Run` without its jobs, newest first, its event from `event` and its user from `trigger_actor.id`; `more` when the page came full |
+| `Read::Tree { object, page }` | `GET R/git/trees/<object>?page=<page>&per_page=<size>` | each entry's `path` as its name, `mode`, `type` (`blob`, `tree`, `commit`) and `sha`, in git's order; `more` when the page came full (Forgejo's `truncated` stays true on a short last page, so it is not read); a `tree` of `null` past the last page is an empty page |
+| `Read::Runs { workflow, commit, page }` | `GET R/actions/runs?head_sha=<commit>&page=<page>&limit=<size>` (Forgejo ignores a `workflow` filter, so the dialect keeps the rows whose workflow file is the call's) | each run as a `Run` without its jobs, newest first, its event from `trigger_event`, its user from `trigger_user.id`, made at `created`; `more` when the provider's page came full, counted on its rows before the dialect's filter |
 | `Read::Run { run }` | `GET R/actions/runs/<run>`; `GET R/actions/runs/<run>/jobs`; for each failed job, `GET R/actions/jobs/<job>` for its steps | the `Run` with its jobs and each failed job's failed step (5.2's notes, "A failed job's log") |
 | `Read::Artifact { run, name, max_bytes }` | `GET R/actions/runs/<run>/artifacts?name=<name>`; `GET R/actions/artifacts/<id>/zip` | the archive's one entry, inflated where deflated, its first `max_bytes` bytes; `truncated` when more came; `Missing` when no artifact has the name; `Refused` for an archive of several entries or another compression |
 | `Read::Commits { before, after, page }` | `GET R/compare/<before>...<after>?files=false&verification=false`, its `commits` from the page's offset | each commit's `sha`, `parents[].sha` and `commit.message`, oldest first; `more` when a page's worth is left |
-| `Write::Dispatch { workflow, branch, inputs }` | `POST R/actions/workflows/<workflow>/dispatches` `{ref: <branch>, inputs}` | `Done`; `Missing` for a `404` (no such workflow, or no such branch) |
+| `Write::Dispatch { workflow, branch, inputs }` | `POST R/actions/workflows/<workflow>/dispatches` `{ref: <branch>, inputs}` | `Done`; `Missing` for a `404` (no such workflow); `Refused` for a `400` (no such branch: "could not expand reference") |
 | `Write::Rerun { attempt }` | `POST R/actions/jobs/<attempt's job>/rerun` | `Done`; `Refused` for a `400` (the run has not completed) |
 | `Write::CreateBranch { branch, commit }` | `POST R/branches` `{new_branch_name: <branch>, old_ref_name: <commit>}` | `Branch(Created)`; a `409` (the branch exists) `Branch(Exists)` |
 | `Write::DeleteBranch { branch }` | `DELETE R/branches/<branch>` | `Done` |
@@ -1394,22 +1394,28 @@ on. What no run records yet has its own bullet, near the end.
     come whole however many there are (5.2, `Item` and `Remarks`);
   - that a job no runner took has no steps, and that its log, and a log
     Forgejo no longer keeps, answer `404` (5.2, "A failed job's log").
-- **Actions and trees, to record before a plan relies on them:** a
-  dispatch answers
-  `204` with no run, `404` for a workflow or a branch absent, and runs
-  at the branch's head at the time it is read, its jobs' statuses on
-  that commit; the runs' listing filters by `workflow` and `head_sha`,
-  newest first, each run naming its event and the user who triggered
-  it; a dispatch's inputs reach the run; a job's rerun answers
-  `204`, and `400` while its run has not completed; a merge with `Do:
-  fast-forward-only` and `head_commit_id` moves the base to the head,
-  refuses a head that does not contain the base's tip, and marks the
-  pull request merged; an update with `style=rebase` rewrites the
-  branch onto the base's tip and refuses a conflict with `409`; a
-  status's `description` and `target_url` read back as written; a tree
-  read by a commit's id answers its root tree, paged, with `truncated`
-  past its page; a run's artifact is listed by name and downloaded as a
-  zip; a comparison's commits are oldest first with their messages.
+- **Actions, trees and the turn, recorded** (Forgejo 17.0.0 and runner
+  13.2.0, the conformance's `landings` facts: 24 hold, 7 recorded as
+  failing and followed by the dialect and the fake): a dispatch answers
+  `204` with no run, `404` for an absent workflow and `400` for an
+  absent branch, and runs at the branch's head as it is read; a
+  dispatched run's `event` is empty and its `trigger_event` is
+  `workflow_dispatch`, its user `trigger_user`; the runs' listing
+  honours `head_sha`, newest first, and ignores `workflow`; a
+  dispatch-only job publishes no commit status on its head, so a run is
+  followed by reading it, never by statuses; a fast-forward-only merge
+  with `head_commit_id` moves the base to the head and marks the pull
+  request merged at it, and a diverged one is `500` with the base
+  unchanged; an update with `style=rebase` is refused `409` on a
+  conflict, and an up-to-date one answers `200` unchanged; a status's
+  `description` and `target_url` read back as written; a tree comes in
+  git's order, its `truncated` true on its short last page and its
+  `tree` `null` past it.
+- **Still to record before a plan relies on them:** a dispatch's inputs
+  reaching the run; a job's rerun answering `204`, and `400` while its
+  run has not completed; a run's artifact listed by name and downloaded
+  as a zip; a comparison's commits oldest first with their messages; a
+  label's creation, and an issue's labels set by name.
 - **The setup's, and the owner's git.** What reconcile relies on
   (Forgejo's command line, its admin routes, orgs, repositories'
   collaborators and hooks, the runner) is forge-setup.md, section 8's.
