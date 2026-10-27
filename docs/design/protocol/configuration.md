@@ -1589,6 +1589,13 @@ into the binary.
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4 |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 48K is a week's: the user's, confirmed on temper#14 (10-27). A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
+- **Each charter's host families** (its `tools`, jig's
+  `domain/engine.md`, 7.1): charters 1, 2 and 4 name every host family
+  but settings, as every run was offered before; charter 3 names those
+  its row lists, settings among them. A run is offered a family's tools
+  where its charter names the family and its task's authority holds it,
+  and each charter's offered host part is checked against smith's bound
+  (`../domain/agent.md`, 4.3).
 - **The configuring agent is a setting** like any other (`../draft/configuring.md`, 5.1): "Tell temper how you work" starts template 3,
   which an owner may change or remove as any template. Its runs read
   and propose settings; they never change one, since jig's `settings`

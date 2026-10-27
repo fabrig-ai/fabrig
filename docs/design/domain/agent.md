@@ -132,8 +132,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   never in an Open run (4.6).
 - **Every host tool below,** declared in every charter, each with the
   charter's call timeout, but those of the `settings` family, declared
-  only where the run's charter declares that family and its task's
-  authority has it: charter 3 alone in the stock
+  only where the run's charter names that family in its `tools` (jig's
+  `domain/engine.md`, 7.1) and its task's authority has it: charter 3
+  alone in the stock
   (`../protocol/configuration.md`, 13.4). The task's authority decides
   each call by its family (jig's `domain/authority.md`, sections 3 and
   8.5): a call beyond it is answered beyond authority, naming what it
