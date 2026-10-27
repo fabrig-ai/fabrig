@@ -53,6 +53,7 @@ pub const ENDINGS: &[&str] = &[
     "restart before durable",
     "restart after durable",
     "busy",
+    "answers full",
     "waiter busy",
 ];
 
@@ -1270,11 +1271,12 @@ impl World {
         {
             let call = self.ask(10, [byte; 16], b"fill");
             self.commit_all();
-            if self.reply(call) == Some(Reply::Again(Again::Busy)) {
-                self.ending("busy");
+            if let Some(Reply::Again(Again::Full { held, .. })) = self.reply(call) {
+                assert_eq!(held, self.settings.limits.requests);
+                self.ending("answers full");
             }
         }
-        assert!(self.stats.endings.contains("busy"));
+        assert!(self.stats.endings.contains("answers full"));
         self.advance(Duration::from_secs(61));
         let expired = self.ask(10, [3; 16], b"hello");
         self.commit_all();
