@@ -8,6 +8,9 @@ Key: none.
 It takes no --key. It creates FILE, mode 0600, before sending
 anything, writes and syncs the account's record, and only then
 tells the engine; the account then leaves this deployment. A
-failure before that removes FILE, and the engine keeps the account
-and cancels the move at its deadline: export again after it.
+failure before that removes FILE, and the account stays here.
+`unsent`: the engine did not take the move (busy, its room for
+the answers it keeps full, say) and nothing moved: export again
+later; me prints how long answers are kept. Any other failure:
+the engine cancels the move at its deadline: export again after it.
 On the deployment it moves to, account import FILE, as it is.
