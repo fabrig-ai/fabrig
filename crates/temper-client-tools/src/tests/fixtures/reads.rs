@@ -254,6 +254,7 @@ pub(crate) fn inbox_answer(needs: u32, updates: u32, more: bool) -> crate::jig::
     let (mut root, call) = read_call(INBOX_CALL);
     root.serve(call, inbox_rows(c::InboxReadGroup::Needs, needs, false));
     root.serve(call, inbox_rows(c::InboxReadGroup::Updates, updates, more));
+    root.deliver_subject(&inbox_watch(), c::Delivery::Inbox(Box::new(inbox_window(needs, updates, more))));
     root.answer(call).expect("inbox answered once")
 }
 /// A full needs page leaves no room for the single update; a smaller page fits.

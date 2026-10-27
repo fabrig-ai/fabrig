@@ -49,6 +49,11 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
                 finish(reading.called, printed, out);
                 return;
             }
+            if render::document::subjects::inbox_eligible(&reading.called.call) {
+                // Pages may omit updates the watch holds, or carry a group
+                // continuation that is not the window's `more` marker.
+                watch(runner, &mut reading, 3, c::Subject::Inbox { window: env.limits.rows }, out);
+            }
         }
         2 => {
             let Some(document) = client.document(runner.me()) else { return };

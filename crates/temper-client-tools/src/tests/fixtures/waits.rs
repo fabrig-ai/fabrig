@@ -246,6 +246,7 @@ pub(crate) fn wait_cases(root: &mut Harness) -> [WaitCase; WAIT_SUBJECTS] {
     let call = root.submit(argv.as_slice());
     root.serve(call, inbox_rows(c::InboxReadGroup::Needs, SHORT_WINDOW, false));
     root.serve(call, inbox_rows(c::InboxReadGroup::Updates, WINDOW_UPDATES, false));
+    root.deliver_subject(&inbox_watch(), c::Delivery::Inbox(Box::new(inbox.clone())));
     let inbox_read = root.answer(call).expect("inbox read");
     let (tasks, watched) = tasks_first_window(OVER_WINDOW, true);
     let task = goal(TASK, waiting_on_me());

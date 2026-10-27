@@ -46,7 +46,13 @@ fn an_inbox_cursor_of_another_group_than_its_kind_exits_1() {
 
 #[test]
 fn an_inbox_reads_on_in_needs_while_needs_has_more() {
-    let printed = fixtures::read_answer(fixtures::INBOX_CALL, fixtures::inbox_page(true));
+    let (mut root, call) = fixtures::read_call(fixtures::INBOX_CALL);
+    root.serve(call, fixtures::inbox_page(true));
+    root.deliver_subject(
+        &fixtures::inbox_watch(),
+        c::Delivery::Inbox(Box::new(fixtures::inbox_window(fixtures::PAGE_ROWS, 0, true))),
+    );
+    let printed = root.answer(call).expect("read and window answered");
     assert_eq!(printed.stdout, fixtures::golden("inbox_needs_next"));
 }
 #[test]

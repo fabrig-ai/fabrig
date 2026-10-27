@@ -99,11 +99,7 @@ pub(crate) fn text_digest(name: &[u8], part: &Part<'_>, limits: &Limits, out: &m
 }
 
 #[must_use]
-pub(crate) fn inbox(
-    reading: &crate::jig::runner::reads::Reading,
-    limits: &Limits,
-    displayed: bool,
-) -> jig_client::contract::ReadValue {
+pub(crate) fn inbox(reading: &crate::jig::runner::reads::Reading, limits: &Limits) -> jig_client::contract::ReadValue {
     use jig_client::{Readout, contract as c};
     let capacity = limits.rows.checked_mul(2).expect("two bounded pages");
     let mut entries = skein_lib::List::with_capacity(capacity);
@@ -111,7 +107,7 @@ pub(crate) fn inbox(
     let mut owner = false;
     let fit = super::super::lists::updates_fit(reading, limits.rows);
     for (local, page) in &reading.pages {
-        if displayed && *local == 5 && !fit {
+        if *local == 5 && !fit {
             continue;
         }
         match page {
@@ -161,10 +157,9 @@ pub(crate) fn tasks_eligible(call: &crate::jig::call::Call) -> bool {
 }
 
 pub(crate) fn encode_inbox_read(reading: &crate::jig::runner::reads::Reading, limits: &Limits, out: &mut Encoder) {
-    let normalized = inbox(reading, limits, false);
-    let normalized = Part::read(&normalized).expect("inbox form");
+    let normalized = crate::jig::digest::inbox(reading.documents.get(&3).expect("inbox watch"));
     let digest = crate::jig::digest::part(&normalized, limits);
-    let displayed = inbox(reading, limits, true);
+    let displayed = inbox(reading, limits);
     let displayed = Part::read(&displayed).expect("inbox form");
     out.object_start();
     out.key(b"inbox");

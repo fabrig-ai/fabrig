@@ -61,36 +61,46 @@ pub(crate) const WINDOW_UPDATES: u32 = 2;
 pub(crate) const OTHER_CURSOR: &[u8] = &[0x33, 0x44];
 pub(crate) fn inbox_first_window(total: u32) -> (c::InboxPage, c::Inbox) {
     let needs = total.checked_sub(WINDOW_UPDATES).expect("window includes both groups");
-    let c::ReadResult::Value(c::ReadValue::Inbox(needs)) = inbox_rows(c::InboxReadGroup::Needs, needs, false) else {
+    let watched = inbox_window(needs, WINDOW_UPDATES, false);
+    let page = c::InboxPage {
+        rows: watched.entries.clone(),
+        before: None,
+        after: if watched.more { Some(cursor()) } else { None },
+        cut: false,
+    };
+    (page, watched)
+}
+/// The fake engine's first window, independently of the read's group pages.
+pub(crate) fn inbox_window(needs: u32, updates: u32, more: bool) -> c::Inbox {
+    let c::ReadResult::Value(c::ReadValue::Inbox(needs_page)) = inbox_rows(c::InboxReadGroup::Needs, needs, false)
+    else {
         panic!("needs page")
     };
-    let c::ReadResult::Value(c::ReadValue::Inbox(updates)) =
-        inbox_rows(c::InboxReadGroup::Updates, WINDOW_UPDATES, false)
+    let c::ReadResult::Value(c::ReadValue::Inbox(updates_page)) = inbox_rows(c::InboxReadGroup::Updates, updates, more)
     else {
         panic!("updates page")
     };
     let mut rows = List::with_capacity(crate::limits::ROWS);
-    for row in needs
+    for row in needs_page
         .rows
         .as_slice()
         .iter()
-        .chain(updates.rows.as_slice())
+        .chain(updates_page.rows.as_slice())
         .take(usize::try_from(crate::limits::ROWS).expect("window bound"))
     {
         rows.push(row.clone()).expect("bounded first window");
     }
-    let more = total > crate::limits::ROWS;
-    let page =
-        c::InboxPage { rows: rows.clone(), before: None, after: if more { Some(cursor()) } else { None }, cut: false };
-    let watched = c::Inbox {
+    c::Inbox {
         entries: rows,
-        more,
-        needs: c::Needs { questions: needs.rows.len(), proposals: 0, escalations: 0, person_tasks: 0 },
-        updates: c::Count { value: WINDOW_UPDATES, limited: false },
+        more: more || needs.checked_add(updates).expect("two pages") > crate::limits::ROWS,
+        needs: c::Needs { questions: needs, proposals: 0, escalations: 0, person_tasks: 0 },
+        updates: c::Count { value: updates, limited: false },
         results_seen: 0,
         replies_seen: List::with_capacity(EMPTY),
-    };
-    (page, watched)
+    }
+}
+pub(crate) fn inbox_watch() -> client::Watchable {
+    client::Watchable::Jig(c::Subject::Inbox { window: crate::limits::ROWS })
 }
 /// Print a first inbox page while preserving its real group continuations.
 pub(crate) fn inbox_json_answer(needs: u32, updates: u32, more: bool) -> crate::jig::Printed {
@@ -98,6 +108,7 @@ pub(crate) fn inbox_json_answer(needs: u32, updates: u32, more: bool) -> crate::
     let (mut root, call) = read_call(argv.as_slice());
     root.serve(call, inbox_rows(c::InboxReadGroup::Needs, needs, false));
     root.serve(call, inbox_rows(c::InboxReadGroup::Updates, updates, more));
+    root.deliver_subject(&inbox_watch(), c::Delivery::Inbox(Box::new(inbox_window(needs, updates, more))));
     root.answer(call).expect("inbox answered")
 }
 

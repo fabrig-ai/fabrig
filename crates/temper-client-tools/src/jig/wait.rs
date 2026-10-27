@@ -180,6 +180,8 @@ fn changed(runner: &mut Runner, client: &Client, env: &Env<Limits>, number: u32,
             return;
         }
         accounts.digest(&env.limits)
+    } else if wait.name == b"inbox" {
+        digest::part(&digest::inbox(delivery), &env.limits)
     } else {
         let Some(part) = Part::delivery(delivery) else { return };
         digest::part(&part, &env.limits)

@@ -30,3 +30,27 @@ impl Digest {
 pub fn part(part: &Part<'_>, limits: &Limits) -> Digest {
     Digest::of(&crate::jig::render::document::part_bytes(part, limits))
 }
+
+/// The inbox subject is always its watch's window, needs then updates,
+/// bounded by the tools' rows. Read pages and their cursors are separate.
+pub(crate) fn inbox(delivery: &jig_client::contract::Delivery) -> Part<'_> {
+    use jig_client::contract::Delivery;
+    match delivery {
+        Delivery::Inbox(value) => Part::Inbox(value),
+        Delivery::OwnerInbox(value) => Part::OwnerInbox(value),
+        Delivery::Me(_)
+        | Delivery::Tasks(_)
+        | Delivery::Task(_)
+        | Delivery::Tree(_)
+        | Delivery::OwnerTree(_)
+        | Delivery::Run(_)
+        | Delivery::RunState(_)
+        | Delivery::OwnerProject(_)
+        | Delivery::OwnerProposal(_)
+        | Delivery::Chips(_)
+        | Delivery::Settings(_)
+        | Delivery::Deployment(_)
+        | Delivery::OwnerDeployment(_)
+        | Delivery::OwnerAccounts(_) => unreachable!("inbox watch form"),
+    }
+}

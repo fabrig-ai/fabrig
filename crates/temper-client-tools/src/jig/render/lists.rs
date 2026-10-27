@@ -247,13 +247,8 @@ pub(super) fn inboxes(reading: &Reading, limits: &crate::jig::Limits, out: &mut 
         }
     }
     if super::document::subjects::inbox_eligible(&reading.called.call) {
-        let normalized = super::document::subjects::inbox(reading, limits, false);
-        super::document::subjects::text_digest(
-            b"inbox",
-            &super::Part::read(&normalized).expect("inbox form"),
-            limits,
-            out,
-        );
+        let normalized = crate::jig::digest::inbox(reading.documents.get(&3).expect("inbox watch"));
+        super::document::subjects::text_digest(b"inbox", &normalized, limits, out);
     }
     next(&reading.called.call, 3, inbox_cursor(reading, rows).as_ref(), out);
 }

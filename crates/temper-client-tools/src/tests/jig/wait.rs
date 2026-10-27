@@ -631,3 +631,143 @@ fn task_tree_reads_the_tree_alone() {
         }
     }
 }
+
+// Supply the engine's pages and window separately: a group cursor can leave
+// all updates for the read-on call while the watch already holds them.
+fn inbox_read(
+    needs: u32,
+    updates: u32,
+    needs_more: bool,
+    owner: bool,
+    json: bool,
+) -> (f::Harness, crate::jig::Printed, c::Delivery) {
+    let mut root = f::signed_in(f::PARTY);
+    let argv = f::extended(f::INBOX_CALL, if json { &["--json"] } else { &[] });
+    let call = root.submit(argv.as_slice());
+    let delivery;
+    if owner {
+        let (mut needs_page, mut window) = f::owner_first_window(needs, false);
+        let (mut updates_page, _) = f::owner_first_window(updates, false);
+        for index in 0..updates_page.rows.len() {
+            let row = updates_page.rows.get_mut(index).expect("update row");
+            row.object = if index == 0 {
+                c::OwnerInboxObject::Result { position: 1 }
+            } else {
+                c::OwnerInboxObject::Reply { message: 2 }
+            };
+        }
+        window.cached_needs = needs;
+        window.updates = updates_page.rows.clone();
+        window.cached_updates.value = updates;
+        if needs_more {
+            needs_page.after = Some(f::cursor());
+        }
+        root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(needs_page))));
+        if !needs_more {
+            root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(updates_page))));
+        }
+        delivery = c::Delivery::OwnerInbox(Box::new(window));
+    } else {
+        root.serve(call, f::inbox_rows(c::InboxReadGroup::Needs, needs, needs_more));
+        if !needs_more {
+            root.serve(call, f::inbox_rows(c::InboxReadGroup::Updates, updates, false));
+        }
+        delivery = c::Delivery::Inbox(Box::new(f::inbox_window(needs, updates, false)));
+    }
+    assert!(root.answer(call).is_none(), "read needs the watch's form too");
+    root.deliver_subject(&f::inbox_watch(), delivery.clone());
+    let read = root.answer(call).expect("read and first window delivered");
+    assert_eq!(read.status, 0);
+    assert_eq!(root.watches.len(), f::SHARED_WATCHES, "read closes its watch");
+    (root, read, delivery)
+}
+
+fn inbox_text_digest(bytes: &[u8]) -> &[u8] {
+    let marker = b"digest: inbox ";
+    let start =
+        skein_lib::bytes::find(bytes, marker).expect("inbox digest").checked_add(marker.len()).expect("digest offset");
+    bytes.get(start..start.checked_add(16).expect("digest end")).expect("sixteen digest digits")
+}
+
+#[test]
+fn an_inbox_wait_since_its_reads_digest_waits_while_nothing_moves() {
+    // The closed chat left a result and reply, no needs, and a needs cursor.
+    let (mut root, read, delivery) = inbox_read(0, f::WINDOW_UPDATES, true, true, false);
+    let digest = inbox_text_digest(&read.stdout);
+    assert!(read.stdout.starts_with(b"digest: inbox "));
+    assert!(f::has(&read, b"read on with: inbox --after 001122"));
+    let mut argv = skein_lib::List::with_capacity(5);
+    for word in [b"inbox".as_slice(), b"--since", digest, b"--timeout", b"2s"] {
+        argv.push(word).expect("five arguments");
+    }
+    let crate::jig::call::Parsed::Call { call, json: false } = crate::table::parse(argv.as_slice()).expect("wait argv")
+    else {
+        panic!("plain wait")
+    };
+    let call = root.submit_call(call, false);
+    root.deliver_subject(&f::inbox_watch(), delivery);
+    assert!(root.answer(call).is_none(), "same first window must wait");
+    root.now = Time::ZERO.checked_add(skein_lib::Duration::from_secs(1)).expect("before deadline");
+    root.fire();
+    assert!(root.answer(call).is_none(), "timeout must not fire early");
+    root.now = Time::ZERO.checked_add(skein_lib::Duration::from_secs(2)).expect("deadline");
+    root.fire();
+    let answer = root.answer(call).expect("timeout");
+    assert_eq!(answer.status, 3);
+    assert!(answer.stdout.ends_with(b"not met: timeout\n"));
+    assert_eq!(inbox_text_digest(&answer.stdout), digest);
+    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(crate::root::next_deadline(&root.root), None);
+}
+
+#[test]
+fn the_inbox_reads_digest_is_its_waits_first() {
+    for owner in [false, true] {
+        for (needs, updates, needs_more) in [
+            (f::PAGE_ROWS, 0, false),
+            (0, f::WINDOW_UPDATES, false),
+            (f::PAGE_ROWS, f::WINDOW_UPDATES, false),
+            (f::SHORT_WINDOW, f::WINDOW_UPDATES, false),
+            (f::FULL_WINDOW, f::WINDOW_UPDATES, false),
+            (f::FULL_WINDOW, f::WINDOW_UPDATES, true),
+            (0, f::WINDOW_UPDATES, true),
+        ] {
+            let (mut root, read, delivery) = inbox_read(needs, updates, needs_more, owner, true);
+            let digest = f::last_digest(&read.stdout);
+            // An arbitrary different digest makes the wait print its first delivery.
+            let call = root.wait_since(f::INBOX_CALL, &[], b"0000000000000000");
+            root.deliver_subject(&f::inbox_watch(), delivery);
+            let answer = root.answer(call).expect("first delivery differs");
+            assert_eq!(answer.status, 0);
+            assert_eq!(
+                f::last_digest(&answer.stdout),
+                digest,
+                "owner={owner}, needs={needs}, updates={updates}, needs_more={needs_more}"
+            );
+        }
+    }
+}
+
+#[test]
+fn an_inbox_wait_since_its_reads_digest_answers_at_a_new_update() {
+    let (mut root, read, mut delivery) = inbox_read(0, f::PAGE_ROWS, true, true, true);
+    let digest = f::last_digest(&read.stdout);
+    let call = root.wait_since(f::INBOX_CALL, &[], &digest);
+    root.deliver_subject(&f::inbox_watch(), delivery.clone());
+    assert!(root.answer(call).is_none());
+    let c::Delivery::OwnerInbox(window) = &mut delivery else { panic!("owner inbox") };
+    let mut updates = skein_lib::List::with_capacity(f::WINDOW_UPDATES);
+    let first = window.updates.get(0).expect("existing update").clone();
+    updates.push(first.clone()).expect("existing update fits");
+    let mut next = first;
+    next.object = c::OwnerInboxObject::Reply { message: 2 };
+    updates.push(next).expect("new update fits");
+    window.updates = updates;
+    window.cached_updates.value = f::WINDOW_UPDATES;
+    root.deliver_subject(&f::inbox_watch(), delivery);
+    let answer = root.answer(call).expect("new update answers");
+    assert_eq!(answer.status, 0);
+    assert_ne!(f::last_digest(&answer.stdout), digest);
+    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(crate::root::next_deadline(&root.root), None);
+}
