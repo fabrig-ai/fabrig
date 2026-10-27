@@ -59,8 +59,15 @@ pub fn write(scratch: &Path, forge: SocketAddr, fixture: &Fixture) -> std::io::R
     fixtures::finish_configuration(scratch, &mut config)?;
     fixtures::private(&scratch.join("agent.json"), &serde_json::to_vec(&agent)?)
 }
+/// The outside forge API at each change of its branches or open pulls.
+pub struct Snapshot {
+    pub at: Time,
+    pub branches: Box<[(Box<[u8]>, u64)]>,
+    pub pulls: Box<[u64]>,
+}
 #[derive(Default)]
 pub struct Seen {
+    snapshots: Vec<Snapshot>,
     deliveries: Vec<Delivery>,
     pub(crate) responses: Vec<u16>,
     observations: Vec<domain::Observation>,
@@ -68,6 +75,11 @@ pub struct Seen {
     main: std::collections::BTreeMap<Vec<u8>, Vec<u8>>,
 }
 impl Seen {
+    #[must_use]
+    pub fn snapshots(&self) -> &[Snapshot] {
+        &self.snapshots
+    }
+
     #[must_use]
     pub fn deliveries(&self) -> &[Delivery] {
         &self.deliveries
@@ -112,7 +124,24 @@ impl Seen {
             .map(|(path, bytes)| (path.to_vec(), bytes.to_vec()))
             .collect();
     }
-    pub(crate) fn collect(&mut self, peer: &Peer, handle: &Rc<RefCell<Forge>>) {
+    pub(crate) fn collect(&mut self, now: Time, peer: &Peer, handle: &Rc<RefCell<Forge>>, repository: &[u8]) {
+        {
+            let forge = handle.borrow();
+            let branches: Box<[_]> =
+                forge.domain.branches(repository).iter().map(|(name, head)| (name.clone(), *head)).collect();
+            let api::Answer::Pulls(pulls) = forge
+                .domain
+                .inspect(&forge.config, repository, &api::Read::OpenPulls { page: 1, limit: 32 })
+                .expect("outside open-pulls read")
+            else {
+                panic!("open pulls")
+            };
+            let pulls: Box<[_]> = pulls.iter().map(|pull| pull.number).collect();
+            if self.snapshots.last().is_none_or(|last| last.branches != branches || last.pulls != pulls) {
+                assert!(self.snapshots.len() < STORY_OBSERVATIONS as usize, "bounded forge snapshots");
+                self.snapshots.push(Snapshot { at: now, branches, pulls });
+            }
+        }
         self.deliveries = peer
             .observations()
             .iter()
@@ -164,6 +193,7 @@ impl Seen {
 pub(crate) struct State {
     pub(crate) handle: Rc<RefCell<Forge>>,
     pub(crate) moved: bool,
+    pub(crate) repository: Box<[u8]>,
     pub(crate) hooked: bool,
 }
 impl State {
@@ -172,6 +202,7 @@ impl State {
         assert_eq!(setup.id, ID, "the primary repository keeps the hosted fixture identity");
         let setups = std::iter::once(setup).chain((fixture.extra_setups)()).collect::<Vec<_>>();
         let setup = &setups[0];
+        let repository = setup.name.clone();
         let mut table =
             temper_fake_git_hosted::fixtures::table(&setup.name, setup.protection.as_ref().map(|p| p.branch.as_ref()));
         // fixtures::table reserves one repository; rebuild before sharing with
@@ -228,7 +259,7 @@ impl State {
         // the first is a connection's opening or a delivery, so heads and calls,
         // a pair for each of the clients' polls, are never kept.
         .keeping(Kept { connections: true, deliveries: true, ..Kept::NONE });
-        (Self { handle, moved: false, hooked: false }, peer)
+        (Self { handle, moved: false, hooked: false, repository }, peer)
     }
     pub(crate) fn hand_hooks(&mut self, address: SocketAddr) {
         self.handle.borrow_mut().hooks = Some(skein_fake_forge_protocol::delivery::Endpoint {

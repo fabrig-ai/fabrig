@@ -1,184 +1,145 @@
-//! The person's inbox green light lets the work delegate a CSV change and land it.
-//! The harness names its one fake repository acme/app; it stands as the first
-//! run's playground/widget, with widget's src/main.rs in its tree.
+//! B0's first passing walk, replayed on the fake peers (domain/testing.md, 2.4).
+//! Until temper-playground exists, its story documents live in tests/fixtures/b0.
+//! Regenerate the scripts, including the fresh fake commit identities, from the workspace root:
+//! `sh tests/real-loop/tests/fixtures/b0/regenerate.sh [DEPLOYMENT]`.
+//! The command runs tools/twin over walk 1's five model tasks; opaque reasoning is omitted.
 use crate::{
-    Exit, Ran, argv,
+    Exit, ForgeRecipe, Ran, argv,
     calls::{self, D1, number},
-    forge, landing,
+    forge, landing, llm,
 };
-use serde_json::{Value, json};
-use skein_fake_forge_domain::api;
-use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Role, Script, Turn};
-use std::net::SocketAddr;
+use serde_json::Value;
+use skein_fake_llm_domain::api::{Part, Query, Role};
+use std::{
+    net::SocketAddr,
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
-// Fresh deployment numbers, checked against ctl documents and the LLM queries.
-// Jig numbers messages deployment-wide; nothing precedes the work's question.
+pub const TASKS: [u64; 5] = [1, 2, 4, 5, 6];
+pub const CUES: [&str; 5] = [
+    "[Requested by person 1]",
+    "[Requested by task 1]",
+    "Implement the approved CSV export for widget.",
+    "Review this change at the named head",
+    "This review is asked again at the same head",
+];
+const CHAT_CUE: &str = CUES[0];
+const WORK_CUE: &str = CUES[1];
 const CHAT: u64 = 1;
 const WORK: u64 = 2;
 const CHANGE: u64 = 3;
 const PRODUCER: u64 = 4;
 const QUESTION: u64 = 1;
-const REQUEST: &str = "Add CSV export to widget: agree the plan with me before anything is changed.";
-const CHAT_SPEND: u64 = 100;
-const QUESTION_WORDS: &str = "Export widget's table as CSV in src/main.rs and land it on main. Go ahead?";
-const ANSWER: &str = "Go ahead.";
-const CHANGE_SPEC: &str = "@green_coding Export widget's table as CSV";
-const WORK_REPORT: &str = "The CSV export landed.";
-// Fits the chat template's 32-byte report contract.
-const CHAT_REPORT: &str = "The CSV export landed.";
-const CHAT_DELEGATED: &str = "T2 asks before it starts.";
-const CHAT_ASKED: &str = "T2's question waits in your inbox.";
-const CHAT_ANSWERED: &str = "Your green light went to T2.";
-const WORK_ASKED: &str = "Asked for a green light.";
-const WORK_DELEGATED: &str = "The change is under way.";
-const CHAT_CUE: &str = "[Requested by person 1]";
-const WORK_CUE: &str = "[Requested by task 1]";
-const CODING_CUE: &str = "@green_coding";
-const REVIEW_CUE: &str = "Review this change at the named head";
-const SOURCE: &str = r#"fn main() {
-    println!("Name | Value");
-    for (name, value) in [("alpha", 1), ("beta", 2)] {
-        println!("{name} | {value}");
-    }
+
+fn person(member: &str) -> &'static str {
+    static PERSON: LazyLock<Value> = LazyLock::new(|| {
+        serde_json::from_str(include_str!("../tests/fixtures/b0/person.json")).expect("B0 person's words")
+    });
+    PERSON[member].as_str().expect("person's story member")
 }
-"#;
-const CSV_SOURCE: &str = r#"fn main() {
-    println!("name,value");
-    for (name, value) in [("alpha", 1), ("beta", 2)] {
-        println!("{name},{value}");
-    }
-}
-"#;
-const CSV_LINE: &str = "    println!(\"name,value\");";
 
 #[must_use]
 pub fn fixture() -> forge::Fixture {
     forge::Fixture {
         setup: || {
+            let document = temper_fake::forge::Document::decode(include_bytes!("../tests/fixtures/b0/forge.json"))
+                .expect("B0 forge document");
+            let repository = &document.repositories()[0];
             let mut setup = (landing::fixture().setup)();
-            let mut tree = setup.tree.into_vec();
-            tree.push(api::File { path: b"src/main.rs".as_slice().into(), content: SOURCE.as_bytes().into() });
-            setup.tree = tree.into_boxed_slice();
-            setup.checks.cue =
-                Some(api::Cue::File { path: b"src/main.rs".as_slice().into(), green: CSV_LINE.as_bytes().into() });
+            setup.name =
+                format!("{}/{}", String::from_utf8_lossy(&repository.owner), String::from_utf8_lossy(&repository.name))
+                    .into_bytes()
+                    .into();
+            setup.tree = repository.tree.clone().expect("walk's seeded tree");
+            // The walk's starter CI echoes success; it does not compile widget.
+            setup.checks = temper_fake::forge::checks(repository.ci.as_ref());
             setup
         },
         configure: |value, agent, forge| {
             (landing::fixture().configure)(value, agent, forge);
-            // o/configuring-stock has not landed Message in stock; tools 3 keeps it for the chat.
-            value["engine"]["rules"]["ceiling"]["tools"] = 3.into();
             crate::fixtures::own_policy(value);
-            // Keep this delegation story on its own ten-unit runs as stock K grows.
-            value["world_settings"]["maximum_run_spend"] = 10.into();
-            // A tracked goal reserves one full news message beside its question's answer credit.
-            value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 8192.into();
-            value["engine"]["rules"]["ceiling"]["delegation"]["depth"] = 5.into();
-            value["world_settings"]["cap"] = CHAT_SPEND.into();
+            // The codec's result-field envelope grows with the live review's failure text.
+            value["engine"]["memory_bytes"] = 1_200_000_000_000_000_000_u64.into();
+            crate::fixtures::requester(value);
+            value["world_settings"]["maximum_run_spend"] = 32.into();
+            value["world_settings"]["cap"] = 1000.into();
             for project in value["engine"]["projects"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["tools"] = 3.into();
-                project["policy"]["ceiling"]["delegation"]["depth"] = 5.into();
-                project["policy"]["roles"][0]["authority"]["tools"] = 3.into();
-                project["policy"]["roles"][0]["authority"]["delegation"]["depth"] = 5.into();
-                // Two halvings fund the goal and its change within the model-priced run reserve.
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = CHAT_SPEND.into();
+                let policy = &mut project["policy"];
+                policy["period_spend"] = 1000.into();
+                policy["roles"][0]["period_spend"] = 1000.into();
+                let families = jig_domain_core::ToolFamilies::JIG;
+                policy["ceiling"]["tools"] = (families.delegate.0 | families.message.0 | families.read.0).into();
+                policy["ceiling"]["delegation"]["depth"] = 5.into();
+                policy["ceiling"]["budget"]["spend"] = 1000.into();
+                for grant in policy["ceiling"]["grants"].as_array_mut().expect("grants") {
+                    grant["pattern"]["value"] = "playground".into();
+                }
+                policy["roles"][0]["authority"] = policy["ceiling"].clone();
+                for grant in policy["projections"].as_array_mut().expect("projection grants") {
+                    grant["pattern"]["value"] = "playground".into();
+                }
             }
+            for rule in value["application"]["landing"]["projects"][0]["rules"].as_array_mut().expect("landing rules") {
+                rule["pattern"]["segments"][2] = "playground".into();
+                rule["pattern"]["segments"][3] = "widget".into();
+            }
+            for (name, size) in [
+                ("core.policy_bytes", 5120),
+                ("tasks.inbox_bytes", 16384),
+                ("tasks.spec_bytes", 4096),
+                ("tasks.result_bytes", 512),
+                ("documents.text_bytes", 2048),
+                ("documents.lines", 32),
+                ("brief.sections", 8),
+            ] {
+                value["engine"]["limits"]["overrides"][name] = size.into();
+            }
+            // Keep the project's seeded policy in typed world defaults, as the reference stories do.
+            for member in ["charters", "templates", "policies", "rules"] {
+                value["engine"].as_object_mut().expect("engine").remove(member);
+            }
+            value["world_settings"]["case"] = true.into();
+            value["world_settings"]["report_words"] = 32.into();
+            landing::admit(value);
         },
         ..forge::fixture()
     }
 }
 
-fn call(name: &[u8], value: &Value) -> Turn {
-    Turn {
-        lines: Box::new([Line::Call {
-            name: name.into(),
-            arguments: serde_json::to_vec(value).expect("tool JSON").into_boxed_slice(),
-        }]),
-        finish: Finish::ToolCalls,
-        tokens: 20,
-    }
-}
-fn wait(words: &str) -> Turn {
-    Turn {
-        lines: Box::new([
-            Line::Text { text: words.as_bytes().into() },
-            Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
-        ]),
-        finish: Finish::ToolCalls,
-        tokens: 20,
-    }
-}
-fn change_fields() -> Value {
-    json!({"title":"Export widget's table as CSV","body":"Export the widget table with a CSV header and rows."})
-}
-fn report(words: &str) -> Turn {
-    call(b"finish", &json!({"form":"report","text":words,"fields":{}}))
-}
-
 #[must_use]
-pub fn scripts(_forge: SocketAddr) -> Box<[Script]> {
-    // Count-picked turns stay in step: the chat hears question, person, report;
-    // the work hears the relayed answer, then its sole delegate's result.
-    Box::new([
-        Script {
-            cue: CHAT_CUE.as_bytes().into(),
-            turns: Box::new([
-                call(b"goal", &json!({"words":REQUEST})),
-                wait(CHAT_DELEGATED),
-                wait(CHAT_ASKED),
-                call(b"message", &json!({"target":WORK,"form":"answer","question":QUESTION,"words":ANSWER})),
-                wait(CHAT_ANSWERED),
-                report(CHAT_REPORT),
-            ]),
-        },
-        Script {
-            cue: WORK_CUE.as_bytes().into(),
-            turns: Box::new([
-                call(b"message", &json!({"target":CHAT,"form":"question","words":QUESTION_WORDS})),
-                wait(WORK_ASKED),
-                call(b"change", &json!({"words":CHANGE_SPEC})),
-                wait(WORK_DELEGATED),
-                report(WORK_REPORT),
-            ]),
-        },
-        Script {
-            cue: CODING_CUE.as_bytes().into(),
-            turns: Box::new([
-                call(b"read", &json!({"path":"src/main.rs"})),
-                call(b"edit", &json!({"path":"src/main.rs","edits":[{"old":SOURCE,"new":CSV_SOURCE}]})),
-                // A delivery mid-run, then a finish with nothing new: the finish
-                // delivers what the run delivered.
-                call(b"deliver", &json!({"fields":change_fields()})),
-                call(b"finish", &json!({"form":"change","fields":change_fields()})),
-            ]),
-        },
-        Script {
-            cue: REVIEW_CUE.as_bytes().into(),
-            turns: Box::new([call(
-                b"finish",
-                &json!({"form":"verdict","label":"1","text":"Checked","fields":{},"items":[]}),
-            )]),
-        },
-    ])
+pub fn recipe(_forge: SocketAddr, _source: &Path) -> llm::Recipe {
+    from_document(include_bytes!("../tests/fixtures/b0/llm.json"))
+}
+#[must_use]
+pub fn from_document(bytes: &[u8]) -> llm::Recipe {
+    let document = temper_fake::llm::Document::decode(bytes).expect("B0 LLM document");
+    let mut recipe = llm::scripted(Box::new([]));
+    recipe.domain = document.domain(17);
+    recipe.domain_limits = temper_fake::llm::LIMITS;
+    recipe
+}
+#[must_use]
+pub fn run() -> Ran {
+    crate::run_forge_with(fixture(), ForgeRecipe { source: PathBuf::new(), build: recipe }, acts)
 }
 
-// Recorded call positions; joining a retained watch consumes no call position.
-const SIGNED_IN: usize = 0;
-const ADOPTED: usize = 1;
 const CHAT_STARTED: usize = 2;
-const CHAT_ENDED: usize = 3;
-const INBOX_WAITING: usize = 4;
-const CHAT_IDLE: usize = 5;
 const TREE: usize = 6;
 const ASKED: usize = 7;
 const ACTIVITY: usize = 8;
 const ANSWERED: usize = 9;
-const INBOX_EMPTY: usize = 10;
-const WORK_ENDED: usize = 11;
+const LANDED: usize = 11;
+const WORK_ENDED: usize = 10;
 const PRODUCED: usize = 12;
+const FIRST_REVIEW: usize = 13;
+const RETRY_REVIEW: usize = 14;
+const LAST_WORD: usize = 16;
+const INBOX_EMPTY: usize = 19;
 
 #[must_use]
 pub fn acts() -> Vec<calls::Step> {
-    use calls::{call, join, sign_in, start};
+    use calls::{call, sign_in};
     vec![
         sign_in(D1),
         call(
@@ -189,66 +150,40 @@ pub fn acts() -> Vec<calls::Step> {
                 "--project",
                 "1",
                 "--owner",
-                "acme",
+                "playground",
                 "--name",
-                "app",
+                "widget",
                 "--landing",
                 "main",
                 "--key",
-                "adopt-app"
+                "adopt-widget"
             ],
         ),
-        call(D1, argv!["chat", "start", "--project", "1", "--key", "green", REQUEST]),
-        start(D1, argv!["task", "show", number(CHAT), "--until", "ended", "--json"]),
+        call(D1, argv!["chat", "start", "--project", "1", "--key", "green", person("request")]),
         call(D1, argv!["inbox", "--until", "waiting"]),
-        // The question must outlive the chat's acknowledgement run, parked here.
         call(D1, argv!["task", "show", number(CHAT), "--until", "phase:idle"]),
+        call(D1, argv!["chat", "show", number(CHAT), "--json"]),
         call(D1, argv!["task", "show", number(CHAT), "--tree", "--json"]),
         call(D1, argv!["inbox", "--kind", "questions", "--json"]),
         call(D1, argv!["task", "show", number(CHAT), "--activity", "32", "--json"]),
-        call(D1, argv!["task", "answer", number(CHAT), number(QUESTION), ANSWER, "--key", "green-answer"]),
-        join(CHAT_ENDED),
+        call(D1, argv!["task", "answer", number(CHAT), number(QUESTION), person("answer"), "--key", "green-answer"]),
+        // The goal's end joins the landing; its change exists before reading its panel.
+        call(D1, argv!["task", "show", number(WORK), "--until", "ended", "--json"]),
+        call(D1, argv!["change", "show", number(CHANGE), "--until", "landed", "--json"]),
+        call(D1, argv!["task", "show", number(PRODUCER), "--until", "ended", "--json"]),
+        call(D1, argv!["task", "show", "5", "--json"]),
+        call(D1, argv!["task", "show", "6", "--until", "ended", "--json"]),
+        call(D1, argv!["task", "show", number(CHAT), "--until", "phase:idle"]),
+        call(D1, argv!["chat", "show", number(CHAT), "--json"]),
+        call(D1, argv!["chat", "close", number(CHAT), "--key", "close-green"]),
+        call(D1, argv!["task", "show", number(CHAT), "--until", "ended"]),
         call(D1, argv!["inbox", "--kind", "questions", "--json"]),
-        call(D1, argv!["task", "show", number(WORK), "--json"]),
-        call(D1, argv!["task", "show", number(PRODUCER), "--json"]),
     ]
 }
 
 fn document(ran: &Ran, position: usize) -> Value {
-    serde_json::from_slice(&ran.calls()[position].stdout).expect("ctl JSON document")
-}
-
-fn check_question(ran: &Ran) {
-    const ONE_QUESTION: usize = 1;
-    let inbox = document(ran, ASKED);
-    let rows = inbox["needs"]["rows"].as_array().expect("questions inbox rows");
-    assert_eq!(rows.len(), ONE_QUESTION, "one question in the person's inbox: {inbox}");
-    let question = &rows[0];
-    assert_eq!(question["task"]["live"]["task"], CHAT, "the question is on the chat");
-    assert_eq!(question["object"]["question"]["message"], QUESTION, "the question's message number");
-    let activity = document(ran, ACTIVITY);
-    let rows = activity["activity"]["rows"].as_array().expect("chat activity rows");
-    assert!(
-        rows.iter().any(|row| {
-            let source = &row["event"]["owner"]["source"];
-            let words = &source["line"]["words"];
-            source["task"] == CHAT
-                && words["message"] == QUESTION
-                && words["by"]["task"] == WORK
-                && words["kind"] == "question"
-                && words["words"] == QUESTION_WORDS
-        }),
-        "the person's activity read holds T2's question, its number and words: {activity}"
-    );
-    let tree = document(ran, TREE);
-    assert_eq!(tree["tree"]["root"]["task"], CHAT, "the waiting tree is the chat's");
-    let rows = tree["tree"]["rows"].as_array().expect("tree rows");
-    let children: Vec<_> = rows.iter().map(|row| (&row["chip"]["task"], &row["parent"])).collect();
-    assert_eq!(children, vec![(&json!(WORK), &json!(CHAT))], "only T2 exists before change {CHANGE}: {tree}");
-    assert_eq!(tree["tree"]["more"], false, "the waiting tree has no hidden page");
-    assert_eq!(tree["tree"]["folded"], json!([]), "the waiting tree has no folded tasks");
-    let inbox = document(ran, INBOX_EMPTY);
-    assert!(inbox["needs"]["rows"].as_array().expect("last inbox rows").is_empty(), "no question remains: {inbox}");
+    let value: Value = serde_json::from_slice(&ran.calls()[position].stdout).expect("ctl JSON document");
+    if value.get("met").is_some() { value["task"].clone() } else { value }
 }
 
 fn query_at<'a>(ran: &'a Ran, cue: &str, replies: usize) -> &'a Query {
@@ -258,10 +193,7 @@ fn query_at<'a>(ran: &'a Ran, cue: &str, replies: usize) -> &'a Query {
             let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { return None };
             // Delegated specifications can mention other cues; the task's own is first.
             let system = String::from_utf8_lossy(&query.system);
-            let first = [CHAT_CUE, WORK_CUE, CODING_CUE, REVIEW_CUE]
-                .into_iter()
-                .filter_map(|candidate| system.find(candidate).map(|at| (at, candidate)))
-                .min();
+            let first = CUES.into_iter().filter_map(|candidate| system.find(candidate).map(|at| (at, candidate))).min();
             let said = query.messages.iter().filter(|message| message.role == Role::Assistant).count();
             (first.is_some_and(|(_, own)| own == cue) && said == replies).then_some(query)
         })
@@ -289,90 +221,70 @@ fn heard_tool(query: &Query, words: &str) -> bool {
     })
 }
 
-fn check_queries(ran: &Ran) {
-    // Before each response: T2's wait follows its question; T1's fourth turn
-    // relays the answer; T2's third turn delegates the change.
-    const WORK_WAIT: usize = 1;
-    const CHAT_RELAY: usize = 3;
-    const WORK_DELEGATE: usize = 2;
-    const CHANGE_DELEGATED: usize = 3;
-    let asked = query_at(ran, WORK_CUE, WORK_WAIT);
-    let sent = format!("Message {QUESTION} sent");
-    assert!(heard_tool(asked, &sent), "T2 was told the question's returned message number: {asked:?}");
-    let relay = told(query_at(ran, CHAT_CUE, CHAT_RELAY));
-    let question_at = relay
-        .find(&format!("{WORK} asks (question {QUESTION}): {QUESTION_WORDS}"))
-        .expect("T1 was told T2's question before its relay");
-    let answer_at = relay
-        .find(&format!("1 answers question {QUESTION}: {ANSWER}"))
-        .expect("T1 was told the person's answer before its relay");
-    assert!(question_at < answer_at, "T1 hears the question before the person's answer: {relay}");
-    let delegate = told(query_at(ran, WORK_CUE, WORK_DELEGATE));
-    assert!(
-        delegate.contains(&format!("{CHAT} answers question {QUESTION}: {ANSWER}")),
-        "T2 hears T1's answer before delegating: {delegate}"
-    );
-    assert!(
-        heard_tool(query_at(ran, WORK_CUE, CHANGE_DELEGATED), &format!("Delegated tasks: {CHANGE}")),
-        "T2 was told the fresh change's task number"
-    );
-}
-
 pub fn check(ran: &Ran) {
-    let calls = [
-        SIGNED_IN,
-        ADOPTED,
-        CHAT_STARTED,
-        CHAT_ENDED,
-        INBOX_WAITING,
-        CHAT_IDLE,
-        TREE,
-        ASKED,
-        ACTIVITY,
-        ANSWERED,
-        INBOX_EMPTY,
-        WORK_ENDED,
-        PRODUCED,
-    ];
-    assert_eq!(ran.calls().len(), calls.len(), "all prescribed ctl calls ran");
-    for position in calls {
-        assert_eq!(ran.calls()[position].exit, Some(Exit::Code(0)), "ctl call {position}: {:?}", ran.calls()[position]);
+    assert_eq!(ran.calls().len(), 20);
+    for (position, call) in ran.calls().iter().enumerate() {
+        assert_eq!(call.exit, Some(Exit::Code(0)), "ctl call {position}: {call:?}");
     }
-    assert_eq!(ran.number(CHAT_STARTED), CHAT, "the fresh chat's task number");
-    check_question(ran);
-    check_queries(ran);
-    assert!(ran.forge().merged_green(), "the change merged with CI green at its head");
-    assert_eq!(ran.forge().main_file(b"src/main.rs"), CSV_SOURCE.as_bytes(), "widget's CSV edit landed on main");
-    let work = document(ran, WORK_ENDED);
-    assert_eq!(work["chip"]["task"], WORK, "T2's ended task number: {work}");
-    assert_eq!(work["chip"]["phase"], "ended", "T2 ended");
-    assert_eq!(work["result"]["value"]["report"]["bytes"], WORK_REPORT, "T2's report");
-    let chat = document(ran, CHAT_ENDED);
-    let parent = &chat["task"]["authority"]["authority"];
-    let child = &work["authority"]["authority"];
-    assert_eq!(child["tools"], parent["tools"], "the goal keeps the chat's tool families");
-    for member in ["tasks", "depth"] {
-        assert_eq!(
-            child["delegation"][member].as_u64().expect("goal delegation"),
-            parent["delegation"][member].as_u64().expect("chat delegation") - 1,
-            "the goal takes one delegation {member}"
-        );
-    }
-    assert_eq!(parent["spend"], CHAT_SPEND, "the chat's original purse");
-    let temper_service::stock::Given::Own(defaults) = crate::fixtures::given(ran.path()) else {
-        panic!("the green-light fixture supplies its own defaults")
-    };
-    let run_spend = defaults.charters[0].spend.min(defaults.rules.maximum_run_spend);
-    assert_eq!(
-        child["spend"],
-        (CHAT_SPEND - run_spend) / 2,
-        "the goal gets half left after the chat's first run reserve"
+    assert_eq!(ran.number(CHAT_STARTED), CHAT);
+    assert!(
+        String::from_utf8_lossy(&ran.calls()[5].stdout).contains("Approve this --csv plan?"),
+        "chat acknowledged the waiting question"
     );
-    let producer = document(ran, PRODUCED);
-    assert_eq!(producer["chip"]["task"], PRODUCER, "the producer's task number: {producer}");
-    let ending = &producer["chip"]["details"]["owner"]["details"]["ending"];
-    assert!(ending["done"]["change"].is_object(), "the producer that delivered, then finished, is done: {producer}");
-    let chat = document(ran, CHAT_ENDED);
-    assert_eq!(chat["task"]["chip"]["task"], CHAT, "T1's ended task number");
-    assert_eq!(chat["task"]["result"]["value"]["report"]["bytes"], CHAT_REPORT, "T1's report from the retained watch");
+    assert!(ran.calls().iter().all(|call| call.tries == 1), "each read is issued once; waits use native watches");
+    let inbox = document(ran, ASKED);
+    let rows = inbox["needs"]["rows"].as_array().expect("questions");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["task"]["live"]["task"], CHAT);
+    assert_eq!(rows[0]["object"]["question"]["message"], QUESTION);
+    let tree = document(ran, TREE);
+    let rows = tree["tree"]["rows"].as_array().expect("waiting tree");
+    assert_eq!(rows.len(), 1, "no change before the answer: {tree}");
+    assert_eq!(rows[0]["chip"]["task"], WORK);
+    assert_eq!(tree["tree"]["more"], false);
+    assert!(tree["tree"]["folded"].as_array().expect("folded tasks").is_empty(), "no hidden change before approval");
+    assert!(String::from_utf8_lossy(&ran.calls()[ACTIVITY].stdout).contains(person("question")));
+    let relay = told(query_at(ran, CHAT_CUE, 3));
+    let question_at = relay.find(person("question")).expect("chat hears the plan");
+    let answer_at = relay.find(person("answer")).expect("chat hears the answer");
+    assert!(question_at < answer_at);
+    assert!(heard_tool(query_at(ran, WORK_CUE, 4), "Message 1 sent"));
+    assert!(told(query_at(ran, WORK_CUE, 5)).contains(person("answer")), "work hears approval before change");
+    assert!(heard_tool(query_at(ran, WORK_CUE, 6), "Delegated tasks: 3"));
+    assert!(ran.calls()[ANSWERED].ended <= ran.calls()[LANDED].ended);
+    let seed = &ran.forge().snapshots()[0];
+    assert_eq!(seed.branches.len(), 1);
+    assert_eq!(seed.branches[0].0.as_ref(), b"main");
+    for snapshot in ran.forge().snapshots().iter().filter(|snapshot| snapshot.at <= ran.calls()[ANSWERED].ended) {
+        assert_eq!(snapshot.branches, seed.branches, "no branch pushed before approval");
+        assert!(snapshot.pulls.is_empty(), "no pull before approval");
+    }
+    let reviewed = query_at(ran, CUES[4], 7);
+    assert!(heard_tool(reviewed, "fn write_table"), "the retry actually read the produced source: {}", told(reviewed));
+    assert_eq!(told(reviewed).matches("Error:").count(), 1, "only the walk's padded lookup fails");
+    assert!(ran.forge().merged_green(), "CI passed at the merged head");
+    let delivered = told(query_at(ran, WORK_CUE, 7));
+    let merge = delivered
+        .split_once("Result from task 3:")
+        .expect("change's landing result")
+        .1
+        .split_whitespace()
+        .next()
+        .expect("merge commit");
+    let work = document(ran, WORK_ENDED);
+    let report = work["result"]["value"]["report"]["bytes"].as_str().expect("goal's report");
+    assert!(report.contains(&merge[..7]), "goal must name the fresh merge {merge}: {report}");
+    let source = String::from_utf8_lossy(ran.forge().main_file(b"src/main.rs"));
+    assert!(source.contains("writeln!(output, \"fruit,count\")?;"), "CSV header landed: {source}");
+    let scripts: Value =
+        serde_json::from_slice(include_bytes!("../tests/fixtures/b0/llm.json")).expect("recorded scripts");
+    let expected =
+        scripts["cued"][2]["turns"][3]["lines"][0]["arguments"]["content"].as_str().expect("recorded main write");
+    assert_eq!(source, expected, "the walk's whole program landed");
+    assert_eq!(document(ran, WORK_ENDED)["chip"]["phase"], "ended");
+    assert_eq!(document(ran, PRODUCED)["chip"]["phase"], "ended");
+    assert!(document(ran, FIRST_REVIEW).to_string().contains("cannot complete the mandated review"));
+    assert!(document(ran, RETRY_REVIEW).to_string().contains("Approve."));
+    assert!(String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout).contains(person("last_word")));
+    assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
 }

@@ -49,22 +49,18 @@ prove its commit. Supply only data from a successful drained stop, never a
 crash or failed commit. The reader detects incomplete or corrupt tails but
 does not inspect the map's committed-length records.
 
-The fixtures are actual Jig frames recorded from the round trip's first
-`green_light` run. Regenerate them intentionally from the workspace root:
+The small codec fixtures are actual Jig frames recorded from the original
+hand-written green-light story before B0 replaced it. They contain synthetic
+test data only, no credential files.
 
-```sh
-heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 TEMPER_TWIN_RECORD=1 \
-  cargo nextest run -p temper-real-loop-world --profile fuzzy \
-  --test fuzzy_twin_round_trip --success-output immediate
-```
-
-This runs and checks the original story, copies only its four tasks'
-transcript files into `tests/fixtures/`, converts them and runs the same
-acts and checks on a fresh deployment. Normal tests never write fixtures.
-The live kernel picks a new forge listener; the round trip explicitly
-substitutes its old socket address with the new one in the recorded grants.
-Task, question and pull numbers and fake-git content identities recur.
-The fixtures contain synthetic test data only, no credential files.
+The current round trip records B0's generated twin, converts those five tasks'
+completions, and replays the same acts and checks on a fresh deployment. It
+checks converter stability through recording/replay and the story's outcome;
+it does not independently check model judgement or changed prompts. Normal
+tests never rewrite fixtures. Regenerate B0's document from its cleanly stopped
+passing walk using the command named in `tests/real-loop/src/green_light.rs`.
+Task, question and pull numbers and fake-git identities recur. The scripts'
+forge reads infer their repository; no grant carries a listener address.
 
 ```sh
 heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-twin

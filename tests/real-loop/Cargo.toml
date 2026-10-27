@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-fake.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-core.workspace = true
 jig-domain-fleet.workspace = true
@@ -58,7 +59,6 @@ skein-shell.workspace = true
 
 [dev-dependencies]
 temper-twin = { path = "../../tools/twin" }
-temper-fake.workspace = true
 skein-ui.workspace = true
 skein-ui-text.workspace = true
 skein-forge-client.workspace = true

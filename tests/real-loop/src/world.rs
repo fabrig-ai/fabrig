@@ -703,7 +703,7 @@ impl Referee<Proc> for Judge {
                 state.hand_hooks(hooks);
             }
             person_push(now, caller, state, &mut service.seen);
-            service.seen.collect(forge, &state.handle);
+            service.seen.collect(now, forge, &state.handle, &state.repository);
             caller.advanced.set(
                 state.moved
                     && (caller.pushing().is_some()
