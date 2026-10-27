@@ -1821,7 +1821,11 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 - **Memory:** the engine's and each worker's `memory_bytes` hold their
   service's composed sum, which those limits raise. The start refuses
   one that is short at its path, naming by how much (jig's
-  `What::Memory`), and the box raises it by that. `docs/examples/owned.json`'s
+  `What::Memory`), and the box raises it by that. A boxed start (`temper
+  box`) counts its two pipes' buffers in the engine's sum before it
+  names the figure, so one raise starts it; a pipe the engine cannot
+  then adopt is refused naming what it lacks, never a bare `fd N
+  refused` (QA 20261027-1254-temper finding 2). `docs/examples/owned.json`'s
   declarations are the user's budget for the owned deployment and
   do not move with a box's.
 - **The budgets** follow the model's C (13.4), so a larger output gives
