@@ -524,3 +524,95 @@ LINE
 "#;
     assert_eq!(page.as_ref(), expected);
 }
+
+// T2, section 3: row descriptions are at most 320 bytes; INTRO, 1,024.
+const LINE_BYTES: usize = 320;
+const INTRO_BYTES: usize = 1024;
+
+#[derive(Debug)]
+struct Line {
+    bytes: &'static [u8],
+    required: bool,
+    most: usize,
+}
+
+fn lines() -> List<Line> {
+    let mut count = FORMS.len().checked_add(FIELDS.len()).expect("table count").checked_add(1).expect("INTRO");
+    for form in &FORMS {
+        if let Choice::One { words } = form.choice {
+            count = count.checked_add(words.len()).expect("choice words");
+        }
+    }
+    for field in &FIELDS {
+        if let Value::Words(words) = field.value {
+            count = count.checked_add(words.len()).expect("member words");
+        }
+    }
+    let mut lines = List::with_capacity(u32::try_from(count).expect("line count fits"));
+    lines.push(Line { bytes: super::render::INTRO, required: true, most: INTRO_BYTES }).expect("counted lines");
+    for form in &FORMS {
+        lines.push(Line { bytes: form.line, required: true, most: LINE_BYTES }).expect("counted lines");
+        if let Choice::One { words } = form.choice {
+            for word in words {
+                lines.push(Line { bytes: word.line, required: true, most: LINE_BYTES }).expect("counted lines");
+            }
+        }
+    }
+    for field in &FIELDS {
+        lines.push(Line { bytes: field.line, required: true, most: LINE_BYTES }).expect("counted lines");
+        if let Value::Words(words) = field.value {
+            for word in words {
+                lines.push(Line { bytes: word.line, required: false, most: LINE_BYTES }).expect("counted lines");
+            }
+        }
+    }
+    lines
+}
+
+#[test]
+fn every_line_is_written_and_within_its_bounds() {
+    for line in &lines() {
+        if line.required {
+            assert!(!line.bytes.is_empty(), "required line {line:?}");
+        }
+        assert!(line.bytes.len() <= line.most, "line within its bound: {line:?}");
+        for byte in line.bytes {
+            assert!((b' '..=b'~').contains(byte), "printable ASCII in one paragraph: {line:?}");
+        }
+        for forbidden in [b"jig".as_slice(), b"smith", b"skein", b".md", b"temper-"] {
+            for word in line.bytes.windows(forbidden.len()) {
+                assert!(!word.eq_ignore_ascii_case(forbidden), "forbidden word {forbidden:?}: {line:?}");
+            }
+        }
+    }
+}
+
+fn line_paths_resolve(line: &[u8]) {
+    let mut start = None;
+    for (at, byte) in line.iter().enumerate() {
+        if *byte != b'`' {
+            continue;
+        }
+        match start.take() {
+            None => start = Some(at.checked_add(1).expect("span start")),
+            Some(start) => {
+                let path = line.get(start..at).expect("code span");
+                if !path.contains(&b'.') || path.contains(&b' ') {
+                    continue;
+                }
+                for form in &FORMS {
+                    if path.starts_with(form.name) && path.get(form.name.len()) == Some(&b'.') {
+                        assert!(resolve(path).is_some(), "line names an unknown field {path:?}: {line:?}");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn every_path_a_line_names_resolves() {
+    for line in &lines() {
+        line_paths_resolve(line.bytes);
+    }
+}

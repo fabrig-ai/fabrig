@@ -202,3 +202,83 @@ fn every_member_ctl_prints_for_the_stock_is_a_field() {
     checked += 1;
     assert_eq!(checked, STOCK_VALUES, "every stock value checked");
 }
+
+fn setting_paths(text: &str) -> Vec<&str> {
+    let mut paths = Vec::new();
+    let mut fence = None;
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        let marker = if trimmed.starts_with("```") {
+            Some(b'`')
+        } else if trimmed.starts_with("~~~") {
+            Some(b'~')
+        } else {
+            None
+        };
+        if let Some(marker) = marker {
+            if fence == Some(marker) {
+                fence = None;
+            } else if fence.is_none() {
+                fence = Some(marker);
+            }
+            continue;
+        }
+        if fence.is_some() {
+            continue;
+        }
+        let mut start = None;
+        for (at, byte) in line.bytes().enumerate() {
+            if byte != b'`' {
+                continue;
+            }
+            match start.take() {
+                None => start = Some(at + 1),
+                Some(from) => {
+                    let span = &line[from..at];
+                    let mut space = false;
+                    for byte in span.bytes() {
+                        if byte.is_ascii_whitespace() {
+                            space = true;
+                            break;
+                        }
+                    }
+                    if !span.contains('.') || space {
+                        continue;
+                    }
+                    for kind in ["charter.", "template.", "policy.", "rules."] {
+                        if span.starts_with(kind) {
+                            paths.push(span);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    paths
+}
+
+#[test]
+fn setting_paths_finds_the_kinds_paths_in_code_spans() {
+    let text = r"`charter.model.name`
+`charter` `engine.limits` `setting --json`
+charter.number
+```json
+`template.number`
+```
+~~~text
+`rules.maximum_run_spend`
+~~~
+`policy.roles[].number`
+";
+    assert_eq!(setting_paths(text), ["charter.model.name", "policy.roles[].number"]);
+}
+
+#[test]
+fn every_setting_field_a_page_names_is_a_field() {
+    for page in &temper_docs::TOPICS {
+        for path in setting_paths(page.text) {
+            assert!(fields::resolve(path.as_bytes()).is_some(), "{}: unknown setting field {path}", page.name);
+        }
+    }
+}
