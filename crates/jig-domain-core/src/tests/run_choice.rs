@@ -113,6 +113,106 @@ fn ready(none: bool) -> (Core, Limits) {
 }
 
 #[test]
+fn a_lower_numbered_goals_waiting_run_starts_first() {
+    // One occupied host slot is freed for the two waiting runs.
+    const SLOTS: u32 = 1;
+    const OLDER: u64 = 2;
+    const NEWER: u64 = 3;
+    const BUSY_ATTEMPT: Token = Token::new(9);
+    const EARLIER: Wall = Wall::from_nanos(1);
+    const LATER: Wall = Wall::from_nanos(2);
+    for (older_priority, newer_priority, newer_since, queued, expected) in [
+        (Some(9), Some(1), LATER, [OLDER, NEWER], NEWER),
+        (None, Some(0), LATER, [OLDER, NEWER], NEWER),
+        (Some(0), None, LATER, [NEWER, OLDER], OLDER),
+        (Some(1), Some(1), LATER, [NEWER, OLDER], OLDER),
+        (Some(1), Some(1), EARLIER, [NEWER, OLDER], OLDER),
+    ] {
+        let (mut core, limits) = tree_core();
+        for (task, priority, since) in [(OLDER, older_priority, EARLIER), (NEWER, newer_priority, newer_since)] {
+            let row = new_row(&core, task, tasks::Funder::Period { project: 1, period: 1 }, priority);
+            fixtures::make_batch_at(&mut core, &limits, tasks::Party::Person(1), Box::new([row]), since);
+        }
+        account(&mut core, &limits, accounts::Event::Want);
+        granted(&mut core, &limits, 1);
+        let environment = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
+        let mut out = Queue::with_capacity(fleet::max_out(&limits.fleet));
+        fleet::step(
+            &mut core.fleet,
+            &environment,
+            fleet::Event::Hello {
+                worker: 0,
+                channel: FIRST,
+                hello: fleet::Hello {
+                    bounds: fixtures::bounds(),
+                    stop_bound: Duration::ZERO,
+                    slots: SLOTS,
+                    workstreams: Box::new([]),
+                    hosting: Box::new([fleet::Hosted {
+                        run: Token::new(TASK),
+                        attempt: BUSY_ATTEMPT,
+                        phase: fleet::Phase::Active,
+                    }]),
+                },
+            },
+            &mut out,
+        );
+        while out.pop().is_some() {}
+        fleet::step(
+            &mut core.fleet,
+            &environment,
+            fleet::Event::Logins { channel: FIRST, logins: Box::new([]) },
+            &mut out,
+        );
+        while out.pop().is_some() {}
+        fleet::step(
+            &mut core.fleet,
+            &environment,
+            fleet::Event::Adopt {
+                reply_to: ReplyTo::new(Token::new(1)),
+                run: Token::new(TASK),
+                attempt: BUSY_ATTEMPT,
+                kept: 0,
+                kind: fleet::HostKind::Worker,
+                worked: false,
+                holds: Box::new([]),
+                grants: Box::new([]),
+            },
+            &mut out,
+        );
+        while out.pop().is_some() {}
+        // Queue in reverse task order too, so equal waits exercise the task
+        // number tie-break rather than succeeding merely because of FIFO.
+        for task in queued {
+            core.due.push(core.tasks.run_context(task).expect("waiting run"));
+        }
+        let blocked = core.take_due();
+        fleet::step(
+            &mut core.fleet,
+            &environment,
+            fleet::Event::Answer {
+                channel: FIRST,
+                run: Token::new(TASK),
+                attempt: BUSY_ATTEMPT,
+                answer: fleet::Answer::Ended,
+                payload: Token::new(1),
+            },
+            &mut out,
+        );
+        while out.pop().is_some() {}
+        fleet::step(
+            &mut core.fleet,
+            &environment,
+            fleet::Event::Acknowledge { run: Token::new(TASK), attempt: BUSY_ATTEMPT },
+            &mut out,
+        );
+        let started = core.take_due().expect("the freed slot starts a waiting run");
+        assert!(blocked.is_none(), "both runs wait while the one slot is occupied");
+        assert_eq!(started.task, expected, "priorities {older_priority:?}, {newer_priority:?}");
+    }
+}
+
+#[test]
 fn optional_unavailable_provider_is_omitted_and_same_provider_shares_one_source() {
     let (core, _) = ready(false);
     let choice = core.run_choice(TASK).unwrap();

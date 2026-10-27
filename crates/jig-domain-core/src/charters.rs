@@ -202,22 +202,51 @@ impl Core {
         }
     }
 
-    /// Take the first due task whose executor can start, keeping the others in
-    /// order and dropping those whose task is no longer due.
+    /// Take an eligible goal-serving task first, lower priority number first,
+    /// then earlier Due time and lower task number. Drop tasks no longer due.
     pub fn take_due(&mut self) -> Option<Box<tasks::RunContext>> {
-        let mut taken = None;
+        let mut taken: Option<Box<tasks::RunContext>> = None;
         for _ in 0..self.due.len() {
             let context = self.due.pop().expect("due count");
             if !self.still_due(&context) {
                 continue;
             }
-            if taken.is_none() && self.context_ready(&context) {
-                taken = self.tasks.run_context(context.task);
+            let earlier = match &taken {
+                Some(prior) => self.due_before(context.task, prior.task),
+                None => true,
+            };
+            if earlier && self.context_ready(&context) {
+                if let Some(prior) = taken.replace(context) {
+                    self.due.push(prior);
+                }
             } else {
                 self.due.push(context);
             }
         }
-        taken
+        match taken {
+            Some(context) => self.tasks.run_context(context.task),
+            None => None,
+        }
+    }
+
+    fn due_before(&self, left: u64, right: u64) -> bool {
+        let l = self.tasks.task(left).expect("due candidate is live");
+        let r = self.tasks.task(right).expect("due candidate is live");
+        let lp = match self.goal_of(l) {
+            Some(goal) => self.tasks.task(goal).expect("live goal").tracked,
+            None => None,
+        };
+        let rp = match self.goal_of(r) {
+            Some(goal) => self.tasks.task(goal).expect("live goal").tracked,
+            None => None,
+        };
+        match (lp, rp) {
+            (Some(lp), Some(rp)) if lp != rp => return lp < rp,
+            (Some(_), None) => return true,
+            (None, Some(_)) => return false,
+            (Some(_), Some(_)) | (None, None) => {}
+        }
+        l.phase_since < r.phase_since || (l.phase_since == r.phase_since && left < right)
     }
 
     /// Whether a due procedure or agent with a usable account can start.
