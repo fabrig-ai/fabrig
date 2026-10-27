@@ -243,7 +243,7 @@ impl Component {
             return self.begin_github_call(call, id, env, up, io);
         }
         let op = waiting.op.take().expect("waiting operation");
-        waiting.page_size = page_size(&op, cap, &env.limits, &self.shared);
+        waiting.page_size = page_size(&op, crate::settings::Kind::Forgejo, cap, &env.limits, &self.shared);
         let mut plan = CallPlan::Forgejo(Plan::new(waiting.repository, op));
         let step = match &mut plan {
             CallPlan::Forgejo(plan) => plan.begin(
@@ -453,12 +453,16 @@ fn bounds(page_size: u32, l: &Limits, s: &Shared) -> Bounds {
     Bounds { page_size, rows: s.rows, answer_bytes: s.answer_bytes, body_bytes: l.body_bytes }
 }
 
-pub(super) fn page_size(op: &api::Op, cap: u32, l: &Limits, s: &Shared) -> u32 {
+pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: &Limits, s: &Shared) -> u32 {
     let listing = match op {
         api::Op::Read(read) => match read {
             api::Read::Items { .. } | api::Read::PullFor { .. } => Listing::Items,
             api::Read::Reviews { .. } => Listing::Reviews,
             api::Read::Statuses { .. } | api::Read::Checks { .. } => Listing::Statuses,
+            api::Read::Pull { .. } => match kind {
+                crate::settings::Kind::Forgejo => Listing::Statuses,
+                crate::settings::Kind::GitHub => return 1,
+            },
             api::Read::Remarks { .. } => Listing::Remarks,
             api::Read::Branches { .. } => Listing::Branches,
             api::Read::Collaborators { .. } => Listing::Collaborators,
@@ -466,7 +470,6 @@ pub(super) fn page_size(op: &api::Op, cap: u32, l: &Limits, s: &Shared) -> u32 {
             api::Read::Compare { .. } => Listing::Compare,
             api::Read::Locate { .. }
             | api::Read::Item { .. }
-            | api::Read::Pull { .. }
             | api::Read::Branch { .. }
             | api::Read::Protection { .. }
             | api::Read::Permission { .. }

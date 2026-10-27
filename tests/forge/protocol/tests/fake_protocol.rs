@@ -188,6 +188,6 @@ fn a_pulls_ci_folds_every_status_page() {
     let answered = joint.answered(1).expect("pull answer");
     let Ok(Answer::Pull(pull)) = &answered.result else { panic!("pull: {:?}", answered.result) };
     assert_eq!(pull.ci, skein_forge::api::Ci::Failed);
-    assert_eq!(answered.cost, 6, "resolve, pull, three one-status pages and an empty last page");
-    assert_eq!(joint.tally().routes.get(&Route::CombinedStatus), Some(&4));
+    assert_eq!(answered.cost, 4, "resolve, pull, two status pages with the failure on the last");
+    assert_eq!(joint.tally().routes.get(&Route::CombinedStatus), Some(&2));
 }

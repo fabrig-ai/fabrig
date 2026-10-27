@@ -265,7 +265,8 @@ impl Component {
         } else {
             waiting.op.take().expect("operation")
         };
-        waiting.page_size = calls::page_size(&op, github::pin::PAGE_CAP, &env.limits, &self.shared);
+        waiting.page_size =
+            calls::page_size(&op, crate::settings::Kind::GitHub, github::pin::PAGE_CAP, &env.limits, &self.shared);
         let mut plan = Plan::new(waiting.repository, op);
         let tables = match &mut waiting.discovery {
             Some(discovery) => &mut discovery.tables,
