@@ -195,7 +195,9 @@ red by earlier failures it does not run (5.3).
   commits (skein's `Read::Commits`), each line within `trailer_bytes`,
   at most `trailers` per landing.
 - **A goal's wake policy may name trailers** (jig's `domain/tasks.md`,
-  8.3, a news marker): the core keeps them with the goal's
+  8.3, a news marker; temper numbers the forge's: 0 `Taught:`, 1 `QA:`,
+  2 `Fixes:`, 3 `Repairs:`, 4 `Fixes-finding:`, the forge's table of
+  what it offers naming them for ctl's and the host tools' words): the core keeps them with the goal's
   subscription to the landings of its subtree's repositories (jig's
   `domain/tasks.md`, 8.4; `forge.md`, 7.2), and the forge classes a
   landing carrying one as waking for that goal, and as kept otherwise,
