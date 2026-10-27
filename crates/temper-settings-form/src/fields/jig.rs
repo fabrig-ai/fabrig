@@ -1,6 +1,6 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
 pub static FORMS: [Form; 41] = [
-    Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `change-settings` and `propose-settings` read it." },
+    Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and, but for the rules, its number." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in." },
