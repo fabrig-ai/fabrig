@@ -274,8 +274,14 @@ open is section 9.
 ### 5.5 Its stream, told as smith's
 
 - **`system/init`** is checked before the first message: its tools are
-  those 5.3 gives, its MCP servers only the agent's, connected, and its
-  `capabilities` what the run needs; otherwise the start fails (5.6).
+  those 5.3 gives but the permission prompt's (5.4), which the program
+  calls and does not list, its MCP servers only the agent's, connected,
+  and its `capabilities` what the run needs; otherwise the start fails
+  (5.6). A later `system/init`, which the program sends again at each
+  user message after the first, is checked the same way, and a change
+  in it fails the run as a start's would.
+- **`system/status`,** which the program sends before a completion, is
+  a notice of its state, told as nothing: not a turn, not a failure.
 - **Each assistant message is a completion,** told as a turn of main's
   conversation (transcript.md, section 2): its text and calls in
   position, its usage as the program reported it, and the run's spend.
@@ -333,7 +339,8 @@ open is section 9.
   most (domain/run.md, 9.1), takes a completion that passes the ordinary
   pool, and its overrun is recorded as spend.
 - **The wind-down:** when the ordinary pool is spent in any part, the
-  agent ends the program's turn with SIGINT and sends one user message,
+  agent ends the program's turn with an interrupt (5.9) and sends one
+  user message,
   the run's note that the budget is spent and to finish now
   (domain/run.md, 9.1). From then on the agent refuses every call but
   `finish`, and `deliver` when granted: a built-in's at its permission
@@ -364,8 +371,7 @@ open is section 9.
 - **Parking:** when the run parks (domain/run.md, section 6), the agent
   ends the program after its turn by closing its input, and answers
   parked. A turn held on `wait` has no end of its own: the agent stops
-  the program with SIGINT, as a cancel does (5.7). The program's
-  session stays.
+  the program as a cancel does (5.7). The program's session stays.
 - **Resuming on the same source and host:** when the transcript's
   opening turn names this backend and account (transcript.md, section 2)
   and the configuration directory holds the program's session, the
@@ -415,18 +421,24 @@ backend (domain/run.md, sections 6, 7.2 and 9.1).
 - **Parking:** past the waiting interval, the agent closes the
   program's input and the program exits after the turn it has ended;
   the run parks, its session kept (5.8). A turn held on `wait` is ended
-  with SIGINT first, as 5.8 says.
+  with an interrupt first, below.
 - **A turn that ends with no text,** and no call left unanswered, is an
   unsuccessful end, nudged as on the direct backend (domain/run.md,
   7.2).
-- **An interrupted turn is expected.** A turn the agent ends with
-  SIGINT, to park while it is held on `wait` or to wind down, ends with
+- **An interrupt is a control request,** never a signal: the agent
+  writes `{"type": "control_request", "request": {"subtype":
+  "interrupt"}}` on the program's input, which ends the turn and keeps
+  the process, so a next user message is answered. SIGINT ends the
+  program's turn and its process with it, so it is a cancel's alone
+  (5.7).
+- **An interrupted turn is expected.** A turn the agent ends with an
+  interrupt, to park while it is held on `wait` or to wind down, ends with
   a `result` the agent asked for, never 5.6's error: the calls it left
   unanswered are answered as not run, and the next user message, if
   any, follows.
 - **The wind-down,** the budget spent or the host's finish request
-  (domain/run.md, 9.1): the agent ends the program's turn with SIGINT,
-  sends the run's note as its next user message, and refuses every call
+  (domain/run.md, 9.1): the agent ends the program's turn with an
+  interrupt, sends the run's note as its next user message, and refuses every call
   from then on (5.7). The domain says when main yields for the note,
   so that a reply crossing the note is told from the one after it: the
   text of the turn that follows the yield, at its `result`, is the last
@@ -545,8 +557,11 @@ conditions. smith keeps each as a rule of its own:
   events, that `-p` reads the login, and what 5.9 relies on: after a
   turn's `result`, with its input left open, the same process takes a
   second user message that needs the first turn's context, answers it
-  with a second `result`, and exits when its input closes; and a turn
-  ended by SIGINT is followed by another in the same process.
+  with a second `result`, and exits when its input closes; a turn
+  ended by an interrupt control request is followed by another in the
+  same process; a later `system/init` and `system/status` are met as
+  5.5 says. The fake sends what a real run was recorded sending, those
+  messages included.
 
 ## 9. Open questions
 
