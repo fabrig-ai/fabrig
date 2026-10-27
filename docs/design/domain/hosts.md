@@ -1025,3 +1025,13 @@ agent for ever.
 - **Agents other than smith:** the contract of section 2 is jig's; an
   agent that spoke it through a capability of its own could run beside
   smith. Not wanted yet.
+- **A message's rendering allowance.** A message admitted at
+  `tasks.message_bytes` reaches a run with its sender's label, kind and
+  number before its words (section 9), and the host and smith measure
+  all of it against their own bounds (`hub.event_bytes`, the run's
+  message bound), so a message admitted at the bound is refused by the
+  run, against tasks.md 8.2's promise. The likely answer: words and
+  questions admitted against the message bound less an allowance the
+  application declares for its rendering (label, kind, number and
+  smith's separator), with the host's, the fleet's and the agent's
+  bounds checked against it at configuration.
