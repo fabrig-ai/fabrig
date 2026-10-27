@@ -995,6 +995,7 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
 }
 pub(crate) fn setup_print(forge: u16, outcome: &Outcome, json: bool, kept: bool, limits: &Limits) -> jig::Printed {
     let answer = match outcome {
+        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
         Outcome::Answered(answer) => domain::answer(answer, &limits.domain.forge),
         Outcome::Unknown => Some(SetUpAnswer::Outcome(SetUpOutcome::Unknown)),
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {

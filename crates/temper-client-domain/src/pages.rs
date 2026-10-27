@@ -203,9 +203,9 @@ impl Pages {
             None => &self.accounts.request,
         };
         if let Some(pending) = &request.pending
-            && (pending.outcome.is_none()
-                || pending.outcome == Some(jig_client::Outcome::Unsent)
-                || pending.outcome == Some(jig_client::Outcome::Lost))
+            && let None
+            | Some(jig_client::Outcome::Unsent | jig_client::Outcome::Lost | jig_client::Outcome::Full { .. }) =
+                &pending.outcome
             && let Some(name) = pending.name
         {
             return name;
@@ -638,6 +638,7 @@ fn seen_answered(outcome: &jig_client::Outcome) -> bool {
         | jig_client::Outcome::Unconfirmed
         | jig_client::Outcome::Held
         | jig_client::Outcome::Unsent
+        | jig_client::Outcome::Full { .. }
         | jig_client::Outcome::Lost => false,
     }
 }

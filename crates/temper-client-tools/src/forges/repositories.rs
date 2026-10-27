@@ -155,6 +155,7 @@ fn json(page: &Page, out: &mut Encoder) {
 }
 fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits) -> jig::Printed {
     let value = match outcome {
+        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
         Outcome::Answered(Answered::Family(record))
             if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION =>
         {

@@ -23,6 +23,7 @@ pub enum PasteState {
     Refused { why: c::SignInRedirectWhy },
     Ended,
     Again,
+    Full { held: u32, room_at: skein_lib::Wall },
 }
 impl Paste {
     #[must_use]
@@ -135,6 +136,7 @@ impl Request {
         };
         match &pending.outcome {
             None => PasteState::Sending,
+            Some(jig_client::Outcome::Full { held, room_at }) => PasteState::Full { held: *held, room_at: *room_at },
             Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
                 c::OwnerOutcome::AccountFinishing { .. },
             ))))) => PasteState::Finishing,

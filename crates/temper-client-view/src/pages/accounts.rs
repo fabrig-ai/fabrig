@@ -508,7 +508,14 @@ pub(super) fn outcome(
     }
     if let Some(pending) = &form.pending {
         match &pending.outcome {
-            None => text(b, w, Role::Status, W::InFlight),
+            None => {
+                let progress = match root.client().pending(pending.key) {
+                    Some(p) => p.progress,
+                    None => jig_client::Progress::InFlight,
+                };
+                crate::cards::progress(b, w, progress);
+            }
+            Some(jig_client::Outcome::Full { held, room_at }) => crate::cards::answers_full(b, w, *held, *room_at),
             Some(jig_client::Outcome::Lost) => text(b, w, Role::Alert, W::Lost),
             Some(jig_client::Outcome::Unsent) => text(b, w, Role::Alert, W::Unsent),
             Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
@@ -849,6 +856,10 @@ fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
         S::Refused { why: c::SignInRedirectWhy::State } => Some(W::PasteState),
         S::TooLong => Some(W::PasteLong),
         S::Again => Some(W::PasteAgain),
+        S::Full { held, room_at } => {
+            crate::cards::answers_full(b, w, held, room_at);
+            None
+        }
         S::Waiting { .. } | S::Sending => None,
     };
     crate::cards::text(b, Role::Paragraph, &named(w, W::PasteInstructions, paste_plan(root, form)));

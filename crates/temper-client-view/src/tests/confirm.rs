@@ -90,7 +90,12 @@ fn contains(text: &[u8], expected: &[u8]) -> bool {
     }
     false
 }
-const OUTCOMES: [(jig_client::Outcome, &[u8]); 3] = [
+// A three-place table, with room at 01:02 after the epoch; wall words use seconds.
+const FULL_HELD: u32 = 3;
+const FULL_ROOM: Wall = Wall::from_nanos(3_720_000_000_000);
+const FULL_WORDS: &[u8] = b"The engine holds its 3 answers of the last day; room again at 3720";
+const OUTCOMES: [(jig_client::Outcome, &[u8]); 4] = [
+    (jig_client::Outcome::Full { held: FULL_HELD, room_at: FULL_ROOM }, FULL_WORDS),
     (jig_client::Outcome::NotKept, b"The request was not kept."),
     (jig_client::Outcome::Unknown, b"The engine no longer knows this request."),
     (
@@ -269,4 +274,15 @@ fn releases_card_tree_stays_byte_identical() {
         return;
     }
     assert_eq!(actual.as_bytes(), std::fs::read("src/tests/release-card.txt").unwrap());
+}
+
+#[test]
+fn retrying_full_answers_show_the_count_and_expiry() {
+    let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
+    crate::cards::progress(
+        &mut builder,
+        &fixtures::words(),
+        jig_client::Progress::Retrying { why: jig_client::Retry::Full { held: FULL_HELD, room_at: FULL_ROOM } },
+    );
+    assert!(contains(&fixtures::text(&builder.finish()), FULL_WORDS));
 }

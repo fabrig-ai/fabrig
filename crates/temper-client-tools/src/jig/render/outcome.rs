@@ -162,6 +162,7 @@ pub(crate) fn print(
     limits: &Limits,
 ) -> Printed {
     let status = match outcome {
+        Outcome::Full { held, room_at } => return super::answers_full(*held, *room_at),
         Outcome::Answered(Answered::Jig(c::Answer::Done(_))) => 0,
         Outcome::Answered(Answered::Jig(c::Answer::Refused { .. })) => 2,
         Outcome::NotKept
@@ -197,6 +198,9 @@ fn bytes(
     limits: &Limits,
     kept: bool,
 ) -> Box<[u8]> {
+    if let Outcome::Full { held, room_at } = outcome {
+        return super::answers_full(*held, *room_at).stderr;
+    }
     if json {
         let bounds = skein_json::writer::Limits {
             depth: 32,
@@ -225,7 +229,7 @@ fn client_reason<'a>(operation: &'a Operation, outcome: &Outcome) -> Option<[&'a
         Outcome::Held => Some(b"name held by another request"),
         Outcome::Unconfirmed => Some(b"tools' bug; unconfirmed request; report it as a finding"),
         Outcome::Answered(Answered::Family(_)) => Some(b"tools' bug; unexpected family answer; report it as a finding"),
-        Outcome::Answered(Answered::Jig(_)) => None,
+        Outcome::Answered(Answered::Jig(_)) | Outcome::Full { .. } => None,
         Outcome::Unsent => Some(b"unsent"),
         Outcome::Lost => Some(b"lost"),
     };
@@ -574,7 +578,8 @@ fn account_follow_up(operation: &Operation, outcome: &Outcome) -> Option<&'stati
         | Outcome::Unconfirmed
         | Outcome::Held
         | Outcome::Unsent
-        | Outcome::Lost => None,
+        | Outcome::Lost
+        | Outcome::Full { .. } => None,
     }
 }
 

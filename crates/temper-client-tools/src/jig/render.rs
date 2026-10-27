@@ -513,3 +513,19 @@ pub(crate) fn waiting(
     }
     printed
 }
+
+/// The engine's unsaved admission refusal (client/tools.md, 6.3).
+pub(crate) fn answers_full(held: u32, room_at: skein_lib::Wall) -> Printed {
+    fn line(held: u32, room_at: skein_lib::Wall, out: &mut Text) {
+        out.put(b"temper ctl: the engine holds its ");
+        out.number(u64::from(held));
+        out.put(b" answers of the last day; room again at ");
+        document::clock::deadline(room_at, out);
+        out.put(b"\n");
+    }
+    let mut measured = Text::measure();
+    line(held, room_at, &mut measured);
+    let mut write = Text::writing_exact(measured);
+    line(held, room_at, &mut write);
+    Printed { file: crate::jig::FileEnd::Keep, status: 2, stdout: Box::default(), stderr: write.finish() }
+}

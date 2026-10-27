@@ -62,7 +62,30 @@ pub fn decision(b: &mut Builder, words: &Words, page: Option<&c::ReadValue>, act
         text(b, Role::Paragraph, fact);
     }
 }
+pub(crate) fn full_progress(
+    b: &mut Builder,
+    words: &Words,
+    root: &temper_client_domain::Domain,
+    request: skein_lib::Token,
+) -> bool {
+    let key = jig_client::Key { asker: temper_client_domain::owner::Owner::Forge.asker(), number: request.raw() };
+    if let Some(pending) = root.client().pending(key)
+        && let jig_client::Progress::Retrying { why: jig_client::Retry::Full { held, room_at } } = pending.progress
+    {
+        answers_full(b, words, held, room_at);
+        true
+    } else {
+        false
+    }
+}
+pub fn answers_full(b: &mut Builder, words: &Words, held: u32, room_at: skein_lib::Wall) {
+    status(b, words, P::AnswersFull, &[Hole::Number(u64::from(held)), Hole::Wall(room_at)]);
+}
 pub fn progress(b: &mut Builder, words: &Words, value: jig_client::Progress) {
+    if let jig_client::Progress::Retrying { why: jig_client::Retry::Full { held, room_at } } = value {
+        answers_full(b, words, held, room_at);
+        return;
+    }
     status(
         b,
         words,

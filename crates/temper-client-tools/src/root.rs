@@ -1,6 +1,6 @@
 //! The tools' shared client and exhaustive owner routing (client/tools.md, 4).
 use crate::jig::{self, runner};
-use alloc::boxed::Box;
+use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Told};
 use skein_lib::{Env, List, Queue, Time};
 use temper_client_domain::owner::Owner;
@@ -45,6 +45,7 @@ pub struct Root {
     recovery: crate::recovery::Recovery,
     bounds: Bounds,
     deadline: Option<Time>,
+    patience: BTreeMap<u32, (u32, Time)>,
 }
 /// Derived from the complete preset, never from a call's changing state.
 #[derive(Clone, Copy, Debug)]
@@ -106,6 +107,7 @@ impl Root {
             recovery: crate::recovery::Recovery::new(),
             bounds: limits.bounds(),
             deadline: None,
+            patience: BTreeMap::new(),
         };
         root.changed();
         root
@@ -187,6 +189,7 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 out.push(Request::Printed { number, printed });
             } else if let Some(call_number) = root.next {
                 root.next = call_number.checked_add(1);
+                root.patience.insert(call_number, (number, env.now.saturating_add(crate::limits::DEADLINE)));
                 let forge = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name
                     == crate::adopt::ROW.name;
                 let called = runner::Called { number, call_number, call, json, value };
@@ -252,6 +255,12 @@ fn drain(
                         && let Some(kept) = root.recovery.same(*name, request, me.party.number, &root.client)
                     {
                         root.recovery.joined.insert(*key, kept);
+                        if let Some(pending) = root.client.pending(kept)
+                            && let jig_client::Progress::Retrying { why: jig_client::Retry::Full { .. } } =
+                                pending.progress
+                        {
+                            route(root, env, Told::Pending { key: kept }, child, out);
+                        }
                     } else {
                         root.client.step(env.now, env.wall, event, client);
                     }
@@ -260,7 +269,18 @@ fn drain(
                 runner::Out::Ready => out.push(Request::Ready),
                 runner::Out::Kept { line } => out.push(Request::Kept { line }),
                 runner::Out::Progress { line } => out.push(Request::Progress { line }),
-                runner::Out::Printed { number, printed } => out.push(Request::Printed { number, printed }),
+                runner::Out::Printed { number, printed } => {
+                    let mut finished = List::with_capacity(env.limits.tools.rows);
+                    for (prefix, (call, _)) in &root.patience {
+                        if *call == number {
+                            finished.push(*prefix).expect("bounded calls");
+                        }
+                    }
+                    for prefix in &finished {
+                        root.patience.remove(prefix);
+                    }
+                    out.push(Request::Printed { number, printed });
+                }
                 runner::Out::DraftAmendment { called, task } => {
                     let prepared = match runner::acts::me(&root.runner, &root.client) {
                         Some(me) => crate::amend::prepare(&called.call, &task, me, &env.limits.tools),
@@ -275,7 +295,46 @@ fn drain(
     }
     assert!(client.is_empty() && child.is_empty(), "bounded routing completes");
 }
+fn past_patience(root: &Root, env: &Env<Limits>, key: jig_client::Key, room_at: skein_lib::Wall) -> bool {
+    let prefix = u32::try_from(key.number >> 32u32).expect("call prefix");
+    let Some((_, until)) = root.patience.get(&prefix) else { return false };
+    room_at.as_nanos().saturating_sub(env.wall.as_nanos()) > until.as_nanos().saturating_sub(env.now.as_nanos())
+}
 fn route(root: &mut Root, env: &Env<Limits>, told: Told, child: &mut Queue<runner::Out>, out: &mut Queue<Request>) {
+    if let Told::Pending { key } = &told
+        && let Some(pending) = root.client.pending(*key)
+        && let jig_client::Progress::Retrying { why: jig_client::Retry::Full { held, room_at } } = pending.progress
+    {
+        let own = past_patience(root, env, *key, room_at);
+        let mut refused = List::with_capacity(env.limits.tools.rows);
+        for (local, kept) in &root.recovery.joined {
+            if kept == key && past_patience(root, env, *local, room_at) {
+                refused.push(*local).expect("bounded calls");
+            }
+        }
+        for local in &refused {
+            root.recovery.joined.remove(local);
+            route_owner(
+                root,
+                env,
+                Told::Answered { key: *local, outcome: jig_client::Outcome::Full { held, room_at } },
+                child,
+                out,
+            );
+        }
+        if own {
+            // End only this call. The engine key stays in the small store,
+            // with its recovery bookkeeping, for another call once room returns.
+            route_owner(
+                root,
+                env,
+                Told::Answered { key: *key, outcome: jig_client::Outcome::Full { held, room_at } },
+                child,
+                out,
+            );
+            return;
+        }
+    }
     if let Told::Kept { key, .. } = &told {
         jig::key::reserve(&mut root.next, *key);
         root.recovery.kept(*key);

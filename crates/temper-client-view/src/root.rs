@@ -20,6 +20,17 @@ pub struct View {
     next_change: Option<Wall>,
     clock_revision: u64,
 }
+fn adoption_progress(root: &Domain, form: &temper_client_domain::forge::Form) -> Option<jig_client::Progress> {
+    let (request, _) = form.pending?;
+    Some(
+        root.client()
+            .pending(jig_client::Key {
+                asker: temper_client_domain::owner::Owner::Forge.asker(),
+                number: request.raw(),
+            })?
+            .progress,
+    )
+}
 impl View {
     #[must_use]
     pub fn new(limits: &Limits, domain: &temper_client_domain::Limits, forge_words: Words, forge: u16) -> View {
@@ -78,6 +89,7 @@ impl View {
             &self.forge_words,
             &mut self.forge,
             self.limits.tree.text_per_node,
+            adoption_progress(root, form),
         );
         b.close();
         b.close();

@@ -224,7 +224,9 @@ impl ConnectModel {
                 };
                 let ask = c::Ask::AccountChange { holder: self.holder, change };
                 if let Some(p) = &self.request.pending
-                    && (p.outcome == Some(jig_client::Outcome::Lost) || p.outcome == Some(jig_client::Outcome::Unsent))
+                    && let Some(
+                        jig_client::Outcome::Lost | jig_client::Outcome::Unsent | jig_client::Outcome::Full { .. },
+                    ) = &p.outcome
                     && (p.name != Some(name) || p.ask != ask)
                 {
                     self.request.clear_key();

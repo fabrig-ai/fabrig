@@ -112,8 +112,8 @@ impl Accounts {
             return;
         };
         if let Some(pending) = &self.request.pending
-            && (pending.outcome == Some(jig_client::Outcome::Unsent)
-                || pending.outcome == Some(jig_client::Outcome::Lost))
+            && let Some(jig_client::Outcome::Lost | jig_client::Outcome::Unsent | jig_client::Outcome::Full { .. }) =
+                &pending.outcome
             && (pending.name != Some(name) || pending.ask != ask)
         {
             self.request.clear_key();

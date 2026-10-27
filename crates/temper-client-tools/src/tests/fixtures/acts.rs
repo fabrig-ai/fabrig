@@ -42,6 +42,17 @@ impl Harness {
             },
         });
     }
+    pub(crate) fn answers_full(&mut self, call: u32, held: u32, room_at: Wall) {
+        let (attempt, _, _) = self.sends.get(&call).expect("call sent");
+        self.client(client::Event::Up {
+            up: client::Up::Answer {
+                attempt: *attempt,
+                envelope: skein_lib::RequestEnvelope::Again,
+                answer: None,
+                why: Some(client::Retry::Full { held, room_at }),
+            },
+        });
+    }
     pub(crate) fn sent_name(&self, call: u32) -> Option<skein_lib::RequestKey> {
         let (_, key, _) = self.sends.get(&call)?;
         Some(*key)

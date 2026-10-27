@@ -75,6 +75,7 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
                     words.card_text(b, P::LookAgain, &[]);
                 }
             }
+            Outcome::Full { held, room_at } => crate::cards::answers_full(b, words, *held, *room_at),
             Outcome::NotKept | Outcome::Held => words.status(b, P::RequestNotKept, &[]),
             Outcome::Unknown => words.status(b, P::Unknown, &[]),
             Outcome::Limit => words.status(b, P::RequestsInFlight, &[]),

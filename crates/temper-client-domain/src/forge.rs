@@ -417,6 +417,7 @@ pub(crate) fn told(client: &jig_client::Client, limits: &crate::Limits, told: ji
                 | Outcome::Held
                 | Outcome::NotKept
                 | Outcome::Unsent
+                | Outcome::Full { .. }
                 | Outcome::Lost
                 | Outcome::Unconfirmed => Answer::Unknown,
             };

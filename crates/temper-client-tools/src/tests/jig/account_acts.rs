@@ -783,3 +783,19 @@ fn imports_render_the_account_and_renewal_from_the_answer() {
         }
     }
 }
+
+#[test]
+fn an_export_refused_for_full_answers_removes_its_file() {
+    let mut root = f::account_root(false);
+    let call = root.submit(&["account", "export", "43", "record"]);
+    f::deliver_accounts(&mut root, f::accounts());
+    root.answers_full(call, 3, skein_lib::Wall::from_nanos(86_400_000_000_000));
+    let answer = root.answer(call).expect("carried full answer");
+    assert_eq!(answer.status, 2);
+    assert_eq!(answer.file, crate::jig::FileEnd::Remove);
+    assert!(root.records.is_empty(), "no account record was written");
+    assert_eq!(
+        answer.stderr.as_ref(),
+        b"temper ctl: the engine holds its 3 answers of the last day; room again at 1970-01-02 00:00 UTC\n"
+    );
+}

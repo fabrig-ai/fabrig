@@ -495,6 +495,7 @@ pub(crate) fn told(
                 | Outcome::Held
                 | Outcome::NotKept
                 | Outcome::Unsent
+                | Outcome::Full { .. }
                 | Outcome::Lost
                 | Outcome::Unconfirmed => SetUpAnswer::Outcome(SetUpOutcome::Unknown),
             });

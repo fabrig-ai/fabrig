@@ -15,6 +15,7 @@ pub fn page(
     words: &Words,
     bindings: &mut Bindings,
     text_limit: u32,
+    pending: Option<jig_client::Progress>,
 ) {
     builder.open(Role::Slot);
     builder.style(crate::look::PAGEBAR);
@@ -75,11 +76,14 @@ pub fn page(
         crate::cards::progress(
             builder,
             words,
-            match progress {
-                RequestProgress::InFlight => jig_client::Progress::InFlight,
-                RequestProgress::Retrying => jig_client::Progress::Retrying { why: jig_client::Retry::Lost },
-                RequestProgress::Parked => jig_client::Progress::Parked,
-                RequestProgress::Unknown => jig_client::Progress::Unknown,
+            match pending {
+                Some(progress) => progress,
+                None => match progress {
+                    RequestProgress::InFlight => jig_client::Progress::InFlight,
+                    RequestProgress::Retrying => jig_client::Progress::Retrying { why: jig_client::Retry::Lost },
+                    RequestProgress::Parked => jig_client::Progress::Parked,
+                    RequestProgress::Unknown => jig_client::Progress::Unknown,
+                },
             },
         );
     }

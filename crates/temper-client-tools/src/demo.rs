@@ -93,6 +93,7 @@ fn json(answer: &StartAnswer, kept: bool, out: &mut Encoder) {
 }
 pub(crate) fn print(outcome: &Outcome, as_json: bool, kept: bool, limits: &Limits) -> jig::Printed {
     let answer = match outcome {
+        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
         Outcome::Answered(answer) => demo::answer(answer, &limits.domain.forge),
         Outcome::Unknown => Some(StartAnswer::Unknown),
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {

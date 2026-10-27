@@ -385,7 +385,8 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
     }
     if let Some(pending) = &page.request.pending
-        && let Some(jig_client::Outcome::Lost | jig_client::Outcome::Unsent) = &pending.outcome
+        && let Some(jig_client::Outcome::Lost | jig_client::Outcome::Unsent | jig_client::Outcome::Full { .. }) =
+            &pending.outcome
     {
         button(b, bindings, &say(w, W::Cancel), Act::Cancel, false, false);
     }

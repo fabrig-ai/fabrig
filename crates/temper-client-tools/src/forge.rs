@@ -249,6 +249,7 @@ pub(crate) fn print(
     limits: &Limits,
 ) -> jig::Printed {
     let answer = match outcome {
+        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
         Outcome::Unknown => Some(forge::Answer::Unknown),
         Outcome::Answered(answer) => forge::answer(&limits.domain, answer),
         Outcome::Unsent | Outcome::Lost => unreachable!("temper's requests carry no value"),

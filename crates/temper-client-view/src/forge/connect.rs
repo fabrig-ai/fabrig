@@ -488,7 +488,25 @@ pub(crate) fn setup_control(
         }
     }
 }
+fn full_setup(b: &mut Builder, root: Option<&Domain>, w: &Words, row: &Row) -> bool {
+    let Some(root) = root else { return false };
+    let Some(setup) = root.forge().set_up() else { return false };
+    if setup.forge != row.number {
+        return false;
+    }
+    let mut request = setup.request;
+    if let Some(starting) = &setup.starting {
+        request = starting.request;
+    }
+    if let Some(adopting) = &setup.adoption {
+        request = adopting.request;
+    }
+    crate::cards::full_progress(b, w, root, request)
+}
 pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row: &Row) {
+    if full_setup(b, root, w, row) {
+        return;
+    }
     if row.kind == Kind::GitHub {
         flow::progress(
             b,
@@ -1102,6 +1120,12 @@ fn github_picker(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBin
             w.say(Word::SetupAdopt, &[Hole::Name(forge::words::full_name(&selected.owner.login, &selected.name))]);
         picker_control(b, forge, row.number, &label, Act::Adopt, disabled);
     }
+    if let Some(starting) = &picker.starting {
+        crate::cards::full_progress(b, w, root, starting.request);
+    }
+    if let Some(adopting) = &picker.adoption {
+        crate::cards::full_progress(b, w, root, adopting.request);
+    }
     if let Some(starting) = &picker.starting
         && let Some(outcome) = &starting.value.outcome
     {
@@ -1115,6 +1139,7 @@ fn github_picker(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBin
                 b.close();
             }
             jig_client::Outcome::Answered(_) => {}
+            jig_client::Outcome::Full { held, room_at } => crate::cards::answers_full(b, w, *held, *room_at),
             jig_client::Outcome::NotKept
             | jig_client::Outcome::Unknown
             | jig_client::Outcome::Limit

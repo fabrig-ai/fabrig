@@ -481,6 +481,7 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
     let install = pending.install;
     let kept = pending.called.is_none();
     let answer = match outcome {
+        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
         Outcome::Answered(value) => answer(value, limits),
         Outcome::Unknown => Some(Answer::Unknown),
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {

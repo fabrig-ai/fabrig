@@ -44,6 +44,11 @@ impl Side {
         }
     }
 
+    /// The shared client's key for the playground's request, while it retries.
+    #[must_use]
+    pub fn demo_request(&self) -> Option<Token> {
+        Some(self.demo.start.as_ref()?.request)
+    }
     /// The retired playground, including an end observed in this session.
     #[must_use]
     pub fn retired_demo(&self) -> Option<RetiredDemo> {
@@ -138,6 +143,7 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
                 | jig_client::Outcome::Held
                 | jig_client::Outcome::NotKept
                 | jig_client::Outcome::Unsent
+                | jig_client::Outcome::Full { .. }
                 | jig_client::Outcome::Lost
                 | jig_client::Outcome::Unconfirmed => Some(StartAnswer::Unknown),
             };

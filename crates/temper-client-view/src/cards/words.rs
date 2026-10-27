@@ -53,6 +53,7 @@ pub enum CardWord {
     HoldRevision,
     InFlight,
     Retrying,
+    AnswersFull,
     Parked,
     Done,
     Failed,
@@ -124,6 +125,7 @@ const ALL: &[CardWord] = &[
     CardWord::HoldRevision,
     CardWord::InFlight,
     CardWord::Retrying,
+    CardWord::AnswersFull,
     CardWord::Parked,
     CardWord::Done,
     CardWord::Failed,
@@ -149,7 +151,7 @@ const ALL: &[CardWord] = &[
 ];
 impl CardWord {
     fn data(self) -> (u16, &'static [&'static [u8]], &'static [HoleKind]) {
-        use HoleKind::{Name, Number};
+        use HoleKind::{Name, Number, Wall};
         match self {
             Self::CardLeft => (65, &[b"This proposal is no longer waiting in this chat."], &[]),
             Self::Spend => (48, &[b"May spend ", b""], &[Number]),
@@ -202,6 +204,9 @@ impl CardWord {
             Self::HoldRevision => (22, &[b"Hold revision ", b""], &[Number]),
             Self::InFlight => (23, &[b"Pending"], &[]),
             Self::Retrying => (24, &[b"Retrying"], &[]),
+            Self::AnswersFull => {
+                (45, &[b"The engine holds its ", b" answers of the last day; room again at ", b""], &[Number, Wall])
+            }
             Self::Parked => (25, &[b"Waiting to send"], &[]),
             Self::Done => (26, &[b"Done"], &[]),
             Self::Failed => (27, &[b"Failed"], &[]),

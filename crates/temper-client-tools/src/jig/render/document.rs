@@ -588,7 +588,7 @@ pub(crate) mod waiting;
 
 pub(crate) mod accounts;
 
-pub(super) mod clock;
+pub(crate) mod clock;
 mod dependencies;
 mod instruction_words;
 mod result_words;

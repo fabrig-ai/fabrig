@@ -202,19 +202,25 @@ fn start(
     b.style(crate::look::CHATBAR);
     b.open(Role::Slot);
     text(b, Role::Paragraph, &words.say(Word::NewChat, &[]));
-    b.open(Role::Status);
-    b.style(crate::look::STATUS_QUIET);
-    let status = if root.forge().demo_starting() {
-        Word::DemoStarting
-    } else if root.forge().demo_failure().is_some() {
-        Word::DemoNotStarted
-    } else {
-        Word::Ready
+    let full = match root.forge().demo_request() {
+        Some(request) => crate::cards::full_progress(b, words, root, request),
+        None => false,
     };
-    let ready = words.say(status, &[]);
-    b.name(&ready);
-    b.text(Run::Plain, &ready);
-    b.close();
+    if !full {
+        b.open(Role::Status);
+        b.style(crate::look::STATUS_QUIET);
+        let status = if root.forge().demo_starting() {
+            Word::DemoStarting
+        } else if root.forge().demo_failure().is_some() {
+            Word::DemoNotStarted
+        } else {
+            Word::Ready
+        };
+        let ready = words.say(status, &[]);
+        b.name(&ready);
+        b.text(Run::Plain, &ready);
+        b.close();
+    }
     b.close();
     b.open(Role::Slot);
     text(b, Role::Paragraph, &words.say(Word::DemoModelName, &[]));
@@ -312,6 +318,7 @@ pub(crate) fn outcome_text(b: &mut Builder, words: &Words, outcome: &jig_client:
         Outcome::Answered(Answered::Jig(jig_client::contract::Answer::Refused { refusal, .. })) => {
             words.refusal(b, refusal, text_limit);
         }
+        Outcome::Full { held, room_at } => crate::cards::answers_full(b, words, *held, *room_at),
         Outcome::NotKept | Outcome::Held => words.status(b, P::RequestNotKept, &[]),
         Outcome::Unknown => words.status(b, P::Unknown, &[]),
         Outcome::Limit => words.status(b, P::RequestsInFlight, &[]),

@@ -264,8 +264,8 @@ impl Request {
         self.clear_key();
         self.broken = None;
         if let Some(pending) = &self.pending
-            && (pending.outcome == Some(jig_client::Outcome::Lost)
-                || pending.outcome == Some(jig_client::Outcome::Unsent))
+            && let Some(jig_client::Outcome::Lost | jig_client::Outcome::Unsent | jig_client::Outcome::Full { .. }) =
+                &pending.outcome
         {
             self.pending = None;
         }

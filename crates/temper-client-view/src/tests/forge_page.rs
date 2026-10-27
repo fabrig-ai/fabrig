@@ -74,7 +74,7 @@ fn page_tree(form: &forge::Form, words: &crate::words::Words) -> skein_ui::Tree 
     limits.text_bytes = 262_144;
     let mut builder = skein_ui::Builder::new(&limits);
     let mut bindings = Bindings::new(limits.bindings, 8, 1);
-    page::page(&mut builder, form, Some(b"Shop"), words, &mut bindings, fixtures::tree_limits().text_per_node);
+    page::page(&mut builder, form, Some(b"Shop"), words, &mut bindings, fixtures::tree_limits().text_per_node, None);
     builder.finish()
 }
 fn adopted() -> forge::Answer {

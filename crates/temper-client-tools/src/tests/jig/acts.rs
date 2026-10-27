@@ -547,3 +547,42 @@ fn a_cut_question_is_answered_as_any_other() {
     root.done(call, c::Outcome::Changed);
     assert_eq!(root.answer(call).expect("answer completed").status, 0);
 }
+
+// Three retained answers, with a full day's advertised retention.
+const HELD_ANSWERS: u32 = 3;
+const ROOM_NEXT_DAY: skein_lib::Wall = skein_lib::Wall::from_nanos(86_400_000_000_000);
+const FULL_LINE: &[u8] =
+    b"temper ctl: the engine holds its 3 answers of the last day; room again at 1970-01-02 00:00 UTC\n";
+#[test]
+fn answers_full_past_patience_ends_the_call_at_once() {
+    let (mut root, call) = fixtures::message();
+    root.answers_full(call, HELD_ANSWERS, ROOM_NEXT_DAY);
+    let answer = root.answer(call).expect("full answers do not wait for the timeout");
+    assert_eq!((answer.status, answer.stderr.as_ref()), (2, FULL_LINE));
+    assert!(answer.stdout.is_empty());
+    assert_eq!(root.now, skein_lib::Time::ZERO);
+}
+#[test]
+fn answers_full_within_patience_waits_and_then_succeeds() {
+    let (mut root, call) = fixtures::message();
+    let room_at = skein_lib::Wall::from_nanos(crate::limits::DEADLINE.as_nanos());
+    root.answers_full(call, HELD_ANSWERS, room_at);
+    assert!(root.answer(call).is_none(), "room at the deadline still permits waiting");
+    root.now = skein_lib::Time::from_nanos(1_000_000_000);
+    root.wall = skein_lib::Wall::from_nanos(1_000_000_000);
+    root.fire();
+    root.done(call, c::Outcome::Changed);
+    assert_eq!(root.answer(call).expect("retry succeeds").status, 0);
+}
+
+#[test]
+fn a_call_joining_a_restored_full_request_ends_at_once() {
+    let mut root = fixtures::started(fixtures::restored_message(fixtures::PARTY));
+    root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
+    root.answers_full(fixtures::EMPTY, HELD_ANSWERS, ROOM_NEXT_DAY);
+    let call = root.submit(fixtures::MESSAGE_CALL);
+    root.serve(call, fixtures::task_result(fixtures::offered(&[c::ActKind::Message])));
+    let answer = root.answer(call).expect("the restored full facts already exceed this call's patience");
+    assert_eq!((answer.status, answer.stderr.as_ref()), (2, FULL_LINE));
+    assert_eq!(root.root.kept(), fixtures::KEPT, "the original key remains available for another call");
+}
