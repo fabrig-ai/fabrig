@@ -1142,7 +1142,12 @@ starts from current code. It never updates only because its base moved.
   (4.1, 4.3), the stall does not count.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it, its stall is counted from it, and the change
-  decides afresh.
+  decides afresh. At producing, with no head pushed (its producer failed
+  for good), deciding afresh makes a fresh producer, one more of its
+  tasks, holding by the rule above when its authority no longer covers
+  one. A change is a procedure, with no run of its own to repeat: a
+  release asking to run it again is refused saying so, never as
+  missing authority.
 
 ### 8.5 Drift
 
