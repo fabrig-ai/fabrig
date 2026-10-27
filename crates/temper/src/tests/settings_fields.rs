@@ -180,8 +180,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // Stock has two charters, two templates, one policy and the rules.
-    const STOCK_VALUES: usize = 6;
+    // Stock has three charters, two templates, one policy and the rules.
+    const STOCK_VALUES: usize = 7;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::defaults(&llm);
@@ -276,7 +276,7 @@ charter.number
 
 #[test]
 fn every_setting_field_a_page_names_is_a_field() {
-    for page in &temper_docs::TOPICS {
+    for page in &temper_docs::PAGES {
         for path in setting_paths(page.text) {
             assert!(fields::resolve(path.as_bytes()).is_some(), "{}: unknown setting field {path}", page.name);
         }
