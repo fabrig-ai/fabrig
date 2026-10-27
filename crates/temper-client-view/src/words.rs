@@ -622,6 +622,7 @@ pub enum Word {
     TaskNotServed,
     TaskGone,
     TaskTooLarge,
+    TaskTooLinked,
     TaskMalformed,
 
     MessageOnceRuns,
@@ -664,7 +665,7 @@ pub enum Word {
 // The welcome's Forgejo card adds four literal phrases and segments.
 const PHRASES: u32 = 1173;
 const SEGMENTS: u32 = 2064;
-const ALL: [Word; 596] = [
+const ALL: [Word; 597] = [
     Word::WelcomeForgejo,
     Word::WelcomeForgejoDescription,
     Word::WelcomeForgejoRun,
@@ -1259,6 +1260,7 @@ const ALL: [Word; 596] = [
     Word::TaskNotServed,
     Word::TaskGone,
     Word::TaskTooLarge,
+    Word::TaskTooLinked,
     Word::TaskMalformed,
     Word::MessageOnceRuns,
 ];
@@ -1875,6 +1877,7 @@ impl Word {
             Self::TaskNotServed => 2016,
             Self::TaskGone => 2017,
             Self::TaskTooLarge => 2018,
+            Self::TaskTooLinked => 2020,
             Self::TaskMalformed => 2019,
         };
         let owner =
@@ -2641,6 +2644,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TaskNotServed => (&[b"This version of temper cannot read this task."], &[]),
         Word::TaskGone => (&[b"This task is no longer available."], &[]),
         Word::TaskTooLarge => (&[b"This task is too large to read."], &[]),
+        Word::TaskTooLinked => (&[b"Too linked to show: it needs more than ", b" joins in one read."], &[Number]),
         Word::TaskMalformed => (&[b"This task could not be read."], &[]),
 
         Word::Project => (&[b"Project ", b""], &[Number]),
