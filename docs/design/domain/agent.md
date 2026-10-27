@@ -340,6 +340,8 @@ it as any `delegate`:
 - **an advisor,** with `advisor` set, its report bounded as a goal's,
   its brief opening with the root's own line that it is an advisor,
   which reads and reports and changes nothing, before the run's words,
+  the line counted with them within the spec's bytes (a request is
+  refused as too long with the line included, never cut to make room),
   so that it knows what it is without a convention in those words:
   untracked, so that no goal of its
   is projected on the forge; reads alone, no grant of a forge effect, no
