@@ -2496,7 +2496,7 @@ fn a_cut_specification_has_an_explanation_and_no_textarea() {
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Specification").is_none());
     assert!(contains(
         view.tree(),
-        b"This task's specification is too long to edit here: use `temper ctl DIR task amend`"
+        b"This task's specification is too long to edit here: use `temper ctl DIR task amend TASK --rev REV --spec FILE REASON`"
     ));
 }
 #[test]

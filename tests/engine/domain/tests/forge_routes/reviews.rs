@@ -768,8 +768,8 @@ fn assert_authority_hold(
     let needed = u64::from(live.made);
     assert_eq!(cause.recovery.tasks, needed);
     let way = format!(
-        "give it more and release it: `task amend {task} --rev {} --tasks {needed} REASON`, then `task release {task} --hold {}`; or cancel it: `task cancel {task}`",
-        live.revisions.spec, live.revisions.hold,
+        "release it: task release {task} --hold {} (it holds again unless it has more); or cancel it: task cancel {task} REASON",
+        live.revisions.hold,
     );
     assert!(temper_engine_domain_forge_change::authority_words(cause).ends_with(way.as_bytes()));
 }

@@ -75,7 +75,10 @@ impl Agent {
 }
 #[must_use]
 pub fn limits() -> root::Limits {
-    root::Limits::new(temper_client_tools::limits::client(), temper_client_tools::limits::tools())
+    let mut domain = temper_client_tools::limits::client();
+    // The landing fixture reserves three project rows, one per configured role.
+    domain.client.domain.projects = 3;
+    root::Limits::new(domain, temper_client_tools::limits::tools())
 }
 #[must_use]
 pub fn new(seed: u64) -> (Root, View) {

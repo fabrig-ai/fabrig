@@ -33,7 +33,7 @@ pub(crate) fn text(task: &c::Task, vocabulary: &dyn Parts, out: &mut Text) {
     out.put(b" --hold ");
     out.number(task.hold.as_ref().expect("supplied hold").revision().value);
     if uncertain {
-        out.put(b" --again only to repeat the effect");
+        out.put(b" --again (only to repeat the effect)");
     }
     out.put(b"\n");
 }

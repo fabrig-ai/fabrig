@@ -1251,7 +1251,7 @@ fn a_change_whose_reviews_exhaust_its_tasks_holds_and_a_bare_release_holds_it_ag
         assert!(panel["hold"].as_str().expect("held cause").contains("its 6 tasks are made"), "{panel}");
         let revision = if index == authority_at { 3 } else { 4 };
         let way = format!(
-            "give it more and release it: `task amend 2 --rev 0 --tasks 7 REASON`, then `task release 2 --hold {revision}`; or cancel it: `task cancel 2`"
+            "release it: task release 2 --hold {revision} (it holds again unless it has more); or cancel it: task cancel 2 REASON"
         );
         assert!(panel["hold"].as_str().expect("held cause").ends_with(&way), "{panel}");
         let task = support::ctl::json(&outcome.calls[index - 1]);

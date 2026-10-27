@@ -138,3 +138,43 @@ fn substitute(call: &str) -> Vec<String> {
     }
     words
 }
+
+#[test]
+fn every_other_holds_offered_release_parses() {
+    for reason in [
+        c::HoldCategory::Exceeded(c::Exceeded { bound: c::Bound::Items, value: 4 }),
+        c::HoldCategory::Failures { class: c::HoldFailure::Run },
+        c::HoldCategory::Stalled,
+        c::HoldCategory::Dependency { task: 2 },
+        c::HoldCategory::Stopped,
+        c::HoldCategory::Placed { hold: 7 },
+        c::HoldCategory::Drift,
+        c::HoldCategory::Effects,
+        c::HoldCategory::EffectFailed,
+        c::HoldCategory::Uncertain { entry: 3 },
+        c::HoldCategory::Budget,
+        c::HoldCategory::Deadline,
+        c::HoldCategory::HoldsWaited,
+        c::HoldCategory::Circle,
+        c::HoldCategory::ResourceUnavailable,
+        c::HoldCategory::ResourceAccess,
+        c::HoldCategory::PoolLost { pool: 5 },
+        c::HoldCategory::Procedure,
+    ] {
+        let task = f::held_task(f::goal(f::TASK, c::WaitsOn::Nothing), reason);
+        let printed = f::read_answer(f::TASK_CALL, f::task_result(task));
+        assert_eq!(printed.status, 0);
+        let text = core::str::from_utf8(&printed.stdout).expect("held task text");
+        let way = text.lines().find_map(|line| line.strip_prefix("way out: ")).expect("hold's way out");
+        let start = way.find("task release ").expect("offered release");
+        let command = way[start..].split(" (").next().expect("command before explanation");
+        let words: Vec<&str> = command.split_ascii_whitespace().collect();
+        match f::parse(&words) {
+            Ok(Parsed::Call { .. }) => {}
+            parsed @ (Ok(Parsed::File { .. }) | Err(_)) => panic!("{reason:?}: {command}: {parsed:?}"),
+        }
+        // The budget hold's reason must not suggest the unavailable amendment.
+        let held = text.lines().find(|line| line.starts_with("held: ")).expect("hold reason");
+        assert!(!held.contains("task amend"), "{held}");
+    }
+}

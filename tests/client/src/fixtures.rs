@@ -860,10 +860,22 @@ pub fn adopt_change_repository(front: &mut Joint) {
 /// The repository and sign-in are prepared by `adopt_change_repository`.
 /// Leaves the joint's immediate work for the story to drive one step at a time.
 pub fn goal_with_pushed_change(front: &mut Joint, branch: &[u8]) -> u64 {
+    pushed_change(front, branch, None)
+}
+
+/// A change with an explicit descendant allowance, for authority hold stories.
+pub fn goal_with_pushed_change_with_tasks(front: &mut Joint, branch: &[u8], tasks: u32) -> u64 {
+    pushed_change(front, branch, Some(tasks))
+}
+
+fn pushed_change(front: &mut Joint, branch: &[u8], tasks: Option<u32>) -> u64 {
     let driver = &mut front.engine;
     let jig_domain_people::Ask::Create { mut batch, .. } = driver.chat_ask(GOAL_PROJECT, GOAL_BRIEF) else {
         panic!("create fixture");
     };
+    if let Some(tasks) = tasks {
+        batch[0].authority.delegation.tasks = tasks;
+    }
     // These grants come from this joint's configured forge connector.
     let connector = batch[0].authority.grants[0].connector;
     batch[0].tracked = Some(GOAL_PRIORITY);
@@ -934,7 +946,7 @@ fn adopt_goal_repository(driver: &mut Driver) {
 const ANSWER_STEPS: u32 = 4096;
 #[must_use]
 pub fn agent(world: &mut World<Temper, Joint>) -> jig_client_world::harness::ClientId {
-    let limits = temper_client_tools::limits::client();
+    let limits = crate::agent::limits().domain;
     world.front().next_client_limits(limits);
     world.client_with(PARTY, inbox(), limits, crate::agent::new)
 }

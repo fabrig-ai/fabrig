@@ -586,7 +586,7 @@ fn a_budget_held_task_explains_how_to_run_or_cancel_it() {
     assert!(skein_lib::bytes::find(&answer.stdout, b"\nway out: task release 41 --hold 2\n").is_some());
     assert!(skein_lib::bytes::find(&answer.stdout, b"raise the task's budget, then").is_none());
     assert!(skein_lib::bytes::find(&answer.stdout,
-        b"Insufficient activation budget. A release alone holds it again: give the task more budget (task amend 41 with a larger budget, or decide its budget proposal), then release it; or cancel it.").is_some(), "{:?}", answer.stdout);
+        b"Insufficient activation budget. A release alone holds it again: give task 41 more budget by deciding its budget proposal, then release it; or cancel it.").is_some(), "{:?}", answer.stdout);
 }
 
 #[test]
@@ -624,6 +624,6 @@ fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
         let answer = root.answer(call).expect("held task or inbox answered");
         assert_eq!(answer.status, 0);
         assert!(skein_lib::bytes::find(&answer.stdout,
-            b"Insufficient activation budget. A release alone holds it again: give the task more budget (task amend 41 with a larger budget, or decide its budget proposal), then release it; or cancel it.").is_some(), "{:?}", answer.stdout);
+            b"Insufficient activation budget. A release alone holds it again: give task 41 more budget by deciding its budget proposal, then release it; or cancel it.").is_some(), "{:?}", answer.stdout);
     }
 }
