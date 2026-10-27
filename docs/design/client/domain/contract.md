@@ -1043,7 +1043,10 @@ party reads is therefore never lost by a crash.
 - **Refused** for what the party may not see, as unknown; when the
   engine's loads are full, as busy; when the sign-in has ended, as
   signed out (client.md, section 12); in a version the engine does not
-  serve, as version not served (section 8).
+  serve, as version not served (section 8); where the row at the read's
+  position needs more joins than any read allows, as too linked, naming
+  the bound (`../../protocol/store.md`, 7.3), so a client never reads
+  the same position again in vain.
 - **A question's answer** is read with the question, by whoever may read
   the question: a delegate is in its requester's project, and the
   answer's words are those of the task the question was put to

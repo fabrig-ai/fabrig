@@ -827,7 +827,11 @@ alone, once a page, and each turn's line its turn (below).
   prefix) goes on past them; a page that reached its bound
   and returned none is cut, not ended, whichever its scope and whichever
   bound it reached (rows, bytes or joins), and carries the position it
-  reached, so the client reads on from the row it did not take. A
+  reached, so the client reads on from the row it did not take. A page
+  cut by its join bound before it examined any row is the exception: the
+  row at that position needs more joins than any read allows, so a read
+  there would be cut the same way, and the read answers *too linked*,
+  naming the bound, never an empty page to be read again. A
   subtree's history is in its scope's order, task by task,
   its position the task and the row.
 - **Joins are point reads** in the same step, priced within the read's
