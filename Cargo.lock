@@ -377,6 +377,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-view",
+ "jig-protocol-config",
  "serde_json",
  "skein-fake-person",
  "skein-fake-person-browser",

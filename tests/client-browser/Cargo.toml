@@ -19,6 +19,7 @@ jig-client-domain.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-client-protocol-link.workspace = true
 [dev-dependencies]
+jig-protocol-config.workspace = true
 skein-http.workspace = true
 jig-client-protocol-http.workspace = true
 [lints.rust]

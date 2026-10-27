@@ -205,6 +205,16 @@ mod tests {
         configuration(Path::new("/private/test"), Path::new("/test/bundle"))
     }
     #[test]
+    fn the_tier_engine_configuration_passes_startup_validation() {
+        use jig_protocol_config::{self as config, Defaults, Directories, DocumentLimits};
+        let value = tier_configuration();
+        let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
+        let document = config::document(&bytes, &DocumentLimits { bytes: 8192, tokens: 4096, depth: 32 })
+            .expect("engine document");
+        config::engine(&document, 0, &Directories::working(), Defaults::Document)
+            .expect("the browser engine must pass startup validation");
+    }
+    #[test]
     fn the_tier_names_the_bundle_for_its_server() {
         assert_eq!(tier_configuration()["application"]["server"]["bundle"], "/test/bundle");
     }

@@ -15,6 +15,7 @@
         "notes.recalled": 1,
         "people.operations": 2,
         "tasks.tasks": 2,
+        "tasks.exemptions": 2,
         "tasks.funders": 2,
         "tasks.project_tasks": 1,
         "tasks.tree_tasks": 1,
