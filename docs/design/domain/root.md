@@ -14,7 +14,8 @@ and the agent agent.md. What is still open is listed in section 13.
 ## 1. In one page
 
 - **temper's root composes jig's core and the forge.** Its children are
-  jig's core, `jig-domain-core`, and the forge connector's four crates.
+  jig's core, `jig-domain-core`, the forge connector's four crates, and
+  the calendar, which renews each project's funding period (5.7).
   It alone faces the engine's protocol layer (section 3;
   `../protocol/README.md`, section 6).
 - **It routes and translates; jig's core decides.** What commits
