@@ -72,24 +72,40 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   | Rung | Forges | Model | Accounts held |
   |---|---|---|---|
   | fakes | `--fake-backends` (`protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
-  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5); the box's agents on `gpt-6.1-sol` (below) | the model's |
+  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5); the box's agents on `gpt-6.1-sol` at effort high, its budget raised if needed (below) | the model's |
   | GitHub | GitHub, through an App kept for QA, on a repository kept for it | as the rung below | the App's key and its installation |
   | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, a held configuration directory used in place (`protocol/credentials.md`, 3) | the model's |
 
-- **The real model's agents run `gpt-6.1-sol`** (the user, 10-27), set
-  as a person sets a box's model, before its start (the walk `box`'s
-  first step): `gpt-6-luna`'s model entry renamed `gpt-6.1-sol` in
-  place, in `temper.json` (the provider's list and `engine.llm`'s
-  models, where it stays the first, ahead of `demo`) and in the agent's
-  configuration, its window, output and prices kept, a unit being a
-  thousand tokens on either model. Every charter takes the first
-  configured model as its main model, and the stock's spends are sized
-  from it at the start (`protocol/configuration.md`, 13.4), so nothing
-  else is raised. After the start, `temper ctl settings show charter 1`
-  names `gpt-6.1-sol` as the main model, with the box's spends as
-  before; a box that names another model is a setup to redo, not a
-  finding. A chat is started with `--model gpt-6.1-sol` where its model
-  is named.
+- **The real model's agents run `gpt-6.1-sol` at effort high** (the
+  user, 10-27), set as a person sets a box's model, before its start
+  (the walk `box`'s first step): `gpt-6-luna`'s model entry renamed
+  `gpt-6.1-sol` in place, in `temper.json` (the provider's list and
+  `engine.llm`'s models, where it stays the first, ahead of `demo`) and
+  in the agent's configuration, its window and prices kept (a unit is a
+  thousand tokens on either model), its output 32,000, since high
+  effort's reasoning counts against it, and its efforts declared
+  `["high", "medium", "low"]`, the first being what a task with no
+  choice of its own takes. Every charter takes the first configured
+  model as its main model, and the stock's spends are sized from it at
+  the start (`protocol/configuration.md`, 13.4): C 1,081, a run's K
+  4,324, a chat 103,776, a project's period 207,552. After the start,
+  `temper ctl settings show charter 1` names `gpt-6.1-sol`, and the box's
+  spends are those; a box that shows otherwise is a setup to redo, not
+  a finding. A chat is started with `--model gpt-6.1-sol --effort high`
+  where its model is named; template 1's choice (`settings apply`,
+  `{"main": {"model": "gpt-6.1-sol", "effort": "high"}}`) sets it for
+  every chat of a running box.
+- **A budget never stops a walk** (the user, 10-27, "raise the budget if
+  needed"): a walk raises its box's as a person would and says the
+  figure in its report. Raising a period does not refill a project
+  already made, so, until `temper ctl project fund` exists, the walk
+  raises before its project is made (before `forge setup`): `settings
+  apply` with the rules' and policy 1's period spend, role 0's spend and
+  the ceiling at twice the stock's (415,104), the project made after it
+  taking them. Once `project fund` exists, a task held for its budget is
+  funded instead, `project fund P AMOUNT` and `project fund P AMOUNT
+  --role 0`, and released. The stock's own defaults are not a QA box's
+  to change (temper#16).
 - **Down before up:** the director opens a rung once the rung below has
   run clean at a `main` no older, and a rung's open findings hold the
   rungs above it (`draft/qa-live.md`, 3.2, without the lab's verdicts).
