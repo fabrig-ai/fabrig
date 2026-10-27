@@ -95,16 +95,18 @@ fn a_chat_on_a_program_source_replies_parks_and_resumes() {
         .expect("source checked on worker");
     assert_eq!(program["state"], "usable");
 
-    // The two-line activity pages keep the replies in separate reads. Smith puts
-    // the opening request in the brief, rather than a person transcript message.
-    let mut conversation = ran.calls()[FIRST_REPLY].stdout.clone();
-    conversation.extend_from_slice(&ran.calls()[CONVERSATION].stdout);
-    let text = std::str::from_utf8(&conversation).expect("chat text");
+    // Each read fills its bounded conversation across the engine's activity pages.
+    // Smith puts the opening request in the brief, not a person transcript message.
+    let first = &ran.calls()[FIRST_REPLY].stdout;
+    assert_eq!(occurrences(first, ONE.as_bytes()), 1);
+    assert_eq!(occurrences(first, TWO.as_bytes()), 0);
+    let conversation = &ran.calls()[CONVERSATION].stdout;
+    let text = std::str::from_utf8(conversation).expect("chat text");
     let positions =
         [ONE, SECOND, TWO].map(|words| text.find(words).unwrap_or_else(|| panic!("chat lacks {words}: {text}")));
     assert!(positions.windows(2).all(|pair| pair[0] < pair[1]), "{text}");
     for reply in [ONE, TWO] {
-        assert_eq!(occurrences(&conversation, reply.as_bytes()), 1, "{text}");
+        assert_eq!(occurrences(conversation, reply.as_bytes()), 1, "{text}");
     }
     let parked: serde_json::Value =
         serde_json::from_slice(&ran.calls()[SECOND_PARKED].stdout).expect("parked task JSON");

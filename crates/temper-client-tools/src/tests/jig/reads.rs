@@ -583,6 +583,8 @@ fn a_budget_held_task_explains_how_to_run_or_cancel_it() {
     root.serve(call, fixtures::task_result(task));
     let answer = root.answer(call).expect("held task answered");
     assert_eq!(answer.status, 0);
+    assert!(skein_lib::bytes::find(&answer.stdout, b"\nway out: task release 41 --hold 2\n").is_some());
+    assert!(skein_lib::bytes::find(&answer.stdout, b"raise the task's budget, then").is_none());
     assert!(skein_lib::bytes::find(&answer.stdout,
         b"Insufficient activation budget. A release alone holds it again: give the task more budget (task amend 41 with a larger budget, or decide its budget proposal), then release it; or cancel it.").is_some(), "{:?}", answer.stdout);
 }
@@ -606,8 +608,9 @@ fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
         tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
     })));
-    let mut page = fixtures::owner_first_window(1, false).0;
+    let (mut page, mut watched) = fixtures::owner_first_window(1, false);
     page.rows.get_mut(0).unwrap().task = c::OwnerTaskLink::Live(task.chip.clone());
+    watched.needs = page.rows.clone();
     for (argv, result) in [
         (fixtures::TASK_CALL, fixtures::task_result(task)),
         (fixtures::INBOX_CALL, ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(page)))),
@@ -616,6 +619,7 @@ fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
         root.serve(call, result);
         if argv == fixtures::INBOX_CALL {
             root.serve(call, fixtures::inbox_rows(c::InboxReadGroup::Updates, 0, false));
+            root.deliver_subject(&fixtures::inbox_watch(), c::Delivery::OwnerInbox(Box::new(watched.clone())));
         }
         let answer = root.answer(call).expect("held task or inbox answered");
         assert_eq!(answer.status, 0);
