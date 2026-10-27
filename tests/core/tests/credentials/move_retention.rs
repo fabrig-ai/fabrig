@@ -36,9 +36,12 @@ fn expired_and_restarted(requests: u32) -> (World, u32, u32) {
         .store
         .rows
         .values()
-        .find_map(|record| match record {
-            root::Record::Core(core::Record::People(people::Stored::Person { identity, .. })) => Some(identity.clone()),
-            _ => None,
+        .find_map(|record| {
+            if let root::Record::Core(core::Record::People(people::Stored::Person { identity, .. })) = record {
+                Some(identity.clone())
+            } else {
+                None
+            }
         })
         .expect("the fixture's person survives restart");
     world.send(root::Event::Core(core::Event::SignIn {
