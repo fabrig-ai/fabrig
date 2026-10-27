@@ -127,6 +127,15 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
 
   A QA brief carries these four lines, and a box set up by an earlier
   `main` than this section's is set up again.
+- **Give back before you break it** (the director, 10-27, after a
+  restart exercise held the login 46 minutes). A case that aborts
+  `serve`, kills the box or otherwise risks the deployment's restore
+  first exports the held login back (`account export`, then `logins
+  give`): what the deployment holds of its work (a task, an unanswered
+  question) stays in its store, and a restart needs no model. It
+  imports the login again only if a later case needs the model. A
+  login a broken deployment still holds is the walk's finding, said
+  with the case that broke it, and the recovery is the director's.
 - **A budget never stops a walk** (the user, 10-27, "raise the budget if
   needed"): the stock holds a rung in arithmetic (a 100k-token turn is
   about 100 units against a run's K of 4,324), but a walk raises its
