@@ -233,7 +233,9 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
-            Part::Named { role: Role::Region, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Link, name: "Run on this machine" },
+            Part::Named { role: Role::Link, name: "Or connect your deployment" },
             Part::Absent { role: Role::Region, name: "A Forgejo elsewhere" },
         ],
     },

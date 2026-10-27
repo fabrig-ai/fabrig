@@ -955,6 +955,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 :is(.temper-flow-details, .temper-model-key) > .temper-flow-quiet { margin-inline-start: 9.33px; }
 :is(.temper-flow-details, .temper-model-key):has(> [role=radiogroup]) > .temper-flow-quiet { display: block; margin: 11.67px 0 0; }
 .temper-flow-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 9.33px; margin-top: auto; }
+/* The welcome's forge choices: a card's link beside its button, as the welcome's foot keeps its links in a row. */
+.temper-welcome .temper-flow-choice > .temper-flow-actions { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 16.33px; }
 :is(.temper-flow-details, .temper-model-key) > label, .temper-flow-field > label { display: block; margin: 0; font: 11.67px/1.58 var(--temper-mono); color: var(--temper-muted); }
 :is(.temper-flow-details, .temper-model-key) > input { font: 12.83px var(--temper-mono); color: var(--temper-ink); }
 /* Preserve the picker's sibling input/label structure while keeping radios intrinsic. */

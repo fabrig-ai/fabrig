@@ -38,7 +38,7 @@ fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
 #[test]
 fn the_welcome_leaves_other_forgejos_to_connect_a_forge() {
     for (address, cards) in [
-        (Address::Welcome { step: Step::Forge { forge: None } }, ["GitHub", "Forgejo on this machine"].as_slice()),
+        (Address::Welcome { step: Step::Forge { forge: None } }, ["GitHub", "Forgejo"].as_slice()),
         (
             Address::ConnectForge { forge: None },
             ["GitHub", "Forgejo on this machine", "Forgejo at forge 4", "A Forgejo elsewhere"].as_slice(),
@@ -1131,4 +1131,61 @@ fn ready_offers_connect_a_model_as_a_terminal_command() {
         crate::act(&mut view, node, first),
         Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: None } } }))
     );
+}
+
+#[test]
+fn welcome_forgejo_card_links_to_details_and_deployment_help() {
+    for (offer, time) in
+        [(w::Offer::Offered, "Here · about a minute"), (w::Offer::NotUnderTheBox, "Needs four commands and a restart")]
+    {
+        let root = f::forge_root(
+            Address::Welcome { step: Step::Forge { forge: None } },
+            forge::rows(w::Connection::NotSetUp, offer),
+        );
+        let mut view = f::browser_page_view(&root);
+        node(view.tree(), Role::Region, "Forgejo");
+        node(
+            view.tree(),
+            Role::Paragraph,
+            "A forge of your own. temper can start it and manage it, or you can connect your own deployment.",
+        );
+        let time = node(view.tree(), Role::Paragraph, time);
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .find(|n| n.id == time)
+                .unwrap()
+                .styles
+                .as_slice()
+                .contains(&crate::look::FLOW_MUTED)
+        );
+        let run = node(view.tree(), Role::Link, "Run on this machine");
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .find(|n| n.id == run)
+                .unwrap()
+                .styles
+                .as_slice()
+                .contains(&crate::look::FLOW_SECONDARY)
+        );
+        assert_eq!(crate::href(&mut view, run).as_deref(), Some(b"/welcome?at=forge&forge=3".as_slice()));
+        let deployment = node(view.tree(), Role::Link, "Or connect your deployment");
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .find(|n| n.id == deployment)
+                .unwrap()
+                .styles
+                .as_slice()
+                .contains(&crate::look::FLOW_QUIET)
+        );
+        assert_eq!(
+            crate::href(&mut view, deployment).as_deref(),
+            Some(b"https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md".as_slice())
+        );
+    }
 }

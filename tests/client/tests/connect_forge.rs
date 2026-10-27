@@ -72,12 +72,15 @@ fn choose_owned(front: &mut Joint, root: &mut Root, now: &mut Time) {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: None } }) },
     );
     let mut choose = view(root);
-    let heading = node(&choose, Role::Region, b"Forgejo on this machine");
+    let heading = node(&choose, Role::Region, b"Forgejo");
     let index = choose.tree().nodes().iter().position(|n| n.id == heading).expect("choice region");
     let size = usize::try_from(choose.tree().nodes()[index].size).expect("region size fits");
     let region = &choose.tree().nodes()[index..][..size];
-    let link =
-        region.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Choose")).expect("choice link").id;
+    let link = region
+        .iter()
+        .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Run on this machine"))
+        .expect("choice link")
+        .id;
     let action = temper_client_view::act(&mut choose, link, skein_ui::Act::Press).expect("bound choice");
     pump(front, root, now, d::Event::Act { action });
 }

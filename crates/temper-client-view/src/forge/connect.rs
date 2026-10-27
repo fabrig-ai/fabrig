@@ -19,6 +19,10 @@ use temper_client_domain::{
     pages::Act,
 };
 
+/// "Run temper on a server" (docs/help/server.md), on GitHub: the
+/// browser serves no help pages (the look request welcome-forgejo-card).
+const DEPLOYMENT: &[u8] = b"https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md";
+
 #[derive(Clone, Copy)]
 pub(crate) enum Place {
     Connect,
@@ -240,6 +244,33 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
                 }
             }
         };
+        if heading == Word::ForgeHere
+            && let Place::Welcome = place
+        {
+            flow::choice_card(b, &w.say(Word::WelcomeForgejo, &[]));
+            text(b, w, Role::Paragraph, Word::WelcomeForgejoDescription);
+            b.open(Role::Paragraph);
+            b.style(look::FLOW_MUTED);
+            b.name(&w.say(note, &[]));
+            w.text(b, note, &[]);
+            b.close();
+            b.open(Role::Slot);
+            b.style(look::FLOW_ACTIONS);
+            flow::control(
+                b,
+                Control::SecondaryLink {
+                    name: &w.say(Word::WelcomeForgejoRun, &[]),
+                    to: bindings.insert(Act::Go { address: place.address(Some(*choice)) }),
+                },
+            );
+            flow::control(
+                b,
+                Control::External { name: &w.say(Word::WelcomeForgejoDeployment, &[]), address: DEPLOYMENT },
+            );
+            b.close();
+            b.close();
+            continue;
+        }
         if heading == Word::ForgeGitHub {
             flow::choice_card(b, &w.say(heading, &[]));
             text(b, w, Role::Paragraph, words);

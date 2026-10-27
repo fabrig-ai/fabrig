@@ -10,6 +10,10 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    WelcomeForgejo,
+    WelcomeForgejoDescription,
+    WelcomeForgejoRun,
+    WelcomeForgejoDeployment,
     WelcomeYourModel,
     BrandChats,
     ForgeHereVersionDetails,
@@ -657,9 +661,14 @@ pub enum Word {
 // A task document's reading line and seven lasting read ends (client/README.md, 3.5).
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
-const PHRASES: u32 = 1169;
-const SEGMENTS: u32 = 2060;
-const ALL: [Word; 592] = [
+// The welcome's Forgejo card adds four literal phrases and segments.
+const PHRASES: u32 = 1173;
+const SEGMENTS: u32 = 2064;
+const ALL: [Word; 596] = [
+    Word::WelcomeForgejo,
+    Word::WelcomeForgejoDescription,
+    Word::WelcomeForgejoRun,
+    Word::WelcomeForgejoDeployment,
     Word::WelcomeYourModel,
     Word::BrandChats,
     Word::ForgeHereVersionDetails,
@@ -1257,6 +1266,10 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::WelcomeForgejo => 2132,
+            Self::WelcomeForgejoDescription => 2133,
+            Self::WelcomeForgejoRun => 2134,
+            Self::WelcomeForgejoDeployment => 2135,
             Self::WelcomeYourModel => 2123,
             Self::BrandChats => 2110,
             Self::ForgeHereVersionDetails => 2116,
@@ -2143,6 +2156,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GitHubReading => (&[b"Reading GitHub's repositories\xe2\x80\xa6"], &[]),
         Word::GitHubNone => (&[b"None reachable."], &[]),
         Word::GitHubRepositories => (&[b"Repositories"], &[]),
+        Word::WelcomeForgejo => (&[b"Forgejo"], &[]),
+        Word::WelcomeForgejoDescription => (&[b"A forge of your own. temper can start it and manage it, or you can connect your own deployment."], &[]),
+        Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
+        Word::WelcomeForgejoDeployment => (&[b"Or connect your deployment"], &[]),
         Word::WelcomeYourModel => (&[b"Your model: ChatGPT or Claude"], &[]),
         Word::BrandChats => (&[b"temper chats"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),

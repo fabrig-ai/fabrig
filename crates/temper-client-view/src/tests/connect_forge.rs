@@ -332,7 +332,7 @@ fn the_welcomes_forge_step_is_choose_and_details() {
         rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
     assert_eq!(
-        press(&root, Role::Link, b"Choose"),
+        press(&root, Role::Link, b"Run on this machine"),
         d::Action::Pages(pages::Act::Go {
             address: Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(HERE)) } }
         })
