@@ -1,6 +1,6 @@
 # The store
 
-Provisional, 2026-10-12, revised 2026-10-26. What lies beneath the
+Provisional, 2026-10-12, revised 2026-10-27. What lies beneath the
 engine's store vocabulary: skein's key-value store, embedded in the
 engine's process, holds every record jig's core and the application
 keep, transcripts are files beside it, and secrets are in a second
@@ -326,7 +326,9 @@ intervals. So:
   (`../domain/engine.md`, 5.5), so each child's live part is one interval;
 - **a test checks each mapping** against the range's predicate over
   generated keys: every key the predicate admits lies in an interval, and
-  every key in an interval is admitted.
+  every key in an interval is admitted; and a restart's key's place
+  (7.2, `intervals::cursor`) names the interval that holds it, over a
+  request of several ranges as over one.
 
 ### 4.4 jig's families
 
@@ -746,8 +748,9 @@ root for one step at a time, and the root asks the store:
 - **the core's live ranges,** in the order the core restores them: the
   deployment's header first, then the settings' live ranges (defaults,
   changes, held revisions, charter versions, pending proposals' sets),
-  which every later record is judged against, then the accounts' family (its counter,
-  accounts and sources: the interval stops before the installation's
+  which every later record is judged against, then the accounts' family
+  in two intervals, its issued program names first (tag 4), then its
+  counter, accounts and sources (stopping before the installation's
   identifier, which the component keeps), then people's families (live
   conversations' read positions among them, ended ones never), then the
   tasks child's live families, then the core's own live rows (goals'
@@ -776,6 +779,26 @@ root for one step at a time, and the root asks the store:
     neither part's progress skips a row of the other;
 - **each connector's live ranges,** as the application's byte intervals,
   handed up as bytes for its codecs;
+- **a key's place in the walk:** a restart's request names its ranges
+  in order, and their intervals are numbered across the request in
+  that order (4.3), a cursor naming the interval it is in. The order a
+  walk hands rows up is (interval, key), not the keys' own: an interval
+  may start below the one before it (the accounts' issued names, tag 4,
+  before their counter, tag 0). jig gives each key its place, the one
+  definition the walk itself reads, so that a root that keeps its own
+  cursors, or checks that a page's rows ascend, never compares raw keys
+  or keeps a copy of the intervals:
+
+  ```rust
+  pub fn intervals::cursor(ranges: &[RestoreRange], key: &[u8]) -> Option<Cursor> // None: no interval of the walk holds it
+  ```
+
+  It finds the interval by containment in the same list the walk
+  builds, `Census::interval` being the census's case of it. A page's
+  rows ascend when each row's cursor is above the one before it: a
+  later interval, or the same interval and a higher key. A root's
+  "after" for a fresh request is the cursor of its last key, and a row
+  at or below it is one already handed up;
 - **what the core never restores** (turns, terminals, history, ended
   tasks, notes' entries) is never read at start.
 
