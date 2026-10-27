@@ -282,8 +282,9 @@ it as any `delegate`:
   at the run's own priority, or last among the project's goals where the
   run is untracked: one past the largest tracked priority in the
   project, saturating, or 0 with none (the lower first, jig's
-  `domain/tasks.md`, section 3), with a report's contract bounded as the run's own results
-  are (4.4): the work a person asked for, which plans, asks its
+  `domain/tasks.md`, section 3), with a report's contract of at most
+  2,048 bytes (4.4), whatever the run's own contract's bound (a chat's
+  is a line): the work a person asked for, which plans, asks its
   requester with `message` where its words say to (8.2), calls `change`
   for each change, and reports. The contract bounds the result, not
   the work: asking first is the instructions', and the rail is
@@ -299,7 +300,8 @@ it as any `delegate`:
   budget has left, refused when that is no more than a run's minimum, as
   `change`'s. A change the goal then makes has half of the goal's,
   so at most a quarter of the chat's: defaults, open to tuning;
-- **an advisor,** with `advisor` set: untracked, so that no goal of its
+- **an advisor,** with `advisor` set, its report bounded as a goal's:
+  untracked, so that no goal of its
   is projected on the forge; reads alone, no grant of a forge effect, no
   delegation (no kinds, tasks or depth) and no notes, so that it reads
   and reports and can change nothing beyond its own workspace, which it
