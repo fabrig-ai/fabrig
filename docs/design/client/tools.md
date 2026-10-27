@@ -208,7 +208,7 @@ watch's subject, its digest (5.4). It needs no key.
 | Tool | What it answers | jig's |
 |---|---|---|
 | `me` | the party, its projects with their roles and pools, what waits for it counted, the bounds of what it may create, configured provider offers and key-byte ceilings, the retention | `me` |
-| `inbox [--project PROJECT] [--kind needs\|updates] [--root TASK] [--after CURSOR]` | what needs the party, then updates, each with its acts | `inbox` |
+| `inbox [--project PROJECT] [--kind questions\|proposals\|escalations\|person-tasks\|results\|replies] [--root TASK] [--after CURSOR]` | what needs the party, then updates, each with its acts | `inbox` |
 | `project show PROJECT` | the project: its name and homes, its roles, each with its parties and its spend per period, and its policy's spend per period; its open period, its number, start and next start (`../domain/root.md`, 5.7), its budget and what is reserved, spent and left of it; and each party's pool in it, with the same numbers | a project, and its spend's first page |
 | `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract.md`, 6.1, its parent key) |
 | `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
@@ -415,9 +415,10 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   watch takes alone, without `--after` or `--ended`, `tasks{query}`
   following live tasks; `account list` (area 5 of 5.5); `forge list`
   and `change show TASK` (area 6). Given `--since` or `--until`, it
-  waits; given neither, it reads at once and prints its digest. A wait's
-  flag on any other read, `task show TASK --tree` among them, is a usage
-  error, exit 1. There is no `wait` tool.
+  waits; given neither, it reads at once and prints its digest.
+  `--timeout` alone, with neither, and a wait's flag on any other read,
+  `task show TASK --tree` among them, are usage errors, exit 1. There is
+  no `wait` tool.
 - **A digest** is the first 8 bytes of the SHA-256 (skein's `lib.md`,
   6.2) of the subject's document as `--json` prints it (6.2), without
   its `digest` field, printed as 16 hex digits. A read and a wait digest
