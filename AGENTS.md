@@ -2,8 +2,10 @@
 
 - **main moves only through agents' `land`,** which runs the gate,
   `scripts/check.sh`, and pushes. Do not run the gate yourself before
-  `land`. A change to Markdown
-  files only lands with `land --docs`. Push only your own branch.
+  `land`. Markdown-only changes land with `land --docs`, except paths in
+  `scripts/gated-docs`: `docs/help/` (including `reference/`) is compiled
+  into temper-docs and checked by its tests, so those changes use `land`.
+  Changes to the declaration itself use `land` too. Push only your own branch.
 - The default test suite (unit tests and the worlds' focused tests under
   `tests/`) takes at most 30 seconds (15 seconds before the user's doubling
   of 10-22, provisional); the fuzzy suite (the worlds' `tests/fuzzy_*.rs`,
