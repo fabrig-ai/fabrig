@@ -25,21 +25,21 @@ pub fn backend_worst_case(settings: &Settings) -> Option<u64> {
     // These workspaces run in separate step phases. A line's collected
     // document survives decoding/correlation, whereas its collector has gone.
     let document = skein_json::document::worst_case(&skein_json::document::Limits {
-        tokens: settings.adapter.client.tokens,
+        tokens: settings.stream_tokens,
         text: settings.line_bytes,
     })?;
     let left = skein_json::document::worst_case(&skein_json::document::Limits {
-        tokens: settings.adapter.client.tokens,
+        tokens: settings.adapter.stated.call_input_bytes,
         text: settings.mcp.message_bytes,
     })?;
     let input = settings.adapter.stated.call_input_bytes;
     let decode_collect = stream::worst_case(input, settings.adapter.client.depth, input)?;
     // The typed decoder builds fields/items after its collector has gone.
-    // The enclosing stream already admitted at most client.tokens records;
+    // A call admits at most one JSON record per argument byte;
     // an item-array capacity can overlap its nested field-array capacities.
     let decode_build = skein_json::document::worst_case(&skein_json::document::Limits { tokens: input, text: input })?
         .checked_add(
-            u64::from(input.min(settings.adapter.client.tokens)).checked_mul(
+            u64::from(input).checked_mul(
                 u64::try_from(
                     size_of::<smith_domain::run::outcome::Field>()
                         .checked_add(size_of::<smith_domain::run::outcome::Item>())?,
@@ -49,24 +49,19 @@ pub fn backend_worst_case(settings: &Settings) -> Option<u64> {
         )?
         .checked_add(u64::from(input))?;
     let decode = decode_collect.max(decode_build);
-    let compare =
-        stream::worst_case(settings.mcp.message_bytes, settings.adapter.client.depth, settings.adapter.client.tokens)?
-            .checked_add(left)?
-            .checked_add(List::<(u32, u32)>::worst_case(settings.adapter.client.tokens)?)?;
+    let compare = stream::worst_case(settings.mcp.message_bytes, settings.adapter.client.depth, input)?
+        .checked_add(left)?
+        .checked_add(List::<(u32, u32)>::worst_case(input)?)?;
     // Before the compaction child spawns, the idle writer alternative also
     // covers json::quote's escaped window and depth-1 encoder; no stream,
     // collector or document is live in that phase.
-    let workspace =
-        stream::worst_case(settings.line_bytes, settings.adapter.client.depth, settings.adapter.client.tokens)?
-            .max(document.checked_add(decode.max(compare))?)
-            .max(skein_json::writer::worst_case(&skein_json::writer::Limits {
-                depth: 8,
-                length: settings.input_bytes,
-            })?)
-            // Tail passes borrow text. Consumed served results replace prompt
-            // payloads; at most one input ceiling plus one temporary result
-            // coexists with the encoded line during this separate workspace.
-            .max(u64::from(settings.input_bytes).checked_add(u64::from(settings.adapter.rendered_result))?);
+    let workspace = stream::worst_case(settings.line_bytes, settings.adapter.client.depth, settings.stream_tokens)?
+        .max(document.checked_add(decode.max(compare))?)
+        .max(skein_json::writer::worst_case(&skein_json::writer::Limits { depth: 8, length: settings.input_bytes })?)
+        // Tail passes borrow text. Consumed served results replace prompt
+        // payloads; at most one input ceiling plus one temporary result
+        // coexists with the encoded line during this separate workspace.
+        .max(u64::from(settings.input_bytes).checked_add(u64::from(settings.adapter.rendered_result))?);
     u64::try_from(size_of::<Backend>())
         .ok()?
         // Launch peak: settings paths; executable; instructions and MCP path

@@ -86,19 +86,16 @@ fn turns(run: &Run) -> Vec<smith_transcript::Turn> {
         .collect()
 }
 
-fn result(run: &Run, path: &str, expected: &[u8], error: bool) {
+fn told_result(run: &Run, tool: &[u8], input: &serde_json::Value) -> smith_transcript::ToolResult {
     let mut call_id = None;
     let mut results = Vec::new();
     for turn in turns(run) {
         for message in turn.messages().as_slice() {
             for block in message.blocks().as_slice() {
                 match block {
-                    smith_transcript::Block::Call(call) if call.name() == b"Read" => {
+                    smith_transcript::Block::Call(call) if call.name() == tool => {
                         call_id = Some(call.id().to_vec());
-                        assert_eq!(
-                            serde_json::from_slice::<serde_json::Value>(call.input()).expect("input"),
-                            json!({"file_path":path})
-                        );
+                        assert_eq!(&serde_json::from_slice::<serde_json::Value>(call.input()).expect("input"), input);
                     }
                     smith_transcript::Block::Result(result) => results.push(result.clone()),
                     smith_transcript::Block::Text(_)
@@ -109,8 +106,12 @@ fn result(run: &Run, path: &str, expected: &[u8], error: bool) {
             }
         }
     }
-    let id = call_id.expect("Read call is told");
-    let result = results.iter().find(|result| result.id() == id).expect("Read result is told");
+    let id = call_id.expect("tool call is told");
+    results.into_iter().find(|result| result.id() == id).expect("tool result is told")
+}
+
+fn result(run: &Run, path: &str, expected: &[u8], error: bool) {
+    let result = told_result(run, b"Read", &json!({"file_path":path}));
     let smith_transcript::Returned::Said(said) = result.returned() else { panic!("built-in text") };
     assert_eq!(said.text(), expected);
     assert_eq!(said.error(), error);
@@ -235,4 +236,21 @@ fn a_program_reads_its_absolute_library_path() {
     result(&run, "/library/a", b"library text", false);
     assert_eq!(run.library_file.as_deref(), Some(b"library text".as_slice()));
     assert!(run.seen.contains(&Seen::Acted { tool: "Read".into(), path: "/library/a".into(), error: false }));
+}
+
+#[test]
+fn a_nested_host_input_is_told_and_answered() {
+    // Object/key/array tokens: 5 + 27 * 6 + one extra scalar = 168.
+    // Each array/object boundary is a token, as in skein's JSON document.
+    const ENTRIES: usize = 27;
+    let mut queries = vec![json!([{}, {}]); ENTRIES];
+    queries[0] = json!([{}, {}, 0]);
+    let input = json!({"queries":queries});
+    let run = steps(vec![Step::Call { tool: "lookup".into(), input: input.clone() }, finish()]);
+    accepted(&run);
+    let result = told_result(&run, b"lookup", &input);
+    let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host answer") };
+    assert_eq!(said.text(), b"found");
+    assert!(!said.error());
+    assert!(run.seen.contains(&Seen::Called { tool: "lookup".into(), error: false }));
 }

@@ -89,6 +89,7 @@ pub(super) fn backend() -> Backend {
             },
             adapter: limits.adapter,
             receiving: limits.receiving,
+            stream_tokens: Settings::stream_tokens(&limits.adapter, &limits.receiving).expect("stream bound"),
             prompt_bytes: 4096,
             contract_bytes: 4096,
             line_bytes: 4096,

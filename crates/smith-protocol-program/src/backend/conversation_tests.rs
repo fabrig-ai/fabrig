@@ -100,3 +100,38 @@ fn the_unoffered_sub_agent_tool_is_not_executed() {
     };
     assert_eq!(*call, llm::Decoded::Invalid { problem: llm::Problem::UnknownTool });
 }
+
+#[expect(clippy::disallowed_macros, reason = "ordinary JSON fixture harness, programming-model.md 10.2")]
+fn stream_token_edge(extra: u32) -> Queue<ToDomain> {
+    // Root object, two keys, type string and padding array boundaries: 7.
+    const ENVELOPE_TOKENS: u32 = 7;
+    // Each zero plus its comma needs two wire bytes; 64 covers the envelope.
+    const ENVELOPE_BYTES: u32 = 64;
+    let mut backend = active();
+    let values = backend.settings.stream_tokens.checked_sub(ENVELOPE_TOKENS).unwrap().checked_add(extra).unwrap();
+    let bytes = serde_json::to_vec(&serde_json::json!({
+        "type":"result", "padding":alloc::vec![0_u8; usize::try_from(values).unwrap()]
+    }))
+    .unwrap();
+    backend.settings.line_bytes =
+        backend.settings.stream_tokens.checked_mul(2).unwrap().checked_add(ENVELOPE_BYTES).unwrap();
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    backend.line(&env(0), &bytes, &mut up, &mut below);
+    up
+}
+
+#[test]
+fn a_document_at_the_stream_token_bound_decodes() {
+    let mut up = stream_token_edge(0);
+    let Some(ToDomain::Completed { completion, .. }) = up.pop() else { panic!("result at token bound") };
+    assert_eq!(completion.stop, llm::Stop::EndTurn);
+}
+
+#[test]
+fn a_document_past_the_stream_token_bound_fails_decoding() {
+    let mut up = stream_token_edge(1);
+    let Some(ToDomain::Failed { failure, detail, .. }) = up.pop() else { panic!("token overflow") };
+    assert_eq!(failure, llm::Failure::Program { exit: None });
+    assert_eq!(detail.as_ref(), b"smith: the program stream does not decode");
+}

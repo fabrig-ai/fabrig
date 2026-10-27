@@ -146,6 +146,7 @@ impl core::fmt::Debug for super::Settings {
             .debug_struct("Settings")
             .field("input_bytes", &self.input_bytes)
             .field("line_bytes", &self.line_bytes)
+            .field("stream_tokens", &self.stream_tokens)
             .finish_non_exhaustive()
     }
 }

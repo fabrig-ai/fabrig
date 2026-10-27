@@ -27,7 +27,7 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         let depth = self.settings.adapter.client.depth;
-        let tokens = self.settings.adapter.client.tokens;
+        let tokens = self.settings.stream_tokens;
         if self.compaction() {
             if super::compact::checked_init(bytes, depth, tokens).is_some() {
                 self.phase = Phase::Running;

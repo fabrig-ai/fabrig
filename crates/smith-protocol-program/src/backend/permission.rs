@@ -55,7 +55,7 @@ impl Backend {
                             &held.input,
                             input,
                             self.settings.adapter.client.depth,
-                            self.settings.adapter.client.tokens,
+                            self.settings.adapter.stated.call_input_bytes,
                         )
                 }
             };

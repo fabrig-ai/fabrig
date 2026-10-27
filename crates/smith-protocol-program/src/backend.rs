@@ -87,6 +87,8 @@ pub struct Settings {
     pub mcp: mcp::Limits,
     pub adapter: protocol::Limits,
     pub receiving: protocol::Receiving,
+    /// JSON records retained from one complete program stream document.
+    pub stream_tokens: u32,
     pub prompt_bytes: u64,
     pub contract_bytes: u32,
     pub line_bytes: u32,
@@ -94,6 +96,31 @@ pub struct Settings {
     pub max_turns: u32,
     pub grace: Duration,
     pub startup: Duration,
+}
+
+impl Settings {
+    /// Program JSON bound: min(A × B, T) + 16 × B + 65,536 tokens.
+    /// A is the adapter's `stated.call_input_bytes` receiving bound, B is
+    /// `Receiving::max_completion_blocks`, and T is `client.answer`, the shared
+    /// text/argument-byte ceiling (protocol/limits.md, sections 3.1–3.2).
+    /// JSON needs at least one encoded byte per token, including empty
+    /// container boundaries. Text is one scalar per block, included with
+    /// each block's keys, ID, name and boundaries in its 16 envelope tokens.
+    /// The fixed stream envelope uses the service's existing 65,536-byte
+    /// header/ID/usage allowance as tokens, also covering init/event/result
+    /// wrappers (protocol/programs.md, section 5.5). No model-token estimate
+    /// or client's per-event JSON cap restricts nested program arguments.
+    #[must_use]
+    pub fn stream_tokens(adapter: &protocol::Limits, receiving: &protocol::Receiving) -> Option<u32> {
+        let blocks = receiving.max_completion_blocks;
+        adapter
+            .stated
+            .call_input_bytes
+            .checked_mul(blocks)?
+            .min(adapter.client.answer)
+            .checked_add(blocks.checked_mul(16)?)?
+            .checked_add(65_536)
+    }
 }
 
 /// A host's program grant, installed or renewed before its lapse (section 3).

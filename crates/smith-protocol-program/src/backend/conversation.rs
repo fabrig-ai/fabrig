@@ -88,8 +88,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let Some(document) =
-            stream::collect(bytes, self.settings.adapter.client.depth, self.settings.adapter.client.tokens)
+        let Some(document) = stream::collect(bytes, self.settings.adapter.client.depth, self.settings.stream_tokens)
         else {
             self.fail(
                 env,
@@ -395,7 +394,7 @@ impl Backend {
                         &tool,
                         &input,
                         self.settings.adapter.client.depth,
-                        self.settings.adapter.client.tokens,
+                        self.settings.adapter.stated.call_input_bytes,
                     ) {
                         Some(index) => self.ledger.get_mut(index).expect("matched call").rpc = Some(call),
                         None if self.turns.accepting_calls() => {
@@ -519,7 +518,7 @@ fn decode(
                 };
             }
             llm::Served::Host(tool) if tool.name.as_ref() == name => {
-                let document = stream::collect(input, limits.client.depth, limits.client.tokens);
+                let document = stream::collect(input, limits.client.depth, limits.stated.call_input_bytes);
                 let object = match document {
                     Some(document) => token_kind(&document, Some(0)) == Some(Kind::ObjectStart),
                     None => false,
