@@ -682,6 +682,7 @@ fn outcome_reply(outcome: Outcome) -> Reply {
         | Outcome::Withdrawn { .. }
         | Outcome::Stopped { .. }
         | Outcome::Cancelled { .. }
+        | Outcome::Lifted { .. }
         | Outcome::Released { .. }
         | Outcome::PersonTaken { .. }
         | Outcome::PersonHandedBack { .. }
@@ -763,6 +764,7 @@ fn apply_roles(
         | Ask::AnswerPerson { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
+        | Ask::Lift { .. }
         | Ask::Release { .. }
         | Ask::Create { .. }
         | Ask::Propose { .. }
@@ -815,6 +817,7 @@ fn apply_roles(
         | Ask::AnswerPerson { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
+        | Ask::Lift { .. }
         | Ask::Release { .. }
         | Ask::Create { .. }
         | Ask::Propose { .. }
@@ -914,6 +917,7 @@ fn make_service(domain: &mut Domain, env: &Env<Limits>, request: Token, person: 
         | Ask::Withdraw { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
+        | Ask::Lift { .. }
         | Ask::Release { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
@@ -1143,7 +1147,11 @@ fn project(ask: &Ask) -> u32 {
             crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => 0,
         },
         // An account request names no project; its check is its holder (domain/authority.md, 8.4).
-        Ask::MarkSeen { .. } | Ask::AccountSignIn { .. } | Ask::AccountSignOut { .. } | Ask::AccountChange { .. } => 0,
+        Ask::Lift { .. }
+        | Ask::MarkSeen { .. }
+        | Ask::AccountSignIn { .. }
+        | Ask::AccountSignOut { .. }
+        | Ask::AccountChange { .. } => 0,
         Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
         Ask::Rename { project, .. }
         | Ask::Compound { project, .. }
@@ -1297,6 +1305,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         Ask::Move { task, reason, .. } | Ask::Cancel { task, reason, .. } => {
             *task != 0 && reason.len() <= usize::try_from(limits.words).expect("u32 fits usize")
         }
+        Ask::Lift { hold, .. } => *hold != 0,
         Ask::TakePerson { task, .. }
         | Ask::HandBackPerson { task, .. }
         | Ask::Stop { task, .. }
@@ -1387,6 +1396,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
         | Ask::Stop { .. }
+        | Ask::Lift { .. }
         | Ask::Release { .. }
         | Ask::SetPool { .. }
         | Ask::Withdraw { .. }
@@ -1456,6 +1466,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Stop(u64),
         Cancel(u64),
         Release(u64),
+        Lift(u64),
         Take(u64),
         HandBack(u64),
         AnswerPerson(u64),
@@ -1497,6 +1508,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Ask::Stop { task, .. } => Expected::Stop(*task),
         Ask::Cancel { task, .. } => Expected::Cancel(*task),
         Ask::Release { task, .. } => Expected::Release(*task),
+        Ask::Lift { hold, .. } => Expected::Lift(*hold),
         Ask::TakePerson { task, .. } => Expected::Take(*task),
         Ask::HandBackPerson { task, .. } => Expected::HandBack(*task),
         Ask::AnswerPerson { task, .. } => Expected::AnswerPerson(*task),
@@ -1567,6 +1579,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Outcome::Stopped { task } => expected == Expected::Stop(task),
         Outcome::Cancelled { task } => expected == Expected::Cancel(task),
         Outcome::Released { task } => expected == Expected::Release(task),
+        Outcome::Lifted { hold, .. } => expected == Expected::Lift(hold),
         Outcome::PersonTaken { task } => expected == Expected::Take(task),
         Outcome::PersonHandedBack { task } => expected == Expected::HandBack(task),
         Outcome::PersonAnswered { task } => expected == Expected::AnswerPerson(task),
@@ -1689,6 +1702,7 @@ fn admit_ask(
     let project = project(&ask);
     // An account request's check is its holder, never a role (domain/authority.md, 8.4).
     let role = if let Ask::Application { scope: crate::ApplicationScope::Own, .. }
+    | Ask::Lift { .. }
     | Ask::AccountSignIn { .. }
     | Ask::AccountSignOut { .. }
     | Ask::AccountChange { .. } = &ask
@@ -1860,6 +1874,7 @@ fn reserves_answer(ask: &Ask) -> bool {
         | Ask::AnswerPerson { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
+        | Ask::Lift { .. }
         | Ask::Release { .. } => true,
     }
 }
@@ -1924,6 +1939,7 @@ pub(super) fn answer_decided(
         | Outcome::Moved { .. }
         | Outcome::Stopped { .. }
         | Outcome::Cancelled { .. }
+        | Outcome::Lifted { .. }
         | Outcome::Released { .. }
         | Outcome::Created { .. }
         | Outcome::Proposed { .. }
@@ -2122,6 +2138,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 | Ask::AnswerPerson { .. }
                 | Ask::Stop { .. }
                 | Ask::Cancel { .. }
+                | Ask::Lift { .. }
                 | Ask::Release { .. }
                 | Ask::Create { .. }
                 | Ask::Propose { .. }
@@ -2153,6 +2170,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             | Outcome::PersonAnswered { .. }
             | Outcome::Stopped { .. }
             | Outcome::Cancelled { .. }
+            | Outcome::Lifted { .. }
             | Outcome::Released { .. }
             | Outcome::Created { .. }
             | Outcome::Proposed { .. }
@@ -2238,6 +2256,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::AnswerPerson { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
+        | Ask::Lift { .. }
         | Ask::Release { .. }
         | Ask::EditNote { .. }
         | Ask::AccountSignIn { .. }
@@ -2278,6 +2297,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::AnswerPerson { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
+        | Ask::Lift { .. }
         | Ask::Release { .. }
         | Ask::EditNote { .. } => {}
     }
@@ -2361,6 +2381,7 @@ fn admission(domain: &Domain, person: u64, _project: u32, role: Option<Role>, as
         | Ask::AnswerPerson { .. }
         | Ask::Stop { .. }
         | Ask::Cancel { .. }
+        | Ask::Lift { .. }
         | Ask::Release { .. } => None,
     }
 }
@@ -2420,6 +2441,7 @@ fn valid_program_outcome(limits: &Limits, outcome: &Outcome) -> bool {
         | Outcome::Withdrawn { .. }
         | Outcome::Stopped { .. }
         | Outcome::Cancelled { .. }
+        | Outcome::Lifted { .. }
         | Outcome::Released { .. }
         | Outcome::PersonTaken { .. }
         | Outcome::PersonHandedBack { .. }

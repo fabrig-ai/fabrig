@@ -19,6 +19,8 @@ use skein_lib::Wall;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPart {
     SettingsRefused(jig_domain_people::Refusal),
+    /// A placed hold can be released only by its owner (domain/tasks.md, 5.9).
+    HoldOwner { task: u64, hold: u64, revision: u64, owner: jig_domain_people::HoldOwner },
     /// A release must name again exactly when its effect is uncertain.
     Again {
         task: u64,
@@ -150,6 +152,17 @@ impl CallPart {
     ) -> bool {
         match self {
             CallPart::SettingsRefused(why) => settings_refusal_valid(why),
+            CallPart::HoldOwner { task, hold, revision, owner } => {
+                *task != 0
+                    && *task <= deployment.tasks
+                    && *hold != 0
+                    && *hold <= deployment.messages
+                    && *revision != 0
+                    && match owner {
+                        jig_domain_people::HoldOwner::Party { person } => *person != 0 && *person <= deployment.people,
+                        jig_domain_people::HoldOwner::Task { task } => *task != 0 && *task <= deployment.tasks,
+                    }
+            }
             CallPart::Again { task, .. }
             | CallPart::PassedUp { task }
             | CallPart::Revised { task, .. }
