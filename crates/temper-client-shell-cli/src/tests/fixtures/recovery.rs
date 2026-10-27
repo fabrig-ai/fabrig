@@ -233,6 +233,7 @@ impl Frame {
 }
 
 pub const ADOPT: &[&[u8]] = &[
+    b"repository",
     b"adopt",
     b"--project",
     b"shop",

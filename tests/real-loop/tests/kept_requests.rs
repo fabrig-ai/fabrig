@@ -19,7 +19,20 @@ fn fixture() -> forge::Fixture {
 fn adopt(repository: &'static str, key: &'static str) -> calls::Step {
     calls::call(
         D1,
-        argv!["adopt", "--project", "1", "--owner", "acme", "--name", repository, "--landing", "main", "--key", key],
+        argv![
+            "repository",
+            "adopt",
+            "--project",
+            "1",
+            "--owner",
+            "acme",
+            "--name",
+            repository,
+            "--landing",
+            "main",
+            "--key",
+            key
+        ],
     )
 }
 fn parked() -> Turn {
@@ -60,14 +73,18 @@ fn an_unanswered_fifth_adoption_holds_no_close_or_export_after_landing() {
             adopt("app", "setup-adopt"), // 1
             adopt("absent", "refused"),  // 2
             adopt("app", "successful"),  // 3
-            calls::call(D1, argv!["chat", "--project", "1", "--key", "land", "@forge_chat Land a small change"]), // 4
-            calls::call(D1, argv!["wait", "task", "1", "--until", "replied"]), // 5
-            calls::call(D1, argv!["wait", "change", "2", "--until", "landed"]), // 6
-            calls::call(D1, argv!["wait", "task", "1", "--until", "replied"]), // 7
+            calls::call(
+                D1,
+                argv!["chat", "start", "--project", "1", "--key", "land", "@forge_chat Land a small change"],
+            ), // 4
+            calls::call(D1, argv!["task", "show", "1", "--until", "replied"]), // 5
+            calls::call(D1, argv!["change", "show", "2", "--until", "landed"]), // 6
+            calls::call(D1, argv!["task", "show", "1", "--until", "replied"]), // 7
             adopt("absent", "refused-again"), // 8
             calls::start(
                 D1,
                 argv![
+                    "repository",
                     "adopt",
                     "--project",
                     "1",
@@ -85,11 +102,11 @@ fn an_unanswered_fifth_adoption_holds_no_close_or_export_after_landing() {
             calls::until(D1, argv!["pending"], b"adopt, party 1, first sent ", b"not sent"), // 10
             calls::kill(KEPT_ADOPTION),
             calls::join(KEPT_ADOPTION),
-            calls::call(D1, argv!["close", "1", "--key", "close"]), // 11
+            calls::call(D1, argv!["chat", "close", "1", "--key", "close"]), // 11
             // The fixture's account is a key: a prompt 'not signed in' refusal proves admission.
-            calls::call(D1, argv!["export", "1", calls::file("returned")]), // 12
-            calls::call(D1, argv!["pending"]),                              // 13
-            calls::call(D1, argv!["wait", "task", "1", "--until", "ended"]), // 14
+            calls::call(D1, argv!["account", "export", "1", calls::file("returned")]), // 12
+            calls::call(D1, argv!["pending"]),                                         // 13
+            calls::call(D1, argv!["task", "show", "1", "--until", "ended"]),           // 14
         ]
     });
     for (index, status) in [
@@ -149,16 +166,16 @@ fn cancelling_a_change_answers_its_landing_wait_with_the_last_panel() {
         vec![
             calls::sign_in(D1),
             adopt("app", "adopt"),
-            calls::call(D1, argv!["chat", "--project", "1", "--key", "change", "@forge_chat Make a change"]),
-            calls::call(D1, argv!["wait", "task", "1", "--until", "replied"]), // 3
+            calls::call(D1, argv!["chat", "start", "--project", "1", "--key", "change", "@forge_chat Make a change"]),
+            calls::call(D1, argv!["task", "show", "1", "--until", "replied"]), // 3
             calls::call(D1, argv!["change", "2", "--json"]),                   // 4
-            calls::start(D1, argv!["wait", "change", "2", "--until", "landed", "--timeout", "10s", "--json"]), // 5
+            calls::start(D1, argv!["change", "show", "2", "--until", "landed", "--timeout", "10s", "--json"]), // 5
             calls::watching(LANDING_WAIT),
-            calls::call(D1, argv!["close", "1", "--key", "close"]), // 6
+            calls::call(D1, argv!["chat", "close", "1", "--key", "close"]), // 6
             calls::release_hold(b"producing"),
-            calls::call(D1, argv!["wait", "task", "2", "--until", "ended"]), // 7
+            calls::call(D1, argv!["task", "show", "2", "--until", "ended"]), // 7
             calls::join(LANDING_WAIT),
-            calls::call(D1, argv!["wait", "task", "1", "--until", "ended"]),
+            calls::call(D1, argv!["task", "show", "1", "--until", "ended"]),
         ]
     });
     assert_eq!(ran.calls()[LANDING_WAIT].exit, Some(Exit::Code(3)));

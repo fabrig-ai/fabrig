@@ -354,7 +354,7 @@ fn a_change_wait_follows_cancelled_and_failed_tasks_beside_the_live_panel() {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
             let words = f::extended(
-                &["wait", "change", "2", "--project", "1", "--until", "landed"],
+                &["change", "show", "2", "--project", "1", "--until", "landed"],
                 if json { &["--json"] } else { &[] },
             );
             let call = root.submit(words.as_slice());
@@ -384,7 +384,7 @@ fn a_change_wait_follows_cancelled_and_failed_tasks_beside_the_live_panel() {
 #[test]
 fn a_cancelled_task_with_no_panel_exits_two() {
     let mut root = f::signed_in(f::PARTY);
-    let call = root.submit(&["wait", "change", "2", "--project", "1", "--until", "landed"]);
+    let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "landed"]);
     end_panel(&mut root, call, c::WatchEnd::Unknown);
     root.serve(call, c::ReadResult::Value(c::ReadValue::Task(Box::new(cancelled()))));
     let answer = root.answer(call).unwrap();

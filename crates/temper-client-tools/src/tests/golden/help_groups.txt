@@ -45,7 +45,9 @@ empty; a call then exits 1 until the next sign-in.
 the engine's answer is durable. A call cut short, by a signal or a
 link down past its deadline, leaves its request kept, and the next
 call that sends sends it again under its key, printing the answer on
-stderr: `kept: message, done: task 41, message`. `temper ctl DIR pending`
+stderr: `kept: message, done: task 41, message`. A request the engine
+has not answered yet holds no other act: the line says `unanswered`,
+and the call goes on with its own act. `temper ctl DIR pending`
 lists what `DIR` keeps, and sends nothing.
 
 ## What temper guarantees

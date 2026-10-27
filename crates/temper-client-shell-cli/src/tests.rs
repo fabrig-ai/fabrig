@@ -775,8 +775,8 @@ fn an_unanswered_adopt_holds_no_close_export_or_unrelated_adopt() {
     let mut other = ADOPT.to_vec();
     *other.last_mut().expect("adopt key") = b"another-adopt";
     for (words, status) in [
-        (&[b"close".as_slice(), b"7", b"--key", b"close"][..], 0),
-        (&[b"export".as_slice(), b"7", b"/linked-parent/record"][..], 0),
+        (&[b"chat".as_slice(), b"close", b"7", b"--key", b"close"][..], 0),
+        (&[b"account".as_slice(), b"export", b"7", b"/linked-parent/record"][..], 0),
         (other.as_slice(), 2),
     ] {
         let store = unanswered_adopt();
