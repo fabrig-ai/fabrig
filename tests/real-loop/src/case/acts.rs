@@ -535,14 +535,22 @@ pub fn step_5_1() -> Vec<calls::Step> {
         // full task document through the director's answer and both reports.
         start(D1, argv!["task", "show", number(RULES), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(RULES), "--until", "replied"]),
-        calls::until(D1, argv!["task", "show", number(RULES), "--json"], b"\"work\":\"waiting\"", b"\"phase\":\"running\""),
+        calls::until(
+            D1,
+            argv!["task", "show", number(RULES), "--json"],
+            b"\"work\":\"waiting\"",
+            b"\"phase\":\"running\"",
+        ),
         call(D1, argv!["task", "stop", number(RULES), "--key", "rules-stop"]),
         calls::until(D1, argv!["task", "show", number(RULES), "--json"], b"\"placed\"", b"\"phase\":\"running\""),
         calls::until(D1, argv!["task", "show", number(SCOPE), "--json"], b"\"phase\":\"held\"", b"\"task\""),
         // Both old responses and the resumed response have their own fake hold.
         calls::release_hold(SCOPE_QUESTION_HOLD),
         calls::push(RULES_FILE.as_bytes(), NEW_RULES.as_bytes()),
-        call(D1, argv!["task", "release", number(RULES), "--hold", number(RULES_HOLD_REVISION), "--key", "rules-release"]),
+        call(
+            D1,
+            argv!["task", "release", number(RULES), "--hold", number(RULES_HOLD_REVISION), "--key", "rules-release"],
+        ),
         calls::writing_task(D1, SCOPE),
         calls::release_hold(SCOPE_QUESTION_HOLD),
         calls::until(
@@ -647,23 +655,28 @@ pub fn step_5_2() -> Vec<calls::Step> {
         ),
         calls::until(
             D1,
-            argv!["task", number(IMPLEMENTER), "--activity", "32", "--json"],
+            argv!["task", "show", number(IMPLEMENTER), "--activity", "32", "--json"],
             b"\"phase\":\"held\"",
             b"\"task\"",
         ),
-        calls::until(D1, argv!["task", number(H1), "--activity", "32", "--json"], b"\"phase\":\"held\"", b"\"task\""),
         calls::until(
             D1,
-            argv!["task", number(H1_REVIEWER), "--activity", "32", "--json"],
+            argv!["task", "show", number(H1), "--activity", "32", "--json"],
             b"\"phase\":\"held\"",
             b"\"task\"",
         ),
-        call(D1, argv!["task", number(BOWNER), "--activity", "32", "--json"]),
+        calls::until(
+            D1,
+            argv!["task", "show", number(H1_REVIEWER), "--activity", "32", "--json"],
+            b"\"phase\":\"held\"",
+            b"\"task\"",
+        ),
+        call(D1, argv!["task", "show", number(BOWNER), "--activity", "32", "--json"]),
         // Complete the cancelled model responses before the new attempts use
         // the peer, then release the new responses once they are writing.
         calls::release_hold(IMPLEMENTER_HOLD),
         calls::release_hold(REVIEW_HOLD),
-        call(D1, argv!["release", number(BOWNER), "--hold", number(B_HOLD), "--key", "release-b"]),
+        call(D1, argv!["task", "release", number(BOWNER), "--hold", number(B_HOLD), "--key", "release-b"]),
         // The cancelled response's fake hold is not the resumed response's.
         // Observe both new runs writing before releasing their scripted replies.
         calls::writing_task(D1, IMPLEMENTER),
