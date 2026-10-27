@@ -889,7 +889,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* Shared connection flows (client/README.md, 5.2). */
 .temper-flow-steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 11.67px; margin: 17.5px 0; list-style: none; padding: 0; }
 .temper-flow-step { border-top: 3.5px solid var(--temper-line); padding-top: 10.5px; font-size: 11.67px; color: var(--temper-muted); }
-.temper-flow-step[aria-current] { border-color: var(--temper-accent); color: var(--temper-accent-dark); font-weight: 700; }
+.temper-flow-step[aria-current] { border-color: var(--temper-ink); color: var(--temper-ink); font-weight: 700; }
 .temper-flow-done { border-color: var(--temper-green); color: var(--temper-green); }
 .temper-flow-card { border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); padding: 23.33px; margin-bottom: 16.33px; }
 /* The welcome's Forge step: its two choices share the row, as the welcome's own two cards do. */
