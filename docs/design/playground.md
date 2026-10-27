@@ -221,10 +221,13 @@ desktop browsers are well supported (the user, 10-26).
   answer, the digest directory cached for good, the page `no-cache`),
   for whatever host serves them to map, and a test holds the two
   equal. How the site's host takes them is the site's design.
-- **Built by `scripts/bundle.sh --playground OUT`:** the web shell with
-  `playground` and `temper-playground` for wasm32, in the `web`
-  profile, bundled by skein's bundler with the worker's module (skein's
-  `playground.md`, 7).
+- **Built by `scripts/bundle.sh --playground OUT`:** temper's web shell
+  with `playground`, in the `web` profile, and `temper-playground` for
+  wasm32 in a profile of its own, `playground`, which inherits `web` and
+  optimizes for size: the world's module is most of the download, and
+  built so it is smaller and its slices no slower. Both bundled by
+  skein's bundler with the worker's module (skein's `playground.md`, 7);
+  two builds at one commit are identical.
 - **Released with temper,** built at each release tag from the commit
   the download is built from, by the release's own build calling
   `bundle.sh --playground` beside the binary's, and linked from the site
