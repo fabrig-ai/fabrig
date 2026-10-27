@@ -49,6 +49,7 @@ fn number(answer: &Answer) -> Option<u64> {
         | Answer::Dependencies(_)
         | Answer::Labels(_)
         | Answer::Commit(_)
+        | Answer::GitTree { .. }
         | Answer::Tree(_)
         | Answer::Directory(_)
         | Answer::File(_)
@@ -407,6 +408,7 @@ fn document(
         | Answer::Statuses(_)
         | Answer::Dependencies(_)
         | Answer::Labels(_)
+        | Answer::GitTree { .. }
         | Answer::Tree(_)
         | Answer::Directory(_)
         | Answer::File(_)
@@ -470,6 +472,7 @@ pub fn answer(
         | Answer::Dependencies(_)
         | Answer::Labels(_)
         | Answer::Commit(_)
+        | Answer::GitTree { .. }
         | Answer::Tree(_)
         | Answer::Pages { .. }
         | Answer::Page(_)
@@ -514,6 +517,7 @@ pub fn answer(
         | Answer::Dependencies(_)
         | Answer::Labels(_)
         | Answer::Commit(_)
+        | Answer::GitTree { .. }
         | Answer::Tree(_)
         | Answer::Directory(_)
         | Answer::File(_)
@@ -846,6 +850,7 @@ mod bounded {
             | a::Answer::Dependencies(_)
             | a::Answer::Labels(_)
             | a::Answer::Commit(_)
+            | a::Answer::GitTree { .. }
             | a::Answer::Tree(_)
             | a::Answer::Pages { .. }
             | a::Answer::Page(_)
