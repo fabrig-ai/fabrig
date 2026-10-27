@@ -349,7 +349,11 @@ agent must name.
   value's bounds are jig's (`ChangeSettings`' own, and the limits the engine's
   `me` gives where it gives them). Past a bound it is refused before anything
   is sent, naming the item and the bound. Unknown members are refused,
-  naming them. Every refusal a person reads numbers items from 1, the
+  naming them. A member `FIELDS` marks optional may be left out and
+  takes the default its row names: a template's model choice is
+  `{"main": {"model": M, "effort": E}}` alone, its `account` none and
+  its `subagents` empty (o/ladder-claude's rung A walk); a required
+  member left out is refused naming its path, `llm.account`. Every refusal a person reads numbers items from 1, the
   decoder's and the engine's alike (jig's index plus one), and names a
   member by its path in the file, `charter.alternatives`, never by the
   wire's limit's name. `null` is refused where a member takes a value:
@@ -364,8 +368,9 @@ agent must name.
   decoder in the crate ctl and the runs' `propose_settings` share
   (`temper-settings-form`): a row per member of a shape, by the shape's
   name and the member's (`authority.spend`, `model.name`), with its JSON
-  type, its bound where the settings' limits give one, and a line saying
-  what it does to work. A shape that recurs (an authority in a policy's
+  type, its bound where the settings' limits give one, whether it may be
+  left out and its default then, and a line saying what it does to
+  work. A shape that recurs (an authority in a policy's
   ceiling, its roles and the rules; a model in a charter's model and its
   alternatives) has its rows once. `resolve` walks a path from a kind
   through the shapes (`policy.ceiling.spend`, `charter.model.name`) to
