@@ -573,7 +573,9 @@ impl Judge {
                 | Proc::Terminal(_)
                 | Proc::Agent(_)
                 | Proc::Git(_)
-                | Proc::GitRoute(_) => {}
+                | Proc::GitRoute(_)
+                | Proc::Claude(_)
+                | Proc::Relay(_) => {}
             }
         }
         self.children.finish(children);
