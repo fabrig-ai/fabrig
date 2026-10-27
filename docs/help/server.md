@@ -206,8 +206,10 @@ temper ctl DIR account import FILE --key KEY
 Expect: `moved out: account ACCOUNT to FILE`; after the start,
 `moved in: account ACCOUNT`, and `FILE` removed.
 
-If not: an export answered `unsent` moved nothing: keep `DATA`,
-export again later, and remove `DATA` only once it is out. An export
+If not: an export answered `the engine holds its N answers of the last
+day; room again at TIME` (exit 2) or `unsent` (exit 1) moved nothing:
+keep `DATA`, export again after TIME or later, and remove `DATA` only
+once it is out. An export
 refused or lost: the engine kept the account, and the store loses it;
 an owner signs in to it again. An import refused
 keeps `FILE`: leave it as it is. A key's account does not cross: add
