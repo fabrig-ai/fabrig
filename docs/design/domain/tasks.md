@@ -1080,6 +1080,11 @@ A wake policy is data, from a closed vocabulary:
   *wakes*, *kept* (news, but nothing the task must act on now), or
   *dropped* (not the task's concern after all, and not kept). The task's
   policy may lower a class, never raise it;
+- **markers,** designed, not built: names a connector offers on its
+  news (a forge's commit trailers), which the core keeps with the
+  task's subscriptions, a goal's among them, and passes to the
+  connector, which classes an event carrying one as waking for the
+  task; the class is still the connector's to give;
 - **batching,** for kinds that allow it: wake once N have arrived, or
   the oldest is older than T, so a watch hearing a storm of alerts wakes
   once. A person's words, a cancel and an amendment are never batched,
