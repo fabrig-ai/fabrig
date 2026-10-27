@@ -25,30 +25,23 @@ fn process_engine() -> jig_protocol_config::Engine {
 }
 
 #[test]
-fn the_process_configurations_documents_fit_the_native_client() {
+fn the_process_and_qa_configurations_documents_fit_their_clients() {
     let engine = process_engine();
     let client = temper_client_shell_terminal::limits::native().client;
-    let native = client.client.domain;
-    assert!(engine.limits.core.documents.rows <= native.rows, "the native client can receive every document row");
-    assert!(
-        engine.limits.core.documents.lines <= native.rows,
-        "the native client can receive every document's short list"
-    );
-    let paths = engine
-        .limits
-        .core
-        .authority
-        .segments
-        .max(engine.limits.core.tasks.hold_segments)
-        .max(engine.limits.core.tasks.authority_segments);
-    assert!(paths <= native.segments, "the native client can receive every document path");
-    assert!(
-        engine.limits.core.documents.text_bytes <= native.text,
-        "the native client can receive every document text"
-    );
-    assert!(engine.limits.core.documents.grants <= client.client.domain.authority, "every grant fits");
-    assert!(engine.limits.core.documents.executors <= client.client.domain.authority, "every executor fits");
-    assert!(engine.limits.core.documents.implications <= client.client.domain.authority, "every implication fits");
+    assert_documents_fit(&engine.limits.core, client.client.domain);
+    let qa = temper_client_world::fixtures::domain_limits();
+    let front = temper_client_world::front::Joint::with_change_landing(temper_client_world::fixtures::SEED, &qa);
+    assert_documents_fit(&temper_engine_domain::core_limits(&front.engine.env.limits), qa.client.domain);
+}
+fn assert_documents_fit(engine: &jig_domain_core::Limits, native: jig_client::DomainLimits) {
+    assert!(engine.documents.rows <= native.rows, "the client can receive every document row");
+    assert!(engine.documents.lines <= native.rows, "the client can receive every document's short list");
+    let paths = engine.authority.segments.max(engine.tasks.hold_segments).max(engine.tasks.authority_segments);
+    assert!(paths <= native.segments, "the client can receive every document path");
+    assert!(engine.documents.text_bytes <= native.text, "the client can receive every document text");
+    assert!(engine.documents.grants <= native.authority, "every grant fits");
+    assert!(engine.documents.executors <= native.authority, "every executor fits");
+    assert!(engine.documents.implications <= native.authority, "every implication fits");
     assert!(temper_engine_domain::WATCHES_PER_STREAM >= native.watches, "the stream fits the client's watches");
     assert!(temper_engine_domain::VIEWS.watchers_per_party >= native.watches, "the party fits the client's watches");
     assert!(temper_engine_domain::VIEWS.watchers >= native.watches, "the engine fits the client's watches");

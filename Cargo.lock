@@ -2354,6 +2354,7 @@ dependencies = [
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-client-tools",
+ "temper-client-world",
  "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",

@@ -137,15 +137,39 @@ fn an_ended_child_of_the_change_is_never_listed_as_its_own_child() {
     let (mut world, task) = change_world();
     let client = world.client(fixtures::PARTY, fixtures::task_page(task));
     let delegate = review(&mut world, client, task);
+    let whole = world.front().engine.task(delegate).expect("live review").spec.words.clone();
+    assert!(whole.len() > usize::try_from(fixtures::domain_limits().client.domain.text).expect("text bound"));
+    let observer = world.client(fixtures::PARTY, fixtures::task_page(delegate));
+    see(&mut world, observer, Find::text(b"Review this change at the named head"));
+    assert_cut_review(&world, observer);
     finish_review(&mut world, delegate);
     see(&mut world, client, fixtures::plan_item(delegate, b"Completed"));
     world.go(client, fixtures::task_page(delegate));
     see(&mut world, client, Find::text(b"QA approved"));
+    assert_cut_review(&world, client);
+    let key = engine::Key::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(delegate)));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(row)))) =
+        world.front().engine.store.rows.get(&key)
+    else {
+        panic!("retained reviewer row");
+    };
+    assert_eq!(row.spec.words, whole, "the document cut leaves the retained spec whole");
     assert!(
         world.root(client).person().pages().task().expect("agent task").ended.is_none(),
         "an agent child page does not read its parent's ended tasks"
     );
     assert!(!text(&world, client).contains("Its tasks"), "agent child's page cannot inherit its parent's children");
+}
+
+fn assert_cut_review(world: &ClientWorld, client: ClientId) {
+    let root = world.root(client).person();
+    let page = root.pages().task().expect("review page");
+    let document = page.document(root.client()).expect("review document");
+    assert!(document.spec.specification.words.cut, "long review words are marked cut");
+    assert_eq!(
+        document.spec.specification.words.bytes.bytes(),
+        b"Review this change at the named head\nVerdict 1 approves; verdict"
+    );
 }
 
 // client/README.md 5.10: an already-running procedure still draws its

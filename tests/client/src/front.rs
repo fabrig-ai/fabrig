@@ -695,7 +695,11 @@ impl Joint {
             const UNCONFIGURED_WORKER: u32 = 7;
             *worker = UNCONFIGURED_WORKER;
         }
-        let mut engine = Driver::with_repositories(store, configs, engine_limits, fixtures::REPOSITORIES);
+        // protocol/configuration.md, 7: documents fit the client this world serves.
+        // Smaller text projections still retain the full task spec and brief.
+        let mut engine_limits = *engine_limits;
+        engine_limits.documents.text_bytes = engine_limits.documents.text_bytes.min(limits.client.domain.text);
+        let mut engine = Driver::with_repositories(store, configs, &engine_limits, fixtures::REPOSITORIES);
         engine.send(hello);
         engine.settle();
         let last_commit = engine.store.header().commits;
