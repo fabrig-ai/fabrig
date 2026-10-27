@@ -1250,7 +1250,7 @@ fn a_change_whose_reviews_exhaust_its_tasks_holds_and_a_bare_release_holds_it_ag
         let panel = support::ctl::json(&outcome.calls[index]);
         assert!(panel["hold"].as_str().expect("held cause").contains("its 6 tasks are made"), "{panel}");
         let task = support::ctl::json(&outcome.calls[index - 1]);
-        assert_eq!(task["chip"]["phase"], "held", "never due: {task}");
+        assert_eq!(task["task"]["chip"]["phase"], "held", "never due: {task}");
     }
     assert!(
         support::ctl::json(&outcome.calls[bare_at])["hold"]
