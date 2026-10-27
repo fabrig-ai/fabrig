@@ -1,6 +1,6 @@
 # Parties
 
-Provisional, 2026-10-07, revised 2026-10-23. How people, and the
+Provisional, 2026-10-07, revised 2026-10-27. How people, and the
 services that act like them, take part: who they are and the credentials
 they sign in with, what their role in a project lets them do, the
 operations they ask of the engine and what waits for them, the
@@ -295,7 +295,13 @@ task is in a party's tree when they requested it, or a task above it.
 Ordinary deciding requests reserve a place for their original answer at
 admission and retain it for the advertised retention, success and
 permanent routed refusal alike. This capacity is shared engine-wide,
-not per party. Unexpired answers are never evicted for another key.
+not per party. Unexpired answers are never evicted for another key. A
+request refused for want of a place is answered busy, *answers full*,
+with the table's size and its oldest answer's expiry
+(`../client/domain/contract.md`, 3.1), so the person and the operator
+see the bound and when it frees; its size is the deployment's
+(`people.requests`), sized for a day of the deployment's deciding
+requests at the retention it advertises.
 Busy and not ready are not saved. After authentication and validation,
 retained-key replay or conflict and pending-key joins or conflicts are
 checked before a new request needs room. An identical pending request

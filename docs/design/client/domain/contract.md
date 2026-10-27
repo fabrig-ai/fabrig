@@ -542,7 +542,11 @@ Every request has one answer, of one of these kinds:
     out with a move, or back from one and not yet refreshed:
     `../../domain/accounts.md`, section 6);
 - **busy** or **not ready:** nothing was made and nothing kept; send it
-  again, under its key, after a backoff;
+  again, under its key, after a backoff. A busy says why when it is the
+  table of retained answers that is full (`../../domain/people.md`,
+  5.1): *answers full*, with how many it holds and when its oldest
+  answer expires, so a client says so and when it will have room, never
+  only that the request was not sent;
 - **signed out:** the sign-in has ended; sign in, then send it again;
 - **version not served:** the engine does not serve the version the
   request's owner is encoded in. Nothing was read, made or kept. It
