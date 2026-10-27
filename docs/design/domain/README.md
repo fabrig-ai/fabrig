@@ -30,6 +30,9 @@ all. Then temper's:
 5. **testing.md:** how temper is tested, on skein's testing strategy
    and jig's worlds: its tiers, its neighbours' fakes, its scenarios and
    referee, what its worlds check, and its layout.
+6. **landing.md:** a project that lands by turn: landings across
+   repositories and goals, prepare, receipts by key, proof by dispatch,
+   and the project's landing turn.
 
 ## 2. Structure
 
@@ -40,6 +43,7 @@ temper-engine-domain                       the root (root.md)
 └── temper-engine-domain-forge             the forge connector's top (forge.md)
     ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
     ├── temper-engine-domain-forge-change  the change procedure and the landing queues
+    ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
     └── temper-engine-domain-forge-issues  the goals' issues
 
 temper's worker

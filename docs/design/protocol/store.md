@@ -91,6 +91,10 @@ section 7).
 | 21 | `Flight` | `Flight { task, entry }`: the entry's task, then its number | a write the forge sent and has not settled for good: saved in the commit that records an entry's attempt, beside the `Entry` row; kept through an uncertain outcome, a retry, a merge queued on the forge's queue and the restart's settlement; erased in the commit that settles the entry for good (made, failed for good, withdrawn, not made) or holds it for a person, and saved again before a held entry is made again. So after a stop that settled none is left (jig's `protocol/store.md`, 10.3, "Effects in flight"; `../domain/root.md`, 9.2). Its record is its key's fields, `{ task, entry }`, as every row holds its key's (section 3), so a start that refuses to patch over it names each write from its key alone | `entries` |
 | 22 | `Delivery` | `Delivery(CallKey)`: the call's task, attempt, completion and position | a delivery's reply, typed in temper's schema (from smith's `DeliveryReply`), which the worker's routing renders for a resumed run: saved in the decision that settles the delivery, first settlement kept, erased when the call retires (a later turn commits, or the task ends); the routing encodes smith's reply from it into the assignment's evidence (jig's `protocol/channel.md`, 6.2). In place before the first release; written by the delivery's path, which no production host takes yet | `named_calls` |
 
+- **Designed, not built** (`../domain/landing.md`, section 12): 23
+  `Landing`, keyed by the landing's task, a landing's state; 24
+  `Receipt`, keyed by the project, the repository, the gate and the
+  key, a gate's result under a key, bounded by `receipts_per_gate`.
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads them: the engine serves none of the forge's
   client parts but the adoption form (`../client/README.md`, section 4).

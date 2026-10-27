@@ -1455,6 +1455,8 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 | 1, the deployment's landing rules | the deployment | a rule's, from 1; at most `forge.landing_rules` | a landing rule (below) | the deployment's owners |
 | 2, a project's landing rules | each project | a rule's, from 1; at most `forge.landing_rules` per project | a landing rule | that project's owners |
 | 3, the forge's charters | the deployment | 1, the change's; 2, its reviews' | a charter's number, a u32 | the deployment's owners |
+| 4, a project's landing (designed, not built) | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../domain/landing.md`, 13.1) | that project's owners |
+| 5, a repository's gates (designed, not built) | each project | a repository's, from 1 | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
 
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, section 3's rule member for member but `connector` and `kind`,

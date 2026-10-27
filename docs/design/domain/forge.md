@@ -31,6 +31,11 @@ makes each call to a forge and hears its deliveries, is
   into a branch needs: CI passed, the head up to date with the branch,
   gates, people's approvals. The forge judges each from its own facts at
   the merge's exact head, which the forge's merge is conditional on (8.7).
+- **By queue or by turn.** A project lands by the queue below, its
+  default, or by turn: landings across repositories, prepared, proved by
+  receipts and fast-forwarded in the project's turn (`landing.md`),
+  which replaces steps 3 and 5 to 7 of 8.2, and sections 9 and 10, for
+  its changes.
 - **Landing queues.** Changes ready to land in a branch wait in line, by
   their goal's priority then by when each became ready; only the first
   is brought up to date and merged. Where the forge keeps a merge queue
@@ -898,6 +903,10 @@ dependencies: skein's change lands before temper's that bumps its lock.
 
 ### 8.2 Its way to landing
 
+Under its project's queue, the default. Under its project's turn, a
+change has no checking step, and once ready its landing prepares,
+proves and lands it (`landing.md`, section 3).
+
 ```
 producing ─► opening ─► checking ─► gating ─► queued ─► first ─► landing ─► landed
                           ▲   │        │                  │
@@ -1084,7 +1093,9 @@ the change reads the head afresh once the slot is freed. Otherwise:
 - **Its pull request closed** by someone else: held, saying who and
   when. A release reopens it; a cancel closes the change.
 - **Its branch moved** while nothing of temper's writes it, or by another
-  identity, or not forward: held, the head kept as it is. A release
+  identity, or not forward: held, the head kept as it is. Under its
+  project's turn, the rebase its own prepare asked for is the change's
+  (`landing.md`, 5.2). A release
   takes the new head as the change's and checks it, gates asked again.
 - **Its branch deleted:** held. A release creates the branch again at
   the head temper last knew, which the forge keeps under the pull
@@ -1269,6 +1280,9 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
 
 ## 9. Landing queues
 
+Under a project's queue; a project that lands by turn has none
+(`landing.md`, sections 8 and 9).
+
 One per landing branch that has changes ready. A repository belongs to
 one project (another may read it as context), so its goals' priorities
 are comparable.
@@ -1360,6 +1374,9 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
   takes a pull request out of the forge's queue itself (section 20).
 
 ## 10. Updates: lazy and mechanical
+
+Under a project's queue; by turn, a landing prepares its candidates
+instead (`landing.md`, section 5).
 
 - **Lazy:** a change takes its base when it is first in its queue, or
   about to get a run for another reason (8.2). It never does only
