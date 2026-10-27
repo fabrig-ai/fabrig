@@ -430,10 +430,15 @@ run starts fresh, its brief carrying the tail.
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
 | the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
 
-The change's agents run under the forge's charter; designed, not built,
-the one the change was made with, kept on it whatever later changes of
-settings make the forge's charter (`../protocol/configuration.md`,
-13.2).
+The change's agents run under the forge's charters, the ones the change
+was made with, kept on it whatever later changes of settings make them
+(`../protocol/configuration.md`, 13.2): its producing, repairs and
+resolutions under the forge's charter, a coding agent's; its reviews
+under the forge's review charter, a reviewer's, whose instructions are
+to judge the change through its brief and the forge's reads and give a
+verdict, or fail saying why it cannot (forge.md, 8.3), and whose tools
+are the workspace's inspection and the forge's reads, never
+modification or the shell: a reviewer changes nothing.
 
 The change's agents ask no one, and take no questions, answers or words
 (8.2).

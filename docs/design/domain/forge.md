@@ -973,8 +973,9 @@ starts from current code. It never updates only because its base moved.
 - **A gate** is a verdict a change asks for before it lands, at its exact
   head:
   - *a review:* a task for an agent with a lens (memory safety,
-    performance, a design), whose verdict is approve or request changes,
-    with remarks;
+    performance, a design), under the forge's review charter, a
+    reviewer's (`agent.md`, 8), whose verdict is approve or request
+    changes, with remarks;
   - *a person's approval,* through a person task addressed to the
     project's maintainers and answered in the client (jig's
     `domain/people.md`, section 8): the change approved at the head, or
