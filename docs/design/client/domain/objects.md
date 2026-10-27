@@ -242,10 +242,14 @@ A held task whose escalation reached the party
 A task the party asked for asks them something (`../../domain/tasks.md`,
 8.1): a coordinator unsure of the scope, a chat waiting for an answer.
 
-- **The task** and its words, whole, never cut;
+- **The task** and its words: the task whole, never cut; the question's
+  words within the document's text bound, cut and saying so where they
+  are longer, their whole read in the asking task's activity
+  (`contract.md`, 5.3);
 - **its context:** the task's page, and what it did just before asking;
 - **an answer,** in words: an `Answer` to the question's entry, which
-  wakes the task.
+  wakes the task. It names the question by its task and message, never
+  by its words, so a long question is answered as a short one is.
 
 A question from a chat shows in the conversation too, answered in either
 place.

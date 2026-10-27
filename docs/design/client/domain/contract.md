@@ -650,7 +650,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     positions: one over results, one per conversation over its turns;
   - *a proposal, an escalation, a question, a person task, a result:* each
     object whole, with the acts the party may make on it and what each
-    would do; a pending proposal of settings with its review
+    would do; a question's words within the document's text bound, cut
+    at a character's boundary and saying so (5.3), their whole in the
+    asking task's activity, where the turn that asked has it all, so a
+    question is never refused, nor answered busy, for its length; a pending proposal of settings with its review
     (`../../domain/engine.md`, 17.6): the revision it was made against,
     the newest, and for each item the setting, what becomes of it, what
     it is now (its value, following its default or the change of which
