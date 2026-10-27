@@ -89,3 +89,8 @@ pub fn tools() -> crate::jig::Limits {
         wait_most: WAIT_MOST,
     }
 }
+
+#[must_use]
+pub fn form() -> settings_form::Limits {
+    crate::jig::form_limits(&tools())
+}

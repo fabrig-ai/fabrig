@@ -12,6 +12,7 @@ name = "temper"
 path = "src/main.rs"
 
 [dependencies]
+settings-form.workspace = true
 temper-docs.workspace = true
 skein-fail-stop.workspace = true
 temper-engine-domain-forge.workspace = true
@@ -58,6 +59,7 @@ skein-kv.workspace = true
 [dev-dependencies]
 temper-client-world = { path = "../../tests/client" }
 temper-engine-smith.workspace = true
+jig-protocol-engine-clients.workspace = true
 skein-scratch.workspace = true
 jig-client.workspace = true
 jig-client-protocol-wire.workspace = true
