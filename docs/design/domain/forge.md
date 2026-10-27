@@ -1100,7 +1100,7 @@ starts from current code. It never updates only because its base moved.
   consumed by each (jig's `authority.md`, section 5). A step whose
   delegate that authority no longer covers (the tasks its subtree may
   make all made, its depth, its spend below a run's reserve) holds the
-  change, naming what it lacks and what it had ("its 4 tasks are
+  change, naming what it lacks and what it had ("its 6 tasks are
   made"), and its requester hears; it never waits due with nothing to
   run. Released, it asks again: a release that gives what it lacks
   (jig's `authority.md`, section 9, a release needing what the task

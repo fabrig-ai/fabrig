@@ -262,8 +262,9 @@ any `delegate` (jig's authority, named and decided once):
   agent of the change holds, so that its reviewer and its repairs read
   the pull request, its files and CI's logs; the forge's charter as the
   only kind it may delegate, and a person's role where a landing rule
-  covering the branch names a person gate; at most 4 tasks, one fewer
-  than the run has left, and a depth of at most 2; no notes; half of
+  covering the branch names a person gate; at most 6 tasks (a
+  producer, a review, and two repairs each followed by its review), one
+  fewer than the run has left, and a depth of at most 2; no notes; half of
   what the run's budget has left, so that it can still read the result
   and answer, refused when that is no more than a run's minimum. That
   half is a default, open to tuning.
