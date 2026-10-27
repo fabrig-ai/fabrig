@@ -78,13 +78,18 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
 
 - **The real model's agents run `gpt-6.1-sol`** (the user, 10-27), set
   as a person sets a box's model, before its start (the walk `box`'s
-  first step): the configuration's ChatGPT provider lists `gpt-6.1-sol`
-  first, and its model entry, in `temper.json` and in the agent's
-  configuration, copies `gpt-6-luna`'s as `temper init` writes it, the
-  name changed. Every charter takes the first configured model as its
-  default (`protocol/configuration.md`, 13.4), and the stock's spends
-  are sized from it at the start, so nothing else is raised. A chat is
-  started with `--model gpt-6.1-sol` where its model is named.
+  first step): `gpt-6-luna`'s model entry renamed `gpt-6.1-sol` in
+  place, in `temper.json` (the provider's list and `engine.llm`'s
+  models, where it stays the first, ahead of `demo`) and in the agent's
+  configuration, its window, output and prices kept, a unit being a
+  thousand tokens on either model. Every charter takes the first
+  configured model as its main model, and the stock's spends are sized
+  from it at the start (`protocol/configuration.md`, 13.4), so nothing
+  else is raised. After the start, `temper ctl settings show charter 1`
+  names `gpt-6.1-sol` as the main model, with the box's spends as
+  before; a box that names another model is a setup to redo, not a
+  finding. A chat is started with `--model gpt-6.1-sol` where its model
+  is named.
 - **Down before up:** the director opens a rung once the rung below has
   run clean at a `main` no older, and a rung's open findings hold the
   rungs above it (`draft/qa-live.md`, 3.2, without the lab's verdicts).
