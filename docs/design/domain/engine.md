@@ -622,7 +622,10 @@ is due again once its dependencies are done.
      conversation delegates is not flagged, so its run is not asked
      (`hosts.md`, section 12);
    - its charter, in the core's terms: the task's instructions, the
-     brief, the tools its authority gives, the outcome its result
+     brief, the tools of each host family its charter names and its
+     authority holds (the charter's `tools`, a `ToolFamilies` mask, the
+     same type as an authority's: a family neither names is not offered,
+     so a run's host part spends nothing on it), the outcome its result
      contract asks for; its budget for the run: turns, spend and time,
      with a reserve of turns and time for finishing, its spend reserved
      from what its task has left in the claim's commit (authority.md,
