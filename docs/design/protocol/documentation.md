@@ -66,7 +66,7 @@ help. People read the site, which is outside temper's design.
 
 | Kind | Bound | Headings, in order | Names |
 |---|---|---|---|
-| `index` | 4,096 bytes | free; it names every other page but the reference and the guides once, by `temper help NAME` | `index` alone |
+| `index` | 6,144 bytes | free; it names every other page but the reference and the guides once, by `temper help NAME` | `index` alone |
 | `concept` | 8,192 bytes | `What it is`; `How it changes` (optional); `What temper guarantees`; `Acting on it`; `Limits` | the map's nouns |
 | `walk` | 12,288 bytes | `Before you start`; numbered steps, `## 1. …`; `Clean up`; `Next` | the map's walks |
 | `recipe` | 3,072 bytes | `Goal`; `Settings`; `Enforced and followed`; `Checking it took` | the map's recipes |

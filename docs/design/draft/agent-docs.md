@@ -81,7 +81,7 @@ part becomes contract in the documents it names as it is built.
 | concept | one noun of the map: what it is, how it changes, what temper guarantees, how agents act on it, its limits | written | 8 KB |
 | walk | a goal reached by commands, as a runbook | written | 12 KB |
 | recipe | a goal reached by a change of settings | written | 3 KB |
-| index | what temper is, the map with a line per noun, the walks and recipes, the placeholders | written, its lists checked | 4 KB |
+| index | what temper is, the map with a line per noun, the walks and recipes, the placeholders | written, its lists checked | 6 KB |
 
 - **At the point of use,** every result prints what can follow as calls
   (`../client/tools.md`, 6.1), and every cut says how to read on. An
