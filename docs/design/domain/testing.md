@@ -2503,7 +2503,10 @@ and one smoke above:
   stock sizes them from C, the default model's worst completion, so a
   fake's run would be capped at a few units (o/configuring-stock's L11,
   temper 985ee2837: the fuzzy repair and case 6.4 keep 1 unit, cases 4.1
-  and 4.3 a 10-unit cap). Their times do not change.
+  and 4.3 a 10-unit cap). A world that copies init's seed onto a
+  cheaper model prices the seed for its own model, and the cluster
+  fixture keeps four charter slots for the stock's three (L13, temper
+  3b3bb4801). Their times do not change.
 - **Its QA:** planned implementation changes the facts of the forge's world and the
   engine's domain world (how a merge is judged), so their `qa_*`
   profiles run before it lands.
