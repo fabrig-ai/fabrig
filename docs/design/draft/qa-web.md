@@ -1,15 +1,18 @@
 # The QA loop in the browser
 
-**Parked** with the lab (`qa-lab.md`), 2026-10-26, until QA after
+**Retired lab**, 2026-10-27: temper's experiments and lab binding were
+retired for `../qa.md`'s process. This draft is kept as historical design.
+
+**Parked** with the lab (the retired lab binding), 2026-10-26, until QA after
 landing (`../qa.md`) takes up the browser.
 
 Draft, 2026-10-22. The QA loop's web level (director decision 344):
 temper's pages held to the mockups, and agents driving temper through
-its web client in headless Chromium, as `qa-lab.md`'s drive it through
+its web client in headless Chromium, as the retired lab binding's drive it through
 `temper ctl`. It records a session with the user on 2026-10-22. The
 lab's records, runner, outcomes, verdicts and findings are skein's
 `lab.md`'s; the cluster, the seed, the fakes' scripts and the story's
-checks are `qa-lab.md`'s. This draft says what the browser adds: the look's
+checks are the retired lab binding's. This draft says what the browser adds: the look's
 scenes, their three views and their judging (sections 3 to 5), the hand
 a driver reaches the pages by (section 6), its stories and checks
 (sections 7 and 8), the findings' homes (section 9) and two milestones
@@ -21,8 +24,8 @@ a driver reaches the pages by (section 6), its stories and checks
   captured beside the mockups' and held to them, with no driver
   (sections 3 to 5). The use: a driver agent follows a story through the
   browser alone (sections 6 to 8).
-- **The lab as it is:** experiments in temper's `lab/`, the runner in
-  skein's `scripts/lab/`, runs and findings in `~/src/rust/tmp/lab/`,
+- **The lab as it is:** experiments in temper's retired lab, the runner in
+  the retired lab runner, runs and findings in the retired lab's run directory,
   three seeds a verdict. The records gain nothing but a finding's class
   (section 9).
 - **A scene** is a mockup's state beside temper's at one width: the
@@ -45,7 +48,7 @@ a driver reaches the pages by (section 6), its stories and checks
   name, press, type, keys, go, reload, back, the address, an outline, a
   shot. Every call is recorded, so a transcript becomes a world's story
   (section 6).
-- **The use story is `qa-lab.md`'s,** through the browser: the same change,
+- **The use story is the retired lab binding's,** through the browser: the same change,
   scripts and end-state check on the same subject, so the two levels
   compare (section 7).
 - **Fixes go low:** words, order and missing parts to the view's world;
@@ -130,7 +133,7 @@ browser shows.
 
 ### 3.3 Live scenes
 
-`qa-lab.md`'s cluster with the bundle named (`client/browser.md`, 2.2) and
+the retired lab binding's cluster with the bundle named (`client/browser.md`, 2.2) and
 the browser (6.1). The state comes from seed actions through `temper
 ctl` and the fakes' scripts; the browser then opens the scene's page.
 Live scenes cover what the gallery cannot show: a dialog in the top
@@ -151,8 +154,7 @@ reload. They are few, since each costs a cluster.
   (skein's `browser.md`, 5.1).
 - **The frame's regions:** a live page's content carries the clock (a
   turn's time, the day), so its regions are the frame's, and its
-  judgement stands for their crops alone (`lab/README.md`, "The live
-  scenes").
+  judgement stands for their crops alone (retired lab design; current process: `../qa.md`).
 - **No run's live text** until temper's agent processes give it
   (`protocol/llm.md`, 7).
 
@@ -272,7 +274,7 @@ A stylesheet the capture adds on temper's side, the experiment's data:
 one token changed (the body's type a pixel larger, a border's colour)
 and one region moved (the composer above the turns). Its planted
 signatures are the style and order failures it must cause, and the judge
-must name both in the pictures. As `qa-lab.md`'s P is H with a fault, the
+must name both in the pictures. As the retired lab binding's P is H with a fault, the
 planted experiment with the stylesheet removed is the healthy one byte
 for byte.
 
@@ -291,7 +293,7 @@ socket in its directory (director decision 503; skein's
 - **It signs in:** a seed action gives it a printed sign-in link from
   the action's stdin, which it opens, and its query is redacted from
   everything the browser answers or logs. The link never reaches the
-  driver, as no credential reaches it through `ctl` (`qa-lab.md`, 4.3).
+  driver, as no credential reaches it through `ctl` (the retired lab binding).
   It is serve's second: once the seed's `ctl` has spent the first, a
   spent link presented again is refused and serve prints a fresh one
   (jig's `protocol/client.md`, section 8), which the runner awaits
@@ -299,7 +301,7 @@ socket in its directory (director decision 503; skein's
   (decision 503). A second `ctl` of the seed's presents it, from a
   directory of its own, so that the browser signs in once, by the
   fresh link, and its trouble holds nothing else of the seed's
-  (`lab/README.md`, "The cluster in the browser").
+  (retired lab design; current process: `../qa.md`).
 - **One origin:** it goes only to paths on serve's origin, and a link to
   another host is not followed and says so. So the tool's endpoint is
   its own, as skein's `lab.md`, 6.2 asks of a tool.
@@ -340,7 +342,7 @@ by the fake person's name for it (skein's `ui.md`, 17.1):
   queries a world's fake person makes (skein's `ui.md`, 17.1), so a
   transcript that shows a bug of temper's becomes a `tests/client`
   story, or a browser-tier story when only a browser shows it
-  (`qa-lab.md`, 10.3).
+  (the retired lab binding).
 - **Images:** a tool's result is text (skein's `lab.md`, 6.3), and the
   host's image tools are disabled (6.1 there). Until the tool server
   returns a shot as an image (section 11), `shot` writes a file the
@@ -349,17 +351,17 @@ by the fake person's name for it (skein's `ui.md`, 17.1):
 
 ### 6.3 Its charter
 
-`qa-lab.md`'s 6.1 with the tool changed: Ada reaches temper through
+the retired lab binding with the tool changed: Ada reaches temper through
 `browse` alone, follows the change until the pages say it landed, and
 adopts, adds and connects nothing. She is told that her browser is
 signed in and on temper's first page, and nothing of the pages' paths.
 
 ## 7. The stories
 
-- **W2's first is `qa-lab.md`'s H through the browser:** the same request
-  (`qa-lab.md`, 3.3), cluster, seed actions, fakes' scripts (its section 7)
+- **W2's first is the retired lab binding's H through the browser:** the same request
+  (the retired lab binding), cluster, seed actions, fakes' scripts (its section 7)
   and end-state check (its 8.4), with serve's bundle named. Its
-  experiments mirror `qa-lab.md`'s: `chat-change-web`, H through the
+  experiments mirror the retired lab binding's: `chat-change-web`, H through the
   browser; `chat-change-web-smoke`, its story scripted through `browse`
   with no driver, the free smoke. On one subject, H at both levels
   compares the ctl level's verdict with the browser's: what one sees and
@@ -375,7 +377,7 @@ signed in and on temper's first page, and nothing of the pages' paths.
 
 ### 8.1 The use's
 
-- **`qa-lab.md`'s section 8,** unchanged: the runner's own, the forge's
+- **the retired lab binding,** unchanged: the runner's own, the forge's
   promises, the story's end.
 - **The browser's trouble:** a check reading the browser's log, failing
   `browser/<kind>/<page>`: the kind an exception, a console error, a
@@ -399,7 +401,7 @@ signed in and on temper's first page, and nothing of the pages' paths.
   frame, every line under its regions (the banner, the chatbar, the
   composer, a dialog) with its landmarks and its count, and the rest of
   the page, its content whole, is the parts only a live page has, so no
-  run's data can fail it (`lab/README.md`, "The live scenes").
+  run's data can fail it (retired lab design; current process: `../qa.md`).
 
 ## 9. Findings
 
@@ -407,7 +409,7 @@ signed in and on temper's first page, and nothing of the pages' paths.
   `world`: a page's words, order or missing part, fixed in the view with
   a test of the view's world (`tests/client`, or the view's own), since
   the tree carries roles, names and order. `below` and `fake`, as in
-  `qa-lab.md`. `lab`: the hand, the capture or the judge's setup.
+  the retired lab binding. `lab`: the hand, the capture or the judge's setup.
   `experiment`: a scene's wrong expectation, or the gallery's.
 - **`look`, new:** the page's appearance, where no world below a browser
   renders it. Its fix is a change to `temper.css` (or skein-ui's sheet),
@@ -419,15 +421,15 @@ signed in and on temper's first page, and nothing of the pages' paths.
   sparingly.
 - **A stale mockup is no finding:** a departure and a note to the user,
   who keeps the mockups.
-- **Routed through the director,** as `qa-lab.md`'s 10.3 has them.
+- **Routed through the director,** as the retired lab binding has them.
 
 ## 10. Milestones
 
 ### 10.1 W1: the look on the gallery
 
 - The gallery on main (3.2); the capture and its three views (3.4,
-  section 4); the two checks (5.1); `lab/look/` with its scenes, and
-  `lab/look-planted/` with the stylesheet of 5.4.
+  section 4); the two checks (5.1); the retired look experiment with its scenes, and
+  the retired planted look experiment with the stylesheet of 5.4.
 - **The scenes:** every page the browser has that a mockup draws (the
   chats, a chat, the inbox, a task's page, the accounts page, the
   demo's first screen), and the adoption form as a scene of its own
@@ -446,7 +448,7 @@ No driver, so no paid driver run: W1's spend is the judge's.
 
 - **The browser in the cluster and `browse`** (section 6);
   `chat-change-web-smoke`, then `chat-change-web` on three seeds, with
-  cost classes set as `qa-lab.md`'s 10.1 sets them.
+  cost classes set as the retired lab binding sets them.
 - **Live scenes** for what the gallery cannot show, and the gallery
   checked against them (8.2).
 - **Its bar:** H's verdict through the browser at the ctl level's

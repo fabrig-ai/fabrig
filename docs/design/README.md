@@ -192,8 +192,8 @@ forge, temper adds:
 - **`qa.md`:** temper's binding for QA after landing (agents'
   `docs/design/qa-flow.md`): whom a pass plays, its box and rungs, its
   hands, its reads of the forge, and what makes a finding.
-- **`draft/`:** drafts, not contract. `draft/qa-lab.md`, temper's
-  binding to the lab, is parked there with the drafts that build on it.
+- **`draft/`:** drafts, not contract. The lab binding was retired for
+  `qa.md`'s process; the remaining lab drafts are historical.
 - **`STATUS.md`:** how far the code is from this design.
 
 ## 7. Conventions

@@ -87,11 +87,16 @@ def junit(profile):
 def deal(phases, count):
     parts = [[] for _ in range(count)]
     seconds = [0] * count
-    tests = (phase for phase in phases if phase[1] is not None)
-    for name, weight, _, _, _ in sorted(tests, key=lambda phase: -phase[1]):
+    tests = {name: weight for name, weight, _, _, _ in phases if weight is not None}
+    # QA and browser share qa-bundle: deal them together so that build runs once.
+    # Their measured test seconds still add; none is tuned to choose a part.
+    groups = [list(group) for group in PART_GROUPS]
+    grouped = {name for group in groups for name in group}
+    groups.extend([name] for name in tests if name not in grouped)
+    for group in sorted(groups, key=lambda names: -sum(tests[name] for name in names)):
         part = min(range(count), key=lambda index: seconds[index])
-        parts[part].append(name)
-        seconds[part] += weight
+        parts[part].extend(group)
+        seconds[part] += sum(tests[name] for name in group)
     return parts
 
 
@@ -215,7 +220,7 @@ def run(phases):
 
 def requirements(selected):
     missing = set()
-    if selected - {"process-lab"} and not shutil.which("cargo"):
+    if selected and not shutil.which("cargo"):
         missing.add("cargo")
     if any(name.startswith("qa-") or name == "browser-tests" for name in selected):
         chromium = os.environ.get("SKEIN_TEST_CHROMIUM")
@@ -242,8 +247,6 @@ QA = nextest("qa", "--workspace")
 # 10-26, by which --part deals them (agents' build-infrastructure.md 11).
 # A build, None, runs in each part whose phases need it.
 PHASES = [
-    ("process-lab", 35, None, (), ["python3", "-I", "-B", "-m", "unittest", "discover",
-                                  "-s", "lab/tests/process", "-v"]),
     ("process-programs", None, None, (), PROGRAMS),
     ("process-build", None, None, ("process-programs",), [*PROCESS, "--no-run"]),
     ("process-tests", 390, "process", ("process-build",),
@@ -255,6 +258,9 @@ PHASES = [
     ("browser-tests", 25, "browser", ("qa-bundle", "process-programs"),
      nextest("browser", "--workspace", "--failure-output", "immediate-final")),
 ]
+
+# Keep the shared QA/browser bundle in one part; the other phases deal alone.
+PART_GROUPS = [("qa-tests", "browser-tests")]
 
 raise SystemExit(run(PHASES))
 PY

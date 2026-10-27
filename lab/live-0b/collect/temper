@@ -1,7 +1,0 @@
-#!/bin/sh
-# temper's documents through ctl: the forges' rows, the party's projects and forge 1's picker page.
-# Arguments: TEMPER CLIENT_DIRECTORY OUT.
-set -eu
-"$1" ctl "$2" forges --json >"$3/forges.json"
-"$1" ctl "$2" me --json >"$3/me.json"
-"$1" ctl "$2" repositories 1 >"$3/repositories.txt"

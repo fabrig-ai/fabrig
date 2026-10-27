@@ -636,7 +636,7 @@ Its paths are jig's, unless marked temper's.
 | T9 | Verdicts: rerun once, new failures by test id, bisect or tell all, inherited failures unblamed, faults apart, worst over the range | design | none |
 | T10 | A change lives to *cleared*; a verification bound; a goal ends after its changes clear | design | a change's result is its landing, and it closes (`../domain/forge.md`, 8.2, step 7) |
 | T11 | Findings: labelled issues read back, matched by signature, triaged, closed when a fix clears | conflict, narrow | issues "written and never read back"; findings keyed, their state in the store (`../domain/forge.md`, section 12) |
-| T12 | QA after landing: marks, a chooser, one pass at a time on the newest cleared main, a tester charter with no forge effects | design | none in the product (`qa-lab.md` is the lab's) |
+| T12 | QA after landing: marks, a chooser, one pass at a time on the newest cleared main, a tester charter with no forge effects | design | none in the product (`../qa.md` is the QA process; its lab binding was retired) |
 | T13 | Landing news with trailers; wake policies on them; landings since a time | sugar | landing news carries before, after and files (`../domain/forge.md`, 7.2, 7.3) |
 | T14 | A question projected as an issue, answered by the mapped account's comment (opt-in) | conflict, narrow | "a comment on temper's pull request or issue reaches no task" (`../domain/forge.md`, section 13) |
 | T15 | The client's and `ctl`'s views and acts for landings, receipts, tiers, findings and holds | design | a change's panel (`../domain/forge.md`, 8.8) |

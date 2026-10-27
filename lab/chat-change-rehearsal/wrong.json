@@ -1,1 +1,0 @@
-{"format":"lab-script/1","turns":[{"output":[{"arguments":{"args":["me"],"stdin":null},"call":"ctl","namespace":"mcp__lab"}]},{"output":[{"text":"{\"done\": true, \"retried\": [], \"unseen\": [], \"surprises\": []}"}]}]}

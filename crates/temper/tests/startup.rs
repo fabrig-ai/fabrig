@@ -1609,8 +1609,8 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
     }
     result.push_str(rest);
     if escaped {
-        // Only JSON object braces are doubled in the lab's format; interpolation
-        // braces inside quoted strings remain the lab reader's expressions.
+        // Only JSON object braces are doubled in the fixture's format; interpolation
+        // braces inside quoted strings remain the fixture reader's expressions.
         let mut in_string = false;
         let mut slash = false;
         result = result.chars().fold(String::new(), |mut out, c| {
@@ -1684,27 +1684,19 @@ fn the_live_github_configuration_passes_startup_admission_for_both_owners() {
     }
 }
 
-// These profiles declare less than their worst case on main. A profile leaves
-// this list once its declarations cover its worst case.
-const MAIN_DECLARATION_SHORTFALLS: &[&str] = &["lab/live-0a/temper.json", "lab/live-0b/temper.json"];
-
 #[test]
 fn checked_in_deployment_profiles_pass_startup_admission() {
-    let mut profiles = vec![
-        "docs/examples/owned.json".to_owned(),
-        "crates/temper-init/template/temper.json".to_owned(),
-        "lab/live-0a/temper.json".to_owned(),
-        "lab/live-0b/temper.json".to_owned(),
+    let profiles = [
+        "docs/examples/owned.json",
+        "crates/temper-init/template/temper.json",
+        "crates/temper/tests/fixtures/cluster/engine.json",
+        "crates/temper/tests/fixtures/cluster/w1.json",
+        "crates/temper/tests/fixtures/cluster/w2.json",
     ];
-    for family in ["chat-change", "chat-change-killed", "chat-change-smoke", "cluster", "cluster-web", "look-live"] {
-        for name in ["engine.json", "w1.json", "w2.json"] {
-            profiles.push(format!("lab/{family}/{name}"));
-        }
-    }
     let mut failures = String::new();
     for (index, relative) in profiles.iter().enumerate() {
         let scratch = support::Scratch::startup(&format!("deployment-profile-{index}"));
-        let profile = match relative.as_str() {
+        let profile = match *relative {
             "docs/examples/owned.json" => support::owned::bounded(scratch.path()),
             "crates/temper-init/template/temper.json" => support::owned::bounded_template(scratch.path()),
             _ => support::owned::deployment_profile(scratch.path(), relative),
@@ -1738,19 +1730,6 @@ fn checked_in_deployment_profiles_pass_startup_admission() {
                 .expect("diagnostic");
             }
         }
-        if relative.starts_with("lab/live-0") {
-            let document: serde_json::Value = serde_json::from_slice(&profile.document).expect("profile JSON");
-            let required = u64::from(turn) + u64::try_from(record).expect("Record size");
-            for field in ["root.loads.bytes", "root.loads.reply_bytes"] {
-                let actual = document["application"]["limits"]["overrides"][field].as_u64().expect("loads bound");
-                eprintln!("{relative}: {field} actual={actual}, turn + Record floor={required}");
-                let fits = if relative == "lab/live-0a/temper.json" { actual == required } else { actual >= required };
-                if !fits {
-                    writeln!(failures, "{relative}: {field} {actual}, turn + Record floor {required}")
-                        .expect("diagnostic");
-                }
-            }
-        }
         scratch.remove();
     }
     assert!(failures.is_empty(), "{failures}");
@@ -1769,17 +1748,15 @@ fn turn_bounds() {
         turn_bound_document(&root.join(deployment), turn, false);
         eprintln!("{deployment}: T={turn}");
     }
-    for lab in ["cluster", "cluster-web", "look-live", "chat-change-smoke", "chat-change", "chat-change-killed"] {
-        let directory = root.join("lab").join(lab);
-        let agent = fs::read_to_string(directory.join("agent.json")).expect("lab agent");
-        let agent: serde_json::Value =
-            serde_json::from_str(&agent.replace("{{", "{").replace("}}", "}")).expect("lab agent JSON");
-        let turn = support::configuration::turn_bounds::turn_body(&agent);
-        for name in ["engine.json", "w1.json", "w2.json"] {
-            turn_bound_document(&directory.join(name), turn, true);
-        }
-        eprintln!("lab/{lab}: T={turn}");
+    let directory = root.join("crates/temper/tests/fixtures/cluster");
+    let agent = fs::read_to_string(directory.join("agent.json")).expect("cluster agent");
+    let agent: serde_json::Value =
+        serde_json::from_str(&agent.replace("{{", "{").replace("}}", "}")).expect("cluster agent JSON");
+    let turn = support::configuration::turn_bounds::turn_body(&agent);
+    for name in ["engine.json", "w1.json", "w2.json"] {
+        turn_bound_document(&directory.join(name), turn, true);
     }
+    eprintln!("cluster fixture: T={turn}");
     let github = root.join("crates/temper/tests/support/github");
     let agent = fs::read_to_string(github.join("agent.json")).expect("GitHub agent");
     let agent: serde_json::Value =
@@ -2084,7 +2061,7 @@ fn declaration_shortfalls(
         ));
     }
     for (component, required, declared) in components {
-        if declared < required && !MAIN_DECLARATION_SHORTFALLS.contains(&relative) {
+        if declared < required {
             writeln!(
                 failures,
                 "{relative}: {component} required={required} declared={declared} shortfall={}",

@@ -28,7 +28,7 @@ pub(super) fn run() {
     assert_eq!(sign_in.iter().map(|hop| hop.status).collect::<Vec<_>>(), [302, 200]);
     assert!(sign_in.iter().all(|hop| hop.method == "GET"));
     // ctl Connect supplies no browser return address: this visit ends at the callback
-    // 200. The lab walk proves the browser returns to the welcome.
+    // 200. Browser return navigation remains QA's (qa.md).
     let [authorize, callback] = sign_in.as_slice() else { panic!("issuer and callback landing") };
     assert!(authorize.path.starts_with("/api/accounts/authorize?"));
     assert!(callback.path.starts_with("/auth/callback?"));

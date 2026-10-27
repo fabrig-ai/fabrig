@@ -2230,7 +2230,7 @@ them as it does any Forgejo.
     silence or rerun: on a repository with a cue, the domain's `Cue { path, green
     }` (skein's `fake-forge.md`, 2.3), a head whose file at `path` holds
     `green` passing and any other failing; on one without, every head
-    passing. The box gives none; the lab's form gives each repository's
+    passing. The box gives none; the process fixture's form gives each repository's
     (below).
 
   The bot is reconcile's, and its access to a repository the adoption's
@@ -2574,7 +2574,8 @@ them as it does any Forgejo.
   made then, so an end that no client saw, or that a restart cut, ends
   whole.
 - **`temper fake forge check DIRS N OBSERVATIONS STORE`,** no step: the
-  QA loop's check of the fake forge's promises (`../draft/qa-lab.md`, 8.3),
+  retained check of the fake forge's promises; the lab was retired for
+  `../qa.md`'s process. It is
   skein's judge (skein's `fake-forge.md`, 2.5) over forge N's
   observations, with temper's decisions from temper's own record, a
   copy of its store, never from the merges judged (decision 259). It
@@ -2593,9 +2594,8 @@ them as it does any Forgejo.
     <empty directory>/`. A copy taken while serve runs is not one:
     skein's KV store has one process (skein's `kv.md`, section 1), and a
     copy made beside its writer can open to part of a commit with
-    nothing refused. The lab takes it after the run's processes stop
-    (the lab's `lab.md`, its collection after the stop), so a run whose
-    lab has no such step has no copy. It is opened as serve's store
+    nothing refused. A caller takes it after the run's processes stop; a caller without
+    that collection step has no copy. It is opened as serve's store
     opens it, at the limits `temper-service` derives from the document,
     and its format checked as jig checks it, temper's interval read in
     key order; one that is absent, does not open, is of another
@@ -2649,8 +2649,7 @@ them as it does any Forgejo.
     decision is saved before its merge is sent (`../domain/forge.md`,
     section 6), so a store copied after the observations holds the
     decision behind every merge they hold.
-  - *Its verdict,* by the check's contract (the lab's `lab.md`, 7.2;
-    decision 259): a pass is status 0 and no line; breaches are status
+  - *Its verdict,* by the retained check's contract (decision 259): a pass is status 0 and no line; breaches are status
     1, a `{"fail": LINE, "summary": TEXT}` line each, its `line()` the
     signature and its summary the promise's words, then an
     `{"undecided": REASON}` line when the evidence is also incomplete;
@@ -2670,8 +2669,7 @@ them as it does any Forgejo.
   - *Its own errors:* a refused argument, a document that does not read
     or check, or a forge N without a fake entry is the check's error,
     not the run's: status 1, its refusal on stderr and no line, which
-    the lab reads as the check's error, never a pass (the lab's `lab.md`,
-    7.2). The check creates no directory.
+    a caller reads as the check's error, never a pass. The check creates no directory.
 - **Its code:** `temper-fake`, step code (section 11): the member's
   types and checks; the fake LLM's and the fake forge's configurations
   and seeds, from the deployment's document or from one of their own;

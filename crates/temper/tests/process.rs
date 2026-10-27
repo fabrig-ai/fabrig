@@ -2561,7 +2561,7 @@ fn cluster_chats(case: &str, story: ClusterStory) {
     scratch.remove();
 }
 
-// lab/cluster has two chats, one per slot, and two lives in the restart story.
+// crates/temper/tests/fixtures/cluster has two chats, one per slot, and two lives in the restart story.
 const CLUSTER_CHATS: usize = 2;
 const FIRST_LIFE: usize = 0;
 const SECOND_LIFE: usize = 1;
@@ -2643,13 +2643,13 @@ impl ClusterChatJudge {
             .expect("chat charter setting")["set"];
         assert!(
             Duration::from_nanos(charter["waiting"].as_u64().expect("chat waiting")) >= CHAT_HOLDS_ITS_SLOT,
-            "lab/cluster/settings.json: charter 1 waiting must hold its slot past the story deadline"
+            "crates/temper/tests/fixtures/cluster/settings.json: charter 1 waiting must hold its slot past the story deadline"
         );
         let time = charter["time"].as_u64().expect("chat time");
         let reserve = charter["reserve_time"].as_u64().expect("chat reserve_time");
         assert!(
             time.checked_sub(reserve).is_some_and(|ordinary| Duration::from_nanos(ordinary) >= CHAT_HOLDS_ITS_SLOT),
-            "lab/cluster/settings.json: charter 1 time less its reserve must hold its slot past the story deadline"
+            "crates/temper/tests/fixtures/cluster/settings.json: charter 1 time less its reserve must hold its slot past the story deadline"
         );
         self.queue(
             client,

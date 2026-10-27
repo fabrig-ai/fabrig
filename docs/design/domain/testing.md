@@ -105,7 +105,7 @@ unsafe required peer documents and program sidecars have named refusal
 coverage; compatible retained edits remain untouched. Browser coverage is
 only for the uninterrupted navigation chain, not document rewrites or
 OAuth bytes. The walk's token file is private and its contents are never
-captured in readiness output or browser/lab evidence. Tests stay in their tiers. A/B evidence reports
+captured in readiness output or browser/QA evidence. Tests stay in their tiers. A/B evidence reports
 summed test execution by world and the new process stories against their
 two-second aim, excluding compilation, queue and gate elapsed time.
 
@@ -117,8 +117,7 @@ person's tab would. Each story pairs one new path with one already
 proved, so that a failure names one thing, and ends with the forge's
 first repository adopted, the account usable and the first chat's reply
 committed; a program's story ends at Ready, since a program takes no
-chat yet. Clicking the same paths in a browser is the lab's (../draft/qa-lab.md,
-section 12).
+chat yet. Browser walks use QA's process (../qa.md); the lab was retired.
 
 ### 2.1 System worlds
 
@@ -1155,8 +1154,8 @@ terminal client, the captures and the faults.
   each name and made private, and the command's arguments and environment
   before the exec are the shell's lower tests.
 - **The cluster,** its own tests (../protocol/README.md, 15.6), on
-  temper's fakes as processes, never on Forgejo: `lab/cluster/`, the
-  lab's description of the cluster (../protocol/README.md, 15.5), read
+  temper's fakes as processes, never on Forgejo: `crates/temper/tests/fixtures/cluster/`, the
+  process tier's cluster fixture (../protocol/README.md, 15.5), read
   by `crates/temper/tests/support/cluster.rs`, which starts the fake
   forge, the fake LLM, the engine alone and two workers alone as
   processes, each in a cgroup of its own, awaits their ready lines and
@@ -1171,14 +1170,14 @@ terminal client, the captures and the faults.
 - **The reference case on the cluster** (5.3), stories of the cluster's
   own, each a step of the case run as the real loop runs it, on the
   case's library unchanged, by `crates/temper/tests/support/case.rs`:
-  - **What runs:** `lab/cluster/`'s members (../protocol/README.md,
+  - **What runs:** `crates/temper/tests/fixtures/cluster/`'s members (../protocol/README.md,
     15.5): the fake forge serving kit, the case's repository, at its
     `id` with its `tree` (4.2), and one inert repository (below); the
     fake LLM playing the step's scripts (`case/scripts.rs`), written
     into its document once the
     forge's address is known, its queries recorded (4.1); the engine
     alone; and the case's workers alone, named as the case names them,
-    ws, s1 and s2 once a step adds it, one slot each. s2 is the lab's
+    ws, s1 and s2 once a step adds it, one slot each. s2 is the fixture's
     second worker's description copied under its own name, with its own
     directories and link secret, prepared with the others and started
     by the step's act. A step's cast is the fewest workers its Musts
@@ -1195,10 +1194,10 @@ terminal client, the captures and the faults.
     fixture (`case.rs`) is applied once to the cluster's documents, as
     the real loop's cluster applies it to its own: to the engine's
     document and one worker's together, then split into the engine's
-    and each worker's; the lab's base is brought first to the real
+    and each worker's; the cluster fixture's base is brought first to the real
     loop's where the two differ (the chat charter's wait, its ending
     and its text), and its charters are the case's alone, so that a
-    charter the lab adds never meets one the fixture adds, in one
+    charter the cluster fixture adds never meets one the fixture adds, in one
     place that names them.
   - **The forge, reached as a Forgejo,** as serve reaches a fake one:
     the case's run makes the engine's forge 1 the fake's records-only
@@ -1328,9 +1327,9 @@ terminal client, the captures and the faults.
   and one worker alone (../protocol/README.md, 15.1), by
   `crates/temper/tests/support/github.rs` on the cluster's members:
   each started on its ready lines in a cgroup of its own, after the one
-  before, and stopped in reverse. Not from `lab/cluster/`'s
+  before, and stopped in reverse. Not from `crates/temper/tests/fixtures/cluster/`'s
   description: the App is made on the layer before the engine starts,
-  a step the lab's format has no place for (../protocol/README.md,
+  a step the fixture's format has no place for (../protocol/README.md,
   15.5). The engine starts with no forge records; its clients' listener
   is on a loopback port the test reserved (2.4), and the worker's git
   is the `temper` binary under the name `git`, `temper fake git` (4.3),
@@ -2401,13 +2400,15 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   under the nextest profiles `process` and `live` by
   `scripts/proof-one-process.sh` and `scripts/proof-live.sh`. The gate
   never runs them; `scripts/after-landing.sh` runs the process tier
-  after each landing, with the lab's process tests, the QA tests and
-  the browser tier, by phase. `--part K/N` runs part K of N: whole test
-  phases with the builds they need, dealt longest first onto the
-  lightest part by the phases' times the script records. In two, the
-  usual split, that is the QA and browser tiers, then the process tier
-  with the lab's tests, each about 8 minutes on a quiet machine, since
-  both tiers run one test at a time. The gate (`scripts/check.sh`) and
+  after each landing, with the QA tests and the browser tier, by phase.
+  The lab was retired for `../qa.md`'s process.
+  `--part K/N` runs part K of N: whole test phases with the builds they
+  need, dealt longest first onto the lightest part by the measured times
+  the script records. QA and browser share the bundle build and are dealt
+  together, with their measured seconds added: QA 410, browser 25;
+  process stays 390. In two, the usual split, part 1 is QA and browser
+  and part 2 is process only; each is about 8 minutes on a quiet machine,
+  since the tiers run one test at a time. The gate (`scripts/check.sh`) and
   the tier's script each name every test that passed starved (skein's
   `testing-strategy.md` 2.8), from their profiles' JUnit with passing
   tests' output kept.
@@ -2493,7 +2494,7 @@ and one smoke above:
 
 - **The tests that move:** every test document and typed builder that
   writes the six members (25 files of documents, 20 of builders, a
-  JSON fixture and the lab's documents) takes the stock defaults, or,
+  JSON fixture and the cluster documents) takes the stock defaults, or,
   where its stories need other settings, defaults of its own passed to
   the service in the stock's place (`../protocol/configuration.md`,
   13.4), so that no story pays for a change of settings it is not
@@ -2514,8 +2515,8 @@ crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
 crates/temper/tests/process.rs      the process tier (2.6): the story, the terminal, the server's guards, the hinted story, `temper box`, the cluster's stories, GitHub's App through a restart; nextest profile process
 crates/temper/tests/support/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
-crates/temper/tests/support/cluster.rs  the cluster's reader: `lab/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/README.md, 15.5)
-lab/cluster                         the cluster's description, in the lab's format, which the process tier and the lab's runner both run
+crates/temper/tests/support/cluster.rs  the cluster's reader: `crates/temper/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/README.md, 15.5)
+crates/temper/tests/fixtures/cluster  the retained cluster's description, read by the process tier
 crates/temper/tests/live.rs         the live tier (2.7), nextest profile live
 tests/client-browser                temper-client-browser-world: the browser tier (../client/browser.md, section 4), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser
 crates/temper-client-shell-terminal/tests  the terminal's machine world (../client/README.md, section 10)

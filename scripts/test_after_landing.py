@@ -11,9 +11,9 @@ import unittest
 
 
 SCRIPT = Path(__file__).with_name("after-landing.sh")
-WHOLE = ["process-lab", "process-programs", "process-build", "process-tests",
+WHOLE = ["process-programs", "process-build", "process-tests",
          "qa-bundle", "qa-build", "qa-tests", "browser-tests"]
-TEST_PHASES = {"process-lab", "process-tests", "qa-tests", "browser-tests"}
+TEST_PHASES = {"process-tests", "qa-tests", "browser-tests"}
 BINARY = "fixture::story"
 TEST = "chosen_test"
 STARVED = "skein-world: starved: waited 10 ms runnable, used 1 ms of CPU, patience 5 ms"
@@ -84,15 +84,6 @@ class AfterLanding(unittest.TestCase):
             (self.root / "bin" / tool).symlink_to(shutil.which(tool))
         self.executable("bin/cargo", CARGO)
         self.executable("scripts/bundle.sh", LOG + '\nlog("qa-bundle")\n')
-        lab = self.root / "lab/tests/process/test_stand_in.py"
-        lab.parent.mkdir(parents=True)
-        lab.write_text(LOG + """
-import unittest
-
-class Process(unittest.TestCase):
-    def test_stand_in(self):
-        log("process-lab")
-""")
         self.env = {"PATH": str(self.root / "bin"),
                     "PHASE_LOG": str(self.root / "phases"),
                     "CARGO_LOG": str(self.root / "cargo-arguments"),
@@ -129,7 +120,7 @@ class Process(unittest.TestCase):
     def test_two_parts(self):
         rows = [
             ("1/2", ["process-programs", "qa-bundle", "qa-build", "qa-tests", "browser-tests"]),
-            ("2/2", ["process-lab", "process-programs", "process-build", "process-tests"]),
+            ("2/2", ["process-programs", "process-build", "process-tests"]),
         ]
         for part, expected in rows:
             with self.subTest(part=part):
@@ -141,12 +132,15 @@ class Process(unittest.TestCase):
         for count in range(1, 6):
             with self.subTest(count=count):
                 seen = Counter()
+                bundles = 0
                 for number in range(1, count + 1):
                     part = f"{number}/{count}"
                     code, output, phases = self.run_script("--part", part)
                     self.assertEqual(code, 0, f"{part}: {output}")
                     seen.update(phase for phase in phases if phase in TEST_PHASES)
+                    bundles += phases.count("qa-bundle")
                 self.assertEqual(seen, Counter({phase: 1 for phase in TEST_PHASES}))
+                self.assertEqual(bundles, 1)
 
     def test_one_part_is_the_whole(self):
         code, output, whole = self.run_script()
@@ -216,7 +210,7 @@ class Process(unittest.TestCase):
         Path(self.env.pop("SKEIN_TEST_CHROMIUM")).unlink()
         code, output, phases = self.run_script("--part", "2/2")
         self.assertEqual(code, 0, output)
-        self.assertEqual(phases, ["process-lab", "process-programs", "process-build", "process-tests"])
+        self.assertEqual(phases, ["process-programs", "process-build", "process-tests"])
         self.assertEqual(self.run_script("--part", "1/2"),
                          (3, "after-landing: lacks Chromium\n", []))
 

@@ -10,7 +10,7 @@ the crates it is made of. The mechanics are those of skein's
 those of `../domain/`. Each boundary of temper's own is designed in a
 document of its own (section 2). What is open across them is listed in
 section 14. The cluster, temper as several processes of one machine for
-its tests and its lab, is section 15.
+its tests, is section 15.
 
 ## 1. In one page
 
@@ -50,12 +50,12 @@ its tests and its lab, is section 15.
   webhooks from another host, the forge as a sign-in provider and the
   forge's client documents come after (section 14). The browser is a
   person's client on loopback too (`../client/browser.md`).
-- **The cluster, for tests and the lab.** The same `temper serve`, on a
+- **The cluster, for tests.** The same `temper serve`, on a
   document of another shape, is an engine alone or a worker alone. One
   engine alone and its workers alone, each a process of its own on one
   machine, joined over loopback in plaintext, with the fakes as
-  processes beside them, are the cluster that temper's process tier and
-  the QA lab both run, from one description (section 15). It is no
+  processes beside them, are the cluster that temper's process tier
+  runs from one description (section 15). It is no
   deployment's shape: a box keeps its one worker inside `temper serve`.
 - **One binary:** `serve`, `internal agent`, `open`, `program-login`,
   the forge's setup's `forge prepare`, `forge run` and `box`, and the
@@ -127,8 +127,8 @@ binary (`jig-test`).
 | standalone | one process on one person's machine: `temper serve` with the engine and one worker joined in process (section 8) |
 | engine alone | `temper serve` on a document with an engine and no worker, its workers' listener on loopback (15.1) |
 | worker alone | `temper serve` on a document with one worker and no engine, dialling an engine alone on loopback (15.1) |
-| the cluster | one engine alone and its workers alone on one machine, with the fakes as processes, as temper's process tier and the QA lab run it (section 15) |
-| the cluster's description | `lab/cluster/`: the cluster's processes and their documents in the lab's experiment format, read by the lab's runner and by the process tier's (15.5) |
+| the cluster | one engine alone and its workers alone on one machine, with the fakes as processes, as temper's process tier runs it (section 15) |
+| the cluster's description | `crates/temper/tests/fixtures/cluster/`: the retained cluster's processes and their documents, read by the process tier (15.5) |
 | the engine's service, the worker's service | each `iterate` with its root and protocol layer, in `temper-service` (sections 6 and 7) |
 | the routing | the protocol layer's code between io, components and the root (jig's `protocol/service.md`, section 2) |
 | the forge component | skein's `skein-forge-connection` (forge.md; skein's `forge-connection.md`) |
@@ -915,8 +915,9 @@ Each document keeps its own; these cross them:
 
 The cluster is temper on several processes of one machine: one engine
 alone, its workers alone, and the fakes, each a process of its own,
-joined over loopback. It is a primitive of temper's tests and of the QA
-lab, the retained reference-case tests' shape on fakes: an engine and its
+joined over loopback. It is a primitive of temper's tests; the lab was
+retired for `../qa.md`'s process. It is the retained reference-case tests'
+shape on fakes: an engine and its
 workers, one of them added later (../domain/testing.md, 5.3;
 `../draft/reference-case.md` is the second edition). It is no
 deployment's: `temper init` writes standalone, and a box keeps its one
@@ -984,7 +985,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   may start later than the others, as the reference case's s2 does.
 - **Every address from a ready line:** each listener binds port 0 on
   127.0.0.1, and its process prints what it got; the description's
-  templates carry it to the processes after it (the lab's `lab.md`, 4.4).
+  templates carry it to the processes after it.
   The engine's document names the fakes' addresses as their ready lines
   gave them, and each worker's names the engine's workers' listener as
   its `listening workers` line gave it.
@@ -1017,8 +1018,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   bound below the engine's grace, so a lost worker's runs are placed
   again within a test's time.
 - **Lines on stderr,** each one line, flushed once what it says holds;
-  the cluster's contract, read by their literal prefixes (the lab's
-  `lab.md`, 4.3):
+  the cluster's contract, read by their literal prefixes:
 
   | Line | Printed by | When |
   |---|---|---|
@@ -1042,14 +1042,14 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   routing keeps the one io's `Listening` event gives; and the webhooks'
   comes up from skein-forge-connection as its `listening` event (skein's
   `forge-connection.md`, 6.4, as skein's change 14h brings it).
-- **Ready** (the lab's `lab.md`, 4.3): the engine at its `listening` lines
+- **Ready**: the engine at its `listening` lines
   and its sign-in link; a worker at its `linked` line. A task created
   before a worker's hello has reached the fleet waits for a free slot,
   so no ready line need say more.
 
 ### 15.4 Stopping, and what fails
 
-- **Stopped in reverse** (the lab's `lab.md`, 5.2): each worker first, by
+- **Stopped in reverse**: each worker first, by
   its first termination signal, which runs its worker's ending: its runs
   stopped, and done once the engine has every turn and answer, or past
   its grace (jig's `protocol/service.md`, section 6), exiting 0; then
@@ -1079,63 +1079,42 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
 
 ### 15.5 Its description
 
-- **One description, `lab/cluster/`** in temper: an experiment in the
-  lab's format, `lab-experiment/1` (the lab's `lab.md`, section 4). Its
-  `processes` are 15.2's, each with its `argv`, its whole `env`, its
-  `ready` lines (15.3), its `after`, its `memory_bytes` (15.1) and its
-  `files`: its document, rendered from a template, and its secret or the
-  digests. Its templates name each address by `{proc.P.ready.C}` and
-  each directory by `{proc.P.dir}` (the lab's `lab.md`, 4.2). A cost
-  class's `stop_seconds` is above each worker's stop bound and the
-  engine's drain.
-  The experiment is the lab's canonical JSON (the lab's `lab.md`, 2.2),
-  and each process's `memory_bytes` is the one its own document states,
-  within the lab's integers.
-- **Two readers.** The lab's runner runs it as any experiment (the lab's
-  `lab.md`, section 5), its driver null until the lab's drivers come
-  (15.7). temper's process tier reads it with
-  `crates/temper/tests/support/cluster.rs`: the format, the directories
-  and the processes; the templates rendered; each process started by
-  skein-world's `Binary`, in a cgroup of its own, by `after`, ties in
-  name order, with no seed; its ready lines awaited on its streams; and
-  the processes stopped in reverse, a termination signal, then
-  `stop_seconds`, then the tree killed. It reads none of the lab's own
-  members (actions, faults, collection, checks), and refuses none.
-- **The reader's bindings,** where the lab's runner has its own (the lab's
-  `lab.md`, 4.2): `{artifact.temper}` is the absolute path of the
-  `temper` binary the tier built, as Cargo names it to the test
-  (`CARGO_BIN_EXE_temper`); `{experiment}` is the absolute
-  `lab/cluster/`; `{proc.P.dir}` is P's own directory under the test's
-  scratch, each made `0700` before any process starts; and
-  `{proc.P.ready.C}` is the capture, known once P is ready. A name of any
-  other kind (a seed's, a run's, a run directory's, the browser's) fails
-  the test, naming it: the description uses none.
-- **Its cost class,** `temper-m1-calibration`, is the binding's
-  (`../draft/qa-lab.md`, 10.1), as every experiment's is (the lab's `lab.md`, 6.5),
-  until the cluster has a class of its own: the reader holds its
-  `ready_seconds` and `stop_seconds` as that table gives them, the
-  first bounding each process's ready lines from its start, the second
-  each process's stop.
+- **One retained fixture, `crates/temper/tests/fixtures/cluster/`.** The
+  lab was retired for `../qa.md`'s process; its shared cluster moved
+  here unchanged for the process tier. Its serialized format remains
+  `lab-experiment/1`, with the historical `temper-m1-calibration`
+  cost label. Each process keeps its `argv`, whole `env`, `ready`
+  lines (15.3), `after`, `memory_bytes` (15.1) and `files`: its
+  document rendered from a template, and its synthetic secret or digests.
+  Templates name addresses by `{proc.P.ready.C}` and directories by
+  `{proc.P.dir}`. The description is canonical JSON, with integers
+  within ±(2^53−1); each process's `memory_bytes` matches its document.
+- **The process tier's reader,** `crates/temper/tests/support/cluster.rs`:
+  templates rendered; processes started by skein-world's `Binary`, in
+  cgroups, by `after`, ties in name order, with no seed; ready lines
+  awaited on streams; processes stopped in reverse, a termination signal,
+  then the stop bound, then the tree killed. It does not read the retired
+  runner's actions, faults, collection or checks.
+- **The reader's bindings:** `{artifact.temper}` is the absolute
+  binary Cargo names to the test (`CARGO_BIN_EXE_temper`);
+  `{artifact.git}` is its fake-git link; `{experiment}` is this
+  fixture's absolute directory; `{proc.P.dir}` is P's scratch
+  directory, made `0700`; and `{proc.P.ready.C}` is a capture once
+  P is ready. A seed, run directory, browser or other unknown binding
+  fails the test.
+- **Retained bounds:** readiness is 120 seconds per process from its
+  start, stopping 20 seconds per process. The stop bound stays above
+  each worker's stop bound and the engine's drain. The reader's
+  constants and the fixture's memory declarations remain tested.
 - **The fake forge's setup** is `temper serve`'s handover and reconcile
-  at start, from records (setup.md, 6.5; `../draft/qa-lab.md`, 4.3). So
-  `lab/cluster/` holds the fake forge, the fake LLM, the engine and
-  the workers, the engine's one forge connected and unreached, as the
-  process tier's other documents have theirs, until a story makes it
-  the fake's setup, as the reference case's do (`../domain/testing.md`,
-  2.6); its tasks are chats, and its stories'
-  referee the tasks' ends on their named workers and no survivor. A
-  chat's run holds its worker's one slot until its charter's idle
-  threshold or its time less its reserve, both of which the description
-  sets past the story's deadline, so each chat takes a worker of its
-  own, never by timing. The description starts the fake forge before
-  the engine, whose setup host takes its handover and reconciles at
-  start (setup.md, 6.5).
-- **Why a description,** not one program both call: the lab's runner is
-  Python and the process tier is Rust; the lab's format is literal so
-  that readers in any language agree (the lab's `lab.md`, 4.3); and a
-  change to the cluster is one file both run, so the tests and the lab
-  cannot drift apart. The reader is temper's until a second product
-  needs one (section 14).
+  at start, from records (setup.md, 6.5). The fixture holds the fake
+  forge, fake LLM, engine and workers; a story supplies its fake setup
+  (`../domain/testing.md`, 2.6). Its tasks are chats, its referee checks
+  their ends on named workers and no survivor. Each chat keeps a worker's
+  slot by an idle threshold and ordinary time past the story's deadline,
+  never by timing. The forge starts before the engine.
+- **The reader is temper's** until a second product needs one
+  (section 14). Shared data keeps its process stories on one fixture.
 - **Cgroups, or no cluster:** several processes observed by one test
   need skein-world's cgroup trees, where the user's service manager
   delegates them; walking refuses a second observer. Without them, the
@@ -1150,7 +1129,7 @@ Each where `../domain/testing.md` puts it (2.4 to 2.6):
 | step tests | each shape read and checked, a document of none refused, naming its path; each line of 15.3 as printed |
 | the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace |
 | the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end |
-| the process tier | `lab/cluster/` on real processes, as below, and the reference case's steps on them (`../domain/testing.md`, 2.6 and 5.3) |
+| the process tier | `crates/temper/tests/fixtures/cluster/` on real processes, as below, and the reference case's steps on them (`../domain/testing.md`, 2.6 and 5.3) |
 
 The process tier's first stories, one slot on each worker. A temper
 worker takes one slot today: smith gives its agent one run, and the
@@ -1220,9 +1199,6 @@ second edition).
   `protocol/README.md`, section 10).
 - **An engine restarted under live workers,** with generations kept
   across starts (section 14).
-- **The reference case's multi-worker steps driven in the lab,** by a
-  driver (the lab's `lab.md`, section 6), once temper's experiments have
-  one; the cluster's description runs with none until then (15.5).
 - **A worker of several slots,** as in the retained reference-case
   tests (../domain/testing.md, 5.3; `../draft/reference-case.md` is the
   second edition): a worker's change,

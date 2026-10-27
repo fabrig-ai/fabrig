@@ -94,8 +94,9 @@ fn assert_owned_limits(limits: &serde_json::Value) {
 
 #[test]
 fn the_clusters_description_is_the_labs_canonical_form() {
-    let bytes = std::fs::read(skein_scratch::paths::workspace().join("lab/cluster/experiment.json"))
-        .expect("cluster description");
+    let bytes =
+        std::fs::read(skein_scratch::paths::workspace().join("crates/temper/tests/fixtures/cluster/experiment.json"))
+            .expect("cluster description");
     let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("cluster JSON");
     // Sort explicitly, including if a dependency enables serde_json's preserve_order.
     value.sort_all_objects();
@@ -105,7 +106,7 @@ fn the_clusters_description_is_the_labs_canonical_form() {
         match item {
             serde_json::Value::Number(number) => assert!(
                 number.as_i64().is_some_and(|n| (-(1_i64 << 53) + 1..=(1_i64 << 53) - 1).contains(&n)),
-                "lab integers must be within ±(2^53−1): {number}"
+                "cluster integers must be within ±(2^53−1): {number}"
             ),
             serde_json::Value::Array(items) => remaining.extend(items),
             serde_json::Value::Object(items) => remaining.extend(items.values()),
@@ -149,7 +150,7 @@ fn the_clusters_documents_check_as_their_shapes() {
     assert_eq!(
         engine_limits["fleet.grace_ms"],
         support::cluster::FLEET_GRACE_MS,
-        "lab/cluster/engine.json: engine.limits.overrides.fleet.grace_ms"
+        "crates/temper/tests/fixtures/cluster/engine.json: engine.limits.overrides.fleet.grace_ms"
     );
     for (process, expected) in [("engine", Shape::EngineAlone), ("w1", Shape::WorkerAlone), ("w2", Shape::WorkerAlone)]
     {
@@ -175,16 +176,20 @@ fn the_clusters_documents_check_as_their_shapes() {
                     worker.limits.link.ping,
                     worker.limits.link.silence,
                 )
-                .unwrap_or_else(|| panic!("lab/cluster/{process}.json: workers[0].graces stop_bound overflows"));
+                .unwrap_or_else(|| {
+                    panic!(
+                        "crates/temper/tests/fixtures/cluster/{process}.json: workers[0].graces stop_bound overflows"
+                    )
+                });
                 assert!(
                     stop < skein_lib::Duration::from_millis(support::cluster::FLEET_GRACE_MS),
-                    "lab/cluster/{process}.json: workers[0].graces stop_bound must be below engine.json: engine.limits.overrides.fleet.grace_ms"
+                    "crates/temper/tests/fixtures/cluster/{process}.json: workers[0].graces stop_bound must be below engine.json: engine.limits.overrides.fleet.grace_ms"
                 );
                 let value: serde_json::Value = serde_json::from_slice(&bytes).expect("worker JSON");
                 for key in ["link.ping_ms", "link.silence_ms"] {
                     assert_eq!(
                         value["workers"][0]["limits"]["overrides"][key], engine_limits[key],
-                        "lab/cluster/{process}.json: workers[0].limits.overrides.{key} must equal engine.json: engine.limits.overrides.{key}"
+                        "crates/temper/tests/fixtures/cluster/{process}.json: workers[0].limits.overrides.{key} must equal engine.json: engine.limits.overrides.{key}"
                     );
                 }
             }

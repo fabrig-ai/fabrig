@@ -141,7 +141,7 @@ fn encode(scripts: &[Script], rules: &[Box<[Rule]>]) -> Value {
         })
         .collect()
 }
-/// Bring lab's combined document to tests/real-loop/src/fixtures.rs's base
+/// Bring the cluster fixture's combined document to tests/real-loop/src/fixtures.rs's base
 /// before applying the case fixture once, as that world's cluster does.
 fn base(value: &mut Value) {
     for member in ["charters", "templates", "policies", "rules"] {
@@ -446,7 +446,7 @@ impl Judge {
             value["engine"]["limits"]["overrides"][key] = 3.into();
         }
         // accounts' program hosts hold documents.lines rows (jig documents/programs.rs `hosts`);
-        // the lab's 2 would cut s2 from the placement read.
+        // the fixture's 2 would cut s2 from the placement read.
         value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
         value["engine"]["hosts"]["workers"][0]["name"] = "ws".into();
         value["engine"]["hosts"]["workers"].as_array_mut().expect("hosts").truncate(self.cast.len());

@@ -1,5 +1,0 @@
-#!/bin/sh
-# draft/qa-lab.md, 5.2. One absolute 220s allowance covers every ctl subprocess.
-set -eu
-[ "$#" -eq 3 ] || { printf 'story: expected temper, client directory and public origin\n' >&2; exit 1; }
-exec /usr/bin/python3 -B "${0%/*}/_story.py" "$@"

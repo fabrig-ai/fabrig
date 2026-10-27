@@ -858,7 +858,7 @@ pub fn bounded_template(directory: &Path) -> Bounded {
     )
 }
 
-/// Checked-in lab profile with local destinations and synthetic named files.
+/// Checked-in process fixture profile with local destinations and synthetic named files.
 /// Numeric allowances and policies are left exactly as shipped.
 #[must_use]
 pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {

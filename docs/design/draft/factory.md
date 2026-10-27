@@ -380,7 +380,7 @@ reproducer, and temper commits it.
 ### 8.5 A head of stoa
 
 ```
-head h: raft.rs changed; its change's gate asks for lab/chaos-smoke
+head h: raft.rs changed; its change's gate asks for chaos-smoke
  │
  ├─ 1. digest stoa's build inputs at h: S_h. Built before? no
  ├─ 2. artifact recipe in stoa-build-env, its compile cache warm: only the touched crate
@@ -455,7 +455,7 @@ A sketch, still to be designed:
 
 1. A person asks a chat in temper for DKIM. It becomes a goal and a
    change on `mail-iac`.
-2. The change's gate needs `lab/mail` at its head. The lab prepares
+2. The change's gate needs `mail` at its head. The lab prepares
    `mail-lab` at that revision, a patch of its last slot, and drives it
    over SMTP: a message goes out signed, the signature verifies, the
    relay is still closed. The status is posted, and the change lands.

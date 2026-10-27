@@ -6,8 +6,7 @@ deployment it drives, the hands it holds, how it reads the forge and how
 it checks an outcome. Who marks, chooses, starts and triages is
 agents' `qa-flow.md`; the pass's steps and report are agents'
 `roles/qa.md`. This document says only what those leave to the product,
-and a pass reads it after its brief. The lab's binding it replaces is
-parked as `draft/qa-lab.md`. What is still open is section 8.
+and a pass reads it after its brief. The lab's binding and experiments were retired for this process on 10-27. What is still open is section 8.
 
 ## 1. In one page
 
@@ -206,5 +205,5 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
   with skein-forge's Forgejo requests, as the guide's ctl lines are held
   to ctl's parser (`protocol/documentation.md`, section 1). Default:
   none, until a pass meets a read the fake refuses.
-- **The browser:** a pass drives ctl; driving temper's pages waits with
-  the lab (`draft/qa-web.md`).
+- **The browser:** a pass drives ctl; driving temper's pages waits in
+  `draft/qa-web.md`, whose lab process is retired.

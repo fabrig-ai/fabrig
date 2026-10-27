@@ -1,8 +1,0 @@
-/* Change the banner's paired bottom-border token; confirm its healthy value
-   against the first gallery capture before calibrating these signatures. */
-:root { --temper-line: #ff00ff; }
-/* Move the chat composer before the conversation in its existing flex column. */
-.temper-chat > .temper-composer-area { order: -1; }
-/* Hide the banner's connection line ("Live") on the task's page alone: a word fault
-   look-structure cannot see (a status, no control's or heading's name), drawn nowhere on the chat. */
-body:has(.temper-task-heading) .temper-live { visibility: hidden; }

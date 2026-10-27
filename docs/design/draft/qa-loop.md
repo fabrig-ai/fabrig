@@ -1,6 +1,9 @@
 # The QA loop, first milestone
 
-**Parked** with the lab (`qa-lab.md`), 2026-10-26. QA after landing is
+**Retired lab**, 2026-10-27: temper's experiments and lab binding were
+retired for `../qa.md`'s process. This draft is kept as historical design.
+
+**Parked** with the lab (the retired lab binding), 2026-10-26. QA after landing is
 agents' `docs/design/qa-flow.md`, with temper's binding in `../qa.md`.
 
 Draft, 2026-10-20, revised 2026-10-23. Agents use temper end to end, as
@@ -29,7 +32,7 @@ mapping of the owners' process onto temper is `temper-on-temper.md`.
 - **The cluster is a list of processes,** not the box: M1's are the fake
   LLM, the fake forge, and `temper serve`. A later cluster
   adds an engine alone and workers by adding processes (section 4),
-  as `lab/cluster/` does (`../protocol/README.md`, section 15).
+  as the retained cluster fixture does (`../protocol/README.md`, section 15).
 - **A driver agent** (Codex) follows the experiment's charter through
   `temper ctl`, every call recorded (section 5).
 - **Checks** read the cluster from outside: stops and panics, temper's
@@ -39,8 +42,8 @@ mapping of the owners' process onto temper is `temper-on-temper.md`.
   lowest world that owns the behaviour; the experiment that found it is
   run again before it closes (section 7).
 - **Generic tooling in skein, the product's data in temper:** the
-  runner in skein's `scripts/lab/`, naming no product; experiments in
-  temper's `lab/`; runs and findings in `~/src/rust/tmp/lab/`
+  runner in the retired lab runner, naming no product; experiments in
+  temper's retired lab; runs and findings in the retired lab's run directory
   (section 8).
 - **On demand,** a campaign at a time, by a lab owner (section 9).
 - **M1's bar:** the process and the tooling work: one story, as simple
@@ -139,7 +142,7 @@ run R, seed S, scratch directory D
 ```
 
 The runner knows processes, not temper: an engine alone and a worker or
-several are more entries, as `lab/cluster/` has them, each a `temper
+several are more entries, as the retained cluster fixture has them, each a `temper
 serve` of its own (`../protocol/README.md`, section 15), and a
 real Forgejo (M2) replaces `fake-forge` with skein's throwaway Forgejo.
 
@@ -199,14 +202,14 @@ What says a run failed, beyond the agent thinking so (`qa.md`, 4.3):
 
 ## 8. Where it lives
 
-- **The runner:** skein's `scripts/lab/`. It reads an experiment
+- **The runner:** the retired lab runner. It reads an experiment
   directory and the run's settings, provisions the cluster, starts the
   driver, collects, runs the checks, and writes the run's record. It
   names no product; each experiment's templates and checks carry what
   is temper's.
-- **The experiments:** temper's `lab/<experiment>/`, beside the code
+- **The experiments:** temper's retired experiments, beside the code
   they test, so a head's experiments are the head's.
-- **Runs, evidence and findings:** `~/src/rust/tmp/lab/`, the machine's
+- **Runs, evidence and findings:** the retired lab's run directory, the machine's
   working files, one directory per experiment and key; findings one
   file each, with an index.
 - **Generic checks** (stops, panics, bounds) are the runner's; the
@@ -311,7 +314,7 @@ class, and a fix checked again.
   documents too; a later milestone.
 - **Explorers** that write experiments of their own, aimed at what
   landed.
-- **The cluster grown:** an engine alone and workers, `lab/cluster/`
+- **The cluster grown:** an engine alone and workers, the retained cluster fixture
   (`../protocol/README.md`, section 15), once a driver runs it.
 - **Real agents on the fake forge:** a real LLM's agent with the fake
   forge's seeded faults, cheaper and more repeatable than M3's real

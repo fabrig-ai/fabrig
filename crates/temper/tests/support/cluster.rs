@@ -1,4 +1,4 @@
-//! The process tier's reader of lab/cluster (protocol/README.md, 15.5).
+//! The process tier's reader of crates/temper/tests/fixtures/cluster (protocol/README.md, 15.5).
 use super::{StdoutReader, WITHIN};
 use serde_json::Value;
 use skein_io::kernel::{Complete, Exit, Signal, Submit};
@@ -16,23 +16,23 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-// draft/qa-lab.md, 10.1: temper-m1-calibration, the approved class the cluster runs under until it has its own.
+// protocol/README.md, 15.5: the retained cluster's readiness and stop bounds.
 const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;
-// lab/cluster/engine.json's fleet.grace_ms: above each worker's stop bound, 2300 (jig-protocol-config worker.rs:38), which a hello must be under (jig-domain-fleet channel.rs:174); reached only on a lost link.
+// crates/temper/tests/fixtures/cluster/engine.json's fleet.grace_ms: above each worker's stop bound, 2300 (jig-protocol-config worker.rs:38), which a hello must be under (jig-domain-fleet channel.rs:174); reached only on a lost link.
 pub(crate) const FLEET_GRACE_MS: u64 = 3000;
 const _: () = assert!(FLEET_GRACE_MS < STOP_SECONDS * 1000);
 const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/README.md, 15.5): run them through heavy";
 
-/// lab/cluster/ read, rendered for one test's scratch, and its processes' state.
+/// crates/temper/tests/fixtures/cluster/ read, rendered for one test's scratch, and its processes' state.
 pub struct Cluster {
     experiment: PathBuf,
     specs: Vec<Value>,
     bindings: BTreeMap<String, String>,
     prepared: BTreeSet<String>,
 }
-/// The first start records revision 1; apply the lab's whole values before its first chat.
+/// The first start records revision 1; apply the fixture's whole values before its first chat.
 #[must_use]
 pub fn settings_change(file: &Path) -> super::ctl::Call {
     super::ctl::Call::new(&[
@@ -67,7 +67,7 @@ impl Cluster {
         probe(scratch);
         Self::description(scratch)
     }
-    /// Read a story's own lab-format description, with the same cgroup preflight.
+    /// Read a story's own fixture-format description, with the same cgroup preflight.
     #[must_use]
     pub fn read_from(scratch: &Path, directory: &Path) -> Self {
         probe(scratch);
@@ -88,7 +88,7 @@ impl Cluster {
         cluster
     }
     fn description(scratch: &Path) -> Self {
-        Self::description_from(scratch, &skein_scratch::paths::workspace().join("lab/cluster"))
+        Self::description_from(scratch, &skein_scratch::paths::workspace().join("crates/temper/tests/fixtures/cluster"))
     }
     pub(crate) fn description_from(scratch: &Path, directory: &Path) -> Self {
         let experiment = directory.canonicalize().expect("description directory");
@@ -146,12 +146,12 @@ impl Cluster {
                     }
                 }
             }
-            // The template sources remain lab's files; argv/env bindings use the new member.
+            // The template sources remain the fixture's files; argv/env bindings use the new member.
             for arg in spec["argv"].as_array_mut().expect("argv") {
                 *arg = string(arg).replace(&format!("proc.{member}."), &format!("proc.{name}.")).into();
             }
         }
-        // Lab's source templates keep their old member placeholders.
+        // The fixture's source templates keep their old member placeholders.
         self.bindings.insert(format!("proc.{member}.dir"), new.to_str().expect("member path").into());
         assert_eq!(self.specs[index]["name"], name);
     }
