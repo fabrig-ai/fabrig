@@ -203,7 +203,7 @@ in `../draft/agent-docs.md` 6's voice.
 | `commands` | the binary's commands (`crates/temper`; `README.md`, 4) | a command: its words, usage, line, arguments and notes |
 | `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/tools.md`, 5.1) | a tool: its usage, line, arguments, result line, keyedness and notes |
 | `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/tools.md`, 5.3) | a member of a shape |
-| `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent.md`, 4.3) | a host tool: its name, its description, then each member of its input's schema with its type, bound, whether it is required and its description |
+| `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent.md`, 4.3) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
 | `limits`, a page per owner prefix where one page would pass 32,768 bytes | the limits' names: temper's (`temper-service`, today the overrides' match) and jig's (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
 | `configuration` | the configuration document's members, beside the document's decoder (`configuration.md`) | a member: its path from the document's root, its type and bound, what `temper init` writes, a line |
 
