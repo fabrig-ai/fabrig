@@ -96,14 +96,22 @@ a new link: sign in with it.
 temper ctl DIR forge-setup 3 --org work --repository hello --project PROJECT --key KEY
 ```
 
-Expect: `setting up`, then `Adopted work/hello on forge 3 as owned.`
-and `It is the project's home.`
+Expect: `setting up`, then `project: PROJECT · NAME`, the project
+and its name, then `Adopted work/hello on forge 3 as owned.` and
+`It is the project's home.`
 
-At each Forgejo start the box prints its API address, your login and
-the absolute paths to `person_read.header` and `person_write.header`.
-Pass a header by path with `curl -H @FILE`, keeping its token private.
-Your first password is in `person_password`; change it on Forgejo
-when you like, with no forced first password change.
+At each Forgejo start the box prints its API address and your
+headers:
+
+```
+Forge 3 (Forgejo): api http://127.0.0.1:PORT/api/v1
+Forge 3 (Forgejo): person LOGIN, read header PATH, write header PATH
+```
+
+Pass a header by path with `curl -H @PATH`, keeping its token
+private. Your first password is in `person_password` beside them;
+change it on Forgejo when you like, with no forced first password
+change.
 
 If not: past 300 seconds it prints the forges and `not met: timeout`
 (exit 3) while the box still fetches Forgejo: run `temper ctl DIR
@@ -185,7 +193,9 @@ work/hello on forge 3 · `, its branch and `into main`, then `met`;
 
 If not: `not met: timeout` (exit 3): read `temper ctl DIR change
 CHANGE` and `temper ctl DIR task CHANGE --tree` for its step, its
-hold and its acts, act on them, and wait again.
+hold and its acts, act on them, and wait again. `not met: ended:
+cancelled` or `not met: ended: failed` (exit 3), at once: the change
+ended without landing; its tree says why.
 
 ## 8. Export the account, then stop
 

@@ -72,10 +72,10 @@ temper ctl DIR wait forges --until made:FORGE
 `--first` makes the first repository in a new project named after
 it, and adopts it; without it, the forge connects with no repository.
 
-Expect: `connecting`, then `project N`, the new project, then
-`Adopted ORG/NAME on forge FORGE as owned.` and `It is the project's
-home.`; the wait prints the forges, forge `FORGE` `managed`, then
-`met`.
+Expect: `connecting`, then `project: N · NAME`, the new project and
+its name, then `Adopted ORG/NAME on forge FORGE as owned.` and `It is
+the project's home.`; the wait prints the forges, forge `FORGE`
+`managed`, then `met`.
 
 If not: `credential file must contain 1 to 4089 bytes`, or a key
 file's mode (exit 1): mend `FILE`, then the same call with the same
