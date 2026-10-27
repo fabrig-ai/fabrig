@@ -176,6 +176,8 @@ pub fn step_change(d: &mut Domain) {
             task: CHANGE,
             entry: OPEN + 1,
             heard: change::Heard {
+                lacking: None,
+                spend: None,
                 delegate: change::Status::Passed,
                 effect: change::EffectResult::None,
                 released: false,

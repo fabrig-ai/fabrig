@@ -513,6 +513,8 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
         task: 51,
         entry: 2,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Passed,
             effect: change::EffectResult::None,
             released: false,
@@ -628,6 +630,8 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
         task: 51,
         entry: 1,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Passed,
             effect: change::EffectResult::None,
             released: false,
@@ -731,6 +735,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         task: 51,
         entry: 2,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Unknown,
             effect: change::EffectResult::None,
             released: false,
@@ -751,6 +757,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         task: 51,
         entry: 3,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Passed,
             effect: change::EffectResult::None,
             released: false,
@@ -781,6 +789,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             task: 51,
             entry,
             heard: change::Heard {
+                lacking: None,
+                spend: None,
                 delegate: change::Status::Passed,
                 effect: change::EffectResult::None,
                 released: false,
@@ -1665,6 +1675,8 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         task: 51,
         entry: 10,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Passed,
             effect: change::EffectResult::None,
             released: false,
@@ -1685,6 +1697,8 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         task: 51,
         entry: 11,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Passed,
             effect: change::EffectResult::None,
             released: true,

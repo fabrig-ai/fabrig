@@ -54,7 +54,14 @@ fn facts() -> Facts {
     }
 }
 fn heard() -> Heard {
-    Heard { delegate: Status::Pending, effect: EffectResult::None, released: false, cancelled: false }
+    Heard {
+        lacking: None,
+        spend: None,
+        delegate: Status::Pending,
+        effect: EffectResult::None,
+        released: false,
+        cancelled: false,
+    }
 }
 fn decide(change: &Change, facts: &Facts, heard: &Heard) -> crate::Stepped {
     step(change, facts, heard, at(1), &LIMITS)
@@ -497,5 +504,51 @@ fn a_cancel_ends_every_held_cause_unless_the_change_landed() {
         let landed = decide(&c, &f, &h);
         assert_eq!(landed.change.state, State::Landed { merge: MERGE });
         assert_eq!(landed.decision, Decision::Finish { merge: MERGE });
+    }
+}
+
+#[test]
+fn every_delegate_checks_authority_before_becoming_pending() {
+    use crate::{AuthorityHold, AuthorityLack};
+    let cause = AuthorityHold { lack: AuthorityLack::Tasks, had: 6, released: false };
+    let mut standing = heard();
+    standing.lacking = Some(cause);
+    let mut f = facts();
+    for state in [
+        State::Producing { requested: false },
+        State::Repairing { requested: false, why: Repair::Ci },
+        State::Resolving { requested: false, base: BASE },
+    ] {
+        let c = change(state);
+        if matches!(c.state, State::Producing { .. }) {
+            f.branch = None;
+        } else {
+            f.branch = Some(HEAD);
+        }
+        let next = decide(&c, &f, &standing);
+        assert_eq!(next.decision, Decision::Hold(Hold::Authority(cause)));
+        assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::Authority(cause) });
+        assert_eq!((next.change.repairs, next.change.resolutions), (0, 0));
+    }
+}
+
+#[test]
+fn a_bare_authority_release_holds_again_and_a_funded_one_retries() {
+    use crate::{AuthorityHold, AuthorityLack};
+    let mut f = facts();
+    f.branch = None;
+    for lack in [AuthorityLack::Tasks, AuthorityLack::Depth, AuthorityLack::Spend] {
+        let cause = AuthorityHold { lack, had: 6, released: false };
+        let c =
+            change(State::Held { was: Box::new(State::Producing { requested: false }), why: Hold::Authority(cause) });
+        let lifted = released(&c, at(1));
+        let mut h = heard();
+        h.lacking = Some(cause);
+        let bare = decide(&lifted, &f, &h);
+        assert_eq!(bare.decision, Decision::Hold(Hold::Authority(AuthorityHold { released: true, ..cause })));
+        h.lacking = None;
+        let funded = decide(&lifted, &f, &h);
+        let retry = decide(&funded.change, &f, &h);
+        assert_eq!(retry.decision, Decision::Delegate(Delegate::Produce));
     }
 }

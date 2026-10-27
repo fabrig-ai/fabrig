@@ -1179,6 +1179,88 @@ fn program_login_story(row: &str, login: smith_fake_claude::Login, exit: u8) {
     scratch.remove();
 }
 
+/// domain/forge.md, 8.4: QA's repeated failed reviews end in an actionable authority hold.
+#[test]
+fn a_change_whose_reviews_exhaust_its_tasks_holds_and_a_bare_release_holds_it_again() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    use support::{
+        ctl::{Call, Step},
+        forge_land::{self, CtlFace, Plan},
+    };
+    let scratch = support::Scratch::new("forgejo-exhausted-change");
+    let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
+    let issuer = forge_land::fake_deployment(&paths);
+    let flags = support::boxed::echo_steps(deployment_flags(&paths));
+    let _cached = cache_forgejo_binaries(&paths[2]);
+    let addition = format!("Authority hold {}", std::process::id());
+    let words = format!("Please append this line to work/hello README.md: {addition}");
+    let client = scratch.path().join("first");
+    fs::create_dir(&client).expect("fresh client root");
+    fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client root");
+    let mut steps = forgejo_setup_steps("first");
+    let setup_calls = steps.iter().filter(|step| matches!(step, Step::Run(_))).count();
+    let (_, found_at) = forge_land::held_change_steps(&mut steps, setup_calls, &words);
+    // The first and second holds each follow two failed reviews. Six children fit;
+    // the third hold refuses a seventh, and the fourth follows its bare release.
+    let mut authority_at = 0;
+    let mut bare_at = 0;
+    let mut calls = steps.iter().filter(|step| matches!(step, Step::Run(_))).count();
+    for (hold, key) in [(1, "release-first"), (2, "release-second"), (3, "release-authority")] {
+        steps.push(Step::Run(Call::new(&[
+            "task",
+            "release",
+            "2",
+            "--hold",
+            &hold.to_string(),
+            "--key",
+            key,
+            "--json",
+        ])));
+        steps.push(Step::Run(Call::new(&["task", "show", "2", "--until", "held", "--timeout", "120s", "--json"])));
+        steps.push(Step::Run(Call::new(&["change", "show", "2", "--json"])));
+        calls += 3;
+        if hold == 2 {
+            authority_at = calls - 1;
+        }
+        if hold == 3 {
+            bare_at = calls - 1;
+        }
+    }
+    steps.push(Step::Run(Call::new(&["task", "show", "1", "--json"])));
+    let scripts = forge_land::failed_review_scripts(&Plan {
+        words: words.as_bytes(),
+        line: addition.as_bytes(),
+        repository: temper_engine_domain_forge::tag(3, 1),
+        readme: b"# hello\n\n",
+    });
+    let (outcome, _) = support::boxed::run_ctl_with_face(
+        scratch.path(),
+        flags,
+        &client,
+        steps,
+        BOX_DEADLINE,
+        || support::first_repository::live(&paths[0], &paths[1], &client),
+        CtlFace { face: forge_land::fake_face(issuer, scripts), first: true, reply: forge_land::HELD },
+    );
+    let stderr = String::from_utf8_lossy(&outcome.stderr);
+    assert_plan_box("first", true, &outcome, &stderr);
+    let _bot = assert_forgejo_setup("first", &outcome.calls[..setup_calls], &stderr, None, &paths[1]);
+    assert_eq!(support::ctl::json(&outcome.calls[found_at])["met"], true);
+    for index in [authority_at, bare_at] {
+        let panel = support::ctl::json(&outcome.calls[index]);
+        assert!(panel["hold"].as_str().expect("held cause").contains("its 6 tasks are made"), "{panel}");
+        let task = support::ctl::json(&outcome.calls[index - 1]);
+        assert_eq!(task["chip"]["phase"], "held", "never due: {task}");
+    }
+    assert!(
+        support::ctl::json(&outcome.calls[bare_at])["hold"]
+            .as_str()
+            .expect("bare cause")
+            .contains("released without more tasks")
+    );
+    scratch.remove();
+}
+
 #[test]
 fn a_first_run_answers_on_the_demo() {
     first_run(false);

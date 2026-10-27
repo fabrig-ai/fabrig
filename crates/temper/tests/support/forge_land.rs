@@ -143,6 +143,31 @@ pub fn held_scripts(plan: &Plan<'_>) -> Box<[Script]> {
     scripts
 }
 
+/// Every fresh reviewer fails, while the coder follows the owned-forge story.
+#[must_use]
+pub fn failed_review_scripts(plan: &Plan<'_>) -> Box<[Script]> {
+    let mut scripts = plan_scripts(plan);
+    scripts[2].turns = Box::new([Turn {
+        lines: Box::new([Line::Call {
+            name: b"finish".as_slice().into(),
+            arguments: br#"{"form":"failure","reason":"review unavailable","fields":{}}"#.as_slice().into(),
+        }]),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    }]);
+    let mut chat = std::mem::take(&mut scripts[0].turns).into_vec();
+    chat.truncate(2);
+    for _ in 0..8 {
+        chat.push(Turn {
+            lines: Box::new([Line::Text { text: HELD.as_bytes().into() }]),
+            finish: Finish::Stop,
+            tokens: 20,
+        });
+    }
+    scripts[0].turns = chat.into_boxed_slice();
+    scripts
+}
+
 /// The fake face uses the shared plan bearer and existing test TLS root.
 #[must_use]
 pub fn fake_face(issuer: oauth::Peer, scripts: Box<[Script]>) -> Face {

@@ -141,7 +141,9 @@ record ClientRow { value: ClientValue }
 enum ChangeStatus { unknown, pending, passed, failed }
 enum Freshness { exact, clean }
 enum GateKind { agent, person, check }
-enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected }
+enum AuthorityLack { tasks, depth, spend }
+record AuthorityHold { lack: AuthorityLack had: u64 released: bool }
+enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected, authority: AuthorityHold }
 enum EffectResult { none, pending, made, conflict, failed }
 enum Repair { ci, gate: Number, semantic }
 record RepairValue { why: Repair }

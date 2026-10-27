@@ -713,7 +713,7 @@ fn ci(ci: &w::Ci) -> &'static [u8] {
         w::Ci::Failed => b"failed",
     }
 }
-fn hold(hold: &w::Hold) -> &'static [u8] {
+fn hold(hold: &w::Hold) -> &[u8] {
     match hold {
         w::Hold::Stalled => b"stalled",
         w::Hold::Repairs => b"repairs",
@@ -725,6 +725,7 @@ fn hold(hold: &w::Hold) -> &'static [u8] {
         w::Hold::Retargeted => b"retargeted",
         w::Hold::Failed => b"failed",
         w::Hold::Rejected => b"rejected",
+        w::Hold::Authority(value) => value.reason(),
     }
 }
 fn repair(step: &w::Step) -> Option<&'static [u8]> {
@@ -939,7 +940,11 @@ fn text(
         out.put(b"\n");
         if let Some(hold) = panel.hold() {
             out.put(b"held: ");
-            out.put(phrase(words::hold(hold)));
+            if let w::Hold::Authority(value) = hold {
+                out.put(value.reason());
+            } else {
+                out.put(phrase(words::hold(hold)));
+            }
             out.put(b" at ");
             out.put(step(panel.step()));
             out.put(b"\n");

@@ -20,6 +20,10 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   and neither do the agents it delegates: a question or words sent to
   it by a task are answered that a change takes none, naming its
   requester; a party's words to it are taken unanswered.
+  A change whose authority no longer covers its next step (its tasks all
+  made, its depth used, too little left to spend) holds, saying what it
+  lacks; released with nothing more, it holds again, and its way out is
+  to cancel it or ask for the change afresh.
 - **Its parts,** each read on its own: its tree (its live
   delegates), its activity (what happened, a line each, newest last),
   its turns (each step of a run: the model's words, its calls and

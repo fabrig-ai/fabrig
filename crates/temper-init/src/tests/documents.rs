@@ -136,8 +136,8 @@ fn the_default_is_the_owned_example_so_edited() {
         assert_eq!(replace_org_patterns(&mut expected), 30, "{row}");
         expected["engine"]["projects"][0]["policy"]["ceiling"]["tools"] = json!(515_u64);
         expected["engine"]["projects"][0]["policy"]["roles"][0]["authority"]["tools"] = json!(515_u64);
-        expected["engine"]["projects"][0]["policy"]["ceiling"]["delegation"]["tasks"] = json!(14_u32);
-        expected["engine"]["projects"][0]["policy"]["roles"][0]["authority"]["delegation"]["tasks"] = json!(14_u32);
+        expected["engine"]["projects"][0]["policy"]["ceiling"]["delegation"]["tasks"] = json!(18_u32);
+        expected["engine"]["projects"][0]["policy"]["roles"][0]["authority"]["delegation"]["tasks"] = json!(18_u32);
         expected["engine"]["projects"][0]["policy"]["ceiling"]["budget"]["spend"] = json!(202_944_u64);
         expected["engine"]["projects"][0]["policy"]["period_spend"] = json!(202_944_u64);
         expected["engine"]["projects"][0]["policy"]["roles"][0]["period_spend"] = json!(202_944_u64);

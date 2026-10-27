@@ -178,7 +178,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(4),
                 authority::Executor::Procedure(2),
             ]),
-            tasks: 14,
+            tasks: 18,
             depth: 4,
         },
         budget: authority::Budget { spend: ceiling_spend, deadline: None },

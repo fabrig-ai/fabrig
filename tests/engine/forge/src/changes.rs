@@ -75,7 +75,14 @@ pub fn change_step_task(
     world.event(top::Event::StepChange {
         task,
         entry,
-        heard: change::Heard { delegate: heard, effect: change::EffectResult::None, released, cancelled: false },
+        heard: change::Heard {
+            lacking: None,
+            spend: None,
+            delegate: heard,
+            effect: change::EffectResult::None,
+            released,
+            cancelled: false,
+        },
         gates,
         queue_repair_active: false,
         kept,

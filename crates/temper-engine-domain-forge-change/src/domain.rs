@@ -8,13 +8,24 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
 use crate::{
-    Change, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, Heard, Hold,
-    Limits, Pull, Repair, State, Status, Stepped,
+    AuthorityHold, AuthorityLack, Change, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate,
+    GateFailure, GateKind, Heard, Hold, Limits, Pull, Repair, State, Status, Stepped,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
 #[must_use]
 pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
+    let stepped = advance(change, facts, standing, now, limits);
+    if let Decision::Delegate(delegate) = stepped.decision
+        && let Some(why) = missing(standing, delegate)
+    {
+        // Keep the unrequested phase and its counters: no delegate was made.
+        return hold(change.clone(), Hold::Authority(why));
+    }
+    stepped
+}
+
+fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let mut next = change.clone();
     if change.gates.len() > usize::try_from(limits.gates).expect("u32 fits usize")
         || change.clean.len() > usize::try_from(limits.clean_heads).expect("u32 fits usize")
@@ -62,6 +73,18 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
         next = released(&next, now);
     }
     if let Some(why) = next.released.take() {
+        if let Hold::Authority(prior) = why
+            && let Some(current) = missing(
+                standing,
+                match next.state {
+                    State::Gating { head, .. } => Delegate::Gate { number: 0, head },
+                    _ => Delegate::Produce,
+                },
+            )
+            && current.lack == prior.lack
+        {
+            return hold(next, Hold::Authority(AuthorityHold { released: true, ..current }));
+        }
         let was = next.state.clone();
         return release(next, &was, why, facts);
     }
@@ -179,7 +202,13 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
             };
             Stepped { change, decision: Decision::None }
         }
-        Hold::Stalled | Hold::Repairs | Hold::Resolutions | Hold::Updates | Hold::Failed | Hold::Rejected => {
+        Hold::Stalled
+        | Hold::Repairs
+        | Hold::Resolutions
+        | Hold::Updates
+        | Hold::Failed
+        | Hold::Rejected
+        | Hold::Authority(_) => {
             change.state = match was {
                 State::Queued { head, .. } | State::First { head, .. } | State::Gating { head, .. } => {
                     State::Gating { head: *head, asked: Box::new([]) }
@@ -735,4 +764,54 @@ pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, li
     next.state = State::Gating { head, asked: remaining.into_boxed() };
     next.since = now;
     next
+}
+
+/// The hold's reason, shared by the requester and change panel.
+#[must_use]
+pub fn authority_words(why: AuthorityHold) -> Box<[u8]> {
+    let mut words = List::with_capacity(256);
+    match why.lack {
+        AuthorityLack::Tasks => {
+            put(&mut words, b"its ");
+            put(&mut words, skein_lib::Decimal::of(why.had).as_bytes());
+            put(&mut words, b" tasks are made");
+        }
+        AuthorityLack::Depth => put(&mut words, b"its depth is used"),
+        AuthorityLack::Spend => {
+            put(&mut words, b"its spend is below a run's reserve (it has ");
+            put(&mut words, skein_lib::Decimal::of(why.had).as_bytes());
+            put(&mut words, b" left)");
+        }
+    }
+    if why.released {
+        put(&mut words, b"; released without more ");
+        put(
+            &mut words,
+            match why.lack {
+                AuthorityLack::Tasks => b"tasks",
+                AuthorityLack::Depth => b"depth",
+                AuthorityLack::Spend => b"spend",
+            },
+        );
+    }
+    put(&mut words, b"; cancel it, or ask for the change afresh");
+    words.into_boxed()
+}
+
+fn put(words: &mut List<u8>, bytes: &[u8]) {
+    for byte in bytes {
+        words.push(*byte).expect("authority hold fits its fixed bound");
+    }
+}
+
+fn missing(standing: &Heard, delegate: Delegate) -> Option<AuthorityHold> {
+    if let Some(why) = standing.lacking {
+        return Some(why);
+    }
+    let spend = standing.spend?;
+    let reserve = match delegate {
+        Delegate::Gate { .. } => spend.review,
+        Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } => spend.coding,
+    };
+    (spend.left < reserve).then_some(AuthorityHold { lack: AuthorityLack::Spend, had: spend.left, released: false })
 }

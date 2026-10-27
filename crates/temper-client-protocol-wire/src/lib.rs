@@ -78,6 +78,7 @@ pub struct Bounds {
 #[must_use]
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
+        authority_hold_reason: 256,
         owned_forge_forgejo: 64,
         owned_forge_runner_some: 64,
         owned_forge_password: v1::CEILINGS.owned_forge_password,

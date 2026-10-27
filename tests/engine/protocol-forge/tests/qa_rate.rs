@@ -107,6 +107,8 @@ impl Scheduler {
                         task: 51 + u64::try_from(index).expect("task index"),
                         entry: self.entry,
                         heard: change::Heard {
+                            lacking: None,
+                            spend: None,
                             delegate: change::Status::Unknown,
                             effect: change::EffectResult::None,
                             released: self.iterating,

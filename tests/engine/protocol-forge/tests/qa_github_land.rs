@@ -14,7 +14,14 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
     world.event(forge::Event::StepChange {
         task: 51,
         entry,
-        heard: change::Heard { delegate, effect: change::EffectResult::None, released: false, cancelled: false },
+        heard: change::Heard {
+            lacking: None,
+            spend: None,
+            delegate,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
+        },
         gates: Box::new([]),
         queue_repair_active: false,
         kept: false,
@@ -174,6 +181,8 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                 task: 51,
                 entry,
                 heard: change::Heard {
+                    lacking: None,
+                    spend: None,
                     delegate: change::Status::Unknown,
                     effect: change::EffectResult::None,
                     released: false,
@@ -298,6 +307,8 @@ fn pushed_change_requests_its_pull_once() {
         task: 51,
         entry: 1,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Passed,
             effect: change::EffectResult::None,
             released: false,

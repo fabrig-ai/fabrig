@@ -74,6 +74,8 @@ fn only_a_relevant_hint_restarts_an_unfinished_fresh_read_chain() {
             task: 52,
             entry,
             heard: change::Heard {
+                lacking: None,
+                spend: None,
                 delegate: change::Status::Unknown,
                 effect: change::EffectResult::None,
                 released: false,
@@ -104,6 +106,8 @@ fn both_fresh_base_facts_remain_dependencies_when_the_pull_and_branch_disagree()
         task: 52,
         entry: 152,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Unknown,
             effect: change::EffectResult::None,
             released: false,

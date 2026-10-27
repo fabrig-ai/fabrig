@@ -489,3 +489,18 @@ fn a_refused_reviewer_watch_ends_the_landing_wait() {
     assert_eq!(answer.status, 2);
     contains(&answer.stderr, b"not_allowed");
 }
+
+#[test]
+fn an_authority_hold_prints_its_precise_cause_in_text_and_json() {
+    let reason = b"its 6 tasks are made; released without more tasks; cancel it, or ask for the change afresh";
+    let mut value = panel(w::Step::Gating).into_parts();
+    value.hold = Some(w::Hold::Authority(
+        w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: reason.as_slice().into() }).unwrap(),
+    ));
+    let panel = w::ChangePanel::new(&w::CEILINGS, value).unwrap();
+    for json in [false, true] {
+        let printed = change::print(Some(&panel), json, None, b"", &f::limits_root());
+        assert_eq!(printed.status, 0);
+        contains(&printed.stdout, reason);
+    }
+}

@@ -612,9 +612,10 @@ pub enum ChangeWord {
     Updates,
     Separator,
     EndedLine,
+    AuthorityHold,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 88] = [
+pub const CHANGES: [ChangeRow; 89] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -703,6 +704,7 @@ pub const CHANGES: [ChangeRow; 88] = [
     (ChangeWord::Separator, &[b" \xc2\xb7 "], &[]),
     (ChangeWord::NotRead, &[b"Not read since the restart"], &[]),
     (ChangeWord::EndedLine, &[b"Change ended."], &[]),
+    (ChangeWord::AuthorityHold, &[b"", b""], &[Name]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -733,13 +735,14 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         }
         ChangeWord::QueueSt | ChangeWord::QueueNd | ChangeWord::QueueRd | ChangeWord::QueueTh if index == 1 => 256,
         ChangeWord::FirstLine | ChangeWord::UpdateLine | ChangeWord::ResolveLine | ChangeWord::RepairSemantic => 256,
+        ChangeWord::AuthorityHold => 256,
         ChangeWord::LandedLine => 7,
         ChangeWord::Held => {
             if index == 0 {
                 18
             } else {
                 // "its pull request was retargeted on the forge".
-                44
+                256
             }
         }
         ChangeWord::QueueSt

@@ -135,12 +135,12 @@ pub(crate) fn start(b: &mut Builder, change: Change<'_>, words: &Words, bindings
     if let Some(task) = change.runs() {
         super::task::task_link(b, task, words, bindings);
     }
-    if let Some((step, reason)) = change.hold() {
+    if let Some((step, reason, holes)) = change.hold() {
         b.open(Role::Paragraph);
         b.style(look::CHANGE_HOLD);
         b.text(
             Run::Plain,
-            &say(words, W::Held, &[Hole::Name(say(words, step, &[])), Hole::Name(say(words, reason, &[]))]),
+            &say(words, W::Held, &[Hole::Name(say(words, step, &[])), Hole::Name(say(words, reason, &holes))]),
         );
         b.close();
     }

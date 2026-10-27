@@ -111,7 +111,7 @@ fn change_expands_the_only_repository_field_by_field() {
             .collect::<Box<[_]>>()
     );
     assert_eq!(row.authority.delegation.kinds.as_ref(), &[tasks::AuthorityExecutor::Charter(1)]);
-    assert_eq!(row.authority.delegation.tasks, 4);
+    assert_eq!(row.authority.delegation.tasks, 6);
     assert_eq!(row.authority.delegation.depth, 2.min(parent.authority.delegation.depth - 1));
     assert_eq!(
         row.authority.budget.spend,

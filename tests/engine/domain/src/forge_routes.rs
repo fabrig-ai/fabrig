@@ -1282,10 +1282,10 @@ pub fn change_world_in(
     let child_authority = tasks::Authority {
         tools: tasks::Tools(1023),
         grants: [1, 3, 4, 10, 11, 12].map(|kind| tasks::Grant { kind, ..grant.clone() }).into(),
-        // A producer and two reviews both before and after a release.
-        delegation: tasks::Delegation { kinds: Box::new([tasks::AuthorityExecutor::Charter(1)]), tasks: 5, depth: 1 },
+        // The change's six tasks: a producer and five review attempts.
+        delegation: tasks::Delegation { kinds: Box::new([tasks::AuthorityExecutor::Charter(1)]), tasks: 6, depth: 1 },
         // Each run's spend must fund its finishing reserve, six with the
-        // world's charter (jig a020bf1c): room for five attempts of five.
+        // world's charter (jig a020bf1c): room for six attempts of five.
         budget: tasks::Budget { spend: 40, deadline: None },
         notes: tasks::Scopes(0),
         note_resources: Box::new([]),
@@ -1476,6 +1476,8 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         task,
         entry,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Unknown,
             effect: change::EffectResult::None,
             released: false,

@@ -79,6 +79,22 @@ pub enum Repair {
     Semantic,
 }
 
+/// The part of a change's authority its next delegate needs.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum AuthorityLack {
+    Tasks,
+    Depth,
+    Spend,
+}
+
+/// A precise, durable authority hold (domain/forge.md, 8.4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct AuthorityHold {
+    pub lack: AuthorityLack,
+    pub had: u64,
+    pub released: bool,
+}
+
 /// Why a change is held for its requester or a person.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Hold {
@@ -102,6 +118,8 @@ pub enum Hold {
     Failed,
     /// A person rejected a required gate.
     Rejected,
+    /// The next delegate is beyond the change's remaining authority.
+    Authority(AuthorityHold),
 }
 
 /// A change's committed place on its way to landing.
@@ -218,9 +236,20 @@ pub enum EffectResult {
     Failed,
 }
 
+/// Remaining spend and the reserves of the two agent charters.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct DelegateSpend {
+    pub left: u64,
+    pub coding: u64,
+    pub review: u64,
+}
+
 /// Current task and effect standing, independent of the wake trigger.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Heard {
+    /// Current authority, translated from jig's live accounting.
+    pub lacking: Option<AuthorityHold>,
+    pub spend: Option<DelegateSpend>,
     pub delegate: Status,
     pub effect: EffectResult,
     pub released: bool,

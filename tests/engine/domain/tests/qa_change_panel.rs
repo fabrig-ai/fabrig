@@ -280,6 +280,8 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         task: 51,
         entry: 990,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Unknown,
             effect: change::EffectResult::None,
             released: false,
@@ -311,6 +313,8 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         task: 51,
         entry: 991,
         heard: change::Heard {
+            lacking: None,
+            spend: None,
             delegate: change::Status::Unknown,
             effect: change::EffectResult::None,
             released: false,

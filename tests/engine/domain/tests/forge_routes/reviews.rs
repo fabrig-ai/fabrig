@@ -385,26 +385,36 @@ fn an_external_close_holds_the_change_during_review() {
     assert_eq!(world.merges, 0);
 }
 
+fn wait_held(world: &mut World, task: u64) {
+    for _ in 0..MAX_TICKS {
+        world.tick();
+        if matches!(live_task(world, task).phase, tasks::Phase::Held { .. }) && world.store.pending.is_empty() {
+            return;
+        }
+    }
+    panic!("change did not hold: {:?}", change_row(world, task));
+}
+
 fn held_review() -> (World, u64, [u8; 32]) {
     let (mut world, first, head) = review_world();
     let change = requester(&world, first.task);
     finish_review(&mut world, &first, tasks::TaskResult::Failure { reason: b"cannot read the pull".as_slice().into() });
     let second = next_assignment(&mut world, 3);
     finish_review(&mut world, &second, tasks::TaskResult::Failure { reason: b"still cannot read".as_slice().into() });
-    for _ in 0..MAX_TICKS {
-        world.tick();
-    }
+    wait_held(&mut world, change);
     assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
     (world, change, head)
 }
 
 fn release(world: &mut World, task: u64) {
     let revision = live_task(world, task).revisions.hold;
+    let mut key = [95; 16];
+    key[15] = u8::try_from(revision).expect("small hold revision");
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(950)),
+        reply_to: ReplyTo::new(Token::new(950 + revision)),
         sign_in: world.signed_in.expect("owner signed in"),
-        key: [95; 16],
+        key,
         ask: people::Ask::Release { project: 1, task, revision, again: None },
     }));
     // Inspect the decision before either row is durable or any forge read answers.
@@ -423,7 +433,14 @@ fn release(world: &mut World, task: u64) {
                 })
                 .then_some(writes)
         })
-        .expect("the task's release commit");
+        .unwrap_or_else(|| {
+            panic!(
+                "release commit: task {task}, hold {revision}, phase {:?}, change {:?}, pending {:?}",
+                live_task(world, task).phase,
+                change_row(world, task).change.state,
+                world.store.pending
+            )
+        });
     assert!(
         writes.iter().any(|write| matches!(write,
             engine::Write::Save(Record::Forge { row }) if matches!(row.as_ref(),
@@ -646,4 +663,177 @@ fn a_released_moved_change_is_not_held_again_while_its_fresh_read_is_slow() {
         }
     }
     panic!("the released change was held again: {:?}", live_task(&world, task).phase);
+}
+
+fn past_tasks() -> (World, u64, [u8; 32]) {
+    let (mut world, task, head) = held_review();
+    release(&mut world, task);
+    for index in [4, 5] {
+        let review = next_assignment(&mut world, index);
+        finish_review(
+            &mut world,
+            &review,
+            tasks::TaskResult::Failure { reason: b"review unavailable".as_slice().into() },
+        );
+    }
+    wait_held(&mut world, task);
+    release(&mut world, task);
+    let sixth = next_assignment(&mut world, 6);
+    finish_review(
+        &mut world,
+        &sixth,
+        tasks::TaskResult::Failure { reason: b"review still unavailable".as_slice().into() },
+    );
+    wait_held(&mut world, task);
+    (world, task, head)
+}
+
+fn assert_authority_hold(
+    world: &World,
+    task: u64,
+    lack: temper_engine_domain_forge_change::AuthorityLack,
+    words: &[u8],
+    released: bool,
+) {
+    use temper_engine_domain_forge_change::{Hold, State};
+    let row = change_row(world, task);
+    let State::Held { why: Hold::Authority(cause), .. } = row.change.state else { panic!("{:?}", row.change.state) };
+    assert_eq!(cause.lack, lack);
+    assert_eq!(cause.released, released);
+    assert!(matches!(live_task(world, task).phase, tasks::Phase::Held { .. }), "never left due");
+    let parent = requester(world, task);
+    assert!(
+        live_task(world, parent)
+            .inbox
+            .iter()
+            .any(|word| word.from == tasks::Party::Task(task)
+                && word.words.windows(words.len()).any(|part| part == words)),
+        "requester heard the precise cause"
+    );
+    assert!(
+        temper_engine_domain_forge_change::authority_words(cause)
+            .windows(b"cancel it, or ask for the change afresh".len())
+            .any(|part| part == b"cancel it, or ask for the change afresh")
+    );
+}
+
+#[test]
+fn a_change_past_its_tasks_holds_naming_them() {
+    let (world, task, _) = past_tasks();
+    assert_authority_hold(
+        &world,
+        task,
+        temper_engine_domain_forge_change::AuthorityLack::Tasks,
+        b"its 6 tasks are made",
+        false,
+    );
+    assert_eq!(world.assigned.len(), 7, "chat and exactly six delegates");
+}
+
+#[test]
+fn a_bare_release_of_a_change_past_its_tasks_holds_it_again() {
+    let (mut world, task, _) = past_tasks();
+    release(&mut world, task);
+    for _ in 0..MAX_TICKS {
+        world.tick();
+    }
+    assert_authority_hold(
+        &world,
+        task,
+        temper_engine_domain_forge_change::AuthorityLack::Tasks,
+        b"released without more tasks",
+        true,
+    );
+    assert_eq!(world.assigned.len(), 7, "no delegate attempted");
+}
+
+fn change_authority(world: &mut World, task: u64, tasks: Option<u32>, depth: Option<u32>, spend: Option<u64>) {
+    let row = live_task(world, task);
+    let revision = row.revisions.spec;
+    let mut authority = row.authority.clone();
+    if let Some(tasks) = tasks {
+        authority.delegation.tasks = tasks;
+    }
+    if let Some(depth) = depth {
+        authority.delegation.depth = depth;
+    }
+    if let Some(spend) = spend {
+        authority.budget.spend = spend;
+    }
+    // Its existing funder has the unspent allowance; the person's pool is fully
+    // allotted to that requester in this small world.
+    let parent = world.assigned[0].clone();
+    let event = world.protocol.call(
+        CHANNEL,
+        parent.task,
+        parent.attempt,
+        97,
+        engine::Call {
+            completion: 97,
+            position: 1,
+            tool: engine::Tool::Amend {
+                target: task,
+                revision,
+                amendment: temper_engine_domain_world::fixtures::task_amendment(
+                    None,
+                    Some(authority),
+                    b"more authority for the change's next step",
+                ),
+            },
+        },
+    );
+    world.send(event);
+    for _ in 0..MAX_TICKS {
+        world.tick();
+        if live_task(world, task).revisions.spec > revision && world.store.pending.is_empty() {
+            return;
+        }
+    }
+    panic!("amendment committed: {:?}", world.answers);
+}
+
+#[test]
+fn a_release_with_more_tasks_lets_it_go_on() {
+    let (mut world, task, head) = past_tasks();
+    change_authority(&mut world, task, Some(8), None, None);
+    release(&mut world, task);
+    let fresh = next_assignment(&mut world, 7);
+    assert_review_head(&world, &fresh, head);
+    approve(&mut world, &fresh);
+    assert_lands(&mut world, task);
+}
+
+#[test]
+fn a_change_past_its_depth_holds_naming_it() {
+    let (mut world, task, _) = held_review();
+    change_authority(&mut world, task, None, Some(0), None);
+    release(&mut world, task);
+    for _ in 0..MAX_TICKS {
+        world.tick();
+    }
+    assert_authority_hold(
+        &world,
+        task,
+        temper_engine_domain_forge_change::AuthorityLack::Depth,
+        b"its depth is used",
+        false,
+    );
+}
+
+#[test]
+fn a_change_below_a_runs_reserve_holds_naming_it() {
+    let (mut world, task, _) = held_review();
+    let spent = live_task(&world, task).numbers.spent + live_task(&world, task).numbers.spent_below;
+    change_authority(&mut world, task, None, None, Some(spent + 1));
+    release(&mut world, task);
+    for _ in 0..MAX_TICKS {
+        world.tick();
+    }
+    assert_authority_hold(
+        &world,
+        task,
+        temper_engine_domain_forge_change::AuthorityLack::Spend,
+        b"its spend is below a run's reserve",
+        false,
+    );
 }

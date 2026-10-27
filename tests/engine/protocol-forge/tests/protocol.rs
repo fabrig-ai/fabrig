@@ -75,7 +75,14 @@ fn change_step_task(
     world.event(top::Event::StepChange {
         task,
         entry,
-        heard: change::Heard { delegate: heard, effect: change::EffectResult::None, released, cancelled: false },
+        heard: change::Heard {
+            lacking: None,
+            spend: None,
+            delegate: heard,
+            effect: change::EffectResult::None,
+            released,
+            cancelled: false,
+        },
         gates,
         queue_repair_active: false,
         kept: false,
@@ -451,7 +458,14 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
     world.event(top::Event::StepChange {
         task: 51,
         entry,
-        heard: change::Heard { delegate, effect: change::EffectResult::None, released, cancelled: false },
+        heard: change::Heard {
+            lacking: None,
+            spend: None,
+            delegate,
+            effect: change::EffectResult::None,
+            released,
+            cancelled: false,
+        },
         gates: Box::new([]),
         queue_repair_active: false,
         kept: false,
@@ -890,6 +904,8 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                 task: 51,
                 entry,
                 heard: change::Heard {
+                    lacking: None,
+                    spend: None,
                     delegate: change::Status::Unknown,
                     effect: change::EffectResult::None,
                     released: false,

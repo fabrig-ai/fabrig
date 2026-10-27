@@ -1835,6 +1835,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         entry,
         kept: domain.core.tasks.waiting_effect_problem(task).is_some(),
         heard: forge_change::Heard {
+            lacking: change_authority_lack(domain, task),
+            spend: change_spend(domain, task),
             delegate: forge_change::Status::Unknown,
             effect: forge_change::EffectResult::None,
             // A held procedure can only run again once jig has lifted its hold.
@@ -2055,7 +2057,8 @@ pub(crate) fn chat_change(
         }
     }
     authority.delegation.kinds = kinds.into_boxed();
-    authority.delegation.tasks = 4.min(context.tasks_left.saturating_sub(1));
+    // A producer, a review, and two repairs each followed by its review.
+    authority.delegation.tasks = 6.min(context.tasks_left.saturating_sub(1));
     authority.delegation.depth = 2.min(authority.delegation.depth.saturating_sub(1));
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
@@ -2087,6 +2090,46 @@ pub(crate) fn chat_change(
         label: 0,
         flags: tasks::Flags::PLAIN,
         budget: people::Budget::Named,
+    })
+}
+
+/// jig owns both the descendant ledger and remaining spend; take a fresh snapshot.
+fn change_authority_lack(domain: &Domain, task: u64) -> Option<forge_change::AuthorityHold> {
+    use forge_change::{AuthorityHold, AuthorityLack};
+    let context = domain.core.tasks.delegation(task)?;
+    let (lack, had) = if context.tasks_left == 0 {
+        (AuthorityLack::Tasks, u64::from(context.authority.delegation.tasks))
+    } else if context.authority.delegation.depth == 0 {
+        (AuthorityLack::Depth, 0)
+    } else {
+        let available = context
+            .numbers
+            .budget
+            .saturating_sub(context.numbers.spent)
+            .saturating_sub(context.numbers.spent_below)
+            .saturating_sub(context.numbers.reserved);
+        if available > domain.core.authority.rules().minimum_run_spend {
+            return None;
+        }
+        (AuthorityLack::Spend, available)
+    };
+    Some(AuthorityHold { lack, had, released: false })
+}
+
+fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpend> {
+    let context = domain.core.tasks.delegation(task)?;
+    let left = context
+        .numbers
+        .budget
+        .saturating_sub(context.numbers.spent)
+        .saturating_sub(context.numbers.spent_below)
+        .saturating_sub(context.numbers.reserved);
+    Some(forge_change::DelegateSpend {
+        left,
+        coding: jig_domain_core::reserve_floor(&domain.core.charter(domain.config.forge_charter)?.policy)
+            .unwrap_or(u64::MAX),
+        review: jig_domain_core::reserve_floor(&domain.core.charter(domain.config.forge_charter)?.policy)
+            .unwrap_or(u64::MAX),
     })
 }
 
@@ -2417,13 +2460,36 @@ fn review_failure_message(domain: &Domain, env: &Env<Limits>, task: u64) -> Opti
     Some(jig_domain_core::StepMessage { target: requester, kind: tasks::MessageKind::Words, words: reason? })
 }
 
+fn authority_hold_message(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    cause: forge_change::AuthorityHold,
+) -> Option<jig_domain_core::StepMessage> {
+    let context = domain.core.tasks.delegation(task)?;
+    let tasks::Party::Task(target) = context.requester else { return None };
+    let mut words = List::with_capacity(env.limits.tasks.message_bytes);
+    append(&mut words, &forge_change::authority_words(cause));
+    Some(jig_domain_core::StepMessage { target, kind: tasks::MessageKind::Words, words: words.into_boxed() })
+}
+
 fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forge_change::Hold) -> ProcedureStep {
-    let message = if why == forge_change::Hold::Failed { review_failure_message(domain, env, task) } else { None };
+    let message = if let forge_change::Hold::Authority(cause) = why {
+        authority_hold_message(domain, env, task, cause)
+    } else if why == forge_change::Hold::Failed {
+        review_failure_message(domain, env, task)
+    } else {
+        None
+    };
     let why = match why {
         forge_change::Hold::BranchMoved
         | forge_change::Hold::BranchMissing
         | forge_change::Hold::Retargeted
         | forge_change::Hold::PullClosed => tasks::Hold::Drift,
+        forge_change::Hold::Authority(cause) => match cause.lack {
+            forge_change::AuthorityLack::Tasks | forge_change::AuthorityLack::Depth => tasks::Hold::Procedure,
+            forge_change::AuthorityLack::Spend => tasks::Hold::Budget,
+        },
         forge_change::Hold::Stalled => tasks::Hold::Stalled,
         forge_change::Hold::Repairs | forge_change::Hold::Resolutions | forge_change::Hold::Updates => {
             tasks::Hold::Procedure

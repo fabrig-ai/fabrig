@@ -536,3 +536,16 @@ fn a_demo_address_at_its_receiving_bound_is_still_readable() {
         assert!(node.external.is_none());
     }
 }
+
+#[test]
+fn an_authority_hold_draws_its_count_release_and_way_out() {
+    let reason = b"its 6 tasks are made; released without more tasks; cancel it, or ask for the change afresh";
+    let mut value = parts(w::Step::Gating);
+    value.hold = Some(w::Hold::Authority(
+        w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: reason.as_slice().into() }).unwrap(),
+    ));
+    let tree = draw(value);
+    let notice = styled(&tree, look::CHANGE_HOLD);
+    assert_eq!(notice.len(), 1);
+    assert_eq!(f::node_text(&tree, notice[0]).as_ref(), joined(&[b"Held while gating: ", reason, b"."]).as_ref());
+}

@@ -57,6 +57,21 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
         d::Hold::Retargeted => w::ChangeHold::Retargeted,
         d::Hold::Failed => w::ChangeHold::Failed,
         d::Hold::Rejected => w::ChangeHold::Rejected,
+        d::Hold::Authority(cause) => w::ChangeHold::Authority(
+            w::AuthorityHold::new(
+                &w::CEILINGS,
+                w::AuthorityHoldParts {
+                    lack: match cause.lack {
+                        d::AuthorityLack::Tasks => w::AuthorityLack::Tasks,
+                        d::AuthorityLack::Depth => w::AuthorityLack::Depth,
+                        d::AuthorityLack::Spend => w::AuthorityLack::Spend,
+                    },
+                    had: cause.had,
+                    released: cause.released,
+                },
+            )
+            .expect(FITS),
+        ),
     }
 }
 fn decode_hold(value: w::ChangeHold) -> d::Hold {
@@ -71,6 +86,15 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
         w::ChangeHold::Retargeted => d::Hold::Retargeted,
         w::ChangeHold::Failed => d::Hold::Failed,
         w::ChangeHold::Rejected => d::Hold::Rejected,
+        w::ChangeHold::Authority(cause) => d::Hold::Authority(d::AuthorityHold {
+            lack: match cause.lack() {
+                w::AuthorityLack::Tasks => d::AuthorityLack::Tasks,
+                w::AuthorityLack::Depth => d::AuthorityLack::Depth,
+                w::AuthorityLack::Spend => d::AuthorityLack::Spend,
+            },
+            had: cause.had(),
+            released: cause.released(),
+        }),
     }
 }
 fn encode_effect_result(value: d::EffectResult) -> w::EffectResult {

@@ -168,6 +168,7 @@ pub const fn hold(hold: &w::Hold) -> W {
         w::Hold::Retargeted => W::Retargeted,
         w::Hold::Failed => W::FailedHold,
         w::Hold::Rejected => W::Rejected,
+        w::Hold::Authority(_) => W::AuthorityHold,
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -242,8 +243,14 @@ impl<'a> Change<'a> {
         line(self.panel)
     }
     #[must_use]
-    pub fn hold(self) -> Option<(W, W)> {
-        Some((held_step(self.panel.step()), hold(self.panel.hold().as_ref()?)))
+    pub fn hold(self) -> Option<(W, W, Box<[Hole]>)> {
+        let cause = self.panel.hold().as_ref()?;
+        let holes: Box<[Hole]> = if let w::Hold::Authority(value) = cause {
+            Box::new([Hole::Name(copy_of(value.reason()))])
+        } else {
+            Box::new([])
+        };
+        Some((held_step(self.panel.step()), hold(cause), holes))
     }
     #[must_use]
     pub fn runs(self) -> Option<u64> {

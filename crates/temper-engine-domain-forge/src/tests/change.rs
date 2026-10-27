@@ -20,6 +20,8 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             task,
             entry,
             heard: change::Heard {
+                lacking: None,
+                spend: None,
                 delegate: change::Status::Passed,
                 effect: change::EffectResult::None,
                 released: false,
