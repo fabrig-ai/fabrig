@@ -503,8 +503,12 @@ adopted or placed, no connector reads or writes its system
 (`../protocol/store.md`, 10.2, step 7). So whatever checks a record
 runs in the restores, before the switch, and what acts on it after: the
 tasks child's checks of its live tasks' links, stubs, writers, waits and
-funders, which adopting the runs makes today, run in its restore, and
-step 3 adopts. Over a generation with nothing pending, the step switches
+funders, which adopting the runs made, are a step of their own,
+`RestartStep::Check`, just before the switch, and step 3 adopts. The
+mark is a root decision carrying the store's `Write::Wires`, and the
+store opens its secrets' gate on it. The fleet's checks of a host's
+programs, which read what a worker reports and start nothing, may go
+before it. Over a generation with nothing pending, the step switches
 nothing and commits the wires alone.
 
 So the restore is the check the draft asks before the switch (temper's
