@@ -18,6 +18,7 @@ macro_rules! encode {
 pub mod local;
 pub mod moves;
 pub mod recovery;
+pub mod setup;
 pub mod waits;
 pub use recovery::{dropped, kept_chat, other_party, small_store};
 pub const LINK: &[u8] = b"http://127.0.0.1:4000/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -627,6 +628,12 @@ impl Frame {
             b"/jig/v1/watch" => {
                 let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))
                     .expect("watch record");
+                if matches!(open.subject().owner(), w::Owner::Family(_)) {
+                    self.wait_task = Some(open.watch());
+                    self.reply(fd, &encode!(w::OpenAnswer::Admitted));
+                    self.deliver_setup(false);
+                    return;
+                }
                 let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
                     .expect("watch subject");
                 if subject == w::Subject::Me {

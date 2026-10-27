@@ -204,6 +204,9 @@ impl Frame {
         if !if self.is_kept(keyed.key()) { self.answer_kept.is_some() } else { self.answer_new.is_some() } {
             return;
         }
+        if self.setup_reply(fd, &keyed) {
+            return;
+        }
         self.hold_stores = Some(());
         if matches!(keyed.owner(), w::Owner::Family(_)) {
             self.adopt_reply(fd);

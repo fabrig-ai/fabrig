@@ -926,3 +926,28 @@ fn every_watched_read_is_classified_from_its_wait_flags() {
         }
     }
 }
+
+#[test]
+fn a_cold_setup_waits_past_the_link_deadline_then_adopts() {
+    for json in [false, true] {
+        let mut f = fixtures::Frame::setup(json);
+        assert!(f.stdout().windows(7).any(|s| s == b"setting"));
+        f.advance_live(fixtures::setup::COLD_START);
+        assert_eq!(f.exit(), None);
+        f.finish_setup();
+        assert_eq!(f.exit(), Some(Exit::Code(0)));
+        assert!(f.stderr().is_empty());
+        assert!(f.stdout().windows(7).any(|s| s == if json { b"adopted" } else { b"Adopted" }));
+    }
+}
+#[test]
+fn a_cold_setup_past_its_allowance_names_the_forges_and_timeout() {
+    for json in [false, true] {
+        let mut f = fixtures::Frame::setup(json);
+        f.advance_live(temper_client_tools::limits::WAIT);
+        assert_eq!(f.exit(), Some(Exit::Code(3)));
+        assert!(f.stdout().windows(7).any(|s| s == b"timeout"));
+        assert!(f.stdout().windows(1).any(|s| s == b"3"));
+        assert!(f.stderr().is_empty());
+    }
+}

@@ -42,11 +42,18 @@ pub struct Invocation {
     pub directory: Option<Box<[u8]>>,
     pub parsed: Parsed,
 }
+/// Whether the invocation awaits its act's answer or a condition on its watch.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Waiting {
+    Answer,
+    Condition,
+}
 /// The shell's one-shot host.
 pub struct OneShot {
     directory: Directory,
     call: Option<Parsed>,
     class: Class,
+    waiting: Waiting,
     pub(crate) root: root::Root,
     root_env: Env<root::Limits>,
     connections: jig_client_shell_native::Limits,
@@ -152,6 +159,7 @@ impl OneShot {
             ),
             call: Some(call.parsed),
             class,
+            waiting: if class == Class::Wait { Waiting::Condition } else { Waiting::Answer },
             root,
             connections: limits.connections,
             root_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.root },
@@ -427,7 +435,7 @@ impl OneShot {
         }
         let link = self.root.client().link().state;
         if link != self.link {
-            if self.class == Class::Wait && self.call.is_none() && link == jig_client::Link::Live {
+            if self.waiting == Waiting::Condition && self.call.is_none() && link == jig_client::Link::Live {
                 self.until = None;
             } else if self.link == jig_client::Link::Live && self.until.is_none() {
                 self.until = Some(self.env.now.saturating_add(limits::DEADLINE));
@@ -507,7 +515,15 @@ impl OneShot {
                     self.print(printed);
                 }
                 root::Request::Kept { line } => self.output.push(true, line),
-                root::Request::Progress { line } => self.output.push(false, line),
+                root::Request::Progress { line } => {
+                    // The first-repository act has answered and now owns a bounded
+                    // watch. Keep its allowance while the engine link is live.
+                    self.waiting = Waiting::Condition;
+                    if self.root.client().link().state == jig_client::Link::Live {
+                        self.until = None;
+                    }
+                    self.output.push(false, line);
+                }
                 root::Request::Fact { .. } => {}
             }
         }
