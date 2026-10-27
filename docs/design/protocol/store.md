@@ -327,8 +327,9 @@ intervals. So:
 - **a test checks each mapping** against the range's predicate over
   generated keys: every key the predicate admits lies in an interval, and
   every key in an interval is admitted; and a restart's key's place
-  (7.2, `intervals::cursor`) names the interval that holds it, over a
-  request of several ranges as over one.
+  (7.2), the domain's over its typed key and the component's over its
+  bytes, names the interval that holds it, over a request of several
+  ranges as over one.
 
 ### 4.4 jig's families
 
@@ -784,21 +785,26 @@ root for one step at a time, and the root asks the store:
   that order (4.3), a cursor naming the interval it is in. The order a
   walk hands rows up is (interval, key), not the keys' own: an interval
   may start below the one before it (the accounts' issued names, tag 4,
-  before their counter, tag 0). jig gives each key its place, the one
-  definition the walk itself reads, so that a root that keeps its own
-  cursors, or checks that a page's rows ascend, never compares raw keys
-  or keeps a copy of the intervals:
+  before their counter, tag 0). jig gives each key its place, so that a
+  root that keeps its own cursors, or checks that a page's rows ascend,
+  never compares raw keys or keeps a copy of the intervals. The place
+  is the domain's, over typed keys, pure, beside the ranges the core
+  names (`jig-domain-core`, so a domain crate checks its pages with no
+  io below it); the component's byte intervals and cursors follow it:
 
   ```rust
-  pub fn intervals::cursor(ranges: &[RestoreRange], key: &[u8]) -> Option<Cursor> // None: no interval of the walk holds it
+  pub fn RestoreRange::interval(ranges: &[RestoreRange], key: &Key) -> Option<u32>  // jig-domain-core; None: no interval of the walk holds it
+  pub fn intervals::cursor(ranges: &[RestoreRange], key: &[u8]) -> Option<Cursor>   // jig-protocol-store, the same place over encoded keys
   ```
 
-  It finds the interval by containment in the same list the walk
-  builds, `Census::interval` being the census's case of it. A page's
-  rows ascend when each row's cursor is above the one before it: a
-  later interval, or the same interval and a higher key. A root's
-  "after" for a fresh request is the cursor of its last key, and a row
-  at or below it is one already handed up;
+  `Census::interval` is the census's case of the first. The second
+  finds the interval by containment in the list the walk builds, and
+  4.3's test pins the two together over generated keys, for each range
+  alone, a census, and `[Core, Tasks]`. A page's rows ascend when each
+  row's place is above the one before it: a later interval, or the same
+  interval and a higher key. A root's "after" for a fresh request is
+  the place of its last key, and a row at or below it is one already
+  handed up;
 - **what the core never restores** (turns, terminals, history, ended
   tasks, notes' entries) is never read at start.
 
