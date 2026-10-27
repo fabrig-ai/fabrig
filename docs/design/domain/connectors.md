@@ -538,6 +538,17 @@ verdict says so, an incident and the task that leads it
 delegates, within its authority, and its requester is usually the
 deployment or a person on call.
 
+### 6.7 Drained
+
+Designed, not built. A procedure in the scope of a draining hold
+(tasks.md, 5.9) is told so in its next step, and steps on as ever until
+its connector answers that it is idle: at the first point where its
+step would start something new, rather than finish what it began. The
+core then holds it. What counts as new is the connector's to say, for
+each procedure, as part of the procedure's own design. A procedure
+already waiting for nothing of its own is idle at once. A drain lifted
+before it is idle leaves it as it was.
+
 ## 7. Requirements and verdicts
 
 - **A connector defines requirements** on its own facts, each with the

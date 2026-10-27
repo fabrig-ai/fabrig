@@ -824,6 +824,7 @@ These per-tool declarations change within the existing call envelope.
 | `decide` | accepts, rejects or passes up a proposal or an escalation waiting for it, an escalation naming its hold's revision (tasks.md, section 9) | done; beyond its authority, and passed up; moved, with what it is now |
 | `propose` | an action beyond its authority, with a reason: a batch, an amendment, an effect, or a widening of its own authority (authority.md, section 9) | proposed, and to whom; refused, when nobody may accept it (tasks.md, section 9) |
 | `withdraw` | its own pending proposal (tasks.md, section 9) | withdrawn; already decided, and how |
+| `hold`, `lift`, designed, not built | places a hold of its own, stop or drain, over the subtree of a task below it, with a reason, and optionally the event that lifts it: a connector's event its topic offers, a task's end, or a time (tasks.md, 5.9); lifts a hold it may lift, naming its revision | the hold's number and revision; lifted; refused, naming its owner, and whether a proposal could be accepted |
 | `settings`, when its charter gives the family | reads the settings, or one setting whole, as a party's read does (`../client/domain/contract.md`, 5.1); proposes a change of settings against the revision it read, with a reason (17.6) | the settings; proposed, and to whom; stale, naming the newest; refused, when nobody may accept it |
 | `introduce` | two tasks it references, each given a reference to the other, within their limits (tasks.md, 8.5) | done; no reference; refused, and why |
 | `subscribe`, `unsubscribe` | a topic a connector offers to agents (connectors.md, 5.3), under a read grant on the resources the connector says it concerns (authority.md, 8.5); a referenced task's state; a timer (tasks.md, 8.4) | done; refused, and why |
@@ -872,7 +873,7 @@ make (people.md, 5.1), checked by the same rules (authority.md, 8.1 and
 `delegate` is `Create`;
 `message` is `Message`, and `Answer` for a question; `propose`,
 `withdraw`, `amend`, `cancel`, `release` and `decide` are theirs by
-name. What only parties do stays theirs (people.md, 5.1): carrying out
+name, and so, designed, not built, are `hold` and `lift`. What only parties do stays theirs (people.md, 5.1): carrying out
 person tasks, stopping runs, moving tasks, marking what they have seen,
 and running the project. `introduce` is a task's alone: only a task
 holds references (tasks.md, 8.5).

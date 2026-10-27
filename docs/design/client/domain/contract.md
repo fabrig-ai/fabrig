@@ -210,7 +210,9 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Amend` | a task; its spec's revision, or a person task's for its address; the change: spec and parameters, instructions, authority, wake policy, its dependencies as a whole list (those it names anew added, those it leaves out removed: `../../domain/tasks.md`, section 7), a person task's address, tracked and priority, its LLM choice, which its next run takes; a reason | amended; an active task given a pending dependency kept until it is done (`../../domain/tasks.md`, 5.7). A change of priority alone names no revision: the first commit decides |
 | `Cancel` | a task; a reason; a grace, or none | it and its tree closing; with a grace, the task first hears that it is asked to finish, as it hears an amendment, and is cancelled when the grace ends unless it ended first |
 | `Release` | a held task; its hold's revision; for an uncertain effect that cannot be recovered, whether to make it again | its hold lifted, judged afresh |
-| `Stop` | a task | its run cancelled, the task held for the party |
+| `Stop` | a task | its run cancelled, the task held for the party; designed, not built: a placed hold of the party's, stop, over the task's subtree (`../../domain/tasks.md`, 5.9) |
+| `Hold`, designed, not built | a mode, `Stop` or `Drain`; a scope, `Subtree(task)` or `Project`; a reason | a placed hold, its number and revision answered (`../../domain/tasks.md`, 5.9) |
+| `Lift`, designed, not built | a placed hold by its number; its revision; `with_tasks` | the hold ended; with `with_tasks`, each task it held that nothing else holds released |
 | `Move` | a task the party may amend; a reason | the party its requester, its reservation moved to their pool (`../../domain/tasks.md`, section 7) |
 | `Decide` | a proposal, by its proposer and number: accept, for a proposal of settings with whether running work moves, reject with a reason, or pass up; or an escalation, by its held task and its hold's revision: release, leave held with a reason, or pass up | as `../../domain/tasks.md`, section 9 has it; or decided first, by whom and how |
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
@@ -360,7 +362,8 @@ this environment) is the application's (`../../domain/people.md`, 5.1):
   outcome in order (below); or refused, naming the first operation that
   failed, by its place in the list, and why.
 - **What it may hold:** `Cancel`, with or without a grace; `Move`;
-  `Amend`, priority included; `Release`; `Message`; `Stop`. Creating,
+  `Amend`, priority included; `Release`; `Message`; `Stop`. Placing
+  and lifting holds, creating,
   proposing, withdrawing, deciding, answering, taking, handing back,
   marking seen and the project's own are requests of their own.
 - **Admitted as the people child admits it** (`../../domain/people.md`,
@@ -968,6 +971,22 @@ settled fields remain available.
 - **Release keeps its authority.** The hold is lifted by an authorized
   `Release`, not by words. The task's immediate hold and release rules
   are `../../domain/tasks.md`, 5.5 and 6.
+
+### 5.6 Placed holds
+
+Designed, not built (`../../domain/tasks.md`, 5.9).
+
+- **A task held by a placed hold** shows `HoldCategory::Placed { hold
+  }`, and its document names the hold: its owner (a party or a task),
+  its mode (`Stop` or `Drain`), its scope (`Subtree(task)` or
+  `Project`), its reason, what lifts it (an event, a task's end, a
+  time, or nothing), when it was placed, and its revision; and whether
+  the reader may lift it, or only propose its release.
+- **A project's placed holds** are a read of their own, `holds{project}`,
+  each as above with the tasks it holds counted, and the tasks it
+  exempts.
+- **A party's inbox** shows a proposal to release a task from a hold of
+  theirs as any proposal waiting for them, naming the hold.
 
 ## 6. Reads
 

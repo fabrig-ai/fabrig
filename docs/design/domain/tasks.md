@@ -593,6 +593,89 @@ finish, the run's own, keeps its retry policy whoever ends the task.
 `End::Exceeded` is such a failure, not a finish: it holds at once by
 5.5, retaining the requester ending through the hold.
 
+### 5.9 Placed holds: owners, modes and scopes
+
+Designed, not built. A placed hold is one a party or a task places by an
+act, to stop or pause work: a person pausing a goal, a coordinator
+parking a delegate, a project drained to change its rules. The holds the
+core places itself (5.5: tries, stalls, bounds, drift, effects, budget,
+deadline, circles, a procedure's need) keep their rules.
+
+- **It is a record of its own,** numbered in the deployment: its owner,
+  its mode, its scope, what lifts it, its reason in words, when it was
+  placed, its revision, which moves when the hold changes, and the
+  tasks it exempts. Each task it holds is held by `Placed { hold }`,
+  naming it. It replaces `StoppedBy`: a party's `Stop` is a placed
+  hold.
+- **No escalation.** A task held by a placed hold raises none: it waits
+  for its hold's owner, who knows it, and never passes up or stalls. A
+  task held by a placed hold and by a cause of 5.5 has that cause's one
+  escalation, routed as section 9 says; deciding it lifts that cause
+  alone, and the placed hold stays.
+- **Its owner** is the party or the task that placed it. Only these may
+  lift it, or release a task from it:
+  - its owner;
+  - a party whose role in the project stands above the owner's: the
+    project's policy ranks its roles, owner over maintainer over member
+    by default (people.md, section 4);
+  - for a hold a task placed: that task, any task above it, and the
+    parties in whose tree it is.
+
+  Anyone else who could otherwise release the task (section 7) is
+  refused, naming the owner and whether a proposal could be accepted,
+  and may propose the release (section 9), which waits for the owner. A
+  task above a party's hold never lifts it.
+- **Two modes:**
+  - **Stop.** Each live run in scope is cancelled at once, and each task
+    in scope is held.
+  - **Drain.** What runs finishes, and nothing new starts. A live run in
+    scope is cancelled as parked at its next committed turn, its turn
+    kept and no try spent, so it ends at a turn's boundary and resumes
+    from its transcript; a procedure in scope is told to drain, and
+    steps on until its connector says it is idle (connectors.md, 6.7);
+    no due task in scope gets a run; and each task in scope is held as
+    it goes idle: an agent's once its run has parked or ended, a
+    person's at once, a procedure's once its connector says so.
+- **Two scopes:**
+  - **A task's subtree:** the task and every task below it, those made
+    later included.
+  - **A project:** every task of the project, those made later
+    included, except each conversation a party requested directly, so
+    that a person can still talk to their chat.
+- **Nothing new in scope.** A task's batch whose tasks would be in a
+  placed hold's scope is refused, naming the hold: a run finishing its
+  turn under a drain delegates nothing. A party's batch, or a
+  procedure's, is made, its tasks held by the hold in the commit that
+  makes them, so that a person may start one task and release it alone.
+- **Lifted as one, released one by one.** Lifting a placed hold, naming
+  its revision, ends it: nothing more is held by it, and a task it held
+  stays held, so that the person resumes goals one at a time, each
+  released as section 7 says, by those this section names. A lift may
+  ask to release with it every task it holds that nothing else holds.
+  The record of a lifted hold stays, ended, while a task it held is
+  still held by it, and goes with the last one's release. A task
+  released from a placed hold while that hold stands is exempt from it
+  from then on: a revert released under a project's stop lands while
+  the stop stands.
+- **Parked until an event:** a hold a task places on a task below it may
+  name the event that lifts it, with every task it holds: a connector's
+  event that its connector classes as waking for the hold (connectors.md,
+  5.3); a named task's end; or a time. The core subscribes the hold to
+  it, as it subscribes a task (8.4), and lifts the hold in the commit
+  that delivers the event. A party's hold names no event: a person lifts
+  their own.
+- **Proposing a release:** a task or a party proposes to release a task
+  from a placed hold, naming the hold's revision; the proposal waits for
+  the hold's owner, whatever the tree's authority, a party's in their
+  inbox and a task's among its entries, and only those who may lift the
+  hold accept it, which releases the task as their own release would. A
+  hold lifted, or its revision moved, withdraws it.
+- **Bounded:** placed holds per project and per party, the exemptions
+  one keeps, and their subscriptions among the subscriptions per task
+  (section 11).
+- **Restart** restores placed holds and their subscriptions with the
+  tasks they hold; a drain in progress goes on draining.
+
 ## 6. Holds
 
 **A configured-bound hold** stops the task under 5.5; the resource holds
@@ -1067,7 +1150,9 @@ proposed, what an action needs, and what an acceptance funds.
   proposes a batch or an amendment: a party makes no effect, and their
   authority is their role's, which the project's owners change
   (people.md, 5.2). Either may propose a change of settings, in the
-  deployment's scope (below).
+  deployment's scope (below), and, designed, not built, a task's
+  release from a placed hold, which waits for the hold's owner alone
+  (5.9).
 - **A proposal of settings** (engine.md, 17.6) holds a set of settings
   against a revision. It is proposed by a party with a role in the
   deployment or a project, or by a run whose charter gives it the
@@ -1205,7 +1290,9 @@ worst case (engine.md, section 13):
 - tries per class of failure, and their backoff;
 - the stall of a person task, of a pending proposal or escalation, and
   of an agent task idle with delegates still live;
-- a grace's span: the longest grace a cancel may give.
+- a grace's span: the longest grace a cancel may give;
+- placed holds per project and per party, live at once, and the
+  exemptions one holds (5.9).
 
 A live task is never evicted: when the deployment is full, new batches
 are refused, and the creator hears why.
@@ -1241,6 +1328,22 @@ periods, its allotment renewed each time; a verdict whose follow-ups
 go beyond its task's authority, their proposal accepted and the
 follow-ups run before the result reaches the requester, and another
 whose proposal is rejected, its result delivered at once.
+
+Its stories of placed holds (5.9), designed, not built: a person's stop
+of a goal, its runs and its delegates' runs cancelled, a maintainer's
+release refused for it as the person's, the coordinator above it
+proposing the release, the person accepting it in their inbox, and the
+goal resuming from its transcript; a project drained while one run is
+mid-turn and a procedure mid-step, the run parking at its turn's end,
+the procedure going on until its connector says it is idle, a due task
+getting no run, a delegation by the parking run refused naming the hold,
+the person's chat answering throughout, then the drain lifted and the goals
+released one at a time; a project stopped, a task made under it held,
+that one task released and ending while the stop stands, and the stop
+lifted with its tasks; a coordinator parking a delegate until a news
+event, the hold lifting itself as the event's commit delivers it, and
+another parked until a time; a restart in the middle of a drain,
+draining on.
 
 Its stories of added dependencies (5.7; 6.7; section 7): the
 reordering, two tasks waiting for one write hold, the first given a

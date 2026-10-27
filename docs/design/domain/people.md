@@ -330,8 +330,10 @@ The operations as the client sends them are
 | `Message` | the task in their tree, or maintainer | words in its inbox (tasks.md, 8.1), their message number answered |
 | `Amend` | the task in their tree, or maintainer, and a change within their authority; the spec's revision they saw, but for a change of priority alone; maintainer, for tracked or priority; dependencies added within their reach, as a batch's | tasks.md, section 7: its spec, instructions, authority, wake policy, a person task's address, whether it is tracked, its priority, its dependencies added or removed; a widened task funded from their pool (authority.md, section 7) |
 | `Cancel`, with or without a grace | the task in their tree, or maintainer; a grace within the tasks child's bound (tasks.md, section 11) | the task and its tree closing (tasks.md, section 7); with a grace, the task first asked to finish, and cancelled when the grace ends unless it ended first |
-| `Release` | the task in their tree, or maintainer; the hold's revision they saw; for an effect held uncertain, whether to make it again | its hold lifted, the task judged again (tasks.md, 5.5) |
-| `Stop` | the task in their tree, or maintainer | its run cancelled and its task held for a party's stop |
+| `Release` | the task in their tree, or maintainer; the hold's revision they saw; for an effect held uncertain, whether to make it again; for a task a placed hold holds, that they may lift it (tasks.md, 5.9) | its hold lifted, the task judged again (tasks.md, 5.5); from a placed hold that stands, the task exempt from it |
+| `Stop` | the task in their tree, or maintainer | its run cancelled and its task held for a party's stop; designed, not built: a placed hold of theirs in the stop mode over the task's subtree (tasks.md, 5.9) |
+| `Hold`, designed, not built | a mode, stop or drain; a scope, a task in their tree (or maintainer) for its subtree, or the project for a maintainer; a reason; never in a compound request | a placed hold of theirs (tasks.md, 5.9), its number and revision answered |
+| `Lift`, designed, not built | a placed hold they may lift (tasks.md, 5.9); its revision; whether every task it holds that nothing else holds is released with it; never in a compound request | the hold ended; with the release, those tasks judged afresh |
 | `Move` | they may amend the task; a holder for its escalations (below) | the party its requester, funded from their pool (tasks.md, section 7) |
 | `Decide` | the proposal or escalation waiting for them, as the requester of its tree or in a role the policy names; for an escalation, its hold's revision; for a proposal of settings, whether running work moves | accepted, if their authority covers it, and funded from their pool (authority.md, section 9: a batch's tasks, an effect's price, the task an amendment or a widening changes), or, for a proposal of settings, by an owner of each item it names, funding nothing (engine.md, 17.6); rejected, with a reason; or passed up (tasks.md, section 9) |
 | `Answer` | addressed to them or their role; a person task's revision as they saw it; for a person task, none of its dependencies pending (section 8) | an answer to a question, or a person task's result (section 8) |
@@ -400,7 +402,9 @@ The operations as the client sends them are
 - **What only parties do,** by design: carry out person tasks (`Take`,
   `HandBack`, and `Answer` with a result), stop runs, move tasks to
   themselves, mark what they have seen, make and run projects (5.2), and act
-  on the LLM accounts they hold (accounts.md, section 5).
+  on the LLM accounts they hold (accounts.md, section 5). Designed, not
+  built: a task places holds on the tasks below it too (tasks.md, 5.9;
+  engine.md, 7.3), and only a party holds a project.
   Procedures decide nothing (tasks.md, section 9).
 - **A decision names what it saw.** A release, an amendment, a decision
   about an escalation and a person task's answer carry the revision the
@@ -429,7 +433,8 @@ The operations as the client sends them are
   stopped, and its release.
   - *What it may hold:* `Cancel`, with or without a grace; `Move`;
     `Amend`, priority included; `Release`; `Message`; `Stop`. The other
-    operations keep requests of their own.
+    operations keep requests of their own, `Hold` and `Lift` among
+    them.
   - *One project:* every operation's task is in the request's project.
   - *In order:* its operations are admitted in order, each against the
     state those before it leave and needing what it would alone, with one
