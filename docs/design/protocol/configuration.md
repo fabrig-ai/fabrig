@@ -1454,7 +1454,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 |---|---|---|---|---|
 | 1, the deployment's landing rules | the deployment | a rule's, from 1; at most `forge.landing_rules` | a landing rule (below) | the deployment's owners |
 | 2, a project's landing rules | each project | a rule's, from 1; at most `forge.landing_rules` per project | a landing rule | that project's owners |
-| 3, the forge's charter | the deployment | 1 alone | a charter's number, a u32 | the deployment's owners |
+| 3, the forge's charters | the deployment | 1, the change's; 2, its reviews' | a charter's number, a u32 | the deployment's owners |
 
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, section 3's rule member for member but `connector` and `kind`,
@@ -1552,14 +1552,15 @@ into the binary.
 |---|---|
 | charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, worded by v0.1.0's ladder, whose walks test them (`../draft/v0.1.0.md`); this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect, modify and agents tool families, no shell; a call's timeout 10 s |
 | charter 2, a coding agent's | as charter 1, with today's `charters/coding.txt` |
+| charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`, worded by v0.1.0's ladder, as `chat.txt` is; charter 2's models, hosts and run; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
 | template 1, a chat | jig's chat, run by charter 1, as `temper init` writes it today |
 | charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
 | template 2, a goal | jig's goal, its executor chosen |
 | template 3, the configuring chat | a chat, flagged conversation and labelled as jig's chat is, run by charter 3 |
 | policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 515, delegation, messages and reads (jig's `ToolFamilies` Delegate, Message and Read), so that a chat reads the forge it works on and answers its delegates' questions; its ceiling's and role 0's delegation 14 tasks 4 deep (the chat counted among them), so that a chat's advisor and two dependent delegates, each with its change's procedure, producer, review and two repairs, fit (`../draft/v0.1.0.md`, rung B2) |
-| the rules | today's: tools 515, delegation, messages and reads, the forge's grants under `forge`, delegation to charters 1, 2 and 3 and the change procedure, 14 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
+| the rules | today's: tools 515, delegation, messages and reads, the forge's grants under `forge`, delegation to charters 1, 2, 3 and 4 and the change procedure, 14 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
-| kind 3 | charter 2 |
+| kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4 |
 
 - **The configuring agent is a setting** like any other (`../draft/configuring.md`, 5.1): "Tell temper how you work" starts template 3,
   which an owner may change or remove as any template. Its runs read
@@ -1684,7 +1685,10 @@ side never waits on the part of jig it does not use:
    leaves the forge's charter unoffered (dropping the rules' delegation
    to it too, which jig's references require) is accepted in this step,
    and the forge's changes are refused until it is offered again: step
-   2 refuses such a change, kind 3 naming its charter (13.2). `temper
+   2 refuses such a change, kind 3 naming its charter (13.2). The
+   forge's review charter is the stock's charter 4 until then, fixed by
+   the binary, with no document member of its own: its settings change
+   as any charter's, and step 2 makes it kind 3's number 2. `temper
    init`'s document
    loses the four members and its `charters/`, and every other writer
    of them (13.5) moves with it. Its seeded project 1 names `policy: 1`
