@@ -1133,7 +1133,11 @@ the change reads the head afresh once the slot is freed. Otherwise:
 - **Merged by someone else:** landed, like any other landing.
 
 Nothing is written over: a held change makes no effect until it is
-released.
+released. A drift is the change's to judge: what the forge says of a
+known change's pull request or branch wakes its procedure, which holds
+it for the cause above, rather than holding its task from outside before
+the procedure has stepped, so the hold names its cause on the change's
+panel.
 
 ### 8.6 Cancelled
 
