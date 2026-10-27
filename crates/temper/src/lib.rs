@@ -38,7 +38,7 @@ pub mod open;
 mod program_login;
 mod setup;
 mod worker_alone;
-pub use host::Host;
+pub use host::{Host, ending as service_ending};
 const CONFIG_BYTES: u32 = 1 << 20;
 
 #[derive(Debug, PartialEq, Eq)]
