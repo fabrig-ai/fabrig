@@ -168,7 +168,7 @@ fn cancelling_a_change_answers_its_landing_wait_with_the_last_panel() {
             adopt("app", "adopt"),
             calls::call(D1, argv!["chat", "start", "--project", "1", "--key", "change", "@forge_chat Make a change"]),
             calls::call(D1, argv!["task", "show", "1", "--until", "replied"]), // 3
-            calls::call(D1, argv!["change", "2", "--json"]),                   // 4
+            calls::call(D1, argv!["change", "show", "2", "--json"]),           // 4
             calls::start(D1, argv!["change", "show", "2", "--until", "landed", "--timeout", "10s", "--json"]), // 5
             calls::watching(LANDING_WAIT),
             calls::call(D1, argv!["chat", "close", "1", "--key", "close"]), // 6
