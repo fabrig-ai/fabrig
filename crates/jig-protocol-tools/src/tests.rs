@@ -741,7 +741,11 @@ fn a_release_proposal_names_its_task_hold_and_revision() {
             action: jig_domain_tasks::ProposalAction::ReleasePlaced { task: 7, hold: 31, revision: 2 },
             ..
         }) => {}
-        other @ (Decoded::Action(_) | Decoded::Delegate(_) | Decoded::Problem(_) | Decoded::NotMine) => {
+        other @ (Decoded::Action(_)
+        | Decoded::Delegate(_)
+        | Decoded::Settings { .. }
+        | Decoded::Problem(_)
+        | Decoded::NotMine) => {
             panic!("unexpected release proposal {other:?}")
         }
     }
@@ -751,7 +755,7 @@ fn a_release_proposal_names_its_task_hold_and_revision() {
     ] {
         match crate::decode(b"propose", malformed, &fixtures::LIMITS) {
             Decoded::Problem(_) => {}
-            other @ (Decoded::Action(_) | Decoded::Delegate(_) | Decoded::NotMine) => {
+            other @ (Decoded::Action(_) | Decoded::Delegate(_) | Decoded::Settings { .. } | Decoded::NotMine) => {
                 panic!("malformed release was admitted {other:?}")
             }
         }
