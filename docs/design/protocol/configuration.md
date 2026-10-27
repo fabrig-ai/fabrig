@@ -1783,3 +1783,46 @@ section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
   document in place of copying its rules into a charter's instructions,
   when the person points to one in an adopted repository, and says that
   a change landed there reaches the next run.
+
+### 13.8 A model with a larger output
+
+`temper init`'s limits hold its model, a window of 1,048,576 tokens and
+an output of 8,192 (13.4's C). A deployment that configures a larger
+output, as QA's boxes do (gpt-6.1-sol at effort high, output 32,000,
+`../qa.md`, 3), overrides the small profile's turn limits, each derived
+from the agent's largest turn, T, which the start checks name "the
+agent's largest turn" (`temper-service`'s `startup/checks.rs`).
+
+- **T,** smith's largest turn (`smith-agent-service`'s `profile.rs`),
+  on init's window and other declarations: T = 580,792 + 24 × output +
+  4 × `reasoning_item`. Init's output 8,192 at `reasoning_item` 65,536
+  gives its 1,039,544.
+- **The store's ceiling:** small's page holds a loaded transcript of at
+  most 1,590,046 bytes (its 1,590,110 less the frame's 64), so T is at
+  most that. At output 32,000, `reasoning_item` is at most 60,313; a box
+  sets 32,768, its reasoning's bound per item, with room.
+- **Output 16,000** does not start on init's limits either: T is
+  1,226,936 at `reasoning_item` 65,536, past five of the rows below.
+- **The limits T sets,** "both hubs" being the engine's and each
+  worker's; init's values are output 8,192's:
+
+| Limit | Relation | Output 16,000, item 65,536 | Output 32,000, item 32,768 |
+|---|---|---|---|
+| both `hub.turn_bytes` | T | 1,226,936 | 1,479,864 |
+| the engine's `core.resume_bytes` | T + 4 | 1,226,940 | 1,479,868 |
+| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 4,907,760 | 5,919,472 |
+| a worker's `hub.turn_queue_bytes` | 8 × T | 9,815,488 | 11,838,912 |
+| the engine's `hub.turn_queue_bytes` | at least T | init's holds | init's holds |
+| `root.journal.transcript_bytes` | resume | 1,226,940 | 1,479,868 |
+| `root.loads.transcript_bytes` | T, at most 1,590,046 | 1,226,936 | 1,479,864 |
+| `root.loads.bytes`, `root.loads.reply_bytes` | T + 248 (a temper record) | 1,227,184 | 1,480,112 |
+| `root.loads.read_bytes` | T and a row and a record | init's holds | init's holds |
+
+- **Memory:** the engine's and each worker's `memory_bytes` hold their
+  service's composed sum, which those limits raise. The start refuses
+  one that is short at its path, naming by how much (jig's
+  `What::Memory`), and the box raises it by that. `docs/examples/owned.json`'s
+  declarations are the user's budget for the owned deployment and
+  do not move with a box's.
+- **The budgets** follow the model's C (13.4), so a larger output gives
+  larger spends with no setting changed: output 32,000 gives C 1,081.
