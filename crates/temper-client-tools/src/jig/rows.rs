@@ -265,7 +265,7 @@ pub const DECIDE: Tool = Tool {
     ],
     keyed: Keyed::Optional,
     area: 1,
-    notes: b"A decision made already, by your party or another, answers\n`decided first:` with exit 0 and changes nothing.\n",
+    notes: b"A decision asked again under its key prints its first answer.\nA decision of a proposal decided already, by your party or\nanother, answers `decided first:` with exit 0 and changes nothing.\n",
 };
 pub const RELEASE: Tool = Tool {
     name: b"task release",
@@ -689,7 +689,8 @@ pub const PROPOSE_SETTINGS: Tool = Tool {
 pub const PROPOSAL: Tool = Tool {
     name: b"proposal show",
     line: b"Read a proposal; for settings, what each item would change",
-    prints: b"`proposal P/K` and its action, its reason, and, for settings, each item now and as it would be",
+    prints:
+        b"`proposal P/K` and its action, its reason, and, for settings, each item's value now and as it would be, whole",
     result: b"proposal",
     forms: &[&[positional(
         b"proposal",

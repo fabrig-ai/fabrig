@@ -16,8 +16,9 @@ Decide a proposal
 Prints: `done: decide`, or `decided first:`, by whom, how and when, if it was decided already
 --json: the record decide.
 Key: --key KEY, optional.
-A decision made already, by your party or another, answers
-`decided first:` with exit 0 and changes nothing.
+A decision asked again under its key prints its first answer.
+A decision of a proposal decided already, by your party or
+another, answers `decided first:` with exit 0 and changes nothing.
 ```
 
 ## proposal show
@@ -26,7 +27,7 @@ A decision made already, by your party or another, answers
 proposal show PROPOSAL
   PROPOSAL (proposal): a proposal, tN/K or pN/K; required. The proposal, tN/K or pN/K, as a read prints it
 Read a proposal; for settings, what each item would change
-Prints: `proposal P/K` and its action, its reason, and, for settings, each item now and as it would be
+Prints: `proposal P/K` and its action, its reason, and, for settings, each item's value now and as it would be, whole
 --json: the record proposal.
 Key: none.
 A decided proposal prints how it was decided. Decide a live one

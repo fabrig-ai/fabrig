@@ -7,5 +7,6 @@ Decide a proposal
 Prints: `done: decide`, or `decided first:`, by whom, how and when, if it was decided already
 --json: the record decide.
 Key: --key KEY, optional.
-A decision made already, by your party or another, answers
-`decided first:` with exit 0 and changes nothing.
+A decision asked again under its key prints its first answer.
+A decision of a proposal decided already, by your party or
+another, answers `decided first:` with exit 0 and changes nothing.
