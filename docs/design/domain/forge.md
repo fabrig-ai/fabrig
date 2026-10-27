@@ -1029,7 +1029,9 @@ starts from current code. It never updates only because its base moved.
   own, ends its task failed, saying why, within the verdict contract's
   failure (`agent.md`, 4.4); its charter's words say so. A failed
   review is no verdict: the change asks for the gate again once, a
-  fresh review at the same head, and a second failure holds the change,
+  fresh review at the same head, whose brief says it is asked again
+  and gives the first review's failure in its words, so the reviewer
+  knows what to look past, and a second failure holds the change,
   naming the review's failure, for its requester or a person to
   release or amend. Released, the change's own hold goes with its
   task's, in the same decision, and it asks for the gate afresh at that
