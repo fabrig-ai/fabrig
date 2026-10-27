@@ -96,7 +96,7 @@ fn find_cases() -> [ReadCase; 5] {
             sends: &[
                 "GET /api/v1/repositories/1",
                 "GET /api/v1/repos/fixture/specimen/pulls/1",
-                "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=1&limit=1",
+                "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=1&limit=2",
             ],
             range: None,
             kept: true,
@@ -110,7 +110,7 @@ fn find_cases() -> [ReadCase; 5] {
             sends: &[
                 "GET /api/v1/repositories/1",
                 "GET /api/v1/repos/fixture/specimen/pulls/main/work",
-                "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=1&limit=1",
+                "GET /api/v1/repos/fixture/specimen/commits/0100000000000000000000000000000000000000/status?page=1&limit=2",
             ],
             range: None,
             kept: true,

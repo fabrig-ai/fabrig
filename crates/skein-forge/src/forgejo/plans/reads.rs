@@ -274,7 +274,15 @@ impl Plan {
             return plan.heard(heard, bounds, self.repository, tables);
         }
         if let Some(plan) = &mut self.actions {
-            return plan.heard(heard, bounds, self.repository, tables);
+            let step = plan.heard(heard, bounds, self.repository, tables)?;
+            if self.stage == Stage::Status {
+                return match step {
+                    Some(Step::Done(answer)) => self.pull_checks(answer?, bounds),
+                    Some(Step::Send(exchange)) => Ok(Some(Step::Send(exchange))),
+                    None => Ok(None),
+                };
+            }
+            return Ok(step);
         }
         match heard {
             Heard::Head { status, fields } => {
@@ -389,7 +397,6 @@ impl Plan {
                     None => Ok(()),
                 }
             }
-            d::Row::Status(_) if self.stage == Stage::Status => Ok(()),
             d::Row::Status(status) => self.append(
                 api::Answer::Statuses {
                     ci: api::Ci::None,

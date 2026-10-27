@@ -273,27 +273,8 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
     }
 }
 fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckSummary]) -> Result<Answer, a::Error> {
-    let mut rows = List::with_capacity(u32::try_from(values.len()).expect("domain bound"));
-    let mut combined = None;
-    for value in values {
-        match value.status.state {
-            a::Check::Failed => combined = Some(d::StatusState::Failure),
-            a::Check::Pending if combined != Some(d::StatusState::Failure) => combined = Some(d::StatusState::Pending),
-            a::Check::Passed if combined.is_none() => combined = Some(d::StatusState::Success),
-            a::Check::Pending | a::Check::Passed => {}
-        }
-        rows.push(d::CommitStatus {
-            creator: if value.link.is_empty() { Some(setup.resolve_user(config, value.status.author)) } else { None },
-            updated_at: Wall::from_nanos(value.status.at.as_nanos()),
-            context: value.status.context.clone(),
-            status: status(value.status.state),
-            description: value.description.clone(),
-            target_url: value.link.clone(),
-        })
-        .expect("sized statuses");
-    }
-    let sha = match request {
-        Request::CombinedStatus { commit, .. } => Some(*commit),
+    let (sha, page) = match request {
+        Request::CombinedStatus { commit, page, .. } => (Some(*commit), *page),
         Request::User
         | Request::ApiSettings
         | Request::RepositoryById { .. }
@@ -359,6 +340,32 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
         | Request::CreateUser { .. }
         | Request::DeleteBranch { .. } => return Err(a::Error::Refused),
     };
+    let (page, limit) = routes::page(config, page);
+    let skip = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(limit));
+    let start = usize::try_from(skip).unwrap_or(usize::MAX).min(values.len());
+    let end = start.saturating_add(usize::try_from(limit).expect("u32 fits")).min(values.len());
+    // Forgejo 17 combines only the requested page: ladder-b01/g2/report-2.md,
+    // box2/evidence/decisive-samples.json records success hiding a pending job.
+    let values = values.get(start..end).expect("bounded page");
+    let mut rows = List::with_capacity(u32::try_from(values.len()).expect("domain bound"));
+    let mut combined = None;
+    for value in values {
+        match value.status.state {
+            a::Check::Failed => combined = Some(d::StatusState::Failure),
+            a::Check::Pending if combined != Some(d::StatusState::Failure) => combined = Some(d::StatusState::Pending),
+            a::Check::Passed if combined.is_none() => combined = Some(d::StatusState::Success),
+            a::Check::Pending | a::Check::Passed => {}
+        }
+        rows.push(d::CommitStatus {
+            creator: if value.link.is_empty() { Some(setup.resolve_user(config, value.status.author)) } else { None },
+            updated_at: Wall::from_nanos(value.status.at.as_nanos()),
+            context: value.status.context.clone(),
+            status: status(value.status.state),
+            description: value.description.clone(),
+            target_url: value.link.clone(),
+        })
+        .expect("sized statuses");
+    }
     Ok(Answer::CombinedStatus {
         state: d::CombinedStatus { state: combined, total_count: u64::try_from(values.len()).expect("domain bound") },
         sha,

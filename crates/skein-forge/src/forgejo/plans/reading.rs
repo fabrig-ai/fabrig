@@ -20,6 +20,19 @@ pub fn ci(state: Option<d::StatusState>, total_count: u64) -> api::Ci {
     }
 }
 #[must_use]
+pub fn checks_ci(statuses: &[api::Status]) -> api::Ci {
+    let mut ci = api::Ci::None;
+    for status in statuses {
+        match status.check {
+            api::Check::Failed => return api::Ci::Failed,
+            api::Check::Pending => ci = api::Ci::Pending,
+            api::Check::Passed if ci == api::Ci::None => ci = api::Ci::Passed,
+            api::Check::Passed => {}
+        }
+    }
+    ci
+}
+#[must_use]
 pub fn check(state: d::StatusState) -> api::Check {
     match state {
         d::StatusState::Failure | d::StatusState::Error => api::Check::Failed,

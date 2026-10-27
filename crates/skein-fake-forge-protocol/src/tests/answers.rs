@@ -282,3 +282,41 @@ fn a_jobs_steps_keep_their_numbers_names_and_statuses() {
         })
     );
 }
+
+#[test]
+fn a_combined_status_is_computed_over_its_page() {
+    let input = a::Answer::Checks(Box::new([
+        a::CheckSummary {
+            status: a::Status { context: boxed(b"first"), state: a::Check::Passed, author: 2, at: Time::ZERO },
+            description: boxed(b""),
+            link: boxed(b""),
+            job: None,
+        },
+        a::CheckSummary {
+            status: a::Status { context: boxed(b"second"), state: a::Check::Pending, author: 2, at: Time::ZERO },
+            description: boxed(b""),
+            link: boxed(b""),
+            job: None,
+        },
+    ]));
+    for (page, expected, context) in [
+        (1, Some(d::StatusState::Success), Some(b"first".as_slice())),
+        (2, Some(d::StatusState::Pending), Some(b"second".as_slice())),
+        (3, None, None),
+    ] {
+        let request = Request::CombinedStatus {
+            at: at(),
+            commit: routes::object(7),
+            page: Page { page: Some(page), limit: Some(1) },
+        };
+        let answer = answers::read(&config(), &crate::setup::Store::new(&limits()), &request, &input).expect("page");
+        let Answer::CombinedStatus { state, statuses, .. } = answer else { panic!("combined status") };
+        assert_eq!(state, d::CombinedStatus { state: expected, total_count: u64::from(context.is_some()) });
+        match statuses.first() {
+            Some(status) => assert_eq!(Some(status.context.as_ref()), context),
+            None => assert_eq!(context, None),
+        }
+
+        assert_eq!(statuses.len(), usize::from(context.is_some()));
+    }
+}

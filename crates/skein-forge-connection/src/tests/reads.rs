@@ -362,7 +362,7 @@ fn pull_for_lists_open_pulls_when_the_lookup_names_a_closed_one() {
     answer(&mut h, &pull(12, b"closed", b"work"));
     last(&h, b"GET /api/v1/repos/fixture/specimen/pulls?state=open&sort=oldest&page=1&limit=2 HTTP/1.1");
     answer(&mut h, &joined(&[b"[", &pull(9, b"open", b"other"), b",", &pull(13, b"open", b"work"), b"]"]));
-    last(&h, b"GET /api/v1/repos/fixture/specimen/commits/0000000000000000000000000000000000000000/status?page=1&limit=1 HTTP/1.1");
+    last(&h, b"GET /api/v1/repos/fixture/specimen/commits/0000000000000000000000000000000000000000/status?page=1&limit=2 HTTP/1.1");
     answer(&mut h, EMPTY_STATUS);
     assert_eq!(h.answered(1).expect("open pull").result, Ok(Answer::Pull(expected_pull(13, api::State::Open))));
     assert_eq!(h.answered(1).expect("open pull").cost, 3);

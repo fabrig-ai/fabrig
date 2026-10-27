@@ -39,6 +39,7 @@ pub struct Plan {
     step: Option<api::Step>,
     missing: bool,
     truncated: bool,
+    resolve_jobs: bool,
     size: u64,
 }
 impl Plan {
@@ -84,8 +85,14 @@ impl Plan {
             step: None,
             missing: false,
             truncated: false,
+            resolve_jobs: true,
             size: 0,
         })
+    }
+    pub fn statuses(commit: api::Commit, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
+        let mut plan = Self::new(api::Read::Checks { commit }, row, bounds)?;
+        plan.resolve_jobs = false;
+        Ok(plan)
     }
     fn at(&self) -> r::Repo {
         r::Repo { owner: self.row.owner.clone(), name: self.row.name.clone() }
@@ -342,6 +349,10 @@ impl Plan {
         }
     }
     fn next_check(&mut self) -> Result<Option<Step>, api::Error> {
+        if !self.resolve_jobs {
+            let statuses = core::mem::replace(&mut self.statuses, List::with_capacity(0)).into_boxed();
+            return Ok(Some(Step::Done(Ok(api::Answer::Checks(statuses)))));
+        }
         for _ in 0..self.statuses.len().saturating_add(1) {
             if self.position == self.statuses.len() {
                 let statuses = core::mem::replace(&mut self.statuses, List::with_capacity(0)).into_boxed();

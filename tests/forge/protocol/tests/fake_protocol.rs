@@ -143,3 +143,51 @@ fn each_forgejo_write_completes_with_its_own_status() {
     assert_eq!(joint.tally().routes.get(&Route::RemoveReviewers), Some(&REVIEWER_WRITES));
     assert_eq!(joint.tally().routes.get(&Route::DeleteBranch), Some(&BRANCH_DELETIONS));
 }
+
+fn pull_with_statuses(states: &[skein_fake_forge_domain::api::Check]) -> (Joint, u64) {
+    use skein_fake_forge_domain::api as raw;
+    let mut joint = Joint::new(3);
+    let head = joint.push(b"work", b"change");
+    let number = joint.pull(b"work", b"main");
+    joint.run_for(Duration::from_secs(1));
+    for (index, state) in states.iter().enumerate() {
+        let context = if index == 0 { "build".to_owned() } else { format!("context-{index}") };
+        joint
+            .direct(raw::Op::Write(raw::Write::Status {
+                commit: head,
+                context: context.into_bytes().into_boxed_slice(),
+                state: *state,
+            }))
+            .expect("status");
+    }
+    (joint, number)
+}
+
+#[test]
+fn a_pulls_ci_is_pending_while_a_later_context_is_pending() {
+    use skein_fake_forge_domain::api::Check;
+    let (mut joint, number) = pull_with_statuses(&[Check::Passed, Check::Pending]);
+    for (call, read) in [
+        (1, Read::Pull { number }),
+        (2, Read::PullFor { head: Box::from(b"work".as_slice()), base: Box::from(b"main".as_slice()) }),
+    ] {
+        joint.call(call, REPO, Op::Read(read));
+        joint.run_for(Duration::from_secs(1));
+        let answered = joint.answered(call).expect("pull answer");
+        let Ok(Answer::Pull(pull)) = &answered.result else { panic!("pull: {:?}", answered.result) };
+        assert_eq!(pull.ci, skein_forge::api::Ci::Pending);
+    }
+}
+
+#[test]
+fn a_pulls_ci_folds_every_status_page() {
+    use skein_fake_forge_domain::api::Check;
+    let (mut joint, number) = pull_with_statuses(&[Check::Passed, Check::Passed, Check::Failed]);
+    joint.call(1, REPO, Op::Read(Read::Pull { number }));
+    joint.run_for(Duration::from_secs(1));
+    let answered = joint.answered(1).expect("pull answer");
+    let Ok(Answer::Pull(pull)) = &answered.result else { panic!("pull: {:?}", answered.result) };
+    assert_eq!(pull.ci, skein_forge::api::Ci::Failed);
+    assert_eq!(answered.cost, 6, "resolve, pull, three one-status pages and an empty last page");
+    assert_eq!(joint.tally().routes.get(&Route::CombinedStatus), Some(&4));
+}
