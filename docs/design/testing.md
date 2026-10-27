@@ -214,9 +214,9 @@ second, which is why it is skein's (testing-strategy.md, 7).
   `/proc/thread-self/schedstat` for its own thread when a run starts and
   when it reaches its patience: the first field, the CPU time used, and
   the second, the time spent runnable waiting for a CPU. At the patience
-  it compares the deltas with the patience: runnable wait at least one
-  half and CPU under one tenth is **starved**; anything else fails as it
-  does today, with the same diagnostic, now naming both figures. A
+  it compares the runnable wait's delta with the patience: at least one
+  half is **starved** (director 1351); anything else fails as it does
+  today, with the same diagnostic, now naming both figures. A
   starved run cleans up as the forced path does (every host's tree
   ended, the ring drained), prints one line to stderr,
   `skein-world: starved: waited N ms runnable, used M ms of CPU, patience

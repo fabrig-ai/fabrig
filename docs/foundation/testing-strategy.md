@@ -187,7 +187,9 @@ loopback sockets.
   patience, the harness reads its loop thread's scheduler accounting
   since the run began: the CPU time it used, and the time it waited
   runnable for a CPU. The run is **starved** when it waited runnable for
-  at least half its patience and used less than a tenth of it. A starved
+  at least half its patience: with that much of it denied, the bound
+  can't judge the run (a loop deliberately starved on one CPU still got
+  a tenth of it, so CPU alone tells nothing, 10-27). A starved
   run ends as a pass that says so, one line naming both figures, and the
   verdicts count such passes. Every other run that reaches its patience
   fails as before, a loop that sat idle waiting for what never came among
