@@ -4,7 +4,7 @@
     clippy::disallowed_types,
     reason = "Process-tier fault injection uses independent real sockets and joined issuer/relay threads, with wall-time bounds; engine code remains in its world."
 )]
-use super::{Process, Scratch, configuration, sign_in};
+use super::{Process, Scratch, WITHIN, configuration, sign_in};
 use skein_fake_peers::oauth;
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
@@ -24,7 +24,9 @@ use std::{
     time::{Duration as WallDuration, Instant},
 };
 
-const WAIT: WallDuration = WallDuration::from_secs(5);
+// Probe waits bound system progress, not the account move's deadline.
+// Share the QA/process harness patience, converted for std sockets and channels.
+const PATIENCE: WallDuration = WallDuration::from_nanos(WITHIN.as_nanos());
 pub const DEADLINE_MS: u64 = 500;
 
 fn document(directory: &Path) -> serde_json::Value {
@@ -112,7 +114,7 @@ impl Issuer {
             let clock = Clock::new();
             let mut world = real::World::new(PeerJudge { stop: receiver, stopping: false, wake: clock.now().now });
             world.spawn(|| Process::Issuer(Box::new(peer)));
-            let outcome = world.run(&clock, Duration::from_secs(30));
+            let outcome = world.run(&clock, WITHIN);
             assert!(outcome.procs.iter().all(Host::is_empty), "issuer drains");
         });
         Self { stop: Some(stop), thread: Some(thread) }
@@ -168,7 +170,7 @@ impl Engine {
             BufReader::new(stdout).read_line(&mut line).expect("serve link");
             let _ = sent.send(line);
         });
-        engine.link = received.recv_timeout(WAIT).expect("serve prints its link").trim().into();
+        engine.link = received.recv_timeout(PATIENCE).expect("serve prints its link").trim().into();
         assert!(
             !engine.link.is_empty(),
             "serve startup: {}",
@@ -236,7 +238,7 @@ impl Engine {
             {
                 return account.clone();
             }
-            assert!(began.elapsed() < WAIT, "source never became {expected}: {value}");
+            assert!(began.elapsed() < PATIENCE, "source never became {expected}: {value}");
             thread::sleep(WallDuration::from_millis(10));
         }
     }
@@ -278,7 +280,7 @@ impl Running {
     pub fn finish(mut self) -> Output {
         let began = Instant::now();
         while self.child.as_mut().expect("ctl").try_wait().expect("poll ctl").is_none() {
-            assert!(began.elapsed() < WAIT, "ctl {} exceeded its probe deadline", self.tool);
+            assert!(began.elapsed() < PATIENCE, "ctl {} exceeded its probe deadline", self.tool);
             thread::sleep(WallDuration::from_millis(2));
         }
         self.child.take().expect("ctl").wait_with_output().expect("ctl output")
@@ -381,7 +383,7 @@ fn visit(address: &[u8]) {
     let clock = Clock::new();
     let mut world = real::World::new(VisitJudge);
     world.spawn(|| Process::Visitor(Box::new(visitor)));
-    let outcome = world.run(&clock, Duration::from_secs(5));
+    let outcome = world.run(&clock, WITHIN);
     let [Process::Visitor(visitor)] = outcome.procs.as_slice() else { panic!("browser") };
     assert_eq!(visitor.status(), Some(302), "issuer redirects the fake browser");
 }
@@ -411,7 +413,7 @@ pub struct Gate {
 }
 impl Gate {
     pub fn wait(&self) {
-        self.reached.recv_timeout(WAIT).expect("relay reaches the armed request");
+        self.reached.recv_timeout(PATIENCE).expect("relay reaches the armed request");
     }
     pub fn release(mut self, deliver: bool) {
         let _ = self.release.take().expect("gate sender").send(deliver);
@@ -504,7 +506,7 @@ fn length(head: &[u8]) -> usize {
 }
 fn gate(rule: &Rule) -> bool {
     let _ = rule.reached.send(());
-    rule.release.recv_timeout(WAIT).unwrap_or(false)
+    rule.release.recv_timeout(PATIENCE).unwrap_or(false)
 }
 fn relay(
     mut downstream: TcpStream,
@@ -512,8 +514,8 @@ fn relay(
     rules: &Mutex<Option<Rule>>,
     stop: &AtomicBool,
 ) -> io::Result<()> {
-    downstream.set_read_timeout(Some(WAIT))?;
-    downstream.set_write_timeout(Some(WAIT))?;
+    downstream.set_read_timeout(Some(PATIENCE))?;
+    downstream.set_write_timeout(Some(PATIENCE))?;
     let request = head(&mut downstream)?;
     let mut body = vec![0; length(&request)];
     assert!(body.len() <= 262_144, "bounded request");
@@ -536,9 +538,9 @@ fn relay(
     {
         return Ok(());
     }
-    let mut server = TcpStream::connect_timeout(&upstream, WAIT)?;
+    let mut server = TcpStream::connect_timeout(&upstream, PATIENCE)?;
     server.set_read_timeout(Some(WallDuration::from_millis(50)))?;
-    server.set_write_timeout(Some(WAIT))?;
+    server.set_write_timeout(Some(PATIENCE))?;
     let mut forwarded = String::new();
     for line in text.lines() {
         if line.is_empty() || line.to_ascii_lowercase().starts_with("connection:") {
@@ -559,7 +561,7 @@ fn relay(
     if let Some(rule) = &rule
         && matches!(rule.boundary, Boundary::AfterReply)
     {
-        server.set_read_timeout(Some(WAIT))?;
+        server.set_read_timeout(Some(PATIENCE))?;
         let mut response = head(&mut server)?;
         let size = length(&response);
         assert!(size <= 262_144, "bounded reply");
