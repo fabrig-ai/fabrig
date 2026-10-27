@@ -125,12 +125,31 @@ pub enum ReadCondition {
     WritingTask {
         task: u64,
     },
+    /// Task and activity are independent reads. A saved activity row alone
+    /// can accompany an earlier snapshot whose run is still closing.
+    KeptTask {
+        task: u64,
+    },
 }
 impl ReadCondition {
     #[must_use]
     pub fn matches(self, stdout: &[u8]) -> bool {
         match self {
             Self::Contains(bytes) => occurrences(stdout, bytes) != 0,
+            Self::KeptTask { task } => {
+                let Ok(value) = serde_json::from_slice::<serde_json::Value>(stdout) else { return false };
+                value.pointer("/task/chip/task").and_then(serde_json::Value::as_u64) == Some(task)
+                    && value.pointer("/task/chip/phase").and_then(serde_json::Value::as_str) == Some("idle")
+                    && value.pointer("/task/result").is_some_and(serde_json::Value::is_null)
+                    && value.pointer("/activity/rows").and_then(serde_json::Value::as_array).is_some_and(|rows| {
+                        rows.iter().any(|row| {
+                            row.pointer("/event/owner/source/task").and_then(serde_json::Value::as_u64) == Some(task)
+                                && row
+                                    .pointer("/event/owner/source/line/kept")
+                                    .is_some_and(serde_json::Value::is_object)
+                        })
+                    })
+            }
             Self::WritingTask { task } => {
                 let Ok(value) = serde_json::from_slice::<serde_json::Value>(stdout) else { return false };
                 let value = value.get("task").filter(|task| task.is_object()).unwrap_or(&value);
@@ -1406,6 +1425,45 @@ mod read_condition_tests {
         assert_eq!(caller.calls.len(), 1);
         assert_eq!(caller.calls[0].stdout, stdout);
         assert_eq!(caller.calls[0].observed_at, Some(Wall::from_nanos(6)));
+    }
+    #[test]
+    fn blocker_kept_wait_rejects_a_running_snapshot_with_saved_activity() {
+        use crate::case::{BLOCKER_A3, BLOCKER_E1, acts};
+        const ATTEMPT: u64 = 4;
+        let at = acts::READS_6_2.iter().find(|(read, _)| *read == acts::Read::BlockerKept).expect("kept read").1;
+        let step = acts::step_6_2().into_iter().nth(at).expect("kept act");
+        let mut caller = Caller::new(vec![step], PathBuf::new(), Fd::new(0));
+        // Run 19's genuine joined response had task activity 6, still running,
+        // beside source positions 7 (parked) and 8 (kept), written later.
+        let mut response = json!({
+            "task":{"chip":{"task":BLOCKER_A3,"phase":"running"},"result":null,
+                "activity":6,"waits_on":"nothing"},
+            "activity":{"rows":[
+                {"event":{"owner":{"source":{"task":BLOCKER_A3,"position":8,
+                    "line":{"kept":{"attempt":ATTEMPT,"pending":[BLOCKER_E1]}}}}}},
+                {"event":{"owner":{"source":{"task":BLOCKER_A3,"position":7,
+                    "line":{"run_ended":{"attempt":ATTEMPT,"end":"parked"}}}}}}
+            ]}
+        });
+        caller.advance(Time::from_nanos(1));
+        caller.running[0] = None;
+        caller.calls[0].exit = Some(Exit::Code(0));
+        caller.calls[0].stdout = serde_json::to_vec(&response).expect("running response");
+        caller.advance(Time::from_nanos(2));
+        assert_eq!(caller.next, 0, "saved activity cannot validate a still-running task snapshot");
+        response["task"]["chip"]["phase"] = json!("idle");
+        response["task"]["waits_on"] = json!({"dependencies":{"pending":[BLOCKER_E1]}});
+        response["task"]["activity"] = json!(8);
+        let stdout = serde_json::to_vec(&response).expect("idle response");
+        caller.running[0] = None;
+        caller.calls[0].exit = Some(Exit::Code(0));
+        caller.calls[0].stdout = stdout.clone();
+        caller.calls[0].observed_at = Some(Wall::from_nanos(3));
+        caller.advance(Time::from_nanos(4));
+        assert_eq!(caller.next, 1);
+        assert_eq!(caller.calls.len(), 1);
+        assert_eq!(caller.calls[0].stdout, stdout, "retain the complete genuine response");
+        assert_eq!(caller.calls[0].observed_at, Some(Wall::from_nanos(3)));
     }
     fn limited() -> Vec<u8> {
         serde_json::to_vec_pretty(&json!({"chip":{"task":crate::case::A,"phase":"due"},

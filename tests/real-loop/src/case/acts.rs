@@ -1115,19 +1115,20 @@ pub fn step_6_2() -> Vec<calls::Step> {
             b"\"task\"",
         ),
         // Task and activity are separate reads. First wait for the task
-        // snapshot to show its dependency wait, then for its saved run's
-        // kept row. A kept row alone can follow a still-running snapshot;
-        // the dependency wait alone can precede the saved activity.
+        // snapshot to show its dependency wait, then require both its idle
+        // snapshot and its saved run's kept row in the response we retain.
+        // A kept row alone can follow a still-running snapshot; the earlier
+        // dependency-wait read does not make those two reads atomic.
         calls::until(
             D1,
             argv!["task", "show", number(BLOCKER_A3), "--json"],
             b"\"waits_on\":{\"dependencies\":",
             b"\"task\"",
         ),
-        calls::until(
+        calls::until_matching(
             D1,
             argv!["task", "show", number(BLOCKER_A3), "--activity", "32", "--json"],
-            b"\"kept\":{\"attempt\":",
+            calls::ReadCondition::KeptTask { task: BLOCKER_A3 },
             b"\"task\"",
         ),
         // A nonempty delegate list proves the coder exists. If coding
