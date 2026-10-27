@@ -1607,7 +1607,10 @@ into the binary.
   for a run's admission (its window and output at its costliest
   prices). A run is admitted only with two of them free (its reserve,
   reserve turns 1 + 1), so its allowance is K = 4C: its admission and
-  room for its working turns. A delegate is given half of what its
+  room for its working turns; and at least four units for each of a
+  charter's run turns (32 for the stock's 8), so that where C is small
+  and prices coarse, smith's one-unit floor per completion still leaves
+  a run its turns. A delegate is given half of what its
   parent has left (`../domain/agent.md`, 4.3.1, for `change`; a goal
   likewise), so the stock sizes for the work it is used for (`../draft/v0.1.0.md`,
   rungs A to B2): a change 5K, a producer, a review, two repairs and a
