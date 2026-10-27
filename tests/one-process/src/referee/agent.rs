@@ -119,10 +119,10 @@ impl Wire {
                 conversation: proof.conversation,
                 resumed: !start.transcript().is_empty(),
                 budget: charter.budget().spend(),
-                // Chat setup applies one change against revision 1 before
-                // starting work; restarts retain it. Repository stories use 1.
+                // Only the drain/restart story changes revision 1 through ctl.
+                // Other stories start work on their own defaults at revision 1.
                 // Smith's Start carries no settings-revision metadata.
-                settings: if crate::stories::uses_stock() { 2 } else { 1 },
+                settings: crate::stories::settings_revision(),
             });
             let task = proof.task;
             drop(store);

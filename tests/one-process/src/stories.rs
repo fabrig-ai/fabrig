@@ -434,11 +434,18 @@ pub(crate) fn uses_stock() -> bool {
 }
 
 thread_local! { static SETTINGS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
-pub(crate) fn setup_settings(enabled: bool) {
-    SETTINGS.with(|slot| slot.set(enabled));
+thread_local! { static REVISION: std::cell::Cell<u32> = const { std::cell::Cell::new(1) }; }
+pub(crate) fn setup_settings(phase: crate::world::Phase) {
+    SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain)));
+    REVISION.with(|slot| {
+        slot.set(if matches!(phase, crate::world::Phase::Drain | crate::world::Phase::Restart) { 2 } else { 1 });
+    });
 }
 pub(crate) fn needs_settings() -> bool {
     SETTINGS.with(std::cell::Cell::get)
+}
+pub(crate) fn settings_revision() -> u32 {
+    REVISION.with(std::cell::Cell::get)
 }
 pub(crate) fn settings_file() -> Vec<u8> {
     let document: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");

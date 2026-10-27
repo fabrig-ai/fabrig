@@ -906,7 +906,7 @@ fn run_phase(
     run: Rc<RefCell<referee::Run>>,
 ) -> (Outcome, skein_fake_machine::Machine, Store) {
     stories::set(scenario);
-    stories::setup_settings(matches!(phase, Phase::Drain));
+    stories::setup_settings(phase);
     write_settings(&mut disk);
     PROGRESS.with(|progress| *progress.borrow_mut() = Progress::default());
     let client = matches!(phase, Phase::Story | Phase::SignIn | Phase::Drain).then(|| disk.reopen_root(2));
