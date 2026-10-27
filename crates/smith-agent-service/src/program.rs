@@ -101,7 +101,7 @@ fn settings(
         },
         adapter,
         receiving: limits.llm.receiving,
-        stream_tokens: backend::Settings::stream_tokens(&adapter, &limits.llm.receiving)?,
+        stream_tokens: backend::Settings::stream_tokens(line_bytes),
         prompt_bytes: u64::from(adapter.client.request),
         contract_bytes,
         line_bytes,

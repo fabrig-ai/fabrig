@@ -24,6 +24,7 @@ pub fn backend_worst_case(settings: &Settings) -> Option<u64> {
     }
     // These workspaces run in separate step phases. A line's collected
     // document survives decoding/correlation, whereas its collector has gone.
+    // Include ignored fields: stream_tokens comes from the enforced line bytes.
     let document = skein_json::document::worst_case(&skein_json::document::Limits {
         tokens: settings.stream_tokens,
         text: settings.line_bytes,

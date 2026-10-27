@@ -70,6 +70,10 @@ fn limits() -> protocol::ComponentLimits {
     }
 }
 pub(super) fn backend() -> Backend {
+    backend_with_line_bytes(4096)
+}
+
+pub(super) fn backend_with_line_bytes(line_bytes: u32) -> Backend {
     let limits = limits();
     Backend::new(
         Token::new(10),
@@ -89,10 +93,10 @@ pub(super) fn backend() -> Backend {
             },
             adapter: limits.adapter,
             receiving: limits.receiving,
-            stream_tokens: Settings::stream_tokens(&limits.adapter, &limits.receiving).expect("stream bound"),
+            stream_tokens: Settings::stream_tokens(line_bytes),
             prompt_bytes: 4096,
             contract_bytes: 4096,
-            line_bytes: 4096,
+            line_bytes,
             input_bytes: 32768,
             max_turns: 8,
             grace: Duration::from_secs(1),

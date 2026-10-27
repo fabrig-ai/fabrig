@@ -99,27 +99,17 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// Program JSON bound: min(A × B, T) + 16 × B + 65,536 tokens.
-    /// A is the adapter's `stated.call_input_bytes` receiving bound, B is
-    /// `Receiving::max_completion_blocks`, and T is `client.answer`, the shared
-    /// text/argument-byte ceiling (protocol/limits.md, sections 3.1–3.2).
-    /// JSON needs at least one encoded byte per token, including empty
-    /// container boundaries. Text is one scalar per block, included with
-    /// each block's keys, ID, name and boundaries in its 16 envelope tokens.
-    /// The fixed stream envelope uses the service's existing 65,536-byte
-    /// header/ID/usage allowance as tokens, also covering init/event/result
-    /// wrappers (protocol/programs.md, section 5.5). No model-token estimate
-    /// or client's per-event JSON cap restricts nested program arguments.
+    /// Retained program JSON tokens: `N = line_bytes` (programs.md, section 5.5).
+    /// Each reader record consumes at least one distinct encoded byte; both
+    /// opening and closing container brackets are retained records. With bytes
+    /// alone as the input this is tight: nested arrays around an empty array
+    /// (even lengths) or a one-digit number (odd lengths) attain one record per
+    /// byte. Flat arrays of one-digit numbers are less dense than containers.
+    /// The reader's independent depth check still applies. Covering the whole
+    /// admitted line also covers ignored fields, without envelope assumptions.
     #[must_use]
-    pub fn stream_tokens(adapter: &protocol::Limits, receiving: &protocol::Receiving) -> Option<u32> {
-        let blocks = receiving.max_completion_blocks;
-        adapter
-            .stated
-            .call_input_bytes
-            .checked_mul(blocks)?
-            .min(adapter.client.answer)
-            .checked_add(blocks.checked_mul(16)?)?
-            .checked_add(65_536)
+    pub const fn stream_tokens(line_bytes: u32) -> u32 {
+        line_bytes
     }
 }
 

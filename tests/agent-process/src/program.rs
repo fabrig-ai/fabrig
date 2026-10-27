@@ -870,8 +870,11 @@ mod tests {
         let complete = service.checked_add(program).expect("complete bound");
         let adapter = &config.limits.llm.adapter;
         let receiving = &config.limits.llm.receiving;
-        let tokens =
-            smith_protocol_program::backend::Settings::stream_tokens(adapter, receiving).expect("stream token bound");
+        // The service's existing line ceiling: six escapes per answer byte,
+        // plus its fixed 65,536-byte stream framing allowance.
+        let line_bytes =
+            adapter.client.answer.checked_mul(6).expect("escaped answer").checked_add(65_536).expect("line framing");
+        let tokens = smith_protocol_program::backend::Settings::stream_tokens(line_bytes);
         println!(
             "client_tokens={} stream_tokens={tokens} input={} blocks={} answer={}",
             adapter.client.tokens,
