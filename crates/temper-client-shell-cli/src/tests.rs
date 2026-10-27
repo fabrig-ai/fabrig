@@ -599,12 +599,8 @@ fn help_opens_nothing() {
         let parsed = crate::arguments::parse(words).expect("help call");
         let temper_client_tools::jig::call::Parsed::Call { call, json } = parsed else { unreachable!() };
         let selected = temper_client_tools::help::selection(&call).expect("help selection");
-        let expected = if let (temper_client_tools::help::Selection::Tool(n), true) = (selected, json) {
-            temper_client_tools::jig::json::write_tool(
-                temper_client_tools::table::TOOLS[usize::from(n)],
-                &temper_client_tools::limits::tools(),
-            )
-            .expect("JSON help")
+        let expected = if json {
+            temper_client_tools::help::json(selected, &temper_client_tools::limits::tools()).expect("JSON help")
         } else {
             let mut out = skein_lib::Writer::new(temper_client_tools::limits::TEXT as usize);
             temper_client_tools::help::selected(selected, &mut out).expect("help");
@@ -613,6 +609,69 @@ fn help_opens_nothing() {
             exact.finish()
         };
         assert_eq!(f.stdout(), expected.as_ref(), "{words:?}");
+    }
+}
+#[test]
+fn help_json_prints_every_record() {
+    use serde_json::Value;
+    use temper_client_tools::table::{GROUPS, TOOLS};
+
+    fn records(words: &[&str]) -> Vec<Value> {
+        let mut frame = fixtures::Frame::read(words);
+        frame.drain();
+        assert_eq!(frame.exit(), Some(Exit::Code(0)), "{words:?}");
+        assert!(frame.no_directory(), "{words:?}");
+        assert!(frame.stderr().is_empty(), "{words:?}");
+        serde_json::from_slice(frame.stdout()).expect("JSON array")
+    }
+
+    let groups = records(&["help", "--json"]);
+    assert_eq!(groups.len(), GROUPS.len());
+    for (value, group) in groups.iter().zip(GROUPS) {
+        assert_eq!(value.as_object().expect("group object").len(), 2);
+        assert_eq!(value["name"], std::str::from_utf8(group.name).expect("group name"));
+        assert_eq!(value["line"], std::str::from_utf8(group.line).expect("group line"));
+    }
+
+    let chat = records(&["help", "chat", "--json"]);
+    assert_eq!(chat.len(), 3);
+    assert_eq!(chat[0]["name"], "chat show");
+    assert_eq!(chat[1]["name"], "chat start");
+    assert_eq!(chat[2]["name"], "chat close");
+    let arguments = chat[1]["forms"][0].as_array().expect("chat start arguments");
+    let names = arguments.iter().map(|arg| arg["name"].as_str().expect("argument name")).collect::<Vec<_>>();
+    assert_eq!(names, ["project", "text", "model", "effort"]);
+    assert_eq!(chat[1]["keyed"], "required");
+
+    let settings = records(&["help", "settings", "show", "--json"]);
+    assert_eq!(settings.len(), 2);
+    assert_eq!(settings[0]["name"], "settings show");
+    assert_eq!(settings[1]["name"], "settings show");
+    let arguments = settings[1]["forms"][0].as_array().expect("settings value arguments");
+    let names = arguments.iter().map(|arg| arg["name"].as_str().expect("argument name")).collect::<Vec<_>>();
+    assert_eq!(names, ["kind", "number", "revision"]);
+
+    let forge = records(&["help", "forge", "connect", "--json"]);
+    assert_eq!(forge.len(), 1);
+    assert_eq!(forge[0]["name"], "forge connect");
+    assert_eq!(forge[0]["forms"].as_array().expect("forge connect forms").len(), 4);
+
+    let me = records(&["help", "me", "--json"]);
+    assert_eq!(me.len(), 1);
+    assert_eq!(me[0]["name"], "me");
+
+    for (records, name) in
+        [(chat, b"chat".as_slice()), (settings, b"settings show"), (forge, b"forge connect"), (me, b"me")]
+    {
+        let mut expected = Vec::new();
+        for row in TOOLS {
+            if row.name == name || row.name.split(|byte| *byte == b' ').next() == Some(name) {
+                let json = temper_client_tools::jig::json::write_tool(row, &temper_client_tools::limits::tools())
+                    .expect("whole tool record");
+                expected.push(serde_json::from_slice::<Value>(&json).expect("tool JSON"));
+            }
+        }
+        assert_eq!(records, expected, "every selected record is whole and follows TOOLS order");
     }
 }
 #[test]

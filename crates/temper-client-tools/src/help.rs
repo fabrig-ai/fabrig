@@ -1,6 +1,9 @@
 //! Help bytes for the host to write, bounded by the tools' text window.
 use crate::table::Group;
 use crate::{jig, limits, table};
+use alloc::boxed::Box;
+use jig::{json::Refusal, table::Limits};
+use skein_json::writer::{self, Encoder};
 use skein_lib::{Overflow, Writer};
 /// The reference page `ctl-GROUP`, whole, as docs/help/reference holds it.
 pub fn reference(group: &Group, out: &mut Writer) -> Result<(), Overflow> {
@@ -70,6 +73,49 @@ pub enum Selection {
     All,
     Group(u8),
     Tool(u8),
+}
+/// Every selected record, whole, in a JSON array in table order.
+pub fn json(selected: Selection, limits: &Limits) -> Result<Box<[u8]>, Refusal> {
+    let encoding = writer::Limits { depth: 6, length: u32::MAX };
+    let mut measured = Encoder::measure(&encoding);
+    encode_json(selected, limits, &mut measured)?;
+    let length = jig::json::measured_length(measured)?;
+    let mut out = Encoder::write(length, &encoding);
+    encode_json(selected, limits, &mut out)?;
+    Ok(out.finish())
+}
+fn encode_json(selected: Selection, limits: &Limits, out: &mut Encoder) -> Result<(), Refusal> {
+    out.array_start();
+    match selected {
+        Selection::All => {
+            for group in table::GROUPS {
+                out.object_start();
+                out.key(b"name");
+                out.string(group.name);
+                out.key(b"line");
+                out.string(group.line);
+                out.object_end();
+            }
+        }
+        Selection::Group(index) => {
+            let group = table::GROUPS.get(usize::from(index)).ok_or(Refusal::Text)?;
+            for row in table::TOOLS {
+                if jig::table::name_words(row.name).0 == group.name {
+                    jig::json::encode_tool(row, limits, out);
+                }
+            }
+        }
+        Selection::Tool(index) => {
+            let row = table::TOOLS.get(usize::from(index)).ok_or(Refusal::Text)?;
+            for record in table::TOOLS {
+                if record.name == row.name {
+                    jig::json::encode_tool(record, limits, out);
+                }
+            }
+        }
+    }
+    out.array_end();
+    Ok(())
 }
 #[must_use]
 pub fn selection(call: &jig::call::Call) -> Option<Selection> {

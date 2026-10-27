@@ -14,5 +14,6 @@ Read the page ctl and the groups, a group's tools, or one tool's record
 Prints: The page ctl, then a line per group; with GROUP, its tools; with GROUP VERB, the tool's record
 --json: the record help.
 Key: none.
-It takes no DIR. With `--json`, it prints the tool's first record.
+It takes no DIR. With --json, it prints the groups, a group's records
+or a tool's, as a JSON array, each record whole with every form.
 ```

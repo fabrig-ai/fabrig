@@ -19,8 +19,8 @@ impl OneShot {
             }
             Parsed::Call { call, json } if self.class == Class::Help => {
                 let selected = help::selection(call).expect("checked help selection");
-                let bytes = if let (help::Selection::Tool(index), true) = (selected, *json) {
-                    jig::json::write_tool(TOOLS[usize::from(index)], &self.root_env.limits.tools).expect("help record")
+                let bytes = if *json {
+                    help::json(selected, &self.root_env.limits.tools).expect("help records")
                 } else {
                     let mut out =
                         skein_lib::Writer::new(usize::try_from(self.root_env.limits.tools.text).expect("help bound"));

@@ -275,7 +275,7 @@ pub fn write_call(table: &[&Tool], call: &Call) -> Result<Box<[u8]>, Refusal> {
     encode_call(table, call, &mut output)?;
     Ok(output.finish())
 }
-fn measured_length(encoder: Encoder) -> Result<u32, Refusal> {
+pub(crate) fn measured_length(encoder: Encoder) -> Result<u32, Refusal> {
     match encoder.measured() {
         Ok(length) => Ok(length),
         Err(writer::Refusal::TooLong | writer::Refusal::TooDeep) => Err(Refusal::Long),
@@ -350,7 +350,7 @@ pub fn write_tool(tool: &Tool, limits: &Limits) -> Result<Box<[u8]>, Refusal> {
     encode_tool(tool, limits, &mut output);
     Ok(output.finish())
 }
-fn encode_tool(tool: &Tool, limits: &Limits, out: &mut Encoder) {
+pub(crate) fn encode_tool(tool: &Tool, limits: &Limits, out: &mut Encoder) {
     out.object_start();
     for (key, text) in [
         (b"name".as_slice(), tool.name),

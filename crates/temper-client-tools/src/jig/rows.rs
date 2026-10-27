@@ -180,7 +180,7 @@ pub const HELP: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It takes no DIR. With `--json`, it prints the tool's first record.\n",
+    notes: b"It takes no DIR. With --json, it prints the groups, a group's records\nor a tool's, as a JSON array, each record whole with every form.\n",
 };
 pub const CHAT_CREATE: Tool = Tool {
     name: b"chat start",
