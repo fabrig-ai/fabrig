@@ -490,12 +490,15 @@ and `connect-forge.html`.
   - *GitHub,* a GitHub forge not connected: "Your repositories on
     GitHub. temper makes its own App there; you choose the account and
     the repositories it may use." · "In this tab, on GitHub · about two
-    minutes"; in its link's place the button "Connect GitHub", which
-    sends `Connect` (below) and takes the tab to GitHub, and beside it
-    "Use an App of your own ›", a link to its Details. Nothing asks for
-    an organization: the App is made under the person's own account,
-    and GitHub's install page offers every account they may install it
-    on;
+    minutes"; in its link's place the button "Connect GitHub" alone,
+    which sends `Connect` (below) and takes the tab to GitHub. Nothing
+    asks for an organization: the App is made under the person's own
+    account, and GitHub's install page offers every account they may
+    install it on. v0.1.0 offers temper's App alone (the user,
+    2026-10-26): an App of the person's own keeps its Details, which
+    the card no longer links to, here or on the welcome's Forge step;
+    its address, the GitHub forge's (`browser.md`, 2.3), still opens
+    them;
   - *Forgejo on this machine,* an owned Forgejo not set up whose offer
     is offered or not under the box (`README.md`, 4.6): "A forge of
     your own, run by temper box. No account needed: temper makes your
@@ -518,8 +521,8 @@ and `connect-forge.html`.
     that names it still opens its Details there.
 - **Details** are the choice's, under its level-2 heading, after "‹ All
   forges", a link back to Choose:
-  - *GitHub,* an App of the person's own, by "Use an App of your own
-    ›": "An App of your own", "Its id, and its private key as GitHub
+  - *GitHub,* an App of the person's own, at the GitHub forge's
+    address: "An App of your own", "Its id, and its private key as GitHub
     gives it.", "On GitHub, set the App’s setup URL to temper’s address
     followed by /forges/N/github/setup, and give it the permissions and
     events temper’s guide lists." (the client knows no address of its
@@ -1276,6 +1279,10 @@ made by the forge connector from what it keeps of the change
   elsewhere, which v0.1.0 offers on Connect a forge alone. The user's
   direction (2026-10-26) is that the welcome's items be fixed rather
   than taken from the configuration; its shape is open.
+- **An App of one's own, offered again** (5.4). Default: GitHub's card
+  offers Connect GitHub alone, and the own App's Details are reached by
+  their address; a link returns to the card once v0.1.0's successor
+  supports the own App officially.
 - **A browser on another machine** for GitHub's connect. Default: the
   link names the clients' listener's fixed address, and the person
   opens it where that address reaches (in standalone, the engine's

@@ -327,14 +327,17 @@ Under `docs/design/client/journeys/`:
   `../skein-ui.css`, then `temper.css` and `task-pages.css` from
   `crates/temper-client-shell-web/` in the checkout, in
   `scripts/bundle.sh`'s order, then `../overlay.css`. The bundler copies
-  stylesheets and their `files/` as they are, so `temper.css`'s masks
-  resolve beside it in the checkout as in the bundle, and a change to it
-  shows on the next reload, with no print.
+  stylesheets and their `files/` as they are, so `temper.css`'s images
+  and fonts resolve beside it in the checkout as in the bundle, and a
+  change to it shows on the next reload, with no print.
 
 ### 5.4 Opening them
 
-Through a server, from the repository's root, since a browser refuses
-`temper.css`'s masks from a `file://` page:
+As files: a journey's `01.html` opened in the browser from the
+checkout. Nothing on them is fetched under CORS, which a `file://` page
+fails, since `temper.css` draws its icons as background images, never
+masks (`browser.md`, 2.5). A server from the repository's root draws
+them the same:
 
 ```sh
 python3 -m http.server 8766
@@ -510,7 +513,7 @@ over skein's harness.
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `welcome-set-up` | on a fresh `temper box --fake-backends`, as `../../guide/box.md` walks it: the printed sign-in link opened, the welcome drawn, "Set up temper" pressed | `01.html`, the welcome as it was when "Set up temper" was pressed, which leads to `02.html`, the Forge step's choices as they were when the recording ended; its `README.md` says so |
+| `welcome-set-up` | on a fresh `temper box --fake-backends`, as `../../guide/box.md` walks it: the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then "Choose" on "Forgejo on this machine" | `01.html`, the welcome as it was when "Set up temper" was pressed, which leads to `02.html`, the Forge step's choices as they were when "Choose" was pressed, which leads to `03.html`, Forgejo on this machine's details as they were when the recording ended; its `README.md` says so |
 
 ## 10. Open questions
 

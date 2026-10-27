@@ -389,20 +389,34 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   These are the bundle's three
   stylesheets; `jig.css` is not in it. `temper.css` holds the mockups'
   palette as variables under the prefix, their monospaced stack, compact
-  top navigation and quiet borders. DM Sans, for the wordmark alone, is
-  self-hosted in the bundle's files with its SIL OFL licence beside it;
-  the page fetches nothing from another host. The mockups' icons are
-  decorative masks drawn by `temper.css` from the bundle's SVG files.
+  top navigation and quiet borders. DejaVu Sans Bold, for the wordmark
+  alone, as the mockups draw it, is self-hosted in the bundle's files,
+  subset to Latin, with its licence beside it; the page fetches nothing
+  from another host. The mockups' icons are decorative background
+  images drawn by `temper.css` from the bundle's SVG files, each in its
+  own colour (the brand mark the accent's, the menu's ☰ its summary's,
+  the send arrow white): never masks, which a browser fetches under
+  CORS and so refuses to a page opened as a file, as the journeys'
+  prints are (`journeys.md`, 5.4).
   Every control keeps its words as its name. Nothing a person must know
   is said by colour or icon alone (skein's `ui.md`, section 8): a status
   is its word, and its colour only repeats it.
+- **The main's scale:** the page's main is drawn at 14/12 of the
+  mockups' sheets' lengths and of this section's, as the mockups' own
+  zoom draws theirs: 12 px text reads as 14 px, and its spacing and
+  widths grow with it. `temper.css` and `task-pages.css` write each
+  length of a rule for a part inside main at that scale, to two
+  decimals, rather than zoom it (the user, 2026-10-26). What a zoom
+  would leave stays: hairlines, the media queries' widths, and the
+  banner with its wordmark, at the mockups' own.
 - **Connection flows:** the welcome steps use compact 14 px headings and
   9 px card corners; its opening introduction keeps its larger heading.
   Standalone connection cards use 5 px corners. The
   current step takes the accent. The view assigns `FLOW_PRIMARY` to
   filled terracotta acts, `FLOW_SECONDARY` to neutral small buttons and
-  `FLOW_QUIET` to quiet terracotta links. Forge choices use three equal
-  columns and model choices two, stacking below 760 px. Choice cards keep
+  `FLOW_QUIET` to quiet terracotta links. Connect a forge's choices use
+  three equal columns, the welcome's Forge step's two, as its own cards
+  do, and model choices two, stacking below 760 px. Choice cards keep
   small headings, ink body text, muted metadata and bottom-aligned acts;
   details share their padding. `FLOW_PAIR` groups organization/repository
   and the half-width project field, stacking below 760 px. Setup field
@@ -442,7 +456,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **The navigation** sits in the banner after the projects, as in the
   mockups. At phone width, 760 px and under as in the mockups, the
   banner keeps temper's name and the view's "Menu" alone (`README.md`,
-  5.1): its summary a ☰, drawn as a mask over its word, and its
+  5.1): its summary a ☰, an image drawn over its word, and its
   content the projects, the navigation and the corner (the link's
   state, the person, "Sign out") in a panel that opens under the
   banner's end, as `terminal-chat.css` draws the mockups' menu. Theirs
