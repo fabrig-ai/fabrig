@@ -282,9 +282,11 @@ it as any `delegate`:
   at the run's own priority, or last among the project's goals where the
   run is untracked: one past the largest tracked priority in the
   project, saturating, or 0 with none (the lower first, jig's
-  `domain/tasks.md`, section 3), with a report's contract of at most
-  2,048 bytes (4.4), whatever the run's own contract's bound (a chat's
-  is a line): the work a person asked for, which plans, asks its
+  `domain/tasks.md`, section 3), with a report's contract bounded by
+  the deployment's largest result, jig's `tasks.result_bytes` (512 on
+  the small profile a box runs), whatever the run's own contract's
+  bound (a chat's is a line), since jig refuses a batch whose contract
+  is above it (4.4): the work a person asked for, which plans, asks its
   requester with `message` where its words say to (8.2), calls `change`
   for each change, and reports. The contract bounds the result, not
   the work: asking first is the instructions', and the rail is
