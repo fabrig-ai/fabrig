@@ -4,6 +4,15 @@ Kind: reference
 
 Every tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.
 
+## goal
+
+Have one goal in your words tracked and reported; it may plan, ask you and call change. With advisor set, it reads and reports and changes nothing.
+
+A write.
+
+- `words`: text; required.
+- `advisor`: true or false; optional.
+
 ## change
 
 Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.
