@@ -439,7 +439,8 @@ The operations as the client sends them are
   - *One project:* every operation's task is in the request's project.
   - *In order:* its operations are admitted in order, each against the
     state those before it leave and needing what it would alone, with one
-    pool counted across them (a move's reservation and the rest).
+    pool counted across them (a move's reservation and the rest); a
+    task's placed hold changes at most once in it (tasks.md, 5.9).
   - *All or none:* they commit in one decision. The request has one key
     and one answer: all made, or refused, naming the first operation that
     failed and why, and nothing of it made.

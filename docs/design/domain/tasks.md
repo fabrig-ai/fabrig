@@ -697,6 +697,12 @@ deadline, circles, a procedure's need) keep their rules.
 - **One at a time:** a task is held by one placed hold, the first
   standing one that covers it; released from it, it is judged afresh
   against the others.
+- **Once per decision:** in one decision, each task's placed hold
+  changes at most once. A compound request's operation that would place
+  a hold on a task, or let it go from one, after an earlier operation of
+  the same request changed it, refuses the request at its place, naming
+  the hold; so a decision's room is bounded by the live tasks and the
+  placed holds (engine.md, section 13).
 - **Moving a held task:** a task a standing placed hold holds, whose
   scope's root lies outside what is moved, is moved by no one (section
   7): the move is refused, naming the hold, so that a move never
