@@ -468,7 +468,12 @@ Two kinds join `forge.md`'s section 6, each a row of its own:
 - **The grant:** the project's policy gives the landing procedure kinds
   3, 4, 6, 9, 12, 15, 16 and 17 on the project's repositories, as it
   gives a queue's repair its kinds (`forge.md`, section 9); temper's
-  root grants them to each landing task it makes.
+  root grants them to each landing task it makes. Until jig gives the
+  tasks the deployment starts on a project's behalf only what the
+  policy gives them (jig's `domain/authority.md`, section 6, built so
+  far as the project's whole ceiling), a landing holds the ceiling, as
+  a queue's repair does; its effects are still each admitted by the
+  core and judged by the enforced landing rules.
 - **A purpose of its own,** tag 6 in `forge.md`'s table: a landing's
   step, its task (8 bytes), the member (2), the gate (2), the
   operation (1: a dispatch, a rerun, a pending status, a verdict's
