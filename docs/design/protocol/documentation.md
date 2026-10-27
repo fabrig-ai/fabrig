@@ -209,8 +209,9 @@ in `../draft/agent-docs.md` 6's voice.
 
 - **`host-tools`' text is the run's:** the page renders the same
   description a run reads beside each tool, at most 160 bytes, and a
-  member's, at most 120, bounds that `temper-engine-smith`'s step tests
-  hold; so a run's tool and its page never differ.
+  member's, at most 120, each present, never empty: bounds and presence
+  that `temper-engine-smith`'s step tests hold; so a run's tool and its
+  page never differ, and a tool added without its words fails the gate.
 - **`limits`:** the overrides' parser becomes a lookup in the names
   table, so that a name the parser takes is a row and a row a name it
   takes. jig gives its own names as a list beside its parser, each with
