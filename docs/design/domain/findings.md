@@ -68,9 +68,11 @@ is open is section 10.
 - **Nothing else is read:** not its body, not its comments, not who
   changed the label. An issue without the marker of temper's key is no
   finding, whatever its labels.
-- **A finding closed on the forge** by a person is dropped in temper,
-  with "closed on the forge" as its reason; one reopened is `new`
-  again.
+- **A finding closed by another hand,** an issue found closed that
+  temper's record keeps open and no close of temper's made, is dropped
+  in temper, with "closed on the forge" as its reason; one reopened is
+  `new` again. temper reads no actor: what it closed itself, it knows
+  from its record. The forge's own closing by a keyword is section 7's.
 
 ## 4. Filing and matching
 
@@ -78,16 +80,23 @@ is open is section 10.
   8); verdicts, a flake (after-landing.md, 5.2) and a red of no goal's
   (after-landing.md, section 7); an agent's tool, outside its task
   (`agent.md`, 4.3), as `forge.md` 12's findings were.
-- **A signature** is a set of test ids, and the first line of the
-  failure. A failure is matched against the open findings of its kind by
-  test id: a flake whose ids are all an open flake finding's is
-  counted on it (its record's count, and a comment once per day at
-  most), never filed again; a red's or a QA finding's is filed anew,
-  naming the open ones it overlaps.
+- **What a verdict files:** its reproduction is the tier's or gate's
+  workflow at the run's commit with its failing tests alone; its first
+  line, the failed job's failed step's last line (skein's `Read::Job`);
+  its severity `low` for a flake and `high` for a red; its area the
+  project's area for the repository (section 9's settings), or none.
+- **A signature** is the repository, the tier or gate, a set of test
+  ids in byte order, and the failure's first line. A failure is matched
+  against the open findings of its kind with the same repository and
+  tier or gate, by test id: a flake whose ids are all an open flake
+  finding's is counted on it (its record's count, and a comment once
+  per day at most), never filed again; a red's or a QA finding's is
+  filed anew, naming the open ones it overlaps.
 - **Purposes,** tag 9 in `forge.md`'s table: a finding's filing, by its
-  source (a verdict's tier and run, a QA pass and its case, a task's
-  call) and its signature's first id, so that the same thing asked
-  twice files once.
+  source (a verdict's repository, tier and run; a QA pass and its
+  case's number; a task's call) and, where it has one, its signature's
+  first id in byte order, else 0, so that the same thing asked twice
+  files once.
 
 ## 5. A flake at a gate
 
@@ -104,8 +113,9 @@ is open is section 10.
 
 - **The triager** is named by the project's settings: a task, by its
   number (usually the person's chat), or a role of the project's. New
-  findings wake it, at once or on its period: news on the findings'
-  topic for a task (`forge.md`, 7.1), a notification for a party.
+  findings wake it, at once or on its period: news on the forge's topic
+  of a project's findings for a task (`forge.md`, 7.1), a notification
+  for a party.
 - **Its acts,** a task's through its tools and a party's through
   `temper ctl` (section 9), each writing the finding's labels and
   record in one decision:
@@ -126,6 +136,12 @@ is open is section 10.
   with a comment naming the landing, once that landing is cleared
   (after-landing.md, 5.3), not when it lands; a red landing closes
   nothing until it is repaired.
+- **The forge's own keywords** would close it at the merge: an owned
+  Forgejo's setup turns its closing keywords off (`../protocol/setup.md`,
+  `CLOSE_KEYWORDS` empty); on any other forge, a finding closed in the
+  minute after a landing whose commits name it is the keyword's, and
+  temper reopens it with a comment saying it closes once its landing is
+  cleared.
 - **A finding closed on the forge** is closed in temper (section 3).
 
 ## 8. QA after landing
@@ -147,8 +163,12 @@ is open is section 10.
   whose workspace is the cleared main, read-only. It uses the product as
   its users do, and writes down what it expects before trying each
   case. Its result is a report in the verdict contract: each case's
-  outcome, and each finding with its reproduction, severity and area
-  (`agent.md`, 4.4).
+  outcome, and each finding with its reproduction, severity and area,
+  in the QA report contract (`agent.md`, 4.4): `cases`, each a mark's
+  landing, what it expected, its outcome (`passed`, `failed`,
+  `blocked`) and notes; and `findings`, each a title, a reproduction,
+  a severity, an area and the mark it came from, each field within the
+  contract's bounds.
 - **Its findings** are filed (section 4) by the pass from the report,
   kind `qa`, and the triager routes them. The marks it covered are
   tested.
@@ -157,7 +177,10 @@ is open is section 10.
 
 - **Effects:** an issue created with labels (kind 8), an issue's labels
   set (kind 13, an edit), a comment (kind 7), and, once per project,
-  its labels created (a new kind 18, provisioning). skein's
+  its labels created (a new kind 18, provisioning: a creation on the
+  repository's lane, recovered as conditional, since the forge refuses
+  a second label of a name, `Exists` counting as made; purpose tag 11,
+  the project and the label's name). skein's
   `CreateIssue` takes labels, and `Write::Labels { number, labels }`
   sets an issue's whole set of labels by name, `Write::CreateLabel {
   name, color }` makes one.

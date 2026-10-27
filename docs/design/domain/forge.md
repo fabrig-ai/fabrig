@@ -264,7 +264,8 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **Nothing is required:**
   - no webhook: polling is the backstop, webhooks only cut the latency,
     and the client shows a repository whose hints never arrive;
-  - no label: temper writes none, and decides nothing by one;
+  - no label: temper writes none, and decides nothing by one, but for a
+    project that turns findings on (`findings.md`, section 3);
   - no protection: temper's rules are its enforcement, protection a second
     net;
   - no CI: a repository without it gates its changes on checks its
@@ -806,6 +807,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 | CI on a head | a head's CI, as 5.3 reads it, changes | changes; tasks that subscribe |
 | a pull request's state | opened, closed, merged, its head moved, its mergeability known | changes; tasks that subscribe |
 | comments and reviews on a participating object | another party writes there | the task dealing with it (section 13) |
+| a project's findings, designed, not built | a finding is filed, or its labels change | the project's triager (`findings.md`, section 6) |
 
 The change child domain reads its facts directly and needs no
 subscription; topics are for tasks whose executors are agents, and for
@@ -1544,10 +1546,15 @@ default: a project's setting turns it on.
   question's words and the asking task, keyed by the person task (a
   purpose of tag 10: the task, 8 bytes).
 - **The person answers in a comment.** A comment on that issue by the
-  mapped account, the first after the issue's opening, is the person
-  task's answer, admitted as that party's `Answer` (jig's
-  `domain/people.md`, 5.1); the inbox shows the same question, and
-  whichever answer commits first wins, the other refused as decided.
+  mapped account, the first after the issue's last projection, is the
+  person task's answer, admitted as that party's `Answer` (jig's
+  `domain/people.md`, 5.1) at the revision the projection showed, which
+  the issue's body carries and temper's record keeps; the inbox shows
+  the same question, and whichever answer commits first wins, the other
+  refused as decided. An amendment, or an address to another party,
+  moves the revision: the issue is edited to show it (and closed, if
+  the new party has no mapped account), and a comment made before the
+  edit is refused as moved, with a comment saying so.
   The issue is subscribed as a participating object (section 13) for
   that account's comments alone.
 - **Closed when the question ends:** answered, by either way, with a
