@@ -242,7 +242,11 @@ open is section 9.
   own binary, which Claude Code starts over standard input and output
   from the MCP configuration, and it relays each call to its agent,
   which answers it as on the direct backend. The settings allow its
-  tools by rule, since the run answers them itself. Claude Code shows
+  tools by rule, since the run answers them itself. Each tool's
+  `inputSchema` is an object schema, `"type": "object"` at its top,
+  `finish`'s choice of contracts nested within it as a `oneOf`: MCP
+  asks it, and Claude Code drops every tool of a server one of whose
+  schemas is not, so the server would serve none. Claude Code shows
   them to its model under its MCP prefix; the agent tells their calls
   under smith's names.
 - **The prompt tool's name is reserved:** a host tool may not take it,
