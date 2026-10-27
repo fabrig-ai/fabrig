@@ -193,7 +193,7 @@ and no policy. Every type is a plain value.
 
 ### 3.2 The calls
 
-19 reads and 13 writes, in families. Each call has one answer.
+22 reads and 15 writes, in families. Each call has one answer.
 
 | Family | Calls | Answer |
 |---|---|---|
@@ -202,8 +202,9 @@ and no policy. Every type is a plain value.
 | One item | `Item`, `Pull`, `PullFor` | `Item`; `Pull`; `Pull` |
 | Review | `Reviews`, `Remarks` | `Reviews`; `Remarks` |
 | CI | `Statuses`, `Checks`, `Job` | `Statuses`; `Checks`; `Job` |
+| Actions | `Runs`, `Run`; `Dispatch`, `Rerun` | `Runs`; `Run`; `Done`; `Done` |
 | Branches | `Branch`, `Branches` | `Commit`; `Branches` |
-| Contents | `PullFiles`, `Compare`, `File` | `PullFiles`; `Compare`; `File` |
+| Contents | `PullFiles`, `Compare`, `File`, `Tree` | `PullFiles`; `Compare`; `File`; `Tree` |
 | The repository | `Protection`, `Settings`, `Collaborators`, `Permission` | the same names |
 | Creations | `CreateIssue` (keyed), `OpenPull` | `Created` |
 | Comments, keyed | `Post`, `Review` | `Commented`; `Reviewed` |
@@ -231,14 +232,37 @@ and no policy. Every type is a plain value.
   (forge-github.md, section 5.1).
 - **`Protection`** needs an admin to read an absent rule. A writer who
   is not an admin gets `Forbidden` (5.2).
+- **`Merge { number, head, how }`** merges in the repository's own style
+  (`Style`), or `FastForwardOnly`: the base moved to exactly the head,
+  refused (`Conflict`) when the head does not contain the base's tip.
+  **`Update { number, style }`** brings a pull request's branch up to
+  its base by a merge of the base into it (`Merge`), or by a rebase of
+  its commits onto the base (`Rebase`), which rewrites the branch.
+- **`Status { commit, context, check, description, link }`** writes a
+  context's state with its words, at most `DESCRIPTION_BYTES` (140), and
+  its link, an absolute URL, either empty for none.
+- **Actions** (forge-connection.md has no part in them beyond any
+  call's): `Dispatch { workflow, branch, inputs }` runs a workflow,
+  named by its file, at a branch's head, with at most `INPUTS` (10)
+  inputs, each a name and a value; the forge keeps no key for it, and
+  answers no run, so its owner finds the run with `Runs { workflow,
+  commit, page }`, the runs of one workflow at one commit, newest
+  first. `Run { run }` reads one run: its number, workflow, commit,
+  status, conclusion and jobs, each job with its id, name, attempt,
+  status, conclusion and failed step. `Rerun { job }` runs one job
+  again, with the jobs that need it, once its run has completed.
+- **`Tree { object, page }`** reads one tree, not recursively: a
+  commit's root tree, or a tree by its id, as its parent's entry names
+  it. Each entry is a name, a mode, a kind and an object id, in name
+  order, in pages from 1.
 
 ### 3.3 The answers
 
-25 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
+28 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
 `Remarks`, `Commit`, `Branches`, `PullFiles`, `Compare`, `Checks`,
-`Job`, `File`, `Protection`, `Settings`, `Collaborators`, `Permission`,
-`Created`, `Commented`, `Reviewed`, `Merged`, `Queued`, `Branch`,
-`Done`.
+`Job`, `File`, `Tree`, `Runs`, `Run`, `Protection`, `Settings`,
+`Collaborators`, `Permission`, `Created`, `Commented`, `Reviewed`,
+`Merged`, `Queued`, `Branch`, `Done`.
 
 - **A paged answer says whether more follows** (`more`): `Items`,
   `Item` (its comments), `Reviews`, `Statuses`, `Remarks`, `PullFiles`
@@ -248,7 +272,8 @@ and no policy. Every type is a plain value.
   number or id. `Merged` carries the merge's commit. `Branch` carries
   `BranchCreation`: `Created`, or `Exists`.
 - **`Done`** answers `Update`, `Edit`, `SetReviewers`, `Close`,
-  `Reopen`, `Status` and `DeleteBranch`.
+  `Reopen`, `Status`, `DeleteBranch`, `Dispatch` and `Rerun`.
+- **`Runs` and `Tree` are paged,** and say whether more follows.
 - **`Pull` answers both `Pull` and `PullFor`;** the `Commit` answer is a
   branch's tip.
 - **`Queued` is final for its call.** It answers `Merge` alone, and
@@ -352,6 +377,15 @@ By name; the code holds the fields.
 - **`Status`:** a CI context: its time, context, `Check`, description,
   link and, for an Actions job, its `JobAttempt`.
 - **`JobAttempt`:** a job's head, run, job and attempt.
+- **`Run`:** an Actions run: its id, number, workflow file, commit,
+  its event (`dispatch` or another), the user who triggered it, by the
+  forge's id, `RunState` (`Waiting`, `Running`, `Completed`), `Conclusion`
+  (`Success`, `Failure`, `Cancelled`, `Skipped`, none while it runs),
+  its link, when it was made, and its jobs, each a `RunJob`: id, name,
+  attempt, state, conclusion and its failed `Step`, none when no step
+  failed.
+- **`Entry`:** one entry of a tree: its name, its mode, its `EntryKind`
+  (`Blob`, `Tree`, `Commit` for a submodule) and its object id.
 - **`Step`:** a job's failed step, by number and name.
 - **`File`:** a changed file: its path and its bytes before and after,
   either absent when the file was added or deleted.
@@ -403,6 +437,9 @@ body the forge keeps changes (5.3).
   | `Compare` | `before` and `after` are the call's |
   | `Checks` | each job's head is the call's commit |
   | `Job` | the attempt is the call's, and the log is within `max_bytes` |
+  | `Runs` | each run's workflow and commit are the call's; ids are unique |
+  | `Run` | the id is the call's |
+  | `Tree` | names rise strictly |
   | `File` | the head and path are the call's, and the bytes are within `max_bytes` |
   | `Locate` | the id is nonzero |
 
@@ -705,9 +742,14 @@ first failure, but where a row says otherwise.
 | `Write::SetReviewers { number, reviewers }` | `GET R/pulls/<number>`; `POST R/pulls/<number>/requested_reviewers` `{reviewers: [logins]}` for those missing; `DELETE R/pulls/<number>/requested_reviewers` with the same body for those extra | `Done` |
 | `Write::Close { number }` | `PATCH R/issues/<number>` `{state: closed}` | `Done` |
 | `Write::Reopen { number }` | `PATCH R/issues/<number>` `{state: open}` | `Done` |
-| `Write::Merge { number, head }` | `POST R/pulls/<number>/merge` `{Do, head_commit_id: <head>}`; `GET R/pulls/<number>` | `Merged` from `merge_commit_sha` (the merge answers with no body) |
-| `Write::Update { number }` | `POST R/pulls/<number>/update?style=merge` | `Done` |
-| `Write::Status { commit, context, check }` | `POST R/statuses/<commit>` `{state: pending\|success\|failure, context}` | `Done` |
+| `Write::Merge { number, head, how }` | `POST R/pulls/<number>/merge` `{Do, head_commit_id: <head>}`, `Do` the repository's style or `fast-forward-only`; `GET R/pulls/<number>` | `Merged` from `merge_commit_sha` (the merge answers with no body) |
+| `Write::Update { number, style }` | `POST R/pulls/<number>/update?style=merge\|rebase` | `Done` |
+| `Write::Status { commit, context, check, description, link }` | `POST R/statuses/<commit>` `{state: pending\|success\|failure, context, description, target_url}`, the last two only when not empty | `Done` |
+| `Read::Tree { object, page }` | `GET R/git/trees/<object>?page=<page>&per_page=<size>` | each entry's `path` as its name, `mode`, `type` (`blob`, `tree`, `commit`) and `sha`; `more` when the page came full or `truncated` is true |
+| `Read::Runs { workflow, commit, page }` | `GET R/actions/runs?workflow=<workflow>&head_sha=<commit>&page=<page>&limit=<size>` | each run as a `Run` without its jobs, newest first, its event from `event` and its user from `trigger_actor.id`; `more` when the page came full |
+| `Read::Run { run }` | `GET R/actions/runs/<run>`; `GET R/actions/runs/<run>/jobs`; for each failed job, `GET R/actions/jobs/<job>` for its steps | the `Run` with its jobs and each failed job's failed step (5.2's notes, "A failed job's log") |
+| `Write::Dispatch { workflow, branch, inputs }` | `POST R/actions/workflows/<workflow>/dispatches` `{ref: <branch>, inputs}` | `Done`; `Missing` for a `404` (no such workflow, or no such branch) |
+| `Write::Rerun { job }` | `POST R/actions/jobs/<job>/rerun` | `Done`; `Refused` for a `400` (the run has not completed) |
 | `Write::CreateBranch { branch, commit }` | `POST R/branches` `{new_branch_name: <branch>, old_ref_name: <commit>}` | `Branch(Created)`; a `409` (the branch exists) `Branch(Exists)` |
 | `Write::DeleteBranch { branch }` | `DELETE R/branches/<branch>` | `Done` |
 
@@ -1326,6 +1368,21 @@ on. What no run records yet has its own bullet, near the end.
     come whole however many there are (5.2, `Item` and `Remarks`);
   - that a job no runner took has no steps, and that its log, and a log
     Forgejo no longer keeps, answer `404` (5.2, "A failed job's log").
+- **Actions and trees, to record before a plan relies on them:** a
+  dispatch answers
+  `204` with no run, `404` for a workflow or a branch absent, and runs
+  at the branch's head at the time it is read, its jobs' statuses on
+  that commit; the runs' listing filters by `workflow` and `head_sha`,
+  newest first, each run naming its event and the user who triggered
+  it; a dispatch's inputs reach the run; a job's rerun answers
+  `204`, and `400` while its run has not completed; a merge with `Do:
+  fast-forward-only` and `head_commit_id` moves the base to the head,
+  refuses a head that does not contain the base's tip, and marks the
+  pull request merged; an update with `style=rebase` rewrites the
+  branch onto the base's tip and refuses a conflict with `409`; a
+  status's `description` and `target_url` read back as written; a tree
+  read by a commit's id answers its root tree, paged, with `truncated`
+  past its page.
 - **The setup's, and the owner's git.** What reconcile relies on
   (Forgejo's command line, its admin routes, orgs, repositories'
   collaborators and hooks, the runner) is forge-setup.md, section 8's.

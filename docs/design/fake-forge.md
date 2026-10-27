@@ -120,6 +120,26 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
 - **Actions' identities** follow the statuses kept: one `Run` per commit and
   repository, numbered from 1, and one `Job` per context, at attempt 1 or,
   after a rerun, 2. A commit whose statuses are forgotten loses its run.
+- **Dispatch-only workflows:** a repository may declare workflows
+  (`Workflow { file, jobs, latency_min, latency_max, silent, passes,
+  cue }`) that run only when dispatched (`Write::Dispatch`), never on a
+  push. Each dispatch makes a run of its own at the branch's head as the
+  dispatch finds it, numbered after the repository's other runs, its
+  inputs kept, and a pending status per job on that commit, its context
+  `<file> / <job>`, its link the job's page; then each job's verdict
+  after a drawn latency, by the chance or the cue as for `Checks`, and
+  the run completes once its last job does. `Runs` lists them, `Run`
+  reads one with its jobs, and `Rerun` runs a completed run's failed job
+  again, at its next attempt. A fault draws a job failed in its set-up
+  step (`setup_faults`), or a run lost with no step failed (`lost`), so a
+  world reaches the runner's faults; `Cue::Message` fails a job's
+  workflow step, as a test would.
+- **Merges and updates by style:** a fast-forward-only merge moves the
+  base to the head and refuses one that does not contain the base's tip
+  (`Conflict`); an update by rebase replays the branch's commits onto the
+  base's tip and refuses a conflict, as a merge update does.
+- **Trees:** every commit's tree is read through `Read::Tree`, its
+  entries in name order, paged.
 
 ### 2.4 Seen from outside
 

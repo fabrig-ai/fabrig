@@ -345,8 +345,10 @@ repeating gives the same state. **Unrecoverable:** none of these.
 | Write | Class | Found by |
 |---|---|---|
 | open a pull request | Conditional | the open pull of its branches |
-| merge | Conditional | its pull merged at its exact head |
-| update from base | Unrecoverable | its head containing the base |
+| merge, in the repository's style or fast-forward only | Conditional | its pull merged at its exact head |
+| update from base, by a merge or a rebase | Unrecoverable | its head containing the base |
+| dispatch a workflow | Unrecoverable | a run of its workflow at its branch's commit made since start (`Runs`) |
+| rerun a job | Unrecoverable: Forgejo checks no attempt, and refuses only a run not completed | the job's attempt past the one named (`Run`) |
 | create an issue, comment, review | Unrecoverable | its key since start |
 | create a branch | Unrecoverable | the branch at that commit |
 | delete a branch | Idempotent | the branch gone |
