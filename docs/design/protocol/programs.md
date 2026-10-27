@@ -308,12 +308,16 @@ open is section 9.
   other backend takes them.
 - **Partial messages** feed the event stream's content as it comes
   (events.md, 3.5), and nothing else.
-- **The outcome:** a `finish` the run accepts ends the run, as on the
-  direct backend (domain/run.md, 7.2): the agent closes the program's
-  input, and the program exits. A turn that ends, with its `result`,
-  and no `finish` has its `structured_output`, the outcome
-  `--json-schema` asked for, taken as a `finish` call's input and judged
-  by the same contract. A turn with neither is a model that named no
+- **The outcome, one path:** a run with a result contract gives its
+  outcome through the program's `StructuredOutput` alone (5.3), the
+  outcome `--json-schema` asked for, its failure form included: the
+  turn's `structured_output`, taken as a `finish` call's input and
+  judged by the same contract, ends the run as an accepted `finish`
+  does on the direct backend (domain/run.md, 7.2), the agent closing
+  the program's input. Such a run is not offered `finish` over MCP, so
+  the model has one way to end, never two. A run with no result
+  contract, such as an Open run's, is offered `finish` over MCP as on
+  the direct backend. A turn with neither is a model that named no
   tool, nudged as on the direct backend, and failed *malformed* past its
   nudges (domain/run.md, section 10).
 
