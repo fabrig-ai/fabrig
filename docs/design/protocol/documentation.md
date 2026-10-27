@@ -46,10 +46,13 @@ help. People read the site, which is outside temper's design.
   then a line `Kind: K`; then its summary, one paragraph of one
   sentence of at most 200 bytes. Its sections are its `## ` headings,
   each at most 80 bytes.
-- **Printable ASCII and line ends,** so that its rendered size is known
-  (section 3). Its examples are fenced blocks, as an agent types them.
-- **Links** between pages are `temper help NAME` in the text, which the
-  step test resolves.
+- **UTF-8 with no control character but the line end,** so that its
+  rendered size is known (section 3) and a walk's `Expect:` quotes
+  ctl's output as it prints, its ` · ` among it. Its examples are
+  fenced blocks, as an agent types them.
+- **Links** between pages are `temper help NAME` in the text, NAME in
+  lower case, which the step test resolves; a word of capitals after
+  `temper help` is a placeholder, never a link.
 - **Placeholders,** in written pages, are `../draft/agent-docs.md` 5's
   set alone: `DIR`, `CONFIG`, `DATA`, `CACHE`, `FILE`, `TEXT`, `KEY`,
   `TASK`, `PROJECT`, `FORGE`, `INSTALLATION`, `ACCOUNT`, `REVISION`,
@@ -105,17 +108,20 @@ that depends on nothing of temper's and that `temper`,
 - **`find(name) -> Option<&Page>`**, by the exact name.
 - **`page(page, from, bytes) -> Cut`:** the page's text from byte
   `from`, cut at the last line end whose rendered size is within
-  `bytes`, or, for a line longer than that, inside it; with `next`, the
+  `bytes`, or, for a line longer than that, inside it at a character's
+  boundary; with `next`, the
   exact offset where the cut stopped, or none at the end. Sizes are
   rendered sizes, as the text renders in a JSON string: 2 bytes for
-  `"`, `\` and a line end, 1 for every other byte. A `from` past the
+  `"`, `\` and a line end, 1 for every other byte, a character beyond
+  ASCII its bytes. A `from` past the
   end answers an empty cut with no `next`.
 - **`search(words, limit) -> Hits`:** the sections in which every word
   appears, a page's head (its title, kind line and summary) being a
   section of its own, headed by its title, at offset 0, case folded on
   ASCII, in the table's order, then the section's: each hit the page's
   name, the section's heading, the section's offset, and the section's
-  first line holding the first word, cut to 120 bytes; at most `limit`
+  first line holding the first word, cut to 120 bytes at a character's
+  boundary; at most `limit`
   hits, with whether more matched. Words are split on whitespace, at
   most 8 of at most 32 bytes each; more, or longer, is refused naming
   the bound.
@@ -168,7 +174,7 @@ that depends on nothing of temper's and that `temper`,
 | Where | What |
 |---|---|
 | `temper-docs`' step tests | the table equals `docs/help/`'s files, in name, kind and bytes; each page's head within 2.1's bounds; each page within its kind's bound, its headings its kind's (2.2), a walk's steps each with `Expect:`; the `guide` rows among the eight names alone; `index` names every concept, walk and recipe once; every `temper help NAME` in a page names a page; placeholders (2.1) and the voice's words (2.3) in written pages; `page` over a page's lines (a cut at a line end, a long line cut at a character, `from` past the end, `next`); `search` over a small fixture table (all words, case, order, the limit and more) |
-| `temper`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, and every one that starts `temper ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/tools.md` 5.3), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; `temper help`, `help NAME`, an unknown name and `--search` print and exit as section 4 says |
+| `temper`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, cut at its first shell operator (`|`, `>`, `<`, `;`, `&&`) and each placeholder replaced by a value of its kind (`PROPOSAL` by `t1/1`, a number's by `1`), and every one that starts `temper ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/tools.md` 5.3), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; `temper help`, `help NAME`, an unknown name and `--search` print and exit as section 4 says |
 | `temper-engine-smith`'s step tests | `read_docs`' schema; a page's first and next cut; a search; an unknown page; both members, or neither, answered as an error naming what is wrong |
 | the engine's domain world | a run's `read_docs` call answered with no commit, no record, and the run going on (one story) |
 

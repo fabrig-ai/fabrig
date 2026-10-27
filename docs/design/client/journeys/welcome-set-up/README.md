@@ -1,6 +1,6 @@
 # welcome-set-up
 
-On a fresh `temper box --fake-backends`, as `docs/guide/box.md` walks
+On a fresh `temper box --fake-backends`, as the walk `box` (`temper help box`) walks
 it ("Trying the welcome with nothing real"): the box's printed sign-in
 link opened, the welcome drawn, "Set up temper" pressed.
 

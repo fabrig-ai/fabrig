@@ -19,8 +19,8 @@ checked by CI on (`../README.md`, section 2), and what QA's agents drive
 (`../draft/qa.md`, 4.1). The members are configuration.md's (section 3),
 the credentials credentials.md's (section 2), the webhooks forge.md's
 (section 5), and the commands and crates README.md's (sections 4 and 5).
-A person's walks are `docs/guide/box.md`, `docs/guide/forgejo.md` and
-`docs/guide/github.md`. What comes later is section 15; what is open,
+The walks are the pages `box`, `forgejo` and `github` (`temper help
+NAME`). What comes later is section 15; what is open,
 section 16; connecting GitHub, section 17.
 
 ## 1. In one page
@@ -1620,7 +1620,7 @@ started (credentials.md, section 3). Beside it are the files it names
 that hold no secret: the agent's configuration, `agent.json`, and the
 charters, `charters/`, short texts a person edits. The files that hold
 a secret, the worker's secret and its digest, are data paths and never
-shipped: `docs/guide/box.md` says how each is made in the data
+shipped: the walk `box` (`temper help box`) says how each is made in the data
 directory. A person, a test or QA's host starts from a copy, edits the
 agent's absolute paths to the copy's, and `temper box --config COPY`
 runs it (section 7).
@@ -1824,7 +1824,7 @@ directory is empty (7.1).
   | File | Directory | Mode | What it is |
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
-  | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as `docs/guide/box.md` makes it |
+  | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as the walk `box` (`temper help box`) makes it |
   | `demo/llm.key` | data | 0o600 | the demo model's key (8.4): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the demo's git, `temper fake git` (8.4): a symbolic link to the binary |
   | `charters/chat.txt`, `charters/coding.txt` | configuration | 0o644 | the charters' instructions, the owned example's; designed, not built: no longer written, the binary holding them (configuration.md, 13.4) |
@@ -2874,7 +2874,7 @@ temper                       the binary: temper forge fetch|prepare|run, temper 
 
 - **The first milestone** (`../README.md`, section 2), on a box run from
   a copy of the owned example (8.1), its CI Actions on the owned runner.
-  `docs/guide/box.md` is its walk, from the binaries to a change asked
+  the page `box` is its walk, from the binaries to a change asked
   for.
 - **The process tier** (`../domain/testing.md`, 2.6), on owned mode in place of
   its own provisioning, with CI and webhooks (13.4).
@@ -3464,7 +3464,7 @@ listener's (`../client/forge.md`, the browser's steps).
 - **Its setup URL is the person's to give** on GitHub's form, since no
   plan can set it: `http://<listener>/forges/<n>/github/setup`, with
   redirect on update, no callback URL and no user's authorization at
-  install (`docs/guide/github.md`). An installation of an App without
+  install (the walk `github`). An installation of an App without
   it never comes back through the setup route, and is a stray (17.4).
 - **The paste check,** `Paste { forge, app }` (skein's
   `forge-setup.md`, 5.8): the key, kept by jig until its run ends,
