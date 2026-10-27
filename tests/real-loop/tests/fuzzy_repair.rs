@@ -64,15 +64,7 @@ fn fixture() -> forge::Fixture {
                 Some(api::Cue::File { path: b"src/main.rs".as_slice().into(), green: CSV_LINE.as_bytes().into() });
             setup
         },
-        configure: |value, agent, forge| {
-            (landing::fixture().configure)(value, agent, forge);
-            // The small profile's 128-byte CI section keeps only the log's end;
-            // the repair is told the failure whole.
-            let limits = &mut value["application"]["limits"]["overrides"];
-            limits["root.brief.read_bytes"] = 512.into();
-            limits["root.brief.budgets.ci"] = 512.into();
-            limits["root.brief.brief_bytes"] = 512.into();
-        },
+        configure: landing::fixture().configure,
         ..forge::fixture()
     }
 }
