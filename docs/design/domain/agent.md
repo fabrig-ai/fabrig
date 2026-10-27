@@ -498,8 +498,12 @@ a person says they work into a proposal of settings
 ### 8.2 Asking before the work
 
 A person who wants to agree a plan before anything is changed: the
-reference case's green light (`../draft/reference-case.md`, 4.1), and
-rung B0 of `../draft/v0.1.0.md`.
+reference case's question to a requester and to the chat
+(`../draft/reference-case-2.md`, 4.2 and 7.2; the first edition's 4.1),
+and rung B0 of `../draft/v0.1.0.md`. Where the second edition keeps a
+question to the chat with the chat, which answers it or asks its person
+itself (`../draft/process-model.md`, J7 and J8), the route below is
+today's, until those land.
 
 - **The work that waits asks; a change never does.** A change is
   decided work, asked for once what to change is agreed. Its agents,

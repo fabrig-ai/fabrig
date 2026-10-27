@@ -1619,6 +1619,17 @@ section 8; testing-strategy.md, 2.9).
   passes on real backends (`../draft/v0.1.0.md`, 3): the brief's
   scenario as a test in `crates/temper/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`.
+  - **Their stories are the second edition's** of the reference case
+    (`../draft/reference-case-2.md`; the user, 10-27), though
+    `../draft/v0.1.0.md` 2.1 cites the first's:
+
+    | Rung | v0.1.0 cites (first edition) | Second edition | Where they differ |
+    |---|---|---|---|
+    | B0, the green light | 4.1, a question and its answer | 4.2, a question to its requester, answered; 7.2, a question to the chat stays with it, and the chat asks its person | the first's question reached the person's inbox by jig's route; the second's stays with the chat, which answers it or asks its person itself (J7, J8, `../draft/process-model.md` part 6). Until those land B0 walks today's route, its pass read from what the person sees: the question in their inbox, their answer reaching the work before any change |
+    | B1, the repair | 6.3, CI at a change's head and a real failure repaired | 4.3, a gate failing on a real test, repaired by an implementer given the failing output | the second's gate runs on a prepared candidate under the turn (T1 to T6); B1 walks today's landing (`queue`), CI on the pull request's head, until the model's parts 1 and 2 |
+    | B2, an advisor and two delegates | 6.1, parallel delegates and a batch with dependencies; 6.8, a tester without forge effects; 7.3, results and spend per goal | 4.1, a coordinator goal with a one-shot reviewer; 4.2, goals three deep and dependent delegates | the second's reader is a one-shot reviewer of the design, B2's an advisor reporting before the plan; the first's spend per goal has no step of the second's |
+    | C, the case | sections 4 to 7, acts 1 to 4 | sections 4 to 9, acts 1 to 6, C1 to C6 | each act opens as the model's parts it needs land (`../draft/process-model.md`, section 12) |
+
   - **What runs:** a fresh box as the guide makes one, its owned
     Forgejo set up through ctl with the playground's copy
     (`../protocol/setup.md`, 6.7); the model a held ChatGPT record,
