@@ -1,6 +1,6 @@
 # LLM calls and accounts in the engine
 
-Provisional, 2026-10-10, revised 2026-10-26. How a host that runs agents
+Provisional, 2026-10-10, revised 2026-10-27. How a host that runs agents
 in its own process makes their LLM calls, and how every engine that runs
 agents carries out its LLM accounts: the completions
 `smith-inline-agent`'s runs ask for, in the engine or on a worker whose
@@ -429,6 +429,14 @@ child's vocabulary and the driver's, both ways, exhaustive on both:
   or the engine closes, and are never committed, logged or kept
   elsewhere. A source whose record cannot be read is withdrawn unread,
   and the child refuses the move "not signed in".
+- **Admitted whole.** A move out is admitted only with room for its
+  own answer and for its written's in the asking party's retained
+  answers (`../domain/people.md`, 5.1), and holds that second place
+  until its written's answer is kept or the move is cancelled, the
+  place freed then; so an admitted move always finishes or is
+  cancelled, and a full table refuses a new move at its entrance,
+  busy, as any full table refuses. No unexpired answer is ever evicted
+  for it.
 - **Back.** A cancelled move's source is added to the driver again with
   the record read for it; one held moving at a restart is added as
   every signed-in source is (5.1), except that the child asks it
