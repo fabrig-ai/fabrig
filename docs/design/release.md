@@ -125,8 +125,8 @@ it is `draft/first-release.md`'s, the user's; macOS is
   scenario from the help's install step, with the downloaded file in
   place of a build: downloaded, its checksum checked, installed as the
   help's download path says, then the help followed as written. The
-  help's install step gains that path beside the checkout's, when the
-  help is next written (its draft is the user's).
+  walk `box`'s install step gains that path beside the checkout's once
+  a release's download exists (`protocol/documentation.md`).
 - **A fresh machine** is section 5's root of the floor's distribution
   with only section 4's programs installed (no Rust, no checkout),
   entered with bubblewrap as a user with an empty home, on the

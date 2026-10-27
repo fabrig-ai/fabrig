@@ -4054,7 +4054,7 @@ own tests:
   reaches the engine on loopback; a browser elsewhere lands on its own
   error page, and its person finishes by pasting that page's address
   (3.5, `ConnectModel`, From another computer), or through a tunnel
-  (`../../help/box.md`, section 5). The person says which (with the
+  (the walk `box`, its account step). The person says which (with the
   user, 2026-10-23, and decision 971). Candidates for telling by
   itself: before the browser leaves, the page asks the listener for a
   one-time code the engine gave it for this sign-in, and only a browser
