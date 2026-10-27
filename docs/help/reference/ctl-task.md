@@ -160,6 +160,9 @@ Cancel a task and its tree
 Prints: `done: task N, cancel`
 --json: the record cancel.
 Key: --key KEY, optional.
+A task that has ended refuses a cancel (exit 2), saying how it
+ended. The same call again under its key prints its first answer,
+whatever the task's state now.
 ```
 
 ## task tree
@@ -202,7 +205,8 @@ Key: --key KEY, optional.
 A task whose spec moved since your read fails with `read again:
 task show TASK`. Each file is read before anything is sent, one
 final newline trimmed, at most 32768 bytes of UTF-8. An amendment
-that changes nothing fails (exit 1).
+that names no change fails (exit 1); one that names a value the task
+already has is sent, and the engine answers it.
 ```
 
 ## task decide

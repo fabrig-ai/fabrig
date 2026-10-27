@@ -260,11 +260,16 @@ fn every_ctl_group_page_is_what_the_table_renders() {
         help::reference(group, &mut out).expect("reference within renderer's text bound");
         let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
         assert!(rendered.len() <= temper_docs::PAGE_BYTES, "{name}: {} bytes", rendered.len());
-        assert_eq!(
-            std::fs::read_to_string(directory.join(name).with_extension("md")).expect("group page"),
-            rendered,
-            "{name} should be:\n{rendered}"
-        );
-        assert_eq!(page.text, rendered, "compiled {name} should be:\n{rendered}");
+        let path = directory.join(name).with_extension("md");
+        if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+            std::fs::write(path, &rendered).expect("write group reference");
+        } else {
+            assert_eq!(
+                std::fs::read_to_string(path).expect("group page"),
+                rendered,
+                "{name} should be:\n{rendered}; regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
+            );
+            assert_eq!(page.text, rendered, "compiled {name} should be:\n{rendered}");
+        }
     }
 }

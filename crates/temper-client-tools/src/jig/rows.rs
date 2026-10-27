@@ -309,7 +309,7 @@ pub const CANCEL: Tool = Tool {
     ]],
     keyed: Keyed::Optional,
     area: 1,
-    notes: b"",
+    notes: b"A task that has ended refuses a cancel (exit 2), saying how it\nended. The same call again under its key prints its first answer,\nwhatever the task's state now.\n",
 };
 pub const TREE: Tool = Tool {
     name: b"task tree",
@@ -490,7 +490,7 @@ pub const AMEND: Tool = Tool {
     ]],
     keyed: Keyed::Optional,
     area: 2,
-    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat changes nothing fails (exit 1).\n",
+    notes: b"A task whose spec moved since your read fails with `read again:\ntask show TASK`. Each file is read before anything is sent, one\nfinal newline trimmed, at most 32768 bytes of UTF-8. An amendment\nthat names no change fails (exit 1); one that names a value the task\nalready has is sent, and the engine answers it.\n",
 };
 
 /// Appended so existing keyed tool identities stay stable.
