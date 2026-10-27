@@ -94,10 +94,10 @@ fn each_row_answers_its_help() {
     let row = commands::find(&bytes(&["forge", "run"])).expect("forge run row");
     assert_eq!(commands::row(row), "\
 usage: temper forge run [DIRECTORIES] FORGE forgejo|runner
-Replace this process by an owned forge's Forgejo or its runner.
+Run an owned forge's Forgejo or its runner.
   DIRECTORIES: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
   FORGE: A forge's number in the configuration.
-Checks the binary and the preparation and takes the forge's lock first; its exit status is then Forgejo's or the runner's.
+Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child.
   --config CONFIG (TEMPER_CONFIG; default $XDG_CONFIG_HOME/temper)
       Configuration, including temper.json.
   --data DATA (TEMPER_DATA; default $XDG_DATA_HOME/temper)

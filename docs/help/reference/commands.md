@@ -44,11 +44,11 @@ Its stdout carries only sign-in links, one a line; its stderr, its startup notes
 Run a deployment on this machine as one box: the forge's setup steps, then temper serve, each a child process.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- `--echo`: none prints the box's own lines alone; steps prints each step's lines too, prefixed by its name.
-- `--fake-backends`: Run against temper's fake LLM provider, forge and OAuth issuer, in a configuration of its own beside the deployment's.
-- `BUNDLE`: The web client's bundle directory, an absolute path, in place of the configured one.
+- `--echo`: none prints the box's own lines and a failed step's log; steps prints every step's lines too, prefixed by its name.
+- `--fake-backends`: Run against temper's fake LLM provider, forge and OAuth issuer, as a deployment of its own under DATA/box/fake-backends that shares the cache.
+- `BUNDLE`: The web client's bundle directory, in place of the configured one; a relative path is taken from the working directory.
 
-Steps run in order, each restarted when it exits, and stop in reverse order. Its stdout is temper serve's sign-in links, each line whole; its stderr, the box's own lines; each step logs under the data directory.
+Steps run in order, each restarted when it exits, and stop in reverse order. Its stdout is temper serve's sign-in links, each line whole; its stderr, what --echo chooses; each step logs under the data directory.
 
 ## temper program-login
 
@@ -57,7 +57,7 @@ Steps run in order, each restarted when it exits, and stop in reverse order. Its
 Sign a program source in on this host, through the program's own sign-in.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- `NAME`: The program source's name, as it was declared: 1 to 32 of a to z, 0 to 9 and -.
+- `NAME`: The program source's name: 1 to 32 of a to z, 0 to 9 and -.
 
 Checks the configuration and the agent's, makes the source's directory, then replaces itself by the program's sign-in, whose exit status is then its own. The engine need not run.
 
@@ -85,12 +85,12 @@ Prepare an owned forge before its Forgejo first runs.
 
 `temper forge run [DIRECTORIES] FORGE forgejo|runner`
 
-Replace this process by an owned forge's Forgejo or its runner.
+Run an owned forge's Forgejo or its runner.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-Checks the binary and the preparation and takes the forge's lock first; its exit status is then Forgejo's or the runner's.
+Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child.
 
 ## temper forge sign-in
 

@@ -102,19 +102,19 @@ pub const COMMANDS: [Row; 20] = [
             DIRECTORIES,
             Argument {
                 shown: "--echo",
-                line: "none prints the box's own lines alone; steps prints each step's lines too, prefixed by its name.",
+                line: "none prints the box's own lines and a failed step's log; steps prints every step's lines too, prefixed by its name.",
             },
             Argument {
                 shown: "--fake-backends",
-                line: "Run against temper's fake LLM provider, forge and OAuth issuer, in a configuration of its own beside the deployment's.",
+                line: "Run against temper's fake LLM provider, forge and OAuth issuer, as a deployment of its own under DATA/box/fake-backends that shares the cache.",
             },
             Argument {
                 shown: "BUNDLE",
-                line: "The web client's bundle directory, an absolute path, in place of the configured one.",
+                line: "The web client's bundle directory, in place of the configured one; a relative path is taken from the working directory.",
             },
         ],
         settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS],
-        notes: "Steps run in order, each restarted when it exits, and stop in reverse order. Its stdout is temper serve's sign-in links, each line whole; its stderr, the box's own lines; each step logs under the data directory.",
+        notes: "Steps run in order, each restarted when it exits, and stop in reverse order. Its stdout is temper serve's sign-in links, each line whole; its stderr, what --echo chooses; each step logs under the data directory.",
         transition: false,
     },
     Row {
@@ -124,10 +124,7 @@ pub const COMMANDS: [Row; 20] = [
         line: "Sign a program source in on this host, through the program's own sign-in.",
         arguments: &[
             DIRECTORIES,
-            Argument {
-                shown: "NAME",
-                line: "The program source's name, as it was declared: 1 to 32 of a to z, 0 to 9 and -.",
-            },
+            Argument { shown: "NAME", line: "The program source's name: 1 to 32 of a to z, 0 to 9 and -." },
         ],
         settings: &[&directories::SETTINGS],
         notes: "Checks the configuration and the agent's, makes the source's directory, then replaces itself by the program's sign-in, whose exit status is then its own. The engine need not run.",
@@ -157,10 +154,10 @@ pub const COMMANDS: [Row; 20] = [
         words: &["forge", "run"],
         who: Who::Deployment,
         forms: &["[DIRECTORIES] FORGE forgejo|runner"],
-        line: "Replace this process by an owned forge's Forgejo or its runner.",
+        line: "Run an owned forge's Forgejo or its runner.",
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
-        notes: "Checks the binary and the preparation and takes the forge's lock first; its exit status is then Forgejo's or the runner's.",
+        notes: "Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child.",
         transition: false,
     },
     Row {
