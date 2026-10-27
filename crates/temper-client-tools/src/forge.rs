@@ -249,7 +249,9 @@ pub(crate) fn print(
     limits: &Limits,
 ) -> jig::Printed {
     let answer = match outcome {
-        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
+        Outcome::Full { held, room_at } => {
+            return render::answers_full(crate::root::DIAGNOSTIC_PREFIX, *held, *room_at);
+        }
         Outcome::Unknown => Some(forge::Answer::Unknown),
         Outcome::Answered(answer) => forge::answer(&limits.domain, answer),
         Outcome::Unsent | Outcome::Lost => unreachable!("temper's requests carry no value"),
@@ -261,10 +263,24 @@ pub(crate) fn print(
                     file: jig::FileEnd::Keep,
                     status: 1,
                     stdout: Box::default(),
-                    stderr: render::outcome::kept(&operation, outcome, json, None, &limits.tools),
+                    stderr: render::outcome::kept(
+                        &operation,
+                        outcome,
+                        json,
+                        None,
+                        &limits.tools,
+                        crate::root::DIAGNOSTIC_PREFIX,
+                    ),
                 };
             }
-            return render::outcome::print(&operation, outcome, json, None, &limits.tools);
+            return render::outcome::print(
+                &operation,
+                outcome,
+                json,
+                None,
+                &limits.tools,
+                crate::root::DIAGNOSTIC_PREFIX,
+            );
         }
     };
     let Some(answer) = answer else { return decode_failure(json, kept) };

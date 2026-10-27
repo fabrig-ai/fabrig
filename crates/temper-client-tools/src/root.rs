@@ -4,6 +4,7 @@ use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Client, Told};
 use skein_lib::{Env, List, Queue, Time};
 use temper_client_domain::owner::Owner;
+pub(crate) const DIAGNOSTIC_PREFIX: &[u8] = b"temper ctl";
 pub const RUNNER: Owner = Owner::Runner;
 #[derive(Debug)]
 #[expect(
@@ -456,6 +457,9 @@ mod tests;
 #[derive(Debug)]
 pub struct Parts;
 impl jig::render::Parts for Parts {
+    fn diagnostic_prefix(&self) -> &'static [u8] {
+        DIAGNOSTIC_PREFIX
+    }
     fn command_prefix(&self) -> &'static [u8] {
         b"temper ctl DIR "
     }

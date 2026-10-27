@@ -428,8 +428,14 @@ pub(crate) fn told(state: &mut Forges, client: &Client, env: &Env<Limits>, told:
                     );
                     operation.word =
                         if connection::owns(&starting.called.call) { b"forge-connect" } else { b"forge-setup" };
-                    let printed =
-                        render::outcome::print(&operation, outcome, starting.called.json, None, &env.limits.tools);
+                    let printed = render::outcome::print(
+                        &operation,
+                        outcome,
+                        starting.called.json,
+                        None,
+                        &env.limits.tools,
+                        crate::root::DIAGNOSTIC_PREFIX,
+                    );
                     finish(starting.called, printed, out);
                 }
                 return;
@@ -995,7 +1001,9 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
 }
 pub(crate) fn setup_print(forge: u16, outcome: &Outcome, json: bool, kept: bool, limits: &Limits) -> jig::Printed {
     let answer = match outcome {
-        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
+        Outcome::Full { held, room_at } => {
+            return render::answers_full(crate::root::DIAGNOSTIC_PREFIX, *held, *room_at);
+        }
         Outcome::Answered(answer) => domain::answer(answer, &limits.domain.forge),
         Outcome::Unknown => Some(SetUpAnswer::Outcome(SetUpOutcome::Unknown)),
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {
@@ -1016,10 +1024,24 @@ pub(crate) fn setup_print(forge: u16, outcome: &Outcome, json: bool, kept: bool,
                     file: jig::FileEnd::Keep,
                     status: 1,
                     stdout: Box::default(),
-                    stderr: render::outcome::kept(&operation, outcome, json, None, &limits.tools),
+                    stderr: render::outcome::kept(
+                        &operation,
+                        outcome,
+                        json,
+                        None,
+                        &limits.tools,
+                        crate::root::DIAGNOSTIC_PREFIX,
+                    ),
                 };
             }
-            return render::outcome::print(&operation, outcome, json, None, &limits.tools);
+            return render::outcome::print(
+                &operation,
+                outcome,
+                json,
+                None,
+                &limits.tools,
+                crate::root::DIAGNOSTIC_PREFIX,
+            );
         }
     };
     let Some(answer) = answer else { return render::failure(b"set up answer decoding failed", json, 1) };

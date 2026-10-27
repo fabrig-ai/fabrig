@@ -93,7 +93,9 @@ fn json(answer: &StartAnswer, kept: bool, out: &mut Encoder) {
 }
 pub(crate) fn print(outcome: &Outcome, as_json: bool, kept: bool, limits: &Limits) -> jig::Printed {
     let answer = match outcome {
-        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
+        Outcome::Full { held, room_at } => {
+            return render::answers_full(crate::root::DIAGNOSTIC_PREFIX, *held, *room_at);
+        }
         Outcome::Answered(answer) => demo::answer(answer, &limits.domain.forge),
         Outcome::Unknown => Some(StartAnswer::Unknown),
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {
@@ -105,10 +107,24 @@ pub(crate) fn print(outcome: &Outcome, as_json: bool, kept: bool, limits: &Limit
                     file: jig::FileEnd::Keep,
                     status: 1,
                     stdout: Box::default(),
-                    stderr: render::outcome::kept(&operation, outcome, as_json, None, &limits.tools),
+                    stderr: render::outcome::kept(
+                        &operation,
+                        outcome,
+                        as_json,
+                        None,
+                        &limits.tools,
+                        crate::root::DIAGNOSTIC_PREFIX,
+                    ),
                 };
             }
-            return render::outcome::print(&operation, outcome, as_json, None, &limits.tools);
+            return render::outcome::print(
+                &operation,
+                outcome,
+                as_json,
+                None,
+                &limits.tools,
+                crate::root::DIAGNOSTIC_PREFIX,
+            );
         }
     };
     let Some(answer) = answer else { return render::failure(b"demo start answer decoding failed", as_json, 1) };

@@ -648,8 +648,14 @@ pub(super) fn answered(
             super::reads::start(runner, client, env, sent.called, out);
             return;
         }
-        let mut printed =
-            render::outcome::print(&sent.operation, outcome, sent.called.json, me(runner, client), &env.limits);
+        let mut printed = render::outcome::print(
+            &sent.operation,
+            outcome,
+            sent.called.json,
+            me(runner, client),
+            &env.limits,
+            runner.parts.expect("host vocabulary").diagnostic_prefix(),
+        );
         if sent.called.call.tool == rows::IMPORT_AT
             && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
                 c::OwnerOutcome::AccountMovedIn { .. },
@@ -659,7 +665,14 @@ pub(super) fn answered(
         }
         finish(sent.called, printed, out);
     } else if let Some(operation) = runner.kept.remove(&key) {
-        let line = render::outcome::kept(&operation, outcome, runner.kept_json, me(runner, client), &env.limits);
+        let line = render::outcome::kept(
+            &operation,
+            outcome,
+            runner.kept_json,
+            me(runner, client),
+            &env.limits,
+            runner.parts.expect("host vocabulary").diagnostic_prefix(),
+        );
         out.push(Out::Kept { line });
     }
 }

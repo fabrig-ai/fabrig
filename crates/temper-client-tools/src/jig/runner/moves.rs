@@ -34,12 +34,25 @@ pub(super) fn answered(
         let printed = if let Outcome::Lost = outcome {
             render::failure(b"the record of the move was lost on its way; the engine keeps the account and cancels the move at its deadline; account export again after it", sent.called.json, 1)
         } else {
-            render::outcome::print(&sent.operation, outcome, sent.called.json, acts::me(runner, client), &env.limits)
+            render::outcome::print(
+                &sent.operation,
+                outcome,
+                sent.called.json,
+                acts::me(runner, client),
+                &env.limits,
+                runner.parts.expect("host vocabulary").diagnostic_prefix(),
+            )
         };
         finish(sent.called, printed, out);
     } else {
-        let mut printed =
-            render::outcome::print(&sent.operation, outcome, sent.called.json, acts::me(runner, client), &env.limits);
+        let mut printed = render::outcome::print(
+            &sent.operation,
+            outcome,
+            sent.called.json,
+            acts::me(runner, client),
+            &env.limits,
+            runner.parts.expect("host vocabulary").diagnostic_prefix(),
+        );
         printed.file = if let Outcome::Answered(Answered::Jig(c::Answer::Refused {
             refusal: c::Refusal::AccountMove { why: c::AccountMoveWhy::Cancelled },
             ..

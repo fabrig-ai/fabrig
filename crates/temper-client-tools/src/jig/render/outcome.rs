@@ -160,9 +160,10 @@ pub(crate) fn print(
     json: bool,
     me: Option<&c::Me>,
     limits: &Limits,
+    prefix: &[u8],
 ) -> Printed {
     let status = match outcome {
-        Outcome::Full { held, room_at } => return super::answers_full(*held, *room_at),
+        Outcome::Full { held, room_at } => return super::answers_full(prefix, *held, *room_at),
         Outcome::Answered(Answered::Jig(c::Answer::Done(_))) => 0,
         Outcome::Answered(Answered::Jig(c::Answer::Refused { .. })) => 2,
         Outcome::NotKept
@@ -174,7 +175,7 @@ pub(crate) fn print(
         | Outcome::Unsent
         | Outcome::Lost => 1,
     };
-    let bytes = bytes(operation, outcome, json, me, limits, false);
+    let bytes = bytes(operation, outcome, json, me, limits, false, prefix);
     if status == 0 {
         Printed { file: crate::jig::FileEnd::Keep, status, stdout: bytes, stderr: Box::default() }
     } else {
@@ -187,8 +188,9 @@ pub(crate) fn kept(
     json: bool,
     me: Option<&c::Me>,
     limits: &Limits,
+    prefix: &[u8],
 ) -> Box<[u8]> {
-    bytes(operation, outcome, json, me, limits, true)
+    bytes(operation, outcome, json, me, limits, true, prefix)
 }
 fn bytes(
     operation: &Operation,
@@ -197,9 +199,10 @@ fn bytes(
     me: Option<&c::Me>,
     limits: &Limits,
     kept: bool,
+    prefix: &[u8],
 ) -> Box<[u8]> {
     if let Outcome::Full { held, room_at } = outcome {
-        return super::answers_full(*held, *room_at).stderr;
+        return super::answers_full(prefix, *held, *room_at).stderr;
     }
     if json {
         let bounds = skein_json::writer::Limits {

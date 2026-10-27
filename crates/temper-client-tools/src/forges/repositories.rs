@@ -155,7 +155,9 @@ fn json(page: &Page, out: &mut Encoder) {
 }
 fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits) -> jig::Printed {
     let value = match outcome {
-        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
+        Outcome::Full { held, room_at } => {
+            return render::answers_full(crate::root::DIAGNOSTIC_PREFIX, *held, *room_at);
+        }
         Outcome::Answered(Answered::Family(record))
             if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION =>
         {
@@ -186,7 +188,14 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
                 &request(pending.forge, pending.installation, pending.page, limits).expect("checked bounds"),
             );
             operation.word = b"repositories";
-            return render::outcome::print(&operation, outcome, structured, None, &limits.tools);
+            return render::outcome::print(
+                &operation,
+                outcome,
+                structured,
+                None,
+                &limits.tools,
+                crate::root::DIAGNOSTIC_PREFIX,
+            );
         }
     };
     let page = match value {

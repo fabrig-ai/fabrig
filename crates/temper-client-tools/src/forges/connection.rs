@@ -481,7 +481,9 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
     let install = pending.install;
     let kept = pending.called.is_none();
     let answer = match outcome {
-        Outcome::Full { held, room_at } => return render::answers_full(*held, *room_at),
+        Outcome::Full { held, room_at } => {
+            return render::answers_full(crate::root::DIAGNOSTIC_PREFIX, *held, *room_at);
+        }
         Outcome::Answered(value) => answer(value, limits),
         Outcome::Unknown => Some(Answer::Unknown),
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {
@@ -507,10 +509,24 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
                     file: jig::FileEnd::Keep,
                     status: 1,
                     stdout: Box::default(),
-                    stderr: render::outcome::kept(&operation, outcome, structured, None, &limits.tools),
+                    stderr: render::outcome::kept(
+                        &operation,
+                        outcome,
+                        structured,
+                        None,
+                        &limits.tools,
+                        crate::root::DIAGNOSTIC_PREFIX,
+                    ),
                 };
             }
-            return render::outcome::print(&operation, outcome, structured, None, &limits.tools);
+            return render::outcome::print(
+                &operation,
+                outcome,
+                structured,
+                None,
+                &limits.tools,
+                crate::root::DIAGNOSTIC_PREFIX,
+            );
         }
     };
     let Some(answer) = answer else { return render::failure(b"forge answer decoding failed", structured, 1) };

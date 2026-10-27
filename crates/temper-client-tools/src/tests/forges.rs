@@ -1103,6 +1103,7 @@ fn a_refusal_names_the_tool_called() {
                 false,
                 None,
                 &root.limits.tools,
+                crate::root::DIAGNOSTIC_PREFIX,
             );
             assert_eq!(kept.as_ref(), b"kept: change-settings, revision 2\n");
         }

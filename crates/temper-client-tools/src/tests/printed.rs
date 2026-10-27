@@ -43,6 +43,7 @@ fn every_printed_call_parses() {
         false,
         None,
         &f::limits_root().tools,
+        crate::root::DIAGNOSTIC_PREFIX,
     );
     let (mut root, call) = f::message();
     root.answered(

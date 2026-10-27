@@ -177,6 +177,7 @@ impl Part<'_> {
 }
 /// Application vocabulary for enum phrases, parts and changes, borrowed for this step alone.
 pub trait Parts: core::fmt::Debug {
+    fn diagnostic_prefix(&self) -> &'static [u8];
     fn command_prefix(&self) -> &'static [u8];
     fn phrasebook(&self, text: u32) -> skein_ui::phrases::Phrasebook;
     fn task_next(&self, task: &contract::Task, out: &mut Text);
@@ -515,17 +516,18 @@ pub(crate) fn waiting(
 }
 
 /// The engine's unsaved admission refusal (client/tools.md, 6.3).
-pub(crate) fn answers_full(held: u32, room_at: skein_lib::Wall) -> Printed {
-    fn line(held: u32, room_at: skein_lib::Wall, out: &mut Text) {
-        out.put(b"temper ctl: the engine holds its ");
+pub(crate) fn answers_full(prefix: &[u8], held: u32, room_at: skein_lib::Wall) -> Printed {
+    fn line(prefix: &[u8], held: u32, room_at: skein_lib::Wall, out: &mut Text) {
+        out.put(prefix);
+        out.put(b": the engine holds its ");
         out.number(u64::from(held));
         out.put(b" answers of the last day; room again at ");
         document::clock::deadline(room_at, out);
         out.put(b"\n");
     }
     let mut measured = Text::measure();
-    line(held, room_at, &mut measured);
+    line(prefix, held, room_at, &mut measured);
     let mut write = Text::writing_exact(measured);
-    line(held, room_at, &mut write);
+    line(prefix, held, room_at, &mut write);
     Printed { file: crate::jig::FileEnd::Keep, status: 2, stdout: Box::default(), stderr: write.finish() }
 }
