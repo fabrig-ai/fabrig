@@ -1,19 +1,7 @@
 use super::fixtures;
-use crate::{guide, jig, table};
+use crate::{jig, table};
 use skein_lib::List;
-#[test]
-fn every_call_line_of_the_guide_parses_with_the_table() {
-    let mut calls = 0;
-    for line in &fixtures::guide_lines() {
-        if let Some(call) = line.trim_ascii_start().strip_prefix(b"temper ctl DIRECTORY ".as_slice()) {
-            fixtures::parse_line(call).expect("each call of the guide parses with the table");
-            calls += 1;
-        }
-    }
-    assert_eq!(calls, fixtures::GUIDE_CALLS, "the guide shows the loop's calls");
-}
 const GOLDENS: &[(Option<u8>, &str)] = &[
-    (None, "help"),
     (Some(12), "help_decide"),
     (Some(10), "help_close"),
     (Some(16), "help_wait"),
@@ -33,6 +21,13 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::PROPOSAL_AT), "help_proposal"),
     (Some(jig::rows::MOVE_TO_NEWEST_AT), "help_move_to_newest"),
 ];
+#[test]
+fn the_help_is_the_page_ctl_then_the_tools() {
+    let help = fixtures::help(None);
+    let page = temper_docs::find(b"ctl").expect("ctl page").text.as_bytes();
+    let tools = help.strip_prefix(page).expect("the ctl page precedes the tools");
+    fixtures::check_golden("help", tools);
+}
 #[test]
 fn the_help_prints_as_its_golden_files() {
     for (tool, name) in GOLDENS {
@@ -123,7 +118,9 @@ fn each_derivation_names_every_tool() {
     }
     assert_eq!(forms.len(), fixtures::TOOL_FORMS);
     let help = fixtures::help(None);
-    let list = help.strip_prefix(guide::GUIDE).expect("the guide precedes the generated list");
+    let list = help
+        .strip_prefix(temper_docs::find(b"ctl").expect("ctl page").text.as_bytes())
+        .expect("the ctl page precedes the generated list");
     let mut expected = skein_lib::Writer::new(list.len());
     for (index, tool) in table::TOOLS.iter().enumerate() {
         for form in 0..tool.forms.len() {
@@ -154,81 +151,6 @@ fn each_derivation_names_every_tool() {
         expected.put(b"\n").expect("newline");
     }
     assert_eq!(list, &*expected.finish(), "the list has exactly the table's rows");
-    for line in &fixtures::guide_lines() {
-        if let Some(call) = line.trim_ascii_start().strip_prefix(b"temper ctl DIRECTORY ".as_slice()) {
-            fixtures::parse_line(call).expect("a prose example names a table member");
-        }
-    }
-}
-const EXITS: &[&[u8]] = &[
-    b"0: a read answered, an act done or proposed, or a wait met.",
-    b"1: usage or client failure, including limits, Held, NotKept and unknown past retention.",
-    b"2: an engine refusal alone, including an engine key conflict.",
-    b"3: an unmet wait's timeout or watch end.",
-    b"Unconfirmed or a client-side key conflict is a tools bug (exit 1); report it as a finding.",
-    b"Held may name another party's parked request; it is a client failure.",
-];
-#[test]
-fn the_guide_distinguishes_engine_refusals_from_client_failures() {
-    for expected in EXITS {
-        assert!(skein_lib::bytes::find(guide::GUIDE, expected).is_some(), "{expected:?}");
-    }
-}
-#[test]
-fn the_guide_preserves_the_sized_turn_exit_status() {
-    fixtures::guide_golden_has(&[b"A sized too-large turn stays\n   exit 0; report it as a finding"]);
-}
-#[test]
-fn the_guide_preserves_the_operating_system_signal_status() {
-    fixtures::guide_golden_has(&[b"A signal's status is the OS's, never 0."]);
-}
-#[test]
-fn the_guide_waits_for_the_link_deadline_during_reconnect() {
-    fixtures::guide_golden_has(&[
-        b"A stopping engine's wait continues through reconnect and fails only past the link deadline.",
-    ]);
-}
-#[test]
-fn the_guide_shows_kept_work() {
-    fixtures::guide_golden_has(&[
-        b"kept: create done: task 41, chat",
-        b"A kept JSON notice has only operation and outcome, one object per stderr line, never a request name or key.",
-    ]);
-}
-#[test]
-fn the_guide_shows_pending_work() {
-    fixtures::guide_golden_has(&[
-        b"chat, party 3, not sent",
-        br#"{"pending":[{"operation":"chat","party":3,"first_sent":null}],"unread":2}"#,
-        b"2 kept records these tools cannot read; a call that sends drops them",
-    ]);
-}
-#[test]
-fn the_guide_keeps_pending_local() {
-    fixtures::guide_golden_has(&[b"pending reads only the store, with no lock, client or send."]);
-}
-#[test]
-fn the_guide_refuses_an_invalid_store() {
-    fixtures::guide_golden_has(&[b"An invalid store fails: DIRECTORY's store cannot be read (exit 1)."]);
-}
-#[test]
-fn the_guide_shows_dropped_work() {
-    fixtures::guide_golden_has(&[b"dropped: 2 kept records these tools cannot read", br#"{"dropped":2}"#]);
-}
-#[test]
-fn the_guide_shows_parked_work() {
-    fixtures::guide_golden_has(&[
-        b"kept: 2 for party 3, unsent while it is not signed in here",
-        br#"{"party":3,"unsent":2}"#,
-        b"It answers and erases only the signed-in party's kept requests; other parties' work stays parked.",
-    ]);
-}
-#[test]
-fn the_guide_omits_request_identity() {
-    let golden = fixtures::golden("help");
-    for forbidden in [br#""name":"investigate-41""#.as_slice(), br#""key":"#.as_slice(), b"kept: investigate-41"] {
-        assert!(skein_lib::bytes::find(&golden, forbidden).is_none(), "{forbidden:?}");
-    }
 }
 
 const CHAT_READ: &[u8] = b"chat N [--before C]\nRead a conversation from its end\nResult: chat\n  task: Task number\n  before: Continue before this cursor\n";
@@ -251,7 +173,7 @@ fn help_includes_each_later_row_of_its_name() {
 #[test]
 fn help_refuses_a_writer_one_byte_short() {
     let bytes = fixtures::help(None);
-    let short = bytes.len().checked_sub(fixtures::HELP_SHORTFALL).expect("nonempty guide");
+    let short = bytes.len().checked_sub(fixtures::HELP_SHORTFALL).expect("nonempty help");
     let mut out = skein_lib::Writer::new(short);
     assert_eq!(crate::help::text(None, &mut out), Err(skein_lib::Overflow));
     assert_eq!(out.written(), fixtures::NO_HELP_BYTES, "overflow does not publish a partial help");

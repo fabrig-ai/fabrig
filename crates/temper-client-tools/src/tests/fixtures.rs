@@ -653,10 +653,6 @@ pub(crate) fn read_call(argv: &[&str]) -> (Harness, u32) {
 pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
-/// One slot for each guide call, including the model-choice seam.
-pub(super) const GUIDE_CALLS: u32 = 43;
-/// One slot per guide line, including the final line; fewer loses that line.
-const GUIDE_LINES: u32 = 173;
 /// One slot per row and form; fewer omits decide's second form.
 pub(super) const TOOL_FORMS: u32 = 59;
 /// Exactly one example exercises each row and form; zero misses it entirely.
@@ -698,30 +694,6 @@ pub(super) fn usage(tool: &crate::jig::table::Tool) -> Box<[u8]> {
     let mut exact = skein_lib::Writer::new(measured.written());
     crate::jig::help::usage(tool, &mut exact).expect("usage fits its measured length");
     exact.finish()
-}
-
-/// Lines of the guide, shared by its parsing and coverage checks.
-pub(super) fn guide_lines() -> List<&'static [u8]> {
-    let mut lines = List::with_capacity(GUIDE_LINES);
-    let mut start = 0;
-    for at in 0..=crate::guide::GUIDE.len() {
-        match crate::guide::GUIDE.get(at) {
-            Some(b'\n') | None => {
-                lines.push(crate::guide::GUIDE.get(start..at).expect("guide line range")).expect("bounded guide lines");
-                start = at.checked_add(1).expect("guide range fits usize");
-            }
-            Some(_) => {}
-        }
-    }
-    lines
-}
-
-/// Recovery examples are checked in the same hand-recorded full-help golden.
-pub(super) fn guide_golden_has(expected: &[&[u8]]) {
-    let golden = golden("help");
-    for text in expected {
-        assert!(skein_lib::bytes::find(&golden, text).is_some(), "{text:?}");
-    }
 }
 
 mod reads;

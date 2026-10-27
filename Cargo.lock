@@ -2545,6 +2545,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-shell-terminal",
+ "temper-docs",
 ]
 
 [[package]]

@@ -16,6 +16,4 @@ pub mod table;
 #[cfg(test)]
 mod tests;
 
-pub mod guide;
-
 pub mod help;
