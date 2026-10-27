@@ -1,10 +1,13 @@
 //! Outside terminal observations on the existing shipped-binary world.
 use super::{Process, Refusal};
 use skein_io::kernel::{Fd, Size};
-use skein_lib::Time;
+use skein_lib::{Duration, Time};
 use skein_shell::{Modes, resize_terminal, terminal_modes};
 use skein_world::Referee;
 use smith_local_process_world::process::Proc;
+
+/// How long non-program shipped-binary worlds may take to settle.
+pub(super) const WORLD_PATIENCE: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Copy)]
 pub(super) enum Story {
@@ -143,23 +146,30 @@ impl Referee<Process> for Judge {
 }
 
 impl Story {
-    pub(super) fn budget(self, sign_in: bool) -> skein_lib::Duration {
-        skein_lib::Duration::from_secs(match self {
-            Self::ProgramRun | Self::ProgramCheck => 30,
-            Self::None | Self::Modes | Self::Resize => {
-                if sign_in {
-                    5
-                } else {
-                    1
-                }
-            }
-        })
+    pub(super) fn budget(self, sign_in: bool) -> Duration {
+        match self {
+            // Widths are this story's subject, so its referee uses the world's
+            // patience (testing-strategy.md, 2.8; director 1294).
+            Self::Resize => WORLD_PATIENCE,
+            Self::ProgramRun | Self::ProgramCheck => Duration::from_secs(30),
+            Self::None | Self::Modes => Duration::from_secs(if sign_in { 5 } else { 1 }),
+        }
     }
+}
+
+#[test]
+fn resize_referee_uses_world_patience() {
+    let now = Time::ZERO;
+    let referee = Refusal::new(now, now.saturating_add(Story::Resize.budget(false)));
+    assert_eq!(referee.overdue(now.saturating_add(Duration::from_millis(1118))), None);
+    let deadline = now.saturating_add(WORLD_PATIENCE);
+    assert_eq!(referee.next_deadline(), Some(deadline));
+    assert!(referee.overdue(deadline).is_some());
 }
 
 #[test]
 fn program_stories_allow_thirty_seconds_total() {
     for story in [Story::ProgramRun, Story::ProgramCheck] {
-        assert_eq!(story.budget(false), skein_lib::Duration::from_secs(30));
+        assert_eq!(story.budget(false), Duration::from_secs(30));
     }
 }

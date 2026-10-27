@@ -331,7 +331,7 @@ fn run_fixture(
         &clock,
         match watching {
             window::Story::ProgramRun | window::Story::ProgramCheck => watching.budget(sign_in),
-            window::Story::None | window::Story::Modes | window::Story::Resize => Duration::from_secs(2),
+            window::Story::None | window::Story::Modes | window::Story::Resize => window::WORLD_PATIENCE,
         },
     );
     assert!(outcome.procs.iter().all(Host::is_empty), "product and peers drain");
