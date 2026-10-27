@@ -12,7 +12,7 @@ use std::{
 };
 use temper_real_loop_world::calls::ReadCondition;
 
-// The service's output bound also holds the complete tools guide (4,698 bytes).
+// The service's output bound also holds `temper ctl help` whole, the page ctl then the tools (11,285 bytes).
 const OUTPUT: usize = 65_536;
 const MEMBER: u64 = 1 << 63;
 const LINK: Token = Token::new(0);

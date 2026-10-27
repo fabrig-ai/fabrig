@@ -1,4 +1,4 @@
-//! Executable private-file guards: guide/github.md 10 and client/forge.md 5.4.
+//! Executable private-file guards: the walk github's step 3 (temper help github) and client/forge.md 5.4.
 pub mod support;
 
 use std::{fs, os::unix::fs::PermissionsExt};

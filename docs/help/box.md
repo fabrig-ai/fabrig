@@ -153,9 +153,13 @@ Expect: `moved in: account N`, the address to open, or `done:
 add-key`; the wait ends with `met`.
 
 If not: `key file mode 0o644 permits group or other access` (exit 1):
-`chmod 600 FILE`, then the same call with the same key. A wait that
-ends `not met: timeout` (exit 3) after a sign-in: the browser did not
-finish it; open the address again, then wait again.
+`chmod 600 FILE`, then the same call with the same key. The person's
+browser is on another machine: provider 1's sign-in calls back to
+`127.0.0.1:1455` on this one, which that browser reaches only through
+`ssh -L 1455:127.0.0.1:1455 HOST`, HOST this machine; give the person
+that line with the address. A wait that ends `not met: timeout`
+(exit 3) after a sign-in: the browser did not finish it; open the
+address again, then wait again.
 
 ## 6. Ask for a change
 

@@ -500,7 +500,7 @@ pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
     owned.forgejo
 }
 
-/// The complete owned deployment and its non-secret files, kept with the guide.
+/// The complete owned deployment and its non-secret files, as the walk server's step 1 writes them (temper help server).
 pub const EXAMPLE: &[u8] = include_bytes!("../../../../docs/examples/owned.json");
 pub const SHIPPED: [(&str, &[u8]); 1] =
     [("owned/agent.json", include_bytes!("../../../../docs/examples/owned/agent.json"))];
@@ -586,7 +586,7 @@ pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
         .replace("/usr/local/bin/temper", skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"))
         .into_bytes()
 }
-/// The guide's copied files and private forge credentials.
+/// The files the walk server copies before its start (temper help server) and private forge credentials.
 pub fn lay(directory: &Path, owned: &Owned) {
     for name in ["owned", "secrets"] {
         let path = directory.join(name);
