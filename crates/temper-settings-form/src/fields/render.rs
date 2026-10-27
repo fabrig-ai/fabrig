@@ -3,6 +3,8 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
+pub const INTRO: &[u8] = b"A settings file is a `file`, below; each section is one shape of JSON object, and each bullet one of its members, with its type, its bound and what it does. Read a value with `setting --json`, edit it, and set it whole. A bound here is what ctl sends; the deployment may still refuse a value, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend is in the deployment's units, those of its models' prices. Hex is bytes in lower-case hexadecimal: `666f726765` is `forge`.";
+
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
     page_of(&FORMS, &FIELDS, limits)
@@ -23,6 +25,9 @@ pub fn page_of(forms: &[Form], fields: &[Field], limits: &Limits) -> Box<[u8]> {
 
 fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
     out.put(b"# Settings fields\n\nKind: reference\n\nEvery member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `setting --json` prints it.\n");
+    out.put(b"\n");
+    out.put(INTRO);
+    out.put(b"\n");
     for form in forms {
         out.put(b"\n## ");
         out.put(form.name);
