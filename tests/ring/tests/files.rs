@@ -203,9 +203,10 @@ fn a_rename_across_filesystems_is_other_not_an_escape() {
 
 /// `RESOLVE_BENEATH` answers `EAGAIN` when a `..` races a rename or a mount
 /// anywhere on the system. Renames run in the ring's own workers, beside
-/// `Open`s through `..`, from this one thread, until one `Open` has raced:
-/// the adapter submitted it again (kernel.md, 6.1), and none failed for it.
-/// About one in a thousand races; the test gives up after sixty times that.
+/// `Open`s through `..`, from this one thread. Every Open must complete
+/// successfully, whether the kernel races or not; the retry count is
+/// reported. skein-shell's `linux::ring::tests::open_retries` unit tests
+/// force the race and check retries, their bound and cancellation.
 #[test]
 fn an_open_through_dot_dot_racing_renames_is_submitted_again() {
     const OPENS: u32 = 60_000;
@@ -277,7 +278,8 @@ fn an_open_through_dot_dot_racing_renames_is_submitted_again() {
         }
     }
     assert!(refused.is_empty(), "an Open raced to EAGAIN is submitted again: {refused:?}");
-    assert!(world.kernel.resubmitted() > 0, "no Open raced a rename in {opened}");
+    assert_eq!(opened, made, "every submitted Open completed exactly once");
+    eprintln!("{} rename-race resubmissions in {opened} Opens", world.kernel.resubmitted());
     world.close(dir);
     world.settle();
 }

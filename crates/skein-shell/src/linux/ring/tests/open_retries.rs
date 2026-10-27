@@ -11,7 +11,7 @@ const OPEN: Token = Token::new(1);
 const ROOT: Fd = Fd::new(123);
 const OPENED: Fd = Fd::new(456);
 
-/// The Linux SQE prefix through user_data, including OpenAt2's pointers.
+/// The Linux SQE prefix through `user_data`, including `OpenAt2`'s pointers.
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq)]
 struct OpenEntry {
@@ -92,13 +92,13 @@ fn race(table: &mut Table, original: &OpenEntry, count: u32) {
     assert_eq!(format!("{:?}", flight.open_how.get_mut()), format!("{expected:?}"), "keep the open flags");
 }
 
-fn finished(table: &mut Table, raw: i32, expected: Result<Done, Error>) {
+fn finished(table: &mut Table, raw: i32, expected: &Result<Done, Error>) {
     let Reaped::Complete(Complete { op, kind, result }) = table.complete(user_data(0, GENERATION), raw) else {
         panic!("a terminal answer must complete the Open");
     };
     assert_eq!(op, OPEN, "complete the original token");
     assert_eq!(kind, operation(), "return the original record");
-    assert_eq!(result, expected, "decode the terminal kernel answer");
+    assert_eq!(&result, expected, "decode the terminal kernel answer");
     assert!(table.tokens.is_empty(), "retire the token");
     assert!(table.cancelled.is_empty(), "retire any cancellation state");
     assert_eq!(table.free, [0], "release exactly one slot");
@@ -115,7 +115,7 @@ fn an_open_through_dot_dot_is_resubmitted_after_each_race_then_completes() {
         for count in 1..=races {
             race(&mut table, &original, count);
         }
-        finished(&mut table, OPENED.raw(), Ok(Done::Fd(OPENED)));
+        finished(&mut table, OPENED.raw(), &Ok(Done::Fd(OPENED)));
     }
 }
 
@@ -125,7 +125,7 @@ fn an_open_through_dot_dot_still_racing_after_sixteen_retries_completes_with_eag
     for count in 1..=16 {
         race(&mut table, &original, count);
     }
-    finished(&mut table, -libc::EAGAIN, Err(Error::Other(libc::EAGAIN)));
+    finished(&mut table, -libc::EAGAIN, &Err(Error::Other(libc::EAGAIN)));
 }
 
 #[test]
@@ -136,6 +136,6 @@ fn a_cancelled_open_through_dot_dot_is_not_resubmitted_after_a_race() {
             race(&mut table, &original, count);
         }
         table.cancelled.insert(OPEN);
-        finished(&mut table, -libc::EAGAIN, Err(Error::Other(libc::EAGAIN)));
+        finished(&mut table, -libc::EAGAIN, &Err(Error::Other(libc::EAGAIN)));
     }
 }
