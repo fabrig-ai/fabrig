@@ -264,6 +264,7 @@ class Queue:
         self.last_selection = None
         self.last_merged = []
         self.last_conflicts = []
+        self.error_record = None
         self.leads = dict(line.split() for line in lines(CONFIG / "leads.txt"))
         self.state = json.loads(self.state_path.read_text()) if self.state_path.exists() else {}
         self.state.setdefault("tried", {})
@@ -322,6 +323,7 @@ class Queue:
         record["log"] = str(self.log_path.parent / f"queue-{uuid.uuid4().hex}.log")
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         detail = Path(record["log"])
+        tried_before = dict(self.state["tried"])
         selected = None
         self.last_selection = None
         self.last_merged = []
@@ -333,12 +335,14 @@ class Queue:
             self.last_merged, self.last_conflicts = merged, conflicts
             record["conflicts"] = conflicts
             detail.write_text("\n".join(conflict["error"] for conflict in conflicts))
-            for branch in conflicts:
-                self.reject(record, branch, "merge conflict")
             if conflicts and not skip_conflicts:
+                for branch in conflicts:
+                    self.reject(record, branch, "merge conflict")
                 record["outcome"] = "conflict"
                 return False
             if not merged and not idle:
+                for branch in conflicts:
+                    self.reject(record, branch, "merge conflict")
                 record["outcome"] = "conflict"
                 return True
             paths = changed_paths(self.repo)
@@ -382,9 +386,14 @@ class Queue:
                 if len(merged) == 1:
                     failed = next((step["name"] for step in record["steps"] if not step["green"]), "no checks ran")
                     self.reject(record, merged[0], f"failing step: {failed}")
+            for branch in conflicts:
+                self.reject(record, branch, "merge conflict")
             self.save()
             return green
         except Exception as error:
+            self.state["tried"] = tried_before
+            record["outcome"] = "error"
+            self.error_record = record
             record["error"] = str(error)
             with detail.open("a") as output:
                 output.write(f"\n{error}\n")
@@ -392,6 +401,40 @@ class Queue:
         finally:
             record["end"] = utc_now()
             log_batch(self.log_path, record)
+
+    def recover(self, error):
+        """Restore main and report each distinct cycle error once (design.md, 3.1)."""
+        record = {**self.error_record, "event": "recovery"} if self.error_record else {
+            "start": utc_now(), "branches": [], "steps": [], "posts": [],
+            "outcome": "error", "error": str(error), "dry": self.dry,
+        }
+        try:
+            if git(self.repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD", check=False).returncode == 0:
+                git(self.repo, "merge", "--abort")
+            git(self.repo, "switch", "--detach", "--discard-changes", "origin/main")
+        except Exception as recovery_error:
+            record["recovery_error"] = str(recovery_error)
+        reported = self.state.setdefault("reported_errors", [])
+        if str(error) not in reported:
+            self.notify(record, "coord", "queue error", f"{error}\n")
+            reported.append(str(error))
+        try:
+            self.save()
+        except Exception as save_error:
+            record["state_error"] = str(save_error)
+        record["end"] = utc_now()
+        log_batch(self.log_path, record)
+
+    def run(self, stop, *, sleeper=time.sleep):
+        while not stop.exists():
+            self.error_record = None
+            try:
+                worked = self.cycle()
+            except Exception as error:
+                self.recover(error)
+                worked = False
+            if not worked and not stop.exists():
+                sleeper(60)
 
     def plan(self):
         git(self.repo, "fetch", "--prune", "origin")
@@ -492,9 +535,7 @@ def main():
                 queue.cycle()
                 return 0
             stop = Path.home() / "src/fabrig/queue.stop"
-            while not stop.exists():
-                if not queue.cycle() and not stop.exists():
-                    time.sleep(60)
+            queue.run(stop)
         return 0
     except (OSError, ValueError, RuntimeError) as error:
         print(f"mq: {error}", file=sys.stderr)

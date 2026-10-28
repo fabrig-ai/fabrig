@@ -429,6 +429,71 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(queue.state["tried"], {})
         self.assertEqual(self.posts, [])
 
+    def run_cycles(self, queue, count):
+        stop = self.directory / "stop"
+        sleeps = []
+
+        def sleeper(seconds):
+            sleeps.append(seconds)
+            if len(sleeps) == count:
+                stop.touch()
+
+        with redirect_stdout(io.StringIO()):
+            queue.run(stop, sleeper=sleeper)
+        return sleeps
+
+    def test_run_recovers_errors_and_reports_each_distinct_text_once(self):
+        branch = self.branch("a", publish=True)
+        queue = self.queue()
+        failures = iter(["gate guard", "gate guard", "git failed"])
+
+        def fail(repo, selected, paths, log):
+            raise RuntimeError(next(failures))
+
+        queue.checker = fail
+        self.assertEqual(self.run_cycles(queue, 3), [60, 60, 60])
+        self.assertEqual(self.tip(), self.base)
+        self.assertEqual(mq.git(self.repo, "branch", "--show-current").stdout.strip(), "")
+        self.assertEqual(queue.state["tried"], {})
+        self.assertEqual([body for _, _, body in self.posts], ["gate guard\n", "git failed\n"])
+        batches = [record for record in self.records() if "event" not in record]
+        self.assertEqual([record["outcome"] for record in batches], ["error"] * 3)
+        self.assertTrue(all(record["branches"][0]["tip"] == branch["tip"] for record in batches))
+        self.assertTrue(self.run_cycle(self.queue()))
+        self.assertTrue((self.repo / "a").exists())
+
+    def test_run_aborts_unfinished_merge_and_preserves_ignored_target(self):
+        self.write(".gitignore", "/target/\n")
+        self.commit("ignore build output")
+        self.base = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+        first = self.branch("first", "shared", "first\n")
+        second = self.branch("second", "shared", "second\n")
+        mq.build_batch(self.repo, [first])
+        mq.git(self.repo, "merge", "--no-ff", "--no-edit", second["tip"], check=False)
+        self.write("target/kept", "build output\n")
+        queue = self.queue()
+        queue.cycle = lambda: (_ for _ in ()).throw(RuntimeError("unfinished merge"))
+        self.run_cycles(queue, 1)
+        self.assertEqual(self.tip(), self.base)
+        self.assertNotEqual(mq.git(self.repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD",
+                                   check=False).returncode, 0)
+        self.assertEqual((self.repo / "target/kept").read_text(), "build output\n")
+
+    def test_error_does_not_reject_conflicted_branch_in_same_batch(self):
+        for task, text in (("a", "first\n"), ("b", "second\n")):
+            self.branch(task, "shared", text, publish=True)
+        queue = self.queue()
+        queue.checker = lambda *args: (_ for _ in ()).throw(RuntimeError("gate guard"))
+        self.run_cycles(queue, 1)
+        self.assertEqual(queue.state["tried"], {})
+        self.assertFalse(any("rejected" in subject for _, subject, _ in self.posts))
+
+    def test_root_and_tree_targets_are_ignored(self):
+        paths = ["target/fixture"] + [f"{tree}/target/fixture" for tree in mq.TREES]
+        self.assertEqual(mq.git(ROOT, "check-ignore", *paths).stdout.splitlines(), paths)
+
     def test_changed_tip_is_preserved_by_cleanup(self):
         branch = self.branch("a", publish=True)
         self.write("new", "new\n")
