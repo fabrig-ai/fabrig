@@ -229,28 +229,39 @@ The engine meters the transcripts and turns it holds in memory against
 one budget, `engine.memory_bytes` (skein's programming-model.md, 6.1),
 counted at the root, which sees them all.
 
-- **What counts,** in bytes, while it is in memory: a worker's turn body
-  from its link's record until its commit releases it (the root's
-  payloads); a run's preparation, the transcript the core loads to resume
-  a run, until the run is assigned or its preparation ends (the core's
-  transcripts: `Core::transcript_bytes`, a sum over its preparations,
-  which its task limit bounds); an assignment's turns until the worker takes them; a brief's
-  sections until its assignment goes out. The root keeps its own as a
-  running total, raised where it takes bytes and lowered where it lets
-  them go, never recomputed by a scan.
+- **What counts,** each byte once, while it is in memory:
+  - a worker's turn body, from the moment the root takes its link's
+    record until its commit releases it or it is dropped, wherever the
+    root holds it on the way (its payloads, the work queue, a decision,
+    the journal's held write): a running total of the root's, raised
+    where it takes the body and lowered where it lets it go, so a move
+    between its owners changes nothing;
+  - a loaded transcript page waiting in the root's store answers, until
+    the core takes it;
+  - a run's preparation, from its start: the core's
+    `Core::transcript_bytes`, which counts each preparation at its resume
+    allowance (its turns' and its text's) until its load is in, then at
+    the bodies and text it keeps, never the loaded window's framing or
+    its evicted history; a sum over its preparations, which its task
+    limit bounds;
+  - an assignment's turns until the worker takes them, and a brief's
+    sections until its assignment goes out, in the root's running total.
 - **What waits:** a run's preparation, the one entrance that brings the
-  most. The root activates a due task (`Resume`'s second choice) only
-  while the held bytes are under the budget, and any other path that
-  starts a preparation waits the same way; the task stays due, and the
-  next `Resume` after bytes drain activates it. A worker's turn of a run
+  most. While the held bytes are at or past the budget, `Resume` skips
+  its second choice, a due task's activation, and goes on to the fleet's
+  progress, leaving the task due and in its place; a restart's restored
+  activations (a task due or preparing when the engine stopped) wait the
+  same way, and are activated by later `Resume`s as bytes drain. Since a
+  preparation counts its whole allowance from its start, the held bytes
+  pass the budget by at most one preparation. A worker's turn of a run
   already admitted is never refused for bytes: the fleet's limits and
   the wire's turn size bound it.
 - **What does not wait:** a person's reads and calls that start no run,
-  the store's answers, completions. The budget limits pacing in bytes as
-  the watermark does in entries (section 10): the held bytes may pass it
-  by one preparation, and they drain as runs are assigned and turns
-  committed. With no worker to take assignments, preparations stop, and
-  nothing else does.
+  the fleet's progress, the store's answers, completions. The budget
+  limits pacing in bytes as the watermark does in entries (section 10),
+  and the held bytes drain without a new preparation: assignments are
+  delivered, preparations fail or finish, turns are committed. With no
+  worker to take assignments, preparations stop, and nothing else does.
 - **Its value** is the document's `engine.memory_bytes`. Until the
   startup fit check goes (skein's programming-model.md, 6.3), that
   declaration also covers the worst case and is far larger than any
@@ -258,8 +269,10 @@ counted at the root, which sees them all.
   its shipped value becomes a budget when the fit check goes.
 - **Its test,** in the root's world: with a budget of about two
   preparations, three due tasks activate two at a time as earlier runs
-  are assigned and their turns committed; a person's read meanwhile is
-  answered at once; and nothing deadlocks with no worker connected.
+  are assigned and their turns committed, while the fleet's placements
+  go on; a restart with three tasks due activates them the same way; a
+  person's read meanwhile is answered at once; and nothing deadlocks
+  with no worker connected.
 
 ## 5. Routing
 
