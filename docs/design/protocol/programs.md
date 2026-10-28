@@ -220,6 +220,11 @@ open is section 9.
   | modify | `Write`, `Edit` |
   | shell | `Bash` |
 
+  Claude Code has no built-in that deletes a file but its shell, so
+  modify's `remove` (`domain/tools.md`, section 3) is served by the
+  agent's own MCP server (below), answered by the agent as on the
+  direct backend, never by granting `Bash`.
+
   `--tools` names exactly these for the run's granted families, so the
   program's other built-in tools, its sub-agents, web access and task
   lists among them, are absent. A run with a result contract, which
