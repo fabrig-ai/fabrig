@@ -3,6 +3,7 @@
 Count matches in tracked Rust files, excluding generated/ components and
 comments, while keeping string literals. Compare each form independently
 with scripts/old-forms.txt; --write can initialize or lower that baseline.
+Recorded raises and other comments stay in place when counts are rewritten.
 Run from the repository root, using only the Python standard library:
 
     python3 -I -B scripts/old_forms.py [--write]
@@ -22,7 +23,8 @@ FORMS = {
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
     "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.\n"
-    '# Lower them with `python3 -I -B scripts/old_forms.py --write`; nothing raises them.\n'
+    '# Lower them with `python3 -I -B scripts/old_forms.py --write`; '
+    'only the director raises one, recorded in a `# Raised:` line.\n'
 )
 RULE = (
     "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7): "
@@ -101,14 +103,17 @@ def main():
     args = parser.parse_args()
     current = counts()
     try:
-        lines = BASELINE.read_text(encoding='utf-8').splitlines()
+        lines = BASELINE.read_text(encoding='utf-8').splitlines(keepends=True)
     except FileNotFoundError:
         if not args.write:
             parser.error(f'{BASELINE} is missing; initialize with --write')
         baseline = current
+        lines = HEADER.splitlines(keepends=True) + [
+            f'{form} {count}\n' for form, count in current.items()
+        ]
     else:
         try:
-            entries = [line.split() for line in lines if line and not line.startswith('#')]
+            entries = [line.split() for line in lines if line.strip() and not line.startswith('#')]
             baseline = {form: int(count) for form, count in entries}
             if (list(baseline) != list(FORMS) or len(entries) != len(FORMS)
                     or any(count < 0 for count in baseline.values())):
@@ -124,10 +129,11 @@ def main():
         print(RULE, file=sys.stderr)
         return 1
     if args.write:
-        BASELINE.write_text(
-            HEADER + ''.join(f'{form} {count}\n' for form, count in current.items()),
-            encoding='utf-8',
-        )
+        for index, line in enumerate(lines):
+            if line.strip() and not line.startswith('#'):
+                form = line.split()[0]
+                lines[index] = f'{form} {current[form]}\n'
+        BASELINE.write_text(''.join(lines), encoding='utf-8')
     else:
         for form, count in current.items():
             if count < baseline[form]:
