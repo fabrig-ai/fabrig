@@ -19,7 +19,8 @@ Provisional, 2026-10-28. A lead is a long-lived Claude session for one area (ske
 - Check the sketches against main: every name and file they assume exists.
 - `common.md` in the lead's scratch holds the standing rules every task names (fakes, fixtures, what not to touch), and grows when a question shows a gap.
 - The goal is no questions: tasks grow from small and certain; a question is answered in a short task file and the run resumed, and the gap closed in `common.md`.
-- Surveys and investigations are read-only Codex runs (`codex-run task --read-only`); effort high, medium for plain work; after two failed tries, a sub-agent advises.
+- **Effort:** implementers run at high by default, medium for mechanical work (renames, repetitive edits, removing dead code); xhigh only for a hard task the lead names. Surveys and investigations are read-only Codex runs (`codex-run task --read-only`), at medium, or high when the question is subtle.
+- After two failed tries at the same task, a sub-agent advises before the third.
 
 ## 3. Watching the work
 
