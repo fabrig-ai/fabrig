@@ -29,6 +29,14 @@ const CANDIDATES: [u32; 4] = [4096, 16_384, 65_536, 262_144];
 
 // 20 envelope/message + 2*4 text + 16*6 calls + 16*14 read results.
 const TYPICAL_NODES: u32 = 348;
+
+// The small serving fixture's real frame machines, including their box:
+// 315,712,311 bytes at jig 0d5ed2767. A ceiling, a quarter above, rounded
+// up to two significant digits (skein's dynamic-memory draft, 7.1); it
+// moves by hand only in the commit of a real change that passes it,
+// never on a type's size.
+const REAL_FRAME_MACHINES_CEILING: u64 = 400_000_000;
+
 #[test]
 fn frame_capacities_cover_real_turns_with_small_serving_cost() {
     let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
@@ -98,7 +106,7 @@ fn frame_capacities_cover_real_turns_with_small_serving_cost() {
     eprintln!("real smith machine heap {}", Patcher::worst_case_heap(real).expect("real heap"));
     let real_machines = patches::worst_case(&limits, &REAL_SETS).expect("real machines");
     eprintln!("real smith machine priced with its box {real_machines}");
-    assert!(real_machines <= baseline / 10, "frames are at most ten percent of serving");
+    assert!(real_machines <= REAL_FRAME_MACHINES_CEILING, "{real_machines}");
 }
 
 fn kept_turns_fit(sets: &crate::PatchSets, limits: &crate::Limits) {

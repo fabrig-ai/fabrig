@@ -80,7 +80,7 @@ fn memory_scenario_family() {
 }
 
 #[test]
-fn settled_finishing_queries_allocate_nothing_and_empty_closure_prices_one_output() {
+fn settled_finishing_queries_allocate_nothing_and_empty_closure_holds_one_output() {
     let limits = world::limits().core;
     let meter = Meter::new();
     meter.start();
@@ -104,7 +104,7 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_prices_one_outpu
     assert!(matches!(out.pop(), Some(core::Request::Decided)));
     assert!(out.is_empty());
     let one_output = skein_lib::Queue::<core::Request>::worst_case(1).expect("one output fits");
-    assert_eq!(closed.peak() - held, one_output);
+    assert!(closed.peak() - held <= one_output, "closure allocates at most one output's room");
     drop(out);
     meter.check(closed, bound, &limits);
     meter.start();

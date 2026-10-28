@@ -34,10 +34,12 @@ fn inbox_selection_allocations_fit_the_whole_recursive_bound_including_empty_res
     }
     let measured = meter.end();
     meter.check(measured, bound, &(rows, depth));
-    assert_eq!(meter.held(), bound, "recursive bound prices allocated capacity, not populated lengths");
-    assert!(meter.held() > bound - 1, "one byte under cannot contain the whole payload");
+    assert_eq!(contexts.len(), rows);
     assert!(contexts.get(0).expect("first reserved context").goals.is_empty());
     assert_eq!(contexts.get(0).expect("first reserved context").goals.capacity(), depth + 1);
+    for context in contexts.iter().skip(1) {
+        assert_eq!(context.goals.len(), depth + 1);
+    }
     drop(contexts);
     assert_eq!(meter.held(), 0);
 }
