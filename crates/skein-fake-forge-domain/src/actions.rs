@@ -55,7 +55,14 @@ pub(crate) struct Kept {
     pub(crate) jobs: List<Job>,
 }
 
-pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, commit: u64, user: u64, pull: Option<u64>) {
+pub(crate) fn start(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    id: Id<Repository>,
+    commit: u64,
+    user: u64,
+    pull: Option<u64>,
+) {
     let repository = domain.repositories.get_mut(id).expect("a CI repository");
     domain.runs = domain.runs.checked_add(1).expect("run ids fit");
     repository.run_number = repository.run_number.checked_add(1).expect("run numbers fit");
@@ -199,7 +206,8 @@ pub(crate) fn jobs(repository: &Repository, id: u64) -> Result<Answer, Error> {
             };
             let failing =
                 *repository.failing.get(usize::try_from(job.index).expect("bounded context")).expect("CI context");
-            view.steps = outcome_steps(&job.name, state, failing, crate::ci::cue(&repository.checks, &job.name), kept.pull);
+            view.steps =
+                outcome_steps(&job.name, state, failing, crate::ci::cue(&repository.checks, &job.name), kept.pull);
         }
         answer.push(view).expect("one entry per job");
     }
@@ -271,7 +279,13 @@ fn decimal(out: &mut List<u8>, number: u64) {
     append(out, skein_lib::Decimal::of(number).as_bytes());
 }
 
-pub(crate) fn outcome_steps(context: &[u8], state: Check, failing: Failing, cue: Option<&Cue>, pull: Option<u64>) -> Box<[Step]> {
+pub(crate) fn outcome_steps(
+    context: &[u8],
+    state: Check,
+    failing: Failing,
+    cue: Option<&Cue>,
+    pull: Option<u64>,
+) -> Box<[Step]> {
     let mut steps = steps(context, failing, cue, pull);
     if state == Check::Passed || state == Check::Skipped {
         for step in &mut steps {

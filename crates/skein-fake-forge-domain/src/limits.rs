@@ -407,7 +407,8 @@ fn inputs(limits: &Limits) -> Option<u64> {
 fn job_heap(limits: &Limits) -> Option<u64> {
     u64::from(limits.name_bytes)
         .checked_mul(8)?
-        .checked_add(117)?
+        .checked_add(118)?
+        .checked_add(u64::from(limits.content_bytes))?
         .checked_add(times(3, u64::try_from(size_of::<Step>()).ok()?)?)
 }
 fn run_payload(limits: &Limits, dispatched: bool) -> Option<u64> {
