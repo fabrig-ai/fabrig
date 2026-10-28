@@ -64,9 +64,13 @@ simulator.md; a world run in a browser is playground.md.
   temper builds as it did. A product crate names `skein-sim-world`; a
   test may name either.
 - **Depends on** lib, io, sim and shell, the shell for `Host` alone.
-- **The heap meter wraps each process's turn,** so a turn is an
-  operation of the world's own, which the harness's loop calls inside
-  its span, and the playground's loop calls bare.
+- **The heap meter wraps each process's turn and every harness
+  operation on its containers,** so a turn is an operation of the
+  world's own, which the harness's loop calls inside that process's
+  ledger span, and the playground's loop calls bare. Delivering
+  completions and draining submissions run inside the same span, as
+  does the real loop's `ring.deliver`: a ring that grows on a harness
+  push is charged to its process (testing-strategy.md, 6).
 
 ## 3. Steps
 
@@ -103,7 +107,8 @@ simulator.md; a world run in a browser is playground.md.
   them as a referee reads any output.
 - **The harness's run** is the loop of examples.md, section 6 over these
   steps, unchanged in what it checks: the referee acts before a step
-  and observes each turn; the heap is metered around each turn; when
+  and observes each turn; the heap is metered around each turn and each
+  harness operation on that process's containers (section 2); when
   the world is idle it checks the teardown invariant up to the next due
   instant and advances there; it ends once the referee passed and the
   world settled, then checks every process empty.
