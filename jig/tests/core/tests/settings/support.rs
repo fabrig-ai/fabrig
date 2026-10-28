@@ -1,4 +1,3 @@
-#![expect(dead_code, reason = "each settings binary uses its own subset of the shared story helpers")]
 //! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
 use jig_core_world::{client_peer::ClientPeer, effects::World, fixtures, peers, world};
 use jig_domain_core::{self as core, documents, reads, settings};
