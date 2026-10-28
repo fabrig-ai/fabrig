@@ -279,11 +279,12 @@ counted at the root, which sees them all.
   and the held bytes drain without a new preparation: assignments are
   delivered, preparations fail or finish, turns are committed. With no
   worker to take assignments, preparations stop, and nothing else does.
-- **Its value** is the document's `engine.memory_bytes`. Until the
-  startup fit check goes (skein's programming-model.md, 6.3), that
-  declaration also covers the worst case and is far larger than any
-  budget, so the budget binds in the worlds alone, which set it small;
-  its shipped value becomes a budget when the fit check goes.
+- **Its value** is the document's `engine.memory_bytes`: 1 GiB in
+  `temper init`'s template and the owned example, a budget for the
+  transcripts and turns the engine holds, never a cap on the process's
+  memory (the help pages say so). No start checks it against a sum
+  (skein's programming-model.md, 6.3); a deployment that declared a
+  far larger figure before keeps it, and the budget then rarely binds.
 - **Its test,** in the root's world: with a budget of about two
   preparations, three due tasks activate two at a time as earlier runs
   are assigned and their turns committed, while the fleet's placements
