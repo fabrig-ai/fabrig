@@ -1,0 +1,38 @@
+[package]
+license.workspace = true
+name = "smith-hosts-world"
+description = "A host service spawning Smith's agent over a simulated process tree"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+smith-fake-claude.workspace = true
+smith-protocol-program.workspace = true
+skein-heap.workspace = true
+skein-fake-llm-domain.workspace = true
+smith-local-shell.workspace = true
+smith-local-process-world.workspace = true
+serde_json = "1"
+skein-shell.workspace = true
+skein-fake-peers.workspace = true
+skein-io.workspace = true
+skein-lib.workspace = true
+skein-sim.workspace = true
+skein-fake-machine.workspace = true
+skein-world.workspace = true
+skein-tls-world.workspace = true
+smith-agent-service.workspace = true
+smith-local-service.workspace = true
+smith-agent-shell.workspace = true
+smith-agent-process-world.workspace = true
+smith-host-domain.workspace = true
+smith-host-protocol.workspace = true
+smith-host-world.workspace = true
+smith-channel.workspace = true
+smith-protocol-channel.workspace = true
+smith-charter.workspace = true
+
+[lints]
+workspace = true

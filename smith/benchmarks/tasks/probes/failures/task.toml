@@ -1,0 +1,81 @@
+id = "failures"
+version = 4
+kind = "probe"
+tier = "small"
+effort = "low"
+deadline_seconds = 1260
+prompt = "Read README.md using one read call, then in your next completion finish with its token. Do not batch the read with finish or make any other call.\n"
+seed_sha256 = "452c822eb37147a50a5ddf1271245fad2f5884ded6513b8f813e81629627fb85"
+guards = ["domain/run.md, section 9", "shell.md, section 4.3"]
+deciding = ["end", "tree-ended"]
+
+[budget]
+seconds = 600
+turns = 12
+
+[smith]
+"deployment.tool_payload" = 40960
+
+[[variant]]
+name = "one-turn"
+budget = { seconds = 600, turns = 1 }
+deciding = ["end", "run-completed", "no-request", "stream-whole", "tree-ended"]
+[[variant.outcome]]
+check = "end"
+end = "refused"
+[[variant.event]]
+check = "run-completed"
+status = "refused"
+class = "invalid"
+which = "budget_reserve_turns"
+[[variant.event]]
+check = "no-request"
+
+[[variant]]
+name = "unknown-model"
+smith = { "model" = "codex/smith-bench-nonexistent-model-2026-10-11", "models.\"codex/smith-bench-nonexistent-model-2026-10-11\".window" = 272000, "models.\"codex/smith-bench-nonexistent-model-2026-10-11\".output" = 32000, "models.\"codex/smith-bench-nonexistent-model-2026-10-11\".input_price" = 0.1, "models.\"codex/smith-bench-nonexistent-model-2026-10-11\".cached_price" = 0.01, "models.\"codex/smith-bench-nonexistent-model-2026-10-11\".output_price" = 0.5 }
+deciding = ["end", "run-completed", "provider-failure", "stream-whole", "tree-ended"]
+[[variant.outcome]]
+check = "end"
+end = "failed"
+[[variant.event]]
+check = "run-completed"
+status = "failed"
+class = "model"
+[[variant.event]]
+check = "provider-failure"
+status_at_least = 400
+status_at_most = 499
+detail_bytes_at_most = 1024
+
+[[variant]]
+name = "derived-limit"
+smith = { "deployment.read_window" = 40961 }
+deciding = ["end", "exit-code", "last-line", "no-run", "tree-ended"]
+[[variant.outcome]]
+check = "end"
+end = "refused"
+[[variant.outcome]]
+check = "exit-code"
+code = 2
+[[variant.outcome]]
+check = "last-line"
+pattern = "(?i)smith:.*read.in.payload.*40961.*40960"
+[[variant.event]]
+check = "no-run"
+
+[[variant]]
+name = "bad-setting"
+smith = { "models.\"{model}\".output" = 0 }
+deciding = ["end", "exit-code", "last-line", "no-run", "tree-ended"]
+[[variant.outcome]]
+check = "end"
+end = "refused"
+[[variant.outcome]]
+check = "exit-code"
+code = 2
+[[variant.outcome]]
+check = "last-line"
+pattern = "(?i)smith:.*output.*(positive|zero|0)"
+[[variant.event]]
+check = "no-run"

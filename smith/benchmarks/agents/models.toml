@@ -1,0 +1,14 @@
+[small.codex]
+model = "gpt-6-luna"
+effort = "low"
+
+[small.anthropic]
+model = "claude-haiku-5-5"
+effort = "low"
+
+[working.codex]
+model = "gpt-6.1-sol"
+effort = "high"
+
+# Anthropic's working tier belongs to the next comparison pass.
+[working.anthropic]

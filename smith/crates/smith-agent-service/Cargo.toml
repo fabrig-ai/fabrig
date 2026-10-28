@@ -1,0 +1,34 @@
+[package]
+license.workspace = true
+name = "smith-agent-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-http.workspace = true
+skein-llm-connection.workspace = true
+skein-tls.workspace = true
+smith-channel.workspace = true
+smith-charter.workspace = true
+smith-transcript.workspace = true
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-channel.workspace = true
+skein-llm.workspace = true
+smith-domain.workspace = true
+smith-events.workspace = true
+smith-protocol-channel.workspace = true
+smith-protocol-llm.workspace = true
+smith-protocol-machine.workspace = true
+smith-protocol-program.workspace = true
+
+[dev-dependencies]
+serde_json = "1.0"
+skein-heap.workspace = true
+smith-agent-world.workspace = true
+skein-llm-world.workspace = true
+
+[lints]
+workspace = true

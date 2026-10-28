@@ -1,0 +1,482 @@
+# Tools
+
+Provisional, 2026-10-05, revised 2026-10-20. What a smith session does to
+its workspace, as a domain layer: read, list, search, write, edit, shell
+and job. It is the child domain `smith-domain-tools`, under the session
+(session.md). A run with no workspace has none of these tools; its LLM
+acts through its host's tools and MCP servers. What is still open is
+listed in section 8.
+
+## 1. In one page
+
+- **Typed calls, typed outcomes.** A tool call is a domain entity
+  (`Read`, `Edit`, `Shell`, ...), decoded by the protocol layer from
+  what the LLM wrote in its dialect's format, and so is its outcome
+  (`Edited`, `Exited`, ...).
+- **One path namespace.** Relative paths start at the working directory,
+  other directories are reached by name, and a failure names the path as
+  it was resolved (section 2).
+- **Confined to the workspace,** its writes to the writable directories.
+- **Read before write, match before edit.** A `write` needs the file's
+  current version read; an `edit` needs each snippet to match once in
+  the file as it is. Both are checked against the real file.
+- **Bounded, told and visible.** Each tool's output has a limit, stated
+  to the LLM with its unit and its maximum, and the LLM may choose its
+  outputs' budgets within them. What a limit cuts is said, and a failure
+  comes back with its output, not a fixed message.
+- **Commands are bounded:** each in its own process group, with a
+  deadline the LLM may choose within a stated maximum, and the
+  configuration's environment, without credentials. Containment in a
+  view of the workspace comes with skein's contained trees (section 5).
+- **A command may run on as a job.** A command still running past a
+  yield the LLM chooses is answered `running`, and goes on as a job while
+  the session works; `job` reads its output, waits for its end or stops
+  it. A job's end is told once, and a job never outlives its session
+  (section 5).
+- **On a program backend,** the program's own tools stand in for these,
+  and only this domain's confinement holds, checked at each call's
+  permission prompt (section 10).
+
+## 2. The workspace
+
+- **Directories side by side.** A workspace is one or more directories
+  (documents, data, notes, code), each mounted under the name the LLM
+  calls it, so what refers to a sibling by path works. The first is the
+  working directory: relative paths and commands start there, and the
+  others are its siblings. Each may be writable or not; its host decides
+  which (run.md, 3.2).
+- **One path namespace,** the same for every tool, however many
+  directories there are:
+  - a relative path starts at the working directory;
+  - `/name/...` is a path within the directory called `name`, and
+    `list /` answers the directories' names from the session's
+    authority, without io;
+  - until contained trees give commands the same view, a host absolute
+    path within a directory is an alias for the same place, so a path a
+    command printed can be given to a tool. An absolute path at or
+    beneath a directory's host path, compared by whole names, reads as
+    that alias; any other reads as `/name/...`.
+- **What the LLM is told depends on how many directories there are**
+  (run.md, 3.3; protocol/llm.md, section 3). One directory hides its
+  name: the LLM is told that it works in its working directory, and
+  writes `src/lib.rs`, never the directory's name. With several, the
+  working directory is named, and the others are reached as
+  `/name/...`.
+- **Failures name the resolved path.** A path not found, not a
+  directory, outside the workspace or not writable comes back with the
+  path it resolved to, normalised and bounded, so a name written as a
+  prefix shows as the path it made.
+- **The directory itself** is an empty path within it, and `.` at io for
+  every operation: loads, stores, scans, listings, searches, and the
+  working directory of a command or a check. `read`, `write` and `edit`
+  of a directory itself answer *not a file* without asking io. A call
+  may name the working directory as `.` or as the empty path: both
+  decode to it, and the tools' descriptions say so (protocol/llm.md,
+  sections 3 and 4).
+- **A path's bound** is one number of bytes that a path must keep both
+  as written and as resolved:
+  - as written: each name, `.` and `..`, with one separator between each
+    two. A repeated, leading or trailing separator counts nothing;
+  - as resolved, `.` and `..` taken out: its names from the workspace's
+    root, the working directory's own name included, with one separator
+    between each two. A host alias is counted so twice: from the host's
+    root, and from the workspace's root for the place it names.
+
+  A path past the bound in any of these counts is answered as too long.
+  The tools' descriptions state the bound and its count as written
+  (section 4; protocol/llm.md, section 3).
+- **Repositories are directories with git.** A directory that is a git
+  working tree gets git's protections: its git directory is never
+  written (section 4), and it may start from a merge in progress.
+- **Files are world state,** reached through io and shared by every
+  session of the run. Write authority is copied into a session when it
+  opens.
+- **A merge in progress** is a repository like any other, whose
+  conflicted files hold their markers until the LLM resolves them
+  (run.md, 8.3).
+
+## 3. The tools
+
+| Tool | Effect | What it does |
+|---|---|---|
+| `read` | read | a window of a file's lines, from the line asked for |
+| `list` | read | the tree beneath a directory, to a depth, honouring ignore files |
+| `search` | read | `rg` over the workspace |
+| `write` | write | a file's whole content, created or replaced |
+| `edit` | write | one or more replacements in one file, applied together or not at all |
+| `remove` | write | a file deleted, or an empty directory |
+| `shell` | write | a command, in its own process group, with a deadline; past a yield the call asks for, a job |
+| `job` | read; write with `stop` | a job's output since its last answer, and its end once it has ended; with `stop`, the job stopped first |
+
+The charter's families grant them: inspect (`read`, `list`, `search`),
+modify (`write`, `edit`, `remove`), shell (`shell`, `job`). A change
+may delete a file as well as make one, and a review may ask it: a
+workspace that can write can remove, with no shell needed.
+
+- **`read { path, offset?, window? }`** answers the whole lines from line
+  `offset` that fit its window of bytes: the profile's default, or the
+  window asked for. The outcome says which lines it holds of how many,
+  so the LLM pages by asking from the next. A line longer than the
+  window is cut, and says so. Any read counts as reading the file at the
+  version io loaded, however little of it the window shows.
+- **`list { path, depth?, glob? }`** answers what a search would see
+  beneath a directory, in path order, to `depth` levels or the whole
+  tree:
+  - **files:** the files `rg` lists, and only those whose names match
+    `glob` when it is given. Files the ignore files exclude are left
+    out, as `rg` leaves them out;
+  - **directories:** the directories that hold such a file at any
+    depth. An empty directory is not listed, nor one that holds only
+    ignored or unmatched files. Git directories never appear. The
+    shell's `ls` shows everything.
+
+  The outcome counts the entries beyond its cap, after `depth` and
+  `glob`: files and directories alike, each once.
+- **`search { pattern, path?, glob? }`** answers the lines that match, in
+  path order, within its caps on hits and bytes, and counts the rest.
+- **`write { path, content }`** makes the file hold `content`, creating
+  it if there is none, and first the directories its path names that do
+  not exist, within the directory the path is in (added 2026-10-20). A
+  directory it made stays if the store then fails.
+- **`edit { path, edits }`** applies `edits` in order, each an `old`
+  snippet, its `new` replacement and whether to replace `all`
+  occurrences, each to the file as the edits before it left it. Each
+  `old` must occur exactly once, or at least once with `all`. If any
+  edit fails, none is applied, and the outcome names the first that
+  failed and why. The file is stored once.
+  - **A no-op edit is a match** (added 2026-10-20). An `old` equal to
+    its `new` must match as any `old` does, and changes nothing. A call
+    is refused as unchanged only when its edits together leave the file
+    as it was loaded.
+- **`shell { command, timeout_seconds?, output_bytes?, yield_seconds? }`**
+  runs `command` with a deadline and a budget for its kept output
+  (section 5). With `yield_seconds`, a command still running that many
+  seconds after its start is answered `running`, naming its job, with
+  its kept output so far, and goes on as that job. Without it, the call
+  waits for the command's end.
+- **`job { job, wait_seconds?, output_bytes?, stop? }`** answers the
+  job's kept output since its last answer, then `running`, or the job's
+  end: `exited`, with its exit; `timed_out`, naming its deadline;
+  `stopped`; or `cancelled`. It waits up to `wait_seconds` for the end
+  before it answers `running`, and no longer than the other calls of its
+  batch run (session.md, section 5). With `stop: true`, it stops the job
+  first and answers its end (section 5).
+- **Output budgets are the LLM's to choose.** A `read`'s window, a
+  command's kept output and a job's answer's are asked for per call, and
+  clamped to the profile's ceilings; the outcome says when a request was
+  clamped, and to what. So are a command's yield and a job's wait. A
+  search's and a listing's caps are the profile's.
+- **One typed call, whatever the dialect.** The protocol layer offers
+  each dialect the edit format its models handle best, chosen by
+  measurement, and decodes every format to the same `Edit`
+  (protocol/llm.md, section 3). The domain knows one call.
+
+## 4. Rules
+
+- **Typed, both ways.** The protocol layer owns each tool's schema, the
+  decoding, and the rendering of an outcome as the text the LLM reads;
+  the domain decides the content, such as how much of a command's output
+  to keep. A malformed call arrives as an `Invalid` call with a typed
+  problem (a missing field, a wrong type, a call too large to take), and
+  the domain decides what the LLM is told: for a call too large, how to
+  make it fit.
+- **The workspace is shared, knowledge is not.** What a session's LLM has
+  read, and at which version, is that session's own state.
+- **Read before write.** A `write` may replace a file only if its
+  session's LLM has read the current version; creating a file needs no
+  read, and a version the session wrote itself counts as read. The
+  version is checked against the real file when writing, so a change
+  made meanwhile by another session, or by anything else, is caught.
+  A session knows the 256 files it read or wrote last; one it knew
+  before those is forgotten, and must be read again before a `write`
+  replaces it (revised 2026-10-20: 16 files were too few for a change
+  across a crate, and a whole file's contents were refused after their
+  generation).
+- **Read before remove.** A `remove` deletes a file only if its
+  session's LLM has read its current version, as a `write` replacing it
+  would need, or an empty directory; never a directory with anything in
+  it, so one call removes one thing. Confined as a write is (below).
+- **Match before edit.** An `edit` needs no earlier read. It loads the
+  file as it is, needs each `old` to match there (section 3), and stores
+  the result only if the file still has the version it loaded, so a
+  change made between the two is caught. The version an edit stores
+  counts as read.
+- **Confined.** Paths resolve inside the workspace's directories, and
+  writes land only in writable ones. Writes and edits follow no symbolic
+  link on any part of their path, so a change lands in the directory its
+  path names, and a path with a `.git` part, in any case, is refused: the
+  host must not have to trust what a repository's own configuration
+  became. The directories a `write` makes follow its store's rules: inside
+  a writable directory, no symbolic link on any part, no `.git` part
+  (added 2026-10-20).
+- **Limits are told.** Every limit a tool applies is stated to the LLM
+  with its unit and its maximum: a read's window, what a write or an
+  edit may carry, a command's deadline, yield and kept output, a job's
+  wait and the jobs a session may run, a search's hits and bytes, a
+  listing's entries, and a path's bytes, with what they count as written
+  (section 2). None is set here: each is derived
+  from the deployment's declared quantities and checked at startup
+  (protocol/limits.md), and the tools' descriptions state the effective
+  values (protocol/llm.md, section 3).
+- **One payload bound.** One declared tool payload bounds a `read`'s
+  window, a `write`'s content and the call the LLM writes, so what can
+  be read in one window can be written back in one call.
+- **Files larger than a piece.** A file may hold more than one piece, up
+  to `file_bytes` (protocol/limits.md, 2.2):
+  - `read` pages through it in windows;
+  - `edit` loads it, applies its edits and stores it whole;
+  - a file larger than a piece is made by a `write` of its first piece,
+    then `edit`s that extend it.
+
+  A file past `file_bytes` is answered as too large, by `read` and by
+  `edit` alike. The tools' descriptions state both bounds.
+- **A size refusal says what to do** (added 2026-10-12). Whatever is
+  answered as too large, a call, a `write`'s content, a file or an
+  `edit`'s result, the LLM is told what was too large, its size, and the
+  bound it passed, with its unit. A `write` whose content passes the
+  payload bound is also told how to make it fit, as a call too large is:
+  write the file's first piece within the bound, then extend it with
+  `edit`s, as many in one call as fit. The common case is this one, since
+  a call's bound sits well above the payload's, so the route is told
+  where models meet it.
+- **Bounded and visible.** Each tool's output has a size limit, and what
+  a limit cut is said, with how much. A failure comes back with its
+  output (a failing test's tail, an edit that matched nothing), not a
+  fixed message.
+
+## 5. Search and shell
+
+- **The environment is the configuration's, whole.** The agent's
+  configuration owns the commands' environment: what a build needs (a
+  `PATH`, a home, a locale), and never a credential (protocol/agent.md,
+  section 3). Commands and checks see exactly it; searches and listings
+  see none. The domain carries no environment: no charter field and no
+  call sets a variable.
+- **Search** is `rg`, run as a process of its own: no configuration, the
+  pattern and glob passed so that neither reads as an option, and an
+  empty environment. A code graph served over MCP is to complement it,
+  as a tool source of its own (run.md, 5.1).
+- **Shell** runs a command with `sh`, in the working directory:
+  - **its deadline** is the one the LLM asked for, or the profile's
+    default, clamped to a tool call's longest deadline, a policy value of
+    the profile, which the tool's description states (protocol/limits.md,
+    section 2.3). The outcome says when a request was clamped. A session
+    that runs out of time cancels its commands and its jobs as it closes
+    (session.md, section 6);
+  - **its kept output** is the budget asked for, or the profile's
+    default, within the ceiling: the head and the tail of what it wrote,
+    the budget split between them in the proportion of the profile's
+    head to its tail, and the count of bytes dropped between them.
+- **A command has its own process group,** and a timeout signals the
+  group, so what the command started ends with it, not only the shell.
+  A process that leaves its group is beyond this until contained trees.
+- **A job** is a command that a `shell` call left running past its
+  yield. It belongs to the session that started it.
+  - **Its start.** The yield is `yield_seconds`, clamped to `job_wait`
+    (protocol/limits.md, section 2.3). A command still running when its
+    yield ends is answered `running`: its job's number and its kept
+    output so far. It goes on in its process group under its deadline,
+    counted from its start. A command that ends within its yield is
+    answered as if the call had none.
+  - **Its number.** A session numbers its jobs from 1, in the order its
+    `running` answers name them, and never reuses a number. A session
+    resumed in a later activation numbers its next job after the highest
+    its transcript's last turn records (protocol/transcript.md, sections
+    2 and 4), so that no number names two jobs in one conversation.
+  - **Reading it.** A `job` call answers the job's kept output since its
+    last answer: the budget the call asks for, or a command's default
+    when it asks for none, within a command's ceiling, kept as a
+    command's output is, from the head and the tail of the bytes not yet
+    answered, with the count of bytes dropped between them. No later
+    answer holds what one dropped. It then answers `running`, or the job's end: `exited` with
+    its exit, `timed_out` naming the deadline it passed, `stopped`, or
+    `cancelled`. It waits for the end up to `wait_seconds`, or `job_poll`
+    when it asks for none, clamped to `job_wait`, before it answers
+    `running` (revised 2026-10-20: the default and the ceiling were one
+    value, so a poll could not wait longer than it waited by default).
+  - **A wait ended early.** The session ends a `job` call's wait once
+    every call beside it in its batch that is not a `job` call has
+    answered, and as soon as it starts in a batch of `job` calls only
+    whose response holds another call (session.md, section 5). The call
+    then answers at once, as its wait's end would: the output since its
+    last answer, then `running`, or the end if the job has ended.
+  - **Stopping it.** `job` with `stop: true` stops the job's group in the
+    steps a deadline uses (protocol/agent.md, section 2), then answers
+    its end, `stopped`, with its output since its last answer. A job that
+    had already ended is answered with that end, as without `stop`.
+  - **Its bound.** A session has at most `jobs` running at once
+    (protocol/limits.md, section 2.2). For this bound a job runs from its
+    `running` answer until an answer reports its end or its session
+    closes, so one that ended unread still counts. A `shell` call with
+    `yield_seconds` while `jobs` jobs of its session are running is
+    answered as an invalid call, and not run: it says that at most
+    `jobs` may run at once, and that `job` with `stop` stops one, or
+    reads the end of one that ended. A `job` call naming a
+    number its session never answered `running`, or a job whose end was
+    already answered, is answered as an invalid call.
+  - **Cancelled for another writer.** A session's running jobs are its
+    writes in progress. Whatever takes the lease (run.md, sections 5.3
+    and 8.1) first cancels the running jobs of every other session, and
+    a check or a delivery cancels every running job before it runs; each
+    waits for the jobs it cancelled to settle before it goes on. A
+    cancelled job's end is `cancelled`, answered by the next `job` call
+    that names it.
+  - **Ended with its session.** A session closing (its run's end, a
+    child's end, a cancel, its time running out) cancels its running
+    jobs and waits for them to settle, then tells a `job.ended`
+    (protocol/events.md, section 3.6) for each job whose end no answer
+    reported, with its end as observed: `exited` or `timed_out` if it had
+    ended so, else `cancelled`. The session ends after those records.
+  - **One terminal each.** Every job's end is told once: by the first
+    answer that reports it, or else by its `job.ended`.
+  - **Within its activation.** A job never survives its activation: a
+    session resumed in a later activation has none, and a `job` call
+    naming an earlier one is invalid.
+- **Containment is skein's contained trees, later.** A command's tree is
+  then to see the workspace's view: it writes only the writable
+  directories, and every git directory is read-only to it, since the
+  host commits the checked tree, merges in progress included, and the
+  LLM needs no git writes. Searches and listings see every directory
+  read-only. Resource limits per tree come with them. Until then a
+  command is not confined: `write` and `edit` keep section 4's rules,
+  and a command has only the permissions of the agent's user
+  (protocol/agent.md, section 3).
+
+## 6. Below the domain
+
+io's operations: file loads and atomic stores, directory scans and tree
+listings, `rg` searches, and commands in their own process groups with
+deadlines, each job's group held with its unread output between its
+answers, and later contained process trees with proof that a tree is
+empty once stopped, reached through `smith-protocol-machine`. That
+component translates a place to an io path in one way for every
+operation (section 2). The protocol layer: each tool's schema and each
+dialect's edit format, decoding and rendering (`smith-protocol-llm`).
+
+## 7. The world
+
+The machine's faces for files and processes, and the programs they run
+(git directories read-only, `rg`, `sh`). Its stories:
+
+- **Paths:** one directory and several; `list /`; a host alias; the
+  directory itself, for every operation, named as `.` and as the empty
+  path; a directory's name written as a prefix, failing with the path it
+  resolved to; a path at its bound and one past it, as written and as
+  resolved, with repeated separators that count nothing; symbolic links
+  and `.git` parts on paths.
+- **Changes:** files changed behind a session's back; a `write` of a file
+  not read; edit lists that all match, one that fails so that none
+  applies, edits that overlap or match twice, and an edit with no
+  earlier read; a file changed between an edit's load and its store; an
+  edit whose `old` equals its `new` beside one that changes the file,
+  stored, and alone, refused as unchanged; a `write` beneath directories
+  that do not exist, which it makes, and one whose making fails.
+- **Reads and listings:** a file paged window by window, at the default
+  window and at one asked for; a request past a ceiling, clamped and
+  said; a tree cut at its cap, with ignored entries left out.
+- **Commands:** commands that hang, fail and flood their output; a
+  deadline asked past the maximum, clamped and said; a kept output asked
+  for, split between head and tail in the profile's proportion; a
+  command whose child outlives it, ended with its group at the deadline;
+  the configured environment seen by commands and checks, and none by
+  searches.
+- **Jobs:** a command past its yield, answered `running` and read until
+  it exits; one read past its kept output's ceiling, the bytes dropped
+  counted once; one stopped, and one stopped after it had exited; one
+  past its deadline, `timed_out`; a wait asked for none, `job_poll`; a
+  yield and a wait asked past `job_wait`, clamped and said; a wait
+  ended early by its session,
+  answered `running` with the output so far; reads, edits and other
+  commands while a job runs; a `shell` call with a yield while `jobs` jobs are running, and
+  `job` calls naming an unknown number or an end already answered, each
+  invalid; jobs cancelled for a check, `cancelled` at their next read; a
+  session closing with one job running and one exited unread, each told
+  once by `job.ended`.
+
+Its referee: nothing written by a tool outside the writable directories;
+no write of a version not read; no edit stored over a version other than
+the one it matched; every outcome within its stated limit; every call
+answered once; every job's end told once, by an answer or by
+`job.ended`, and at most `jobs` running at once. Random edit lists, and
+jobs' polls, stops and ends drawn among them, drive the fuzzy world.
+These are domain steps over the fake machine, within the suites'
+budgets; that a group's grandchild dies at the deadline is skein's to
+prove on a real kernel.
+
+## 8. Open questions
+
+- **A wait ended by output** (added 2026-10-20): whether a `job` call's
+  wait should also end when the job writes something new, so that a
+  poll sees a failure early. It would wake a streaming build at every
+  line, so a poll waits for the end, `job_poll` by default, as Codex's
+  does.
+- **A code graph:** indexing a workspace for codebase-memory-mcp, served
+  as an MCP tool source, and who keeps the index.
+- **Workspaces beyond directories** (README.md, section 8).
+- **A job's standard input:** writing to a running job, which `job` does
+  not do (section 5).
+- **A path's resolved bound and a hidden name:** with one directory, the
+  bound as resolved counts the working directory's name, which the LLM
+  is never shown (section 2), so the descriptions state only the count
+  as written; whether it should count from the working directory
+  instead.
+- **Aliases that collide:** an absolute path that reads both as a host
+  alias and as `/name/...` is read here as the alias; whether to refuse
+  it as ambiguous instead. Aliases go once contained trees give the view
+  fixed mounts, which the tools then accept.
+- **A run's own environment:** a typed, bounded charter overlay, merged
+  in one place, only once a host needs one.
+
+## 9. From temper
+
+temper's agent's tools domain, as it was, with `edit` taking several
+replacements and needing a match rather than a read, `list` answering a
+tree, output budgets the LLM chooses within ceilings, and one path
+namespace; only the names of what it confines for (temper's worker)
+become the host's.
+
+## 10. On a program backend
+
+A run on a program backend (protocol/programs.md) has none of this
+domain's tools: the program runs its own built-in tools for the granted
+families, and this domain checks each call before it runs.
+
+- **What stands in:** for inspect, the program's `Read`, `Glob` and
+  `Grep`; for modify, `Write` and `Edit`; for shell, `Bash`
+  (protocol/programs.md, 5.3). There is no `list`, `search` or `job` of
+  this domain's.
+- **What holds, at the permission prompt** (protocol/programs.md, 5.4):
+  - each path a call names, resolved against the working directory,
+    within the start's directories, and outside every `.git` directory
+    (section 4);
+  - a write's or an edit's path within a writable directory;
+  - the families the run granted, and no other tool.
+
+  A call that breaks a rule is denied, with the rule in words, as an
+  invalid call is answered here.
+- **What it learns there:** the versions read, which this domain's own
+  tools that still serve a program (`remove`, served by the agent's own
+  server) need. Allowing a `Read` of a whole file, with no offset or
+  limit, records the file's version at that moment as read, as this
+  domain's `read` does; a partial read records nothing, so `remove`
+  refuses the file as unread and says to read it whole; a `Write` or an
+  `Edit` allowed on a file records the version it leaves once its
+  result is told, as a version the session wrote counts as read. The
+  workspace is the session's alone, so nothing moves a file between the
+  allowance and the read.
+- **What does not:**
+  - one path namespace: the program sees its working directory and the
+    paths of the directories beside it as its view mounts them
+    (protocol/hosts.md, section 3), not `/name/...`;
+  - read before write and match before edit, which are the program's
+    own checks;
+  - the stated bounds on each tool's output, which are the program's;
+  - commands: `Bash`'s command is not parsed, so its paths are not
+    checked; its process is the program's child, in the agent's tree
+    and the commands' environment (protocol/programs.md, 4.2), and its
+    deadline is the program's, within the run's wall time;
+  - jobs: a command the program runs in the background is the
+    program's, and ends with it.
+- **Outcomes are text.** A built-in tool's result is told as the text
+  the program wrote, never as this domain's typed outcome
+  (protocol/transcript.md, section 2).

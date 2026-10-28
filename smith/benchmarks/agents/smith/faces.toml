@@ -1,0 +1,12 @@
+# Product faces and their writer-derived receiving bounds.
+# Product invocation, check-derived teardown and read-only source borrowing.
+[[face]]
+commit = "0d5604f94d9eb7f2aa6605634fd616e42f20d11e"
+shape = "exec"
+receiving = { string = 256000, content = 13056000, items = 52778, encoded_line = 19817472 }
+
+# The complete interactive candidate types at a terminal and keeps Exec for headless.
+[[face]]
+commit = "55879f9cbc8dd6099edeaaf130fbc29f86b53777"
+shape = "chat"
+receiving = { string = 256000, content = 13056000, items = 52820, encoded_line = 19822848 }

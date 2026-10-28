@@ -1,0 +1,26 @@
+//! Content-free slot observations (domain/host.md, sections 9.1 and 10).
+//! The agent retains lifecycle facts in an uncapped queue, independently of root drains.
+//! The owner drains lifecycle facts before reclaim.
+
+use skein_lib::{Time, Token};
+use smith_host_domain::End;
+
+/// A slot observation emitted by the inline agent for its owner to drain.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Fact {
+    pub at: Time,
+    pub kind: FactKind,
+}
+
+/// One inline lifecycle observation, sent without payload or credential detail.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FactKind {
+    /// A slot opened under this parent client.
+    Opened { client: Token },
+    /// The parent or wall bound requested cancellation once.
+    Stopped { client: Token },
+    /// The parent dropped the run and released its held turns without acknowledgement.
+    Dropped { client: Token },
+    /// A spawn refused or all owned rights settled under this parent client.
+    Gone { client: Token, end: End },
+}

@@ -1,0 +1,9 @@
+# Each key is passed as -c KEY=VALUE in an attempt-owned CODEX_HOME.
+# Model, effort, trust and writable caches are supplied by the adapter.
+"approval_policy" = "never"
+"sandbox_mode" = "workspace-write"
+"check_for_update_on_startup" = false
+"mcp_servers" = {}
+
+[harness]
+teardown_ms = 5000

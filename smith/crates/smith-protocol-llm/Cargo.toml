@@ -1,0 +1,24 @@
+[package]
+license.workspace = true
+name = "smith-protocol-llm"
+description = "Bounded application translation through the shared provider-neutral LLM Client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-json.workspace = true
+skein-llm.workspace = true
+skein-llm-connection.workspace = true
+skein-io.workspace = true
+skein-tls.workspace = true
+smith-domain.workspace = true
+smith-events.workspace = true
+
+[dev-dependencies]
+skein-llm-world.workspace = true
+
+[lints]
+workspace = true

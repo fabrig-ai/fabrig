@@ -1,0 +1,930 @@
+//! Ordered host sections through actual main/child sessions and native restore.
+//! Expected system bodies are handwritten outside literals; concrete history,
+//! child results, usage and lower settlement come from the composed routes.
+//! Contract: domain/run.md, sections 3.1, 3.3, 5.3, 6 and 13;
+//! testing-strategy.md, sections 2.3, 6 and 7.
+
+use skein_fake_checkout::Checkout;
+use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Query, Role, Script, Turn};
+use skein_lib::{Duration, Token};
+use skein_world::domain::Span;
+use smith_domain::{Transcript, run, session::llm, tools};
+use smith_protocol_llm_world::adapter::{self as adapter, Limits};
+use smith_protocol_llm_world::{
+    Boundary, Job, Settings, World,
+    wire::{self, Observed},
+};
+
+const BEGIN: &[u8] = b"Begin the work your brief describes.";
+const ID: &[u8] = b"call_0000000000000001";
+const MAIN_INSTRUCTIONS: &str = "@brief-main PARENT-INSTRUCTIONS: coordinate this task.\nSeparate role line.";
+const NATIVE_INSTRUCTIONS: &str = "@brief-native PARENT-INSTRUCTIONS: native first activation.";
+const RESUME_INSTRUCTIONS: &str = "@brief-native RESUME-INSTRUCTIONS: use the saved history.\n";
+const CHILD_INPUT: &[u8] = br#"{"brief":"@brief-child CHILD-TASK-ONLY: inspect both mounts.","tools":["inspect"]}"#;
+const CHILD_RESULT: &[u8] = b"CHILD-RESULT: parent-change in work; unchanged in archive.";
+const FINISH_INPUT: &[u8] = br#"{"report":"The child inspected the changed workspace.","source":"workspace"}"#;
+const FIRST: &[u8] = b"Native structured brief first activation parked.";
+const RESUMED: &[u8] = b"Native structured brief history restored.";
+const LAST: &[u8] = b"Native structured brief second activation parked.";
+
+// These literals do not call the production renderer or reproduce its algorithm.
+// Duplicate Zulu titles and the intervening Alpha title must stay in host order.
+const SECTIONS: &str = "## Zulu PARENT-TITLE-Z\n\nPARENT-BODY-ONE: café\nline one\n\n\
+## Alpha PARENT-TITLE-A\n\nPARENT-BODY-TWO: λ ends with LF\n\n\
+## Zulu PARENT-TITLE-Z\n\nPARENT-BODY-THREE: 東京\nthird line\n\n";
+const GUIDES: &str = "## AGENTS.md in `work`\n\nWORK-GUIDE: inspect data.txt.\n\n\
+## AGENTS.md in `archive`\n\nARCHIVE-GUIDE: keep every byte.\n\n";
+const MAIN_MECHANICS: &str = "## Tools\n\n\
+You can read, list and search the files in the checkout.\n\
+You can write and edit files in its writable repositories.\n\n\
+## Checkout\n\n\
+Your working directory is `work`. Relative paths start there; reach the other directories as `/name/...`. Use `list /` to list their names.\n\
+- `work`, which you may change, a git working tree, with checks (`.temper/pre-pr`)\n\
+- `archive`, which you may only read, a plain directory\n\n\
+## Sub-agents\n\n\
+You can ask for a sub-agent: an LLM of its own, working on a brief you write, with tools no wider than \
+yours and a share of the ordinary budget above the reserve. Its last message comes back with usage.\n\
+A child starts cold: give it a focused brief naming paths, decisions and scope. Inspect-only children may work side by side; a writing child works alone.\n\
+It runs on the \
+run's main LLM unless you name one of these: `fake-2`.\n\n\
+Call `wait` when you need another message; its result is withheld until messages arrive and returns with them in one request.\n\n\
+## Finishing\n\n\
+When the work is done, call `finish` with its result. A result outside the host's contract returns \
+typed feedback; fix it and call `finish` again. Stopping without `finish` does not finish the run.\n\n\
+Report: text up to 1024 bytes, with these host-required fields:\n\
+- `source`: nonempty, at most 128 bytes\n\
+Extra fields are allowed within the aggregate result byte limit; no field name may repeat.\n";
+const MAIN_BUDGET: &str = "\n## Budget\n\nAt open, you have 64 turns and 3599 seconds of wall time. Spend is bounded too.\nKeep 0 turns and 0 seconds to finish. When the ordinary budget is spent, live children close and you finish on that reserve.\nSub-agents share only what is above the reserve. Ask for focused turn or time shares; leaving a part unasked gives the child all of that part left.\n";
+const CHILD_MECHANICS: &str = "## Tools\n\n\
+You can read, list and search the files in the checkout.\n\n\
+## Checkout\n\n\
+Your working directory is `work`. Relative paths start there; reach the other directories as `/name/...`. Use `list /` to list their names.\n\
+- `work`, which you may change, a git working tree, with checks (`.temper/pre-pr`)\n\
+- `archive`, which you may only read, a plain directory\n\n\
+## Answering\n\n\
+When you are done, end your turn with your answer. The run adds your usage to the result.\n\n\
+## Your share\n\n\
+At open, your share is 60 turns and 120 seconds. Your answer may hold at most 1024 bytes; anything past it is cut with a marker. Your last turn has no tools: answer with what you have.\n";
+
+fn charter(settings: &Settings, instructions: &str) -> run::Charter {
+    use run::charter::{Brief, Endpoint, Grants, Llm, Section, Tools};
+    use run::outcome::{FieldRule, OutcomeSpec, TextSpec};
+    let llm = Llm {
+        effort: None,
+        prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
+        dialect: 1,
+        account: Some(0),
+        endpoint: Endpoint(0),
+        model: b"fake-1".as_slice().into(),
+        window: smith_protocol_llm_world::MODEL_WINDOW,
+        output: 4096,
+    };
+    run::Charter {
+        mode: run::Mode::Finite,
+        reserve: run::charter::Reserve { turns: 0, time: skein_lib::Duration::ZERO },
+        instructions: instructions.as_bytes().into(),
+        brief: Brief {
+            sections: Box::new([
+                Section {
+                    title: b"Zulu PARENT-TITLE-Z".as_slice().into(),
+                    text: "PARENT-BODY-ONE: café\nline one".as_bytes().into(),
+                },
+                Section {
+                    title: b"Alpha PARENT-TITLE-A".as_slice().into(),
+                    text: "PARENT-BODY-TWO: λ ends with LF\n".as_bytes().into(),
+                },
+                Section {
+                    title: b"Zulu PARENT-TITLE-Z".as_slice().into(),
+                    text: "PARENT-BODY-THREE: 東京\nthird line".as_bytes().into(),
+                },
+            ]),
+        },
+        grants: Grants {
+            wait: true,
+            deliver: None,
+            tools: Tools { inspect: true, modify: true, shell: false },
+            agents: true,
+            host_tools: Box::new([]),
+        },
+        outcome: OutcomeSpec {
+            change: None,
+            verdicts: Box::new([]),
+            report: Some(TextSpec {
+                max: 1024,
+                fields: Box::new([FieldRule { name: b"source".as_slice().into(), max: 128 }]),
+            }),
+            failure: None,
+        },
+        budget: settings.budget,
+        models: Box::new([Llm { effort: None, model: b"fake-2".as_slice().into(), ..llm.clone() }]),
+        llm,
+        conventions: Some(run::Conventions {
+            guide: b"AGENTS.md".as_slice().into(),
+            checks: b".temper/pre-pr".as_slice().into(),
+        }),
+        resume: settings.resume,
+        waiting: settings.waiting,
+    }
+}
+
+fn workspace() -> (Checkout, run::Workspace) {
+    let mut disk = Checkout::new();
+    disk.mkdir(b"work");
+    disk.mkdir(b"archive");
+    disk.write(b"work/AGENTS.md", b"WORK-GUIDE: inspect data.txt.\n");
+    disk.write(b"archive/AGENTS.md", b"ARCHIVE-GUIDE: keep every byte.");
+    disk.write(b"work/.temper/pre-pr", b"#!checks");
+    disk.write(b"archive/.temper/pre-pr", b"#!readonly-check-must-not-run");
+    disk.write(b"work/.git/HEAD", b"host-owned-git-metadata");
+    disk.write(b"work/data.txt", b"old");
+    disk.write(b"archive/data.txt", b"unchanged");
+    let mounted = run::Workspace {
+        directories: Box::new([
+            run::Directory {
+                host: Box::from(b"/host".as_slice()),
+                name: b"work".as_slice().into(),
+                root: Token::new(disk.root(b"work")),
+                writable: true,
+                git: true,
+                conflicts: Box::new([]),
+            },
+            run::Directory {
+                host: Box::from(b"/host".as_slice()),
+                name: b"archive".as_slice().into(),
+                root: Token::new(disk.root(b"archive")),
+                writable: false,
+                git: false,
+                conflicts: Box::new([]),
+            },
+        ]),
+    };
+    (disk, mounted)
+}
+
+fn call(name: &[u8], arguments: &[u8]) -> Line {
+    Line::Call { name: name.into(), arguments: arguments.into() }
+}
+
+fn calls(lines: Vec<Line>, tokens: u64) -> Turn {
+    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }
+}
+
+fn says(text: &[u8], tokens: u64) -> Turn {
+    Turn { lines: Box::new([Line::Text { text: text.into() }]), finish: Finish::Stop, tokens }
+}
+
+fn typed_scripts() -> Box<[Script]> {
+    Box::new([
+        Script {
+            cue: b"@brief-main".as_slice().into(),
+            turns: Box::new([
+                calls(vec![call(b"read", br#"{"path":"data.txt"}"#)], 2),
+                calls(vec![call(b"edit", br#"{"path":"data.txt","edits":[{"old":"old","new":"parent-change"}]}"#)], 3),
+                calls(vec![call(b"write", br#"{"path":"../archive/data.txt","content":"forbidden-main"}"#)], 5),
+                calls(vec![call(b"sub_agent", CHILD_INPUT)], 7),
+                calls(vec![call(b"finish", FINISH_INPUT)], 11),
+            ]),
+        },
+        Script {
+            cue: b"@brief-child".as_slice().into(),
+            turns: Box::new([
+                calls(
+                    vec![call(b"read", br#"{"path":"data.txt"}"#), call(b"read", br#"{"path":"../archive/data.txt"}"#)],
+                    13,
+                ),
+                calls(
+                    vec![call(
+                        b"edit",
+                        br#"{"path":"data.txt","edits":[{"old":"parent-change","new":"forbidden-child"}]}"#,
+                    )],
+                    17,
+                ),
+                says(CHILD_RESULT, 19),
+            ]),
+        },
+    ])
+}
+
+fn contains(bytes: &[u8], part: &[u8]) -> bool {
+    bytes.windows(part.len()).any(|bytes| bytes == part)
+}
+
+fn feedback_has(query: &Query, part: &[u8]) -> bool {
+    query
+        .messages
+        .iter()
+        .flat_map(|message| &message.parts)
+        .any(|item| matches!(item, Part::ToolOutput { output, is_error: true, .. } if contains(output, part)))
+}
+
+fn expected_main(instructions_literal: &str) -> Vec<u8> {
+    [instructions_literal, SECTIONS, GUIDES, MAIN_MECHANICS, MAIN_BUDGET].concat().into_bytes()
+}
+
+fn typed_openings(world: &World) {
+    let main_system = expected_main("@brief-main PARENT-INSTRUCTIONS: coordinate this task.\nSeparate role line.\n\n");
+    let child_system =
+        ["@brief-child CHILD-TASK-ONLY: inspect both mounts.\n\n", GUIDES, CHILD_MECHANICS].concat().into_bytes();
+    let main = world.prompts().iter().filter(|query| query.system.starts_with(b"@brief-main")).collect::<Vec<_>>();
+    let child = world.prompts().iter().filter(|query| query.system.starts_with(b"@brief-child")).collect::<Vec<_>>();
+    assert_eq!(main.len(), 5, "actual main turns, including child result and accepted finish");
+    assert_eq!(child.len(), 3, "actual child reads, denied edit and terminal answer");
+    assert_eq!(main.len() + child.len(), world.prompts().len());
+    for query in &main {
+        assert_eq!(query.system.as_ref(), main_system, "literal complete ordered main system");
+        assert_eq!(query.model.as_ref(), b"fake-1");
+    }
+    for query in &child {
+        assert_eq!(query.system.as_ref(), child_system, "literal task, actual guides and narrowed mechanics");
+        for sentinel in [
+            b"PARENT-INSTRUCTIONS".as_slice(),
+            b"PARENT-TITLE-Z",
+            b"PARENT-TITLE-A",
+            b"PARENT-BODY-ONE",
+            b"PARENT-BODY-TWO",
+            b"PARENT-BODY-THREE",
+        ] {
+            assert!(!contains(&query.system, sentinel), "parent payload must not implicitly reach child: {sentinel:?}");
+        }
+        assert_eq!(
+            query.tools.iter().map(|tool| tool.name.as_ref()).collect::<Vec<_>>(),
+            [b"read".as_slice(), b"list", b"search"]
+        );
+    }
+    assert!(main.iter().any(|query| feedback_has(query, b"ReadOnly")));
+    assert!(child.iter().any(|query| feedback_has(query, b"UnknownTool")));
+    assert!(main[4].messages.iter().flat_map(|message| &message.parts).any(|part| {
+        matches!(part, Part::ToolOutput { output, is_error: false, .. } if output.starts_with(CHILD_RESULT) && contains(output, b"\n\nChild usage: used 3 turns"))
+    }));
+}
+
+#[test]
+fn ordered_sections_and_instructions_reach_main_but_child_receives_only_its_own_task() {
+    let settings = Settings { job: Job::Reporting, network: Span::millis(1, 1), ..Settings::calm(1101) };
+    let (disk, mounted) = workspace();
+    let readonly = disk.tree(b"archive");
+    let roots = mounted.directories.iter().map(|directory| directory.root).collect::<Vec<_>>();
+    let mut world = World::with_workspace_scripts_charter(
+        settings,
+        None,
+        Some(mounted),
+        disk,
+        typed_scripts(),
+        charter(&settings, MAIN_INSTRUCTIONS),
+    );
+    world.run(10_000);
+    typed_openings(&world);
+    assert_eq!(world.disk().content(b"work/data.txt"), Some(b"parent-change".as_slice()));
+    assert_eq!(world.disk().content(b"work/.git/HEAD"), Some(b"host-owned-git-metadata".as_slice()));
+    assert_eq!(world.disk().tree(b"archive"), readonly);
+    let stores = world
+        .boundaries()
+        .iter()
+        .filter_map(|(_, boundary)| {
+            if let Boundary::Io { op: tools::Op::Store { at, content, .. } } = boundary {
+                Some((at.root, at.path.as_ref(), content.as_ref()))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(stores, [(roots[0], b"data.txt".as_slice(), b"parent-change".as_slice())]);
+    let loads = world
+        .boundaries()
+        .iter()
+        .filter_map(|(_, boundary)| {
+            if let Boundary::Io { op: tools::Op::Load { at, .. } } = boundary {
+                Some((at.root, at.path.as_ref()))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        loads.iter().filter(|(root, path)| *root == roots[0] && *path == b"data.txt").count(),
+        3,
+        "main's read and edit reload, then child's read"
+    );
+    assert_eq!(loads.iter().filter(|(root, path)| *root == roots[1] && *path == b"data.txt").count(), 1);
+    assert_eq!(world.turns().len(), 5);
+    assert_eq!(world.turns().iter().map(|turn| turn.sequence).collect::<Vec<_>>(), [1, 2, 3, 4, 5]);
+    let delegated = &world.turns()[3];
+    let child_call = delegated
+        .messages
+        .iter()
+        .flat_map(|message| &message.content)
+        .find_map(|block| match block {
+            llm::Block::ToolCall { id, name, input, call: llm::Decoded::Historical, .. }
+                if name.as_ref() == b"sub_agent" && input.as_ref() == CHILD_INPUT =>
+            {
+                Some(id)
+            }
+            llm::Block::Opaque { .. }
+            | llm::Block::Refusal { .. }
+            | llm::Block::Text { .. }
+            | llm::Block::ToolCall { .. }
+            | llm::Block::ToolResult { .. } => None,
+        })
+        .expect("persisted raw child-task call");
+    assert_eq!(
+        delegated
+            .messages
+            .iter()
+            .flat_map(|message| &message.content)
+            .filter(|block| {
+                matches!(block, llm::Block::ToolResult { id, result: llm::Returned::Text {
+                text, error: false, replay: None
+            }} if id == child_call && text.starts_with(CHILD_RESULT) && contains(text, b"\n\nChild usage: used 3 turns"))
+            })
+            .count(),
+        1,
+        "actual child result is paired once with its caller's concrete Turn"
+    );
+    assert!(matches!(world.answer(), run::Answer::Accepted {
+        outcome: run::outcome::Declared::Report(report), turns: 5, ..
+    } if report.text.as_ref() == b"The child inspected the changed workspace."
+        && report.fields.as_ref() == [run::outcome::Field {
+            name: b"source".as_slice().into(), value: b"workspace".as_slice().into()
+        }]));
+    assert!(world.checked().is_empty() && world.pushes().is_empty() && world.host_submissions().is_empty());
+    assert!(world.judged().0 > 0 && world.judged().1 > 0);
+}
+
+fn native_scripts() -> Box<[Script]> {
+    Box::new([Script {
+        cue: b"@brief-native".as_slice().into(),
+        turns: Box::new([
+            calls(vec![Line::Text { text: FIRST.into() }, call(b"wait", b"{}")], 17),
+            calls(vec![Line::Text { text: RESUMED.into() }, call(b"wait", b"{}")], 11),
+            says(LAST, 5),
+        ]),
+    }])
+}
+
+fn text(text: &[u8]) -> Part {
+    Part::Text { text: text.into() }
+}
+
+fn message(role: Role, parts: Vec<Part>) -> Message {
+    Message { role, parts: parts.into() }
+}
+
+fn wait_call() -> Part {
+    Part::ToolCall { id: ID.into(), name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() }
+}
+
+fn wait_result() -> Part {
+    Part::ToolOutput { id: ID.into(), output: b"Continue the saved conversation.".as_slice().into(), is_error: false }
+}
+
+fn part_bytes(part: &Part) -> usize {
+    match part {
+        Part::Text { text } | Part::Opaque { bytes: text } => text.len(),
+        Part::ToolCall { id, name, arguments } => id.len() + name.len() + arguments.len(),
+        Part::ToolOutput { id, output, .. } => id.len() + output.len(),
+    }
+}
+
+fn native_accounting(
+    world: &World,
+    system: &[u8],
+    prefixes: &[Vec<Message>],
+    outputs: &[u64],
+    prior: u32,
+    cache_write: bool,
+    reasoning: Option<u64>,
+) {
+    assert_eq!(world.prompts().len(), prefixes.len());
+    assert_eq!(world.turns().len(), prefixes.len());
+    let requests = world
+        .wire_bindings()
+        .iter()
+        .map(|binding| smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request))
+        .collect::<Vec<_>>();
+    for adjacent in requests.windows(2) {
+        assert_eq!(adjacent[0].system, adjacent[1].system, "exact native system bytes");
+        assert_eq!(adjacent[0].tools, adjacent[1].tools, "exact native tool-schema bytes");
+        assert!(adjacent[1].history.starts_with(&adjacent[0].history), "exact native history items form a byte prefix");
+    }
+    let mut spent = run::Spend::ZERO;
+    for (index, ((query, turn), prefix)) in world.prompts().iter().zip(world.turns()).zip(prefixes).enumerate() {
+        assert_eq!(query.system.as_ref(), system, "whole native structured opening at completion {index}");
+        assert_eq!(query.model.as_ref(), b"fake-1");
+        assert_eq!(query.messages.as_ref(), prefix, "whole native history and concrete feedback at completion {index}");
+        let fixed = system.len()
+            + query
+                .tools
+                .iter()
+                .map(|tool| tool.name.len() + tool.description.len() + tool.parameters.len())
+                .sum::<usize>();
+        let prompt_bytes = fixed + prefix.iter().flat_map(|message| &message.parts).map(part_bytes).sum::<usize>();
+        let tokens = u64::try_from(prompt_bytes / 4).expect("bounded outside fixture");
+        // Only an earlier actual request wrote its prompt. Its answer was not
+        // written until the next request includes it. A new World has no writes.
+        let read = if index == 0 {
+            0
+        } else {
+            let previous = &prefixes[index - 1];
+            u64::try_from(
+                (fixed + previous.iter().flat_map(|message| &message.parts).map(part_bytes).sum::<usize>()) / 4,
+            )
+            .expect("bounded previously written prompt")
+        };
+        let fresh_tokens = tokens - read;
+        let input = if cache_write { 0 } else { fresh_tokens };
+        let write = if cache_write { Some(fresh_tokens) } else { None };
+        assert_eq!(
+            [
+                turn.usage.input_tokens,
+                turn.usage.output_tokens,
+                turn.usage.cache_read_tokens,
+                turn.usage.cache_write_tokens
+            ],
+            [Some(input), Some(outputs[index]), Some(read), write],
+            "all four usage fields independently priced from literal system and native query"
+        );
+        assert_eq!(turn.usage.reasoning_tokens, reasoning, "literal peer reasoning reporting");
+        spent.reasoning = reasoning;
+        spent.turns += 1;
+        spent.units += 1;
+        spent.input = Some(spent.input.unwrap_or(0) + input);
+        spent.output = Some(spent.output.unwrap_or(0) + outputs[index]);
+        spent.cache_read = Some(spent.cache_read.unwrap_or(0) + read);
+        if let Some(write) = write {
+            spent.cache_write = Some(spent.cache_write.unwrap_or(0) + write);
+        }
+        assert_eq!(world.turn_metadata()[index], (spent.turns, None, spent));
+        assert_eq!(turn.sequence, prior + spent.turns);
+        assert_eq!(turn.version, smith_domain::session::record::VERSION);
+        assert_eq!(turn.endpoint, Some(llm::Endpoint(0)));
+        assert_eq!(turn.dialect, 1);
+        assert_eq!(turn.spent, spent.units);
+    }
+    assert!(matches!(world.answer(), run::Answer::Parked { turns, spent: actual }
+        if *turns == spent.turns && *actual == spent));
+}
+
+#[test]
+fn five_native_completions_keep_the_wire_prefix_and_replay_each_previous_answer() {
+    for index in 0..2 {
+        let mut bounds = Limits {
+            client: skein_llm_world::limits(),
+            tool_bytes: 32768,
+            history_bytes: u64::from(skein_llm_world::limits().request),
+            rendered_result: skein_llm_world::limits().strings,
+            stated: adapter::stated(),
+        };
+        bounds.client.http.request = 16384;
+        bounds.client.request = 16384;
+        let mut settings = Settings {
+            job: Job::Waiting,
+            waiting: Duration::from_secs(1),
+            network: Span::millis(1, 1),
+            ..Settings::calm(1103)
+        };
+        settings.limits.session.completion_bytes =
+            adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+                .expect("actual receiving reservation");
+        settings.limits.session.completion_blocks = bounds.client.output_items;
+        settings.limits.session.failure_bytes = bounds.client.detail_bytes;
+        let scripts = Box::new([Script {
+            cue: b"@brief-native".as_slice().into(),
+            turns: Box::new([
+                calls(vec![call(b"read", br#"{"path":"data.txt"}"#)], 2),
+                calls(vec![call(b"read", br#"{"path":"data.txt"}"#)], 3),
+                calls(vec![call(b"read", br#"{"path":"data.txt"}"#)], 5),
+                calls(vec![call(b"read", br#"{"path":"data.txt"}"#)], 7),
+                calls(vec![Line::Text { text: FIRST.into() }, call(b"wait", b"{}")], 11),
+            ]),
+        }]);
+        let (disk, mounted) = workspace();
+        let mut world = World::with_workspace_wire_charter(
+            settings,
+            None,
+            Some(mounted),
+            disk,
+            (wire::configurations().into_iter().nth(index).expect("two native dialects"), bounds),
+            scripts,
+            charter(&settings, NATIVE_INSTRUCTIONS),
+        );
+        world.run(100_000);
+        let mut history = vec![message(Role::User, vec![text(BEGIN)])];
+        let mut prefixes = vec![history.clone()];
+        for id in
+            [b"call_0000000000000001", b"call_0000000000000002", b"call_0000000000000003", b"call_0000000000000004"]
+        {
+            history.extend([
+                message(
+                    Role::Assistant,
+                    vec![Part::ToolCall {
+                        id: id.as_slice().into(),
+                        name: b"read".as_slice().into(),
+                        arguments: br#"{"path":"data.txt"}"#.as_slice().into(),
+                    }],
+                ),
+                message(
+                    Role::User,
+                    vec![Part::ToolOutput {
+                        id: id.as_slice().into(),
+                        output: b"1: old\n(1 of 1 lines; skipped 0) [end of file]".as_slice().into(),
+                        is_error: false,
+                    }],
+                ),
+            ]);
+            prefixes.push(history.clone());
+        }
+        native_accounting(
+            &world,
+            &expected_main("@brief-native PARENT-INSTRUCTIONS: native first activation.\n\n"),
+            &prefixes,
+            &[2, 3, 5, 7, 11],
+            0,
+            true,
+            if index == 0 { Some(0) } else { None },
+        );
+        assert_eq!(world.wire_bindings().len(), 5, "five actual native Client requests");
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one native control retains its full large-batch fixture and observations")]
+fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
+    const THINKING: &[u8] =
+        br#"{"type":"thinking","thinking":"Inspect the whole batch.","signature":"fixture-signature"}"#;
+    let declared = skein_llm::Declared {
+        tools: 16,
+        history_items: 256,
+        window: 342,
+        output: 4096,
+        reasoning_item: 2048,
+        tool_payload: 342,
+        calls_per_response: 16,
+        conversations: 1,
+    };
+    let mut client = skein_llm::Limits::derive(&declared).expect("native batch bounds").anthropic;
+    let pieces = skein_llm_world::limits();
+    client.http.request = pieces.http.request;
+    client.http.read = pieces.http.read;
+    client.http.send = pieces.http.send;
+    client.sse.chunk = pieces.sse.chunk;
+    let bounds = Limits {
+        client,
+        tool_bytes: 32768,
+        history_bytes: u64::from(client.request),
+        rendered_result: client.strings,
+        stated: adapter::stated(),
+    };
+    let mut settings = Settings {
+        job: Job::Waiting,
+        waiting: Duration::from_secs(1),
+        network: Span::millis(1, 1),
+        ..Settings::calm(1104)
+    };
+    settings.limits.decoded_call_bytes = u64::from(declared.calls_per_response)
+        .checked_mul(u64::from(bounds.client.input))
+        .and_then(|payload| {
+            payload.checked_add(
+                u64::from(bounds.client.output_items)
+                    .checked_mul(u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("decoded cell"))?,
+            )
+        })
+        .expect("actual batch inputs plus fallback cells");
+    settings.limits.session.completion_bytes =
+        adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+            .expect("actual batch and history receiving reservation");
+    settings.limits.session.completion_blocks = bounds.client.output_items;
+    settings.limits.session.failure_bytes = bounds.client.detail_bytes;
+    let batch = 16_usize;
+    // Each read asks a window its whole result fits, so every result stays below the line (session.md, 8.1).
+    let read = || call(b"read", br#"{"path":"data.txt","window":64}"#);
+    let scripts = Box::new([Script {
+        cue: b"@brief-native".as_slice().into(),
+        turns: Box::new([
+            calls(vec![Line::Opaque { bytes: THINKING.into() }, read()], 2),
+            calls((0..batch).map(|_| read()).collect(), 3),
+            calls(vec![Line::Text { text: FIRST.into() }, call(b"wait", b"{}")], 5),
+        ]),
+    }]);
+    let (disk, mounted) = workspace();
+    let roots = mounted.directories.iter().map(|directory| directory.root).collect::<Vec<_>>();
+    let mut world = World::with_workspace_wire_charter(
+        settings,
+        None,
+        Some(mounted),
+        disk,
+        (wire::configurations().into_iter().nth(1).expect("Anthropic fixture"), bounds),
+        scripts,
+        charter(&settings, NATIVE_INSTRUCTIONS),
+    );
+    world.run(100_000);
+    let mut history = vec![message(Role::User, vec![text(BEGIN)])];
+    let mut prefixes = vec![history.clone()];
+    let read_call = |number: usize| Part::ToolCall {
+        id: format!("call_{number:016x}").into_bytes().into(),
+        name: b"read".as_slice().into(),
+        arguments: br#"{"path":"data.txt","window":64}"#.as_slice().into(),
+    };
+    let read_result = |number: usize| Part::ToolOutput {
+        id: format!("call_{number:016x}").into_bytes().into(),
+        output: b"1: old\n(1 of 1 lines; skipped 0) [end of file]".as_slice().into(),
+        is_error: false,
+    };
+    history.extend([
+        message(Role::Assistant, vec![Part::Opaque { bytes: THINKING.into() }, read_call(1)]),
+        message(Role::User, vec![read_result(1)]),
+    ]);
+    prefixes.push(history.clone());
+    history.extend([
+        message(Role::Assistant, (2..batch + 2).map(read_call).collect()),
+        message(Role::User, (2..batch + 2).map(read_result).collect()),
+    ]);
+    prefixes.push(history);
+    let expected = expected_main("@brief-native PARENT-INSTRUCTIONS: native first activation.\n\n");
+    native_accounting(&world, &expected, &prefixes, &[2, 3, 5], 0, true, None);
+    let turns = world.turns();
+    let largest = turns
+        .iter()
+        .map(|turn| turn.messages.iter().map(|message| message.content.len()).sum::<usize>())
+        .max()
+        .expect("three captured tool turns");
+    assert_eq!(largest, batch * 2, "full call batch followed by every concrete result");
+    assert_eq!(batch, 16, "the scripted call batch measured independently of history room");
+    assert!(turns.iter().skip(1).all(|turn| turn.usage.cache_read_tokens.unwrap_or(0) > 0));
+    assert!(turns.iter().all(|turn| turn.usage.cache_write_tokens.unwrap_or(0) > 0));
+    native_settled(&world, &settings, &roots, batch + 1);
+}
+
+fn native_settled(world: &World, settings: &Settings, roots: &[Token], expected_loads: usize) {
+    assert_eq!(world.waiting().len(), 1);
+    assert_eq!(world.waiting()[0].1, None);
+    assert!(world.answered_at() >= world.waiting()[0].0.saturating_add(settings.waiting));
+    assert!(world.checked().is_empty() && world.pushes().is_empty() && world.host_submissions().is_empty());
+    assert!(world.host_terminals().is_empty() && world.delivery_submissions().is_empty());
+    let mut loads = Vec::new();
+    let discovery = world
+        .boundaries()
+        .iter()
+        .filter_map(|(_, boundary)| match boundary {
+            Boundary::Read { at } => Some((b"read".as_slice(), at.root, at.path.as_ref())),
+            Boundary::Probe { at } => Some((b"probe".as_slice(), at.root, at.path.as_ref())),
+            Boundary::Io { op: tools::Op::Load { at, .. } } => {
+                loads.push((at.root, at.path.as_ref()));
+                None
+            }
+            Boundary::Io { .. } | Boundary::Check { .. } => {
+                panic!("native read/wait script changes no workspace bytes")
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(loads, vec![(roots[0], b"data.txt".as_slice()); expected_loads]);
+    assert_eq!(
+        discovery,
+        [
+            (b"read".as_slice(), roots[0], b"AGENTS.md".as_slice()),
+            (b"probe", roots[0], b".temper/pre-pr"),
+            (b"read", roots[1], b"AGENTS.md"),
+        ]
+    );
+    assert_eq!(world.wire_bindings().len(), world.turns().len());
+    for binding in world.wire_bindings() {
+        assert_eq!(binding.receiving.max_completion_bytes, settings.limits.session.completion_bytes);
+        assert_eq!(binding.receiving.max_completion_blocks, settings.limits.session.completion_blocks);
+        assert_eq!(binding.receiving.max_failure_bytes, settings.limits.session.failure_bytes);
+        assert_eq!(binding.receiving.decoded_call_bytes, settings.limits.decoded_call_bytes);
+        assert_eq!(
+            binding.observed.iter().map(|(_, _, seen)| *seen).collect::<Vec<_>>(),
+            [Observed::Completed(binding.owner), Observed::Reusable, Observed::Close, Observed::Closed]
+        );
+        assert!(binding.retired.is_some(), "actual lower Closed precedes physical retirement");
+    }
+}
+
+fn recorded_wait(turn: &smith_domain::Turn, resumed: bool) {
+    let _call = turn
+        .messages
+        .iter()
+        .flat_map(|message| &message.content)
+        .find_map(|block| {
+            if let llm::Block::ToolCall { id, name, input, call: llm::Decoded::Historical, .. } = block {
+                assert_eq!(id.as_ref(), ID);
+                assert_eq!(name.as_ref(), b"wait");
+                assert_eq!(input.as_ref(), b"{}");
+                Some(id)
+            } else {
+                None
+            }
+        })
+        .expect("actual historical Wait call");
+    assert_eq!(
+        turn.messages.last().expect("actual parked tail").role,
+        llm::Role::Assistant,
+        "parked own wait remains unresulted"
+    );
+    if resumed {
+        assert!(
+            turn.messages
+                .iter()
+                .flat_map(|message| &message.content)
+                .any(|block| { matches!(block, llm::Block::Text { text, .. } if text.as_ref() == RESUMED) })
+        );
+    } else {
+        assert!(matches!(turn.messages[0].content.as_ref(), [llm::Block::Text { text, replay: None }]
+            if text.as_ref() == BEGIN));
+    }
+}
+
+#[test]
+fn structured_brief_native_wait_park_and_genuine_transcript_restore_in_both_wire_forms() {
+    for index in 0..2 {
+        let mut bounds = Limits {
+            client: skein_llm_world::limits(),
+            tool_bytes: 32768,
+            history_bytes: u64::from(skein_llm_world::limits().request),
+            rendered_result: skein_llm_world::limits().strings,
+            stated: smith_protocol_llm_world::adapter::stated(),
+        };
+        bounds.client.http.request = 16384;
+        bounds.client.request = 16384;
+        let mut settings = Settings {
+            job: Job::Waiting,
+            waiting: Duration::from_secs(1),
+            network: Span::millis(1, 1),
+            ..Settings::calm(1102)
+        };
+        settings.limits.session.completion_bytes =
+            adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+                .expect("Client receiving reservation before original Start");
+        settings.limits.session.completion_blocks = bounds.client.output_items;
+        settings.limits.session.failure_bytes = bounds.client.detail_bytes;
+        let (disk, mounted) = workspace();
+        let roots = mounted.directories.iter().map(|directory| directory.root).collect::<Vec<_>>();
+        let mut first = World::with_workspace_wire_charter(
+            settings,
+            None,
+            Some(mounted),
+            disk,
+            (wire::configurations().into_iter().nth(index).expect("two native wire forms"), bounds),
+            native_scripts(),
+            charter(&settings, NATIVE_INSTRUCTIONS),
+        );
+        first.run(100_000);
+        let first_system = expected_main("@brief-native PARENT-INSTRUCTIONS: native first activation.\n\n");
+        let opening = vec![message(Role::User, vec![text(BEGIN)])];
+        let mut waited = opening.clone();
+        waited.extend([
+            message(Role::Assistant, vec![text(FIRST), wait_call()]),
+            message(Role::User, vec![wait_result()]),
+        ]);
+        native_accounting(&first, &first_system, &[opening], &[17], 0, true, if index == 0 { Some(0) } else { None });
+        native_settled(&first, &settings, &roots, 0);
+        recorded_wait(&first.turns()[0], false);
+        let actual = &first.turns()[0];
+        let saved = Transcript {
+            version: actual.version,
+            endpoint: actual.endpoint,
+            dialect: actual.dialect,
+            turns: first.turns().into(),
+        };
+        assert_eq!(saved.turns.last().expect("actual persisted transcript tail").sequence, 1);
+        settings.resume = true;
+        let (disk, mounted) = workspace();
+        let roots = mounted.directories.iter().map(|directory| directory.root).collect::<Vec<_>>();
+        let mut restored = World::with_workspace_wire_charter(
+            settings,
+            Some(saved),
+            Some(mounted),
+            disk,
+            (wire::configurations().into_iter().nth(index).expect("same native wire form"), bounds),
+            native_scripts(),
+            charter(&settings, RESUME_INSTRUCTIONS),
+        );
+        restored.run(100_000);
+        let restored_system = expected_main("@brief-native RESUME-INSTRUCTIONS: use the saved history.\n\n");
+        native_accounting(
+            &restored,
+            &restored_system,
+            &[waited],
+            &[11],
+            1,
+            true,
+            if index == 0 { Some(0) } else { None },
+        );
+        native_settled(&restored, &settings, &roots, 0);
+        recorded_wait(&restored.turns()[0], true);
+        assert_eq!(first.turn_metadata()[0].2.output, Some(17));
+        assert_eq!(restored.turn_metadata()[0].2.output, Some(11), "new activation charges only its actual completion");
+    }
+}
+
+fn affinity_scripts() -> Box<[Script]> {
+    Box::new([
+        Script {
+            cue: b"@brief-native".as_slice().into(),
+            turns: Box::new([
+                calls(vec![Line::Text { text: FIRST.into() }, call(b"wait", b"{}")], 3),
+                calls(vec![call(b"sub_agent", br#"{"brief":"@affinity-child","tools":[]}"#)], 3),
+                calls(vec![Line::Text { text: LAST.into() }, call(b"wait", b"{}")], 3),
+            ]),
+        },
+        Script { cue: b"@affinity-child".as_slice().into(), turns: Box::new([says(b"Child retains the run key.", 3)]) },
+    ])
+}
+
+#[test]
+fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
+    for dialect in 0..2 {
+        let mut bounds = Limits {
+            client: skein_llm_world::limits(),
+            tool_bytes: 32768,
+            history_bytes: u64::from(skein_llm_world::limits().request),
+            rendered_result: skein_llm_world::limits().strings,
+            stated: adapter::stated(),
+        };
+        bounds.client.http.request = 16384;
+        bounds.client.request = 16384;
+        let mut settings = Settings {
+            job: Job::Waiting,
+            waiting: Duration::from_secs(1),
+            network: Span::millis(1, 1),
+            ..Settings::calm(1110)
+        };
+        settings.limits.session.completion_bytes =
+            adapter::completion_worst_case(&bounds.client, settings.limits.decoded_call_bytes)
+                .expect("actual receiving reservation");
+        settings.limits.session.completion_blocks = bounds.client.output_items;
+        settings.limits.session.failure_bytes = bounds.client.detail_bytes;
+        let (disk, mounted) = workspace();
+        let mut first = World::with_workspace_wire_charter(
+            settings,
+            None,
+            Some(mounted),
+            disk,
+            (wire::configurations().into_iter().nth(dialect).expect("two native forms"), bounds),
+            affinity_scripts(),
+            charter(&settings, NATIVE_INSTRUCTIONS),
+        );
+        first.run(100_000);
+        assert_eq!(first.turns().len(), 1);
+        assert!(matches!(first.answer(), run::Answer::Parked { .. }));
+        let affinity = match &first.turns()[0].kind {
+            smith_domain::session::record::Kind::First(opener) => opener.affinity,
+            smith_domain::session::record::Kind::Ordinary | smith_domain::session::record::Kind::Window(_) => {
+                panic!("fresh opening requires a first turn")
+            }
+        };
+        assert_eq!(affinity.thread, 0);
+        let original = smith_protocol_llm_world::referee::NativeRequest::from_http(&first.wire_bindings()[0].request);
+        let saved = Transcript {
+            version: first.turns()[0].version,
+            endpoint: first.turns()[0].endpoint,
+            dialect: first.turns()[0].dialect,
+            turns: first.turns().into(),
+        };
+        settings.resume = true;
+        settings.seed = 999_110;
+        let (disk, mounted) = workspace();
+        let mut resumed = World::with_workspace_wire_charter(
+            settings,
+            Some(saved),
+            Some(mounted),
+            disk,
+            (wire::configurations().into_iter().nth(dialect).expect("same native form"), bounds),
+            affinity_scripts(),
+            charter(&settings, NATIVE_INSTRUCTIONS),
+        );
+        resumed.run(100_000);
+        assert!(matches!(resumed.answer(), run::Answer::Parked { .. }));
+        assert_eq!(
+            resumed.turns().iter().map(|turn| (turn.sequence, turn.kind.clone())).collect::<Vec<_>>(),
+            [(2, smith_domain::session::record::Kind::Ordinary), (3, smith_domain::session::record::Kind::Ordinary),]
+        );
+        assert_eq!(resumed.prompts().len(), 3, "two main requests and one actual child request");
+        for (query, binding) in resumed.prompts().iter().zip(resumed.wire_bindings()) {
+            if original.affinity.is_some() {
+                assert_eq!(query.caching, skein_fake_llm_domain::api::Caching::Scope(affinity.key));
+            } else {
+                assert!(
+                    matches!(query.caching, skein_fake_llm_domain::api::Caching::Marks(_)),
+                    "Anthropic ignores affinity and uses its native breakpoints"
+                );
+            }
+            let actual = smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request);
+            match (&original.affinity, &actual.affinity) {
+                (Some(original), Some(actual)) => {
+                    assert_eq!(actual[..2], original[..2], "recorded run key and session header survive the new seed");
+                    if query.system.starts_with(b"@affinity-child") {
+                        assert_ne!(actual[2], original[2], "a child has its own conversation thread");
+                    } else {
+                        assert_eq!(actual[2], original[2], "resumed main retains thread zero");
+                    }
+                }
+                (None, None) => {}
+                other => panic!("both requests use the same dialect: {other:?}"),
+            }
+            assert!(binding.retired.is_some(), "actual lower Closed settles every request");
+        }
+    }
+}
+
+#[path = "brief/open.rs"]
+mod open;

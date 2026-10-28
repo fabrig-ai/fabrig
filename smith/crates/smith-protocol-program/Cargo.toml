@@ -1,0 +1,26 @@
+[package]
+name = "smith-protocol-program"
+description = "Program source environments, status records and child commands"
+license.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-json.workspace = true
+smith-protocol-llm.workspace = true
+smith-events.workspace = true
+smith-domain.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+skein-heap.workspace = true
+skein-llm-world.workspace = true
+skein-llm-connection.workspace = true
+skein-tls.workspace = true
+serde_json = "1"

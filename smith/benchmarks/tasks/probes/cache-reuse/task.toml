@@ -1,0 +1,135 @@
+id = "cache-reuse"
+version = 1
+kind = "probe"
+tier = "small"
+effort = "low"
+repetitions = 3
+deadline_seconds = 660
+prompt = "Follow the twelve-file pointer chain beginning at node-cobalt.txt. Read exactly one file per completion using the native file-reading mechanism (read when available); each file names the next, ending at END. Sum the value fields. Do not list, batch reads, edit, write, or delegate. After twelve reads, finish with exactly ALPHA and the sum.\n"
+seed_sha256 = "74e4e582c1b015e147a260aa8a3214b49830362b27585b54fedb33d5132afe7c"
+guards = ["protocol/llm.md, section 2"]
+deciding = ["end", "exit-code", "answer", "run-completed", "tool-call", "completions", "calls-per-response", "cache-reuse"]
+
+[budget]
+seconds = 300
+turns = 40
+
+[smith]
+"budget.reserve.seconds" = 150
+
+[[outcome]]
+check = "end"
+end = "completed"
+[[outcome]]
+check = "exit-code"
+code = 0
+[[outcome]]
+check = "answer"
+pattern = "^ALPHA 197$"
+[[event]]
+check = "run-completed"
+status = "accepted"
+[[event]]
+check = "tool-call"
+tool = "read"
+count = { exactly = 12 }
+verdict = "read"
+[[event]]
+check = "completions"
+count = { exactly = 13 }
+before = "answer"
+[[event]]
+check = "calls-per-response"
+tool = "read"
+at_most = 1
+[[event]]
+check = "cache-reuse"
+median_at_least = 0.85
+full_misses_per_ten_at_most = 1
+
+[[variant]]
+name = "children"
+smith = { sub_agents = true }
+replace_checks = true
+prompt = "Delegate two read-only children in turn, waiting for the first to return before starting the second. Give each max_turns 16 and the same independent task: follow the twelve-file pointer chain beginning at node-cobalt.txt; exactly one read per completion, no list, batched reads, writes, edits, or nested delegation; sum the value fields and finish after the twelfth read. Main does not read the files. After both have returned, finish with exactly ALPHA and the two sums in order.\n"
+deciding = ["end", "exit-code", "answer", "run-completed", "tool-call", "completions", "calls-per-response", "conversation-opened", "children-in-turn", "cache-reuse"]
+[[variant.outcome]]
+check = "end"
+end = "completed"
+[[variant.outcome]]
+check = "exit-code"
+code = 0
+[[variant.outcome]]
+check = "answer"
+pattern = "^ALPHA 197 197$"
+[[variant.event]]
+check = "run-completed"
+status = "accepted"
+[[variant.event]]
+check = "tool-call"
+tool = "read"
+count = { exactly = 24 }
+verdict = "read"
+[[variant.event]]
+check = "completions"
+count = { exactly = 29 }
+before = "answer"
+[[variant.event]]
+check = "calls-per-response"
+tool = "read"
+at_most = 1
+[[variant.event]]
+check = "conversation-opened"
+kind = "child"
+count = { exactly = 2 }
+[[variant.event]]
+check = "children-in-turn"
+count = 2
+[[variant.event]]
+check = "cache-reuse"
+median_at_least = 0.85
+full_misses_per_ten_at_most = 1
+
+[[variant]]
+name = "crossing"
+replace_checks = true
+effort = "medium"
+prompt = "Follow the twelve-file pointer chain beginning at node-cobalt.txt, reading exactly one file per completion and summing the value fields. After the sixth read, call wait exactly once for the person before reading the remaining six files. Do not list, batch reads, edit, write, or delegate. After twelve reads, finish with exactly ALPHA and the sum.\n"
+deciding = ["end", "exit-code", "answer", "run-completed", "tool-call", "completions", "calls-per-response", "cache-reuse"]
+[[variant.person]]
+when = { tool-call = { tool = "wait" } }
+text = "Continue the remaining six reads and finish with the sum.\n"
+[[variant.outcome]]
+check = "end"
+end = "completed"
+[[variant.outcome]]
+check = "exit-code"
+code = 0
+[[variant.outcome]]
+check = "answer"
+pattern = "^ALPHA 197$"
+[[variant.event]]
+check = "run-completed"
+status = "accepted"
+[[variant.event]]
+check = "tool-call"
+tool = "read"
+count = { exactly = 12 }
+verdict = "read"
+[[variant.event]]
+check = "completions"
+count = { exactly = 14 }
+before = "answer"
+[[variant.event]]
+check = "calls-per-response"
+tool = "read"
+at_most = 1
+[[variant.event]]
+check = "cache-reuse"
+median_at_least = 0.85
+full_misses_per_ten_at_most = 1
+
+[[variant.event]]
+check = "tool-call"
+tool = "wait"
+count = { exactly = 1 }

@@ -1,0 +1,426 @@
+//! Shared actual Smith adapter and HTTP/SSE pool peer, with caller-owned virtual time.
+//! It keeps physical bindings and independent terminal observations, never retry policy.
+//! Contract: domain/session.md, sections 4, 6 and 10; protocol/llm.md, section 6.
+
+use std::collections::BTreeMap;
+
+use skein_io::{Event as IoEvent, Request as IoRequest};
+use skein_lib::stream::{Down, Read, Up};
+use skein_lib::{Duration, Env, Intake, Queue, Time, Token, Wall};
+use smith_domain::{GrantName, llm, run, tools};
+use smith_protocol_llm::{
+    self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
+};
+
+fn limits() -> ComponentLimits {
+    let client = skein_llm_world::limits();
+    let adapter = adapter::Limits {
+        client,
+        tool_bytes: 32_768,
+        history_bytes: u64::from(client.request),
+        rendered_result: client.strings,
+        stated: crate::adapter::stated(),
+    };
+    let decoded_call_bytes = 4096;
+    ComponentLimits {
+        adapter,
+        connection: skein_llm_connection::Limits {
+            memory: 1 << 40,
+            endpoints: 1,
+            connections: 2,
+            calls: 2,
+            per_endpoint: 2,
+            idle_keep: smith_agent_service::profile::standard().policy.connection_keep,
+            io: skein_io::Limits {
+                sockets: 3,
+                names: 0,
+                refusals: 1,
+                intake: 19_000,
+                receive: 1024,
+                output: 19_000,
+                sends: 2,
+                accepts: 1,
+                backlog: 2,
+                close_timeout: Duration::from_secs(1),
+                retry: Duration::from_millis(10),
+            },
+            tls: skein_tls::client::Limits { read: 4096, send: 4096, records: skein_tls::client::MAX_RECORD },
+        },
+        receiving: Receiving {
+            max_completion_bytes: adapter::completion_worst_case(&client, decoded_call_bytes).expect("receiving bound"),
+            max_completion_blocks: client.output_items,
+            decoded_call_bytes,
+            max_failure_bytes: client.detail_bytes,
+        },
+        contract_bytes: 4096,
+        llms: 1,
+        accounts: 1,
+        grant_value_bytes: 128,
+    }
+}
+
+struct Binding {
+    owner: Token,
+    read: Option<Read>,
+    response: Intake,
+}
+
+/// The production LLM component, actual physical bindings and observed terminals.
+pub struct Peer {
+    component: Component,
+    env: Env<ComponentLimits>,
+    above: Queue<ToDomain>,
+    below: Queue<IoRequest>,
+    bindings: BTreeMap<Token, Binding>,
+    /// Accepted calls have one independently observed terminal, in arrival order.
+    pub terminals: Vec<ToDomain>,
+    /// Content actually emitted before a terminal by the component.
+    pub measures: Vec<smith_protocol_llm::Measure>,
+    /// Plaintext request bytes independently received on the peer's sockets.
+    pub request_bytes: u64,
+    deltas: Option<bool>,
+    input: bool,
+}
+
+impl Peer {
+    /// Build a peer with declared calls and a lowered endpoint share.
+    #[must_use]
+    pub fn configured(calls: u32, per_endpoint: u32) -> Self {
+        Self::for_provider(calls, per_endpoint, skein_llm::Provider::OpenAiCodex)
+    }
+
+    /// Build the same actual component peer for either wire dialect.
+    #[must_use]
+    pub fn for_provider(calls: u32, per_endpoint: u32, provider: skein_llm::Provider) -> Self {
+        let mut limits = limits();
+        limits.connection.calls = calls;
+        limits.connection.connections = calls;
+        limits.connection.per_endpoint = per_endpoint;
+        limits.connection.io.sockets = calls + 1;
+        let endpoints = Endpoints::new(
+            Box::new([ConfiguredEndpoint {
+                connect: Duration::from_secs(2),
+                handshake: Duration::from_secs(2),
+                name: llm::Endpoint(0),
+                destination: skein_llm_connection::Endpoint {
+                    limits: limits.adapter.client,
+                    credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
+                    address: "127.0.0.1:443".parse().expect("fixture address"),
+                    transport: skein_llm_connection::Transport::Plaintext,
+                    llm: match provider {
+                        skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
+                        skein_llm::Provider::OpenAiCodex => skein_llm::Endpoint::codex(),
+                        skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
+                    },
+                },
+                identity: smith_protocol_llm::IdentityProfile::Plain,
+                models: Box::new([]),
+            }]),
+            limits.connection.endpoints,
+        )
+        .expect("fixture endpoint");
+        let mut component = Component::new(&limits, endpoints).expect("production component");
+        component
+            .grant(
+                GrantName { account: 0, generation: 1 },
+                match provider {
+                    skein_llm::Provider::OpenAiCodex => skein_llm::Credential {
+                        value: b"fake".as_slice().into(),
+                        account_id: b"fake".as_slice().into(),
+                        scheme: skein_llm::Scheme::Bearer,
+                    },
+                    skein_llm::Provider::OpenAi => skein_llm::Credential::bearer(b"fake".as_slice().into()),
+                    skein_llm::Provider::Anthropic => skein_llm::Credential::anthropic(b"fake".as_slice().into()),
+                },
+                Time::ZERO.saturating_add(Duration::from_secs(1000)),
+            )
+            .expect("fixture grant");
+        Self {
+            component,
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            above: Queue::with_capacity(smith_protocol_llm::MAX_OUT.above),
+            below: Queue::with_capacity(smith_protocol_llm::MAX_OUT.below),
+            bindings: BTreeMap::new(),
+            terminals: Vec::new(),
+            measures: Vec::new(),
+            request_bytes: 0,
+            deltas: None,
+            input: false,
+        }
+    }
+
+    /// Select delta handover independently of prompt and completion capture.
+    pub fn deltas(&mut self, wanted: bool) {
+        self.deltas = Some(wanted);
+    }
+
+    /// Select tool-input measures independently of event capture and text.
+    pub fn input(&mut self, wanted: bool) {
+        self.input = wanted;
+    }
+
+    /// Admit one actual call with caller-selected model and whole deadlines.
+    pub fn start(&mut self, owner: u64, head: u64, idle: u64, whole: u64) {
+        self.start_selected(owner, head, idle, whole, None);
+    }
+
+    /// Admit a call whose actual translated content and text deltas are requested.
+    pub fn start_observed(&mut self, owner: u64, head: u64, idle: u64, whole: u64) {
+        self.start_selected(
+            owner,
+            head,
+            idle,
+            whole,
+            Some(smith_protocol_llm::Observation { first: true, messages: 0 }),
+        );
+    }
+
+    fn start_selected(
+        &mut self,
+        owner: u64,
+        head: u64,
+        idle: u64,
+        whole: u64,
+        observation: Option<smith_protocol_llm::Observation>,
+    ) {
+        let prompt = llm::Prompt {
+            effort: None,
+            purpose: llm::Purpose::Ordinary { guard: None },
+            choice: smith_domain::llm::ToolChoice::Auto,
+            namespace: smith_domain::tools::Namespace::One,
+            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
+            asker: llm::Asker::Main,
+            endpoint: llm::Endpoint(0),
+            model: b"fixture".as_slice().into(),
+            system: b"timed reasoning".as_slice().into(),
+            tools: tools::Grants { inspect: true, modify: false, shell: false },
+            served: Box::new([]),
+            messages: Box::new([llm::Message {
+                role: llm::Role::User,
+                content: Box::new([llm::Block::Text { text: b"begin".as_slice().into(), replay: None }]),
+            }]),
+            max_tokens: 4096,
+        };
+        self.start_prompt(owner, head, idle, whole, prompt, observation);
+    }
+
+    /// Submit caller-owned history through the production guard and byte peer.
+    pub fn start_prompt(
+        &mut self,
+        owner: u64,
+        head: u64,
+        idle: u64,
+        whole: u64,
+        prompt: llm::Prompt,
+        observation: Option<smith_protocol_llm::Observation>,
+    ) {
+        self.component.from_domain(
+            &self.env,
+            FromDomain::Complete {
+                owner: Token::new(owner),
+                grant: Some(GrantName { account: 0, generation: 1 }),
+                prompt,
+                deadlines: smith_domain::session::Deadlines {
+                    head: Duration::from_secs(head),
+                    idle: Duration::from_secs(idle),
+                    whole: Time::ZERO.saturating_add(Duration::from_secs(whole)),
+                },
+                bounds: self.env.limits.receiving,
+                outcome: run::outcome::OutcomeSpec {
+                    change: None,
+                    verdicts: Box::new([]),
+                    report: None,
+                    failure: None,
+                },
+                deliver: None,
+                deltas: smith_protocol_llm::Deltas {
+                    text: self.deltas.unwrap_or(observation.is_some()),
+                    input: self.input,
+                },
+                observation,
+            },
+            &mut self.above,
+            &mut self.below,
+        );
+        self.pump();
+    }
+
+    /// Count actual open socket bindings.
+    #[must_use]
+    pub fn connections(&self) -> usize {
+        self.bindings.len()
+    }
+
+    /// Drive bounded lower settlement until no immediate work remains.
+    pub fn pump(&mut self) {
+        for _ in 0..10_000 {
+            drain_measures(&mut self.component, &self.env, &mut self.measures, &mut self.above, &mut self.below);
+            while let Some(request) = self.below.pop() {
+                drain_measures(&mut self.component, &self.env, &mut self.measures, &mut self.above, &mut self.below);
+                match request {
+                    IoRequest::Connect { owner, .. } => {
+                        let socket = Token::new(100 + u64::try_from(self.bindings.len()).expect("few bindings"));
+                        self.bindings
+                            .insert(socket, Binding { owner, read: None, response: Intake::with_capacity(16_384) });
+                        self.component.from_below(
+                            &self.env,
+                            IoEvent::Connecting { owner, socket },
+                            &mut self.above,
+                            &mut self.below,
+                        );
+                        self.component.from_below(
+                            &self.env,
+                            IoEvent::Connected { owner },
+                            &mut self.above,
+                            &mut self.below,
+                        );
+                    }
+                    IoRequest::Stream { stream, down } => {
+                        let binding = self.bindings.get_mut(&stream).expect("known stream");
+                        match down {
+                            Down::Demand { read, room } => {
+                                binding.read = if room == 0 { Some(read) } else { None };
+                                if room > 0 {
+                                    self.component.from_below(
+                                        &self.env,
+                                        IoEvent::Stream { owner: binding.owner, up: Up::Room },
+                                        &mut self.above,
+                                        &mut self.below,
+                                    );
+                                }
+                            }
+                            Down::Send(bytes) => {
+                                self.request_bytes = self
+                                    .request_bytes
+                                    .checked_add(u64::try_from(bytes.len()).expect("native bounded send length"))
+                                    .expect("bounded fixture sends");
+                            }
+                            Down::Finish => {}
+                        }
+                    }
+                    IoRequest::Close { entity } | IoRequest::Abort { entity } => {
+                        let binding = self.bindings.remove(&entity).expect("one physical close");
+                        self.component.from_below(
+                            &self.env,
+                            IoEvent::Closed { owner: binding.owner },
+                            &mut self.above,
+                            &mut self.below,
+                        );
+                    }
+                    other @ (IoRequest::Listen { .. }
+                    | IoRequest::Bind { .. }
+                    | IoRequest::Reject { .. }
+                    | IoRequest::Output { .. }
+                    | IoRequest::Spawn { .. }
+                    | IoRequest::Signal { .. }
+                    | IoRequest::Window { .. }
+                    | IoRequest::Usage { .. }) => panic!("unexpected request: {other:?}"),
+                }
+            }
+            let mut delivered = false;
+            for binding in self.bindings.values_mut() {
+                if let Some(read) = binding.read
+                    && let Some(bytes) = binding.response.meet(read)
+                {
+                    binding.read = None;
+                    delivered = true;
+                    self.component.from_below(
+                        &self.env,
+                        IoEvent::Stream { owner: binding.owner, up: Up::Bytes(bytes) },
+                        &mut self.above,
+                        &mut self.below,
+                    );
+                    drain_measures(
+                        &mut self.component,
+                        &self.env,
+                        &mut self.measures,
+                        &mut self.above,
+                        &mut self.below,
+                    );
+                }
+            }
+            while let Some(event) = self.above.pop() {
+                if !matches!(event, ToDomain::Text { .. }) {
+                    self.terminals.push(event);
+                }
+            }
+            drain_measures(&mut self.component, &self.env, &mut self.measures, &mut self.above, &mut self.below);
+            self.component.fire(&self.env, &mut self.above, &mut self.below);
+            self.component.reclaim();
+            if !delivered && !self.component.has_work() && self.above.is_empty() && self.below.is_empty() {
+                return;
+            }
+        }
+        panic!("bounded fixture did not settle");
+    }
+
+    /// Advance the deterministic clock, including every waiting whole deadline.
+    pub fn advance(&mut self, seconds: u64) {
+        self.env.now = Time::ZERO.saturating_add(Duration::from_secs(seconds));
+        self.pump();
+    }
+
+    /// Deliver actual HTTP/SSE bytes to a named physical socket.
+    pub fn bytes(&mut self, socket: u64, bytes: &[u8]) {
+        assert!(
+            self.bindings.contains_key(&Token::new(socket)),
+            "live binding {socket}, terminals={:?}",
+            self.terminals
+        );
+        self.bindings
+            .get_mut(&Token::new(socket))
+            .expect("live binding")
+            .response
+            .append(bytes)
+            .expect("bounded response intake");
+        self.pump();
+    }
+
+    /// Complete a native SSE response on one physical connection; later calls reuse it.
+    pub fn complete(&mut self, socket: u64) {
+        let body = concat!(
+            "data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"item\",\"role\":\"assistant\",\"content\":[]}}\n\n",
+            "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"item\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"done\"}]}}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}}\n\n"
+        );
+        let head =
+            format!("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\n\r\n", body.len());
+        self.bytes(socket, &[head.as_bytes(), body.as_bytes()].concat());
+    }
+
+    /// Cancel an accepted call through the production adapter.
+    pub fn cancel(&mut self, owner: u64) {
+        self.component.from_domain(
+            &self.env,
+            FromDomain::Cancel { owner: Token::new(owner) },
+            &mut self.above,
+            &mut self.below,
+        );
+        self.pump();
+    }
+}
+
+// A scripted observer keeps the prompt before releasing its native handoff.
+fn drain_measures(
+    component: &mut smith_protocol_llm::Component,
+    env: &skein_lib::Env<smith_protocol_llm::ComponentLimits>,
+    measures: &mut Vec<smith_protocol_llm::Measure>,
+    above: &mut skein_lib::Queue<smith_protocol_llm::ToDomain>,
+    below: &mut skein_lib::Queue<skein_io::Request>,
+) {
+    while let Some(measure) = component.pop_measure() {
+        let prompt = match &measure {
+            smith_protocol_llm::Measure::Prompt { owner, .. } => Some(*owner),
+            smith_protocol_llm::Measure::Completion { .. }
+            | smith_protocol_llm::Measure::Call { .. }
+            | smith_protocol_llm::Measure::Arguments { .. }
+            | smith_protocol_llm::Measure::Delta { .. }
+            | smith_protocol_llm::Measure::Terminal { .. }
+            | smith_protocol_llm::Measure::Retried { .. } => None,
+        };
+        measures.push(measure);
+        if let Some(owner) = prompt {
+            component.prompt_recorded(env, owner, above, below);
+        }
+    }
+}

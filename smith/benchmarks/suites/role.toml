@@ -1,0 +1,24 @@
+name = "role"
+tier = "working"
+design = "interleaved"
+reference = "before-role-batching"
+repetitions = 5
+rerun_failed = 0
+max_wall_seconds = 7200
+max_tokens = 8000000
+tasks = ["fixtures/01-backoff", "fixtures/02-line-decoder", "fixtures/03-planner"]
+
+[[agents]]
+agent = "smith"
+provider = "codex"
+config = "standard"
+
+[[arm]]
+source = "binary"
+name = "before-role-batching"
+commit = "f5bf11e25c75215ee21060850bf396551dcdda6e"
+
+[[arm]]
+source = "binary"
+name = "batched-role"
+commit = "e70802564bcdf4a50f0934819b2cc51b84a3a327"

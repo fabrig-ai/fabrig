@@ -1,0 +1,706 @@
+//! A scripted host: what the host would be to the runs, played from a seed.
+//!
+//! It speaks the run's vocabulary for the host, as the top level will route
+//! it to and from the protocol layer, and plays the host beyond it, with
+//! some liberties a host does not take:
+//!
+//! - It has jobs to run, and starts a run for each at a time drawn from the
+//!   first `window`, on a charter drawn from the script. It checks out the
+//!   charter's repositories itself, and names each by the root io knows it
+//!   by.
+//! - It cancels some of the runs once they are admitted, after a drawn
+//!   delay; some of those again, and some once they have answered. A second
+//!   cancel names a run that has decided how it ends, and a late one a run
+//!   that has answered: the run ignores both, which is what they test.
+//! - It answers each push after a drawn latency: the branch has moved, for
+//!   every push of a job that drew so when it started (a push is a
+//!   fast-forward from where the run started, so a moved branch stays
+//!   moved); else, with the configured chance, the push fails; otherwise it
+//!   is done. Submitted delivery is never abandoned and its actual deadline
+//!   terminal remains owed even while a job is cancelling;
+//!   and the withdraw changes nothing.
+//! - It counts the check notices it hears.
+//!
+//! A job's table:
+//!
+//! ```text
+//! state       event or alarm   next        emits
+//! Waiting     start alarm      Starting    Start
+//! Starting    admitted         Running     (the cancel alarm, if it is to be cancelled)
+//!             answered         gone
+//! Running     cancel alarm     Cancelling  Cancel (the alarm again, to cancel twice)
+//!             answered         gone        (or Lingering, to cancel late)
+//! Cancelling  cancel alarm     Cancelling  Cancel
+//!             answered         gone        (or Lingering)
+//! Lingering   cancel alarm     gone        Cancel
+//! ```
+//!
+//! It checks as it goes that each start is admitted at most once, before its
+//! answer, and answered exactly once; that a run pushes and tells of its
+//! checks only once admitted and before it answers; and that it names its
+//! pushes apart.
+//!
+//! What it does at a later time it keeps alarms for, which the world fires.
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
+use smith_domain_run::charter::{Endpoint, Grants, HostTool, Llm, Tools};
+use smith_domain_run::outcome::{ChangeSpec, FieldRule, OutcomeSpec, TextSpec, VerdictRule};
+use smith_domain_run::{Budget, Charter, Delivery, Event};
+use smith_domain_run::{Directory, Workspace};
+
+use skein_world::domain::Span;
+
+/// What a brief says, over and over.
+///
+/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+const TEXT: &[u8] = b"Fix the failing test in the parser, and keep the change small. ";
+
+/// How the host behaves.
+///
+/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Script {
+    /// Requested finishing quota, clamped below each generated total budget.
+    pub reserve: smith_domain_run::charter::Reserve,
+    /// Configured check policy supplied independently of the component.
+    pub checks: Duration,
+    /// Runs to start, one per job, each at a time drawn from the first
+    /// `window`.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub jobs: u32,
+    /// Initial monotonic interval in which the host schedules its jobs.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub window: Duration,
+    /// The chance, per mille, that a run is cancelled once it is admitted,
+    /// after a delay drawn from `cancel`.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub cancels: u32,
+    /// Injected delay from admission until a scripted cancellation.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub cancel: Span,
+    /// The chances, per mille, that a run is cancelled again after a cancel,
+    /// and that a run is cancelled after it has answered, each after a delay
+    /// drawn from `cancel`.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub recancels: u32,
+    /// Chance per mille of a cancellation after the target has settled.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub late_cancels: u32,
+    /// The length of each brief, drawn from `brief_min..=brief_max`.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub brief_min: u32,
+    /// Inclusive largest generated brief byte length.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub brief_max: u32,
+    /// Each budget's turns and tokens of every kind, each drawn from its
+    /// range, and its time, drawn from `time`.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub turns_min: u32,
+    /// Inclusive largest generated completion-count allowance.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub turns_max: u32,
+    /// Inclusive smallest generated token allowance in each dimension.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub tokens_min: u64,
+    /// Inclusive largest generated token allowance in each dimension.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub tokens_max: u64,
+    /// Monotonic wall-time allowance from admission.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub time: Span,
+    /// What each charter's LLM asks for as `max_tokens`.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub max_tokens: u32,
+    /// Chance per mille that the first directory is writable.
+    /// Result permissions are drawn separately; when none is selected,
+    /// the fixture permits a change if writable, otherwise a report.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub writable: u32,
+    /// Chance per mille of permitting a change when the first directory is writable.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub changes: u32,
+    /// Chance per mille of a report form; zero preserves the earlier fixture's random draws.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 7.1 and 13; testing-strategy.md, section 2.2.
+    pub reports: u32,
+    /// Independent chance per mille of permitting declared failure; zero preserves earlier random draws.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 7.1 and 13; testing-strategy.md, section 2.2.
+    pub failures: u32,
+    /// Chance per mille that a generated charter admits a verdict.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub verdicts: u32,
+    /// The chance, per mille, that a charter grants sub-agents.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub agents: u32,
+    /// Chance per mille of granting separately callable mid-run delivery.
+    pub deliveries: u32,
+    /// Chance per mille of declaring the scripted host tool.
+    pub host_tools: u32,
+    /// Delay before a host relay terminal, including one withdrawn in flight.
+    pub relay: Span,
+    /// Chance per mille of a predecision busy relay.
+    pub relay_busy: u32,
+    /// Chance per mille of a decided relay whose response is lost.
+    pub relay_lost: u32,
+    /// The time to push.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub push: Span,
+    /// The chance, per mille, that a job's branch moves before its run
+    /// pushes: every push of that job finds it moved.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub moved: u32,
+    /// The chance, per mille, that a push fails.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub push_failures: u32,
+}
+
+/// What the host counted.
+///
+/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub struct Tally {
+    /// Answers it took and actual bounded deliveries it served,
+    /// and check notices it heard.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub answered: u32,
+    /// Count of pushes observed at this scripted boundary.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub pushes: u32,
+    /// Count of notices observed at this scripted boundary.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub notices: u32,
+}
+
+/// Seeded scripted host retaining pending jobs, cancellation alarms and push replies; it performs no remote IO.
+///
+/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+pub struct Host {
+    script: Script,
+    rng: Rng,
+    /// The jobs not done yet, by their names, which are their runs' names at
+    /// the host.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    jobs: BTreeMap<Token, Job>,
+    /// The pushes in flight, by the runs' names for them, and the job each
+    /// is of.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pushes: BTreeMap<Token, (Token, bool)>,
+    /// When each job starts or its run is cancelled, and when each push is
+    /// answered: in order, and by what they are for.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    alarms: BTreeSet<(Time, Alarm)>,
+    armed: BTreeMap<Alarm, Time>,
+    /// Names for jobs and repositories.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    names: u64,
+    tally: Tally,
+}
+
+struct Job {
+    /// Whether its branch moved before its run pushed.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    moved: bool,
+    writable: Vec<u32>,
+    state: State,
+}
+
+/// A job that is not done: once done, it is gone.
+///
+/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum State {
+    /// Its start alarm is armed.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    Waiting,
+    /// Its run is started, and not admitted yet.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    Starting,
+    /// Its run is admitted as `run`. Its alarm, if armed, cancels it.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    Running { run: Token },
+    /// Its run `run` is cancelled, and has not answered. Its alarm, if armed,
+    /// cancels it again.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    Cancelling { run: Token },
+    /// Its run `run` has answered; its alarm cancels it all the same.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    Lingering { run: Token },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+enum Alarm {
+    Job(Token),
+    Delivery(Token),
+}
+
+impl Host {
+    /// A host with `script.jobs` jobs to start, from time zero.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    #[must_use]
+    pub fn new(script: Script, seed: u64) -> Host {
+        let mut host = Host {
+            script,
+            rng: Rng::new(seed),
+            jobs: BTreeMap::new(),
+            pushes: BTreeMap::new(),
+            alarms: BTreeSet::new(),
+            armed: BTreeMap::new(),
+            names: 0,
+            tally: Tally::default(),
+        };
+        for _ in 0..script.jobs {
+            let moved = host.rng.chance(script.moved);
+            let job = host.name();
+            host.jobs.insert(job, Job { moved, writable: Vec::new(), state: State::Waiting });
+            let at = Time::ZERO.saturating_add(Duration::from_nanos(host.rng.below(script.window.as_nanos())));
+            host.arm(Alarm::Job(job), at);
+        }
+        host
+    }
+
+    /// Observed counters retained by this scripted peer.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    #[must_use]
+    pub fn tally(&self) -> Tally {
+        self.tally
+    }
+
+    /// Earliest injected deadline still pending, or `None` when no timed work remains.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.alarms.first().map(|(at, _)| *at)
+    }
+
+    /// Whether injected now reaches the earliest pending deadline; no live clock is read.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    #[must_use]
+    pub fn is_due(&self, now: Time) -> bool {
+        self.next_deadline().is_some_and(|at| at <= now)
+    }
+
+    /// Starts the jobs, cancels the runs and answers the pushes whose alarms
+    /// are due at `now`, in the order they fall due.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub fn fire(&mut self, now: Time, out: &mut Vec<Event>) {
+        while let Some(&(at, alarm)) = self.alarms.first()
+            && at <= now
+        {
+            self.disarm(alarm);
+            match alarm {
+                Alarm::Job(job) => self.job_alarm(now, job, out),
+                Alarm::Delivery(owner) => self.answer_push(owner, out),
+            }
+        }
+    }
+
+    /// Starting, admitted: the run may be cancelled later.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub fn admitted(&mut self, now: Time, job: Token, run: Token) {
+        let state = self.state(job);
+        match state {
+            State::Starting => {
+                if self.rng.chance(self.script.cancels) {
+                    self.cancel_later(now, job);
+                }
+                self.set(job, State::Running { run });
+            }
+            State::Waiting | State::Running { .. } | State::Cancelling { .. } | State::Lingering { .. } => {
+                panic!("a run is admitted once, after it starts and before its answer: {state:?}")
+            }
+        }
+    }
+
+    /// Any state with a run, answered: the job is done, unless it is to
+    /// cancel its run late.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub fn answered(&mut self, now: Time, job: Token) {
+        let state = self.state(job);
+        self.disarm(Alarm::Job(job));
+        self.tally.answered += 1;
+        match state {
+            State::Running { run } | State::Cancelling { run } if self.rng.chance(self.script.late_cancels) => {
+                self.cancel_later(now, job);
+                self.set(job, State::Lingering { run });
+            }
+            State::Starting | State::Running { .. } | State::Cancelling { .. } => {
+                self.jobs.remove(&job);
+            }
+            State::Waiting | State::Lingering { .. } => panic!("a run is answered once, after it starts: {state:?}"),
+        }
+    }
+
+    /// The run of `job` runs its checks: the host's watchdog would wait for
+    /// them.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub fn checking(&mut self, job: Token) {
+        self.assert_running(job, "a run tells of its checks once admitted, before it answers");
+        self.tally.notices += 1;
+    }
+
+    /// A previously announced check ended before another starts or the run answers.
+    pub fn checks_ended(&mut self, job: Token) {
+        self.assert_running(job, "a check ends while the run is admitted");
+        self.tally.notices += 1;
+    }
+
+    /// A push from the run of `job`, which names it `owner`: answered later.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub fn push(&mut self, now: Time, job: Token, owner: Token, deadline: Time) {
+        self.assert_running(job, "a run pushes once admitted, before it answers");
+        self.tally.pushes += 1;
+        let complete = now.saturating_add(self.script.push.draw(&mut self.rng));
+        assert!(self.pushes.insert(owner, (job, complete > deadline)).is_none(), "live callbacks are distinct");
+        let at = complete.min(deadline);
+        self.arm(Alarm::Delivery(owner), at);
+    }
+
+    /// The host's side of a settled world: every job started and answered,
+    /// every late cancel sent, and every push answered.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub fn assert_settled(&self) {
+        assert!(self.jobs.is_empty(), "the host took every answer and sent every cancel");
+        assert!(self.pushes.is_empty(), "the host answered every push");
+        assert!(self.alarms.is_empty() && self.armed.is_empty(), "no alarm outlives what it is for");
+        assert_eq!(self.tally.answered, self.script.jobs, "every job was started and answered");
+    }
+
+    fn job_alarm(&mut self, now: Time, job: Token, out: &mut Vec<Event>) {
+        let state = self.state(job);
+        match state {
+            State::Waiting => {
+                let (charter, workspace) = self.charter();
+                self.jobs.get_mut(&job).expect("waiting job").writable = workspace
+                    .as_ref()
+                    .expect("scripted host has mounts")
+                    .directories
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(position, mount)| {
+                        mount.writable.then_some(u32::try_from(position).expect("bounded mounts"))
+                    })
+                    .collect();
+                out.push(Event::Start {
+                    messages: Box::default(),
+                    reply_to: ReplyTo::new(job),
+                    host_run: job,
+                    identity: None,
+                    activation: 1,
+                    window: smith_domain_run::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
+                    charter,
+                    workspace,
+                    transcript: None,
+                    resumed: false,
+                });
+                self.set(job, State::Starting);
+            }
+            State::Running { run } => {
+                out.push(Event::Cancel { run });
+                if self.rng.chance(self.script.recancels) {
+                    self.cancel_later(now, job);
+                }
+                self.set(job, State::Cancelling { run });
+            }
+            State::Cancelling { run } => out.push(Event::Cancel { run }),
+            State::Lingering { run } => {
+                out.push(Event::Cancel { run });
+                self.jobs.remove(&job);
+            }
+            State::Starting => unreachable!("no alarm is armed while a run starts"),
+        }
+    }
+
+    /// The push `owner`'s latency has passed: it is decided.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    fn answer_push(&mut self, owner: Token, out: &mut Vec<Event>) {
+        let (job, timed_out) = self.pushes.remove(&owner).expect("a push is in flight until its alarm fires");
+        let moved = self.jobs.get(&job).expect("a job lives until its run, which waits on its push, answers").moved;
+        let push = if timed_out {
+            Delivery::Failed(smith_domain_run::DeliveryFailure::new(0, smith_domain_run::DeliveryReason::TimedOut))
+        } else if moved {
+            Delivery::Stale
+        } else if self.rng.chance(self.script.push_failures) {
+            Delivery::Failed(smith_domain_run::DeliveryFailure::new(0, smith_domain_run::DeliveryReason::Unknown))
+        } else {
+            delivered(&self.jobs[&job].writable)
+        };
+        out.push(Event::Delivered { owner, delivery: push });
+    }
+
+    fn assert_running(&self, job: Token, contract: &str) {
+        let state = self.state(job);
+        match state {
+            State::Running { .. } | State::Cancelling { .. } => {}
+            State::Waiting | State::Starting | State::Lingering { .. } => panic!("{contract}: {state:?}"),
+        }
+    }
+
+    fn cancel_later(&mut self, now: Time, job: Token) {
+        let at = now.saturating_add(self.script.cancel.draw(&mut self.rng));
+        self.arm(Alarm::Job(job), at);
+    }
+
+    fn state(&self, job: Token) -> State {
+        self.jobs.get(&job).expect("a job lives until its run has answered and its last cancel is sent").state
+    }
+
+    fn set(&mut self, job: Token, state: State) {
+        self.jobs.get_mut(&job).expect("a job lives until it is done").state = state;
+    }
+
+    fn arm(&mut self, alarm: Alarm, at: Time) {
+        assert!(self.armed.insert(alarm, at).is_none(), "one alarm at a time for each job and push");
+        self.alarms.insert((at, alarm));
+    }
+
+    fn disarm(&mut self, alarm: Alarm) {
+        if let Some(at) = self.armed.remove(&alarm) {
+            self.alarms.remove(&(at, alarm));
+        }
+    }
+
+    fn name(&mut self) -> Token {
+        self.names += 1;
+        Token::new(self.names)
+    }
+
+    /// A charter drawn from the script:
+    ///
+    /// - The brief is a text of a length drawn from its range.
+    /// - The checkout is one or two repositories, the first writable with the
+    ///   configured chance.
+    /// - Reading is always granted; writing, the shell, forge reads and a
+    ///   "comment" host tool each at random; sub-agents with the configured
+    ///   chance, with two more models listed for them.
+    /// - Result permissions include change only with a writable directory,
+    ///   the closed verdicts "approve" and "request-changes", report and
+    ///   declared failure, at the configured
+    ///   chances. Change requires title/body fields; review items require
+    ///   path/body; report requires source and failure requires cause. These
+    ///   names and meanings are owned by this host fixture. A readonly job with
+    ///   no other result family receives a report contract.
+    /// - The budget's turns, tokens and time are drawn from their ranges.
+    ///
+    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    fn charter(&mut self) -> (Charter, Option<Workspace>) {
+        let script = self.script;
+        let len = self.rng.between(u64::from(script.brief_min), u64::from(script.brief_max));
+        let brief = TEXT.iter().copied().cycle().take(usize::try_from(len).expect("a u32 fits")).collect();
+        let writable = self.rng.chance(script.writable);
+        let mut repositories = vec![Directory {
+            host: Box::from(b"/host".as_slice()),
+            name: Box::from(&b"temper"[..]),
+            root: self.name(),
+            writable,
+            git: true,
+            conflicts: Box::new([]),
+        }];
+        if self.rng.chance(500) {
+            repositories.push(Directory {
+                host: Box::from(b"/host".as_slice()),
+                name: Box::from(&b"docs"[..]),
+                root: self.name(),
+                writable: false,
+                git: true,
+                conflicts: Box::new([]),
+            });
+        }
+        let tools = Tools { inspect: true, modify: self.rng.chance(500), shell: self.rng.chance(500) };
+        let _retired_forge_draw = self.rng.chance(500);
+        let host_tools = if self.rng.chance(script.host_tools) {
+            vec![HostTool {
+                name: Box::from(&b"comment"[..]),
+                description: b"Host action".as_slice().into(),
+                schema: b"{}".as_slice().into(),
+                effect: smith_domain_run::HostEffect::Read,
+                timeout: Duration::from_secs(5),
+            }]
+        } else {
+            Vec::new()
+        };
+        let verdicts = if self.rng.chance(script.verdicts) { verdicts() } else { Vec::new() };
+        let requested_report = script.reports > 0 && self.rng.chance(script.reports);
+        let failure = script.failures > 0 && self.rng.chance(script.failures);
+        let change =
+            (self.rng.chance(script.changes) || (verdicts.is_empty() && !requested_report && !failure)) && writable;
+        let report = requested_report || (!change && verdicts.is_empty() && !failure);
+        let tokens = |rng: &mut Rng| rng.between(script.tokens_min, script.tokens_max);
+        let budget = Budget {
+            turns: u32::try_from(self.rng.between(u64::from(script.turns_min), u64::from(script.turns_max)))
+                .expect("drawn between two u32s"),
+            spend: tokens(&mut self.rng),
+            time: script.time.draw(&mut self.rng),
+        };
+        let agents = self.rng.chance(script.agents);
+        let llm = |model: &[u8]| Llm {
+            effort: None,
+            prices: smith_domain_run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+            account: Some(0),
+            endpoint: Endpoint(0),
+            model: Box::from(model),
+            window: 65_536,
+            output: script.max_tokens,
+            dialect: 1,
+        };
+        let workspace = Some(Workspace { directories: repositories.into_boxed_slice() });
+        let deliver = self.delivery_grant(script.deliveries);
+        let charter = Charter {
+            mode: smith_domain_run::Mode::Finite,
+            reserve: finishing_reserve(script, budget, change || deliver.is_some()),
+            instructions: Box::new([]),
+            brief: smith_domain_run::Brief {
+                sections: Box::new([smith_domain_run::Section { title: b"Task".as_slice().into(), text: brief }]),
+            },
+
+            grants: Grants { wait: true, deliver, tools, agents, host_tools: host_tools.into() },
+            outcome: OutcomeSpec {
+                change: change.then_some(ChangeSpec {
+                    checks_must_pass: true,
+                    fields: Box::new([
+                        smith_domain_run::outcome::FieldRule { name: b"title".as_slice().into(), max: 1024 },
+                        smith_domain_run::outcome::FieldRule { name: b"body".as_slice().into(), max: 1024 },
+                    ]),
+                }),
+                verdicts: verdicts.into(),
+                report: report.then_some(TextSpec {
+                    max: 1024,
+                    fields: Box::new([FieldRule { name: b"source".as_slice().into(), max: 128 }]),
+                }),
+                failure: failure.then_some(TextSpec {
+                    max: 1024,
+                    fields: Box::new([FieldRule { name: b"cause".as_slice().into(), max: 128 }]),
+                }),
+            },
+            budget,
+            llm: llm(b"fake-1"),
+            models: Box::new([llm(b"fake-2"), llm(b"fake-3")]),
+            conventions: Some(smith_domain_run::Conventions {
+                guide: b"AGENTS.md".as_slice().into(),
+                checks: b".temper/pre-pr".as_slice().into(),
+            }),
+            resume: false,
+            waiting: Duration::from_secs(30),
+        };
+        (charter, workspace)
+    }
+
+    fn delivery_grant(&mut self, chance: u32) -> Option<ChangeSpec> {
+        if chance == 0 || !self.rng.chance(chance) {
+            return None;
+        }
+        Some(ChangeSpec {
+            checks_must_pass: true,
+            fields: Box::new([
+                FieldRule { name: b"title".as_slice().into(), max: 1024 },
+                FieldRule { name: b"body".as_slice().into(), max: 1024 },
+            ]),
+        })
+    }
+}
+
+fn verdicts() -> Vec<VerdictRule> {
+    let approve = VerdictRule {
+        name: Box::from(&b"approve"[..]),
+        text_max: 1024,
+        fields: Box::new([]),
+        items: smith_domain_run::outcome::ItemSpec { min: 0, max: 0, kinds: Box::new([]) },
+    };
+    let request = VerdictRule {
+        name: Box::from(&b"request-changes"[..]),
+        text_max: 1024,
+        fields: Box::new([]),
+        items: smith_domain_run::outcome::ItemSpec {
+            min: 1,
+            max: 8,
+            kinds: {
+                let required: Box<[Box<[u8]>]> = Box::new([Box::from(&b"path"[..]), Box::from(&b"body"[..])]);
+                let kinds: Box<[Box<[u8]>]> = Box::new([Box::from(&b"blocking"[..]), Box::from(&b"nit"[..])]);
+                kinds
+                    .into_vec()
+                    .into_iter()
+                    .map(|kind| smith_domain_run::outcome::ItemRule {
+                        kind,
+                        fields: required
+                            .iter()
+                            .map(|name| smith_domain_run::outcome::FieldRule { name: name.clone(), max: 1024 })
+                            .collect(),
+                    })
+                    .collect()
+            },
+        },
+    };
+    vec![approve, request]
+}
+
+fn delivered(writable: &[u32]) -> Delivery {
+    if writable.is_empty() {
+        return Delivery::Nothing;
+    }
+    let receipts = writable
+        .iter()
+        .map(|directory| {
+            smith_domain_run::Receipt::new(*directory, b"host receipt".as_slice().into()).expect("bounded receipt")
+        })
+        .collect();
+    Delivery::Delivered(smith_domain_run::Delivered::new(receipts).expect("unique admitted directories"))
+}
+
+/// Independent host finishing allowance, including one configured checks run.
+fn finishing_reserve(script: Script, budget: Budget, change: bool) -> smith_domain_run::charter::Reserve {
+    smith_domain_run::charter::Reserve {
+        turns: script.reserve.turns.min(budget.turns.saturating_sub(1)),
+        time: if change {
+            script.reserve.time.max(script.checks)
+        } else {
+            script.reserve.time.min(Duration::from_nanos(budget.time.as_nanos().saturating_sub(1)))
+        },
+    }
+}

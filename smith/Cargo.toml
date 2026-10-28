@@ -1,0 +1,294 @@
+# Profiles and lints follow programming-model.md, section 10.
+
+[workspace]
+default-members = ["benchmarks", ".", "crates/smith-events", "crates/smith-agent-service", "crates/smith-agent-shell", "crates/smith-channel", "crates/smith-charter", "crates/smith-domain", "crates/smith-domain-run", "crates/smith-domain-session", "crates/smith-domain-tools", "crates/smith-host-domain", "crates/smith-host-protocol", "crates/smith-inline-agent", "crates/smith-local-domain", "crates/smith-local-protocol", "crates/smith-local-service", "crates/smith-local-shell", "crates/smith-protocol-channel", "crates/smith-protocol-llm", "crates/smith-protocol-machine", "crates/smith-protocol-program", "crates/smith-transcript", "tests/tools", "tests/session", "tests/run", "tests/agent", "tests/protocol-llm", "tests/host", "tests/local", "tests/codecs", "tests/machine", "tests/channel", "tests/agent-process", "tests/hosts", "tests/local-process", "tests/real", "tests/fake-claude", "tests/transcript-patches"]
+resolver = "3"
+members = ["benchmarks", "crates/*", "tests/tools", "tests/session", "tests/run", "tests/agent", "tests/protocol-llm", "tests/host", "tests/local", "tests/codecs", "tests/machine", "tests/channel", "tests/agent-process", "tests/hosts", "tests/local-process", "tests/real", "tests/fake-claude", "tests/transcript-patches"]
+
+[workspace.package]
+license = "MIT"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[workspace.dependencies]
+smith-transcript-patches = { path = "tests/transcript-patches" }
+smith-fake-claude = { path = "tests/fake-claude" }
+skein-lib = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-codec = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-codegen = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-channel = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-heap = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-scratch = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-world = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-io = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-shell = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fail-stop = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-sim = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-machine = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-http = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-json = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-checkout = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-channel = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-llm = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-llm-connection = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-tls = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-tls-world = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-llm-domain = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-llm-protocol = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-llm-world = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-oauth-accounts = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-oauth = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-peers = { git = "https://github.com/fabrig-dev/skein.git" }
+skein-fake-oauth = { git = "https://github.com/fabrig-dev/skein.git" }
+smith-host-domain = { path = "crates/smith-host-domain" }
+smith-inline-agent = { path = "crates/smith-inline-agent" }
+smith-local-domain = { path = "crates/smith-local-domain" }
+smith-host-world = { path = "tests/host" }
+smith-local-world = { path = "tests/local" }
+smith-agent-world = { path = "tests/agent" }
+smith-machine-world = { path = "tests/machine" }
+smith-domain = { path = "crates/smith-domain" }
+smith-domain-run = { path = "crates/smith-domain-run" }
+smith-domain-session = { path = "crates/smith-domain-session" }
+smith-domain-tools = { path = "crates/smith-domain-tools" }
+smith-protocol-llm = { path = "crates/smith-protocol-llm" }
+smith-protocol-machine = { path = "crates/smith-protocol-machine" }
+smith-protocol-program = { path = "crates/smith-protocol-program" }
+smith-events = { path = "crates/smith-events" }
+smith-charter = { path = "crates/smith-charter" }
+smith-transcript = { path = "crates/smith-transcript" }
+smith-channel = { path = "crates/smith-channel" }
+smith-protocol-channel = { path = "crates/smith-protocol-channel" }
+smith-host-protocol = { path = "crates/smith-host-protocol" }
+smith-agent-service = { path = "crates/smith-agent-service" }
+smith-local-protocol = { path = "crates/smith-local-protocol" }
+smith-local-service = { path = "crates/smith-local-service" }
+smith-agent-process-world = { path = "tests/agent-process" }
+smith-real-world = { path = "tests/real" }
+smith-local-process-world = { path = "tests/local-process" }
+smith-local-shell = { path = "crates/smith-local-shell" }
+smith-agent-shell = { path = "crates/smith-agent-shell" }
+smith-run-world = { path = "tests/run" }
+smith-session-world = { path = "tests/session" }
+smith-tools-world = { path = "tests/tools" }
+
+# Panics are fail-stop and overflow traps, in every profile. Release aborts.
+# Dev unwinds, as the test harness needs, so that the binaries and the tests
+# share one build of each dependency; each binary's main installs
+# skein_fail_stop's hook first, which aborts on a panic before anything
+# unwinds (skein's programming-model.md, 2).
+[profile.dev]
+overflow-checks = true
+
+# Dependencies carry no debug information in dev and test builds, which
+# halves the test executables; the workspace's own crates keep the line
+# tables that backtraces name.
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+panic = "abort"
+overflow-checks = true
+
+# smith-bench's tests hash a debug fixture binary of several MiB on each arm read.
+[profile.dev.package.sha2]
+opt-level = 3
+
+# rustls is built as it ships in every dev build, not only the tests': its
+# debug assertions hold an alert after close_notify to be a bug, and abort a
+# half-closed connection that reads a corrupted record (tls.md, 6). Cargo
+# reads profiles only from the root manifest: a workspace that depends on
+# skein-tls copies this into its own.
+[profile.dev.package.rustls]
+debug-assertions = false
+
+# The lints for the step crates (every domain, protocol and io layer: lib is skein's).
+# Disallowed types, macros and methods are listed in clippy.toml. Ordinary Rust
+# (simulators, test harnesses) declares its own [lints] table.
+[workspace.lints.rust]
+unsafe_code = "deny"                  # and forbid at every step crate's root
+elided_lifetimes_in_paths = "deny"    # a type that borrows says so: Reader<'_>
+unused_must_use = "deny"
+non_ascii_idents = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unit_bindings = "deny"
+let_underscore_drop = "deny"          # drop explicitly, or bind a name
+missing_debug_implementations = "deny" # state is inspectable in tests and traces
+unused_lifetimes = "deny"
+redundant_lifetimes = "deny"
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Pedantic lints that fight the domain.
+module_name_repetitions = "allow"     # llm::LlmX reads fine next to agent::X
+missing_errors_doc = "allow"          # errors are enum values, documented on the enum
+missing_panics_doc = "allow"          # panics are assertions, named by expect("...")
+needless_pass_by_value = "allow"      # cell handlers take the source state by value
+single_match_else = "allow"           # a two-armed match on Option is as clear as if let
+
+# What is out of step code (programming-model.md, section 10.3).
+wildcard_enum_match_arm = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+as_conversions = "deny"
+float_arithmetic = "deny"
+unwrap_used = "deny"
+let_underscore_must_use = "deny"
+mem_forget = "deny"
+todo = "deny"
+unimplemented = "deny"
+impl_trait_in_params = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+
+# Beyond the table of 10.3: the rest of what the subset leaves out.
+allow_attributes_without_reason = "deny"
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+disallowed_methods = "deny"           # closure-taking combinators, panicking slice ops, ...
+allow_attributes = "deny"             # #[expect(.., reason = "..")], which fails once it is stale
+match_wildcard_for_single_variants = "deny"
+enum_glob_use = "deny"                # a variant is named with its enum
+wildcard_imports = "deny"
+panic = "deny"                        # assert!, unreachable!("why") or expect("invariant")
+missing_assert_message = "deny"       # an assertion names what it relies on
+assertions_on_result_states = "deny"
+unused_result_ok = "deny"
+let_underscore_untyped = "deny"
+mixed_read_write_in_expression = "deny"  # one side effect per statement
+infinite_loop = "deny"
+empty_drop = "deny"
+exit = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+use_debug = "deny"
+host_endian_bytes = "deny"            # byte order is chosen, not inherited from the host
+fn_to_numeric_cast_any = "deny"
+default_numeric_fallback = "deny"     # every integer has a stated width
+std_instead_of_core = "deny"
+std_instead_of_alloc = "deny"
+alloc_instead_of_core = "deny"
+partial_pub_fields = "deny"           # a struct is plain data or opaque, not both
+mod_module_files = "deny"
+tests_outside_test_module = "deny"
+iter_over_hash_type = "deny"
+
+[package]
+license.workspace = true
+name = "smith"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+default-run = "smith"
+autobins = false
+autotests = false
+autobenches = false
+autoexamples = false
+
+[[bin]]
+name = "smith"
+path = "src/main.rs"
+
+[[bin]]
+name = "smith-agent"
+path = "src/bin/smith-agent.rs"
+
+[[test]]
+name = "end_to_end"
+path = "tests/end-to-end/end_to_end.rs"
+
+[[test]]
+name = "live"
+path = "tests/end-to-end/live.rs"
+
+[[test]]
+name = "live_configuration"
+path = "tests/end-to-end/live_configuration.rs"
+
+[dependencies]
+skein-fail-stop.workspace = true
+skein-io.workspace = true
+skein-shell.workspace = true
+smith-agent-shell.workspace = true
+smith-local-shell.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true
+smith-hosts-world = { path = "tests/hosts" }
+toml = "0.9"
+smith-events.workspace = true
+smith-bench = { path = "benchmarks" }
+smith-agent-shell.workspace = true
+skein-world.workspace = true
+skein-lib.workspace = true
+skein-oauth.workspace = true
+libc = "0.2"
+skein-io.workspace = true
+skein-shell.workspace = true
+skein-channel.workspace = true
+skein-http.workspace = true
+skein-llm.workspace = true
+skein-llm-connection.workspace = true
+skein-tls.workspace = true
+smith-domain.workspace = true
+smith-agent-service.workspace = true
+smith-local-domain.workspace = true
+smith-local-protocol.workspace = true
+smith-local-service.workspace = true
+smith-host-domain.workspace = true
+smith-host-protocol.workspace = true
+smith-protocol-channel.workspace = true
+smith-protocol-llm.workspace = true
+smith-protocol-machine.workspace = true
+smith-channel.workspace = true
+smith-charter.workspace = true
+smith-transcript.workspace = true
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+smith-real-world.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-fake-peers.workspace = true
+skein-fake-channel.workspace = true
+smith-local-process-world.workspace = true
+skein-fake-oauth.workspace = true
+skein-sim.workspace = true
+skein-fake-machine.workspace = true
+skein-tls-world.workspace = true
+smith-agent-process-world.workspace = true
+smith-host-world.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+let_underscore_drop = "deny"
+unused_qualifications = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+let_underscore_must_use = "deny"
+mem_forget = "deny"
+todo = "deny"
+unimplemented = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"
+dbg_macro = "deny"
+missing_assert_message = "deny"
+iter_over_hash_type = "deny"

@@ -1,0 +1,57 @@
+[package]
+license.workspace = true
+name = "smith-bench"
+description = "Offline checks and real-provider measurements of agent tasks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+default-run = "smith-bench"
+
+[[bin]]
+name = "test-peer"
+path = "src/bin/test_peer.rs"
+
+[dependencies]
+skein-fail-stop.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_path_to_error = "0.1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+toml = "0.9"
+regex = "1"
+base64 = "0.22"
+rusqlite = { version = "0.37", features = ["bundled"] }
+time = { version = "0.3", features = ["formatting", "parsing"] }
+smith-local-shell = { path = "../crates/smith-local-shell" }
+smith-events.workspace = true
+smith-local-protocol.workspace = true
+skein-lib.workspace = true
+skein-llm.workspace = true
+skein-world.workspace = true
+skein-io.workspace = true
+skein-shell.workspace = true
+skein-oauth.workspace = true
+
+[dev-dependencies]
+smith-agent-service.workspace = true
+smith-domain-run.workspace = true
+smith-domain-session.workspace = true
+smith-agent-shell = { path = "../crates/smith-agent-shell" }
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+missing_debug_implementations = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"
