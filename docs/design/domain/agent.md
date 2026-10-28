@@ -278,12 +278,20 @@ repository change is `change`'s.
 A chat cannot know what a goal's `delegate` needs either: its own
 authority's tool families, the grants' vocabulary on the forge's
 resources, the delegation's kinds and its funding, none of which a run
-sees. `goal` takes the words alone, and whether the goal is an advisor,
+sees. `goal` takes the words alone, whether the work is to be agreed
+first (`agree`, 8.2), and whether the goal is an advisor,
 and the root builds the one delegate from the run's own, then decides
 it as any `delegate`:
 
 - **the delegate:** under the run's charter (a chat's, charter 1),
-  whose instructions stay its instructions, the words its brief; tracked
+  whose instructions stay its instructions, the words its brief, opening
+  with the root's own line that it is a goal, the work its person asked
+  for, as an advisor's opens with its own, so that it reads the
+  instructions meant for a goal as its own and those meant for a chat
+  as not (charter 1's instructions name each), and, for an agreed goal
+  (8.2), carrying after the words its person's last words to the chat,
+  whole, under their own heading, so that a request the chat cut short
+  still reaches the goal entire; tracked
   at the run's own priority, or last among the project's goals where the
   run is untracked: one past the largest tracked priority in the
   project, saturating, or 0 with none (the lower first, jig's
@@ -577,6 +585,18 @@ today's, until those land.
   landed.
 - **Nothing is changed before the answer:** no change task, branch or
   pull request exists until the goal calls `change`.
+- **The asking is the root's rail, not the goal's choice.** The chat
+  marks such work once, as it delegates it: `goal` with `agree` set, at
+  the moment its person asks to agree it first. An agreed goal's own
+  host calls are judged by that mark, as an advisor's are by its own
+  (4.3.2): its `finish` before it has asked its requester a question is
+  refused ("this work is to be agreed: ask your requester your plan
+  with message, as a question, and wait"), and so is its `change`
+  before that question is answered ("wait for the answer to question
+  N"), the run going on, as any refused host call does. Once answered,
+  it changes and finishes as any goal; a person who declines is
+  answered by a report, changing nothing. So a model that writes its
+  plan as its result, or changes first, is turned back to the inbox.
 - **Its stories:** `fuzzy_green_light` on fakes (testing.md, 2.4), and
   rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
 
