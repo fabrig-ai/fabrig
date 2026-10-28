@@ -1044,20 +1044,8 @@ pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, login: &str, scope
         .stderr(Stdio::null())
         .spawn()
         .expect("oracle token command");
-    let clock = skein_shell::Clock::new();
-    let until = clock.now().now.saturating_add(Duration::from_secs(10));
-    loop {
-        if let Some(status) = child.try_wait().expect("oracle token status") {
-            assert!(status.success(), "read-only oracle token creation failed");
-            break;
-        }
-        if clock.now().now >= until {
-            child.kill().expect("stop expired oracle command");
-            child.wait().expect("reap oracle command");
-            panic!("oracle token creation exceeded ten seconds");
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
+    let status = child.wait().expect("oracle token exit");
+    assert!(status.success(), "read-only oracle token creation failed");
     let mut bytes = Vec::new();
     child.stdout.take().expect("oracle token output").take(1024).read_to_end(&mut bytes).expect("oracle token bytes");
     let token = String::from_utf8(bytes).expect("oracle token encoding");

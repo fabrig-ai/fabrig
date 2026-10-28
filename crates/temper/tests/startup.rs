@@ -2160,6 +2160,34 @@ printf 'inherited fd 3 after exec\n'
 
 #[cfg(target_os = "linux")]
 #[test]
+fn parent_guard_observes_its_recorded_process_after_reaping() {
+    use std::process::{Command, Stdio};
+    let spawn = || Command::new("/bin/cat").stdin(Stdio::piped()).stdout(Stdio::null()).spawn().expect("owned child");
+    let mut guard = support::parent::Guard::new(spawn());
+    let mut recorded = spawn();
+    guard.record(recorded.id(), std::process::id());
+    recorded.kill().expect("kill recorded child");
+    recorded.wait().expect("reap recorded child");
+    guard.wait_for(recorded.id());
+    // Cleanup must keep using that exited identity after its PID is released.
+    drop(guard);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn observing_parent_descendants_leaves_cleanup_with_their_world() {
+    use std::process::{Command, Stdio};
+    let mut owner = support::parent::Guard::new(
+        Command::new("/bin/cat").stdin(Stdio::piped()).stdout(Stdio::null()).spawn().expect("owned child"),
+    );
+    let observer = support::parent::Guard::observing_test();
+    assert!(observer.pids().contains(&owner.child.as_ref().expect("child").id()));
+    drop(observer);
+    assert!(owner.child.as_mut().expect("child").try_wait().expect("child status").is_none());
+}
+
+#[cfg(target_os = "linux")]
+#[test]
 fn forge_parent_listener_helper() {
     if std::env::var_os("TEMPER_FORGE_PARENT_HELPER").is_some() {
         support::forge_parent::serve();
@@ -2180,12 +2208,16 @@ fn killing_forge_run_alone_kills_its_forgejo_child() {
 
 #[cfg(target_os = "linux")]
 fn forge_parent_shutdown(kill: bool) {
-    use support::parent::{Guard, live, signal, wait};
+    use support::parent::{Guard, signal, wait};
     let scratch = support::Scratch::startup(&format!("forge-parent-{kill}"));
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("listener");
     let address = listener.local_addr().expect("address");
     let binary = scratch.path().join("forgejo");
     let pid_file = scratch.path().join("fake.pid");
+    let release = scratch.path().join("parent.fifo");
+    assert!(
+        std::process::Command::new("/usr/bin/mkfifo").arg(&release).status().expect("parent release FIFO").success()
+    );
     let test = std::env::current_exe().expect("startup binary");
     fs::write(
         &binary,
@@ -2197,18 +2229,23 @@ if [ "$1" = --version ]; then
 fi
 test "$LISTEN_FDS" = 1 || exit 22
 test -S /proc/self/fd/3 || exit 23
-printf '%s' "$$" > '{pid}.tmp' && mv '{pid}.tmp' '{pid}'
 export TEMPER_FORGE_PARENT_HELPER=1
 '{}' --exact forge_parent_listener_helper --nocapture &
 helper=$!
-trap 'kill -TERM "$helper"; wait "$helper"; exit 37' TERM
-kill -TERM "$PPID"
+trap 'printf term > "{pid}.term"; wait "$helper"; exit 37' TERM
+printf '%s' "$helper" > '{pid}.helper'
+printf '%s' "$$" > '{pid}.tmp' && mv '{pid}.tmp' '{pid}'
+IFS= read -r parent < '{release}' || exit 24
+test "$parent" -gt 1 || exit 25
+kill -TERM "$parent"
+printf sent > '{pid}.sent'
 wait "$helper"
 exit 38
 "#,
             skein_forge::forgejo::pin::VERSION,
             test.display(),
-            pid = pid_file.display()
+            pid = pid_file.display(),
+            release = release.display()
         ),
     )
     .expect("fake Forgejo");
@@ -2227,19 +2264,40 @@ exit 38
     let mut guard = Guard::new(command.spawn().expect("forge run"));
     wait(|| pid_file.exists());
     let fake = fs::read_to_string(&pid_file).expect("fake pid").parse().expect("pid");
-    guard.pids.push(fake);
-    wait(|| support::boxed::status(address, "/") == Some(200));
-    support::parent::descendants(fake, &mut guard.pids);
+    guard.record(fake, guard.child.as_ref().expect("parent").id());
+    // Record the helper while its shell is held at the release FIFO. Send only
+    // our owned parent's identity, which stays unreaped until after this TERM.
+    let helper = fs::read_to_string(pid_file.with_extension("pid.helper")).expect("helper pid").parse().expect("pid");
+    guard.record(helper, fake);
+    fs::write(&release, format!("{}\n", guard.child.as_ref().expect("parent").id())).expect("release child's TERM");
+    // The inherited listener is already bound: one connection waits for the
+    // fake's response instead of polling HTTP with a separate wall clock.
+    let reply = listeners::request(address).expect("inherited listener response");
+    assert!(reply.starts_with(b"HTTP/1.1 200 "), "{}", String::from_utf8_lossy(&reply));
+    wait(|| pid_file.with_extension("pid.sent").exists());
+    // Standard signals coalesce while pending. The child's TERM must have
+    // reached signalfd before a separate external TERM can test forwarding.
+    wait(|| support::parent::term_consumed(guard.child.as_ref().expect("parent")));
+    assert!(!pid_file.with_extension("pid.term").exists(), "the child's TERM was not relayed");
     let parent = guard.child.as_mut().expect("parent");
     assert!(parent.try_wait().expect("status").is_none(), "Forgejo's SIGTERM leaves forge run running");
-    signal(parent.id(), if kill { "KILL" } else { "TERM" });
-    wait(|| guard.child.as_mut().expect("parent").try_wait().expect("exit").is_some());
+    eprintln!("parent story: child's TERM consumed; listener answered");
+    signal(parent, if kill { "KILL" } else { "TERM" });
+    if !kill {
+        // The trap records the relayed TERM; the owner signals the helper by
+        // pidfd so even a helper reaped early cannot turn into another target.
+        wait(|| pid_file.with_extension("pid.term").exists());
+        eprintln!("parent story: external TERM relayed");
+        guard.signal(helper, skein_io::kernel::Signal::Terminate);
+    }
+    eprintln!("parent story: waiting for parent exit");
+    guard.child.as_mut().expect("parent").wait().expect("parent exit");
+    eprintln!("parent story: parent exited");
     if kill {
-        // Kill reaches Forgejo's own process at once; the fake's helper is the
-        // script's child, which real Forgejo has none of, so the guard ends it.
-        wait(|| !live(fake));
+        // Real Forgejo has no script helper; the guard ends this test's helper.
+        guard.wait_for(fake);
     } else {
-        wait(|| guard.pids.iter().all(|pid| !live(*pid)));
+        guard.wait_all();
     }
     let ended = guard.child.take().expect("parent").wait_with_output().expect("reaped");
     if kill {
@@ -2249,7 +2307,6 @@ exit 38
         assert_eq!(ended.status.code(), Some(37), "{}", String::from_utf8_lossy(&ended.stderr));
         assert!(String::from_utf8_lossy(&ended.stdout).contains("fake connected"));
         assert!(String::from_utf8_lossy(&ended.stderr).contains("fake ready on fd 3"));
-        guard.pids.clear();
     }
     scratch.remove();
 }

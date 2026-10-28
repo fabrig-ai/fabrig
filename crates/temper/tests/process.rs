@@ -4171,7 +4171,7 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
         fs,
         process::{Command, Stdio},
     };
-    use support::parent::{Guard, descendants, live, wait};
+    use support::parent::{Guard, wait};
     const CHILD: &str = "TEMPER_BOX_PARENT_TEST";
     if let Some(root) = std::env::var_os(CHILD) {
         let root = std::path::Path::new(&root);
@@ -4216,20 +4216,14 @@ fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
     let pid_file = scratch.path().join("box.pid");
     wait(|| pid_file.exists());
     let box_pid = fs::read_to_string(pid_file).expect("box pid").parse().expect("pid number");
-    guard.pids.push(box_pid);
+    guard.record(box_pid, guard.child.as_ref().expect("child test").id());
     wait(|| {
-        let mut steps = Vec::new();
-        descendants(box_pid, &mut steps);
-        if steps.is_empty() {
-            return false;
-        }
-        guard.pids.extend(steps);
-        true
+        guard.descendants(box_pid);
+        guard.has_descendants()
     });
     guard.child.as_mut().expect("child test").kill().expect("SIGKILL test alone");
     guard.child.as_mut().expect("child test").wait().expect("reap test");
-    wait(|| guard.pids.iter().all(|pid| !live(*pid)));
-    guard.pids.clear();
+    guard.wait_all();
     scratch.remove();
 }
 

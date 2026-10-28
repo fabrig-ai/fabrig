@@ -24,19 +24,12 @@ struct Serve {
 }
 impl Serve {
     fn stop(mut self) {
-        let clock = skein_shell::Clock::new();
-        let deadline = clock.now().now.saturating_add(skein_lib::Duration::from_secs(10));
+        assert!(self.child.id() > 1, "owned serve group");
         skein_shell::signal_group(self.child.id(), skein_io::kernel::Signal::Terminate).expect("terminate serve");
-        loop {
-            if let Some(status) = self.child.try_wait().expect("serve status") {
-                self.reaped = true;
-                assert!(status.success(), "serve drained successfully");
-                assert!(!skein_shell::group_live(self.child.id()).expect("serve group"), "no surviving serve child");
-                return;
-            }
-            assert!(clock.now().now < deadline, "serve drains within ten seconds");
-            std::thread::sleep(Duration::from_millis(1));
-        }
+        let status = self.child.wait().expect("serve exit");
+        self.reaped = true;
+        assert!(status.success(), "serve drained successfully");
+        assert!(!skein_shell::group_live(self.child.id()).expect("serve group"), "no surviving serve child");
     }
 }
 impl Drop for Serve {

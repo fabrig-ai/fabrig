@@ -1,7 +1,7 @@
 //! Bind the fake before publishing its endpoint; its listener stays open into the story's world.
 use skein_fake_peers::llm::Peer;
 use skein_io::kernel::{Done, Fd};
-use skein_lib::{Duration, Queue};
+use skein_lib::Queue;
 use skein_shell::{Clock, Config, Host, Kernel, Wait};
 use std::{fs, net::SocketAddr, path::Path};
 
@@ -14,7 +14,7 @@ impl Listening {
     #[must_use]
     pub fn new(mut peer: Peer) -> Self {
         let clock = Clock::new();
-        let deadline = clock.now().now.saturating_add(Duration::from_secs(5));
+        let deadline = clock.now().now.saturating_add(super::WITHIN);
         let mut kernel = Kernel::open(Config { operations: peer.operations() }).expect("fake listener kernel");
         let mut arrived = Queue::with_capacity(peer.operations());
         let mut listener = None;

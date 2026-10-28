@@ -1,5 +1,5 @@
 //! One fresh native client after the playground's durable retirement.
-use skein_lib::{Duration, Time};
+use skein_lib::Time;
 use skein_shell::{Clock, Host};
 use skein_ui::Role;
 use skein_world::{Referee, real};
@@ -86,7 +86,7 @@ pub fn retired_reload(config: &Path, client: &Path) {
     let root = skein_shell::open_root(client).expect("signed-in client's parent root");
     let clock = Clock::new();
     let mut world =
-        real::World::new(Judge { page: Page::Waiting, until: clock.now().now.saturating_add(Duration::from_secs(2)) });
+        real::World::new(Judge { page: Page::Waiting, until: clock.now().now.saturating_add(super::WITHIN) });
     world.spawn_with_fds(vec![root], || {
         NativeClient::new(
             Settings {
@@ -101,6 +101,6 @@ pub fn retired_reload(config: &Path, client: &Path) {
         )
         .expect("reloaded native client")
     });
-    let ended = world.run(&clock, Duration::from_secs(3));
+    let ended = world.run(&clock, super::WITHIN);
     assert!(ended.procs.iter().all(Host::is_empty), "reloaded native client drained");
 }

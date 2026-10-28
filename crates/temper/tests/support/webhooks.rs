@@ -9,6 +9,7 @@ use std::{
     fs,
     io::{BufRead, BufReader, Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
+    os::fd::AsRawFd,
     path::Path,
 };
 
@@ -163,8 +164,14 @@ pub fn receive(listener: &TcpListener, within: Duration) -> Delivery {
         match listener.accept() {
             Ok(connection) => break connection,
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                assert!(clock.now().now < deadline, "no webhook arrived within its bound");
-                std::thread::sleep(std::time::Duration::from_millis(50));
+                assert!(
+                    skein_shell::wait_readable(
+                        skein_io::kernel::Fd::new(listener.as_raw_fd()),
+                        deadline.saturating_since(clock.now().now),
+                    )
+                    .expect("webhook listener readiness"),
+                    "no webhook arrived within its bound"
+                );
             }
             Err(error) => panic!("listener accept: {error}"),
         }

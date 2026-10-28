@@ -256,7 +256,7 @@ impl Running {
     }
     pub fn declared(&mut self) {
         let clock = skein_shell::Clock::new();
-        let deadline = clock.now().now.saturating_add(Duration::from_secs(60));
+        let deadline = clock.now().now.saturating_add(super::WITHIN);
         loop {
             let text = fs::read_to_string(&self.log).expect("runner log");
             if text.contains("declared successfully") {
@@ -303,7 +303,7 @@ pub fn answer(port: u16, path: &str, token: Option<&str>) -> std::io::Result<ser
 #[must_use]
 pub fn await_answer(port: u16, path: &str, token: Option<&str>) -> serde_json::Value {
     let clock = skein_shell::Clock::new();
-    let deadline = clock.now().now.saturating_add(Duration::from_secs(60));
+    let deadline = clock.now().now.saturating_add(super::WITHIN);
     loop {
         if let Ok(value) = answer(port, path, token) {
             return value;

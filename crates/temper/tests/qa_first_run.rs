@@ -74,6 +74,10 @@ fn descendants_with(arguments: &[&str]) -> Vec<u32> {
         pids.push(pid);
         parent::descendants(pid, &mut pids);
     }
+    matching_arguments(pids, arguments)
+}
+
+fn matching_arguments(pids: Vec<u32>, arguments: &[&str]) -> Vec<u32> {
     pids.into_iter()
         .filter(|pid| {
             fs::read(format!("/proc/{pid}/cmdline")).is_ok_and(|bytes| {
@@ -242,9 +246,9 @@ fn box_notice_words(line: &str) -> &str {
         && bytes[5] == b':'
         && &bytes[8..10] == b"Z "
         && [0, 1, 3, 4, 6, 7].iter().all(|index| bytes[*index].is_ascii_digit())
-        && &bytes[..2] < b"24"
-        && &bytes[3..5] < b"60"
-        && &bytes[6..8] < b"60"
+        && &bytes[..2] < b"24".as_slice()
+        && &bytes[3..5] < b"60".as_slice()
+        && &bytes[6..8] < b"60".as_slice()
     {
         &line[10..]
     } else {
@@ -323,14 +327,12 @@ fn parent_shutdown(signal: &str) {
         steps,
         boxed::BOX_DEADLINE,
         || {
-            let runners = descendants_with(&["forge", "run"]);
+            let guard = parent::Guard::observing_test();
+            let runners = matching_arguments(guard.pids(), &["forge", "run"]);
             let forge_parent = runners
                 .into_iter()
                 .find(|pid| fs::read(format!("/proc/{pid}/cmdline")).is_ok_and(|bytes| bytes.ends_with(b"forgejo\0")));
-            let mut children = Vec::new();
-            if let Some(pid) = forge_parent {
-                parent::descendants(pid, &mut children);
-            }
+            let children = forge_parent.map_or_else(Vec::new, |pid| guard.children(pid));
             let child = children.iter().copied().find(|pid| {
                 fs::read_link(format!("/proc/{pid}/exe"))
                     .is_ok_and(|path| path.file_name().is_some_and(|name| name == "forgejo"))
@@ -344,9 +346,15 @@ fn parent_shutdown(signal: &str) {
             let locked = lock.try_lock().is_err();
             let stopped = match (forge_parent, child) {
                 (Some(pid), Some(child)) => {
-                    parent::signal(pid, signal);
-                    parent::wait(|| !parent::live(child));
-                    parent::wait(|| !parent::live(pid));
+                    let signal = match signal {
+                        "TERM" => skein_io::kernel::Signal::Terminate,
+                        "INT" => skein_io::kernel::Signal::Interrupt,
+                        "KILL" => skein_io::kernel::Signal::Kill,
+                        other => panic!("unknown test signal {other}"),
+                    };
+                    guard.signal(pid, signal);
+                    guard.wait_for(child);
+                    guard.wait_for(pid);
                     true
                 }
                 _ => false,

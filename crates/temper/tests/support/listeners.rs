@@ -1,6 +1,6 @@
 //! Real inherited-fd handoffs without unsafe pre-exec hooks.
 use std::{
-    io::{self, Read, Write},
+    io::{self, BufRead, BufReader, Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     os::fd::{AsRawFd, OwnedFd},
     process::{Command, ExitStatus, Stdio},
@@ -40,7 +40,7 @@ pub struct Probed {
 pub fn probe(mut command: Command, address: SocketAddr, marker: &str) -> Probed {
     let mut child = command.spawn().expect("listener claimant");
     let clock = skein_shell::Clock::new();
-    let deadline = clock.now().now.saturating_add(skein_lib::Duration::from_secs(4));
+    let deadline = clock.now().now.saturating_add(crate::support::WITHIN);
     let mut stdout = Vec::new();
     let mut ready = None;
     loop {
@@ -65,18 +65,18 @@ pub fn probe(mut command: Command, address: SocketAddr, marker: &str) -> Probed 
         }
     }
     let reply = if ready.is_some() { request(address) } else { Err(io::ErrorKind::TimedOut.into()) };
-    let _signalled = Command::new("/usr/bin/kill").args(["-TERM", &child.id().to_string()]).output();
+    crate::support::parent::signal(&mut child, "TERM");
     let output = child.wait_with_output().expect("claimant reaped");
     stdout.extend_from_slice(&output.stdout);
     Probed { ready, reply, status: output.status, stdout, stderr: output.stderr }
 }
 
-fn request(address: SocketAddr) -> io::Result<Vec<u8>> {
-    let mut socket = TcpStream::connect_timeout(&address, Duration::from_millis(500))?;
-    socket.set_read_timeout(Some(Duration::from_millis(500)))?;
-    socket.set_write_timeout(Some(Duration::from_millis(500)))?;
+pub fn request(address: SocketAddr) -> io::Result<Vec<u8>> {
+    let mut socket = TcpStream::connect_timeout(&address, Duration::from_nanos(crate::support::WITHIN.as_nanos()))?;
+    socket.set_read_timeout(Some(Duration::from_nanos(crate::support::WITHIN.as_nanos())))?;
+    socket.set_write_timeout(Some(Duration::from_nanos(crate::support::WITHIN.as_nanos())))?;
     socket.write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")?;
-    let mut bytes = [0; 32];
-    let count = socket.read(&mut bytes)?;
-    Ok(bytes[..count].to_vec())
+    let mut bytes = Vec::new();
+    BufReader::new(socket.take(32)).read_until(b'\n', &mut bytes)?;
+    Ok(bytes)
 }

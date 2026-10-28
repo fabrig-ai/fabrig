@@ -476,16 +476,9 @@ stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- {account}
 }
 
 fn stop_box(boxed: &mut Child) -> Result<(), String> {
-    let status = Command::new("kill").args(["-TERM", &boxed.id().to_string()]).status().map_err(|e| e.to_string())?;
-    require(status.success(), "signal box to stop")?;
-    let until = now().saturating_add(Duration::from_secs(15));
-    loop {
-        if let Some(status) = boxed.try_wait().map_err(|e| e.to_string())? {
-            return require(status.success(), "box drained successfully");
-        }
-        require(now() < until, "box did not drain after login return")?;
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    super::super::parent::signal(boxed, "TERM");
+    let status = boxed.wait().map_err(|e| e.to_string())?;
+    require(status.success(), "box drained successfully")
 }
 
 /// Run only by proof-live with a held record and a fresh private deployment.
