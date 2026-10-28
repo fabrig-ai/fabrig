@@ -318,9 +318,10 @@ fn check_ci(ran: &Ran) -> (u64, u64) {
 fn check_repair(ran: &Ran, h1: u64) {
     let repair = document(ran, REPAIR_READ);
     assert_eq!(repair["chip"]["task"], REPAIR, "the repair is T4");
+    let expected_words = format!("Repair CI at {}: check\n{REPAIR_CUE}", hex(&object_bytes(h1)[..6]));
     assert_eq!(
-        repair["spec"]["specification"]["words"]["bytes"], REPAIR_CUE,
-        "T4's specification is the engine's CI repair request"
+        repair["spec"]["specification"]["words"]["bytes"], expected_words,
+        "T4's specification opens with the failed check and retains the CI repair request"
     );
     assert_eq!(repair["requester"]["task"], CHANGE, "the change requested the repair");
     let opened = ran

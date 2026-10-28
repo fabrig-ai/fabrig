@@ -648,6 +648,10 @@ fn check_gate_repair(no_ci: bool) {
         }
     }
     let repair = world.assigned.get(3).expect("review repair assigned").clone();
+    let kind = if no_ci { "check" } else { "review" };
+    let expected =
+        format!("Repair gate 1 ({kind}) at 975835de1c97: changes requested\nRepair the requested gate changes");
+    assert_eq!(live_task(&world, repair.task).spec.words.as_ref(), expected.as_bytes());
     assert!(
         repair.sections.iter().any(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews)
             && matches!(&section.body, engine::BriefBody::Text(words)
@@ -823,6 +827,7 @@ fn an_unreadable_failed_job_log_is_named_and_repair_still_runs() {
     let (mut world, _chat, producer, branch) = change_world(false, 0, None);
     world.fail_job_reads = true;
     let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build", b"lint"]);
+    assert!(live_task(&world, repair.task).spec.words.starts_with(b"Repair CI at 975835de1c97: build, lint\n"));
     let words = ci_words(&repair);
     assert!(contains(words, b"[job log could not be read]"), "{}", String::from_utf8_lossy(words));
     assert!(contains(words, b"Description:"), "{}", String::from_utf8_lossy(words));

@@ -2207,22 +2207,15 @@ fn change_delegate(
                 words: env.limits.tasks.result_bytes,
             },
         ),
-        forge_change::Delegate::Repair(why) => {
-            let words: &[u8] = match why {
-                forge_change::Repair::Ci => b"Repair the failed CI on the change branch",
-                forge_change::Repair::Semantic => b"Repair the base update's semantic conflict",
-                forge_change::Repair::Gate(_) => b"Repair the requested gate changes",
-            };
-            (
-                tasks::Executor::Agent { charter: row.producing_charter },
-                Box::from(words),
-                tasks::Contract::Change {
-                    connector: domain.config.forge_connector,
-                    kind: 2,
-                    words: env.limits.tasks.result_bytes,
-                },
-            )
-        }
+        forge_change::Delegate::Repair(why) => (
+            tasks::Executor::Agent { charter: row.producing_charter },
+            repair_words(row, why, parameters.as_slice(), env.limits.tasks.spec_bytes)?,
+            tasks::Contract::Change {
+                connector: domain.config.forge_connector,
+                kind: 2,
+                words: env.limits.tasks.result_bytes,
+            },
+        ),
         forge_change::Delegate::Resolve { base } => {
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
             (
@@ -2371,6 +2364,83 @@ fn review_words(
     }
     append(&mut words, b"Verdict 1 approves; verdict 2 requests changes. Change: ");
     append(&mut words, &row.title);
+    Some(words.into_boxed())
+}
+
+/// The gate's kind uses the same words as the change panel.
+fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<Box<[u8]>> {
+    let number = match why {
+        forge_change::Repair::Ci => return Some(Box::from(&b"Repair CI at "[..])),
+        forge_change::Repair::Semantic => return Some(Box::from(&b"Repair the base's break at "[..])),
+        forge_change::Repair::Gate(number) => number,
+    };
+    let mut found = None;
+    for gate in &row.change.gates {
+        if gate.number == number {
+            found = Some(gate.kind);
+        }
+    }
+    let kind: &[u8] = match found? {
+        forge_change::GateKind::Agent => b"review",
+        forge_change::GateKind::Person => b"approval",
+        forge_change::GateKind::Check => b"check",
+    };
+    let number = skein_lib::Decimal::of(number);
+    let parts: [&[u8]; 5] = [b"Repair gate ", number.as_bytes(), b" (", kind, b") at "];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len())?;
+    }
+    let mut writer = skein_lib::Writer::new(length);
+    for part in parts {
+        writer.put(part).expect("measured gate identity");
+    }
+    Some(writer.finish())
+}
+
+/// domain/forge.md, 8.4: a cut task read still names what the repair repairs.
+fn repair_words(
+    row: &forge::ChangeRow,
+    why: forge_change::Repair,
+    parameters: &[tasks::Parameter],
+    bound: u32,
+) -> Option<Box<[u8]>> {
+    let previous: &[u8] = match why {
+        forge_change::Repair::Ci => b"Repair the failed CI on the change branch",
+        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict",
+        forge_change::Repair::Gate(_) => b"Repair the requested gate changes",
+    };
+    let head = row.change.last_head?;
+    let digits = commit_text(&head);
+    let mut room = bound;
+    for parameter in parameters {
+        if let tasks::Parameter::Bytes { value, .. } = parameter {
+            room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
+        }
+    }
+    let tail = u32::try_from(previous.len().checked_add(1)?).ok()?;
+    let mut identity = List::with_capacity(room.checked_sub(tail)?);
+    let opening = repair_opening(row, why)?;
+    // Keep the opening and head whole even under a small task spec bound.
+    if usize::try_from(identity.room()).ok()? < opening.len().checked_add(14)? {
+        return None;
+    }
+    append(&mut identity, &opening);
+    append(&mut identity, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
+    append(&mut identity, b": ");
+    match why {
+        forge_change::Repair::Ci => {
+            if row.result.head == Some(head) {
+                append(&mut identity, &row.result.failed.bytes);
+            }
+        }
+        forge_change::Repair::Semantic => append(&mut identity, &row.base),
+        forge_change::Repair::Gate(_) => append(&mut identity, b"changes requested"),
+    }
+    let mut words = List::with_capacity(room);
+    append(&mut words, identity.as_slice());
+    append(&mut words, b"\n");
+    append(&mut words, previous);
     Some(words.into_boxed())
 }
 

@@ -319,6 +319,26 @@ pub fn steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step> {
         eprintln!("owned CSV H1 failed, repair delegated: {} ms", now().saturating_since(began).as_nanos() / 1_000_000);
         Call::new(&["task", "show", &panel["runs"].as_u64().expect("repair task").to_string(), "--json"])
     })));
+    let words_paths = paths.clone();
+    steps.push(Step::Then(Box::new(move |calls| {
+        let task = super::ctl::json(calls.last().expect("repair task"));
+        let words = task["spec"]["specification"]["words"]["bytes"].as_str().expect("repair words");
+        let forge = Forge::at(&words_paths);
+        let pull = forge.get("pulls/1");
+        let head = pull["head"]["sha"].as_str().expect("failed head");
+        let statuses = forge.statuses(head);
+        let failed = statuses["statuses"]
+            .as_array()
+            .expect("contexts")
+            .iter()
+            .find(|row| row["status"] == "failure")
+            .expect("failed context");
+        let context = failed["context"].as_str().expect("context");
+        assert_eq!(context, "/ changes (pull_request)");
+        assert!(words.len() <= 128, "ctl's bounded task words: {words}");
+        assert!(words.starts_with(&format!("Repair CI at {}: {context}\n", &head[..12])), "{words}");
+        Call::new(&["change", "show", "2", "--json"])
+    })));
     steps.push(Step::ReleaseLlm { name: b"csv-repair", cue: REPAIR.as_bytes() });
     // The shared steps capture pending review at H2; add the forge observation
     // immediately before releasing that review.

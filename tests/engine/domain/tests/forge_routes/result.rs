@@ -65,13 +65,21 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
         1,
         raw::Op::Write(raw::Write::Status {
             commit: h1,
-            context: b"csv header".as_slice().into(),
+            context: b"/ changes (pull_request)".as_slice().into(),
             state: raw::Check::Failed,
         }),
     );
     finish(&mut world, &producer, change_result());
     let repair = next(&mut world, 2);
-    assert!(contains(ci_words(&repair), b"Failed check: csv header\n"));
+    assert!(contains(ci_words(&repair), b"Failed check: / changes (pull_request)\n"));
+    let words = &live_task(&world, repair.task).spec.words;
+    let cut = &words[..words.len().min(128)];
+    let head = forge_top::commit_text(&translate::commit(h1));
+    let expected = format!(
+        "Repair CI at {}: / changes (pull_request)\n",
+        core::str::from_utf8(&head[..12]).expect("hexadecimal head")
+    );
+    assert!(cut.starts_with(expected.as_bytes()), "client's cut repair words: {cut:?}");
     let h2 = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"src/main.rs", CSV, 1)
         .expect("repair pushed the CSV source");
     finish(&mut world, &repair, change_result());
@@ -106,7 +114,7 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
     assert_eq!(lines[0], merge);
     assert!(lines[1].starts_with("pull request #"), "{words}");
     assert_eq!(lines[2], format!("checks at {head}: build passed"));
-    assert_eq!(lines[3], "repairs: 1: CI failed: csv header");
+    assert_eq!(lines[3], "repairs: 1: CI failed: / changes (pull_request)");
     assert_eq!(lines[4], format!("reviews: approved at {head}"));
     assert!(!words.contains("bytes cut"), "the requester reads it whole");
 }
