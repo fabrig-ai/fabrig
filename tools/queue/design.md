@@ -5,7 +5,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 ## 1. In one page
 
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
-- **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff --no-edit`; a branch that conflicts is aborted, reported, and left out.
+- **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff --no-edit`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out.
 - **The checks run on a selection** (section 2), not always the whole workspace: `cargo fmt --check`, clippy with `-D warnings`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet), all through `heavy --gate` on the gate machine, which nothing else builds on.
 - **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
@@ -52,6 +52,18 @@ prints `below the disk floor` also raises a capacity error, preserving the
 step's output (including the builder's host and space), plus the queue host
 and free GB. Other exit codes or messages remain red. No refused batch
 marks tips tried, rejects a branch, or bisects. `once` surfaces these errors.
+
+### 3.3 Ratchet conflicts
+
+If every conflicted path is `<tree>/scripts/old-forms.txt` for one of the four
+trees, take HEAD's version of each baseline and complete the merge. From
+each such tree run `python3 -I -B <absolute tree>/scripts/old_forms.py --write`.
+This compares the combined sources against the batch's baseline, then lowers
+it. Amend the merge with all rewritten baselines. Exit 1 rejects that branch
+with failing step `ratchet:<tree>` and restores the batch's prior commit,
+including any earlier successful merges. Other command errors are queue
+errors. A conflict in any other path follows the ordinary conflict path;
+no ratchet resolution is attempted for a mixed conflict.
 
 ## 4. Later
 

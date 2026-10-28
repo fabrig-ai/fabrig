@@ -257,6 +257,83 @@ class RepositoryTests(unittest.TestCase):
         self.assertTrue((self.repo / "last").exists())
         self.assertEqual(mq.git(self.repo, "status", "--porcelain").stdout, "")
 
+    def ratchet_base(self, trees=("skein",)):
+        for tree in trees:
+            self.write(f"{tree}/scripts/old-forms.txt", "3\n")
+            self.write(f"{tree}/src/a.rs", "old old\n")
+            self.write(f"{tree}/src/b.rs", "old\n")
+            self.write(f"{tree}/scripts/old_forms.py", r"""from pathlib import Path
+import sys
+baseline = Path('scripts/old-forms.txt')
+count = sum(p.read_text().count('old') for p in Path('src').glob('*.rs'))
+if count > int(baseline.read_text()):
+    print('count rose above HEAD baseline')
+    sys.exit(1)
+baseline.write_text(str(count) + '\n')
+""")
+        self.commit("ratchet fixture")
+        self.base = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+
+    def ratchet_branch(self, task, source, baseline, trees=("skein",), *, publish=False):
+        mq.git(self.repo, "switch", "--detach", self.base)
+        for tree in trees:
+            self.write(f"{tree}/src/{source}.rs", "")
+            self.write(f"{tree}/scripts/old-forms.txt", f"{baseline}\n")
+        self.commit(task)
+        branch = {"name": "ready/coord/" + task, "tip": self.tip(), "timestamp": 1}
+        if publish:
+            mq.git(self.repo, "push", "origin", f"HEAD:refs/heads/{branch['name']}")
+        return branch
+
+    def test_ratchet_only_conflicts_recount_and_amend_each_tree(self):
+        trees = ("skein", "smith")
+        self.ratchet_base(trees)
+        first = self.ratchet_branch("a", "a", 1, trees)
+        second = self.ratchet_branch("b", "b", 2, trees)
+        merged, conflicts = mq.build_batch(self.repo, [first, second])
+        self.assertEqual(conflicts, [])
+        self.assertEqual([branch["name"] for branch in merged], [first["name"], second["name"]])
+        for tree in trees:
+            self.assertEqual((self.repo / tree / "scripts/old-forms.txt").read_text(), "0\n")
+            self.assertEqual(mq.git(self.repo, "show", f"HEAD:{tree}/scripts/old-forms.txt").stdout, "0\n")
+        self.assertEqual(len(mq.git(self.repo, "show", "-s", "--format=%P").stdout.split()), 2)
+        self.assertEqual(mq.git(self.repo, "status", "--porcelain").stdout, "")
+
+    def test_ratchet_rise_rejects_branch_and_restores_batch_so_far(self):
+        self.ratchet_base()
+        first = self.ratchet_branch("a", "a", 1, publish=True)
+        mq.git(self.repo, "switch", "--detach", self.base)
+        self.write("skein/scripts/old-forms.txt", "2\n")
+        self.write("skein/src/b.rs", "old old\n")
+        self.commit("raise combined count")
+        second = {"name": "ready/coord/b", "tip": self.tip(), "timestamp": 1}
+        mq.git(self.repo, "push", "origin", f"HEAD:refs/heads/{second['name']}")
+        queue = self.queue()
+        self.run_cycle(queue)
+        self.assertEqual((self.repo / "skein/src/a.rs").read_text(), "")
+        self.assertEqual((self.repo / "skein/src/b.rs").read_text(), "old\n")
+        record = self.records()[0]
+        self.assertEqual(record["conflicts"][0]["step"], "ratchet:skein")
+        self.assertIn("count rose above HEAD baseline", record["conflicts"][0]["error"])
+        self.assertTrue(any("failing step: ratchet:skein" in body for _, _, body in self.posts))
+        self.assertEqual(queue.state["tried"][second["name"]], second["tip"])
+        self.assertEqual(record["branches"][0]["tip"], first["tip"])
+
+    def test_mixed_ratchet_and_source_conflict_is_aborted(self):
+        self.ratchet_base()
+        first = self.ratchet_branch("a", "a", 1)
+        second = self.ratchet_branch("b", "b", 2)
+        self.write("skein/src/a.rs", "other\n")
+        self.commit("source conflict")
+        second["tip"] = self.tip()
+        with patch.object(mq, "merge_ratchets", side_effect=AssertionError("mixed conflict")):
+            merged, conflicts = mq.build_batch(self.repo, [first, second])
+        self.assertEqual(len(merged), 1)
+        self.assertNotIn("step", conflicts[0])
+        self.assertEqual((self.repo / "skein/scripts/old-forms.txt").read_text(), "1\n")
+
     def test_candidates_are_pinned_ordered_and_skip_only_the_tried_tip(self):
         a = self.branch("a")
         b = self.branch("b")

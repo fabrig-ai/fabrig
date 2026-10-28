@@ -70,22 +70,49 @@ def ensure_clean(repo):
         raise RuntimeError("queue checkout has uncommitted or untracked files")
 
 
+def merge_ratchets(repo, paths, before):
+    """Recount against the batch's baseline after a ratchet-only conflict."""
+    git(repo, "checkout", "--ours", "--", *paths)
+    git(repo, "add", "--", *paths)
+    git(repo, "commit", "--no-edit")
+    for tree in sorted({path.split("/", 1)[0] for path in paths}):
+        argv = ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py"), "--write"]
+        result = command(argv, repo / tree, check=False)
+        if result.returncode == 1:
+            git(repo, "reset", "--hard", before)
+            return {"step": f"ratchet:{tree}", "error": result.stdout}
+        if result.returncode:
+            raise RuntimeError(f"{shlex.join(argv)} exited {result.returncode}:\n{result.stdout}")
+    git(repo, "add", "--", *paths)
+    git(repo, "commit", "--amend", "--no-edit")
+    return None
+
+
 def build_batch(repo, branches, base="origin/main"):
-    """Merge pinned tips from base; abort conflicts and keep merging the rest."""
+    """Merge pinned tips, resolving only old-form baselines (design.md, 3.3)."""
     ensure_clean(repo)
     git(repo, "switch", "--detach", base)
     merged, conflicts = [], []
+    ratchets = {f"{tree}/scripts/old-forms.txt" for tree in TREES}
     for branch in branches:
+        before = git(repo, "rev-parse", "HEAD").stdout.strip()
         result = git(repo, "merge", "--no-ff", "--no-edit", branch["tip"], check=False)
         if result.returncode:
-            conflicting = git(repo, "diff", "--name-only", "--diff-filter=U").stdout
-            if git(repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD", check=False).returncode == 0:
-                git(repo, "merge", "--abort")
-            if not conflicting:
-                raise RuntimeError(f"merge of {branch['name']} failed:\n{result.stdout}")
-            conflicts.append({**branch, "error": result.stdout})
-        else:
-            merged.append({**branch, "commit": git(repo, "rev-parse", "HEAD").stdout.strip()})
+            output = git(repo, "diff", "--name-only", "--diff-filter=U", "-z").stdout
+            conflicting = output.split("\0")[:-1] if output else []
+            if conflicting and set(conflicting) <= ratchets:
+                failure = merge_ratchets(repo, conflicting, before)
+                if failure:
+                    conflicts.append({**branch, **failure})
+                    continue
+            else:
+                if git(repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD", check=False).returncode == 0:
+                    git(repo, "merge", "--abort")
+                if not conflicting:
+                    raise RuntimeError(f"merge of {branch['name']} failed:\n{result.stdout}")
+                conflicts.append({**branch, "error": result.stdout})
+                continue
+        merged.append({**branch, "commit": git(repo, "rev-parse", "HEAD").stdout.strip()})
     return merged, conflicts
 
 
@@ -367,12 +394,14 @@ class Queue:
             detail.write_text("\n".join(conflict["error"] for conflict in conflicts))
             if conflicts and not skip_conflicts:
                 for branch in conflicts:
-                    self.reject(record, branch, "merge conflict")
+                    self.reject(record, branch, f"failing step: {branch['step']}"
+                                if "step" in branch else "merge conflict")
                 record["outcome"] = "conflict"
                 return False
             if not merged and not idle:
                 for branch in conflicts:
-                    self.reject(record, branch, "merge conflict")
+                    self.reject(record, branch, f"failing step: {branch['step']}"
+                                if "step" in branch else "merge conflict")
                 record["outcome"] = "conflict"
                 return True
             paths = changed_paths(self.repo)
@@ -423,7 +452,8 @@ class Queue:
                     failed = next((step["name"] for step in record["steps"] if not step["green"]), "no checks ran")
                     self.reject(record, merged[0], f"failing step: {failed}")
             for branch in conflicts:
-                self.reject(record, branch, "merge conflict")
+                self.reject(record, branch, f"failing step: {branch['step']}"
+                                if "step" in branch else "merge conflict")
             self.save()
             return green
         except Exception as error:
