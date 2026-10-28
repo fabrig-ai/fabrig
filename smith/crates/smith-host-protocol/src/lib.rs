@@ -34,5 +34,5 @@ mod tests;
 pub use component::{Component, OpenEvent};
 pub use limits::{Error, Limits, MaxOut, max_out, output_bytes};
 pub use process::{Launch, Process, ProcessEvent};
-pub use program::{ProgramSource, SourceAnswer, SourceAsk, program_source_worst_case};
+pub use program::{ProgramSource, SourceAnswer, SourceAsk};
 pub use translate::{Values, encode_start, grant_form};

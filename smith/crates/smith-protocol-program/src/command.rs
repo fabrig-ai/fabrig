@@ -4,7 +4,6 @@
 //! `fire` settle the child before `ended` exposes its borrowed record.
 
 use alloc::boxed::Box;
-use core::mem::size_of;
 use skein_io::{self as io, kernel};
 use skein_lib::{List, Queue, Time, Token, stream};
 
@@ -58,17 +57,6 @@ pub struct Command {
     stdout: List<u8>,
     stderr: List<u8>,
     tail_next: u32,
-}
-
-/// Command captures, one maximal delivery per output and its status-reading peak.
-#[must_use]
-pub fn command_worst_case(detail_bytes: u32) -> Option<u64> {
-    u64::try_from(size_of::<Command>())
-        .ok()?
-        .checked_add(List::<u8>::worst_case(STATUS_BYTES.checked_add(1)?)?)?
-        .checked_add(List::<u8>::worst_case(detail_bytes)?.checked_mul(2)?)?
-        .checked_add(u64::from(READ_BYTES).checked_mul(2)?)?
-        .checked_add(crate::status::worst_case()?)
 }
 
 impl Command {
