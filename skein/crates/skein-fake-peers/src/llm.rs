@@ -95,15 +95,22 @@ impl Peer {
         }
         let mut credentials = Vec::with_capacity(usize::try_from(provider::MAX_CREDENTIALS).expect("u32 fits"));
         credentials.push(credential);
+        let mut face = Face::new(address, limits)?;
+        let mut requests = core::mem::replace(&mut face.requests, Queue::uncapped());
+        for _request in 0..requests.len() {
+            let request = requests.pop().expect("initial face request present");
+            face.requests.push(request);
+        }
+        face.events = Queue::uncapped();
         Ok(Self {
-            face: Face::new(address, limits)?,
+            face,
             transport,
             service: provider::Service::new(config, &protocol_limits).map_err(|_| Error::Limits)?,
             credentials,
             protocol_limits,
             domain,
             domain_limits,
-            replies: Queue::with_capacity(limits.queue),
+            replies: Queue::uncapped(),
             releases: Queue::with_capacity(domain_limits.calls),
             connections: Vec::with_capacity(usize::try_from(limits.connections).expect("u32 fits")),
             next: 1,
@@ -233,9 +240,9 @@ impl Peer {
                     owner,
                     wire: Wire::new(socket, self.transport, limits),
                     server: provider::Server::new(owner, &self.protocol_limits).expect("validated peer limits"),
-                    above: Queue::with_capacity(limits.queue),
-                    below: Queue::with_capacity(limits.queue),
-                    plain: Queue::with_capacity(limits.queue),
+                    above: Queue::uncapped(),
+                    below: Queue::uncapped(),
+                    plain: Queue::uncapped(),
                     closing: false,
                 };
                 provider::start(
@@ -294,14 +301,11 @@ impl Peer {
         }
     }
 
-    #[expect(clippy::too_many_lines, reason = "bounded peer passes with explicit queue reservations")]
+    #[expect(clippy::too_many_lines, reason = "peer passes route protocol, transport and domain records")]
     fn progress(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.protocol_limits };
         let domain_env = Env { now, wall, limits: self.domain_limits };
         for index in 0..self.connections.len() {
-            if self.face.requests.room() < 32 {
-                break;
-            }
             let connection = &mut self.connections[index];
             if self.face.stopping {
                 provider::close(
@@ -313,40 +317,34 @@ impl Peer {
                 );
                 connection.closing = true;
             }
-            if connection.above.room() >= provider::MAX_UP && connection.below.room() >= provider::MAX_DOWN {
-                if let Some(up) = connection.plain.pop() {
-                    if self.ignore_half_close && up == Up::End {
-                        continue;
-                    }
-                    provider::up(
-                        &mut connection.server,
-                        &mut self.service,
-                        &self.credentials,
-                        &env,
-                        up,
-                        &mut connection.above,
-                        &mut connection.below,
-                    );
-                } else if connection.server.has_work() {
-                    provider::resume(
-                        &mut connection.server,
-                        &mut self.service,
-                        &self.credentials,
-                        &env,
-                        &mut connection.above,
-                        &mut connection.below,
-                    );
+            if let Some(up) = connection.plain.pop() {
+                if self.ignore_half_close && up == Up::End {
+                    continue;
                 }
+                provider::up(
+                    &mut connection.server,
+                    &mut self.service,
+                    &self.credentials,
+                    &env,
+                    up,
+                    &mut connection.above,
+                    &mut connection.below,
+                );
+            } else if connection.server.has_work() {
+                provider::resume(
+                    &mut connection.server,
+                    &mut self.service,
+                    &self.credentials,
+                    &env,
+                    &mut connection.above,
+                    &mut connection.below,
+                );
             }
-            if connection.plain.room() >= 3 {
-                if let Some(down) = connection.below.pop() {
-                    connection.wire.down(down, &mut connection.plain, &mut self.face.requests);
-                }
-                connection.wire.pump(&mut connection.plain, &mut self.face.requests);
+            if let Some(down) = connection.below.pop() {
+                connection.wire.down(down, &mut connection.plain, &mut self.face.requests);
             }
-            if self.replies.room() >= domain::MAX_OUT
-                && let Some(event) = connection.above.pop()
-            {
+            connection.wire.pump(&mut connection.plain, &mut self.face.requests);
+            if let Some(event) = connection.above.pop() {
                 match event {
                     provider::Event::Head { headers, presented } => {
                         let connection = connection.owner;
@@ -389,15 +387,15 @@ impl Peer {
             }
         }
         for connection in &mut self.connections {
-            if connection.closing && connection.below.is_empty() && self.face.requests.room() > 0 {
+            if connection.closing && connection.below.is_empty() {
                 connection.wire.close(&mut self.face.requests);
             }
         }
-        while self.replies.room() >= domain::MAX_OUT {
+        for _release in 0..self.releases.len() {
             let Some(name) = self.releases.pop() else { break };
             domain::step(&mut self.domain, &domain_env, domain::Event::Release { name }, &mut self.replies);
         }
-        if self.domain.is_due(now) && self.replies.room() >= domain::MAX_OUT {
+        if self.domain.is_due(now) {
             domain::fire(&mut self.domain, &domain_env, &mut self.replies);
         }
         if let Some(reply) = self.replies.pop() {
@@ -421,10 +419,6 @@ impl Peer {
                     .iter_mut()
                     .find(|connection| connection.owner == owner)
                     .expect("active service route has a socket");
-                assert!(
-                    connection.above.room() >= provider::MAX_UP && connection.below.room() >= provider::MAX_DOWN,
-                    "owner reserved the down entrance"
-                );
                 provider::down(
                     &mut connection.server,
                     &mut self.service,
@@ -442,10 +436,7 @@ impl Peer {
 impl Host for Peer {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.face.up(now, wall);
-        for _ in 0..self.face.limits.queue {
-            if self.face.requests.room() < 32 {
-                break;
-            }
+        for _ in 0..self.face.events.len() {
             let Some(event) = self.face.events.pop() else { break };
             self.event(event, now, wall);
         }

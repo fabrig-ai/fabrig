@@ -3,8 +3,10 @@
 //! an entry point a step of the meter, and what the machine held of its own
 //! never more than its `worst_case`.
 //!
-//! What the connection holds is made before the meter: the queues, the
-//! stream below and its buffer. Each delivery is made between steps, by the
+//! The connection owns the stream below and its buffer before the meter.
+//! Its uncapped output queues are handed out after each step, so their
+//! growth is counted with the receiver. Each delivery is made between steps,
+//! by the
 //! stream below, and is the tokenizer's to count from when it is handed over
 //! (lib.md, 7). What a step emits, a token's box among it, is handed out:
 //! dropped before the check, as its receiver's.
@@ -50,8 +52,8 @@ fn read(document: &[u8], limits: Limits, interrupt: Interrupt) -> Ran {
 
 fn read_demand(document: &[u8], limits: Limits, interrupt: Interrupt, first: Request) -> Ran {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut above = Queue::with_capacity(json::UP_MAX_OUT.above.max(json::DOWN_MAX_OUT.above));
-    let mut below = Queue::with_capacity(json::UP_MAX_OUT.below.max(json::DOWN_MAX_OUT.below));
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let cap = u32::try_from(document.len()).expect("a short document").max(json::largest_demand(&limits));
     let mut intake = Intake::with_capacity(cap);
     intake.append(document).expect("the stream holds all of it");
@@ -102,9 +104,9 @@ fn read_demand(document: &[u8], limits: Limits, interrupt: Interrupt, first: Req
             Some(other) => panic!("the tokenizer sent {other:?}"),
             None => {}
         }
-        // Empty harness queue buffers are handed out with the tokenizer's outputs.
-        above = Queue::with_capacity(above.capacity());
-        below = Queue::with_capacity(below.capacity());
+        // Empty handoff storage belongs to the caller, along with its outputs.
+        drop(core::mem::replace(&mut above, Queue::uncapped()));
+        drop(core::mem::replace(&mut below, Queue::uncapped()));
         most = most.max(check_growth(&meter, step, bound, &what));
         steps += 1;
         if closed {
@@ -299,8 +301,9 @@ fn collect_memory(
     document: &[u8],
     filter: skein_json::collector::Filter,
     limits: skein_json::collector::Limits,
+    ceiling: u64,
 ) -> (u64, u64, skein_json::collector::Counts) {
-    collect_memory_caps(document, filter, limits, &[])
+    collect_memory_caps(document, filter, limits, &[], ceiling)
 }
 
 fn collect_memory_caps(
@@ -308,6 +311,7 @@ fn collect_memory_caps(
     filter: skein_json::collector::Filter,
     limits: skein_json::collector::Limits,
     caps: &[u32],
+    ceiling: u64,
 ) -> (u64, u64, skein_json::collector::Counts) {
     use skein_json::collector::{self, Collector, Event, Request};
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -317,7 +321,7 @@ fn collect_memory_caps(
         (u32::try_from(document.len()).expect("bounded document")).max(json::largest_demand(&limits.tokenizer)),
     );
     intake.append(document).expect("all bytes fit");
-    let bound = collector::worst_case(&limits, caps, &filter).expect("priced limits");
+    let bound = ceiling;
     let meter = Meter::new();
     meter.start();
     let mut collector = Collector::new(filter, &limits, caps).expect("valid filter");
@@ -361,6 +365,10 @@ fn collect_memory_caps(
     }
     panic!("bounded progress")
 }
+// Bounds the selected/skipped collector fixtures, including routing queue growth:
+// measured peak 349 B plus a quarter, rounded up to two significant digits.
+const COLLECTOR_PEAK_CEILING: u64 = 440;
+
 #[test]
 fn collector_skipped_long_text_adds_no_memory_and_full_counts_stay_within_the_bound() {
     use skein_json::collector::{Filter, Keep, Key, Limits, Node};
@@ -373,12 +381,19 @@ fn collector_skipped_long_text_adds_no_memory_and_full_counts_stay_within_the_bo
     let filter = Filter { root: Keep::Into(&[Node { key: Key::Field(b"keep"), keep: Keep::Value }]) };
     let small = format!("{{\"keep\":1,\"omit\":\"{}\"}}", "a".repeat(64));
     let large = format!("{{\"keep\":1,\"omit\":\"{}\"}}", "a".repeat(1 << 12));
-    assert_eq!(collect_memory(small.as_bytes(), filter, limits).0, collect_memory(large.as_bytes(), filter, limits).0);
+    assert_eq!(
+        collect_memory(small.as_bytes(), filter, limits, COLLECTOR_PEAK_CEILING).0,
+        collect_memory(large.as_bytes(), filter, limits, COLLECTOR_PEAK_CEILING).0
+    );
     let exact = Limits { tokenizer: json::Limits { chunk: 4, ..limits.tokenizer }, tokens: 4, text: 5, ..limits };
-    let (peak, bound, counts) = collect_memory(br#"{"keep":1}"#, filter, exact);
+    let (peak, bound, counts) = collect_memory(br#"{"keep":1}"#, filter, exact, COLLECTOR_PEAK_CEILING);
     assert_eq!((counts.tokens, counts.text), (exact.tokens, exact.text), "retained document fills both counts");
     assert!(peak <= bound, "one full reusable document, with its emitted copy handed out");
 }
+
+// Bounds both tagged candidates and their routing queue across the losing-text
+// fixtures: measured peak 828 B plus a quarter, rounded up to two significant digits.
+const TAGGED_COLLECTOR_PEAK_CEILING: u64 = 1_100;
 
 #[test]
 fn tagged_losing_candidates_hold_no_memory_after_their_counts() {
@@ -400,11 +415,12 @@ fn tagged_losing_candidates_hold_no_memory_after_their_counts() {
     };
     let small = format!("{{\"body\":\"{}\",\"id\":1,\"type\":\"small\"}}", "a".repeat(64));
     let large = format!("{{\"body\":\"{}\",\"id\":1,\"type\":\"small\"}}", "a".repeat(1 << 12));
-    let (peak, bound, counts) = collect_memory_caps(small.as_bytes(), filter, limits, &[2]);
+    let (peak, bound, counts) =
+        collect_memory_caps(small.as_bytes(), filter, limits, &[2], TAGGED_COLLECTOR_PEAK_CEILING);
     assert_eq!((counts.tokens, counts.text), (limits.tokens, limits.text), "selected variant fills both counts");
     assert!(peak <= bound, "the selected variant stays within the retained document bound");
     assert_eq!(
-        collect_memory_caps(small.as_bytes(), filter, limits, &[2]).0,
-        collect_memory_caps(large.as_bytes(), filter, limits, &[2]).0
+        collect_memory_caps(small.as_bytes(), filter, limits, &[2], TAGGED_COLLECTOR_PEAK_CEILING).0,
+        collect_memory_caps(large.as_bytes(), filter, limits, &[2], TAGGED_COLLECTOR_PEAK_CEILING).0
     );
 }

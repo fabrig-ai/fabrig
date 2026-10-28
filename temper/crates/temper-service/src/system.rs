@@ -61,8 +61,6 @@ enum BoxOutput {
     Waiting,
     Room,
 }
-// Existing reservation for setup/forge handoffs beside a root routing pass.
-const SETUP_ROUTING_HEADROOM: u32 = 2;
 impl Service {
     /// Payload-free closure and queue state at the shell's wait boundary.
     #[must_use]
@@ -224,17 +222,10 @@ impl Service {
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
-        let setup_room = max.checked_add(SETUP_ROUTING_HEADROOM).expect("setup routing headroom");
-        let setup =
-            crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, setup_room, box_line_bytes.is_some())?;
-        let forge = crate::forge::Layer::new(
-            forge_settings,
-            settings.limits.forge_component,
-            &shared,
-            max.checked_add(2).expect("forge routing headroom"),
-            &settings.forges,
-        )
-        .expect("checked forge limits");
+        let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
+        let forge =
+            crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &settings.forges)
+                .expect("checked forge limits");
         forget_handover(&mut settings);
         let notes = Queue::with_capacity(note_bound(&settings, &limits).expect("validated diagnostic room"));
         let configured = crate::startup::application::configured(&settings);
@@ -277,7 +268,7 @@ impl Service {
             completions: Queue::with_capacity(queue),
             submissions: Queue::with_capacity(queue),
             raw_submissions: Queue::with_capacity(queue),
-            told: Queue::with_capacity(queue),
+            told: Queue::uncapped(),
             kernel: accounts::Kernel::new(operations),
             box_pipe: None,
             signals: None,
@@ -316,7 +307,7 @@ impl Service {
             completions: Queue::with_capacity(queue),
             submissions: Queue::with_capacity(queue),
             raw_submissions: Queue::with_capacity(operations),
-            told: Queue::with_capacity(queue),
+            told: Queue::uncapped(),
             kernel: accounts::Kernel::new(operations),
             box_pipe: None,
             signals: None,
@@ -624,9 +615,6 @@ impl Service {
             && self.told.is_empty()
             && self.kernel.is_empty()
     }
-    fn room(&self, max: io::MaxOut) -> bool {
-        self.told.room() >= max.events && self.raw_submissions.room() >= max.submissions
-    }
     fn route_components(&mut self) {
         if let Some(engine) = &mut self.engine {
             for _ in 0..engine.store.submitted.len() {
@@ -746,14 +734,14 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         engine::clock(engine, now, wall);
     }
     for _ in 0..service.io_env.limits.sockets.checked_add(service.io_env.limits.refusals).expect("io entries") {
-        if !service.io.is_ready() || !service.room(io::MAX_OUT_RESUME) {
+        if !service.io.is_ready() || service.raw_submissions.room() < io::MAX_OUT_RESUME.submissions {
             break;
         }
         io::resume(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
     }
     if !service.io.is_ready() {
         for _ in 0..service.completions.len() {
-            if !service.room(io::MAX_OUT_UP) {
+            if service.raw_submissions.room() < io::MAX_OUT_UP.submissions {
                 break;
             }
             let complete = service.completions.pop().expect("completion count");
@@ -762,7 +750,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         }
         if service.completions.is_empty() {
             for _ in 0..service.io_env.limits.sockets.checked_mul(2).expect("io timers") {
-                if !service.io.is_due(now) || !service.room(io::MAX_OUT_FIRE) {
+                if !service.io.is_due(now) || service.raw_submissions.room() < io::MAX_OUT_FIRE.submissions {
                     break;
                 }
                 io::fire(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
@@ -870,15 +858,7 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 fn route_events(service: &mut Service) {
     for _ in 0..service.told.len() {
         if let Some(engine) = &service.engine
-            && (!engine.workers.room()
-                || !engine.clients.room(1)
-                || engine.events.room() < engine::route_out()
-                || !engine.setup.room()
-                || !engine.forge.room(1)
-                || match &engine.accounts {
-                    Some(accounts) => !accounts.up_room(),
-                    None => false,
-                })
+            && (!engine.workers.room() || !engine.clients.room(1))
         {
             break;
         }

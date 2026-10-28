@@ -46,12 +46,12 @@ impl Face {
         if !address.ip().is_loopback() || !valid(&limits) {
             return Err(Error::Limits);
         }
-        let mut requests = Queue::with_capacity(limits.queue);
+        let mut requests = Queue::uncapped();
         requests.push(io::Request::Listen { owner: LISTENER, addr: io::Addr::Ip(address) });
         Ok(Self {
             io: io::Io::new(&limits.io),
             limits,
-            events: Queue::with_capacity(limits.queue),
+            events: Queue::uncapped(),
             requests,
             submissions: Queue::with_capacity(limits.queue),
             completions: Queue::with_capacity(limits.queue),
@@ -64,7 +64,7 @@ impl Face {
     pub fn up(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits.io };
         for _ in 0..self.limits.queue {
-            if self.events.room() < 3 || self.submissions.room() < 2 {
+            if self.submissions.room() < 2 {
                 break;
             }
             if self.io.is_ready() {
@@ -73,15 +73,21 @@ impl Face {
                 break;
             }
         }
-        for _ in 0..self.limits.queue {
-            if self.events.room() < 3 || self.submissions.room() < 2 {
+        if self.io.is_ready() {
+            return;
+        }
+        for _ in 0..self.completions.len() {
+            if self.submissions.room() < 2 {
                 break;
             }
             let Some(complete) = self.completions.pop() else { break };
             io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
         }
+        if !self.completions.is_empty() {
+            return;
+        }
         for _ in 0..self.limits.queue {
-            if self.events.room() < 3 || self.submissions.room() < 2 || !self.io.is_due(now) {
+            if self.submissions.room() < 2 || !self.io.is_due(now) {
                 break;
             }
             io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
@@ -107,7 +113,6 @@ impl Face {
 
     pub fn close_listener(&mut self) {
         if self.stopping
-            && self.requests.room() > 0
             && let Some(listener) = self.listener.take()
         {
             self.requests.push(io::Request::Close { entity: listener });

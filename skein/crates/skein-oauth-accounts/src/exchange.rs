@@ -1,5 +1,5 @@
 //! One issuer exchange and its HTTP/TLS socket (oauth.md, sections 2, 3 and 6.4).
-//! Keeps bounded child queues and one response document; knows no grant policy
+//! Keeps child handoffs and one bounded response document; knows no grant policy
 //! or durable store. The component routes io events and advances one child at a
 //! time, then consumes the client's terminal before closing the connection.
 
@@ -14,8 +14,6 @@ use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, List, Queue, Time, Token, bytes};
 use skein_oauth as oauth;
 use skein_tls::client as tls;
-
-pub(crate) const ROUTES: u32 = 8;
 
 pub(crate) enum Stage {
     Loading,
@@ -94,7 +92,7 @@ impl Exchange {
             next: None,
             sign_in_deadline: None,
             client,
-            above: Queue::with_capacity(oauth::MAX_OUT),
+            above: Queue::uncapped(),
             web: None,
             stage: Stage::Running,
             pending_grant,
@@ -210,7 +208,7 @@ impl Web {
                 .push(Header { name: bytes::copy_of(b"content-type"), value: bytes::copy_of(request.content_type) })
                 .expect("two headers");
         }
-        let mut requests = Queue::with_capacity(ROUTES);
+        let mut requests = Queue::uncapped();
         requests.push(http::Request::Call(http::Call {
             method,
             target: bytes::copy_of(target),
@@ -234,11 +232,11 @@ impl Web {
             phase: Phase::Connecting,
             tls,
             http: http::Client::new(&limits.http),
-            events: Queue::with_capacity(ROUTES),
+            events: Queue::uncapped(),
             requests,
-            plain: Queue::with_capacity(ROUTES),
-            tls_events: Queue::with_capacity(ROUTES),
-            cipher: Queue::with_capacity(ROUTES),
+            plain: Queue::uncapped(),
+            tls_events: Queue::uncapped(),
+            cipher: Queue::uncapped(),
             upload: request.body,
             offset: 0,
             document: List::with_capacity(

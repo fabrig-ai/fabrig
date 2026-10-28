@@ -113,7 +113,7 @@ fn check_issuer(document: oauth::Limits) {
         url.extend(std::iter::repeat_n(b'a', usize::try_from(document.string_bytes).expect("u32 fits")));
         url.extend_from_slice(format!("={index}").as_bytes());
     }
-    let mut authorization = Queue::with_capacity(fake::MAX_OUT);
+    let mut authorization = Queue::uncapped();
     issuer.step(fake::Event::Authorize { url: url.into_boxed_slice(), now: Time::ZERO }, &mut authorization);
     drop(authorization.pop());
     let request = oauth::HttpRequest {
@@ -178,7 +178,7 @@ fn a_sign_in_holding_its_keys_fits_the_worst_case() {
     }
     set.extend_from_slice(b"]}");
     answer.body = set.into_boxed_slice();
-    let mut out = Queue::with_capacity(oauth::MAX_OUT);
+    let mut out = Queue::uncapped();
     meter.start();
     client.step(oauth::Event::Http(answer), &mut out);
     let measured = meter.end();
@@ -196,7 +196,7 @@ fn accounts_at_every_code_slot_fit_the_worst_case() {
     let meter = Meter::new();
     meter.start();
     let mut issuer = openid_issuer(None);
-    let mut out = Queue::with_capacity(fake::MAX_OUT);
+    let mut out = Queue::uncapped();
     for _ in 0..limits.codes {
         issuer
             .sign_in_as(fake::Account {

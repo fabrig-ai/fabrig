@@ -133,7 +133,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
     }
     match engine.forge_records.phase {
         Phase::Load { after } => {
-            if !engine.store.opened || !engine.store.room() {
+            if !engine.store.opened {
                 return;
             }
             let request = Secrets::Load { owner: SecretOwner::Application, after };
@@ -146,7 +146,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             }
         }
         Phase::Sweep { number, asked } => {
-            if !asked && engine.store.room() {
+            if !asked {
                 engine.forge_records.phase = Phase::Sweep { number, asked: true };
                 let decision = temper_engine_domain::carried_at_start(number);
                 crate::route::request(engine, decision);
@@ -157,10 +157,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                 engine.forge_records.phase = Phase::Name { after: 0 };
                 return;
             };
-            if !engine.forge.room(2)
-                || engine.notes.room() == 0
-                || engine.events.room() < engine.forge_records.bounds.installations
-            {
+            if engine.notes.room() == 0 || engine.events.room() < engine.forge_records.bounds.installations {
                 return;
             }
             let number = forge.number;

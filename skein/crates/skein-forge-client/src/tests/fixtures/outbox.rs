@@ -1,7 +1,5 @@
 use super::super::{LIMITS, REPO, Sent, at};
-use crate::{
-    Condition, Domain, Effect, Entry, Event, Limits, Outcome, RecoveryClock, Request, fire, max_out, resume, step,
-};
+use crate::{Condition, Domain, Effect, Entry, Event, Limits, Outcome, RecoveryClock, Request, fire, resume, step};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
 use skein_lib::{Env, List, Map, Queue, Wall};
@@ -40,7 +38,7 @@ impl Harness {
         h
     }
     pub(in crate::tests) fn step(&mut self, event: Event) {
-        let mut out = Queue::with_capacity(max_out(&self.env.limits));
+        let mut out = Queue::uncapped();
         step(&mut self.domain, &self.env, event, &mut out);
         self.take(&mut out);
         self.domain.reclaim();
@@ -101,7 +99,7 @@ impl Harness {
         }
     }
     pub(in crate::tests) fn send(&mut self) -> Option<Sent> {
-        let mut out = Queue::with_capacity(max_out(&self.env.limits));
+        let mut out = Queue::uncapped();
         resume(&mut self.domain, &self.env, &mut out);
         self.take(&mut out);
         self.domain.reclaim();
@@ -147,7 +145,7 @@ impl Harness {
     }
     pub(in crate::tests) fn fire(&mut self, now: u64) {
         self.env.now = at(now);
-        let mut out = Queue::with_capacity(max_out(&self.env.limits));
+        let mut out = Queue::uncapped();
         fire(&mut self.domain, &self.env, &mut out);
         self.take(&mut out);
         self.domain.reclaim();

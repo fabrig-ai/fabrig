@@ -78,9 +78,9 @@ impl Client {
             component: None,
             address: None,
             transport,
-            io_events: Queue::with_capacity(ROOM),
-            events: Queue::with_capacity(ROOM),
-            requests: Queue::with_capacity(ROOM),
+            io_events: Queue::uncapped(),
+            events: Queue::uncapped(),
+            requests: Queue::uncapped(),
             submissions: Queue::with_capacity(ROOM),
             completions: Queue::with_capacity(ROOM),
             received: Vec::with_capacity(32),
@@ -154,44 +154,34 @@ impl Host for Client {
         let io_env = Env { now, wall, limits: self.limits.io };
         let env = Env { now, wall, limits: self.limits };
         for _ in 0..ROOM {
-            if self.io_events.room() < 3 || self.submissions.room() < 2 || !self.io.is_ready() {
+            if self.submissions.room() < 2 || !self.io.is_ready() {
                 break;
             }
             io::resume(&mut self.io, &io_env, &mut self.io_events, &mut self.submissions);
         }
         for _ in 0..ROOM {
-            if self.io_events.room() < 3 || self.submissions.room() < 2 {
+            if self.submissions.room() < 2 {
                 break;
             }
             let Some(complete) = self.completions.pop() else { break };
             io::up(&mut self.io, &io_env, complete, &mut self.io_events, &mut self.submissions);
         }
         for _ in 0..ROOM {
-            if self.io_events.room() < 3 || self.submissions.room() < 2 || !self.io.is_due(now) {
+            if self.submissions.room() < 2 || !self.io.is_due(now) {
                 break;
             }
             io::fire(&mut self.io, &io_env, &mut self.io_events, &mut self.submissions);
         }
         for _ in 0..ROOM {
-            if self.events.room() < skein_llm_connection::MAX_OUT.above
-                || self.requests.room() < skein_llm_connection::MAX_OUT.below
-            {
-                break;
-            }
             let Some(event) = self.io_events.pop() else { break };
             self.component.as_mut().expect("io follows Start").up(&env, event, &mut self.events, &mut self.requests);
         }
         if let Some(component) = &mut self.component
-            && self.events.room() >= skein_llm_connection::MAX_OUT.above
-            && self.requests.room() >= skein_llm_connection::MAX_OUT.below
             && (component.has_work() || component.next_deadline().is_some_and(|due| due <= now))
         {
             component.fire(&env, &mut self.events, &mut self.requests);
         }
         for _ in 0..ROOM {
-            if self.requests.room() < skein_llm_connection::MAX_OUT.below {
-                break;
-            }
             let Some(event) = self.events.pop() else { break };
             match &event {
                 Event::Delta { call, .. } | Event::Block { call, .. } => {

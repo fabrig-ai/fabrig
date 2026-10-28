@@ -75,6 +75,7 @@ pub struct HostWorld {
     aborts: u32,
     seed: u64,
     needs: Vec<Need>,
+    needs_by_run: Vec<(Token, Need)>,
     reads: Vec<Item>,
     pause_writes: bool,
     pending_writes: Vec<(Token, Item, Secret)>,
@@ -229,6 +230,7 @@ impl HostWorld {
             aborts: 0,
             seed,
             needs: Vec::new(),
+            needs_by_run: Vec::new(),
             reads: Vec::new(),
             pause_writes: false,
             pending_writes: Vec::new(),
@@ -276,6 +278,11 @@ impl HostWorld {
     pub fn needs(&self) -> &[Need] {
         &self.needs
     }
+    /// Needs in delivery order with their originating run tokens.
+    #[must_use]
+    pub fn needs_by_run(&self) -> &[(Token, Need)] {
+        &self.needs_by_run
+    }
     /// Ephemeral owner input, consumed by its single Pasted read (5.8).
     pub fn paste(&mut self, pem: Secret) {
         self.pasted = Some(pem);
@@ -322,16 +329,10 @@ impl HostWorld {
     pub fn close(&mut self) {
         self.action(Request::Close);
     }
-    fn reserve(&self) {
-        assert!(self.above.room() >= skein_forge_setup::host::MAX_OUT.above);
-        assert!(self.below.room() >= skein_forge_setup::host::MAX_OUT.below);
-    }
     fn action(&mut self, request: Request) {
-        self.reserve();
         self.host.down(&self.env, request, &mut self.above, &mut self.below);
     }
     fn up(&mut self, event: skein_io::Event) {
-        self.reserve();
         self.host.up(&self.env, event, &mut self.above, &mut self.below);
     }
     #[must_use]
@@ -356,10 +357,12 @@ impl HostWorld {
             self.tick();
             if self.above.is_empty()
                 && self.below.is_empty()
-                && !self
-                    .peers
-                    .values()
-                    .any(|peer| peer.pipe.has_work() || !peer.above.is_empty() || !peer.below.is_empty())
+                && !self.peers.values().any(|peer| {
+                    peer.pipe.has_work()
+                        || !peer.above.is_empty()
+                        || !peer.below.is_empty()
+                        || peer.server.as_ref().is_some_and(fake::Server::has_work)
+                })
                 && self.host.next_deadline().is_none_or(|at| at > self.env.now)
             {
                 return;
@@ -376,7 +379,6 @@ impl HostWorld {
             };
             assert!(at >= self.env.now);
             self.set_time(at);
-            self.reserve();
             self.host.fire(&self.env, &mut self.above, &mut self.below);
         }
         panic!("host world's deadlines did not settle");
@@ -385,7 +387,6 @@ impl HostWorld {
     pub fn advance_to(&mut self, now: Time) {
         assert!(now >= self.env.now);
         self.set_time(now);
-        self.reserve();
         self.host.fire(&self.env, &mut self.above, &mut self.below);
         self.settle();
     }
@@ -426,6 +427,7 @@ impl HostWorld {
             let peer = self.peers.get_mut(&owner).expect("peer");
             if let Some(server) = &mut peer.server {
                 fake::resume(server, &mut self.service, &self.fake_env, &mut peer.above, &mut peer.below);
+                drop(server.take_head());
             }
             while let Some(down) = peer.below.pop() {
                 peer.pipe.server_down(down);
@@ -433,6 +435,7 @@ impl HostWorld {
             if let Some(event) = peer.pipe.server_up() {
                 if let Some(server) = &mut peer.server {
                     fake::up(server, &mut self.service, &self.fake_env, event, &mut peer.above, &mut peer.below);
+                    drop(server.take_head());
                 } else if peer.github {
                     github_answer(
                         peer,
@@ -466,7 +469,6 @@ impl HostWorld {
             }
         }
         if self.host.next_deadline().is_some_and(|at| at <= self.env.now) {
-            self.reserve();
             self.host.fire(&self.env, &mut self.above, &mut self.below);
         }
         self.service.reclaim();
@@ -476,6 +478,7 @@ impl HostWorld {
             let at = self.env.now.saturating_since(Time::ZERO);
             match event {
                 Event::Need { run, need } => {
+                    self.needs_by_run.push((run, need.clone()));
                     self.needs.push(need.clone());
                     let answer = match need {
                         Need::Read(item) => {

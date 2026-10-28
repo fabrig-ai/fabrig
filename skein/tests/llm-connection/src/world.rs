@@ -11,7 +11,7 @@ use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Intake, List, Queue, Time, Token, Wall};
 use skein_llm::Credential;
-use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, MAX_OUT, Request};
+use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
 
 use crate::plaintext::Wire;
 
@@ -162,9 +162,9 @@ impl Peer {
             .expect("script"),
             credential: call.credential.expect("fixture credential"),
             input: Intake::with_capacity(32768),
-            above: Queue::with_capacity(provider::MAX_UP),
-            below: Queue::with_capacity(provider::MAX_DOWN),
-            replies: Queue::with_capacity(fake::MAX_OUT),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
+            replies: Queue::uncapped(),
             demand: None,
             granted: 0,
             received: 0,
@@ -341,8 +341,8 @@ impl World {
             events: Vec::new(),
             trace: Vec::new(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            above: Queue::with_capacity(MAX_OUT.above),
-            below: Queue::with_capacity(MAX_OUT.below),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
             peers: BTreeMap::new(),
             connecting: Vec::new(),
             seed,
@@ -398,7 +398,7 @@ impl World {
         self.peers.len()
     }
 
-    /// Apply an owner request with its promised output reservation.
+    /// Apply an owner request through uncapped output queues.
     pub fn request(&mut self, request: Request) {
         self.component.down(&self.env, request, &mut self.above, &mut self.below);
     }

@@ -11,7 +11,7 @@ fn wall(seconds: u64) -> Wall {
     Wall::from_nanos(Duration::from_secs(seconds).as_nanos())
 }
 fn step(client: &mut oauth::Client, event: oauth::Event) -> Option<oauth::Request> {
-    let mut out = Queue::with_capacity(oauth::MAX_OUT);
+    let mut out = Queue::uncapped();
     client.step(event, &mut out);
     out.pop()
 }
@@ -97,9 +97,9 @@ impl Owner {
             )
             .expect("component"),
             env: Env { now: time(0), wall: wall(0), limits: profile },
-            up: Queue::with_capacity(accounts::MAX_OUT_FIRE.above.max(accounts::MAX_OUT_DOWN.above)),
-            io: Queue::with_capacity(accounts::MAX_OUT_FIRE.io.max(accounts::MAX_OUT_DOWN.io)),
-            files: Queue::with_capacity(accounts::MAX_OUT_FIRE.files.max(accounts::MAX_OUT_DOWN.files)),
+            up: Queue::uncapped(),
+            io: Queue::uncapped(),
+            files: Queue::uncapped(),
         };
         owner.ask(accounts::Request::Want { account: 0, wanted });
         owner

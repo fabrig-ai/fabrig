@@ -226,9 +226,6 @@ impl Store {
     }
 }
 
-/// Most terminals from a component step, including a store batch.
-pub const MAX_OUT_DOWN: u32 = skein_kv::MAX_OUT.above.saturating_mul(2);
-
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]

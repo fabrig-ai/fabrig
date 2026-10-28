@@ -124,8 +124,6 @@ pub(crate) fn run(directories: &Directories, check: &Check) -> u8 {
 type Row = (Box<[u8]>, Box<[u8]>);
 pub(crate) type Rows = Box<[Row]>;
 const OWNER: Token = Token::new(1);
-// One file operation at a time; room for a KV step's largest batch of answers.
-const ROOM: u32 = skein_kv::MAX_OUT.above * 2;
 const FILES: u32 = 8;
 const ENTRIES: u32 = 32;
 const OPERATIONS: u32 = 32;
@@ -187,9 +185,9 @@ impl StoreHost {
             store: Store::new(&limits),
             io,
             limits,
-            above: Queue::with_capacity(ROOM),
-            below: Queue::with_capacity(ROOM),
-            file_events: Queue::with_capacity(ROOM),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
+            file_events: Queue::uncapped(),
             completions: Queue::with_capacity(OPERATIONS),
             submissions: Queue::with_capacity(OPERATIONS),
             step: Step::Opening,

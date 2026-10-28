@@ -319,15 +319,15 @@ impl Client {
             io: io::Io::new(&limits.io),
             component: None,
             limits: *limits,
-            events: Queue::with_capacity(room),
-            requests: Queue::with_capacity(room),
-            files: Queue::with_capacity(room),
+            events: Queue::uncapped(),
+            requests: Queue::uncapped(),
+            files: Queue::uncapped(),
             file_driver: None,
             file_keep: None,
             stop_at_store: None,
             stop_at_load: None,
             retry_load: None,
-            above: Queue::with_capacity(room),
+            above: Queue::uncapped(),
             completions: Queue::with_capacity(room),
             submissions: Queue::with_capacity(room),
             address: None,
@@ -673,13 +673,13 @@ impl Host for Client {
         let io_env = Env { now, wall, limits: self.limits.io };
         self.private_io(&env);
         for _ in 0..ROOM {
-            if self.events.room() < 3 || self.submissions.room() < 2 || !self.io.is_ready() {
+            if self.submissions.room() < 2 || !self.io.is_ready() {
                 break;
             }
             io::resume(&mut self.io, &io_env, &mut self.events, &mut self.submissions);
         }
         for _ in 0..ROOM {
-            if self.events.room() < 3 || self.submissions.room() < 2 {
+            if self.submissions.room() < 2 {
                 break;
             }
             let Some(complete) = self.completions.pop() else { break };
@@ -690,15 +690,12 @@ impl Host for Client {
             }
         }
         for _ in 0..ROOM {
-            if self.events.room() < 3 || self.submissions.room() < 2 || !self.io.is_due(now) {
+            if self.submissions.room() < 2 || !self.io.is_due(now) {
                 break;
             }
             io::fire(&mut self.io, &io_env, &mut self.events, &mut self.submissions);
         }
         for _ in 0..ROOM {
-            if self.above.room() < accounts::MAX_OUT_UP.above || self.requests.room() < accounts::MAX_OUT_UP.io {
-                break;
-            }
             let Some(event) = self.events.pop() else { break };
             self.component.as_mut().expect("io follows started component").up(
                 &env,
@@ -709,13 +706,11 @@ impl Host for Client {
             );
         }
         if let Some(component) = &mut self.component
-            && self.above.room() >= accounts::MAX_OUT_FIRE.above
-            && self.requests.room() >= accounts::MAX_OUT_FIRE.io
             && (component.has_work() || component.next_deadline().is_some_and(|due| due <= now))
         {
             component.fire(&env, &mut self.above, &mut self.requests, &mut self.files);
         }
-        if self.requests.room() >= accounts::MAX_OUT_DOWN.io && self.above.room() >= accounts::MAX_OUT_DOWN.above {
+        {
             self.observe(&env);
             if self.story == Story::Released
                 && !self.closing
@@ -725,7 +720,7 @@ impl Host for Client {
             }
         }
         for _ in 0..ROOM {
-            if !self.io.takes() || self.submissions.room() < 2 || self.above.room() < accounts::MAX_OUT_DOWN.above {
+            if !self.io.takes() || self.submissions.room() < 2 {
                 break;
             }
             let Some(request) = self.requests.pop() else { break };
@@ -1410,4 +1405,56 @@ pub(crate) fn terms() -> oauth::Terms {
         revocation_endpoint: None,
         sign_in_again: Box::new([]),
     }
+}
+
+/// Pause between creating OAuth output and the next component progress turn.
+#[must_use]
+pub fn delayed_oauth_output() -> Vec<&'static str> {
+    use skein_lib::Token;
+
+    // Each fire advances one child handoff; this covers the refresh and its
+    // timeout settlement without introducing another entrance.
+    const TURNS: u32 = 16;
+    const SOCKET: Token = Token::new(9);
+    let mut client = Client::new(Story::Rotate, Transport::Plaintext);
+    client.address = Some((Ipv4Addr::LOCALHOST, 31000).into());
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
+    client.start(&env);
+    let component = client.component.as_mut().expect("started component");
+    let mut trace = Vec::new();
+    if component.has_work() && client.requests.is_empty() {
+        trace.push("held OAuth output");
+    }
+    env.now = component.next_deadline().expect("refresh HTTP deadline").saturating_add(Duration::from_nanos(1));
+    env.wall = Wall::from_nanos(env.now.as_nanos());
+    for _ in 0..TURNS {
+        component.fire(&env, &mut client.above, &mut client.requests, &mut client.files);
+        for _ in 0..client.requests.len() {
+            let request = client.requests.pop().expect("turn's requests");
+            match request {
+                io::Request::Connect { owner, .. } => {
+                    trace.push("dispatched HTTP request");
+                    component.up(
+                        &env,
+                        io::Event::Connecting { owner, socket: SOCKET },
+                        &mut client.above,
+                        &mut client.requests,
+                        &mut client.files,
+                    );
+                }
+                io::Request::Abort { .. } => trace.push("Tick aborted socket"),
+                other @ (io::Request::Listen { .. }
+                | io::Request::Bind { .. }
+                | io::Request::Reject { .. }
+                | io::Request::Stream { .. }
+                | io::Request::Output { .. }
+                | io::Request::Spawn { .. }
+                | io::Request::Signal { .. }
+                | io::Request::Usage { .. }
+                | io::Request::Window { .. }
+                | io::Request::Close { .. }) => panic!("the expired refresh only connects then aborts: {other:?}"),
+            }
+        }
+    }
+    trace
 }

@@ -375,8 +375,8 @@ impl Peer {
                         protocol::Server::new(owner, &self.protocol)
                     }
                     .expect("validated limits"),
-                    above: Queue::with_capacity(limits.queue),
-                    below: Queue::with_capacity(limits.queue),
+                    above: Queue::uncapped(),
+                    below: Queue::uncapped(),
                     plain: Queue::with_capacity(limits.queue),
                     closing: false,
                     head_seen: false,
@@ -515,33 +515,29 @@ impl Peer {
             }
             // Taking the connection makes head observation and call admission one owner pass.
             let mut connection = self.connections.remove(index);
-            if connection.above.room() >= protocol::MAX_UP && connection.below.room() >= protocol::MAX_DOWN {
-                if let Some(up) = connection.plain.pop() {
-                    protocol::up_with_domain(
-                        &mut connection.server,
-                        &mut self.service,
-                        forgejo::Hosted { domain: &mut forge.domain, config: &domain_env.limits },
-                        &env,
-                        up,
-                        &mut connection.above,
-                        &mut connection.below,
-                    );
-                    self.capture(&mut connection);
-                } else if connection.server.has_work() {
-                    protocol::resume_with_domain(
-                        &mut connection.server,
-                        &mut self.service,
-                        forgejo::Hosted { domain: &mut forge.domain, config: &domain_env.limits },
-                        &env,
-                        &mut connection.above,
-                        &mut connection.below,
-                    );
-                    self.capture(&mut connection);
-                }
+            if let Some(up) = connection.plain.pop() {
+                protocol::up_with_domain(
+                    &mut connection.server,
+                    &mut self.service,
+                    forgejo::Hosted { domain: &mut forge.domain, config: &domain_env.limits },
+                    &env,
+                    up,
+                    &mut connection.above,
+                    &mut connection.below,
+                );
+                self.capture(&mut connection);
+            } else if connection.server.has_work() {
+                protocol::resume_with_domain(
+                    &mut connection.server,
+                    &mut self.service,
+                    forgejo::Hosted { domain: &mut forge.domain, config: &domain_env.limits },
+                    &env,
+                    &mut connection.above,
+                    &mut connection.below,
+                );
+                self.capture(&mut connection);
             }
-            if forge.pending.room() >= domain::MAX_OUT
-                && let Some(event) = connection.above.pop()
-            {
+            if let Some(event) = connection.above.pop() {
                 self.serve_event(&mut forge, &domain_env, &mut connection, event);
             }
             if connection.plain.room() >= 3 {
@@ -578,10 +574,8 @@ impl Peer {
         self.finish_pass(&mut forge, &domain_env, &env);
     }
     fn finish_pass(&mut self, forge: &mut Forge, domain_env: &Env<domain::Config>, env: &Env<protocol::Limits>) {
-        if forge.pending.room() >= domain::MAX_OUT {
-            let Forge { domain, pending, .. } = &mut *forge;
-            domain::fire(domain, domain_env, pending);
-        }
+        let Forge { domain, pending, .. } = &mut *forge;
+        domain::fire(domain, domain_env, pending);
         self.route(forge, env);
         self.github_progress(env.now, env.wall);
         forge.domain.reclaim();
