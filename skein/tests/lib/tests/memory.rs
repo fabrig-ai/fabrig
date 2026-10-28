@@ -608,7 +608,7 @@ fn journal_memory<W: Item + std::fmt::Debug, O: Item + std::fmt::Debug>(limits: 
 }
 
 #[test]
-fn a_request_table_filled_to_every_limit_stays_within_its_worst_case() {
+fn a_request_table_grows_within_its_held_and_peak_bounds() {
     for capacity in CAPACITIES {
         for restored in [false, true] {
             request_table_memory::<[u64; 8], [u64; 8]>(capacity, restored);
@@ -642,8 +642,10 @@ fn request_table_memory<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
     let mut keys = Vec::with_capacity(index(capacity));
     let mut saved = vec![None; index(capacity)];
     let mut attempts = Vec::with_capacity(index(capacity));
+    // A slab realloc counts both buffers: held storage stays within the
+    // formula, and a step's peak within twice it.
     let mut metered =
-        Metered::new("RequestTable", type_name::<(O, T)>(), capacity, RequestTable::<O, T>::worst_case(&limits));
+        Metered::growing("RequestTable", type_name::<(O, T)>(), capacity, RequestTable::<O, T>::worst_case(&limits));
     metered.start();
     let mut table = RequestTable::new(&limits, 0xB5_7A);
     metered.end(());

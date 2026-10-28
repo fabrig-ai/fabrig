@@ -1,4 +1,4 @@
-//! Entity storage (skein/docs/design/lib.md, 3): slots and lists grow as
+//! Entity storage (lib.md, 3): slots and lists grow as
 //! they fill, never past the admission limit for their entity kind.
 
 #![expect(
