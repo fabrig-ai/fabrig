@@ -23,6 +23,8 @@ step() {
 
 # skein's programming-model.md, 2: every binary installs the fail-stop hook first.
 step fail-stop python3 -I -B scripts/fail_stop.py
+# skein's docs/design/draft/dynamic-memory.md, 7: old forms may only fall.
+step old-forms python3 -I -B scripts/old_forms.py
 step fmt cargo fmt --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
 # The browser's step crates (protocol/browser.md, 15).
