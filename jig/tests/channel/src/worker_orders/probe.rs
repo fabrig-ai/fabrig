@@ -18,6 +18,13 @@ struct Frames {
     bytes: Vec<u8>,
 }
 impl Frames {
+    fn room(&self) -> usize {
+        if self.bytes.len() < HEADER {
+            return HEADER - self.bytes.len();
+        }
+        let head = skein_channel::parse_header(&self.bytes[..HEADER]).expect("frame header");
+        HEADER + usize::try_from(head.body_len).expect("frame size") - self.bytes.len()
+    }
     fn feed(&mut self, bytes: &[u8]) -> Vec<u16> {
         self.bytes.extend_from_slice(bytes);
         let mut kinds = Vec::new();
@@ -42,9 +49,12 @@ pub(crate) struct Probe {
     pipe_fd: Option<Fd>,
     channel: Option<Fd>,
     pending: VecDeque<u8>,
+    pipe_pending: VecDeque<u8>,
     held_call: Option<Complete>,
     call_stage: bool,
     marker_stage: bool,
+    marker_queued: bool,
+    marker_seen: bool,
     pub(crate) call_held: bool,
     pub(crate) marker_passed: bool,
 }
@@ -58,9 +68,12 @@ impl Probe {
             pipe_fd: None,
             channel: None,
             pending: VecDeque::new(),
+            pipe_pending: VecDeque::new(),
             held_call: None,
             call_stage: false,
             marker_stage: false,
+            marker_queued: false,
+            marker_seen: false,
             call_held: false,
             marker_passed: false,
         }
@@ -80,11 +93,13 @@ impl Probe {
                 self.pipe_fd = spawn.pipes.iter().find(|pipe| pipe.child == 1).and_then(|pipe| pipe.parent);
             }
             if self.calls
-                && let Op::PipeRead { fd, buf } = &complete.kind
+                && let Op::PipeRead { fd, buf } = &mut complete.kind
                 && Some(*fd) == self.pipe_fd
                 && let Ok(Done::Count(count)) = complete.result
             {
-                let kinds = self.pipe.feed(&buf[..usize::try_from(count).expect("pipe bytes")]);
+                let count = shape(&self.pipe, &mut self.pipe_pending, buf, usize::try_from(count).expect("pipe bytes"));
+                complete.result = Ok(Done::Count(u32::try_from(count).expect("pipe count")));
+                let kinds = self.pipe.feed(&buf[..count]);
                 if !self.inserted && kinds.contains(&PROCESS_CALL) {
                     self.inserted = true;
                     self.held_call = Some(complete);
@@ -99,15 +114,19 @@ impl Probe {
                 if !self.calls && !self.inserted && wire.hello_sent() && self.native.bytes.is_empty() {
                     self.inserted = true;
                     self.pending.extend(prefix());
+                    self.marker_queued = true;
                     self.pending.extend(&buf[..count]);
-                    let take = buf.len().min(self.pending.len());
+                    let take = buf.len().min(self.pending.len()).min(self.native.room());
                     for byte in &mut buf[..take] {
                         *byte = self.pending.pop_front().expect("pending bytes");
                     }
                     complete.result = Ok(Done::Count(u32::try_from(take).expect("receive count")));
                 }
                 let Ok(Done::Count(delivered)) = complete.result else { unreachable!("count retained") };
-                for kind in self.native.feed(&buf[..usize::try_from(delivered).expect("delivered bytes")]) {
+                let delivered =
+                    shape(&self.native, &mut self.pending, buf, usize::try_from(delivered).expect("delivered bytes"));
+                complete.result = Ok(Done::Count(u32::try_from(delivered).expect("receive count")));
+                for kind in self.native.feed(&buf[..delivered]) {
                     if self.calls
                         && kind == wire::Kind::Cancel.number()
                         && let Some(call) = self.held_call.take()
@@ -116,8 +135,10 @@ impl Probe {
                         ready.push(call);
                         self.call_stage = true;
                         self.pending.extend(marker());
+                        self.marker_queued = true;
                     }
-                    if kind == wire::Kind::TurnKept.number() && self.inserted {
+                    if kind == wire::Kind::TurnKept.number() && self.marker_queued && !self.marker_seen {
+                        self.marker_seen = true;
                         self.marker_stage = true;
                     }
                 }
@@ -129,7 +150,7 @@ impl Probe {
     pub(crate) fn submitted(&mut self, submit: Submit) -> Result<Submit, Complete> {
         if let Op::Recv { fd, mut buf } = submit.kind {
             if Some(fd) == self.channel && !self.pending.is_empty() {
-                let take = buf.len().min(self.pending.len());
+                let take = buf.len().min(self.pending.len()).min(self.native.room());
                 for byte in &mut buf[..take] {
                     *byte = self.pending.pop_front().expect("pending bytes");
                 }
@@ -141,20 +162,48 @@ impl Probe {
             }
             return Ok(Submit { op: submit.op, kind: Op::Recv { fd, buf } });
         }
+        if let Op::PipeRead { fd, mut buf } = submit.kind {
+            if Some(fd) == self.pipe_fd && !self.pipe_pending.is_empty() {
+                let take = buf.len().min(self.pipe_pending.len()).min(self.pipe.room());
+                for byte in &mut buf[..take] {
+                    *byte = self.pipe_pending.pop_front().expect("pending pipe bytes");
+                }
+                return Err(Complete {
+                    op: submit.op,
+                    kind: Op::PipeRead { fd, buf },
+                    result: Ok(Done::Count(u32::try_from(take).expect("pipe count"))),
+                });
+            }
+            return Ok(Submit { op: submit.op, kind: Op::PipeRead { fd, buf } });
+        }
         Ok(submit)
     }
     pub(crate) fn stepped(&mut self, steps: u64, waits: u64) {
+        // Raw kernel bytes may need another IO iteration before the root receives their record.
         if self.call_stage {
-            assert!(steps > 0, "the admitted Cancel passes the held process Call at the watermark");
-            // Only the admitted Cancel enters the root; consuming the Call also hands out its name.
-            self.call_held = steps == 1;
+            assert_eq!(steps, 1, "only the admitted Cancel enters while the process Call waits");
+            self.call_held = true;
             self.call_stage = false;
         }
-        if self.marker_stage {
-            self.marker_passed = steps > 0 && (self.calls || waits > 0);
+        if self.marker_stage && steps > 0 {
+            self.marker_passed = if self.calls { self.call_held && steps == 1 } else { waits > 0 };
             self.marker_stage = false;
         }
     }
+}
+
+// Keep a frame's header and body in separate IO deliveries, so the protocol's
+// outstanding demand names the final body when its completion is held.
+fn shape(frames: &Frames, pending: &mut VecDeque<u8>, buf: &mut [u8], count: usize) -> usize {
+    if count <= frames.room() {
+        return count;
+    }
+    pending.extend(&buf[..count]);
+    let take = buf.len().min(pending.len()).min(frames.room());
+    for byte in &mut buf[..take] {
+        *byte = pending.pop_front().expect("pending stream bytes");
+    }
+    take
 }
 
 fn marker() -> Vec<u8> {
