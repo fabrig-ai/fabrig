@@ -1,6 +1,6 @@
 # Configuration
 
-Provisional, 2026-10-10, revised 2026-10-24. What an engine and a worker
+Provisional, 2026-10-10, revised 2026-10-28. What an engine and a worker
 are told when they start, as far as jig defines its shape: the parts of
 `../domain/engine.md`, section 14 that are jig's, the templates an
 application defines its shapes of work with, how an application's
@@ -27,9 +27,9 @@ when configuration is read. What is still open is listed in section 9.
   (`../domain/root.md`, section 6).
 - **Typed, then checked whole.** Parsing yields plain values of jig's
   domain and protocol vocabularies. A check then runs across them: names
-  unique, numbers that refer to something configured, limits whose worst
-  case fits the process's memory. A configuration that fails it never
-  starts the loop.
+  unique, numbers that refer to something configured, limits whose edge
+  bounds are representable (skein's programming-model.md, 6.3). A
+  configuration that fails it never starts the loop.
 - **Paths are typed.** Each path the document names is a configuration
   path, a data path or a cache path, by its member: relative to the
   application's directory of that kind, or absolute. The parsers resolve
@@ -70,7 +70,7 @@ when configuration is read. What is still open is listed in section 9.
 the application's main (its shell)
 ├── reads the file, and each secret file it names            skein's startup kit
 ├── parses: jig's part (jig-protocol-config), its own parts   plain values
-├── checks the whole, and the worst case
+├── checks the whole
 └── makes the root, the protocol layer's components, io       then the loop
 ```
 
@@ -368,11 +368,12 @@ host's half reports it (`llm.md`, 5.5).
   frame. Its accounting-only ceiling leaves page rows, chunks, decoder
   capacity, queues and read slots unchanged; the numeric ceiling and its
   derivation live beside `STORE_KV` in the profile.
-- **Checked whole at startup.** The root's worst case (`../domain/root.md`,
-  section 10), the components' and the journal's, summed, must fit the
-  memory the configuration states; the terms of the workers' channel
-  follow from the same limits (`channel.md`, section 11). A profile whose
-  sum does not fit refuses the start, saying by how much.
+- **Checked whole at startup, where limits size an edge:** the terms of
+  the workers' channel follow from the same limits (`channel.md`, section
+  11). No sum of worst cases is checked against memory: an engine's
+  `memory_bytes` is the application's byte budget, handed to it
+  unchecked (skein's programming-model.md, 6.1 and 6.3), and a worker's
+  is optional, since no worker reads one.
 - **Made projects count too.** Authority's and people's
   `projects` bound every project the deployment holds, seeded and made
   after the first start (`../domain/core.md`, 6.1): a deployment that
@@ -522,8 +523,8 @@ It bounds whole source lists, inventories and pending sign-outs on both
 channel ends. The small profile reserves twelve sources (four accounts
 with three sources each); status/sign-out failure detail uses the host's
 bounded detail. Source-check intervals and command deadlines must be
-positive, and source commands and their protocol resources enter startup's
-memory sum even when every run slot is occupied.
+positive, and source commands and their protocol resources are bounded by
+the same capacities even when every run slot is occupied.
 
 ## 7. Secrets
 
