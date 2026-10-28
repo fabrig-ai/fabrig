@@ -1601,10 +1601,12 @@ into the binary.
   families alone, since it reads the change and CI, asks its requester,
   and delivers through smith's own `deliver`, never delegating or
   effecting; charter 4, the reviewer's, names the read family alone, as
-  its row says; charter 3 names those its row lists, settings among
-  them. smith's host part counts a run's brief beside its tools
-  (`../domain/agent.md`, 4.3), so these leave each charter's largest
-  brief its room. A run is offered a family's tools
+  its row says; charter 3 names those its row lists (settings, reads
+  and propose, for `withdraw`), not charter 1's with settings added.
+  smith's host part counts a run's brief beside its tools, so a brief
+  is rendered within the room its charter leaves, cut from its last
+  section, and each charter leaves at least 2,048 bytes
+  (`../domain/agent.md`, 4.3). A run is offered a family's tools
   where its charter names the family and its task's authority holds it,
   and each charter's offered host part is checked against smith's bound
   (`../domain/agent.md`, 4.3).

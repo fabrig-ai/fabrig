@@ -147,14 +147,22 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   gathered brief spends the rest. So a new host tool is offered only
   where a family and the charter gate it, never to every run, and a
   charter's room is measured before a tool joins it.
+- **The brief fits the room its charter leaves.** smith counts a run's
+  brief in its host part, beside the charter's offered tools, its
+  instructions and the finish and deliver schemas. So `temper-engine-smith`,
+  preparing a run, renders the brief within what those leave of the
+  bound, cutting from the last section in the core's order. Each cut
+  section says how much it lost and how to read it whole: the forge's
+  reads for a document, `read_docs` for a page. No run is refused for
+  its brief. (10-27: charter 1's 37 tools and instructions take 30,984
+  of the small profile's 33,419, and its largest brief, 9,984 body
+  bytes, would pass it by 7,613.)
 - **Checked before a run meets it:** at start, and at temper's three
   entrances of a change of settings that touches a charter (the
   engine's `ChangeSettings` and `ProposeSettings` routes and a run's
-  `propose_settings`), temper sums each charter's offered host part and
-  refuses one whose tools and largest brief (the brief's sections at
-  their bounds, the charter's instructions, the finish and deliver
-  schemas: smith counts them all) pass the bound, naming the charter and
-  both figures
+  `propose_settings`), temper sums each charter's offered tools, its
+  instructions and the fixed parts, and refuses one that leaves its
+  brief less than 2,048 bytes, naming the charter and both figures
   (`../protocol/configuration.md`, section 7). A stored proposal's
   acceptance, a restore and a reset carry values that passed an
   entrance or the start, and the bound does not move while the engine
@@ -166,53 +174,6 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   engine without that figure skips the start's check. A run smith
   refuses for its host part anyway is held with smith's reason, the
   bound and the figure, never a bare "invalid".
-
-| Tool | Family | What it does | What it names, as the run saw it | What it answers |
-|---|---|---|---|---|
-| `delegate` | delegate | makes a batch of direct delegates, each with what a party's `Create` names (a deadline as seconds after it is made, or none, to end with its creator's) (jig's `domain/tasks.md`, section 4), tracked as a goal at a priority (`tracked`, the lower first) or untracked | | their numbers, their specs' revisions, and what a budget given `AsAllowed` was given; refused, and why |
-| `change` | delegate | one change to one of the project's repositories, landed (forge.md, section 8): the run gives the words and, where the project has more than one repository it may write, which as `owner/name`; the root fills in the rest, as 4.3.1 says, and decides it as a `delegate` | | its task's number, as `delegate`'s; refused, and why: naming the project's repositories where none fits |
-| `goal` | delegate | one tracked goal, in the run's words: the run gives the words, and whether it is an advisor, which changes nothing; the root fills in the rest, as 4.3.2 says, and decides it as a `delegate` | | its task's number, as `delegate`'s; refused, and why |
-| `message` | message | words, a question, or the answer to one, to a task it references (jig's `domain/tasks.md`, 8.5) | the question, for an answer | sent, with the message's number; refused: no reference, the inbox full, too large for a run to read |
-| `introduce` | message | gives two tasks it references a reference to each other | | done; refused, and why |
-| `amend` | amend and cancel | changes a live delegate (jig's `domain/tasks.md`, section 7), naming only what changes: its tracking (a priority, or untracked), its spec, wake, dependencies (the whole list), authority (whole: a deadline is its budget's, the rest restated), instructions (whole; empty leaves none) or models; with a reason, which its live run hears unless new instructions replace it | its spec's revision, as the run last read it; a tracked delegate's priority alone needs no revision | done, with the spec's revision after the commit, the one its next amendment names, and what changed; refused, and why; moved, with what it is now |
-| `release` | amend and cancel | lifts a delegate's hold; for an effect held uncertain, says whether to make it again (`again`) | its hold's revision | done, with its spec's revision, which a release leaves as it was; `again` missing for an effect held uncertain, or given for another; refused, and why; moved, with what it is now |
-| `cancel` | amend and cancel | a live delegate and its tree, with a reason | | done; refused, and why |
-| `decide` | decide | accepts, rejects with a reason, or passes up a proposal waiting for it (jig's `domain/tasks.md`, section 9) | the proposal, by its proposer and number | decided, and how; refused, and why |
-| `decide_escalation` | decide | releases, rejects with a reason, or passes up a held descendant's escalation waiting for it | its hold's revision | decided, and how; beyond its authority, and passed up; moved, with what it is now; refused, and why |
-| `withdraw` | decide | its own pending proposal | the proposal | withdrawn; already decided, and how |
-| `propose` | propose | an action beyond its authority, with a reason, to the holder that may accept it: a batch, an amendment, a release, a forge effect, or a widening of its own authority (jig's `domain/authority.md`, section 9) | for an amendment, its spec's revision, as `amend` names it | proposed, as which number, and to whom; refused, when nobody may accept it; moved, for an amendment |
-| `subscribe`, `unsubscribe` | subscribe | a referenced task's state, held or ended, or a timer, once or periodic (jig's `domain/tasks.md`, 8.4); removes a subscription by its number | | the subscription's number; removed; refused, and why |
-| `subscribe_forge` | subscribe | a forge topic (forge.md, 7.1): landings on a branch, with the task's own change and the paths by which a landing overlaps; CI on a head; a pull request's state; the comments and reviews on a participating object | | the subscription's number; refused, and why |
-| `effect_forge` | effect | one of the effects the forge offers to agents (forge.md, section 2) on an adopted repository: an issue created, a comment posted on an issue or a pull request, a commit status posted | | made or found, with what it made; committed and pending, past the call's deadline; uncertain, the connector finding it, or its task held for a person; raced; withdrawn; failed, and why; refused before it was committed; waiting for a verdict; unavailable, deciding nothing, while the forge has no room for another |
-| `note` | note | writes a note in a scope, or revises one (jig's `domain/engine.md`, section 10) | for a revision, the note's revision it recalled | written, with its name and revision; refused: busy, too large, full, already there, missing, moved |
-| `recall` | recall | reads notes by name, or a page of a search of their scoped descriptions | | the entries, and whether more remain |
-| the forge's reads | read | one fresh read each, of an adopted repository (forge.md, section 2), below | | the answer, cut to the read's limit; failed, and why |
-| `settings` | settings | reads the settings (jig's `domain/engine.md`, 7.3): with `{}` the inventory; with `{"setting": SETTING}` one setting's value, SETTING as a settings file names it (`../client/tools.md`, 5.3), a charter's of a held revision with `"revision"`; with `{"revision": R}` a revision's record; with `{"history": {}}` the newest page of the history, and `{"history": {"before": R}}` the page before R. Every form takes `"from"`, an offset into its answer's text. temper's kinds' values come from the forge (`../protocol/configuration.md`, 13.2) | | its text as `temper ctl` prints the same read (`../client/tools.md`, 5.2), from `from`, cut as `read_docs` cuts a page (`../protocol/documentation.md`, 3) within the answer's bound, with `next: OFFSET` or `end`; refused, and why |
-| `propose_settings` | settings | proposes a change of settings to the owners who may accept it, with a reason (jig's `domain/engine.md`, 17.6): its items in a settings file's form (`../client/tools.md`, 5.3) | the newest revision it read | proposed, as which proposal and to whom; stale, naming the newest; refused, when nobody may accept it or an item is out of shape, naming it |
-| `read_docs` | none | a page of one of temper's documentation topics from an offset, or the sections matching some words (`../protocol/documentation.md`, section 5); answered where the call is decoded, with no authority, commit or record | | the page and the next offset, or the end; the hits; no such topic, with the hits of a search for its words |
-
-The forge's reads, each a host tool of its own: `read_items`, a page of
-a repository's issues and pull requests; `read_item`, an issue or a pull
-request with its comments; `read_pull`, a pull request; `read_pull_for`,
-the pull request for a head and a base; `read_pull_files`, the files a
-pull request changes; `read_reviews`, a pull request's reviews;
-`read_remarks`, their remarks; `read_statuses`, a commit's statuses;
-`read_checks`, a commit's combined checks; `read_job`, one CI job's log,
-bounded, its failed step named before it; `read_branch`, a branch's head;
-`read_branches`, the branches; `read_compare`, two commits compared;
-`read_file`, a file at one head, bounded, or, where the path names a
-directory (the repository's root as `.` or empty), its entries at that
-head, each its name and kind (file, directory, submodule), in the
-forge's order, bounded and cut as a file's bytes are, so an agent with
-no workspace (an advisor, a goal) finds a repository's paths rather than
-guessing them, with no tool of its own; `read_protection`, a branch's
-protection; `read_settings`, the repository's settings;
-`read_collaborators`, its collaborators; `read_permission`, a user's
-permission on it.
-
-Their input is flat, each member declared by name in the read's schema,
-so that a run writes a call from its tools alone:
-
 - **`repository`,** one of the project's repositories as `owner/name`:
   among its adopted repositories of any role, on forges not ended, the
   one named, or with no name the only one; with several and no name, or
