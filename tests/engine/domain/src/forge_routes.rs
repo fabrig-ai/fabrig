@@ -630,6 +630,7 @@ impl World {
                 tree: Box::new([]),
                 labels: Box::new([]),
                 checks: raw::Checks {
+                    cues: Box::new([]),
                     contexts: if turn { Box::new([]) } else { Box::new([Box::from(&b"build"[..])]) },
                     latency_min: Duration::ZERO,
                     latency_max: Duration::ZERO,
