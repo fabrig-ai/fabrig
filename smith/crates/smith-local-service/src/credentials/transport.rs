@@ -1,6 +1,6 @@
 //! The account driver's socket pass and operation namespace.
 //! File operations keep the low namespace; socket cancellations retain theirs.
-use super::{Accounts, oauth};
+use super::Accounts;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, Time, Token, Wall};
 
