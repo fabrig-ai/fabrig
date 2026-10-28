@@ -173,6 +173,53 @@ fn failure_stops_release_and_admission() {
     assert_eq!(journal.now(2), Err(2));
 }
 
+fn journal_with_held_and_door_outputs() -> (Journal<u8, u8>, u64) {
+    let mut journal = Journal::uncapped(limits().release, 0);
+    let mut decision = journal.decide();
+    decision.push_write(1);
+    decision.push_held(10);
+    journal.accept(decision);
+    let number = journal.commit().expect("sent commit").number;
+    assert_eq!(journal.now(20), Ok(()));
+    assert_eq!(journal.backlog(), 3);
+    (journal, number)
+}
+
+fn assert_stopped_outputs(journal: &mut Journal<u8, u8>, number: u64) {
+    let mut out = Queue::with_capacity(2);
+    journal.committed(number);
+    assert_eq!(journal.release(&mut out), Released::Stopped);
+    assert_eq!(out.pop(), None);
+    assert!(journal.stopped());
+    assert_eq!(journal.backlog(), 3, "the sent commit, held output and door output remain");
+}
+
+#[test]
+fn stop_keeps_held_and_door_outputs_from_leaving() {
+    let (mut journal, number) = journal_with_held_and_door_outputs();
+    journal.stop();
+    assert_stopped_outputs(&mut journal, number);
+}
+
+#[test]
+fn stopping_twice_is_stopping_once() {
+    let (mut journal, number) = journal_with_held_and_door_outputs();
+    journal.stop();
+    journal.stop();
+    assert_stopped_outputs(&mut journal, number);
+}
+
+#[test]
+fn stop_on_a_journal_with_no_commit_stops_it() {
+    let mut journal = Journal::<u8, u8>::new(&limits());
+    let mut out = Queue::with_capacity(2);
+    journal.stop();
+    assert_eq!(journal.release(&mut out), Released::Stopped);
+    assert_eq!(out.pop(), None);
+    assert!(journal.commit().is_none());
+    assert!(journal.stopped());
+}
+
 #[test]
 fn answer_for_unsent_or_old_commit_stops() {
     let mut journal = Journal::<u8, u8>::new(&limits());

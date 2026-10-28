@@ -7,6 +7,7 @@
 //! `takes` and `decision` reserve room before the owner changes state;
 //! `accept` makes at most one commit. The owner sends `commit` values to its
 //! store, answers them with `committed` or `failed`, then calls `release`.
+//! A root calls `failed` for a failed sent commit, or `stop` when it stops of its own.
 //! `from_durable` resumes numbering after a durable commit on restart.
 //!
 //! Commit transitions (lib.md, section 11):
@@ -64,7 +65,8 @@ pub enum Released {
     Some,
     /// No output was ready or the caller's queue had no room.
     None,
-    /// The journal stopped after a failure or decision overrun.
+    /// The journal stopped by a failed or invalid commit, a decision's
+    /// overrun at `accept`, or `stop`.
     Stopped,
 }
 
@@ -282,6 +284,7 @@ impl<W, O> Journal<W, O> {
     }
 
     /// Stops after a failed sent commit; nothing tagged with it or later leaves.
+    /// A root that stops of its own calls `stop`.
     pub fn failed(&mut self, number: u64) {
         if self.stopped {
             return;
@@ -290,6 +293,14 @@ impl<W, O> Journal<W, O> {
             self.stopped = true;
             return;
         }
+        self.stopped = true;
+    }
+
+    /// Stops the journal of a root that stops of its own (a decision's
+    /// overrun, a counter at its end): nothing held or at the door leaves
+    /// again, and `release` answers `Stopped`. A failed sent commit is
+    /// `failed(number)`. Stopping twice is stopping once.
+    pub fn stop(&mut self) {
         self.stopped = true;
     }
 
@@ -318,7 +329,8 @@ impl<W, O> Journal<W, O> {
         if moved > 0 { Released::Some } else { Released::None }
     }
 
-    /// Whether an overrun has stopped admission and emission.
+    /// Whether the journal has stopped: a failed or invalid commit, a
+    /// decision's overrun at `accept`, or `stop`.
     #[must_use]
     pub const fn stopped(&self) -> bool {
         self.stopped
