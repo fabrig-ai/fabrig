@@ -542,8 +542,8 @@ today's, until those land.
   chat's instructions (charter 1, `../protocol/configuration.md`, 13.4)
   carry the rule: work the person wants to agree before anything is
   changed goes to such a delegate, which tells its plan, asks, and calls
-  `change` only after the answer; the chat relays the person's answer to
-  it. The chat passes the person's words whole, at once, even where they
+  `change` only after the answer, which reaches it from the person's
+  inbox, not through the chat. The chat passes the person's words whole, at once, even where they
   ask for an advisor first, since the goal asks one itself (4.3.2): it
   never sets `advisor` for such work, writes the plan or asks the
   go-ahead in its own reply, nor calls `change`. The goal, once it has
