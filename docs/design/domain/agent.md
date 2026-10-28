@@ -402,9 +402,10 @@ jig's `domain/hosts.md`, section 9 says: each named, with its sender's
 label, its kind and its words whole, the start carrying those waiting
 in the task's inbox. Words read `2: …`; a question reads `2 asks
 (question 4): …`, its number the one `message`'s answer form takes;
-an answer reads `1 answers question 4: …`. So a chat that hears its
-goal's question and then its person's answer relays the answer to
-question 4, the number it heard, never a guess. Proposals and escalations waiting for the task's decision
+an answer reads `1 answers question 4: …`. So a goal hears its
+person's answer to question 4 by the number it asked, and a chat, which
+answers no question waiting in its person's inbox (8.2), hears that
+question 4 was answered. Proposals and escalations waiting for the task's decision
 are relayed the same way, each naming what `decide` or
 `decide_escalation` takes.
 
@@ -704,11 +705,3 @@ host:
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP
   tool source once smith has one.
-- **The person's answer, relayed or routed.** Today the chat relays a
-  person's inbox answer to its goal (8.2), by the number it heard
-  (section 5), a step that rests on the model. jig's client contract
-  already makes the person's answer the chat's, as the task the
-  question was put to; jig could route it to the asking goal directly,
-  the chat told, with no relay. Kept as the relay while it holds on the
-  ladder's walks, since the second edition keeps the goal's question
-  with the chat (J7, J8); taken if a walk shows the relay failing.
