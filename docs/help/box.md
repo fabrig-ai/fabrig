@@ -75,8 +75,8 @@ jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS
 Expect: no output; `jq -c '[.engine.llm.models[].name]'
 CONFIG/temper.json` prints `["MODEL","demo"]`, and `me` later lists
 provider 2, Anthropic, with its program `claude_code`. Provider 1 is
-gone: step 5's way is then Claude Code's. Keep the demo: without it a
-run's turn outgrows init's limits.
+gone: step 5's way is then Claude Code's. Keep the demo, or a run's turn
+outgrows init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
 `CONFIG` holds a configuration; start from empty directories.
@@ -231,7 +231,7 @@ temper ctl DIR task show TASK --tree
 ```
 
 `TASK` is the chat's number, which the first call prints; the tree
-lists the change task it started, `CHANGE`.
+lists the change it started, `CHANGE`.
 
 Expect: `done: task TASK, chat`; the wait prints the task, its first
 line `task TASK · chat · ` and its phase, then `met`.
