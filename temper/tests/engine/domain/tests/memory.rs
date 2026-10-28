@@ -284,12 +284,14 @@ fn full_decisions_and_maximum_held_results_fit_the_declared_root_journal_bound()
     assert_eq!(journal.backlog(), 0, "durable deliveries drain the backlog below the watermark");
 }
 
+// Measured peak: 261,085 bytes; 25% headroom, rounded up to two significant digits.
+const WALKING_HEAP_CEILING: u64 = 330_000;
+
 #[test]
 fn real_root_state_and_complete_walking_handoffs_fit_the_declared_counted_bound() {
     use temper_engine_domain_world::walking::{Settings, World, limits};
     let limits = limits();
-    // c3 paused before measuring this scenario's ceiling.
-    let bound = u64::MAX;
+    let bound = WALKING_HEAP_CEILING;
     for settings in [Settings::calm(73), Settings::terminal(74)] {
         let meter = Meter::new();
         meter.start();
@@ -303,12 +305,14 @@ fn real_root_state_and_complete_walking_handoffs_fit_the_declared_counted_bound(
     }
 }
 
+// Measured peak: 365,893 bytes; 25% headroom, rounded up to two significant digits.
+const ESCALATION_HEAP_CEILING: u64 = 460_000;
+
 #[test]
 fn held_reasons_history_queries_and_real_escalation_handoffs_fit_counted_root_memory() {
     use temper_engine_domain_world::{escalation, escalation_referee::Story};
     let limits = escalation::limits();
-    // c3 paused before measuring this scenario's ceiling.
-    let bound = u64::MAX;
+    let bound = ESCALATION_HEAP_CEILING;
     for story in [Story::Release, Story::PassRelease, Story::RaceReject] {
         let meter = Meter::new();
         meter.start();
@@ -326,12 +330,14 @@ fn held_reasons_history_queries_and_real_escalation_handoffs_fit_counted_root_me
     }
 }
 
+// Measured peak: 970,990 bytes; 25% headroom, rounded up to two significant digits.
+const ROLE_RECOVERY_HEAP_CEILING: u64 = 1_300_000;
+
 #[test]
 fn candidate_rosters_waiting_snapshots_keyed_history_and_recovery_fit_counted_memory() {
     use temper_engine_domain_world::roles::{Base, Settings, limits, reroute_replayed};
     let limits = limits();
-    // c3 paused before measuring this scenario's ceiling.
-    let bound = u64::MAX;
+    let bound = ROLE_RECOVERY_HEAP_CEILING;
     let meter = Meter::new();
     meter.start();
     let world = reroute_replayed(

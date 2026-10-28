@@ -145,32 +145,36 @@ fn limits(settings: Settings, keep: bool) -> Limits {
 
 impl World {
     #[must_use]
-    pub fn new(settings: Settings) -> Self {
-        Self::with_facts(settings, true)
+    pub fn new(settings: Settings, heap_ceiling: u64) -> Self {
+        Self::with_facts(settings, true, heap_ceiling)
     }
 
     /// Runs the same records with facts and the runs' activity dropped.
     #[must_use]
-    pub fn without_facts(settings: Settings) -> Self {
-        Self::with_facts(settings, false)
+    pub fn without_facts(settings: Settings, heap_ceiling: u64) -> Self {
+        Self::with_facts(settings, false, heap_ceiling)
     }
 
-    fn with_facts(settings: Settings, keep: bool) -> Self {
+    fn with_facts(settings: Settings, keep: bool, bound: u64) -> Self {
         assert!(settings.turns > 0 && settings.byte_slots > 0);
         let limits = limits(settings, keep);
         assert!(valid(&limits));
-        // c3 paused before measuring this scenario's ceiling.
-        let bound = u64::MAX;
+        let out = Queue::uncapped();
+        let owed = VecDeque::with_capacity(CAPACITY);
+        let trace = Vec::with_capacity(CAPACITY);
+        let boundaries = Vec::with_capacity(CAPACITY);
+        let observed = Vec::with_capacity(64);
+        let meter = Meter::new();
         World {
             settings,
-            out: Queue::uncapped(),
+            out,
             domain: Domain::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            owed: VecDeque::with_capacity(CAPACITY),
-            trace: Vec::with_capacity(CAPACITY),
-            boundaries: Vec::with_capacity(CAPACITY),
-            observed: Vec::with_capacity(64),
-            meter: Meter::new(),
+            owed,
+            trace,
+            boundaries,
+            observed,
+            meter,
             bound,
             rng: Rng::new(settings.seed),
             agent: None,
@@ -238,8 +242,8 @@ impl World {
             let Some(fact) = self.domain.pop_fact() else { break };
             self.remember_fact(&fact);
         }
-        self.meter.check(measured, self.bound, &self.settings);
-        self.stats.peak_heap = self.stats.peak_heap.max(self.meter.held());
+        let peak = self.meter.check(measured, self.bound, &self.settings);
+        self.stats.peak_heap = self.stats.peak_heap.max(peak);
         self.stats.peak_retained = self.stats.peak_retained.max(self.domain.retained_turns());
         self.domain.reclaim();
     }
@@ -632,6 +636,8 @@ mod referee_tests {
     use super::{ATTEMPT, Close, RUN, Settings, World, host};
     use temper_worker_domain::Request;
 
+    const REFEREE_HEAP_CEILING: u64 = 43_000;
+
     fn turn(body: &[u8]) -> Request {
         Request::Link(host::LinkUp::Turn {
             run: RUN,
@@ -651,7 +657,7 @@ mod referee_tests {
     #[should_panic(expected = "replay preserves the full body and spend")]
     fn referee_rejects_a_duplicate_turn_with_changed_opaque_bytes() {
         let settings = Settings { seed: 0, turns: 1, byte_slots: 1, merging: false, close: Close::Committed };
-        let mut world = World::new(settings);
+        let mut world = World::new(settings, REFEREE_HEAP_CEILING);
         world.take(turn(b"original"));
         world.take(turn(b"different"));
     }
@@ -660,7 +666,7 @@ mod referee_tests {
     #[should_panic(expected = "no turn gap")]
     fn referee_rejects_an_unseen_prefix() {
         let settings = Settings { seed: 0, turns: 1, byte_slots: 1, merging: false, close: Close::Committed };
-        let mut world = World::new(settings);
+        let mut world = World::new(settings, REFEREE_HEAP_CEILING);
         let Request::Link(host::LinkUp::Turn { run, attempt, mut turn }) = turn(b"") else { unreachable!() };
         turn.turn = 2;
         world.take(Request::Link(host::LinkUp::Turn { run, attempt, turn }));

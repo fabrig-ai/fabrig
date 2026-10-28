@@ -2,6 +2,8 @@
 //! The forge observes native API calls, and store snapshots are independent of
 //! root state (jig's domain/testing.md, sections 5–6).
 mod config;
+#[path = "../tests/support/heap_ceilings.rs"]
+mod heap_ceilings;
 pub mod link;
 pub mod observations;
 mod scenarios;
@@ -22,10 +24,6 @@ use temper_engine_domain as engine;
 use temper_engine_domain::{self as root};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::protocol::Protocol;
-
-// c3 paused before measurement: replace this provisional ceiling with the
-// measured story peak plus the task's headroom before running conformance.
-const CONFORMANCE_HEAP_CEILING: u64 = u64::MAX;
 
 /// Scenario identity and seed retained across cold starts.
 #[derive(Clone, Copy, Debug)]
@@ -51,7 +49,7 @@ impl Config {
         story: Option<stories::Story>,
     ) -> Self {
         let limits = config::root(seed, scenario, story).1;
-        let maximum = CONFORMANCE_HEAP_CEILING;
+        let maximum = heap_ceilings::maximum(scenario, story);
         Self { seed, scenario, story, limits, maximum }
     }
 }
