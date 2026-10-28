@@ -130,7 +130,10 @@ Properties the rest of this document relies on:
 - **Work per iteration is bounded by what was admitted.** The kernel's
   queues are capped, the root admits new work by its watermark, and each
   event's fan-out is bounded (section 3's "Bounded"), so an iteration's
-  queues hold what admitted work makes, however they grow.
+  queues hold what admitted work makes, however they grow. A stage takes
+  what its queue held when it began (its length, read once), never what
+  arrives while it runs: with no capacity to stop it, a drain that
+  followed its own pushes would not end.
 - **Requests made in the down pass are submitted at the end of the
   iteration;** the events they cause arrive in a later one. A step never
   waits for its own effect.
@@ -830,7 +833,9 @@ one place arms and re-arms it (5.4), not every handler.
   commit (`Journal::backlog`), plus its own work queue's and its store
   answers' lengths. A root without one counts the entries in the
   uncapped queues between its own children. A queue it shares with an
-  edge stays capped and outside the backlog.
+  edge stays capped and outside the backlog, and so does the queue where
+  new work waits to be admitted: counted, it would hold the watermark
+  shut.
 - **What waits:** new external work, a party's call, a worker's record
   that starts work, a forge event, a timer that starts work, a setup or
   a restart. Past the watermark admission hands the event back, the loop
