@@ -141,3 +141,17 @@ fn a_failing_actions_status_links_its_run_and_job() {
     assert_eq!(job.id, 2);
     assert_eq!(job.attempt, 1);
 }
+
+#[test]
+fn a_null_page_past_the_captured_pull_files_is_empty() {
+    let mut request = forgejo::route(&forgejo::transcript("pull-files-page-2"));
+    let skein_forge::forgejo::request::Request::PullFiles { page, .. } = &mut request else {
+        panic!("pull files request");
+    };
+    page.page = Some(3);
+    let encoded = client::encode(&request, &forgejo::limits()).expect("request");
+    assert_eq!(&*encoded.target, b"/api/v1/repos/fixture/specimen/pulls/1/files?page=3&limit=2");
+    let decoded = forgejo::decode(&request, b"null");
+    assert_eq!(decoded.document, Ok(skein_forge::forgejo::document::Document::Listed { skipped: 0 }));
+    assert!(decoded.rows.is_empty());
+}

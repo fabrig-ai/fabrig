@@ -366,6 +366,11 @@ impl Walk {
     }
     fn start(&mut self, kind: Kind, event: &tokenizer::Event) -> Result<Move, Malformed> {
         let array = element(kind).is_some();
+        // Forgejo can serialize an empty list response as null instead of [].
+        if array && self.parent().is_none() && event == &tokenizer::Event::Token(Token::Null) {
+            self.want = Want::Done;
+            return Ok(Move::End(kind));
+        }
         let expected = if array { Token::ArrayStart } else { Token::ObjectStart };
         if event != &tokenizer::Event::Token(expected) {
             return Err(Malformed::Shape { field: b"" });

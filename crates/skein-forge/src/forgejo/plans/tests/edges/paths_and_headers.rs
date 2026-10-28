@@ -191,3 +191,18 @@ fn repository_404_drops_the_row() {
         assert_eq!(run.tables().repository(REPO), None, "resolution is not a leaf");
     }
 }
+
+#[test]
+fn null_pull_files_page_past_last_finishes_at_the_observed_head() {
+    let mut run = Run::known(Op::Read(Read::PullFiles { number: 1, head: HEAD, page: 3 }));
+    run.begin();
+    run.answer(200, PULL);
+    assert_eq!(
+        run.answer(200, b"null"),
+        Step::Done(Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false }))
+    );
+    run.assert_sent(&[
+        "GET /api/v1/repos/fixture/specimen/pulls/1",
+        "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=3&limit=2",
+    ]);
+}
