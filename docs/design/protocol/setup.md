@@ -1,6 +1,6 @@
 # The forge's setup
 
-Provisional, 2026-10-16, revised 2026-10-27. How a forge comes to be
+Provisional, 2026-10-16, revised 2026-10-28. How a forge comes to be
 ready for temper, in three modes: connected, where a person runs and sets
 up the forge and gives temper only what it strictly needs; managed,
 where a person runs it and temper sets itself up on it, with a Forgejo
@@ -1743,8 +1743,7 @@ runs it (section 7).
     the evidence a read carries with it (configuration.md, section 11).
 
   A test holds the example's and `temper init`'s figures to this
-  derivation from their agent, and its writer rewrites them, before the
-  memory's writer runs (below):
+  derivation from their agent, and its writer rewrites them:
 
   ```sh
   SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test startup -E 'test(turn_bounds)'
@@ -1753,12 +1752,12 @@ runs it (section 7).
   jig's store and its KV bounds and the worker wire's ceilings stay as
   they are: a turn's body is a transcript file's, never a KV value, and
   each figure is within its wire field's ceiling.
-- **Its `memory_bytes`** are at least its worst cases, with 10% headroom
-  rounded up to two significant digits. The check admits declarations
-  from the worst case through 1.25 times it; past either end it says to
-  run the writer below. The exact terms live in
-  `crates/temper/tests/figures/memory/owned/{engine,worker}/`.
-  They hold wherever a person lays it and whatever its forge's records
+- **Its `memory_bytes`** are at least its ceilings, one for the engine and
+  one for the worker: an upper bound with headroom on each worst case,
+  a quarter above it when set and rounded up to two significant digits,
+  moved by hand when a real change passes it and never by a type's size
+  (skein's testing-strategy.md, 6). There are no term figures and no
+  writer. They hold wherever a person lays it and whatever its forge's records
   hold: each start passes with each string its service's worst case
   counts, and a person's copy changes,
   at its bound (configuration.md, section 7, one worst case per
@@ -1786,22 +1785,15 @@ runs it (section 7).
   are retained once, separately from the per-slot spawn command paths.
   `temper-service::startup::memory_requirements` derives both envelopes
   from startup's checked calculations without starting a service. The
-  owned startup test checks the two literals against that query's band
-  with these strings at their bounds in service settings. Separately,
-  it checks that the exact worst case starts and each one-byte deficit
-  is refused at startup. Artificial paths are never opened. A
-  separate shell test prepares the example with ordinary paths.
-  Regenerate the exact term figures with the writer below. It leaves
-  each `memory_bytes` declaration within the checked band byte for byte,
-  and replaces only a declaration outside it with 10% headroom rounded
-  up to two significant digits:
-
-  ```sh
-  SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test startup -E 'test(owned_memory_figures)'
-  ```
-
-  Ordinary runs fail when a declaration leaves the band or an exact term
-  figure drifts, and never write the example or the figure files.
+  owned startup test checks, with these strings at their bounds in
+  service settings, that each worst case is at most its ceiling and each
+  ceiling at most the declaration
+  (`owned_memory_stays_under_its_ceilings`). Separately, it checks that
+  the exact worst case starts and each one-byte deficit is refused at
+  startup, while the startup fit check remains (skein's
+  programming-model.md, 6.3, has none; it goes in one set across the
+  repositories). Artificial paths are never opened. A separate shell
+  test prepares the example with ordinary paths.
   Program declarations survive startup; runnable program grants still
   wait for smith's program backend and jig's program sources.
 - **Three loopback addresses,** Forgejo's (`listen`, `127.0.0.1:3000`),
@@ -2033,14 +2025,12 @@ defaults for a person's real work are open (section 16).
   `127.0.0.1:<port>` (8.2).
 - **Its limits:** the owned example's (8.1), but room for its three
   forges: `forge.repositories` and `forge.client.repositories` 3, and
-  `forge.output` 82. Its `memory_bytes` are at least its own worst cases,
-  with 10% headroom rounded up to two significant digits, checked in the
-  band from the worst case through 1.25 times it, as the owned example's
-  are (8.1). Its own strings are at their bounds, the fake entry's `git`,
-  which the engine names to the worker, among them; the two literals of
-  `temper-init`'s forgejo-elsewhere/demo document are written and checked
-  the same way. The exact terms live in
-  `crates/temper/tests/figures/memory/init/{engine,worker}/`.
+  `forge.output` 82. Its `memory_bytes` are at least its own ceilings,
+  each at least its worst case, as the owned example's are (8.1;
+  `init_memory_stays_under_its_ceilings`). Its own strings are at their
+  bounds, the fake entry's `git`, which the engine names to the worker,
+  among them; the two literals of `temper-init`'s forgejo-elsewhere/demo
+  document are checked the same way.
 - **`application.demo`,** the demo's (8.4).
 - **Its box's steps:** `temper serve`; the demo's group, the fake LLM,
   forge 1's preparation and its fake, dormant until the person chooses
@@ -3350,11 +3340,8 @@ Each is intended; what it needs is named with it.
   a managed connect; Replace is a connected forge's alone.
 - **The owned example's agent, sized for a person's work.** Default: the
   process tier's profile (8.1), sized for the live tier's stories.
-- **The owned example's `memory_bytes`** are at least `small`'s worst
-  cases with its strings at their bounds (8.1), with 10% headroom rounded
-  up to two significant digits and a checked band through 1.25 times
-  each worst case. The exact terms live in
-  `crates/temper/tests/figures/memory/owned/{engine,worker}/`.
+- **The owned example's `memory_bytes`** are at least its ceilings, each
+  at least `small`'s worst case with its strings at their bounds (8.1).
   They remain more than any machine has, so the start's check bounds
   nothing a person's machine holds.
   Default: as the example states them; which terms of the worst cases
