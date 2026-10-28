@@ -639,21 +639,52 @@ pub(crate) fn change(kind: u16, resource: &c::OwnerPart, words: &c::DocumentText
         }
         out.put(b" \xc2\xb7 merge commit ");
         out.words(commit);
-        if !words.cut
-            && let Some(start) = skein_lib::bytes::find(words.bytes(), b"\n")
-        {
-            let line =
-                words.bytes().get(start.checked_add(1).expect("newline separator")..).expect("newline within words");
-            if let Some(separator) = skein_lib::bytes::find(line, b": ") {
+        let (address, evidence) = landing_lines(words.bytes(), words.cut);
+        if let Some(address) = address {
+            // An address shortened by ctl is no more usable than one cut by the read.
+            if address.len() <= out.room() {
                 out.put(b"\npull request: ");
-                out.words(
-                    line.get(separator.checked_add(2).expect("address separator")..).expect("separator within line"),
-                );
+                out.words(address);
+            } else {
+                out.omit(address.len());
             }
+        }
+        if !evidence.is_empty() {
+            out.words(b"\n");
+            out.words(evidence);
         }
     } else {
         out.result_words(words.bytes());
     }
+}
+/// Only the second line supplies the pull's address (domain/forge.md, 8.2).
+/// A following newline proves that line whole even when later evidence was cut.
+pub(crate) fn landing_lines(words: &[u8], cut: bool) -> (Option<&[u8]>, &[u8]) {
+    let Some(start) = skein_lib::bytes::find(words, b"\n") else { return (None, b"") };
+    let tail = words.get(start.checked_add(1).expect("newline separator")..).expect("newline within words");
+    // A small result bound can omit the pull line altogether. Its checks are still evidence.
+    if !tail.starts_with(b"pull request #") {
+        return (None, tail);
+    }
+    let (line, evidence) = match skein_lib::bytes::find(tail, b"\n") {
+        Some(end) => (
+            tail.get(..end).expect("second line"),
+            tail.get(end.checked_add(1).expect("newline separator")..).expect("evidence within words"),
+        ),
+        None if cut => return (None, b""),
+        None => (tail, b"".as_slice()),
+    };
+    let address = match skein_lib::bytes::find(line, b": ") {
+        Some(separator) => line.get(separator.checked_add(2).expect("address separator")..),
+        None => None,
+    };
+    (
+        match address {
+            Some(b"") | None => None,
+            Some(address) => Some(address),
+        },
+        evidence,
+    )
 }
 pub(crate) fn result_part(value: &c::Part, out: &mut Text) {
     match value {

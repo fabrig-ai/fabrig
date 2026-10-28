@@ -192,6 +192,103 @@ fn a_landed_delegate_omits_a_pull_address_when_its_document_words_are_cut() {
     }
 }
 
+const PULL: &[u8] = b"pull request #1 of work/hello on forge.example: https://forge.example/work/hello/pulls/1";
+const ADDRESS: &[u8] = b"https://forge.example/work/hello/pulls/1";
+const EVIDENCE: &[u8] = b"checks at abc1234: / check (pull_request): passed\nrepairs: 1: CI failed\nreviews: approved";
+fn landing_words(pull: &[u8]) -> Box<[u8]> {
+    let separator: &[u8] = if pull.is_empty() { b"" } else { b"\n" };
+    let length = MERGE
+        .len()
+        .checked_add(1)
+        .expect("merge separator")
+        .checked_add(pull.len())
+        .expect("pull line")
+        .checked_add(separator.len())
+        .expect("pull separator")
+        .checked_add(EVIDENCE.len())
+        .expect("bounded landing fixture");
+    let mut out = skein_lib::Writer::new(length);
+    for bytes in [MERGE, b"\n", pull, separator, EVIDENCE] {
+        out.put(bytes).unwrap();
+    }
+    out.finish()
+}
+#[test]
+fn a_landed_results_address_is_its_second_lines_alone() {
+    let words = landing_words(PULL);
+    for cut in [false, true] {
+        assert_eq!(crate::forge::landing_lines(&words, cut), (Some(ADDRESS), EVIDENCE));
+    }
+    // An addressless second line must not borrow the checks line's colon.
+    let words = landing_words(b"pull request #1 of work/hello on forge.example");
+    assert_eq!(crate::forge::landing_lines(&words, false), (None, EVIDENCE));
+    let words = landing_words(PULL);
+    let second_end = MERGE.len() + 1 + PULL.len();
+    for end in [second_end - 1, second_end] {
+        assert_eq!(crate::forge::landing_lines(&words[..end], true), (None, b"".as_slice()));
+    }
+}
+#[test]
+fn a_landed_result_keeps_its_checks_when_the_pull_line_did_not_fit() {
+    let words = landing_words(b"");
+    for cut in [false, true] {
+        assert_eq!(crate::forge::landing_lines(&words, cut), (None, EVIDENCE));
+    }
+    result_text(
+        c::Ending::Done,
+        Some(c::ResultValue::Change {
+            kind: 1,
+            part: c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Number(1) },
+            words: f::document_text(&words),
+        }),
+        b"result: Landed \xc2\xb7 pull request #1 \xc2\xb7 merge commit 1d0b14e4db018fed000000000000000300000000\nchecks at abc1234: / check (pull_request): passed\nrepairs: 1: CI failed\nreviews: approved\n",
+    );
+}
+#[test]
+fn a_landed_delegate_prints_its_evidence_after_its_whole_address() {
+    for cut in [false, true] {
+        let mut words = f::document_text(&landing_words(PULL));
+        words.cut = cut;
+        result_text(
+            c::Ending::Done,
+            Some(c::ResultValue::Change {
+                kind: 1,
+                part: c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Number(1) },
+                words,
+            }),
+            b"result: Landed \xc2\xb7 pull request #1 \xc2\xb7 merge commit 1d0b14e4db018fed000000000000000300000000\npull request: https://forge.example/work/hello/pulls/1\nchecks at abc1234: / check (pull_request): passed\nrepairs: 1: CI failed\nreviews: approved\n",
+        );
+    }
+}
+#[test]
+fn a_landed_delegates_address_prints_only_when_it_fits_whole() {
+    let words = f::document_text(&landing_words(PULL));
+    let resource = c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Number(1) };
+    for (room, shown) in [(MERGE.len() + ADDRESS.len() - 1, false), (MERGE.len() + ADDRESS.len(), true)] {
+        let mut measure = crate::jig::render::Text::with_room(room);
+        crate::forge::change(1, &resource, &words, &mut measure);
+        let mut out = measure.writing(u32::try_from(room + 64).unwrap(), 0);
+        crate::forge::change(1, &resource, &words, &mut out);
+        let printed = out.finish();
+        assert_eq!(skein_lib::bytes::find(&printed, b"\npull request: ").is_some(), shown);
+        assert_eq!(skein_lib::bytes::find(&printed, ADDRESS).is_some(), shown);
+        assert!(skein_lib::bytes::find(&printed, b"bytes left\n").is_some());
+    }
+}
+#[test]
+fn a_landed_delegates_evidence_is_cut_and_marked_within_ctls_text_budget() {
+    let words = f::document_text(&landing_words(PULL));
+    let resource = c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Number(1) };
+    let room = MERGE.len() + ADDRESS.len() + 1 + EVIDENCE.len() - 1;
+    let mut measure = crate::jig::render::Text::with_room(room);
+    crate::forge::change(1, &resource, &words, &mut measure);
+    let mut out = measure.writing(u32::try_from(room + 64).unwrap(), 0);
+    crate::forge::change(1, &resource, &words, &mut out);
+    let printed = out.finish();
+    assert!(skein_lib::bytes::find(&printed, b"\nreviews: approve\n1 bytes left\n").is_some());
+    assert!(skein_lib::bytes::find(&printed, ADDRESS).is_some());
+}
+
 #[test]
 fn an_ended_report_indents_every_line_of_its_words() {
     let mut task = delegate();
