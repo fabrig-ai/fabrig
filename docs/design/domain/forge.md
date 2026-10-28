@@ -1420,6 +1420,10 @@ are comparable.
   pauses for them (`after-landing.md`, section 7). A landing temper did
   not make may break the branch. Once CI fails on the branch's tip, the queue pauses and one
   repair is made: a change task into that branch, first in its queue,
+  its words, and its producer's, opening with what it repairs, as a
+  repair's do (8.4): the branch, its failed tip at the forge's length
+  and each failed check's context and name, and its brief carrying 8.4's
+  why, CI's failing output on that tip,
   requested by the deployment on the project's behalf with the
   authority its policy gives such repairs, funded from the project's
   spend (jig's `domain/authority.md`, section 6), and news for every goal
