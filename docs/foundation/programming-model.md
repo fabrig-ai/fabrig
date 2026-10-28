@@ -133,7 +133,13 @@ Properties the rest of this document relies on:
   queues hold what admitted work makes, however they grow. A stage takes
   what its queue held when it began (its length, read once), never what
   arrives while it runs: with no capacity to stop it, a drain that
-  followed its own pushes would not end.
+  followed its own pushes would not end. Within one step it is the other
+  way: the hand-offs between a parent and its children are drained to
+  their end, since an entry point's chain of them is finite (4.5, and
+  section 3's "Bounded"), and an order may need exactly that (a child's
+  requests out before its parent asks it more; an entrance answered
+  whole before the next). Such a drain says, where it is written, which
+  bound ends it.
 - **Requests made in the down pass are submitted at the end of the
   iteration;** the events they cause arrive in a later one. A step never
   waits for its own effect.
