@@ -972,13 +972,13 @@ The tiers and budgets are testing-strategy.md's and skein's `testing.md`.
     one uninstalled; the hook's address set; a pasted App lacking a
     permission named;
   - no secret in a failure's `Debug` or in the trace.
-- **The worst case,** against the counting allocator (skein-heap): the
-  setup world meters the host alone, the fake and the store outside it
+- **The scenario's ceiling,** against the counting allocator (skein-heap):
+  the setup world meters the host alone, the fake and the store outside it
   (skein-heap's `Measured`, as the machine world does), and checks at
-  every iteration that its live heap is within `host::worst_case`: over
-  plaintext and TLS, Forgejo, GitHub and both, `runs` runs live with
-  their connections and `states` states held. `github::worst_case` keeps
-  its unit test for the pure plans.
+  every iteration that its measured peak is within the ceiling its scenario
+  names, with headroom (shell.md, 12): over plaintext and TLS, Forgejo,
+  GitHub and both, `runs` runs live with their connections and `states`
+  states held. `github::worst_case` keeps its unit test for the pure plans.
 - **Fuzzy:** random initial forges converge, and a second run writes only
   the hooks' patches (testing-strategy.md, section 8).
 - **Against a real forge,** the conformance records sections 8's and

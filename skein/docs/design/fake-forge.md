@@ -1185,12 +1185,13 @@ the fake.
   `tests/fake-peers`: installation rows and listed reach, minted and person
   tokens, App grants and events, manifest states and blob records are full,
   with a queued pull in every domain repository. The hosted test fills both
-  connection slots and checks each owner iteration against `Host::worst_case`;
-  its measured heap also includes the simulator and client.
+  connection slots and checks the owner's measured peak at each iteration
+  against the ceiling its scenario names, with headroom (shell.md, 12);
+  the simulator and client are metered outside the owner's calls.
   The API/browser and blob listeners share the peer's connection limit
   and io buffers; admission reserves two listener sockets. Each accepted
-  connection uses the same bounded HTTP envelope. `worst_case` also
-  counts the blob record slots and paths, seed key, configured origins
+  connection uses the same bounded HTTP envelope. The scenario's ceiling
+  also covers the blob record slots and paths, seed key, configured origins
   and signed-target scratch.
 - **The budget** is the focused suite's, as section 8 says. The conformance
   against the fake (section 11) runs there as one test, within 6 seconds (3
