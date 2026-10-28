@@ -16,7 +16,8 @@ Provisional, 2026-10-28. One Claude session, the user's: it designs, and it runs
 - Contracts, not history: no task reports, figures, line numbers, roles, tasks or tools in a project's design.
 - One document per area, changed in place; the house style: a title, a dated status line, "1. In one page" with bold-led bullets, then numbered sections, cited as "lib.md, 5"; never renumber; new material goes in a new subsection or a new last section.
 - Each document has a "Later" section (what is out of scope now) and a status file beside it, `<doc>.status.md`: where the code lags or departs, kept current from the leads' reports.
-- A part is ready when a lead can sketch its tasks without guessing at a boundary. Codex reviews each part read-only (about 5 minutes, at most 10 lines: contradictions, layering breaches, gaps).
+- A part is ready when a lead can sketch its tasks without guessing at a boundary. Codex reviews each part read-only (about 5 minutes, at most 10 lines: contradictions, layering breaches, gaps). For what is hard to reverse (stored formats, public interfaces, protocols) the review comes before the part goes to a lead; for the rest it runs beside the lead's first tasks, and its findings amend the part.
+- **A consistency pass** every few parts: a read-only Codex run over the documents changed since the last pass, for contradictions between documents and drift between a document and its status file.
 - Design lands docs-only through the merge queue: no build.
 
 ## 3. Running the pipeline
