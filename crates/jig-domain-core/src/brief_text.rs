@@ -626,6 +626,7 @@ mod tests {
         let mut transcript = Transcript {
             window: None,
             closed: false,
+            loaded: true,
             previous_attempt: 1,
             last: None,
             from: 1,

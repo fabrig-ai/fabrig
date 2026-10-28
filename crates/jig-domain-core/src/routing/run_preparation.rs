@@ -265,6 +265,9 @@ fn wait_for_account(core: &mut Core, work: &mut Queue<Event>, context: Box<tasks
 }
 
 pub(super) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, task: u64) -> Requests {
+    if let Some(transcript) = core.transcripts.get_mut(&task) {
+        transcript.loaded = true;
+    }
     let mut out = Queue::with_capacity(1);
     let Some(context) = core.contexts.get(&task) else {
         out.push(Request::Decided);

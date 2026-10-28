@@ -29,6 +29,8 @@ pub struct Transcript {
     pub window: Option<(u64, u32)>,
     /// An upgrade closed the loaded window or crossed its claim.
     pub closed: bool,
+    /// The preparation has received its final store page.
+    pub loaded: bool,
     pub previous_attempt: u64,
     pub last: Option<(u64, u32)>,
     pub from: u64,
@@ -41,6 +43,32 @@ pub struct Transcript {
 }
 
 impl Core {
+    /// The bytes the run preparations hold or are about to hold, for a
+    /// composing root's byte budget (skein's draft `dynamic-memory.md`,
+    /// 4.5): each preparation counts at its resume allowance from its start
+    /// until its load is in, then at the turn bodies and text it keeps.
+    #[must_use]
+    pub fn transcript_bytes(&self) -> u64 {
+        let mut bytes = 0_u64;
+        for (_, transcript) in &self.transcripts {
+            if transcript.loaded {
+                bytes = bytes.checked_add(transcript.text_kept).expect("retained transcript text bytes fit u64");
+                for body in &transcript.turns {
+                    bytes = bytes
+                        .checked_add(u64::try_from(body.len()).expect("turn body length fits u64"))
+                        .expect("retained transcript body bytes fit u64");
+                }
+            } else {
+                bytes = bytes
+                    .checked_add(u64::from(self.settings.resume_bytes))
+                    .expect("transcript resume allowances fit u64")
+                    .checked_add(u64::from(self.settings.tail_bytes))
+                    .expect("transcript allowances fit u64");
+            }
+        }
+        bytes
+    }
+
     pub(crate) fn run_credentials(&self, task: u64) -> &[u32] {
         if let Some(credentials) = self.workspace_credentials.get(&task) {
             return credentials;
@@ -222,6 +250,7 @@ impl Core {
                     Transcript {
                         window,
                         closed,
+                        loaded: false,
                         previous_attempt,
                         last: None,
                         from,

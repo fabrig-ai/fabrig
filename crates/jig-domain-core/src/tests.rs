@@ -3448,6 +3448,7 @@ mod accounts_document;
 mod credentials;
 
 mod funding_fixtures;
+mod transcript_bytes;
 mod windows;
 use funding_fixtures::{set_role_authority, set_seed_role_authority};
 
