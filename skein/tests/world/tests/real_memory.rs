@@ -84,7 +84,8 @@ fn kill_returns_pending_buffers_before_exact_child_release() {
         assert_eq!(outcome.killed.len(), 1);
         let (peak, bound) = outcome.killed[0].heap.expect("killed child checked on release");
         assert_eq!(bound, CEILING);
-        assert!(peak >= 60 * 1024 && peak <= CEILING);
+        assert!(peak >= 60 * 1024, "the child held its full payload before the kill");
+        assert!(peak <= CEILING);
         assert_eq!(outcome.heap.as_ref().expect("surviving root metered").len(), 1);
         drop(outcome);
     }
