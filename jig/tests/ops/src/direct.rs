@@ -6,7 +6,7 @@ use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_ops_domain as root;
-use jig_ops_domain_infrastructure as infrastructure;
+use jig_ops_domain_observability as observability;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::VecDeque;
 
@@ -223,11 +223,21 @@ impl Driver {
         self.send(root::Event::Store(root::Store::Committed { number, fill: 0 }));
     }
 
+    /// Queue an input behind those waiting, in arrival order.
+    pub fn enqueue(&mut self, event: root::Event) {
+        self.events.push_back(event);
+    }
+
+    /// Offer the oldest input once, withholding commit answers.
+    pub fn drive_inputs_once(&mut self) {
+        if let Some(event) = self.events.pop_front() {
+            self.send_retaining(event);
+        }
+    }
+
     pub fn settle(&mut self) {
         for _ in 0..STEPS {
-            if let Some(event) = self.events.pop_front() {
-                self.send_retaining(event);
-            }
+            self.drive_inputs_once();
             if !self.pending.is_empty() {
                 self.commit_one();
             }
@@ -242,10 +252,11 @@ impl Driver {
     pub fn fill_to_watermark(&mut self) {
         let returned = self.returned;
         for _ in 0..=self.env.limits.watermark {
-            self.send(root::Event::Infrastructure(infrastructure::Event::Names {
-                project: 1,
+            self.send(root::Event::Observability(observability::Event::Subscribe {
                 task: PRESSURE_TASK,
-                resources: Box::new([infrastructure::Resource::Service(crate::infra_service())]),
+                topic: observability::Topic::Alerts(crate::service()),
+                wake_at: 5,
+                keep_at: 1,
             }));
             if self.returned > returned {
                 return;
