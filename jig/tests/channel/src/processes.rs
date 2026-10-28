@@ -37,6 +37,7 @@ pub(crate) struct ServiceHost {
     held: Queue<kernel::Submit>,
     pub(crate) relay: Relay,
     pub(crate) revision: (u64, u64),
+    pub(crate) order_probe: Option<crate::worker_orders::probe::Probe>,
 }
 impl ServiceHost {
     fn new(service: Service, worker: bool) -> Self {
@@ -57,6 +58,7 @@ impl ServiceHost {
             held: Queue::with_capacity(4),
             relay: Relay::new(1024),
             revision: (NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed), 0),
+            order_probe: None,
         }
     }
 }
@@ -68,14 +70,32 @@ impl Host for ServiceHost {
             }
         }
         self.relay.receive(now, self.service.completions());
+        if let Some(probe) = &mut self.order_probe {
+            probe.receive(self.service.completions(), &self.wire);
+        }
         for complete in self.service.completions().iter() {
             self.wire.complete(complete, self.worker, now);
             self.files.complete(complete);
         }
+        let steps = self.service.root_steps();
+        let waits = self.service.worker(0).map_or(0, |worker| worker.admission_waits());
         jig_test_service::iterate(&mut self.service, now, wall);
+        let after_waits = self.service.worker(0).map_or(0, |worker| worker.admission_waits());
+        if let Some(probe) = &mut self.order_probe {
+            probe.stepped(self.service.root_steps().saturating_sub(steps), after_waits.saturating_sub(waits));
+        }
         self.revision.1 += 1;
         for _ in 0..self.service.submissions().len() {
             let mut submit = self.service.submissions().pop().expect("service submissions");
+            if let Some(probe) = &mut self.order_probe {
+                match probe.submitted(submit) {
+                    Ok(found) => submit = found,
+                    Err(complete) => {
+                        self.service.completions().push(complete);
+                        continue;
+                    }
+                }
+            }
             if self.corrupt_transcript {
                 self.files.corrupt_transcript(&mut submit.kind, &self.codec);
             }
@@ -350,6 +370,9 @@ fn secrets(grants: &mut Vec<Box<[u8]>>, grant: &jig_protocol_worker_wire::Grant)
 }
 
 impl Wire {
+    pub(crate) fn hello_sent(&self) -> bool {
+        self.frames.iter().any(|(_, kind, _)| *kind == jig_protocol_worker_wire::Kind::Hello.number())
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "one observer records worker frames and checks the independent placement fence"
