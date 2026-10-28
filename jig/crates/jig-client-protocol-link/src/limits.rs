@@ -1,7 +1,6 @@
 //! Fixed attempt admission and receiving bounds (protocol/client.md, 13).
-use crate::component::Attempt;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{Duration, Map};
+use skein_lib::Duration;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub client: jig_client_domain::Limits,
@@ -222,35 +221,9 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
 pub fn valid(limits: &Limits) -> bool {
     limits.exchanges != 0
         && wire(&limits.client) == Some(limits.wire)
-        && max_out(limits).is_some()
         && limits.client.watches != 0
         && limits.client.heartbeat != Duration::ZERO
         && crate::store::valid(limits)
         && w::Authorize::worst_case_bytes(&limits.wire).is_some()
         && w::AuthorizeAnswer::worst_case_bytes(&limits.wire).is_some()
-}
-
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if !valid(limits) {
-        return None;
-    }
-    let map = Map::<skein_lib::Token, Attempt>::worst_case(limits.exchanges)?;
-    map.checked_add(u64::from(limits.exchanges).checked_mul(40)?)?
-        .checked_add(skein_lib::List::<skein_lib::Token>::worst_case(limits.exchanges)?)?
-        .checked_add(crate::watches::worst_case(limits)?)?
-        .checked_add(skein_lib::List::<skein_lib::Token>::worst_case(limits.client.watches)?)?
-        .checked_add(crate::store::worst_case(limits)?)?
-        // Authorization owns its encoded query and decoded redirect only for this step.
-        .checked_add(w::Authorize::worst_case_bytes(&limits.wire)?.checked_mul(2)?)?
-        .checked_add(w::AuthorizeAnswer::worst_case_bytes(&limits.wire)?.checked_mul(2)?)?
-        .checked_add(40)
-}
-
-#[must_use]
-pub fn max_out(limits: &Limits) -> Option<u32> {
-    let per_event = limits.client.watches.checked_mul(3)?.checked_add(limits.exchanges)?.checked_add(20)?;
-    per_event
-        .checked_add(limits.exchanges.checked_mul(2)?)?
-        .checked_add(limits.client.requests.requests.checked_mul(2)?)
 }

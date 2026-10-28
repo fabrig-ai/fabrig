@@ -1,6 +1,5 @@
 //! Bounded client handles and engine watch documents (client/domain/client.md, 14).
-use crate::{Handle, domain::HandleState, watches::Watch};
-use skein_lib::{Duration, List, Map, RequestLimits, RequestTable};
+use skein_lib::{Duration, RequestLimits};
 /// A carried value's most bytes: the client wire's bound on `Keyed.value`
 /// (protocol/client.md, 5).
 pub const VALUE_BYTES: usize = 131_072;
@@ -44,23 +43,6 @@ pub struct Limits {
     pub parts: u32,
     pub heartbeat: Duration,
 }
-#[must_use]
-pub fn max_out(limits: &Limits) -> u32 {
-    limits
-        .handles
-        .checked_mul(2)
-        .expect("validated handles")
-        .checked_add(limits.watches)
-        .expect("validated output bound")
-        .checked_add(limits.reads)
-        .expect("validated read output")
-        .checked_add(limits.requests.out)
-        .expect("validated table output")
-        .checked_add(limits.requests.requests.checked_mul(2).expect("validated request count"))
-        .expect("validated progress output")
-        .checked_add(1)
-        .expect("validated drop output")
-}
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
@@ -80,49 +62,5 @@ pub fn valid(limits: &Limits) -> bool {
     if u32::try_from(limits.owners.len()).is_err() {
         return false;
     }
-    output_bound(limits).is_some()
-}
-
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if !valid(limits) {
-        return None;
-    }
-    let own = Map::<Handle, HandleState>::worst_case(limits.handles)?
-        .checked_add(Map::<u64, Watch>::worst_case(limits.watches)?)?;
-    let owners = u32::try_from(limits.owners.len()).ok()?;
-    let own = own
-        .checked_add(List::<crate::domain::Owner>::worst_case(owners)?)?
-        .checked_add(List::<u16>::worst_case(owners)?)?
-        .checked_add(List::<skein_lib::Token>::worst_case(limits.requests.requests)?)?
-        .checked_add(Map::<Handle, crate::reads::PendingRead>::worst_case(limits.reads)?)?;
-    let own = own
-        .checked_add(List::<Handle>::worst_case(limits.handles)?)?
-        .checked_add(List::<u64>::worst_case(limits.watches)?)?;
-    let own = own
-        .checked_add(RequestTable::<crate::Key, crate::Held>::worst_case(&limits.requests)?)?
-        .checked_add(Map::<crate::Key, crate::requests::PendingRequest>::worst_case(limits.requests.requests)?)?
-        .checked_add(limits.requests.bytes.checked_mul(2)?)?;
-    // Requests carrying a value, held beside the table within its bytes; one value passes through a step.
-    let own = own
-        .checked_add(Map::<crate::Key, crate::carried::Carrying>::worst_case(limits.requests.requests)?)?
-        .checked_add(limits.requests.bytes)?
-        .checked_add(u64::try_from(VALUE_BYTES).ok()?)?;
-    let own = own.checked_add(
-        u64::from(limits.handles.checked_add(limits.watches)?).checked_mul(u64::from(limits.turn_bytes))?,
-    )?;
-    own.checked_add(
-        u64::from(limits.handles.checked_add(limits.watches)?).checked_mul(limits.document_bytes.checked_mul(2)?)?,
-    )
-}
-
-fn output_bound(limits: &Limits) -> Option<u32> {
-    limits
-        .handles
-        .checked_mul(2)?
-        .checked_add(limits.watches)?
-        .checked_add(limits.reads)?
-        .checked_add(limits.requests.out)?
-        .checked_add(limits.requests.requests.checked_mul(2)?)?
-        .checked_add(1)
+    true
 }

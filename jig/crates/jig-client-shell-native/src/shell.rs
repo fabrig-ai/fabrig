@@ -34,7 +34,6 @@ pub struct Transport {
     owner: u64,
     closing: bool,
     max: u32,
-    body_bytes: u32,
 }
 pub struct Shell {
     pub(super) transport: Transport,
@@ -210,7 +209,6 @@ impl Transport {
             owner,
             closing: false,
             max: sockets,
-            body_bytes: limits.body_bytes,
         }
     }
     pub fn down(&mut self, now: Time, request: client::Request) {
@@ -265,14 +263,11 @@ impl Transport {
     }
     /// Call once per host iteration, after io events and before io's reclaim.
     pub fn iterate(&mut self, now: Time, events: &mut Queue<client::Event>, requests: &mut Queue<io::Request>) {
-        // The caller may pass a capped request queue; keep room checks until callers adapt.
         if self.closing {
             while self.below.pop().is_some() {}
             for socket in self.sockets.values_mut() {
                 socket.below.clear();
-                if requests.room() > 0
-                    && let Some(entity) = socket.entity.take()
-                {
+                if let Some(entity) = socket.entity.take() {
                     requests.push(io::Request::Abort { entity });
                 }
             }
@@ -285,7 +280,6 @@ impl Transport {
         self.sockets.retain(|_, socket| !socket.closed && (!self.closing || socket.started));
     }
     fn pump(&mut self, requests: &mut Queue<io::Request>) {
-        // The caller may pass a capped request queue; keep room checks until callers adapt.
         while let Some((conn, down)) = self.below.pop() {
             if !self.sockets.contains_key(&conn) {
                 if matches!(down, Down::Finish) {
@@ -302,7 +296,7 @@ impl Transport {
         let names: Vec<_> = self.sockets.keys().copied().collect();
         for conn in names {
             let socket = self.sockets.get_mut(&conn).expect("socket name");
-            if !socket.started && requests.room() > 0 {
+            if !socket.started {
                 socket.started = true;
                 requests.push(io::Request::Connect {
                     owner: Token::new(self.owner | u64::from(conn.0)),
@@ -310,7 +304,7 @@ impl Transport {
                 });
             }
 
-            while requests.room() > 0 {
+            loop {
                 let socket = self.sockets.get_mut(&conn).expect("socket name");
                 if !socket.connected {
                     break;
@@ -423,12 +417,6 @@ impl Shell {
     pub fn operations(&self) -> u32 {
         io::operations(&self.env.limits).expect("io operations") + 2
     }
-    #[must_use]
-    pub fn worst_case(&self) -> u64 {
-        io::worst_case(&self.env.limits).expect("io memory")
-            + self.transport.worst_case(&self.env.limits)
-            + Queue::<io::Request>::worst_case(self.max * 64).expect("io request queue")
-    }
 }
 impl Transport {
     #[must_use]
@@ -449,14 +437,6 @@ impl Transport {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.sockets.is_empty() && self.below.is_empty() && !self.connections.waiting()
-    }
-    #[must_use]
-    pub fn worst_case(&self, io: &io::Limits) -> u64 {
-        self.connections.stream_memory()
-            + u64::from(self.max)
-                * 256
-                * (u64::from(io.intake) + u64::from(io.output) + u64::from(self.body_bytes) + 1024)
-            + u64::from(self.max) * u64::from(io.intake)
     }
 }
 
