@@ -366,6 +366,11 @@ pub enum Event {
 pub enum SystemEvent {
     /// Fresh facts for one service.
     Fact { service: Service, fact: Fact },
+    /// A fact's admitted part: keep it, settle refresh and judges, update
+    /// incidents and alerts, and mark subjects without health news.
+    FactSettle { service: Service, fact: Fact },
+    /// Health news for subscribers if the kept replica count differs from `from`.
+    HealthChanged { service: Service, from: u32 },
     /// An alert; own echoes are dropped.
     Alert { alert: Alert, own: bool },
     /// A read's bounded answer.

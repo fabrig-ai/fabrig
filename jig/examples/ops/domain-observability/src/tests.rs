@@ -668,3 +668,91 @@ fn validity_does_not_price_retained_heap() {
     let limits = Limits { services: u32::MAX, name_bytes: u32::MAX, samples_per_service: u32::MAX, ..limits() };
     assert!(valid(&limits));
 }
+
+// A stale prior fact keeps the judge waiting; the next count changes health.
+const HEALTH_SUBSCRIBER: u64 = 7;
+const WAITING_JUDGE: Token = Token::new(1);
+const FRESH_SECONDS: u64 = 30;
+
+fn health_split_fixture() -> Domain {
+    let mut domain = Domain::new(&limits());
+    event(&mut domain, 0, Event::System(SystemEvent::Fact { service: service(), fact: fact(0, 20) }));
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::Subscribe { task: HEALTH_SUBSCRIBER, topic: Topic::Health(service()), wake_at: 5, keep_at: 1 },
+    );
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::Judge {
+            token: WAITING_JUDGE,
+            requirement: Requirement::HealthyReplicaElsewhere,
+            service: service(),
+            freshness: 0,
+        },
+    );
+    domain
+}
+
+fn changed_health() -> SystemEvent {
+    let mut next = fact(FRESH_SECONDS, 20);
+    next.healthy_replicas = 1;
+    SystemEvent::Fact { service: service(), fact: next }
+}
+
+fn split_env() -> Env<Limits> {
+    Env { now: Time::from_nanos(FRESH_SECONDS), wall: Wall::from_nanos(30_000_000_000), limits: limits() }
+}
+
+#[test]
+fn a_whole_health_fact_equals_settlement_then_news() {
+    let mut whole = health_split_fixture();
+    let mut parts = health_split_fixture();
+    let mut expected = event(&mut whole, FRESH_SECONDS, Event::System(changed_health()));
+    let (settle, rest) = split(&parts, &split_env(), changed_health()).expect("fact splits");
+    let mut combined = event(&mut parts, FRESH_SECONDS, Event::System(settle));
+    let mut news = event(&mut parts, FRESH_SECONDS, Event::System(rest.expect("changed count has news")));
+    while let Some(request) = news.pop() {
+        combined.push(request);
+    }
+    assert!(whole.facts.iter().eq(parts.facts.iter()));
+    assert!(whole.incidents.iter().eq(parts.incidents.iter()));
+    assert!(whole.alerts.iter().eq(parts.alerts.iter()));
+    let mut pinned = Queue::uncapped();
+    while let Some(request) = expected.pop() {
+        assert_eq!(combined.pop(), Some(request.clone()));
+        pinned.push(request);
+    }
+    assert!(combined.is_empty());
+    // Both counts are healthy: a count change still carries news.
+    assert_eq!(pinned.pop(), Some(Request::Changed { service: service() }));
+    assert_eq!(pinned.pop(), Some(Request::Verdict { token: WAITING_JUDGE, verdict: Verdict::Refuse }));
+    assert_eq!(
+        pinned.pop(),
+        Some(Request::Health {
+            service: service(),
+            healthy: true,
+            subscribers: Box::new([Classed {
+                task: HEALTH_SUBSCRIBER,
+                subscription: HEALTH_SUBSCRIBER,
+                class: Class::Keep
+            }]),
+        })
+    );
+    assert!(pinned.is_empty());
+}
+
+#[test]
+fn deferred_health_rechecks_the_kept_replica_count() {
+    let mut domain = health_split_fixture();
+    let (settle, rest) = split(&domain, &split_env(), changed_health()).expect("fact splits");
+    event(&mut domain, FRESH_SECONDS, Event::System(settle));
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::System(SystemEvent::FactSettle { service: service(), fact: fact(FRESH_SECONDS, 20) }),
+    );
+    let out = event(&mut domain, FRESH_SECONDS, Event::System(rest.expect("changed count")));
+    assert!(out.is_empty(), "returning to the captured count cancels health news and never replays a judge");
+}

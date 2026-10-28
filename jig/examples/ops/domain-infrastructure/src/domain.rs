@@ -258,17 +258,105 @@ fn drift(domain: &Domain, resource: Resource, out: &mut Queue<Request>) {
     }
 }
 
+fn service_fact_valid(domain: &Domain, env: &Env<Limits>, service: &Service) -> bool {
+    resource_valid(&Resource::Service(service.clone()), &env.limits)
+        && (domain.services.len() < env.limits.services || domain.services.contains_key(service))
+}
+
+fn environment_fact_valid(domain: &Domain, env: &Env<Limits>, environment: &Environment) -> bool {
+    resource_valid(&Resource::Environment(environment.clone()), &env.limits)
+        && (domain.environments.len() < env.limits.environments || domain.environments.contains_key(environment))
+}
+
+/// Split a mixed system fact into settlement and optional drift;
+/// other system events come back unchanged (jig/docs/design/domain/root.md, 3).
+pub fn split(
+    domain: &Domain,
+    env: &Env<Limits>,
+    event: SystemEvent,
+) -> Result<(SystemEvent, Option<SystemEvent>), SystemEvent> {
+    match event {
+        SystemEvent::Service { service, fact, other_hand: true } => {
+            let mut rest = None;
+            if service_fact_valid(domain, env, &service)
+                && let Some(prior) = domain.services.get(&service)
+                && prior.revision != fact.revision
+            {
+                rest = Some(SystemEvent::ServiceDrift { service: service.clone(), from: prior.revision });
+            }
+            Ok((SystemEvent::ServiceSettle { service, fact }, rest))
+        }
+        SystemEvent::Environment { environment, fact: None, other_hand: true } => {
+            let mut rest = None;
+            if environment_fact_valid(domain, env, &environment) && domain.made.contains_key(&environment) {
+                rest = Some(SystemEvent::EnvironmentDrift {
+                    from: domain.environments.get(&environment).copied(),
+                    environment: environment.clone(),
+                });
+            }
+            Ok((SystemEvent::EnvironmentSettle { environment, fact: None }, rest))
+        }
+        event @ (SystemEvent::Service { other_hand: false, .. }
+        | SystemEvent::Environment { other_hand: false, .. }
+        | SystemEvent::Environment { other_hand: true, fact: Some(_), .. }
+        | SystemEvent::Drift { .. }
+        | SystemEvent::ServiceSettle { .. }
+        | SystemEvent::ServiceDrift { .. }
+        | SystemEvent::EnvironmentSettle { .. }
+        | SystemEvent::EnvironmentDrift { .. }
+        | SystemEvent::Pool { .. }
+        | SystemEvent::Applied { .. }
+        | SystemEvent::Looked { .. }) => Err(event),
+    }
+}
+
+fn service_drift(domain: &mut Domain, env: &Env<Limits>, service: Service, from: u64, out: &mut Queue<Request>) {
+    let Some(fact) = domain.services.get(&service) else { return };
+    if fact.revision == from {
+        return;
+    }
+    let resource = Resource::Service(service);
+    crate::drift_accounts::observed(
+        domain,
+        env,
+        crate::DriftAccount { resource: resource.clone(), kind: crate::DriftKind::Changed, at: env.wall, by: None },
+        out,
+    );
+    drift(domain, resource, out);
+}
+
+#[expect(clippy::option_option, reason = "the captured baseline distinguishes a missing row from cached absence")]
+fn environment_drift(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    environment: Environment,
+    from: Option<Option<EnvironmentFact>>,
+    out: &mut Queue<Request>,
+) {
+    if domain.environments.get(&environment) != Some(&None) || !domain.made.contains_key(&environment) {
+        return;
+    }
+    let resource = Resource::Environment(environment);
+    if from != Some(None) {
+        crate::drift_accounts::observed(
+            domain,
+            env,
+            crate::DriftAccount { resource: resource.clone(), kind: crate::DriftKind::Deleted, at: env.wall, by: None },
+            out,
+        );
+    }
+    // An absence already cached still tells every reliant task.
+    drift(domain, resource, out);
+}
+
 fn fresh_service(
     domain: &mut Domain,
     env: &Env<Limits>,
     service: Service,
     fact: ServiceFact,
-    other_hand: bool,
     out: &mut Queue<Request>,
 ) {
-    if !resource_valid(&Resource::Service(service.clone()), &env.limits)
-        || domain.services.len() >= env.limits.services && !domain.services.contains_key(&service)
-    {
+    if !service_fact_valid(domain, env, &service) {
         return;
     }
     domain.refresh.remove(&Resource::Service(service.clone()));
@@ -292,20 +380,6 @@ fn fresh_service(
     if old != Some(fact.clone()) || !ready.is_empty() {
         out.push(Request::Changed { resource: Resource::Service(service.clone()) });
     }
-    let revised = match old {
-        Some(before) => before.revision != fact.revision,
-        None => false,
-    };
-    if other_hand && revised {
-        let resource = Resource::Service(service);
-        crate::drift_accounts::observed(
-            domain,
-            env,
-            crate::DriftAccount { resource: resource.clone(), kind: crate::DriftKind::Changed, at: env.wall, by: None },
-            out,
-        );
-        drift(domain, resource, out);
-    }
 }
 
 fn fresh_environment(
@@ -313,12 +387,9 @@ fn fresh_environment(
     env: &Env<Limits>,
     environment: Environment,
     fact: Option<EnvironmentFact>,
-    other_hand: bool,
     out: &mut Queue<Request>,
 ) {
-    if !resource_valid(&Resource::Environment(environment.clone()), &env.limits)
-        || domain.environments.len() >= env.limits.environments && !domain.environments.contains_key(&environment)
-    {
+    if !environment_fact_valid(domain, env, &environment) {
         return;
     }
     domain.application.reconcile(&environment, fact, out);
@@ -326,23 +397,6 @@ fn fresh_environment(
     let old = domain.environments.insert(environment.clone(), fact).expect("environment capacity checked");
     if old != Some(fact) {
         out.push(Request::Changed { resource: Resource::Environment(environment.clone()) });
-    }
-    if other_hand && fact.is_none() && domain.made.contains_key(&environment) {
-        let resource = Resource::Environment(environment);
-        if old != Some(fact) {
-            crate::drift_accounts::observed(
-                domain,
-                env,
-                crate::DriftAccount {
-                    resource: resource.clone(),
-                    kind: crate::DriftKind::Deleted,
-                    at: env.wall,
-                    by: None,
-                },
-                out,
-            );
-        }
-        drift(domain, resource, out);
     }
 }
 
@@ -974,11 +1028,29 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::System(system) => match system {
             SystemEvent::Drift { account } => crate::drift_accounts::observed(domain, env, account, out),
-            SystemEvent::Service { service, fact, other_hand } => {
-                fresh_service(domain, env, service, fact, other_hand, out);
+            whole @ (SystemEvent::Service { other_hand: true, .. }
+            | SystemEvent::Environment { other_hand: true, fact: None, .. }) => {
+                let (settle, rest) = split(domain, env, whole).expect("a whole fact splits");
+                let mut parts = Queue::uncapped();
+                step(domain, env, Event::System(settle), &mut parts);
+                if let Some(rest) = rest {
+                    step(domain, env, Event::System(rest), &mut parts);
+                }
+                while let Some(request) = parts.pop() {
+                    out.push(request);
+                }
+                return;
             }
-            SystemEvent::Environment { environment, fact, other_hand } => {
-                fresh_environment(domain, env, environment, fact, other_hand, out);
+            SystemEvent::Service { service, fact, other_hand: false }
+            | SystemEvent::ServiceSettle { service, fact } => fresh_service(domain, env, service, fact, out),
+            SystemEvent::ServiceDrift { service, from } => service_drift(domain, env, service, from, out),
+            SystemEvent::Environment { environment, fact, other_hand: false }
+            | SystemEvent::Environment { environment, fact: fact @ Some(_), other_hand: true }
+            | SystemEvent::EnvironmentSettle { environment, fact } => {
+                fresh_environment(domain, env, environment, fact, out);
+            }
+            SystemEvent::EnvironmentDrift { environment, from } => {
+                environment_drift(domain, env, environment, from, out);
             }
             SystemEvent::Pool { pool, quota, used } => fresh_pool(domain, env, pool, quota, used, out),
             SystemEvent::Applied { key, attempt, result } => applied(domain, key, attempt, result, out),
