@@ -1,6 +1,6 @@
 # The worker
 
-Provisional, 2026-10-04, revised 2026-10-22. What temper's worker does,
+Provisional, 2026-10-04, revised 2026-10-28. What temper's worker does,
 as a domain layer: its root, which composes jig's hub with smith's host
 domain and temper's checkout; the items an assignment gives a run's
 workspace; and the checkout, which is temper's own. The worker hosts the
@@ -109,6 +109,37 @@ what crosses: jig's link records, with temper's parts beside an
 assignment and an answer; smith's payloads by hand-out; the agent
 processes' io, as smith's host domain defines it; and the checkout's git
 and file operations.
+
+### 3.1 Admission and its orders
+
+The worker's root admits by a watermark, as every root does (skein's
+programming-model.md, 7.1). The queues between its children are
+uncapped and no route reserves room; the link to the engine, a host's
+channel and the kernel's queues are its edges and stay capped.
+
+- **The backlog** is the entries in the uncapped queues between its
+  children; **the watermark** a field of its `Limits`, at twice the old
+  room of one entrance's largest output (`2 × max_out` at the stock
+  `small` profile), set where the worker's limits are, with no key in
+  temper's documents.
+- **New work waits:** an assignment, a message, a check and a sign-out
+  from the engine wait at the watermark, in the link's capped queue in
+  order. **Everything else is always taken**: the children's
+  completions, the agent processes' io, the checkout's operations, the
+  sources and the resume (bounded by the accounts).
+- **What passes a held assignment:** the engine's answers about admitted
+  runs' turns and calls (a turn kept, an acknowledgement, a relay and
+  its cancel, a resend), in order, up to the next new record. **What
+  waits behind it** as new work does: a cancel or a grant naming a run,
+  and the link's own state (ready, lost, a grace passed), since each must
+  follow an assignment sent before it: a cancel that passed would be
+  dropped as unknown and its run started after, and a run would start
+  after its grace passed or across a new hello.
+- **Its orders, stated** (programming-model.md, 7.2), each a world test
+  under load: a hand-off before the next entrance's; a capability's
+  hand-outs in order, and an end after its last hand-out; one entrance
+  dispatched before the next; a run's progress before its watchdog; and
+  the link's records after the assignment they name, as above.
 
 ## 4. Hosted runs
 
@@ -444,8 +475,9 @@ process has exited and its tree is empty. temper's choices:
   are.
 - **The worker's own facts:** each child domain's, content-free (tokens,
   kinds and counts, never a name, a branch or a message), gathered after
-  every entry point into one bounded queue the loop drains, for
-  operators. What does not fit is dropped and counted.
+  every entry point into one capped queue the loop drains, for
+  operators: a sink that drops and counts (skein's programming-model.md,
+  section 3), since nothing in production reads it to the end.
 
 Nothing the worker or the engine decides depends on a fact arriving, and
 no fact holds a slot.
