@@ -21,8 +21,8 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // A Create member owns stock's ten grants and four executors, plus its words.
-    value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 1024.into();
+    // A Create member owns stock's fourteen grants and six executors, plus its words.
+    value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
@@ -41,13 +41,16 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["authority.executors"] = 6.into();
     value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 6.into();
     value["engine"]["limits"]["overrides"]["authority.grants"] = 16.into();
-    // A chat copies stock policy 1's ten grants into its task authority.
+    // A chat copies stock policy 1's fourteen grants into its task authority.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
+    // Fourteen literal "forge" segments need seventy bytes, beyond the kit fixture's 64.
+    value["engine"]["limits"]["overrides"]["tasks.authority_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["notes.scopes"] = 32.into();
     value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 4096.into();
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 2.into();
+    // The creation offer carries all three stock procedures in one list.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
