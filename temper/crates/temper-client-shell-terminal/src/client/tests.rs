@@ -450,23 +450,37 @@ fn a_chat_keeps_its_activity_read_through_local_exchange_pressure() {
 
 #[test]
 fn a_snapshot_retains_the_latest_activity_refusal_without_its_payload() {
-    use jig_client_protocol_wire as w;
     let mut host = fixtures::loaded_chat();
     let (exchange, _) = fixtures::activity_read(&mut host);
-    let answer = w::ReadAnswer::None(
-        w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Busy })
-            .expect("read refusal"),
-    );
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("refusal length"));
-    answer.encode(&mut bytes).expect("refusal fits");
-    host.transport(jig_client::Event::Reply { exchange, message: bytes.finish() });
+    host.transport(jig_client::Event::Reply { exchange, message: fixtures::busy_activity_answer() });
     let snapshot = host.pending();
     let chat = snapshot.chat.as_ref().expect("chat snapshot");
     assert_eq!(chat.last_read_none, Some(jig_client::contract::ReadNone::Busy));
-    assert!(chat.reading.is_none(), "diagnostic metadata does not retry the read");
+    assert!(chat.reading.is_some(), "the page retains the read position while waiting to retry");
     assert!(chat.retained.is_empty());
     let rendered = format!("{snapshot:?}");
     assert!(!rendered.contains(std::str::from_utf8(fixtures::credential().expose()).expect("fixture credential")));
     assert!(!rendered.contains("Token("));
     assert_eq!(rendered, format!("{:?}", host.pending()), "snapshot is observational");
+}
+
+#[test]
+fn a_busy_activity_read_is_asked_again_and_the_reply_arrives() {
+    let mut host = fixtures::committed_chat();
+    let (exchange, _) = fixtures::activity_read(&mut host);
+    host.transport(jig_client::Event::Reply { exchange, message: fixtures::busy_activity_answer() });
+    let due = host.env.now.saturating_add(skein_lib::Duration::from_secs(1));
+    assert_eq!(domain::pages::next_deadline(host.root.pages()), Some(due));
+    assert!(fixtures::activity_reads(&mut host).is_empty(), "the transient end waits");
+    host.env.now = due;
+    domain::fire(&mut host.root, &host.env, &mut host.out);
+    let (retry, _) = fixtures::activity_read(&mut host);
+    host.transport(jig_client::Event::Reply { exchange: retry, message: fixtures::committed_activity_answer() });
+    let chat = host.root.pages().chat().expect("chat");
+    assert_eq!(chat.thread.loaded, fixtures::COMMITTED);
+    let lines = chat.thread.lines();
+    let [jig_client::thread::Line::Turn { turn, .. }] = lines.as_slice() else { panic!("committed reply") };
+    assert!(!turn.messages.is_empty(), "the committed reply was decoded through the wire");
+    assert!(chat.thread.reading.is_none());
+    assert_eq!(domain::pages::next_deadline(host.root.pages()), None);
 }

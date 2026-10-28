@@ -120,6 +120,10 @@ pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
         w::ActivityPageParts { cut: false, rows: rows.finish(), before: None, after: None },
     )
     .expect("quiet activity page");
+    activity_page_answer(page)
+}
+
+fn activity_page_answer(page: w::ActivityPage) -> Box<[u8]> {
     let value = w::ReadValue::Activity(page);
     let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).expect("value fits"));
     value.encode(&mut bytes).expect("value room");
@@ -282,4 +286,103 @@ pub(super) fn activity_done(host: &mut NativeClient, read: skein_lib::Token, non
             },
         },
     });
+}
+
+// The delivery announces the fourth activity while the initial read is pending.
+pub(super) const COMMITTED: u64 = 4;
+pub(super) fn committed_activity_answer() -> Box<[u8]> {
+    let row = jig_client_test_records::turn_line(COMMITTED, 1, 1, jig_client_test_records::FULL_TURN);
+    let mut page = jig_client_test_records::activity_rows(&[row]).into_parts();
+    page.cut = false;
+    page.after = None;
+    activity_page_answer(w::ActivityPage::new(&w::CEILINGS, page).expect("committed page"))
+}
+
+pub(super) fn busy_activity_answer() -> Box<[u8]> {
+    let answer = w::ReadAnswer::None(
+        w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Busy })
+            .expect("read refusal"),
+    );
+    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("refusal length"));
+    answer.encode(&mut bytes).expect("refusal fits");
+    bytes.finish()
+}
+
+fn stream_event(event: &w::StreamEvent) -> Box<[u8]> {
+    let mut bytes = skein_lib::Writer::new(usize::try_from(event.measure()).expect("stream event length"));
+    event.encode(&mut bytes).expect("stream event fits");
+    bytes.finish()
+}
+
+fn committed_task() -> w::Task {
+    let mut task = jig_client_test_records::task_record().into_parts();
+    let mut reader = skein_lib::Reader::new(task.chip.rows());
+    let length = reader.u32().expect("root length");
+    let mut root_reader = skein_lib::Reader::new(reader.bytes(length).expect("root bytes"));
+    let w::Fact::Chip(root) = w::Fact::decode(&w::CEILINGS, &mut root_reader).expect("chip root") else {
+        panic!("chip root first")
+    };
+    let mut root = root.into_parts();
+    let mut value = root.value.into_parts();
+    value.task = TASK;
+    root.value = w::ChipFields::new(&w::CEILINGS, value).expect("chat chip");
+    let root = w::Fact::Chip(w::ChipRow::new(&w::CEILINGS, root).expect("chat root"));
+    let root = jig_client_test_records::fact_bytes(&root);
+    let mut rows = skein_lib::Writer::new(root.len() + usize::try_from(reader.remaining()).expect("chip rows length"));
+    rows.put(&root).expect("root fits");
+    rows.put(reader.bytes(reader.remaining()).expect("remaining chip rows")).expect("remaining chip rows fit");
+    task.chip = w::Chip::new(&w::CEILINGS, w::ChipParts { rows: rows.finish() }).expect("chat chip");
+    task.activity = COMMITTED;
+    w::Task::new(&w::CEILINGS, task).expect("chat task")
+}
+
+pub(super) fn committed_chat() -> NativeClient {
+    let mut host = loaded_chat();
+    let served =
+        w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION })
+            .expect("served jig");
+    let mut versions = List::with_capacity(1);
+    versions.push(served).expect("one owner");
+    let hello = w::StreamEvent::Hello(
+        w::Hello::new(
+            &w::CEILINGS,
+            w::HelloParts { stream: [7; 16], served: versions, heartbeat: host.env.limits.client.domain.heartbeat },
+        )
+        .expect("stream hello"),
+    );
+    host.transport(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_event(&hello)) });
+    let mut work = Queue::with_capacity(host.out.capacity());
+    let mut task_watch = None;
+    while let Some(request) = host.out.pop() {
+        if let domain::Request::Client {
+            request: Request::Exchange { message: jig_client::Message::Watch(bytes), .. },
+        } = &request
+        {
+            let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch open");
+            if open.subject().owner() == &w::Owner::Jig {
+                let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
+                    .expect("watch subject");
+                if let w::Subject::Task(task) = subject {
+                    assert_eq!(task.task(), TASK);
+                    task_watch = Some(open.watch());
+                }
+            }
+        }
+        work.push(request);
+    }
+    host.out = work;
+    let value = w::DeliveryValue::Task(Box::new(committed_task()));
+    let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).expect("task length"));
+    value.encode(&mut bytes).expect("task fits");
+    let document = w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() },
+    )
+    .expect("owned task");
+    let delivery = w::StreamEvent::Delivery(
+        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: task_watch.expect("chat task watch"), document })
+            .expect("task delivery"),
+    );
+    host.transport(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_event(&delivery)) });
+    host
 }

@@ -1,5 +1,9 @@
 //! One task's borrowed documents, first activity page and live run handle.
-use super::{Act, Request, inbox::Card};
+use super::{
+    Act, Request,
+    activity::{Asking, READ_FIRST, READ_MOST, signed_out},
+    inbox::Card,
+};
 use crate::address::PlanFilter;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -274,10 +278,6 @@ pub struct Ended {
     pub stale: bool,
 }
 
-// A document attempt belongs to this page, including its next ask (client/README.md, 3.5).
-const READ_FIRST: Duration = Duration::from_secs(1);
-const READ_MOST: Duration = Duration::from_secs(30);
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReadEnd {
     Busy,
@@ -326,6 +326,7 @@ pub struct Task {
     pub document: Handle,
     pub document_read: DocumentRead,
     read_wait: Duration,
+    asking: Asking,
     /// The document that already permitted an ending-triggered panel reopen (client/forge.md, 9.2).
     pub(crate) panel_reopened_at: Option<u64>,
     pub tree: Handle,
@@ -358,12 +359,14 @@ impl Task {
         }
         let mut thread = jig_client::thread::Thread::new(number, &super::chat::thread_limits(limits));
         thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
-        read(activity, c::Read::Activity { task: number, before: None }, out);
+        let mut asking = Asking::new();
+        asking.ask(activity, c::Read::Activity { task: number, before: None }, out);
         Self {
             number,
             document,
             document_read: DocumentRead::Reading,
             read_wait: READ_FIRST,
+            asking,
             panel_reopened_at: None,
             tree,
             activity,
@@ -427,7 +430,7 @@ impl Task {
             Act::Send => self.send(env, client, Sending::Message, serial, out),
             Act::Older => {
                 if let Some(older) = self.thread.older() {
-                    read(self.activity, older, out);
+                    self.asking.ask(self.activity, older, out);
                 }
             }
             Act::Amend
@@ -739,7 +742,7 @@ impl Task {
                 }
             }
             Told::Page { handle, page } if handle == self.activity => {
-                self.activity_page(client, page, out);
+                self.activity_page(now, client, page, out);
             }
             Told::Changed { handle } if handle == self.tree => {
                 self.read_ended(out);
@@ -797,22 +800,7 @@ impl Task {
         self.read_ended_at(now, why);
     }
     fn document_page(&mut self, now: Time, client: &Client, page: Readout, out: &mut Queue<Request>) {
-        let why = match &page {
-            Readout::Limit => ReadEnd::Limit,
-            Readout::NotServed { .. } => ReadEnd::NotServed,
-            Readout::Jig(c::ReadResult::None(why)) => match why {
-                c::ReadNone::Busy => ReadEnd::Busy,
-                c::ReadNone::Unreachable => ReadEnd::Unreachable,
-                c::ReadNone::SignedOut => signed_out(client),
-                c::ReadNone::Unknown => ReadEnd::Unknown,
-                c::ReadNone::Refused => ReadEnd::NotAllowed,
-                c::ReadNone::Gone => ReadEnd::Gone,
-                c::ReadNone::TooLinked { joins } => ReadEnd::TooLinked { joins: *joins },
-                c::ReadNone::TooLarge { .. } => ReadEnd::TooLarge,
-                c::ReadNone::Malformed => ReadEnd::Malformed,
-            },
-            Readout::Jig(c::ReadResult::Value(_)) | Readout::Family { .. } => ReadEnd::Malformed,
-        };
+        let why = super::activity::read_end(client, &page);
         if let Some(task) = super::chat::page_task(page, self.number) {
             self.document_read = DocumentRead::Ready;
             self.changed(&task, out);
@@ -837,25 +825,29 @@ impl Task {
         self.document_read = DocumentRead::Ended { why, retry_at: None };
     }
     pub(crate) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
-        if let Some(at) = self.next_deadline()
+        if let DocumentRead::Ended { retry_at: Some(at), .. } = self.document_read
             && at <= now
         {
             self.document_read = DocumentRead::Reading;
             read(self.document, c::Read::Task { task: self.number }, out);
         }
+        self.asking.fire(now, self.activity, out);
     }
     #[must_use]
     pub(crate) const fn next_deadline(&self) -> Option<Time> {
-        match self.document_read {
+        let document = match self.document_read {
             DocumentRead::Ended { retry_at, .. } => retry_at,
             DocumentRead::Reading | DocumentRead::Ready => None,
-        }
+        };
+        super::activity::earliest(document, self.asking.next_deadline())
     }
-    fn activity_page(&mut self, client: &Client, page: Readout, out: &mut Queue<Request>) {
+    fn activity_page(&mut self, now: Time, client: &Client, page: Readout, out: &mut Queue<Request>) {
+        let why = super::activity::read_end(client, &page);
         if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = page {
+            self.asking.answered();
             if self.shape == Shape::Agent {
                 if let Some(reading) = self.thread.page(*page) {
-                    read(self.activity, reading, out);
+                    self.asking.ask(self.activity, reading, out);
                 }
             } else {
                 self.latest = Some(page);
@@ -865,8 +857,11 @@ impl Task {
             && super::awaits_first_read(&self.thread)
             && self.latest.is_none()
         {
-            read(self.activity, c::Read::Activity { task: self.number, before: None }, out);
+            self.asking.ask(self.activity, c::Read::Activity { task: self.number, before: None }, out);
+        } else if why.transient() {
+            self.asking.ended(now);
         } else {
+            self.asking.answered();
             self.thread.failed();
         }
     }
@@ -977,16 +972,16 @@ impl Task {
             if let Some(page) = self.latest.take()
                 && let Some(reading) = self.thread.page(*page)
             {
-                read(self.activity, reading, out);
+                self.asking.ask(self.activity, reading, out);
             }
             if let Some(reading) = self.thread.document(task) {
-                read(self.activity, reading, out);
+                self.asking.ask(self.activity, reading, out);
             }
         } else {
             if let Some(through) = self.through
                 && through != task.activity
             {
-                read(self.activity, c::Read::Activity { task: self.number, before: None }, out);
+                self.asking.ask(self.activity, c::Read::Activity { task: self.number, before: None }, out);
             }
             self.through = Some(task.activity);
         }
@@ -1027,13 +1022,6 @@ impl Task {
         let task = self.document(client)?;
         let template = jig_client::shapes::template(me?, task.project, jig_client::shapes::CHAT)?;
         if task.label == template.label { Some(Address::Chat { task: self.number }) } else { None }
-    }
-}
-fn signed_out(client: &Client) -> ReadEnd {
-    match client.link().state {
-        jig_client::Link::SignedOut => ReadEnd::SignedOut,
-        jig_client::Link::Starting | jig_client::Link::Live | jig_client::Link::Offline => ReadEnd::SignIn,
-        jig_client::Link::OutOfDate => ReadEnd::NotServed,
     }
 }
 fn handle(number: u64) -> Handle {
