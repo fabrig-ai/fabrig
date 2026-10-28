@@ -1,6 +1,6 @@
 # The application's root
 
-Provisional, 2026-10-07, revised 2026-10-23. What an application's
+Provisional, 2026-10-07, revised 2026-10-28. What an application's
 engine root is and does: the top-level domain every application on jig
 writes, which composes jig's core with the application's connectors and
 its own child domains. It says what the root carries, the one shape
@@ -80,14 +80,16 @@ are connectors.md. What is still open is listed in section 14.
 ## 3. The one shape
 
 ```
+try_step(root, event):                                          ← before any child changes
+    the store's answers, a released output, a completion of admitted work:   always taken
+    an event with admitted and new work:  split: the admitted part taken, the rest handed back
+    new external work:  handed back while the backlog is at the watermark   (section 10)
 step(root, event):
-    room = the worst case of this event's route                  (section 10)
-    journal.takes(room)?  else: answer busy, through the door    ← before any child changes
-    d = journal.decision()
+    d = journal.decide()                        → a decision that cannot fail
     route the event to its child; while a child asks for a hand-off,
         route it to the child that answers, and its answer back   (section 5)
-    every write any child asked for, wrapped    → d.write
-    every held output, put together             → d.hold        (section 7)
+    every write any child asked for, wrapped    → d.push_write
+    every held output, put together             → d.push_held   (section 7)
     every output marked now                     → journal.now
     journal.accept(d)                           → at most one commit, to the store
 
@@ -107,10 +109,17 @@ iterate, after the step:
   The root keeps the mark: a held output goes to `d.hold`, a now one to
   `journal.now`. The door for outputs that decide nothing and show
   nothing durable is one call, so review finds every use.
-- **Admission is all or nothing.** The room is reserved before the
-  event reaches a child; an event the journal cannot take changes
-  nothing, and its sender is answered busy, or keeps it, as engine.md,
-  5.1 says.
+- **Admission is all or nothing,** by a watermark (skein's
+  programming-model.md, 7.1). New external work is admitted while the
+  backlog, the journal's (`backlog()`) with the root's own work and
+  queued store answers, is under the watermark; an event handed back
+  changes nothing, and its sender keeps it and offers it again, as
+  engine.md, 5.1 says. What finishes admitted work is always taken, so
+  the backlog drains. An event that carries both is split: the root
+  steps the admitted part and hands back the rest, an event of its own
+  holding only the new work. No route reserves room, and an order a
+  room check once kept is a named predicate with its test
+  (programming-model.md, 7.2).
 - **One decision per event.** Hand-offs complete within the step;
   nothing of a decision is left for a later step but what a child holds
   in its own state, saying so (a brief gathering, a load awaited).
@@ -139,14 +148,15 @@ The journal is a container of skein-lib's (skein's `lib.md`), generic
 over the writes and outputs it holds, as lib's queue is over its items.
 It inspects nothing it holds. What jig asks of it:
 
-- **Admission by counts:** `takes(room)` answers whether a decision with
-  at most so many writes and held outputs fits within the commits in
-  flight, the writes per commit and the outputs held; nothing changes
-  when it does not.
-- **A decision:** a value, `#[must_use]` and not `Clone`, that gathers
-  one decision's writes and held outputs, each refused with ownership
-  returned past what it reserved; going past what was reserved is the
-  root's bug, and fails stop.
+- **Uncapped** (`Journal::uncapped`): its commits, held outputs and door
+  grow as they fill. Its `backlog()` counts the commits made and not yet
+  answered, the outputs held and those at the door, for the root's
+  watermark (section 3).
+- **A decision:** a value, `#[must_use]` and not `Clone`, from
+  `decide()`, that gathers one decision's writes and held outputs
+  (`push_write`, `push_held`). It reserves nothing and cannot fail. The
+  store's commit is an edge: it refuses a commit of more writes than its
+  `journal.writes`, and a decision past it stops the root.
 - **At most one commit per decision,** numbered in order; a decision
   with no write makes no commit, and its held outputs wait for the last
   commit made.
@@ -158,8 +168,10 @@ It inspects nothing it holds. What jig asks of it:
   store does not release an unbounded group at once.
 - **A failed commit:** nothing tagged with it or after it is released,
   and the journal reports stop.
-- **Its worst case,** priced from its capacities, like every lib
-  container.
+- **A stop of the root's own** (`stop()`): a root that cannot go on stops
+  its journal, and nothing held or at the door leaves again.
+- **The old forms,** `takes(room)`, `JournalRoom` and the capped decision,
+  stay beside these until no root uses them.
 - **The subset:** generic types and lib's own containers, no traits
   defined, no closures (programming-model.md, 10.2).
 
@@ -318,16 +330,21 @@ next only once this one is done, so the order is the core's.
 
 ## 10. Worst cases and limits
 
-- **Each child declares its worst case:** its limits, its memory, its
-  `MAX_OUT`, and, per kind of event, the most it writes and outputs.
-- **The root adds them up along each route** (programming-model.md, 4.5):
-  the room an event needs is the sum over the children its route can
-  reach, hand-offs included, which is what the root asks the journal for
-  (section 3).
-- **The root's own worst case** is the sum of its children's and the
-  journal's.
+- **Each child declares its limits:** its entrances' counts and sizes,
+  and the formulas that size its edges (a record, a frame, a message).
+  No child declares a `MAX_OUT` or the most an event makes it write or
+  output, since no route reserves room.
+- **The root's watermark,** one number in entries, a field of the root's
+  `Limits`, defaulting to the journal's commits in flight, which keeps
+  pacing close to a reserved route's. It limits pacing, not memory
+  (programming-model.md, 7.1); where a person's reads wait behind it, it
+  rises.
+- **No sum along routes,** and no worst case of the root's: the
+  per-process estimate goes with the startup fit check
+  (programming-model.md, 6.3).
 - **The application's limits** are configuration, given to each child as
-  its own; the conformance world runs every story under tiny limits.
+  its own; the conformance world runs every story under tiny limits and a
+  low watermark.
 
 ## 11. What a root never does
 
