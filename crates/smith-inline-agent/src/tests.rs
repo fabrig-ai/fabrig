@@ -293,6 +293,106 @@ fn a_full_parent_reply_is_a_typed_too_large_terminal() {
 }
 
 #[test]
+fn a_slot_roots_undrained_facts_refuse_nothing_and_are_all_drained() {
+    // T1 first refused message 2044 after stepping 2043 messages without a drain.
+    const OLD_REFUSAL: u32 = 2044;
+    const LIFECYCLE_FACTS: u32 = 2; // One Opened per slot.
+    for messages in [OLD_REFUSAL, OLD_REFUSAL * 2] {
+        let env = env();
+        let mut domain = Domain::new(&env.limits, configuration(), 5);
+        let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+        let mut handles = [Token::new(0); 2];
+        for client in 1_u32..=2 {
+            let client_token = Token::new(u64::from(client));
+            step(
+                &mut domain,
+                &env,
+                Input::Parent(parent::Event::Spawn { client: client_token, start: start() }),
+                &mut out,
+            );
+            let Some(Output::Parent(parent::Request::Started { agent, .. })) = out.pop() else {
+                panic!("actual slot handle")
+            };
+            handles[usize::try_from(client - 1).expect("two slots")] = agent;
+            while out.pop().is_some() {}
+            while domain.pop_fact(client_token).is_some() {}
+        }
+        // Full inline ingress refuses before entering the root. As in the old
+        // test, drive A's native public entry to get actual accepted/refused
+        // message facts while leaving its observations undrained.
+        let native_env = Env { now: env.now, wall: env.wall, limits: env.limits.smith };
+        let mut native_out = Queue::with_capacity(smith::max_out(&native_env.limits));
+        for name in 1..=messages {
+            let slot = domain.slots.get_mut(Id::from_token(handles[0])).expect("actual native slot");
+            smith::step(
+                &mut slot.root,
+                &native_env,
+                smith::Event::Message {
+                    finish_requested: false,
+                    run: slot.run.expect("admitted native run"),
+                    name: Token::new(u64::from(name)),
+                    label: Box::default(),
+                    text: b"held".as_slice().into(),
+                },
+                &mut native_out,
+            );
+            while native_out.pop().is_some() {}
+            assert_eq!(domain.backlog(), LIFECYCLE_FACTS + name, "each message is taken and produces a fact");
+        }
+        let independent_name = Token::new(9000);
+        step(
+            &mut domain,
+            &env,
+            Input::Parent(parent::Event::Message {
+                finish_requested: false,
+                agent: handles[1],
+                name: independent_name,
+                label: Box::default(),
+                text: b"independent".as_slice().into(),
+            }),
+            &mut out,
+        );
+        assert_eq!(domain.backlog(), LIFECYCLE_FACTS + messages + 1);
+        let Some(smith::Fact::Run { fact, .. }) = domain.pop_fact(Token::new(2)) else {
+            panic!("the other slot still steps while A's facts await draining")
+        };
+        let run::facts::FactKind::MessageReceived { name, .. } = fact.kind else {
+            panic!("the other slot receives its message")
+        };
+        assert_eq!(name, independent_name);
+        assert_eq!(domain.pop_fact(Token::new(2)), None);
+        let mut drained = 0;
+        while let Some(fact) = domain.pop_fact(Token::new(1)) {
+            drained += 1;
+            let smith::Fact::Run { fact, .. } = fact else { panic!("one native message fact") };
+            let (run::facts::FactKind::MessageReceived { name, .. }
+            | run::facts::FactKind::MessageRefused { name, .. }) = fact.kind
+            else {
+                panic!("accepted or refused native message")
+            };
+            assert_eq!(name, Token::new(u64::from(drained)), "every message's fact drains in order");
+        }
+        assert_eq!(drained, messages);
+        assert_eq!(domain.backlog(), LIFECYCLE_FACTS);
+        for client in [Token::new(1), Token::new(2)] {
+            assert_eq!(
+                domain.pop_slot_fact(),
+                Some(crate::Fact { at: env.now, kind: crate::FactKind::Opened { client } })
+            );
+        }
+        assert_eq!(domain.backlog(), 0);
+    }
+}
+
+#[test]
+fn lifecycle_fact_estimates_do_not_restrict_valid_limits() {
+    for facts in [0, 1, 2, u32::MAX] {
+        let limits = Limits { facts, ..bounds() };
+        assert!(crate::worst_case(&limits).is_some());
+    }
+}
+
+#[test]
 fn workspace_routes_keep_equal_tokens_in_separate_lower_families() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 91);

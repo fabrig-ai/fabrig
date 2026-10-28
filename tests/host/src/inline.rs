@@ -293,7 +293,6 @@ impl World {
             parent::Event::Grant { .. } | parent::Event::Stop { .. } => {}
         }
         self.trace.log(self.stage.env.now, format!("up {event:?}"));
-        assert!(self.agent.facts_room() >= inline::max_facts());
         self.stage.push(event);
         while let Some(event) = self.stage.next_event() {
             inline::step(&mut self.agent, &self.stage.env, Input::Parent(event), &mut self.stage.out);
@@ -606,7 +605,6 @@ impl World {
                 return;
             }
             assert!(self.stage.has_room());
-            assert!(self.agent.facts_room() >= inline::max_facts());
             inline::resume(&mut self.agent, &self.stage.env, &mut self.stage.out);
         }
         panic!("bounded ready work did not settle");

@@ -1,6 +1,6 @@
 //! Slot ownership and routing (domain/host.md, sections 9.1, 9.2 and 9.4).
 //! Slots retain root domains and every emitted lower right through settlement.
-//! Lower requests and lifecycle facts use uncapped queues, drained by route and the parent.
+//! Lower requests, lifecycle facts and slot roots' facts are uncapped; the parent counts held facts.
 //! Root requests keep their owners, while a separate slab generation scopes
 //! callbacks. The parent owns told payloads; exact ACK metadata stays here.
 
@@ -48,7 +48,6 @@ pub struct Domain {
     pub(crate) lower: Queue<smith::Request>,
     facts: Queue<Fact>,
     seed: u64,
-    root_fact_reservation: u32,
 }
 
 impl Domain {
@@ -64,7 +63,6 @@ impl Domain {
             lower: Queue::uncapped(),
             facts: Queue::uncapped(),
             seed,
-            root_fact_reservation: smith::max_facts(&limits.smith),
         }
     }
 
@@ -86,7 +84,7 @@ impl Domain {
             let slot = self.slots.get(*id).expect("client binding names its retained slot");
             match slot.state {
                 Stage::Live | Stage::Cancelling { .. } => {
-                    if slot.root.is_ready() && slot.root.facts_room() >= self.root_fact_reservation {
+                    if slot.root.is_ready() {
                         return true;
                     }
                 }
@@ -153,31 +151,17 @@ impl Domain {
         self.facts.pop()
     }
 
-    /// Available room in the uncapped lifecycle fact queue.
+    /// Entries held for the parent to drain (skein's draft
+    /// dynamic-memory.md 4.1): its lifecycle facts and its slot roots'
+    /// facts. The parent root counts them in its backlog.
     #[must_use]
-    pub fn facts_room(&self) -> u32 {
-        self.facts.room()
-    }
-
-    /// Whether the target root has its fact reservation for this input.
-    #[must_use]
-    pub fn takes(&self, input: &crate::Input) -> bool {
-        let handle = match input {
-            crate::Input::Parent(event) => match event {
-                parent::Event::Spawn { .. } => return true,
-                parent::Event::Message { agent, .. }
-                | parent::Event::Answer { agent, .. }
-                | parent::Event::Acknowledge { agent, .. }
-                | parent::Event::Grant { agent, .. }
-                | parent::Event::Stop { agent }
-                | parent::Event::Drop { agent } => *agent,
-            },
-            crate::Input::Below { agent, .. } => *agent,
-        };
-        match self.slots.get(Id::<Slot>::from_token(handle)) {
-            Some(slot) => slot.root.facts_room() >= self.root_fact_reservation,
-            None => true,
+    pub fn backlog(&self) -> u32 {
+        let mut entries = self.facts.len();
+        for (_, id) in &self.clients {
+            let slot = self.slots.get(*id).expect("client binding names its retained slot");
+            entries = entries.checked_add(slot.root.backlog()).expect("inline backlog fits u32");
         }
+        entries
     }
 }
 
@@ -390,14 +374,11 @@ fn terminal(agent: &mut Domain, env: &Env<Limits>, handle: Token, completion: Be
     stop::settle(agent, env.now, id, out);
 }
 
-/// Fire one due root or wall alarm with enough room for its complete fanout.
+/// Fire one due root or wall alarm and route its complete fanout.
 pub fn fire(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
     let mut due = None;
     for (_, id) in &agent.clients {
         let slot = agent.slots.get(*id).expect("retained slot");
-        if slot.root.facts_room() < agent.root_fact_reservation {
-            continue;
-        }
         match slot.state {
             Stage::Live => {
                 if slot.wall <= env.now || slot.root.is_due(env.now) {
@@ -432,14 +413,14 @@ pub fn fire(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
     }
 }
 
-/// Resume one deferred root handoff with room reserved for its complete fanout.
+/// Resume one deferred root handoff and route its complete fanout.
 pub fn resume(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
     let mut ready = None;
     for (_, id) in &agent.clients {
         let slot = agent.slots.get(*id).expect("retained slot");
         match slot.state {
             Stage::Live | Stage::Cancelling { .. } => {
-                if slot.root.is_ready() && slot.root.facts_room() >= agent.root_fact_reservation {
+                if slot.root.is_ready() {
                     ready = Some(*id);
                     break;
                 }
@@ -478,9 +459,8 @@ fn reclaim(agent: &mut Domain) {
     agent.slots.reclaim();
 }
 
-/// Consume one parent command or terminal below a retained run with reserved root facts.
+/// Consume one parent command or terminal and retain its root facts until drained.
 pub fn step(agent: &mut Domain, env: &Env<Limits>, input: crate::Input, out: &mut Queue<Output>) {
-    assert!(agent.takes(&input), "the owner reserves root facts before stepping");
     match input {
         crate::Input::Parent(event) => command(agent, env, event, out),
         crate::Input::Below { agent: handle, terminal: below } => terminal(agent, env, handle, below, out),

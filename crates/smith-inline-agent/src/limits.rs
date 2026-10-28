@@ -22,7 +22,7 @@ pub struct Limits {
     pub wall_time: Duration,
     /// Host allowance after cancellation before the slot drops its root.
     pub cancel_grace: Duration,
-    /// Entry estimate for lifecycle facts; at least the maximum fanout per entrance.
+    /// Entry estimate for lifecycle facts; any value is valid.
     pub facts: u32,
 }
 
@@ -44,8 +44,7 @@ fn output_count(limits: &Limits) -> Option<u32> {
 /// Retained roots, configuration, routing, scratch and caller queue ownership.
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if limits.facts < max_facts()
-        || limits.window.turns == 0
+    if limits.window.turns == 0
         || limits.window.bytes < smith::max_turn_bytes(&limits.smith)?
         || limits.wall_time == Duration::ZERO
     {
@@ -85,10 +84,4 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<smith::run::charter::Endpoint>()).ok()?)?,
         )?
         .checked_add(u64::try_from(size_of::<Domain>()).ok()?)
-}
-
-/// Maximum lifecycle facts emitted by any one entry point.
-#[must_use]
-pub const fn max_facts() -> u32 {
-    3
 }
