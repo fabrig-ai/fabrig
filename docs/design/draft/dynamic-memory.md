@@ -101,7 +101,17 @@ by valgrind's massif, resident size from `/proc`.
 
 A root's backlog is its journal's writes not yet committed, the outputs
 it holds until their commit, and its own work queue, counted in
-entries.
+entries: one per root, entries rather than bytes, which section 4.5
+meters apart (settled 10-28, the stab).
+
+- **A root with a journal:** `Journal::backlog` (the commits made and
+  not yet answered, the outputs held and those at the door), plus its
+  work queue's length.
+- **A root without one:** the entries in the uncapped queues between
+  its own children. smith's agent service, the stab's root (6.1), sums
+  its thirteen inter-layer queues and its program's lower queue; the
+  three queues it shares with the host's channel stay capped, as an
+  edge.
 
 ### 4.2 What waits at the entrance
 
@@ -110,7 +120,9 @@ a forge event, a timer that starts work, a setup or a restart. While
 the backlog is at or past the watermark, admission hands the event back
 as it does today (temper-engine-domain's `admission.rs`), the loop
 offers it again, and peers wait as they do now: a worker's link
-answered busy sends again.
+answered busy sends again. In smith's agent service, new work is the
+host's `Start` and `Message`: each waits in the channel's queue, as it
+waits today for room, and the host waits on the capped channel.
 
 ### 4.3 What is always taken
 
@@ -118,14 +130,20 @@ Whatever finishes or advances work already admitted: operations'
 completions, the store's answers (committed, loaded, unloaded), io's
 results, and released deliveries. The backlog then always drains, and
 admission cannot deadlock. temper's root gates released deliveries on
-journal room today; under this rule it takes them.
+journal room today; under this rule it takes them. What is taken still
+waits on a real sink: a socket's or a destination's credit, the channel
+to the host, a file table; never on room between two of the root's own
+children.
 
 ### 4.4 Its value
 
 One number per root, in its `Limits`, defaulting to what its journal's
 limits hold today, so pacing stays close to now. It is a limit on
 pacing, not on memory. A backlog can pass it by one admitted event's
-work; nothing counts by how much.
+work; nothing counts by how much. smith's agent service reads it from
+its `queue` limit, the cells each inter-layer queue had, which also
+bounds each drain's work per iteration; a field of its own waits for
+section 7, so that no `Limits` literal changes in the stab.
 
 ### 4.5 Bytes
 
@@ -224,8 +242,6 @@ The owner's closing note, for the user:
 
 ## 8. Open questions
 
-- **The watermark's unit:** entries or bytes, one per root or one per
-  child.
 - **hearth,** a narrow daemon, may keep the static model: the rule lets
   a service keep its caps.
 - **jig's generated codecs** keep their per-type `worst_case` for now;
