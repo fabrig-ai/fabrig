@@ -11,9 +11,15 @@ A landing is how a project that lands by turn lands a change: its candidate is p
   landing branch's queue. By turn, a change lands through a landing,
   and this page is that way.
 - **A landing** is a task of the project's, made when a change of a
-  project that lands by turn becomes ready, with that change as its
-  member. The deployment asks for it on the project's behalf, from the
-  project's spend. The change waits on it.
+  project that lands by turn becomes ready, with that change and every
+  change joined to it as its members. The deployment asks for it on the
+  project's behalf, from the project's spend. Its changes wait on it.
+- **Joined changes** are changes into different repositories of one
+  project, one given a dependency on the other by an amendment
+  (`task amend TASK --dependency TASK`), and every change joined to
+  either. They land in one landing, upstream first. Two changes into one
+  repository are not joined: the dependent lands in a later landing.
+  A change made with its dependency waits for it, and lands after it.
 - **A candidate** is what lands: the change's head when it holds its
   main's tip; otherwise the head the forge's rebase of the pull
   request onto main makes. The rebase rewrites the change's branch,
@@ -35,8 +41,8 @@ A landing is how a project that lands by turn lands a change: its candidate is p
 
 A landing goes through these phases, each shown by `landing show`:
 
-- **waiting:** its change is not ready: it is being repaired, or a
-  conflict is being resolved.
+- **waiting:** a member is not ready: it is being produced or
+  repaired, or a conflict is being resolved.
 - **preparing:** its candidate is being made: main's tip is read
   afresh, and the change asks the forge for the rebase when its head
   lacks it.
@@ -45,12 +51,18 @@ A landing goes through these phases, each shown by `landing show`:
   dispatches the gate's workflow on the change's branch, with the
   inputs `temper_commit` and `temper_key`, and its run, followed to its
   end, makes the receipt.
-- **proved:** every blocking gate passed at the candidate; it waits
-  for the turn. The first proved takes it first.
-- **in its turn:** main is read afresh. If it moved since the candidate
-  was prepared, the landing prepares again; otherwise temper merges the
-  pull request fast-forward only, at exactly the candidate.
-- **landed:** main's tip is the candidate, and the change is landed.
+- **proved:** every blocking gate passed at each member's candidate;
+  it waits for the turn. The first proved takes it first, but a landing
+  whose member depends on a change in another live landing takes no
+  turn until that one has landed.
+- **in its turn:** the members merge one at a time, upstream first.
+  Each member's main is read afresh: if it moved since its candidate
+  was prepared, the landing prepares again for the members not yet
+  merged, those merged staying landed; otherwise temper merges its pull
+  request fast-forward only, at exactly its candidate, and reads it
+  back before the next.
+- **landed:** each member's main holds its candidate, and every change
+  is landed.
 - **held:** a gate's runs failed on their runner past the project's
   retries. It waits for a person.
 
@@ -78,9 +90,9 @@ makes the change ready again, and the landing prepares again.
 
 ## Acting on it
 
-- `landing show` reads a landing: its change, the candidate on its base,
-  each gate's key with its receipt or run, and the turn. `landing list`
-  lists a project's landings, the turn's holder first.
+- `landing show` reads a landing: each member's change, its candidate on
+  its base, each gate's key with its receipt or run, and the turn.
+  `landing list` lists a project's landings, the turn's holder first.
 - `change show` reads the change's own way: its pull request and gates.
 - A held landing is released or cancelled by the project's
   maintainers, as any held task is.
@@ -92,7 +104,10 @@ makes the change ready again, and the landing prepares again.
 - A project lands by turn on Forgejo alone: GitHub cannot merge fast
   forward only, and a start whose configuration asks for the turn for
   a project with a repository on GitHub is refused, naming it.
-- A landing has one member: the change that became ready.
+- A landing has at most one member per repository, and at most the
+  deployment's bound of members. Changes join it by a dependency given
+  by an amendment alone; a change's `with` and a project's pins do not
+  join changes yet.
 - How a project lands, and each repository's gates, are set in the
   configuration document's `landing` member, read at the start.
 - A gate's name is at most 32 bytes, a word a branch name could hold;
