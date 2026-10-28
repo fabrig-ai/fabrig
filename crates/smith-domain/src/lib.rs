@@ -1,7 +1,7 @@
 //! The agent root (domain/run.md, sections 2, 3 and 10;
 //! programming-model.md, sections 4.4 and 4.5). It owns the run and session
 //! children, opaque credential names and validity, conversation bindings,
-//! tool tickets, deferred handoffs and bounded observation queues.
+//! tool tickets, deferred handoffs, uncapped facts and bounded content.
 //! Bounded Start contexts retain the original reply rights and optional history;
 //! single-use concrete Turn handoffs own records crossing the sibling seam
 //! (domain/run.md, section 13).
@@ -18,7 +18,7 @@
 //! to call this typed domain. The domain never knows credential secrets,
 //! authentication, channel bytes, forge state, CI, posting or merge policy.
 //! IO owns confined paths and process effects; the host owns delivery.
-//! Native facts are reserved step outputs, preserved until the owner drains them.
+//! Native facts accumulate without a cap until the owner drains them.
 //! Owned content observations are separately drained or discarded by the caller.
 
 #![cfg_attr(not(test), no_std)]

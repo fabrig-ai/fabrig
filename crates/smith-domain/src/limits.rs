@@ -184,7 +184,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_mul(u64::try_from(size_of::<crate::AnsweredCall>()).ok()?)?
         .checked_add(u64::from(run_limits.answered_bytes).checked_mul(2)?)?;
     let rendering = payload.checked_add(session_limits.delegated_result_bytes)?.checked_add(answers)?;
-    // Rule 5: parent drains child facts after every entrance. Facts own only
+    // Estimate at one composed entrance plus child buffering slack. Facts own only
     // provider IDs/names from one answer per producer, never whole completions.
     let facts = Queue::<Fact>::worst_case(facts(limits)?)?
         .checked_add(u64::from(run_limits.conversations).checked_mul(limits.session.answer_bytes)?)?
@@ -240,7 +240,7 @@ pub(crate) fn handoffs(limits: &Limits) -> Option<u32> {
     limits.run.conversations.checked_add(flights(limits)?)
 }
 
-/// One composed step reserve plus the children's configured buffering slack.
+/// Estimate for uncapped facts: one composed entrance plus the children's buffering slack.
 pub(crate) fn facts(limits: &Limits) -> Option<u32> {
     let reserve = run_steps(limits)
         .checked_mul(run::max_facts(&limits.run))?

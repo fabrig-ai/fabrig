@@ -658,6 +658,8 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
     const FIRST: u64 = 31;
     const SECOND: u64 = 32;
     const TRACE: Token = Token::new(400);
+    // One message fact from each of the two queued entrances.
+    const FACTS: u32 = 2;
     let mut service = event_service();
     let run = preparing_message_run(&mut service);
     let sinks = service.events.as_mut().unwrap().sinks();
@@ -690,19 +692,19 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
     domain_up(&mut service);
     assert_eq!(service.domain_events.len(), 1, "waiting again cannot advance the second entrance");
     crate::sinks::tests::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE);
-    let mut records = Vec::new();
+    let mut names = List::with_capacity(FACTS);
     for _ in [FIRST, SECOND] {
         domain_up(&mut service);
-        records.extend(crate::sinks::tests::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE));
+        for record in crate::sinks::tests::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE) {
+            match record.event {
+                smith_events::Event::MessageReceived(message) => {
+                    names.push(message.name).expect("one fact per entrance");
+                }
+                unexpected => panic!("each entrance emits its message fact: {unexpected:?}"),
+            }
+        }
     }
-    let names: Vec<_> = records
-        .into_iter()
-        .map(|record| match record.event {
-            smith_events::Event::MessageReceived(message) => message.name,
-            unexpected => panic!("each entrance emits its message fact: {unexpected:?}"),
-        })
-        .collect();
-    assert_eq!(names, [FIRST, SECOND], "all first-entrance facts reach the sink before the second's");
+    assert_eq!(&*names.into_boxed(), &[FIRST, SECOND], "all first-entrance facts reach the sink before the second's");
     assert!(service.domain_events.is_empty());
     assert!(!service.domain.as_ref().unwrap().has_facts());
 }

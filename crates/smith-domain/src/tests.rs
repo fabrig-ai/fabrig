@@ -1417,6 +1417,53 @@ fn the_runs_deadline_fires_before_the_sessions_expiry_at_the_same_instant() {
 }
 
 #[test]
+fn an_owner_that_drains_late_loses_no_fact() {
+    // Ten thousand single-fact entrances exceed the former composed reserve
+    // for LIMITS; the edge inbox still retains at most LIMITS.run.messages.
+    const ENTRANCES: u32 = 10_000;
+    let mut harness = Harness::new();
+    let (run, _, _) = harness.admit(7, charter());
+    while harness.pop_fact().is_some() {}
+    for number in 1..=ENTRANCES {
+        step(
+            &mut harness.domain,
+            &harness.env,
+            Event::Message {
+                finish_requested: false,
+                run,
+                name: Token::new(u64::from(number)),
+                label: bytes(b"host"),
+                text: bytes(b"hello"),
+            },
+            &mut harness.out,
+        );
+        drop(harness.drain());
+    }
+    // Even a no-op fire or resume needs no observation reserve.
+    fire(&mut harness.domain, &harness.env, &mut harness.out);
+    resume(&mut harness.domain, &harness.env, &mut harness.out);
+    assert_eq!(harness.domain.backlog(), ENTRANCES, "every entrance's fact awaits the owner");
+    for number in 1..=ENTRANCES {
+        let Some(Fact::Run {
+            fact:
+                run::facts::Fact {
+                    kind:
+                        run::facts::FactKind::MessageReceived { name, .. }
+                        | run::facts::FactKind::MessageRefused { name, .. },
+                    ..
+                },
+            ..
+        }) = harness.domain.pop_fact()
+        else {
+            panic!("one message observation per entrance: {number}")
+        };
+        assert_eq!(name.raw(), u64::from(number), "accepted and refused messages retain their entrance order");
+    }
+    assert_eq!(harness.domain.backlog(), 0);
+    assert!(!harness.domain.has_facts());
+}
+
+#[test]
 fn the_facts_of_both_child_domains_are_gathered() {
     let mut h = Harness::new();
     let (_run, _main, prompt) = h.admit(7, charter());

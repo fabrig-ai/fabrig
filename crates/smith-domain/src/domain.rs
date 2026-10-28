@@ -4,7 +4,7 @@
 //! layer out.
 //! It retains the run and session children, conversation and credential
 //! bindings and issued renewal policies, pending starts, turn handoffs, unsent completions waiting for
-//! acknowledgements and bounded notices. [`step`],
+//! acknowledgements, bounded notices and uncapped facts awaiting the owner. [`step`],
 //! [`fire`] and [`resume`] are its entries (domain/run.md, sections 2, 3, 10,
 //! 13; domain/session.md, sections 3–5). It never knows provider
 //! wire syntax, encoded turn size, credential secrets, forge state or host delivery policy.
@@ -71,7 +71,7 @@ pub const fn max_facts(limits: &Limits) -> u32 {
 }
 
 /// The agent domain's state: its child domains', what it keeps of each
-/// conversation between them, and room for what they emit within a step.
+/// conversation between them, and facts awaiting the owner's drain.
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) config: Config,
@@ -237,7 +237,6 @@ impl Domain {
         let peers = limits.run.conversations;
         let flights = limits::flights(limits).expect("worst_case accepted the limits");
         let handoffs = limits::handoffs(limits).expect("worst_case accepted the limits");
-        let facts = limits::facts(limits).expect("worst_case accepted the limits");
         Domain {
             config,
             run: run::Domain::new(&limits.run, run_seed),
@@ -257,7 +256,7 @@ impl Domain {
             tickets: 0,
             run_out: Queue::with_capacity(limits::run_out(limits)),
             session_out: Queue::with_capacity(limits::session_out(limits)),
-            facts: Queue::with_capacity(facts),
+            facts: Queue::uncapped(),
             content: Queue::with_capacity(limits.session.facts),
             content_lost: 0,
         }
@@ -335,12 +334,19 @@ impl Domain {
         !self.facts.is_empty()
     }
 
+    /// Facts held for the owner to drain (skein's draft dynamic-memory.md
+    /// 4.1): the owner counts them in its backlog.
+    #[must_use]
+    pub fn backlog(&self) -> u32 {
+        self.facts.len()
+    }
+
     /// Channel facts with content; capture policy remains the engine's.
     pub fn pop_content(&mut self) -> Option<crate::Content> {
         self.content.pop()
     }
 
-    /// Free observation slots reserved by the owner before each entrance.
+    /// Always ample observation room on the uncapped queue; kept for existing owners.
     #[must_use]
     pub fn facts_room(&self) -> u32 {
         self.facts.room()
@@ -365,7 +371,6 @@ impl Domain {
 
 /// Handles one event, emitting at most [`max_out`] requests.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "owner reserved composed fact output");
     route::event(domain, env, event);
     settle(domain, env, out);
 }
@@ -376,7 +381,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// that arrived in the same iteration wins over a deadline that passed while
 /// the loop waited.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "owner reserved composed fact output");
     let run_due = domain.run.is_due(env.now);
     let session_due = domain.session.is_due(env.now);
     if run_due && (!session_due || domain.run.next_deadline() <= domain.session.next_deadline()) {
@@ -393,7 +397,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// the step that started it, or a hand-off from the run deferred in an earlier
 /// iteration.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    assert!(domain.facts_room() >= max_facts(&env.limits), "owner reserved composed fact output");
     if domain.run.is_ready() {
         run::resume(&mut domain.run, &route::run_env(env), &mut domain.run_out);
         gather(domain, &env.limits);
@@ -412,7 +415,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     gather(domain, &env.limits);
 }
 
-/// Moves each child entrance's observations into the owner's composed reserve.
+/// Moves each child entrance's observations into the owner's uncapped queue.
 pub(crate) fn gather(domain: &mut Domain, limits: &Limits) {
     for _ in 0..limits.run.facts {
         let Some(fact) = domain.run.pop_fact() else {

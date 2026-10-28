@@ -1,7 +1,6 @@
 //! What the agent tells whoever watches it (domain/run.md, section 11): the
 //! child domains' facts, content-free, gathered after every entry point into one
-//! bounded queue the loop drains at its own pace. The owner reserves room
-//! before each entrance; every observation is preserved until it is drained.
+//! uncapped queue; every observation is preserved until the owner drains it.
 //!
 //! The run names a conversation by its token for it, and the sessions name
 //! theirs by their opener's, which is the same token: the facts of a
@@ -87,14 +86,14 @@ fn fixed(count: usize, size: usize) -> u64 {
 pub enum Fact {
     /// In the run child domain.
     Run {
-        /// Content-free child observation preserved in the owner's reserved room.
+        /// Content-free child observation preserved in the owner's uncapped queue.
         fact: run::Fact,
         /// Actual opening metadata, copied before the request passes to its session.
         opening: Option<Opening>,
     },
     /// In the session child domain, or its tools.
     Session {
-        /// Content-free child observation preserved in the owner's reserved room.
+        /// Content-free child observation preserved in the owner's uncapped queue.
         fact: session::Fact,
     },
 }

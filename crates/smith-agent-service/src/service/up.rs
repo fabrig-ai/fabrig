@@ -444,12 +444,11 @@ pub(super) fn channel_event(service: &mut Service, event: channel::OpenEvent) {
 
 pub(super) fn domain_up(service: &mut Service) {
     drain_facts(service);
-    let facts = domain::max_facts(&service.limits.domain);
+    // An entrance's facts drain to the sinks before the next entrance.
     for _ in 0..service.limits.domain.run.conversations {
         if !super::domain_requests_dispatched(service)
             || !service.domain.as_ref().expect("framed agent owns its domain").is_ready()
             || service.domain.as_ref().expect("framed agent owns its domain").has_facts()
-            || service.domain.as_ref().expect("framed agent owns its domain").facts_room() < facts
         {
             break;
         }
@@ -464,7 +463,6 @@ pub(super) fn domain_up(service: &mut Service) {
     for _ in 0..service.limits.queue {
         if !super::domain_requests_dispatched(service)
             || service.domain.as_ref().expect("framed agent owns its domain").has_facts()
-            || service.domain.as_ref().expect("framed agent owns its domain").facts_room() < facts
         {
             break;
         }
@@ -485,7 +483,6 @@ pub(super) fn domain_up(service: &mut Service) {
     if super::domain_requests_dispatched(service)
         && service.domain.as_ref().expect("framed agent owns its domain").is_due(service.domain_env.now)
         && !service.domain.as_ref().expect("framed agent owns its domain").has_facts()
-        && service.domain.as_ref().expect("framed agent owns its domain").facts_room() >= facts
     {
         domain::fire(
             service.domain.as_mut().expect("framed agent owns its domain"),
