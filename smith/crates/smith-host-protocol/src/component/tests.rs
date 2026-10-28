@@ -40,16 +40,16 @@ fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
     let accept =
         control_frame(&Control::Accept { version: VERSION, features: 0 }, &limits.channel).expect("accept frame");
     let terms = control_frame(&Control::Terms { entries }, &limits.channel).expect("terms frame");
-    let mut incoming = Writer::new(accept.bytes().len() + terms.bytes().len());
+    let mut incoming = Writer::new(accept.bytes().len().checked_add(terms.bytes().len()).expect("opening size"));
     incoming.put(accept.bytes()).expect("accept bytes");
     incoming.put(terms.bytes()).expect("terms bytes");
     let incoming = incoming.finish();
-    let mut offset = 0;
+    let mut offset = 0_usize;
     component.open(&mut above, &mut below);
     while let Some(request) = below.pop() {
         match request {
             Lower::Read(stream::Down::Demand { read: stream::Read::Fill(count), .. }) => {
-                let end = offset + usize::try_from(count).expect("bounded demand");
+                let end = offset.checked_add(usize::try_from(count).expect("bounded demand")).expect("input offset");
                 component.from_below(
                     LowerEvent::Read(stream::Up::Bytes(Box::from(&incoming[offset..end]))),
                     &mut above,
@@ -63,7 +63,9 @@ fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
                 &mut below,
             ),
             Lower::Write(stream::OutputDown::Send { .. }) => component.fire(&mut above, &mut below),
-            other => panic!("unexpected opening operation: {other:?}"),
+            other @ (Lower::Read(_) | Lower::Write(_) | Lower::FinishWrite) => {
+                panic!("unexpected opening operation: {other:?}");
+            }
         }
     }
     component.phase = Phase::Admitted;
@@ -128,7 +130,8 @@ fn receive(
         let Some(Lower::Read(stream::Down::Demand { read: stream::Read::Fill(count), .. })) = below.pop() else {
             panic!("the channel demands the next record's bytes");
         };
-        let (bytes, rest) = remaining.split_at(usize::try_from(count).expect("bounded demand"));
+        let (bytes, rest) =
+            remaining.split_at_checked(usize::try_from(count).expect("bounded demand")).expect("demand within record");
         component.from_below(LowerEvent::Read(stream::Up::Bytes(Box::from(bytes))), above, below);
         remaining = rest;
     }
@@ -152,7 +155,9 @@ fn answer(component: &mut Component, above: &mut Queue<crate::OpenEvent>, below:
                 below,
             ),
             Lower::Write(stream::OutputDown::Send { .. }) => component.fire(above, below),
-            other => panic!("unexpected reply operation: {other:?}"),
+            other @ (Lower::Read(_) | Lower::Write(_) | Lower::FinishWrite) => {
+                panic!("unexpected reply operation: {other:?}");
+            }
         }
     }
     while above.pop().is_some() {}
@@ -165,14 +170,30 @@ fn crossed_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
     (component, above, below)
 }
 
+fn assert_no_refusal(below: &Queue<Lower>) {
+    for request in below {
+        match request {
+            Lower::Read(_) => {}
+            Lower::Write(_) | Lower::FinishWrite => panic!("unexpected refusal output: {request:?}"),
+        }
+    }
+}
+
+fn next_call(above: &mut Queue<crate::OpenEvent>) -> Token {
+    let Some(crate::OpenEvent::Call { call, .. }) = above.pop() else {
+        panic!("the following call is delivered");
+    };
+    call
+}
+
 #[test]
 fn a_withdraw_crossing_the_answer_settles_the_call() {
     let (mut component, mut above, mut below) = crossed_channel();
     assert!(above.is_empty(), "a settled withdrawal is not forwarded");
     assert!(component.reading, "a settled withdrawal leaves the read owed");
-    assert!(below.iter().all(|request| matches!(request, Lower::Read(_))), "no refusal output");
+    assert_no_refusal(&below);
     receive(&mut component, 0x0107, call_body(2), &mut above, &mut below);
-    assert!(matches!(above.pop(), Some(crate::OpenEvent::Call { call: REUSED_CALL, .. })));
+    assert_eq!(next_call(&mut above), REUSED_CALL);
     assert!(above.is_empty());
 }
 
@@ -180,11 +201,11 @@ fn a_withdraw_crossing_the_answer_settles_the_call() {
 fn a_name_withdrawn_after_its_answer_can_be_called_again() {
     let (mut component, mut above, mut below) = crossed_channel();
     receive(&mut component, 0x0107, call_body(1), &mut above, &mut below);
-    assert!(matches!(above.pop(), Some(crate::OpenEvent::Call { call: REUSED_CALL, .. })));
+    assert_eq!(next_call(&mut above), REUSED_CALL);
     receive(&mut component, 0x0108, withdraw_body(1), &mut above, &mut below);
     assert_eq!(above.pop(), Some(crate::OpenEvent::Withdraw { call: REUSED_CALL }));
     assert!(above.is_empty(), "one withdrawal event for the new call");
-    assert!(below.iter().all(|request| matches!(request, Lower::Read(_))), "no refusal output");
+    assert_no_refusal(&below);
 }
 
 #[test]
@@ -210,12 +231,13 @@ fn a_cancelled_run_can_withdraw_after_the_host_answers() {
     component.send_cancel(CANCEL, &mut above, &mut below).expect("cancel");
     answer(&mut component, &mut above, &mut below);
     receive(&mut component, 0x0108, withdraw_body(1), &mut above, &mut below);
-    assert!(matches!(
-        world.seen.down.as_slice(),
-        [Down::Start { .. }, Down::Cancel, Down::Answer { call: CALL, reply: Reply::Unavailable }]
-    ));
+    let [Down::Start { .. }, Down::Cancel, Down::Answer { call: CALL, reply: Reply::Unavailable }] =
+        world.seen.down.as_slice()
+    else {
+        panic!("the host domain sends the cancel and the call's answer");
+    };
     assert!(above.is_empty(), "cancel and answer may precede the run's withdrawal");
-    assert!(below.iter().all(|request| matches!(request, Lower::Read(_))), "no refusal output");
+    assert_no_refusal(&below);
 }
 
 #[test]
