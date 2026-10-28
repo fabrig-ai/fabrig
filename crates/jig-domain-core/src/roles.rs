@@ -155,6 +155,9 @@ impl Core {
             return Err(people::Refusal::Limit { which: people::LimitKind::Grace });
         }
         let Some(context) = admission.task(task) else { return Err(people::Refusal::Unknown) };
+        if let people::Ask::Release { again, .. } = ask {
+            crate::revisions::release_run(&context, *again)?;
+        }
         let Some(holding) = role else { return Err(people::Refusal::Role { held: None }) };
         let any_task = match holding {
             people::Role::Owner | people::Role::Maintainer => true,

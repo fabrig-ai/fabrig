@@ -16,6 +16,12 @@ pub(crate) fn request(
     ask: &people::Ask,
     decision: skein_lib::Wall,
 ) -> Result<(), people::Refusal> {
+    if let people::Ask::Release { task, again, .. } = ask
+        && let Some(row) = core.tasks.task(*task)
+        && row.project == project
+    {
+        crate::revisions::release_run(row, *again)?;
+    }
     let (act, subject) = match ask {
         // An account request's check is its holder's, which people made (domain/authority.md, 8.4).
         people::Ask::Lift { .. }

@@ -1030,3 +1030,33 @@ mod proposals;
 mod tracking;
 
 mod decision_effects;
+
+#[test]
+fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps_its_choice() {
+    let (mut core, limits) = tree_core();
+    let connector = core.connectors[0];
+    let mut new = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
+    new.executor = tasks::Executor::Procedure { connector, code: u32::MAX };
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Make {
+            reply_to: ReplyTo::new(Token::new(120)),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([new]),
+        },
+    );
+    send_task(&mut core, &limits, tasks::Event::Hold { task: 1, why: tasks::Hold::Procedure });
+    let mut procedure = core.tasks.task(1).expect("procedure made").clone();
+    let ask = people::Ask::Release { project: 1, task: 1, revision: procedure.revisions.hold, again: Some(true) };
+    let refusal = people::Refusal::NotOffered;
+    assert_eq!(core.control_admit(&ask, 1, 1, None, &limits.tasks), Err(refusal.clone()));
+    assert_eq!(offers::request(&core, &limits, 1, 1, None, &ask, Wall::EPOCH), Err(refusal));
+    assert_eq!(revisions::release_run(&procedure, None), Ok(()));
+    let tasks::Phase::Held { why, .. } = &mut procedure.phase else { panic!("held fixture") };
+    *why = tasks::Hold::Uncertain { entry: 1 };
+    assert_eq!(revisions::release_run(&procedure, Some(true)), Ok(()));
+    assert_eq!(revisions::release_run(&procedure, Some(false)), Ok(()));
+    procedure.executor = tasks::Executor::Agent { charter: 1 };
+    assert_eq!(revisions::release_run(&procedure, Some(true)), Ok(()));
+}

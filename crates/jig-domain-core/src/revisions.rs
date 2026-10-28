@@ -158,3 +158,23 @@ fn failure_class(class: tasks::Class) -> people::FailureClass {
         tasks::Class::Invalid => people::FailureClass::Invalid,
     }
 }
+
+/// A repeat choice on an ordinary procedure hold cannot repeat a run.
+/// An uncertain effect still needs its separate made-or-not choice.
+pub(crate) fn release_run(row: &tasks::TaskRecord, again: Option<bool>) -> Result<(), people::Refusal> {
+    let uncertain = match row.phase {
+        tasks::Phase::Held { why: tasks::Hold::Uncertain { .. }, .. } => true,
+        tasks::Phase::Held { .. }
+        | tasks::Phase::Waiting
+        | tasks::Phase::Active(_)
+        | tasks::Phase::Closing(_)
+        | tasks::Phase::Ended(_) => false,
+    };
+    if again.is_some()
+        && !uncertain
+        && let tasks::Executor::Procedure { .. } = row.executor
+    {
+        return Err(people::Refusal::NotOffered);
+    }
+    Ok(())
+}
