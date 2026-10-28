@@ -139,7 +139,7 @@ fn thinning(next: u32) -> impl Iterator<Item = (u32, u32)> {
 /// half of it, then all of it, is retired and reclaimed.
 fn slab<T: Item>(capacity: u32) {
     let mut ids: Vec<Id<T>> = Vec::with_capacity(index(capacity));
-    let mut metered = Metered::new("Slab", type_name::<T>(), capacity, Slab::<T>::worst_case(capacity));
+    let mut metered = slab_meter::<T>(capacity);
     metered.start();
     let mut slab = Slab::with_capacity(capacity);
     metered.end(());
@@ -484,7 +484,7 @@ fn deadlines<K: Item>(capacity: u32) {
 }
 
 #[test]
-fn a_slab_filled_to_its_capacity_stays_within_its_worst_case() {
+fn a_slab_grows_within_its_held_and_peak_bounds() {
     for capacity in CAPACITIES {
         slab::<u8>(capacity);
         slab::<u64>(capacity);
@@ -996,5 +996,71 @@ fn a_list_clone_holds_only_its_items_and_grows_as_it_fills() {
         cloned.push(u64::from(len)).expect("clone retains its logical cap");
         metered.end(());
         assert_eq!(metered.meter.held(), 8 * u64::from((2 * len).max(4)), "clone follows capped growth");
+    }
+}
+
+// Growth holds the old and new buffers at a realloc: held storage stays
+// within the formula, and each step's peak within twice it.
+fn slab_meter<T>(capacity: u32) -> Metered {
+    Metered::growing("Slab", type_name::<T>(), capacity, Slab::<T>::worst_case(capacity))
+}
+
+#[test]
+fn a_slab_grows_to_its_capacity_exactly() {
+    for capacity in [1, 3, 5, 300] {
+        // Handle storage belongs to the harness, outside the slab's meter.
+        let mut ids = Vec::with_capacity(index(capacity));
+        let mut metered = slab_meter::<u64>(capacity);
+        let mut slab = Slab::with_capacity(capacity);
+        for n in 0..capacity {
+            metered.start();
+            let id = slab.insert(u64::from(n)).expect("room below the cap");
+            metered.end(());
+            assert_eq!(id.token().raw(), u64::from(n) << 32, "fresh slot, generation zero");
+            ids.push(id);
+            // Every earlier handle survives subsequent slot-buffer growth.
+            for (value, id) in ids.iter().enumerate() {
+                assert_eq!(slab.get(*id), Some(&u64::try_from(value).unwrap()));
+            }
+        }
+        assert!(slab.is_full());
+        metered.start();
+        assert_eq!(slab.insert(999), Err(999));
+        metered.end(());
+        for id in &ids {
+            metered.start();
+            slab.retire(*id);
+            metered.end(());
+        }
+        metered.start();
+        slab.reclaim();
+        metered.end(());
+        assert!(slab.is_empty());
+        assert!(!slab.is_full());
+        assert_eq!(metered.meter.held(), metered.bound, "all three buffers reach their cap exactly");
+        let reuse = Meter::new();
+        for (value, old) in ids.iter().enumerate() {
+            reuse.start();
+            let id = slab.insert(u64::try_from(value).unwrap()).expect("reclaimed slot");
+            let measured = reuse.end();
+            assert_eq!(measured.peak(), 0, "refilling allocates nothing");
+            assert_eq!(id.token().raw(), old.token().raw() + 1, "same slot, next generation");
+            assert_eq!(slab.get(*old), None);
+        }
+        assert!(slab.is_full());
+        assert_eq!(metered.meter.held(), metered.bound);
+    }
+}
+
+#[test]
+fn an_unused_slab_holds_nothing() {
+    const CAPACITIES: [u32; 2] = [100_000, 1_000_000];
+    for capacity in CAPACITIES {
+        let meter = Meter::new();
+        let slab = std::hint::black_box(Slab::<[u64; 8]>::with_capacity(capacity));
+        assert_eq!(meter.held(), 0);
+        assert_eq!(slab.capacity(), capacity);
+        assert!(slab.is_empty());
+        assert!(!slab.is_full());
     }
 }

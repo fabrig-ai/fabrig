@@ -1,9 +1,9 @@
-//! Entity storage (programming-model.md, 5.1 and 6.1): a slab sized at startup,
-//! whose capacity is the admission limit for its entity kind.
+//! Entity storage (skein/docs/design/lib.md, 3): slots and lists grow as
+//! they fill, never past the admission limit for their entity kind.
 
 #![expect(
     clippy::disallowed_types,
-    reason = "a slab's slots and lists are Vecs allocated once, at their final capacity"
+    reason = "a slab's slots and lists are Vecs grown exactly as they fill, never past its cap"
 )]
 
 use alloc::vec::Vec;
@@ -21,7 +21,7 @@ use crate::Id;
 #[derive(Debug)]
 pub struct Slab<T> {
     slots: Vec<Slot<T>>,
-    /// Vacant slots, the next one to fill last.
+    /// Reclaimed vacant slots, the next one to fill last.
     free: Vec<u32>,
     /// Slots retired since the last reclaim.
     retired: Vec<u32>,
@@ -44,19 +44,14 @@ enum Slot<T> {
     Spent,
 }
 
+const GROWTH_FLOOR: usize = 4;
+
 impl<T> Slab<T> {
+    /// Starts without allocating; slots and lists grow as they fill, up to
+    /// `capacity`, and keep their storage when reclaimed.
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Slab<T> {
-        let size = index(capacity);
-        let mut slots = Vec::with_capacity(size);
-        let mut free = Vec::with_capacity(size);
-        for _ in 0..capacity {
-            slots.push(Slot::Vacant { generation: 0 });
-        }
-        for slot in (0..capacity).rev() {
-            free.push(slot);
-        }
-        Slab { slots, free, retired: Vec::with_capacity(size), capacity, len: 0 }
+        Slab { slots: Vec::new(), free: Vec::new(), retired: Vec::new(), capacity, len: 0 }
     }
 
     /// The heap a slab of `capacity` takes itself, its slots and its lists of
@@ -88,13 +83,24 @@ impl<T> Slab<T> {
     /// Whether an insert would be refused.
     #[must_use]
     pub fn is_full(&self) -> bool {
-        self.free.is_empty()
+        self.free.is_empty() && self.slots.len() == index(self.capacity)
     }
 
     /// Stores `value` and names it, or hands it back when the slab is full.
     pub fn insert(&mut self, value: T) -> Result<Id<T>, T> {
-        let Some(slot) = self.free.pop() else {
-            return Err(value);
+        let slot = match self.free.pop() {
+            Some(slot) => slot,
+            None => {
+                if self.slots.len() == index(self.capacity) {
+                    return Err(value);
+                }
+                if self.slots.len() == self.slots.capacity() {
+                    self.slots.reserve_exact(growth(self.slots.len(), self.capacity));
+                }
+                let slot = u32::try_from(self.slots.len()).expect("fewer slots than the capacity");
+                self.slots.push(Slot::Vacant { generation: 0 });
+                slot
+            }
         };
         let entry = self.slots.get_mut(index(slot)).expect("free slots are in range");
         let generation = match entry {
@@ -136,6 +142,9 @@ impl<T> Slab<T> {
             }
             Slot::Vacant { .. } | Slot::Spent => unreachable!("only a live entity is retired"),
         }
+        if self.retired.len() == self.retired.capacity() {
+            self.retired.reserve_exact(growth(self.retired.len(), self.capacity));
+        }
         self.retired.push(id.slot());
     }
 
@@ -153,6 +162,9 @@ impl<T> Slab<T> {
             };
             *entry = match next {
                 Some(generation) => {
+                    if self.free.len() == self.free.capacity() {
+                        self.free.reserve_exact(growth(self.free.len(), self.capacity));
+                    }
                     self.free.push(slot);
                     Slot::Vacant { generation }
                 }
@@ -161,6 +173,12 @@ impl<T> Slab<T> {
             self.len = self.len.checked_sub(1).expect("a retired entity was counted");
         }
     }
+}
+
+/// Additional storage for a full buffer that has room below its cap.
+fn growth(len: usize, capacity: u32) -> usize {
+    let target = len.saturating_mul(2).max(GROWTH_FLOOR).min(index(capacity));
+    target.checked_sub(len).expect("room for another item")
 }
 
 fn index(slot: u32) -> usize {
