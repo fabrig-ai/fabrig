@@ -90,8 +90,8 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   `gpt-6-luna`; a box that shows otherwise is a setup to redo, not a
   finding. A chat is started with `--model gpt-6-luna --effort medium`
   where its model is named; template 1's choice (`settings apply`, the
-  whole choice: `{"main": {"model": "gpt-6-luna", "effort": "medium",
-  "account": null, "subagents": []}}`) sets it for every chat of a
+  whole choice: `{"main": {"model": "gpt-6-luna", "effort": "medium"},
+  "account": null, "subagents": []}`) sets it for every chat of a
   running box. If a rung cannot pass on luna, the walk's evidence goes
   to the director, and the model is the user's to change.
 - **The Claude rung's agents run Claude Code on `claude-sonnet-5-5` at
