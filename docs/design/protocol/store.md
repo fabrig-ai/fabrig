@@ -2270,7 +2270,12 @@ Each within jig's suites' budgets.
      escalation's hold, and a task's proposal's row in its proposer's
      history, each named by its position in its task's record, as a
      reply's is, an answer's with the task whose activity holds it, so a
-     read finds it by key, never by a scan (7.3);
+     read finds it by key, never by a scan (7.3); and each open question
+     its task asked, by its number and the party that answers it, a task
+     or a person, so a person's answer is credited to its asker, a move
+     carries the question to the asker's new requester under the same
+     number, and an answering task's end lifts its asker's keep with a
+     notice (`../domain/tasks.md`, 5.7; `../domain/people.md`, section 6);
   8. **read positions over conversations:** a live conversation's in the
      people child's family, loaded at start; moved, by the decision that
      ends its task, to the family of ended read positions, read on
