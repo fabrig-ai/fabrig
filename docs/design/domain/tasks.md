@@ -665,6 +665,23 @@ deadline, circles, a procedure's need) keep their rules.
   - **A project:** every task of the project, those made later
     included, except each conversation a party requested directly, so
     that a person can still talk to their chat.
+- **A drain, in four rules** (o/holds' T8):
+  - a run parked by a drain ends due, not idle, as a narrowed run does,
+    no try spent: held while the drain stands, run again on its release
+    with no wake;
+  - placing a drain steps each idle procedure in scope once, told it is
+    draining, so that its connector says whether it is idle
+    (connectors.md, 6.7); a procedure mid-step learns it at its next;
+  - a closing task finishes under a drain: what runs finishes; a stop
+    holds it;
+  - a drain lifted before a task is idle clears its hold and the task
+    goes on, a park already asked standing (its run ends due and goes
+    on); the tasks it already held stay held, released one by one or
+    with the lift's tasks.
+
+  The attempts asked to park are kept in memory, rebuilt at a restart
+  from the placed holds and the live attempts, so that a standing drain
+  over a live attempt asks it to park again.
 - **Nothing new in scope.** A task's batch whose tasks would be in a
   placed hold's scope is refused, naming the hold: a run finishing its
   turn under a drain delegates nothing. A party's batch, or a
