@@ -326,12 +326,18 @@ translation only decodes the call.
 
 The goal's own run takes `goal` too: an advisor it asks for, before it
 asks its requester, is how the retired first edition's survey before a plan
-goes (testing.md, 5.3). An advisor is all it takes: a goal is the work
-its person asked for, and a goal under it would ask the goal, not the
-person, and be answered by it (8.2), so the root refuses a goal's
-`goal` without `advisor`, naming why (a goal starts an advisor alone:
-set `advisor`, or make the change with `change`), and the run goes on,
-as any refused host call does.
+goes (testing.md, 5.3). An advisor is all it takes, and only it takes
+one: a goal is the work its person asked for, and a goal under it would
+ask the goal, not the person, and be answered by it (8.2); a goal is
+where the work is planned, so an advisor asked for elsewhere leaves the
+work to be planned in a chat's reply. So one fact of the calling run,
+whether the root built it as a goal, decides both: the root refuses a
+goal's `goal` without `advisor` (a goal starts an advisor alone: set
+`advisor`, or make the change with `change`), and any other run's
+`goal` with `advisor` set (a chat's goal is the work: call `goal`
+without `advisor`, and its goal asks for one), and the run goes on, as
+any refused host call does. A person who wants a survey alone gets a
+goal that asks its advisor and reports, changing nothing.
 
 ### 4.4 Result contracts
 
