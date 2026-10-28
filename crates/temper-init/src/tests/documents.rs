@@ -57,6 +57,10 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
 #[expect(clippy::too_many_lines, reason = "one table checks the whole default document against the owned example")]
 fn the_default_is_the_owned_example_so_edited() {
     let owned = parse(fixtures::OWNED);
+    assert_eq!(owned["engine"]["memory_bytes"], 1_073_741_824_u64);
+    for worker in owned["workers"].as_array().unwrap() {
+        assert!(worker.get("memory_bytes").is_none());
+    }
     for (row, facts) in cases() {
         let answered = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("valid facts");
         let actual = parse(content(&answered, b"temper.json"));
@@ -126,9 +130,6 @@ fn the_default_is_the_owned_example_so_edited() {
                 ]),
             ),
             ("/engine/llm/models", json!([owned["engine"]["llm"]["models"][0], demo_model()])),
-            // Keep each shipped document's memory declarations.
-            ("/engine/memory_bytes", actual["engine"]["memory_bytes"].clone()),
-            ("/workers/0/memory_bytes", actual["workers"][0]["memory_bytes"].clone()),
             (
                 "/application/forges",
                 json!([

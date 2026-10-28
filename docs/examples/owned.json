@@ -125,7 +125,7 @@
     "connectors": [
       1
     ],
-    "memory_bytes": 1100000000000000,
+    "memory_bytes": 1073741824,
     "projects": [
       {
         "number": 1,
@@ -168,8 +168,7 @@
           "hub.turn_bytes": 1590045,
           "hub.turn_queue_bytes": 12720360
         }
-      },
-      "memory_bytes": 4300000000000
+      }
     }
   ],
   "application": {

@@ -2917,7 +2917,7 @@ fn the_cluster_stops_in_reverse_each_exiting_0() {
     scratch.remove();
 }
 
-// The worker retains the owned example's limits and memory declaration.
+// The worker retains the owned example's limits.
 fn prepare_owned_worker(members: &mut support::cluster::Members) {
     let directory = members.prepare("w1");
     let configuration = directory.join("config");
