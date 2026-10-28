@@ -9,7 +9,7 @@ use skein_io::{
     self as io, Io,
     kernel::{Complete, Fd, Submit},
 };
-use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
+use skein_lib::{Env, List, Queue, Time, Token, Wall};
 pub(crate) const ACCOUNT_APPLICATION: &[u8] = b"temper";
 
 /// The engine root, its protocol children and the kernel queues.
@@ -299,7 +299,6 @@ impl Service {
         files: &settings::Files,
         runtime: crate::WorkerRuntime,
         seed: u64,
-        jig_memory: u64,
     ) -> Result<Self, Problems> {
         let io_limits = settings.jig.limits.io;
         crate::worker_settings::prepare(settings, agent, limits)?;
@@ -308,14 +307,6 @@ impl Service {
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
         let operations = worker_alone_operations(&io_limits, worker_operations)
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
-        let bytes = worker_alone_worst_case(settings, agent, limits)
-            .ok_or(crate::worker_settings::problem(b"memory_bytes", What::Bound))?;
-        if let Err(what) = jig_protocol_config::fits(
-            settings.jig.memory,
-            &[jig_protocol_config::Share { name: b"service", bytes: bytes.max(jig_memory) }],
-        ) {
-            return Err(crate::worker_settings::problem(b"memory_bytes", what));
-        }
         Ok(Self {
             engine: None,
             worker: Some(Worker::new(settings, agent, limits, files, runtime, seed)?),
@@ -987,39 +978,6 @@ pub(crate) fn worker_alone_operations(io: &io::Limits, worker_operations: u32) -
 }
 fn startup_operations(io: &io::Limits, queue: u32, worker_operations: u32) -> Option<u32> {
     io::operations(io)?.checked_add(queue.checked_mul(4)?)?.checked_add(worker_operations)
-}
-
-/// The worker's envelope plus the process IO, routing and kernel queues.
-pub(crate) fn worker_alone_worst_case(
-    worker: &settings::Worker,
-    agent: &settings::Agent,
-    limits: &limits::Limits,
-) -> Option<u64> {
-    crate::worker_worst_case(worker, agent, limits)?
-        .checked_add(crate::startup::memory_sum(&worker_process_memory_terms(worker, agent, limits)?)?)
-}
-/// Process queues and IO added only when the worker owns the process.
-pub(crate) fn worker_process_memory_terms(
-    worker: &settings::Worker,
-    agent: &settings::Agent,
-    limits: &limits::Limits,
-) -> Option<[crate::startup::MemoryTerm; 2]> {
-    crate::worker_settings::prepare(worker, agent, limits).ok()?;
-    let queue = Service::WORKER_ALONE_QUEUE;
-    let operations =
-        worker_alone_operations(&worker.jig.limits.io, crate::worker_settings::operations(&limits.git_component)?)?;
-    let system = u64::try_from(size_of::<Service>())
-        .ok()?
-        .checked_add(List::<Token>::worst_case(worker.jig.limits.io.sockets)?)?
-        .checked_add(Queue::<Complete>::worst_case(queue)?)?
-        .checked_add(Queue::<Submit>::worst_case(queue)?)?
-        .checked_add(Queue::<Submit>::worst_case(operations)?)?
-        .checked_add(Queue::<io::Event>::worst_case(queue)?)?
-        .checked_add(Queue::<Box<[u8]>>::worst_case(queue)?)?
-        .checked_add(u64::from(queue).checked_mul(u64::from(worker.jig.limits.io.output).checked_add(512)?)?)?
-        .checked_add(Map::<Token, (Token, Option<Token>)>::worst_case(operations)?)?
-        .checked_add(Map::<Token, Token>::worst_case(operations)?)?;
-    Some([("system", system), ("system.io", io::worst_case(&worker.jig.limits.io)?)])
 }
 
 fn forget_handover(settings: &mut settings::Engine) {

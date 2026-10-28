@@ -88,7 +88,6 @@ pub(crate) fn kind(p: &Path, what: What) -> Refusal {
         | What::Message
         | What::Silence
         | What::StopBound
-        | What::Memory { .. }
         | What::Override
         | What::ProviderKey { .. }
         | What::Unreadable => b"invalid form",

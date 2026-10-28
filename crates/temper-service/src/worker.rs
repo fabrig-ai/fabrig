@@ -116,12 +116,6 @@ impl Worker {
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
         let operations = git.component.operations().checked_add(2).ok_or(problem(b"limits", What::Bound))?;
-        let bytes = crate::worker_worst_case(settings, agent, limits).ok_or(problem(b"memory_bytes", What::Bound))?;
-        if let Err(what) =
-            jig_protocol_config::fits(config.memory, &[jig_protocol_config::Share { name: b"worker", bytes }])
-        {
-            return Err(problem(b"memory_bytes", what));
-        }
         Ok(Self {
             git,
             sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),

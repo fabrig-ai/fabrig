@@ -66,7 +66,6 @@ impl Problems {
                 | config::What::Message
                 | config::What::Silence
                 | config::What::StopBound
-                | config::What::Memory { .. }
                 | config::What::Override
                 | config::What::Confidential
                 | config::What::NoProvider

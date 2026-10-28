@@ -1131,8 +1131,7 @@ pub fn worker_alone(
     seed: u64,
 ) -> Result<Service, Problems> {
     check_worker_part(&mut part, files, agent)?;
-    // a1: the worker's fit goes after o/dm-temper-worker's swap
-    match Service::worker_alone(&part.worker, &part.limits, agent, files, runtime, seed, 0) {
+    match Service::worker_alone(&part.worker, &part.limits, agent, files, runtime, seed) {
         Ok(service) => Ok(service),
         Err(found) => Err(Problems::jig(found, &Path::root())),
     }

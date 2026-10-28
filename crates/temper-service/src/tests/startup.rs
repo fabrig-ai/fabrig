@@ -730,14 +730,15 @@ fn problems_print_one_line_each_with_their_path() {
     let forge = Path::root().member(b"application").member(b"forges").child(Segment::Index(0));
     problems.push(forge.member(b"user"), What::Jig(config::What::Missing));
     problems.push(Path::root().member(b"application").member(b"webhooks"), What::NoWebhooks);
-    problems
-        .push(Path::root().member(b"engine").member(b"memory_bytes"), What::Jig(config::What::Memory { over: 4096 }));
-    assert_eq!(&*lines(&problems), b"application.forges[0].user: missing\napplication.webhooks: needs application.webhooks\nengine.memory_bytes: the worst case passes memory_bytes by 4096 bytes\n".as_slice());
+    assert_eq!(
+        &*lines(&problems),
+        b"application.forges[0].user: missing\napplication.webhooks: needs application.webhooks\n".as_slice()
+    );
     for _ in 0..config::PROBLEMS {
         problems.push(Path::root(), What::NoWebhooks);
     }
-    assert_eq!(problems.past, 3);
-    assert!(lines(&problems).ends_with(b"and 3 more\n"), "capped diagnostics name overflow");
+    assert_eq!(problems.past, 2);
+    assert!(lines(&problems).ends_with(b"and 2 more\n"), "capped diagnostics name overflow");
 }
 #[test]
 fn jig_refusals_print_words() {
@@ -763,7 +764,6 @@ fn jig_refusals_print_words() {
         (config::What::Message, b"at: message bounds do not agree\n"),
         (config::What::Silence, b"at: heartbeat does not fit silence bound\n"),
         (config::What::StopBound, b"at: stop bound does not fit grace\n"),
-        (config::What::Memory { over: 7 }, b"at: the worst case passes memory_bytes by 7 bytes\n"),
         (config::What::Override, b"at: invalid override\n"),
         (config::What::Unreadable, b"at: not read\n"),
         (config::What::Relative, b"at: relative path must be non-empty with no .. component\n"),
@@ -1685,29 +1685,6 @@ fn fake_start(
         Some(checked),
         None,
     )
-}
-
-#[test]
-fn a_worker_alones_complete_envelope_must_fit_its_own_memory() {
-    let input = fixtures::worker_alone_document();
-    let directories = jig_protocol_config::Directories::working();
-    let part = crate::startup::worker_part(&input, &directories).unwrap();
-    let required =
-        crate::system::worker_alone_worst_case(&part.worker, &fixtures::startup_agent(), &part.limits).unwrap();
-    let worker = crate::worker_worst_case(&part.worker, &fixtures::startup_agent(), &part.limits).unwrap();
-    assert!(required > worker, "includes shared IO and process routing");
-    let input = fixtures::with(&input, b"workers[0].memory_bytes", (required - 1).to_string().as_bytes());
-    let part = crate::startup::worker_part(&input, &directories).unwrap();
-    let found = crate::startup::worker_alone(
-        part,
-        &fixtures::files(),
-        &fixtures::startup_agent(),
-        fixtures::worker_runtime(),
-        7,
-    )
-    .err()
-    .unwrap();
-    assert_eq!(lines(&found).as_ref(), b"workers[0].memory_bytes: the worst case passes memory_bytes by 1 bytes\n");
 }
 
 #[test]

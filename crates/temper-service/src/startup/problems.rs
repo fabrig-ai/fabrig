@@ -179,7 +179,6 @@ fn words(what: What) -> &'static [u8] {
             config::What::Message => b"message bounds do not agree",
             config::What::Silence => b"heartbeat does not fit silence bound",
             config::What::StopBound => b"stop bound does not fit grace",
-            config::What::Memory { .. } => b"the worst case passes memory_bytes by ",
             config::What::Override => b"invalid override",
             config::What::Unreadable => b"not read",
             config::What::Relative => b"relative path must be non-empty with no .. component",
@@ -426,10 +425,6 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 put(writer, &mut length, measuring, limit);
                 put(writer, &mut length, measuring, b" of ");
                 put(writer, &mut length, measuring, Decimal::of(bound).as_bytes());
-            }
-            What::Jig(config::What::Memory { over }) => {
-                put(writer, &mut length, measuring, Decimal::of(over).as_bytes());
-                put(writer, &mut length, measuring, b" bytes");
             }
             What::Jig(config::What::Operations { operations, delegates, goals }) => {
                 put(writer, &mut length, measuring, Decimal::of(u64::from(operations)).as_bytes());

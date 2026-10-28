@@ -176,7 +176,7 @@ pub fn worker_settings() -> crate::settings::Worker {
                 configuration: AGENT_JSON.into(),
             },
             limits,
-            memory: u64::MAX,
+            memory: None,
         },
         root: b"worker-root".as_slice().into(),
         git: Some(b"/usr/bin/git".as_slice().into()),
