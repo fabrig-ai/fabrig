@@ -207,7 +207,12 @@ impl Terminal {
                 }
                 kernel::Op::PipeWrite { bytes: buf, .. } => {
                     self.terminal_writing = false;
-                    let Ok(kernel::Done::Count(count)) = complete.result else { panic!("terminal write failed") };
+                    let Ok(kernel::Done::Count(count)) = complete.result else {
+                        panic!(
+                            "terminal write failed: {:?}; exit: {:?}; terminal ended: {}",
+                            complete.result, self.exit, self.terminal_ended
+                        )
+                    };
                     let count = usize::try_from(count).expect("terminal write size");
                     assert!(count > 0 && count <= buf.len());
                     if count < buf.len() {
