@@ -517,8 +517,7 @@ Raising a budget is an explicit decision, not a fix.
 **A test is a process.** nextest runs each test in a process of its own,
 which costs some milliseconds before the test checks anything, more for
 a large binary. The gate
-starts nextest without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`, set by
-each repository's `scripts/check.sh`): nextest otherwise
+starts nextest without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`): nextest otherwise
 starts each test through a process of its own first, which doubles that
 cost and guards only a terminal's job control, which a gate never uses. So cases of one behaviour that each cost less than that
 (a golden value per type, a refusal per limit, a check per source file)

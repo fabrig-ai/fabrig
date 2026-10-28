@@ -375,8 +375,7 @@ is held to the subset instead (testing-strategy.md, 4): it has no
 A machine's worlds are a crate of their own, `tests/<machine>`, with its
 transcripts in `transcripts/` beside its tests. The minimal machine joins
 the io worlds with files and processes; the protocol worlds are a crate
-of their own, `tests/protocol`. `scripts/check.sh` runs what CI runs:
-formatting, the lints as errors, a build of `skein-lib`, `skein-codec`
+of their own, `tests/protocol`. The gate runs formatting, the lints as errors, a build of `skein-lib`, `skein-codec`
 and `skein-http` alone for `wasm32-unknown-unknown` (lib.md, section 2),
 and clippy's lints as errors on that target for `skein-ui`,
 `skein-ui-web` and the UI example's view and browser shell, since the
@@ -411,7 +410,7 @@ browser tier, within four minutes (two minutes before the user's doubling of
 browser`; browser.md, section 9; ui-web.md, 14.1), and `live`, skein-llm
 against real endpoints, with a key or a plan's token from the environment.
 `measure` runs a suite with no budget, to time each test. `macos` is the
-focused suite on the macos-26 runner alone (`.github/workflows/macos.yml`),
+focused suite on the macos-26 runner alone,
 under a budget of its own set from measured figures by the user's decision
 : 64 seconds, one and a half times the 42.4 seconds macOS
 run 40019066645 took; Linux's stays as above.
