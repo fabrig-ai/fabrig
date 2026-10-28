@@ -13,9 +13,7 @@ use sha2::{Digest, Sha256};
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;
-use skein_world::domain::{Verdict, heap::Counting};
-#[global_allocator]
-static HEAP: Counting = Counting;
+use skein_world::domain::Verdict;
 const WITHIN: Duration = Duration::from_secs(3);
 
 #[test]

@@ -2,9 +2,6 @@ use jig_conformance::Cut;
 use jig_ops_fake_production as production;
 use jig_ops_world::conformance::night;
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 #[test]
 fn every_night_commit_recovers_one_conditional_scale() {
     // Sweep the one procedure-only story, with one pinned seed. The alert's

@@ -2,9 +2,6 @@
 use jig_conformance::Cut;
 use jig_ops_fake_production as production;
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 #[test]
 fn the_alert_storm_survives_the_commit_before_lead_receipt() {
     alert_at(0);

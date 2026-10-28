@@ -2,9 +2,6 @@ use jig_conformance::Cut;
 use jig_ops_fake_production as production;
 use jig_ops_world::conformance::night;
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 #[test]
 fn the_night_scales_staging_under_an_observed_requirement_without_an_agent() {
     let world = night(17, Cut::None);

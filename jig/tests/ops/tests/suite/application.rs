@@ -5,9 +5,6 @@ use jig_ops_world::conformance::{Config, Ops, Story};
 use sha2::{Digest, Sha256};
 use skein_lib::{ReplyTo, Token};
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 fn request(sign_in: u64) -> root::Event {
     let value = infrastructure::ApplicationRequest {
         environment: infrastructure::Environment::new(b"pool".as_slice().into(), b"missing".as_slice().into()),

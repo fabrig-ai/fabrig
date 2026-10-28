@@ -3,9 +3,6 @@ use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
 use jig_ops_world::conformance;
 
-#[global_allocator]
-static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-
 #[test]
 fn an_incidents_subject_follows_an_alert_to_its_resolution() {
     let world = conformance::documents(17);
