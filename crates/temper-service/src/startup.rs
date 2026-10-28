@@ -574,11 +574,11 @@ fn load_document(
         }
         return if problems.is_empty() { Ok((shape, None)) } else { Err(problems) };
     }
-    if check_start
-        && matches!(given, crate::stock::Given::Stock)
-        && let Some(engine) = &engine
-    {
-        checks::stock(engine, &mut problems);
+    if check_start && let Some(engine) = &engine {
+        match given {
+            crate::stock::Given::Stock => checks::stock(engine, &mut problems),
+            crate::stock::Given::Own(_) => {}
+        }
     }
     let application = match &engine {
         Some(engine) => match application_at {

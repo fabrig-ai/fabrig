@@ -24,7 +24,7 @@ fn own(name: &[u8]) -> Path {
     Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
 }
 /// The binary's stock fits before any listener opens (protocol/configuration.md, 13.4).
-/// The caller selects Given::Stock; worlds size their own defaults.
+/// The caller selects `Given::Stock`; worlds size their own defaults.
 pub(crate) fn stock(engine: &config::Engine, problems: &mut Problems) {
     if engine.defaults == config::Defaults::Passed
         && let Err(floor) = crate::stock::floors(&crate::stock::defaults(&engine.llm), &engine.limits)

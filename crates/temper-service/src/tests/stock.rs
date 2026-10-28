@@ -234,7 +234,7 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     }
     let document = limited(&document, b"core.run_bytes", needed);
     let refused = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
-    assert!(String::from_utf8_lossy(&crate::startup::lines(&refused)).contains("the stock's charter"));
+    assert!(core::str::from_utf8(&crate::startup::lines(&refused)).unwrap().contains("the stock's charter"));
     crate::startup::named_with(&document, &config::Directories::working(), &crate::stock::Given::Own(Box::new(own)))
         .expect("a world sizes its own runs");
 }
