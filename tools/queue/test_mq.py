@@ -299,6 +299,8 @@ baseline.write_text(str(count) + '\n')
             self.assertEqual((self.repo / tree / "scripts/old-forms.txt").read_text(), "0\n")
             self.assertEqual(mq.git(self.repo, "show", f"HEAD:{tree}/scripts/old-forms.txt").stdout, "0\n")
         self.assertEqual(len(mq.git(self.repo, "show", "-s", "--format=%P").stdout.split()), 2)
+        self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s").stdout.strip(),
+                         "Merge ready/coord/b")
         self.assertEqual(mq.git(self.repo, "status", "--porcelain").stdout, "")
 
     def test_ratchet_rise_rejects_branch_and_restores_batch_so_far(self):
@@ -333,6 +335,12 @@ baseline.write_text(str(count) + '\n')
         self.assertEqual(len(merged), 1)
         self.assertNotIn("step", conflicts[0])
         self.assertEqual((self.repo / "skein/scripts/old-forms.txt").read_text(), "1\n")
+
+    def test_merge_commits_name_the_pinned_branch(self):
+        branches = [self.branch("first"), self.branch("last")]
+        merged, _ = mq.build_batch(self.repo, branches)
+        self.assertEqual([mq.git(self.repo, "show", "-s", "--format=%s", branch["commit"]).stdout.strip()
+                          for branch in merged], ["Merge ready/coord/first", "Merge ready/coord/last"])
 
     def test_candidates_are_pinned_ordered_and_skip_only_the_tried_tip(self):
         a = self.branch("a")

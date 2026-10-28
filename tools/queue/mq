@@ -96,7 +96,7 @@ def build_batch(repo, branches, base="origin/main"):
     ratchets = {f"{tree}/scripts/old-forms.txt" for tree in TREES}
     for branch in branches:
         before = git(repo, "rev-parse", "HEAD").stdout.strip()
-        result = git(repo, "merge", "--no-ff", "--no-edit", branch["tip"], check=False)
+        result = git(repo, "merge", "--no-ff", "-m", f"Merge {branch['name']}", branch["tip"], check=False)
         if result.returncode:
             output = git(repo, "diff", "--name-only", "--diff-filter=U", "-z").stdout
             conflicting = output.split("\0")[:-1] if output else []
