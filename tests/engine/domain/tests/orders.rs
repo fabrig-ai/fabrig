@@ -2,13 +2,18 @@
 //! `dynamic-memory.md`, 4.3): pending callbacks before ordinary entrances,
 //! store answers in arrival order, and older releases before later ones.
 
+use jig_domain_core::reads;
 use jig_domain_people as people;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain::{self as engine, Delivery, Record};
-use temper_engine_domain_world::{direct::Driver, roles, walking::config};
+use temper_engine_domain_world::{direct::Driver, protocol, roles, walking::config};
 
 const HISTORY: Token = Token::new(950);
 const ROSTER: Token = Token::new(951);
+const READ_A: Token = Token::new(960);
+const READ_B: Token = Token::new(961);
+const WORKER: Token = Token::new(7);
+const TURN_TEXT: &[u8] = b"kept turn";
 // The direct world's journal has three outstanding commit slots.
 const FULL_COMMITS: usize = 3;
 // The direct fixture's finite settlement budget.
@@ -133,4 +138,60 @@ fn keyed_replies(driver: &Driver) -> Vec<(Token, people::Reply)> {
             }
         })
         .collect()
+}
+
+/// O2: two read answers, queued while the journal is full, answer in
+/// the order they arrived.
+#[test]
+fn queued_read_answers_keep_their_arrival_order_under_load() {
+    let (mut driver, assignment) = Driver::chat();
+    driver.send(protocol::turn(WORKER, assignment.task, assignment.attempt, 1, 3, None, TURN_TEXT));
+    driver.settle();
+    let second = read_turn(&mut driver, &assignment, READ_B);
+    let first = read_turn(&mut driver, &assignment, READ_A);
+    // Completion order deliberately differs from request order.
+    fill_commits(&mut driver);
+    let returned = driver.returned;
+    driver.send(first);
+    driver.send(second);
+    assert_eq!(driver.returned, returned, "both read terminals are taken while commit room binds");
+    assert_eq!(driver.store.pending.len(), FULL_COMMITS, "both ReadLoaded answers wait behind the full journal's room check");
+    assert!(read_replies(&driver).is_empty(), "neither queued answer has bypassed the full journal");
+    driver.settle();
+    assert_eq!(read_replies(&driver), [READ_A, READ_B], "read replies follow terminal arrival order, each exactly once");
+    for delivery in &driver.delivered {
+        if let Delivery::Read { answer, .. } = delivery {
+            let reads::Answer::Historical(past) = answer else { panic!("authenticated historical read: {answer:?}") };
+            let reads::Past::Turn(turn) = &past.value else { panic!("the requested historical turn") };
+            assert_eq!(turn.transcript.as_ref(), TURN_TEXT, "authenticated read returned the durable turn");
+        }
+    }
+    assert!(driver.root.quiescent() && !driver.stopped);
+}
+
+fn read_turn(driver: &mut Driver, assignment: &engine::Assignment, reply: Token) -> engine::Event {
+    driver.send(engine::Event::Party(engine::PartyInput::Read {
+        reply_to: ReplyTo::new(reply),
+        sign_in: driver.session(),
+        read: reads::Read::Turn { task: assignment.task, attempt: assignment.attempt, turn: 1 },
+    }));
+    for _ in 0..STEPS {
+        if let Some(index) = driver.events.iter().position(|event| {
+            matches!(event, engine::Event::Store(engine::StoreInput::ReadLoaded { .. }))
+        }) {
+            return driver.events.remove(index).expect("real read terminal");
+        }
+        driver.advance(true);
+    }
+    panic!("authenticated read issues its load within the direct world's budget");
+}
+
+fn read_replies(driver: &Driver) -> Vec<Token> {
+    driver.delivered.iter().filter_map(|delivery| {
+        if let Delivery::Read { reply, .. } = delivery {
+            [READ_A, READ_B].into_iter().find(|token| *reply == ReplyTo::new(*token))
+        } else {
+            None
+        }
+    }).collect()
 }
