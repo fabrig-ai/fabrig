@@ -216,7 +216,12 @@ deployment's rules       the most any project may have; requirements on effects
     rule widened by a change of settings (engine.md, 17.2) reaches a
     project made before it, which otherwise keeps its copy. A ceiling
     below a role's authority is refused whole, naming the role: its
-    owners narrow the role first;
+    owners narrow the role first. Any policy edit past a ceiling (the
+    project's above the rules', a role's above the project's, a cut
+    below a role's) is refused as lacking that ceiling, typed with its
+    holder, dimension and value (`../client/domain/contract.md`, section 4),
+    never as a shape; the ceilings are judged before the open period's
+    room (section 7), so a raise past both names the ceiling first;
   - its spend per period, from which every root task's budget is carved;
   - its roles: for each, the authority a party in it has, the spend a
     party in it may allot per period, and the kinds of proposal it may
