@@ -277,6 +277,29 @@ impl ServiceHost {
             });
         }
     }
+    /// Forward under the host's span, including a stopping life's local close.
+    fn forward_submissions(&mut self) {
+        if !self.restartable {
+            return;
+        }
+        if let Some(service) = &mut self.service {
+            while let Some(submit) = service.submissions().pop() {
+                if self.state == LifeState::Stopping && matches!(submit.kind, Op::Close { fd } if fd == self.signals) {
+                    self.local_completion = true;
+                    // The supervisor owns this pipe across both service lives.
+                    // Complete the inner close, retaining the registered reader.
+                    service.completions().push(Complete {
+                        op: submit.op,
+                        kind: submit.kind,
+                        result: Ok(Done::Nothing),
+                    });
+                } else {
+                    self.in_flight += 1;
+                    self.submissions.push(submit);
+                }
+            }
+        }
+    }
     fn directories(path: &std::path::Path, cluster: bool) -> temper::directories::Directories {
         if cluster {
             let path = path.parent().expect("cluster scratch");
@@ -393,6 +416,7 @@ impl Host for ServiceHost {
         {
             service.check_wait_boundary(self.now);
         }
+        self.forward_submissions();
     }
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
@@ -500,23 +524,6 @@ impl Host for ServiceHost {
                 Some(service) => service.submissions(),
                 None => &mut self.submissions,
             };
-        }
-        if let Some(service) = &mut self.service {
-            while let Some(submit) = service.submissions().pop() {
-                if self.state == LifeState::Stopping && matches!(submit.kind, Op::Close { fd } if fd == self.signals) {
-                    self.local_completion = true;
-                    // The supervisor owns this pipe across both service lives.
-                    // Complete the inner close, retaining the registered reader.
-                    service.completions().push(Complete {
-                        op: submit.op,
-                        kind: submit.kind,
-                        result: Ok(Done::Nothing),
-                    });
-                } else {
-                    self.in_flight += 1;
-                    self.submissions.push(submit);
-                }
-            }
         }
         &mut self.submissions
     }
