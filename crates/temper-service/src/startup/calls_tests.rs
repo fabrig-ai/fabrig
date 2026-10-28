@@ -92,19 +92,6 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         )
         .unwrap();
         assert_eq!(required, checked.requirements);
-        let terms = memory_terms(
-            &input,
-            &directories,
-            &fixtures::files(),
-            &agent,
-            &fixtures::seeds(),
-            None,
-            fixtures::forge_runtime(),
-            None,
-        )
-        .unwrap();
-        assert_eq!(memory_sum(&terms.engine), Some(required.engine_bytes));
-        assert_eq!(memory_sum(&terms.worker), Some(required.worker_bytes));
     }
 }
 
@@ -146,18 +133,6 @@ fn worker_only_runtime_and_memory_use_the_same_composed_limits() {
         )
         .unwrap();
         assert_eq!(required.engine_bytes, 0);
-        let terms = memory_terms(
-            &input,
-            &directories,
-            &fixtures::files(),
-            &agent,
-            &fixtures::seeds(),
-            None,
-            List::with_capacity(0),
-            None,
-        )
-        .unwrap();
-        assert_eq!(memory_sum(&terms.worker), Some(required.worker_bytes));
         let mut expected_part = worker_part(&input, &directories).unwrap();
         expected_part.worker.jig.limits.core.call_answer_bytes = expected;
         assert_eq!(
@@ -191,7 +166,7 @@ fn answer_floor_line(path: &str, bytes: u32) -> String {
     format!("{path}: {bytes} bytes, short of temper's documentation answer (read_docs), 2048 bytes\n")
 }
 
-fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 4] {
+fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
     let directories = config::Directories::working();
     [
         startup(
@@ -218,21 +193,10 @@ fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 4] {
             None,
         )
         .unwrap_err(),
-        memory_terms(
-            input,
-            &directories,
-            &fixtures::files(),
-            agent,
-            &fixtures::seeds(),
-            None,
-            fixtures::forge_runtime(),
-            None,
-        )
-        .unwrap_err(),
     ]
 }
 
-fn worker_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
+fn worker_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 2] {
     let directories = config::Directories::working();
     [
         worker_alone(
@@ -245,17 +209,6 @@ fn worker_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
         .err()
         .unwrap(),
         memory_requirements(
-            input,
-            &directories,
-            &fixtures::files(),
-            agent,
-            &fixtures::seeds(),
-            None,
-            List::with_capacity(0),
-            None,
-        )
-        .unwrap_err(),
-        memory_terms(
             input,
             &directories,
             &fixtures::files(),
@@ -418,17 +371,6 @@ fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
                 None,
             )
             .unwrap_err(),
-            memory_terms(
-                &input,
-                &directories,
-                &fixtures::files(),
-                &agent,
-                &fixtures::seeds(),
-                None,
-                fixtures::forge_runtime(),
-                None,
-            )
-            .unwrap_err(),
         ];
         for problems in found {
             assert_eq!(core::str::from_utf8(&lines(&problems)).unwrap(), expected);
@@ -466,17 +408,6 @@ fn explicit_short_call_inputs_refuse_every_worker_only_entrance() {
             .err()
             .unwrap(),
             memory_requirements(
-                &input,
-                &directories,
-                &fixtures::files(),
-                &agent,
-                &fixtures::seeds(),
-                None,
-                List::with_capacity(0),
-                None,
-            )
-            .unwrap_err(),
-            memory_terms(
                 &input,
                 &directories,
                 &fixtures::files(),

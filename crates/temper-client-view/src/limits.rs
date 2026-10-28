@@ -204,7 +204,7 @@ pub fn worst_case(limits: &Limits, domain: &temper_client_domain::Limits, words:
 }
 /// Tree, page scratch, bindings and words at the view's composition boundary.
 #[must_use]
-pub fn memory_terms(
+fn memory_terms(
     limits: &Limits,
     domain: &temper_client_domain::Limits,
     words: &Words,

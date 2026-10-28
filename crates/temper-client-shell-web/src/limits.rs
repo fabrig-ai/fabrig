@@ -98,7 +98,7 @@ pub fn worst_case(client: &client::Limits) -> Option<u64> {
 }
 /// The page's root, view, stream decoder and concurrent exchange bodies.
 #[must_use]
-pub fn memory_terms(client: &client::Limits) -> Option<[(&'static str, u64); 4]> {
+fn memory_terms(client: &client::Limits) -> Option<[(&'static str, u64); 4]> {
     let (bounds, words) = view(client)?;
     let root = client::worst_case(client)?;
     let view = temper_client_view::worst_case(&bounds, client, &words)?;

@@ -775,78 +775,12 @@ pub struct Requirements {
 }
 /// A module's contribution to a service's checked memory envelope.
 pub type MemoryTerm = (&'static str, u64);
-/// Named contributions at the service's composition boundary; totals are never figures.
-#[derive(Debug)]
-pub struct MemoryTerms {
-    pub engine: Box<[MemoryTerm]>,
-    pub worker: Box<[MemoryTerm]>,
-}
 pub(crate) fn memory_sum(terms: &[MemoryTerm]) -> Option<u64> {
     let mut bytes = 0_u64;
     for (_, term) in terms {
         bytes = bytes.checked_add(*term)?;
     }
     Some(bytes)
-}
-fn memory_bound() -> Problems {
-    problem(Path::root().member(b"memory_bytes"), What::Jig(config::What::Bound))
-}
-/// List the same terms startup sums, without enforcing the memory declarations.
-#[expect(clippy::too_many_arguments, reason = "the same checked inputs as memory_requirements")]
-pub fn memory_terms(
-    document: &[u8],
-    directories: &config::Directories,
-    files: &settings::Files,
-    agent: &settings::Agent,
-    seeds: &settings::Seeds,
-    accounts: Option<&AccountsRuntime>,
-    forges: List<crate::ForgeRuntime>,
-    setup: Option<&temper_forge_setup::check::Checked>,
-) -> Result<MemoryTerms, Problems> {
-    if shape(document, directories)? == Shape::WorkerAlone {
-        let mut part = worker_part(document, directories)?;
-        check_worker_part(&mut part, files, agent)?;
-        let worker = crate::worker_settings::memory_terms(&part.worker, agent, &part.limits).ok_or(memory_bound())?;
-        let process =
-            crate::system::worker_process_memory_terms(&part.worker, agent, &part.limits).ok_or(memory_bound())?;
-        let capacity = u32::try_from(worker.len().checked_add(process.len()).expect("memory term count"))
-            .expect("bounded memory term count");
-        let mut terms = List::with_capacity(capacity);
-        for term in worker {
-            terms.push(term).expect("worker memory terms");
-        }
-        for term in process {
-            terms.push(term).expect("process memory terms");
-        }
-        return Ok(MemoryTerms { engine: Box::new([]), worker: terms.into_boxed() });
-    }
-    let mut checked = checked_start(document, directories, files, Some(agent), seeds, accounts, forges, setup)?;
-    let root = engine_limits(&mut checked.engine.jig.limits, &checked.engine.limits)?;
-    let store = checked_store(&root, &checked.engine.jig.limits.store, Some(agent.limits.bodies.turn_body))?;
-    let worker = checked.worker.as_ref();
-    let operations = match worker {
-        Some(_) => crate::worker_settings::operations(&checked.engine.limits.git_component).ok_or(memory_bound())?,
-        None => 0,
-    };
-    let engine = match crate::system::startup_memory_terms(
-        &checked.engine,
-        &root,
-        &store,
-        accounts,
-        operations,
-        &checked.io,
-        (checked.forges.1, checked.forges.2, &checked.forges.0),
-    ) {
-        Ok(terms) => Box::new(terms),
-        Err(found) => return Err(Problems::jig(found, &Path::root())),
-    };
-    let worker: Box<[MemoryTerm]> = match worker {
-        Some(worker) => {
-            Box::new(crate::worker_settings::memory_terms(worker, agent, &checked.engine.limits).ok_or(memory_bound())?)
-        }
-        None => Box::new([]),
-    };
-    Ok(MemoryTerms { engine, worker })
 }
 struct CheckedStart {
     not_set_up: List<u16>,
