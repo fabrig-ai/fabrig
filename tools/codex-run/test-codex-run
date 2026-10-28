@@ -128,8 +128,9 @@ with (fixture / (unit + '.log')).open('wb') as log:
 FAKE
 cat >"$t/bin/systemctl" <<'FAKE'
 #!/usr/bin/env bash
-printf '%s\n' "$*" >>"$DEV_ROOT/fake/systemctl.calls"
-[[ $* == '--user is-active --quiet '* && -f $DEV_ROOT/fake/active ]]
+fixture=${DEV_ROOT:-$CODEX_RUN_FIXTURE_ROOT}/fake
+printf '%s\n' "$*" >>"$fixture/systemctl.calls"
+[[ $* == '--user is-active --quiet '* && -f $fixture/active ]]
 FAKE
 cat >"$t/bin/codex" <<'FAKE'
 #!/usr/bin/env python3
@@ -393,14 +394,46 @@ touch "$fake/missing-executable"
 refusal 'missing worker executable' task "$t/task file.md" "$t/work dir" "$t/reports/refused.md"
 rm "$fake/missing-executable"
 
-# Run state defaults to fabrig independently of the tool's installation path.
+# Run state keeps the rust workspace default independently of installation.
 touch "$fake/hold-launch"
 output=$(env -u DEV_ROOT "$kit/codex-run" task "$t/task file.md" "$t/work dir" "$t/reports/default-root.md")
 read -r default_id default_state <<<"$output"
-[[ $default_state == "$HOME/src/fabrig/tmp/codex-run/$default_id" ]]
-expect 'default run root forwarded to unit' "$(tr '\0' '\n' <"$fake/launch.args")" "--setenv=DEV_ROOT=$HOME/src/fabrig"
-rm -r "$HOME/src/fabrig/tmp" "$t/reports/default-root.md"
+[[ $default_state == "$HOME/src/rust/tmp/codex-run/$default_id" ]]
+expect 'default run root forwarded to unit' "$(tr '\0' '\n' <"$fake/launch.args")" "--setenv=DEV_ROOT=$HOME/src/rust"
+rm -r "$HOME/src/rust/tmp" "$t/reports/default-root.md"
 rm "$fake/hold-launch"
+
+# Seed a prior run in the old default location, without a DEV_ROOT override.
+legacy_runs=$HOME/src/rust/tmp/codex-run
+mkdir -p "$legacy_runs/legacy-default"
+ln -s "$fake" "$HOME/src/rust/fake"
+printf 'legacy-thread\n' >"$legacy_runs/legacy-default/thread"
+printf 'model=legacy-model\neffort=medium\nread_only=0\ndir=%s\n' "$t/work dir" \
+    >"$legacy_runs/legacy-default/meta"
+printf 'legacy accounting row\n' >"$legacy_runs/runs.tsv"
+printf 'success\n' >"$fake/scenario"
+printf '%s\n' "$t/reports/legacy-resume.md" >"$fake/report"
+: >"$fake/codex.calls"
+output=$(env -u DEV_ROOT "$kit/codex-run" task --resume legacy-default \
+    "$t/task file.md" "$t/reports/legacy-resume.md")
+read -r legacy_id legacy_state <<<"$output"
+wait_unit "codex-run-$legacy_id"
+[[ $legacy_state == "$legacy_runs/$legacy_id" && -f $legacy_state/ended ]]
+json_expect 'resume finds the old default thread and inherits its settings and directory' \
+    'length == 1 and .[0].args[0:2] == ["exec", "resume"] and
+     .[0].args[-2] == "legacy-thread" and
+     (.[0].args | index("legacy-model")) != null and
+     (.[0].args | index("model_reasoning_effort=medium")) != null and
+     (.[0].cwd | endswith("/work dir"))' "$fake/codex.calls"
+expect 'resume metadata records the old default run' "$(cat "$legacy_state/meta")" 'resume_of=legacy-default'
+[[ $(head -n1 "$legacy_runs/runs.tsv") == 'legacy accounting row' &&
+   $(wc -l <"$legacy_runs/runs.tsv") == 2 &&
+   $(cat "$legacy_runs/legacy-default/thread") == legacy-thread ]]
+checks=$((checks + 1))
+printf '4\n' >"$fake/wait-codes"
+unit=$(env -u DEV_ROOT "$kit/codex-run" owner o/default-root "$t/brief.md")
+wait_unit "$unit"
+expect 'owner state keeps the old default root' "$(cat "$HOME/src/rust/tmp/owners/default-root/codex/name")" 'o/default-root'
 
 # A worker held before execution still reserves the report against another launch.
 touch "$fake/hold-launch"

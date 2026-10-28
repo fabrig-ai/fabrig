@@ -11,8 +11,8 @@ Provisional, 2026-10-28. Detached task workers and persistent owners on the flee
   receives post between turns. BRIEF is an absolute readable file.
 - `codex-run stale [--post]` lists unfinished inactive runs and refused
   completion messages; `--post` retries notification.
-- Runs live under `~/src/fabrig/tmp/codex-run/`; `DEV_ROOT` replaces
-  `~/src/fabrig`. Writable slot tasks trim their own slot before Codex starts.
+- Runs live under `~/src/rust/tmp/codex-run/`; `DEV_ROOT` replaces
+  `~/src/rust`. Writable slot tasks trim their own slot before Codex starts.
 - Dependencies are Bash, Python 3, jq, Perl, GNU coreutils, flock, systemd
   user units, Codex and `post` on PATH. Units start through a login shell.
   No adjacent agents checkout or sibling post executable is required.
@@ -83,7 +83,8 @@ changes run storage, not the slot directory convention or the trim script.
 ## 5. Owners
 
 Owner launch prints its escaped unit name. State lives under
-`<root>/tmp/owners/<last-name-component>/codex/`. A stored full owner name
+`<root>/tmp/owners/<last-name-component>/codex/`, where root defaults to
+`~/src/rust` and can be replaced by `DEV_ROOT`. A stored full owner name
 refuses collisions. The owner registers its holder with post before its
 first turn, reads BRIEF, then waits for mail for an hour between turns.
 An idle hour prompts it to check its work. Failed turns wait five minutes;
@@ -115,4 +116,5 @@ These scripts run directly on hel8; they build nothing.
 ## 7. Later
 
 - Move other fleet tools and add their entries to `tools/installed`.
-- Migrate existing run history from the agents workspace, if requested.
+- Move run and owner storage into fabrig with a separate migration that
+  preserves resumable runs and accounting.

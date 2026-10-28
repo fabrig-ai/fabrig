@@ -10,7 +10,7 @@ umask 077
 script=$(readlink -f "${BASH_SOURCE[0]}")
 kit=$(dirname "$script")
 fabrig=$(cd "$kit/../.." && pwd)
-root=$(realpath -m "${DEV_ROOT:-$HOME/src/fabrig}")
+root=$(realpath -m "${DEV_ROOT:-$HOME/src/rust}")
 runs=$root/tmp/codex-run
 search_rule='Before any command, read the rules in the text below. Search only your worktree and the paths it names: never run rg, find, ls -R or grep -r from ~/src/rust/tmp or any directory above it, and never in ~/.local, ~/.config or /run/user. '
 ON_STOP_SECONDS=60
