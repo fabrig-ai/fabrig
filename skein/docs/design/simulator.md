@@ -292,9 +292,9 @@ small buffers so that sends are cut and stall.
 Memory is not the simulator's to check, though a simulated world checks it
 at every iteration (testing-strategy.md, 6), with the counting allocator,
 `skein-heap` (testing.md, 5). The harness checks each hosted process's
-heap against its own worst case (programming-model.md, 6.3). One thread,
-one heap: a process's part is what grew within the calls that run its
-code (making it, and each `iterate`), metered with a span, at its peak
+measured peak against the ceiling its scenario names, with headroom
+(shell.md, 12). One thread, one heap: a process's part is what grew within
+the calls that run its code (making it, and each `iterate`), metered with a span, at its peak
 within each call. The simulator's submit and reap, the referee and the
 harness run between those calls, so the simulator's trace and network and
 the harness's heap are left out. This holds while nothing a process owns

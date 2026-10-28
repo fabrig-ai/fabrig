@@ -304,7 +304,8 @@ processes, each a host of an `iterate` (a service, or a fake client):
   same seed replays.
 - **Memory** (simulator.md, 5): under the counting allocator, each
   process's heap, what grew within its own calls (building it, and each
-  `iterate`), at its peak within each call, against its own worst case.
+  `iterate`), at its peak within each call, against the ceiling its
+  scenario names, with headroom (shell.md, 12).
   What grew within the simulator's calls and the harness's is left out,
   by metering around the processes' calls rather than theirs; and as
   nothing one process allocates is freed by another or by the simulator,
@@ -312,7 +313,8 @@ processes, each a host of an `iterate` (a service, or a fake client):
   allocated in another, so the heap falls below where a call began: the
   counting allocator's span measures a call's growth signed, where its
   meter, which checks a step from a base it never falls below, cannot. A
-  process's worst case counts the box the harness keeps its state in.
+  scenario's ceiling covers the box the harness keeps the process's state
+  in.
   Once settled, dropping the run's outcome drops each process under a
   span: it must free exactly what was metered as its own, which finds a
   leak, and heap made or freed outside its calls.
