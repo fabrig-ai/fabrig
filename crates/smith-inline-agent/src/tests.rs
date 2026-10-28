@@ -75,7 +75,7 @@ fn env() -> Env<Limits> {
 fn a_start_lending_a_program_source_is_refused_as_invalid_grants() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 1);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     let mut source = start();
     source.grants[0].form = host::Form::Program(host::SourceName::new(b"claude-code").expect("source name"));
     step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: source }), &mut out);
@@ -95,7 +95,7 @@ fn a_start_lending_a_program_source_is_refused_as_invalid_grants() {
 fn empty_workspace_is_refused_before_a_slot_or_provider_request() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 1);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     let mut source = start();
     source.workspace = Some(Token::new(8));
     step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: source }), &mut out);
@@ -115,14 +115,12 @@ fn empty_workspace_is_refused_before_a_slot_or_provider_request() {
 fn a_told_turn_keeps_the_roots_exact_concrete_value() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 2);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }), &mut out);
     let Some(Output::Parent(parent::Request::Started { agent: handle, .. })) = out.pop() else {
         panic!("Started first")
     };
-    for _ in 0..crate::max_out(&env.limits) {
-        out.pop();
-    }
+    while out.pop().is_some() {}
     step(
         &mut agent,
         &env,
@@ -184,14 +182,14 @@ fn cancel_fire_resume_terminal_and_reclaim_settle_exactly_once() {
     let mut env = env();
     env.limits.wall_time = Duration::from_secs(1);
     let mut agent = Domain::new(&env.limits, configuration(), 3);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }), &mut out);
     let Some(Output::Parent(parent::Request::Started { agent: handle, .. })) = out.pop() else {
         panic!("Started first")
     };
     let mut completion_owner = None;
-    for _ in 0..crate::max_out(&env.limits) {
-        if let Some(Output::Lower { request: Lower::Complete { owner, .. }, .. }) = out.pop() {
+    while let Some(output) = out.pop() {
+        if let Output::Lower { request: Lower::Complete { owner, .. }, .. } = output {
             completion_owner = Some(owner);
         }
     }
@@ -267,7 +265,7 @@ fn an_occupied_or_duplicate_client_is_refused_without_touching_its_live_slot() {
     let mut env = env();
     env.limits.slots = 1;
     let mut domain = Domain::new(&env.limits, configuration(), 4);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     step(&mut domain, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }), &mut out);
     while out.pop().is_some() {}
     for client in [Token::new(1), Token::new(2)] {
@@ -300,7 +298,7 @@ fn a_slot_roots_undrained_facts_refuse_nothing_and_are_all_drained() {
     for messages in [OLD_REFUSAL, OLD_REFUSAL * 2] {
         let env = env();
         let mut domain = Domain::new(&env.limits, configuration(), 5);
-        let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+        let mut out = Queue::uncapped();
         let mut handles = [Token::new(0); 2];
         for client in 1_u32..=2 {
             let client_token = Token::new(u64::from(client));
@@ -321,7 +319,7 @@ fn a_slot_roots_undrained_facts_refuse_nothing_and_are_all_drained() {
         // test, drive A's native public entry to get actual accepted/refused
         // message facts while leaving its observations undrained.
         let native_env = Env { now: env.now, wall: env.wall, limits: env.limits.smith };
-        let mut native_out = Queue::with_capacity(smith::max_out(&native_env.limits));
+        let mut native_out = Queue::uncapped();
         for name in 1..=messages {
             let slot = domain.slots.get_mut(Id::from_token(handles[0])).expect("actual native slot");
             smith::step(
@@ -396,7 +394,7 @@ fn lifecycle_fact_estimates_do_not_restrict_valid_limits() {
 fn workspace_routes_keep_equal_tokens_in_separate_lower_families() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 91);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }), &mut out);
     let Some(Output::Parent(parent::Request::Started { agent: handle, .. })) = out.pop() else {
         panic!("Started first")
@@ -441,7 +439,7 @@ fn workspace_routes_keep_equal_tokens_in_separate_lower_families() {
 fn a_job_act_is_lowered_and_settles_with_its_done() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 91);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }), &mut out);
     let Some(Output::Parent(parent::Request::Started { agent: handle, .. })) = out.pop() else {
         panic!("Started first")
@@ -464,7 +462,7 @@ fn a_job_act_is_lowered_and_settles_with_its_done() {
 fn probe_check_and_abort_route_once_and_wait_for_the_matching_terminal() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 92);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }), &mut out);
     let Some(Output::Parent(parent::Request::Started { agent: handle, .. })) = out.pop() else {
         panic!("Started first")
@@ -534,7 +532,7 @@ fn directories_move_the_exact_io_root_into_the_run() {
 fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
     let env = env();
     let mut agent = Domain::new(&env.limits, configuration(), 93);
-    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }), &mut out);
     let Some(Output::Parent(parent::Request::Started { agent: handle, .. })) = out.pop() else {
         panic!("Started first")

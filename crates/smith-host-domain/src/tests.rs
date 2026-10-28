@@ -58,7 +58,7 @@ fn admitted() -> (Domain, Env<crate::Limits>, Queue<Output>, Token) {
 fn admitted_with_limits(limits: crate::Limits) -> (Domain, Env<crate::Limits>, Queue<Output>, Token) {
     let mut domain = Domain::new(&limits);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(crate::max_out(&limits));
+    let mut out = Queue::uncapped();
     crate::step(
         &mut domain,
         &env,
@@ -183,7 +183,7 @@ fn a_spawn_beyond_the_slots_is_refused_as_busy_without_displacing_the_active_own
     let limits = limits();
     let mut domain = Domain::new(&limits);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(crate::max_out(&limits));
+    let mut out = Queue::uncapped();
     crate::step(
         &mut domain,
         &env,
@@ -287,7 +287,7 @@ fn mount(name: &[u8], writable: bool, git: bool, conflicts: &[&[u8]]) -> crate::
 fn admit_start(start: Start, limits: crate::Limits) -> Output {
     let mut domain = Domain::new(&limits);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(crate::max_out(&limits));
+    let mut out = Queue::uncapped();
     crate::step(&mut domain, &env, Input::Parent(parent::Event::Spawn { client: Token::new(91), start }), &mut out);
     out.pop().expect("one actual spawn or invalid terminal")
 }
@@ -390,7 +390,7 @@ fn message_admission_includes_the_label_separator_at_the_bound_and_one_byte_over
     let limits = crate::Limits { message_bytes: 12, ..limits() };
     let mut domain = Domain::new(&limits);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(crate::max_out(&limits));
+    let mut out = Queue::uncapped();
     crate::step(
         &mut domain,
         &env,
@@ -454,7 +454,7 @@ fn carried_messages_are_checked_before_spawn_with_the_runs_rendered_byte_arithme
     for (at, messages) in batches.into_iter().enumerate() {
         let mut domain = Domain::new(&limits);
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let mut out = Queue::with_capacity(crate::max_out(&limits));
+        let mut out = Queue::uncapped();
         let start = Start { messages, ..start() };
         crate::step(&mut domain, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start }), &mut out);
         let request = out.pop().expect("one start result");
@@ -574,7 +574,7 @@ fn notice_fault(message: crate::Up, admit: bool) -> Option<crate::Fault> {
     }]);
     let mut domain = Domain::new(&limits);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::with_capacity(crate::max_out(&limits));
+    let mut out = Queue::uncapped();
     crate::step(&mut domain, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start }), &mut out);
     let Some(Output::Process(process::Request::Spawn { owner, .. })) = out.pop() else { panic!("spawn admitted") };
     crate::step(&mut domain, &env, Input::Process(process::Event::Spawned { owner, process: Token::new(2) }), &mut out);
