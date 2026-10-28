@@ -17,19 +17,27 @@ const READ_B: Token = Token::new(961);
 const WORKER: Token = Token::new(7);
 const TURN_TEXT: &[u8] = b"kept turn";
 const REPORT: &[u8] = b"finished work";
-// The direct world's journal has three outstanding commit slots.
-const FULL_COMMITS: usize = 3;
 // The direct fixture's finite settlement budget.
 const STEPS: usize = 200;
 
+// Fill until admission itself witnesses the watermark. The unadmitted probe
+// belongs to this pressure setup, so it does not join the story's input order.
 fn fill_commits(driver: &mut Driver) {
-    for _ in driver.store.pending.len()..FULL_COMMITS {
+    let returned = driver.returned;
+    for _ in 0..=driver.env.limits.journal.commits {
+        let probe_at = driver.events.len();
         driver.sign_in();
+        if driver.returned > returned {
+            // send appends the refusal before release appends any callbacks.
+            driver.events.remove(probe_at).expect("unadmitted pressure probe");
+            return;
+        }
     }
+    panic!("the backlog reaches the watermark within its commit count");
 }
 
-/// O1: a load's callbacks, left in the root's work queue while the
-/// journal's commits are full, run before a later party change.
+/// O1: a load's callbacks, left in the root's work queue at the
+/// backlog watermark, run before a later party change.
 #[test]
 fn completed_history_callbacks_precede_a_later_party_change() {
     let seed = 9204;
@@ -80,16 +88,7 @@ fn completed_history_callbacks_precede_a_later_party_change() {
             holdings: Box::new([people::Holding { person: archive.by, role: people::Role::Owner }]),
         },
     }));
-    assert_eq!(
-        driver.store.pending.len(),
-        FULL_COMMITS,
-        "unanswered commits bind the room check with the history callback waiting"
-    );
-    assert_eq!(
-        driver.returned,
-        returned + 1,
-        "the later party change is handed back while the callback waits for room"
-    );
+    assert_eq!(driver.returned, returned + 1, "the later party change is handed back at the backlog watermark");
     assert!(keyed_replies(&driver).is_empty(), "neither request answers before callback durability");
     driver.settle();
     assert_eq!(
@@ -143,7 +142,7 @@ fn keyed_replies(driver: &Driver) -> Vec<(Token, people::Reply)> {
         .collect()
 }
 
-/// O2: two read answers, queued while the journal is full, answer in
+/// O2: two read answers, taken at the backlog watermark, answer in
 /// the order they arrived.
 #[test]
 fn queued_read_answers_keep_their_arrival_order_under_load() {
@@ -159,18 +158,13 @@ fn queued_read_answers_keep_their_arrival_order_under_load() {
     assert_eq!(
         driver.returned,
         before_probe + 1,
-        "full commit slots bind admission before the two read answers arrive"
+        "the backlog watermark binds admission before the two read answers arrive"
     );
     let returned = driver.returned;
     driver.send(first);
     driver.send(second);
-    assert_eq!(driver.returned, returned, "both read terminals are taken while commit room binds");
-    assert_eq!(
-        driver.store.pending.len(),
-        FULL_COMMITS,
-        "both ReadLoaded answers wait behind the full journal's room check"
-    );
-    assert!(read_replies(&driver).is_empty(), "neither queued answer has bypassed the full journal");
+    assert_eq!(driver.returned, returned, "both read terminals are taken while the watermark binds");
+    assert!(read_replies(&driver).is_empty(), "neither answer has bypassed prior durability");
     driver.settle();
     assert_eq!(
         read_replies(&driver),
@@ -221,7 +215,7 @@ fn read_replies(driver: &Driver) -> Vec<Token> {
 }
 
 /// O3: a turn kept before its final answer is acknowledged before it,
-/// even when the older release is handed back for room.
+/// even when new work waits at the backlog watermark.
 #[test]
 fn turn_kept_precedes_terminal_acknowledgement_under_callback_pressure() {
     let (mut driver, assignment) = Driver::chat();
@@ -237,9 +231,8 @@ fn turn_kept_precedes_terminal_acknowledgement_under_callback_pressure() {
     );
     until_commits(&mut driver, 2);
     fill_commits(&mut driver);
-    // As in Driver::pressure, make the callback durable then refill its slot
-    // before offering the callback. Do this for the turn and its final answer,
-    // leaving both releases behind three later unanswered sign-in commits.
+    // Make both callbacks durable, refilling to the watermark after each
+    // commit answer, before offering the callbacks.
     for _ in 0..2 {
         commit_one(&mut driver);
         fill_commits(&mut driver);
@@ -255,12 +248,7 @@ fn turn_kept_precedes_terminal_acknowledgement_under_callback_pressure() {
     assert!(matches!(older, engine::Event::Released(_)), "the oldest pending input is a released callback");
     let returned = driver.returned;
     driver.send_retaining(older);
-    assert_eq!(
-        driver.store.pending.len(),
-        FULL_COMMITS,
-        "three unanswered later commits bind the released callback's room check"
-    );
-    assert_eq!(driver.returned, returned + 1, "the older durable release is handed back for room");
+    assert_eq!(driver.returned, returned, "the older durable release is taken even at the watermark");
     assert!(worker_notices(&driver).is_empty(), "both worker acknowledgements still wait on their callbacks");
     settle_retaining(&mut driver);
     assert_eq!(
