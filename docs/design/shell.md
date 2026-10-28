@@ -34,10 +34,9 @@ testing.md, 6.)
   readiness backend, which waits for readiness (epoll, kqueue) and makes
   each call without blocking. Step code never knows which runs
   (section 7).
-- **Startup refuses rather than degrades:** a worst case past the
-  configured memory, or a kernel below the floor, stops the service
-  before its loop runs. The one fallback, to the readiness backend, is
-  said on standard error (7.1).
+- **Startup refuses rather than degrades:** invalid edge limits or a
+  kernel below the floor stop the service before its loop runs. The one
+  fallback, to the readiness backend, is said on standard error (7.1).
 - **Optimisations stay behind the records.** None changes code above io.
 
 ## 2. In skein
@@ -154,8 +153,8 @@ target is a compile error naming the three (7.5, 7.6).
 Before its loop, a service's `main`, with the kit:
 
 1. reads its configuration, the limits of every layer among it;
-2. checks the sum of the layers' worst cases against the configured
-   memory, and refuses to start past it (programming-model.md, 6.3);
+2. validates the edge limits and refuses formulas that overflow; there
+   is no startup memory fit check (programming-model.md, 6.3);
 3. blocks the termination signals that io will read, so they arrive as
    `Shutdown` events (io.md);
 4. opens the first roots for io's files, from configuration, with
@@ -268,8 +267,8 @@ Each is read with `read_file` within bounds that are configuration: the
 bundle's bytes, the number of certificates and each one's bytes. The kit
 hands the certificates to `skein-tls`, which builds its configuration
 from them (tls.md, 3.4), skips and counts one it cannot parse, and
-refuses roots of none. Every connection shares the roots, so they count
-once in the worst case. A machine with neither a bundle nor
+refuses roots of none. Every connection shares the roots, so the process
+holds them once. A machine with neither a bundle nor
 `SSL_CERT_FILE` refuses to start when its configuration asks for the
 machine's roots.
 
@@ -1017,7 +1016,7 @@ every service's `main`.
     invariant watches (testing-strategy.md, 6);
   - `is_empty()`, when it holds nothing, and `exit()`, its exit status
     once it does;
-  - `worst_case()`, and `operations()`, the size of its ring;
+  - `operations()`, the size of its ring;
   - `drain()`, the hook below, which does nothing unless the service
     gives it something to do;
   - `state_digest()`, a digest of what it holds, for replay (lib.md,
@@ -1025,6 +1024,9 @@ every service's `main`.
     (testing.md, 5); `drive` never calls it.
   `Host` is portable: it builds for `wasm32-unknown-unknown`, where a
   world hosts a service with everything handed to it (section 14).
+- **A host declares no heap ceiling or worst case.** The simulated
+  world checks each host's measured peak against the ceiling its
+  scenario names, with headroom (testing-strategy.md, 6).
 - **`drive(kernel, clock, host)`** is the loop: reap, read the clock,
   iterate, drain; then return the host's exit once it holds nothing
   (section 13), or else submit, waiting not at all while work is pending,
