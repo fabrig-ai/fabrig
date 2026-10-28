@@ -226,7 +226,12 @@ down:  released and door outputs → components → io submissions
      and their held outputs released, until nothing waits for a commit,
      which the core says.
   4. **Each component closes,** its peers told, and reports closed; the
-     store closes last.
+     store closes last. A stop before the start's mark (the switch
+     step's wires commit, `../domain/engine.md`, section 6) finds the
+     components that wait for it never made, the accounts' driver and
+     the secrets' gate among them: each closes at once as closed, with
+     nothing outward, and none waits for a mark the stopped start will
+     never commit.
   5. **`main` ends the process** once everything it owns has reported
      closed (programming-model.md, 5.2).
 
