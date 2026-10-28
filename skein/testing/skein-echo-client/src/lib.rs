@@ -16,7 +16,7 @@
 //! completions into [`Client::completions`], [`iterate`], and
 //! [`Client::submissions`] to the kernel, waiting until
 //! [`Client::next_deadline`] when [`Client::work_pending`] says there is
-//! nothing to do. [`worst_case`] is what it may hold.
+//! nothing to do.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -194,23 +194,6 @@ const TIMERS: u32 = 3;
 #[must_use]
 pub fn operations(limits: &Limits) -> Option<u32> {
     io::operations(&limits.io)
-}
-
-/// The most heap the client holds under `limits` with `conns` connections,
-/// or `None` past a `u64` (programming-model.md, 6.3): io's worst case, its
-/// connections and their timers, its queues, and per connection an answer
-/// and a piece on their way.
-#[must_use]
-pub fn worst_case(limits: &Limits, conns: u32) -> Option<u64> {
-    let queue = limits.queue;
-    let queues = Queue::<Complete>::worst_case(queue)?
-        .checked_add(Queue::<Submit>::worst_case(queue)?)?
-        .checked_add(Queue::<io::Event>::worst_case(queue)?)?
-        .checked_add(Queue::<io::Request>::worst_case(queue)?)?;
-    let tables = List::<Conn>::worst_case(conns)?
-        .checked_add(Deadlines::<(u32, Timer)>::worst_case(conns.checked_mul(TIMERS)?)?)?;
-    let bytes = u64::from(conns).checked_mul(u64::from(limits.line).checked_add(u64::from(limits.io.output))?)?;
-    io::worst_case(&limits.io)?.checked_add(queues)?.checked_add(tables)?.checked_add(bytes)
 }
 
 impl Client {

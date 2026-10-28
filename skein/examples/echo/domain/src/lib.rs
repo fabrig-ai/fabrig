@@ -93,15 +93,6 @@ enum Admission {
     Stopped,
 }
 
-/// The most heap the domain holds under `limits`, or `None` past a `u64`
-/// (programming-model.md, 6.3): its slab of sessions. The texts it answers
-/// with are moved through it, and counted by the protocol layer, whose line
-/// in flight they are.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    Slab::<Session>::worst_case(limits.sessions)
-}
-
 impl Domain {
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {

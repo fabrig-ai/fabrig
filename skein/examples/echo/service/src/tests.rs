@@ -1,7 +1,7 @@
 //! The service's step tests (testing-strategy.md, 2.1): `iterate` over a
 //! kernel played by hand, with the smallest kernel submission queue and
 //! uncapped layer handoffs; the
-//! startup checks of the limits; and the sum of the worst cases. The
+//! startup checks of the limits and ring size. The
 //! service's worlds, over the simulator and the real ring, are tests/echo.
 
 #![expect(clippy::disallowed_types, reason = "the hand-played kernel keeps what it holds in Vecs")]
@@ -13,7 +13,7 @@ use crate::{domain, protocol};
 use skein_io::kernel::{Addr, Complete, Done, Error, Fd, Op, Submit};
 use skein_lib::{Duration, Time, Wall};
 
-use crate::{Limits, Service, Unusable, iterate, operations, worst_case};
+use crate::{Limits, Service, Unusable, iterate, operations};
 
 const fn limits() -> Limits {
     Limits {
@@ -300,16 +300,6 @@ fn limits_are_checked_layer_by_layer_and_against_each_other() {
 }
 
 #[test]
-fn the_worst_case_is_the_sum_of_the_layers_and_the_queues() {
-    let limits = limits();
-    let total = worst_case(&limits).expect("priced");
-    let layers = skein_io::worst_case(&limits.io).expect("priced")
-        + protocol::worst_case(&limits.protocol).expect("priced")
-        + domain::worst_case(&limits.domain).expect("priced");
-    assert!(total > layers, "the queues cost something besides");
-    let wider = worst_case(&Limits { queue: 8, ..limits }).expect("priced");
-    assert!(wider > total, "and grow with their capacity");
-    let huge = skein_io::Limits { sockets: u32::MAX, ..limits.io };
-    assert_eq!(worst_case(&Limits { io: huge, ..limits }), None, "past a u64");
-    assert_eq!(operations(&limits), Some(18), "four operations an entity, plus process usage and terminal size");
+fn the_ring_holds_four_operations_per_entity_and_the_process_queries() {
+    assert_eq!(operations(&limits()), Some(18), "four operations an entity, plus process usage and terminal size");
 }

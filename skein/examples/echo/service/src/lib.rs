@@ -1,7 +1,7 @@
 //! The echo example's service (examples.md, 3): its [`iterate`], the pure
 //! function its shell runs once per turn of the loop and the simulator's
-//! worlds drive (programming-model.md, section 2); its [`Limits`], checked at
-//! startup; and [`worst_case`], the sum of its layers' worst cases.
+//! worlds drive (programming-model.md, section 2); and its [`Limits`],
+//! checked at startup.
 //!
 //! # The loop
 //!
@@ -114,26 +114,6 @@ impl Limits {
 
 const fn larger(left: u32, right: u32) -> u32 {
     if left > right { left } else { right }
-}
-
-/// The most heap the service holds under `limits`, or `None` past a `u64`
-/// (programming-model.md, 6.3): each layer's worst case, and the containers
-/// of the queues between them. What the queues' records carry is counted by
-/// the layer it belongs to: a buffer in flight by io, a line by the protocol
-/// layer.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let queue = limits.queue;
-    let queues = Queue::<Complete>::worst_case(queue)?
-        .checked_add(Queue::<Submit>::worst_case(queue)?)?
-        .checked_add(Queue::<io::Event>::worst_case(queue)?)?
-        .checked_add(Queue::<io::Request>::worst_case(queue)?)?
-        .checked_add(Queue::<domain::Event>::worst_case(queue)?)?
-        .checked_add(Queue::<domain::Request>::worst_case(queue)?)?;
-    io::worst_case(&limits.io)?
-        .checked_add(protocol::worst_case(&limits.protocol)?)?
-        .checked_add(domain::worst_case(&limits.domain)?)?
-        .checked_add(queues)
 }
 
 /// The most operations the service has in flight at once: the size of its

@@ -1,10 +1,6 @@
-//! The protocol layer's limits, what they imply for memory
-//! (programming-model.md, 6.3), and the most each entry point emits
-//! (programming-model.md, section 2).
+//! The protocol layer's edge limits (programming-model.md, 7).
 
-use skein_lib::{Deadlines, Duration, Id, Set, Slab};
-
-use crate::conn::Conn;
+use skein_lib::Duration;
 
 /// The answer to an `Open` the domain refused (examples.md, 3.1).
 pub const BUSY: &[u8] = b"busy\n";
@@ -58,20 +54,4 @@ impl Limits {
         };
         self.conns > 0 && holds_refusals && self.idle.as_nanos() > 0 && self.retry.as_nanos() > 0
     }
-}
-
-/// The most heap the protocol layer holds under `limits`, or `None` past a
-/// `u64` (programming-model.md, 6.3): its slab of connections, their idle
-/// deadlines, their live names and its ready list; a line in flight per
-/// connection (the bytes read, the domain's text, or the answer before io takes it, as one
-/// request is in flight per connection); and one line more, for the copy a
-/// step makes while it decodes a line or encodes its answer.
-#[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
-    let conns = limits.conns;
-    let tables = Slab::<Conn>::worst_case(conns)?
-        .checked_add(Deadlines::<Id<Conn>>::worst_case(conns)?)?
-        .checked_add(Set::<Id<Conn>>::worst_case(conns)?.checked_mul(2)?)?;
-    let lines = u64::from(conns).checked_add(1)?.checked_mul(u64::from(limits.line))?;
-    tables.checked_add(lines)
 }

@@ -140,7 +140,7 @@ pub const fn plan(at: Time, seed: u64) -> Plan {
 
 /// A world with the echo in it, and these expectations.
 fn world(seed: u64, config: Config, expect: Vec<Expect>, shutdown: Shutdown) -> EchoWorld {
-    world_with(seed, config, expect, shutdown, server())
+    world_with(seed, config, expect, shutdown, server(), Memory::Checked)
 }
 
 /// These scenarios explicitly expect an idle deadline to fire.
@@ -148,7 +148,7 @@ fn idling_world(seed: u64, config: Config, expect: Vec<Expect>, shutdown: Shutdo
     let mut limits = server();
     limits.protocol.idle = IDLE;
     limits.protocol.spread = SPREAD;
-    world_with(seed, config, expect, shutdown, limits)
+    world_with(seed, config, expect, shutdown, limits, Memory::Checked)
 }
 
 fn world_with(
@@ -157,10 +157,10 @@ fn world_with(
     expect: Vec<Expect>,
     shutdown: Shutdown,
     limits: service::Limits,
+    memory: Memory,
 ) -> EchoWorld {
-    let mut world = World::new_controlled(seed, config, Memory::Checked, |controls| {
-        EchoReferee::new(seed, expect, shutdown, controls)
-    });
+    let mut world =
+        World::new_controlled(seed, config, memory, |controls| EchoReferee::new(seed, expect, shutdown, controls));
     world.spawn_signals(|signal| {
         let mut proc = Proc::echo(limits, listen(), seed);
         match &mut proc {
@@ -190,6 +190,12 @@ fn between(rng: &mut Rng, low: u64, high: u64) -> u32 {
 /// the protocol layer's, and retried until served.
 #[must_use]
 pub fn clients(seed: u64, config: Config) -> EchoWorld {
+    clients_with_memory(seed, config, Memory::Checked)
+}
+
+/// Many clients, with each process checked under the scenario's memory policy.
+#[must_use]
+pub fn clients_with_memory(seed: u64, config: Config, memory: Memory) -> EchoWorld {
     let mut rng = Rng::new(seed ^ 0x00c1_1e47);
     let mut expect = Vec::new();
     let mut processes = Vec::new();
@@ -217,7 +223,7 @@ pub fn clients(seed: u64, config: Config) -> EchoWorld {
         }
         processes.push(plans);
     }
-    let mut world = world(seed, config, expect, Shutdown::WhenDone);
+    let mut world = world_with(seed, config, expect, Shutdown::WhenDone, server(), memory);
     for plans in &processes {
         spawn(&mut world, plans);
     }
@@ -390,19 +396,25 @@ pub fn half_close(seed: u64, config: Config) -> EchoWorld {
     world
 }
 
-/// The echo at its worst case (testing-strategy.md, 8): with sessions for
+/// The echo at its edge limits (testing-strategy.md, 6): with sessions for
 /// all three of its connections, three clients that send forty lines ahead
 /// of their answers and never read fill every connection's intake, receive
 /// and output at once, and a fourth is rejected, until the clients give up.
 /// The focused test observes full buffers from byte traffic at a quiet
-/// snapshot; the world checks memory against its worst case at every step.
+/// snapshot; the world checks memory at every step.
 #[must_use]
 pub fn worst(seed: u64, config: Config) -> EchoWorld {
+    worst_with_memory(seed, config, Memory::Checked)
+}
+
+/// Full buffers, with each process checked under the scenario's memory policy.
+#[must_use]
+pub fn worst_with_memory(seed: u64, config: Config, memory: Memory) -> EchoWorld {
     let config = Config { buffer: BUFFER, ..config };
     let mut rng = Rng::new(seed ^ 0x3057);
     let mut limits = server();
     limits.domain.sessions = 3;
-    let mut world = World::new_controlled(seed, config, Memory::Checked, |controls| {
+    let mut world = World::new_controlled(seed, config, memory, |controls| {
         // The full-buffer story runs until its four clients' scripted aborts.
         let expect =
             (0..4).map(|conn| Expect::Finished { at: 1, conn, by: ms(1_000).saturating_add(MARGIN) }).collect();

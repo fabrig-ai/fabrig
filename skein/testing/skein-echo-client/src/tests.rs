@@ -14,7 +14,7 @@ use skein_io::Addr;
 use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
 use skein_lib::{Duration, Time, Wall};
 
-use crate::{Client, HalfClose, Limits, Plan, Then, iterate, worst_case};
+use crate::{Client, HalfClose, Limits, Plan, Then, iterate};
 
 const LIMITS: Limits = Limits {
     io: skein_io::Limits {
@@ -363,12 +363,4 @@ fn no_line_begins_with_b_so_none_reads_as_busy() {
 #[should_panic(expected = "ends by an abort of its own")]
 fn a_plan_that_never_reads_and_never_aborts_is_refused() {
     let _rig = Rig::new(Plan { read_from: None, ..PLAN });
-}
-
-#[test]
-fn the_worst_case_grows_with_its_connections() {
-    let one = worst_case(&LIMITS, 1).expect("priced");
-    let two = worst_case(&LIMITS, 2).expect("priced");
-    assert!(two > one, "a connection more costs more");
-    assert_eq!(worst_case(&LIMITS, u32::MAX), None, "past a u64, or its timers past a u32");
 }
