@@ -438,8 +438,9 @@ pending (tasks.md, 5.7), and the facts it reads. A projection
   (tasks.md, section 7);
 - when its last step was refused, with why (6.3);
 - when room it was refused for frees: a step whose batch was refused
-  for a count that frees on its own (the live tasks in the deployment,
-  in its project, or in its tree, tasks.md, section 4) is told so, and
+  for a count that frees on its own (the live tasks in the deployment or
+  in its project, tasks.md, section 4; never its tree's allotment, which
+  counts every task the tree made and never frees) is told so, and
   its task waits for that room as a condition (6.4): a task ending that
   frees a place wakes the procedures waiting on it, one per place freed,
   in the order they were refused, each stepping again on the facts as
