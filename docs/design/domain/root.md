@@ -163,6 +163,7 @@ admission:
 ```
 try_step(root, event):
     a store's answer (committed, loaded, unloaded), a released output, Resume:   always taken
+    a completion of admitted work (a host call rendered, a result read, a delivery acknowledged):   always taken
     a core read's page, a load switched:   taken in arrival order, after the work queue and earlier answers
     an event with admitted and new work:   split: the admitted part taken, the new part as below
     new external work:                     handed back while the backlog is at the watermark,
@@ -193,8 +194,11 @@ release(root):   (the service's iterate)
     releases are always taken.
 - **Split, not held whole.** A worker's link coming up, a worker's answer
   and a forge's answer can carry what finishes admitted work beside what
-  starts new: the first is taken at any backlog, and only the second
-  waits at the watermark, as any new work does.
+  starts new. The root steps the first at any backlog and hands back the
+  rest, an event of its own holding only the new work, which its owner
+  offers again as any handed-back event (programming-model.md, 7.1); so
+  nothing taken is offered twice, and the new work follows what it came
+  with.
 - **Handed back, not answered.** An input the journal cannot take returns
   to its owner unchanged, who offers it again; the root answers nobody
   busy itself. Busy answers are the core's (jig's `domain/engine.md`,
@@ -209,9 +213,10 @@ release(root):   (the service's iterate)
 - **Owner progress is a step of its own.** `Resume` admits one: the
   forge's continuation when it has one, else a due task's activation,
   else the fleet's.
-- **Timers** fire through the same admission (`fire`): accounts' and
-  views' always; the forge's from its restart step on; the core's others
-  once decisions open.
+- **Timers** fire through the same admission (`fire`), waiting at the
+  watermark as new work does: accounts' and views' from the start; the
+  forge's from its restart step on; the core's others once decisions
+  open.
 - **Stopping of its own:** a root that cannot go on (a counter at its
   end) stops its journal (`Journal::stop`, skein's `lib.md`, 11), and
   nothing held or at the door leaves again; a failed commit fails it as
@@ -444,8 +449,7 @@ child, the calendar, which renews each project's period.
   in memory, within jig's project limit; nothing stored of its own, the
   periods being the core's records. A renewal's decision takes two
   journal writes per project it renews (its period's ledger and its next
-  start), so every journal bound derived from the projects grows by two
-  per project (o/configuring-periods' calendar, temper 7e3f4df67).
+  start), within the commit's bytes in the store.
 - **Seen and raised:** a project's document carries its period's start
   and next start (jig's `client/domain/contract.md`, 5.1), and `temper
   ctl project show` prints them with what the period has left; `temper
@@ -805,10 +809,10 @@ Startup also checks the seed policy after enforced landing requirements are join
   6).
 - **The root's own,** `root.` in temper's limits
   (`../protocol/configuration.md`, section 7):
-  - the journal (`JournalLimits`): commits in flight; outputs held across
-    decisions; writes per commit, the deployment's record among them;
-    outputs per decision; a row's bytes; a result's bytes; a charter's
-    bytes;
+  - the journal (`JournalLimits`): commits in flight and the door's
+    outputs, which give the watermark; a row's bytes, a result's bytes
+    and a charter's bytes, which size the store's records (edges); the
+    journal itself, its decisions and its held outputs are uncapped;
   - loads: in flight, rows per page, the bytes kept and a page's bytes;
   - briefs: gathers, sections per gather, parts per section, a section's
     read bytes, a budget per kind of section (the task, dependencies, CI,
@@ -832,8 +836,10 @@ Startup also checks the seed policy after enforced landing requirements are join
   least the largest task row and the forge's largest answer; a result's
   bytes at least a brief, a task's result and a party's words; the
   forge's brief sections and bytes at least what the briefs may plan. No
-  limit has to cover another's room: the journal's capacities no longer
-  bound a decision, and no event reserves a route.
+  limit has to cover another's room: no decision is capped in writes or
+  outputs, none fails past a reserve, and no event reserves a route, so
+  the held outputs need not cover the door's, nor the forge's named calls
+  the call records.
 - **The watermark,** a field of the root's `Limits`, in entries: the
   journal's commits plus the door's outputs (`commits` and `deliveries`),
   derived where the root's limits are, with no key of its own in
@@ -849,7 +855,9 @@ Startup also checks the seed policy after enforced landing requirements are join
 - **The store's fill mark and a read's bytes** are jig's small profile's
   numbers, 268,435,456 and 65,536 bytes, held as the root's constants
   (section 13).
-- **The worst case:** the core's, the forge's, the calendar's (a record
+- **The worst case, an estimate until it goes** (skein's
+  programming-model.md, 6.3, which no longer has one; the startup fit
+  check goes in one set across the repositories): the core's, the forge's, the calendar's (a record
   per project, within jig's project limit), the journal's, the loads',
   the landing policy's (designed, not built: the forge's rules and its
   kinds' values, priced by the forge, and their states, by jig) and
@@ -936,7 +944,8 @@ never the root's state; a referee per promise rejects a fault injected
 against it; jig's conformance referee checks that nothing a party, a
 host or the forge saw depended on a lost commit, and that every effect
 the fake forge saw, in its own terms, is the one the core decided. Each
-step's memory is measured against the declared worst case.
+step's memory is measured against the world's ceiling (skein's
+testing-strategy.md, 6).
 
 ## 13. Open questions
 
