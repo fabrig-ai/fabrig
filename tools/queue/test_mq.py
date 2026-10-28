@@ -1,10 +1,11 @@
 """Queue policy and effects against disposable local repositories; no real posts."""
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import importlib.machinery
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -131,6 +132,94 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(len(steps), 1)
             self.assertFalse(steps[0]["green"])
 
+    def test_only_heavy_exit_two_with_disk_floor_text_is_a_refusal(self):
+        for code, output, refused in ((2, "builder: 39 GB below the disk floor", True),
+                                      (1, "below the disk floor", False),
+                                      (2, "test failed", False)):
+            with self.subTest(code=code, output=output):
+                def runner(argv, **kwargs):
+                    heavy = argv[0] == "heavy"
+                    if heavy:
+                        kwargs["stdout"].write(output)
+                    return subprocess.CompletedProcess(argv, code if heavy else 0)
+
+                with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+                    steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log", runner=runner)
+                self.assertEqual("error" in steps[-1], refused)
+                self.assertEqual(len(steps), 2)
+
+
+class CleanupTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-")
+        self.addCleanup(self.temporary.cleanup)
+        self.repo = Path(self.temporary.name)
+        self.deps = self.repo / "target/debug/deps"
+        self.deps.mkdir(parents=True)
+        self.batch_start = 10_000_000_000
+
+    def artifact(self, name, *, mtime=1_000_000_000, executable=True):
+        path = self.deps / name
+        path.write_bytes(b"test binary")
+        path.chmod(0o700 if executable else 0o600)
+        os.utime(path, ns=(mtime, mtime))
+        return path
+
+    def test_prunes_oldest_first_until_floor_plus_forty_is_free(self):
+        oldest = self.artifact("oldest", mtime=1_000_000_000)
+        middle = self.artifact("middle", mtime=2_000_000_000)
+        newest = self.artifact("newest", mtime=3_000_000_000)
+        with patch.object(mq, "free_gb", side_effect=[84, 84, 85]):
+            report = mq.prune_test_executables(self.repo, 45, self.batch_start)
+        self.assertFalse(oldest.exists())
+        self.assertTrue(middle.exists() and newest.exists())
+        self.assertEqual(report, {"count": 1, "gb": 11 / mq.GB})
+
+    def test_protects_libraries_nonexecutables_and_batch_outputs(self):
+        protected = [self.artifact("fresh", mtime=self.batch_start),
+                     self.artifact("newer", mtime=self.batch_start + 1),
+                     self.artifact("ordinary", executable=False)]
+        protected += [self.artifact("library" + suffix) for suffix in (".rlib", ".rmeta", ".so", ".d")]
+        old = self.artifact("old")
+        (self.deps / "symlink").symlink_to(old)
+        (self.deps / "directory").mkdir()
+        with patch.object(mq, "free_gb", return_value=0):
+            report = mq.prune_test_executables(self.repo, 45, self.batch_start)
+        self.assertEqual(report["count"], 1)
+        self.assertTrue(all(path.exists() for path in protected))
+        self.assertTrue((self.deps / "symlink").is_symlink())
+        self.assertTrue((self.deps / "directory").is_dir())
+
+    def test_no_cleanup_at_space_goal(self):
+        old = self.artifact("old")
+        with patch.object(mq, "free_gb", return_value=85):
+            self.assertEqual(mq.prune_test_executables(self.repo, 45, self.batch_start),
+                             {"count": 0, "gb": 0.0})
+        self.assertTrue(old.exists())
+
+    def test_rewritten_candidate_is_preserved(self):
+        old = self.artifact("old")
+        calls = []
+
+        def space(repo):
+            calls.append(repo)
+            if len(calls) == 2:
+                os.utime(old, ns=(self.batch_start, self.batch_start))
+            return 0
+
+        with patch.object(mq, "free_gb", side_effect=space):
+            self.assertEqual(mq.prune_test_executables(self.repo, 45, self.batch_start)["count"], 0)
+        self.assertTrue(old.exists())
+
+    def test_symlinked_deps_directory_is_preserved(self):
+        old = self.artifact("old")
+        moved = self.deps.with_name("other")
+        self.deps.rename(moved)
+        self.deps.symlink_to(moved, target_is_directory=True)
+        with patch.object(mq, "free_gb", return_value=0):
+            self.assertEqual(mq.prune_test_executables(self.repo, 45, self.batch_start)["count"], 0)
+        self.assertTrue(old.exists())
+
 
 class BisectTests(unittest.TestCase):
     def test_one_red_is_reported_and_green_groups_land_in_order(self):
@@ -218,6 +307,7 @@ class RepositoryTests(unittest.TestCase):
         return {"sent": True, "returncode": 3}
 
     def queue(self, **kwargs):
+        kwargs.setdefault("disk_floor", 0)
         return mq.Queue(self.repo, state_path=self.directory / "state.json",
                         log_path=self.directory / "queue.jsonl", checker=self.checker,
                         poster=self.poster, metadata_loader=lambda repo: metadata(repo), **kwargs)
@@ -239,6 +329,91 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual((self.repo / "shared").read_text(), "first\n")
         self.assertTrue((self.repo / "last").exists())
         self.assertEqual(mq.git(self.repo, "status", "--porcelain").stdout, "")
+
+    def ratchet_base(self, trees=("skein",)):
+        for tree in trees:
+            self.write(f"{tree}/scripts/old-forms.txt", "3\n")
+            self.write(f"{tree}/src/a.rs", "old old\n")
+            self.write(f"{tree}/src/b.rs", "old\n")
+            self.write(f"{tree}/scripts/old_forms.py", r"""from pathlib import Path
+import sys
+baseline = Path('scripts/old-forms.txt')
+count = sum(p.read_text().count('old') for p in Path('src').glob('*.rs'))
+if count > int(baseline.read_text()):
+    print('count rose above HEAD baseline')
+    sys.exit(1)
+baseline.write_text(str(count) + '\n')
+""")
+        self.commit("ratchet fixture")
+        self.base = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+
+    def ratchet_branch(self, task, source, baseline, trees=("skein",), *, publish=False):
+        mq.git(self.repo, "switch", "--detach", self.base)
+        for tree in trees:
+            self.write(f"{tree}/src/{source}.rs", "")
+            self.write(f"{tree}/scripts/old-forms.txt", f"{baseline}\n")
+        self.commit(task)
+        branch = {"name": "ready/coord/" + task, "tip": self.tip(), "timestamp": 1}
+        if publish:
+            mq.git(self.repo, "push", "origin", f"HEAD:refs/heads/{branch['name']}")
+        return branch
+
+    def test_ratchet_only_conflicts_recount_and_amend_each_tree(self):
+        trees = ("skein", "smith")
+        self.ratchet_base(trees)
+        first = self.ratchet_branch("a", "a", 1, trees)
+        second = self.ratchet_branch("b", "b", 2, trees)
+        merged, conflicts = mq.build_batch(self.repo, [first, second])
+        self.assertEqual(conflicts, [])
+        self.assertEqual([branch["name"] for branch in merged], [first["name"], second["name"]])
+        for tree in trees:
+            self.assertEqual((self.repo / tree / "scripts/old-forms.txt").read_text(), "0\n")
+            self.assertEqual(mq.git(self.repo, "show", f"HEAD:{tree}/scripts/old-forms.txt").stdout, "0\n")
+        self.assertEqual(len(mq.git(self.repo, "show", "-s", "--format=%P").stdout.split()), 2)
+        self.assertEqual(mq.git(self.repo, "show", "-s", "--format=%s").stdout.strip(),
+                         "Merge ready/coord/b")
+        self.assertEqual(mq.git(self.repo, "status", "--porcelain").stdout, "")
+
+    def test_ratchet_rise_rejects_branch_and_restores_batch_so_far(self):
+        self.ratchet_base()
+        first = self.ratchet_branch("a", "a", 1, publish=True)
+        mq.git(self.repo, "switch", "--detach", self.base)
+        self.write("skein/scripts/old-forms.txt", "2\n")
+        self.write("skein/src/b.rs", "old old\n")
+        self.commit("raise combined count")
+        second = {"name": "ready/coord/b", "tip": self.tip(), "timestamp": 1}
+        mq.git(self.repo, "push", "origin", f"HEAD:refs/heads/{second['name']}")
+        queue = self.queue()
+        self.run_cycle(queue)
+        self.assertEqual((self.repo / "skein/src/a.rs").read_text(), "")
+        self.assertEqual((self.repo / "skein/src/b.rs").read_text(), "old\n")
+        record = self.records()[0]
+        self.assertEqual(record["conflicts"][0]["step"], "ratchet:skein")
+        self.assertIn("count rose above HEAD baseline", record["conflicts"][0]["error"])
+        self.assertTrue(any("failing step: ratchet:skein" in body for _, _, body in self.posts))
+        self.assertEqual(queue.state["tried"][second["name"]], second["tip"])
+        self.assertEqual(record["branches"][0]["tip"], first["tip"])
+
+    def test_mixed_ratchet_and_source_conflict_is_aborted(self):
+        self.ratchet_base()
+        first = self.ratchet_branch("a", "a", 1)
+        second = self.ratchet_branch("b", "b", 2)
+        self.write("skein/src/a.rs", "other\n")
+        self.commit("source conflict")
+        second["tip"] = self.tip()
+        with patch.object(mq, "merge_ratchets", side_effect=AssertionError("mixed conflict")):
+            merged, conflicts = mq.build_batch(self.repo, [first, second])
+        self.assertEqual(len(merged), 1)
+        self.assertNotIn("step", conflicts[0])
+        self.assertEqual((self.repo / "skein/scripts/old-forms.txt").read_text(), "1\n")
+
+    def test_merge_commits_name_the_pinned_branch(self):
+        branches = [self.branch("first"), self.branch("last")]
+        merged, _ = mq.build_batch(self.repo, branches)
+        self.assertEqual([mq.git(self.repo, "show", "-s", "--format=%s", branch["commit"]).stdout.strip()
+                          for branch in merged], ["Merge ready/coord/first", "Merge ready/coord/last"])
 
     def test_candidates_are_pinned_ordered_and_skip_only_the_tried_tip(self):
         a = self.branch("a")
@@ -428,6 +603,159 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("merge infrastructure failure", Path(record["log"]).read_text())
         self.assertEqual(queue.state["tried"], {})
         self.assertEqual(self.posts, [])
+
+    def run_cycles(self, queue, count):
+        stop = self.directory / "stop"
+        sleeps = []
+
+        def sleeper(seconds):
+            sleeps.append(seconds)
+            if len(sleeps) == count:
+                stop.touch()
+
+        with redirect_stdout(io.StringIO()):
+            queue.run(stop, sleeper=sleeper)
+        return sleeps
+
+    def test_run_recovers_errors_and_reports_each_distinct_text_once(self):
+        branch = self.branch("a", publish=True)
+        queue = self.queue()
+        failures = iter(["gate guard", "gate guard", "git failed"])
+
+        def fail(repo, selected, paths, log):
+            raise RuntimeError(next(failures))
+
+        queue.checker = fail
+        self.assertEqual(self.run_cycles(queue, 3), [60, 60, 60])
+        self.assertEqual(self.tip(), self.base)
+        self.assertEqual(mq.git(self.repo, "branch", "--show-current").stdout.strip(), "")
+        self.assertEqual(queue.state["tried"], {})
+        self.assertEqual([body.splitlines()[0] for _, _, body in self.posts], ["gate guard", "git failed"])
+        batches = [record for record in self.records() if "event" not in record]
+        self.assertEqual([record["outcome"] for record in batches], ["error"] * 3)
+        self.assertTrue(all(record["branches"][0]["tip"] == branch["tip"] for record in batches))
+        self.assertTrue(self.run_cycle(self.queue()))
+        self.assertTrue((self.repo / "a").exists())
+
+    def test_run_lands_batch_on_next_cycle_after_error(self):
+        self.branch("a", publish=True)
+        queue = self.queue()
+        calls = []
+        stop = self.directory / "stop"
+
+        def checker(*args):
+            calls.append(args)
+            if len(calls) == 1:
+                raise RuntimeError("temporary git failure")
+            stop.touch()
+            return self.checker(*args)
+
+        queue.checker = checker
+        with redirect_stdout(io.StringIO()):
+            queue.run(stop, sleeper=lambda seconds: None)
+        self.assertEqual(len(calls), 2)
+        self.assertTrue((self.repo / "a").exists())
+        self.assertEqual(self.records()[-1]["outcome"], "green")
+        self.assertEqual(len([subject for _, subject, _ in self.posts if subject == "queue error"]), 1)
+
+    def test_run_survives_recovery_log_failure(self):
+        queue = self.queue()
+        queue.cycle = lambda: (_ for _ in ()).throw(RuntimeError("git failed"))
+        output = io.StringIO()
+        with patch.object(mq, "log_batch", side_effect=OSError("disk full")), redirect_stderr(output):
+            self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        self.assertIn("recovery failed: disk full", output.getvalue())
+        self.assertEqual(len(self.posts), 1)
+
+    def test_run_aborts_unfinished_merge_and_preserves_ignored_target(self):
+        self.write(".gitignore", "/target/\n")
+        self.commit("ignore build output")
+        self.base = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+        first = self.branch("first", "shared", "first\n")
+        second = self.branch("second", "shared", "second\n")
+        mq.build_batch(self.repo, [first])
+        mq.git(self.repo, "merge", "--no-ff", "--no-edit", second["tip"], check=False)
+        self.write("target/kept", "build output\n")
+        queue = self.queue()
+        queue.cycle = lambda: (_ for _ in ()).throw(RuntimeError("unfinished merge"))
+        self.run_cycles(queue, 1)
+        self.assertEqual(self.tip(), self.base)
+        self.assertNotEqual(mq.git(self.repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD",
+                                   check=False).returncode, 0)
+        self.assertEqual((self.repo / "target/kept").read_text(), "build output\n")
+
+    def test_error_does_not_reject_conflicted_branch_in_same_batch(self):
+        for task, text in (("a", "first\n"), ("b", "second\n")):
+            self.branch(task, "shared", text, publish=True)
+        queue = self.queue()
+        queue.checker = lambda *args: (_ for _ in ()).throw(RuntimeError("gate guard"))
+        self.run_cycles(queue, 1)
+        self.assertEqual(queue.state["tried"], {})
+        self.assertFalse(any("rejected" in subject for _, subject, _ in self.posts))
+
+    def test_root_and_tree_targets_are_ignored(self):
+        paths = ["target/fixture"] + [f"{tree}/target/fixture" for tree in mq.TREES]
+        self.assertEqual(mq.git(ROOT, "check-ignore", *paths).stdout.splitlines(), paths)
+
+    def test_heavy_disk_refusal_errors_without_rejection_or_bisection(self):
+        for task in ("a", "b"):
+            self.branch(task, publish=True)
+        queue = self.queue()
+        attempts = []
+
+        def refuse(*args):
+            attempts.append(args)
+            return [{"name": "clippy", "green": False, "returncode": 2,
+                     "error": "builder: 39 GB free, below the disk floor"}]
+
+        queue.checker = refuse
+        self.run_cycles(queue, 2)
+        batches = [record for record in self.records() if "event" not in record]
+        self.assertEqual([record["outcome"] for record in batches], ["error", "error"])
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(queue.state["tried"], {})
+        self.assertEqual(len(self.posts), 1)
+        self.assertIn("builder: 39 GB", self.posts[0][2])
+        self.assertEqual(self.tip(), self.base)
+
+    def test_low_disk_waits_without_starting_a_batch_and_posts_once(self):
+        self.branch("a", publish=True)
+        queue = self.queue(disk_floor=45)
+        with patch.object(mq, "free_gb", side_effect=[44, 43]):
+            self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        self.assertEqual(self.checks, [])
+        self.assertEqual(queue.state["tried"], {})
+        self.assertEqual(len(self.posts), 1)
+        self.assertIn("44.0 GB free", self.posts[0][2])
+        self.assertTrue(all(record["branches"] == [] for record in self.records()))
+
+    def test_disk_floor_allows_a_batch_at_the_boundary(self):
+        self.branch("a", publish=True)
+        with patch.object(mq, "free_gb", return_value=45):
+            self.assertTrue(self.run_cycle(self.queue(disk_floor=45)))
+        self.assertEqual(self.records()[0]["outcome"], "green")
+
+    def test_every_batch_logs_cleanup_for_green_red_and_error(self):
+        for task, outcome in (("a", "green"), ("red", "red"), ("error", "error")):
+            with self.subTest(outcome=outcome):
+                branch = self.branch(task)
+                queue = self.queue()
+                if outcome == "error":
+                    queue.checker = lambda *args: (_ for _ in ()).throw(RuntimeError("gate guard"))
+                with patch.object(mq, "prune_test_executables", return_value={"count": 2, "gb": 3}) as prune:
+                    if outcome == "error":
+                        with self.assertRaisesRegex(RuntimeError, "gate guard"):
+                            queue.attempt([branch])
+                    else:
+                        queue.attempt([branch])
+                self.assertEqual(prune.call_count, 1)
+                self.assertEqual(prune.call_args.args[:2], (self.repo, 0))
+                self.assertGreater(prune.call_args.args[2], 0)
+                record = self.records()[-1]
+                self.assertEqual(record["outcome"], outcome)
+                self.assertEqual(record["target_cleanup"], {"count": 2, "gb": 3})
 
     def test_changed_tip_is_preserved_by_cleanup(self):
         branch = self.branch("a", publish=True)
