@@ -1457,8 +1457,6 @@ mod tests {
     fn a_store_answer_reaches_the_chat_before_a_later_file_terminal() {
         const STORE_OWNER: Token = Token::new(u64::MAX - 1);
         const MARKER_OWNER: Token = Token::new(7);
-        // Both whole-file requests finish while the chat's sole event slot is held.
-        const CHAT_EVENTS: u32 = 1;
         // Consume the store terminal, dispatch Fault + Domain, then the marker.
         const DISPATCH_PASSES: u32 = 3;
         let config = crate::tests::config();
@@ -1466,7 +1464,7 @@ mod tests {
             ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
         adapter.adopt_store(kernel::Fd::new(10)).expect("store root");
         adapter.adopt_delivery_roots(Box::new([kernel::Fd::new(11)]), Box::new([]));
-        let mut events = Queue::with_capacity(CHAT_EVENTS);
+        let mut events = Queue::uncapped();
         adapter.store_request(local_protocol::StoreRequest::Load);
         adapter.markers_up(Time::ZERO, &mut events);
         adapter.markers_up(Time::ZERO, &mut events);
@@ -1477,10 +1475,9 @@ mod tests {
             Time::from_nanos(1_000_000_000),
             &mut events,
         );
-        // The file driver has one operation at a time, but releases its slot
-        // when it queues a terminal. While local_events is full, down can
-        // therefore finish the next owner's request before markers_up resumes.
-        events.push(local::Event::StateSaved);
+        // The file driver releases its serial slot when it queues a terminal.
+        // Accumulate both completed requests before the next markers_up pass;
+        // the chat handoff is now uncapped (protocol/limits.md, section 3.8).
         match adapter.file_requests.pop().expect("store load") {
             (file::Request::Load { owner: STORE_OWNER, path, .. }, _) => {
                 assert_eq!(path.as_ref(), b"format");
@@ -1493,17 +1490,14 @@ mod tests {
             committed: false,
             residue: None,
         });
-        adapter.markers_up(Time::ZERO, &mut events);
         match adapter.file_requests.pop().expect("marker load") {
             (file::Request::Load { owner: MARKER_OWNER, .. }, _) => {}
             other => panic!("marker's file request: {other:?}"),
         }
         adapter.file_events.push(file::Event::Loaded { owner: MARKER_OWNER, bytes: b"clean\n".as_slice().into() });
-        adapter.markers_up(Time::ZERO, &mut events);
-        events.pop().expect("release chat credit");
 
-        // Collect both terminals in dispatch order, returning chat credit after
-        // each pass. The assertion is about the chat's stream, not queue room.
+        // Collect both terminals in dispatch order across the bounded passes.
+        // The assertion is about the chat's stream, not queue room.
         let mut terminals = Vec::new();
         for _ in 0..DISPATCH_PASSES {
             adapter.markers_up(Time::ZERO, &mut events);
