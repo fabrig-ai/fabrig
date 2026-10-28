@@ -136,15 +136,15 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
     let current = settings::Current::new(defaults, &engine.limits.core);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 2374, Setting::Policy(1), "the stock's policy 1 needs 2374 bytes"),
+        (b"core.policy_bytes", 2390, Setting::Policy(1), "the stock's policy 1 needs 2390 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 10, Setting::Rules, "the stock's rules need 10 grants"),
-        (b"authority.executors", 3, Setting::Rules, "the stock's rules need 3 executors"),
+        (b"authority.executors", 4, Setting::Rules, "the stock's rules need 4 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 1, Setting::Policy(1), "the stock's policy 1 needs 1 role"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 2, Setting::Charter(1), "the stock offers 2 charters"),
+        (b"tasks.charters", 3, Setting::Charter(1), "the stock offers 3 charters"),
         (b"core.templates", 2, Setting::Template(1), "the stock offers 2 templates"),
         (b"documents.text_bytes", 4, Setting::Template(1), "the stock's template 1 needs 4 bytes"),
         (b"tasks.result_bytes", 32, Setting::Template(1), "the stock's template 1 needs 32 bytes"),
@@ -198,6 +198,48 @@ fn each_floor_refuses_one_below_the_stocks_need() {
 }
 
 #[test]
+fn each_charters_run_bytes_floor_names_that_charter() {
+    use jig_domain_core::settings::Setting;
+    let engine = engine(&without_projects());
+    for charter in &crate::stock::defaults(&engine.llm).charters {
+        let mut defaults = crate::stock::defaults(&engine.llm);
+        // Isolate each run policy, including charter 4, from larger stock runs.
+        defaults.charters = Box::new([charter.clone()]);
+        let needed = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
+        let mut limits = engine.limits;
+        limits.core.run_bytes = u32::try_from(needed).unwrap();
+        assert_eq!(crate::stock::floors(&defaults, &limits), Ok(()));
+        limits.core.run_bytes -= 1;
+        assert_eq!(
+            crate::stock::floors(&defaults, &limits),
+            Err(crate::stock::Floor {
+                limit: b"core.run_bytes",
+                configured: needed - 1,
+                needed,
+                setting: Setting::Charter(charter.number),
+            })
+        );
+    }
+}
+
+#[test]
+fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
+    let document = without_projects();
+    let engine = engine(&document);
+    let mut own = crate::stock::defaults(&engine.llm);
+    let mut needed = 0;
+    for charter in &mut own.charters {
+        charter.policy.instructions = Box::default();
+        needed = needed.max(jig_domain_core::policy_owned_bytes(&charter.policy).unwrap());
+    }
+    let document = limited(&document, b"core.run_bytes", needed);
+    let refused = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
+    assert!(String::from_utf8_lossy(&crate::startup::lines(&refused)).contains("the stock's charter"));
+    crate::startup::named_with(&document, &config::Directories::working(), &crate::stock::Given::Own(Box::new(own)))
+        .expect("a world sizes its own runs");
+}
+
+#[test]
 fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let document = limited(&without_projects(), b"core.policy_bytes", 100);
     // named only parses the document and lists its files. No file read or
@@ -205,7 +247,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 2374 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 2390 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
