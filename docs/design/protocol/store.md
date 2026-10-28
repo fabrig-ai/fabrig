@@ -1,6 +1,6 @@
 # The store
 
-Provisional, 2026-10-12, revised 2026-10-27. What lies beneath the
+Provisional, 2026-10-12, revised 2026-10-28. What lies beneath the
 engine's store vocabulary: skein's key-value store, embedded in the
 engine's process, holds every record jig's core and the application
 keep, transcripts are files beside it, and secrets are in a second
@@ -786,11 +786,11 @@ root for one step at a time, and the root asks the store:
   walk hands rows up is (interval, key), not the keys' own: an interval
   may start below the one before it (the accounts' issued names, tag 4,
   before their counter, tag 0). jig gives each key its place, so that a
-  root that keeps its own cursors, or checks that a page's rows ascend,
-  never compares raw keys or keeps a copy of the intervals. The place
-  is the domain's, over typed keys, pure, beside the ranges the core
-  names (`jig-domain-core`, so a domain crate checks its pages with no
-  io below it); the component's byte intervals and cursors follow it:
+  root that keeps its own cursors never compares raw keys or keeps a
+  copy of the intervals. The place is the domain's, over typed keys,
+  pure, beside the ranges the core names (`jig-domain-core`, so a
+  domain crate pages with no io below it); the component's byte
+  intervals and cursors follow it:
 
   ```rust
   pub fn RestoreRange::interval(ranges: &[RestoreRange], key: &Key) -> Option<u32>  // jig-domain-core; None: no interval of the walk holds it
@@ -800,11 +800,11 @@ root for one step at a time, and the root asks the store:
   `Census::interval` is the census's case of the first. The second
   finds the interval by containment in the list the walk builds, and
   4.3's test pins the two together over generated keys, for each range
-  alone, a census, and `[Core, Tasks]`. A page's rows ascend when each
-  row's place is above the one before it: a later interval, or the same
-  interval and a higher key. A root's "after" for a fresh request is
-  the place of its last key, and a row at or below it is one already
-  handed up;
+  alone, a census, and `[Core, Tasks]`. A page's rows ascend by place,
+  a later interval or the same interval and a higher key, which the
+  tests assert and no start re-checks (`../domain/engine.md`, section
+  6). A root's "after" for a fresh request is the place of its last
+  key, and a row at or below it is one already handed up;
 - **what the core never restores** (turns, terminals, history, ended
   tasks, notes' entries) is never read at start.
 
@@ -1354,7 +1354,11 @@ nothing is written.
   erases each neither configured nor named, including orphaned keys.
   Configured sources are spared even without an accounts-family row.
   Every application row is spared: a carried value an application used
-  may still live at its drawn number. A value orphaned by a crash
+  may still live at its drawn number. **No sweep after a gap:** a
+  start whose people child left a record out erases no digest, and one
+  whose accounts child left one out erases no source record
+  (`../domain/engine.md`, section 6), since what it left out may name
+  them. A value orphaned by a crash
   before the core says used or unused remains there, including an LLM
   key not yet adopted; collecting those values is later work.
 - **A failure stops the engine,** as the store's does (section 6): what a
@@ -1982,7 +1986,8 @@ deployment's lock as a start does (10.1, step 1).
   application's cache directory as that generation, and opens the
   scratch as any start does (10.1 and 10.2), with its patch sets, the
   transcripts read where they are and never cut, and no generation
-  dropped. The plan, the copy, the patches, the check and the restores
+  dropped. The plan, the copy, the patches and the restores (loaded and
+  linked, `../domain/engine.md`, section 6)
   run (over `A + 1` where patches are pending, over the scratch's `A`
   otherwise); then the rehearsing root ends where it would take the
   switch step, at which every start's first act beyond the process
@@ -2131,6 +2136,11 @@ Each within jig's suites' budgets.
   story runs the real keys, codecs, intervals, paging and joins. No
   world fakes the store's component: the real one runs in each
   (testing-strategy.md, section 4).
+- **The restart oracle** (`../domain/engine.md`, section 15): every
+  world story ends with a cold restart over its store that restores
+  with nothing left out and reads back what it wrote. The cross-record
+  rules a restore once checked are proved there, writer by writer,
+  never re-judged at a start.
 - **Faults come from the world.** The world holds commits between the
   root and the component, in order: it delays them to make the store
   slow, and fails one to stop the engine. A crash keeps what reached the

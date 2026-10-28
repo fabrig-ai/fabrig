@@ -1,6 +1,6 @@
 # The core
 
-Provisional, 2026-10-07, revised 2026-10-26. What jig's core is, as a
+Provisional, 2026-10-07, revised 2026-10-28. What jig's core is, as a
 domain layer inside an application's engine: its parts and how they fit,
 what crosses between it and the application's root, how a decision
 reaches the store before anything leaves the engine, how it restarts,
@@ -500,40 +500,50 @@ adopted and connectors let reach their systems. Before it the restores may commi
 settings revision, 17.7), and their commits land in the copy alone; but
 nothing leaves the engine's process: no secret is served, no run
 adopted or placed, no connector reads or writes its system
-(`../protocol/store.md`, 10.2, step 7). So whatever checks a record
-runs in the restores, before the switch, and what acts on it after: the
-tasks child's checks of its live tasks' links, stubs, writers, waits and
-funders, which adopting the runs made, are a step of their own,
-`RestartStep::Check`, just before the switch, and step 3 adopts. The
+(`../protocol/store.md`, 10.2, step 7). So the restores load and link
+before the switch, and what acts on a record comes after it: the tasks
+child's links of its live tasks (stubs, writers, waits and funders),
+which adopting the runs needs, are a step of their own,
+`RestartStep::Check`, the last of the link pass, just before the
+switch, and step 3 adopts. The
 mark is a root decision carrying the store's `Write::Wires`, and the
 store opens its secrets' gate on it. The fleet's checks of a host's
 programs, which read what a worker reports and start nothing, may go
 before it. Over a generation with nothing pending, the step switches
 nothing and commits the wires alone.
 
-So the restore is the check the draft asks before the switch (temper's
-`draft/upgrades.md`, 6.4), the binary's own open over the copy: every
-record of the live ranges loads within its codec's limits, each child's
-rules hold, the live sets fit the limits, the census's rows load and
-join, and each child's restore refuses a record whose references do not
-resolve to what the restart holds: a task to its project and parties,
-an account's source to its account, a read position to its
-conversation, an application's records to theirs (its root's, by the
-same rule); where a restore checks a record's shape and not what it
-names, its child gains the check, with the facts it consumes restored
-before it. It checks what a record names, never again who might have
-written it: authority was judged at the record's commit
-(authority.md), so a record the engine wrote restores whatever the
-roles and policies say since. A check stricter than the writers of what
-it reads refuses a deployment that did nothing wrong, so each restore
-check is proved against every writer of its records (section 15): a
-person's words to a delegate in their tree, an issued name beside the
-accounts, an open question beside a party's results. Over a pending
-generation it is strict: a record the
-accounts child counts and leaves (its `unrestored`, once its terminal
-rows are restored and its empty accounts removed) refuses the restart
-at the switch step, naming the child, as a broken record in any other
-child refuses it. A restart refused before the switch leaves the
+**Load, then link** (the user, 10-27; temper's `draft/upgrades.md`,
+6.4). A start, over the active generation or a patched copy alike,
+judges no record. It loads every record of the live ranges that decodes
+under its codec within its bounds, and the live sets must fit the
+limits: a set past limits lowered since refuses the start, saying
+which, the one refusal beside a store that does not decode. Then it
+links: each child attaches each record to what it names, once every
+family whose facts the link consumes is loaded: a task to its project, parties and parent, an account's source
+to its account, a read position to its conversation, a run proof or a
+projection to its task, an application's records to theirs (its
+root's, by the same rule). Nothing is checked again: no family's rules,
+no record's shape beyond its codec, and never who may have written it,
+which authority judged at its commit (authority.md). Writers are
+trusted, so every link is made.
+- **A link that cannot be made,** which only a writer's bug leaves,
+  leaves that record out of the live state, with every record that
+  links through it, to a fixpoint. It stays in the store as written,
+  and the start goes on. Nothing with an unmade link enters memory, so
+  no code meets a dangling reference.
+- **Named:** each child names what it left out in the start's notes,
+  `LeftOut { child, record, why }` (its key in words, the link it could
+  not make), which `me` gives a party with a role in the deployment
+  (11.1) and the application prints at its start.
+- **No sweep after a gap:** a child that left anything out runs no
+  sweep at that start (`../protocol/store.md`, section 9), so no value
+  is erased for a bug.
+- **The checks are tests** (section 15): every world story ends with a
+  cold restart that restores and reads back what it wrote, and a record
+  left out fails a test build; each patch is proved over sample stores
+  (`../protocol/store.md`, 10.2 and section 14).
+
+A restart refused before the switch leaves the
 generation patched from active and unchanged (store.md, 10.2, step 7);
 one refused after it, at a later step, leaves the patched generation
 active and the one before it as `active` − 1, for the operator to go
@@ -1292,7 +1302,11 @@ Nothing the core decides depends on a view arriving.
   - authority: their pool in each project, and what they may create,
     the bounds a draft is compared with, their allotment left among
     them;
-  - the templates: each of their projects' merged templates.
+  - the templates: each of their projects' merged templates;
+  - with a role in the deployment, the start's notes: each record the
+    last start left out (section 6), its child, its key in words and the
+    link it could not make, at most 64 and then how many more, held in
+    memory until the next start.
 
   What it carries, field by field, is the client's contract's
   (`../client/domain/contract.md`, 5.1).
@@ -1605,6 +1619,15 @@ the seed; one to three scripted workers and the engine's own slots,
 whose runs play scripts; scripted parties; the store on skein-kv's
 in-memory mode, slow or failing a commit; and the engine restarting
 cold, at drawn moments or at one a scenario chooses.
+
+**Every story ends with a cold restart,** the restart oracle (section
+6): the engine restarts over the story's store, restores with nothing
+left out, and reads back what the story wrote (the parties' documents,
+the tasks' and the children's views) equal to their last answers before
+it. A record left out fails the story, naming the child and the link.
+This is where the cross-record rules a restore once checked live, one
+writer at a time: each child's rules are the oracle's to prove over
+every writer of its records, never the restore's to judge.
 
 Its stories: a conversation that answers, parks and resumes; a plan of
 reports, a choice and procedure tasks, revised mid-way, and done; a
