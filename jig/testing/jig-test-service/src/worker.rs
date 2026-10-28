@@ -1096,6 +1096,49 @@ mod admission_tests {
         );
     }
 
+    // A separate process token makes the retained run's resends unrelated.
+    const HELD_AGENT: Token = Token::new(91);
+    const HELD_CALLBACK: Token = Token::new(92);
+
+    fn held_call() -> root::Event {
+        root::Event::Process(Box::new(smith::process::Event::Received {
+            owner: HELD_AGENT,
+            message: smith::Up::Call {
+                call: HELD_CALLBACK,
+                name: smith::CallName { activation: 1, completion: 1, position: 0 },
+                deadline: Time::ZERO.saturating_add(WATCHDOG),
+                ask: smith::Ask::Host {
+                    tool: b"recall".as_slice().into(),
+                    effect: smith::Effect::Read,
+                    body: Box::default(),
+                },
+            },
+        }))
+    }
+    fn exited() -> root::Event {
+        root::Event::Process(Box::new(smith::process::Event::Exited { owner: HELD_AGENT, exit: None }))
+    }
+
+    #[test]
+    fn a_process_record_stops_the_walk_behind_its_held_call() {
+        let (mut service, mut peer) = retained_turns();
+        let layer = service.worker(0).expect("worker");
+        pressure(layer);
+        layer.events.push(held_call());
+        layer.events.push(resend(1));
+        layer.events.push(exited());
+        layer.events.push(resend(2));
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        peer.pump(layer);
+        assert_eq!(peer.turns(), [1, 2, 3, 1]);
+        assert_eq!(waiting(layer), [&held_call(), &exited(), &resend(2)]);
+        while layer.io.pop().is_some() {}
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        peer.pump(layer);
+        assert_eq!(peer.turns(), [1, 2, 3, 1, 2]);
+        assert!(layer.events.is_empty());
+    }
+
     #[test]
     fn due_source_checks_wait_at_the_watermark() {
         let document =
