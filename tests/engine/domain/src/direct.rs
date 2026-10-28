@@ -113,6 +113,19 @@ impl Driver {
         self.root.reclaim();
     }
 
+    /// Offer an input with the service's retained-head discipline: a refusal
+    /// waits ahead of later root inputs (temper-service's `engine.rs:124`,
+    /// retried at `engine.rs:320`). Store terminals can still advance durability.
+    pub fn send_retaining(&mut self, event: engine::Event) {
+        if let Err(event) = engine::try_step(&mut self.root, &self.env, event) {
+            self.returned += 1;
+            self.events.push_front(event);
+        }
+        engine::release(&mut self.root, &self.env, &mut self.out);
+        self.collect();
+        self.root.reclaim();
+    }
+
     pub fn collect(&mut self) {
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
