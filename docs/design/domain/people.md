@@ -640,8 +640,15 @@ entry naming the task or proposal it is and its project:
   task has read it. The asked task keeps each question it heard and its
   first answer (`../protocol/store.md`, 15.7). The person's inbox, a question's
   live document and an answer's admission read those lines, so a task's run
-  reading a question leaves it open for its person. The task answering
-  it itself closes it as the person's answer does.
+  reading a question leaves it open for its person. No task answers it
+  for them: the asked task's own answer to a question that waits in its
+  person's inbox is refused, naming that its person answers it there,
+  so a conversation never answers for its person; the person's answer
+  reaches the asking task as its requester's answer, and the asked task
+  hears a notice naming the question answered (tasks.md, 8.1). J7 and
+  J8, designed, not built, change which questions wait here: a
+  delegate's question to a conversation becomes the conversation's
+  (tasks.md, 8.5).
 - **A conversation** is a task its creator flagged so (tasks.md,
   section 3), whatever its charter, tracked or not (tasks.md, section
   7): its turns are entries for its requester, while that
