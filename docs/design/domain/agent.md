@@ -326,7 +326,12 @@ translation only decodes the call.
 
 The goal's own run takes `goal` too: an advisor it asks for, before it
 asks its requester, is how the retired first edition's survey before a plan
-goes (testing.md, 5.3).
+goes (testing.md, 5.3). An advisor is all it takes: a goal is the work
+its person asked for, and a goal under it would ask the goal, not the
+person, and be answered by it (8.2), so the root refuses a goal's
+`goal` without `advisor`, naming why (a goal starts an advisor alone:
+set `advisor`, or make the change with `change`), and the run goes on,
+as any refused host call does.
 
 ### 4.4 Result contracts
 
