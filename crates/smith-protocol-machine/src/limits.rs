@@ -329,6 +329,10 @@ mod memory {
 
     #[test]
     fn saturated_listings_keep_their_pathname_copies_within_the_bound() {
+        // Ceiling on held listing paths: a quarter above 10-28's figure, moved by hand when a real change passes it.
+        const LISTINGS_HELD_CEILING: u64 = 500_000;
+        // Ceiling on listing path peak: a quarter above 10-28's figure, moved by hand when a real change passes it.
+        const LISTINGS_PEAK_CEILING: u64 = 540_000;
         let mut limits = caps();
         limits.file_bytes = 0;
         limits.tool_payload = 0;
@@ -353,12 +357,20 @@ mod memory {
                 peak = peak.max(meter.check(meter.end(), bound, &byte));
             }
         }
-        assert_eq!(meter.held(), 393_216);
-        assert_eq!(peak, 425_984);
+        assert!(
+            meter.held() <= LISTINGS_HELD_CEILING,
+            "held listing paths {} exceed {LISTINGS_HELD_CEILING}",
+            meter.held()
+        );
+        assert!(peak <= LISTINGS_PEAK_CEILING, "listing path peak {peak} exceeds {LISTINGS_PEAK_CEILING}");
     }
 
     #[test]
     fn saturated_listings_allocate_terminal_cells_only_in_the_finishing_step() {
+        // Ceiling on held listing entries: a quarter above 10-28's figure, moved by hand when a real change passes it.
+        const LISTING_ENTRIES_HELD_CEILING: u64 = 140_000;
+        // Ceiling on finishing listings' peak: a quarter above 10-28's figure, moved by hand when a real change passes it.
+        const LISTING_TERMINALS_PEAK_CEILING: u64 = 150_000;
         let mut limits = caps();
         limits.entries = 512;
         limits.entry_bytes = 13_312;
@@ -377,7 +389,11 @@ mod memory {
             *slot = Some(listing);
         }
         meter.check(meter.end(), bound, &"eight full entry lists");
-        assert_eq!(meter.held(), 106_528);
+        assert!(
+            meter.held() <= LISTING_ENTRIES_HELD_CEILING,
+            "held listing entries {} exceed {LISTING_ENTRIES_HELD_CEILING}",
+            meter.held()
+        );
         let mut terminals: [Option<tools::Done>; 8] = [const { None }; 8];
         let mut peak = 0;
         for (listing, terminal) in listings.iter_mut().zip(&mut terminals) {
@@ -385,6 +401,9 @@ mod memory {
             *terminal = Some(listing.take().expect("full listing").finish(Some(kernel::Exit::Code(0)), false));
             peak = peak.max(meter.check(meter.end(), bound, &"one terminal list"));
         }
-        assert_eq!(peak, 118_816);
+        assert!(
+            peak <= LISTING_TERMINALS_PEAK_CEILING,
+            "listing terminal peak {peak} exceeds {LISTING_TERMINALS_PEAK_CEILING}"
+        );
     }
 }

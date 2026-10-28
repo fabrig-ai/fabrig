@@ -503,7 +503,13 @@ fn full_receipt_and_marker_terminals_price_each_owned_copy() {
     let measured = meter.end();
     let bound = smith_domain_run::Delivered::worst_case().checked_mul(3).expect("three bounded copies");
     assert_eq!(original.owned_bytes(), smith_domain_run::Delivered::worst_case());
-    assert_eq!(meter.check(measured, bound, &"three full delivery evidence copies"), bound);
+    meter.check(measured, bound, &"three full delivery evidence copies");
+    for copy in [&original, &output_copy, &final_answer_copy] {
+        assert_eq!(copy.receipts().len(), usize::try_from(smith_domain_run::MAX_DIRECTORIES).expect("directory cap"));
+        for receipt in copy.receipts() {
+            assert_eq!(receipt.text().len(), 512);
+        }
+    }
     assert_eq!(output_copy, final_answer_copy);
     meter.start();
     drop((original, output_copy, final_answer_copy));

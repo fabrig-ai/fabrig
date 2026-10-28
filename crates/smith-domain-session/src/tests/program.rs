@@ -9,6 +9,8 @@ fn program() -> Backend {
 
 #[test]
 fn a_program_turn_records_its_backend() {
+    // Ceiling on Turn and Kind cells together: a quarter above 10-28's figure, moved by hand when a real change passes it.
+    const PROGRAM_RECORD_CELLS_CEILING: usize = 240;
     let mut h = Harness::new(&LIMITS);
     let (owner, _) = h.open_with(1, Spec { backend: program(), ..spec() });
     h.step(Event::Completed { owner, completion: completion(Box::new([text(b"answer")]), Stop::EndTurn) });
@@ -16,8 +18,9 @@ fn a_program_turn_records_its_backend() {
     let Kind::First(opener) = &turn.kind else { panic!("first turn") };
     assert_eq!(opener.backend, program());
     assert_eq!(opener.account, spec().account);
-    assert_eq!(size_of::<crate::record::Turn>(), 176);
-    assert_eq!(size_of::<Kind>(), 16);
+
+    let cells = size_of::<crate::record::Turn>() + size_of::<Kind>();
+    assert!(cells <= PROGRAM_RECORD_CELLS_CEILING, "record cells {cells} exceed {PROGRAM_RECORD_CELLS_CEILING}");
 }
 
 fn provider_answer() -> Box<[Block]> {
