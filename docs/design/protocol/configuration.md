@@ -206,7 +206,7 @@ document says what temper adds. What is open is listed in section 11.
      the clients' listener's fixed port with a GitHub forge and each
      identity's largest value against the channel's bound on a
      credential's value (section 3), the limits against each other and
-     the worst case (section 7), and the channel's start checks on
+     the edge bounds (section 7), and the channel's start checks on
      temper's parts (channel.md, section 8);
   4. every private file the document names, each within its bound
      (section 6);
@@ -873,15 +873,12 @@ have one, an engine alone none. Each:
   `tasks.authority_grants` (setup.md, 8.1). A long authority shows
   in part, with jig's mark (`../client/README.md`, 5.4). The test above holds
   the engine's bounds on an authority's lists to temper's client's.
-- **One worst case per service:** jig's sum (the root's, its components'
-  and the journal's) and temper's (its domains', its components', the
-  identities' table, the routing's records, forges' accesses and origins
-  said, the setup host's states and runs) together must fit the memory
-  jig's part states, `engine.memory_bytes` for the engine's service and
-  `memory_bytes` of the worker's part for the worker's, each in the
-  process that holds it (section 2), or the start is refused, saying by
-  how much. The owned example's `engine.limits`, worker `limits` and
-  `memory_bytes`, and why each holds, are setup.md, 8.1's.
+- **The engine's byte budget** is `engine.memory_bytes`, metered at
+  the root (`../domain/root.md`, 4.1). No start compares a memory
+  declaration with a composed sum or names a memory deficit
+  (programming-model.md, 6.3). Edge bounds and compatibility checks
+  still refuse invalid limits. The owned example's `engine.limits`,
+  worker `limits` and `memory_bytes` are setup.md, 8.1's.
 
 - **A worker alone's ring** holds its io's and its worker's kernel
   operations, staged and in flight, independently of its domain's room.
@@ -1196,12 +1193,6 @@ one owned forge, with its own values (setup.md, 8.1).
 - **Profiles' numbers,** from the first deployments' measurements
   (jig's `protocol/configuration.md`, section 9). Default: `small` as
   written.
-- **`small`'s worst cases against a person's machine.** With the owned
-  example's strings at their bounds, the engine's and the worker's worst
-  cases are past any machine's memory (setup.md, 8.1 and section 16), so
-  the start's check (section 7, one worst case per service) bounds
-  nothing a person's machine holds. Which terms make them so large is
-  not known. Default: the check as it stands.
 - **A configuration's format version** (jig's `protocol/configuration.md`,
   section 9). Default: none; unknown members refuse the start.
 - **A configuration directory moved or copied.** The agent's paths are
@@ -1383,7 +1374,7 @@ token is D'/forgejo-admin.token, private with mode 0600. Readiness names
 only that file's path; its contents belong in no log, report or record.
 The sandbox's own configured counts admit all four forges and their four
 identities; these explicit local overrides are checked through ordinary
-admission and worst-case sizing. Repository defaults, policy bounds and
+admission and edge-bound checks. Repository defaults, policy bounds and
 time budgets remain the ordinary ones. The managed entry carries the
 ordinary admin-connect contract, not an automatic account login or a
 product fake branch. A retained sandbox
@@ -1871,19 +1862,12 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | `root.loads.bytes`, `root.loads.reply_bytes` | T + 248 (a temper record) | 1,227,184 | 1,480,112 |
 | `root.loads.read_bytes` | T and a row and a record | init's holds | init's holds |
 
-- **Memory:** the engine's and each worker's `memory_bytes` hold their
-  service's composed sum, which those limits raise. The start refuses
-  one that is short at its path, naming by how much (jig's
-  `What::Memory`), and the box raises it by that. A boxed start (`temper
-  box`) counts its two pipes' buffers in the engine's sum before it
-  names the figure, so one raise starts it. From any `memory_bytes`,
-  however small, the start names the deficit against the whole worst
-  case, the larger of jig's own envelope and temper's composed service,
-  the engine's and each worker's alike, never one stage of it (QA
-  20261027-1642-temper finding 1); a pipe the engine cannot
-  then adopt is refused naming what it lacks, never a bare `fd N
-  refused` (QA 20261027-1254-temper finding 2). `docs/examples/owned.json`'s
-  declarations are the user's budget for the owned deployment and
-  do not move with a box's.
+- **Memory:** `engine.memory_bytes` is the engine's byte budget
+  (`../domain/root.md`, 4.1), independent of a model's edge bounds.
+  The start checks those bounds, without comparing memory with a sum
+  or naming a deficit. A pipe the engine cannot adopt is refused
+  naming what it lacks, never a bare `fd N refused`.
+  `docs/examples/owned.json`'s declarations are the user's budget for
+  the owned deployment and do not move with a box's.
 - **The budgets** follow the model's C (13.4), so a larger output gives
   larger spends with no setting changed: output 32,000 gives C 1,081.
