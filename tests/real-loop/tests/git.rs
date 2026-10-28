@@ -118,6 +118,8 @@ fn hosted_commit_tree_keeps_exact_parents() {
 
 // A read left due before the hosted git process starts owns this reply.
 const OLDER_READ: skein_lib::Token = skein_lib::Token::new(42);
+// Only the older read remains after hosted git consumes its own reply.
+const PENDING_READ_REPLIES: u32 = 1;
 
 fn an_older_read_is_due() -> fixtures::Scenario {
     use skein_fake_forge_domain::{self as domain, api};
@@ -192,7 +194,7 @@ fn hosted_git_fires_past_an_older_due_read_and_keeps_its_reply_once() {
     assert_eq!(result.exit, 0);
     let forge = disk.forge();
     assert!(forge.now > skein_lib::Time::ZERO, "git's call follows the older read");
-    assert_eq!(forge.pending.len(), 1, "git consumes its reply and retains only the older read's");
+    assert_eq!(forge.pending.len(), PENDING_READ_REPLIES, "git consumes its reply and retains only the older read's");
     let domain::Request::Reply { to, result } = forge.pending.iter().next().expect("older read reply") else {
         panic!("the pending request is the older read's reply");
     };
