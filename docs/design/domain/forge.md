@@ -1100,7 +1100,10 @@ starts from current code. It never updates only because its base moved.
 ### 8.4 Repairs, resolutions and stalls
 
 - **A repair** is a task for an agent whose workspace starts from the
-  change's branch, its brief carrying why: CI's failing output on the
+  change's branch, its words opening with what it repairs (the failed
+  check's context and name, or the review that asked, by its lens), so
+  that a read of the task cut to a client's bounds still names it, and
+  its brief carrying why: CI's failing output on the
   head; a gate's remarks; for a clean update whose CI then fails (a
   semantic conflict), the base merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
