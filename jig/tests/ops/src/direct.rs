@@ -228,10 +228,32 @@ impl Driver {
         self.events.push_back(event);
     }
 
-    /// Offer the oldest input once, withholding commit answers.
+    /// Retry the oldest held input, then let admitted inputs pass in arrival
+    /// order until the next new input. A mixed rest stays in place and ends
+    /// the pass. Answer no commit.
     pub fn drive_inputs_once(&mut self) {
-        if let Some(event) = self.events.pop_front() {
-            self.send_retaining(event);
+        let arrivals = self.events.len();
+        let mut held = false;
+        let mut index = 0;
+        for _ in 0..arrivals {
+            let Some(event) = self.events.get(index) else { break };
+            if held && root::class(event) == root::Class::New {
+                break;
+            }
+            let mixed = root::class(event) == root::Class::Mixed;
+            let event = self.events.remove(index).expect("queued input");
+            if let Err(rest) = self.offer(event) {
+                self.returned += 1;
+                self.events.insert(index, rest);
+                index += 1;
+                held = true;
+                self.collect();
+                if mixed {
+                    break;
+                }
+            } else {
+                self.collect();
+            }
         }
     }
 

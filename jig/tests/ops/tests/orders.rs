@@ -20,9 +20,9 @@ const TURN_TEXT: &[u8] = b"kept turn";
 const RUN_COMMITS: usize = 2;
 const ONCE: usize = 1;
 const ONE_REFUSAL: u64 = 1;
-// One pressure probe plus the deliberately refused second application request.
+// One refused new Subscribe probe plus the refused second application request.
 const APPLICATION_REFUSALS: u64 = 2;
-// Initial pressure and one refill after each run commit.
+// One refused new Subscribe probe initially and after each run commit.
 const TURN_REFUSALS: u64 = 3;
 
 fn application(sign_in: u64, reply: Token, key: u8) -> root::Event {

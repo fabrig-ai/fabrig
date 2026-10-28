@@ -336,6 +336,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 }
 
 /// The adapter supplies the due owner's timer; admission precedes firing it.
+/// A refused new timer stays due in its owner until the backlog drains.
 /// Copy this dispatch and replace only the application's connector timers.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, timer: crate::Timer) {
     let event = match timer {
@@ -344,7 +345,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, timer: crate::Timer) {
         crate::Timer::Infrastructure => Event::InfrastructureTimer,
         crate::Timer::Turn => Event::TurnTimer,
     };
-    step(domain, env, event);
+    let _waiting = crate::try_step(domain, env, event);
 }
 
 /// Iterate drains only the journal: one commit and a bounded ordered release.

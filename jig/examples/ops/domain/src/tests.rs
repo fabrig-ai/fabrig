@@ -89,14 +89,28 @@ fn name(task: u64) -> Event {
     })
 }
 
-// Rewriting the same reliance row adds one commit without growing the
-// connector's working set. Drain submissions, withholding every store answer.
-fn fill_to_watermark(domain: &mut Domain, env: &Env<Limits>) {
+fn pressure() -> Event {
+    Event::Observability(observability::Event::Subscribe {
+        task: 900,
+        topic: observability::Topic::Alerts(jig_ops_world::service()),
+        wake_at: 5,
+        keep_at: 1,
+    })
+}
+
+// Rewriting one independent subscription adds a commit without growing the
+// working set. Drain submissions, withholding every store answer.
+fn fill_to_watermark(domain: &mut Domain, env: &Env<Limits>) -> Queue<u64> {
+    let mut commits = Queue::uncapped();
     for _ in 0..=env.limits.watermark {
-        if try_step(domain, env, name(1)).is_err() {
-            return;
+        if try_step(domain, env, pressure()).is_err() {
+            return commits;
         }
-        take(domain, env);
+        for output in take(domain, env) {
+            if let Output::Commit { number, .. } = output {
+                commits.push(number);
+            }
+        }
     }
     panic!("admission returns a pressure probe within watermark + 1 writing probes");
 }
@@ -190,7 +204,7 @@ fn a_failed_commit_stops_the_reference_root_before_held_system_requests_leave() 
     // Even an always-taken read must stop before touching a child; routing it
     // would attempt to use the stopped journal's door.
     try_step(&mut domain, &env, connector_read(Token::new(92))).expect("completion class still enters");
-    assert!(try_step(&mut domain, &env, name(2)).is_err(), "new work is handed back after stop");
+    assert!(try_step(&mut domain, &env, pressure()).is_err(), "new work is handed back after stop");
     assert!(take(&mut domain, &env).is_empty(), "a stopped journal moves no child");
 }
 
@@ -960,4 +974,82 @@ fn stopping_ignores_the_starts_mark_continuations() {
         assert!(take(&mut domain, &env).is_empty());
         assert_eq!(domain.core.restart_failure(), None);
     }
+}
+
+#[test]
+fn a_new_task_timer_stays_due_at_the_watermark() {
+    use jig_domain_tasks as tasks;
+    use skein_lib::ReplyTo;
+    const CHAT: u64 = 1;
+    const SUBSCRIPTION: u64 = 77;
+    const DUE: u64 = 10_000_000_000;
+    const ONCE: usize = 1;
+    let (mut domain, mut env, _) = started_chat();
+    step(
+        &mut domain,
+        &env,
+        Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+            reply_to: ReplyTo::new(Token::new(SUBSCRIPTION)),
+            task: CHAT,
+            subscription: tasks::Subscription {
+                number: SUBSCRIPTION,
+                kind: tasks::SubscriptionKind::Timer { at: Wall::from_nanos(DUE), period: None },
+            },
+        })),
+    );
+    settle(&mut domain, &env);
+    env.now = Time::from_nanos(DUE);
+    env.wall = Wall::from_nanos(DUE);
+    let mut commits = fill_to_watermark(&mut domain, &env);
+    crate::fire(&mut domain, &env, crate::Timer::Core(core::Timer::Tasks));
+    assert_eq!(domain.core.tasks.next_deadline(), Some(Time::from_nanos(DUE)), "refusal leaves the timer due");
+    assert!(take(&mut domain, &env).is_empty(), "a refused timer changes nothing");
+    while let Some(number) = commits.pop() {
+        step(&mut domain, &env, Event::Store(Store::Committed { number, fill: 0 }));
+    }
+    settle(&mut domain, &env);
+    crate::fire(&mut domain, &env, crate::Timer::Core(core::Timer::Tasks));
+    assert_eq!(domain.core.tasks.next_deadline(), None);
+    let task = domain.core.tasks.task(CHAT).expect("chat remains live");
+    let mut fired = 0;
+    for word in &task.inbox {
+        if let tasks::MessageKind::Timer { subscription: SUBSCRIPTION } = word.kind {
+            fired += 1;
+        }
+    }
+    assert_eq!(fired, ONCE);
+    settle(&mut domain, &env);
+    crate::fire(&mut domain, &env, crate::Timer::Core(core::Timer::Tasks));
+    assert!(take(&mut domain, &env).is_empty(), "the timer fires only once");
+}
+
+#[test]
+fn a_retained_turn_retry_fires_at_the_watermark() {
+    const RUN: Token = Token::new(1);
+    const ATTEMPT: Token = Token::new(1);
+    const TURN: u32 = 1;
+    let (mut domain, mut env, owner) = started_chat();
+    step(
+        &mut domain,
+        &env,
+        Event::Host(host::Event::Turn {
+            owner,
+            turn: host::Turn {
+                turn: TURN,
+                spent: 1,
+                read: None,
+                opens_window: true,
+                refused: Box::new([]),
+                body: b"kept turn".as_slice().into(),
+            },
+        }),
+    );
+    take(&mut domain, &env);
+    crate::turn_backoff::busy(&mut domain, &env, RUN, ATTEMPT, TURN);
+    let due = domain.next_turn_deadline().expect("the retained turn has a retry");
+    fill_to_watermark(&mut domain, &env);
+    env.now = due;
+    crate::fire(&mut domain, &env, crate::Timer::Turn);
+    assert_eq!(domain.next_turn_deadline(), None, "an admitted retry timer fires despite the backlog");
+    assert!(take(&mut domain, &env).is_empty(), "retrying the retained turn makes no duplicate commit");
 }
