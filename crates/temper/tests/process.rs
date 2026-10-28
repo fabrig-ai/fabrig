@@ -5017,6 +5017,18 @@ fn held_review_restart(case: &str, probe: RestartProbe) {
         Step::Run(connect),
         Step::Run(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"])),
     ]);
+    // The chats must park between their replies and the next request. The
+    // stock ten-second threshold is not part of this restart's subject.
+    let parking = scratch.path().join("restart-parking.json");
+    steps.extend([
+        Step::Run(Call::new(&["settings", "show", "--json"])),
+        Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])),
+        Step::Then(Box::new(move |calls| {
+            let last = calls.len() - 1;
+            support::ctl::setting_change_file(&parking, &calls[last], |value| value["waiting"] = 1_000_000.into());
+            support::ctl::settings_change(&calls[last - 1], &parking, "restart-parking")
+        })),
+    ]);
     if matches!(probe.hold, ReviewHold::BeforeCall) {
         let file = scratch.path().join("review-hosts.json");
         steps.extend([
