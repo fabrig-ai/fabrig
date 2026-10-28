@@ -10,6 +10,8 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import shlex
+import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -18,6 +20,19 @@ import uuid
 
 CONFIG = Path(__file__).resolve().parent
 TREES = ("skein", "smith", "jig", "temper")
+GB = 1_000_000_000
+
+
+class DiskFloorError(RuntimeError):
+    """A capacity refusal defers work without rejecting branches."""
+
+    def __init__(self, message, report_key):
+        super().__init__(message)
+        self.report_key = report_key
+
+
+def free_gb(repo):
+    return shutil.disk_usage(repo).free / GB
 
 
 def lines(path):
@@ -170,11 +185,12 @@ def check_commands(repo, selected, paths):
 def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic):
     """Run serially, logging output; nextest's empty selection is green."""
     outcomes = []
-    with log_path.open("a") as log:
+    with log_path.open("a+") as log:
         os.chmod(log_path, 0o600)
         for name, argv, cwd in check_commands(repo, selected, paths):
             log.write(f"\n[{name}] {shlex.join(argv)} (cwd {cwd})\n")
             log.flush()
+            output_start = log.tell()
             started = clock()
             try:
                 result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
@@ -183,9 +199,16 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
             except OSError as error:
                 log.write(f"{error}\n")
                 code = 127
+            log.flush()
+            log.seek(output_start)
+            output = log.read()
+            log.seek(0, os.SEEK_END)
+            refused = code == 2 and "below the disk floor" in output and argv[0] == "heavy"
             green = code == 0 or (name in ("default", "fuzzy") and code == 4)
             outcomes.append({"name": name, "command": argv, "returncode": code,
                              "green": green, "duration": clock() - started})
+            if refused:
+                outcomes[-1]["error"] = output.strip()
             if not green:
                 break
     return outcomes
@@ -249,9 +272,10 @@ class Queue:
 
     def __init__(self, repo, *, batch=8, full_every=5, dry=False,
                  state_path=None, log_path=None, checker=run_checks, poster=post,
-                 metadata_loader=load_metadata, now=time.time):
+                 metadata_loader=load_metadata, now=time.time, disk_floor=45):
         self.repo = Path(repo).resolve()
         self.batch = batch
+        self.disk_floor = disk_floor
         self.full_every = full_every
         self.dry = dry
         self.state_path = state_path or self.repo.with_name(self.repo.name + ".state.json")
@@ -318,6 +342,12 @@ class Queue:
                     "Push a new tip to retry.\n")
 
     def attempt(self, branches, *, idle=False, force_full=False, skip_conflicts=False):
+        available = free_gb(self.repo)
+        if available < self.disk_floor:
+            host = socket.gethostname()
+            raise DiskFloorError(
+                f"{host}: {available:.1f} GB free, below queue disk floor {self.disk_floor} GB",
+                f"disk-floor:{host}")
         record = {"start": utc_now(), "branches": branches, "selection": None,
                   "steps": [], "posts": [], "dry": self.dry, "outcome": "error"}
         record["log"] = str(self.log_path.parent / f"queue-{uuid.uuid4().hex}.log")
@@ -351,6 +381,12 @@ class Queue:
             record["selection"] = sorted(selected) if isinstance(selected, set) else selected
             record["changed_paths"] = paths
             record["steps"] = self.checker(self.repo, selected, paths, detail)
+            refusal = next((step["error"] for step in record["steps"] if "error" in step), None)
+            if refusal is not None:
+                host = socket.gethostname()
+                raise DiskFloorError(
+                    f"{host}: {free_gb(self.repo):.1f} GB free; heavy refused:\n{refusal}",
+                    f"heavy-disk-floor:{refusal}")
             green = bool(record["steps"]) and all(step["green"] for step in record["steps"])
             ensure_clean(self.repo)
             if selected == "full":
@@ -415,9 +451,13 @@ class Queue:
         except Exception as recovery_error:
             record["recovery_error"] = str(recovery_error)
         reported = self.state.setdefault("reported_errors", [])
-        if str(error) not in reported:
-            self.notify(record, "coord", "queue error", f"{error}\n")
-            reported.append(str(error))
+        report_key = getattr(error, "report_key", str(error))
+        if report_key not in reported:
+            summary = "\n".join(str(error).splitlines()[:10])
+            if record.get("log"):
+                summary += f"\nLog: {record['log']}"
+            self.notify(record, "coord", "queue error", summary + "\n")
+            reported.append(report_key)
         try:
             self.save()
         except Exception as save_error:
@@ -519,6 +559,7 @@ def main():
         sub.add_argument("--repo", type=Path, default=Path.home() / "src/fabrig/queue")
         sub.add_argument("--batch", type=positive, default=8)
         sub.add_argument("--full-every", type=positive, default=5)
+        sub.add_argument("--disk-floor", type=positive, default=45)
         if name == "once":
             sub.add_argument("--dry", action="store_true")
     args = parser.parse_args()
@@ -527,10 +568,11 @@ def main():
         if git(repo, "rev-parse", "--show-toplevel").stdout.strip() != str(repo):
             raise RuntimeError("--repo must name the checkout root")
         if args.action == "plan":
-            Queue(repo, batch=args.batch, full_every=args.full_every).plan()
+            Queue(repo, batch=args.batch, full_every=args.full_every, disk_floor=args.disk_floor).plan()
             return 0
         with queue_lock(repo.with_name(repo.name + ".queue.lock")):
-            queue = Queue(repo, batch=args.batch, full_every=args.full_every, dry=getattr(args, "dry", False))
+            queue = Queue(repo, batch=args.batch, full_every=args.full_every, disk_floor=args.disk_floor,
+                          dry=getattr(args, "dry", False))
             if args.action == "once":
                 queue.cycle()
                 return 0

@@ -131,6 +131,22 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(len(steps), 1)
             self.assertFalse(steps[0]["green"])
 
+    def test_only_heavy_exit_two_with_disk_floor_text_is_a_refusal(self):
+        for code, output, refused in ((2, "builder: 39 GB below the disk floor", True),
+                                      (1, "below the disk floor", False),
+                                      (2, "test failed", False)):
+            with self.subTest(code=code, output=output):
+                def runner(argv, **kwargs):
+                    heavy = argv[0] == "heavy"
+                    if heavy:
+                        kwargs["stdout"].write(output)
+                    return subprocess.CompletedProcess(argv, code if heavy else 0)
+
+                with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+                    steps = mq.run_checks(ROOT, "full", [], Path(directory) / "checks.log", runner=runner)
+                self.assertEqual("error" in steps[-1], refused)
+                self.assertEqual(len(steps), 2)
+
 
 class BisectTests(unittest.TestCase):
     def test_one_red_is_reported_and_green_groups_land_in_order(self):
@@ -218,6 +234,7 @@ class RepositoryTests(unittest.TestCase):
         return {"sent": True, "returncode": 3}
 
     def queue(self, **kwargs):
+        kwargs.setdefault("disk_floor", 0)
         return mq.Queue(self.repo, state_path=self.directory / "state.json",
                         log_path=self.directory / "queue.jsonl", checker=self.checker,
                         poster=self.poster, metadata_loader=lambda repo: metadata(repo), **kwargs)
@@ -455,7 +472,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(self.tip(), self.base)
         self.assertEqual(mq.git(self.repo, "branch", "--show-current").stdout.strip(), "")
         self.assertEqual(queue.state["tried"], {})
-        self.assertEqual([body for _, _, body in self.posts], ["gate guard\n", "git failed\n"])
+        self.assertEqual([body.splitlines()[0] for _, _, body in self.posts], ["gate guard", "git failed"])
         batches = [record for record in self.records() if "event" not in record]
         self.assertEqual([record["outcome"] for record in batches], ["error"] * 3)
         self.assertTrue(all(record["branches"][0]["tip"] == branch["tip"] for record in batches))
@@ -493,6 +510,44 @@ class RepositoryTests(unittest.TestCase):
     def test_root_and_tree_targets_are_ignored(self):
         paths = ["target/fixture"] + [f"{tree}/target/fixture" for tree in mq.TREES]
         self.assertEqual(mq.git(ROOT, "check-ignore", *paths).stdout.splitlines(), paths)
+
+    def test_heavy_disk_refusal_errors_without_rejection_or_bisection(self):
+        for task in ("a", "b"):
+            self.branch(task, publish=True)
+        queue = self.queue()
+        attempts = []
+
+        def refuse(*args):
+            attempts.append(args)
+            return [{"name": "clippy", "green": False, "returncode": 2,
+                     "error": "builder: 39 GB free, below the disk floor"}]
+
+        queue.checker = refuse
+        self.run_cycles(queue, 2)
+        batches = [record for record in self.records() if "event" not in record]
+        self.assertEqual([record["outcome"] for record in batches], ["error", "error"])
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(queue.state["tried"], {})
+        self.assertEqual(len(self.posts), 1)
+        self.assertIn("builder: 39 GB", self.posts[0][2])
+        self.assertEqual(self.tip(), self.base)
+
+    def test_low_disk_waits_without_starting_a_batch_and_posts_once(self):
+        self.branch("a", publish=True)
+        queue = self.queue(disk_floor=45)
+        with patch.object(mq, "free_gb", side_effect=[44, 43]):
+            self.assertEqual(self.run_cycles(queue, 2), [60, 60])
+        self.assertEqual(self.checks, [])
+        self.assertEqual(queue.state["tried"], {})
+        self.assertEqual(len(self.posts), 1)
+        self.assertIn("44.0 GB free", self.posts[0][2])
+        self.assertTrue(all(record["branches"] == [] for record in self.records()))
+
+    def test_disk_floor_allows_a_batch_at_the_boundary(self):
+        self.branch("a", publish=True)
+        with patch.object(mq, "free_gb", return_value=45):
+            self.assertTrue(self.run_cycle(self.queue(disk_floor=45)))
+        self.assertEqual(self.records()[0]["outcome"], "green")
 
     def test_changed_tip_is_preserved_by_cleanup(self):
         branch = self.branch("a", publish=True)
