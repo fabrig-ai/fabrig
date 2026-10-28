@@ -227,7 +227,11 @@ so that a run writes a call from its tools alone:
   `review` and `page`; `read_statuses` `commit` and `page`;
   `read_checks` `commit`; `read_compare` `before` and `after`;
   `read_file` `head`, `path` and `max_bytes`; `read_job` `head`, `run`,
-  `job`, `attempt` and `max_bytes`; `read_items` `since`, `page` and
+  `job`, `attempt` and `max_bytes`, exactly as `read_checks` and
+  `read_statuses` name each Actions job: the job attempt skein resolved
+  from the check's link (its run, the forge's own job id, its attempt:
+  skein's `forge.md`, 9), never the link's index of the job in its run,
+  which the answer may show beside it but no read takes; `read_items` `since`, `page` and
   `item_kind` (`issue` or `pull`); `read_item` `number` and `after`;
   `read_protection` `branch`; `read_settings` none;
   `read_collaborators` `page`; `read_permission` `user`, a forge user's
