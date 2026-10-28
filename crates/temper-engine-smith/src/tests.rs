@@ -1066,6 +1066,58 @@ fn refusal_words(why: tasks::Refusal, blocked: Option<Box<[u64]>>, expected: &[u
     assert!(rendered.error());
 }
 
+fn busy_problem(action: tasks::CapacityAction, cause: tasks::CapacityCause) -> tasks::Problem {
+    tasks::Problem::capacity(
+        Some(2),
+        tasks::Refusal::Busy,
+        tasks::Capacity { project: Some(1), by: tasks::Party::Task(2), action, cause },
+    )
+}
+
+#[test]
+fn a_proposal_refused_for_its_own_full_inbox_names_it_its_bounds_and_the_way_on() {
+    let value = engine::CallAnswer::ProposalRefused(busy_problem(
+        tasks::CapacityAction::Proposal { number: 23 },
+        tasks::CapacityCause::Inbox { task: 2, messages: 8, bytes: 12288 },
+    ));
+    let rendered = answer(&value);
+    assert_eq!(rendered.text(), b"Refused: task 2 busy: its inbox is full (at most 8 messages and 12288 bytes, counting the room it keeps for the answers to its open questions, its delegates' results and a proposal's decision); room returns as those arrive and are read: retry then, or ask fewer at once");
+    assert!(rendered.error());
+}
+
+#[test]
+fn a_message_refused_for_another_tasks_full_inbox_names_that_task() {
+    let value = engine::CallAnswer::MessageRefused(busy_problem(
+        tasks::CapacityAction::Message { task: 5, number: 23 },
+        tasks::CapacityCause::Inbox { task: 5, messages: 8, bytes: 12288 },
+    ));
+    let rendered = answer(&value);
+    assert_eq!(rendered.text(), b"Refused: task 2 busy: task 5's inbox is full (at most 8 messages and 12288 bytes, counting the room it keeps for the answers to its open questions, its delegates' results and a proposal's decision); room returns as those arrive and are read: retry then, or ask fewer at once");
+    assert!(rendered.error());
+}
+
+#[test]
+fn a_second_proposal_is_refused_naming_the_one_pending() {
+    let value = engine::CallAnswer::ProposalRefused(busy_problem(
+        tasks::CapacityAction::Proposal { number: 23 },
+        tasks::CapacityCause::Proposals { limit: 1 },
+    ));
+    let rendered = answer(&value);
+    assert_eq!(
+        rendered.text(),
+        b"Refused: task 2 busy: it has a proposal pending (at most 1 at once): wait for its decision, or withdraw it"
+    );
+    assert!(rendered.error());
+}
+
+#[test]
+fn a_busy_without_a_capacity_keeps_its_words() {
+    let value = engine::CallAnswer::ControlRefused(tasks::Problem::new(Some(2), tasks::Refusal::Busy));
+    let rendered = answer(&value);
+    assert_eq!(rendered.text(), b"Refused: task 2 busy");
+    assert!(rendered.error());
+}
+
 #[test]
 fn a_circle_names_its_tasks() {
     refusal_words(

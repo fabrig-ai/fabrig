@@ -515,7 +515,10 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         Refusal::HoldRevision { .. } => text.add(b"placed hold revision changed"),
         Refusal::NotReady => text.add(b"not ready"),
         Refusal::Unknown => text.add(b"unknown"),
-        Refusal::Busy => text.add(b"busy"),
+        Refusal::Busy => {
+            text.add(b"busy")?;
+            task_capacity(text, problem)
+        }
         Refusal::Duplicate => text.add(b"duplicate"),
         Refusal::Empty => text.add(b"empty batch"),
         Refusal::Batch => text.add(b"batch limit"),
@@ -567,6 +570,48 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         }
     }
     Ok(())
+}
+
+fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<(), Problem> {
+    use jig_domain_tasks::CapacityCause;
+    let Some(capacity) = problem.capacity else { return Ok(()) };
+    match capacity.cause {
+        CapacityCause::Inbox { task, messages, bytes } => {
+            if problem.task == Some(task) {
+                text.add(b": its inbox is full")?;
+            } else {
+                text.add(b": task ")?;
+                text.number(task)?;
+                text.add(b"'s inbox is full")?;
+            }
+            text.add(b" (at most ")?;
+            text.number(u64::from(messages))?;
+            text.add(b" messages and ")?;
+            text.number(u64::from(bytes))?;
+            text.add(b" bytes, counting the room it keeps for the answers to its open questions, its delegates' results and a proposal's decision); room returns as those arrive and are read: retry then, or ask fewer at once")
+        }
+        CapacityCause::Proposals { limit } => {
+            text.add(b": it has a proposal pending (at most ")?;
+            text.number(u64::from(limit))?;
+            text.add(b" at once): wait for its decision, or withdraw it")
+        }
+        CapacityCause::PlacedHolds { .. }
+        | CapacityCause::ProjectPlacedHolds { .. }
+        | CapacityCause::PartyPlacedHolds { .. }
+        | CapacityCause::Exemptions { .. }
+        | CapacityCause::Tasks { .. }
+        | CapacityCause::CreationFlights { .. }
+        | CapacityCause::ResourceReports { .. }
+        | CapacityCause::ProjectTasks { .. }
+        | CapacityCause::Tree { .. }
+        | CapacityCause::Delegates { .. }
+        | CapacityCause::Holdings { .. }
+        | CapacityCause::HoldWaiters { .. }
+        | CapacityCause::References { .. }
+        | CapacityCause::Subscriptions { .. }
+        | CapacityCause::Funders { .. }
+        | CapacityCause::Writers { .. } => Ok(()),
+    }
 }
 
 fn forge_error(text: &mut Text, error: api::Error) -> Result<(), Problem> {
