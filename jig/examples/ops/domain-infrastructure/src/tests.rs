@@ -690,3 +690,168 @@ fn validity_does_not_price_retained_heap() {
     let limits = Limits { services: u32::MAX, name_bytes: u32::MAX, ..limits() };
     assert!(valid(&limits));
 }
+
+const SPLIT_TASK: u64 = 7;
+const FRESH_SECONDS: u64 = 30;
+const ONCE: u32 = 1;
+
+fn split_env() -> Env<Limits> {
+    Env { now: Time::from_nanos(FRESH_SECONDS), wall: Wall::from_nanos(30_000_000_000), limits: limits() }
+}
+
+fn split_service_fact(revision: u64) -> ServiceFact {
+    ServiceFact { version: b"v1".as_slice().into(), replicas: 2, healthy: true, revision, observed: FRESH_SECONDS }
+}
+
+fn service_split_fixture() -> Domain {
+    let mut domain = Domain::new(Backend::OperationIds, &limits());
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::Names { project: 1, task: SPLIT_TASK, resources: Box::new([Resource::Service(service())]) },
+    );
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::System(SystemEvent::Service { service: service(), fact: split_service_fact(1), other_hand: false }),
+    );
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::Restore {
+            record: Record::Procedure(ProcedureState {
+                chat: None,
+                task: SPLIT_TASK,
+                procedure: Procedure::Scale { service: service(), replicas: 3, deadline: 100 },
+                phase: ProcedurePhase::ReadingFacts,
+            }),
+        },
+    );
+    domain
+}
+
+fn revised_service() -> SystemEvent {
+    SystemEvent::Service { service: service(), fact: split_service_fact(2), other_hand: true }
+}
+
+fn assert_whole_equals_parts(whole: &mut Domain, parts: &mut Domain, input: SystemEvent) {
+    let mut expected = event(whole, FRESH_SECONDS, Event::System(input.clone()));
+    let (settle, rest) = split(parts, &split_env(), input).expect("mixed fact splits");
+    let mut combined = event(parts, FRESH_SECONDS, Event::System(settle));
+    let mut drift = event(parts, FRESH_SECONDS, Event::System(rest.expect("changed fact has drift")));
+    while let Some(request) = drift.pop() {
+        combined.push(request);
+    }
+    while let Some(request) = expected.pop() {
+        assert_eq!(combined.pop(), Some(request));
+    }
+    assert!(combined.is_empty());
+    assert!(whole.services.iter().eq(parts.services.iter()));
+    assert!(whole.environments.iter().eq(parts.environments.iter()));
+    assert!(whole.procedures.iter().eq(parts.procedures.iter()));
+    assert!(whole.drifts.iter().eq(parts.drifts.iter()));
+    assert!(whole.made.iter().eq(parts.made.iter()));
+}
+
+#[test]
+fn a_whole_service_fact_equals_settlement_then_drift() {
+    let mut whole = service_split_fixture();
+    let mut parts = service_split_fixture();
+    assert_whole_equals_parts(&mut whole, &mut parts, revised_service());
+    assert_eq!(parts.procedures.get(&SPLIT_TASK).expect("scale reader").phase, ProcedurePhase::FactsReady);
+}
+
+#[test]
+fn deferred_service_drift_rechecks_the_kept_revision() {
+    let mut domain = service_split_fixture();
+    let (settle, rest) = split(&domain, &split_env(), revised_service()).expect("service fact splits");
+    let mut settled = event(&mut domain, FRESH_SECONDS, Event::System(settle));
+    let mut saved = 0;
+    while let Some(request) = settled.pop() {
+        if let Request::Save { record: Record::Procedure(state) } = request {
+            assert_eq!(state.phase, ProcedurePhase::FactsReady);
+            saved += 1;
+        }
+    }
+    assert_eq!(saved, ONCE, "settlement advances the existing reader once");
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::System(SystemEvent::ServiceSettle { service: service(), fact: split_service_fact(1) }),
+    );
+    assert!(event(&mut domain, FRESH_SECONDS, Event::System(rest.expect("revised service"))).is_empty());
+}
+
+#[expect(clippy::option_option, reason = "fixtures cover missing rows, cached absence and cached presence")]
+fn environment_split_fixture(prior: Option<Option<EnvironmentFact>>) -> Domain {
+    let mut domain = Domain::new(Backend::OperationIds, &limits());
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::Names { project: 1, task: SPLIT_TASK, resources: Box::new([Resource::Environment(environment())]) },
+    );
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::Restore { record: Record::Made { environment: environment(), key: key(), project: Some(1) } },
+    );
+    if let Some(fact) = prior {
+        event(
+            &mut domain,
+            FRESH_SECONDS,
+            Event::System(SystemEvent::Environment { environment: environment(), fact, other_hand: false }),
+        );
+    }
+    domain
+}
+
+fn absent_environment() -> SystemEvent {
+    SystemEvent::Environment { environment: environment(), fact: None, other_hand: true }
+}
+
+fn present_environment() -> EnvironmentFact {
+    EnvironmentFact { created_by: key(), ready_at: 0, until: 100, price: 20 }
+}
+
+#[test]
+fn a_whole_environment_absence_equals_settlement_then_drift() {
+    for prior in [None, Some(None), Some(Some(present_environment()))] {
+        let mut whole = environment_split_fixture(prior);
+        let mut parts = environment_split_fixture(prior);
+        assert_whole_equals_parts(&mut whole, &mut parts, absent_environment());
+    }
+}
+
+#[test]
+fn repeated_environment_absence_still_notifies_reliant_tasks() {
+    let mut domain = environment_split_fixture(Some(None));
+    let mut out = event(&mut domain, FRESH_SECONDS, Event::System(absent_environment()));
+    assert_eq!(out.pop(), Some(Request::Drift { task: SPLIT_TASK, resource: Resource::Environment(environment()) }));
+    assert!(out.is_empty(), "a repeated absence has no new deletion account or changed mark");
+}
+
+#[test]
+fn deferred_environment_drift_rechecks_kept_absence() {
+    let mut domain = environment_split_fixture(Some(Some(present_environment())));
+    let (settle, rest) = split(&domain, &split_env(), absent_environment()).expect("environment splits");
+    event(&mut domain, FRESH_SECONDS, Event::System(settle));
+    event(
+        &mut domain,
+        FRESH_SECONDS,
+        Event::System(SystemEvent::EnvironmentSettle { environment: environment(), fact: Some(present_environment()) }),
+    );
+    assert!(event(&mut domain, FRESH_SECONDS, Event::System(rest.expect("another hand's absence"))).is_empty());
+}
+
+#[test]
+fn nonmixed_system_facts_return_from_the_splitter_unchanged() {
+    let domain = environment_split_fixture(None);
+    for input in [
+        SystemEvent::Service { service: service(), fact: split_service_fact(1), other_hand: false },
+        SystemEvent::Environment { environment: environment(), fact: None, other_hand: false },
+        SystemEvent::Environment { environment: environment(), fact: Some(present_environment()), other_hand: false },
+        SystemEvent::Environment { environment: environment(), fact: Some(present_environment()), other_hand: true },
+    ] {
+        assert_eq!(split(&domain, &split_env(), input.clone()), Err(input));
+    }
+}

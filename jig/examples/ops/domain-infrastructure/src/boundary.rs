@@ -563,6 +563,15 @@ pub enum SystemEvent {
     Service { service: Service, fact: ServiceFact, other_hand: bool },
     /// Fresh environment fact, or absence, and whether another hand removed it.
     Environment { environment: Environment, fact: Option<EnvironmentFact>, other_hand: bool },
+    /// Keep a service fact, settle refresh, advance scale readers and mark subjects.
+    ServiceSettle { service: Service, fact: ServiceFact },
+    /// Record drift and tell reliant tasks if the kept revision differs from `from`.
+    ServiceDrift { service: Service, from: u64 },
+    /// Reconcile a retained end, settle refresh, keep presence and mark subjects.
+    EnvironmentSettle { environment: Environment, fact: Option<EnvironmentFact> },
+    /// Another hand's absence of a made environment. A cached absence in
+    /// `from` still notifies reliance, without recording deletion again.
+    EnvironmentDrift { environment: Environment, from: Option<Option<EnvironmentFact>> },
     /// Current pool quota and slots used.
     Pool { pool: Pool, quota: u32, used: u32 },
     /// An apply answer.

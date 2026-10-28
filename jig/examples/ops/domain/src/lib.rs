@@ -28,7 +28,7 @@ mod route;
 mod steps;
 mod store;
 mod translate;
-pub use admission::try_step;
+pub use admission::{Class, class, try_step};
 pub use boundary::{AgentContent, ClientDocument, ClientMissing, ClientSubject, Event, Output, Released, Store, Timer};
 pub use domain::{Config, Domain, fire, release, step};
 pub use limits::{Limits, default_watermark};

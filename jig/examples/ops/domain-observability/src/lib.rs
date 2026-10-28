@@ -39,7 +39,7 @@ pub use boundary::{
     Record, RecordKey, Request, Requirement, Resource, RestartStage, Service, SystemEvent, SystemRequest, Topic,
     TriageTemplate, Verdict, Watch, Window,
 };
-pub use domain::{Domain, MAX_OUT, fire, next_deadline, step};
+pub use domain::{Domain, MAX_OUT, fire, next_deadline, split, step};
 pub use limits::{Limits, valid};
 
 #[cfg(test)]
