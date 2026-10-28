@@ -36,6 +36,8 @@ pub struct Worker {
     sources: crate::program_sources::Component,
     link: link::Component,
     link_out: Queue<link::Request>,
+    /// The three queues' old cells: loop bounds and `room`'s pacing until the worker root's watermark.
+    batch: u32,
     out: Queue<root::Request>,
     pub(crate) events: Queue<root::Event>,
     process_events: Queue<host::ProcessEvent>,
@@ -47,6 +49,8 @@ pub struct Worker {
     pub(crate) identities: IdentityTable,
     pub(crate) undecodable_values: u64,
     payload: temper_protocol_worker_wire::v1::Limits,
+    /// The cells `io` had: `room`'s pacing on the io requests queued.
+    lower: u32,
     pub(super) io: Queue<io::Request>,
     connection: Connection,
     socket: Option<Token>,
@@ -100,7 +104,6 @@ impl Worker {
         }
         let link = link::Component::new(&prepared.link, worker_settings::credential(settings, secret), seed)
             .or(Err(problem(b"limits", What::Bound)))?;
-        let room = prepared.room;
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
         let operations = git.component.operations().checked_add(2).ok_or(problem(b"limits", What::Bound))?;
@@ -125,9 +128,10 @@ impl Worker {
             },
             link,
             link_out: Queue::with_capacity(link::MAX_OUT_DOWN),
-            out: Queue::with_capacity(room),
-            events: Queue::with_capacity(room),
-            process_events: Queue::with_capacity(room),
+            batch: prepared.room,
+            out: Queue::uncapped(),
+            events: Queue::uncapped(),
+            process_events: Queue::uncapped(),
             processes: Map::with_capacity(slots),
             owners: Map::with_capacity(slots),
             entities: Map::with_capacity(slots.checked_mul(4).expect("process entities")),
@@ -139,7 +143,8 @@ impl Worker {
             identities: IdentityTable::new(config.limits.core.accounts.credentials),
             undecodable_values: 0,
             payload: prepared.payload,
-            io: Queue::with_capacity(prepared.lower),
+            lower: prepared.lower,
+            io: Queue::uncapped(),
             connection: match prepared.address {
                 io::Addr::InProcess(name) => Connection::InProcess(name),
                 io::Addr::Ip(address) => Connection::Socket(Box::new(Remote {
@@ -235,9 +240,10 @@ impl Worker {
         }
     }
     pub(crate) fn room(&self) -> bool {
-        self.io.room() >= root::max_out(&self.env.limits).checked_mul(link::MAX_OUT_DOWN).expect("worker batch")
-            && self.events.room() >= link::MAX_OUT_DOWN
-            && self.process_events.room() >= 8
+        self.lower.saturating_sub(self.io.len())
+            >= root::max_out(&self.env.limits).checked_mul(link::MAX_OUT_DOWN).expect("worker batch")
+            && self.batch.saturating_sub(self.events.len()) >= link::MAX_OUT_DOWN
+            && self.batch.saturating_sub(self.process_events.len()) >= 8
             && match &self.connection {
                 Connection::InProcess(_) => true,
                 Connection::Socket(remote) => {
@@ -444,7 +450,7 @@ impl Worker {
         self.drain_root();
     }
     fn drain_root(&mut self) {
-        for _ in 0..self.out.capacity() {
+        for _ in 0..self.batch {
             let Some(request) = self.out.pop() else { break };
             self.route(request);
         }
@@ -672,7 +678,7 @@ impl Worker {
                 let _event = self.events.pop();
             }
         }
-        for _ in 0..self.events.capacity() {
+        for _ in 0..self.batch {
             if !self.room() {
                 break;
             }
@@ -711,7 +717,7 @@ impl Worker {
         }
         for agent in &agents {
             if let Some(process) = self.processes.get_mut(agent) {
-                for _ in 0..self.out.capacity() {
+                for _ in 0..self.batch {
                     let Some(request) = process.next_channel_down() else { break };
                     process.channel_down(request, &mut self.io);
                 }
