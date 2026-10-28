@@ -461,9 +461,11 @@ Every request has one answer, of one of these kinds:
   - *authority:* what was lacking, typed (a budget and how much is left,
     a grant, a kind of task, a depth, a deadline, tasks left, or a
     ceiling a policy edit passes: its holder, the deployment's rules, the
-    project's policy or a role by number, the dimension, a spend per
-    period, a spend, tools or delegation, and its value beside the
-    edit's, `../../domain/authority.md`, section 6); and, where
+    project's policy or a role by number, the dimension (a spend per
+    period, a spend, tools, delegation's tasks, depth or executors,
+    grants, a deadline or notes), and, for a scalar, its value beside
+    the edit's; a list is named without its contents,
+    `../../domain/authority.md`, section 6); and, where
     the request was judged against the party's role and pool and found
     beyond them (`../../domain/authority.md`, 8.4), whether a proposal of
     it could be accepted (3.5). A refusal that another check decided
