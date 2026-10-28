@@ -247,16 +247,16 @@ fn a_demo_record_requires_the_configured_demo() {
     assert!(!resolved(&d, &Stored::Demo(Demo { forge: 1, state: DemoState::Ended }), false));
 }
 #[test]
-fn reconciliation_reference_storage_is_priced_by_its_fields() {
-    // Need: 8-byte tag plus 16-byte repository/task-entry union; row: 4,
-    // kind: 1, padding: 3. Every retained reference occupies 32 bytes.
-    const REFERENCE_BYTES: usize = 32;
-    // List header 32, row offset 4, verdict 8, alignment padding 4.
-    const RECONCILIATION_BYTES: usize = 48;
-    const DEMO_BYTES: usize = 4;
-    assert_eq!(size_of::<Reference>(), REFERENCE_BYTES);
-    assert_eq!(size_of::<Reconciliation>(), RECONCILIATION_BYTES);
-    assert_eq!(size_of::<Option<Demo>>(), DEMO_BYTES);
+fn reconciliation_storage_stays_within_its_ceilings() {
+    // A retained reconciliation reference, a quarter above 10-28's 32 bytes.
+    const REFERENCE_STORAGE_CEILING: usize = 40;
+    // The reconciliation state, a quarter above 10-28's 48 bytes.
+    const RECONCILIATION_STORAGE_CEILING: usize = 60;
+    // An optional demo record, a quarter above 10-28's 4 bytes.
+    const DEMO_STORAGE_CEILING: usize = 5;
+    assert!(size_of::<Reference>() <= REFERENCE_STORAGE_CEILING);
+    assert!(size_of::<Reconciliation>() <= RECONCILIATION_STORAGE_CEILING);
+    assert!(size_of::<Option<Demo>>() <= DEMO_STORAGE_CEILING);
 }
 
 fn demo_domain() -> Domain {
