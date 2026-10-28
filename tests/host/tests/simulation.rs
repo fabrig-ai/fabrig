@@ -1112,22 +1112,30 @@ fn trailing_records_terminate_without_fabricating_a_second_run_answer() {
 }
 
 #[test]
-fn facts_change_nothing_when_none_are_kept() {
+fn facts_are_kept_whatever_the_estimate() {
+    // Started, Admitted, Answered and Gone are this lifecycle's four observations.
+    const LIFECYCLE_FACTS: u32 = 4;
     let mut none = limits();
     none.facts = 0;
-    let mut world = World::new(56, none);
-    world.live();
-    finish(&mut world);
-    assert_eq!(world.domain.facts_lost(), 4);
-    let mut world = World::new(56, limits());
-    world.live();
-    finish(&mut world);
-    let mut facts = 0;
-    while world.domain.pop_fact().is_some() {
-        facts += 1;
+    let mut terminals = None;
+    for estimate in [none, limits()] {
+        let mut world = World::new(56, estimate);
+        world.live();
+        finish(&mut world);
+        assert_eq!(world.domain.backlog(), LIFECYCLE_FACTS);
+        assert!(matches!(world.domain.pop_fact(), Some(smith_host_domain::Fact::Started { .. })));
+        assert!(matches!(world.domain.pop_fact(), Some(smith_host_domain::Fact::Admitted { .. })));
+        assert!(matches!(world.domain.pop_fact(), Some(smith_host_domain::Fact::Answered { .. })));
+        assert!(matches!(world.domain.pop_fact(), Some(smith_host_domain::Fact::Gone { .. })));
+        assert_eq!(world.domain.pop_fact(), None);
+        assert_eq!(world.domain.backlog(), 0);
+        assert_eq!(world.domain.facts_lost(), 0);
+        let seen = (world.seen.answer, world.seen.fault, world.seen.gone, world.seen.gone_detail, world.seen.unread);
+        match &terminals {
+            Some(previous) => assert_eq!(&seen, previous),
+            None => terminals = Some(seen),
+        }
     }
-    assert_eq!(facts, 4);
-    assert_eq!(world.domain.facts_lost(), 0);
 }
 
 #[test]

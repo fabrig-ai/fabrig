@@ -1,5 +1,5 @@
-//! Content-free bounded host observations (domain/host.md, section 4;
-//! programming-model.md, section 3). Dropping facts never changes a terminal.
+//! Content-free, losslessly retained host observations (domain/host.md, section 4;
+//! skein's draft dynamic-memory.md, section 4.1); the parent drains them.
 use crate::{End, Fault};
 use skein_lib::Token;
 /// Parent-drained diagnostic observation; no payload or credential detail.

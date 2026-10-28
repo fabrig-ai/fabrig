@@ -3,6 +3,7 @@
 //! releases held turns unacknowledged, retaining submitted send terminals.
 //! The kit knows channel send order, not private agent stop
 //! decisions; policy and durable decisions remain in the parent.
+//! Content-free facts are retained losslessly until the parent drains them.
 use crate::{
     AnsweredCall, Ask, CallName, Delivery, Down, End, Exit, Fact, Fault, Forced, Grant, Input, Invalid, Limits,
     MessageRefusal, Output, Reply, RunFailure, RunResult, Signal, Start, Up,
@@ -128,18 +129,17 @@ pub(crate) struct Agent {
     until: Time,
 }
 
-/// Bounded process/channel state, parent terminal rights and content-free facts;
+/// Bounded process/channel state, parent terminal rights and lossless content-free facts;
 /// no credentials, durable host policy or frame bytes.
 #[derive(Debug)]
 pub struct Domain {
     agents: Slab<Agent>,
     alarms: Deadlines<Alarm>,
     facts: Queue<Fact>,
-    lost: u64,
 }
 
 impl Domain {
-    /// Allocate once from validated bounds; invalid arithmetic/turn/delivery capacity
+    /// Allocate bounded state and uncapped facts; invalid arithmetic/turn/delivery capacity
     /// panics before any process effect.
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {
@@ -148,8 +148,7 @@ impl Domain {
         Domain {
             agents: Slab::<Agent>::with_capacity(limits.agents),
             alarms: Deadlines::with_capacity(limits.agents.checked_mul(3).expect("validated alarms")),
-            facts: Queue::with_capacity(limits.facts),
-            lost: 0,
+            facts: Queue::uncapped(),
         }
     }
 
@@ -179,15 +178,22 @@ impl Domain {
         self.agents.reclaim();
     }
 
-    /// Drain one best-effort observation; decisions never depend on it.
+    /// Drain one losslessly retained observation; decisions never depend on it.
     pub fn pop_fact(&mut self) -> Option<Fact> {
         self.facts.pop()
     }
 
-    /// Saturating dropped diagnostic count; not a terminal.
+    /// Entries held for the parent to drain (skein's draft
+    /// dynamic-memory.md 4.1): the parent root counts them in its backlog.
+    #[must_use]
+    pub fn backlog(&self) -> u32 {
+        self.facts.len()
+    }
+
+    /// The host no longer drops facts; the name stays while temper's worker reads it.
     #[must_use]
     pub const fn facts_lost(&self) -> u64 {
-        self.lost
+        0
     }
 }
 
@@ -1456,9 +1462,7 @@ fn set(alarms: &mut Deadlines<Alarm>, alarm: Alarm, deadline: Option<Time>) {
 }
 
 fn observation(domain: &mut Domain, fact: Fact) {
-    if domain.facts.try_push(fact).is_err() {
-        domain.lost = domain.lost.saturating_add(1);
-    }
+    domain.facts.push(fact);
 }
 
 fn observations(domain: &mut Domain, out: &Queue<Output>, before: u32) {

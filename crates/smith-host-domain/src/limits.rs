@@ -71,7 +71,7 @@ pub struct Limits {
     pub teardown: Duration,
     /// Terminate grace before tree kill.
     pub kill_after: Duration,
-    /// Content-free diagnostic queue capacity.
+    /// Facts priced by the memory estimate, no longer a queue cap.
     pub facts: u32,
 }
 
@@ -153,6 +153,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(skein_lib::List::<Token>::worst_case(limits.calls)?)?
         .checked_add(skein_lib::List::<Token>::worst_case(limits.messages)?)?
         .checked_add(Deadlines::<Alarm>::worst_case(alarms)?)?
+        // The uncapped facts queue is estimated at limits.facts entries.
         .checked_add(Queue::<Fact>::worst_case(limits.facts)?)?
         .checked_add(u64::from(limits.agents).checked_mul(per_agent)?)
 }

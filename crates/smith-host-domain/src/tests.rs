@@ -52,7 +52,10 @@ fn limits() -> crate::Limits {
 }
 
 fn admitted() -> (Domain, Env<crate::Limits>, Queue<Output>, Token) {
-    let limits = limits();
+    admitted_with_limits(limits())
+}
+
+fn admitted_with_limits(limits: crate::Limits) -> (Domain, Env<crate::Limits>, Queue<Output>, Token) {
     let mut domain = Domain::new(&limits);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::with_capacity(crate::max_out(&limits));
@@ -73,6 +76,22 @@ fn admitted() -> (Domain, Env<crate::Limits>, Queue<Output>, Token) {
     );
     while out.pop().is_some() {}
     (domain, env, out, owner)
+}
+
+#[test]
+fn a_parent_that_drains_late_loses_no_fact() {
+    // Spawned and Admitted each emit one observation, beyond the estimate of one.
+    const START_FACTS: u32 = 2;
+    let mut limits = limits();
+    limits.facts = 1;
+    let (mut domain, _env, _out, _owner) = admitted_with_limits(limits);
+    let client = Token::new(1);
+    assert_eq!(domain.backlog(), START_FACTS);
+    assert_eq!(domain.pop_fact(), Some(crate::Fact::Started { client }));
+    assert_eq!(domain.pop_fact(), Some(crate::Fact::Admitted { client }));
+    assert_eq!(domain.pop_fact(), None);
+    assert_eq!(domain.backlog(), 0);
+    assert_eq!(domain.facts_lost(), 0);
 }
 
 fn cancelled_answer() -> crate::Answer {
