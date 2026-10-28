@@ -40,8 +40,8 @@ pub(crate) fn operations(
     }
     let capacity = most_ops(store.limits.journal.writes, store.limits.orphan_erases).ok_or(Refusal::Failed)?;
     let mut ops = List::with_capacity(capacity);
-    let mut frames = Queue::with_capacity(store.limits.journal.writes);
-    let mut drops = Queue::with_capacity(store.limits.journal.writes);
+    let mut frames = Queue::uncapped();
+    let mut drops = Queue::uncapped();
     let mut bytes = 26;
     let mut deployment = None;
     let mut wires = false;
