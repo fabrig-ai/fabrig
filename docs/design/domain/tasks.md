@@ -324,11 +324,13 @@ waiting ──► active ──► closing ──► done, failed or cancelled
 ```
 
 - **Waiting:** some dependency is not done, or some hold it needs is
-  not yet free (section 6).
+  not yet free (section 6). A procedure its connector declares to start
+  kept is not waiting on its dependencies: it enters active and kept
+  (connectors.md, 6.1).
 - **Active:** its executor is engaged (5.2 to 5.4). It enters active in
   the commit that makes it ready, which takes its holds. An active task
-  with a pending dependency, which only an amendment gives it, is
-  **kept** (5.7).
+  with a pending dependency, which an amendment gives it, or its
+  creation where its procedure starts kept, is **kept** (5.7).
 - **Closing:** its executor has finished, failed, or the task was
   cancelled, and it is settling before it ends. In order:
   1. its run, if one is live, has ended: cancelled, and its answer

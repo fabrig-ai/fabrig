@@ -426,6 +426,16 @@ number, its delegates by number, which of its task's dependencies are
 pending (tasks.md, 5.7), and the facts it reads. A projection
 (section 8) is not a procedure: no task asked for it.
 
+**A procedure that starts kept.** A connector may declare, per
+procedure, that a task of it made with a pending dependency enters
+active and kept (tasks.md, 5.7) rather than waiting: it steps and
+delegates while its dependency goes on, under 5.7's refusals, ending no
+way but failed or cancelled while kept and asking no effect that waits
+for dependencies (4.1). It is for work whose producing may run beside
+its dependency's, and whose landing or result is what the dependency
+orders: temper's change procedure, whose dependent change across
+repositories is coded beside its dependency and merged after it.
+
 ### 6.2 When it steps
 
 - when its task becomes active;
