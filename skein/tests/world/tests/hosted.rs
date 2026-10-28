@@ -30,14 +30,13 @@ fn a_spawn_hosts_the_child_with_its_arguments_environment_and_pipes() {
     assert_eq!(outcome.procs[0].child_exit, Some(Exit::Code(0)));
 }
 
-fn exchange(seed: u64) -> skein_world::Outcome<Script, RootMachine> {
+fn exchange(seed: u64, memory: Memory) -> skein_world::Outcome<Script, RootMachine> {
     let faults = skein_sim::Faults {
         latency: 1000,
         latency_max: skein_lib::Duration::from_millis(1),
         ..skein_sim::Faults::NONE
     };
-    let mut world =
-        World::new(seed, Config { faults, ..Config::calm() }, Judge, Memory::Checked).with_machine(RootMachine);
+    let mut world = World::new(seed, Config { faults, ..Config::calm() }, Judge, memory).with_machine(RootMachine);
     world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make: child, instances: 1, operations: 8 });
     world.spawn_root(Handle::new(1), |root| {
         Script::parent(root, &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait])
@@ -47,14 +46,19 @@ fn exchange(seed: u64) -> skein_world::Outcome<Script, RootMachine> {
 
 #[test]
 fn hosted_processes_replay_and_each_frees_its_metered_heap() {
-    let first = exchange(7);
-    let second = exchange(7);
+    // Each delayed exchange process: measured peak 2,256 B plus 25%, rounded up.
+    const CEILING: u64 = 2_900;
+    let first = exchange(7, Memory::Within(CEILING));
+    let second = exchange(7, Memory::Within(CEILING));
     assert_eq!(first.trace, second.trace, "hosted process records replay with the same seed");
     assert_eq!(first.heap, second.heap, "each process's peaks replay too");
     let heap = first.heap.as_ref().expect("checked memory");
     assert_eq!(heap.len(), 2, "parent and hosted child are separately metered");
-    assert!(heap.iter().all(|(peak, bound)| *peak > 0 && peak <= bound), "both process heaps fit their own bounds");
-    assert_ne!(first.trace, exchange(8).trace, "another seed changes the delayed completions");
+    assert!(
+        heap.iter().all(|(peak, bound)| *peak > 0 && *peak <= CEILING && *bound == CEILING),
+        "both process heaps fit the scenario ceiling"
+    );
+    assert_ne!(first.trace, exchange(8, Memory::Within(CEILING)).trace, "another seed changes the delayed completions");
     drop(first);
     drop(second);
 }
@@ -78,35 +82,41 @@ fn empty_child_without_exit(_spawn: &Spawn, inherited: &Inherited) -> Script {
     script
 }
 
-fn simple(make: fn(&Spawn, &Inherited) -> Script, acts: &[Act]) -> skein_world::Outcome<Script, RootMachine> {
-    let mut world = World::new(7, Config::calm(), Judge, Memory::Checked).with_machine(RootMachine);
+fn simple(
+    make: fn(&Spawn, &Inherited) -> Script,
+    acts: &[Act],
+    memory: Memory,
+) -> skein_world::Outcome<Script, RootMachine> {
+    let mut world = World::new(7, Config::calm(), Judge, memory).with_machine(RootMachine);
     world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make, instances: 1, operations: 8 });
     world.spawn_root(Handle::new(1), |root| Script::parent(root, acts));
     world.run()
 }
 
 #[test]
-#[should_panic(expected = "process 1 held")]
-fn a_hosted_child_past_its_own_worst_case_fails() {
-    let _outcome = simple(hogging_child, &[Act::Spawn, Act::Read(1), Act::Wait]);
+#[should_panic(expected = "past its scenario's ceiling")]
+fn a_hosted_child_past_its_scenarios_ceiling_fails() {
+    // Below the child's 64 KiB hog; construction still fits.
+    const CEILING: u64 = 32 * 1024;
+    let _outcome = simple(hogging_child, &[Act::Spawn, Act::Read(1), Act::Wait], Memory::Within(CEILING));
 }
 
 #[test]
 #[should_panic(expected = "a leak")]
 fn a_hosted_child_that_leaks_fails_when_dropped() {
-    drop(simple(leaky_child, &[Act::Spawn, Act::Read(1), Act::Wait]));
+    drop(simple(leaky_child, &[Act::Spawn, Act::Read(1), Act::Wait], Memory::Checked));
 }
 
 #[test]
 #[should_panic(expected = "idle, unsettled")]
 fn a_hosted_child_without_a_terminal_does_not_settle() {
-    let _outcome = simple(empty_child_without_exit, &[Act::Spawn, Act::Read(1)]);
+    let _outcome = simple(empty_child_without_exit, &[Act::Spawn, Act::Read(1)], Memory::Checked);
 }
 
 #[test]
 #[should_panic(expected = "read to its end")]
 fn closing_a_hosted_childs_output_without_reading_its_end_does_not_settle() {
-    let _outcome = simple(leaky_child, &[Act::Spawn, Act::Wait]);
+    let _outcome = simple(leaky_child, &[Act::Spawn, Act::Wait], Memory::Checked);
 }
 
 #[test]
@@ -138,7 +148,7 @@ fn a_parents_termination_signal_reaches_its_hosted_child() {
 }
 
 #[test]
-fn a_hosted_child_holds_its_full_payload_within_its_bound_and_frees_exactly_what_it_held() {
+fn a_hosted_child_holds_its_full_payload_within_its_ceiling_and_frees_exactly_what_it_held() {
     use skein_world_tests::hosted::{Story, check_story, story};
     let outcome = story(7, Story::Memory);
     check_story(Story::Memory, &outcome);
@@ -170,6 +180,7 @@ fn a_killed_childs_leak_is_checked_when_it_is_dropped() {
     drop(simple(
         leaky_killed_child,
         &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Signal(Signal::Kill), Act::Read(1), Act::Wait],
+        Memory::Checked,
     ));
 }
 
@@ -214,9 +225,6 @@ impl Host for CuttingScript {
     }
     fn is_empty(&self) -> bool {
         self.script.is_empty() && self.signal.is_none() && !self.closing
-    }
-    fn worst_case(&self) -> u64 {
-        self.script.worst_case()
     }
     fn operations(&self) -> u32 {
         self.script.operations()

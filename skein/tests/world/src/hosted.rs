@@ -316,9 +316,6 @@ impl Host for Script {
         if self.is_empty() { self.terminal } else { None }
     }
 
-    fn worst_case(&self) -> u64 {
-        64 * 1024
-    }
     fn operations(&self) -> u32 {
         8
     }
@@ -400,6 +397,11 @@ fn full_child(spawn: &Spawn, inherited: &Inherited) -> Script {
     script
 }
 
+// Each full-payload exchange process: measured peak 62,904 B plus 25%, rounded up.
+const MEMORY_CEILING: u64 = 79_000;
+// Each kill-story process: measured peak 2,296 B plus 25%, rounded up.
+const KILL_CEILING: u64 = 2_900;
+
 type Factory = fn(&Spawn, &Inherited) -> Script;
 
 /// Runs one story with seeded completion latency and separately metered heaps.
@@ -417,11 +419,16 @@ pub fn story(seed: u64, story: Story) -> skein_world::Outcome<Script, RootMachin
             skein_world::LastWord::LastExpectation
         }
     };
+    let memory = match story {
+        Story::Memory => skein_world::Memory::Within(MEMORY_CEILING),
+        Story::Kill => skein_world::Memory::Within(KILL_CEILING),
+        Story::Exchange | Story::EarlyExit | Story::Interrupt | Story::Terminate => skein_world::Memory::Checked,
+    };
     let mut world = skein_world::World::new(
         seed,
         skein_sim::Config { faults, ..skein_sim::Config::calm() },
         crate::Later(last_word),
-        skein_world::Memory::Checked,
+        memory,
     )
     .with_machine(RootMachine);
     let (make, acts): (Factory, Vec<Act>) = match story {
@@ -479,7 +486,8 @@ pub fn check_story(story: Story, outcome: &skein_world::Outcome<Script, RootMach
             assert_eq!(outcome.procs.len(), 1, "the child is dropped after its kill");
             assert_eq!(outcome.killed.len(), 1, "the harness records the terminated child");
             let (peak, bound) = outcome.killed[0].heap.expect("the killed child was metered and its drop checked");
-            assert!(peak > 0 && peak <= bound, "the killed child's own heap fits its bound");
+            assert_eq!(bound, KILL_CEILING);
+            assert!(peak > 0 && peak <= KILL_CEILING, "the killed child's heap fits the scenario ceiling");
         }
         Story::EarlyExit => {
             assert!(
@@ -502,7 +510,8 @@ pub fn check_story(story: Story, outcome: &skein_world::Outcome<Script, RootMach
     }
     if matches!(story, Story::Memory) {
         let (peak, bound) = outcome.heap.as_ref().expect("checked heaps")[1];
-        assert!(peak <= bound, "the child's full payload stays within its declared bound: {peak}/{bound}");
+        assert_eq!(bound, MEMORY_CEILING);
+        assert!(peak <= MEMORY_CEILING, "the child's full payload stays within the scenario ceiling: {peak}/{bound}");
         assert_eq!(outcome.procs[1].held.len(), FULL_PAYLOAD_BYTES, "the child retains its full payload at settlement");
     }
 }

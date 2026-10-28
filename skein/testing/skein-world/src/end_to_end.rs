@@ -613,13 +613,6 @@ impl Host for Binary {
             && self.submissions.is_empty()
     }
 
-    fn worst_case(&self) -> u64 {
-        u64::try_from(self.capture.limit)
-            .expect("stderr cap fits u64")
-            .checked_add(32 * 1024)
-            .expect("observer memory fits u64")
-    }
-
     fn operations(&self) -> u32 {
         8
     }

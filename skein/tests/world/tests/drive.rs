@@ -104,9 +104,6 @@ impl Host for Closing {
     fn is_empty(&self) -> bool {
         self.stage == 2 && self.pending == 0 && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        4096
-    }
     fn operations(&self) -> u32 {
         8
     }

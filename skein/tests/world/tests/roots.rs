@@ -1,7 +1,7 @@
 //! Independent child roots, startup rollback and per-process metering.
 
 use skein_io::kernel::{Error, Exit};
-use skein_world::Cut;
+use skein_world::{Cut, Memory};
 use skein_world_tests::fixtures::startup::{
     AFTER_FIRST_APPEND, APPEND_DESCRIPTOR_LIMIT, BASE_HANDLES, KILLED_CHILDREN, Processes, READY,
     ROOT_DESCRIPTOR_LIMIT, Story, killed_child, launched, no_appends, only_parent, prefixed, processes,
@@ -18,18 +18,36 @@ const REPLAY: &[(bool, bool)] = &[(false, false), (true, false), (false, true)];
 
 #[test]
 fn independently_owned_roots_support_child_files_after_parent_close_and_settle_memory() {
-    let mut outcome = launched(17, skein_sim::Config::calm(), file_child, roots, no_appends, Story::Exchange);
+    // Each independently rooted exchange process: peak 2,320 B plus 25%, rounded up.
+    const CEILING: u64 = 2_900;
+    let mut outcome = launched(
+        17,
+        skein_sim::Config::calm(),
+        file_child,
+        roots,
+        no_appends,
+        Story::Exchange,
+        Memory::Within(CEILING),
+    );
     let Processes { parent, child } = processes(&outcome);
     assert_eq!(parent.received, READY);
     assert_eq!(child.expect("child admitted").received, b"gofrom child");
     assert_eq!(parent.child_exit, Some(Exit::Code(0)));
-    assert!(outcome.heap.as_ref().expect("metered processes").iter().all(|(peak, bound)| peak <= bound));
+    assert!(
+        outcome
+            .heap
+            .as_ref()
+            .expect("metered processes")
+            .iter()
+            .all(|(peak, ceiling)| *peak <= CEILING && *ceiling == CEILING)
+    );
     outcome.machine.finish();
 }
 
 #[test]
 fn killed_child_closes_all_startup_roots_under_its_own_memory_span() {
-    let mut outcome = launched(19, skein_sim::Config::calm(), waiting_child, roots, no_appends, Story::Kill);
+    let mut outcome =
+        launched(19, skein_sim::Config::calm(), waiting_child, roots, no_appends, Story::Kill, Memory::Checked);
     assert_eq!(processes(&outcome).parent.child_exit, Some(Exit::Signal(9)));
     assert_eq!(outcome.killed.len(), KILLED_CHILDREN);
     assert!(killed_child(&outcome).heap.is_some());
@@ -38,7 +56,15 @@ fn killed_child_closes_all_startup_roots_under_its_own_memory_span() {
 
 #[test]
 fn failed_startup_rolls_back_roots_and_never_admits_a_child() {
-    let mut outcome = launched(23, skein_sim::Config::calm(), file_child, missing_roots, no_appends, Story::SpawnOnly);
+    let mut outcome = launched(
+        23,
+        skein_sim::Config::calm(),
+        file_child,
+        missing_roots,
+        no_appends,
+        Story::SpawnOnly,
+        Memory::Checked,
+    );
     assert!(only_parent(&outcome).results.contains(&Err(Error::NotFound)));
     outcome.machine.finish();
 }
@@ -63,6 +89,7 @@ fn startup_roots_refuse_a_child_beyond_its_descriptor_limit() {
         roots,
         no_appends,
         Story::SpawnOnly,
+        Memory::Checked,
     );
     assert!(only_parent(&outcome).results.contains(&Err(Error::TooManyOpenFiles)));
     outcome.machine.finish();
@@ -78,14 +105,23 @@ fn startup_append_files_survive_parent_close_and_all_owned_handles_settle() {
 
 #[test]
 fn a_failed_later_startup_append_rolls_back_files_and_roots_before_admission() {
-    let mut outcome = launched(41, skein_sim::Config::calm(), append_child, roots, missing_appends, Story::SpawnOnly);
+    let mut outcome = launched(
+        41,
+        skein_sim::Config::calm(),
+        append_child,
+        roots,
+        missing_appends,
+        Story::SpawnOnly,
+        Memory::Checked,
+    );
     assert!(only_parent(&outcome).results.contains(&Err(Error::NotFound)));
     outcome.machine.finish();
 }
 
 #[test]
 fn a_killed_child_releases_its_startup_append_files_in_its_own_memory_span() {
-    let mut outcome = launched(43, skein_sim::Config::calm(), waiting_child, roots, appends, Story::Kill);
+    let mut outcome =
+        launched(43, skein_sim::Config::calm(), waiting_child, roots, appends, Story::Kill, Memory::Checked);
     assert_eq!(outcome.killed.len(), KILLED_CHILDREN);
     assert!(killed_child(&outcome).heap.is_some());
     outcome.machine.finish();
@@ -100,6 +136,7 @@ fn startup_append_descriptors_enter_the_childs_descriptor_limit() {
         roots,
         appends,
         Story::SpawnOnly,
+        Memory::Checked,
     );
     assert!(only_parent(&outcome).results.contains(&Err(Error::TooManyOpenFiles)));
     outcome.machine.finish();

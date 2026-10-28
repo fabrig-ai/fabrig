@@ -227,9 +227,6 @@ fn a_never_settling_world_names_each_hosts_pending_work_and_deadlines() {
         fn operations(&self) -> u32 {
             1
         }
-        fn worst_case(&self) -> u64 {
-            0
-        }
     }
     struct NeverPassed;
     impl skein_world::Referee<Pending> for NeverPassed {

@@ -1,14 +1,14 @@
 //! What the world harness must do and catch (examples.md, 6): time held
 //! while a process has work deferred to its next entry; a liveness
-//! expectation overdue, and a safety one broken; a process past its worst
-//! case, and one that leaks; and a seed that replays. Under the counting
+//! expectation overdue, and a safety one broken; a process past its scenario's
+//! ceiling, and one that leaks; and a seed that replays. Under the counting
 //! allocator, as every world here checks memory.
 
 use skein_heap::Counting;
 use skein_lib::Duration;
 use skein_sim::{Config, Event, Fault, Faults, Summary};
 use skein_world::{Memory, Outcome, World};
-use skein_world_tests::{Expect, Judge, Script, WORST, client, ms, server};
+use skein_world_tests::{Expect, Judge, Script, client, ms, server};
 
 #[global_allocator]
 static HEAP: Counting = Counting;
@@ -28,8 +28,9 @@ fn world(
     expect: Vec<Expect>,
     server: impl FnOnce() -> Script,
     client: impl FnOnce() -> Script,
+    memory: Memory,
 ) -> World<Script, Judge> {
-    let mut world = World::new(SEED, config, Judge::new(SEED, expect), Memory::Checked);
+    let mut world = World::new(SEED, config, Judge::new(SEED, expect), memory);
     world.spawn(server);
     world.spawn(client);
     world
@@ -39,19 +40,24 @@ fn sender() -> Script {
     client(ms(10), ms(20))
 }
 
-fn exchange(config: Config) -> Outcome<Script> {
+fn exchange(config: Config, memory: Memory) -> Outcome<Script> {
     let expect = vec![Expect::Receives { at: 0, by: ms(1_000) }];
-    world(config, expect, server, sender).run()
+    world(config, expect, server, sender, memory).run()
 }
 
 #[test]
 fn a_world_of_two_scripts_settles_and_each_frees_what_it_held() {
-    let outcome = exchange(Config::calm());
+    // Each script in the hello exchange: measured peak 1,021 B plus 25%, rounded up.
+    const CEILING: u64 = 1_300;
+    let outcome = exchange(Config::calm(), Memory::Within(CEILING));
     let received = &outcome.procs[0].received;
     assert_eq!(received.len(), 1);
     assert_eq!((received[0].0, &*received[0].1), (ms(20), &b"hello"[..]), "received when sent");
     let heap = outcome.heap.as_ref().expect("checked");
-    assert!(heap.iter().all(|(most, bound)| *most > 0 && most <= bound), "within each worst case: {heap:?}");
+    assert!(
+        heap.iter().all(|(most, bound)| *most > 0 && *most <= CEILING && *bound == CEILING),
+        "within the scenario ceiling: {heap:?}"
+    );
 }
 
 #[test]
@@ -90,7 +96,7 @@ fn a_ring_the_loop_grows_is_charged_to_its_process() {
 /// traced, at the very time of the send.
 #[test]
 fn time_does_not_move_while_a_process_has_deferred_work() {
-    let outcome = exchange(late());
+    let outcome = exchange(late(), Memory::Checked);
     let (server, client) = (0, 1);
     let sent = outcome
         .trace
@@ -111,52 +117,61 @@ fn time_does_not_move_while_a_process_has_deferred_work() {
 #[should_panic(expected = "unmet: Receives")]
 fn an_overdue_liveness_expectation_fails_naming_what_is_pending() {
     let expect = vec![Expect::Receives { at: 0, by: ms(5) }];
-    let _outcome = world(Config::calm(), expect, server, sender).run();
+    let _outcome = world(Config::calm(), expect, server, sender, Memory::Checked).run();
 }
 
 #[test]
 #[should_panic(expected = "broke: it received")]
 fn a_broken_safety_expectation_fails_at_once() {
     let expect = vec![Expect::Silent { at: 0, until: ms(1_000) }];
-    let _outcome = world(Config::calm(), expect, server, sender).run();
+    let _outcome = world(Config::calm(), expect, server, sender, Memory::Checked).run();
 }
 
 #[test]
-fn a_forwarded_no_bound_with_added_bytes_runs_and_settles() {
-    let forwarded = skein_shell::NO_BOUND + 4096;
+fn checked_memory_reports_peaks_without_a_ceiling() {
+    const HOG_BYTES: usize = 64 * 1024;
     let outcome = world(
         Config::calm(),
         vec![Expect::Receives { at: 0, by: ms(1_000) }],
-        || server().with_heap_bound(forwarded),
-        || sender().with_heap_bound(forwarded),
+        || server().hogging(HOG_BYTES),
+        sender,
+        Memory::Checked,
     )
     .run();
-    assert_eq!(outcome.procs[0].received.len(), 1);
-    let heap = outcome.heap.as_ref().expect("both processes metered and released");
-    assert_eq!(heap.len(), 2);
-    assert!(heap.iter().all(|(peak, bound)| *peak > 0 && *bound == skein_shell::NO_BOUND));
+    let heap = outcome.heap.as_ref().expect("checked memory");
+    assert!(heap[0].0 >= u64::try_from(HOG_BYTES).expect("small hog"));
+    assert!(heap.iter().all(|(_, ceiling)| *ceiling == u64::MAX));
 }
 
 #[test]
-#[should_panic(expected = "past its worst case")]
-fn a_process_past_its_worst_case_fails() {
-    let hog = usize::try_from(WORST).expect("small");
-    let _outcome = world(Config::calm(), Vec::new(), || server().hogging(hog), sender).run();
+#[should_panic(expected = "past its scenario's ceiling")]
+fn a_process_past_its_scenarios_ceiling_fails() {
+    // Below the hog's 64 KiB, while admitting both scripts' construction.
+    const CEILING: u64 = 32 * 1024;
+    const HOG_BYTES: usize = 64 * 1024;
+    let _outcome =
+        world(Config::calm(), Vec::new(), || server().hogging(HOG_BYTES), sender, Memory::Within(CEILING)).run();
 }
 
 #[test]
 #[should_panic(expected = "a leak")]
 fn a_process_that_leaks_fails_once_settled() {
-    let _outcome =
-        world(Config::calm(), vec![Expect::Receives { at: 0, by: ms(1_000) }], || server().leaking(100), sender).run();
+    let _outcome = world(
+        Config::calm(),
+        vec![Expect::Receives { at: 0, by: ms(1_000) }],
+        || server().leaking(100),
+        sender,
+        Memory::Checked,
+    )
+    .run();
 }
 
 #[test]
 fn the_same_seed_replays_to_the_same_trace() {
     let faults = Faults { short_recv: 500, short_send: 500, ..late().faults };
     let config = Config { faults, ..Config::calm() };
-    let first = exchange(config);
-    let second = exchange(config);
+    let first = exchange(config, Memory::Checked);
+    let second = exchange(config, Memory::Checked);
     assert!(first.trace == second.trace, "the same records, at the same times");
     assert!(first.trace.iter().any(|entry| entry.event == Event::Fault(Fault::Latency)), "faults fell");
     let mut other = World::new(

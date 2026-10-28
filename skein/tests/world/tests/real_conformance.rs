@@ -119,9 +119,6 @@ impl Host for RecordingParent {
     fn is_empty(&self) -> bool {
         self.script.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        self.script.worst_case()
-    }
     fn operations(&self) -> u32 {
         self.script.operations()
     }
@@ -160,9 +157,6 @@ impl Host for OpeningChild {
 
     fn is_empty(&self) -> bool {
         false
-    }
-    fn worst_case(&self) -> u64 {
-        4096
     }
     fn operations(&self) -> u32 {
         1
@@ -223,9 +217,6 @@ impl Host for Proc {
     }
     fn exit(&self) -> Option<skein_io::kernel::Exit> {
         self.host().exit()
-    }
-    fn worst_case(&self) -> u64 {
-        self.host().worst_case()
     }
     fn operations(&self) -> u32 {
         self.host().operations()
@@ -360,9 +351,6 @@ impl Host for CancelReader {
     fn is_empty(&self) -> bool {
         self.answers.len() == 4
     }
-    fn worst_case(&self) -> u64 {
-        4096
-    }
     fn operations(&self) -> u32 {
         4
     }
@@ -417,9 +405,6 @@ impl Host for Overflow {
 
     fn is_empty(&self) -> bool {
         false
-    }
-    fn worst_case(&self) -> u64 {
-        4096
     }
     fn operations(&self) -> u32 {
         1

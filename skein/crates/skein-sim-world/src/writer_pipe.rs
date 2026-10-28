@@ -104,7 +104,6 @@ pub struct PipeHost<P> {
     closing: Closing,
     failure: Option<Error>,
     operations: u32,
-    worst: u64,
 }
 
 impl PipeCapture {
@@ -114,18 +113,6 @@ impl PipeCapture {
     #[must_use]
     pub fn host<P: Host>(self, host: P) -> PipeHost<P> {
         let operations = host.operations().checked_add(1).expect("room for the diagnostic write");
-        let capacity = self.captured.borrow().bytes.capacity();
-        let worst = host
-            .worst_case()
-            .checked_add(Map::<Token, Binding>::worst_case(operations).expect("bounded bindings"))
-            .and_then(|bytes| bytes.checked_add(Map::<Token, Token>::worst_case(operations)?))
-            .and_then(|bytes| bytes.checked_add(Queue::<Complete>::worst_case(operations)?))
-            .and_then(|bytes| bytes.checked_add(Queue::<Submit>::worst_case(operations)?))
-            .and_then(|bytes| bytes.checked_add(u64::from(capacity).checked_mul(2)?))
-            .and_then(|bytes| bytes.checked_add(u64::try_from(size_of::<Captured>()).ok()?))
-            .and_then(|bytes| bytes.checked_add(u64::try_from(size_of::<PipeHost<P>>()).ok()?))
-            .and_then(|bytes| bytes.checked_add(u64::try_from(size_of::<usize>().checked_mul(2)?).ok()?))
-            .expect("bounded diagnostic bridge memory");
         PipeHost {
             host,
             capture: self,
@@ -138,7 +125,6 @@ impl PipeCapture {
             closing: Closing::Open,
             failure: None,
             operations,
-            worst,
         }
     }
 }
@@ -324,9 +310,6 @@ impl<P: Host> Host for PipeHost<P> {
     }
     fn exit(&self) -> Option<Exit> {
         if self.is_empty() { self.host.exit() } else { None }
-    }
-    fn worst_case(&self) -> u64 {
-        self.worst
     }
     fn operations(&self) -> u32 {
         self.operations

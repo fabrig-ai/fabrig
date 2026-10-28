@@ -45,7 +45,8 @@ impl<P: Host, R: Referee<P>> World<P, R> {
         let controls = Controls::new();
         let referee = make_referee(controls.clone());
         let heap = match memory {
-            Memory::Checked => Some(Heap::new()),
+            Memory::Checked => Some(Heap::new(None)),
+            Memory::Within(ceiling) => Some(Heap::new(Some(ceiling))),
             Memory::Unchecked => None,
         };
         World { inner: skein_sim_world::World::new(seed, config).with_meter(Metered(heap)), referee, controls }

@@ -3,10 +3,10 @@
 /// What a loop measures: making a process, its iterate and drain, and dropping it.
 /// The harness meters heap; a playground's loop measures nothing.
 pub trait Meter {
-    fn admit<T>(&mut self, make: impl FnOnce() -> T, worst_case: fn(&T) -> u64) -> T;
+    fn admit<T>(&mut self, make: impl FnOnce() -> T) -> T;
     fn around<T>(&mut self, at: usize, call: impl FnOnce() -> T) -> T;
     fn release<T>(&mut self, at: usize, proc: T) -> Option<(u64, u64)>;
-    fn restart<T>(&mut self, at: usize, proc: T, make: impl FnOnce() -> T, worst_case: fn(&T) -> u64) -> T;
+    fn restart<T>(&mut self, at: usize, proc: T, make: impl FnOnce() -> T) -> T;
 }
 
 /// Measures nothing: each call runs bare.
@@ -14,7 +14,7 @@ pub trait Meter {
 pub struct Bare;
 
 impl Meter for Bare {
-    fn admit<T>(&mut self, make: impl FnOnce() -> T, _worst_case: fn(&T) -> u64) -> T {
+    fn admit<T>(&mut self, make: impl FnOnce() -> T) -> T {
         make()
     }
     fn around<T>(&mut self, _at: usize, call: impl FnOnce() -> T) -> T {
@@ -24,7 +24,7 @@ impl Meter for Bare {
         drop(proc);
         None
     }
-    fn restart<T>(&mut self, _at: usize, proc: T, make: impl FnOnce() -> T, _worst_case: fn(&T) -> u64) -> T {
+    fn restart<T>(&mut self, _at: usize, proc: T, make: impl FnOnce() -> T) -> T {
         drop(proc);
         make()
     }
