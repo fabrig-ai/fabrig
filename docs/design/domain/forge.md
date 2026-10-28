@@ -1156,8 +1156,12 @@ starts from current code. It never updates only because its base moved.
   (4.1, 4.3), the stall does not count.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it, its stall is counted from it, and the change
-  decides afresh. At producing, with no head pushed (its producer failed
-  for good), deciding afresh makes a fresh producer, one more of its
+  decides afresh. A producer that fails for good, or finds nothing to
+  change (its failure saying so, in its own words), holds the change at
+  producing, the hold carrying its words whole within the hold's bytes,
+  so its requester hears why and its person decides: cancel it, or
+  release it if the producer was wrong. At producing, with no head pushed
+  (its producer failed for good), deciding afresh makes a fresh producer, one more of its
   tasks, holding by the rule above when its authority no longer covers
   one. A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
