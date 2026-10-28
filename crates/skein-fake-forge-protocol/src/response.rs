@@ -424,6 +424,7 @@ fn document(
         | Answer::Branch(_) => answers::read(config, setup, request, answer),
     }
 }
+#[expect(clippy::too_many_lines, reason = "the response translation exhaustively lists the fake forge answers")]
 pub fn answer(
     config: &Config,
     setup: &Store,

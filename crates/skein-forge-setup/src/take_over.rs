@@ -196,7 +196,7 @@ impl TakeOver {
                 | Row::Entry { .. }
                 | Row::File(_)
                 | Row::Commit(_)
-                | Row::Entry(_)
+                | Row::TreeEntry(_)
                 | Row::Run(_)
                 | Row::Job(_)
                 | Row::Step(_) => return Err(Why::Unexpected),

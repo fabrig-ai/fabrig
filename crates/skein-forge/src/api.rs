@@ -237,7 +237,7 @@ pub enum Answer {
     /// One run with its jobs.
     Run(Run),
     /// One tree's entries, in name order.
-    Tree { entries: Box<[Entry]>, more: bool },
+    Tree { entries: Box<[TreeEntry]>, more: bool },
     /// Return done.
     Done,
 }
@@ -589,15 +589,15 @@ pub struct RunJob {
 }
 /// One entry of a tree (forge.md, 3.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Entry {
+pub struct TreeEntry {
     pub name: Box<[u8]>,
     pub mode: u32,
-    pub kind: EntryKind,
+    pub kind: TreeEntryKind,
     pub object: Commit,
 }
 /// A tree entry's object kind (forge.md, 3.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EntryKind {
+pub enum TreeEntryKind {
     Blob,
     Tree,
     Commit,

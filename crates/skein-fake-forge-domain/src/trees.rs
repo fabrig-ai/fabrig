@@ -1,7 +1,7 @@
 //! Content-addressed directory entries, without recursive walks (fake-forge.md, 2.3).
 use crate::{
     Domain, Limits,
-    api::{Answer, EntryKind, Error, TreeEntry, TreeOf, What},
+    api::{Answer, Error, TreeEntry, TreeEntryKind, TreeOf, What},
     git::Tree,
     store::Repository,
 };
@@ -120,17 +120,17 @@ fn entries(tree: &Tree, directories: &Directories, prefix: &[u8], limits: &Limit
                 let end = prefix.len().checked_add(index).expect("bounded path").checked_add(1).expect("slash fits");
                 let name = copy_of(rest.get(..=index).expect("directory ordering key"));
                 let hash = directory_id(tree, directories, path.get(..end).expect("directory prefix"));
-                (name, EntryKind::Tree, 0o040_000, hash)
+                (name, TreeEntryKind::Tree, 0o040_000, hash)
             }
-            None => (copy_of(rest), EntryKind::Blob, 0o100_644, blob_id(content)),
+            None => (copy_of(rest), TreeEntryKind::Blob, 0o100_644, blob_id(content)),
         };
         out.insert(name, (kind, mode, object)).expect("at most one entry per file");
     }
     let mut entries = List::with_capacity(out.len());
     for (name, &(kind, mode, object)) in &out {
         let name = match kind {
-            EntryKind::Tree => name.strip_suffix(b"/").expect("directory ordering key"),
-            EntryKind::Blob => name.as_ref(),
+            TreeEntryKind::Tree => name.strip_suffix(b"/").expect("directory ordering key"),
+            TreeEntryKind::Blob => name.as_ref(),
         };
         entries.push(TreeEntry { name: copy_of(name), mode, kind, object }).expect("one entry per name");
     }

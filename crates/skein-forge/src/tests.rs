@@ -441,7 +441,7 @@ fn vocabulary_app_credential_gives_no_github_authorization() {
 
 #[test]
 fn turn_measures_count_nested_strings_and_list_widths() {
-    use crate::api::{Conclusion, Entry, EntryKind, Event, Input, Run, RunJob, RunState};
+    use crate::api::{Conclusion, Event, Input, Run, RunJob, RunState, TreeEntry, TreeEntryKind};
     use skein_lib::Time;
     let run = Run {
         id: 1,
@@ -466,7 +466,7 @@ fn turn_measures_count_nested_strings_and_list_widths() {
     };
     // Each run holds five string bytes, one 64-byte job and seven job/step bytes.
     assert_eq!(crate::measure::answer(&Answer::Runs { runs: Box::new([run.clone(), run]), more: false }), Some(408));
-    let entry = Entry { name: Box::from(*b"abc"), mode: 0o100_644, kind: EntryKind::Blob, object: [0; 32] };
+    let entry = TreeEntry { name: Box::from(*b"abc"), mode: 0o100_644, kind: TreeEntryKind::Blob, object: [0; 32] };
     assert_eq!(
         crate::measure::answer(&Answer::Tree { entries: Box::new([entry.clone(), entry.clone(), entry]), more: false }),
         Some(201)

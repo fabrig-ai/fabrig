@@ -1,5 +1,5 @@
 use super::*;
-use crate::api::{EntryKind, TreeEntry, TreeOf};
+use crate::api::{TreeEntry, TreeEntryKind, TreeOf};
 
 fn tree(h: &Harness, object: TreeOf, page: u32, limit: u32) -> (Box<[TreeEntry]>, bool) {
     let Answer::GitTree { entries, truncated } = h.inspect(&Read::GitTree { object, page, limit }).unwrap() else {
@@ -17,8 +17,8 @@ fn rooted() -> Harness {
 fn a_root_tree_lists_files_and_directories_in_name_order() {
     let h = rooted();
     let (first, more) = tree(&h, TreeOf::Commit(FIRST), 1, 2);
-    assert_eq!((&*first[0].name, first[0].kind, first[0].mode), (b"a.txt".as_slice(), EntryKind::Blob, 0o100_644));
-    assert_eq!((&*first[1].name, first[1].kind, first[1].mode), (b"docs".as_slice(), EntryKind::Tree, 0o040_000));
+    assert_eq!((&*first[0].name, first[0].kind, first[0].mode), (b"a.txt".as_slice(), TreeEntryKind::Blob, 0o100_644));
+    assert_eq!((&*first[1].name, first[1].kind, first[1].mode), (b"docs".as_slice(), TreeEntryKind::Tree, 0o040_000));
     assert!(more);
     let (second, more) = tree(&h, TreeOf::Commit(FIRST), 2, 2);
     assert_eq!(&*second[0].name, b"z.txt");
@@ -31,10 +31,10 @@ fn a_subtree_is_read_by_its_id() {
     let (docs, more) = tree(&h, TreeOf::Tree(root[1].object), 1, 2);
     assert!(!more);
     assert_eq!(&*docs[0].name, b"a.md");
-    assert_eq!((&*docs[1].name, docs[1].kind), (b"nest".as_slice(), EntryKind::Tree));
+    assert_eq!((&*docs[1].name, docs[1].kind), (b"nest".as_slice(), TreeEntryKind::Tree));
     let (nested, _) = tree(&h, TreeOf::Tree(docs[1].object), 1, 2);
     assert_eq!(&*nested[0].name, b"b.md");
-    assert_eq!(nested[0].kind, EntryKind::Blob);
+    assert_eq!(nested[0].kind, TreeEntryKind::Blob);
     assert_eq!(
         h.inspect(&Read::GitTree { object: TreeOf::Tree([0; 20]), page: 1, limit: 1 }),
         Err(Error::Missing(What::File))
@@ -97,6 +97,6 @@ fn directories_compare_with_a_trailing_slash() {
     let h = Harness::with(CALM, configured);
     let (entries, more) = tree(&h, TreeOf::Commit(FIRST), 1, 2);
     assert_eq!(&*entries[0].name, b"tests.rs");
-    assert_eq!((&*entries[1].name, entries[1].kind), (b"tests".as_slice(), EntryKind::Tree));
+    assert_eq!((&*entries[1].name, entries[1].kind), (b"tests".as_slice(), TreeEntryKind::Tree));
     assert!(!more);
 }

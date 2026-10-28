@@ -455,7 +455,7 @@ impl Plan {
             | d::Row::Entry { .. }
             | d::Row::File(_)
             | d::Row::Commit(_)
-            | d::Row::Entry(_)
+            | d::Row::TreeEntry(_)
             | d::Row::Run(_)
             | d::Row::Step(_)
             | d::Row::Job(_) => Err(api::Error::InvalidAnswer),

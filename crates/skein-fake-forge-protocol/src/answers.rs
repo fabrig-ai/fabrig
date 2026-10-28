@@ -277,6 +277,7 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
         | Request::DeleteBranch { .. } => Err(a::Error::Refused),
     }
 }
+#[expect(clippy::too_many_lines, reason = "check translation exhaustively selects the dialect request and answer shape")]
 fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckSummary]) -> Result<Answer, a::Error> {
     let (sha, page) = match request {
         Request::CombinedStatus { commit, page, .. } => (Some(*commit), *page),
@@ -463,12 +464,12 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
         a::Answer::GitTree { entries, truncated } => {
             let mut tree = List::with_capacity(u32::try_from(entries.len()).expect("domain bound"));
             for entry in entries {
-                tree.push(d::Entry {
+                tree.push(d::TreeEntry {
                     path: entry.name.clone(),
                     mode: entry.mode,
                     kind: match entry.kind {
-                        a::EntryKind::Blob => skein_forge::api::EntryKind::Blob,
-                        a::EntryKind::Tree => skein_forge::api::EntryKind::Tree,
+                        a::TreeEntryKind::Blob => skein_forge::api::TreeEntryKind::Blob,
+                        a::TreeEntryKind::Tree => skein_forge::api::TreeEntryKind::Tree,
                     },
                     sha: routes::tree_object(entry.object),
                 })

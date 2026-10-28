@@ -29,13 +29,13 @@ pub const RUN_BYTES: usize = 128;
 /// Fixed bytes for one job list element.
 pub const RUN_JOB_BYTES: usize = 64;
 /// Fixed bytes for one tree entry list element.
-pub const ENTRY_BYTES: usize = 64;
+pub const TREE_ENTRY_BYTES: usize = 64;
 /// Fixed bytes for one input list element.
 pub const INPUT_BYTES: usize = 32;
 const _: () = {
     assert!(RUN_BYTES >= size_of::<api::Run>(), "run width covers native storage");
     assert!(RUN_JOB_BYTES >= size_of::<api::RunJob>(), "job width covers native storage");
-    assert!(ENTRY_BYTES >= size_of::<api::Entry>(), "entry width covers native storage");
+    assert!(TREE_ENTRY_BYTES >= size_of::<api::TreeEntry>(), "entry width covers native storage");
     assert!(INPUT_BYTES >= size_of::<api::Input>(), "input width covers native storage");
     assert!(SUMMARY_BYTES >= size_of::<Summary>(), "summary width covers native storage");
     assert!(REVIEW_BYTES >= size_of::<api::Review>(), "review width covers native storage");
@@ -147,6 +147,7 @@ fn files(values: &[File]) -> Option<u64> {
 }
 /// Count every string and fixed list element in an answer.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the accounting match lists every forge answer and its owned payloads")]
 pub fn answer(value: &Answer) -> Option<u64> {
     match value {
         Answer::Run(value) => run(value),
@@ -158,7 +159,7 @@ pub fn answer(value: &Answer) -> Option<u64> {
             Some(held)
         }
         Answer::Tree { entries, .. } => {
-            let mut held = rows(entries.len(), ENTRY_BYTES)?;
+            let mut held = rows(entries.len(), TREE_ENTRY_BYTES)?;
             for entry in entries {
                 held = held.checked_add(bytes(&entry.name)?)?;
             }

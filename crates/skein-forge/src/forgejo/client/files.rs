@@ -15,7 +15,7 @@ use skein_lib::Writer;
 pub(crate) enum FileKind {
     Tree,
     Entries,
-    Entry,
+    TreeEntry,
     DirectoryEntries,
     DirectoryEntry,
     File,
@@ -38,7 +38,7 @@ pub(crate) fn fields(kind: FileKind) -> &'static [Field] {
                 ]
             }
         }
-        FileKind::Entry => {
+        FileKind::TreeEntry => {
             const {
                 &[
                     field(b"path", Read::Text, true),
@@ -73,10 +73,15 @@ pub(crate) fn fields(kind: FileKind) -> &'static [Field] {
 pub(crate) fn element(kind: FileKind) -> Option<Kind> {
     match kind {
         FileKind::DirectoryEntries => Some(Kind::File(FileKind::DirectoryEntry)),
-        FileKind::Entries => Some(Kind::File(FileKind::Entry)),
+        FileKind::Entries => Some(Kind::File(FileKind::TreeEntry)),
         FileKind::Files => Some(Kind::File(FileKind::File)),
         FileKind::Commits => Some(Kind::File(FileKind::Commit)),
-        FileKind::DirectoryEntry | FileKind::Tree | FileKind::Entry | FileKind::File | FileKind::Commit | FileKind::Compare => None,
+        FileKind::DirectoryEntry
+        | FileKind::Tree
+        | FileKind::TreeEntry
+        | FileKind::File
+        | FileKind::Commit
+        | FileKind::Compare => None,
     }
 }
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
@@ -248,7 +253,7 @@ pub(super) struct Files {
     file: ChangedFile,
     commit: ObjectId,
     compare: Compare,
-    entry: crate::forgejo::document::Entry,
+    entry: crate::forgejo::document::TreeEntry,
     truncated: bool,
 }
 impl Files {
@@ -275,8 +280,8 @@ impl Files {
                 Row::Entry { name: core::mem::replace(&mut self.name, Box::from([])), kind: self.kind.take() },
                 skein_json::tokenizer::Request::Next,
             ),
-            Move::End(Kind::File(FileKind::Entry)) => Step::Row(
-                Row::Entry(core::mem::replace(&mut self.entry, entry())),
+            Move::End(Kind::File(FileKind::TreeEntry)) => Step::Row(
+                Row::TreeEntry(core::mem::replace(&mut self.entry, entry())),
                 skein_json::tokenizer::Request::Next,
             ),
             Move::End(Kind::File(FileKind::File)) => {
@@ -286,7 +291,12 @@ impl Files {
                 Step::Row(Row::Commit(self.commit), skein_json::tokenizer::Request::Next)
             }
             Move::End(Kind::File(
-                FileKind::DirectoryEntries | FileKind::Tree | FileKind::Entries | FileKind::Files | FileKind::Commits | FileKind::Compare,
+                FileKind::DirectoryEntries
+                | FileKind::Tree
+                | FileKind::Entries
+                | FileKind::Files
+                | FileKind::Commits
+                | FileKind::Compare,
             )) => Step::Demand(skein_json::tokenizer::Request::Next),
             Move::End(
                 Kind::User
@@ -306,7 +316,7 @@ impl Files {
             ) => unreachable!("file tables"),
             Move::Done => Step::Done(match self.root {
                 FileKind::Tree => Document::Tree { truncated: self.truncated },
-                FileKind::Entries | FileKind::Entry => unreachable!("tree root selection"),
+                FileKind::Entries | FileKind::TreeEntry => unreachable!("tree root selection"),
                 FileKind::Compare => Document::Compare(self.compare),
                 FileKind::DirectoryEntries | FileKind::Files => Document::Listed { skipped: walk.skipped() },
                 FileKind::DirectoryEntry | FileKind::File | FileKind::Commit | FileKind::Commits => {
@@ -347,9 +357,9 @@ impl Files {
                 b"type" if self.root == FileKind::DirectoryEntries => self.kind = crate::directory::kind(&text),
                 b"type" => {
                     self.entry.kind = match text.as_ref() {
-                        b"blob" => crate::api::EntryKind::Blob,
-                        b"tree" => crate::api::EntryKind::Tree,
-                        b"commit" => crate::api::EntryKind::Commit,
+                        b"blob" => crate::api::TreeEntryKind::Blob,
+                        b"tree" => crate::api::TreeEntryKind::Tree,
+                        b"commit" => crate::api::TreeEntryKind::Commit,
                         _ => return Err(Malformed::Value { field: key }),
                     }
                 }
@@ -365,11 +375,11 @@ impl Files {
     }
 }
 
-fn entry() -> crate::forgejo::document::Entry {
-    crate::forgejo::document::Entry {
+fn entry() -> crate::forgejo::document::TreeEntry {
+    crate::forgejo::document::TreeEntry {
         path: Box::new([]),
         mode: 0,
-        kind: crate::api::EntryKind::Blob,
+        kind: crate::api::TreeEntryKind::Blob,
         sha: ObjectId { format: ObjectFormat::Sha1, bytes: [0; 32] },
     }
 }

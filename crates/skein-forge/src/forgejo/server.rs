@@ -121,7 +121,7 @@ pub enum Answer {
         files: Box<[crate::forgejo::document::ChangedFile]>,
     },
     Tree {
-        entries: Box<[crate::forgejo::document::Entry]>,
+        entries: Box<[crate::forgejo::document::TreeEntry]>,
         truncated: bool,
     },
     Runs {

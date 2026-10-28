@@ -588,11 +588,11 @@ pub enum TreeOf {
 pub struct TreeEntry {
     pub name: Box<[u8]>,
     pub mode: u32,
-    pub kind: EntryKind,
+    pub kind: TreeEntryKind,
     pub object: [u8; 20],
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum EntryKind {
+pub enum TreeEntryKind {
     Blob,
     Tree,
 }

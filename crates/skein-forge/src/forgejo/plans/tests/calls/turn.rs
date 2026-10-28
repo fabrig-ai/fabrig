@@ -76,8 +76,8 @@ fn dispatch() -> Write {
 #[test]
 fn tree_pages_are_full_or_truncated_and_objects_round_trip() {
     let expected = Box::new([
-        api::Entry { name: Box::from(*b"a"), mode: 0o100_644, kind: api::EntryKind::Blob, object: HEAD },
-        api::Entry { name: Box::from(*b"b"), mode: 0o040_000, kind: api::EntryKind::Tree, object: BASE },
+        api::TreeEntry { name: Box::from(*b"a"), mode: 0o100_644, kind: api::TreeEntryKind::Blob, object: HEAD },
+        api::TreeEntry { name: Box::from(*b"b"), mode: 0o040_000, kind: api::TreeEntryKind::Tree, object: BASE },
     ]);
     let mut plan = known(Op::Read(Read::Tree { object: HEAD, page: 2 }));
     round_request(plan.begin());
@@ -89,10 +89,10 @@ fn tree_pages_are_full_or_truncated_and_objects_round_trip() {
         let mut plan = known(Op::Read(Read::Tree { object: BASE, page: 1 }));
         round_request(plan.begin());
         let answer = server::Answer::Tree {
-            entries: Box::new([d::Entry {
+            entries: Box::new([d::TreeEntry {
                 path: Box::from(*b"submodule"),
                 mode: 0o160_000,
-                kind: api::EntryKind::Commit,
+                kind: api::TreeEntryKind::Commit,
                 sha: crate::forgejo::id::ObjectId { bytes: HEAD, format: crate::forgejo::id::ObjectFormat::Sha1 },
             }]),
             truncated,
@@ -101,10 +101,10 @@ fn tree_pages_are_full_or_truncated_and_objects_round_trip() {
         assert_eq!(
             plan.answer(200, &bytes),
             Step::Done(Ok(Answer::Tree {
-                entries: Box::new([api::Entry {
+                entries: Box::new([api::TreeEntry {
                     name: Box::from(*b"submodule"),
                     mode: 0o160_000,
-                    kind: api::EntryKind::Commit,
+                    kind: api::TreeEntryKind::Commit,
                     object: HEAD
                 }]),
                 more

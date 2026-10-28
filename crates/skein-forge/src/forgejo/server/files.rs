@@ -128,9 +128,9 @@ pub(super) fn write(json: &mut Encoder, answer: &Answer) {
                 json.string(&mode(entry.mode));
                 json.key(b"type");
                 json.string(match entry.kind {
-                    crate::api::EntryKind::Blob => b"blob",
-                    crate::api::EntryKind::Tree => b"tree",
-                    crate::api::EntryKind::Commit => b"commit",
+                    crate::api::TreeEntryKind::Blob => b"blob",
+                    crate::api::TreeEntryKind::Tree => b"tree",
+                    crate::api::TreeEntryKind::Commit => b"commit",
                 });
                 json.key(b"sha");
                 json.string(&id::write(&entry.sha));

@@ -529,7 +529,7 @@ fn largest_row(listing: Listing, l: &Limits) -> Option<u64> {
         Listing::Collaborators => (measure::COLLABORATOR_BYTES, 0),
         Listing::Compare => (measure::COMMIT_BYTES, 0),
         Listing::Runs => (measure::RUN_BYTES, string.checked_mul(2)?),
-        Listing::Tree => (measure::ENTRY_BYTES, string),
+        Listing::Tree => (measure::TREE_ENTRY_BYTES, string),
         Listing::PullFiles => (measure::FILE_BYTES, string.checked_add(body.checked_mul(2)?)?),
     };
     u64::try_from(fixed).ok()?.checked_add(payload)

@@ -121,7 +121,7 @@ pub enum Row {
     Pull(PullRequest),
     File(ChangedFile),
     Commit(ObjectId),
-    Entry(Entry),
+    TreeEntry(TreeEntry),
     Run(Run),
     Job(Job),
     Step(Step),
@@ -548,10 +548,10 @@ pub struct Hook {
 
 /// One nonrecursive git tree entry (forge.md, 5.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Entry {
+pub struct TreeEntry {
     pub path: Box<[u8]>,
     pub mode: u32,
-    pub kind: crate::api::EntryKind,
+    pub kind: crate::api::TreeEntryKind,
     pub sha: ObjectId,
 }
 pub(crate) fn run() -> Run {

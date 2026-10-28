@@ -120,7 +120,7 @@ fn directories_and_the_root_read_through_both_http_fakes() {
     }
 }
 use skein_fake_forge_domain::api as raw;
-use skein_forge::api::{self, Conclusion, EntryKind, JobAttempt, MergeHow, RunState, UpdateStyle, Write};
+use skein_forge::api::{self, Conclusion, JobAttempt, MergeHow, RunState, TreeEntryKind, UpdateStyle, Write};
 use skein_forge_client::{Made, Outcome};
 use skein_forge_client_world::translate::commit;
 
@@ -207,15 +207,15 @@ fn a_tree_is_read_by_commit_then_by_directory() {
         panic!("tree answer")
     };
     assert!(more, "root crosses a two-entry page");
-    assert_eq!((&*entries[0].name, entries[0].kind), (b"docs".as_slice(), EntryKind::Tree));
-    assert_eq!((&*entries[1].name, entries[1].kind), (b"src.rs".as_slice(), EntryKind::Blob));
+    assert_eq!((&*entries[0].name, entries[0].kind), (b"docs".as_slice(), TreeEntryKind::Tree));
+    assert_eq!((&*entries[1].name, entries[1].kind), (b"src.rs".as_slice(), TreeEntryKind::Blob));
     let docs = entries[0].object;
     let Answer::Tree { entries, more } = world.read(Read::Tree { object: head, page: 2 }).expect("second root page")
     else {
         panic!("tree answer")
     };
     assert!(more, "Forgejo keeps truncated set on the short last page");
-    assert_eq!((&*entries[0].name, entries[0].kind), (b"src".as_slice(), EntryKind::Tree));
+    assert_eq!((&*entries[0].name, entries[0].kind), (b"src".as_slice(), TreeEntryKind::Tree));
     assert_eq!(
         world.read(Read::Tree { object: head, page: 3 }).expect("past last root page"),
         Answer::Tree { entries: Box::new([]), more: false }
@@ -224,7 +224,7 @@ fn a_tree_is_read_by_commit_then_by_directory() {
         panic!("tree answer")
     };
     assert!(!more);
-    assert_eq!((&*entries[0].name, entries[0].kind), (b"a.md".as_slice(), EntryKind::Blob));
+    assert_eq!((&*entries[0].name, entries[0].kind), (b"a.md".as_slice(), TreeEntryKind::Blob));
     let mut id = [0; 20];
     id.copy_from_slice(&docs[..20]);
     let raw::Answer::GitTree { entries: expected, .. } = world

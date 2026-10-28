@@ -118,7 +118,7 @@ pub fn answer(answer: &api::Answer, limit: u32) -> Result<u64, api::Error> {
             total = crate::measure::run(run).ok_or(api::Error::TooLarge)?;
         }
         api::Answer::Tree { entries, .. } => {
-            rows(entries.len(), crate::measure::ENTRY_BYTES, limit)?;
+            rows(entries.len(), crate::measure::TREE_ENTRY_BYTES, limit)?;
             total = crate::measure::answer(answer).ok_or(api::Error::TooLarge)?;
         }
         api::Answer::Located { .. } | api::Answer::Commit(_) | api::Answer::Permission(_) => {}

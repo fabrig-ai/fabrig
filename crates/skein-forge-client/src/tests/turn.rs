@@ -81,7 +81,8 @@ fn turn_answers_must_fit_the_call() {
     wrong_commit.commit = [2; 32];
     let mut wrong_workflow = run();
     wrong_workflow.workflow = Box::from(*b"other");
-    let entry = api::Entry { name: Box::from(*b"a"), mode: 0o100_644, kind: api::EntryKind::Blob, object: [1; 32] };
+    let entry =
+        api::TreeEntry { name: Box::from(*b"a"), mode: 0o100_644, kind: api::TreeEntryKind::Blob, object: [1; 32] };
     let mut later = entry.clone();
     later.name = Box::from(*b"b");
     for (read, answer) in [
@@ -106,10 +107,15 @@ fn turn_answers_must_fit_the_call() {
     assert!(crate::api::accepts(&api::Op::Read(listing), &Answer::Runs { runs: Box::new([run()]), more: false }));
 }
 
-fn git_entries() -> [api::Entry; 2] {
+fn git_entries() -> [api::TreeEntry; 2] {
     [
-        api::Entry { name: Box::from(*b"tests.rs"), mode: 0o100_644, kind: api::EntryKind::Blob, object: [1; 32] },
-        api::Entry { name: Box::from(*b"tests"), mode: 0o040_000, kind: api::EntryKind::Tree, object: [2; 32] },
+        api::TreeEntry {
+            name: Box::from(*b"tests.rs"),
+            mode: 0o100_644,
+            kind: api::TreeEntryKind::Blob,
+            object: [1; 32],
+        },
+        api::TreeEntry { name: Box::from(*b"tests"), mode: 0o040_000, kind: api::TreeEntryKind::Tree, object: [2; 32] },
     ]
 }
 #[test]

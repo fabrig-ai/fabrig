@@ -28,7 +28,7 @@ pub(super) struct Plan {
     row: Repository,
     stage: Stage,
     runs: List<api::Run>,
-    entries: List<api::Entry>,
+    entries: List<api::TreeEntry>,
     jobs: List<api::RunJob>,
     run: Option<api::Run>,
     position: u32,
@@ -39,7 +39,7 @@ impl Plan {
     pub(super) fn new(mode: Mode, row: Repository, bounds: Bounds) -> Self {
         let (runs, entries, jobs) = match mode {
             Mode::Runs { .. } => (capacity(bounds, crate::measure::RUN_BYTES).min(bounds.page_size), 0, 0),
-            Mode::Tree { .. } => (0, capacity(bounds, crate::measure::ENTRY_BYTES).min(bounds.page_size), 0),
+            Mode::Tree { .. } => (0, capacity(bounds, crate::measure::TREE_ENTRY_BYTES).min(bounds.page_size), 0),
             Mode::Run(_) => (0, 0, capacity(bounds, crate::measure::RUN_JOB_BYTES)),
         };
         Self {
@@ -141,21 +141,22 @@ impl Plan {
                 self.add(size, bounds)?;
                 self.runs.push(value).or(Err(api::Error::TooLarge))?;
             }
-            d::Row::Entry(entry) => {
+            d::Row::TreeEntry(entry) => {
                 if self.stage != Stage::Initial {
                     return Err(api::Error::InvalidAnswer);
                 }
                 let Mode::Tree { .. } = self.mode else {
                     return Err(api::Error::InvalidAnswer);
                 };
-                let value = api::Entry {
+                let value = api::TreeEntry {
                     name: entry.path,
                     mode: entry.mode,
                     kind: entry.kind,
                     object: reading::commit(entry.sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?,
                 };
                 self.add(
-                    u64::try_from(crate::measure::ENTRY_BYTES.saturating_add(value.name.len())).expect("entry size"),
+                    u64::try_from(crate::measure::TREE_ENTRY_BYTES.saturating_add(value.name.len()))
+                        .expect("entry size"),
                     bounds,
                 )?;
                 self.entries.push(value).or(Err(api::Error::TooLarge))?;
@@ -196,7 +197,8 @@ impl Plan {
                     self.add(size, bounds)?;
                 }
             }
-            d::Row::Found(_)
+            d::Row::Entry { .. }
+            | d::Row::Found(_)
             | d::Row::Reachable(_)
             | d::Row::Token(_)
             | d::Row::User(_)

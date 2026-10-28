@@ -459,10 +459,10 @@ fn maximal_run(string: usize) -> api::Run {
 }
 fn tree(string: usize) -> api::Answer {
     api::Answer::Tree {
-        entries: Box::new([api::Entry {
+        entries: Box::new([api::TreeEntry {
             name: fixtures::filled(string, b'n'),
             mode: 0o100_644,
-            kind: api::EntryKind::Blob,
+            kind: api::TreeEntryKind::Blob,
             object: fixtures::BRANCH_HEAD,
         }]),
         more: false,

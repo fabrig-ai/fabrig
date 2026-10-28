@@ -115,6 +115,7 @@ pub(crate) fn accepts(op: &Op, answer: &Answer) -> bool {
         Op::Write(_) => true,
     }
 }
+#[expect(clippy::too_many_lines, reason = "call validation exhaustively lists reads and refused answer shapes")]
 fn read_accepts(read: &Read, answer: &Answer) -> bool {
     match read {
         Read::Runs { workflow, commit, .. } => {
@@ -143,7 +144,7 @@ fn read_accepts(read: &Read, answer: &Answer) -> bool {
             let Answer::Tree { entries, .. } = answer else {
                 return false;
             };
-            let mut previous: Option<&skein_forge::api::Entry> = None;
+            let mut previous: Option<&skein_forge::api::TreeEntry> = None;
             for entry in entries {
                 if let Some(last) = previous
                     && last
@@ -557,9 +558,9 @@ fn file_matches(answer: &Answer, head: Commit, path: &[u8], max_bytes: u32) -> b
     }
 }
 
-fn tree_suffix(kind: skein_forge::api::EntryKind) -> &'static [u8] {
+fn tree_suffix(kind: skein_forge::api::TreeEntryKind) -> &'static [u8] {
     match kind {
-        skein_forge::api::EntryKind::Tree => b"/",
-        skein_forge::api::EntryKind::Blob | skein_forge::api::EntryKind::Commit => b"",
+        skein_forge::api::TreeEntryKind::Tree => b"/",
+        skein_forge::api::TreeEntryKind::Blob | skein_forge::api::TreeEntryKind::Commit => b"",
     }
 }

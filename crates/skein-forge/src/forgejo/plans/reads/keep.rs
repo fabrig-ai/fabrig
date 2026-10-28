@@ -30,7 +30,7 @@ pub(super) fn keep_row(row: &d::Row, forge: u16, tables: &mut Tables) {
         | d::Row::Entry { .. }
         | d::Row::File(_)
         | d::Row::Commit(_)
-        | d::Row::Entry(_)
+        | d::Row::TreeEntry(_)
         | d::Row::Run(_)
         | d::Row::Hook(_)
         | d::Row::Team(_)
@@ -167,7 +167,7 @@ pub fn long(heard: &Heard) -> bool {
             | d::Row::Entry { .. }
             | d::Row::File(_)
             | d::Row::Commit(_)
-            | d::Row::Entry(_)
+            | d::Row::TreeEntry(_)
             | d::Row::Run(_)
             | d::Row::Hook(_)
             | d::Row::Team(_)

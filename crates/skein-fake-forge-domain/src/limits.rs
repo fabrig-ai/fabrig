@@ -132,7 +132,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let directories = limits.files.checked_mul(limits.name_bytes)?.checked_add(1)?;
     let directory_scratch = Map::<(u32, u32), [u8; 20]>::worst_case(directories)?
         .checked_add(List::<((u32, u32), [u8; 20])>::worst_case(limits.files.checked_add(1)?)?)?
-        .checked_add(Map::<Box<[u8]>, (crate::api::EntryKind, u32, [u8; 20])>::worst_case(limits.files)?)?
+        .checked_add(Map::<Box<[u8]>, (crate::api::TreeEntryKind, u32, [u8; 20])>::worst_case(limits.files)?)?
         .checked_add(times(limits.files, u64::from(limits.name_bytes))?)?
         .checked_add(times(limits.files, tree_entry(limits)?)?)?;
     let run_scratch = Map::<u64, u64>::worst_case(limits.statuses.checked_add(limits.workflow_runs)?)?

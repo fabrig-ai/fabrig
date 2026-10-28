@@ -240,7 +240,7 @@ impl Plan {
                 }
                 Ok(())
             }
-            d::Row::Entry(_)
+            d::Row::TreeEntry(_)
             | d::Row::Found(_)
             | d::Row::Reachable(_)
             | d::Row::Token(_)
