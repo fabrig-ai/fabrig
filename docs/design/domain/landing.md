@@ -493,15 +493,17 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
   (kind 11), merge or rebase.
 - **The landing's own effects** are its dispatches, reruns, statuses and
   merges (kinds 16, 17, 6 and 4), on the repositories of its members,
-  and, for a pin-only member, its branch's creation and deletion and
-  its pull request's opening and closing (kinds 9, 15, 3 and 12); its
+  and, for a pin-only member, its branch's creation and its pull
+  request's opening and closing (kinds 9, 3 and 12), the branch released
+  as the landing closes, by the release a change's branch takes
+  (`forge.md`, 11), never by an effect of kind 15; its
   members' rebases are theirs (kind 11, which a change holds already),
   under their holds.
 - **The landing rules govern kind 19 as they govern kind 4,** the merge
   (`forge.md`, 8.7): each requirement judged at the candidate, CI being
   the test gates by receipt.
 - **The grant:** the project's policy gives the landing procedure kinds
-  3, 4, 6, 9, 12, 15, 16, 17 and, on GitHub, 19 on the project's
+  3, 4, 6, 9, 12, 16, 17 and, on GitHub, 19 on the project's
   repositories, as it
   gives a queue's repair its kinds (`forge.md`, section 9); temper's
   root grants them to each landing task it makes. Until jig gives the
@@ -583,9 +585,10 @@ Kind 4's members, each with its default and the document it serves
 - **A gate's name** is letters, digits, `-` and `_`, unique in its
   repository, and its status context's last segment.
 - **The stock's deployment ceiling** admits what landings and tiers are
-  granted (kinds 3, 4, 6, 7, 9, 12, 15, 16 and 17, and the forge's
+  granted (kinds 3, 4, 6, 7, 9, 12, 16 and 17, and the forge's
   procedures `landing` and `tier`), since a project's ceiling may not
-  pass the deployment's.
+  pass the deployment's; each grant grows every row that carries
+  authority, so none is added that a release at close can spare.
 
 ### 13.2 What adoption says
 
