@@ -6,7 +6,9 @@ use temper_client_world::fixtures;
 #[test]
 fn a_message_in_a_chat_is_answered_in_its_conversation() {
     let mut world = fixtures::world(fixtures::SEED);
-    world.front().answer_runs = true;
+    // This result-ended chat stays running until the person sends the message;
+    // its initial task watch need not beat an already offered completion.
+    world.front().reply_in_pieces(&[b"Working"]);
     let task = fixtures::chat(world.front(), b"Hello");
     let person = world.client(fixtures::PARTY, fixtures::chat_page(task));
     world.person(
@@ -16,9 +18,11 @@ fn a_message_in_a_chat_is_answered_in_its_conversation() {
             Step::Type { find: Find::named(Role::TextArea, b"Message"), words: Box::from(*b"And then?") },
             Step::Press { find: Find::named(Role::Button, b"Send") },
             Step::See { find: Find::text(b"And then?"), within: fixtures::WITHIN },
-            Step::See { find: Find::text(b"Answered by the run"), within: fixtures::WITHIN },
         ],
     );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    assert!(world.front().release_reply(), "finish the held run after the person's message");
+    world.person(person, vec![Step::See { find: Find::text(b"Answered by the run"), within: fixtures::WITHIN }]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 }
 #[test]
