@@ -339,8 +339,10 @@ in the lower world that owns it, never here.
     reads, edits the rows and finishes with a change; the repair reads,
     edits the header and finishes with a change; the reviewer approves.
     The repair's script is cued by the engine's own task words, "Repair
-    the failed CI on the change branch", which open its system text
-    before anything of the change's: skein's fake LLM takes the
+    the failed CI on the change branch", which open its system text's
+    spec, as its second line, after the line that opens with what it
+    repairs (forge.md, 8.4), and before anything of the change's or the
+    coder's: skein's fake LLM takes the
     earliest cue there, so were the coder's first, the repair would
     replay the coder's script and the story fail. The numbers are a
     fresh deployment's: the coder, the repair and the reviewer are T2's

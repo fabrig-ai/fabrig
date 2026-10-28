@@ -94,6 +94,13 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   "account": null, "subagents": []}}`) sets it for every chat of a
   running box. If a rung cannot pass on luna, the walk's evidence goes
   to the director, and the model is the user's to change.
+- **The Claude rung's agents run Claude Code on `claude-sonnet-5-5` at
+  effort high** (the user, 10-28: "Sonnet at high for the Claude walks",
+  after medium answered a plan-first request in the chat itself), set
+  as luna is: the model entry's efforts `["high", "medium", "low"]`,
+  the chat started with `--model claude-sonnet-5-5 --effort high`, and
+  template 1's whole choice naming them; the rung's brief carries its
+  checks.
 - **Its room is raised beside it,** in `temper.json` before the start:
   `engine.limits`' overrides `"people.requests": 256` and
   `application.limits`' overrides `"root.loads.loads": 32`. The small

@@ -537,7 +537,12 @@ today's, until those land.
   carry the rule: work the person wants to agree before anything is
   changed goes to such a delegate, which tells its plan, asks, and calls
   `change` only after the answer; the chat relays the person's answer to
-  it.
+  it. The chat passes the person's words whole, at once, even where they
+  ask for an advisor first, since the goal asks one itself (4.3.2): it
+  never sets `advisor` for such work, writes the plan or asks the
+  go-ahead in its own reply, nor calls `change`. The goal, once it has
+  asked, waits for the answer: it never finishes before it, nor before
+  every agreed change has landed.
 - **Designed, not built (J7, J8):** the goal's question stays with the
   chat (jig's `domain/tasks.md`, 8.5): the chat, woken by it, answers
   from what it knows (its person's priorities, its notes), or asks its
