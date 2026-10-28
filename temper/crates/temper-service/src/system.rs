@@ -268,7 +268,7 @@ impl Service {
             completions: Queue::with_capacity(queue),
             submissions: Queue::with_capacity(queue),
             raw_submissions: Queue::with_capacity(queue),
-            told: Queue::with_capacity(queue),
+            told: Queue::uncapped(),
             kernel: accounts::Kernel::new(operations),
             box_pipe: None,
             signals: None,
@@ -307,7 +307,7 @@ impl Service {
             completions: Queue::with_capacity(queue),
             submissions: Queue::with_capacity(queue),
             raw_submissions: Queue::with_capacity(operations),
-            told: Queue::with_capacity(queue),
+            told: Queue::uncapped(),
             kernel: accounts::Kernel::new(operations),
             box_pipe: None,
             signals: None,
@@ -615,9 +615,6 @@ impl Service {
             && self.told.is_empty()
             && self.kernel.is_empty()
     }
-    fn room(&self, max: io::MaxOut) -> bool {
-        self.told.room() >= max.events && self.raw_submissions.room() >= max.submissions
-    }
     fn route_components(&mut self) {
         if let Some(engine) = &mut self.engine {
             for _ in 0..engine.store.submitted.len() {
@@ -737,14 +734,14 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         engine::clock(engine, now, wall);
     }
     for _ in 0..service.io_env.limits.sockets.checked_add(service.io_env.limits.refusals).expect("io entries") {
-        if !service.io.is_ready() || !service.room(io::MAX_OUT_RESUME) {
+        if !service.io.is_ready() || service.raw_submissions.room() < io::MAX_OUT_RESUME.submissions {
             break;
         }
         io::resume(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
     }
     if !service.io.is_ready() {
         for _ in 0..service.completions.len() {
-            if !service.room(io::MAX_OUT_UP) {
+            if service.raw_submissions.room() < io::MAX_OUT_UP.submissions {
                 break;
             }
             let complete = service.completions.pop().expect("completion count");
@@ -753,7 +750,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         }
         if service.completions.is_empty() {
             for _ in 0..service.io_env.limits.sockets.checked_mul(2).expect("io timers") {
-                if !service.io.is_due(now) || !service.room(io::MAX_OUT_FIRE) {
+                if !service.io.is_due(now) || service.raw_submissions.room() < io::MAX_OUT_FIRE.submissions {
                     break;
                 }
                 io::fire(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
@@ -861,13 +858,7 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 fn route_events(service: &mut Service) {
     for _ in 0..service.told.len() {
         if let Some(engine) = &service.engine
-            && (!engine.workers.room()
-                || !engine.clients.room(1)
-                || engine.events.room() < engine::route_out()
-                || match &engine.accounts {
-                    Some(accounts) => !accounts.up_room(),
-                    None => false,
-                })
+            && (!engine.workers.room() || !engine.clients.room(1))
         {
             break;
         }

@@ -571,13 +571,6 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
     }
 }
 
-pub(crate) fn route_out() -> u32 {
-    skein_oauth_accounts::MAX_OUT_DOWN
-        .above
-        .max(jig_protocol_engine_workers::MAX_OUT_DOWN)
-        .max(jig_protocol_engine_clients::MAX_OUT_DOWN)
-}
-
 fn watcher(event: &root::Event) -> Option<skein_lib::Token> {
     match event {
         root::Event::Party(root::PartyInput::Watch { watcher, .. } | root::PartyInput::WatchRun { watcher, .. }) => {
