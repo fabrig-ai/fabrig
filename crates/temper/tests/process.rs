@@ -65,7 +65,7 @@ fn rung_b0s_setup_reaches_account_import_with_the_fake_model_and_no_account() {
     scratch.remove();
 }
 
-/// Replays B0 unchanged except that support replaces both recorded reviews with one immediate approval.
+/// Replays B0's acts and checks with prompt fixture parking and one immediate review approval.
 #[test]
 fn rung_b0s_walk_passes_offline_on_its_twin() {
     let scratch = support::Scratch::new("rung-b0-offline-walk");

@@ -310,7 +310,15 @@ impl Driver {
         // ctl accepts whole seconds. The child is still killed at this
         // driver's exact millisecond deadline, including its final fraction.
         let timeout = left.div_ceil(1_000).to_string();
-        let args: Vec<_> = args.iter().copied().chain(["--until", condition, "--timeout", &timeout]).collect();
+        // Since already names the observed change. Combining it with
+        // "until changed" requires another change after the first delivery,
+        // which can miss the chat's last reply before the watch opens.
+        let since = args.contains(&"--since");
+        let mut args = args.to_vec();
+        if condition != "changed" || !since {
+            args.extend(["--until", condition]);
+        }
+        args.extend(["--timeout", timeout.as_str()]);
         let value = self.ctl(&args, None)?;
         waited(&args, value).map_err(|error| format!("phase {}: {condition}: {error}", self.phase))
     }
@@ -489,7 +497,7 @@ pub fn green_light() {
     let paths = ["config", "data", "cache"].map(|name| store.join(name));
     deployment(&paths);
     super::super::live::notice(&format!("TAG rung-b0-{}", super::live_tag()));
-    run_walk(&store, &paths, &account);
+    run_walk(&store, &paths, &account, false);
 }
 
 fn start_box(store: &Path, paths: &[PathBuf; 3]) -> Child {
@@ -509,7 +517,7 @@ fn start_box(store: &Path, paths: &[PathBuf; 3]) -> Child {
 }
 
 /// Both faces import, walk, return the account, then stop through these acts.
-fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path) {
+fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) {
     let _ = super::cache_forgejo_binaries(&paths[2]);
     let client = store.join("client");
     fs::create_dir(&client).expect("fresh client");
@@ -517,7 +525,7 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path) {
     let mut driver = Driver::new(store, &client);
     return_hook(&driver.binary, store, &driver.client, account);
     let mut boxed = start_box(store, paths);
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| walk(&mut driver, paths, account)));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| walk(&mut driver, paths, account, offline)));
     // No ordinary failure or panic bypasses the return. The launcher's copy of
     // this act covers a signal to the test process itself.
     driver.phase = "return held login";
@@ -687,7 +695,7 @@ pub fn offline_walk(root: &Path) {
             );
         });
         listening.recv().expect("twin peers constructed");
-        run_walk(root, &paths, &account);
+        run_walk(root, &paths, &account, true);
         drop(stop);
         peers.join().expect("independent twin world");
     });
@@ -855,8 +863,35 @@ pub fn offline_setup(root: &Path) {
     eprintln!("OFFLINE B0 setup passed through account-import boundary, zero model requests; box drained");
 }
 
-fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<(), String> {
+fn walk(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path, offline: bool) -> Result<(), String> {
     let baseline = setup(driver, paths, account)?;
+    if offline {
+        // Parking is required, but its stock ten-second threshold is not B0's
+        // subject. The full two-minute hold below remains the same on both faces.
+        let inventory = driver.ctl(&["settings", "show"], None)?;
+        let revision = inventory["newest"].as_u64().ok_or("settings revision")?.to_string();
+        let mut items = Vec::new();
+        for number in ["1", "2"] {
+            let charter = driver.ctl(&["settings", "show", "charter", number], None)?;
+            let mut value = charter["value"].clone();
+            value["waiting"] = 1_000_000.into();
+            items.push(json!({"setting":charter["setting"],"set":value}));
+        }
+        let file = driver.store.join("offline-parking.json");
+        write_json(&file, &json!({"items":items}));
+        driver.ctl(
+            &[
+                "settings",
+                "apply",
+                file.to_str().ok_or("settings FILE path")?,
+                "--against",
+                &revision,
+                "--key",
+                "offline-parking",
+            ],
+            None,
+        )?;
+    }
     let project = driver.project.clone();
     driver.requested = Some(now());
     driver.phase("inbox question", 40_480);
