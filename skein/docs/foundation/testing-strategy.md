@@ -236,6 +236,34 @@ A failure found there is rerun lower down.
   depend on the network, so they form a suite of their own, run by
   choice, never at the gate (section 8).
 
+### 2.10 Deadlines on the real clock
+
+2.8's rule holds for every deadline a harness keeps on the real clock,
+not only the real loop's patience: a referee's judge, a child's exit, a
+socket's answer, a browser's step, a recorder's reply, in every tree.
+
+- **One rule:** when such a deadline passes, the harness reads the
+  scheduler accounting of what it was waiting on since the wait began:
+  its own thread, and an owned process tree's where it has one (its
+  cgroup's CPU pressure, or each owned thread's runnable wait). Waited
+  runnable for at least half the deadline is **starved**: the harness
+  ends what it owns, the test ends as a pass that says so in one line
+  naming the figures, and the counts below see it. Anything else fails
+  as before: idle is not starved, and accounting the kernel does not
+  keep (absent, zeros, unreadable) never makes a run starved.
+- **Only an unanswered wait can be starved.** An assertion that fails, a
+  refusal, a protocol error or a bad exit fails whatever the load; a
+  harness never turns a failure into a pass because the machine was
+  busy.
+- **One mechanism, in skein's test kit,** which every tree's harnesses
+  use; no harness arms a deadline on the real clock beside it. A product
+  timeout a test proves (a setting whose expiry is the behaviour under
+  test) is not a harness deadline and keeps its own check.
+- **Starved passes are counted:** each says so on one line, and the
+  merge gate reports how many tests were starved apart from passes and
+  failures. A batch whose only blemishes are starved tests is green, and
+  a test that starves often is looked at as a slow one is (section 8).
+
 ## 3. Faults
 
 Every world below the real loop draws its faults from its seed:
@@ -508,11 +536,16 @@ their values. Common per-test guides quoted by those plans are:
 | 0.5 s for a focused world test | 1 s (0.5 s before the user's doubling of 10-22, provisional) |
 | 5 s for a fuzzy test | 10 s (5 s before the user's doubling of 10-22, provisional) |
 
-The budgets are wall time on the development machine, run idle, and they
-are enforced: each nextest profile has a global timeout, so a suite that
-runs past its budget fails. A change that breaks a budget is fixed by
-making tests cheaper, or by moving randomized ones to the fuzzy suite.
-Raising a budget is an explicit decision, not a fix.
+The budgets are what a suite's tests cost on the development machine,
+run idle. The merge gate also measures each tree's suites in CPU
+seconds, the time its tests and their processes ran, which a loaded
+machine does not change, and reports both figures on every full run, so
+a budget can be checked on any machine at any load. Each nextest profile
+keeps a global timeout as a backstop for a hang no test's own deadline
+caught, far enough above the budget that a loaded machine does not reach
+it. A change that breaks a budget is fixed by making tests cheaper, or
+by moving randomized ones to the fuzzy suite. Raising a budget is an
+explicit decision, not a fix.
 
 **A test is a process.** nextest runs each test in a process of its own,
 which costs some milliseconds before the test checks anything, more for
