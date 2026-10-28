@@ -482,11 +482,8 @@ impl Owner {
     fn inspect_secret(&mut self, owner: store::SecretOwner, number: u64) -> Option<store::SecretValue> {
         let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.store_limits };
         let mut above = Queue::uncapped();
-        let mut below = store::Below {
-            store: Queue::uncapped(),
-            secrets: Queue::uncapped(),
-            transcripts: Queue::uncapped(),
-        };
+        let mut below =
+            store::Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
         store::down(
             &mut self.store,
             &env,
