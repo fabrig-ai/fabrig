@@ -207,7 +207,7 @@ and no policy. Every type is a plain value.
 | Contents | `PullFiles`, `Compare`, `File`, `Tree` | `PullFiles`; `Compare`; `File`; `Tree` |
 | The repository | `Protection`, `Settings`, `Collaborators`, `Permission` | the same names |
 | Creations | `CreateIssue` (keyed), `OpenPull` | `Created` |
-| Labels | `Labels`, `CreateLabel` | `Done`; `Done` |
+| Labels | `Labels`, `CreateLabel` | `Done`; `Done` or `Exists` |
 | Comments, keyed | `Post`, `Review` | `Commented`; `Reviewed` |
 | Edits | `Edit`, `SetReviewers`, `Close`, `Reopen` | `Done` |
 | Merging | `Merge`, `Update`, `UpdateRef` | `Merged` or `Queued`; `Done`; `Done` |
@@ -763,9 +763,9 @@ first failure, but where a row says otherwise.
 | `Read::Collaborators { page }` | `GET R/collaborators?page=<page>&limit=<size>`; for each user, `GET R/collaborators/<login>/permission` | each user's `id` and permission; `more` when the page came full |
 | `Read::Permission { user }` | `GET R/collaborators/<login>/permission` | `permission`: `none`, `read`, `write`, `admin`, and `owner` as `Admin` |
 | `Read::Locate { owner, name }` | `GET /api/v1/repos/<owner>/<name>` | `Located { repository }` from `id`; the repository's row kept |
-| `Write::CreateIssue { key, title, body, labels }` | `GET R/labels` for the labels' ids, when it names any; `POST R/issues` `{title, body, labels}`, the body behind the key's marker | `Created` from `number`; `Missing` for a label the repository lacks |
-| `Write::Labels { number, labels }` | `GET R/labels`; `PUT R/issues/<number>/labels` `{labels: [ids]}` | `Done`; `Missing` for a label the repository lacks |
-| `Write::CreateLabel { name, color }` | `POST R/labels` `{name, color}` | `Done`; `Exists` for a `409` |
+| `Write::CreateIssue { key, title, body, labels }` | `GET R/labels` for the labels' ids, when it names any; `POST R/issues` `{title, body, labels}`, the body behind the key's marker | `Created` from `number`; `Missing` for a label the repository lacks, before any write (Forgejo drops an unknown id silently) |
+| `Write::Labels { number, labels }` | `GET R/labels`; `PUT R/issues/<number>/labels` `{labels: [ids]}` | `Done`; `Missing` for a label the repository lacks, before any write |
+| `Write::CreateLabel { name, color }` | `GET R/labels`, every page; `POST R/labels` `{name, color}` only when no label has the name (Forgejo makes a second label of a name, never answering `409`); an uncertain answer settled by finding the name again | `Done`; `Exists` when a label has the name |
 | `Write::OpenPull { title, body, head, base }` | `GET R/branches/<head>`; `GET R/branches/<base>`; `GET R/compare/<base's commit.id>...<head's commit.id>?files=false&verification=false`, of which only `total_commits` is kept; when it is 0, nothing more; else `POST R/pulls` `{head, base, title, body}` | `Created` from `number`; `NothingToMerge` when `total_commits` is 0, the pull request not written |
 | `Write::Post { number, key, body }` | `POST R/issues/<number>/comments` `{body}`, behind the key's marker | `Commented` from `id` |
 | `Write::Review { number, key, verdict, body }` | `POST R/pulls/<number>/reviews` `{event, body}`, `event` `APPROVED`, `REQUEST_CHANGES` or `COMMENT`, the body behind the key's marker | `Reviewed` from `id` |
@@ -1423,8 +1423,13 @@ on. What no run records yet has its own bullet, near the end.
 - **Still to record before a plan relies on them:** a dispatch's inputs
   reaching the run; a job's rerun answering `204`, and `400` while its
   run has not completed; a run's artifact listed by name and downloaded
-  as a zip; a comparison's commits oldest first with their messages; a
-  label's creation, and an issue's labels set by name.
+  as a zip; a comparison's commits oldest first with their messages.
+- **Labels, recorded:** Forgejo 17 makes a second label of a name it
+  already has (no `409`), and drops an unknown label id from an issue's
+  create or set without a word: so a label is made only after a read
+  finds no label of its name, and a name resolves to its id by that
+  read, a missing one refused before any write. A duplicate comes only
+  from another writer racing the read.
 - **The setup's, and the owner's git.** What reconcile relies on
   (Forgejo's command line, its admin routes, orgs, repositories'
   collaborators and hooks, the runner) is forge-setup.md, section 8's.
