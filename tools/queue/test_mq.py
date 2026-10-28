@@ -25,13 +25,31 @@ LOADER.exec_module(mq)
 def metadata(root=Path("/workspace")):
     names = ("core", "normal", "build", "dev", "transitive", "unrelated", "always", "nested")
     names += tuple(mq.lines(DIRECTORY / "always.txt"))
-    packages = [{"id": name, "name": name, "manifest_path": str(root / name / "Cargo.toml")}
+    packages = [{"id": name, "name": name, "version": "1.0.0", "source": None,
+                 "manifest_path": str(root / name / "Cargo.toml")}
                 for name in names]
     packages[7]["manifest_path"] = str(root / "core/examples/nested/Cargo.toml")
     edges = {"normal": ["core"], "build": ["core"], "dev": ["core"], "transitive": ["dev"]}
     return {"workspace_root": str(root), "workspace_members": list(names), "packages": packages,
             "resolve": {"nodes": [{"id": name, "dependencies": edges.get(name, [])}
                                    for name in names]}}
+
+
+def lockfile(packages):
+    return "version = 4\n" + "".join(
+        "\n[[package]]\n" + "\n".join(f"{key} = {json.dumps(value)}" for key, value in package.items()) + "\n"
+        for package in packages)
+
+
+def resolved_metadata(root=Path("/workspace")):
+    data = metadata(root)
+    data["packages"] += [
+        {"id": "external", "name": "external", "version": "2.0.0", "source": "registry+fixture"},
+        {"id": "middle", "name": "middle", "version": "1.0.0", "source": "registry+fixture"}]
+    data["resolve"]["nodes"][0]["dependencies"] = ["middle"]
+    data["resolve"]["nodes"] += [{"id": "middle", "dependencies": ["external"]},
+                                   {"id": "external", "dependencies": []}]
+    return data
 
 
 class SelectionTests(unittest.TestCase):
@@ -50,11 +68,61 @@ class SelectionTests(unittest.TestCase):
     def test_longest_manifest_directory_owns_the_change(self):
         self.assertEqual(self.select(["core/examples/nested/src/lib.rs"]), {"nested", "always"})
 
-    def test_manifest_lock_config_script_fixture_and_unknown_select_full(self):
-        for path in ("Cargo.toml", "Cargo.lock", ".config/nextest.toml", "core/Cargo.toml",
+    def test_global_config_script_fixture_and_unknown_select_full(self):
+        for path in ("Cargo.toml", ".config/nextest.toml", "rust-toolchain.toml", "rust-toolchain",
+                     "rustfmt.toml", "core/clippy.toml", "core/src/rustfmt.toml",
                      "core/scripts/check.py", "core/fixtures/input", "outside/source.rs"):
             with self.subTest(path=path):
                 self.assertEqual(self.select([path]), "full")
+
+    def test_member_manifest_selects_owner_and_reverse_closure(self):
+        self.assertEqual(self.select(["core/Cargo.toml"]),
+                         {"core", "normal", "build", "dev", "transitive", "always"})
+
+    def test_lock_change_reaches_workspace_through_external_dependencies(self):
+        before = lockfile([{"name": "external", "version": "1.0.0", "source": "registry+fixture"}])
+        after = lockfile([{"name": "external", "version": "2.0.0", "source": "registry+fixture"}])
+        data = resolved_metadata()
+        changed = mq.lock_changes(before, after, data)
+        self.assertEqual(mq.selection(["Cargo.lock"], data, always=["always"], locked=changed),
+                         {"core", "normal", "build", "dev", "transitive", "always"})
+
+    def test_lock_entry_fields_select_and_checksum_and_order_do_not(self):
+        base = {"name": "external", "version": "2.0.0", "source": "registry+fixture",
+                "dependencies": ["one", "two"], "checksum": "before"}
+        rows = [({"version": "1.0.0"}, {"external"}),
+                ({"source": "git+fixture"}, {"external"}),
+                ({"name": "other"}, {"external"}),
+                ({"dependencies": ["one"]}, {"external"}),
+                ({"checksum": "after", "dependencies": ["two", "one"]}, set())]
+        for updates, expected in rows:
+            with self.subTest(updates=updates):
+                self.assertEqual(mq.lock_changes(lockfile([{**base, **updates}]), lockfile([base]),
+                                                 resolved_metadata()), expected)
+
+    def test_removed_dependency_selects_parent_and_added_package_selects_itself(self):
+        rows = [([{"name": "core", "version": "1.0.0", "dependencies": ["removed"]},
+                  {"name": "removed", "version": "1.0.0"}],
+                 [{"name": "core", "version": "1.0.0"}], {"core"}),
+                ([], [{"name": "unrelated", "version": "1.0.0"}], {"unrelated"})]
+        for before, after, expected in rows:
+            with self.subTest(after=after):
+                self.assertEqual(mq.lock_changes(lockfile(before), lockfile(after), metadata()), expected)
+
+    def test_duplicate_versions_and_sources_select_only_matching_node(self):
+        data = resolved_metadata()
+        data["packages"] += [{"id": "other-version", "name": "external", "version": "1.0.0",
+                               "source": "registry+fixture"},
+                              {"id": "other-source", "name": "external", "version": "2.0.0",
+                               "source": "git+fixture"}]
+        entry = {"name": "external", "version": "2.0.0", "source": "registry+fixture"}
+        self.assertEqual(mq.lock_changes(lockfile([]), lockfile([entry]), data), {"external"})
+
+    def test_lock_requires_comparison_and_unchanged_lock_keeps_always(self):
+        with self.assertRaisesRegex(ValueError, "base and HEAD"):
+            self.select(["Cargo.lock"])
+        self.assertEqual(mq.selection(["Cargo.lock"], metadata(), always=["always"], locked=set()),
+                         {"always"})
 
     def test_markdown_outside_test_inputs_is_docs(self):
         self.assertEqual(self.select(["README.md", "docs/guide.md"]), "docs")
@@ -89,25 +157,50 @@ class SelectionTests(unittest.TestCase):
 
 class CheckTests(unittest.TestCase):
     def test_package_scope_and_ratchets(self):
-        steps = mq.check_commands(ROOT, {"z", "a"}, ["smith/crates/a/src/lib.rs", "skein/docs/x.md"])
+        steps = mq.check_commands(ROOT, {"core", "normal"}, ["core/src/lib.rs", "skein/docs/x.md"],
+                                  metadata=metadata(ROOT))
         self.assertEqual([name for name, _, _ in steps],
-                         ["fmt", "clippy", "default", "fuzzy", "ratchet:skein", "ratchet:smith"])
-        self.assertEqual(steps[0][1], ["cargo", "fmt", "--all", "--check"])
-        for _, argv, _ in steps[1:4]:
+                         ["fmt", "clippy", "build", "default", "fuzzy", "ratchet:skein"])
+        self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core"])
+        for _, argv, _ in steps[1:5]:
             self.assertEqual(argv[:3], ["heavy", "--gate", "cargo"])
-            self.assertEqual(argv[argv.index("-p"):argv.index("-p") + 4], ["-p", "a", "-p", "z"])
+            self.assertEqual(argv[argv.index("-p"):argv.index("-p") + 4], ["-p", "core", "-p", "normal"])
         self.assertEqual(steps[1][1][-4:], ["--all-targets", "--", "-D", "warnings"])
-        self.assertIn("--no-fail-fast", steps[2][1])
-        self.assertEqual(steps[3][1][-2:], ["--profile", "fuzzy"])
-        self.assertEqual(steps[-1][2], ROOT / "smith")
-        self.assertEqual(steps[-1][1], ["python3", "-I", "-B", str(ROOT / "smith/scripts/old_forms.py")])
+        self.assertEqual(steps[2][1], steps[3][1] + ["--no-run"])
+        self.assertIn("--no-fail-fast", steps[3][1])
+        self.assertEqual(steps[4][1][-2:], ["--profile", "fuzzy"])
+        self.assertEqual(steps[-1][2], ROOT / "skein")
+        self.assertEqual(steps[-1][1], ["python3", "-I", "-B", str(ROOT / "skein/scripts/old_forms.py")])
 
-    def test_full_uses_workspace_and_docs_only_fmt_and_ratchets(self):
+    def test_full_formats_workspace_and_docs_only_runs_ratchets(self):
+        self.assertEqual(mq.check_commands(ROOT, "full", [])[0][1], ["cargo", "fmt", "--all", "--check"])
         for _, argv, _ in mq.check_commands(ROOT, "full", [])[1:]:
             self.assertIn("--workspace", argv)
             self.assertNotIn("-p", argv)
         self.assertEqual([name for name, _, _ in mq.check_commands(ROOT, "docs", ["jig/README.md"])],
-                         ["fmt", "ratchet:jig"])
+                         ["ratchet:jig"])
+
+    def test_fmt_uses_only_changed_rust_owners_sorted_once(self):
+        paths = ["unrelated/src/lib.rs", "core/src/lib.rs", "core/tests/check.rs",
+                 "core/examples/nested/src/lib.rs"]
+        steps = mq.check_commands(ROOT, {"core", "normal", "nested", "unrelated", "always"}, paths,
+                                  metadata=metadata(ROOT))
+        self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core", "-p", "nested",
+                                      "-p", "unrelated"])
+
+    def test_no_rust_changes_skip_fmt_and_ownership_metadata(self):
+        for selected, paths in (({"core"}, ["Cargo.lock"]), ({"core"}, ["core/Cargo.toml"]),
+                                ("docs", ["README.md"]), ({"core"}, ["core/tests/data.json"]),
+                                (set(), ["Cargo.lock"])):
+            with self.subTest(paths=paths, selected=selected), patch.object(mq, "load_workspace_metadata") as loader:
+                self.assertNotIn("fmt", [name for name, _, _ in mq.check_commands(ROOT, selected, paths)])
+                loader.assert_not_called()
+
+    def test_fmt_loads_ownership_from_no_deps_metadata(self):
+        with patch.object(mq, "load_workspace_metadata", return_value=metadata(ROOT)) as loader:
+            steps = mq.check_commands(ROOT, {"core"}, ["core/src/lib.rs"])
+        loader.assert_called_once_with(ROOT)
+        self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core"])
 
     def test_empty_nextest_is_green_and_steps_have_durations(self):
         calls = []
@@ -124,6 +217,15 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(len(calls), 4)
             self.assertTrue(all(step["green"] and step["duration"] == 1 for step in steps))
             self.assertEqual(log.stat().st_mode & 0o777, 0o600)
+
+    def test_build_default_and_fuzzy_have_independent_durations(self):
+        times = iter([0, 2, 10, 18, 20, 23, 30, 35])
+        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+            steps = mq.run_checks(ROOT, {"core"}, [], Path(directory) / "checks.log",
+                                  runner=lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
+                                  clock=lambda: next(times))
+        self.assertEqual([(step["name"], step["duration"]) for step in steps],
+                         [("clippy", 2), ("build", 8), ("default", 3), ("fuzzy", 5)])
 
     def test_failure_stops_checks_and_four_is_not_green_for_fmt(self):
         with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
@@ -484,6 +586,14 @@ baseline.write_text(str(count) + '\n')
         self.assertEqual(self.checks, [])
         self.assertFalse(queue.state_path.exists())
 
+    def test_plan_conservatively_previews_unmerged_lock_or_manifest(self):
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        with patch.object(queue, "metadata_loader", side_effect=AssertionError("unmerged metadata")):
+            for path in ("Cargo.lock", "core/Cargo.toml"):
+                with self.subTest(path=path):
+                    self.assertEqual(queue.choose([path], preview=True), "full")
+
     def test_post_failure_is_logged_and_does_not_fail_landing(self):
         self.branch("a", publish=True)
         queue = self.queue()
@@ -531,6 +641,40 @@ baseline.write_text(str(count) + '\n')
         self.run_cycle(queue)
         self.assertEqual(self.checks[0][0], "docs")
 
+    def test_docs_batch_without_checks_is_green_and_lands(self):
+        self.branch("docs", "README.md", publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        queue.checker = mq.run_checks
+        self.run_cycle(queue)
+        record = self.records()[0]
+        self.assertEqual((record["outcome"], record["steps"]), ("green", []))
+        self.assertTrue((self.repo / "README.md").exists())
+
+    def test_batch_record_keeps_build_and_default_durations_separate(self):
+        branch = self.branch("timed")
+        queue = self.queue()
+        times = iter([0, 1, 10, 12, 20, 27, 30, 33, 40, 44])
+        queue.checker = lambda *args: mq.run_checks(
+            *args, runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0), clock=lambda: next(times))
+        queue.attempt([branch])
+        self.assertEqual([(step["name"], step["duration"]) for step in self.records()[0]["steps"]],
+                         [("fmt", 1), ("clippy", 2), ("build", 7), ("default", 3), ("fuzzy", 4)])
+
+    def test_failed_build_stops_tests_and_names_build_in_rejection(self):
+        branch = self.branch("unbuildable")
+        queue = self.queue()
+
+        def runner(argv, **kwargs):
+            return subprocess.CompletedProcess(argv, 1 if "--no-run" in argv else 0)
+
+        queue.checker = lambda *args: mq.run_checks(*args, runner=runner)
+        queue.attempt([branch])
+        record = self.records()[0]
+        self.assertEqual(record["outcome"], "red")
+        self.assertEqual([step["name"] for step in record["steps"]], ["fmt", "clippy", "build"])
+        self.assertIn("failing step: build", self.posts[0][2])
+
     def test_manifest_batch_does_not_need_valid_cargo_metadata(self):
         self.branch("a", "Cargo.toml", "not a valid manifest\n", publish=True)
         queue = self.queue(now=lambda: 10000)
@@ -542,6 +686,44 @@ baseline.write_text(str(count) + '\n')
         queue.metadata_loader = no_metadata
         self.run_cycle(queue)
         self.assertEqual(self.checks[0][0], "full")
+
+    def test_lock_batch_uses_base_blob_and_merged_head_without_checkout(self):
+        self.write("Cargo.lock", lockfile([{"name": "external", "version": "1.0.0",
+                                            "source": "registry+fixture"}]))
+        self.commit("base lock")
+        self.base = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+        self.branch("lock", "Cargo.lock", lockfile([{"name": "external", "version": "2.0.0",
+                                                      "source": "registry+fixture"}]), publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        loaded = []
+
+        def loader(repo):
+            loaded.append(self.tip())
+            return resolved_metadata(repo)
+
+        queue.metadata_loader = loader
+        self.run_cycle(queue)
+        self.assertEqual(loaded, [self.checks[0][2]])
+        self.assertEqual(self.records()[0]["selection"], sorted(
+            {"core", "normal", "build", "dev", "transitive"} | set(mq.lines(DIRECTORY / "always.txt"))))
+        self.assertEqual(self.records()[0]["changed_paths"], ["Cargo.lock"])
+
+    def test_recent_batch_shape_fixtures_select_instead_of_forcing_full(self):
+        # The task describes eight lock/manifest/source batches; exact logs are not supplied.
+        fixture_count = 8
+        records = [{"selection": "full", "changed_paths": ["Cargo.lock", "core/Cargo.toml", "core/src/lib.rs"]}
+                   for _ in range(fixture_count)]
+        fixture = self.directory / "recent-batches.jsonl"
+        fixture.write_text("".join(json.dumps(record) + "\n" for record in records))
+        selections = [mq.selection(json.loads(line)["changed_paths"], resolved_metadata(),
+                                   locked={"external"}, always=["always"])
+                      for line in fixture.read_text().splitlines()]
+        self.assertEqual(sum(isinstance(selected, set) for selected in selections), fixture_count)
+        self.assertTrue(all(selected == {"core", "normal", "build", "dev", "transitive", "always"}
+                            for selected in selections))
 
     def test_full_failure_is_bisected_with_full_checks(self):
         self.branch("a", "core/src/good.rs", publish=True)
