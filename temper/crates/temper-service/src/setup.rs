@@ -100,7 +100,6 @@ impl Layer {
         crypto: CryptoRng,
         life: Duration,
         value_bytes: u32,
-        _batch: u32,
         installations: u32,
     ) -> Self {
         let mut listener: Box<[u8]> = Box::new([]);
