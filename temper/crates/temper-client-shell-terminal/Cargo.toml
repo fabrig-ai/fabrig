@@ -26,6 +26,7 @@ temper-client-view.workspace = true
 temper-client-protocol-wire.workspace = true
 
 [dev-dependencies]
+jig-client-test-records.workspace = true
 skein-scratch.workspace = true
 skein-sim = { path = "../../../skein/crates/skein-sim" }
 jig-client-world.workspace = true

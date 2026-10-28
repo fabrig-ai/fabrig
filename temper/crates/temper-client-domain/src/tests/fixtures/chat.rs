@@ -75,7 +75,7 @@ pub fn opened() -> Fixture {
     let watch = watch.expect("task opened");
     deliver(&mut client, watch, task());
     while out.pop().is_some() {}
-    chat.told(&client, Told::Changed { handle: chat.document }, &mut out);
+    chat.told(Time::ZERO, &client, Told::Changed { handle: chat.document }, &mut out);
     Fixture { chat, client, out, watch, me: me.expect("automatic me watch") }
 }
 pub fn deliver(client: &mut Client, watch: Token, task: c::Task) {
@@ -153,40 +153,14 @@ pub fn activity(f: &mut Fixture, tasks: &[u64], position: u64) {
     activity_blocks(f, c::Speaker::Assistant, blocks, position);
 }
 pub fn activity_blocks(f: &mut Fixture, speaker: c::Speaker, blocks: List<c::Block>, position: u64) {
-    let mut messages = List::with_capacity(ONE);
-    messages.push(c::Message { speaker, blocks }).expect("message");
-    let turn = c::Turn {
-        messages,
-        used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
-        spent: 0,
-        read_through: None,
-        cut: false,
-    };
-    let mut rows = List::with_capacity(ONE);
-    rows.push(c::ActivityLine {
-        position,
-        at: Wall::EPOCH,
-        event: c::Activity::Turn {
-            name: c::TurnName { attempt: ATTEMPT, number: u32::try_from(position).expect("fixture turn") },
-            turn: c::TurnRead::Decoded(turn),
-        },
-    })
-    .expect("turn");
     let mut task = task();
     task.activity = position;
     deliver(&mut f.client, f.watch, task);
-    f.chat.told(&f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
     f.chat.told(
+        Time::ZERO,
         &f.client,
-        Told::Page {
-            handle: f.chat.activity,
-            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
-                rows,
-                before: None,
-                after: None,
-                cut: false,
-            })))),
-        },
+        Told::Page { handle: f.chat.activity, page: activity_reply(speaker, blocks, position) },
         &mut f.out,
     );
 }
@@ -219,4 +193,32 @@ pub fn change_value(words: &[u8]) -> c::ResultValue {
         part: c::OwnerPart { connector: FORGE, kind: c::OwnerPartKind::Result, key: c::OwnerPartKey::Number(TASK) },
         words: document_text(words),
     }
+}
+
+pub fn activity_reply(speaker: c::Speaker, blocks: List<c::Block>, position: u64) -> jig_client::Readout {
+    let mut messages = List::with_capacity(ONE);
+    messages.push(c::Message { speaker, blocks }).expect("message");
+    let turn = c::Turn {
+        messages,
+        used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+        spent: 0,
+        read_through: None,
+        cut: false,
+    };
+    let mut rows = List::with_capacity(ONE);
+    rows.push(c::ActivityLine {
+        position,
+        at: Wall::EPOCH,
+        event: c::Activity::Turn {
+            name: c::TurnName { attempt: ATTEMPT, number: u32::try_from(position).expect("fixture turn") },
+            turn: c::TurnRead::Decoded(turn),
+        },
+    })
+    .expect("turn");
+    jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+        rows,
+        before: None,
+        after: None,
+        cut: false,
+    }))))
 }

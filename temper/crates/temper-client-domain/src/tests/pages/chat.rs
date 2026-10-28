@@ -4,7 +4,7 @@ use crate::pages::{
     chat::{Chat, Sending},
 };
 use jig_client::{Event, Readable, Told, Watchable, contract as c};
-use skein_lib::Queue;
+use skein_lib::{Duration, Queue, Time};
 const OUTPUTS: u32 = 16;
 const SERIAL: u64 = 37;
 const EMPTY: u32 = 0;
@@ -43,7 +43,7 @@ fn a_live_run_is_watched_and_dropped_when_it_ends() {
     let mut task = f::task();
     f::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
     f::deliver(&mut f.client, f.watch, task);
-    f.chat.told(&f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
     assert_eq!(f.chat.run, None);
     assert_eq!(f::handles(&mut f.out).as_ref(), [run]);
 }
@@ -57,7 +57,7 @@ fn leaving_a_chat_unwatches_its_task_activity_and_run() {
 fn open_run(f: &mut f::Fixture) -> skein_lib::Token {
     let mut emitted = Queue::with_capacity(OUTPUTS);
     while let Some(Request::Client(event)) = f.out.pop() {
-        f.client.step(skein_lib::Time::ZERO, skein_lib::Wall::EPOCH, event, &mut emitted);
+        f.client.step(Time::ZERO, skein_lib::Wall::EPOCH, event, &mut emitted);
     }
     while let Some(request) = emitted.pop() {
         if let jig_client::Request::Down {
@@ -85,14 +85,14 @@ fn run_text(from: u32, bytes: &[u8]) -> c::RunText {
 }
 fn run_delivery(f: &mut f::Fixture, watch: skein_lib::Token, delivery: c::Delivery) {
     f.client.step(
-        skein_lib::Time::ZERO,
+        Time::ZERO,
         skein_lib::Wall::EPOCH,
         Event::Up { up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) } },
         &mut Queue::with_capacity(OUTPUTS),
     );
     let handle = f.chat.run.expect("run watched");
     for told in [Told::Changed { handle }, Told::Text { handle }] {
-        assert!(f.chat.told(&f.client, told, &mut f.out));
+        assert!(f.chat.told(Time::ZERO, &f.client, told, &mut f.out));
     }
 }
 fn run_state(writing: Option<c::RunText>) -> c::Delivery {
@@ -157,7 +157,7 @@ fn stop_sends_one_stop_and_shows_it_pending_until_answered() {
         [(jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: SERIAL + 1 }, Sending::Stop)]
     );
     let key = f.chat.pending.as_slice()[0].0;
-    f.chat.told(&f.client, Told::Answered { key, outcome: jig_client::Outcome::Unknown }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: jig_client::Outcome::Unknown }, &mut f.out);
     assert!(f.chat.pending.is_empty());
     assert_eq!(f.chat.outcome, Some(jig_client::Outcome::Unknown));
 }
@@ -397,10 +397,11 @@ fn automatic_seen_preserves_the_last_acts_outcome_on_send_and_answer() {
     let mut serial = SERIAL;
     f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::Stop, &mut serial, &mut f.out);
     let key = f.chat.pending.as_slice()[0].0;
-    f.chat.told(&f.client, Told::Answered { key, outcome: jig_client::Outcome::Unknown }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: jig_client::Outcome::Unknown }, &mut f.out);
     let mut rows = skein_lib::List::with_capacity(1);
     rows.push(owner_turn(f::POSITION, REPLY)).unwrap();
     f.chat.told(
+        Time::ZERO,
         &f.client,
         Told::Page {
             handle: f.chat.activity,
@@ -417,7 +418,7 @@ fn automatic_seen_preserves_the_last_acts_outcome_on_send_and_answer() {
     assert_eq!(f.chat.outcome, Some(jig_client::Outcome::Unknown));
     assert_eq!(f.chat.outcome_kind, Some(Sending::Stop));
     let key = f.chat.pending.as_slice()[0].0;
-    f.chat.told(&f.client, Told::Answered { key, outcome: seen_answer() }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: seen_answer() }, &mut f.out);
     assert_eq!(f.chat.outcome, Some(jig_client::Outcome::Unknown));
     assert_eq!(f.chat.outcome_kind, Some(Sending::Stop));
 }
@@ -591,7 +592,7 @@ fn proposals(f: &mut f::Fixture, keys: &[c::ProposalKey]) {
         task.proposals.push(*key).expect("proposals fit");
     }
     f::deliver(&mut f.client, f.watch, task);
-    f.chat.told(&f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
 }
 fn reads(out: &mut Queue<Request>) -> Box<[(jig_client::Handle, c::ProposalKey)]> {
     let mut reads = skein_lib::List::with_capacity(PROPOSALS);
@@ -699,7 +700,7 @@ fn a_live_delegate_is_watched_before_its_call_names_it() {
     while f.out.pop().is_some() {}
     let handle = jig_client::Handle { asker: crate::owner::Owner::Pages.asker(), number: f.chat.next };
     f::deliver(&mut f.client, f.watch, live_delegate());
-    f.chat.told(&f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
     assert_eq!(watches(&mut f.out).as_ref(), [(handle, DELEGATED)]);
 }
 #[test]
@@ -707,12 +708,12 @@ fn a_delegate_that_ends_is_unwatched_once_nothing_names_it() {
     let mut f = f::opened();
     while f.out.pop().is_some() {}
     f::deliver(&mut f.client, f.watch, live_delegate());
-    f.chat.told(&f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
     let handle = watches(&mut f.out)[0].0;
     let mut task = f::task();
     task.delegates = skein_lib::List::with_capacity(0);
     f::deliver(&mut f.client, f.watch, task);
-    f.chat.told(&f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
     assert_eq!(f::handles(&mut f.out).as_ref(), [handle]);
 }
 #[test]
@@ -753,7 +754,7 @@ fn a_chat_watches_each_delegated_task_as_its_call_arrives() {
     assert!(f.chat.delegation(&f.client, DELEGATED).is_none(), "wait for its document");
     let mut emitted = Queue::with_capacity(OUTPUTS);
     f.client.step(
-        skein_lib::Time::ZERO,
+        Time::ZERO,
         skein_lib::Wall::EPOCH,
         Event::Watch { handle, subject: Watchable::Jig(c::Subject::Task { task: DELEGATED }) },
         &mut emitted,
@@ -770,7 +771,7 @@ fn a_chat_watches_each_delegated_task_as_its_call_arrives() {
     let mut task = f::change();
     task.chip.task = DELEGATED;
     f::deliver(&mut f.client, watch.expect("delegation opened"), task.clone());
-    assert!(f.chat.told(&f.client, Told::Changed { handle }, &mut f.out));
+    assert!(f.chat.told(Time::ZERO, &f.client, Told::Changed { handle }, &mut f.out));
     assert_eq!(f.chat.delegation(&f.client, DELEGATED), Some(&task));
     assert!(f.out.is_empty(), "a document refresh leaves its watch alone");
     assert!(f.chat.delegation(&f.client, 999).is_none(), "only held delegations are exposed");
@@ -865,7 +866,7 @@ fn an_ended_delegation_reads_its_task_and_keeps_its_result() {
     f::activity(&mut f, &[DELEGATED], f::POSITION);
     let handle = watches(&mut f.out)[0].0;
     for why in [jig_client::Why::SubjectEnded, jig_client::Why::Unknown] {
-        assert!(f.chat.told(&f.client, Told::Ended { handle, why }, &mut f.out));
+        assert!(f.chat.told(Time::ZERO, &f.client, Told::Ended { handle, why }, &mut f.out));
         assert_eq!(
             f.out.pop(),
             Some(Request::Client(Event::Read { handle, read: Readable::Jig(c::Read::Task { task: DELEGATED }) }))
@@ -882,6 +883,7 @@ fn an_ended_delegation_reads_its_task_and_keeps_its_result() {
         by: None,
     };
     assert!(f.chat.told(
+        Time::ZERO,
         &f.client,
         Told::Page {
             handle,
@@ -891,7 +893,7 @@ fn an_ended_delegation_reads_its_task_and_keeps_its_result() {
     ));
     task.result = Some(c::TaskResult::Document(Box::new(result)));
     assert_eq!(f.chat.delegation(&f.client, DELEGATED), Some(&task));
-    f.chat.told(&f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
     assert_eq!(f.chat.delegation(&f.client, DELEGATED), Some(&task), "refresh keeps the final task");
     assert!(f.out.is_empty(), "no new requests for retained calls");
 }
@@ -930,6 +932,7 @@ fn window_page(chat: &mut Chat, client: &jig_client::Client, out: &mut Queue<Req
     }
     let cursor = c::Cursor::new(Box::from(*b"older"), 5).unwrap();
     chat.told(
+        Time::ZERO,
         client,
         Told::Page {
             handle: chat.activity,
@@ -1021,4 +1024,141 @@ fn a_goal_call_without_objects_reads_the_delegated_numbers() {
     let mut delegated = skein_lib::List::with_capacity(2);
     crate::pages::delegation::delegated(&call, &mut delegated);
     assert_eq!(delegated.as_slice(), &[2, 3]);
+}
+
+// The delivery announces the fourth activity while the first page is pending.
+const COMMITTED: u64 = 4;
+fn pending_activity() -> f::Fixture {
+    let mut f = f::opened();
+    while f.out.pop().is_some() {}
+    let mut task = f::task();
+    task.activity = COMMITTED;
+    f::deliver(&mut f.client, f.watch, task);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f
+}
+fn activity_end(f: &mut f::Fixture, now: Time, why: c::ReadNone) {
+    f.chat.told(
+        now,
+        &f.client,
+        Told::Page { handle: f.chat.activity, page: jig_client::Readout::Jig(c::ReadResult::None(why)) },
+        &mut f.out,
+    );
+}
+fn first_activity(chat: &Chat) -> Request {
+    Request::Client(Event::Read {
+        handle: chat.activity,
+        read: Readable::Jig(c::Read::Activity { task: f::TASK, before: None }),
+    })
+}
+#[test]
+fn a_chats_busy_activity_read_is_asked_again_and_loads_the_committed_reply() {
+    let mut f = pending_activity();
+    assert!(f.out.is_empty(), "a delivery does not duplicate the pending read");
+    activity_end(&mut f, Time::ZERO, c::ReadNone::Busy);
+    let due = Time::ZERO.saturating_add(Duration::from_secs(1));
+    assert_eq!(f.chat.next_deadline(), Some(due));
+    f.chat.fire(Time::ZERO, &mut f.out);
+    assert!(f.out.is_empty(), "the retry waits for its deadline");
+    f.chat.fire(due, &mut f.out);
+    assert_eq!(f.out.pop(), Some(first_activity(&f.chat)));
+    assert!(f.out.is_empty());
+    assert_eq!(f.chat.next_deadline(), None, "the retry is now in flight");
+    let mut blocks = skein_lib::List::with_capacity(1);
+    blocks.push(c::Block::Text(fixtures::acts::text(b"Committed reply"))).unwrap();
+    f.chat.told(
+        due,
+        &f.client,
+        Told::Page {
+            handle: f.chat.activity,
+            page: f::activity_reply(c::Speaker::Assistant, blocks.clone(), COMMITTED),
+        },
+        &mut f.out,
+    );
+    assert_eq!(f.chat.thread.loaded, COMMITTED);
+    let lines = f.chat.thread.lines();
+    let [jig_client::thread::Line::Turn { turn, .. }] = lines.as_slice() else { panic!("committed reply") };
+    assert_eq!(turn.messages.get(0).unwrap().blocks, blocks);
+    assert_eq!(f.chat.next_deadline(), None);
+}
+#[test]
+fn a_chats_repeated_busy_reads_back_off_to_thirty_seconds_and_a_page_resets_it() {
+    let mut f = pending_activity();
+    let mut now = Time::ZERO;
+    for seconds in [1, 2, 4, 8, 16, 30, 30] {
+        activity_end(&mut f, now, c::ReadNone::Busy);
+        let due = now.saturating_add(Duration::from_secs(seconds));
+        assert_eq!(f.chat.next_deadline(), Some(due));
+        f.chat.fire(due, &mut f.out);
+        assert_eq!(f.out.pop(), Some(first_activity(&f.chat)));
+        now = due;
+    }
+    f.chat.told(
+        now,
+        &f.client,
+        Told::Page {
+            handle: f.chat.activity,
+            page: f::activity_reply(c::Speaker::Assistant, skein_lib::List::with_capacity(0), COMMITTED),
+        },
+        &mut f.out,
+    );
+    let mut task = f::task();
+    task.activity = COMMITTED + 1;
+    f::deliver(&mut f.client, f.watch, task);
+    f.chat.told(now, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    while f.out.pop().is_some() {}
+    activity_end(&mut f, now, c::ReadNone::Busy);
+    assert_eq!(f.chat.next_deadline(), Some(now.saturating_add(Duration::from_secs(1))));
+}
+#[test]
+fn a_lasting_activity_end_is_not_asked_again() {
+    let mut f = pending_activity();
+    activity_end(&mut f, Time::ZERO, c::ReadNone::Busy);
+    let due = f.chat.next_deadline().unwrap();
+    f.chat.fire(due, &mut f.out);
+    while f.out.pop().is_some() {}
+    activity_end(&mut f, due, c::ReadNone::Refused);
+    assert_eq!(f.chat.next_deadline(), None);
+    assert!(f.chat.thread.reading.is_none());
+    f.chat.fire(due.saturating_add(Duration::from_secs(30)), &mut f.out);
+    assert!(f.out.is_empty());
+}
+#[test]
+fn leaving_a_chat_drops_its_activity_retry() {
+    for event in [crate::pages::Event::Went { address: crate::Address::Accounts }, crate::pages::Event::Left] {
+        let (mut pages, client) = chat_pages();
+        let handle = pages.chat().unwrap().activity;
+        chat_told(
+            &mut pages,
+            &client,
+            Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) },
+        );
+        let due = Time::ZERO.saturating_add(Duration::from_secs(1));
+        assert_eq!(crate::pages::next_deadline(&pages), Some(due));
+        let limits = fixtures::limits();
+        let mut env = fixtures::env(&limits);
+        let mut out = Queue::with_capacity(OUTPUTS);
+        crate::pages::step(&mut pages, &env, &client, event, &mut out);
+        while out.pop().is_some() {}
+        assert_eq!(crate::pages::next_deadline(&pages), None);
+        env.now = due;
+        crate::pages::fire(&mut pages, &env, &client, &mut out);
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
+fn a_chats_transient_older_read_keeps_its_cursor() {
+    let mut f = pending_activity();
+    window_page(&mut f.chat, &f.client, &mut f.out, 0, 2);
+    let asked = f.out.pop().expect("older read");
+    let Request::Client(Event::Read { read: Readable::Jig(c::Read::Activity { before: Some(_), .. }), .. }) = &asked
+    else {
+        panic!("older read has its cursor")
+    };
+    activity_end(&mut f, Time::ZERO, c::ReadNone::Unreachable);
+    let due = Time::ZERO.saturating_add(Duration::from_secs(1));
+    f.chat.fire(due, &mut f.out);
+    assert_eq!(f.out.pop(), Some(asked));
+    assert!(f.out.is_empty());
 }

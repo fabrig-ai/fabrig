@@ -8,6 +8,7 @@ use jig_client::{
 };
 use skein_lib::{Env, Queue, Time};
 pub mod accounts;
+mod activity;
 pub mod chat;
 pub mod chats;
 pub mod choice;
@@ -346,6 +347,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            leave_conversations(pages, out);
             pages.accounts.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
@@ -482,16 +484,24 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     }
 }
 pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Queue<Request>) {
+    if let Some(chat) = &mut pages.chat {
+        chat.fire(env.now, out);
+    }
     if let Some(task) = &mut pages.task {
         task.fire(env.now, out);
     }
 }
 #[must_use]
 pub const fn next_deadline(pages: &Pages) -> Option<Time> {
-    match &pages.task {
+    let task = match &pages.task {
         Some(task) => task.next_deadline(),
         None => None,
-    }
+    };
+    let chat = match &pages.chat {
+        Some(chat) => chat.next_deadline(),
+        None => None,
+    };
+    activity::earliest(task, chat)
 }
 #[must_use]
 pub const fn shown(pages: &Pages) -> u64 {
@@ -577,12 +587,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Some(chats) = pages.chats.take() {
             pages.next = chats.leave(out);
         }
-        if let Some(chat) = pages.chat.take() {
-            pages.next = chat.leave(out);
-        }
-        if let Some(task) = pages.task.take() {
-            pages.next = task.leave(out);
-        }
+        leave_conversations(pages, out);
         if let Address::Task { task, filter } = address {
             let mut page = task::Task::new(task, pages.next, &env.limits, out);
             page.filter = filter;
@@ -717,7 +722,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             | Told::Dropped { .. }
             | Told::Ended { .. } => false,
         };
-        if !chat.told(client, told, out) {
+        if !chat.told(env.now, client, told, out) {
             return false;
         }
         // Pages owns the shared key sequence, including automatic conversation reads.
@@ -994,4 +999,13 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
     page.request.return_from(None);
     pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
     out.push(Request::Replace { address: pages.address.clone() });
+}
+
+fn leave_conversations(pages: &mut Pages, out: &mut Queue<Request>) {
+    if let Some(chat) = pages.chat.take() {
+        pages.next = chat.leave(out);
+    }
+    if let Some(task) = pages.task.take() {
+        pages.next = task.leave(out);
+    }
 }

@@ -1,9 +1,9 @@
 //! One chat borrows its task and retains jig's bounded conversation projection.
-use super::{Act, Request, delegation};
+use super::{Act, Request, activity::Asking, delegation};
 use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c, thread::Thread};
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Env, List, Queue, Time};
 /// A small conversation's retained window (client/README.md, 5.4).
 pub const LINES: u32 = 16;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,6 +22,7 @@ pub struct Chat {
     /// The latest activity read refusal, retained only for diagnostics.
     pub last_read_none: Option<c::ReadNone>,
     pub run: Option<Handle>,
+    asking: Asking,
     current_run: Option<Box<c::RunState>>,
     pub next: u64,
     pub thread: Thread,
@@ -49,12 +50,14 @@ impl Chat {
             handle: document,
             subject: Watchable::Jig(c::Subject::Task { task }),
         }));
-        read(activity, Some(c::Read::Activity { task, before: None }), out);
+        let mut asking = Asking::new();
+        asking.ask(activity, c::Read::Activity { task, before: None }, out);
         Self {
             task,
             document,
             activity,
             last_read_none: None,
+            asking,
             run: None,
             current_run: None,
             next: first.checked_add(2).expect("chat handles fit"),
@@ -72,6 +75,12 @@ impl Chat {
             closing: None,
             final_task: None,
         }
+    }
+    pub(crate) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
+        self.asking.fire(now, self.activity, out);
+    }
+    pub(crate) const fn next_deadline(&self) -> Option<Time> {
+        self.asking.next_deadline()
     }
     pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
         for handle in [Some(self.document), Some(self.activity), self.run].into_iter().flatten() {
@@ -95,11 +104,11 @@ impl Chat {
             Latest::Jig(_) | Latest::Family(_) => None,
         }
     }
-    pub(crate) fn told(&mut self, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    pub(crate) fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
         match told {
             Told::Changed { handle } if handle == self.document => {
                 if let Some(Latest::Jig(c::Delivery::Task(task))) = latest(client, handle) {
-                    read(self.activity, self.thread.document(task), out);
+                    ask_activity(&mut self.asking, self.activity, self.thread.document(task), out);
                     self.fill(out);
                     self.watch_run(task, out);
                     self.proposals(task, out);
@@ -112,7 +121,7 @@ impl Chat {
             }
             Told::Page { handle, page } if handle == self.document => {
                 if let Some(task) = page_task(page, self.task) {
-                    read(self.activity, self.thread.document(&task), out);
+                    ask_activity(&mut self.asking, self.activity, self.thread.document(&task), out);
                     self.fill(out);
                     self.watch_run(&task, out);
                     self.proposals(&task, out);
@@ -123,20 +132,7 @@ impl Chat {
                 self.run_changed(client, handle);
             }
             Told::Page { handle, page } if handle == self.activity => {
-                if let Readout::Jig(c::ReadResult::None(why)) = &page {
-                    self.last_read_none = Some(*why);
-                }
-                if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = page {
-                    read(self.activity, self.thread.page(*page), out);
-                    self.fill(out);
-                } else if let Readout::Jig(c::ReadResult::None(c::ReadNone::SignedOut)) = page
-                    && client.link().state == jig_client::Link::Starting
-                    && super::awaits_first_read(&self.thread)
-                {
-                    read(self.activity, Some(c::Read::Activity { task: self.task, before: None }), out);
-                } else {
-                    self.thread.failed();
-                }
+                self.activity_page(now, client, page, out);
             }
             Told::Answered { key, outcome } if self.pending_key(key) => self.answered(key, outcome),
             Told::Pending { key } if self.pending_key(key) => {}
@@ -187,6 +183,32 @@ impl Chat {
         }
         self.delegations(client, out);
         true
+    }
+    fn activity_page(&mut self, now: Time, client: &Client, page: Readout, out: &mut Queue<Request>) {
+        if let Readout::Jig(c::ReadResult::None(why)) = &page {
+            self.last_read_none = Some(*why);
+        }
+        let why = super::activity::read_end(client, &page);
+        if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = page {
+            self.asking.answered();
+            ask_activity(&mut self.asking, self.activity, self.thread.page(*page), out);
+            self.fill(out);
+        } else if let Readout::Jig(c::ReadResult::None(c::ReadNone::SignedOut)) = page
+            && client.link().state == jig_client::Link::Starting
+            && super::awaits_first_read(&self.thread)
+        {
+            ask_activity(
+                &mut self.asking,
+                self.activity,
+                Some(c::Read::Activity { task: self.task, before: None }),
+                out,
+            );
+        } else if why.transient() {
+            self.asking.ended(now);
+        } else {
+            self.asking.answered();
+            self.thread.failed();
+        }
     }
     fn run_changed(&mut self, client: &Client, handle: Handle) {
         match latest(client, handle) {
@@ -249,7 +271,7 @@ impl Chat {
     }
     fn fill(&mut self, out: &mut Queue<Request>) {
         if self.room() && self.thread.reading.is_none() {
-            read(self.activity, self.thread.older(), out);
+            ask_activity(&mut self.asking, self.activity, self.thread.older(), out);
         }
     }
     /// Older activity is offered once another page cannot fit in the window.
@@ -609,7 +631,7 @@ impl Chat {
                     self.words = words;
                 }
             }
-            Act::Older => read(self.activity, self.thread.older(), out),
+            Act::Older => ask_activity(&mut self.asking, self.activity, self.thread.older(), out),
             Act::Send => self.send(env, client, Sending::Message, serial, out),
             Act::Stop => self.send(env, client, Sending::Stop, serial, out),
             Act::Choice(_)
@@ -753,4 +775,10 @@ pub fn allowed(task: &c::Task, act: c::ActKind) -> bool {
 }
 fn latest(client: &Client, handle: Handle) -> Option<&Latest> {
     client.document(handle)?.latest
+}
+
+fn ask_activity(asking: &mut Asking, handle: Handle, read: Option<c::Read>, out: &mut Queue<Request>) {
+    if let Some(read) = read {
+        asking.ask(handle, read, out);
+    }
 }

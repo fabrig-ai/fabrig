@@ -448,8 +448,10 @@ fn an_agents_task_reads_its_thread_as_a_chat() {
             Told::Page { handle: page.activity, page: jig_client::Readout::Limit },
             &mut f.out,
         );
-        assert!(page.thread.reading.is_none(), "failed page frees the read");
+        assert!(page.thread.reading.is_some(), "transient end keeps the pending position");
         page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut f.out);
+        assert!(f.out.is_empty(), "a delivery does not duplicate the waiting read");
+        page.fire(Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)), &mut f.out);
         assert_eq!(f.out.pop(), Some(activity_read(&page)));
         page.thread.run(
             &c::RunState { task: f::TASK, attempt: Some(ATTEMPT), committed_turn: 0, writing: None, call: None },
@@ -475,7 +477,7 @@ fn an_agents_task_reads_its_thread_as_a_chat() {
     }
 }
 #[test]
-fn a_failed_first_page_frees_an_unknown_tasks_thread() {
+fn a_transient_first_page_keeps_an_unknown_tasks_thread() {
     let mut f = f::opened();
     let mut page = Task::new(f::TASK, FIRST, &fixtures::limits(), &mut Queue::with_capacity(OUTPUTS));
     page.told(
@@ -485,10 +487,16 @@ fn a_failed_first_page_frees_an_unknown_tasks_thread() {
         &mut f.out,
     );
     assert_eq!(page.shape, Shape::Unknown);
-    assert!(page.thread.reading.is_none());
+    assert!(page.thread.reading.is_some());
     f::deliver(&mut f.client, f.watch, agent_document());
     while f.out.pop().is_some() {}
     page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut f.out);
+    while let Some(request) = f.out.pop() {
+        if let Request::Client(Event::Read { .. }) = request {
+            panic!("the document does not duplicate a waiting read")
+        }
+    }
+    page.fire(Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)), &mut f.out);
     assert_eq!(f.out.pop(), Some(activity_read(&page)));
 }
 #[test]
@@ -1322,4 +1330,44 @@ fn plan_filter_moves_keep_the_ended_page_and_drafts_without_reading_again() {
         assert_eq!(page.amending.as_ref().unwrap().words.as_ref(), WORDS);
         assert!(out.is_empty(), "the ended delegates stay read under either filter");
     }
+}
+
+#[test]
+fn an_agents_task_busy_activity_read_is_asked_again() {
+    // The task announces the fourth activity before its first activity page.
+    const COMMITTED: u64 = 4;
+    let mut f = f::opened();
+    let mut out = Queue::with_capacity(OUTPUTS);
+    let mut page = Task::new(f::TASK, FIRST, &fixtures::limits(), &mut out);
+    while out.pop().is_some() {}
+    let mut task = agent_document();
+    task.activity = COMMITTED;
+    f::deliver(&mut f.client, f.watch, task);
+    page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut out);
+    while out.pop().is_some() {}
+    page.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page { handle: page.activity, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) },
+        &mut out,
+    );
+    let due = Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1));
+    assert_eq!(page.next_deadline(), Some(due));
+    page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut out);
+    assert!(out.is_empty(), "a delivery does not duplicate the waiting read");
+    page.fire(due, &mut out);
+    assert_eq!(out.pop(), Some(activity_read(&page)));
+    let mut blocks = List::with_capacity(1);
+    blocks.push(c::Block::Text(fixtures::acts::text(b"Committed reply"))).unwrap();
+    page.told(
+        due,
+        &f.client,
+        Told::Page { handle: page.activity, page: f::activity_reply(c::Speaker::Assistant, blocks.clone(), COMMITTED) },
+        &mut out,
+    );
+    assert_eq!(page.thread.loaded, COMMITTED);
+    let lines = page.thread.lines();
+    let [jig_client::thread::Line::Turn { turn, .. }] = lines.as_slice() else { panic!("committed reply") };
+    assert_eq!(turn.messages.get(0).unwrap().blocks, blocks);
+    assert_eq!(page.next_deadline(), None);
 }
