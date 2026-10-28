@@ -784,6 +784,356 @@ mod admission_tests {
         service
     }
 
+    use jig_domain_host::{LinkDown, SourceName};
+    use jig_protocol_worker_wire as wire;
+    use skein_fake_channel::ScriptedPeer;
+    use skein_lib::{Duration, Intake, Reader};
+
+    const RUN: Token = Token::new(7);
+    const ATTEMPT: Token = Token::new(3);
+    const OWNER: Token = Token::new(0);
+    const OTHER_RUN: Token = Token::new(8);
+    const SOCKET: Token = Token::new(72);
+    // Three retained turns distinguish the prefix that passes from the stopped suffix.
+    const TURNS: u32 = 3;
+    // The check interval precedes the admitted spawn's one-second watchdog.
+    const CHECK_INTERVAL: Duration = Duration::from_millis(250);
+    const WATCHDOG: Duration = Duration::from_secs(1);
+    // Each channel frame is at most the negotiated skip bound in this fixture.
+    const WIRE_BYTES: u32 = 1_048_576;
+    // Enough rounds for the opening, three turn frames and their output rights.
+    const WIRE_ROUNDS: u32 = 128;
+
+    struct Peer {
+        peer: ScriptedPeer,
+        intake: Intake,
+        read: stream::Read,
+    }
+    impl Peer {
+        fn new(layer: &mut Worker, input: &[u8]) -> Self {
+            let start = skein_lib::bytes::find(input, b"[{\n").expect("worker member") + 1;
+            let end = skein_lib::bytes::find(input, b"],\"application\"").expect("worker end");
+            let document = config::document(
+                &input[start..end],
+                &config::DocumentLimits { bytes: WIRE_BYTES, tokens: WIRE_BYTES, depth: 32 },
+            )
+            .expect("worker document");
+            let worker = config::worker(&document, 0, &config::Directories::working()).expect("worker config");
+            let limits = crate::limits::worker_link(&worker);
+            let codec = wire::sizes::limits(&limits.sizes).expect("codec");
+            let mut channel_limits = link::channel_limits(&limits).expect("channel limits");
+            let cap = wire::sizes::engine_cap(&limits.sizes).expect("engine cap");
+            channel_limits.output_bytes = cap.bytes;
+            channel_limits.output_frames = cap.frames;
+            let mut peer = Self {
+                peer: ScriptedPeer::new(
+                    wire::schema(&codec).expect("schema"),
+                    skein_channel::Role::Responder,
+                    channel_limits,
+                    wire::VERSION,
+                    Box::default(),
+                )
+                .expect("engine peer"),
+                intake: Intake::with_capacity(WIRE_BYTES),
+                read: stream::Read::Nothing,
+            };
+            layer.socket = Some(SOCKET);
+            layer.link_down(Time::ZERO, link::Event::Dialled { connection: Token::new(layer.prefix) });
+            peer.pump(layer);
+            layer.iterate(Time::ZERO, Wall::EPOCH);
+            peer.pump(layer);
+            peer
+        }
+        fn pump(&mut self, layer: &mut Worker) {
+            for _ in 0..WIRE_ROUNDS {
+                let mut progressed = false;
+                let mut waiting = Queue::uncapped();
+                for _ in 0..layer.io.len() {
+                    match layer.io.pop().expect("io count") {
+                        io::Request::Output { stream, down } if stream == SOCKET => {
+                            progressed = true;
+                            match down {
+                                stream::OutputDown::Room { right, .. } => layer.link_down(
+                                    layer.env.now,
+                                    link::Event::Lower {
+                                        connection: Token::new(layer.prefix),
+                                        event: LowerEvent::Write(stream::OutputUp::Settled {
+                                            right,
+                                            outcome: stream::OutputOutcome::Granted,
+                                        }),
+                                    },
+                                ),
+                                stream::OutputDown::Send { bytes, .. } => self.peer.feed(&bytes).expect("wire frame"),
+                                stream::OutputDown::Cancel { .. } | stream::OutputDown::Release { .. } => {}
+                            }
+                        }
+                        io::Request::Stream { stream, down: stream::Down::Demand { read, .. } } if stream == SOCKET => {
+                            self.read = read;
+                            progressed = true;
+                        }
+                        request => waiting.push(request),
+                    }
+                }
+                while let Some(request) = layer.io.pop() {
+                    waiting.push(request);
+                }
+                layer.io = waiting;
+                while let Some(bytes) = self.peer.pop_output() {
+                    self.intake.append(&bytes).expect("fixture frame room");
+                    progressed = true;
+                }
+                if let Some(bytes) = self.intake.meet(self.read) {
+                    self.read = stream::Read::Nothing;
+                    layer.link_down(
+                        layer.env.now,
+                        link::Event::Lower {
+                            connection: Token::new(layer.prefix),
+                            event: LowerEvent::Read(stream::Up::Bytes(bytes)),
+                        },
+                    );
+                    progressed = true;
+                }
+                if !progressed {
+                    return;
+                }
+            }
+            panic!("wire fixture settles");
+        }
+        fn turns(&self) -> Vec<u32> {
+            let mut turns = Vec::new();
+            for frame in self.peer.observed() {
+                if frame.kind == wire::Kind::Turn.number() {
+                    turns.push(
+                        wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("turn").number(),
+                    );
+                }
+            }
+            turns
+        }
+    }
+
+    // A scripted process face supplies domain records without operating pipes.
+    // Payload hand-outs still return through the service's concrete codecs.
+    fn scripted(layer: &mut Worker, event: root::Event) {
+        let mut out = Queue::uncapped();
+        root::step(&mut layer.root, &layer.env, event, &mut out);
+        for _ in 0..PAYLOAD_HAND_OFF_ROUNDS {
+            for _ in 0..out.len() {
+                match out.pop().expect("scripted output") {
+                    root::Request::Decode { agent, run, start } => {
+                        let start = worker_route::decode(run, *start, &layer.agent);
+                        root::step(&mut layer.root, &layer.env, root::Event::Decoded { agent, start }, &mut out);
+                    }
+                    root::Request::Encode { owner, value } => {
+                        let encoded = worker_route::encode(value, &layer.agent.limits, &layer.agent.endpoints);
+                        root::step(&mut layer.root, &layer.env, root::Event::Encoded { owner, encoded }, &mut out);
+                    }
+                    root::Request::Link(up) => {
+                        layer.link_down(layer.env.now, link::Event::Up { up, parts: Box::default() })
+                    }
+                    root::Request::Process(_) => {}
+                    other => panic!("unexpected scripted hand-out: {other:?}"),
+                }
+            }
+        }
+        assert!(out.is_empty(), "scripted hand-outs complete");
+    }
+
+    fn retained_turns() -> (crate::Service, Peer) {
+        let document = fixtures::with(fixtures::WORKER_DOCUMENT, b"\"slots\":1", b"\"slots\":2");
+        let document = fixtures::with(&document, b"\"hub.turns\":1", b"\"hub.turns\":3");
+        let document = fixtures::with(&document, b"\"hub.slots\":1", b"\"hub.slots\":2");
+        let mut agent = fixtures::agent();
+        agent.host_limits.agents = 2;
+        let mut service = crate::startup(
+            &document,
+            &fixtures::worker_files(),
+            Some(&agent),
+            &fixtures::seeds(),
+            None,
+            Some(fixtures::worker_runtime()),
+        )
+        .expect("worker service");
+        let layer = service.worker(0).expect("worker");
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        let mut peer = Peer::new(layer, &document);
+        scripted(layer, root::Event::Link(fixtures::worker_assignment()));
+        scripted(
+            layer,
+            root::Event::Process(Box::new(smith::process::Event::Spawned { owner: OWNER, process: OWNER })),
+        );
+        scripted(layer, root::Event::Process(Box::new(smith::process::Event::Sent { owner: OWNER })));
+        scripted(
+            layer,
+            root::Event::Process(Box::new(smith::process::Event::Received {
+                owner: OWNER,
+                message: smith::Up::Admitted,
+            })),
+        );
+        for number in 1..=TURNS {
+            let mut turn = fixtures::concrete_turn();
+            turn.number = number;
+            turn.spent = u64::from(number) * 2;
+            scripted(
+                layer,
+                root::Event::Process(Box::new(smith::process::Event::Received {
+                    owner: OWNER,
+                    message: smith::Up::Turn { turn },
+                })),
+            );
+            scripted(layer, root::Event::Process(Box::new(smith::process::Event::Sent { owner: OWNER })));
+        }
+        peer.pump(layer);
+        while layer.io.pop().is_some() {}
+        (service, peer)
+    }
+    fn pressure(layer: &mut Worker) {
+        layer.set_watermark(MARK);
+        for _ in 0..MARK {
+            layer.io.push(io::Request::Close { entity: IO_ENTITY });
+        }
+    }
+    fn resend(turn: u32) -> root::Event {
+        root::Event::Resend { run: RUN, attempt: ATTEMPT, turn }
+    }
+    fn inventory(name: &[u8]) -> root::Event {
+        root::Event::Link(LinkDown::Sources { sources: Box::new([SourceName::new(name).expect("source name")]) })
+    }
+    fn waiting(layer: &Worker) -> Vec<&root::Event> {
+        layer.events.iter().collect()
+    }
+
+    #[test]
+    fn admitted_records_pass_a_held_new_record_in_order() {
+        let (mut service, mut peer) = retained_turns();
+        let layer = service.worker(0).expect("worker");
+        pressure(layer);
+        layer.events.push(inventory(b"first"));
+        layer.events.push(resend(1));
+        layer.events.push(resend(2));
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        peer.pump(layer);
+        assert_eq!(peer.turns(), [1, 2, 3, 1, 2], "both resends pass in wire order");
+        assert_eq!(waiting(layer), [&inventory(b"first")]);
+    }
+
+    #[test]
+    fn the_walk_stops_at_the_next_new_record() {
+        let (mut service, mut peer) = retained_turns();
+        let layer = service.worker(0).expect("worker");
+        pressure(layer);
+        layer.events.push(inventory(b"first"));
+        layer.events.push(resend(1));
+        layer.events.push(resend(2));
+        layer.events.push(inventory(b"second"));
+        layer.events.push(resend(3));
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        peer.pump(layer);
+        assert_eq!(peer.turns(), [1, 2, 3, 1, 2], "the third resend cannot pass the second inventory");
+        assert_eq!(waiting(layer), [&inventory(b"first"), &inventory(b"second"), &resend(3)]);
+        while layer.io.pop().is_some() {}
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        peer.pump(layer);
+        // Source command completions may queue output, so drain it before the next new inventory.
+        while layer.io.pop().is_some() {}
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        peer.pump(layer);
+        assert!(layer.events.is_empty());
+        assert_eq!(peer.turns(), [1, 2, 3, 1, 2, 3]);
+    }
+
+    #[test]
+    fn a_cancel_never_passes_its_held_assignment() {
+        let (mut service, mut peer) = retained_turns();
+        let layer = service.worker(0).expect("worker");
+        let LinkDown::Assign { mut assignment } = fixtures::worker_assignment() else { unreachable!("assignment") };
+        assignment.assignment.run = OTHER_RUN;
+        let assign = root::Event::Link(LinkDown::Assign { assignment });
+        pressure(layer);
+        layer.events.push(assign);
+        layer.events.push(resend(1));
+        layer.events.push(root::Event::Link(LinkDown::Cancel { run: OTHER_RUN, attempt: ATTEMPT }));
+        layer.events.push(resend(2));
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        peer.pump(layer);
+        assert_eq!(peer.turns(), [1, 2, 3, 1], "the walk stops at the dependent cancel");
+        assert!(matches!(
+            waiting(layer).as_slice(),
+            [
+                root::Event::Link(LinkDown::Assign { .. }),
+                root::Event::Link(LinkDown::Cancel { run: OTHER_RUN, attempt: ATTEMPT }),
+                root::Event::Resend { turn: 2, .. }
+            ]
+        ));
+        while layer.io.pop().is_some() {}
+        // Admission of the assignment creates a spawn request. Drain that request before the cancel.
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        while layer.io.pop().is_some() {}
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        peer.pump(layer);
+        assert_eq!(peer.turns(), [1, 2, 3, 1, 2]);
+        let process = *layer.processes.iter().last().expect("second process").0;
+        layer.step(root::Event::Process(Box::new(smith::process::Event::Unspawned {
+            owner: process,
+            detail: Box::default(),
+        })));
+        peer.pump(layer);
+        let mut answers = Vec::new();
+        for frame in peer.peer.observed() {
+            if frame.kind == wire::Kind::Answer.number() {
+                answers.push(wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("answer"));
+            }
+        }
+        assert_eq!(answers.len(), 1);
+        assert!(matches!(answers[0].ending(), wire::Ending::Failed(failure)
+            if matches!(failure.failure(), wire::Failure::Cancelled(_))));
+        layer.step(root::Event::Link(LinkDown::Acknowledge { run: OTHER_RUN, attempt: ATTEMPT }));
+        layer.root.reclaim();
+        assert_eq!(layer.root.hosted(), 1, "acknowledgement releases only the cancelled run");
+        assert!(
+            !layer.io.iter().any(|request| matches!(request, io::Request::Spawn { .. })),
+            "no start after cancellation"
+        );
+    }
+
+    #[test]
+    fn due_source_checks_wait_at_the_watermark() {
+        let document =
+            fixtures::with(fixtures::WORKER_DOCUMENT, b"\"check_interval_ms\":60000", b"\"check_interval_ms\":250");
+        let mut service = crate::startup(
+            &document,
+            &fixtures::worker_files(),
+            Some(&fixtures::agent()),
+            &fixtures::seeds(),
+            None,
+            Some(fixtures::worker_runtime()),
+        )
+        .expect("worker service");
+        let layer = service.worker(0).expect("worker");
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        layer.step(inventory(b"personal"));
+        layer.iterate(Time::ZERO, Wall::EPOCH);
+        layer.step(root::Event::Link(fixtures::worker_assignment()));
+        while layer.io.pop().is_some() {}
+        pressure(layer);
+        let due = Time::ZERO.saturating_add(CHECK_INTERVAL);
+        layer.iterate(due, Wall::EPOCH);
+        assert_eq!(layer.root.next_deadline(), Some(due), "a held check stays due");
+        assert!(layer.source_events.is_empty(), "no check started at the watermark");
+        // Spawn timeout advances admitted work while the periodic check is still held.
+        layer.iterate(Time::ZERO.saturating_add(WATCHDOG), Wall::EPOCH);
+        assert_eq!(layer.root.hosted(), 1, "the terminal remains retained until acknowledged");
+        assert_eq!(layer.root.next_deadline(), Some(due));
+        while layer.io.pop().is_some() {}
+        layer.iterate(Time::ZERO.saturating_add(WATCHDOG), Wall::EPOCH);
+        assert_eq!(layer.source_events.len(), 1, "exactly one due check starts below the mark");
+        layer.iterate(Time::ZERO.saturating_add(WATCHDOG), Wall::EPOCH);
+        assert_eq!(
+            layer.root.next_deadline(),
+            Some(Time::ZERO.saturating_add(WATCHDOG).saturating_add(CHECK_INTERVAL))
+        );
+    }
+
     #[test]
     fn the_engines_records_wait_at_the_watermark_and_completions_drain_the_backlog() {
         for requests in [MARK, MARK + 1] {
@@ -795,7 +1145,7 @@ mod admission_tests {
                 layer.io.push(io::Request::Close { entity: IO_ENTITY });
             }
             for _ in 0..WAITING_RECORDS {
-                layer.events.push(root::Event::Link(jig_domain_host::LinkDown::Sources { sources: Box::default() }));
+                layer.events.push(root::Event::Link(LinkDown::Sources { sources: Box::default() }));
             }
             let before = layer.root_steps;
             layer.iterate(Time::ZERO, Wall::EPOCH);
@@ -817,7 +1167,7 @@ mod admission_tests {
         let mut service = started_service();
         let layer = service.worker(0).expect("worker");
         layer.set_watermark(DIAL_MARK);
-        layer.events.push(root::Event::Link(jig_domain_host::LinkDown::Sources { sources: Box::default() }));
+        layer.events.push(root::Event::Link(LinkDown::Sources { sources: Box::default() }));
         let before = service.root_steps();
         crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
         assert_eq!(service.root_steps(), before);
