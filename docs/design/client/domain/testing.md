@@ -160,9 +160,16 @@ its own, wherever a presentation builds on skein's UI kit.
   visibly once, no read is replayed, and refusal, loss or not-ready
   without installation leaves old reads eligible. Late `Reply` and
   `Lost`, same-handle replacement, and full independent read room check
-  token fencing and the output bound (client.md, sections 7, 12 and 14).
+  token fencing and bounded event fan-out (client.md, sections 7, 12 and
+  14).
   The protocol world is used only for an ordering the lower fixture
   cannot express (`../../protocol/client.md`, section 14).
+- **Internal orders under load** are checked by composed client and
+  link step tests: link outputs precede the next domain request across
+  a credential boundary with occupied exchanges, and held exchanges
+  leave in FIFO order after durability. Each step settles its domain
+  and link outputs; deferred reads alone may wait on exchange credit
+  (client.md, sections 3 and 11; programming-model.md, 7.2).
 - **Shapes** preserve a template's omitted LLM intent even when its
   `resolved_default` preview names a model; the existing shapes step
   tests check that the preview never enters `Create`.
