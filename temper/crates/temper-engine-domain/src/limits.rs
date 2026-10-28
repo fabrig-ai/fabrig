@@ -186,24 +186,6 @@ pub(crate) fn payload_slots(limits: &Limits) -> Option<u32> {
         .checked_add(limits.fleet.calls.checked_mul(2)?)
 }
 
-// The fixtures admit one cohort from every child before acknowledging writes.
-#[cfg(test)]
-pub(crate) fn work_estimate(limits: &Limits) -> Option<u32> {
-    let routes = tasks::max_out(&limits.tasks)
-        .checked_mul(8)?
-        .checked_add(people::max_out(&limits.people).checked_mul(4)?)?
-        // Every in-flight historical decision may complete under journal pressure:
-        // one retained IO terminal and one people Decided callback per flight.
-        .checked_add(limits.people.pending.checked_mul(2)?)?
-        .checked_add(fleet::max_out(&limits.fleet).checked_mul(4)?)?
-        .checked_add(forge::max_out(&limits.forge))?
-        // One serialized role cohort revisits each Waiting task, then answers.
-        .checked_add(limits.tasks.tasks.checked_add(4)?)?;
-    // Each due project saves its opened ledger and then its next start.
-    let routes = routes.checked_add(limits.authority.projects.checked_mul(2)?)?;
-    Some(routes.max(jig_domain_core::settings::writes_worst_case(&core_limits(limits))?))
-}
-
 /// The watermark's default: the journal's unanswered commits plus the
 /// outputs at its door, so that outputs waiting for release don't keep a
 /// person's reads out (skein's draft dynamic-memory.md, 4.4).

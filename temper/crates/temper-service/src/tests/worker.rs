@@ -452,7 +452,8 @@ fn grant_sizes_take_credentials_source_names_and_generated_identities() {
     assert!(crate::workers::limits(&engine).is_none());
     worker.jig.limits.hub.charter_bytes = u64::MAX;
     assert!(worker_settings::link_limits(&worker.jig, &payload).is_none());
-    assert!(worker_settings::prepare(&worker, &fixtures::worker_agent(), &fixtures::worker_limits()).is_err());
+    worker_settings::prepare(&worker, &fixtures::worker_agent(), &fixtures::worker_limits())
+        .expect_err("an unrepresentable charter envelope is refused");
 }
 
 #[test]
