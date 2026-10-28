@@ -15,6 +15,9 @@ this document says what lib holds and what each part promises.
 - **Bounded, and priced.** Every container has a capacity fixed when it
   is made, refuses past it, and reports its own `worst_case(capacity)`,
   bookkeeping included, so a layer adds up what its containers report.
+  Two exceptions, for the hops inside a service (draft/dynamic-memory.md,
+  the stab): a large ring grows to its cap as it fills, and an uncapped
+  queue and journal have none (sections 5 and 11).
 - **Written once, tested hardest.** Every layer of every service stands on
   lib. Application code does not hand-roll a data structure: what is
   missing goes into lib.
@@ -75,7 +78,7 @@ them (testing.md, section 6).
 
 | Container | What | Over |
 |---|---|---|
-| `Queue<T>` | the records between stages, first in first out | a ring buffer allocated at capacity |
+| `Queue<T>` | the records between stages, first in first out | a ring buffer under its cap: allocated at it up to 1 MiB, grown to it above; or uncapped |
 | `List<T>` | a sequence a step appends to | a buffer allocated at capacity |
 | `Map<K, V>` | a table keyed by value, ordered by key | a B-tree, priced in tree nodes |
 | `Set<K>` | a `Map` without values | a B-tree, priced in tree nodes |
@@ -87,6 +90,23 @@ the room the loop reserved for it (`MAX_OUT`), so a full queue there is a
 bug, asserted; `Queue::try_push` is the refusing form. A B-tree allocates
 as it fills, so its worst case counts its nodes at capacity, not its
 entries.
+
+**Rings that grow** (draft/dynamic-memory.md 3, the stab of 10-28). A
+`Queue` or an `Intake` whose cap holds at most 1 MiB is allocated at its
+cap when it is made, as before. A larger one starts empty and doubles
+toward its cap as it fills, and never shrinks, so it holds what it held
+at its fullest, not its reservation: a ring reserved for millions of
+entries that holds two stays small, where a reserved one became
+resident as its head walked the buffer. Its `worst_case` is the most it
+holds while it grows: the cap's buffer and the one it reallocates from,
+together. The threshold keeps rings at the scale tests use as they
+were: a world's harness that fills a process's ring outside the
+process's calls would make that ring's growth nobody's.
+
+**`Queue::uncapped()`** has no cap of its own (its capacity is
+`u32::MAX`), starts empty and grows, so `push` cannot fail: it is for the
+hops between a service's own components, never for what a peer can push
+in. It has no `worst_case`.
 
 ### 5.1 State digests
 
@@ -359,7 +379,8 @@ machine's:
 
 **`Intake`** is the carry-over of a stream: the bytes the side below has
 received and the side above has not yet demanded, up to a cap fixed when
-it is made. It is allocated once, at the cap, and never grows.
+it is made. Up to 1 MiB it is allocated once, at the cap; above, it
+grows toward the cap as bytes arrive (section 5).
 
 - It appends what arrives while it has room, and reports the room left,
   so receiving stops at the cap.
@@ -518,8 +539,11 @@ covers what it keeps and what it allocates (testing.md, 5). What an
 operation hands out (an item taken, a delivery, a list moved into a box)
 is no longer the container's, and the meter takes it off.
 
-- **A slab, a queue, a list, a stack and an intake** are allocated once,
-  at their capacity, and hold exactly their worst case from the start.
+- **A slab, a list and a stack** are allocated once, at their capacity,
+  and hold exactly their worst case from the start; so are **a queue and
+  an intake** up to 1 MiB. Above it, a queue or an intake filled to its
+  cap holds exactly its worst case, the growth peak, and one used lightly
+  holds what it held at its fullest.
 - **A map, a set and a deadline table** are filled in order, each leaf
   left behind holding six entries, then thinned to five a leaf, the fewest
   a leaf holds: a tree within a few nodes of the most its capacity allows,
@@ -567,6 +591,15 @@ data structure, like a queue; a service does not hand-roll one
   the journal's containers and bookkeeping from its limits with checked
   arithmetic, as other lib containers do. Values it holds own their
   own payload bytes; their owner prices those separately.
+- **The uncapped journal** (draft/dynamic-memory.md 3 and 4, beside the
+  capped one until every repository has moved): `Journal::uncapped(release,
+  durable)` keeps its commits, held outputs and door in uncapped queues.
+  `decide()` opens a decision with no room to reserve, which cannot be
+  refused, and `push_write` and `push_held` add to it without a
+  `Result`. The capped journal's `takes` and `decision` refuse on it.
+  Either kind reports its `backlog()`: the commits made and not yet
+  answered, the outputs held and those at the door, in entries, which a
+  root compares with its watermark before it admits new work.
 
 The journal uses generic types and lib's containers. It defines no
 traits, takes no closures, and uses no `dyn` (programming-model.md,
