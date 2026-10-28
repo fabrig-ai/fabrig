@@ -286,7 +286,9 @@ class CheckTests(unittest.TestCase):
             self.assertEqual(argv[:3], ["heavy", "--gate", "cargo"])
             self.assertEqual(argv[argv.index("-p"):argv.index("-p") + 4], ["-p", "core", "-p", "normal"])
         self.assertEqual(steps[1][1][-4:], ["--all-targets", "--", "-D", "warnings"])
-        self.assertEqual(steps[2][1], steps[3][1] + ["--no-run"])
+        # nextest refuses --no-fail-fast with --no-run: the build step takes the run's scope only.
+        self.assertEqual(steps[2][1], [arg for arg in steps[3][1] if arg != "--no-fail-fast"] + ["--no-run"])
+        self.assertNotIn("--no-fail-fast", steps[2][1])
         self.assertIn("--no-fail-fast", steps[3][1])
         self.assertEqual(steps[4][1][-2:], ["--profile", "fuzzy"])
         self.assertEqual(steps[-1][2], ROOT / "skein")
