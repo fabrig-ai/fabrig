@@ -233,8 +233,8 @@ counted at the root, which sees them all.
   from its link's record until its commit releases it (the root's
   payloads); a run's preparation, the transcript the core loads to resume
   a run, until the run is assigned or its preparation ends (the core's
-  transcripts: `Core::transcript_bytes`, a running total jig's core
-  keeps); an assignment's turns until the worker takes them; a brief's
+  transcripts: `Core::transcript_bytes`, a sum over its preparations,
+  which its task limit bounds); an assignment's turns until the worker takes them; a brief's
   sections until its assignment goes out. The root keeps its own as a
   running total, raised where it takes bytes and lowered where it lets
   them go, never recomputed by a scan.
