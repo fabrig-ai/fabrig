@@ -14,9 +14,6 @@ use smith_host_protocol as host;
 /// Bounds the shared kernel hand-offs, which stay capped: twice the old
 /// small-profile output room of 1,053 entries.
 const KERNEL_HANDOFF_ENTRIES: u32 = 2_106;
-/// Plain payload pricing from the old service fixture's 2 x 753 entries;
-/// no admission reads it, until the per-process sums go (skein's draft 7.6).
-const PAYLOAD_PRICING_ENTRIES: u32 = 1_506;
 
 /// Complete the worker's back-and-forth hand-offs across payload translation
 /// before the next entrance (hosts.md, 6.8; service.md, 6).
@@ -726,56 +723,6 @@ fn owner_of(event: &mut io::Event, new: Token) {
         | io::Event::Resized
         | io::Event::Shutdown { .. } => {}
     }
-}
-
-pub(super) fn worst_case(worker: &config::Worker, agent: &Agent, root_bytes: usize) -> Option<u64> {
-    let mut hub = worker.limits.hub;
-    hub.slots = worker.slots;
-    let limits = root::Limits {
-        watermark: root::WATERMARK,
-        hub,
-        agent: agent.host_limits,
-        bounds: agent.bounds.clone(),
-        stop_bound: worker.stop_bound,
-        workstreams: Box::default(),
-    };
-    let domain = root::worst_case(&limits)?;
-    // The environment and the retained agent each own the endpoint declaration;
-    // root::worst_case also prices its one transient hello handoff.
-    let endpoint_copies = u64::try_from(agent.bounds.program_endpoints.len()).ok()?.checked_mul(4)?.checked_mul(2)?;
-    // Payload pricing at the service fixture (2 x 753), independent of admission.
-    let room = PAYLOAD_PRICING_ENTRIES;
-    let payload = smith::worst_case(&agent.host_limits)?.checked_add(host::worst_case(&agent.limits)?)?;
-    let mut command = u64::try_from(root_bytes).ok()?.checked_add(u64::try_from(worker.agent.program.len()).ok()?)?;
-    for argument in &worker.agent.arguments {
-        command = command.checked_add(u64::try_from(argument.len()).ok()?)?;
-    }
-    domain
-        .checked_add(endpoint_copies)?
-        .checked_add(crate::program_sources::worst_case(hub.detail_bytes)?)?
-        .checked_add(Queue::<jig_domain_host::Event>::worst_case(2)?)?
-        .checked_add(u64::from(hub.detail_bytes).checked_mul(2)?)?
-        .checked_add(
-            host::process_worst_case(&agent.limits, agent.host_limits.detail_bytes)?
-                .checked_mul(u64::from(worker.slots))?,
-        )?
-        .checked_add(link::worst_case(&crate::limits::worker_link(worker))?)?
-        .checked_add(jig_protocol_accounts::table::worst_case(
-            worker.limits.core.accounts.accounts.checked_add(1)?,
-            worker.limits.token,
-        )?)?
-        .checked_add(jig_protocol_accounts::table::worst_case(
-            worker.limits.core.accounts.credentials.checked_add(1)?,
-            worker.limits.token,
-        )?)?
-        .checked_add(Queue::<link::Request>::worst_case(link::MAX_OUT_DOWN)?)?
-        .checked_add(Map::<Token, host::Process>::worst_case(worker.slots)?)?
-        .checked_add(Map::<Token, Token>::worst_case(worker.slots.checked_mul(5)?)?)?
-        .checked_add(List::<Token>::worst_case(worker.slots)?.checked_mul(6)?)?
-        .checked_add(Queue::<io::kernel::Submit>::worst_case(1)?)?
-        .checked_add(payload.checked_mul(u64::from(room).checked_mul(3)?)?)?
-        .checked_add(command.checked_mul(u64::from(worker.slots).checked_add(1)?)?)?
-        .checked_add(skein_io::worst_case(&worker.limits.io)?)
 }
 
 #[cfg(test)]

@@ -153,10 +153,10 @@ pub fn journal(limits: &jig_test_domain::Limits) -> skein_lib::JournalLimits {
 pub fn started(document: &[u8]) -> Service {
     let mut parsed = crate::startup::parse(document).expect("fixture parsed");
     parsed.limits.root.journal = journal(&parsed.limits.root);
-    let (mut engine, io, bytes, _) =
+    let (mut engine, io) =
         crate::startup::engine_startup(parsed, &files(document), None, &seeds(), None, false).expect("fixture startup");
     memory_store(&mut engine);
-    Service::new(Some(engine), List::with_capacity(0), io, bytes, engine_queue())
+    Service::new(Some(engine), List::with_capacity(0), io, engine_queue())
 }
 fn engine_queue() -> u32 {
     jig_test_domain::max_out(&crate::limits::profile_limits(jig_protocol_config::Profile::Small).root)
@@ -652,18 +652,6 @@ pub fn combined_files(document: &[u8]) -> Files {
         entries.push(file).expect("worker files");
     }
     Files { entries }
-}
-
-pub fn service_bytes(document: &[u8]) -> u64 {
-    let mut parsed = crate::startup::parse(document).expect("fixture parsed");
-    let store = crate::store::limits(&parsed.limits.root, &parsed.limits.store).expect("fixture admitted");
-    parsed.limits.store = store;
-    crate::limits::worst_case(&parsed.limits)
-        .expect("root bounds")
-        .checked_add(crate::workers::configured_bytes(&parsed.engine).expect("configured bounds"))
-        .expect("worker total")
-        .checked_add(crate::accounts::configured_bytes(&parsed.engine).expect("provider registration bounds"))
-        .expect("service total")
 }
 
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {

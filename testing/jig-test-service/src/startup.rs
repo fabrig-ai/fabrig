@@ -398,7 +398,7 @@ pub(super) fn engine_startup(
     seeds: &Seeds,
     runtime: Option<crate::AccountsRuntime>,
     own_workers: bool,
-) -> Result<(Engine, skein_io::Limits, u64, u64), Problems> {
+) -> Result<(Engine, skein_io::Limits), Problems> {
     parsed.workers |= own_workers;
     check_files(&parsed, files)?;
     for charter in &mut parsed.engine.charters {
@@ -411,24 +411,6 @@ pub(super) fn engine_startup(
     }
     let store_limits = configured_store_limits(&parsed)?;
     parsed.limits.store = store_limits;
-    let trust = match &runtime {
-        Some(runtime) if runtime.trust_roots > 0 => {
-            skein_tls::roots_worst_case(runtime.trust_roots, runtime.trust_root_bytes)
-        }
-        Some(_) | None => Some(0),
-    }
-    .ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Bound))?;
-    let configured = configuration_bytes(&parsed.engine)?;
-    let bytes = limits::worst_case(&parsed.limits)
-        .ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Bound))?
-        .checked_add(trust)
-        .ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Bound))?;
-    let bytes = bytes
-        .checked_add(configured)
-        .ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Bound))?;
-    if let Err(what) = config::fits(parsed.engine.memory, &[config::Share { name: b"service", bytes }]) {
-        return Err(problem(Path::root().member(b"engine").member(b"memory_bytes"), what));
-    }
     parsed.first.deployment = seeds.deployment;
     parsed.second.deployment = seeds.deployment;
     let max = root::max_out(&parsed.limits.root);
@@ -498,7 +480,7 @@ pub(super) fn engine_startup(
     );
     // configuration.md, 5: the smallest source opens only an empty deployment.
     engine.first_periods = first_periods;
-    Ok((engine, parsed.limits.io, bytes, parsed.engine.memory))
+    Ok((engine, parsed.limits.io))
 }
 
 fn clients_child(parsed: &Parsed, seeds: &Seeds, max: u32) -> Result<Option<crate::clients::Clients>, Problems> {
@@ -521,7 +503,6 @@ fn clients_child(parsed: &Parsed, seeds: &Seeds, max: u32) -> Result<Option<crat
 #[derive(Debug)]
 struct WorkerSpec {
     config: config::Worker,
-    root: Box<[u8]>,
 }
 fn document(input: &[u8]) -> Result<Document, Problems> {
     let length = u32::try_from(input.len()).or(Err(problem(Path::root(), What::Bound)))?;
@@ -607,8 +588,8 @@ fn worker_specs_in(document: &Document) -> Result<(bool, List<WorkerSpec>), Prob
         if !problems.is_empty() {
             return Err(problems);
         }
-        let root = text(document, at.expect("root checked"), 4096, &here.member(b"root"))?;
-        specs.push(WorkerSpec { config: worker, root }).expect("worker count");
+        text(document, at.expect("root checked"), 4096, &here.member(b"root"))?;
+        specs.push(WorkerSpec { config: worker }).expect("worker count");
     }
     Ok((engine, specs))
 }
@@ -650,7 +631,7 @@ pub fn startup(
         None
     };
     let mut io = match &engine {
-        Some((_, io, _, _)) => *io,
+        Some((_, io)) => *io,
         None => {
             let mut io = specs.get(0).expect("engine or worker").config.limits.io;
             io.sockets = 0;
@@ -658,13 +639,9 @@ pub fn startup(
             io
         }
     };
-    let mut bytes = match &engine {
-        Some((_, _, bytes, _)) => *bytes,
-        None => 0,
-    };
     let mut workers = List::with_capacity(specs.len());
     let mut queue = match &engine {
-        Some((engine, _, _, _)) => engine.max_out.checked_mul(2).expect("service queue"),
+        Some((engine, _)) => engine.max_out.checked_mul(2).expect("service queue"),
         None => 1,
     };
     for (index, spec) in specs.into_boxed().into_iter().enumerate() {
@@ -687,15 +664,9 @@ pub fn startup(
                 What::Unreadable,
             ));
         }
-        let bound = crate::worker::worst_case(&spec.config, agent, spec.root.len())
-            .ok_or(problem(path.clone(), What::Bound))?;
-        if let Err(what) = config::fits(spec.config.memory, &[config::Share { name: b"worker", bytes: bound }]) {
-            return Err(problem(
-                Path::root().member(b"workers").child(Segment::Index(index)).member(b"memory_bytes"),
-                what,
-            ));
+        if !jig_domain_host::valid_program_endpoints(&agent.bounds.program_endpoints) {
+            return Err(problem(path.clone(), What::Bound));
         }
-        bytes = bytes.checked_add(bound).ok_or(problem(path.clone(), What::Bound))?;
         io.sockets = io.sockets.checked_add(spec.config.limits.io.sockets).ok_or(problem(path.clone(), What::Bound))?;
         io.names = io.names.checked_add(spec.config.limits.io.names).ok_or(problem(path.clone(), What::Bound))?;
         io.intake = io.intake.max(spec.config.limits.io.intake);
@@ -706,21 +677,9 @@ pub fn startup(
         queue = queue.max(worker.queue_room());
         workers.push(worker).expect("worker count");
     }
-    if !workers.is_empty() {
-        bytes = bytes
-            .checked_add(
-                limits::shared_worker_bytes(&io, queue, workers.len()).ok_or(problem(Path::root(), What::Bound))?,
-            )
-            .ok_or(problem(Path::root(), What::Bound))?;
-        if let Some((_, _, _, memory)) = &engine
-            && let Err(what) = config::fits(*memory, &[config::Share { name: b"service", bytes }])
-        {
-            return Err(problem(Path::root().member(b"engine").member(b"memory_bytes"), what));
-        }
-    }
     let mut service = match engine {
-        Some((engine, _, _, _)) => Service::new(Some(engine), workers, io, bytes, queue),
-        None => Service::new(None, workers, io, bytes, queue),
+        Some((engine, _)) => Service::new(Some(engine), workers, io, queue),
+        None => Service::new(None, workers, io, queue),
     };
     service.bundle_directory = bundle;
     Ok(service)
@@ -730,14 +689,6 @@ pub fn startup(
 pub(super) fn fixture_connectors(document: &[u8]) -> (config::Engine, [connector::Config; 2]) {
     let parsed = parse(document).expect("fixture configuration");
     (parsed.engine, [parsed.first, parsed.second])
-}
-
-fn configuration_bytes(engine: &config::Engine) -> Result<u64, Problems> {
-    let workers = crate::workers::configured_bytes(engine)
-        .ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Bound))?;
-    let accounts = crate::accounts::configured_bytes(engine)
-        .ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Bound))?;
-    workers.checked_add(accounts).ok_or(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Bound))
 }
 
 /// The store reserves the same number of held values as the clients' carried table.
