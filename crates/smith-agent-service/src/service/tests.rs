@@ -590,6 +590,123 @@ fn a_message_waits_at_the_watermark_and_is_taken_once_the_backlog_falls() {
     }
 }
 
+fn preparing_message_run(service: &mut Service) -> Token {
+    let mut charter = smith_agent_world::scripted_charter(&smith_agent_world::Settings::calm(1));
+    charter.models = Box::default();
+    charter.llm.account = None;
+    let model = &charter.llm;
+    service.domain = Some(domain::Domain::new(
+        &service.limits.domain,
+        domain::Config {
+            programs: Box::default(),
+            endpoints: Box::new([model.endpoint]),
+            models: Box::new([domain::ConfiguredModel {
+                endpoint: model.endpoint,
+                model: model.model.clone(),
+                efforts: Box::default(),
+                prices: model.prices,
+                window: model.window,
+                output: model.output,
+                protocol_allowance: 0,
+                head: Duration::from_secs(60),
+                idle: Duration::from_secs(30),
+            }]),
+        },
+        1,
+    ));
+    service.events.as_mut().unwrap().starting(1, 0, &charter);
+    let domain = service.domain.as_mut().unwrap();
+    domain::step(
+        domain,
+        &service.domain_env,
+        domain::Event::Start {
+            reply_to: ReplyTo::new(Token::new(9)),
+            host_run: Token::new(9),
+            activation: 1,
+            identity: None,
+            window: domain::Window { turns: u32::MAX, bytes: u64::MAX },
+            messages: Box::default(),
+            charter,
+            workspace: Some(run::Workspace {
+                directories: Box::new([run::Directory {
+                    name: Box::from(b"work".as_slice()),
+                    host: Box::from(b"/work".as_slice()),
+                    root: Token::new(900),
+                    writable: true,
+                    git: true,
+                    conflicts: Box::default(),
+                }]),
+            }),
+            grants: Box::default(),
+            transcript: None,
+            answered: Box::default(),
+        },
+        &mut service.domain_requests,
+    );
+    let run = match service.domain_requests.pop() {
+        Some(domain::Request::Admitted { run, .. }) => run,
+        unexpected => panic!("the run waits in preparation: {unexpected:?}"),
+    };
+    // Preparation's effects and facts precede the two entrances under test.
+    while service.domain_requests.pop().is_some() {}
+    while domain.pop_fact().is_some() {}
+    run
+}
+
+#[test]
+fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() {
+    const FIRST: u64 = 31;
+    const SECOND: u64 = 32;
+    const TRACE: Token = Token::new(400);
+    let mut service = event_service();
+    let run = preparing_message_run(&mut service);
+    let sinks = service.events.as_mut().unwrap().sinks();
+    sinks.add(crate::sinks::Destination::Trace, TRACE, crate::sinks::Delivery::Complete).unwrap();
+    // As in the slow complete-destination fixture, withhold its IO credit
+    // and fill ordinary lines until the sink stops accepting observations.
+    for _ in 0..service.limits.queue {
+        if !sinks.takes() {
+            break;
+        }
+        sinks.record(&smith_events::Record {
+            t_ms: 0,
+            event: smith_events::Event::MessageUnread(smith_events::MessageUnread { run: 1, name: 0 }),
+        });
+    }
+    for name in [FIRST, SECOND] {
+        service.domain_events.push(domain::Event::Message {
+            finish_requested: false,
+            run,
+            name: Token::new(name),
+            label: Box::from(b"host".as_slice()),
+            text: Box::from(b"hello".as_slice()),
+        });
+    }
+    domain_up(&mut service);
+    assert!(!service.events.as_ref().unwrap().takes(), "the complete sink is stalled");
+    assert!(service.domain_requests.is_empty(), "effects do not hold the next entrance");
+    assert!(service.domain.as_ref().unwrap().has_facts(), "the first entrance awaits its sink");
+    assert_eq!(service.domain_events.len(), 1, "the second entrance has not run");
+    domain_up(&mut service);
+    assert_eq!(service.domain_events.len(), 1, "waiting again cannot advance the second entrance");
+    crate::sinks::tests::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE);
+    let mut records = Vec::new();
+    for _ in [FIRST, SECOND] {
+        domain_up(&mut service);
+        records.extend(crate::sinks::tests::drain_ready(service.events.as_mut().unwrap().sinks(), TRACE));
+    }
+    let names: Vec<_> = records
+        .into_iter()
+        .map(|record| match record.event {
+            smith_events::Event::MessageReceived(message) => message.name,
+            unexpected => panic!("each entrance emits its message fact: {unexpected:?}"),
+        })
+        .collect();
+    assert_eq!(names, [FIRST, SECOND], "all first-entrance facts reach the sink before the second's");
+    assert!(service.domain_events.is_empty());
+    assert!(!service.domain.as_ref().unwrap().has_facts());
+}
+
 #[test]
 fn an_answer_is_taken_past_the_watermark() {
     let mut service = at_watermark();
