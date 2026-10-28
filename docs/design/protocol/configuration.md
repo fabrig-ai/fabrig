@@ -1655,9 +1655,15 @@ into the binary.
   `clients.streams` and `clients_http.streams` to 8 (small's 2), since
   every `temper ctl` call holds a stream and a wait holds it for the
   wait, so a person and a walk hold three to five at once (QA
-  20261028-0835-temper finding 2), their memory measured against the
-  declarations, the largest that fits taken if 8 does not and a rise
-  the user's; and
+  20261028-0835-temper finding 2), with what carries each stream raised
+  beside them, since a stream is a long-lived call on the jig mount and
+  a connection to temper's server: the mount's HTTP calls and temper's
+  server connections to the streams plus 4 (12 and 12), the 4 room for
+  ordinary exchanges beside every stream held, jig's exchanges (8, 2 a
+  sign-in) unchanged unless the measure says they bind; the three
+  measured together against the declarations, the largest streams
+  figure that fits taken, its carriers 4 above it, if 8 does not, and a
+  rise the user's; and
   `tasks.inbox_bytes` to 12,288, so that a goal that asked a question
   holds its news slot and an answer slot (two messages), four live
   delegates' 512 bytes each and one unread result (10,752 in all),
