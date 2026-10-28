@@ -1,0 +1,505 @@
+#!/usr/bin/env python3
+"""Batched merge gate (tools/queue/design.md, sections 1–3)."""
+
+import argparse
+from contextlib import contextmanager
+from datetime import datetime, timezone
+import fcntl
+import fnmatch
+import json
+import os
+from pathlib import Path, PurePosixPath
+import shlex
+import subprocess
+import sys
+import time
+import uuid
+
+
+CONFIG = Path(__file__).resolve().parent
+TREES = ("skein", "smith", "jig", "temper")
+
+
+def lines(path):
+    return [line.split("#", 1)[0].strip() for line in path.read_text().splitlines()
+            if line.split("#", 1)[0].strip()]
+
+
+def command(argv, cwd, *, check=True, body=None, separate_stderr=False):
+    kwargs = {"stdin": subprocess.DEVNULL} if body is None else {"input": body}
+    result = subprocess.run(argv, cwd=cwd, text=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE if separate_stderr else subprocess.STDOUT, **kwargs)
+    if check and result.returncode:
+        raise RuntimeError(f"{shlex.join(argv)} exited {result.returncode}:\n{result.stdout}{result.stderr or ''}")
+    return result
+
+
+def git(repo, *args, check=True):
+    return command(["git", *args], repo, check=check)
+
+
+def list_candidates(repo, tried):
+    """Pin each ready tip, oldest committer timestamp first; suppress tried tips."""
+    output = git(repo, "for-each-ref", "--format=%(refname:strip=3) %(objectname) %(committerdate:unix)",
+                 "refs/remotes/origin/ready/").stdout
+    candidates = []
+    for line in output.splitlines():
+        name, tip, timestamp = line.split()
+        if len(name.split("/", 2)) == 3 and tried.get(name) != tip:
+            candidates.append({"name": name, "tip": tip, "timestamp": int(timestamp)})
+    return sorted(candidates, key=lambda branch: (branch["timestamp"], branch["name"]))
+
+
+def ensure_clean(repo):
+    if git(repo, "status", "--porcelain").stdout:
+        raise RuntimeError("queue checkout has uncommitted or untracked files")
+
+
+def build_batch(repo, branches, base="origin/main"):
+    """Merge pinned tips from base; abort conflicts and keep merging the rest."""
+    ensure_clean(repo)
+    git(repo, "switch", "--detach", base)
+    merged, conflicts = [], []
+    for branch in branches:
+        result = git(repo, "merge", "--no-ff", "--no-edit", branch["tip"], check=False)
+        if result.returncode:
+            conflicting = git(repo, "diff", "--name-only", "--diff-filter=U").stdout
+            if git(repo, "rev-parse", "--verify", "--quiet", "MERGE_HEAD", check=False).returncode == 0:
+                git(repo, "merge", "--abort")
+            if not conflicting:
+                raise RuntimeError(f"merge of {branch['name']} failed:\n{result.stdout}")
+            conflicts.append({**branch, "error": result.stdout})
+        else:
+            merged.append({**branch, "commit": git(repo, "rev-parse", "HEAD").stdout.strip()})
+    return merged, conflicts
+
+
+def full_inputs(paths):
+    return any(PurePosixPath(path).name in ("Cargo.toml", "Cargo.lock") or
+               ".config" in PurePosixPath(path).parts for path in paths)
+
+
+def selection(changed_paths, metadata, *, always=None, read_by_tests=None):
+    """Choose docs, full, or owners plus reverse dependencies (design.md, 2)."""
+    paths = list(changed_paths)
+    if full_inputs(paths):
+        return "full"
+    patterns = lines(CONFIG / "read-by-tests.txt") if read_by_tests is None else read_by_tests
+    if any(fnmatch.fnmatchcase(path, pattern) for path in paths for pattern in patterns):
+        return "full"
+    if paths and all(path.endswith(".md") for path in paths):
+        return "docs"
+    if not paths:
+        return "docs"
+    root = Path(metadata["workspace_root"])
+    members = set(metadata["workspace_members"])
+    packages = {p["id"]: p for p in metadata["packages"] if p["id"] in members}
+    owners = []
+    for package in packages.values():
+        directory = Path(package["manifest_path"]).parent.relative_to(root).as_posix()
+        owners.append((PurePosixPath(directory), package["id"]))
+    owners.sort(key=lambda owner: len(owner[0].parts), reverse=True)
+    selected = set()
+    for path in paths:
+        for directory, package_id in owners:
+            try:
+                local = PurePosixPath(path).relative_to(directory)
+            except ValueError:
+                continue
+            if local.as_posix() == "build.rs" or (len(local.parts) > 1 and local.parts[0] in
+                                                   ("src", "tests", "benches", "examples")):
+                selected.add(package_id)
+                break
+            return "full"
+        else:
+            return "full"
+    resolve = metadata.get("resolve")
+    if resolve is None:
+        raise ValueError("package selection requires cargo metadata's resolve graph")
+    reverse = {package_id: set() for package_id in packages}
+    for node in resolve["nodes"]:
+        if node["id"] in packages:
+            for dependency in node["dependencies"]:
+                if dependency in reverse:
+                    reverse[dependency].add(node["id"])
+    pending = list(selected)
+    while pending:
+        for dependent in reverse[pending.pop()] - selected:
+            selected.add(dependent)
+            pending.append(dependent)
+    names = {packages[package_id]["name"] for package_id in selected}
+    always = lines(CONFIG / "always.txt") if always is None else always
+    available = {package["name"] for package in packages.values()}
+    missing = set(always) - available
+    if missing:
+        raise ValueError(f"always.txt names missing workspace packages: {', '.join(sorted(missing))}")
+    return names | set(always)
+
+
+def load_metadata(repo):
+    # --no-deps supplies ownership; the resolved graph includes normal, build and dev edges.
+    metadata = json.loads(command(["cargo", "metadata", "--no-deps", "--format-version", "1", "--locked"],
+                                  repo, separate_stderr=True).stdout)
+    resolved = json.loads(command(["cargo", "metadata", "--format-version", "1", "--locked"],
+                                 repo, separate_stderr=True).stdout)
+    metadata["resolve"] = resolved["resolve"]
+    return metadata
+
+
+def changed_paths(repo, tip="HEAD"):
+    # Include both sides of a rename, so moving a file cannot hide its old owner.
+    output = git(repo, "diff", "--name-only", "--no-renames", "-z", f"origin/main...{tip}").stdout
+    return output.split("\0")[:-1] if output else []
+
+
+def check_commands(repo, selected, paths):
+    steps = [("fmt", ["cargo", "fmt", "--all", "--check"], repo)]
+    if selected != "docs":
+        scope = ["--workspace"] if selected == "full" else [arg for name in sorted(selected) for arg in ("-p", name)]
+        steps.extend([
+            ("clippy", ["heavy", "--gate", "cargo", "clippy", *scope, "--all-targets", "--", "-D", "warnings"], repo),
+            ("default", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast"], repo),
+            ("fuzzy", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast", "--profile", "fuzzy"], repo),
+        ])
+    trees = {path.split("/", 1)[0] for path in paths} & set(TREES)
+    steps.extend((f"ratchet:{tree}", ["python3", "-I", "-B", str(repo / tree / "scripts/old_forms.py")], repo / tree)
+                 for tree in sorted(trees))
+    return steps
+
+
+def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=time.monotonic):
+    """Run serially, logging output; nextest's empty selection is green."""
+    outcomes = []
+    with log_path.open("a") as log:
+        os.chmod(log_path, 0o600)
+        for name, argv, cwd in check_commands(repo, selected, paths):
+            log.write(f"\n[{name}] {shlex.join(argv)} (cwd {cwd})\n")
+            log.flush()
+            started = clock()
+            try:
+                result = runner(argv, cwd=cwd, stdin=subprocess.DEVNULL,
+                                stdout=log, stderr=subprocess.STDOUT)
+                code = result.returncode
+            except OSError as error:
+                log.write(f"{error}\n")
+                code = 127
+            green = code == 0 or (name in ("default", "fuzzy") and code == 4)
+            outcomes.append({"name": name, "command": argv, "returncode": code,
+                             "green": green, "duration": clock() - started})
+            if not green:
+                break
+    return outcomes
+
+
+def bisect(branches, check):
+    """Try each half in order, letting check land successful groups before the next."""
+    if not branches:
+        return [], []
+    if check(branches):
+        return list(branches), []
+    if len(branches) == 1:
+        return [], list(branches)
+    middle = len(branches) // 2
+    left_green, left_red = bisect(branches[:middle], check)
+    right_green, right_red = bisect(branches[middle:], check)
+    return left_green + right_green, left_red + right_red
+
+
+def push_and_cleanup(repo, branches):
+    """A plain fast-forward push precedes deletion; preserve tips that have changed."""
+    commit = git(repo, "rev-parse", "HEAD").stdout.strip()
+    git(repo, "push", "origin", "HEAD:main")
+    git(repo, "update-ref", "refs/remotes/origin/main", commit)
+    cleanup = []
+    for branch in branches:
+        ref = f"refs/heads/{branch['name']}"
+        current = git(repo, "ls-remote", "--heads", "origin", ref, check=False)
+        if current.returncode:
+            cleanup.append({"branch": branch["name"], "error": current.stdout})
+        elif current.stdout.split()[:1] == [branch["tip"]]:
+            result = git(repo, "push", "origin", "--delete", branch["name"], check=False)
+            cleanup.append({"branch": branch["name"], "returncode": result.returncode,
+                            "output": result.stdout})
+        else:
+            cleanup.append({"branch": branch["name"], "outcome": "tip changed or branch absent; preserved"})
+    return commit, cleanup
+
+
+def post(address, subject, body):
+    result = command(["post", "send", "--as", "queue", address, subject], CONFIG, check=False, body=body)
+    return {"address": address, "returncode": result.returncode,
+            "sent": result.returncode in (0, 3), "output": result.stdout}
+
+
+def log_batch(path, record):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as log:
+        os.chmod(path, 0o600)
+        log.write(json.dumps(record, sort_keys=True) + "\n")
+        log.flush()
+        os.fsync(log.fileno())
+
+
+def utc_now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+class Queue:
+    """Persistent cycle policy and effects (tools/queue/design.md, 1–3)."""
+
+    def __init__(self, repo, *, batch=8, full_every=5, dry=False,
+                 state_path=None, log_path=None, checker=run_checks, poster=post,
+                 metadata_loader=load_metadata, now=time.time):
+        self.repo = Path(repo).resolve()
+        self.batch = batch
+        self.full_every = full_every
+        self.dry = dry
+        self.state_path = state_path or self.repo.with_name(self.repo.name + ".state.json")
+        self.log_path = log_path or Path.home() / "src/fabrig/notes/queue.jsonl"
+        self.checker = checker
+        self.poster = poster
+        self.metadata_loader = metadata_loader
+        self.now = now
+        self.base = "origin/main"
+        self.last_selection = None
+        self.last_merged = []
+        self.last_conflicts = []
+        self.leads = dict(line.split() for line in lines(CONFIG / "leads.txt"))
+        self.state = json.loads(self.state_path.read_text()) if self.state_path.exists() else {}
+        self.state.setdefault("tried", {})
+        self.state.setdefault("batches_since_full", 0)
+
+    def save(self):
+        if self.dry:
+            return
+        temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
+        with temporary.open("w") as output:
+            os.chmod(temporary, 0o600)
+            json.dump(self.state, output, sort_keys=True)
+            output.flush()
+            os.fsync(output.fileno())
+        temporary.replace(self.state_path)
+
+    def full_due(self):
+        return (self.state["batches_since_full"] + 1 >= self.full_every or
+                self.now() - self.state.get("last_full", 0) >= 3600)
+
+    def idle_due(self):
+        main = git(self.repo, "rev-parse", "origin/main").stdout.strip()
+        return (self.now() - self.state.get("idle_since", self.now()) >= 600 and
+                main != self.state.get("last_full_main"))
+
+    def choose(self, paths):
+        if self.full_due() or full_inputs(paths):
+            return "full"
+        if not paths or all(path.endswith(".md") for path in paths):
+            return selection(paths, {})
+        return selection(paths, self.metadata_loader(self.repo))
+
+    def notify(self, record, lead, subject, body):
+        if self.dry:
+            return
+        address = self.leads.get(lead)
+        if address is None:
+            record["posts"].append({"lead": lead, "sent": False, "error": "unknown lead"})
+            return
+        try:
+            record["posts"].append(self.poster(address, subject, body))
+        except Exception as error:
+            # A delivery failure never changes a gate result.
+            record["posts"].append({"address": address, "sent": False, "error": str(error)})
+
+    def reject(self, record, branch, detail):
+        self.state["tried"][branch["name"]] = branch["tip"]
+        self.save()
+        self.notify(record, branch["name"].split("/", 2)[1], f"rejected {branch['name']}",
+                    f"{branch['name']} at {branch['tip']}\n{detail}\nLog: {record['log']}\n"
+                    "Push a new tip to retry.\n")
+
+    def attempt(self, branches, *, idle=False, force_full=False, skip_conflicts=False):
+        record = {"start": utc_now(), "branches": branches, "selection": None,
+                  "steps": [], "posts": [], "dry": self.dry, "outcome": "error"}
+        record["log"] = str(self.log_path.parent / f"queue-{uuid.uuid4().hex}.log")
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        detail = Path(record["log"])
+        selected = None
+        self.last_selection = None
+        self.last_merged = []
+        self.last_conflicts = []
+        detail.write_text("")
+        os.chmod(detail, 0o600)
+        try:
+            merged, conflicts = build_batch(self.repo, branches, self.base)
+            self.last_merged, self.last_conflicts = merged, conflicts
+            record["conflicts"] = conflicts
+            detail.write_text("\n".join(conflict["error"] for conflict in conflicts))
+            for branch in conflicts:
+                self.reject(record, branch, "merge conflict")
+            if conflicts and not skip_conflicts:
+                record["outcome"] = "conflict"
+                return False
+            if not merged and not idle:
+                record["outcome"] = "conflict"
+                return True
+            paths = changed_paths(self.repo)
+            selected = "full" if idle or force_full else self.choose(paths)
+            self.last_selection = selected
+            record["selection"] = sorted(selected) if isinstance(selected, set) else selected
+            record["changed_paths"] = paths
+            record["steps"] = self.checker(self.repo, selected, paths, detail)
+            green = bool(record["steps"]) and all(step["green"] for step in record["steps"])
+            ensure_clean(self.repo)
+            if selected == "full":
+                self.state["last_full"] = self.now()
+                self.state["batches_since_full"] = 0
+                if green:
+                    self.state["last_full_main"] = git(self.repo, "rev-parse", "HEAD").stdout.strip()
+                    self.state["selected_passed"] = False
+                elif self.state.get("selected_passed"):
+                    self.notify(record, "coord", "possible queue selection gap",
+                                f"A full check failed after selected checks passed.\nLog: {detail}\n"
+                                "Review always.txt and read-by-tests.txt.\n")
+            else:
+                self.state["batches_since_full"] += 1
+                if green:
+                    self.state["selected_passed"] = True
+            if green:
+                if self.dry:
+                    self.base = git(self.repo, "rev-parse", "HEAD").stdout.strip()
+                if not self.dry and merged:
+                    commit, cleanup = push_and_cleanup(self.repo, merged)
+                    record["commit"], record["cleanup"] = commit, cleanup
+                    for branch in merged:
+                        self.state["tried"][branch["name"]] = branch["tip"]
+                    self.save()
+                    for branch in merged:
+                        self.notify(record, branch["name"].split("/", 2)[1], f"landed {branch['name']}",
+                                    f"{branch['name']} at {branch['tip']}\n"
+                                    f"Merge commit: {branch['commit']}\nMain: {commit}\nLog: {detail}\n")
+                record["outcome"] = "green"
+            else:
+                record["outcome"] = "red"
+                if len(merged) == 1:
+                    failed = next((step["name"] for step in record["steps"] if not step["green"]), "no checks ran")
+                    self.reject(record, merged[0], f"failing step: {failed}")
+            self.save()
+            return green
+        except Exception as error:
+            record["error"] = str(error)
+            with detail.open("a") as output:
+                output.write(f"\n{error}\n")
+            raise
+        finally:
+            record["end"] = utc_now()
+            log_batch(self.log_path, record)
+
+    def plan(self):
+        git(self.repo, "fetch", "--prune", "origin")
+        branches = list_candidates(self.repo, self.state["tried"])[:self.batch]
+        if not branches and not self.idle_due():
+            print("nothing to do")
+            return
+        paths = sorted({path for branch in branches for path in changed_paths(self.repo, branch["tip"])})
+        selected = self.choose(paths) if branches else "full"
+        print(json.dumps({"branches": branches,
+                          "selection": sorted(selected) if isinstance(selected, set) else selected,
+                          "changed_paths": paths}, indent=2))
+
+    def cycle(self):
+        git(self.repo, "fetch", "--prune", "origin")
+        branches = list_candidates(self.repo, self.state["tried"])[:self.batch]
+        if not branches:
+            self.state.setdefault("idle_since", self.now())
+            if not self.dry and self.idle_due():
+                self.attempt([], idle=True)
+                self.state["idle_since"] = self.now()
+                self.save()
+                return True
+            self.save()
+            print("nothing to do")
+            return False
+        ensure_clean(self.repo)
+        original = git(self.repo, "symbolic-ref", "--quiet", "--short", "HEAD", check=False).stdout.strip()
+        original_tip = git(self.repo, "rev-parse", "HEAD").stdout.strip()
+        try:
+            initial_green = self.attempt(branches, skip_conflicts=True)
+            merged, conflicts = self.last_merged, self.last_conflicts
+            first = True
+            force_full = not initial_green and self.last_selection == "full"
+
+            def check(group):
+                nonlocal first, force_full
+                if first:
+                    first = False
+                    return initial_green
+                green = self.attempt(group, force_full=force_full)
+                if not green and self.last_selection == "full":
+                    force_full = True
+                return green
+
+            green, red = bisect(merged, check)
+            print(json.dumps({"green": [branch["name"] for branch in green],
+                              "red": [branch["name"] for branch in red],
+                              "conflicts": [branch["name"] for branch in conflicts], "dry": self.dry}))
+            self.state["idle_since"] = self.now()
+            self.save()
+            return True
+        finally:
+            if self.dry:
+                git(self.repo, "switch", original) if original else git(self.repo, "switch", "--detach", original_tip)
+
+
+@contextmanager
+def queue_lock(path):
+    with path.open("a") as lock:
+        os.chmod(path, 0o600)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError("another queue process holds this checkout") from error
+        yield
+
+
+def positive(value):
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be positive")
+    return number
+
+
+def main():
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="action", required=True)
+    for name in ("run", "once", "plan"):
+        sub = subparsers.add_parser(name)
+        sub.add_argument("--repo", type=Path, default=Path.home() / "src/fabrig/queue")
+        sub.add_argument("--batch", type=positive, default=8)
+        sub.add_argument("--full-every", type=positive, default=5)
+        if name == "once":
+            sub.add_argument("--dry", action="store_true")
+    args = parser.parse_args()
+    try:
+        repo = args.repo.expanduser().resolve()
+        if git(repo, "rev-parse", "--show-toplevel").stdout.strip() != str(repo):
+            raise RuntimeError("--repo must name the checkout root")
+        if args.action == "plan":
+            Queue(repo, batch=args.batch, full_every=args.full_every).plan()
+            return 0
+        with queue_lock(repo.with_name(repo.name + ".queue.lock")):
+            queue = Queue(repo, batch=args.batch, full_every=args.full_every, dry=getattr(args, "dry", False))
+            if args.action == "once":
+                queue.cycle()
+                return 0
+            stop = Path.home() / "src/fabrig/queue.stop"
+            while not stop.exists():
+                if not queue.cycle() and not stop.exists():
+                    time.sleep(60)
+        return 0
+    except (OSError, ValueError, RuntimeError) as error:
+        print(f"mq: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

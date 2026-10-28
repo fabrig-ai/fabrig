@@ -1,0 +1,10 @@
+# Markdown inputs compiled into, or read by, tests.
+temper/docs/help/**
+jig/docs/design/protocol/store.md
+smith/docs/design/**
+smith/benchmarks/README.md
+smith/benchmarks/tasks/**
+smith/benchmarks/tests/fixtures/**
+smith/benchmarks/tests/recorded/**
+skein/crates/skein-ui/src/tests/markdown/**
+skein/docs/design/forge-github.md
