@@ -48,7 +48,7 @@ pub use boundary::{
     ProcedureState, Purpose, Record, RecordKey, Recovery, Request, Resource, ResourceRole, RestartStage, Service,
     ServiceFact, StepDecision, SystemEvent, SystemRequest, TEAR_DOWN_CODE,
 };
-pub use domain::{Domain, MAX_OUT, fire, next_deadline, step};
+pub use domain::{Domain, MAX_OUT, fire, next_deadline, split, step};
 pub use limits::{Limits, valid, worst_case};
 
 #[cfg(test)]

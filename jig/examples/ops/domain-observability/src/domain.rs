@@ -214,11 +214,41 @@ fn question(
     }
 }
 
+fn fact_valid(domain: &Domain, env: &Env<Limits>, service: &Service, fact: &Fact) -> bool {
+    service_valid(service, &env.limits)
+        && u32::try_from(fact.load.len()).unwrap_or(u32::MAX) <= env.limits.samples_per_service
+        && (domain.facts.len() < env.limits.services || domain.facts.contains_key(service))
+}
+
+/// Split a mixed system fact into settlement and optional health news;
+/// other system events come back unchanged (jig/docs/design/domain/root.md, 3).
+pub fn split(
+    domain: &Domain,
+    env: &Env<Limits>,
+    event: SystemEvent,
+) -> Result<(SystemEvent, Option<SystemEvent>), SystemEvent> {
+    match event {
+        SystemEvent::Fact { service, fact } => {
+            let mut rest = None;
+            if fact_valid(domain, env, &service, &fact)
+                && let Some(prior) = domain.facts.get(&service)
+                && prior.healthy_replicas != fact.healthy_replicas
+            {
+                rest = Some(SystemEvent::HealthChanged { service: service.clone(), from: prior.healthy_replicas });
+            }
+            Ok((SystemEvent::FactSettle { service, fact }, rest))
+        }
+        event @ (SystemEvent::FactSettle { .. }
+        | SystemEvent::HealthChanged { .. }
+        | SystemEvent::Alert { .. }
+        | SystemEvent::ReadDone { .. }
+        | SystemEvent::Applied { .. }
+        | SystemEvent::Found { .. }) => Err(event),
+    }
+}
+
 fn fresh_fact(domain: &mut Domain, env: &Env<Limits>, service: Service, fact: Fact, out: &mut Queue<Request>) {
-    if !service_valid(&service, &env.limits)
-        || u32::try_from(fact.load.len()).unwrap_or(u32::MAX) > env.limits.samples_per_service
-        || domain.facts.len() >= env.limits.services && !domain.facts.contains_key(&service)
-    {
+    if !fact_valid(domain, env, &service, &fact) {
         return;
     }
     domain.refresh.remove(&service);
@@ -228,13 +258,6 @@ fn fresh_fact(domain: &mut Domain, env: &Env<Limits>, service: Service, fact: Fa
         crate::client_documents::changed(domain, env, &service, out);
     }
     crate::incidents::observed(domain, env, &service, &fact, out);
-    let health_changed = match &old {
-        Some(prior) => prior.healthy_replicas != fact.healthy_replicas,
-        None => false,
-    };
-    if health_changed {
-        health_news(domain, env, &service, fact.healthy_replicas > 0, out);
-    }
     let mut answered = List::with_capacity(env.limits.judges);
     for (token, pending) in &domain.judges {
         if pending.service == service {
@@ -673,7 +696,26 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
         }
         Event::System(system) => match system {
-            SystemEvent::Fact { service, fact } => fresh_fact(domain, env, service, fact, out),
+            whole @ SystemEvent::Fact { .. } => {
+                let (settle, rest) = split(domain, env, whole).expect("a whole fact splits");
+                let mut parts = Queue::uncapped();
+                step(domain, env, Event::System(settle), &mut parts);
+                if let Some(rest) = rest {
+                    step(domain, env, Event::System(rest), &mut parts);
+                }
+                while let Some(request) = parts.pop() {
+                    out.push(request);
+                }
+                return;
+            }
+            SystemEvent::FactSettle { service, fact } => fresh_fact(domain, env, service, fact, out),
+            SystemEvent::HealthChanged { service, from } => {
+                if let Some(fact) = domain.facts.get(&service)
+                    && fact.healthy_replicas != from
+                {
+                    health_news(domain, env, &service, fact.healthy_replicas > 0, out);
+                }
+            }
             SystemEvent::Alert { alert, own } => news(domain, env, alert, own, out),
             SystemEvent::ReadDone { token, bytes } => {
                 if let Some(max) = domain.reads.remove(&token) {
