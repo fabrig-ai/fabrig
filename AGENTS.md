@@ -1,6 +1,6 @@
 # Agent guidance for fabrig
 
-Provisional, 2026-10-28. What every agent working here must know, whatever its role. Read it first, then your role's file in `roles/`, then the tree you work in. Where a tree's own `AGENTS.md` describes a process (landing, repins, missions, gates), this file supersedes it; its facts about the code still hold.
+Provisional, 2026-10-28. What every agent working here must know, whatever its role. Read it first, then your role's file in `roles/`, then the `AGENTS.md` of the tree you work in, which holds the facts about its code.
 
 ## 1. In one page
 
@@ -54,7 +54,7 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 - Read a failure's log (heavy prints its path) before anything reruns; no unchanged rerun, except once after exit 137.
 - A failure your change can't reach runs once alone: passing, it's a flake, reported with both logs and the machine; failing, it's a question.
 - Fix a failure in the lowest tier that shows it: a skein fault seen downstream is reproduced in skein.
-- The suites' time budgets are the user's; moving a test to escape one is raising it.
+- The budgets, measured on an idle machine: a tree's focused suite within 30 seconds, its fuzzy suite (`tests/fuzzy_*.rs`, randomized) within 120 seconds. They are the user's; moving a test to escape one is raising it.
 
 ## 7. Asking
 
