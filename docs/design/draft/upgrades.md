@@ -1,6 +1,6 @@
 # Upgrades
 
-Draft, 2026-10-23. How a deployment moves to a newer temper and keeps
+Draft, 2026-10-23; 6.4 removed by the user, 2026-10-27. How a deployment moves to a newer temper and keeps
 its history: its people, projects and accounts, its tasks and goals, live
 and ended, its landings and what agents wrote. It takes
 `first-release.md`'s section 6 further, from the investigation of
@@ -40,8 +40,8 @@ spellings are placeholders.
   skein's `codec.md`, section 5).
 - **A copy is patched, never the store in use** (section 6): a start
   copies the records' and the secrets' maps into a new generation,
-  patches the copy, checks every join, and switches to it by one atomic
-  replacement. The previous generation is kept, and going back is
+  patches the copy, opens it as any start does, and switches to it by
+  one atomic replacement. The previous generation is kept, and going back is
   supported until the new one's first commit of its own (3.2).
 - **Transcripts are never rewritten** (section 7): their turns are
   patched as they are read. An agent resumes its conversation across a
@@ -106,7 +106,7 @@ acknowledged is in the engine or on the forge.
   - a store from before the baseline, which is made again, as today
     (4.1);
   - an effect in flight in a family a pending patch changes (section 8).
-- **A patch that refuses a record, or a check that fails** (6.4), stops
+- **A patch that refuses a record, or a copy that does not open** (6.4), stops
   the start with the old generation active, saying why, and exits
   non-zero; the next start begins again from a fresh copy.
 - **Rehearsed:** `temper upgrade --check`, by the new binary, on a copy
@@ -306,7 +306,7 @@ What every patch keeps:
    its new key and erased at its old in the same commit. Each versioned
    record names its family's version, so one already patched is passed
    over. The levels and the format row are the last commit's.
-5. **Check** (6.4).
+5. **Open** the copy as any start does (6.4).
 6. **Switch:** `active` replaced by io's replacement sequence: written
    beside, synced, renamed over, the directory synced (skein's
    `io.md`). One rename, never two standing for one.
@@ -342,18 +342,18 @@ What every patch keeps:
   counter, so that the start's sweep, which erases the secrets no record
   names, erases nothing it should keep.
 
-### 6.4 Checked before the switch
+### 6.4 Opened before the switch
 
-- **Every join:** each record's references resolve: tasks to projects
-  and parties, accounts to sources, transcripts to tasks, temper's
-  repositories and landings to their forges.
-- **Each family's rules,** as a restart checks them, but strictly: a
-  record breaking its child's rules, which a restart counts and leaves
-  (jig's `domain/engine.md`, section 6), refuses the upgrade.
-- **An ordinary open:** the binary's own open, read-only, over the new
-  generation, with the deployment's limits: a live set past them
-  refuses, as a start would.
-- **The counts** per family before and after, in the manifest.
+Removed by the user (10-27): no check runs before the switch. The copy
+is opened as any start opens a store, decoding each record under its
+codec and fitting the deployment's limits, and the start links what it
+loaded (jig's `domain/engine.md`, section 6): nothing is judged, and a
+link that cannot be made, a writer's bug, panics (10-28). The checks
+are tests, written when a schema changes: each patch proved over sample
+stores (13), and the cross-record rules as oracles over every writer, a
+cold restart closing every world story (jig's `domain/engine.md`,
+section 15). The counts per family, before and after, stay in the
+manifest.
 
 ### 6.5 The formats on disk
 

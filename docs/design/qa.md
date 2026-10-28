@@ -259,6 +259,9 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
     in the design or the source, or a refusal that does not name what
     is missing.
   - **temper's words wrong:** a state said that is not so.
+  - **A start that panics on a link** (jig's `domain/engine.md`,
+    section 6): a writer's bug; the finding names the record and the
+    link from serve's log, with the case that wrote the record.
 - **Not a finding:** that the pass read the forge, or how.
 - **Known gaps:** what the design has and `STATUS.md` lists as not yet
   built goes under Blocked, once, with what the pass did instead.

@@ -650,9 +650,11 @@ together again from both. A run's read is answered through the door.
   goals' projections, claims and calls; on demand, a task's result, an
   ended read position, a task's current window, an attempt's turns, a
   decided escalation or proposal, a page of notes.
-- **Pages,** bounded in rows and bytes, are checked whole (range, order,
-  cursor, each row's bytes) before any row is kept; a page past its
-  bytes comes back cut, saying how much.
+- **Pages,** bounded in rows and bytes, are taken in the order jig's
+  walk gives them (jig's `protocol/store.md`, 7.2), each row within its
+  bytes; a page past its bytes comes back cut, saying how much. Their
+  range, order and cursors are the tests' to assert, never refused at a
+  start (jig's `domain/engine.md`, section 6).
 - **Loads for the core.** A run's preparation (its transcript's window,
   its dependencies' and inputs' results), a delegate batch's inputs, and
   the core's historical reads (ended conversations, decided escalations
@@ -684,8 +686,9 @@ each step the core asks for:
    step.
 2. **The inbox:** the census of ended owners.
 3. **The forge's records,** `Range::Forge`, a page at a time; then the
-   forge reconciles them, refusing a record whose forge, repository or
-   task the restart does not hold, as jig's children refuse theirs.
+   forge links them, judging none: a record whose forge, repository or
+   task the restart does not hold is a writer's bug, and its link
+   panics, as jig's children's do (jig's `domain/engine.md`, section 6).
    Designed, not built: before them, the forge loads its kinds' values
    from its family `Setting`, is given temper's stock defaults, and
    tells the core which differ (5.6). Then **the switch**

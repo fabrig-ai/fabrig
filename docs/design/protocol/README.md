@@ -235,10 +235,11 @@ default; the document is `temper.json` in the configuration directory
     `temper serve: task {task}'s forge write {entry} is still in flight; start the build before this one and stop it to settle it`;
     `temper serve: and {n} more forge writes in flight`.
   - A start refused at a step of its restart (jig's `domain/engine.md`,
-    section 6; `../domain/root.md`, 9.1) prints the refusal in the
-    restart's own words, `temper serve: ` then the step and what it
-    refused (`restore census: row outside requested range`), and exits
-    1. The catch-all `unknown reference` is left for a refusal nothing
+    section 6; `../domain/root.md`, 9.1), which only a store that does
+    not decode or a live set past the limits can be, prints the refusal
+    in the restart's own words, `temper serve: ` then the step and what
+    it refused (`restore tasks: live tasks past limits.tasks`), and
+    exits 1. The catch-all `unknown reference` is left for a refusal nothing
     names. The refused process ends whole: it closes every listener it
     holds, the box's given ones too, whether or not a component took
     one, and its ended root settles each worker's pending release at
@@ -250,6 +251,11 @@ default; the document is `temper.json` in the configuration directory
     no step's reasons, and a retry is a restart, which makes nothing
     twice; a cause repaired during the backoff (a setting, the disk)
     lets the next attempt start.
+  - A link a start cannot make (a writer's bug, jig's
+    `domain/engine.md`, section 6) is a panic: serve's fail-stop report
+    names the record and the link, with its backtrace (skein's
+    `shell.md`, 6), and under the box it is a long step's exit like any
+    other.
 - **`temper init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
   configuration directory holds a document (setup.md, 8.2).
