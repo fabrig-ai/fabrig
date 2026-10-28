@@ -342,8 +342,11 @@ them, and with decisions that cannot be refused it says so itself.
   No child declares a `MAX_OUT` or the most an event makes it write or
   output, since no route reserves room.
 - **The root's watermark,** one number in entries, a field of the root's
-  `Limits`, defaulting to the journal's commits in flight, which keeps
-  pacing close to a reserved route's. It limits pacing, not memory
+  `Limits`, defaulting to the journal's commits in flight plus the
+  door's outputs (`commits` and `deliveries`): what a reserved route
+  could hold, so pacing stays close to it. The commits alone bind after
+  one decision that holds several outputs, since held outputs count in
+  the backlog (temper's root is at the same formula). It limits pacing, not memory
   (programming-model.md, 7.1); where a person's reads wait behind it, it
   rises.
 - **No sum along routes,** and no worst case of the root's: the
