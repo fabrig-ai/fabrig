@@ -8,6 +8,7 @@ pub(crate) const SUSPENDED: &[u8] = b"This installation has been suspended";
 
 #[derive(Debug)]
 pub(crate) enum Body<'a> {
+    Entries(&'a [skein_forge::api::Entry]),
     Combined(&'a d::Combined, &'a [d::Context]),
     Runs(&'a [d::Run]),
     Job(&'a d::Job),
@@ -54,6 +55,7 @@ pub(crate) enum Body<'a> {
 }
 fn encode(body: &Body<'_>, out: &mut Writer) -> Result<(), Overflow> {
     match body {
+        Body::Entries(entries) => server::entries(entries, out),
         Body::Combined(row, contexts) => server::combined(row, contexts, out),
         Body::Runs(rows) => server::runs(rows, out),
         Body::Job(row) => server::job(row, out),

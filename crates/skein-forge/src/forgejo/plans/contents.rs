@@ -24,6 +24,7 @@ enum Stage {
     Before,
     After,
     File,
+    Directory,
 }
 #[derive(Debug)]
 pub struct Plan {
@@ -41,6 +42,7 @@ pub struct Plan {
     missing: bool,
     more: Option<bool>,
     contains: bool,
+    directory: Option<Box<crate::directory::Listing>>,
 }
 impl Plan {
     pub fn new(read: api::Read, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
@@ -82,6 +84,7 @@ impl Plan {
             missing: false,
             more: None,
             contains: false,
+            directory: None,
         })
     }
     pub fn begin(&mut self, bounds: Bounds) -> Result<Step, api::Error> {
@@ -98,6 +101,12 @@ impl Plan {
             Mode::File { head, path, max } => {
                 self.size = u64::try_from(path.len()).expect("bounded path");
                 self.check_size(bounds)?;
+                if path.is_empty() {
+                    self.stage = Stage::Directory;
+                    self.directory =
+                        Some(Box::new(crate::directory::Listing::new((*max).min(self.raw_room(bounds.answer_bytes)))));
+                    return Ok(Step::send(r::Request::Contents { at, path: path.clone(), reference: self.id(*head) }));
+                }
                 Ok(Step::Send(Exchange {
                     request: r::Request::Raw { at, path: path.clone(), reference: self.id(*head) },
                     range: Some(crate::forgejo::plans::plan::Range::Head(*max)),
@@ -131,13 +140,14 @@ impl Plan {
     ) -> Result<Option<Step>, api::Error> {
         match heard {
             Heard::Head { status, fields } => {
-                self.missing = status == 404 && (self.stage == Stage::Before || self.stage == Stage::After);
+                self.missing = status == 404
+                    && (self.stage == Stage::Before || self.stage == Stage::After || self.stage == Stage::File);
                 if self.missing {
                     return Ok(None);
                 }
                 let raw = self.stage == Stage::File || self.stage == Stage::Before || self.stage == Stage::After;
                 if status != 200 && !(raw && status == 206) {
-                    let asked = if self.stage == Stage::File {
+                    let asked = if self.stage == Stage::File || self.stage == Stage::Directory {
                         super::failure::Asked::Leaf
                     } else {
                         super::failure::Asked::Read
@@ -160,6 +170,19 @@ impl Plan {
             }
             Heard::Done(body) => {
                 if self.missing {
+                    self.missing = false;
+                    if self.stage == Stage::File {
+                        let Mode::File { head, path, max } = &self.mode else { return Err(api::Error::InvalidAnswer) };
+                        self.stage = Stage::Directory;
+                        self.directory = Some(Box::new(crate::directory::Listing::new(
+                            (*max).min(self.raw_room(bounds.answer_bytes)),
+                        )));
+                        return Ok(Some(Step::send(r::Request::Contents {
+                            at: self.at(),
+                            path: path.clone(),
+                            reference: self.id(*head),
+                        })));
+                    }
                     return self.side(None, bounds);
                 }
                 match body {
@@ -179,6 +202,13 @@ impl Plan {
     }
     fn row(&mut self, row: d::Row, bounds: Bounds) -> Result<(), api::Error> {
         match row {
+            d::Row::Entry { name, kind } => {
+                if self.stage != Stage::Directory {
+                    return Err(api::Error::InvalidAnswer);
+                }
+                self.directory.as_mut().ok_or(api::Error::InvalidAnswer)?.keep(name, kind);
+                Ok(())
+            }
             d::Row::File(file) => {
                 if self.stage == Stage::Reverse {
                     return Ok(());
@@ -261,6 +291,14 @@ impl Plan {
                 })))
             }
             d::Document::Listed { .. } => {
+                if self.stage == Stage::Directory {
+                    let Mode::File { head, path, .. } = &self.mode else { return Err(api::Error::InvalidAnswer) };
+                    return Ok(Some(Step::Done(Ok(self
+                        .directory
+                        .as_mut()
+                        .ok_or(api::Error::InvalidAnswer)?
+                        .answer(*head, path.clone())))));
+                }
                 if self.stage != Stage::Files {
                     return Err(api::Error::InvalidAnswer);
                 }
@@ -378,7 +416,7 @@ impl Plan {
         match self.stage {
             Stage::Before => file.before = value,
             Stage::After => file.after = value,
-            Stage::Pull | Stage::Files | Stage::Compare | Stage::Reverse | Stage::File => {
+            Stage::Pull | Stage::Files | Stage::Compare | Stage::Reverse | Stage::File | Stage::Directory => {
                 return Err(api::Error::InvalidAnswer);
             }
         }

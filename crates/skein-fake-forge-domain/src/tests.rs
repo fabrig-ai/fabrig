@@ -2175,3 +2175,48 @@ fn modify_and_delete_or_two_adds_conflict_unless_they_agree() {
 }
 
 mod hooks;
+
+#[test]
+fn a_directory_reads_as_its_immediate_entries() {
+    use crate::api::{Entry, EntryKind};
+    let mut h = Harness::new(CALM);
+    let head = crate::commit(
+        &mut h.domain,
+        &h.env.limits,
+        FIRST,
+        files(&[(b"src/z.rs", b"z"), (b"src/lib/a.rs", b"a"), (b"src/a.rs", b"a"), (b"README", b"hello")]),
+        b"directory",
+    )
+    .expect("tree fits")
+    .expect("changed tree");
+    h.push(ENGINE, b"work", head).expect("push makes the tree visible");
+    let rows: [(&[u8], Box<[Entry]>); 3] = [
+        (
+            b"".as_slice(),
+            Box::new([
+                Entry { name: copy_of(b"README"), kind: EntryKind::File },
+                Entry { name: copy_of(b"src"), kind: EntryKind::Directory },
+            ]),
+        ),
+        (
+            b"src",
+            Box::new([
+                Entry { name: copy_of(b"a.rs"), kind: EntryKind::File },
+                Entry { name: copy_of(b"lib"), kind: EntryKind::Directory },
+                Entry { name: copy_of(b"z.rs"), kind: EntryKind::File },
+            ]),
+        ),
+        (b"src/lib", Box::new([Entry { name: copy_of(b"a.rs"), kind: EntryKind::File }])),
+    ];
+    for (path, entries) in rows {
+        assert_eq!(h.ok(ENGINE, read(Read::File { commit: head, path: copy_of(path) })), Answer::Directory(entries));
+    }
+}
+#[test]
+fn a_path_under_no_key_is_missing() {
+    let mut h = Harness::new(CALM);
+    assert_eq!(
+        h.call(ENGINE, read(Read::File { commit: FIRST, path: copy_of(b"absent/nested") })),
+        Err(Error::Missing(What::File))
+    );
+}

@@ -229,6 +229,7 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
@@ -298,6 +299,7 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
@@ -460,6 +462,7 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
         | a::Answer::Dependencies(_)
         | a::Answer::Labels(_)
         | a::Answer::Tree(_)
+        | a::Answer::Directory(_)
         | a::Answer::File(_)
         | a::Answer::Pages { .. }
         | a::Answer::Page(_)
@@ -521,6 +524,7 @@ fn collaborators(
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }

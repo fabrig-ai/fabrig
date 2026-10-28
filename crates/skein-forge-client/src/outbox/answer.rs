@@ -52,6 +52,7 @@ pub(crate) fn answered(
         | Answer::Remarks { .. }
         | Answer::PullFiles { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)

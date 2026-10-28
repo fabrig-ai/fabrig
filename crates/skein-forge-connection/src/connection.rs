@@ -653,9 +653,15 @@ impl Connection {
                 for field in &response.headers {
                     github::header::field(&mut head, &field.name, &field.value, &l);
                 }
+                let mut directory = false;
+                if let github::request::Request::Raw { .. } = request {
+                    directory = head.json;
+                }
                 self.heard.push(Heard::GitHub(github::plans::Heard::Head { status: response.status, head }));
                 let decoder = if response.status >= 300 {
                     Some(github::decode::decoder(github::document::Kind::Error, &l))
+                } else if directory {
+                    Some(github::decode::decoder(github::document::Kind::EntryRows, &l))
                 } else {
                     exchange.decoder(&l)
                 };
@@ -1010,7 +1016,8 @@ fn sending(down: &Down) -> bool {
 fn raw_request(request: &request::Request) -> bool {
     match request {
         request::Request::Raw { .. } | request::Request::JobLog { .. } => true,
-        request::Request::User
+        request::Request::Contents { .. }
+        | request::Request::User
         | request::Request::ApiSettings
         | request::Request::RepositoryById { .. }
         | request::Request::Repository { .. }

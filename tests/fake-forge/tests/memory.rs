@@ -332,6 +332,7 @@ fn outcome(result: Result<Answer, Error>) -> Result<Option<u64>, Error> {
         | Answer::Labels(_)
         | Answer::Commit(_)
         | Answer::Tree(_)
+        | Answer::Directory(_)
         | Answer::File(_)
         | Answer::Pages { .. }
         | Answer::Page(_)

@@ -96,6 +96,7 @@ impl LogPage {
                     | document::Row::Remark(_)
                     | document::Row::Review(_)
                     | document::Row::Commit(_)
+                    | document::Row::Entry { .. }
                     | document::Row::File(_) => return Err(api::Error::InvalidAnswer),
                 };
                 let mut size = u64::try_from(size_of::<log::Row>()).or(Err(api::Error::TooLarge))?;

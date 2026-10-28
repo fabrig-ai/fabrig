@@ -114,6 +114,7 @@ pub fn repository(config: &Config, request: &Request) -> Option<Box<[u8]>> {
         | Request::Pulls { at, .. }
         | Request::PullFiles { at, .. }
         | Request::Compare { at, .. }
+        | Request::Contents { at, .. }
         | Request::Raw { at, .. }
         | Request::Runs { at, .. }
         | Request::Run { at, .. }
@@ -251,7 +252,7 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
             page: 1,
             limit: config.max_response_items,
         },
-        Request::Raw { reference, path, .. } => {
+        Request::Contents { reference, path, .. } | Request::Raw { reference, path, .. } => {
             Read::File { commit: commit(reference).ok_or(missing)?, path: path.clone() }
         }
         Request::Runs { head_sha, run_number, .. } => {
@@ -380,6 +381,7 @@ fn write(config: &Config, request: &Request) -> Result<Op, a::Error> {
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }

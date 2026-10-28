@@ -127,6 +127,7 @@ fn target(request: &Request, out: &mut Target) {
         }
         Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }

@@ -83,6 +83,7 @@ pub(crate) fn answered_repository(
         | Answer::Compare { .. }
         | Answer::PullFiles { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
@@ -195,6 +196,7 @@ pub(crate) fn answered_resource(
         | Answer::Remarks { .. }
         | Answer::PullFiles { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)

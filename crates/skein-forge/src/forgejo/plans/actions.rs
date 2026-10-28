@@ -248,6 +248,7 @@ impl Plan {
             | d::Row::Pull(_)
             | d::Row::Branch(_)
             | d::Row::Protection(_)
+            | d::Row::Entry { .. }
             | d::Row::File(_)
             | d::Row::Hook(_)
             | d::Row::Team(_)

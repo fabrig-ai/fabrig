@@ -158,13 +158,16 @@ fn explicit_last_pull_files_page_has_no_more() {
 
 #[test]
 fn branch_and_contents_404_keep_the_row() {
-    for read in [
-        Read::Branch { branch: Box::from(&b"topic"[..]) },
-        Read::File { head: HEAD, path: Box::from(super::FILE_PATH), max_bytes: RAW_BYTES },
+    for (read, misses) in [
+        (Read::Branch { branch: Box::from(&b"topic"[..]) }, 1_u32),
+        (Read::File { head: HEAD, path: Box::from(super::FILE_PATH), max_bytes: RAW_BYTES }, 2_u32),
     ] {
         let mut run = Run::known(Op::Read(read));
-        run.begin();
-        assert_eq!(run.answer(404, MISSING), Step::Done(Err(Error::Missing)));
+        let mut answer = run.begin();
+        for _ in 0..misses {
+            answer = run.answer(404, MISSING);
+        }
+        assert_eq!(answer, Step::Done(Err(Error::Missing)));
         assert_eq!(run.tables().repository(REPO), Some(&fixtures::specimen()));
     }
 }

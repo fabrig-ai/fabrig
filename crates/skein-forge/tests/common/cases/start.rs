@@ -80,6 +80,7 @@ pub fn expected(answer: Answer) -> (Document, Vec<Row>) {
         | Answer::Comment(_)
         | Answer::Status(_)
         | Answer::Review(_)
+        | Answer::Entries(_)
         | Answer::Files(_)
         | Answer::Compare { .. }
         | Answer::Runs { .. }

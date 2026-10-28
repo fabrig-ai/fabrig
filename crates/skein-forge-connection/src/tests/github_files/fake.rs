@@ -209,6 +209,12 @@ impl Fake {
 }
 fn encode(response: service::Response) -> Box<[u8]> {
     let mut fields = List::with_capacity(7);
+    fields
+        .push(skein_http::Header {
+            name: Box::from(b"Content-Type".as_slice()),
+            value: Box::from(response.content_type.bytes()),
+        })
+        .expect("content type header");
     if let Some(rate) = response.rate {
         skein_fake_forge_github::rates::headers(rate, response.status == 403, &mut fields);
     }

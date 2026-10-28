@@ -126,7 +126,7 @@ fn repo_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
             per_page: query.size()?,
         });
     }
-    if let Some(path) = tail.strip_prefix(b"contents/") {
+    if let Some(path) = if tail == b"contents" { Some(b"".as_slice()) } else { tail.strip_prefix(b"contents/") } {
         return Some(Request::Raw {
             owner,
             name,
@@ -459,3 +459,14 @@ pub use reviews::{remarks, reviews};
 
 mod files;
 pub use files::{compare, file_rows};
+
+/// Writes a directory contents response in forge order.
+pub fn entries(entries: &[crate::api::Entry], out: &mut Writer) -> Result<(), Overflow> {
+    let limits = output_limits(out)?;
+    let mut measure = Encoder::measure(&limits);
+    crate::directory::write(&mut measure, entries);
+    let length = measure.measured().or(Err(Overflow))?;
+    let mut json = Encoder::write(length, &limits);
+    crate::directory::write(&mut json, entries);
+    out.put(&json.finish())
+}

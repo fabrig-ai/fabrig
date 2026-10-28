@@ -317,6 +317,7 @@ impl Plan {
             | api::Answer::PullFiles { .. }
             | api::Answer::Compare { .. }
             | api::Answer::Job { .. }
+            | api::Answer::Directory { .. }
             | api::Answer::File { .. }
             | api::Answer::Protection(_)
             | api::Answer::Settings(_)

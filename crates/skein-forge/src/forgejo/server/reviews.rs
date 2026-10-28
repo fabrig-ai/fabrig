@@ -123,6 +123,7 @@ pub(super) fn write(json: &mut Encoder, answer: &Answer) -> Result<(), writer::R
         | Answer::Comment(_)
         | Answer::Status(_)
         | Answer::Review(_)
+        | Answer::Entries(_)
         | Answer::Files(_)
         | Answer::Compare { .. }
         | Answer::Runs { .. }

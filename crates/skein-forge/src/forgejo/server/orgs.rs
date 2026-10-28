@@ -112,6 +112,7 @@ pub(super) fn write(json: &mut Encoder, answer: &super::Answer) {
         | super::Answer::Review(_)
         | super::Answer::Error(_)
         | super::Answer::Pull(_)
+        | super::Answer::Entries(_)
         | super::Answer::Files(_)
         | super::Answer::Compare { .. }
         | super::Answer::Runs { .. }

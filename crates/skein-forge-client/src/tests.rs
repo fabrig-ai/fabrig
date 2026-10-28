@@ -634,3 +634,73 @@ fn vocabulary_queued_is_accepted_for_merge() {
     let merge = Op::Write(Write::Merge { number: 1, head: [1; 32] });
     assert!(crate::api::accepts(&merge, &Answer::Queued));
 }
+
+#[test]
+fn a_directory_answer_is_pinned_and_charged_to_its_read() {
+    // A one-byte entry name plus the fixed 32-byte entry charge.
+    const ENTRY_BYTES: u32 = 33;
+    for (head, path, name, accepted) in [
+        ([3; 32], b"src".as_slice(), b"x".as_slice(), true),
+        ([4; 32], b"src", b"x", false),
+        ([3; 32], b"other", b"x", false),
+        ([3; 32], b"src", b"xx", false),
+    ] {
+        let mut h = Harness::new(LIMITS);
+        h.step(Event::Read {
+            owner: Token::new(7),
+            repository: REPO,
+            read: Read::File { head: [3; 32], path: Box::from(*b"src"), max_bytes: ENTRY_BYTES },
+        });
+        let sent = h.send().expect("directory read admitted");
+        let answer = Answer::Directory {
+            head,
+            path: Box::from(path),
+            entries: Box::new([api::Entry { name: Box::from(name), kind: api::EntryKind::File }]),
+            truncated: false,
+        };
+        let result = if accepted { Ok(answer.clone()) } else { Err(Error::InvalidAnswer) };
+        assert_eq!(h.answer(&sent, 1, Ok(answer)).as_ref(), &[Request::Read { owner: Token::new(7), result }]);
+    }
+}
+
+#[test]
+fn an_empty_file_path_reads_the_root_directory() {
+    let mut h = Harness::new(LIMITS);
+    h.step(Event::Read {
+        owner: Token::new(7),
+        repository: REPO,
+        read: Read::File { head: [3; 32], path: Box::from([]), max_bytes: 1 },
+    });
+    let sent = h.send().expect("root read admitted");
+    let answer = Answer::Directory { head: [3; 32], path: Box::from([]), entries: Box::from([]), truncated: false };
+    assert_eq!(
+        h.answer(&sent, 1, Ok(answer.clone())).as_ref(),
+        &[Request::Read { owner: Token::new(7), result: Ok(answer) }]
+    );
+}
+
+#[test]
+fn directory_bytes_do_not_use_the_row_limit() {
+    // Two one-byte names with 32 bytes of fixed storage each.
+    const PAIR_BYTES: u32 = 66;
+    let mut h = Harness::new(Limits { rows: 1, ..LIMITS });
+    h.step(Event::Read {
+        owner: Token::new(7),
+        repository: REPO,
+        read: Read::File { head: [3; 32], path: Box::from([]), max_bytes: PAIR_BYTES },
+    });
+    let sent = h.send().expect("directory read admitted");
+    let answer = Answer::Directory {
+        head: [3; 32],
+        path: Box::from([]),
+        entries: Box::new([
+            api::Entry { name: Box::from(*b"x"), kind: api::EntryKind::File },
+            api::Entry { name: Box::from(*b"y"), kind: api::EntryKind::Directory },
+        ]),
+        truncated: false,
+    };
+    assert_eq!(
+        h.answer(&sent, 1, Ok(answer.clone())).as_ref(),
+        &[Request::Read { owner: Token::new(7), result: Ok(answer) }]
+    );
+}

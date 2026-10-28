@@ -83,6 +83,7 @@ pub fn answer_rows(value: &Answer, rows: u32) -> bool {
         Answer::Located { .. }
         | Answer::Commit(_)
         | Answer::Job { .. }
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Settings(_)
         | Answer::Permission(_)

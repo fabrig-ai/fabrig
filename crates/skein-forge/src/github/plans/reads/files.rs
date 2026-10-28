@@ -3,6 +3,15 @@ use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api};
 use crate::github::plans::plan::{Exchange, Retention};
 use alloc::boxed::Box;
 impl Plan {
+    pub(super) fn directory_done(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {
+        if self.stage != Stage::Directory {
+            return Err(api::Error::InvalidAnswer);
+        }
+        let Read::File { head, path, .. } = &self.read else { return Err(api::Error::InvalidAnswer) };
+        let answer = self.directory.as_mut().ok_or(api::Error::InvalidAnswer)?.answer(*head, path.clone());
+        self.terminal(answer, bounds)
+    }
+
     pub(super) fn send_raw(&mut self, request: Request, retention: Retention) -> Step {
         self.response = Response::Head;
         self.count = 0;
@@ -49,6 +58,9 @@ impl Plan {
         };
         if u64::try_from(bytes.len()).ok().ok_or(api::Error::TooLarge)? > u64::from(self.raw_cap) {
             return Err(api::Error::TooLarge);
+        }
+        if path.is_empty() {
+            return Err(api::Error::InvalidAnswer);
         }
         let answer = api::Answer::File { head: *head, path: path.clone(), bytes, truncated: more };
         self.terminal(answer, bounds)
@@ -159,7 +171,8 @@ impl Plan {
                     return Err(api::Error::TooLarge);
                 }
             }
-            crate::github::document::Row::Installation(_)
+            crate::github::document::Row::Entry { .. }
+            | crate::github::document::Row::Installation(_)
             | crate::github::document::Row::Rule(_)
             | crate::github::document::Row::Log(_)
             | crate::github::document::Row::Reachable(_)

@@ -144,6 +144,7 @@ pub(super) fn write(json: &mut Encoder, answer: &Answer) {
         | Answer::Comment(_)
         | Answer::Status(_)
         | Answer::Review(_)
+        | Answer::Entries(_)
         | Answer::Files(_)
         | Answer::Compare { .. }
         | Answer::Runs { .. }

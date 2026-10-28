@@ -424,6 +424,7 @@ impl BodyDecoder {
                 | Request::Permission { .. }
                 | Request::PullFiles { .. }
                 | Request::Compare { .. }
+                | Request::Contents { .. }
                 | Request::Raw { .. }
                 | Request::Runs { .. }
                 | Request::Run { .. }
@@ -595,6 +596,7 @@ impl BodyDecoder {
             | Request::Permission { .. }
             | Request::PullFiles { .. }
             | Request::Compare { .. }
+            | Request::Contents { .. }
             | Request::Raw { .. }
             | Request::Runs { .. }
             | Request::Run { .. }
@@ -658,6 +660,7 @@ impl BodyDecoder {
             | Request::Permission { .. }
             | Request::PullFiles { .. }
             | Request::Compare { .. }
+            | Request::Contents { .. }
             | Request::Raw { .. }
             | Request::Runs { .. }
             | Request::Run { .. }

@@ -102,6 +102,7 @@ impl Sweep {
                 | Row::Review(_)
                 | Row::Commit(_)
                 | Row::Rule(_)
+                | Row::Entry { .. }
                 | Row::File(_) => {
                     return self.stop(b"installations", Why::Unexpected);
                 }

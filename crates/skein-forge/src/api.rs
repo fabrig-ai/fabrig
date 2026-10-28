@@ -195,6 +195,8 @@ pub enum Answer {
     Job { attempt: JobAttempt, step: Option<Step>, log: Box<[u8]>, truncated: bool },
     /// One bounded file from the requested immutable head.
     File { head: Commit, path: Box<[u8]>, bytes: Box<[u8]>, truncated: bool },
+    /// A directory's immediate entries at one head, in the forge's order.
+    Directory { head: Commit, path: Box<[u8]>, entries: Box<[Entry]>, truncated: bool },
     /// Return protection.
     Protection(Option<Protection>),
     /// Return settings.
@@ -217,6 +219,24 @@ pub enum Answer {
     Branch(BranchCreation),
     /// Return done.
     Done,
+}
+/// One immediate child of a directory.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Entry {
+    /// The child's name, without its parent's path.
+    pub name: Box<[u8]>,
+    /// Symlinks have file kind.
+    pub kind: EntryKind,
+}
+/// The kinds exposed by directory reads.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum EntryKind {
+    /// A file or symlink.
+    File,
+    /// A directory.
+    Directory,
+    /// A git submodule.
+    Submodule,
 }
 /// A typed refusal or failure of one forge call.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

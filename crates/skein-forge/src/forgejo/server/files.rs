@@ -37,6 +37,14 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
                 files: query_value(&target.query, b"files").as_deref() != Some(b"false".as_slice()),
             }
         }
+        [contents, segments @ ..] if &**contents == b"contents" => {
+            let reference = query_value(&target.query, b"ref").ok_or(Unrouted::Malformed)?;
+            Request::Contents {
+                at,
+                path: joined(segments),
+                reference: id::read(&reference).ok_or(Unrouted::Malformed)?,
+            }
+        }
         [raw, segments @ ..] if &**raw == b"raw" && !segments.is_empty() => {
             let reference = query_value(&target.query, b"ref").ok_or(Unrouted::Malformed)?;
             Request::Raw { at, path: joined(segments), reference: id::read(&reference).ok_or(Unrouted::Malformed)? }
@@ -85,6 +93,7 @@ fn file(json: &mut Encoder, value: &ChangedFile) {
 }
 pub(super) fn write(json: &mut Encoder, answer: &Answer) {
     match answer {
+        Answer::Entries(_) => unreachable!("entry encoder selection"),
         Answer::Files(values) => {
             json.array_start();
             for value in values {

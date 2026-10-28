@@ -211,6 +211,7 @@ impl Plan {
                 | d::Row::Branch(_)
                 | d::Row::Protection(_)
                 | d::Row::Pull(_)
+                | d::Row::Entry { .. }
                 | d::Row::File(_)
                 | d::Row::Commit(_)
                 | d::Row::Run(_)

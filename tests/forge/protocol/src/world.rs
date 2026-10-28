@@ -297,6 +297,31 @@ impl World {
         panic!("owner read busy after 100 tries, seed {}", self.seed);
     }
 
+    /// Seeds a visible commit without changing either world's default repository.
+    #[must_use]
+    pub fn tree(&mut self, tree: Box<[raw::File]>) -> skein_forge::api::Commit {
+        let raw::Answer::Commit(parent) = self
+            .joint
+            .direct(raw::Op::Read(raw::Read::Branch { branch: Box::from(b"main".as_slice()) }))
+            .expect("main")
+        else {
+            panic!("branch head")
+        };
+        let head = self.joint.commit_tree(parent, tree);
+        self.joint
+            .direct(raw::Op::Git(raw::Git::Push {
+                branch: Box::from(b"main".as_slice()),
+                commit: head,
+                expected: None,
+            }))
+            .expect("push tree");
+        let Answer::Commit(head) =
+            self.read(Read::Branch { branch: Box::from(b"main".as_slice()) }).expect("visible branch")
+        else {
+            panic!("branch head")
+        };
+        head
+    }
     /// The fake's items, read past the client: (number, title, open), by number.
     #[must_use]
     pub fn snapshot(&self) -> Vec<(u64, Box<[u8]>, bool)> {

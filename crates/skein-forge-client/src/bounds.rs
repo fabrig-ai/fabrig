@@ -25,7 +25,6 @@ pub(crate) fn op(value: &Op, l: &Limits) -> bool {
 }
 pub(crate) fn read(value: &Read) -> Option<u64> {
     let valid = match value {
-        Read::File { path, .. } => !path.is_empty(),
         Read::Items { page, .. }
         | Read::Reviews { page, .. }
         | Read::Statuses { page, .. }
@@ -33,7 +32,8 @@ pub(crate) fn read(value: &Read) -> Option<u64> {
         | Read::PullFiles { page, .. }
         | Read::Collaborators { page } => *page != 0,
         Read::Locate { owner, name } => return skein_forge::locate::bytes(owner, name),
-        Read::PullFor { .. }
+        Read::File { .. }
+        | Read::PullFor { .. }
         | Read::Branch { .. }
         | Read::Protection { .. }
         | Read::Job { .. }

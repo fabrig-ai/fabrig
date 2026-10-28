@@ -143,6 +143,7 @@ impl Plan {
             | document::Row::Log(_)
             | document::Row::Installation(_)
             | document::Row::Commit(_)
+            | document::Row::Entry { .. }
             | document::Row::File(_)
             | document::Row::Review(_)
             | document::Row::Remark(_)

@@ -580,3 +580,64 @@ fn first_failures() -> [FirstFailure; 2] {
         ),
     ]
 }
+
+const DIRECTORY: &[u8] = br#"[{"name":"a","type":"file"},{"name":"b","type":"dir"},{"name":"c","type":"symlink"},{"name":"d","type":"submodule"},{"name":"ignored","type":"socket"}]"#;
+// Four one-byte names, each charged the fixed 32-byte entry storage.
+const DIRECTORY_BYTES: u32 = 132;
+fn directory_entries() -> Box<[api::Entry]> {
+    Box::new([
+        api::Entry { name: Box::from(*b"a"), kind: api::EntryKind::File },
+        api::Entry { name: Box::from(*b"b"), kind: api::EntryKind::Directory },
+        api::Entry { name: Box::from(*b"c"), kind: api::EntryKind::File },
+        api::Entry { name: Box::from(*b"d"), kind: api::EntryKind::Submodule },
+    ])
+}
+#[test]
+fn a_raw_miss_reads_the_contents_and_lists_a_directory() {
+    for path in [b"src".as_slice(), b""] {
+        let mut run =
+            Run::known(Op::Read(Read::File { head: HEAD, path: Box::from(path), max_bytes: DIRECTORY_BYTES }));
+        run.begin();
+        if !path.is_empty() {
+            run.answer(404, b"{}");
+        }
+        assert_eq!(
+            run.answer(200, DIRECTORY),
+            Step::Done(Ok(Answer::Directory {
+                head: HEAD,
+                path: Box::from(path),
+                entries: directory_entries(),
+                truncated: false
+            }))
+        );
+    }
+}
+#[test]
+fn a_raw_and_contents_miss_is_missing() {
+    let mut run =
+        Run::known(Op::Read(Read::File { head: HEAD, path: Box::from(*b"gone"), max_bytes: DIRECTORY_BYTES }));
+    run.begin();
+    run.answer(404, b"{}");
+    assert_eq!(run.answer(404, b"{}"), Step::Done(Err(Error::Missing)));
+}
+#[test]
+fn directory_entries_fill_the_byte_bound_or_are_cut() {
+    for (max_bytes, kept, truncated) in [(DIRECTORY_BYTES, 4, false), (DIRECTORY_BYTES - 1, 3, true)] {
+        for path in [b"src".as_slice(), b""] {
+            let answer_bytes = max_bytes + u32::try_from(path.len()).unwrap();
+            let mut run = Run::with(
+                crate::forgejo::plans::plan::Bounds { answer_bytes, rows: 1, ..BOUNDS },
+                Op::Read(Read::File { head: HEAD, path: Box::from(path), max_bytes: DIRECTORY_BYTES }),
+            );
+            run.begin();
+            if !path.is_empty() {
+                run.answer(404, b"{}");
+            }
+            let entries = Box::from(directory_entries().get(..kept).unwrap());
+            assert_eq!(
+                run.answer(200, DIRECTORY),
+                Step::Done(Ok(Answer::Directory { head: HEAD, path: Box::from(path), entries, truncated }))
+            );
+        }
+    }
+}

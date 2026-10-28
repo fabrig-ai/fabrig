@@ -63,6 +63,7 @@ pub enum Kind {
     ReviewRows,
     /// A comparison envelope with streamed commits and filenames.
     Compare,
+    EntryRows,
     FileRows,
     Error,
 }
@@ -90,6 +91,11 @@ pub struct Branch {
 /// A streamed listing row.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Row {
+    /// One directory entry; unknown kinds are omitted by the plan.
+    Entry {
+        name: Box<[u8]>,
+        kind: Option<api::EntryKind>,
+    },
     Rule(Rule),
     Log(super::log::Row),
     Installation(Installation),

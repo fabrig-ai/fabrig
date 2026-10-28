@@ -120,15 +120,7 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
             }
             Ok(Answer::Tree(files.into_boxed()))
         }
-        Read::File { commit, path } => {
-            if !repository.has.contains(commit) {
-                return Err(Error::Missing(What::Commit));
-            }
-            match domain.commits.get(commit).expect("a commit of the store").tree.get(&**path) {
-                Some(content) => Ok(Answer::File(copy_of(content))),
-                None => Err(Error::Missing(What::File)),
-            }
-        }
+        Read::File { commit, path } => file(domain, repository, *commit, path),
         Read::Pages { after } => Ok(wiki::pages(repository, limits, after.as_deref())),
         Read::Page { name } => wiki::page(repository, name),
     }
@@ -246,4 +238,42 @@ fn open_pulls(
         answer.push(pull).expect("a pull page");
     }
     Ok(Answer::Pulls(answer.into_boxed()))
+}
+
+fn file(domain: &Domain, repository: &Repository, commit: u64, path: &[u8]) -> Result<Answer, Error> {
+    if !repository.has.contains(&commit) {
+        return Err(Error::Missing(What::Commit));
+    }
+    let tree = &domain.commits.get(&commit).expect("a commit of the store").tree;
+    if !path.is_empty()
+        && let Some(content) = tree.get(path)
+    {
+        return Ok(Answer::File(copy_of(content)));
+    }
+    let mut children = skein_lib::Map::with_capacity(tree.len());
+    for (key, _) in tree {
+        let child = if path.is_empty() {
+            key.as_ref()
+        } else {
+            let Some(tail) = key.strip_prefix(path) else { continue };
+            let Some(child) = tail.strip_prefix(b"/") else { continue };
+            child
+        };
+        let (name, kind) = match skein_lib::bytes::find(child, b"/") {
+            Some(at) => (child.get(..at).expect("slash position"), crate::api::EntryKind::Directory),
+            None => (child, crate::api::EntryKind::File),
+        };
+        // An exact key is a file even when other keys have it as their prefix.
+        if children.get(name).is_none() || kind == crate::api::EntryKind::File {
+            children.insert(copy_of(name), kind).expect("at most one child per key");
+        }
+    }
+    if children.is_empty() {
+        return Err(Error::Missing(What::File));
+    }
+    let mut entries = List::with_capacity(children.len());
+    for (name, kind) in &children {
+        entries.push(crate::api::Entry { name: copy_of(name), kind: *kind }).expect("one entry per child");
+    }
+    Ok(Answer::Directory(entries.into_boxed()))
 }

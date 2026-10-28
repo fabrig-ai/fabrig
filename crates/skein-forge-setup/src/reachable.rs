@@ -345,6 +345,7 @@ impl Reachable {
                 | github_document::Row::Review(_)
                 | github_document::Row::Commit(_)
                 | github_document::Row::Rule(_)
+                | github_document::Row::Entry { .. }
                 | github_document::Row::File(_) => return Err(Why::Unexpected),
             };
             reached
@@ -436,6 +437,7 @@ impl Reachable {
                     | Row::Branch(_)
                     | Row::Protection(_)
                     | Row::Pull(_)
+                    | Row::Entry { .. }
                     | Row::File(_)
                     | Row::Commit(_)
                     | Row::Run(_)

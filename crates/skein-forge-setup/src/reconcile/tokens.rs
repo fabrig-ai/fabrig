@@ -198,6 +198,7 @@ impl Tokens {
                 | Row::Branch(_)
                 | Row::Protection(_)
                 | Row::Pull(_)
+                | Row::Entry { .. }
                 | Row::File(_)
                 | Row::Commit(_)
                 | Row::Run(_)

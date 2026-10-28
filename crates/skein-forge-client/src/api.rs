@@ -45,7 +45,7 @@ fn shape(answer: &Answer) -> Shape {
         Answer::Compare { .. } => Shape::Compare,
         Answer::Checks(_) => Shape::Checks,
         Answer::Job { .. } => Shape::Job,
-        Answer::File { .. } => Shape::File,
+        Answer::Directory { .. } | Answer::File { .. } => Shape::File,
         Answer::Protection(_) => Shape::Protection,
         Answer::Settings(_) => Shape::Settings,
         Answer::Collaborators { .. } => Shape::Collaborators,
@@ -118,6 +118,7 @@ pub(crate) fn accepts(op: &Op, answer: &Answer) -> bool {
                 | Answer::Branches(_)
                 | Answer::PullFiles { .. }
                 | Answer::Compare { .. }
+                | Answer::Directory { .. }
                 | Answer::File { .. }
                 | Answer::Checks(_)
                 | Answer::Protection(_)
@@ -191,6 +192,7 @@ fn checks_at_head(answer: &Answer, head: Commit) -> bool {
         | Answer::Branches(_)
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
@@ -240,6 +242,7 @@ fn items_ordered(answer: &Answer, kind: Option<Kind>) -> bool {
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
@@ -278,6 +281,7 @@ fn reviews_ordered(answer: &Answer) -> bool {
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
@@ -319,6 +323,7 @@ fn item_matches(answer: &Answer, number: u64, after: u64) -> bool {
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
@@ -348,6 +353,7 @@ fn pull_answer(answer: &Answer) -> Option<&Pull> {
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
@@ -377,6 +383,7 @@ fn observed_head(answer: &Answer) -> Option<Commit> {
         | Answer::Branches(_)
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
@@ -408,6 +415,7 @@ fn compared(answer: &Answer, before: Commit, after: Commit) -> bool {
         | Answer::Branches(_)
         | Answer::PullFiles { .. }
         | Answer::Checks(_)
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
@@ -426,8 +434,15 @@ fn compared(answer: &Answer, before: Commit, after: Commit) -> bool {
 
 fn file_matches(answer: &Answer, head: Commit, path: &[u8], max_bytes: u32) -> bool {
     match answer {
+        Answer::Directory { head: received, path: received_path, .. } => {
+            let Some(size) = skein_forge::measure::answer(answer) else { return false };
+            let Ok(path_bytes) = u64::try_from(path.len()) else { return false };
+            let Some(payload) = size.checked_sub(path_bytes) else { return false };
+            *received == head && received_path.as_ref() == path && payload <= u64::from(max_bytes)
+        }
         Answer::File { head: received, path: received_path, bytes, .. } => {
-            *received == head
+            !path.is_empty()
+                && *received == head
                 && received_path.as_ref() == path
                 && bytes.len() <= usize::try_from(max_bytes).expect("u32 fits usize")
         }

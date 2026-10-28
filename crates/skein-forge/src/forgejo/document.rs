@@ -98,6 +98,11 @@ pub struct Reachable {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Row {
+    /// One directory entry; unknown kinds are omitted by the plan.
+    Entry {
+        name: Box<[u8]>,
+        kind: Option<crate::api::EntryKind>,
+    },
     /// Retains every repository so the setup host can filter after counting the page.
     Reachable(Reachable),
     /// Admin search reaches every repository, so each row has push set true.

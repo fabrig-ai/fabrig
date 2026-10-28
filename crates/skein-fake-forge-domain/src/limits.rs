@@ -123,7 +123,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let scratch = queue_scratch
         .checked_add(Set::<u64>::worst_case(limits.commits)?.checked_mul(2)?)?
         .checked_add(Queue::<u64>::worst_case(limits.commits)?)?
-        .checked_add(tree(limits)?)?
+        // One step projects a directory or builds a merge tree.
+        .checked_add(tree(limits)?.max(directory_scratch(limits)?))?
         .checked_add(changes(limits)?)?
         .checked_add(List::<StatusView>::worst_case(limits.contexts)?)?
         .checked_add(List::<u64>::worst_case(limits.commits)?)?
@@ -334,4 +335,10 @@ fn names(count: u32, limits: &Limits) -> Option<u64> {
 
 fn times(count: u32, each: u64) -> Option<u64> {
     u64::from(count).checked_mul(each)
+}
+
+fn directory_scratch(limits: &Limits) -> Option<u64> {
+    Map::<Box<[u8]>, crate::api::EntryKind>::worst_case(limits.files)?
+        .checked_add(List::<crate::api::Entry>::worst_case(limits.files)?)?
+        .checked_add(u64::from(limits.files).checked_mul(u64::from(limits.name_bytes))?.checked_mul(2)?)
 }

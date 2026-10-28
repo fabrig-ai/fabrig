@@ -633,6 +633,7 @@ impl Component {
                 | document::Row::Remark(_)
                 | document::Row::Review(_)
                 | document::Row::Commit(_)
+                | document::Row::Entry { .. }
                 | document::Row::File(_),
             )
             | Heard::Done(_)

@@ -52,6 +52,8 @@ pub(super) enum Node {
     ReviewRows,
     Compare,
     MergeBaseOnly,
+    EntryRows,
+    Entry,
     FileRows,
     FileRow,
     CompareCommits,
@@ -277,6 +279,7 @@ fn document_fields(node: Node) -> &'static [Field] {
         Node::MergeBaseOnly => {
             const { &[field(b"merge_base_commit", Read::Container(Role::Document(Node::MergeBase)))] }
         }
+        Node::Entry => const { &[field(b"name", Read::Text), field(b"type", Read::Text)] },
         Node::FileRow => {
             const {
                 &[
@@ -495,6 +498,7 @@ fn document_fields(node: Node) -> &'static [Field] {
         | Node::LogRows
         | Node::AppPermissions
         | Node::AppEvents
+        | Node::EntryRows
         | Node::FileRows
         | Node::CompareCommits
         | Node::CompareFiles
@@ -527,6 +531,7 @@ fn element(role: Role) -> Option<Role> {
         Node::JobSteps => Some(Role::Document(Node::JobStep)),
         Node::LogRows => Some(Role::Document(Node::LogRow)),
         Node::AppEvents => Some(Role::Document(Node::AppEvents)),
+        Node::EntryRows => Some(Role::Document(Node::Entry)),
         Node::FileRows => Some(Role::Document(Node::FileRow)),
         Node::CompareCommits => Some(Role::Document(Node::CompareCommit)),
         Node::CompareFiles => Some(Role::Document(Node::CompareFile)),
@@ -602,6 +607,7 @@ fn element(role: Role) -> Option<Role> {
         | Node::Permission
         | Node::Compare
         | Node::MergeBaseOnly
+        | Node::Entry
         | Node::FileRow
         | Node::CompareCommit
         | Node::CompareFile
@@ -683,6 +689,7 @@ impl Walk {
             document::Kind::BotUser => Node::BotUser,
             document::Kind::User => Node::User,
             document::Kind::Permission => Node::Permission,
+            document::Kind::EntryRows => Node::EntryRows,
             document::Kind::FileRows => Node::FileRows,
             document::Kind::Compare => Node::Compare,
             document::Kind::ReviewRows => Node::ReviewRows,

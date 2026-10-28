@@ -13,6 +13,8 @@ use alloc::boxed::Box;
 use skein_lib::Writer;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum FileKind {
+    Entry,
+    Entries,
     File,
     Files,
     Commit,
@@ -24,6 +26,7 @@ const fn field(key: &'static [u8], read: Read, required: bool) -> Field {
 }
 pub(crate) fn fields(kind: FileKind) -> &'static [Field] {
     match kind {
+        FileKind::Entry => const { &[field(b"name", Read::Text, true), field(b"type", Read::Text, true)] },
         FileKind::File => {
             const {
                 &[
@@ -43,14 +46,15 @@ pub(crate) fn fields(kind: FileKind) -> &'static [Field] {
                 ]
             }
         }
-        FileKind::Files | FileKind::Commits => &[],
+        FileKind::Entries | FileKind::Files | FileKind::Commits => &[],
     }
 }
 pub(crate) fn element(kind: FileKind) -> Option<Kind> {
     match kind {
+        FileKind::Entries => Some(Kind::File(FileKind::Entry)),
         FileKind::Files => Some(Kind::File(FileKind::File)),
         FileKind::Commits => Some(Kind::File(FileKind::Commit)),
-        FileKind::File | FileKind::Commit | FileKind::Compare => None,
+        FileKind::Entry | FileKind::File | FileKind::Commit | FileKind::Compare => None,
     }
 }
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
@@ -78,6 +82,16 @@ fn target(request: &Request, out: &mut Target) {
             out.put(b"...");
             out.put(&id::write(after));
             out.put(if *files { b"?verification=false" } else { b"?files=false&verification=false" });
+        }
+        Request::Contents { at, path, reference } => {
+            out.repo(at);
+            out.put(b"/contents");
+            if !path.is_empty() {
+                out.put(b"/");
+                out.file(path);
+            }
+            out.put(b"?ref=");
+            out.put(&id::write(reference));
         }
         Request::Raw { at, path, reference } => {
             out.repo(at);
@@ -184,6 +198,8 @@ fn file() -> ChangedFile {
 #[derive(Debug)]
 pub(super) struct Files {
     root: FileKind,
+    name: Box<[u8]>,
+    kind: Option<crate::api::EntryKind>,
     file: ChangedFile,
     commit: ObjectId,
     compare: Compare,
@@ -192,6 +208,8 @@ impl Files {
     pub(super) fn new(root: FileKind) -> Self {
         Self {
             root,
+            name: Box::from([]),
+            kind: None,
             file: file(),
             commit: ObjectId { format: ObjectFormat::Sha1, bytes: [0; 32] },
             compare: Compare { total_commits: 0 },
@@ -204,13 +222,17 @@ impl Files {
                 Ok(()) => Step::Demand(skein_json::tokenizer::Request::Next),
                 Err(error) => Step::Malformed(error),
             },
+            Move::End(Kind::File(FileKind::Entry)) => Step::Row(
+                Row::Entry { name: core::mem::replace(&mut self.name, Box::from([])), kind: self.kind.take() },
+                skein_json::tokenizer::Request::Next,
+            ),
             Move::End(Kind::File(FileKind::File)) => {
                 Step::Row(Row::File(core::mem::replace(&mut self.file, file())), skein_json::tokenizer::Request::Next)
             }
             Move::End(Kind::File(FileKind::Commit)) => {
                 Step::Row(Row::Commit(self.commit), skein_json::tokenizer::Request::Next)
             }
-            Move::End(Kind::File(FileKind::Files | FileKind::Commits | FileKind::Compare)) => {
+            Move::End(Kind::File(FileKind::Entries | FileKind::Files | FileKind::Commits | FileKind::Compare)) => {
                 Step::Demand(skein_json::tokenizer::Request::Next)
             }
             Move::End(
@@ -231,8 +253,10 @@ impl Files {
             ) => unreachable!("file tables"),
             Move::Done => Step::Done(match self.root {
                 FileKind::Compare => Document::Compare(self.compare),
-                FileKind::Files => Document::Listed { skipped: walk.skipped() },
-                FileKind::File | FileKind::Commit | FileKind::Commits => unreachable!("file root selection"),
+                FileKind::Entries | FileKind::Files => Document::Listed { skipped: walk.skipped() },
+                FileKind::Entry | FileKind::File | FileKind::Commit | FileKind::Commits => {
+                    unreachable!("file root selection")
+                }
             }),
         }
     }
@@ -241,6 +265,8 @@ impl Files {
             Value::Number(n) => self.compare.total_commits = n,
             Value::Id(id) => self.commit = id.expect("required comparison commit"),
             Value::Text(text) => match key {
+                b"name" => self.name = text,
+                b"type" => self.kind = crate::directory::kind(&text),
                 b"filename" => self.file.filename = text,
                 b"previous_filename" => self.file.previous_filename = Some(text),
                 b"status" => self.file.status = status(&text).ok_or(Malformed::Value { field: key })?,

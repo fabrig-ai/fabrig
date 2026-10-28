@@ -213,6 +213,7 @@ fn keep_installation(
         Row::Installation(row) => row,
         Row::Log(_)
         | Row::Commit(_)
+        | Row::Entry { .. }
         | Row::File(_)
         | Row::Review(_)
         | Row::Remark(_)

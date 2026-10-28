@@ -837,6 +837,7 @@ fn forgejo_call_heap(l: &Limits, s: &Shared) -> Option<u64> {
             u64::from(s.op_bytes.checked_div(8)?.checked_add(l.inner)?).checked_mul(u64::from(l.string_bytes))?,
         )?
         .checked_add(u64::from(s.answer_bytes))?
+        .checked_add(directory_heap(s)?)?
         .checked_add(List::<skein_forge::forgejo::document::ChangedFile>::worst_case(s.rows)?)?
         .checked_add(u64::from(s.rows).checked_mul(u64::from(l.string_bytes).checked_mul(2)?)?)?
         .checked_add(List::<api::File>::worst_case(s.rows)?)?
@@ -909,7 +910,7 @@ pub(crate) fn github_call_heap(l: &Limits, s: &Shared) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<github::plans::writes::Plan>()).ok()?)?
         .checked_add(github_tables_heap(l, 1, 1)?)?
         .checked_add(List::<crate::installations::Selected>::worst_case(l.installations)?)?
-        .checked_add(read)?
+        .checked_add(read.max(directory_heap(s)?))?
         // Protection keeps distinct ruleset ids beside its context union.
         .checked_add(List::<u64>::worst_case(l.inner)?)?
         .checked_add(reviewers)?
@@ -994,3 +995,10 @@ pub(crate) fn header_value(value: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests;
+
+// A directory reserves by bytes alone; its names fit the answer payload envelope.
+fn directory_heap(s: &Shared) -> Option<u64> {
+    let entries = s.answer_bytes.checked_div(u32::try_from(skein_forge::measure::ENTRY_BYTES).ok()?)?;
+    skein_lib::List::<api::Entry>::worst_case(entries)?
+        .checked_add(u64::try_from(size_of::<(skein_lib::List<api::Entry>, u32, bool)>()).ok()?)
+}

@@ -76,6 +76,7 @@ impl Plan {
             },
             document::Document::Issue(issue) => self.issue_done(issue, bounds, word),
             document::Document::Rows => match self.read {
+                Read::File { .. } => self.directory_done(bounds),
                 Read::Protection { .. } => self.protection_rows_done(),
                 Read::Checks { .. } => self.checks_runs_done(bounds),
                 Read::PullFiles { .. } => self.file_listing_done(bounds),
@@ -89,7 +90,6 @@ impl Plan {
                 | Read::Branch { .. }
                 | Read::Branches { .. }
                 | Read::Permission { .. }
-                | Read::File { .. }
                 | Read::Compare { .. }
                 | Read::Job { .. } => self.branches_done(bounds),
             },

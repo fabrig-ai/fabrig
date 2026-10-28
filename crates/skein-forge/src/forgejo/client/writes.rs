@@ -140,6 +140,7 @@ fn target(request: &Request, out: &mut Target) -> (Method, bool) {
         | Request::Permission { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
@@ -292,6 +293,7 @@ fn write(json: &mut Encoder, request: &Request) {
         | Request::Permission { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }

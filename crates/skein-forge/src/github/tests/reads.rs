@@ -603,12 +603,7 @@ fn github_file_raw_target_and_prefix() {
     );
 }
 #[test]
-fn github_file_directory_and_missing() {
-    let mut call = Call::new(file_read(3), bounds(), true);
-    call.begin().unwrap();
-    let mut head = Head::new();
-    head.json = true;
-    assert_eq!(call.heard(Heard::Head { status: 200, head }), ended(Err(api::Error::Missing)));
+fn github_file_missing_and_invalid_answers() {
     for status in [404, 410] {
         let mut call = Call::new(file_read(3), bounds(), true);
         call.begin().unwrap();
@@ -1210,4 +1205,49 @@ fn github_empty_collaborator_role_is_none() {
         Document::Rows,
         &[Row::Collaborator(collaborator(1, api::Permission::None))],
     );
+}
+
+#[test]
+fn github_directory_entries_fill_the_byte_bound_or_are_cut() {
+    // Four single-byte names and their fixed entry storage.
+    const ENTRIES_BYTES: u32 = 132;
+    let wire = br#"[{"name":"a","type":"file"},{"name":"b","type":"dir"},{"name":"c","type":"symlink"},{"name":"d","type":"submodule"},{"name":"ignored","type":"socket"}]"#;
+    for path in [b"src".as_slice(), b""] {
+        for (room, max_bytes, kept, truncated) in [
+            (ENTRIES_BYTES, ENTRIES_BYTES, 4, false),
+            (ENTRIES_BYTES - 1, ENTRIES_BYTES, 3, true),
+            (ENTRIES_BYTES, ENTRIES_BYTES - 1, 3, true),
+        ] {
+            let (rows, result) = decode(Kind::EntryRows, wire, 1, &limits());
+            assert_eq!(result, Ok(Document::Rows));
+            let read = api::Read::File { head: review(1).commit, path: Box::from(path), max_bytes };
+            let mut call = Call::new(
+                read,
+                Bounds { answer_bytes: room + u32::try_from(path.len()).unwrap(), rows: 1, ..bounds() },
+                true,
+            );
+            call.begin().unwrap();
+            let mut head = Head::new();
+            head.json = true;
+            call.heard(Heard::Head { status: 200, head }).unwrap();
+            for row in rows.into_boxed() {
+                call.heard(Heard::Row(row)).unwrap();
+            }
+            let entries = [
+                api::Entry { name: Box::from(*b"a"), kind: api::EntryKind::File },
+                api::Entry { name: Box::from(*b"b"), kind: api::EntryKind::Directory },
+                api::Entry { name: Box::from(*b"c"), kind: api::EntryKind::File },
+                api::Entry { name: Box::from(*b"d"), kind: api::EntryKind::Submodule },
+            ];
+            assert_eq!(
+                call.done(Document::Rows),
+                ended(Ok(api::Answer::Directory {
+                    head: review(1).commit,
+                    path: Box::from(path),
+                    entries: Box::from(entries.get(..kept).unwrap()),
+                    truncated
+                }))
+            );
+        }
+    }
 }

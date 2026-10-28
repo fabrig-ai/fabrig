@@ -433,6 +433,7 @@ impl Plan {
             | d::Row::Token(_)
             | d::Row::Hook(_)
             | d::Row::Team(_)
+            | d::Row::Entry { .. }
             | d::Row::File(_)
             | d::Row::Commit(_)
             | d::Row::Run(_)
@@ -496,6 +497,7 @@ impl Plan {
             | api::Answer::Compare { .. }
             | api::Answer::Checks(_)
             | api::Answer::Job { .. }
+            | api::Answer::Directory { .. }
             | api::Answer::File { .. }
             | api::Answer::Protection(_)
             | api::Answer::Settings(_)
@@ -637,6 +639,7 @@ impl Plan {
             | api::Answer::Compare { .. }
             | api::Answer::Checks(_)
             | api::Answer::Job { .. }
+            | api::Answer::Directory { .. }
             | api::Answer::File { .. }
             | api::Answer::Protection(_)
             | api::Answer::Settings(_)

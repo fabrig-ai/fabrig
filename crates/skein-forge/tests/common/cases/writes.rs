@@ -142,6 +142,7 @@ pub fn expected(answer: Answer) -> Document {
         | Answer::Search { .. }
         | Answer::Issues(_)
         | Answer::Comments(_)
+        | Answer::Entries(_)
         | Answer::Files(_)
         | Answer::Compare { .. }
         | Answer::Runs { .. }

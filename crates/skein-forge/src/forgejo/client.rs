@@ -77,6 +77,7 @@ pub fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
         | Request::DeleteBranch { .. } => writes::encode(request, limits),
         Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
@@ -153,6 +154,7 @@ pub fn decoder(request: &Request, limits: &Limits) -> Option<Decoder> {
         | Request::Merge { .. }
         | Request::RequestReviewers { .. }
         | Request::RemoveReviewers { .. } => return None,
+        Request::Contents { .. } => Kind::File(FileKind::Entries),
         Request::PullFiles { .. } => Kind::File(FileKind::Files),
         Request::Compare { .. } => Kind::File(FileKind::Compare),
         Request::Runs { .. } => Kind::Action(ActionKind::Listing),

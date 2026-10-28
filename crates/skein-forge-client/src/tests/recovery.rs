@@ -303,7 +303,6 @@ fn invalid_reads_make_no_call() {
         Read::Remarks { number: 9, review: 1, page: 0 },
         Read::PullFiles { number: 9, head: [1; 32], page: 0 },
         Read::Collaborators { page: 0 },
-        Read::File { head: [1; 32], path: Box::new([]), max_bytes: 1 },
         Read::File { head: [1; 32], path: Box::from(&b"kit"[..]), max_bytes: 0 },
         Read::File { head: [1; 32], path: Box::from(&b"kit"[..]), max_bytes: fixture::EXCESS_ANSWER_BYTES },
         Read::Job { attempt: api::JobAttempt { head: [1; 32], run: 1, job: 1, attempt: 1 }, max_bytes: 0 },

@@ -177,7 +177,8 @@ pub fn expected(answer: Answer) -> (Document, Vec<Row>) {
         Answer::CombinedStatus { state, statuses, .. } => {
             (Document::CombinedStatus(state), statuses.into_vec().into_iter().map(Row::Status).collect())
         }
-        Answer::Org(_)
+        Answer::Entries(_)
+        | Answer::Org(_)
         | Answer::CreatedRepository(_)
         | Answer::CreatedFile { .. }
         | Answer::Team(_)

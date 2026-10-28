@@ -14,6 +14,8 @@ pub const COMMENT_BYTES: usize = 96;
 pub const REMARK_BYTES: usize = 64;
 /// Fixed bytes for one file list element.
 pub const FILE_BYTES: usize = 64;
+/// Covers an owned name's fat pointer, kind and native padding, independent of row limits.
+pub const ENTRY_BYTES: usize = 32;
 /// Fixed bytes for one commit list element.
 pub const COMMIT_BYTES: usize = 32;
 /// Fixed bytes for one collaborator list element.
@@ -28,6 +30,7 @@ const _: () = {
     assert!(STATUS_BYTES >= size_of::<api::Status>(), "status width covers native storage");
     assert!(COMMENT_BYTES >= size_of::<api::Comment>(), "comment width covers native storage");
     assert!(REMARK_BYTES >= size_of::<api::Remark>(), "remark width covers native storage");
+    assert!(ENTRY_BYTES >= size_of::<api::Entry>(), "entry width covers native storage");
     assert!(FILE_BYTES >= size_of::<File>(), "file width covers native storage");
     assert!(COMMIT_BYTES >= size_of::<api::Commit>(), "commit width covers native storage");
     assert!(COLLABORATOR_BYTES >= size_of::<api::Collaborator>(), "collaborator width covers native storage");
@@ -154,6 +157,13 @@ pub fn answer(value: &Answer) -> Option<u64> {
             None => 0,
         }),
         Answer::File { path, bytes: value, .. } => bytes(path)?.checked_add(bytes(value)?),
+        Answer::Directory { path, entries, .. } => {
+            let mut held = bytes(path)?.checked_add(rows(entries.len(), ENTRY_BYTES)?)?;
+            for entry in entries {
+                held = held.checked_add(bytes(&entry.name)?)?;
+            }
+            Some(held)
+        }
         Answer::Remarks { remarks, .. } => {
             let mut held = rows(remarks.len(), REMARK_BYTES)?;
             for remark in remarks {

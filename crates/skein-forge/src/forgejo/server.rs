@@ -113,6 +113,7 @@ pub enum Answer {
     Review(Review),
     Error(crate::forgejo::document::ErrorBody),
     Pull(PullRequest),
+    Entries(Box<[crate::api::Entry]>),
     Files(Box<[crate::forgejo::document::ChangedFile]>),
     Compare {
         compare: crate::forgejo::document::Compare,
@@ -205,6 +206,10 @@ fn write(json: &mut writer::Encoder, answer: &Answer) -> Result<(), writer::Refu
             Ok(())
         }
         Answer::Review(value) => reviews::review(json, value),
+        Answer::Entries(entries) => {
+            crate::directory::write(json, entries);
+            Ok(())
+        }
         Answer::Files(_) | Answer::Compare { .. } => {
             files::write(json, answer);
             Ok(())

@@ -450,6 +450,8 @@ pub enum Answer {
     Commit(u64),
     Tree(Box<[File]>),
     File(Box<[u8]>),
+    /// Immediate children, in byte order.
+    Directory(Box<[Entry]>),
     /// A page of wiki page names, and the last of them if there may be more.
     Pages {
         pages: Box<[PageName]>,
@@ -878,4 +880,17 @@ pub struct Protection {
     pub contexts: Box<[Box<[u8]>]>,
     pub approvals: u32,
     pub dismiss_stale: bool,
+}
+
+/// One immediate child in a fake repository's flat tree.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Entry {
+    pub name: Box<[u8]>,
+    pub kind: EntryKind,
+}
+/// Kinds represented by the fake's paths to bytes.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum EntryKind {
+    File,
+    Directory,
 }

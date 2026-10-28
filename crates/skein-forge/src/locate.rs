@@ -22,6 +22,7 @@ pub fn accepts(answer: &Answer) -> bool {
         | Answer::Compare { .. }
         | Answer::Checks(_)
         | Answer::Job { .. }
+        | Answer::Directory { .. }
         | Answer::File { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)

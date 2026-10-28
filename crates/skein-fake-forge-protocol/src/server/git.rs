@@ -198,6 +198,7 @@ pub(super) fn down(
             | api::Answer::Dependencies(_)
             | api::Answer::Labels(_)
             | api::Answer::Tree(_)
+            | api::Answer::Directory(_)
             | api::Answer::File(_)
             | api::Answer::Pages { .. }
             | api::Answer::Page(_)

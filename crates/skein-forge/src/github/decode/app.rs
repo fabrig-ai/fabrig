@@ -122,6 +122,8 @@ impl State {
             | Node::User
             | Node::Compare
             | Node::MergeBaseOnly
+            | Node::EntryRows
+            | Node::Entry
             | Node::FileRows
             | Node::FileRow
             | Node::CompareCommits
@@ -210,6 +212,7 @@ impl State {
             | Kind::PullGraphql
             | Kind::User
             | Kind::Compare
+            | Kind::EntryRows
             | Kind::FileRows
             | Kind::ReviewRows
             | Kind::RemarkRows
@@ -329,6 +332,8 @@ impl State {
                 | Node::User
                 | Node::Compare
                 | Node::MergeBaseOnly
+                | Node::EntryRows
+                | Node::Entry
                 | Node::FileRows
                 | Node::FileRow
                 | Node::CompareCommits

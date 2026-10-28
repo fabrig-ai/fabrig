@@ -218,6 +218,7 @@ impl Store {
             | Request::Pulls { .. }
             | Request::PullFiles { .. }
             | Request::Compare { .. }
+            | Request::Contents { .. }
             | Request::Raw { .. }
             | Request::Runs { .. }
             | Request::Run { .. }
@@ -287,6 +288,7 @@ impl Store {
             | Request::Pulls { .. }
             | Request::PullFiles { .. }
             | Request::Compare { .. }
+            | Request::Contents { .. }
             | Request::Raw { .. }
             | Request::Runs { .. }
             | Request::Run { .. }

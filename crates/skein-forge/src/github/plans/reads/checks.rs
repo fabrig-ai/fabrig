@@ -121,6 +121,7 @@ impl Plan {
             | document::Row::Remark(_)
             | document::Row::Review(_)
             | document::Row::Commit(_)
+            | document::Row::Entry { .. }
             | document::Row::File(_) => return Err(api::Error::InvalidAnswer),
         };
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;

@@ -84,6 +84,15 @@ impl Driver {
             Self::Github(_) => crate::github_fixture::PATH,
         }
     }
+    pub fn commit_tree(&mut self, parent: u64, tree: Box<[raw::File]>) -> u64 {
+        dispatch!(
+            self,
+            w,
+            fake::commit(&mut w.domain, &w.fake_env.limits, parent, tree, b"directory fixture")
+                .expect("tree fits")
+                .expect("changed tree")
+        )
+    }
     pub fn direct(&mut self, op: raw::Op) -> Result<raw::Answer, raw::Error> {
         dispatch!(self, w, w.direct(op))
     }

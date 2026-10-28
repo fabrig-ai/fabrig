@@ -65,6 +65,7 @@ enum Stage {
     ResolveUser,
     Permission,
     Raw,
+    Directory,
     Compare,
     FilePull,
     MergeBase,
@@ -102,6 +103,7 @@ pub struct Plan {
     reviews: List<api::Review>,
     last_review: u64,
     raw_cap: u32,
+    directory: Option<Box<crate::directory::Listing>>,
     job_step: Option<api::Step>,
     files: files::State,
     protection: protection::State,
@@ -151,6 +153,7 @@ impl Plan {
             reviews: List::with_capacity(0),
             last_review: 0,
             raw_cap: 0,
+            directory: None,
             job_step: None,
             files: files::State::new(),
             protection: protection::State::new(),
@@ -334,7 +337,8 @@ impl Plan {
                 if status == 200 {
                     if head.json {
                         if self.stage == Stage::Raw {
-                            return Err(api::Error::Missing);
+                            self.stage = Stage::Directory;
+                            self.directory = Some(Box::new(crate::directory::Listing::new(self.raw_cap)));
                         }
                         if self.stage == Stage::Before || self.stage == Stage::After {
                             return Err(api::Error::InvalidAnswer);
@@ -482,6 +486,14 @@ impl Plan {
         match self.read {
             Read::Protection { .. } => return self.protection_row(row, bounds),
             Read::Checks { .. } => return self.checks_row(row, bounds),
+            Read::File { .. } => {
+                if self.stage != Stage::Directory {
+                    return Err(api::Error::InvalidAnswer);
+                }
+                let document::Row::Entry { name, kind } = row else { return Err(api::Error::InvalidAnswer) };
+                self.directory.as_mut().ok_or(api::Error::InvalidAnswer)?.keep(name, kind);
+                return Ok(());
+            }
             Read::Compare { .. } | Read::PullFiles { .. } => return self.file_row(row, bounds),
             Read::Reviews { .. } => return self.review_row(row, bounds, word),
             Read::Remarks { .. } => return self.remark_row(row, bounds),
@@ -493,7 +505,6 @@ impl Plan {
             | Read::Branch { .. }
             | Read::Branches { .. }
             | Read::Permission { .. }
-            | Read::File { .. }
             | Read::Job { .. } => {}
         }
         if self.stage != Stage::Read {
@@ -529,6 +540,7 @@ impl Plan {
             | document::Row::Context(_)
             | document::Row::Run(_)
             | document::Row::Commit(_)
+            | document::Row::Entry { .. }
             | document::Row::File(_)
             | document::Row::Review(_)
             | document::Row::Remark(_)

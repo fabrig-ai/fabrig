@@ -536,7 +536,8 @@ fn forgejo_row_bound(request: &request::Request) -> Option<u32> {
         | Request::DeleteToken { .. }
         | Request::UserOf { .. }
         | Request::CreateUser { .. } => Some(0),
-        Request::OrgHooks { .. }
+        Request::Contents { .. }
+        | Request::OrgHooks { .. }
         | Request::CreateOrgHook { .. }
         | Request::EditOrgHook { .. }
         | Request::DeleteOrgHook { .. }

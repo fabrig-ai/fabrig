@@ -239,6 +239,11 @@ pub enum Request {
         after: crate::forgejo::id::ObjectId,
         files: bool,
     },
+    Contents {
+        at: Repo,
+        path: Box<[u8]>,
+        reference: crate::forgejo::id::ObjectId,
+    },
     Raw {
         at: Repo,
         path: Box<[u8]>,

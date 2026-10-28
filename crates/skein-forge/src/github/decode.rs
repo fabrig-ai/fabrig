@@ -49,6 +49,8 @@ pub struct Decoder {
     repository: document::Repository,
     branch: document::Branch,
     branch_long: bool,
+    entry_name: Box<[u8]>,
+    entry_kind: Option<crate::api::EntryKind>,
     message: Box<[u8]>,
     errors: List<Box<[u8]>>,
     error: Box<[u8]>,
@@ -88,6 +90,8 @@ pub fn decoder(kind: Kind, limits: &Limits) -> Decoder {
         },
         branch: document::Branch { name: Box::from([]), commit: [0; 32] },
         branch_long: false,
+        entry_name: Box::from([]),
+        entry_kind: None,
         message: Box::from([]),
         errors: List::with_capacity(limits.inner),
         error: Box::from([]),
@@ -320,6 +324,15 @@ impl Decoder {
                 let row = core::mem::replace(&mut self.collaborator, people::collaborator());
                 return Ok((tokenizer::Request::Next, Step::Row(Row::Collaborator(row))));
             }
+            Move::End(Node::Entry) => {
+                return Ok((
+                    tokenizer::Request::Next,
+                    Step::Row(Row::Entry {
+                        name: core::mem::replace(&mut self.entry_name, Box::from([])),
+                        kind: self.entry_kind.take(),
+                    }),
+                ));
+            }
             Move::End(Node::BranchName) => {
                 let name = core::mem::replace(&mut self.branch.name, Box::from([]));
                 let row = if core::mem::replace(&mut self.branch_long, false) {
@@ -354,6 +367,7 @@ impl Decoder {
                 | Node::Owner
                 | Node::Branch
                 | Node::Commit
+                | Node::EntryRows
                 | Node::BranchRows
                 | Node::Error
                 | Node::Errors,
@@ -398,6 +412,7 @@ impl Decoder {
                     Kind::Branch => Document::Branch(self.branch.clone()),
                     Kind::RuleRows
                     | Kind::LogRows
+                    | Kind::EntryRows
                     | Kind::FileRows
                     | Kind::ReviewRows
                     | Kind::RemarkRows
@@ -510,6 +525,8 @@ impl Decoder {
                 key,
                 token,
             ) => return self.app.scalar(node, key, token),
+            (Node::Entry, b"name", Token::String(text)) => self.entry_name = text,
+            (Node::Entry, b"type", Token::String(text)) => self.entry_kind = crate::directory::kind(&text),
             (Node::Collaborator, b"id", Token::Number(text)) => {
                 self.collaborator.id = crate::forgejo::id::unsigned(&text).ok_or(Malformed::Range { field: key })?;
             }
@@ -550,7 +567,8 @@ impl Decoder {
                 }
             }
             (
-                Node::Collaborator
+                Node::Entry
+                | Node::Collaborator
                 | Node::CollaboratorRows
                 | Node::JobSteps
                 | Node::User
@@ -565,6 +583,7 @@ impl Decoder {
                 | Node::Commit
                 | Node::Error
                 | Node::ErrorEntry
+                | Node::EntryRows
                 | Node::BranchRows
                 | Node::Errors,
                 _,

@@ -53,6 +53,7 @@ impl Referee {
             | api::Answer::PullFiles { .. }
             | api::Answer::Compare { .. }
             | api::Answer::Checks(_)
+            | api::Answer::Directory { .. }
             | api::Answer::File { .. }
             | api::Answer::Job { .. }
             | api::Answer::Protection(_)

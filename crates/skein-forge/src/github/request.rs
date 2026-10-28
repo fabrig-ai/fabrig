@@ -395,8 +395,11 @@ fn target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
         }
         Request::Raw { owner, name, path, commit } => {
             out.repo(owner, name)?;
-            out.put(b"/contents/");
-            out.file(path)?;
+            out.put(b"/contents");
+            if !path.is_empty() {
+                out.put(b"/");
+                out.file(path)?;
+            }
             out.put(b"?ref=");
             out.commit(commit)?;
         }

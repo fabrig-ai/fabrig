@@ -660,6 +660,7 @@ fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
     let (granted, read, write): (bool, &[u8], &[u8]) = match request {
         Request::Repository { .. }
         | Request::Branch { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::CreateFile { .. }
         | Request::RepositoryById { .. }
@@ -778,6 +779,7 @@ fn table(service: &Service, request: &Request, user: u64) -> Option<documents::A
         | Request::Permission { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }

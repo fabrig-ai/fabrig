@@ -90,6 +90,7 @@ pub fn documents(seed: u64) -> Vec<Reply> {
         Answer::User(_)
         | Answer::ApiSettings(_)
         | Answer::Issue(_)
+        | Answer::Entries(_)
         | Answer::Files(_)
         | Answer::Run(_)
         | Answer::Reviews(_)
@@ -334,7 +335,11 @@ fn vary(answer: &mut Answer, seed: u64) {
                 value.id += seed;
             }
         }
-        Answer::Reachable(_) | Answer::RepoSearch { .. } | Answer::Error(_) | Answer::CreatedFile { .. } => {}
+        Answer::Entries(_)
+        | Answer::Reachable(_)
+        | Answer::RepoSearch { .. }
+        | Answer::Error(_)
+        | Answer::CreatedFile { .. } => {}
     }
 }
 
@@ -423,6 +428,7 @@ fn setup_replies(seed: u64, compact: bool) -> Vec<(&'static str, Answer, Documen
 
 fn shorten(answer: &mut Answer) {
     match answer {
+        Answer::Entries(entries) => *entries = Box::from([]),
         Answer::User(value) => {
             value.login = Box::from(*b"x");
             value.full_name = Box::from([]);

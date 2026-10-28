@@ -373,23 +373,7 @@ pub(crate) fn finish(
         Pending::PullsFor { open } => pulls::pulls_for(answer, open, limits),
         Pending::PullFiles { target, page, size } => pulls::files(answer, &target, page, size, limits),
         Pending::Compare { size } => pulls::compare(answer, size, limits),
-        Pending::Raw => {
-            let Answer::File(body) = answer else {
-                return answers::failed();
-            };
-            if body.len() > usize::try_from(limits.response).expect("response bound") {
-                return answers::failed();
-            }
-            Response {
-                rate: None,
-                etag: None,
-                content_type: service::ContentType::Octets,
-                status: 200,
-                link: None,
-                location: None,
-                body,
-            }
-        }
+        Pending::Raw => contents_answer(answer, limits),
         Pending::Issues { target, page, size } => issues::items(answer, &target, page, size, limits),
         Pending::Issue => issues::item(answer, limits),
         Pending::Comments { target, page, size } => issues::comments(answer, &target, page, size, limits),
@@ -617,4 +601,36 @@ fn repository(row: Row, answer: Answer, limits: &Limits) -> Response {
 
 pub(crate) fn user(service: &Service, id: u64, body_fits: bool) -> Response {
     people::user(service, id, body_fits)
+}
+
+fn contents_answer(answer: Answer, limits: &Limits) -> Response {
+    if let Answer::Directory(entries) = &answer {
+        let mut rows = List::with_capacity(u32::try_from(entries.len()).expect("bounded tree"));
+        for entry in entries {
+            rows.push(api::Entry {
+                name: entry.name.clone(),
+                kind: match entry.kind {
+                    a::EntryKind::File => api::EntryKind::File,
+                    a::EntryKind::Directory => api::EntryKind::Directory,
+                },
+            })
+            .expect("one row per entry");
+        }
+        return answers::response(200, &Body::Entries(&rows.into_boxed()), limits);
+    }
+    let Answer::File(body) = answer else {
+        return answers::failed();
+    };
+    if body.len() > usize::try_from(limits.response).expect("response bound") {
+        return answers::failed();
+    }
+    Response {
+        rate: None,
+        etag: None,
+        content_type: service::ContentType::Octets,
+        status: 200,
+        link: None,
+        location: None,
+        body,
+    }
 }

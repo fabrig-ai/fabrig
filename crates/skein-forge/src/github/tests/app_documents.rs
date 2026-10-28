@@ -513,6 +513,7 @@ fn write_answer(case: &DocumentCase, out: &mut Writer) -> Result<(), skein_lib::
                     | Row::Issue(_)
                     | Row::Comment(_)
                     | Row::Commit(_)
+                    | Row::Entry { .. }
                     | Row::File(_)
                     | Row::Review(_)
                     | Row::Remark(_)

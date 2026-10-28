@@ -119,7 +119,8 @@ pub fn answer(answer: &api::Answer, limit: u32) -> Result<u64, api::Error> {
                 .checked_add(rows(commits.len(), crate::measure::COMMIT_BYTES, limit)?)
                 .ok_or(api::Error::TooLarge)?;
         }
-        api::Answer::Created(_)
+        api::Answer::Directory { .. }
+        | api::Answer::Created(_)
         | api::Answer::Commented(_)
         | api::Answer::Reviewed(_)
         | api::Answer::Merged(_)

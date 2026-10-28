@@ -256,6 +256,7 @@ impl Heap for api::Answer {
             Self::Labels(labels) => labels.heap(),
             Self::Tree(files) => files.heap(),
             Self::File(bytes) => bytes.heap(),
+            Self::Directory(entries) => entries.heap(),
             Self::Pages { pages, next } => sum(&[pages.heap(), next.heap()]),
             Self::Page(page) => sum(&[page.name.heap(), page.content.heap()]),
             Self::Cloned { default, branches } => sum(&[default.heap(), branches.heap()]),
@@ -347,5 +348,11 @@ impl Heap for api::Step {
 impl Heap for api::Collaborator {
     fn heap(&self) -> Option<u64> {
         Some(0)
+    }
+}
+
+impl Heap for api::Entry {
+    fn heap(&self) -> Option<u64> {
+        self.name.heap()
     }
 }

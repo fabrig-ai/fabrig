@@ -41,6 +41,7 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
         }
         Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
@@ -150,6 +151,7 @@ fn target(request: &Request, out: &mut Writer) -> Result<(), skein_lib::Overflow
         }
         Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }

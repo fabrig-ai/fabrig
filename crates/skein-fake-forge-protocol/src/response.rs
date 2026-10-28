@@ -50,6 +50,7 @@ fn number(answer: &Answer) -> Option<u64> {
         | Answer::Labels(_)
         | Answer::Commit(_)
         | Answer::Tree(_)
+        | Answer::Directory(_)
         | Answer::File(_)
         | Answer::Pages { .. }
         | Answer::Page(_)
@@ -130,6 +131,7 @@ pub fn follow(request: &Request, answer: &Answer) -> Result<Option<(a::Read, Sel
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Runs { .. }
         | Request::Run { .. }
@@ -183,7 +185,8 @@ pub fn select(config: &Config, request: &Request, range: Option<Range>) -> Resul
             ))
         }
         Request::Raw { .. } | Request::JobLog { .. } => Ok(Select::Raw(range)),
-        Request::User
+        Request::Contents { .. }
+        | Request::User
         | Request::ApiSettings
         | Request::RepositoryById { .. }
         | Request::Repository { .. }
@@ -280,6 +283,7 @@ fn status(request: &Request) -> u16 {
         | crate::Route::Permission
         | crate::Route::PullFiles
         | crate::Route::Compare
+        | crate::Route::Contents
         | crate::Route::Raw
         | crate::Route::Runs
         | crate::Route::Run
@@ -392,6 +396,7 @@ fn document(
         | Answer::Dependencies(_)
         | Answer::Labels(_)
         | Answer::Tree(_)
+        | Answer::Directory(_)
         | Answer::File(_)
         | Answer::Pages { .. }
         | Answer::Page(_)
@@ -418,6 +423,7 @@ pub fn answer(
         Answer::Done | Answer::Merged(_) => {
             return Ok(Reply { status: status(request), headers: Box::from([]), body: Box::from([]) });
         }
+        Answer::Directory(entries) => return directory(limits, select, entries),
         Answer::File(body) => {
             let range = match select {
                 Select::Raw(range) => *range,
@@ -497,6 +503,7 @@ pub fn answer(
         | Answer::Labels(_)
         | Answer::Commit(_)
         | Answer::Tree(_)
+        | Answer::Directory(_)
         | Answer::File(_)
         | Answer::Pages { .. }
         | Answer::Page(_)
@@ -809,6 +816,11 @@ mod bounded {
                     budget.row(branch.branch.len())?;
                 }
             }
+            a::Answer::Directory(entries) => {
+                for entry in entries {
+                    budget.row(entry.name.len())?;
+                }
+            }
             a::Answer::File(bytes) => {
                 if bytes.len() > usize::try_from(limits.raw_bytes).ok()? {
                     return None;
@@ -836,4 +848,24 @@ mod bounded {
         }
         Some(())
     }
+}
+
+fn directory(limits: &Limits, select: &Select, entries: &[a::Entry]) -> Result<Reply, a::Error> {
+    if let Select::Raw(_) = select {
+        return Err(a::Error::Missing(a::What::File));
+    }
+    let mut rows = List::with_capacity(u32::try_from(entries.len()).expect("bounded tree"));
+    for entry in entries {
+        rows.push(skein_forge::api::Entry {
+            name: entry.name.clone(),
+            kind: match entry.kind {
+                a::EntryKind::File => skein_forge::api::EntryKind::File,
+                a::EntryKind::Directory => skein_forge::api::EntryKind::Directory,
+            },
+        })
+        .expect("one row per entry");
+    }
+    let body =
+        server::encode(&server::Answer::Entries(rows.into_boxed()), &limits.documents).or(Err(a::Error::TooLarge))?;
+    Ok(Reply { status: 200, headers: Box::from([]), body })
 }

@@ -124,6 +124,7 @@ pub(super) fn write(json: &mut Encoder, answer: &Answer) {
         | Answer::Collaborators(_)
         | Answer::Permission(_)
         | Answer::Pulls(_)
+        | Answer::Entries(_)
         | Answer::Files(_)
         | Answer::Compare { .. } => unreachable!("action answer selection"),
     }
