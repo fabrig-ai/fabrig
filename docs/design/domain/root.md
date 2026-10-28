@@ -1,6 +1,6 @@
 # temper's root
 
-Provisional, 2026-10-04, revised 2026-10-26. What temper's engine root
+Provisional, 2026-10-04, revised 2026-10-28. What temper's engine root
 is and does: `temper-engine-domain`, the top-level domain of temper's
 engine, which composes jig's core with the forge connector in the shape
 jig's `domain/root.md` gives every application's root. It says what the
@@ -36,10 +36,12 @@ and the agent agent.md. What is still open is listed in section 13.
   the forge's (section 7).
 - **One store vocabulary.** Its keys, records and ranges wrap the core's
   and the forge's; it has no records of its own (section 8).
-- **Bounded, and checked at start.** Every event reserves the room of the
-  whole route it may take; the root's own limits sum with its children's
-  into its worst case, and limits that do not add up refuse the start
-  (section 10).
+- **Admitted by a watermark.** New external work waits while the root's
+  backlog (its journal's, its work queue's, its queued store answers') is
+  at its watermark; whatever finishes admitted work is always taken, and
+  an event that carries both is split. No route reserves room, and its
+  orders are stated and tested (section 4; skein's programming-model.md,
+  7.1 and 7.2).
 - **On jig's rails.** The engine's world runs the root with its real
   children over jig's store; the conformance world runs it on jig's
   harness, under jig's referee (section 12).
@@ -160,25 +162,39 @@ admission:
 
 ```
 try_step(root, event):
-    a store's answer, a released output, Resume:   always stepped
-    a core read's page:   kept, in order, until the journal takes its route
-    a worker's record:    handed back unless the journal takes the route and the root can keep its bytes
-    anything else:        handed back unless the journal takes the route
+    a store's answer (committed, loaded, unloaded), a released output, Resume:   always taken
+    a core read's page, a load switched:   taken in arrival order, after the work queue and earlier answers
+    an event with admitted and new work:   split: the admitted part taken, the new part as below
+    new external work:                     handed back while the backlog is at the watermark,
+                                           or while the work queue holds a hand-off
 step(root, event):
-    route the event to its child; drain every hand-off it starts, through a bounded work queue
-    the core finishes its decision: its writes and held outputs into one decision
-    journal.accept: at most one commit, the deployment's record its first write
+    route the event to its child; drain every hand-off it starts, through the root's work queue
+    the core finishes its decision: its writes and held outputs into one decision, which cannot fail
+    journal.decide: at most one commit, the deployment's record its first write
     outputs marked now: through the door
 release(root):   (the service's iterate)
     after a step: the door's outputs and the commit
     otherwise:    one held output whose commit is durable, then the next commit
 ```
 
-- **The room is the whole route's.** A step drains every hand-off its
-  decision starts, so any event may reach the whole route; each reserves
-  the same room, the sum of what every child may write and hold along it,
-  with the call records (section 10). An event the journal cannot take
-  changes nothing.
+- **The backlog,** in entries: the journal's (`Journal::backlog`: the
+  commits made and not yet answered, the outputs held and those at the
+  door), the work queue's and the queued store answers'. Its watermark is
+  section 10's. The journal and the work queue are uncapped: a decision
+  always completes, and nothing between the root's children reserves
+  room.
+- **Its orders, stated** (programming-model.md, 7.2), each a world test
+  under load in the root's world (section 12):
+  - **hand-offs first:** a hand-off a step queued is finished before the
+    next entrance is admitted (`work.is_empty()`);
+  - **store answers in order:** a read's page and a load's switch are
+    stepped in arrival order, queued behind earlier work;
+  - **releases in order:** an older release steps before a later one;
+    releases are always taken.
+- **Split, not held whole.** A worker's link coming up, a worker's answer
+  and a forge's answer can carry what finishes admitted work beside what
+  starts new: the first is taken at any backlog, and only the second
+  waits at the watermark, as any new work does.
 - **Handed back, not answered.** An input the journal cannot take returns
   to its owner unchanged, who offers it again; the root answers nobody
   busy itself. Busy answers are the core's (jig's `domain/engine.md`,
@@ -196,8 +212,10 @@ release(root):   (the service's iterate)
 - **Timers** fire through the same admission (`fire`): accounts' and
   views' always; the forge's from its restart step on; the core's others
   once decisions open.
-- **A decision past its reserve** fails stop, as jig's journal says
-  (jig's `domain/root.md`, section 4).
+- **Stopping of its own:** a root that cannot go on (a counter at its
+  end) stops its journal (`Journal::stop`, skein's `lib.md`, 11), and
+  nothing held or at the door leaves again; a failed commit fails it as
+  jig's journal says (jig's `domain/root.md`, section 4).
 
 ## 5. Routing
 
@@ -810,17 +828,19 @@ Startup also checks the seed policy after enforced landing requirements are join
 
   They give the core its resume limit, within a row's bytes, its
   charters' bytes, its load slots and its briefs'.
-- **Checked against each other** at start: the held outputs at least
-  three decisions' worth; a decision's outputs at least what every
-  worker's fleet events may ask in one; a commit's writes at least the
-  route's and the call records; a row's bytes at least the largest task
-  row and the forge's largest answer; a result's bytes at least a brief,
-  a task's result and a party's words; the forge's named calls at least
-  the call records, and its brief sections and bytes at least what the
-  briefs may plan.
-- **The room per event** (section 4): the writes the children may make
-  along the whole route, hand-offs included, with the call records; the
-  held outputs of one decision.
+- **Checked at start where a limit sizes an edge:** a row's bytes at
+  least the largest task row and the forge's largest answer; a result's
+  bytes at least a brief, a task's result and a party's words; the
+  forge's brief sections and bytes at least what the briefs may plan. No
+  limit has to cover another's room: the journal's capacities no longer
+  bound a decision, and no event reserves a route.
+- **The watermark,** a field of the root's `Limits`, in entries: the
+  journal's commits plus the door's outputs (`commits` and `deliveries`),
+  derived where the root's limits are, with no key of its own in
+  temper's documents. That is what a route could hold before the
+  watermark (its commits in flight and the door's outputs), so pacing
+  stays close to it: at the commits alone, a person's watch waited
+  twice as many offers behind admitted work.
 - **The watches' rooms are temper's:** 16 a party, 16 a stream and 16 in
   all, above jig's profiles' 4, since temper's client opens 16
   (`../protocol/configuration.md`, section 7). The rest of the views'
