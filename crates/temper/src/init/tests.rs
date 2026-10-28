@@ -50,12 +50,9 @@ fn path_lookup_uses_only_absolute_executable_candidates_in_order() {
 }
 #[test]
 fn taken_default_owned_and_webhooks_ports_get_distinct_kernel_ports() {
-    for (preferred_port, at) in [(8368, 1), (8371, 4)] {
-        let holder = match TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, preferred_port)) {
-            Ok(listener) => Some(listener),
-            Err(why) if why.kind() == std::io::ErrorKind::AddrInUse => None,
-            Err(why) => panic!("hold default port: {why}"),
-        };
+    for at in [1, 4] {
+        let holder = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("hold preferred port");
+        let preferred_port = holder.local_addr().expect("held address").port();
         let mut io = Io::open().expect("startup io");
         let mut preferred = [0; 5];
         preferred[at] = preferred_port;
