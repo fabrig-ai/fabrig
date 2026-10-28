@@ -148,7 +148,8 @@ mod tests {
         assert!(sent > 12_000_000 && sent <= usize::try_from(limits.output).expect("output fits usize"));
         assert!(peak > 12_000_000, "the allocator reaches actual retained escaped output");
         println!("PROMPT_SINK_MEMORY peak={peak} bound={bound} sent={sent} output_cap={}", limits.output);
-        drop(sinks);
+        assert!(requests.is_empty());
+        drop((sinks, requests));
         assert_eq!(meter.held(), 0, "all destination ownership releases");
     }
 
@@ -232,7 +233,8 @@ mod tests {
         assert!(peak > 2 * 65536 * 6, "meter reached retained encoded output");
         assert!(sinks.pop_given_up().is_none());
         println!("SINK_MEMORY peak={peak} bound={bound} sent_per_destination={}", sent[0]);
-        drop(sinks);
+        assert!(requests.is_empty());
+        drop((sinks, requests));
         assert_eq!(meter.held(), 0, "all sink ownership released");
     }
 }
