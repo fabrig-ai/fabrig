@@ -124,6 +124,15 @@ jig-client                        jig_client::Client: the domain and the link, c
   `thread` and `words` (section 19). It depends on `skein-ui` for its
   `words` module alone, whose phrases are skein-ui's phrasebook types;
   it builds no tree, so the client stays presentation-agnostic.
+- **Internal hand-offs are uncapped.** The domain's and link's output
+  queues and the deferred-read queue grow as they fill. Each step
+  settles the domain's and link's outputs (`client_settled`); only
+  deferred reads wait between steps, on exchange credit. Each event's
+  fan-out is bounded by admitted state, so the settlement drain ends.
+  Link outputs are dispatched before the next domain request
+  (`link_requests_dispatched`), including a credential boundary's
+  consequences before a deferred read is sent (programming-model.md,
+  7.2).
 - **Builds:** the three crates and the helpers are step code under the
   strict subset, built for the host and for wasm32 (programming-model.md,
   section 10). Only `jig-protocol-transcript` links smith, the client's
@@ -753,6 +762,11 @@ for any presentation of a chat or of any agent task's activity.
   loses an ordinary kept request the engine may have made. A request
   carrying a value is sent once without a record, and its caller asks
   again (section 6).
+- **The durability hold is uncapped.** Held exchanges are bounded by
+  admitted attempts, never refused as not kept for a full hold. Once
+  the write is durable, live attempts leave in FIFO order; stale
+  attempts are skipped. Not kept reports a store failure, not internal
+  queue room (programming-model.md, 7.2).
 - **New `Seen` has no save of its own.** Closing, reload or crash silently
   loses an unanswered in-memory mark, with no `Kept`, `Dropped` or not
   kept notice from its own store. The next opening checks and sends the
@@ -959,9 +973,16 @@ at most `turn_bytes`; limits outside those bounds are refused.
 Reads have room independently of watch handles; a read need not own a
 watch. Pending entries price both their token and optional family. A
 credential boundary may emit one `Page` per pending read, in addition to
-watch and request outputs: `max_out`, `worst_case` validation and the
-composed domain/link queues include an explicit reads term, never assume
-that `handles * 2` has room for it.
+watch and request outputs. The `max_out` functions include an explicit
+reads term; they size no internal queue and reserve no room.
+
+- **No client watermark.** Each event's fan-out is bounded by admitted
+  state, and new work enters through capped edges: the link's exchanges,
+  the kernel's queues, and terminal or browser input. The reference
+  client root, browser host and application's scratch queues use
+  uncapped internal hand-offs. The native shell's io, file and SSE
+  hand-offs are uncapped too; only the kernel's queues and their staging
+  stay capped (programming-model.md, 7.1).
 
 `worst_case` sums the containers' own and the bytes each entity may hold
 (programming-model.md, 6.3). Each held document is priced at twice its
