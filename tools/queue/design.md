@@ -6,7 +6,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out.
-- **The checks run on a selection** (section 2), not always the whole workspace: `cargo fmt --check`, clippy with `-D warnings`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet). Build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1).
+- **The checks run on a selection** (section 2), not always the whole workspace: `cargo fmt --check`, clippy with `-D warnings`, a nextest `build`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet). Build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1); formatting covers changed Rust owners (section 2.2). Build and test durations are recorded separately (section 3.6).
 - **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
@@ -36,6 +36,9 @@ A removed dependency selects the parent whose lock entry drops that edge;
 an unreachable removed entry selects no HEAD package. Normal, build, and dev
 edges all participate. Periodic, hourly, and idle full checks remain unchanged.
 Python 3.11 or later supplies the standard library TOML parser.
+`plan` keeps a conservative `full` preview for lockfile or manifest changes:
+it does not merge, so its checkout cannot supply the batch HEAD's resolved
+graph. An attempt makes the narrower selection after merging the batch.
 
 ### 2.2 Formatting changed Rust owners
 
@@ -112,6 +115,18 @@ each candidate's identity and mtime before deletion to protect rewritten files.
 A later batch relinks any removed executable. The batch's `target_cleanup`
 records the count and decimal GB of file sizes removed; deletion errors are
 logged without changing a gate result. Cleanup also runs after dry checks.
+
+### 3.6 Build and test steps
+
+After formatting and clippy, run `heavy --gate cargo nextest run <scope>
+--no-fail-fast --no-run` as step `build`, then the same command without
+`--no-run` as step `default`. Scope is `--workspace` for a full run or sorted
+`-p <name>` arguments for selected packages. Record each command's elapsed
+monotonic wall time in its own step record. A failed build stops checks and
+the rejection names failing step `build`. Nextest exit 4 (no tests) is green
+for build, default, and fuzzy, as for an empty test selection. Fuzzy remains
+one step with `--profile fuzzy`; the build step already built its binaries.
+Ratchets follow tests. Docs-only batches run only touched trees' ratchets.
 
 ## 4. Later
 

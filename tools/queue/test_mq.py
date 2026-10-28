@@ -160,14 +160,15 @@ class CheckTests(unittest.TestCase):
         steps = mq.check_commands(ROOT, {"core", "normal"}, ["core/src/lib.rs", "skein/docs/x.md"],
                                   metadata=metadata(ROOT))
         self.assertEqual([name for name, _, _ in steps],
-                         ["fmt", "clippy", "default", "fuzzy", "ratchet:skein"])
+                         ["fmt", "clippy", "build", "default", "fuzzy", "ratchet:skein"])
         self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core"])
-        for _, argv, _ in steps[1:4]:
+        for _, argv, _ in steps[1:5]:
             self.assertEqual(argv[:3], ["heavy", "--gate", "cargo"])
             self.assertEqual(argv[argv.index("-p"):argv.index("-p") + 4], ["-p", "core", "-p", "normal"])
         self.assertEqual(steps[1][1][-4:], ["--all-targets", "--", "-D", "warnings"])
-        self.assertIn("--no-fail-fast", steps[2][1])
-        self.assertEqual(steps[3][1][-2:], ["--profile", "fuzzy"])
+        self.assertEqual(steps[2][1], steps[3][1] + ["--no-run"])
+        self.assertIn("--no-fail-fast", steps[3][1])
+        self.assertEqual(steps[4][1][-2:], ["--profile", "fuzzy"])
         self.assertEqual(steps[-1][2], ROOT / "skein")
         self.assertEqual(steps[-1][1], ["python3", "-I", "-B", str(ROOT / "skein/scripts/old_forms.py")])
 
@@ -211,11 +212,20 @@ class CheckTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
             log = Path(directory) / "checks.log"
-            times = iter(range(6))
+            times = iter(range(8))
             steps = mq.run_checks(ROOT, {"core"}, [], log, runner=runner, clock=lambda: next(times))
-            self.assertEqual(len(calls), 3)
+            self.assertEqual(len(calls), 4)
             self.assertTrue(all(step["green"] and step["duration"] == 1 for step in steps))
             self.assertEqual(log.stat().st_mode & 0o777, 0o600)
+
+    def test_build_default_and_fuzzy_have_independent_durations(self):
+        times = iter([0, 2, 10, 18, 20, 23, 30, 35])
+        with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
+            steps = mq.run_checks(ROOT, {"core"}, [], Path(directory) / "checks.log",
+                                  runner=lambda *args, **kwargs: subprocess.CompletedProcess(args, 0),
+                                  clock=lambda: next(times))
+        self.assertEqual([(step["name"], step["duration"]) for step in steps],
+                         [("clippy", 2), ("build", 8), ("default", 3), ("fuzzy", 5)])
 
     def test_failure_stops_checks_and_four_is_not_green_for_fmt(self):
         with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
@@ -576,6 +586,14 @@ baseline.write_text(str(count) + '\n')
         self.assertEqual(self.checks, [])
         self.assertFalse(queue.state_path.exists())
 
+    def test_plan_conservatively_previews_unmerged_lock_or_manifest(self):
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        with patch.object(queue, "metadata_loader", side_effect=AssertionError("unmerged metadata")):
+            for path in ("Cargo.lock", "core/Cargo.toml"):
+                with self.subTest(path=path):
+                    self.assertEqual(queue.choose([path], preview=True), "full")
+
     def test_post_failure_is_logged_and_does_not_fail_landing(self):
         self.branch("a", publish=True)
         queue = self.queue()
@@ -632,6 +650,30 @@ baseline.write_text(str(count) + '\n')
         record = self.records()[0]
         self.assertEqual((record["outcome"], record["steps"]), ("green", []))
         self.assertTrue((self.repo / "README.md").exists())
+
+    def test_batch_record_keeps_build_and_default_durations_separate(self):
+        branch = self.branch("timed")
+        queue = self.queue()
+        times = iter([0, 1, 10, 12, 20, 27, 30, 33, 40, 44])
+        queue.checker = lambda *args: mq.run_checks(
+            *args, runner=lambda *a, **kw: subprocess.CompletedProcess(a, 0), clock=lambda: next(times))
+        queue.attempt([branch])
+        self.assertEqual([(step["name"], step["duration"]) for step in self.records()[0]["steps"]],
+                         [("fmt", 1), ("clippy", 2), ("build", 7), ("default", 3), ("fuzzy", 4)])
+
+    def test_failed_build_stops_tests_and_names_build_in_rejection(self):
+        branch = self.branch("unbuildable")
+        queue = self.queue()
+
+        def runner(argv, **kwargs):
+            return subprocess.CompletedProcess(argv, 1 if "--no-run" in argv else 0)
+
+        queue.checker = lambda *args: mq.run_checks(*args, runner=runner)
+        queue.attempt([branch])
+        record = self.records()[0]
+        self.assertEqual(record["outcome"], "red")
+        self.assertEqual([step["name"] for step in record["steps"]], ["fmt", "clippy", "build"])
+        self.assertIn("failing step: build", self.posts[0][2])
 
     def test_manifest_batch_does_not_need_valid_cargo_metadata(self):
         self.branch("a", "Cargo.toml", "not a valid manifest\n", publish=True)

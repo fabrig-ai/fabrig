@@ -245,6 +245,7 @@ def check_commands(repo, selected, paths, *, metadata=None):
         scope = ["--workspace"] if selected == "full" else [arg for name in sorted(selected) for arg in ("-p", name)]
         steps.extend([
             ("clippy", ["heavy", "--gate", "cargo", "clippy", *scope, "--all-targets", "--", "-D", "warnings"], repo),
+            ("build", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast", "--no-run"], repo),
             ("default", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast"], repo),
             ("fuzzy", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast", "--profile", "fuzzy"], repo),
         ])
@@ -276,7 +277,7 @@ def run_checks(repo, selected, paths, log_path, *, runner=subprocess.run, clock=
             output = log.read()
             log.seek(0, os.SEEK_END)
             refused = code == 2 and "below the disk floor" in output and argv[0] == "heavy"
-            green = code == 0 or (name in ("default", "fuzzy") and code == 4)
+            green = code == 0 or (name in ("build", "default", "fuzzy") and code == 4)
             outcomes.append({"name": name, "command": argv, "returncode": code,
                              "green": green, "duration": clock() - started})
             if refused:
@@ -425,8 +426,11 @@ class Queue:
         return (self.now() - self.state.get("idle_since", self.now()) >= 600 and
                 main != self.state.get("last_full_main"))
 
-    def choose(self, paths):
+    def choose(self, paths, *, preview=False):
         if self.full_due() or full_inputs(paths):
+            return "full"
+        # A plan has not merged the batch, so its checkout cannot resolve changed manifests.
+        if preview and any(path == "Cargo.lock" or PurePosixPath(path).name == "Cargo.toml" for path in paths):
             return "full"
         if not paths or all(path.endswith(".md") for path in paths):
             return selection(paths, {})
@@ -611,7 +615,7 @@ class Queue:
             print("nothing to do")
             return
         paths = sorted({path for branch in branches for path in changed_paths(self.repo, branch["tip"])})
-        selected = self.choose(paths) if branches else "full"
+        selected = self.choose(paths, preview=True) if branches else "full"
         print(json.dumps({"branches": branches,
                           "selection": sorted(selected) if isinstance(selected, set) else selected,
                           "changed_paths": paths}, indent=2))
