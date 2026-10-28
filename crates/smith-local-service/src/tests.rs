@@ -715,40 +715,18 @@ mod plain {
 
 #[test]
 #[expect(clippy::wildcard_enum_match_arm, reason = "the story names unexpected shell requests")]
-#[expect(clippy::too_many_lines, reason = "one inline composition story retains all boundary and cleanup assertions")]
 fn a_colocated_chat_routes_a_turn_through_the_shared_plaintext_effects_without_spawning() {
-    use skein_lib::Queue;
     let config = colocated_config();
-    let mut sim_config = skein_sim::Config::calm();
-    sim_config.wall = skein_tls_world::pki::VALID;
-    let mut sim = skein_sim::Sim::new(8, sim_config);
-    let pid = sim.spawn_process();
-    let peer_pid = sim.spawn_process();
-    let mut peer = smith_agent_process_world::fake::peer();
-    let mut service = Service::new(config, 8).expect("colocated service");
+    let (mut service, mut sim, pid, mut peer, peer_pid) = colocated_chat(config);
     let mut machine = skein_fake_machine::Machine::new();
     let mut saved_turn = false;
     let mut shown = false;
     let mut sent = false;
     for _ in 0_u32..2000 {
-        sim.reap(peer_pid, peer.completions());
-        peer.iterate(sim.now(), sim.wall());
-        sim.submit(peer_pid, peer.submissions());
-        sim.reap(pid, service.completions());
-        iterate(&mut service, sim.now(), sim.wall());
+        colocated_up(&mut service, &mut sim, pid, &mut peer, peer_pid);
         while let Some(request) = service.shell_requests().pop() {
             match request {
-                local::Request::Credential { account: 0 } => service.credential(
-                    smith_domain::Grant {
-                        name: smith_domain::GrantName { account: 0, generation: 1 },
-                        renewable: true,
-                        valid: Duration::from_secs(7200),
-                    },
-                    smith_protocol_channel::GrantValue::Withdrawn {
-                        account_id: Box::from(&b"acc"[..]),
-                        bearer: Box::from(&b"token"[..]),
-                    },
-                ),
+                local::Request::Credential { account: 0 } => colocated_grant(&mut service),
                 local::Request::Notice {
                     notice:
                         local::Notice::Failure(local::Failure::Run {
@@ -791,14 +769,7 @@ fn a_colocated_chat_routes_a_turn_through_the_shared_plaintext_effects_without_s
         while let Some(text) = service.output().pop() {
             shown |= !text.is_empty();
         }
-        sim.submit(pid, service.submissions());
-        let mut calls = Queue::with_capacity(256);
-        let mut answers = Queue::with_capacity(256);
-        sim.calls(&mut calls);
-        while let Some(call) = calls.pop() {
-            skein_fake_machine::step(&mut machine, call, &mut answers);
-        }
-        sim.answer(&mut answers);
+        colocated_down(&mut service, &mut sim, pid, &mut machine);
         if saved_turn && !service.work_pending(sim.now()) && sim.ready(pid) == 0 && !sim.deferred(pid) {
             break;
         }
@@ -817,7 +788,249 @@ fn a_colocated_chat_routes_a_turn_through_the_shared_plaintext_effects_without_s
     assert!(saved_turn, "local policy acknowledged the shared effect's turn");
     assert!(smith_agent_process_world::fake::replied(&peer), "the fake plaintext LLM received the completion");
     assert!(shown, "the terminal observed the run");
-    settle_colocated_exit(&mut service, &mut sim, pid, &mut peer, peer_pid);
+    settle_colocated_exit(&mut service, &mut sim, pid, &mut peer, peer_pid, &mut machine);
+}
+
+// The same one-turn plaintext composition and injected clocks drive both stories.
+fn colocated_chat(
+    config: Config,
+) -> (Service, skein_sim::Sim, skein_sim::Pid, skein_fake_peers::llm::Peer, skein_sim::Pid) {
+    let mut sim_config = skein_sim::Config::calm();
+    sim_config.wall = skein_tls_world::pki::VALID;
+    let mut sim = skein_sim::Sim::new(8, sim_config);
+    let pid = sim.spawn_process();
+    let peer_pid = sim.spawn_process();
+    let peer = smith_agent_process_world::fake::peer();
+    let service = Service::new(config, 8).expect("colocated service");
+    (service, sim, pid, peer, peer_pid)
+}
+
+fn colocated_up(
+    service: &mut Service,
+    sim: &mut skein_sim::Sim,
+    pid: skein_sim::Pid,
+    peer: &mut skein_fake_peers::llm::Peer,
+    peer_pid: skein_sim::Pid,
+) {
+    sim.reap(peer_pid, peer.completions());
+    peer.iterate(sim.now(), sim.wall());
+    sim.submit(peer_pid, peer.submissions());
+    sim.reap(pid, service.completions());
+    iterate(service, sim.now(), sim.wall());
+}
+
+fn colocated_down(
+    service: &mut Service,
+    sim: &mut skein_sim::Sim,
+    pid: skein_sim::Pid,
+    machine: &mut skein_fake_machine::Machine,
+) {
+    // Match the existing one-turn fixture's file-world call/answer batch.
+    const MACHINE_CALLS: u32 = 256;
+    sim.submit(pid, service.submissions());
+    let mut calls = skein_lib::Queue::with_capacity(MACHINE_CALLS);
+    let mut answers = skein_lib::Queue::with_capacity(MACHINE_CALLS);
+    sim.calls(&mut calls);
+    while let Some(call) = calls.pop() {
+        skein_fake_machine::step(machine, call, &mut answers);
+    }
+    sim.answer(&mut answers);
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the deterministic simulator test uses ordinary Rust (programming-model.md, section 10.2)"
+)]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the story names unexpected shell and store requests")]
+#[expect(clippy::too_many_lines, reason = "one loaded entrance-order story includes its trace and cleanup")]
+fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
+    use smith_agent_service::sinks;
+    // The neighbouring plaintext story settles in fewer than 2000 passes.
+    const SETTLE_PASSES: u32 = 2000;
+    // Two request/append round trips expose facts even with the shell held.
+    const BLOCKED_PASSES: u32 = 4;
+    const COMMAND_REFUSAL: &[u8] = b"One command is waiting for the activation to end";
+    let (config, events) = recording_colocated_config();
+    let (mut service, mut sim, pid, mut peer, peer_pid) = colocated_chat(config);
+    let mut machine = skein_fake_machine::Machine::new();
+    let root = machine.lay(&[skein_fake_machine::Item::file(b"trace", b"")]);
+    let trace = machine.open(root, b"trace", skein_fake_machine::How::Append { mode: 0o600 }).expect("trace");
+    let trace_fd = sim.append(pid, skein_sim::Handle::new(trace.raw()));
+    service.adopt_trace(trace_fd, sim.now(), session_started(), sinks::Delivery::Complete).expect("trace sink");
+    let mut state_pending = false;
+    for _ in 0..SETTLE_PASSES {
+        colocated_up(&mut service, &mut sim, pid, &mut peer, peer_pid);
+        while let Some(request) = service.store_requests().pop() {
+            match request {
+                smith_local_protocol::StoreRequest::Load => {
+                    service.local_event(local::Event::Loaded {
+                        state: None,
+                        transcript: None,
+                        deliveries: Box::new([]),
+                    });
+                    service.local_event(local::Event::Line { text: b"hello".as_slice().into() });
+                }
+                smith_local_protocol::StoreRequest::SaveState { .. } => state_pending = true,
+                other => panic!("unexpected setup store request {other:?}"),
+            }
+        }
+        while let Some(request) = service.shell_requests().pop() {
+            match request {
+                local::Request::Credential { account: 0 } => colocated_grant(&mut service),
+                other => panic!("unexpected setup shell request {other:?}"),
+            }
+        }
+        colocated_down(&mut service, &mut sim, pid, &mut machine);
+        if state_pending {
+            break;
+        }
+    }
+    // Keep one harmless model choice pending during Starting. The next command
+    // produces Show; the following StateSaved entrance starts the inline run.
+    service
+        .local_event(local::Event::Slash(local::Slash::Model { model: b"fake".as_slice().into(), selected: Some(0) }));
+    colocated_up(&mut service, &mut sim, pid, &mut peer, peer_pid);
+    colocated_down(&mut service, &mut sim, pid, &mut machine);
+    while service.output().pop().is_some() {}
+    for _ in 0..service.shell_requests().capacity() {
+        service.shell_requests().push(local::Request::Credential { account: 0 });
+    }
+    service.local_event(local::Event::Slash(local::Slash::New));
+    service.local_event(local::Event::StateSaved);
+    // Give facts and trace writes several passes to expose any overtaking,
+    // without returning credit at the shell edge.
+    for _ in 0..BLOCKED_PASSES {
+        colocated_up(&mut service, &mut sim, pid, &mut peer, peer_pid);
+        colocated_down(&mut service, &mut sim, pid, &mut machine);
+    }
+    let records_while_blocked = trace_records(&machine, trace, &events);
+    assert_eq!(
+        message_receipts(&records_while_blocked),
+        0,
+        "the later entrance's message fact overtook the undispatched command Show"
+    );
+    assert!(service.output().is_empty(), "the full shell edge still holds the command Show");
+    while service.shell_requests().pop().is_some() {}
+    let mut text = Vec::new();
+    let mut turns = Vec::new();
+    let mut command_crossed = false;
+    for _ in 0..SETTLE_PASSES {
+        colocated_up(&mut service, &mut sim, pid, &mut peer, peer_pid);
+        while let Some(output) = service.output().pop() {
+            text.extend_from_slice(&output);
+        }
+        command_crossed |= text.windows(COMMAND_REFUSAL.len()).any(|part| part == COMMAND_REFUSAL);
+        if message_receipts(&trace_records(&machine, trace, &events)) != 0 {
+            assert!(command_crossed, "the message fact reached the trace before the command Show crossed");
+        }
+        while let Some(request) = service.store_requests().pop() {
+            match request {
+                smith_local_protocol::StoreRequest::Load => service.local_event(local::Event::Loaded {
+                    state: None,
+                    transcript: None,
+                    deliveries: Box::new([]),
+                }),
+                smith_local_protocol::StoreRequest::SaveTurn { number, .. } => {
+                    turns.push(number);
+                    service.local_event(local::Event::TurnSaved { number });
+                }
+                other => panic!("unexpected store request {other:?}"),
+            }
+        }
+        while let Some(request) = service.shell_requests().pop() {
+            match request {
+                local::Request::Notice { notice: local::Notice::Failure(local::Failure::Run { .. }) } => {}
+                other => panic!("unexpected shell request {other:?}"),
+            }
+        }
+        colocated_down(&mut service, &mut sim, pid, &mut machine);
+        if !turns.is_empty() && !service.work_pending(sim.now()) && sim.ready(pid) == 0 && !sim.deferred(pid) {
+            break;
+        }
+    }
+    let records = trace_records(&machine, trace, &events);
+    assert_eq!(message_receipts(&records), 1, "the later entrance's initial message settles once");
+    assert_eq!(turns, [1], "one reply is saved once");
+    let text = core::str::from_utf8(&text).expect("terminal text");
+    assert_eq!(text.matches(core::str::from_utf8(COMMAND_REFUSAL).unwrap()).count(), 1, "one command refusal");
+    assert!(
+        text.find("activation to end").expect("command text") < text.find("Hello").expect("reply text"),
+        "the command refusal precedes the reply text"
+    );
+    settle_colocated_exit(&mut service, &mut sim, pid, &mut peer, peer_pid, &mut machine);
+    machine.close(root);
+}
+
+fn recording_colocated_config() -> (Config, smith_agent_service::EventLimits) {
+    use smith_agent_service::sinks;
+    let mut config = colocated_config();
+    let crate::AgentConfig::Inline { configuration: lower, .. } = &mut config.agent else { panic!("inline") };
+    let events = smith_agent_service::EventLimits::derive(
+        &lower.limits,
+        sinks::Capture::Calls,
+        1,
+        0,
+        &[],
+        Duration::from_secs(30),
+    )
+    .expect("bounded event stream");
+    lower.limits.events = Some(events);
+    config.limits.inline = Some(crate::InlineLimits::new(lower).expect("priced event stream"));
+    (config, events)
+}
+
+fn colocated_grant(service: &mut Service) {
+    service.credential(
+        smith_domain::Grant {
+            name: smith_domain::GrantName { account: 0, generation: 1 },
+            renewable: true,
+            valid: Duration::from_secs(7200),
+        },
+        smith_protocol_channel::GrantValue::Withdrawn {
+            account_id: Box::from(&b"acc"[..]),
+            bearer: Box::from(&b"token"[..]),
+        },
+    );
+}
+
+fn message_receipts(records: &[smith_events::Record]) -> usize {
+    let mut receipts = 0_usize;
+    for record in records {
+        if let smith_events::Event::MessageReceived(_) = &record.event {
+            receipts = receipts.checked_add(1).expect("fixture's record count fits");
+        }
+    }
+    receipts
+}
+
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the test reads its fake trace as records in ordinary Rust (programming-model.md, section 10.2)"
+)]
+fn trace_records(
+    machine: &skein_fake_machine::Machine,
+    trace: skein_fake_machine::Opened,
+    events: &smith_agent_service::EventLimits,
+) -> Vec<smith_events::Record> {
+    // Read the whole one-turn fixture; the machine owns the file's actual bound.
+    machine
+        .read(trace, 0, u32::MAX)
+        .expect("trace file")
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            smith_events::read_with_ceiling(
+                line,
+                &events.sinks.records,
+                events.sinks.line_ceiling(events.capture).expect("record bound"),
+            )
+            .expect("event record")
+            .expect("known event")
+        })
+        .collect()
 }
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "the story names unexpected ending requests")]
@@ -827,22 +1040,19 @@ fn settle_colocated_exit(
     pid: skein_sim::Pid,
     peer: &mut skein_fake_peers::llm::Peer,
     peer_pid: skein_sim::Pid,
+    machine: &mut skein_fake_machine::Machine,
 ) {
     service.closed();
     let mut exited = false;
     for _ in 0_u32..1000 {
-        sim.reap(peer_pid, peer.completions());
-        peer.iterate(sim.now(), sim.wall());
-        sim.submit(peer_pid, peer.submissions());
-        sim.reap(pid, service.completions());
-        iterate(service, sim.now(), sim.wall());
+        colocated_up(service, sim, pid, peer, peer_pid);
         while let Some(request) = service.shell_requests().pop() {
             match request {
                 local::Request::Exit { .. } => exited = true,
                 other => panic!("unexpected ending {other:?}"),
             }
         }
-        sim.submit(pid, service.submissions());
+        colocated_down(service, sim, pid, machine);
         if exited {
             break;
         }
@@ -987,20 +1197,7 @@ fn trace_append(service: &mut Service, trace: skein_io::kernel::Fd) -> skein_io:
 fn an_inline_trace_whose_append_fails_is_given_up_once_with_why() {
     use smith_agent_service::{Destination, GivenUp, Why, sinks};
     let trace = skein_io::kernel::Fd::new(20);
-    let mut config = colocated_config();
-    let crate::AgentConfig::Inline { configuration: lower, .. } = &mut config.agent else { panic!("colocated agent") };
-    lower.limits.events = Some(
-        smith_agent_service::EventLimits::derive(
-            &lower.limits,
-            sinks::Capture::Calls,
-            1,
-            0,
-            &[],
-            Duration::from_secs(30),
-        )
-        .expect("bounded event stream"),
-    );
-    config.limits.inline = Some(crate::InlineLimits::new(lower).expect("bounded lower configuration"));
+    let (config, _) = recording_colocated_config();
     let mut service = Service::new(config, 8).expect("colocated service");
     service.adopt_trace(trace, Time::ZERO, session_started(), sinks::Delivery::Complete).expect("inline trace");
     let append = trace_append(&mut service, trace);

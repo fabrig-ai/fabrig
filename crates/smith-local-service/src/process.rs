@@ -1456,6 +1456,80 @@ fn store_limits() -> local_protocol::StoreLimits {
 mod tests {
     use super::*;
 
+    #[test]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "unit-test observations use ordinary Rust (programming-model.md, section 10.2)"
+    )]
+    fn a_store_answer_reaches_the_chat_before_a_later_file_terminal() {
+        const STORE_OWNER: Token = Token::new(u64::MAX - 1);
+        const MARKER_OWNER: Token = Token::new(7);
+        // Both whole-file requests finish while the chat's sole event slot is held.
+        const CHAT_EVENTS: u32 = 1;
+        // Consume the store terminal, dispatch Fault + Domain, then the marker.
+        const DISPATCH_PASSES: u32 = 3;
+        let config = crate::tests::config();
+        let mut adapter =
+            ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
+        adapter.adopt_store(kernel::Fd::new(10)).expect("store root");
+        adapter.adopt_delivery_roots(Box::new([kernel::Fd::new(11)]), Box::new([]));
+        let mut events = Queue::with_capacity(CHAT_EVENTS);
+        adapter.store_request(local_protocol::StoreRequest::Load);
+        adapter.markers_up(Time::ZERO, &mut events);
+        adapter.markers_up(Time::ZERO, &mut events);
+        adapter.start_markers(
+            MARKER_OWNER,
+            0,
+            Box::new([Box::from(b"source.rs".as_slice())]),
+            Time::from_nanos(1_000_000_000),
+            &mut events,
+        );
+        // The file driver has one operation at a time, but releases its slot
+        // when it queues a terminal. While local_events is full, down can
+        // therefore finish the next owner's request before markers_up resumes.
+        events.push(local::Event::StateSaved);
+        match adapter.file_requests.pop().expect("store load") {
+            (file::Request::Load { owner: STORE_OWNER, path, .. }, _) => {
+                assert_eq!(path.as_ref(), b"format");
+            }
+            other => panic!("store's first file request: {other:?}"),
+        }
+        adapter.file_events.push(file::Event::Failed {
+            owner: STORE_OWNER,
+            error: kernel::Error::Permission,
+            committed: false,
+            residue: None,
+        });
+        adapter.markers_up(Time::ZERO, &mut events);
+        match adapter.file_requests.pop().expect("marker load") {
+            (file::Request::Load { owner: MARKER_OWNER, .. }, _) => {}
+            other => panic!("marker's file request: {other:?}"),
+        }
+        adapter.file_events.push(file::Event::Loaded { owner: MARKER_OWNER, bytes: b"clean\n".as_slice().into() });
+        adapter.markers_up(Time::ZERO, &mut events);
+        events.pop().expect("release chat credit");
+
+        // Collect both terminals in dispatch order, returning chat credit after
+        // each pass. The assertion is about the chat's stream, not queue room.
+        let mut terminals = Vec::new();
+        for _ in 0..DISPATCH_PASSES {
+            adapter.markers_up(Time::ZERO, &mut events);
+            while let Some(event) = events.pop() {
+                terminals.push(event);
+            }
+        }
+        let [
+            local::Event::StoreFailed { turn: None, reason: local::StoreFailure::Read },
+            local::Event::Git { owner: MARKER_OWNER, result: local::GitResult::Markers { first: None } },
+        ] = terminals.as_slice()
+        else {
+            panic!("the store answer must reach the chat before the later marker terminal: {terminals:?}");
+        };
+        assert!(adapter.file_events.is_empty(), "both file terminals settle once");
+        assert!(adapter.store_actions.is_empty(), "the store answer settles once");
+        assert!(adapter.markers.is_none(), "the inspection settles once");
+    }
+
     fn prefetched_adapter(owner: Token) -> ProcessAdapter {
         let config = crate::tests::config();
         let mut adapter =
