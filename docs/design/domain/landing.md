@@ -162,8 +162,8 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   change joined to it. Members joined later are added by the connector
   in the decision that joins them.
 - **Requested by the deployment on the project's behalf,** funded from
-  the project's spend, with the authority the project's policy gives
-  landings (jig's `domain/authority.md`, section 6), as a branch's
+  the project's spend, reserving `1K` of the project's period, with the
+  authority the project's policy gives landings (jig's `domain/authority.md`, section 6), as a branch's
   repair under `queue` is (`forge.md`, section 9). It answers to no one:
   its escalations go to the project's escalation role, and its members'
   goals hear of it as news.
@@ -234,7 +234,9 @@ For a project with no prepare command, one member per repository:
   its own (jig's `domain/tasks.md`, 6.3), after a fresh read finds the
   head temper last knew; the head it leads to is the change's, though
   it does not contain the one before, once it contains main's tip it
-  asked for. This is the one move `forge.md`, 8.5 takes as the change's
+  asked for, even when a read sees it before the update's outcome
+  returns: the preparing change takes its own branch's move as its
+  update. This is the one move `forge.md`, 8.5 takes as the change's
   that is not forward. Another hand's push between that read and the
   rebase is carried into the candidate, as a merge update carries it
   under `queue` (skein's `forge-client.md`, 7.3: the forge's update
@@ -284,8 +286,9 @@ For a project with no prepare command, one member per repository:
   the gate's definition (its setting's value, section 13: its workflow,
   its ignored paths, whether it blocks), and the candidate's tree
   filtered by the gate's ignored paths.
-- **The filtered tree:** the entries of the candidate's root tree, in
-  path order, where an entry is listed whole unless an ignored path
+- **The filtered tree:** the entries of the candidate's root tree,
+  ordered by their full paths from the root, byte by byte (not git's
+  tree order), where an entry is listed whole unless an ignored path
   lies at or below it: an ignored entry is left out, and a directory
   above one is replaced by its own entries, recursively. An ignored
   path is a path prefix of whole segments (`docs`,
@@ -388,8 +391,11 @@ For a project with no prepare command, one member per repository:
   runner. Never read from a log's words (`../draft/ci-on-forgejo-17.md`,
   2.1).
 - **Retried, never repaired:** the failed jobs rerun (skein's
-  `Write::Rerun`), or the gate dispatched again, up to the project's
-  `gate_retries` per key. No receipt is made.
+  `Write::Rerun`, naming each job's attempt, so that a rerun whose
+  outcome was lost is found by the job's next attempt), or the gate
+  dispatched again, up to the project's `gate_retries` per key: a run
+  cancelled, or never found, is dispatched afresh, never rerun. No
+  receipt is made.
 - **Past its bound** the landing is held, saying which gate and why, and
   its members' goals hear it.
 
@@ -421,7 +427,9 @@ For a project with no prepare command, one member per repository:
     request merged once main holds its head.
 
   Each landing's outcome is read back: main's tip is the candidate, and
-  its member is landed.
+  its member is landed. The merge is the landing task's effect, but the
+  landed commit is its member change's: the change lands, and its goal
+  hears its own change's landing, as under `queue`.
 - **Nothing runs inside the turn:** no gate, no prepare, no run of an
   agent's. A merge refused or uncertain is settled as `forge.md`,
   section 6 settles any merge: a fast-forward-only merge raced by
