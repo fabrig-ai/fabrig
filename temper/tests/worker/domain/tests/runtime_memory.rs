@@ -6,12 +6,17 @@ use temper_worker_domain_world::runtime::{Close, Settings, World};
 #[global_allocator]
 static HEAP: heap::Counting = heap::Counting;
 
+// Measured peak: 34,177 bytes; 25% headroom, rounded up to two significant digits.
+const RUNTIME_HEAP_CEILING: u64 = 43_000;
+
 #[test]
 fn runtime_heap_stays_bounded_at_one_and_three_retained_turns() {
     for turns in [1, 3] {
         for merging in [false, true] {
-            let mut world =
-                World::new(Settings { seed: 91, turns, byte_slots: turns, merging, close: Close::Committed });
+            let mut world = World::new(
+                Settings { seed: 91, turns, byte_slots: turns, merging, close: Close::Committed },
+                RUNTIME_HEAP_CEILING,
+            );
             world.fill_turns();
             world.run();
             assert_eq!(world.stats().peak_retained, turns);

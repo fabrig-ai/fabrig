@@ -783,7 +783,7 @@ fn a_refused_settlement_uses_cores_returned_reply_address() {
 fn zero_watermark_refuses_startup_and_the_default_saturates() {
     let mut limits = resume_fixture::limits();
     limits.watermark = 0;
-    assert!(crate::worst_case(&limits).is_none());
+    assert!(!crate::valid(&limits));
     let journal = crate::JournalLimits { commits: u32::MAX, ..limits.journal };
     assert_eq!(crate::default_watermark(&journal), u32::MAX);
 }

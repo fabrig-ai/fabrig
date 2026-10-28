@@ -1,11 +1,17 @@
 //! Focused runtime stories and full trace replay.
+#[global_allocator]
+static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
+
 use temper_worker_domain_world::runtime::{Close, Settings, World};
 
 /// The turns seed 7's script leaves unacknowledged as it shuts down.
 const ABANDONED_TURNS: u64 = 2;
 
+// Measured peak: 34,043 bytes; 25% headroom, rounded up to two significant digits.
+const RUNTIME_HEAP_CEILING: u64 = 43_000;
+
 fn run(settings: Settings) -> World {
-    let mut world = World::new(settings);
+    let mut world = World::new(settings, RUNTIME_HEAP_CEILING);
     world.run();
     world
 }
@@ -59,7 +65,7 @@ fn full_boundary_and_fact_traces_replay_exactly() {
 fn facts_can_be_dropped_without_changing_the_runtime_boundaries() {
     let settings = Settings { seed: 13, turns: 3, byte_slots: 2, merging: false, close: Close::Committed };
     let first = run(settings);
-    let mut second = World::without_facts(settings);
+    let mut second = World::without_facts(settings, RUNTIME_HEAP_CEILING);
     second.run();
     assert_eq!(first.boundaries(), second.boundaries());
 }

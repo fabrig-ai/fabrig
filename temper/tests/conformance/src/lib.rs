@@ -2,6 +2,8 @@
 //! The forge observes native API calls, and store snapshots are independent of
 //! root state (jig's domain/testing.md, sections 5–6).
 mod config;
+#[path = "../tests/support/heap_ceilings.rs"]
+mod heap_ceilings;
 pub mod link;
 pub mod observations;
 mod scenarios;
@@ -47,9 +49,7 @@ impl Config {
         story: Option<stories::Story>,
     ) -> Self {
         let limits = config::root(seed, scenario, story).1;
-        let maximum = engine::worst_case(&limits).expect("finite root")
-            + u64::try_from(std::mem::size_of::<Domain>() - std::mem::size_of::<engine::Domain>())
-                .expect("driver size");
+        let maximum = heap_ceilings::maximum(scenario, story);
         Self { seed, scenario, story, limits, maximum }
     }
 }
