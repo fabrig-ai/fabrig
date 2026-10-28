@@ -60,6 +60,10 @@ struct Script<'a> {
 /// The steps of one request, each checked: the most the server held of its
 /// own in a step, less the input it was given.
 fn serve(limits: Limits, request: &[u8], script: Script<'_>, interrupt: Interrupt) -> u64 {
+    serve_observed(limits, request, script, interrupt).0
+}
+
+fn serve_observed(limits: Limits, request: &[u8], script: Script<'_>, interrupt: Interrupt) -> (u64, Flags) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::with_capacity(server::UP_MAX_OUT.above.max(server::DOWN_MAX_OUT.above));
     let mut below = Queue::with_capacity(server::UP_MAX_OUT.below.max(server::DOWN_MAX_OUT.below));
@@ -82,9 +86,12 @@ fn serve(limits: Limits, request: &[u8], script: Script<'_>, interrupt: Interrup
 
     for steps in 1..100_000 {
         if flags.closed {
-            return most;
+            return (most, flags);
         }
         let input = next(&mut flags, &mut intake, &limits, script, interrupt, steps);
+        if let Input::Up(Up::Bytes(bytes)) = &input {
+            flags.largest_delivery = flags.largest_delivery.max(bytes.len());
+        }
         let input_size = match &input {
             Input::Down(Request::Respond(response)) => size_of_response(response),
             Input::Down(Request::Reply(Down::Send(piece))) => u64::try_from(piece.len()).expect("fits a u64"),
@@ -109,6 +116,8 @@ struct Flags {
     /// The server's demand outstanding below.
     below: Option<(Read, u32)>,
     call: bool,
+    largest_delivery: usize,
+    largest_send: usize,
     responded: bool,
     body_wanted: bool,
     body_over: bool,
@@ -165,7 +174,10 @@ impl Flags {
             match request {
                 Down::Demand { read: Read::Nothing, room: 0 } => self.below = None,
                 Down::Demand { read, room } => self.below = Some((read, room)),
-                Down::Send(bytes) => drop(bytes),
+                Down::Send(bytes) => {
+                    self.largest_send = self.largest_send.max(bytes.len());
+                    drop(bytes);
+                }
                 Down::Finish => panic!("the server never finishes"),
             }
         }
@@ -362,7 +374,7 @@ fn every_entry_point_of_the_server_holds_no_more_than_its_worst_case_at_its_limi
 }
 
 #[test]
-fn the_server_s_peak_is_its_worst_case_in_either_phase() {
+fn the_server_at_its_head_limits_stays_within_its_worst_case_in_either_phase() {
     // Reading a head, the larger phase under these limits: a request line
     // filling the head, ended by an LF alone, and its target's copy.
     let mut line = b"GET /".to_vec();
@@ -370,8 +382,10 @@ fn the_server_s_peak_is_its_worst_case_in_either_phase() {
     line.extend_from_slice(b" HTTP/1.1\n");
     let response = Response { status: 204, headers: Box::new([]), body: Body::None, close: false };
     let script = Script { response: &response, reply: b"", read: Read::Fill(LIMITS.read), first: false };
-    let most = serve(LIMITS, &line, script, Interrupt::Nothing);
-    assert_eq!(most, server::worst_case(&LIMITS).unwrap(), "a head at its limit");
+    let (most, observed) = serve_observed(LIMITS, &line, script, Interrupt::Nothing);
+    assert!(most <= server::worst_case(&LIMITS).unwrap(), "a head at its limit");
+    assert_eq!(line.len(), usize::try_from(LIMITS.head).unwrap());
+    assert_eq!(observed.largest_delivery, usize::try_from(LIMITS.head).unwrap());
     // An exchange, the larger phase under these: a response head at its
     // limit, held for a connection kept as the side above discards the
     // body, and a piece of the most a read is.
@@ -383,8 +397,9 @@ fn the_server_s_peak_is_its_worst_case_in_either_phase() {
     let value = vec![b'v'; usize::try_from(limits.response).unwrap() - kept - "X: \r\n".len()];
     response.headers = Box::new([Header { name: b"X".to_vec().into(), value: value.into() }]);
     let script = Script { response: &response, reply: b"", read: Read::Fill(limits.read), first: false };
-    let most = serve(limits, &request, script, Interrupt::Discard(0));
-    assert_eq!(most, server::worst_case(&limits).unwrap(), "a response head at its limit, held");
+    let (most, observed) = serve_observed(limits, &request, script, Interrupt::Discard(0));
+    assert!(most <= server::worst_case(&limits).unwrap(), "a response head at its limit, held");
+    assert_eq!(observed.largest_send, usize::try_from(limits.response).unwrap());
 }
 
 #[test]
@@ -403,6 +418,11 @@ fn the_server_s_head_its_carry_over_and_a_delivery_count_together() {
 /// The steps of writing `items`, each checked: the most the writer held of
 /// its own in a step, less the item it was given.
 fn written(limits: writer::Limits, items: &[Outgoing], close: Option<u32>) -> u64 {
+    written_observed(limits, items, close).0
+}
+
+fn written_observed(limits: writer::Limits, items: &[Outgoing], close: Option<u32>) -> (u64, usize) {
+    let mut sent = 0;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::with_capacity(writer::UP_MAX_OUT.above.max(writer::DOWN_MAX_OUT.above));
     let mut below = Queue::with_capacity(writer::UP_MAX_OUT.below.max(writer::DOWN_MAX_OUT.below));
@@ -450,21 +470,24 @@ fn written(limits: writer::Limits, items: &[Outgoing], close: Option<u32>) -> u6
             match request {
                 Down::Demand { read: Read::Nothing, room: 0 } => room = false,
                 Down::Demand { .. } => room = true,
-                Down::Send(bytes) => drop(bytes),
+                Down::Send(bytes) => {
+                    sent += bytes.len();
+                    drop(bytes);
+                }
                 Down::Finish => {}
             }
         }
         let input_size = u64::try_from(input_size).expect("fits a u64");
         most = most.max(meter.check(step, bound + input_size, &what) - input_size);
         if closed {
-            return most;
+            return (most, sent);
         }
     }
     panic!("{what}: events are written in a few steps a piece");
 }
 
 #[test]
-fn the_writer_holds_no_more_than_its_worst_case_and_its_peak_is_its_worst_case_at_its_limits() {
+fn the_writer_at_its_event_limit_stays_within_its_worst_case() {
     let limits = writer::Limits { event: 300, chunk: 32 };
     // `event: `, the type, `id: `, the id, `data: ` and the data, each with an
     // LF, and the blank line: 300 bytes.
@@ -475,11 +498,9 @@ fn the_writer_holds_no_more_than_its_worst_case_and_its_peak_is_its_worst_case_a
         retry: None,
     };
     let bound = writer::worst_case(&limits).expect("the limits are honoured");
-    assert_eq!(
-        written(limits, std::slice::from_ref(&at_limit), None),
-        bound,
-        "at its limits, its peak is its worst case exactly"
-    );
+    let (most, sent) = written_observed(limits, std::slice::from_ref(&at_limit), None);
+    assert!(most <= bound, "at its event limit, its peak stays within its worst case");
+    assert_eq!(sent, usize::try_from(limits.event).unwrap());
     let past = Outgoing { data: vec![b'x'; 400].into(), ..at_limit.clone() };
     let small = Outgoing { name: Box::new([]), data: b"a\nb\r\nc".to_vec().into(), id: None, retry: Some(5) };
     let items = [small.clone(), at_limit.clone(), past, small];

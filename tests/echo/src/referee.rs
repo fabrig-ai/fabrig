@@ -283,3 +283,52 @@ impl Referee<Proc> for EchoReferee {
         self.expectations.passed()
     }
 }
+
+/// Full buffers in the `worst` scenario's quiet snapshot. Every input line
+/// is echoed byte for byte, and room for its answer precedes reading it.
+/// With no internal work pending, received bytes less fully released send
+/// buffers belong to the intake and output. A partial send keeps its whole
+/// buffer and its byte-cap charge until it completes. Their combined cap
+/// can be reached only when both are full. The last receive filled its
+/// whole buffer on the way there. Inspect only before the clients abort.
+#[must_use]
+pub fn full_echo_buffers(trace: &[skein_sim::Entry], limits: &skein_io::Limits) -> u32 {
+    use skein_io::kernel::Done;
+    use skein_sim::{Event, Summary};
+    use std::collections::BTreeMap;
+
+    #[derive(Default)]
+    struct Traffic {
+        received: u64,
+        released: u64,
+        last_receive: u32,
+    }
+
+    let mut streams = BTreeMap::<i32, Traffic>::new();
+    for entry in trace.iter().filter(|entry| entry.pid.raw() == 0) {
+        if let Event::Complete { kind: Summary::Recv { fd, .. }, result: Ok(Done::Count(bytes)), .. } = entry.event {
+            let stream = streams.entry(fd.raw()).or_default();
+            stream.received += u64::from(bytes);
+            stream.last_receive = bytes;
+        }
+        if let Event::Complete { kind: Summary::Send { fd, len, from }, result: Ok(Done::Count(bytes)), .. } =
+            entry.event
+            && usize::try_from(from + bytes).expect("send offset") == len
+        {
+            streams.entry(fd.raw()).or_default().released += u64::try_from(len).expect("send length");
+        }
+        if let Event::Complete { kind: Summary::Close { fd }, .. } = entry.event {
+            streams.remove(&fd.raw());
+        }
+    }
+    let full = u64::from(limits.intake) + u64::from(limits.output);
+    u32::try_from(
+        streams
+            .values()
+            .filter(|stream| {
+                stream.received.checked_sub(stream.released) == Some(full) && stream.last_receive == limits.receive
+            })
+            .count(),
+    )
+    .expect("at most the world's connections")
+}

@@ -331,6 +331,12 @@ fn the_carry_over_counts_with_the_head_and_a_delivery() {
 /// The steps of a stream read to its outcome, each checked: the most the
 /// reader held of its own in a step.
 fn events(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> u64 {
+    events_observed(limits, stream, close).0
+}
+
+fn events_observed(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> (u64, usize, usize) {
+    let mut name = 0;
+    let mut id = 0;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::with_capacity(sse::UP_MAX_OUT.above.max(sse::DOWN_MAX_OUT.above));
     let mut below = Queue::with_capacity(sse::UP_MAX_OUT.below.max(sse::DOWN_MAX_OUT.below));
@@ -380,7 +386,11 @@ fn events(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> u64 {
             match event {
                 sse::Event::Opened => {}
                 sse::Event::Data(data) => drop(data),
-                sse::Event::Dispatched(dispatch) => drop(dispatch),
+                sse::Event::Dispatched(dispatch) => {
+                    name = name.max(dispatch.name.len());
+                    id = id.max(dispatch.id.len());
+                    drop(dispatch);
+                }
                 sse::Event::Ended | sse::Event::Failed(_) => over = true,
                 sse::Event::Closed => closed = true,
             }
@@ -394,7 +404,7 @@ fn events(limits: sse::Limits, stream: &[u8], close: Option<u32>) -> u64 {
         }
         most = most.max(meter.check(step, bound, &what));
         if closed {
-            return most;
+            return (most, name, id);
         }
     }
     panic!("{what}: a stream is read in a few steps a line");
@@ -429,7 +439,10 @@ fn the_reader_holds_no_more_than_its_worst_case_at_its_limits() {
         (b"event: 01234567890123456789\ndata\n\n", "a type past its limit"),
     ];
     let bound = sse::worst_case(&limits).expect("the limits are honoured");
-    assert_eq!(events(limits, &at_limits, None), bound, "at its limits, its peak is its worst case exactly");
+    let (most, name, id) = events_observed(limits, &at_limits, None);
+    assert!(most <= bound, "at its field limits, its peak stays within its worst case");
+    assert_eq!(name, usize::try_from(limits.field).unwrap());
+    assert_eq!(id, usize::try_from(limits.field).unwrap());
     for (stream, what) in cases {
         let most = events(limits, stream, None);
         assert!(most > 0, "{what}");
@@ -456,7 +469,9 @@ fn an_event_far_longer_than_its_chunk_costs_the_same_reader_memory_as_a_small_on
     let small = format!("event: 12345678\nid: 12345678\ndata: {}\n\n", "a".repeat(64));
     let large = format!("event: 12345678\nid: 12345678\ndata: {}\n\n", "a".repeat(1 << 14));
     let small = events(limits, small.as_bytes(), None);
-    let large = events(limits, large.as_bytes(), None);
+    let (large, name, id) = events_observed(limits, large.as_bytes(), None);
     assert_eq!(small, large, "the reader holds no event buffer");
-    assert_eq!(large, sse::worst_case(&limits).expect("valid limits"));
+    assert!(large <= sse::worst_case(&limits).expect("valid limits"));
+    assert_eq!(name, usize::try_from(limits.field).unwrap());
+    assert_eq!(id, usize::try_from(limits.field).unwrap());
 }

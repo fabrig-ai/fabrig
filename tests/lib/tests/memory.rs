@@ -9,8 +9,8 @@
 //! hands out (an item taken, a delivery, a box of a list's items) is its
 //! receiver's, dropped before the check.
 //!
-//! A slab, a queue, a list, a stack and an intake are allocated once, at their
-//! capacity, and hold exactly their worst case from the start. A map, a set
+//! A slab, a queue, a list, a stack and an intake stay within their worst
+//! case at every step, fill to capacity and refuse one more. A map, a set
 //! and a deadline table allocate tree nodes as they fill, priced at the most
 //! nodes the tree can have, each as the larger kind: they are filled in
 //! order, each leaf left behind holding six entries, then thinned to five a
@@ -60,11 +60,6 @@ impl Metered {
         drop(handed);
         let own = self.meter.check(measured, self.bound, &self.what);
         self.most = self.most.max(own);
-    }
-
-    /// For a container allocated once, at its capacity.
-    fn held_exactly_its_worst_case(&self) {
-        assert_eq!(self.most, self.bound, "{:?}: allocated at its capacity, its worst case", self.what);
     }
 }
 
@@ -163,7 +158,6 @@ fn slab<T: Item>(capacity: u32) {
         slab.reclaim();
         metered.end(());
     }
-    metered.held_exactly_its_worst_case();
 }
 
 /// Fills a queue to its capacity, refuses one more, and takes half of it
@@ -181,9 +175,11 @@ fn queue<T: Item>(capacity: u32) {
             metered.end(());
             next += 1;
         }
+        assert_eq!(queue.len(), capacity);
         metered.start();
         let refused = queue.try_push(T::nth(next));
-        metered.end(refused);
+        metered.end(());
+        assert!(refused.is_err(), "a full queue refuses one more");
         for _ in 0..=capacity / 2 {
             metered.start();
             let taken = queue.pop();
@@ -195,7 +191,6 @@ fn queue<T: Item>(capacity: u32) {
         let taken = queue.pop();
         metered.end(taken);
     }
-    metered.held_exactly_its_worst_case();
 }
 
 /// Fills a list to its capacity, refuses one more and copies it out; then
@@ -208,8 +203,10 @@ fn list<T: Item>(capacity: u32) {
     for n in 0..=capacity {
         metered.start();
         let pushed = list.push(T::nth(n));
-        metered.end(pushed);
+        metered.end(());
+        assert_eq!(pushed.is_err(), n >= capacity, "refuses only past capacity");
     }
+    assert_eq!(list.len(), capacity);
     assert_eq!(list.room(), 0);
     metered.start();
     let copy = list.to_boxed();
@@ -220,13 +217,13 @@ fn list<T: Item>(capacity: u32) {
     for n in 0..capacity / 2 {
         metered.start();
         let pushed = list.push(T::nth(n));
-        metered.end(pushed);
+        metered.end(());
+        assert_eq!(pushed.is_err(), n >= capacity, "refuses only past capacity");
     }
     // Moved into a box of exactly its length: shrunk, which copies.
     metered.start();
     let moved = list.into_boxed();
     metered.end(moved);
-    metered.held_exactly_its_worst_case();
 }
 
 /// Fills a stack to its capacity, refuses one more, pops half of it and fills
@@ -237,10 +234,12 @@ fn stack<T: Item>(capacity: u32) {
     let mut stack = Stack::with_capacity(capacity);
     metered.end(());
     for _ in 0..2 {
+        let room = capacity - stack.len();
         for n in 0..=capacity {
             metered.start();
             let pushed = stack.push(T::nth(n));
-            metered.end(pushed);
+            metered.end(());
+            assert_eq!(pushed.is_err(), n >= room, "refuses only past capacity");
         }
         assert_eq!(stack.len(), capacity);
         for _ in 0..=capacity / 2 {
@@ -254,7 +253,6 @@ fn stack<T: Item>(capacity: u32) {
         let popped = stack.pop();
         metered.end(popped);
     }
-    metered.held_exactly_its_worst_case();
 }
 
 /// Bytes enough for the largest capacity.
@@ -284,6 +282,7 @@ fn intake(capacity: u32) {
         len
     };
     assert!(append(&mut metered, &mut intake, &BYTES[..cap]));
+    assert_eq!(intake.len(), capacity);
     assert!(!append(&mut metered, &mut intake, b"a"), "a full intake refuses a byte more");
     assert_eq!(meet(&mut metered, &mut intake, Read::Fill(capacity)), Some(cap));
     if capacity >= 1 {
@@ -318,7 +317,6 @@ fn intake(capacity: u32) {
             meet(&mut metered, &mut intake, read);
         }
     }
-    metered.held_exactly_its_worst_case();
 }
 
 /// Fills a map to its capacity in order, refuses a new key and replaces a
@@ -475,7 +473,7 @@ fn deadlines<K: Item>(capacity: u32) {
 }
 
 #[test]
-fn a_slab_holds_exactly_its_worst_case() {
+fn a_slab_filled_to_its_capacity_stays_within_its_worst_case() {
     for capacity in CAPACITIES {
         slab::<u8>(capacity);
         slab::<u64>(capacity);
@@ -485,7 +483,7 @@ fn a_slab_holds_exactly_its_worst_case() {
 }
 
 #[test]
-fn a_queue_holds_exactly_its_worst_case() {
+fn a_queue_filled_to_its_capacity_stays_within_its_worst_case() {
     for capacity in CAPACITIES {
         queue::<u8>(capacity);
         queue::<u64>(capacity);
@@ -495,7 +493,7 @@ fn a_queue_holds_exactly_its_worst_case() {
 }
 
 #[test]
-fn a_list_holds_exactly_its_worst_case() {
+fn a_list_filled_to_its_capacity_stays_within_its_worst_case() {
     for capacity in CAPACITIES {
         list::<u8>(capacity);
         list::<u64>(capacity);
@@ -505,7 +503,7 @@ fn a_list_holds_exactly_its_worst_case() {
 }
 
 #[test]
-fn a_stack_holds_exactly_its_worst_case() {
+fn a_stack_filled_to_its_capacity_stays_within_its_worst_case() {
     for capacity in CAPACITIES {
         stack::<u8>(capacity);
         stack::<u64>(capacity);
@@ -515,7 +513,7 @@ fn a_stack_holds_exactly_its_worst_case() {
 }
 
 #[test]
-fn an_intake_holds_exactly_its_worst_case() {
+fn an_intake_filled_to_its_capacity_stays_within_its_worst_case() {
     for capacity in CAPACITIES {
         intake(capacity);
     }

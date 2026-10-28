@@ -394,8 +394,8 @@ pub fn half_close(seed: u64, config: Config) -> EchoWorld {
 /// all three of its connections, three clients that send forty lines ahead
 /// of their answers and never read fill every connection's intake, receive
 /// and output at once, and a fourth is rejected, until the clients give up.
-/// What the echo held at its peak is measured against its worst case by the
-/// focused test, to show how near the bound comes.
+/// The focused test observes full buffers from byte traffic at a quiet
+/// snapshot; the world checks memory against its worst case at every step.
 #[must_use]
 pub fn worst(seed: u64, config: Config) -> EchoWorld {
     let config = Config { buffer: BUFFER, ..config };

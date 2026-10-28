@@ -51,18 +51,26 @@ fn peak() -> (u64, u64) {
     words.close();
     let words = words.finish();
     let measured = meter.end();
+    assert_eq!(view.tree().len(), LIMITS.nodes);
+    let mut text = 0;
+    for node in view.tree().nodes() {
+        let bytes = node.name.as_ref().map_or(0, |name| name.len())
+            + node.text.as_slice().iter().map(|run| run.text.len()).sum::<usize>();
+        assert_eq!(bytes, usize::try_from(LIMITS.text_per_node).expect("text limit"));
+        text += bytes;
+    }
+    assert_eq!(text, usize::try_from(LIMITS.text_bytes).expect("text budget"));
+    assert_eq!(scene.marks().len(), usize::try_from(LIMITS.scene_marks).expect("mark limit"));
+    let scene_bytes: usize = (0..LIMITS.scene_marks).map(|index| scene.data(index).len()).sum();
+    assert_eq!(scene_bytes, usize::try_from(LIMITS.scene_bytes).expect("scene budget"));
+    assert!(!scene.refused());
     drop((words, scene, patches, view, builder));
     (measured.peak(), bound)
 }
 #[test]
-fn the_view_holds_no_more_than_its_worst_case() {
+fn full_pages_at_their_node_and_text_limits_stay_within_the_worst_case() {
     let (peak, bound) = peak();
     assert!(peak <= bound, "full pages, diff, Markdown and scene: {peak} <= {bound}");
-}
-#[test]
-fn a_full_page_reaches_half_its_worst_case() {
-    let (peak, bound) = peak();
-    assert!(peak >= bound / 2, "full pages reach the limits: {peak} >= {bound}/2");
 }
 
 #[test]

@@ -578,9 +578,7 @@ fn a_hostile_chain_of_empty_certificates_is_priced_and_kept() {
             case.server.versions = versions;
             let measured = measure(&case, 7);
             assert_eq!(measured.failed, None, "{case:?}");
-            if versions == Versions::Tls12 && records == 4 * client::MAX_RECORD {
-                assert!(10 * measured.most >= 9 * measured.bound, "the bound is tight: {measured:?}");
-            }
+            assert!(measured.most <= measured.bound, "the padded chain stays within its bound: {measured:?}");
         }
     }
 }

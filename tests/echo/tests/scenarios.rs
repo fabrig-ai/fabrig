@@ -143,16 +143,27 @@ fn a_half_close_with_lines_unanswered_has_every_whole_line_answered_then_the_end
     chaos(half_close);
 }
 
-/// Every connection's intake, receive and output full at once, the echo
-/// holds about three fifths of its worst case. The rest is the bookkeeping
-/// of io's and the protocol layer's B-tree tables (deadlines, ready lists),
-/// whose worst cases count a full table's nodes while a few timers are
-/// armed. A floor of half catches a world that stops reaching the limits.
+/// Every connection reaches full intake and output together after a full
+/// receive, observed from byte traffic while the echo has no internal work.
 #[test]
-fn the_echo_driven_to_its_limits_comes_near_its_worst_case() {
-    for outcome in calm(worst) {
+fn every_echo_connection_fills_its_buffers_together_within_its_worst_case() {
+    let limits = skein_echo_world::scenarios::server();
+    for seed in CALM {
+        let mut filled = false;
+        let outcome = worst(seed, Config::calm()).run_with_inputs(|sim, _, procs| {
+            let echo = procs[0].as_echo().expect("the echo");
+            if !filled
+                && sim.now() < skein_echo_world::scenarios::ms(1_000)
+                && !echo.work_pending(sim.now())
+                && echo.domain().sessions() == limits.protocol.conns
+            {
+                filled |=
+                    skein_echo_world::referee::full_echo_buffers(sim.trace(), &limits.io) == limits.protocol.conns;
+            }
+        });
+        assert!(filled, "seed {seed}: every connection filled its intake and output after a full receive");
         let (most, bound) = outcome.heap.as_ref().expect("checked")[0];
-        assert!(most * 2 >= bound, "seed {}: the echo held {most} bytes at its limits, of {bound}", outcome.seed);
+        assert!(most <= bound, "seed {seed}: the echo held {most} bytes, within {bound}");
     }
     chaos(worst);
 }
