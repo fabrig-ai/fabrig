@@ -201,10 +201,14 @@ def selection(changed_paths, metadata, *, always=None, read_by_tests=None, locke
     return names | set(always)
 
 
+def load_workspace_metadata(repo):
+    return json.loads(command(["cargo", "metadata", "--no-deps", "--format-version", "1", "--locked"],
+                             repo, separate_stderr=True).stdout)
+
+
 def load_metadata(repo):
     # --no-deps supplies ownership; the resolved graph includes normal, build and dev edges.
-    metadata = json.loads(command(["cargo", "metadata", "--no-deps", "--format-version", "1", "--locked"],
-                                  repo, separate_stderr=True).stdout)
+    metadata = load_workspace_metadata(repo)
     resolved = json.loads(command(["cargo", "metadata", "--format-version", "1", "--locked"],
                                  repo, separate_stderr=True).stdout)
     metadata["resolve"] = resolved["resolve"]
@@ -218,9 +222,26 @@ def changed_paths(repo, tip="HEAD"):
     return output.split("\0")[:-1] if output else []
 
 
-def check_commands(repo, selected, paths):
-    steps = [("fmt", ["cargo", "fmt", "--all", "--check"], repo)]
-    if selected != "docs":
+def check_commands(repo, selected, paths, *, metadata=None):
+    steps = []
+    if selected == "full":
+        steps.append(("fmt", ["cargo", "fmt", "--all", "--check"], repo))
+    elif selected != "docs":
+        rust_paths = [PurePosixPath(path) for path in paths if path.endswith(".rs")]
+        if rust_paths:
+            metadata = load_workspace_metadata(repo) if metadata is None else metadata
+            owners = package_owners(metadata)
+            ids = set()
+            for path in rust_paths:
+                for directory, package_id in owners:
+                    if path.is_relative_to(directory):
+                        ids.add(package_id)
+                        break
+            names = sorted(package["name"] for package in metadata["packages"] if package["id"] in ids)
+            if names:
+                scope = [arg for name in names for arg in ("-p", name)]
+                steps.append(("fmt", ["cargo", "fmt", "--check", *scope], repo))
+    if selected and selected != "docs":
         scope = ["--workspace"] if selected == "full" else [arg for name in sorted(selected) for arg in ("-p", name)]
         steps.extend([
             ("clippy", ["heavy", "--gate", "cargo", "clippy", *scope, "--all-targets", "--", "-D", "warnings"], repo),
@@ -486,7 +507,7 @@ class Queue:
                 raise DiskFloorError(
                     f"{host}: {free_gb(self.repo):.1f} GB free; heavy refused:\n{refusal}",
                     f"heavy-disk-floor:{refusal}")
-            green = bool(record["steps"]) and all(step["green"] for step in record["steps"])
+            green = all(step["green"] for step in record["steps"])
             ensure_clean(self.repo)
             if selected == "full":
                 self.state["last_full"] = self.now()

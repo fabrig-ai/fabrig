@@ -157,25 +157,49 @@ class SelectionTests(unittest.TestCase):
 
 class CheckTests(unittest.TestCase):
     def test_package_scope_and_ratchets(self):
-        steps = mq.check_commands(ROOT, {"z", "a"}, ["smith/crates/a/src/lib.rs", "skein/docs/x.md"])
+        steps = mq.check_commands(ROOT, {"core", "normal"}, ["core/src/lib.rs", "skein/docs/x.md"],
+                                  metadata=metadata(ROOT))
         self.assertEqual([name for name, _, _ in steps],
-                         ["fmt", "clippy", "default", "fuzzy", "ratchet:skein", "ratchet:smith"])
-        self.assertEqual(steps[0][1], ["cargo", "fmt", "--all", "--check"])
+                         ["fmt", "clippy", "default", "fuzzy", "ratchet:skein"])
+        self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core"])
         for _, argv, _ in steps[1:4]:
             self.assertEqual(argv[:3], ["heavy", "--gate", "cargo"])
-            self.assertEqual(argv[argv.index("-p"):argv.index("-p") + 4], ["-p", "a", "-p", "z"])
+            self.assertEqual(argv[argv.index("-p"):argv.index("-p") + 4], ["-p", "core", "-p", "normal"])
         self.assertEqual(steps[1][1][-4:], ["--all-targets", "--", "-D", "warnings"])
         self.assertIn("--no-fail-fast", steps[2][1])
         self.assertEqual(steps[3][1][-2:], ["--profile", "fuzzy"])
-        self.assertEqual(steps[-1][2], ROOT / "smith")
-        self.assertEqual(steps[-1][1], ["python3", "-I", "-B", str(ROOT / "smith/scripts/old_forms.py")])
+        self.assertEqual(steps[-1][2], ROOT / "skein")
+        self.assertEqual(steps[-1][1], ["python3", "-I", "-B", str(ROOT / "skein/scripts/old_forms.py")])
 
-    def test_full_uses_workspace_and_docs_only_fmt_and_ratchets(self):
+    def test_full_formats_workspace_and_docs_only_runs_ratchets(self):
+        self.assertEqual(mq.check_commands(ROOT, "full", [])[0][1], ["cargo", "fmt", "--all", "--check"])
         for _, argv, _ in mq.check_commands(ROOT, "full", [])[1:]:
             self.assertIn("--workspace", argv)
             self.assertNotIn("-p", argv)
         self.assertEqual([name for name, _, _ in mq.check_commands(ROOT, "docs", ["jig/README.md"])],
-                         ["fmt", "ratchet:jig"])
+                         ["ratchet:jig"])
+
+    def test_fmt_uses_only_changed_rust_owners_sorted_once(self):
+        paths = ["unrelated/src/lib.rs", "core/src/lib.rs", "core/tests/check.rs",
+                 "core/examples/nested/src/lib.rs"]
+        steps = mq.check_commands(ROOT, {"core", "normal", "nested", "unrelated", "always"}, paths,
+                                  metadata=metadata(ROOT))
+        self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core", "-p", "nested",
+                                      "-p", "unrelated"])
+
+    def test_no_rust_changes_skip_fmt_and_ownership_metadata(self):
+        for selected, paths in (({"core"}, ["Cargo.lock"]), ({"core"}, ["core/Cargo.toml"]),
+                                ("docs", ["README.md"]), ({"core"}, ["core/tests/data.json"]),
+                                (set(), ["Cargo.lock"])):
+            with self.subTest(paths=paths, selected=selected), patch.object(mq, "load_workspace_metadata") as loader:
+                self.assertNotIn("fmt", [name for name, _, _ in mq.check_commands(ROOT, selected, paths)])
+                loader.assert_not_called()
+
+    def test_fmt_loads_ownership_from_no_deps_metadata(self):
+        with patch.object(mq, "load_workspace_metadata", return_value=metadata(ROOT)) as loader:
+            steps = mq.check_commands(ROOT, {"core"}, ["core/src/lib.rs"])
+        loader.assert_called_once_with(ROOT)
+        self.assertEqual(steps[0][1], ["cargo", "fmt", "--check", "-p", "core"])
 
     def test_empty_nextest_is_green_and_steps_have_durations(self):
         calls = []
@@ -187,9 +211,9 @@ class CheckTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(dir=ROOT, prefix=".mq-test-") as directory:
             log = Path(directory) / "checks.log"
-            times = iter(range(8))
+            times = iter(range(6))
             steps = mq.run_checks(ROOT, {"core"}, [], log, runner=runner, clock=lambda: next(times))
-            self.assertEqual(len(calls), 4)
+            self.assertEqual(len(calls), 3)
             self.assertTrue(all(step["green"] and step["duration"] == 1 for step in steps))
             self.assertEqual(log.stat().st_mode & 0o777, 0o600)
 
@@ -598,6 +622,16 @@ baseline.write_text(str(count) + '\n')
         queue.metadata_loader = no_metadata
         self.run_cycle(queue)
         self.assertEqual(self.checks[0][0], "docs")
+
+    def test_docs_batch_without_checks_is_green_and_lands(self):
+        self.branch("docs", "README.md", publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        queue.checker = mq.run_checks
+        self.run_cycle(queue)
+        record = self.records()[0]
+        self.assertEqual((record["outcome"], record["steps"]), ("green", []))
+        self.assertTrue((self.repo / "README.md").exists())
 
     def test_manifest_batch_does_not_need_valid_cargo_metadata(self):
         self.branch("a", "Cargo.toml", "not a valid manifest\n", publish=True)

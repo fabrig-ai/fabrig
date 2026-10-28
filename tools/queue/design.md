@@ -11,7 +11,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
 - **Error:** an exception logs the batch as `error`; its tips remain eligible. `run` restores `origin/main`, reports each distinct error to the coordinator once, waits a cycle, and continues. `once` raises to its caller.
-- **Docs-only batches** whose files no test reads skip the build (formatting and the ratchet only).
+- **Docs-only batches** whose files no test reads skip formatting and builds; only the touched trees' ratchets run.
 - **Every batch is logged** as one JSON line (`~/src/fabrig/notes/queue.jsonl`): start and end, branches, outcome, the selection's packages, each step's duration, and test executable cleanup counts and GB.
 
 ## 2. The selection
@@ -36,6 +36,16 @@ A removed dependency selects the parent whose lock entry drops that edge;
 an unreachable removed entry selects no HEAD package. Normal, build, and dev
 edges all participate. Periodic, hourly, and idle full checks remain unchanged.
 Python 3.11 or later supplies the standard library TOML parser.
+
+### 2.2 Formatting changed Rust owners
+
+For a selected batch, collect the workspace packages owning changed `.rs`
+paths, using the longest manifest directory from `cargo metadata --no-deps`.
+Run `cargo fmt --check -p <name>` with each owner once, sorted by name.
+Reverse dependencies and `always.txt` do not expand formatting. Both sides
+of renames and deleted paths count. Without changed Rust paths, including
+docs-only, manifest-only, and lockfile-only batches, skip formatting. A full
+run keeps `cargo fmt --all --check`. A batch with no checks to run is green.
 
 ## 3. Running it
 
