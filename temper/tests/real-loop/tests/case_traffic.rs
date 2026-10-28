@@ -53,7 +53,7 @@ fn the_timer_case_lists_on_hints_instead_of_time() {
         client::Config { namespace: b"kit".as_slice().into(), writers: Box::new([]) },
     )
     .expect("fixture client");
-    let mut out = Queue::with_capacity(client::max_out(&env.limits));
+    let mut out = Queue::uncapped();
     client::step(&mut domain, &env, Event::Restored { clock: client::RecoveryClock::Monotonic }, &mut out);
     let repository = api::Repository { forge: 1, repository: temper_real_loop_world::forge::ID };
     client::step(
