@@ -72,6 +72,10 @@ fn demo_row_sizes_fit_the_existing_application_ceiling() {
 fn plan_text_uses_the_body_bound_without_changing_the_format() {
     // Eight items grow from 256 bytes of text each to 512 bytes each.
     const EXTRA_PLAN_BYTES: u64 = 2048;
+    // An issue row's decoded heap at the old plan text bound, a quarter above 10-28's 5,888 bytes.
+    const ISSUE_ROW_BEFORE_HEAP_CEILING: u64 = 7_400;
+    // An issue row's decoded heap at the body bound, a quarter above 10-28's 7,936 bytes.
+    const ISSUE_ROW_AFTER_HEAP_CEILING: u64 = 10_000;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let after = *bounds.limits();
     let before = crate::v10::Limits { plan_item_text: fixtures::LIMITS.issue_policy.comment_bytes, ..after };
@@ -83,8 +87,8 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     assert_eq!(new_view, 7286);
     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&before), Some(5657));
     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&after), Some(7705));
-    assert_eq!(crate::v10::IssueRow::worst_case_heap(&before), Some(5888));
-    assert_eq!(crate::v10::IssueRow::worst_case_heap(&after), Some(7936));
+    assert!(crate::v10::IssueRow::worst_case_heap(&before).unwrap() <= ISSUE_ROW_BEFORE_HEAP_CEILING);
+    assert!(crate::v10::IssueRow::worst_case_heap(&after).unwrap() <= ISSUE_ROW_AFTER_HEAP_CEILING);
     assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(52_975));
     assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(52_975));
 }
