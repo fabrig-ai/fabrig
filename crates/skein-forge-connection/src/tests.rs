@@ -302,100 +302,54 @@ fn duplicate_forge_numbers_are_refused_before_any_connection() {
     );
 }
 
-// Complete Forgejo fixture (forge-connection.md, 7.5), in bytes on the
-// 64-bit layout. Decoder = 32*128 + 8*(3*128 + 2*48 + 2*16)
-// + 2*1042 + 16*128 + 4096 + fixed decoder 272 = 16_692.
-// Socket = 32768 + 4096 + 32768 + 4*16 = 69_696.
-// Each of two pooled connections = HTTP 44_032 + TLS 456_809 + tokenizer
-// 2082 + decoder 16_692 + raw 2*65536 + routing 5056 + send 32768
-// + encoding (6*1042 + 1024) + socket 69_696
-// + local JSON intake/delivery 2*1024 = 767_531.
-// Four hooks = 4*(HTTP 18_418 + tokenizer 2082 + decoder 16_692
-// + socket 69_696 + HMAC 208 + hint 88 + text/body 1170 + queues 368
-// + head 8192 + chunks 2048) + hook slab/index 4832 = 480_680.
-// Common calls = 2*560 (Waiting slab slots) + 288 (holders tree)
-// + 2*16 (drive list) + 288 (call index) + 2*3*512 (operation copies)
-// + 2752 (held tree) + 2*65536 (held answers) = 138_608.
-// Forgejo's call payload = read/write boxes 1216+408, staging 64*8
-// + 72*16 + 72*128, answer 65536, ChangedFile rows 8*40 + 8*2*128,
-// File/Commit rows 8*48 + 8*32, texts 4*128 + 13*128 and users 8*48
-// + directory backing (65536/32)*24 + envelope 40 = 132_800.
-// The contents plan's optional directory adds 8 bytes to the read box.
-// Directory names share the answer envelope. Its tables = repository tree 904 + 2*3*128
-// + user tree 1104 + 8*128 = 3800. Tree bounds include internal nodes.
-// Configured lists = 2*(Forge 168 + Start 24 + optional GitHub box 8
-// + optional token 16 + optional OwnPlan 360) = 1152. Each forge's
-// common credential/secret/send/TLS = 64 + 128 + 32768 + 456_809 = 489_769.
-// Owner/framing/answer = 2*16 + (3+9) + 16 + Answered 224 = 284.
-// Total = 2*767507 + connection index 288 + slab 2*1472 + 480584
-// + 138608 + 2*132800 + 3800 + 1120 + 489769 + 284 = 2_918_011.
-// Create's CreateFile widens the Forgejo call a Waiting slot and a call slot
-// hold, 552 -> 616 B: 2 slab slots + 1 call slot = 3*64 = 192 B (2_918_203).
-const FIXTURE_HEAP: u64 = 2_918_203;
+// Complete Forgejo fixture (forge-connection.md, 7.5), bytes on the 64-bit layout.
+// Decoder = 32*128 + 8*(3*128+2*48+2*16) + 2*1042 + 16*128 + 4096
+// + fixed decoder 272 = 16_692. Socket = 32768+4096+32768+4*16 = 69_696.
+// Connection = HTTP 44032 + TLS 456809 + tokenizer 2082 + decoder 16692
+// + raw 2*65536 + routing 5056 + send 32768 + encoding (6*1042+1024)
+// + socket 69696 + JSON intake/delivery 2*1024 = 767_531.
+// Four hooks = 4*(18418+2082+16692+69696+208+88+1170+368+8192+2048)
+// + slab/index 4832 = 480_680.
+// Common calls = 2*560 Waiting slots + holders tree 288 + drive lists 2*16
+// + call index 288 + operation copies 2*3*512 + held tree 2768
+// + held answers 2*65536 = 138_624.
+// Call payload = read/write boxes 1600+456 + staging 64*8+72*16+72*128
+// + answer 65536 + directory backing (65536/32)*24+40
+// + ChangedFile rows/paths 8*40+8*2*128 + File/Commit rows 8*48+8*32
+// + texts 4*128+13*128 + users 8*48 = 133_232.
+// Directory names share the answer envelope; row containers cover turn rows.
+// Tables = repository tree 904+2*3*128 + user tree 1104+8*128 = 3800.
+// Configured lists = 2*(Forge168+Start24+GitHub box8+token16+OwnPlan360) = 1152.
+// Credentials/secret/send/TLS = 64+128+32768+456809 = 489769.
+// Owner/framing/answer = 2*16+(3+9)+16+Answered224 = 284.
+// Total = 2*767531+288+2*1504+480680+138624+2*133232+3800+1152+489769+284.
+const FIXTURE_HEAP: u64 = 2_919_131;
 
-// Complete GitHub fixture: the same common limits and owned bytes. Its
-// decoder's fixed size is 2416, including the 96-byte GraphQL pull builder,
-// App builder state, the enqueue error's two type/message boxes, and the
-// 296-byte log row/wrapper builder, 96-byte protection builder and mint levels.
-// Directory name/kind state adds 16 bytes to each decoder.
-// Both builders are inline in three connection and four hook decoders.
-// Job metadata retains a 24-byte optional failed step alongside its 24-byte
-// current step builder, in each decoder: 7*48 = 336 bytes.
-// App builder/document overlap needs max(3*128 + 2*48 + 2*16,
-// 4*128 + 2*24 + 2*16) = 592 per inner entry; its permissions and event
-// lists coexist. Decoder = 32*128 + 8*592 + 2*1042 + 16*128 + 4096 + 39+100
-// + 2416 = 19_615. Each connection also holds a 120-byte boxed exchange
-// retaining request, raw retention and comparison. Three connections are
-// 770_574 each, including local JSON intake/delivery 2*1024; four hooks are 4*121885 + 4832 = 492_372.
-// Installation storage = 2136 (live Row tree, Row 176) + 2*552 (metadata)
-// + 2*552 (accepted accounts) + 464 (missing accounts) + 3*200 (id sets)
-// + 2*3*8 (id lists) + 2*100*48 (installation pages) + 2*100*128
-// + 3*(6*128+64) (row accounts/tokens) + 7*64 (token handoffs)
-// + Event 224 + 3*128 (cursor/event accounts) = 44_208. Per-scope clocks,
-// eligibility/Full revisions, retries, held Contents and old/new Full
-// handoffs coexist with staging and pages; the GitHub box itself is 504.
-// Log origins at log_origins=2: configured 2*64, said 2*24, plus hosts:
-// 2*64 + 2*24 + 2*(253+1024) = 2730 bytes, with DNS hosts and said Location
-// hosts bounded by target_bytes. The queue header is in the GitHub box.
-// Key/JWT = 1200+512, so each GitHub forge's App and origins share is 49_154.
-// GitHub's tables are 3888; discovery's one-row tables are 2056.
-// Protection reserves 8*8 ruleset ids beside the context union. Its state
-// adds 120 bytes per read plan and 96 bytes per connection decoder.
-// Call payload = 2*1504 (probe/original read boxes, each with an 8-byte directory option) + write box 480
-// + staging 2056 + 3*24 (revision-bearing candidates) + 3*65536
-// (payload/conversion/handoff envelopes) + max read storage:
-// max(file storage 3008, directory backing (65536/32)*24 + envelope 40)
-// = 49_192. File storage retains these terms:
-// descriptors 8*40, File rows 8*48, Commit rows 8*32 and paths/previous
-// names min(8*2*128, 65536) = 2048, moved through current/previous.
-// File bodies share the payload envelope; current/previous are inline.
-// Reviewers box 4*32+2*8 + id lists 8*8+8*8 + login slots 8*16 = 400.
-// Row/request/login/id text 11*128 + marked body 1042 + refusal header
-// 2*128+1024 = 3730. Write prerequisite overlap adds login slots 8*16,
-// decoded reviewer ids 8*8 and pull/GraphQL/error text 6*128 = 960.
-// Login text shares the answer envelopes; the retained arrays and box, ids,
-// row/request texts and enqueue id are counted once above.
-// Each read plan holds a 24-byte optional job step; the probe and original
-// coexist, so each call pays 2*24 = 48 bytes within the read boxes.
-// Protection's ruleset ids add 8*8 = 64. Call payload = 256_570.
-// Route/discovery envelopes are in Waiting's slab slot; both own-plan
-// slots occupy 344 bytes each.
-// Total = 3*770574 + index 288 + slab 3*1472 + 492372 + 138608
-// + 2*256570 + 3888 + 1120 + 489769 + 49154 + 284 = 4_004_761 before the puller.
-// Puller: page = 8*(104+2*128)+2*128 = 3136; two page/header
-// handoffs = 6272, kept validator/cursor copies = 4*128 = 512.
-// LogPage/LogDelivery boxes = 400+320; pushed decoder = 304;
-// common decoder share = 19615; row event copies = 2*128;
-// held hint/text/body = 88+128+1042.
-// Puller payload = 28_937; the GitHub inline state is 776 bytes.
-// Checked total: 4_004_761 + 96 + 272 + 28_937 = 4_034_066.
-const GITHUB_FIXTURE_HEAP: u64 = 4_034_066;
+// Complete GitHub fixture: decoder = 32*128+8*592+2*1042+16*128+4096
+// + owner/name 39+100 + fixed decoder2416 = 19615. App overlap per entry
+// = max(3*128+2*48+2*16,4*128+2*24+2*16) = 592.
+// Connection is 770590, including a 136-byte boxed exchange; hooks are
+// 4*121885+4832 = 492372. Installations = live tree2136+metadata2*552
+// + accepted2*552+missing464+id sets3*200+id lists2*3*8
+// + pages2*100*48+2*100*128+row credentials3*(6*128+64)+handoffs7*64
+// + Event224+cursor accounts3*128 = 44208.
+// Log origins = 2*64+2*24+2*(253+1024) = 2730.
+// GitHub inline776 + key/JWT1200+512 + installations44208+origins2730 = 49426.
+// Call = read boxes2*1520+write512+tables2056+revision candidates3*24
+// + envelopes3*65536+directory reserve49192+reviewers400+ruleset ids8*8
+// + texts11*128+marked body1042+refusal256+1024+write prerequisites960 = 256634.
+// Directory reserve = (65536/32)*24+40, above file rows/paths3008.
+// Puller = handoffs2*(8*(104+2*128)+2*128)+validators4*128
+// + LogPage416+LogDelivery336+decoder304+common decoder19615
+// + event copies2*128+hint88+text128+body1042 = 28969.
+// Total = 3*770590+288+3*1504+492372+138624+2*256634+3888+1152
+// + 489769+49426+284+28969 = 4034322.
+const GITHUB_FIXTURE_HEAP: u64 = 4_034_322;
 
-// At calls 2 -> 3 the B-tree node counts stay fixed. A slot adds Waiting's
-// slab 552 (616 for Forgejo's CreateFile) + drive-list pair 16 + 3*512 operation copies + 65536 held
-// answer bytes, plus the selected dialect's payload from the ledgers above.
-const FORGEJO_CALL_SLOT: u64 = 200_504; // 616 + 16 + 1536 + 65536 + 132800.
-const GITHUB_CALL_SLOT: u64 = 324_210; // 552 + 16 + 1536 + 65536 + 256570.
+// One call slot: Waiting slab560 + drive pair16 + operation copies3*512
+// + held answer65536 + dialect payload. Tree node counts stay fixed at 2 -> 3.
+const FORGEJO_CALL_SLOT: u64 = 200_880; // 560+16+1536+65536+133232.
+const GITHUB_CALL_SLOT: u64 = 324_282; // 560+16+1536+65536+256634.
 const FORGEJO: limits::Forges = limits::Forges { forgejo: 1, github: 0 };
 const GITHUB: limits::Forges = limits::Forges { forgejo: 0, github: 1 };
 const MIXED: limits::Forges = limits::Forges { forgejo: 1, github: 1 };
@@ -433,18 +387,13 @@ fn a_forgejo_forge_pays_no_github_share() {
 #[test]
 fn a_github_forge_pays_its_app_share() {
     assert_eq!(size_of::<skein_forge::github::decode::Decoder>(), 2416);
-    assert_eq!(size_of::<skein_forge::github::plans::reads::Plan>(), 1504);
-    assert_eq!(limits::github_call_heap(&fixtures::limits(), &fixtures::shared()), Some(256_570));
+    assert_eq!(size_of::<skein_forge::github::plans::reads::Plan>(), 1520);
+    assert_eq!(limits::github_call_heap(&fixtures::limits(), &fixtures::shared()), Some(256_634));
     assert_eq!(size_of::<crate::installations::GitHub>(), 776);
-    assert_eq!(limits::puller_heap(&fixtures::limits()), Some(28_937));
-    // CreateFile's wider Forgejo call adds 96 B to the GitHub fixture (measured).
+    assert_eq!(limits::puller_heap(&fixtures::limits()), Some(28_969));
     assert_eq!(
-        (3 * 770_574_u64 + 288 + 3 * 1472 + 492_372 + 138_608 + 2 * 256_570 + 3888 + 1120 + 489_769 + 49_154 + 284)
-            .checked_add(96)
-            .expect("wider call")
-            .checked_add(272)
-            .expect("inline puller")
-            .checked_add(28_937),
+        (3 * 770_590_u64 + 288 + 3 * 1504 + 492_372 + 138_624 + 2 * 256_634 + 3888 + 1152 + 489_769 + 49_426 + 284)
+            .checked_add(28_969),
         Some(GITHUB_FIXTURE_HEAP)
     );
     let settings = fixtures::github_settings();
