@@ -140,7 +140,15 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
     first, and never keeps the dependent from its landing: the merges
     are the landing's, which has no dependency (section 8). The
     dependent's result still waits for its dependency's, as jig's
-    dependencies order results (jig's `domain/tasks.md`, 5.7).
+    dependencies order results (jig's `domain/tasks.md`, 5.7). The
+    change procedure starts kept (jig's `domain/connectors.md`, 6.1), so
+    a dependent made with its dependency, the usual goal across
+    repositories, is coded beside it rather than waiting.
+  - **Two live landings** are never merged: a dependency given by an
+    amendment between changes already in different live landings
+    leaves each where it is; the dependent's landing waits, prepared,
+    until the other has landed, then goes on, and no run or receipt
+    moves between landing tasks.
   - **Pin-only members:** where the project keeps downstream pins at
     their upstream's main, a landing with a member upstream gains a
     member in each downstream repository the project's pins name that
