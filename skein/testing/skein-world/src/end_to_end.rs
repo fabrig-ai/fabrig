@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall, bytes};
-use skein_shell::{Config, Kernel, OpenError, Wait};
+use skein_shell::{Config, Kernel, OpenError};
 
 use crate::Host;
 use crate::tree::{self, Tree};
@@ -101,6 +101,36 @@ pub struct Binary {
     submissions: Queue<Submit>,
 }
 
+// Close the startup root within the binary's shared deadline, ending any
+// started tree and its transferred descriptors before an expiry can pass.
+fn close_startup(
+    kernel: &mut Kernel,
+    deadline: &crate::Deadline,
+    root: Fd,
+    child: Option<(Fd, Option<Fd>)>,
+    tree: &mut Tree,
+    pipes: &[Pipe],
+) {
+    if let Err(failure) = tree::call(kernel, Op::Close { fd: root }, deadline) {
+        if let Some((pidfd, master)) = child {
+            tree.force_settle(pidfd, false);
+            let mut descriptors = Vec::new();
+            for pipe in pipes {
+                descriptors.extend(pipe.parent);
+            }
+            descriptors.extend(master);
+            descriptors.push(pidfd);
+            skein_shell::abandon_binary(None, &descriptors);
+        }
+        match failure {
+            tree::Failure::Starved(starved) => starved.pass(),
+            tree::Failure::Failed(why) | tree::Failure::TimedOut(why) => {
+                crate::fail(&format!("startup root close completed: {why}"));
+            }
+        }
+    }
+}
+
 /// A bounded prefix and sticky overflow evidence, independent of pipe drainage.
 #[derive(Debug)]
 struct Capture {
@@ -130,6 +160,10 @@ impl Capture {
 }
 
 impl Binary {
+    pub(crate) fn keeper(&self) -> Option<&Tree> {
+        self.tree.as_deref()
+    }
+
     /// Starts a binary after probing `io_uring`; temporary startup resources
     /// close before returning. `stderr_limit` bounds captured bytes, and an
     /// overflow fails the scenario. Environment entries are not inherited.
@@ -171,8 +205,14 @@ impl Binary {
         containment: Containment,
     ) -> Result<Self, StartError> {
         let mut startup = Kernel::open(Config { operations: 1 }).map_err(StartError::Ring)?;
-        let until = skein_shell::Clock::new().now().now.saturating_add(Duration::from_secs(2));
-        let baseline = tree::call(&mut startup, Op::Usage, until).expect("startup usage succeeds");
+        let mut deadline = crate::Deadline::arm("the binary's start", Duration::from_secs(2));
+        let baseline = match tree::call(&mut startup, Op::Usage, &deadline) {
+            Ok(usage) => usage,
+            Err(tree::Failure::Starved(starved)) => starved.pass(),
+            Err(tree::Failure::Failed(why) | tree::Failure::TimedOut(why)) => {
+                crate::fail(&format!("startup usage succeeds: {why}"))
+            }
+        };
         let Done::Usage(baseline) = baseline else { unreachable!("Usage returns usage") };
         let mut tree = Tree::prepare(containment, baseline).map_err(StartError::Tree)?;
         let root = skein_shell::open_root(&command.directory).map_err(StartError::Directory)?;
@@ -208,20 +248,13 @@ impl Binary {
         };
         #[cfg(not(target_os = "linux"))]
         let child = skein_shell::start_binary(&mut spawn, terminal);
-        let mut submits = Queue::with_capacity(1);
-        let mut completes = Queue::with_capacity(1);
-        submits.push(Submit { op: Token::new(1), kind: Op::Close { fd: root } });
-        startup.submit(&mut submits, Wait::No);
-        while completes.is_empty() {
-            startup.reap(&mut completes);
-            if completes.is_empty() {
-                startup.submit(&mut submits, Wait::Forever);
-            }
+        let child = child.map_err(StartError::Child);
+        if let Ok((pidfd, _)) = &child {
+            tree.started(*pidfd);
         }
-        let closed = completes.pop().expect("startup root close completed");
-        assert!(matches!(closed.kind, Op::Close { .. }), "startup closes only its root");
-        let (pidfd, master) = child.map_err(StartError::Child)?;
-        tree.started(pidfd);
+        deadline.watch_tree(&tree);
+        close_startup(&mut startup, &deadline, root, child.as_ref().ok().copied(), &mut tree, &spawn.pipes);
+        let (pidfd, master) = child?;
         let stderr = spawn.pipes.last().and_then(|pipe| pipe.parent).expect("stderr was requested");
         let streams = match master {
             Some(stream) => Streams::Terminal { stream },

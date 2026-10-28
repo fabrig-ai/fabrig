@@ -35,6 +35,10 @@
 
 extern crate alloc;
 
+#[cfg(unix)]
+pub mod deadline;
+#[cfg(unix)]
+pub use deadline::{Deadline, Expired, Figures, Starved};
 pub mod domain;
 #[cfg(unix)]
 pub mod end_to_end;

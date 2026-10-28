@@ -26,6 +26,8 @@ use skein_lib::{Duration, Queue, Time, Token};
 use skein_shell::{Backend, Clock, Now, Wait};
 
 use crate::Host;
+pub(crate) use crate::deadline::Sched;
+use crate::deadline::{Deadline, Expired, Figures, sched_elapsed, thread_sched};
 use crate::heap::Heap;
 use crate::program::Startup;
 pub use crate::referee::Controls;
@@ -420,35 +422,6 @@ struct Running<P, R> {
     dying: BTreeSet<usize>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Sched {
-    cpu: u64,
-    waited: u64,
-}
-
-fn thread_sched() -> Option<Sched> {
-    if !cfg!(target_os = "linux") {
-        return None;
-    }
-    // Linux scheduler/sched-stats documents runtime and runnable wait in nanoseconds;
-    // thread-self selects this thread's scheduler accounting.
-    let source = std::fs::read_to_string("/proc/thread-self/schedstat").ok()?;
-    let mut fields = source.split_whitespace();
-    let runtime = fields.next()?.parse::<u64>().ok()?;
-    let waited = fields.next()?.parse::<u64>().ok()?;
-    let _slices = fields.next()?.parse::<u64>().ok()?;
-    // Disabled accounting emits zeros; a saturated counter has no usable delta.
-    if fields.next().is_some() || runtime == 0 || runtime == u64::MAX || waited == u64::MAX {
-        return None;
-    }
-    Some(Sched { cpu: runtime, waited })
-}
-
-fn sched_elapsed(start: Option<Sched>, end: Option<Sched>) -> Option<Sched> {
-    let (start, end) = start.zip(end)?;
-    Some(Sched { cpu: end.cpu.checked_sub(start.cpu)?, waited: end.waited.checked_sub(start.waited)? })
-}
-
 impl Controls {
     /// This loop thread's runnable wait since the real-world run began, using
     /// the same scheduler origin and measurement as its patience verdict.
@@ -464,11 +437,6 @@ impl Controls {
     }
 }
 
-fn starved(patience: Duration, waited: u64) -> bool {
-    // Rounding the threshold up keeps the comparison exact without multiplication.
-    waited >= patience.as_nanos().div_ceil(2)
-}
-
 fn deadline_diagnostic(patience: Duration, iterations: u32, elapsed: Option<Sched>) -> String {
     let nanos = |value: Option<u64>| match value {
         Some(nanos) => format!("{nanos} ns"),
@@ -482,6 +450,10 @@ fn deadline_diagnostic(patience: Duration, iterations: u32, elapsed: Option<Sche
     )
 }
 
+fn sched_figures((cpu, waited): (Duration, Duration)) -> Sched {
+    Sched { cpu: cpu.as_nanos(), waited: waited.as_nanos() }
+}
+
 fn deadline_status(deadline: Option<Time>, now: Time) -> String {
     match deadline {
         Some(at) if at <= now => {
@@ -493,15 +465,10 @@ fn deadline_status(deadline: Option<Time>, now: Time) -> String {
 }
 
 impl<P: Host, R: Referee<P>> Running<P, R> {
-    fn deadline_diagnostic(
-        &self,
-        patience: Duration,
-        iterations: u32,
-        elapsed: Option<Sched>,
-        now: Time,
-        last_word: Option<Time>,
-    ) -> String {
-        let mut text = deadline_diagnostic(patience, iterations, elapsed);
+    fn deadline_diagnostic(&self, figures: &Figures, iterations: u32, now: Time, last_word: Option<Time>) -> String {
+        let elapsed = figures.thread_cpu.zip(figures.thread_waited).map(sched_figures);
+        let mut text = deadline_diagnostic(figures.patience, iterations, elapsed);
+        writeln!(&mut text, "\n{figures}").expect("String formatting");
         writeln!(&mut text, "\nnow: {} ns", now.as_nanos()).expect("String formatting");
         let word = match last_word {
             Some(at) => format!("Some({} ns)", at.as_nanos()),
@@ -542,37 +509,26 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         any
     }
 
-    #[expect(clippy::print_stderr, reason = "testing.md, section 5 requires the starvation verdict on stderr")]
-    fn deadline_reached(
-        self,
-        patience: Duration,
-        iterations: u32,
-        sched_start: Option<Sched>,
-        now: Time,
-        last_word: Option<Time>,
-    ) -> ! {
-        let elapsed = sched_elapsed(sched_start, thread_sched());
-        if let Some(sched) = elapsed
-            && starved(patience, sched.waited)
-            && std::env::var_os("NEXTEST").is_some()
-        {
-            self.forced_cleanup();
-            eprintln!(
-                "skein-world: starved: waited {} ms runnable, used {} ms of CPU, patience {} ms",
-                sched.waited.div_euclid(1_000_000),
-                sched.cpu.div_euclid(1_000_000),
-                patience.as_nanos().div_euclid(1_000_000),
-            );
-            std::process::exit(0);
+    fn deadline_reached(self, deadline: &Deadline, iterations: u32, now: Time, last_word: Option<Time>) -> ! {
+        let expired = deadline.expired();
+        let figures = match &expired {
+            Expired::Starved(starved) => starved.figures(),
+            Expired::Failed(figures) => figures,
+        };
+        let diagnostic = self.deadline_diagnostic(figures, iterations, now, last_word);
+        match expired {
+            Expired::Starved(starved) if std::env::var_os("NEXTEST").is_some() => {
+                self.forced_cleanup();
+                starved.pass();
+            }
+            Expired::Starved(_) | Expired::Failed(_) => crate::fail(&diagnostic),
         }
-        crate::fail(&self.deadline_diagnostic(patience, iterations, elapsed, now, last_word));
     }
 
     fn run(mut self, clock: &Clock, patience: Duration) -> Outcome<P> {
         let start = clock.now().now;
-        let deadline = start.saturating_add(patience);
-        let sched_start = thread_sched();
-        self.world.controls.sched_start.set(sched_start);
+        let deadline = Deadline::arm("the real loop", patience);
+        self.world.controls.sched_start.set(deadline.thread_start());
         let mut iterations: u32 = 0;
         let mut last_word = None;
         let mut policy_wake: Vec<(usize, Time)> = Vec::new();
@@ -580,8 +536,8 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             iterations = iterations.checked_add(1).expect("fewer than 2^32 iterations");
             let Now { now, wall } = clock.now();
             check_policy_wake(&mut policy_wake, now);
-            if now >= deadline {
-                self.deadline_reached(patience, iterations, sched_start, now, last_word);
+            if deadline.passed() {
+                self.deadline_reached(&deadline, iterations, now, last_word);
             }
             self.world.referee.act(now, &mut self.world.procs);
             self.signals();
@@ -664,7 +620,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     now.saturating_since(start).as_nanos().div_euclid(1_000_000)
                 ));
             }
-            let until = self.wait_until(deadline);
+            let until = self.wait_until(deadline.until());
             self.policy_wake(last_word, &mut policy_wake);
             self.ring.enter(Wait::Until(until));
         }
@@ -1156,60 +1112,13 @@ fn check_policy_wake(deadlines: &mut Vec<(usize, Time)>, now: Time) {
 
 #[cfg(test)]
 mod tests {
-    use super::{Child, Process, Running, Sched, World, deadline_diagnostic, sched_elapsed, starved};
+    use super::{Child, Process, Running, Sched, World, deadline_diagnostic};
     use crate::{Host, Referee, ring::Ring};
     use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
     use alloc::rc::Rc;
     use core::cell::RefCell;
     use skein_io::kernel::{Complete, Done, Error, Exit, Family, Fd, Op, Submit};
     use skein_lib::{Duration, Queue, Time, Token, Wall};
-
-    #[test]
-    fn starvation_includes_exactly_half_the_patience_waiting() {
-        let patience = Duration::from_nanos(100);
-        assert!(!starved(patience, 49));
-        assert!(starved(patience, 50));
-    }
-
-    #[test]
-    fn starvation_includes_a_run_with_much_cpu_and_half_the_patience_waiting() {
-        let patience = Duration::from_nanos(100);
-        let elapsed = sched_elapsed(Some(Sched { cpu: 1, waited: 1 }), Some(Sched { cpu: 1001, waited: 51 }))
-            .expect("increasing scheduler counters");
-        assert_eq!(elapsed.cpu, 1000);
-        assert!(starved(patience, elapsed.waited));
-    }
-
-    #[test]
-    fn starvation_threshold_preserves_fractional_nanoseconds() {
-        let patience = Duration::from_nanos(101);
-        assert!(!starved(patience, 50));
-        assert!(starved(patience, 51));
-    }
-
-    #[test]
-    fn starvation_handles_zero_and_maximum_counters_without_overflow() {
-        assert!(starved(Duration::ZERO, 0));
-        assert!(!starved(Duration::from_nanos(100), 0));
-        let patience = Duration::from_nanos(u64::MAX);
-        assert!(starved(patience, u64::MAX));
-        assert!(starved(patience, u64::MAX.div_ceil(2)));
-        assert!(!starved(patience, u64::MAX.div_euclid(2)));
-    }
-
-    #[test]
-    fn starvation_requires_accounting_at_both_ends() {
-        let start = Sched { cpu: 1, waited: 1 };
-        let end = Sched { cpu: 2, waited: 101 };
-        for (start, end) in [(None, Some(end)), (Some(start), None), (None, None)] {
-            let elapsed = sched_elapsed(start, end);
-            assert_eq!(elapsed, None);
-            assert!(!elapsed.is_some_and(|sched| starved(Duration::from_nanos(100), sched.waited)));
-        }
-        assert_eq!(sched_elapsed(Some(start), Some(end)), Some(Sched { cpu: 1, waited: 100 }));
-        assert_eq!(sched_elapsed(Some(end), Some(start)), None);
-        assert_eq!(sched_elapsed(Some(start), Some(Sched { cpu: 2, waited: 0 })), None);
-    }
 
     #[test]
     fn referee_runnable_wait_uses_the_worlds_scheduler_origin() {
