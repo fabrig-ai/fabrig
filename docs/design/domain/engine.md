@@ -525,7 +525,28 @@ projection to its task, an application's records to theirs (its
 root's, by the same rule). Nothing is checked again: no family's rules,
 no record's shape beyond its codec, and never who may have written it,
 which authority judged at its commit (authority.md). Writers are
-trusted, so every link is made.
+trusted, so every link is made. What a start does with what it finds,
+one rule for every child and the store:
+- **It refuses,** naming it, only what this binary and its
+  configuration cannot hold: a record that does not decode under its
+  codec (its key and its value disagreeing among them, a part past its
+  bound); a live set past the limits; a saved value past its byte
+  budget or that cannot be accounted (`ProjectPolicy`, below); the
+  current settings failing their check whole against the document
+  they are read with (17.7); a retained LLM choice the configuration's
+  executors no longer admit (`../client/domain/contract.md`, section
+  9, item 7). Each is the store against the configuration, not a
+  record judged.
+- **It rebuilds** derived state, never refusing: the waits judged
+  whole and a waiter on a circle held (tasks.md, 6.7), people's expired
+  rows erased, the release's settings revision.
+- **It panics** at a link it cannot make: a task or a claim naming a
+  revision not held (17.7), a name reserved by another source
+  (accounts.md, 3.4), an ended read position whose task is missing, a
+  connector's row naming what it lacks.
+- **It no longer checks** a family's rules, a record's shape beyond its
+  codec, who wrote it, or a patch's counts, which the manifest keeps
+  and the tests compare (`../protocol/store.md`, 10.2).
 - **A link that cannot be made** is a writer's bug, and an assertion
   where the link is made: the engine panics, its message naming the
   record's key and the link, and stops as any fail-stop does, until a
@@ -2174,9 +2195,9 @@ Its code comes after the rest (`../STATUS.md`).
     any, and what fails, as a document failing its check always was;
   - *past limits:* held revisions or charter versions past limits
     lowered since, or a release's revision that would pass them, refuse
-    the start, saying which, as a live set past lowered limits does; so
-    does a task or a claim naming a revision the store holds no record
-    of.
+    the start, saying which, as a live set past lowered limits does. A
+    task or a claim naming a revision the store holds no record of is a
+    link that cannot be made, and panics (section 6).
 
   A saved project policy above the current policy byte budget refuses the
   start naming its project and policy; the named restore failure is retained

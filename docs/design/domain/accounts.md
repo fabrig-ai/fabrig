@@ -222,7 +222,9 @@ Account
   never changed and never reused once removed. A durable reservation keeps
   its source number, name and original holder after removal. Both shipped
   profiles admit 12 lifetime names. Restoring an existing live source reserves
-  its name before admitting changes; a conflicting reservation is refused.
+  its name before admitting changes; a conflicting reservation is a
+  writer's bug, a link that cannot be made, and panics (engine.md,
+  section 6).
   Exhaustion refuses a declaration before
   reserving its numbers or writing any row. It, not the account's
   number, names the configuration directory, so that a directory a

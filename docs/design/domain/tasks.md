@@ -580,7 +580,8 @@ What it keeps:
 A task is ended by its result or by its requester: its `ended_by`, fixed
 at its making. A result ends it by default. Its requester may end it
 only if it is an agent's conversation with a person, its requester;
-making it and restoring it refuse any other shape. It changes no right
+making it refuses any other shape, and a restart takes what was made
+(engine.md, section 6). It changes no right
 to cancel. It travels with the task from the client's making, through
 storage and preparation, to its run's charter (hosts.md, 8.1),
 whatever the charter the task's agent shares with others.

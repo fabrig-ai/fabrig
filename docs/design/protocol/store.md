@@ -1510,22 +1510,12 @@ one that stands; an older build's is moved aside (section 2). Each
   `<deployment>`, and the generation it patched from stays active, unchanged.
   Every start of this build checks a fresh copy the same way: start the build
   before it again, which opens that generation as it was."
-- `Check { why: Count }`: "The check before the switch found a family whose
-  count of records the patches changed in the copy of the store this start
-  patched in `<deployment>`, and the generation it patched from stays active,
-  unchanged. Every start of this build checks a fresh copy the same way: start
-  the build before it again, which opens that generation as it was."
 - `Check { why: Load }`: "The check before the switch found a record the
   restart could not load within the deployment's limits in the copy of the
   store this start patched in `<deployment>`, and the generation it patched
   from stays active, unchanged. Every start of this build checks a fresh copy
   the same way: start the build before it again, which opens that generation
   as it was."
-- `Check { why: Join }`: "The check before the switch found a record naming an
-  ended task the store does not hold in the copy of the store this start
-  patched in `<deployment>`, and the generation it patched from stays active,
-  unchanged. Every start of this build checks a fresh copy the same way: start
-  the build before it again, which opens that generation as it was."
 - `Check { why: Private }`: "The check before the switch found a file in the
   secrets' store of the copy this start patched in `<deployment>` that is not
   private to the service's user, and the generation it patched from stays
@@ -1551,13 +1541,12 @@ pub enum OpenRefusal {
 }
 pub enum Older { Unrecorded, Layout(Family), Directory, Unleveled }
 pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
-pub enum Check { Large { key }, Count { family, before, after }, Load { key }, Join { key }, Private { name } }
+pub enum Check { Large { key }, Load { key }, Private { name } }
 ```
 
 `Older`'s first two compare the layouts' row (5.3); `Check` names what
 failed: a record too large for a commit alone, or a row that does not
-load, by its key; a family whose count moved, with both counts; an ended
-read position whose ended task is missing, by its key; a secrets' file
+load, by its key; a secrets' file
 that is not private, by its name.
 
 ### 10.2 Patching a copy
@@ -1624,24 +1613,23 @@ generation `A` to `A + 1`:
    the journal's next commit follows patching's last. As each patch
    ends, the component answers `Patched` with its owner, number and
    counts, for the shell's line (temper's `draft/upgrades.md`, 3.1).
-5. **Check,** before anything switches (temper's `draft/upgrades.md`,
+5. **Open,** before anything switches (temper's `draft/upgrades.md`,
    6.4), over the copy as patched and still open (skein-kv has no
    read-only open), writing nothing; the first failure refuses, `Check`:
-   each kept family's count after is its count before, taken as the copy
-   opened, since no patch adds or removes a record; every row of the
-   core's live ranges and of the census's ended read positions (7.2),
-   which the restart reads whole, loads by the binary's codecs within
-   the deployment's limits, its key its record's; each ended read
-   position's ended task is held, joined as the restart joins it; and
-   each file of the copy's secrets' store is a regular file, private to
-   the service's user, with one link. The rest of the check before the
-   switch (temper's `draft/upgrades.md`, 6.4), each child's rules
-   strictly, their live sets' limits, the joins their records make and
-   the rows the core's census chooses, is the domain's own restore, run
-   over the copy before the switch (step 7).
+   every row of the core's live ranges and of the census's ended read
+   positions (7.2), which the restart reads whole, decodes by the
+   binary's codecs within the deployment's limits, its key its
+   record's; and each file of the copy's secrets' store is a regular
+   file, private to the service's user, with one link. Nothing is
+   judged: each kept family's counts before and after go into the
+   manifest (step 6), which the tests compare, and the records' links,
+   an ended read position's task among them, are the domain's, made by
+   the restart over the copy (step 7; `../domain/engine.md`, section 6).
 6. **The manifest,** written into `A + 1` (section 2) by io's durable
    replace expecting no file there, once the root asks for the switch
-   (step 7): the counts the check took, and the commit position then,
+   (step 7): each kept family's counts before and after the patches,
+   taken as the copy opened and as step 5 read it, and the commit
+   position then,
    which commits of the restore's may have moved past patching's last.
 7. **Switch, once the root has restored from the copy.** The open
    goes on over the copy, still open, as 10.1's step 7 goes on over an
