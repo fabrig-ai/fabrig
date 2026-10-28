@@ -311,6 +311,12 @@ credential.
 Before its document arrives, a task page says “Reading task N…”, or one
 sentence explaining a lasting refusal; after a transient read end it asks
 again while open, waiting one second, doubling to at most thirty seconds.
+A conversation's activity reads, a chat's and an agent's task's, follow
+the same rule: a read that ends transiently (busy) is asked again from
+the position it asked for while the page is open, on the same waits, so
+a committed reply always arrives without a further delivery to prompt it
+(jig's `client/domain/client.md`: a read is one attempt, and its caller
+asks again).
 
 Each page has an address, and watches what it shows while it is open;
 leaving it closes its handles. Its mockup is its design: its look, its
