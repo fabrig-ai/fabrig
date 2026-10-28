@@ -55,7 +55,6 @@ fn queued_read_answers_keep_their_arrival_order_under_load() {
 
 /// O3: a kept turn precedes its terminal acknowledgement under load.
 #[test]
-#[ignore = "fails on main: a released callback whose decision is refused journal room is dropped (jig-test-domain lib.rs release/decide); passes once the watermark swap takes it"]
 fn turn_kept_precedes_terminal_acknowledgement_under_load() {
     let mut driver = Driver::chat(9303);
     let (task, attempt) = run(&driver);
