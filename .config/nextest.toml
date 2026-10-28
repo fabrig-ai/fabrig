@@ -1,6 +1,4 @@
-# The workspace's two test suites: nextest reads this file alone, not the
-# trees' own .config/nextest.toml, which stay as the record of what each
-# tree selected until the trees' scripts move here.
+# The workspace's two test suites.
 #
 # The focused suite, profile default, is each tree's focused suite: every test
 # but the fuzzy ones and the tiers' binaries (process, live, QA, browser,

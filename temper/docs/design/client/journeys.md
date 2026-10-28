@@ -288,12 +288,11 @@ Under `docs/design/client/journeys/`:
   `overlay.css`, the person's, made empty when missing and never written
   otherwise.
 - **Generated:** the pages, `skein-ui.css` and `journey.js` are
-  generated files, owned by `scripts/regenerate.sh`, which rewrites them
-  by the reprint, so that a rebase that conflicts in them is resolved
-  by reprinting (agents' `landing-flow.md`, 3). A recording, a README
+  generated files, rewritten by the reprint, so that a rebase that
+  conflicts in them is resolved by reprinting. A recording, a README
   and the overlay are sources, never regenerated. A stale journey fails the
-  reprint, and so the regeneration: such a landing stops until the
-  journey is recorded again (section 8).
+  reprint: such a change waits until the journey is recorded again
+  (section 8).
 
 ### 5.3 A page
 
