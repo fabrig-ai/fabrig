@@ -54,22 +54,24 @@ fn a_zero_capacity_slab_refuses_everything() {
 #[test]
 fn a_slab_hands_out_slots_in_the_order_it_did() {
     let mut slab = Slab::with_capacity(5);
-    let a = slab.insert('a').expect("fresh slot");
-    let b = slab.insert('b').expect("fresh slot");
-    let c = slab.insert('c').expect("fresh slot");
-    slab.retire(b);
+    let first = slab.insert('a').expect("fresh slot");
+    let second = slab.insert('b').expect("fresh slot");
+    let third = slab.insert('c').expect("fresh slot");
+    slab.retire(second);
     slab.reclaim();
-    let d = slab.insert('d').expect("reclaimed slot before a fresh one");
-    let e = slab.insert('e').expect("fresh slot");
-    slab.retire(a);
-    slab.retire(c);
+    let reused_second = slab.insert('d').expect("reclaimed slot before a fresh one");
+    let fourth = slab.insert('e').expect("fresh slot");
+    slab.retire(first);
+    slab.retire(third);
     slab.reclaim();
-    let f = slab.insert('f').expect("last freed slot first");
-    let g = slab.insert('g').expect("next freed slot");
-    let h = slab.insert('h').expect("fresh slot");
+    let reused_first = slab.insert('f').expect("last freed slot first");
+    let reused_third = slab.insert('g').expect("next freed slot");
+    let fifth = slab.insert('h').expect("fresh slot");
     let expected = [(0, 0), (1, 0), (2, 0), (1, 1), (3, 0), (0, 1), (2, 1), (4, 0)];
-    for (id, parts) in [a, b, c, d, e, f, g, h].into_iter().zip(expected) {
+    for (id, parts) in
+        [first, second, third, reused_second, fourth, reused_first, reused_third, fifth].into_iter().zip(expected)
+    {
         assert_eq!((id.slot(), id.generation()), parts);
     }
-    assert_eq!(slab.get(d), Some(&'d'), "a reused slot keeps its generation across growth");
+    assert_eq!(slab.get(reused_second), Some(&'d'), "a reused slot keeps its generation across growth");
 }
