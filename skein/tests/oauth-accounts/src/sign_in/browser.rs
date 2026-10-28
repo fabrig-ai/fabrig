@@ -441,9 +441,6 @@ impl Host for Browser {
             && self.completions.is_empty()
             && self.exchange.is_none()
     }
-    fn worst_case(&self) -> u64 {
-        io::worst_case(&io_limits()).expect("io bound") + 512 * 1024
-    }
     fn operations(&self) -> u32 {
         io::operations(&io_limits()).expect("operations")
     }

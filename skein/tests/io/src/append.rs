@@ -220,17 +220,6 @@ impl Host for Writer {
     fn is_empty(&self) -> bool {
         self.phase == Phase::Closed && self.io.is_empty() && self.completions.is_empty() && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        skein_io::worst_case(&self.env.limits)
-            .expect("small io bound")
-            .checked_add(Queue::<Complete>::worst_case(8).expect("completion cells"))
-            .and_then(|bound| bound.checked_add(Queue::<Submit>::worst_case(8).expect("submission cells")))
-            .and_then(|bound| bound.checked_add(Queue::<Event>::worst_case(4).expect("event cells")))
-            .and_then(|bound| {
-                bound.checked_add(u64::try_from(8 * size_of::<Evidence>()).expect("bounded observations"))
-            })
-            .expect("small owner bound")
-    }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.env.limits).expect("small ring")
     }

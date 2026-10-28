@@ -74,11 +74,6 @@ impl Host for Process {
     fn is_empty(&self) -> bool {
         self.closed && self.inner.is_empty() && self.completions.is_empty() && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        self.inner.worst_case()
-            + Queue::<Complete>::worst_case(ROOM).expect("wrapper completions")
-            + Queue::<Submit>::worst_case(ROOM).expect("wrapper submissions")
-    }
     fn operations(&self) -> u32 {
         self.inner.operations() + 1
     }

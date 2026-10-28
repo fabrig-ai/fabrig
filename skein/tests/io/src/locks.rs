@@ -206,14 +206,6 @@ impl Host for Owner {
             && self.submissions.is_empty()
             && self.events.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        FileIo::worst_case(2, 4, 4, 4).expect("bounded driver")
-            + Queue::<Complete>::worst_case(2).expect("completions")
-            + Queue::<Submit>::worst_case(2).expect("submissions")
-            + Queue::<Event>::worst_case(2).expect("events")
-            + 2 * u64::try_from(size_of::<Token>()).expect("root tokens")
-            + 8 * u64::try_from(size_of::<Heard>()).expect("bounded answers")
-    }
     fn operations(&self) -> u32 {
         2
     }

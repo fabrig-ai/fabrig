@@ -200,9 +200,6 @@ impl Host for Process {
             && self.io.is_empty()
             && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        skein_io::worst_case(&self.env.limits).expect("small limits") + 16 * 1024
-    }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.env.limits).expect("small limits") + 1
     }

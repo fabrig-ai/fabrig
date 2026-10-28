@@ -277,9 +277,6 @@ impl Host for Process {
             && self.submissions.is_empty()
             && self.requests.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        skein_io::worst_case(&self.env.limits).expect("small io limits").checked_add(64 * 1024).expect("small owner")
-    }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.env.limits).expect("small io limits").checked_add(1).expect("one startup root")
     }

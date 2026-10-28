@@ -147,9 +147,6 @@ impl Host for Peer {
     fn is_empty(&self) -> bool {
         self.io.is_empty() && self.requests.is_empty() && self.completions.is_empty() && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        io::worst_case(&self.env.limits).expect("listener bound")
-    }
     fn operations(&self) -> u32 {
         io::operations(&self.env.limits).expect("listener operations")
     }

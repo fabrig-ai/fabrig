@@ -28,7 +28,6 @@ pub struct Owner {
     root: Token,
     directory: Option<Token>,
     max: u32,
-    total: u32,
     phase: Phase,
     waiting: bool,
     pub pages: Vec<Box<[Entry]>>,
@@ -46,7 +45,6 @@ impl Owner {
             root,
             directory: None,
             max,
-            total,
             phase: Phase::Open,
             waiting: false,
             pages: Vec::with_capacity(usize::try_from(total / max + 1).expect("bounded page count")),
@@ -157,14 +155,6 @@ impl Host for Owner {
             && self.submissions.is_empty()
             && self.completions.is_empty()
             && self.events.is_empty()
-    }
-    fn worst_case(&self) -> u64 {
-        FileIo::worst_case(2, 16, ENTRIES, 16).expect("bounded file driver")
-            + Queue::<Complete>::worst_case(2).expect("completion cells")
-            + Queue::<Submit>::worst_case(2).expect("submission cells")
-            + Queue::<Event>::worst_case(2).expect("event cells")
-            + u64::from(self.total) * (u64::try_from(size_of::<Entry>()).expect("entry cell") + 255)
-            + u64::from(self.total / self.max + 1) * u64::try_from(size_of::<Box<[Entry]>>()).expect("page cell")
     }
     fn operations(&self) -> u32 {
         2

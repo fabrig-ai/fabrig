@@ -130,12 +130,6 @@ impl Host for Process {
             && self.completions.is_empty()
             && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        self.inner.view().worst_case()
-            + 512_000
-            + Queue::<Complete>::worst_case(ROOM).expect("wrapper completions")
-            + Queue::<Submit>::worst_case(ROOM).expect("wrapper submissions")
-    }
     fn operations(&self) -> u32 {
         self.inner.view().operations() + 1
     }

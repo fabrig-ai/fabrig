@@ -156,9 +156,6 @@ impl Host for OneShot<'_> {
             && self.requests.is_empty()
             && self.events.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        io::worst_case(&limits()).expect("one socket limits")
-    }
     fn operations(&self) -> u32 {
         io::operations(&limits()).expect("one socket operations")
     }

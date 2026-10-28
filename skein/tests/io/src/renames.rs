@@ -217,12 +217,6 @@ impl Host for Owner {
             && self.completions.is_empty()
             && self.events.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        FileIo::worst_case(3, 16, 4, 16).expect("bounded scenario state")
-            + Queue::<Complete>::worst_case(2).expect("bounded scenario state")
-            + Queue::<Submit>::worst_case(2).expect("bounded scenario state")
-            + Queue::<Event>::worst_case(2).expect("bounded scenario state")
-    }
     fn operations(&self) -> u32 {
         2
     }

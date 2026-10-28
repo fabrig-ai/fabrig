@@ -212,14 +212,6 @@ impl Host for Owner {
             && self.submissions.is_empty()
             && self.up.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        FileIo::worst_case(4, 4, 4, MAX).expect("bounded file owner")
-            + Queue::<Complete>::worst_case(4).expect("bounded queue")
-            + Queue::<Submit>::worst_case(4).expect("bounded queue")
-            + Queue::<Event>::worst_case(2).expect("bounded queue")
-            + u64::from(MAX)
-            + 255
-    }
     fn operations(&self) -> u32 {
         4
     }

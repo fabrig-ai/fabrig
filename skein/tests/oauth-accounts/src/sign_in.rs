@@ -530,12 +530,6 @@ impl Host for Client {
             && self.completions.is_empty()
             && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        accounts::worst_case(&self.limits).expect("component bound")
-            + self.file_driver.as_ref().map_or(0, |driver| driver.worst_case(4))
-            + io::worst_case(&self.limits.io).expect("io bound")
-            + 512_000
-    }
     fn operations(&self) -> u32 {
         io::operations(&self.limits.io).expect("io operations")
     }
@@ -601,13 +595,6 @@ impl Host for Process {
             Process::Client(client) => client.is_empty(),
             Process::Issuer(peer) => peer.is_empty(),
             Process::Browser(browser) => browser.is_empty(),
-        }
-    }
-    fn worst_case(&self) -> u64 {
-        match self {
-            Process::Client(client) => client.worst_case(),
-            Process::Issuer(peer) => peer.worst_case(),
-            Process::Browser(browser) => browser.worst_case(),
         }
     }
     fn operations(&self) -> u32 {
