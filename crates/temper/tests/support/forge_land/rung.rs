@@ -778,7 +778,7 @@ fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3], output: &str) -> Re
     )?;
     driver.header = printed_header.into();
     super::super::live::notice(
-        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=3700000000000; rules/policy ceiling=207552 period=449696 role period=415104",
+        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=207552 period=449696 role period=415104",
     );
     let memory = read_json(&paths[0].join("temper.json"))["engine"]["memory_bytes"].clone();
     super::super::live::notice(&format!("SETUP engine memory={memory}"));

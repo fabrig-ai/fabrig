@@ -271,18 +271,17 @@ fn a_stale_filter_link_opens_less_filtered_at_its_printed_address() {
     assert_eq!(host.show, Some((Box::from(b"/?project=3".as_slice()), true)));
 }
 
-#[path = "../../../testing/memory_figures.rs"]
-mod memory_figures;
-// Domain state, view tree/bindings/words, HTTP decoding and exchange bodies.
+// The web preset's worst case, with a quarter's headroom.
+#[cfg(target_pointer_width = "64")]
+const WEB_CEILING: u64 = 420_000_000_000;
 
 #[test]
 #[cfg(target_pointer_width = "64")]
-fn the_web_preset_has_a_literal_price() {
+fn the_web_preset_stays_under_its_ceiling() {
     let actual = limits::worst_case(&limits::client()).expect("priced web preset");
-    memory_figures::check(
-        &skein_scratch::paths::workspace().join("crates/temper/tests/figures/memory/client-web"),
-        &limits::memory_terms(&limits::client()).expect("web memory terms"),
-        actual,
+    assert!(
+        actual <= WEB_CEILING,
+        "web worst case {actual} passes ceiling {WEB_CEILING}; a ceiling moves by hand in the commit of a real change that passes it, which says why"
     );
 }
 

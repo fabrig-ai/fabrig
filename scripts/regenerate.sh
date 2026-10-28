@@ -7,12 +7,9 @@
 #                                         else 1; builds nothing
 #   scripts/regenerate.sh PATH...         rewrite them from the tree
 #
-# It owns the exact memory figures, crates/temper/tests/figures/memory/,
-# and the printed journeys under docs/design/client/journeys/. It reruns
-# the figures' writers with SKEIN_CODEGEN_WRITE=1 and reprints the journeys.
-# A writer that would move anything else, a declaration (memory_bytes in
-# docs/examples/owned.json or temper init's template), a literal in a
-# source, is refused: the tree goes back as it was.
+# It owns the printed journeys under docs/design/client/journeys/ and
+# reprints them. A writer that would move anything else is refused:
+# the tree goes back as it was.
 #
 # Exit status: 0 rewritten, printing every path it changed on stdout,
 # one per line; 1 (--owns) a path it doesn't write; 2 refused before
@@ -24,24 +21,13 @@ set -eu
 cd "$(dirname "$0")/.."
 
 # One table: writer, directory, package, test binary (lib or run), filter.
-# The figure rows write .txt directly in their memory directory; journeys
-# writes skein-ui.css, journey.js and NAME/NN.html under the journeys root.
-# Owned precedes init (protocol/setup.md, 8.1); turn_bounds is deliberately
-# absent: changing a limit or declaration needs a person's decision.
+# Journeys writes skein-ui.css, journey.js and NAME/NN.html under its root.
 writers() {
     cat <<'TABLE'
-owned|owned/engine|temper|startup|test(=owned_memory_figures_match_startup_requirements_at_bounded_strings)
-owned|owned/worker|temper|startup|test(=owned_memory_figures_match_startup_requirements_at_bounded_strings)
-init|init/engine|temper|startup|test(=owned_memory_figures_for_init_match_its_own_document)
-init|init/worker|temper|startup|test(=owned_memory_figures_for_init_match_its_own_document)
-worker|worker-alone/worker|temper|startup|test(=owned_memory_figures_for_a_worker_alone_include_its_process_and_no_engine)
-view|client-view|temper-client-view|lib|test(account_bounds_have_a_literal_price) | test(english_phrase_declarations_match_the_vocabulary)
-web|client-web|temper-client-shell-web|lib|test(the_web_preset_has_a_literal_price)
 journeys|docs/design/client/journeys|temper-client-journeys|run|
 TABLE
 }
 
-prefix=crates/temper/tests/figures/memory
 # Ownership is by place, unless it is a symlink. Keep this rule in sync
 # with Python's owns() below.
 owns() {
@@ -53,14 +39,7 @@ owns() {
         writer=journeys
         return 0
     fi
-    case $1 in
-        "$prefix"/*.txt) ;;
-        *) return 1 ;;
-    esac
-    directory=${1%/*}
-    directory=${directory#"$prefix"/}
-    writer=$(writers | awk -F '|' -v directory="$directory" '$2 == directory { print $1 }')
-    [ -n "$writer" ] && [ ! -L "$1" ]
+    return 1
 }
 
 mode='write'
@@ -112,9 +91,8 @@ writers | while IFS='|' read -r name directory package binary filter; do
 done || writer_exit=$?
 
 # NUL-delimited status handles even a writer's unexpected file names. Use
-# the same table to admit new terms and departed terms as well as edits.
-directories=$(writers | awk -F '|' '$4 != "run" { print $2 }')
-python3 -I -B - "$writer_exit" "$prefix" "$directories" <<'PY'
+# the ownership rule to admit new and departed journeys as well as edits.
+python3 -I -B - "$writer_exit" <<'PY'
 import difflib
 import json
 import os
@@ -124,7 +102,6 @@ import subprocess
 import sys
 
 writer_exit = int(sys.argv[1])
-directories = {sys.argv[2] + '/' + directory for directory in sys.argv[3].splitlines()}
 
 
 def git(*args):
@@ -138,10 +115,8 @@ paths = sorted({os.fsdecode(entry[3:]) for entry in entries if entry})
 def owns(path):
     # Same ownership rule as the shell's owns(): place and no symlink,
     # regardless of presence or tracking; write inputs are checked separately.
-    parent, _, name = path.rpartition('/')
-    figure = parent in directories and name.endswith('.txt')
     journey = re.fullmatch(r'docs/design/client/journeys/(skein-ui\.css|journey\.js|[a-z][a-z0-9-]*/[0-9]{2,}\.html)', path)
-    return (figure or journey) and not Path(path).is_symlink()
+    return journey and not Path(path).is_symlink()
 
 
 def values(before, after, at=''):

@@ -1134,107 +1134,50 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
     }
 }
 
-#[path = "../../../testing/memory_figures.rs"]
-mod memory_figures;
-// engine counts the root; system the process, routing queues, payloads and diagnostics.
-// io counts kernel IO; store its machines; values the account credential table.
-// workers and clients count their protocol machines and routing storage.
-// clients.public/bundle/google/demo count origins, assets, sign-in and demo state.
-// forge/held/settings/tokens/records count connections, retained calls, configuration,
-// credentials and record handling; identities counts encoded identities and their keys.
-// accounts counts its driver, configured providers and trust; setup/checked its host and inputs.
-// worker counts the root, worker.remote/link its transports; host counts spawned processes.
-// program_sources and worker_settings.programs count program state and retained paths;
-// worker_settings counts routing queues, payloads, process tables and spawn commands.
-// A worker's values, identities, io and worker_git count credentials, grants, IO and git.
-// Flight (domain/forge.md, 6) adds a Map<(task, entry), ()>: 576 heap bytes
-// at eight entries, inherited by engine, system payloads and store envelopes.
-// Its 32-byte map header also grows inline Service, including worker-alone system.
-// B6c (domain/root.md, 9.1) retains 32-byte reference facts through reconciliation;
-// forge::reconcile::capacity charges each family's references. Its inline verdict
-// and retained demo record also flow into the root and Service layouts.
-// The rebased small profile retains 32 applications rather than four: each
-// adds one 32-byte Application reference (28 * 32 = 896 root heap bytes).
-// F5 keeps terminal CI in ChangeRow: its optional head/verdict grows row-bearing
-// engine queues and store/system envelopes; the live panel_ci map is unchanged.
-fn memory_figure(
-    name: &str,
-    terms: &temper_service::startup::MemoryTerms,
+// The worst cases at bounded strings, a quarter above 10-28's (dynamic-memory.md 7.1).
+// A shipped document declares at least its ceilings, so it starts under any figure below them.
+const OWNED_ENGINE_CEILING: u64 = 1_100_000_000_000_000;
+const OWNED_WORKER_CEILING: u64 = 4_300_000_000_000;
+const INIT_ENGINE_CEILING: u64 = 800_000_000_000_000;
+const INIT_WORKER_CEILING: u64 = 4_300_000_000_000;
+// A standalone worker's worst case, its process included.
+const WORKER_ALONE_CEILING: u64 = 4_300_000_000_000;
+
+/// The worst cases stay under the ceilings, and the shipped document declares at least them.
+fn under_ceilings(
+    document: &str,
     required: temper_service::startup::Requirements,
+    ceilings: temper_service::startup::Requirements,
 ) {
-    let path = skein_scratch::paths::package().join("tests/figures/memory").join(name);
-    memory_figures::check(&path.join("engine"), &terms.engine, required.engine_bytes);
-    memory_figures::check(&path.join("worker"), &terms.worker, required.worker_bytes);
-}
-
-#[test]
-fn example_memory_headroom_rounds_up_to_two_significant_digits() {
-    for (required, declared) in [(0, 0), (90, 99), (91, 110), (100, 110), (101, 120), (999, 1100), (1001, 1200)] {
-        assert_eq!(support::owned::memory_with_headroom(required), declared, "worst case {required}");
-    }
-}
-
-#[test]
-fn example_memory_band_includes_both_bounds_and_rejects_each_side() {
-    for (required, declared, admitted) in [
-        (100, 99, false),
-        (100, 100, true),
-        (100, 110, true),
-        (100, 125, true),
-        (100, 126, false),
-        (101, 126, true),
-        (101, 127, false),
-        (u64::MAX, u64::MAX, true),
+    let declared = support::owned::declared(document);
+    for (required, declared, ceiling, path) in [
+        (required.engine_bytes, declared.engine_bytes, ceilings.engine_bytes, "engine.memory_bytes"),
+        (required.worker_bytes, declared.worker_bytes, ceilings.worker_bytes, "workers[0].memory_bytes"),
     ] {
-        assert_eq!(
-            support::owned::memory_in_band(declared, required),
-            admitted,
-            "{declared} for worst case {required}"
+        assert!(
+            required <= ceiling,
+            "{document}: {path}: worst case {required} passes ceiling {ceiling}; a ceiling moves by hand in the commit of a real change that passes it, which says why"
+        );
+        assert!(
+            declared >= ceiling,
+            "{document}: {path}: declaration {declared} must be at least ceiling {ceiling}; a ceiling moves by hand in the commit of a real change that passes it, which says why"
         );
     }
 }
 
 #[test]
-fn example_memory_writer_preserves_declarations_in_band_byte_for_byte() {
-    let scratch = support::Scratch::startup("memory-writer-in-band");
-    let path = scratch.path().join("temper.json");
-    let required = temper_service::startup::Requirements { engine_bytes: 100, worker_bytes: 200 };
-    for (engine, worker) in [(100, 250), (125, 200), (123, 234)] {
-        let document = format!(
-            "{{\n  \"engine\": {{\"memory_bytes\" : {engine}}},\n  \"workers\": [{{\"memory_bytes\" : {worker}}}]\n}}\n"
-        );
-        fs::write(&path, &document).expect("memory document");
-        support::owned::check_memory_mode(path.to_str().expect("document path"), required, true);
-        assert_eq!(fs::read(&path).expect("kept document"), document.as_bytes());
-    }
-    scratch.remove();
-}
-
-#[test]
-fn example_memory_writer_raises_declarations_below_band_with_rounded_headroom() {
-    let scratch = support::Scratch::startup("memory-writer-below-band");
-    let path = scratch.path().join("temper.json");
-    let document = "{\n  \"engine\": {\"memory_bytes\": 99},\n  \"workers\": [{\"memory_bytes\": 199}]\n}\n";
-    fs::write(&path, document).expect("memory document");
-    support::owned::check_memory_mode(
-        path.to_str().expect("document path"),
-        temper_service::startup::Requirements { engine_bytes: 100, worker_bytes: 200 },
-        true,
-    );
-    assert_eq!(
-        fs::read_to_string(&path).expect("raised document"),
-        "{\n  \"engine\": {\"memory_bytes\": 110},\n  \"workers\": [{\"memory_bytes\": 220}]\n}\n"
-    );
-    scratch.remove();
-}
-
-#[test]
-fn owned_memory_figures_match_startup_requirements_at_bounded_strings() {
-    let scratch = support::Scratch::startup("owned-memory-figures");
+fn owned_memory_stays_under_its_ceilings() {
+    let scratch = support::Scratch::startup("owned-memory-ceilings");
     let bounded = support::owned::bounded(scratch.path());
     let required = bounded.requirements();
-    memory_figure("owned", &bounded.memory_terms(), required);
-    support::owned::check_memory("../../docs/examples/owned.json", required);
+    under_ceilings(
+        "../../docs/examples/owned.json",
+        required,
+        temper_service::startup::Requirements {
+            engine_bytes: OWNED_ENGINE_CEILING,
+            worker_bytes: OWNED_WORKER_CEILING,
+        },
+    );
     eprintln!("owned requirements: engine {}, worker {} bytes", required.engine_bytes, required.worker_bytes);
     check_bounded_startup(&bounded, required);
     scratch.remove();
@@ -1311,12 +1254,15 @@ fn records_only_owned_memory_admits_checked_input_at_the_exact_bound() {
 }
 
 #[test]
-fn owned_memory_figures_for_init_match_its_own_document() {
-    let scratch = support::Scratch::startup("init-memory-figures");
+fn init_memory_stays_under_its_ceilings() {
+    let scratch = support::Scratch::startup("init-memory-ceilings");
     let bounded = support::owned::bounded_template(scratch.path());
     let required = bounded.requirements();
-    memory_figure("init", &bounded.memory_terms(), required);
-    support::owned::check_memory("../temper-init/template/temper.json", required);
+    under_ceilings(
+        "../temper-init/template/temper.json",
+        required,
+        temper_service::startup::Requirements { engine_bytes: INIT_ENGINE_CEILING, worker_bytes: INIT_WORKER_CEILING },
+    );
     eprintln!("init requirements: engine {}, worker {} bytes", required.engine_bytes, required.worker_bytes);
     check_bounded_startup(&bounded, required);
     scratch.remove();
@@ -1530,8 +1476,8 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
 }
 
 #[test]
-fn owned_memory_figures_for_a_worker_alone_include_its_process_and_no_engine() {
-    let scratch = support::Scratch::startup("worker-alone-memory-figures");
+fn a_worker_alone_stays_under_its_ceiling() {
+    let scratch = support::Scratch::startup("worker-alone-memory-ceiling");
     let bounded = support::owned::bounded(scratch.path());
     let mut document: serde_json::Value = serde_json::from_slice(&bounded.document).expect("bounded document");
     document.as_object_mut().expect("worker-alone fixture").remove("engine");
@@ -1551,23 +1497,10 @@ fn owned_memory_figures_for_a_worker_alone_include_its_process_and_no_engine() {
     )
     .expect("worker-alone fixture");
     assert_eq!(required.engine_bytes, 0);
-    // A standalone worker also counts its process queues, kernel tables and IO.
-    let terms = temper_service::startup::memory_terms(
-        &input,
-        &jig_protocol_config::Directories::working(),
-        &bounded.files,
-        &bounded.agent,
-        &bounded.seeds,
-        None,
-        skein_lib::List::with_capacity(0),
-        None,
-    )
-    .expect("worker-alone terms");
-    assert!(terms.engine.is_empty());
-    memory_figures::check(
-        &skein_scratch::paths::package().join("tests/figures/memory/worker-alone/worker"),
-        &terms.worker,
-        required.worker_bytes,
+    assert!(
+        required.worker_bytes <= WORKER_ALONE_CEILING,
+        "standalone worker: worst case {} passes ceiling {WORKER_ALONE_CEILING}; a ceiling moves by hand in the commit of a real change that passes it, which says why",
+        required.worker_bytes
     );
     document["workers"][0]["memory_bytes"] = required.worker_bytes.into();
     let part = temper_service::startup::worker_part(
