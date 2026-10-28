@@ -590,6 +590,16 @@ What it keeps:
   going on, its state and holds kept, is one more reason there, not
   another rule.
 
+**Owing a question keeps it too.** A task its requester made owing it
+a question (its spec's `asks`, set at creation and never amended, as
+an application marks work to be agreed before it is done) is kept until
+it has asked its requester one, in the question form: its run that
+finishes done before then parks, as a kept task's does, and a notice
+naming what it owes wakes it at once, so its next run goes on from what
+the last one left with that notice to read; once it has asked, its own
+question keeps it, as below. Each such wake is a run, within the task's
+budget and tries, so a run that never asks ends the task by them.
+
 **Its own question keeps it too.** A task that asked its requester a
 question, in the question form, still unanswered, is kept as by a
 pending dependency, the reason naming the question: it ends no way but
