@@ -173,7 +173,8 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   repository's landed commit; cancelled once every member is cancelled.
   A member cancelled while its landing lives leaves it, and the landing
   prepares again without it, unless a member it is joined to with
-  `with` is still live, which holds the landing for its goals to decide.
+  `with` is still live, which holds the landing for its goals to decide,
+  the hold naming the cancelled change.
 - **Held** for a fault past its bound (7.4), or a member's bound of
   repairs or resolutions past, saying which; its members' goals hear
   it. A release lifts it, and it prepares again.
@@ -535,7 +536,8 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
   the head prepared from, the main tip, the candidate, and each gate's
   key and state), its jobs in flight, a conflict (member, files, main's
   tip), each repository's landed commit once landed, when its proof
-  completed, its stale proofs and its faults per key.
+  completed, its stale proofs and its faults per key, and, held, its
+  cause: a member's gate past its faults, or a `with` peer cancelled.
 - **`Receipt`,** keyed by the project, the repository, the gate and the
   key: the verdict, the run, the candidate and the time.
 - **A change's state** grows its landing, its clean prepares' heads and
