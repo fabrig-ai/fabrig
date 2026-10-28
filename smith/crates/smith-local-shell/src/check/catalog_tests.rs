@@ -8,8 +8,7 @@ fn the_report_lists_each_program_a_run_may_use() {
     let executable = files.0.join("claude");
     std::fs::write(&executable, b"").expect("scratch executable");
     std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
-    let certificate =
-        skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
     let text = format!(
         "model='codex/gpt-6-luna'\ncredentials='{}'\n[environment]\ninherit=['PATH']\n[programs]\nclaude_code='{}'\n[accounts.codex]\nsource='key'\n[endpoints.codex]\naddress='127.0.0.1:443'\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{certificate}']\n",
         files.0.display(),

@@ -337,7 +337,7 @@ fn github_conformance_queue_refusals_fail_one_fact() {
 }
 #[test]
 fn github_conformance_names_every_fact_of_forge_github_13() {
-    let root = skein_scratch::paths::workspace().join("docs/design/forge-github.md");
+    let root = skein_scratch::paths::tree().join("docs/design/forge-github.md");
     let doc = fs::read_to_string(root).expect("design contract");
     let section = doc.split("## 13.").nth(1).expect("section 13").split("## 14.").next().expect("section end");
     let mut names: BTreeSet<_> = section.split('`').enumerate().filter(|(i, _)| i % 2 == 1).map(|(_, s)| s).collect();

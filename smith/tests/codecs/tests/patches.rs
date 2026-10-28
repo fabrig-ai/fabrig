@@ -17,7 +17,7 @@ const TRANSCRIPT: &str = include_str!("../../../crates/smith-transcript/schema/t
 fn each_version_one_golden_patches_to_its_version_two_golden() {
     let output =
         skein_codegen::generate(&skein_codegen::parse(fixture::kept::fixture_turn::TEXTS[0]).expect("v1 schema"));
-    let directory = skein_scratch::paths::workspace().join("tests/transcript-patches/patches/golden/0001/fixture-turn");
+    let directory = skein_scratch::paths::tree().join("tests/transcript-patches/patches/golden/0001/fixture-turn");
     let files: BTreeSet<_> = fs::read_dir(&directory)
         .expect("patch goldens")
         .map(|entry| entry.expect("golden entry").file_name())

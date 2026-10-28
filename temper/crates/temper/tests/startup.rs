@@ -1695,7 +1695,7 @@ fn checked_in_deployment_profiles_pass_startup_admission() {
 
 #[test]
 fn turn_bounds() {
-    let root = skein_scratch::paths::workspace();
+    let root = skein_scratch::paths::tree();
     for (deployment, agent) in [
         ("crates/temper-init/template/temper.json", "crates/temper-init/template/agent.json"),
         ("docs/examples/owned.json", "docs/examples/owned/agent.json"),

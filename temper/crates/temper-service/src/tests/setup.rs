@@ -20,7 +20,7 @@ fn service(states: u32, life: Duration) -> crate::Service {
 )]
 pub(super) fn measure_page(name: &str, bytes: usize) {
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
-        let directory = skein_scratch::paths::workspace().join("target/q-pages");
+        let directory = skein_scratch::paths::tree().join("target/q-pages");
         std::fs::create_dir_all(&directory).unwrap();
         std::fs::write(directory.join(format!("{name}.txt")), format!("{bytes}\n")).unwrap();
     }

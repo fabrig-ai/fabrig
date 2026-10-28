@@ -89,7 +89,7 @@ impl Cluster {
         cluster
     }
     fn description(scratch: &Path) -> Self {
-        Self::description_from(scratch, &skein_scratch::paths::workspace().join("crates/temper/tests/fixtures/cluster"))
+        Self::description_from(scratch, &skein_scratch::paths::tree().join("crates/temper/tests/fixtures/cluster"))
     }
     pub(crate) fn description_from(scratch: &Path, directory: &Path) -> Self {
         let experiment = directory.canonicalize().expect("description directory");

@@ -19,7 +19,7 @@ mod product;
 use product::product_document;
 
 fn trust_path() -> String {
-    skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string()
+    skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string()
 }
 
 fn parse_value(document: &serde_json::Value) -> Result<config::Configuration, String> {

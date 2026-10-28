@@ -6,7 +6,7 @@ use smith_charter::v4::{CEILINGS, Charter, Path, RunResult};
 
 #[test]
 fn charter_and_result_golden_records_decode() {
-    let root = skein_scratch::paths::workspace().join("crates/smith-charter/golden/v4");
+    let root = skein_scratch::paths::tree().join("crates/smith-charter/golden/v4");
     for name in ["record_charter_smallest.bin", "record_charter_full.bin"] {
         let bytes = std::fs::read(root.join(name)).expect("charter golden");
         let value = Charter::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("charter decodes");

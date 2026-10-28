@@ -4,7 +4,8 @@
 //! a failing test's included. The conformance suite lays out a root there
 //! for each scenario on files (`tests/conformance/real`; kernel.md, 8), and
 //! the ring's own tests their files (`tests/ring`). [`paths`] is where a
-//! test finds its package, its workspace and its binaries when it runs.
+//! test finds its package, its tree, its workspace and its binaries when
+//! it runs.
 //!
 //! Ordinary Rust (programming-model.md, 10.2): it runs in tests only.
 
@@ -102,10 +103,12 @@ mod tests {
     use super::Scratch;
 
     #[test]
-    fn a_test_finds_its_package_and_its_workspace_when_it_runs() {
+    fn a_test_finds_its_package_its_tree_and_its_workspace_when_it_runs() {
         let package = super::paths::package();
         assert!(package.join("Cargo.toml").is_file(), "the package holds its manifest: {}", package.display());
-        let root = package.ancestors().nth(2).expect("skein-scratch is two levels below the root");
+        let tree = package.ancestors().nth(2).expect("skein-scratch is two levels below skein's tree");
+        assert_eq!(super::paths::tree(), tree, "skein's tree holds skein-scratch");
+        let root = tree.parent().expect("skein's tree is below the root");
         assert_eq!(super::paths::workspace(), root, "the root holds Cargo.lock");
     }
 

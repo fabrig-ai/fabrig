@@ -58,7 +58,7 @@ pub fn bundle() -> PathBuf {
         std::env::var_os("TEMPER_TEST_BUNDLE")
             .expect("run scripts/browser.sh to build the bundle and set TEMPER_TEST_BUNDLE"),
     );
-    let path = if path.is_absolute() { path } else { skein_scratch::paths::workspace().join(path) };
+    let path = if path.is_absolute() { path } else { skein_scratch::paths::tree().join(path) };
     assert!(
         path.join("index.html").is_file(),
         "build the bundle with scripts/bundle.sh {}: it holds no index.html",

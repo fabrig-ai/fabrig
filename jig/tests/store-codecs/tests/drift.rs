@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn store() -> PathBuf {
-    skein_scratch::paths::workspace().join("crates/jig-protocol-store")
+    skein_scratch::paths::tree().join("crates/jig-protocol-store")
 }
 
 fn check(family: &str, version: u16) {
@@ -64,7 +64,7 @@ fn the_core_familys_code_and_goldens_have_no_drift() {
 
 #[test]
 fn the_test_connectors_code_and_goldens_have_no_drift() {
-    let root = skein_scratch::paths::workspace().join("testing/jig-test-store");
+    let root = skein_scratch::paths::tree().join("testing/jig-test-store");
     let source = fs::read_to_string(root.join("schema/test-connector-v2.schema")).expect("schema readable");
     let output = generate(&parse(&source).expect("schema valid"));
     let code = root.join("src/generated/v2.rs");

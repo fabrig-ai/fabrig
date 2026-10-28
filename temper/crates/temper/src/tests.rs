@@ -387,7 +387,7 @@ fn unresolved_forge_names_prepare_without_refusing_or_resolving_socket_forges() 
     let mut document: serde_json::Value = serde_json::from_slice(&bytes).expect("fixture JSON");
     let mut host = document["application"]["forges"][0].clone();
     host["api"] = serde_json::json!({"host":"forge.example", "port":443});
-    let scratch = skein_scratch::paths::workspace().join("target/reject-forge-names");
+    let scratch = skein_scratch::paths::tree().join("target/reject-forge-names");
     std::fs::create_dir_all(&scratch).expect("test directory");
     let trust = scratch.join("root.der");
     std::fs::write(&trust, skein_tls_world::pki::ROOT).expect("fixture trust");

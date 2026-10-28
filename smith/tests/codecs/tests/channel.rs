@@ -6,7 +6,7 @@ use smith_channel::{Answer, CEILINGS, Start, V5, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
-    let root = skein_scratch::paths::workspace().join("crates/smith-channel/golden/v5");
+    let root = skein_scratch::paths::tree().join("crates/smith-channel/golden/v5");
     for name in ["record_start_smallest.bin", "record_start_full.bin"] {
         let bytes = std::fs::read(root.join(name)).expect("start golden");
         let value = Start::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("start decodes");
@@ -46,7 +46,7 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
 
 #[test]
 fn message_refusal_goldens_keep_each_typed_reason() {
-    let root = skein_scratch::paths::workspace().join("crates/smith-channel/golden/v5");
+    let root = skein_scratch::paths::tree().join("crates/smith-channel/golden/v5");
     for name in ["record_message_refused_smallest.bin", "record_message_refused_full.bin"] {
         let bytes = std::fs::read(root.join(name)).expect("refusal golden");
         let value =
@@ -89,7 +89,7 @@ fn channel_turn_goldens_keep_the_declared_window_flag() {
 
 #[test]
 fn live_goldens_decode_at_their_measured_length() {
-    let root = skein_scratch::paths::workspace().join("crates/smith-channel/golden/v5");
+    let root = skein_scratch::paths::tree().join("crates/smith-channel/golden/v5");
     for name in ["record_live_smallest.bin", "record_live_full.bin"] {
         let bytes = std::fs::read(root.join(name)).expect("live golden");
         let value = smith_channel::Live::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("live decodes");

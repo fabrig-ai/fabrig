@@ -10,7 +10,7 @@ pub struct Transcript {
 /// Read the capture by case directory, including its masked argument vector.
 #[must_use]
 pub fn read(case: &str) -> Transcript {
-    let path = skein_scratch::paths::workspace().join("tools/git-transcripts/transcripts").join(case);
+    let path = skein_scratch::paths::tree().join("tools/git-transcripts/transcripts").join(case);
     let bytes = |name| std::fs::read(path.join(name)).expect("captured file").into_boxed_slice();
     let exit = bytes("exit");
     let exit = std::str::from_utf8(&exit).expect("exit is ASCII").trim().parse().expect("exit code");

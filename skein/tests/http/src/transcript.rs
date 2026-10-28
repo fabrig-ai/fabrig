@@ -80,7 +80,7 @@ pub struct Decoded {
 /// Every transcript, in the order of their names.
 #[must_use]
 pub fn all() -> Vec<Transcript> {
-    let directory = skein_scratch::paths::workspace().join("tests/http").join("transcripts");
+    let directory = skein_scratch::paths::tree().join("tests/http").join("transcripts");
     let mut names = Vec::new();
     for entry in fs::read_dir(&directory).expect("the transcripts directory") {
         let path = entry.expect("a directory entry").path();

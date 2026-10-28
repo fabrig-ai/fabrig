@@ -265,7 +265,7 @@ fn a_chunked_stream_checks_each_version_and_rejects_an_unterminated_tail() {
 
 #[test]
 fn a_frozen_line_of_another_version_is_refused_by_name() {
-    let path = skein_scratch::paths::workspace().join("crates/smith-events/golden/unsupported-v5.jsonl");
+    let path = skein_scratch::paths::tree().join("crates/smith-events/golden/unsupported-v5.jsonl");
     let line = std::fs::read(path).expect("unsupported golden");
     assert_eq!(read(&line, &limits()), Err(Error::Version(5)));
 }

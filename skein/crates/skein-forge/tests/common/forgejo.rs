@@ -45,7 +45,7 @@ pub struct Transcript {
 }
 #[must_use]
 pub fn transcript(case: &str) -> Transcript {
-    let root = skein_scratch::paths::workspace().join("tests/forge/conformance/transcripts").join(case);
+    let root = skein_scratch::paths::tree().join("tests/forge/conformance/transcripts").join(case);
     let request = fs::read(root.join("request")).expect("request transcript");
     let response = fs::read(root.join("response")).expect("response transcript");
     let line = request.split(|b| *b == b'\r').next().expect("request line");
@@ -444,7 +444,7 @@ pub fn json_cases() -> Vec<(String, Option<Request>)> {
 }
 #[must_use]
 pub fn transcript_cases() -> Vec<String> {
-    let root = skein_scratch::paths::workspace().join("tests/forge/conformance/transcripts");
+    let root = skein_scratch::paths::tree().join("tests/forge/conformance/transcripts");
     let mut entries: Vec<_> = fs::read_dir(root)
         .expect("transcripts directory")
         .map(|entry| entry.expect("transcript entry"))
@@ -541,7 +541,7 @@ pub struct DeliveryRequest {
 }
 #[must_use]
 pub fn delivery(case: &str) -> DeliveryRequest {
-    let root = skein_scratch::paths::workspace().join("tests/forge/conformance/deliveries").join(case);
+    let root = skein_scratch::paths::tree().join("tests/forge/conformance/deliveries").join(case);
     let request = fs::read(root.join("request")).expect("delivery request");
     let end = request.windows(4).position(|w| w == b"\r\n\r\n").expect("delivery head");
     let event = request[..end]

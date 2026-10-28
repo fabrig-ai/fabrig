@@ -1,5 +1,6 @@
-//! Where a test finds its package, its workspace, its package's binaries
-//! and the target's scratch space: when it runs (testing-strategy.md, 8).
+//! Where a test finds its package, its tree, its workspace, its package's
+//! binaries and the target's scratch space: when it runs
+//! (testing-strategy.md, 8).
 //!
 //! `env!("CARGO_MANIFEST_DIR")`, `env!("CARGO_BIN_EXE_<name>")` and
 //! `env!("CARGO_TARGET_TMPDIR")` compile the worktree's path into a test,
@@ -23,9 +24,7 @@ pub fn package() -> PathBuf {
 }
 
 /// The workspace's root: the running test's package directory, or the
-/// nearest above it, that holds `Cargo.lock`. A library that other
-/// packages' tests call locates its files from here, since [`package`] is
-/// theirs.
+/// nearest above it, that holds `Cargo.lock`.
 #[must_use]
 pub fn workspace() -> PathBuf {
     let package = package();
@@ -35,6 +34,20 @@ pub fn workspace() -> PathBuf {
         }
     }
     fail(&format!("no Cargo.lock in {} or above it", package.display()))
+}
+
+/// The running test's tree: the directory just below the workspace's root
+/// that holds its package, `skein/` for skein's. A test names its tree's
+/// files from here, and so does a library that other packages' tests call,
+/// since [`package`] is theirs.
+#[must_use]
+pub fn tree() -> PathBuf {
+    let package = package();
+    let workspace = workspace();
+    match package.strip_prefix(&workspace).ok().and_then(|below| below.components().next()) {
+        Some(tree) => workspace.join(tree),
+        None => fail(&format!("{} is not below the workspace's root {}", package.display(), workspace.display())),
+    }
 }
 
 /// The running test's package's binary `name`.
