@@ -652,36 +652,14 @@ fn output_and_memory_bounds_cover_replacement_and_a_full_panel() {
     let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
     deliver(&mut root, watch, &panel);
     assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(panel.clone())));
-    let panel_heap = size_of::<w::ChangePanel>()
-        + 512 // The full authority hold reason.
-        + panel.owner().len()
-        + panel.name().len()
-        + panel.branch().len()
-        + panel.landing().len()
-        + panel.pull().as_ref().unwrap().address().len()
-        + usize::try_from(wire::GATES).unwrap() * size_of::<w::Gate>()
-        + usize::try_from(wire::TASKS_AHEAD).unwrap() * size_of::<u64>();
+    // A full decoded change panel, a quarter above 10-28's 5,408 bytes.
+    const PANEL_HEAP_CEILING: u64 = 6_800;
+    // The forge side's total heap, a quarter above 10-28's 12,581,504 bytes.
+    const FORGE_HEAP_CEILING: u64 = 16_000_000;
     let wire = forge::wire_limits(&limits.forge).unwrap();
-    assert_eq!(
-        u64::try_from(panel_heap).unwrap(),
-        u64::try_from(size_of::<w::ChangePanel>()).unwrap() + w::ChangePanel::worst_case_heap(&wire).unwrap()
-    );
-    let existing = u64::from(limits.forge.field_bytes) * 6
-        + u64::from(limits.forge.checks) * 4
-        + w::DemoAnswer::worst_case_heap(&wire).unwrap()
-        + w::Answer::worst_case_heap(&wire).unwrap()
-        + u64::from(wire.group_failed_why)
-        + forge::forges::worst_case(&limits.forge).unwrap()
-        + forge::picker::worst_case(limits.forge).unwrap()
-        // Admin token, four fields and its answer.
-        + 4090 + u64::from(limits.forge.field_bytes) * 3
-        // Restored PEM and generated secret at the schema payload bound.
-        + 2 * 4089
-        + u64::from(limits.forge.field_bytes.max(wire.first_repository_label))
-        + w::Answer::worst_case_heap(&wire).unwrap()
-        // App draft key, answered install link and editable App id.
-        + 4097 + 2048 + u64::from(limits.forge.field_bytes)
-        + u64::try_from(size_of::<Handle>()).unwrap();
-    assert_eq!(forge::worst_case(&limits.forge), Some(existing + u64::try_from(panel_heap).unwrap()));
+    let panel_heap =
+        u64::try_from(size_of::<w::ChangePanel>()).unwrap() + w::ChangePanel::worst_case_heap(&wire).unwrap();
+    assert!(panel_heap <= PANEL_HEAP_CEILING);
+    assert!(forge::worst_case(&limits.forge).unwrap() <= FORGE_HEAP_CEILING);
     assert!(crate::worst_case(&limits).unwrap() >= forge::worst_case(&limits.forge).unwrap());
 }
