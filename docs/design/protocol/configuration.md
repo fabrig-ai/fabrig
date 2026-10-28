@@ -1659,8 +1659,11 @@ into the binary.
   beside them, since a stream is a long-lived call on the jig mount and
   a connection to temper's server: the mount's HTTP calls and temper's
   server connections to the streams plus 4 (12 and 12), the 4 room for
-  ordinary exchanges beside every stream held, jig's exchanges (8, 2 a
-  sign-in) unchanged unless the measure says they bind; the three
+  ordinary exchanges beside every stream held; and jig's
+  `clients.exchanges`, an override, to the streams plus 4 (12), since
+  the component's connection map holds every stream's connection
+  beside the exchanges (small's 8 and the 2 a sign-in unchanged); a
+  full map answers a refusal naming its bound, never a panic; the four
   measured together against the declarations, the largest streams
   figure that fits taken, its carriers 4 above it, if 8 does not, and a
   rise the user's; and
