@@ -161,7 +161,13 @@ impl Measured {
                 ) => {}
             }
         }
-        self.meter.check(measurement, self.bound, &self.env.limits);
+        // The output buffer belongs to the harness and is handed out with its outputs.
+        assert!(self.out.is_empty());
+        self.out = Queue::with_capacity(self.out.capacity());
+        // A growing ring holds old and new buffers at the peak; after handoff,
+        // held storage stays within the formula and the peak within twice it.
+        self.meter.check(measurement, 2 * self.bound, &self.env.limits);
+        assert!(self.meter.held() <= self.bound, "held storage within the host and caller formula");
         self.domain.reclaim();
         owner
     }

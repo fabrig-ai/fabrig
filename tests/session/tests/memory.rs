@@ -603,7 +603,7 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
 const RESTORE_HISTORY_CEILING: u64 = 110_000;
 
 #[test]
-fn restoring_a_maximum_recorded_history_stays_within_the_counted_bound() {
+fn restoring_a_maximum_foreign_history_stays_within_the_counted_bound() {
     use smith_domain_session::record;
     let limits = Limits {
         history_messages: 6,
@@ -660,6 +660,9 @@ fn restoring_a_maximum_recorded_history_stays_within_the_counted_bound() {
             },
         ]))]),
     };
+    assert!(
+        matches!(history.turns[0].messages[1].content.as_ref(), [Block::Opaque { bytes }] if bytes.len() == usize::try_from(opaque).expect("history length fits"))
+    );
     meter.start();
     while domain.pop_fact().is_some() {}
     smith_domain_session::step(
@@ -682,13 +685,27 @@ fn restoring_a_maximum_recorded_history_stays_within_the_counted_bound() {
     let measured = meter.end();
     let mut completed = false;
     while let Some(request) = out.pop() {
-        if let Request::Complete { .. } = request {
+        if let Request::Complete { prompt, .. } = request {
             completed = true;
+            assert_eq!(
+                prompt.messages.len(),
+                3,
+                "both recorded messages and the summary instruction reach the provider"
+            );
+            assert_eq!(prompt.messages[0].role, smith_domain_session::llm::Role::User);
+            assert!(matches!(prompt.messages[0].content.as_ref(), [Block::Text { text, .. }] if text.len() == 1));
+            assert_eq!(prompt.messages[2].role, smith_domain_session::llm::Role::User);
+            assert!(
+                matches!(prompt.messages[2].content.as_ref(), [Block::Text { text, .. }] if text.as_ref() == b"Summarise the work so far.")
+            );
+            assert_eq!(prompt.messages[1].role, smith_domain_session::llm::Role::Assistant);
+            // The saved opener has no account and this opening has account 0:
+            // carry-over keeps portable history and releases the opaque block.
+            assert!(prompt.messages[1].content.is_empty());
         }
     }
     assert!(completed, "maximum admitted history separately preserves complete provider receiving room");
     meter.check(measured, bound, &limits);
-    assert!(meter.held() >= limits.history_bytes - reserve - headroom);
 }
 
 // Peak ceiling for refusing an oversized restored waking result (programming-model.md, section 6.3).
