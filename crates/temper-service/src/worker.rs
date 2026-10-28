@@ -27,6 +27,12 @@ pub struct WorkerRuntime {
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
+/// The link's entrance holds two link steps' outputs.
+pub(crate) const ENGINE_EVENTS: u32 = 2 * link::MAX_OUT_DOWN;
+/// Two link steps' notes; each link request makes at most one note.
+pub(crate) const NOTES: u32 = 2 * link::MAX_OUT_DOWN;
+/// smith-host-protocol's `Process::new` caps `channel_below` at 16 entries.
+const PROCESS_CHANNEL_REQUESTS: u32 = 16;
 #[derive(Debug)]
 pub struct Worker {
     pub(super) root: root::Domain,
@@ -36,10 +42,12 @@ pub struct Worker {
     sources: crate::program_sources::Component,
     link: link::Component,
     link_out: Queue<link::Request>,
-    /// The three queues' old cells: loop bounds and `room`'s pacing until the worker root's watermark.
-    batch: u32,
     out: Queue<root::Request>,
     pub(crate) events: Queue<root::Event>,
+    /// What the link brought from the engine, in its order, until the
+    /// root takes it: new work waits here at the watermark, and the
+    /// engine's later records wait behind it.
+    pub(crate) engine: Queue<root::Event>,
     process_events: Queue<host::ProcessEvent>,
     processes: Map<Token, host::Process>,
     owners: Map<Token, Token>,
@@ -49,8 +57,6 @@ pub struct Worker {
     pub(crate) identities: IdentityTable,
     pub(crate) undecodable_values: u64,
     payload: temper_protocol_worker_wire::v1::Limits,
-    /// The cells `io` had: `room`'s pacing on the io requests queued.
-    lower: u32,
     pub(super) io: Queue<io::Request>,
     connection: Connection,
     socket: Option<Token>,
@@ -128,9 +134,9 @@ impl Worker {
             },
             link,
             link_out: Queue::with_capacity(link::MAX_OUT_DOWN),
-            batch: prepared.room,
             out: Queue::uncapped(),
             events: Queue::uncapped(),
+            engine: Queue::with_capacity(ENGINE_EVENTS),
             process_events: Queue::uncapped(),
             processes: Map::with_capacity(slots),
             owners: Map::with_capacity(slots),
@@ -143,14 +149,13 @@ impl Worker {
             identities: IdentityTable::new(config.limits.core.accounts.credentials),
             undecodable_values: 0,
             payload: prepared.payload,
-            lower: prepared.lower,
             io: Queue::uncapped(),
             connection: match prepared.address {
                 io::Addr::InProcess(name) => Connection::InProcess(name),
                 io::Addr::Ip(address) => Connection::Socket(Box::new(Remote {
                     address,
                     worker: config.name.clone(),
-                    notes: Queue::with_capacity(prepared.lower),
+                    notes: Queue::with_capacity(NOTES),
                     end: None,
                     hello_pending: false,
                     last_refusal: None,
@@ -213,6 +218,9 @@ impl Worker {
         for _ in 0..self.events.len() {
             let _event = self.events.pop();
         }
+        for _ in 0..self.engine.len() {
+            let _event = self.engine.pop();
+        }
         for _ in 0..self.out.len() {
             let _request = self.out.pop();
         }
@@ -239,18 +247,23 @@ impl Worker {
             None => false,
         }
     }
+    /// Credit for one link step, including its engine events and socket notes.
     pub(crate) fn room(&self) -> bool {
-        self.lower.saturating_sub(self.io.len())
-            >= root::max_out(&self.env.limits).checked_mul(link::MAX_OUT_DOWN).expect("worker batch")
-            && self.batch.saturating_sub(self.events.len()) >= link::MAX_OUT_DOWN
-            && self.batch.saturating_sub(self.process_events.len()) >= 8
+        self.engine.room() >= link::MAX_OUT_DOWN
             && match &self.connection {
                 Connection::InProcess(_) => true,
-                Connection::Socket(remote) => {
-                    remote.notes.room()
-                        >= root::max_out(&self.env.limits).checked_mul(link::MAX_OUT_DOWN).expect("worker notes batch")
-                }
+                Connection::Socket(remote) => remote.notes.room() >= link::MAX_OUT_DOWN,
             }
+    }
+    /// Entries waiting between the worker's components. The capped engine
+    /// entrance is excluded so new work cannot hold itself at the watermark.
+    fn backlog(&self) -> u32 {
+        self.events
+            .len()
+            .saturating_add(self.out.len())
+            .saturating_add(self.process_events.len())
+            .saturating_add(self.io.len())
+            .saturating_add(self.root.backlog())
     }
     pub fn up(&mut self, now: Time, mut event: io::Event) {
         if self.git.component.accepts(&event) {
@@ -340,20 +353,20 @@ impl Worker {
                 if let Connection::Socket(remote) = &mut self.connection {
                     remote.hello_pending = true;
                 }
-                self.events.push(root::Event::Ready);
+                self.engine.push(root::Event::Ready);
             }
             link::Request::Lost => {
                 if let Connection::Socket(remote) = &mut self.connection {
                     remote.hello_pending = false;
                 }
-                self.events.push(root::Event::Lost);
+                self.engine.push(root::Event::Lost);
             }
-            link::Request::GracePassed => self.events.push(root::Event::GracePassed),
+            link::Request::GracePassed => self.engine.push(root::Event::GracePassed),
             link::Request::Resend { run, attempt, turn } => {
-                self.events.push(root::Event::Resend { run, attempt, turn });
+                self.engine.push(root::Event::Resend { run, attempt, turn });
             }
             link::Request::RelayCancelled { run, attempt, call } => {
-                self.events.push(root::Event::RelayCancelled { run, attempt, call });
+                self.engine.push(root::Event::RelayCancelled { run, attempt, call });
             }
             link::Request::Down { down: hub::LinkDown::Assign { assignment }, parts }
                 if assignment.assignment.workspace.is_some() =>
@@ -362,9 +375,9 @@ impl Worker {
                     Ok((items, save)) => (Ok(items), save),
                     Err(why) => (Err(why), None),
                 };
-                self.events.push(root::Event::Assign { assignment, items, save });
+                self.engine.push(root::Event::Assign { assignment, items, save });
             }
-            link::Request::Down { down, .. } => self.events.push(root::Event::Link(down)),
+            link::Request::Down { down, .. } => self.engine.push(root::Event::Link(down)),
             link::Request::Value { account, generation, expires, value } => {
                 let value = match value {
                     link::GrantValue::Credential { scheme: link::Scheme::Bearer, token } => {
@@ -450,11 +463,9 @@ impl Worker {
         self.drain_root();
     }
     fn drain_root(&mut self) {
-        for _ in 0..self.batch {
-            let Some(request) = self.out.pop() else { break };
+        while let Some(request) = self.out.pop() {
             self.route(request);
         }
-        assert!(self.out.is_empty(), "each payload hand-out is answered in this iteration");
     }
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
@@ -646,7 +657,7 @@ impl Worker {
             self.git.component.fire(now, &mut self.git.out);
             self.git_drain();
         }
-        if self.git.ready {
+        if self.git.ready && self.room() {
             self.link.fire(now, &mut self.link_out);
             self.drain_link(now);
         }
@@ -678,18 +689,24 @@ impl Worker {
                 let _event = self.events.pop();
             }
         }
-        for _ in 0..self.batch {
-            if !self.room() {
-                break;
-            }
+        for _ in 0..self.env.limits.watermark {
             let Some(event) = self.events.pop() else { break };
             self.step(event);
         }
-        if self.aborted.is_none() && self.room() && self.root.is_due(now) {
+        for _ in 0..self.env.limits.watermark {
+            let Some(event) = self.engine.iter().next() else { break };
+            if root::is_new_work(event) && !root::admits(&self.env.limits, self.backlog()) {
+                break;
+            }
+            let event = self.engine.pop().expect("engine head inspected");
+            self.step(event);
+        }
+        // Progress taken in this iteration wins over an alarm due in it.
+        if self.aborted.is_none() && self.events.is_empty() && self.root.is_due(now) {
             root::fire(&mut self.root, &self.env, &mut self.out);
             self.drain_root();
         }
-        if self.aborted.is_none() && self.room() && self.root.is_ready() {
+        if self.aborted.is_none() && self.root.is_ready() {
             root::resume(&mut self.root, &self.env, &mut self.out);
             self.drain_root();
         }
@@ -717,7 +734,7 @@ impl Worker {
         }
         for agent in &agents {
             if let Some(process) = self.processes.get_mut(agent) {
-                for _ in 0..self.batch {
+                for _ in 0..PROCESS_CHANNEL_REQUESTS {
                     let Some(request) = process.next_channel_down() else { break };
                     process.channel_down(request, &mut self.io);
                 }
@@ -759,6 +776,7 @@ impl Worker {
         !self.started
             || !self.io.is_empty()
             || !self.events.is_empty()
+            || !self.engine.is_empty()
             || !self.process_events.is_empty()
             || !self.submitted.is_empty()
             || (self.aborted.is_none() && self.root.is_ready())
