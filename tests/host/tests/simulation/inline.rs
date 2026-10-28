@@ -286,6 +286,112 @@ fn two_inline_slots_keep_provider_owners_independent() {
     }
 }
 
+/// Each root's requests reach its own slot before the next entrance runs
+/// (skein's draft dynamic-memory.md 4.6): two slots doing tool work at
+/// once, their completions interleaved, every lower right and parent
+/// request names the slot whose root emitted it.
+#[test]
+fn two_inline_slots_route_each_roots_requests_to_its_own_slot_under_load() {
+    use inline::Route;
+    use skein_lib::Duration;
+
+    // Three host calls plus finish keep both roots active over four provider passes.
+    const HOST_CALLS: usize = 3;
+    const PROVIDER_TURNS: usize = HOST_CALLS + 1;
+    // Workspace discovery reads the guide and probes the check path.
+    const WORKSPACE_REQUESTS: usize = 2;
+    const FIRST: Token = Token::new(41);
+    const SECOND: Token = Token::new(42);
+    let parties = [
+        (FIRST, b"inline-first".as_slice(), b"AGENTS.md".as_slice()),
+        (SECOND, b"inline-second".as_slice(), b"README.md".as_slice()),
+    ];
+    let mut world = World::new(3181, inline::limits());
+    world.provider_latency(Duration::from_secs(1));
+    world.scripts(
+        parties
+            .iter()
+            .map(|(_, cue, _)| {
+                use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+                let mut turns: Vec<_> = (0..HOST_CALLS)
+                    .map(|_| Turn {
+                        lines: Box::from([Line::Call {
+                            name: b"host_action".as_slice().into(),
+                            arguments: br#"{"work":"route me"}"#.as_slice().into(),
+                        }]),
+                        finish: Finish::ToolCalls,
+                        tokens: 40,
+                    })
+                    .collect();
+                turns.push(Turn {
+                    lines: Box::from([Line::Call {
+                        name: b"finish".as_slice().into(),
+                        arguments: br#"{"report":"Host completed.","source":"host"}"#.as_slice().into(),
+                    }]),
+                    finish: Finish::ToolCalls,
+                    tokens: 40,
+                });
+                Script { cue: (*cue).into(), turns: turns.into() }
+            })
+            .collect(),
+    );
+    for (client, cue, guide) in parties {
+        let mut start = inline::workspace_start(client.raw(), Job::HostTools);
+        let mut charter = start.charter.into_value();
+        charter.brief.sections[0].text = cue.into();
+        charter.conventions = Some(run::Conventions { guide: guide.into(), checks: guide.into() });
+        start.charter =
+            host::Charter::new(charter, world.stage.env.limits.smith.run.run_bytes).expect("bounded host-work charter");
+        world.event(parent::Event::Spawn { client, start });
+    }
+    let handles = [world.handle(FIRST), world.handle(SECOND)];
+    for _ in 0..PROVIDER_TURNS {
+        // Before each shared deadline both slots owe their own provider terminal.
+        let mut owners: Vec<_> = world.lower.values().map(|(agent, _)| *agent).collect();
+        owners.sort();
+        let mut expected = handles;
+        expected.sort();
+        assert_eq!(owners, expected, "{}", world.trace.lines().join("\n"));
+        world.at(world.next_deadline().expect("both providers have a terminal due"));
+    }
+    world.settled();
+    for (client, cue, guide) in parties {
+        let handle = world.handle(client);
+        let mut completions = Vec::new();
+        let mut workspace_requests = 0;
+        let mut calls = 0;
+        for (at, route) in &world.routes {
+            match route {
+                Route::Completion { agent, owner, system } if system.windows(cue.len()).any(|part| part == cue) => {
+                    assert_eq!(*agent, handle, "provider right {owner:?} belongs to its script's slot");
+                    completions.push(*at);
+                }
+                Route::Machine {
+                    agent,
+                    request:
+                        smith_protocol_machine::FromDomain::Read { at, .. }
+                        | smith_protocol_machine::FromDomain::Probe { at, .. },
+                } if at.path.as_ref() == guide => {
+                    assert_eq!(*agent, handle, "workspace right belongs to the slot that mounted it");
+                    workspace_requests += 1;
+                }
+                Route::Called { client: routed, logical_run } if *logical_run == client => {
+                    assert_eq!(*routed, client, "parent call retains its spawning client");
+                    calls += 1;
+                }
+                Route::Completion { .. } | Route::Machine { .. } | Route::Called { .. } => {}
+            }
+        }
+        assert_eq!(completions.len(), PROVIDER_TURNS);
+        assert_eq!(workspace_requests, WORKSPACE_REQUESTS);
+        assert_eq!(calls, HOST_CALLS);
+        assert_eq!(world.history[&client].len(), PROVIDER_TURNS);
+        assert!(matches!(world.seen[&client].answer.as_ref().expect("answer").result, RunResult::Accepted { .. }));
+    }
+    // No unclassified lower right or parent call escaped the checks above.
+    assert_eq!(world.routes.len(), parties.len() * (PROVIDER_TURNS + WORKSPACE_REQUESTS + HOST_CALLS));
+}
+
 #[test]
 fn inline_scripts_use_actual_root_types_without_a_codec() {
     let start = inline::start(318, Job::HostTools);

@@ -128,6 +128,17 @@ pub enum ToolTerminals {
     Hold,
 }
 
+/// Boundary identities retained after the lower ledger settles its rights.
+#[derive(Debug)]
+pub enum Route {
+    /// A provider request with its independent script identity.
+    Completion { agent: Token, owner: Token, system: Box<[u8]> },
+    /// A machine request with its original mounted path.
+    Machine { agent: Token, request: smith_protocol_machine::FromDomain },
+    /// A parent call with the logical run supplied at Spawn.
+    Called { client: Token, logical_run: Token },
+}
+
 /// Real inline agent with native fake LLM and boundary-only rights accounting.
 pub struct World {
     pub agent: inline::Domain,
@@ -141,6 +152,7 @@ pub struct World {
     pub trace: Trace,
     pub long_notices: Vec<(Time, Option<(host::Operation, Duration)>)>,
     pub lower: Ledger<Token, (Token, Token)>,
+    pub routes: Vec<(Time, Route)>,
     provider: provider::Domain,
     failure: Option<(smith::llm::Failure, smith::llm::Evidence)>,
     provider_env: Env<provider::Config>,
@@ -176,6 +188,7 @@ impl World {
             trace,
             long_notices: Vec::new(),
             lower: Ledger::new("inline native provider terminal"),
+            routes: Vec::new(),
             provider: smith_agent_world::scripted_provider(&configuration, seed),
             failure: None,
             provider_env: Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: configuration },
@@ -358,11 +371,29 @@ impl World {
 
     #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "diagnostic captures long notices while the exhaustive shared parent referee owns all requests"
+        reason = "diagnostics capture routing identities and long notices; the shared parent referee owns all requests"
     )]
+    fn record_route(&mut self, request: &Output) {
+        match request {
+            Output::Parent(parent::Request::Called { client, logical_run, .. }) => {
+                self.routes.push((self.stage.env.now, Route::Called { client: *client, logical_run: *logical_run }));
+            }
+            Output::Parent(parent::Request::Long { operation, span, .. }) => {
+                self.long_notices.push((self.stage.env.now, Some((*operation, *span))));
+            }
+            Output::Parent(parent::Request::LongDone { .. }) => self.long_notices.push((self.stage.env.now, None)),
+            Output::Lower { agent, request: Lower::Complete { owner, prompt, .. } } => self.routes.push((
+                self.stage.env.now,
+                Route::Completion { agent: *agent, owner: *owner, system: prompt.system.clone() },
+            )),
+            _ => {}
+        }
+    }
+
     fn outputs(&mut self) {
         while let Some(request) = self.stage.out.pop() {
             self.trace.log(self.stage.env.now, format!("down {request:?}"));
+            self.record_route(&request);
             match request {
                 Output::Parent(request) => {
                     let client = parent_client(&request);
@@ -397,13 +428,6 @@ impl World {
                     }
                     let lower_settled = !self.bindings.values().any(|binding| Some(binding.agent) == seen.agent)
                         && !self.pending_machine.iter().any(|(agent, _, _)| Some(*agent) == seen.agent);
-                    match &request {
-                        parent::Request::Long { operation, span, .. } => {
-                            self.long_notices.push((self.stage.env.now, Some((*operation, *span))));
-                        }
-                        parent::Request::LongDone { .. } => self.long_notices.push((self.stage.env.now, None)),
-                        _ => {}
-                    }
                     seen.observe_parent(request, lower_settled, lower_settled);
                 }
                 Output::Lower { agent, request } => match request {
@@ -464,6 +488,7 @@ impl World {
     }
 
     fn machine_request(&mut self, agent: Token, request: smith_protocol_machine::FromDomain) {
+        self.routes.push((self.stage.env.now, Route::Machine { agent, request: request.clone() }));
         self.machine_trace.push(format!("{request:?}"));
         let terminal = match self.machine.request(request) {
             smith_protocol_machine::ToDomain::Done { owner, done } => Below::Done { owner, done },
