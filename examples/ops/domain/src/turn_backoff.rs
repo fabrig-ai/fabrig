@@ -20,7 +20,7 @@ pub(crate) fn fire(
 ) {
     let Some((run, attempt, number)) = domain.turn_backoffs.expire(env.now) else { return };
     let Some(turn) = domain.host.turn(run, attempt, number) else { return };
-    let mut out = Queue::with_capacity(host::max_out(&env.limits.host));
+    let mut out = Queue::uncapped();
     out.push(host::Request::Up(host::LinkUp::Turn { run, attempt, turn }));
     crate::route::host_out(domain, env, decision, &mut out, work);
 }

@@ -133,7 +133,7 @@ impl Domain {
         check_engine_hello(&mut core.fleet, &limits.core.fleet, config.agent_bounds, limits.host.slots);
         // Connector hold rules are configuration, so a cold root installs
         // the same translated vocabulary before restoring live task rows.
-        let mut configured = Queue::with_capacity(jig_domain_tasks::max_out(&limits.core.tasks));
+        let mut configured = Queue::uncapped();
         jig_domain_tasks::step(
             &mut core.tasks,
             &Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.core.tasks },
@@ -295,7 +295,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         | Work::AdoptClaims
         | Work::AdoptDone => false,
     };
-    let mut work = Queue::with_capacity(env.limits.routes);
+    let mut work = Queue::uncapped();
     work.push(first);
     for _ in 0..env.limits.routes {
         let next = match work.pop() {
@@ -432,7 +432,7 @@ pub(crate) fn now(domain: &mut Domain, value: Output) {
 }
 
 fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_bounds: host::Bounds, slots: u32) {
-    let mut out = Queue::with_capacity(fleet::max_out(limits));
+    let mut out = Queue::uncapped();
     fleet::step(
         domain,
         &Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits },

@@ -350,7 +350,6 @@ pub(crate) use crate::message_refusals::{message_read, refusal_names, refusals};
 
 pub(crate) fn connector_read(
     domain: &mut Domain,
-    env: &Env<Limits>,
     to: ReplyTo,
     task: u64,
     tool: Box<[u8]>,
@@ -360,8 +359,7 @@ pub(crate) fn connector_read(
     let binding = crate::domain::ReadCall { to: to.into_token(), tool };
     let number = jig_ops_domain_connectors::number(Connector::Observability);
     let description = crate::translate::read_description(number, &read);
-    let mut findings =
-        Queue::with_capacity(jig_domain_authority::max_out(&env.limits.core.authority).expect("findings"));
+    let mut findings = Queue::uncapped();
     if domain.core.connector_read_admit(task, description, &mut findings) != jig_domain_authority::Answer::Allow
         || domain.read_calls.len() == domain.read_calls.capacity()
     {

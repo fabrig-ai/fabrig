@@ -177,7 +177,7 @@ pub(crate) fn store(
                     },
                     Record::Core(core::Record::Tasks(row)) => {
                         if domain.core.restore_task_row(&row) {
-                            let mut out = Queue::with_capacity(tasks::max_out(&env.limits.core.tasks));
+                            let mut out = Queue::uncapped();
                             tasks::step(
                                 &mut domain.core.tasks,
                                 &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
@@ -194,7 +194,7 @@ pub(crate) fn store(
                     }
                     Record::Core(core::Record::People(row)) => {
                         if domain.core.restore_people_row(&row) {
-                            let mut out = Queue::with_capacity(people::max_out(&env.limits.core.people));
+                            let mut out = Queue::uncapped();
                             people::step(
                                 &mut domain.core.people,
                                 &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
@@ -234,7 +234,7 @@ pub(crate) fn store(
 /// A record breaking the accounts child's rules is counted there and dropped;
 /// it never refuses the start.
 fn restore_accounts(domain: &mut Domain, env: &Env<Limits>, record: accounts::Stored) -> bool {
-    let mut out = Queue::with_capacity(accounts::max_out(&env.limits.core.accounts));
+    let mut out = Queue::uncapped();
     accounts::step(
         &mut domain.core.accounts,
         &Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts },

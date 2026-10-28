@@ -34,7 +34,7 @@ pub(crate) fn work(
             let requests =
                 core::resume_fleet(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core });
             core_out(domain, env, decision, requests, work);
-            let mut hub_out = Queue::with_capacity(host::max_out(&env.limits.host));
+            let mut hub_out = Queue::uncapped();
             host::resume(
                 &mut domain.host,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.host },
@@ -63,7 +63,7 @@ pub(crate) fn work(
             observability_out(domain, env, decision, &mut out, work);
         }
         Work::Host(event) => {
-            let mut out = Queue::with_capacity(host::max_out(&env.limits.host));
+            let mut out = Queue::uncapped();
             host::step(
                 &mut domain.host,
                 &Env { now: env.now, wall: env.wall, limits: env.limits.host },
@@ -184,7 +184,7 @@ fn event_in(
             work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
         }
         Event::ConnectorRead { to, task, name: _, tool, read } => {
-            crate::assemble::connector_read(domain, env, to, task, tool, read, work);
+            crate::assemble::connector_read(domain, to, task, tool, read, work);
         }
         Event::Effect { to, key, effect, deadline, proposal } => {
             let owner = domain.token();
