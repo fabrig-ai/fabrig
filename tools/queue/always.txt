@@ -1,0 +1,7 @@
+# Packages whose tests read other packages' files by path.
+jig-boundary
+temper-box
+temper-client-world
+temper-docs
+temper-client-journeys
+skein-oauth-world
