@@ -587,13 +587,16 @@ today's, until those land.
   pull request exists until the goal calls `change`.
 - **The asking is the root's rail, not the goal's choice.** The chat
   marks such work once, as it delegates it: `goal` with `agree` set, at
-  the moment its person asks to agree it first. An agreed goal's own
-  host calls are judged by that mark, as an advisor's are by its own
-  (4.3.2): its `finish` before it has asked its requester a question is
-  refused ("this work is to be agreed: ask your requester your plan
-  with message, as a question, and wait"), and so is its `change`
-  before that question is answered ("wait for the answer to question
-  N"), the run going on, as any refused host call does. Once answered,
+  the moment its person asks to agree it first, and the root makes the
+  goal's task owing its requester a question (jig's `domain/tasks.md`,
+  5.7, its spec's `asks`), the typed mark everything below reads, never
+  the brief's text. `finish` is the run's own, so an agreed goal that
+  finishes before it has asked is not refused but parks, kept by what it
+  owes, and wakes at once to the notice "this work is to be agreed: ask
+  your requester your plan with message, as a question, and wait"; its
+  `change`, the root's host call, is refused before that question is
+  answered ("wait for the answer to question N"), the run going on, as
+  any refused host call does. Once answered,
   it changes and finishes as any goal; a person who declines is
   answered by a report, changing nothing. So a model that writes its
   plan as its result, or changes first, is turned back to the inbox.
