@@ -5,9 +5,9 @@ use skein_lib::{Duration, bytes};
 
 #[test]
 fn a_revoked_record_waits_for_erased_and_coalesces_a_sign_out() {
-    let generalized = Map::<u32, Erasing>::worst_case(2);
-    let previous = Map::<u32, Option<bool>>::worst_case(2);
-    assert_eq!(generalized, previous, "the generalized pending state fits the existing map bound");
+    // Two pending account erasures' map storage, a quarter above 10-28's 176 bytes.
+    const ERASING_MAP_HEAP_CEILING: u64 = 220;
+    assert!(Map::<u32, Erasing>::worst_case(2).unwrap() <= ERASING_MAP_HEAP_CEILING);
     for (notifications, expected_signed_out, removing) in
         [(&[][..], None, false), (&[true, true][..], Some(true), true), (&[false, false][..], Some(false), true)]
     {

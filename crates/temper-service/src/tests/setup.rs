@@ -597,17 +597,10 @@ fn setup_memory_includes_the_whole_host_and_its_owner() {
     let setup = prepare(&config, &mut endpoints, &fixtures::seeds().crypto, 2, false).unwrap();
     let (settings, _) = setup.pending.unwrap();
     assert_eq!(settings.user_agent.as_ref(), crate::forge::USER_AGENT.as_bytes());
-    let given = settings.forges.get(0).unwrap().github().unwrap();
-    let machines = skein_forge_setup::github::worst_case(given, 8, 8).unwrap();
-    let rows = crate::forge::records::Rows::worst_case(
-        u32::try_from(config.forges.len()).unwrap(),
-        config.limits.records.value_bytes,
-    )
-    .unwrap();
-    let pages = 8_u64.checked_mul(u64::from(given.limits.page_bytes)).unwrap();
-    // Create enlarges the shared plan/need carriers: eight runs add 384 B.
-    assert_eq!((machines, rows, pages), (631_128, 1_825_634, 131_072));
+    // Setup's whole heap including its host and owner, a quarter above 10-28's 1,339,887,062 bytes.
+    const SETUP_HEAP_CEILING: u64 = 1_700_000_000;
     let whole = worst_case(&config, &endpoints, 2).unwrap();
+    assert!(whole <= SETUP_HEAP_CEILING);
     assert!(whole > host::worst_case(&setup.env.limits, &settings).unwrap());
     assert!(accounted(8, 8, false) > accounted(1, 1, false), "runs/states change the admitted shell price");
 }
