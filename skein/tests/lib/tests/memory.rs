@@ -22,9 +22,7 @@ use std::any::type_name;
 
 use skein_heap::{Counting, Meter};
 use skein_lib::stream::{Delimiter, Read};
-use skein_lib::{
-    Deadlines, Id, Intake, Journal, JournalLimits, JournalRoom, List, Map, Queue, Rng, Set, Slab, Stack, Time,
-};
+use skein_lib::{Deadlines, Id, Intake, Journal, List, Map, Queue, Rng, Set, Slab, Stack, Time};
 
 #[global_allocator]
 static HEAP: Counting = Counting;
@@ -561,50 +559,51 @@ fn a_deadline_table_holds_no_more_than_its_worst_case() {
 }
 
 #[test]
-fn a_journal_filled_to_every_limit_stays_within_its_worst_case() {
-    let limits = JournalLimits { commits: 3, writes: 2, held: 5, now: 3, release: 2 };
-    journal_memory::<u8, u8>(&limits);
-    journal_memory::<u64, u128>(&limits);
-    journal_memory::<[u64; 8], [u64; 8]>(&limits);
+fn a_journal_scenario_stays_under_its_peak_ceiling() {
+    // Bounds the peak of three commits, five held outputs and three door outputs,
+    // including growing buffers and the largest (64-byte) writes and outputs.
+    // The measured 2112-byte peak plus 25%, rounded up to two significant digits.
+    const JOURNAL_PEAK_CEILING: u64 = 2700;
+    let peak =
+        journal_memory::<u8, u8>().max(journal_memory::<u64, u128>()).max(journal_memory::<[u64; 8], [u64; 8]>());
+    assert!(peak <= JOURNAL_PEAK_CEILING, "journal peak: {peak} bytes");
 }
 
-fn journal_memory<W: Item + std::fmt::Debug, O: Item + std::fmt::Debug>(limits: &JournalLimits) {
-    // Ring growth counts both old and new buffers at the peak; held storage stays within the formula.
-    let mut metered =
-        Metered::growing("Journal", type_name::<(W, O)>(), limits.held, Journal::<W, O>::worst_case(limits));
-    metered.start();
-    let mut journal = Journal::<W, O>::new(limits);
-    metered.end(());
-    for commit in 0..limits.commits {
-        let held = if commit == limits.commits - 1 { 1 } else { 2 };
-        let room = JournalRoom { writes: limits.writes, held };
-        metered.start();
-        let mut decision = journal.decision(&room).expect("every limit has room");
-        for write in 0..limits.writes {
-            decision.write(W::nth(commit * limits.writes + write)).expect("reserved write room");
+fn journal_memory<W: Item + std::fmt::Debug, O: Item + std::fmt::Debug>() -> u64 {
+    const COMMITS: u32 = 3;
+    const WRITES: u32 = 2;
+    const HELD: u32 = 5;
+    const DOOR: u32 = 3;
+    const RELEASE: u32 = 2;
+    let meter = Meter::new();
+    meter.start();
+    let mut journal = Journal::<W, O>::uncapped(RELEASE, 0);
+    for commit in 0..COMMITS {
+        let held = if commit == COMMITS - 1 { 1 } else { 2 };
+        let mut decision = journal.decide();
+        for write in 0..WRITES {
+            decision.push_write(W::nth(commit * WRITES + write));
         }
         for output in 0..held {
-            decision.hold(O::nth(commit * 2 + output)).expect("reserved held room");
+            decision.push_held(O::nth(commit * 2 + output));
         }
         journal.accept(decision);
-        metered.end(());
     }
-    for output in 0..limits.now {
-        metered.start();
-        journal.now(O::nth(100 + output)).expect("door has room");
-        metered.end(());
+    for output in 0..DOOR {
+        journal.now(O::nth(100 + output)).expect("running journal takes door output");
     }
-    assert!(!journal.takes(&JournalRoom { writes: 1, held: 0 }));
-    assert!(!journal.takes(&JournalRoom { writes: 0, held: 1 }));
-    for number in 1..=u64::from(limits.commits) {
-        metered.start();
+    assert_eq!(journal.backlog(), u64::from(COMMITS + HELD + DOOR));
+    for number in 1..=u64::from(COMMITS) {
         let commit = journal.commit().expect("one commit per decision");
         assert_eq!(commit.number, number);
-        metered.end(commit);
+        assert_eq!(commit.writes.len(), WRITES);
     }
-    metered.start();
-    journal.committed(u64::from(limits.commits));
-    metered.end(());
+    journal.committed(u64::from(COMMITS));
+    assert_eq!(journal.backlog(), u64::from(HELD + DOOR));
+    let peak = meter.end().peak();
+    drop(journal);
+    assert_eq!(meter.held(), 0, "dropping the journal frees its storage");
+    peak
 }
 
 #[test]

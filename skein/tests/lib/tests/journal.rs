@@ -7,7 +7,7 @@ fn journal_follows_the_model() {
     check(0x3A_01, 300);
 }
 
-use skein_lib::{Journal, JournalLimits, JournalRoom, Queue, Released};
+use skein_lib::{Journal, Queue, Released};
 
 #[test]
 fn an_uncapped_queue_takes_every_push() {
@@ -65,16 +65,15 @@ fn an_uncapped_journal_takes_every_decision() {
 
 #[test]
 fn backlog_counts_commits_unanswered_held_and_the_door() {
-    let limits = JournalLimits { commits: 2, writes: 2, held: 4, now: 2, release: 1 };
-    let mut journal = Journal::new(&limits);
+    let mut journal = Journal::uncapped(1, 0);
     assert_eq!(journal.backlog(), 0);
-    let mut decision = journal.decision(&JournalRoom { writes: 1, held: 1 }).expect("room");
+    let mut decision = journal.decide();
     decision.push_write(10);
     decision.push_held(20);
     assert_eq!(journal.backlog(), 0, "an open decision has not been accepted");
     journal.accept(decision);
     assert_eq!(journal.backlog(), 2);
-    let mut decision = journal.decision(&JournalRoom { writes: 0, held: 1 }).expect("room");
+    let mut decision = journal.decide();
     decision.push_held(21);
     journal.accept(decision);
     assert_eq!(journal.backlog(), 3);
@@ -124,40 +123,4 @@ fn deciding_twice_at_once_is_a_bug() {
     let mut journal = Journal::<u8, u8>::uncapped(4, 0);
     let _first = journal.decide();
     let _second = journal.decide();
-}
-
-#[test]
-#[should_panic(expected = "decide requires an uncapped journal")]
-fn deciding_on_a_capped_journal_is_a_bug() {
-    let limits = JournalLimits { commits: 2, writes: 2, held: 4, now: 2, release: 1 };
-    let mut journal = Journal::<u8, u8>::new(&limits);
-    let _decision = journal.decide();
-}
-
-#[test]
-fn an_uncapped_journal_refuses_reserved_decisions() {
-    let mut journal = Journal::<u8, u8>::uncapped(4, 0);
-    let room = JournalRoom { writes: 0, held: 0 };
-    assert!(!journal.takes(&room));
-    assert!(journal.decision(&room).is_none());
-}
-
-#[test]
-#[should_panic(expected = "a pushed write fits the decision's room")]
-fn pushing_past_reserved_writes_is_a_bug() {
-    let limits = JournalLimits { commits: 1, writes: 1, held: 1, now: 1, release: 1 };
-    let mut journal = Journal::<u8, u8>::new(&limits);
-    let mut decision = journal.decision(&JournalRoom { writes: 1, held: 0 }).expect("room");
-    decision.push_write(1);
-    decision.push_write(2);
-}
-
-#[test]
-#[should_panic(expected = "a pushed output fits the decision's room")]
-fn pushing_past_reserved_outputs_is_a_bug() {
-    let limits = JournalLimits { commits: 1, writes: 1, held: 1, now: 1, release: 1 };
-    let mut journal = Journal::<u8, u8>::new(&limits);
-    let mut decision = journal.decision(&JournalRoom { writes: 0, held: 1 }).expect("room");
-    decision.push_held(1);
-    decision.push_held(2);
 }

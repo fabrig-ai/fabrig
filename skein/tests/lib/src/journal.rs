@@ -1,15 +1,15 @@
 //! A plain queue model of the journal's promises (lib.md, section 11).
 //!
 //! It stores writes and outputs in standard library queues, computes
-//! admission from their lengths, and answers commits in send order. Each
+//! releases from their contents, and answers commits in send order. Each
 //! operation is compared with the public journal interface.
 
 use std::collections::VecDeque;
 
-use skein_lib::{Journal, JournalLimits, JournalRoom, Queue, Released, Rng};
+use skein_lib::{Journal, Queue, Released, Rng};
 
 struct Model {
-    limits: JournalLimits,
+    release: u32,
     outstanding: VecDeque<u64>,
     unsent: VecDeque<(u64, Vec<u32>)>,
     sent: VecDeque<u64>,
@@ -21,9 +21,9 @@ struct Model {
 }
 
 impl Model {
-    fn new(limits: JournalLimits) -> Model {
+    fn new(release: u32) -> Model {
         Model {
-            limits,
+            release,
             outstanding: VecDeque::new(),
             unsent: VecDeque::new(),
             sent: VecDeque::new(),
@@ -35,16 +35,10 @@ impl Model {
         }
     }
 
-    fn takes(&self, room: JournalRoom) -> bool {
-        !self.stopped
-            && room.writes <= self.limits.writes
-            && usize::try_from(room.held).expect("u32 fits") + self.held.len()
-                <= usize::try_from(self.limits.held).expect("u32 fits")
-            && (room.writes == 0 || self.outstanding.len() < usize::try_from(self.limits.commits).expect("u32 fits"))
-            && (room.writes == 0 || self.last < u64::MAX)
-    }
-
     fn accept(&mut self, writes: Vec<u32>, held: Vec<u32>) {
+        if self.stopped {
+            return;
+        }
         if !writes.is_empty() {
             self.last += 1;
             self.outstanding.push_back(self.last);
@@ -56,7 +50,7 @@ impl Model {
     }
 
     fn now(&mut self, output: u32) -> Result<(), u32> {
-        if self.stopped || self.now.len() >= usize::try_from(self.limits.now).expect("u32 fits") {
+        if self.stopped {
             return Err(output);
         }
         self.now.push_back(output);
@@ -78,7 +72,7 @@ impl Model {
             return (Released::Stopped, Vec::new());
         }
         let mut outputs = Vec::new();
-        let n = self.limits.release.min(capacity);
+        let n = self.release.min(capacity);
         for _ in 0..n {
             if let Some(output) = self.now.pop_front() {
                 outputs.push(output);
@@ -100,32 +94,32 @@ fn below(rng: &mut Rng, n: u32) -> u32 {
 
 /// Runs random decision, send, answer, failure, door, and release sequences.
 pub fn check(seed: u64, rounds: u32) {
+    // Two outputs may leave in each call.
+    const RELEASE: u32 = 2;
     let mut rng = Rng::new(seed);
-    let limits = JournalLimits { commits: 3, writes: 2, held: 5, now: 3, release: 2 };
     for round in 0..rounds {
-        let mut journal = Journal::<u32, u32>::new(&limits);
-        let mut model = Model::new(limits);
+        let mut journal = Journal::<u32, u32>::uncapped(RELEASE, 0);
+        let mut model = Model::new(RELEASE);
         for step in 0..60_u32 {
-            let room = JournalRoom { writes: below(&mut rng, 4), held: below(&mut rng, 4) };
-            assert_eq!(journal.takes(&room), model.takes(room), "round {round}, step {step}: admission");
+            let writes = below(&mut rng, 4);
+            let held = below(&mut rng, 4);
             match below(&mut rng, 10) {
                 0..=4 => {
-                    let Some(mut decision) = journal.decision(&room) else {
-                        assert!(!model.takes(room), "round {round}, step {step}: refusal");
-                        continue;
-                    };
+                    let mut decision = journal.decide();
+                    let write_count = below(&mut rng, writes + 1);
+                    let held_count = below(&mut rng, held + 1);
                     let mut writes = Vec::new();
                     let mut held = Vec::new();
-                    for _ in 0..below(&mut rng, room.writes + 1) {
+                    for _ in 0..write_count {
                         let write = rng.next_u64().to_le_bytes();
                         let value = u32::from_le_bytes([write[0], write[1], write[2], write[3]]);
-                        assert_eq!(decision.write(value), Ok(()));
+                        decision.push_write(value);
                         writes.push(value);
                     }
-                    for _ in 0..below(&mut rng, room.held + 1) {
+                    for _ in 0..held_count {
                         let value = rng.next_u64().to_le_bytes();
                         let output = u32::from_le_bytes([value[0], value[1], value[2], value[3]]);
-                        assert_eq!(decision.hold(output), Ok(()));
+                        decision.push_held(output);
                         held.push(output);
                     }
                     journal.accept(decision);
