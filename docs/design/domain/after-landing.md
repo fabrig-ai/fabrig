@@ -197,7 +197,10 @@ red by earlier failures it does not run (5.3).
   red, instead.
 - **A goal that has ended,** or a landing temper did not make: the red
   is kept as a red of no goal's, which findings file (`findings.md`,
-  section 4), and the project's triager is told.
+  section 4), and the project's triager is told. The tier keeps them
+  within its bound; past it, the oldest is dropped and counted on the
+  tier's record, never holding the tier, so that no repository's
+  verification stops for want of a triage.
 
 ## 8. What a landing tells
 
@@ -266,8 +269,9 @@ red by earlier failures it does not run (5.3).
   of a range with their messages, oldest first.
 - **In the store,** designed, not built: `Tier`, keyed by repository and
   tier, its run in flight, its last judged tip and failures, its
-  flakes, and the reds of landings temper did not make until findings
-  take them; `Verification`, keyed by repository and landing commit,
+  flakes, the reds of no goal's until findings take them (section 7),
+  with a count of those dropped past their bound, and a held run's last
+  fault (section 3); `Verification`, keyed by repository and landing commit,
   for temper's own landings alone, made with the landing's `Landed`
   row and erased when its last change closes, so bounded by `changes`:
   the changes it landed, each tier's verdict (cleared, owns failures,
