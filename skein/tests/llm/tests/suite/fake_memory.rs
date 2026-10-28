@@ -7,11 +7,8 @@ use skein_fake_llm_domain::api::{
     Error, Finish, InvalidInput, Line, Menu, Message, Part, Query, Role, Script, ToolSpec, Turn,
 };
 use skein_fake_llm_domain::{Config, Domain, Event, Request, fire, step, worst_case};
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const ITEMS: usize = 128;
 

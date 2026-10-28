@@ -1,12 +1,9 @@
 //! Actual wire completions retain separate opaque call and item identities.
 //! The expected IDs and native response are independent handwritten evidence.
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_lib::Token;
 use skein_llm::{Block, Completion, Failure, Message, Replay, Role, client, openai};
 use skein_llm_world::{TERMINAL, World, call, events, limits, response, text_response};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const CALL_ID: &[u8] = b"call|\"id\\tail";
 const ITEM_ID: &[u8] = b"item|\"id\\tail";

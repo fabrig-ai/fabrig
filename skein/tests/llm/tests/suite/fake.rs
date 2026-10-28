@@ -4,9 +4,6 @@ use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_llm::{Block, Completion, Message, Role, Tool, client};
 use skein_llm_world::{call, fake::Exchange, limits};
 
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
-
 fn input(provider: skein_llm::Provider, owner: u64) -> skein_llm::Call {
     let mut input = call(owner);
     match provider {

@@ -6,14 +6,11 @@
 
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_fake_llm_protocol::provider;
-use skein_heap::{Counting, Meter};
+use skein_heap::Meter;
 use skein_http_world::reference;
 use skein_lib::Token;
 use skein_llm::{Block, Call, Completion, Credential, Endpoint, Provider, Stop, client};
 use skein_llm_world::fake::{Exchange, ObservationLimits};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 const CUE: &[u8] = b"bounded-peer-memory";
 const ANSWER: &[u8] = b"actual bounded native answer";

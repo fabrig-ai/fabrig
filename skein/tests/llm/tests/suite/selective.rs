@@ -14,7 +14,7 @@ fn tiny() -> client::Limits {
 
 #[test]
 fn a_captured_completion_decodes_under_tiny_retained_limits() {
-    let capture = include_str!("../../../crates/skein-llm/src/openai/fixtures/provider-completed.json");
+    let capture = include_str!("../../../../crates/skein-llm/src/openai/fixtures/provider-completed.json");
     let mut world =
         World::new(call(1), tiny(), response(200, "Content-Type: text/event-stream\r\n", &events(&[capture]), true), 4);
     world.fragmentation(1, 3);

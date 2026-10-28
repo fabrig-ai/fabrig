@@ -1,12 +1,9 @@
 //! Counting allocator verifies preparation and every driven call. The world
 //! retains emitted values, so its measured total also conservatively includes
 //! request/response bytes and the test's trace instead of subtracting them.
-use skein_heap::{Counting, Meter, Span};
+use skein_heap::{Meter, Span};
 use skein_llm::client;
 use skein_llm_world::{World, call, limits, text_response};
-
-#[global_allocator]
-static HEAP: Counting = Counting;
 
 #[test]
 fn codex_dense_request_encoding_uses_only_reserved_bytes_and_fixed_scratch() {
