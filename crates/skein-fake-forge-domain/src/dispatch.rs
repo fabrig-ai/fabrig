@@ -86,7 +86,7 @@ pub(crate) fn dispatch(
         })
         .expect("one job per definition");
     }
-    let mut kept = Kept { run, jobs };
+    let mut kept = Kept { run, pull: None, jobs };
     actions::complete(&mut kept);
     let run = kept.run.id;
     repository.dispatched.insert(run, kept).expect("run room admitted");
@@ -144,6 +144,7 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
         Check::Failed
     } else {
         match &workflow.cue {
+            Some(Cue::PullFile { no_pull, .. }) => *no_pull,
             Some(Cue::Message { fail }) => {
                 if find(&domain.object(commit).expect("run commit").message, fail).is_some() {
                     Check::Failed
@@ -181,7 +182,7 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
         if entry.id == job {
             entry.state = RunState::Completed;
             entry.conclusion = Some(if state == Check::Passed { Conclusion::Success } else { Conclusion::Failure });
-            entry.steps = actions::outcome_steps(&entry.name, state, failing);
+            entry.steps = actions::outcome_steps(&entry.name, state, failing, None, None);
             attempt = Some(entry.attempt);
             break;
         }

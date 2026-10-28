@@ -349,7 +349,7 @@ fn ci_job(id: u64, run: u64, index: u32, attempt: u32) -> Job {
         name: copy_of(b"ci"),
         state: crate::api::RunState::Completed,
         conclusion: Some(crate::api::Conclusion::Failure),
-        steps: crate::actions::steps(b"ci", Failing::Workflow),
+        steps: crate::actions::steps(b"ci", Failing::Workflow, None, None),
     }
 }
 

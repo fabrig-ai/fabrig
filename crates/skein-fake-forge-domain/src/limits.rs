@@ -8,7 +8,7 @@ use skein_lib::{Deadlines, Id, List, Map, Queue, Set, Slab, Time};
 
 use crate::actions::{Failing, Job, Kept as RunKept, Run, Step};
 use crate::api::{
-    ChangedFile, CheckSummary, Collaborator, Comment, File, Head, PageName, Permission, Pull, Review,
+    ChangedFile, CheckSummary, Collaborator, Comment, ContextCue, File, Head, PageName, Permission, Pull, Review,
     Status as StatusView, Summary, TreeEntry, Workflow,
 };
 use crate::domain::{Alarm, Call};
@@ -168,7 +168,8 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(windows)?
         .checked_add(timers)?
         .checked_add(observations)?
-        .checked_add(scratch)
+        .checked_add(scratch)?
+        .checked_add(u64::from(limits.name_bytes.max(limits.content_bytes)))
 }
 
 /// What one repository owns beyond its slot.
@@ -176,10 +177,14 @@ fn repository(limits: &Limits) -> Option<u64> {
     let name = u64::from(limits.name_bytes);
     let comments = comments(limits)?;
     // Its name twice (the index's key too), its default branch, and its
-    // setup: the contexts of its checks and its protection, the cue's path
-    // and what it holds, the protected branch.
+    // setup: contexts, protection, the repository cue's path, step and log,
+    // and one named cue per context. Templates fit at their expanded size.
+    let cue = name.checked_mul(2)?.checked_add(u64::from(limits.content_bytes))?;
+    let overrides =
+        times(limits.contexts, u64::try_from(size_of::<ContextCue>()).ok()?.checked_add(name)?.checked_add(cue)?)?;
     let setup = name
-        .checked_mul(5)?
+        .checked_mul(6)?
+        .checked_add(overrides)?
         .checked_add(names(limits.contexts, limits)?.checked_mul(2)?)?
         .checked_add(times(limits.contexts, u64::try_from(size_of::<Failing>()).ok()?)?)?
         .checked_add(u64::from(limits.content_bytes))?
@@ -297,7 +302,7 @@ fn answer(limits: &Limits) -> Option<u64> {
         u64::try_from(size_of::<Run>()).ok()?.checked_add(run_payload(limits, limits.workflow_runs > 0)?)?,
     )?;
     let jobs = times(limits.contexts, u64::try_from(size_of::<Job>()).ok()?.checked_add(job_heap(limits)?)?)?;
-    let log = name.checked_mul(6)?.checked_add(91)?;
+    let log = name.checked_mul(6)?.checked_add(92)?.checked_add(content)?;
     let job = u64::try_from(size_of::<Job>()).ok()?.checked_add(job_heap(limits)?.checked_mul(2)?)?;
     let git_tree = times(limits.page_size, tree_entry(limits)?)?;
     // Inspection clones the bypass list as well as branch and contexts.

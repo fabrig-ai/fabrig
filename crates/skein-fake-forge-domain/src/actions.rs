@@ -1,5 +1,5 @@
 //! Actions runs and jobs retained separately for commit CI and dispatches (fake-forge.md, 2.3).
-use crate::api::{Answer, Check, Error, JobRef, What};
+use crate::api::{Answer, Check, Cue, Error, JobRef, What};
 use crate::domain::{self, Config, Domain};
 use crate::store::Repository;
 use alloc::boxed::Box;
@@ -51,10 +51,11 @@ pub struct Job {
 #[derive(Debug)]
 pub(crate) struct Kept {
     pub(crate) run: Run,
+    pub(crate) pull: Option<u64>,
     pub(crate) jobs: List<Job>,
 }
 
-pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, commit: u64, user: u64) {
+pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, commit: u64, user: u64, pull: Option<u64>) {
     let repository = domain.repositories.get_mut(id).expect("a CI repository");
     domain.runs = domain.runs.checked_add(1).expect("run ids fit");
     repository.run_number = repository.run_number.checked_add(1).expect("run numbers fit");
@@ -86,7 +87,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
         })
         .expect("one job per context");
     }
-    repository.runs.insert(commit, Kept { run, jobs }).expect("room for each retained CI commit");
+    repository.runs.insert(commit, Kept { run, pull, jobs }).expect("room for each retained CI commit");
 }
 
 pub(crate) fn rerun(domain: &mut Domain, id: Id<Repository>, commit: u64, context: u32) {
@@ -105,7 +106,7 @@ pub(crate) fn verdict(repository: &mut Repository, commit: u64, context: u32, st
     let job = kept.jobs.get_mut(context).expect("CI job");
     job.state = RunState::Completed;
     job.conclusion = Some(match state {
-        Check::Passed => Conclusion::Success,
+        Check::Passed | Check::Skipped => Conclusion::Success,
         Check::Failed => Conclusion::Failure,
         Check::Pending => unreachable!("a verdict ends a job"),
     });
@@ -198,7 +199,7 @@ pub(crate) fn jobs(repository: &Repository, id: u64) -> Result<Answer, Error> {
             };
             let failing =
                 *repository.failing.get(usize::try_from(job.index).expect("bounded context")).expect("CI context");
-            view.steps = outcome_steps(&job.name, state, failing);
+            view.steps = outcome_steps(&job.name, state, failing, crate::ci::cue(&repository.checks, &job.name), kept.pull);
         }
         answer.push(view).expect("one entry per job");
     }
@@ -270,9 +271,9 @@ fn decimal(out: &mut List<u8>, number: u64) {
     append(out, skein_lib::Decimal::of(number).as_bytes());
 }
 
-pub(crate) fn outcome_steps(context: &[u8], state: Check, failing: Failing) -> Box<[Step]> {
-    let mut steps = steps(context, failing);
-    if state == Check::Passed {
+pub(crate) fn outcome_steps(context: &[u8], state: Check, failing: Failing, cue: Option<&Cue>, pull: Option<u64>) -> Box<[Step]> {
+    let mut steps = steps(context, failing, cue, pull);
+    if state == Check::Passed || state == Check::Skipped {
         for step in &mut steps {
             step.status = StepStatus::Success;
             step.log = Box::new([]);
@@ -312,7 +313,7 @@ pub enum StepStatus {
 /// The number of the job's one workflow step.
 pub const WORKFLOW_STEP: u32 = 1;
 
-pub(crate) fn steps(context: &[u8], failing: Failing) -> Box<[Step]> {
+pub(crate) fn steps(context: &[u8], failing: Failing, cue: Option<&Cue>, pull: Option<u64>) -> Box<[Step]> {
     let status = match failing {
         Failing::Workflow => StepStatus::Failure,
         Failing::Setup | Failing::NoStep => StepStatus::Cancelled,
@@ -322,24 +323,33 @@ pub(crate) fn steps(context: &[u8], failing: Failing) -> Box<[Step]> {
             number: 0,
             name: copy_of(b"Set up job"),
             status: if failing == Failing::Setup { StepStatus::Failure } else { StepStatus::Success },
-            log: log(context, failing, Some(0)).expect("set-up log"),
+            log: log(context, failing, cue, pull, Some(0)).expect("set-up log"),
         },
         Step {
             number: WORKFLOW_STEP,
-            name: joined(context, &[b"Run ", context]),
+            name: match cue {
+                Some(Cue::PullFile { step, .. }) => skein_lib::bytes::copy_of(step),
+                Some(Cue::File { .. } | Cue::Message { .. }) | None => joined(context, &[b"Run ", context]),
+            },
             status,
-            log: log(context, failing, Some(1)).expect("workflow log"),
+            log: log(context, failing, cue, pull, Some(1)).expect("workflow log"),
         },
         Step {
             number: 2,
             name: copy_of(b"Complete job"),
             status,
-            log: log(context, failing, Some(2)).expect("completion log"),
+            log: log(context, failing, cue, pull, Some(2)).expect("completion log"),
         },
     ])
 }
 
-pub(crate) fn log(context: &[u8], failing: Failing, step: Option<u32>) -> Result<Box<[u8]>, Error> {
+pub(crate) fn log(
+    context: &[u8],
+    failing: Failing,
+    cue: Option<&Cue>,
+    pull: Option<u64>,
+    step: Option<u32>,
+) -> Result<Box<[u8]>, Error> {
     if let Some(number) = step
         && number > 2
     {
@@ -351,7 +361,15 @@ pub(crate) fn log(context: &[u8], failing: Failing, step: Option<u32>) -> Result
         .expect("bounded log")
         .checked_add(91)
         .expect("bounded log");
-    let mut out = List::with_capacity(capacity);
+    let custom = match cue {
+        Some(Cue::PullFile { log, .. }) => Some(crate::ci::template(log, pull)),
+        Some(Cue::File { .. } | Cue::Message { .. }) | None => None,
+    };
+    let extra = match &custom {
+        Some(line) => u32::try_from(line.len()).expect("bounded log").checked_add(1).expect("bounded log"),
+        None => 0,
+    };
+    let mut out = List::with_capacity(capacity.checked_add(extra).expect("bounded log"));
     if step.is_none() || step == Some(0) {
         append(&mut out, b"set up ");
         append(&mut out, context);
@@ -365,6 +383,12 @@ pub(crate) fn log(context: &[u8], failing: Failing, step: Option<u32>) -> Result
             out.push(b'0'.checked_add(line).expect("four lines")).expect("log capacity");
             append(&mut out, b"\n");
         }
+    }
+    if (step.is_none() || step == Some(WORKFLOW_STEP))
+        && let Some(line) = &custom
+    {
+        append(&mut out, line);
+        append(&mut out, b"\n");
     }
     if step.is_none() || step == Some(2) {
         append(&mut out, b"job ");
