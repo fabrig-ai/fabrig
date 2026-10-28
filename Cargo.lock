@@ -3095,6 +3095,7 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-events",
+ "smith-fake-claude",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-host-world",
