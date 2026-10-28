@@ -2,7 +2,10 @@
 
 - Land on main with `land`: it rebases on `origin/main`, runs
   `scripts/check.sh`, and pushes. A
-  Markdown-only change lands with `land --docs`.
+  Markdown-only change lands with `land --docs`, except paths in
+  `scripts/gated-docs`: the design, benchmark README and benchmark fixture
+  trees are read by tests, so those changes use `land`.
+  Changes to the declaration itself use `land` too.
   Rust doc comments do not skip the checks.
 - The focused suite takes at most 30 seconds (15 seconds before the user's
   doubling of 10-22, provisional) and the fuzzy suite at most 120 seconds

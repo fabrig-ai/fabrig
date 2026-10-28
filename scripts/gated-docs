@@ -1,0 +1,10 @@
+# The shell wording test embeds shell.md; benchmark guard checks read the design.
+docs/design/
+
+# Embedded by the benchmark login documentation test.
+benchmarks/README.md
+
+# Benchmark validation hashes and copies seed/reference trees, including Markdown.
+benchmarks/tasks/
+benchmarks/tests/recorded/tasks/
+benchmarks/tests/fixtures/
