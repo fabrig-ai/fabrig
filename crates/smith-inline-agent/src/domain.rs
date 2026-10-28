@@ -1,5 +1,6 @@
 //! Slot ownership and routing (domain/host.md, sections 9.1, 9.2 and 9.4).
 //! Slots retain root domains and every emitted lower right through settlement.
+//! Lower requests and lifecycle facts use uncapped queues, drained by route and the parent.
 //! Root requests keep their owners, while a separate slab generation scopes
 //! callbacks. The parent owns told payloads; exact ACK metadata stays here.
 
@@ -60,8 +61,8 @@ impl Domain {
             slots: Slab::with_capacity(limits.slots),
             clients: Map::with_capacity(limits.slots),
             configuration,
-            lower: Queue::with_capacity(smith::max_out(&limits.smith)),
-            facts: Queue::with_capacity(limits.facts),
+            lower: Queue::uncapped(),
+            facts: Queue::uncapped(),
             seed,
             root_fact_reservation: smith::max_facts(&limits.smith),
         }
@@ -81,9 +82,6 @@ impl Domain {
     /// Whether a live root has deferred work for the owner's next pass.
     #[must_use]
     pub fn is_ready(&self) -> bool {
-        if self.facts_room() < crate::max_facts() {
-            return false;
-        }
         for (_, id) in &self.clients {
             let slot = self.slots.get(*id).expect("client binding names its retained slot");
             match slot.state {
@@ -150,23 +148,20 @@ impl Domain {
         content
     }
 
-    /// Drain one bounded inline lifecycle observation.
+    /// Drain one inline lifecycle observation for the parent.
     pub fn pop_slot_fact(&mut self) -> Option<Fact> {
         self.facts.pop()
     }
 
-    /// Available room for lifecycle facts before one entry point.
+    /// Available room in the uncapped lifecycle fact queue.
     #[must_use]
     pub fn facts_room(&self) -> u32 {
         self.facts.room()
     }
 
-    /// Whether the owner reserved lifecycle and target-root facts for this input.
+    /// Whether the target root has its fact reservation for this input.
     #[must_use]
     pub fn takes(&self, input: &crate::Input) -> bool {
-        if self.facts_room() < crate::max_facts() {
-            return false;
-        }
         let handle = match input {
             crate::Input::Parent(event) => match event {
                 parent::Event::Spawn { .. } => return true,
@@ -397,9 +392,6 @@ fn terminal(agent: &mut Domain, env: &Env<Limits>, handle: Token, completion: Be
 
 /// Fire one due root or wall alarm with enough room for its complete fanout.
 pub fn fire(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
-    if agent.facts_room() < crate::max_facts() {
-        return;
-    }
     let mut due = None;
     for (_, id) in &agent.clients {
         let slot = agent.slots.get(*id).expect("retained slot");
@@ -442,9 +434,6 @@ pub fn fire(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
 
 /// Resume one deferred root handoff with room reserved for its complete fanout.
 pub fn resume(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
-    if agent.facts_room() < crate::max_facts() {
-        return;
-    }
     let mut ready = None;
     for (_, id) in &agent.clients {
         let slot = agent.slots.get(*id).expect("retained slot");
@@ -489,9 +478,9 @@ fn reclaim(agent: &mut Domain) {
     agent.slots.reclaim();
 }
 
-/// Consume one parent command or terminal below a retained run with reserved facts.
+/// Consume one parent command or terminal below a retained run with reserved root facts.
 pub fn step(agent: &mut Domain, env: &Env<Limits>, input: crate::Input, out: &mut Queue<Output>) {
-    assert!(agent.takes(&input), "the owner reserves lifecycle and root facts before stepping");
+    assert!(agent.takes(&input), "the owner reserves root facts before stepping");
     match input {
         crate::Input::Parent(event) => command(agent, env, event, out),
         crate::Input::Below { agent: handle, terminal: below } => terminal(agent, env, handle, below, out),

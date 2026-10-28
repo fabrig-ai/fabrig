@@ -346,7 +346,7 @@ const fn delivery_reason(value: host::DeliveryReason) -> run::DeliveryReason {
 
 #[expect(clippy::too_many_lines, reason = "every root request has one typed parent or lower route")]
 pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &mut Queue<Output>) {
-    for _ in 0..smith::max_out(&env.limits.smith) {
+    for _ in 0..agent.lower.len() {
         let request = match agent.lower.pop() {
             Some(request) => request,
             None => break,
@@ -552,6 +552,11 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
             smith::Request::Abort { owner } => crate::workspace::abort(slot, id.token(), owner, out),
         }
     }
+    assert!(root_requests_routed(agent), "each root's requests are routed to its own slot before the next entrance");
+}
+
+fn root_requests_routed(agent: &Domain) -> bool {
+    agent.lower.is_empty()
 }
 
 const fn price_rate(rate: run::Rate) -> host::Rate {

@@ -1,6 +1,6 @@
 //! Content-free slot observations (domain/host.md, sections 9.1 and 10).
-//! The agent bounds this queue independently of its roots' observation drains.
-//! The owner reserves room before each step and drains facts before reclaim.
+//! The agent retains lifecycle facts in an uncapped queue, independently of root drains.
+//! The owner drains lifecycle facts before reclaim.
 
 use skein_lib::{Time, Token};
 use smith_host_domain::End;

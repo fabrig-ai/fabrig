@@ -2,6 +2,7 @@
 //! programming-model.md, section 6.3). This module keeps no runtime state.
 //! `worst_case` prices each root and every retained routing container;
 //! caller-owned emitted payloads remain covered by the root's outgoing bound.
+//! Uncapped lower and lifecycle queues are estimated at their former capacities.
 
 use core::mem::size_of;
 use skein_lib::{Duration, Id, List, Map, Queue, Slab, Token};
@@ -21,6 +22,7 @@ pub struct Limits {
     pub wall_time: Duration,
     /// Host allowance after cancellation before the slot drops its root.
     pub cancel_grace: Duration,
+    /// Entry estimate for lifecycle facts; at least the maximum fanout per entrance.
     pub facts: u32,
 }
 
