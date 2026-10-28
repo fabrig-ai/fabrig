@@ -141,6 +141,15 @@ temper                       the binary: `temper ctl` runs the host
   number, calls numbered from one past the highest among the keys
   kept at `Start`: several calls in flight need nothing new of the
   root, and a new key never meets a kept one.
+- **Internal hand-offs are uncapped.** Each step settles the tools'
+  root's client and child outputs, bounded by retained calls and
+  handles; engine, store and timer answers arrive in later inputs.
+  Client outputs leave before the next child output
+  (`client_outputs_dispatched`): a retirement's erase precedes its
+  printed result and a follow-on request under the same name. A test
+  holds this order at the admitted-call quota (programming-model.md,
+  7.2). `max_out` reserves no internal room, and the client has no
+  watermark (`README.md`, 3.1).
 - **Words:** jig's for jig's enums (`jig-client`'s `words`) and the
   forge's of `README.md`, 4.1 and 4.7, so an agent and a person name
   things alike. The view's overrides for its mockups stay the view's.
@@ -1403,6 +1412,10 @@ as the terminal's host is:
 - **A link down** past the link's deadline (section 12), at step 3, 4
   or 5, exits 1; what was sent stays in the small store, as after a
   signal.
+- **Recovery writes** wait in an uncapped queue, with one write in
+  flight. The CLI's internal event and request queues are uncapped
+  too; file staging, kernel submission room and output credit keep
+  their limits. No output-count reservation bounds recovery.
 - **Another party's kept requests,** in a DIRECTORY signed in again as
   another party, stay parked and unsent, until their party signs in
   there again or the retention passes and they are answered unknown
