@@ -1923,43 +1923,13 @@ const FRESH_BEFORE: crate::PatchSets = crate::PatchSets {
     }],
 };
 
+// The store fixture's resident price: 581,560,638,394,013 bytes at jig
+// 0d5ed2767. A ceiling, a quarter above, rounded up to two significant
+// digits (skein's dynamic-memory draft, 7.1); it moves by hand only in
+// the commit of a real change that passes it, never on a type's size.
+const STORE_RESIDENT_CEILING: u64 = 730_000_000_000_000;
 #[test]
-fn pending_state_and_wires_have_their_exact_resident_price() {
-    // Store gains the 16-byte static wires slice and the 16-byte Mark
-    // (8-byte discriminant, 8-byte commit number; store.md 5.3). Pending retains before/after
-    // levels, the check's counts and the explicit switch's stage and owner.
-    // Rebased store.md 5.3 adds secrets/skein_oauth/smith_transcript hashes (96 bytes);
-    // the removed settled_call_name bound and alignment save 8: Store 4,008 -> 4,096.
-    // engine.md 17.2/17.7/17.8 adds revision/version bounds to settings, tasks and fleet (24 bytes).
-    // Placed-hold bounds add 24 bytes to the retained codec limits.
-    // engine.md 17.6 adds core_v6::Limits.settings_refusal_value, one u32.
-    // The codec limits live inline in Store, whose alignment rounds that addition up.
-    let settings_refusal_limit = size_of::<u32>().next_multiple_of(align_of::<Store>());
-    assert_eq!(size_of::<Store>(), 4_144 + settings_refusal_limit);
-    assert_eq!(size_of::<crate::codec::component::Layouts>(), 320);
-    // store.md 9: typed SecretValue makes each SecretRow 64 rather than 32 bytes.
-    assert_eq!(size_of::<crate::SecretRow>(), 64);
-    assert_eq!(size_of::<crate::directory::Directory>(), 280);
-    assert_eq!(size_of::<Opening>(), 88);
-    assert_eq!(size_of::<Patching>(), 168);
-    assert_eq!(size_of::<Pending>(), 136);
-    // Pending: before 32 + after 32 + counts List 32 + switch stage 80.
-    assert_eq!(size_of::<crate::patching::switch::Pending>(), 176);
-    assert_eq!(size_of::<crate::patching::switch::Stage>(), 80);
-    // Retained and encoded counts: two * (64 Count carriers * 32 +
-    // 64 family names * 64), plus the 5,464-byte encoded manifest.
-    assert_eq!(crate::patching::switch::worst_case(), Some(17_928));
-    // Baseline 581,544,799,687,077 + rebased Store 88 + two SecretRows * 32
-    // + revision/version bounds 24 + task/run settings revision fields in generated
-    // row, decoded/joined task and commit/frame carriers 268,452,352 (engine.md 17.2)
-    // + wires 16 + pending 17,928 + Mark 16
-    // + placed-hold codec limits and task/value/commit carriers 536,904,728
-    // + the aligned settings-refusal limit above.
-    let settings_refusal_limit = u64::try_from(settings_refusal_limit).expect("resident limit fits u64");
-    // Retained connector account bytes and the wider task/document/commit carriers.
-    let hold_account_growth = 15_033_331_712;
-    assert_eq!(
-        crate::worst_case(&fixtures::store_limits()),
-        Some(581_545_605_062_293 + settings_refusal_limit + hold_account_growth)
-    );
+fn the_store_resident_price_stays_under_its_ceiling() {
+    let resident = crate::worst_case(&fixtures::store_limits()).expect("store fixture fits");
+    assert!(resident <= STORE_RESIDENT_CEILING, "{resident}");
 }

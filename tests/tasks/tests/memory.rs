@@ -626,64 +626,15 @@ fn a_wide_back_walk_with_ancestors_and_dependents_fits_its_priced_scratch() {
     assert_eq!(measured.d.task(MIDDLE).expect("middle").delegates.len(), width);
 }
 
+// The tasks domain's price at LIMITS: 11,662,996 bytes at jig 0d5ed2767.
+// A ceiling, a quarter above, rounded up to two significant digits
+// (skein's dynamic-memory draft, 7.1); it moves by hand only in the
+// commit of a real change that passes it, never on a type's size.
+const TASKS_DOMAIN_CEILING: u64 = 15_000_000;
 #[test]
-fn the_wait_index_and_walk_have_an_explicit_memory_delta() {
-    // abf728e0's bound for this profile; the added index owns resource keys,
-    // per-task comparison payloads, reversed edges and all simultaneous scratch.
-    // An amendment's staged plan carries its list, its provenance and its Met.
-    const SEED_BYTES: u64 = 9_808_904;
-    const WAIT_BYTES: u64 = 1_485_368;
-    const PROMISE_BYTES: u64 = 768;
-    // 128 reverse dependency pairs * 16 bytes; 1,024 queue pairs *
-    // (32 inline bytes + 128 name bytes), rebuilt once for each staged walk.
-    const STAGED_EDGE_BYTES: u64 = 165_888;
-    // 16 optional (task, circle) slots * 32 bytes, plus a 32-byte source
-    // and eight named u64 tasks per projected return.
-    const STAGED_RETURN_BYTES: u64 = 2_048;
-    // Delegate comparison rows: 704 inline + 2,048 payload; a simultaneous
-    // changes set: 800; two u32 pending maps replace two u64 maps: -320.
-    const JUDGEMENT_BYTES: u64 = 3_232;
-    // A bounded map ordered by answer state and reversed activity, and the
-    // replacement list of question positions, during a first answer.
-    const QUESTION_POSITION_BYTES: u64 = 1_776;
-    const ENDING_AUTHORITY_BYTES: u64 = 384;
-    // O(1) live agent count, including alignment room.
-    const SETTINGS_HOLDERS_BYTES: u64 = 8;
-    // Settings action carriers enlarge this fixture's bounded party-proposal map.
-    const SETTINGS_PROPOSAL_BYTES: u64 = 352;
-    // T1's eight held slots and T3's two extra offered/removal slots,
-    // each 24 inline CharterModels bytes plus 64 model bytes. The original
-    // two offered slots are already in the baseline above.
-    // T1's five-entry holder map costs 416 bytes. Its SettingsRevision
-    // grows each of 16 tasks' three retained/scratch records by eight bytes.
-    // T3 also keeps five u32 revision names for the net-release snapshot.
-    const SETTINGS_REVISIONS_BYTES: u64 = 10 * (24 + 64) + 416 + 16 * 3 * 8 + 5 * 4;
-    // One bounded snapshot of the sixteen task numbers moved in a settings decision.
-    const SETTINGS_MOVES_BYTES: u64 = 16 * 8;
-    // Placed table and payloads, per-task placed identity, and bounded compound/walk scratch.
-    const PLACED_HOLDS_BYTES: u64 = 16_032;
-    // Connector accounts retain 512 bytes beside each phase, including staged task clones
-    // and their wider source carriers.
-    const HOLD_ACCOUNT_BYTES: u64 = 176_408;
-    assert_eq!(
-        tasks::worst_case(&LIMITS),
-        Some(
-            SEED_BYTES
-                + WAIT_BYTES
-                + PROMISE_BYTES
-                + STAGED_EDGE_BYTES
-                + STAGED_RETURN_BYTES
-                + JUDGEMENT_BYTES
-                + QUESTION_POSITION_BYTES
-                + ENDING_AUTHORITY_BYTES
-                + SETTINGS_HOLDERS_BYTES
-                + SETTINGS_PROPOSAL_BYTES
-                + SETTINGS_REVISIONS_BYTES
-                + SETTINGS_MOVES_BYTES
-                + PLACED_HOLDS_BYTES
-                + HOLD_ACCOUNT_BYTES
-        )
-    );
+fn the_tasks_domain_stays_under_its_ceiling() {
+    let domain = tasks::worst_case(&LIMITS).expect("tasks fixture fits");
+    assert!(domain <= TASKS_DOMAIN_CEILING, "{domain}");
 }
 
 #[test]
