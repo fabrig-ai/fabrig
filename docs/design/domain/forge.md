@@ -1102,8 +1102,12 @@ starts from current code. It never updates only because its base moved.
 - **A repair** is a task for an agent whose workspace starts from the
   change's branch, its words opening with what it repairs (the failed
   check's context and name, or the review that asked, by its lens), so
-  that a read of the task cut to a client's bounds still names it, and
-  its brief carrying why: CI's failing output on the
+  that a read of the task cut to a client's bounds still names it; its
+  brief naming its pull request as a review's does (8.3: the number,
+  branch, base and head at the forge's length, and the pull request's
+  address), so a repair asked to cite the pull request can, and carrying
+  the remarks it repairs whole within its budget, cut from their end
+  and marked, never mid-sentence unmarked; and carrying why: CI's failing output on the
   head; a gate's remarks; for a clean update whose CI then fails (a
   semantic conflict), the base merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
