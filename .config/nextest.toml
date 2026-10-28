@@ -1,0 +1,93 @@
+# The workspace's two test suites: nextest reads this file alone, not the
+# trees' own .config/nextest.toml, which stay as the record of what each
+# tree selected until the trees' scripts move here.
+#
+# The focused suite, profile default, is each tree's focused suite: every test
+# but the fuzzy ones and the tiers' binaries (process, live, QA, browser,
+# exhaustive), which have no profile here yet. The fuzzy suite, profile fuzzy,
+# is each tree's fuzzy suite: the binaries named fuzzy_* beside the focused
+# tests. Each tree's filter is its own, restricted to the packages under its
+# directory (cargo metadata), joined with |.
+#
+#   skein:  package(/^skein-/), and forgejo-conformance, github-conformance
+#   smith:  package(/^smith(-|$)/)
+#   jig:    package(/^jig(-|$)/)
+#   temper: package(/^temper(-|$)/), and git-transcripts
+#
+# Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
+# at the user's request on 10-22; the workspace's is their sum, until the
+# suites are timed together. Slow periods only flag a test SLOW as it runs
+# (none terminates); each tree keeps its own.
+
+[profile.default]
+default-filter = """
+(
+  (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
+  & not binary(/^fuzzy_/) & not binary(/^browser_/) & not binary(=live)
+  & not binary(/^exhaustive_/) & not binary(/^qa_/)
+) | (
+  package(/^smith(-|$)/)
+  & not binary(/^fuzzy_/) & not binary(/^qa_/)
+  & not ((package(=smith) | package(=smith-agent-process-world)) & binary(=live))
+) | (
+  package(/^jig(-|$)/)
+  & not binary(/^fuzzy_/)
+  & (not binary(/^(process|live)$/) | (binary(=live) & test(=the_live_configurations_are_ones_jig_test_reads)))
+  & not binary(/^browser_/) & not binary(/^qa_/)
+) | (
+  (package(/^temper(-|$)/) | package(=git-transcripts))
+  & not test(/^tests::sign_in::fuzzy_/) & not binary(/^fuzzy_/)
+  & not binary(/^(process|live|live_github)$/)
+  & not binary(/^qa_/) & not test(/::qa_/) & not binary(/^browser_/)
+)
+"""
+global-timeout = "120s"
+slow-timeout = { period = "6s" }
+
+# jig's slow period was one second; the other trees' six.
+[[profile.default.overrides]]
+filter = "package(/^jig(-|$)/)"
+slow-timeout = { period = "1000ms" }
+
+# smith: start the focused tests measured over one second before the worlds.
+[[profile.default.overrides]]
+filter = "package(=smith-agent-shell) & test(=config::tests::native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling)"
+priority = 20
+
+# Every tree: the tests under tests/ first, the longest, then the many short
+# unit tests behind them, so that the run ends close to its total over the
+# threads.
+[[profile.default.overrides]]
+filter = "kind(test)"
+priority = 10
+
+[profile.fuzzy]
+default-filter = """
+(
+  (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
+  & binary(/^fuzzy_/)
+) | (
+  package(/^smith(-|$)/)
+  & binary(/^fuzzy_/) & not binary(/^qa_/) & not binary(=live)
+) | (
+  package(/^jig(-|$)/)
+  & binary(/^fuzzy_/) & not binary(/^(process|live)$/)
+  & not binary(/^browser_/) & not binary(/^qa_/)
+) | (
+  (package(/^temper(-|$)/) | package(=git-transcripts))
+  & (binary(/^fuzzy_/) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
+  & not binary(/^(process|live|live_github)$/) & not binary(/^qa_/)
+)
+"""
+global-timeout = "480s"
+slow-timeout = { period = "40s" }
+
+# jig's slow period was ten seconds; the other trees' forty.
+[[profile.fuzzy.overrides]]
+filter = "package(/^jig(-|$)/)"
+slow-timeout = { period = "10s" }
+
+# temper: the walking story's eight shards first, the suite's longest tests.
+[[profile.fuzzy.overrides]]
+filter = "(package(/^temper(-|$)/) | package(=git-transcripts)) & test(/^fuzzy_walking_shard_/)"
+priority = 20
