@@ -72,29 +72,28 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   | Rung | Forges | Model | Accounts held |
   |---|---|---|---|
   | fakes | `--fake-backends` (`protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
-  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5); the box's agents on `gpt-6.1-sol` at effort high, its budget raised if needed (below) | the model's |
+  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5); the box's agents on `gpt-6-luna` at effort medium, its budget raised if needed (below) | the model's |
   | GitHub | GitHub, through an App kept for QA, on a repository kept for it | as the rung below | the App's key and its installation |
   | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, a held configuration directory used in place (`protocol/credentials.md`, 3) | the model's |
 
-- **The real model's agents run `gpt-6.1-sol` at effort high** (the
-  user, 10-27), set as a person sets a box's model, before its start
-  (the walk `box`'s first step): `gpt-6-luna`'s model entry renamed
-  `gpt-6.1-sol` in place, in `temper.json` (the provider's list and
-  `engine.llm`'s models, where it stays the first, ahead of `demo`) and
-  in the agent's configuration, its window and prices kept (a unit is a
-  thousand tokens on either model), its output 32,000, since high
-  effort's reasoning counts against it, and its efforts declared
-  `["high", "medium", "low"]`, the first being what a task with no
-  choice of its own takes. Every charter takes the first configured
-  model as its main model, and the stock's spends are sized from it at
-  the start (`protocol/configuration.md`, 13.4): C 1,081, a run's K
-  4,324, a chat 103,776, a project's period 207,552. After the start,
-  `temper ctl settings show charter 1` names `gpt-6.1-sol`, and the box's
-  spends are those; a box that shows otherwise is a setup to redo, not
-  a finding. A chat is started with `--model gpt-6.1-sol --effort high`
-  where its model is named; template 1's choice (`settings apply`,
-  `{"main": {"model": "gpt-6.1-sol", "effort": "high"}}`) sets it for
-  every chat of a running box.
+- **The real model's agents run `gpt-6-luna` at effort medium** (the
+  user, 10-28: back to init's shipped model after what `gpt-6.1-sol`
+  cost on the held accounts; "luna effort level medium"), set before
+  the box's start (the walk `box`'s first step): init's model entry
+  kept as it is (its window, prices and output 8,192, so init's stock
+  limits hold it, with no turn overrides), its efforts declared
+  `["medium", "high", "low"]` in `temper.json`'s `engine.llm` model, the
+  first being what a task with no choice of its own takes. Every charter
+  takes the first configured model as its main model, and the stock's
+  spends are sized from it at the start (`protocol/configuration.md`,
+  13.4). After the start, `temper ctl settings show charter 1` names
+  `gpt-6-luna`; a box that shows otherwise is a setup to redo, not a
+  finding. A chat is started with `--model gpt-6-luna --effort medium`
+  where its model is named; template 1's choice (`settings apply`, the
+  whole choice: `{"main": {"model": "gpt-6-luna", "effort": "medium",
+  "account": null, "subagents": []}}`) sets it for every chat of a
+  running box. If a rung cannot pass on luna, the walk's evidence goes
+  to the director, and the model is the user's to change.
 - **Its room is raised beside it,** in `temper.json` before the start:
   `engine.limits`' overrides `"people.requests": 256` and
   `application.limits`' overrides `"root.loads.loads": 32`. The small
@@ -107,22 +106,19 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   new one. These are a QA box's, as the budget is (below); the
   product's own values are the user's, settled apart.
 - **One configuration, checked before the first start.** Every change
-  above (the model, its output and efforts, the room) is made in
-  `CONFIG` after `temper init` and before the box's first start, with
-  the limits a 32,000 output needs (a turn larger than init's stock
-  holds): `protocol/configuration.md` 13.8's overrides at output 32,000,
-  its agent's `reasoning_item` 32,768 and `hub.turn_bytes` 1,479,864
-  with what follows from it, and `memory_bytes` raised by what the start
-  names when it refuses a short one, the figure said in the report. Then, before the first
+  above (the model's efforts, the room) is made in `CONFIG` after
+  `temper init` and before the box's first start, and `memory_bytes`
+  raised by what the start names when it refuses a short one, the figure
+  said in the report. Then, before the first
   start and before every restart, the pass or walk checks it, and stops
   if any line prints other than `true`, reporting a setup to redo, never
   a finding:
 
   ```
-  jq -e '.engine.llm.models[0] | .name == "gpt-6.1-sol" and .output == 32000 and .efforts[0] == "high"' CONFIG/temper.json
-  jq -e '.engine.limits.overrides | .["people.requests"] == 256 and .["hub.turn_bytes"] == 1479864' CONFIG/temper.json
+  jq -e '.engine.llm.models[0] | .name == "gpt-6-luna" and .output == 8192 and .efforts[0] == "medium"' CONFIG/temper.json
+  jq -e '.engine.limits.overrides["people.requests"] == 256' CONFIG/temper.json
   jq -e '.application.limits.overrides["root.loads.loads"] == 32' CONFIG/temper.json
-  jq -e '.endpoints[0].models[0] | .name == "gpt-6.1-sol" and .output == 32000 and .reasoning_item == 32768' CONFIG/agent.json
+  jq -e '.endpoints[0].models[0] | .name == "gpt-6-luna" and .output == 8192' CONFIG/agent.json
   ```
 
   A QA brief carries these four lines, and a box set up by an earlier
