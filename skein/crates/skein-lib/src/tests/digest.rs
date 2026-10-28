@@ -61,8 +61,8 @@ fn a_tuple_hashed_whole_digests_its_fields_in_order() {
 
 use crate::stream::Read;
 use crate::{
-    Buffer, CryptoRng, Deadlines, Duration, Intake, Journal, JournalLimits, JournalRoom, List, Map, Queue, Released,
-    RequestLimits, RequestTable, Secret, Set, Slab, Stack, Time,
+    Buffer, CryptoRng, Deadlines, Duration, Intake, Journal, List, Map, Queue, Released, RequestLimits, RequestTable,
+    Secret, Set, Slab, Stack, Time,
 };
 
 #[test]
@@ -214,20 +214,18 @@ fn a_buffer_digests_the_bytes_it_holds_alone() {
 
 #[test]
 fn journals_at_one_commit_by_two_histories_digest_alike() {
-    let small = JournalLimits { commits: 2, writes: 2, held: 2, now: 2, release: 2 };
-    let large = JournalLimits { commits: 4, writes: 4, held: 4, now: 4, release: 4 };
-    let mut first = Journal::<u8, u8>::new(&small);
-    let mut decision = first.decision(&JournalRoom { writes: 1, held: 1 }).expect("room");
-    assert_eq!(decision.write(1), Ok(()));
-    assert_eq!(decision.hold(2), Ok(()));
+    let mut first = Journal::<u8, u8>::uncapped(2, 0);
+    let mut decision = first.decide();
+    decision.push_write(1);
+    decision.push_held(2);
     first.accept(decision);
     assert_eq!(first.commit().expect("commit").number, 1);
     first.committed(1);
     let mut out = Queue::with_capacity(2);
     assert_eq!(first.release(&mut out), Released::Some);
     assert_eq!(out.pop(), Some(2));
-    assert_eq!(state_digest(&first), state_digest(&Journal::<u8, u8>::from_durable(&large, 1)));
-    assert_ne!(state_digest(&first), state_digest(&Journal::<u8, u8>::from_durable(&large, 2)));
+    assert_eq!(state_digest(&first), state_digest(&Journal::<u8, u8>::uncapped(4, 1)));
+    assert_ne!(state_digest(&first), state_digest(&Journal::<u8, u8>::uncapped(4, 2)));
 }
 
 #[test]
@@ -262,4 +260,14 @@ fn a_request_table_s_digest_changes_with_each_request_asked() {
     assert_eq!(table.ask(2, 1, 1, 2), other.ask(2, 1, 1, 2));
     assert_ne!(one, state_digest(&table));
     assert_eq!(state_digest(&table), state_digest(&other));
+}
+
+#[test]
+fn a_journal_digests_whether_a_decision_is_open() {
+    let mut journal = Journal::<u8, u8>::uncapped(2, 0);
+    let closed = state_digest(&journal);
+    let decision = journal.decide();
+    assert_ne!(state_digest(&journal), closed);
+    journal.accept(decision);
+    assert_eq!(state_digest(&journal), closed);
 }
