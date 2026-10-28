@@ -93,9 +93,12 @@ keeps them in its own record. What is still open is section 13.
   changes, and those temper did not make, each a range of commits with
   no change of temper's.
 - **Faults** (`landing.md`, 7.4's): rerun, then dispatched again, up to
-  the project's `tier_retries`; one past its bound tells the parties
-  the project names for its runners, and the tier waits for a person's
-  release, its landings still verifying.
+  the project's `tier_retries`; one past its bound holds the tier's run
+  task, whose escalation reaches the project's escalation role (jig's
+  `domain/tasks.md`, section 9), its hold naming the tier, the run, its
+  faults and the last one; the tier waits for a person's release, which
+  dispatches the run again with its faults counted from 0, its
+  landings still verifying.
 
 ## 4. What a run reports
 
@@ -168,8 +171,12 @@ red by earlier failures it does not run (5.3).
 - **The bound:** past the project's `verification_bound` (two hours by
   default) with no verdict, because the runner was faulty or down, the
   change ends landed and uncleared, saying so, and its goal is told. A
-  verdict that comes later still counts: cleared, it is news to the
-  goal; red, it is filed as a finding, since the goal may have ended.
+  verdict that comes later still counts, through the landing log
+  (section 10), which keeps the landing's changes after their
+  verification rows go: cleared, it is news to the goals whose
+  subscriptions still name the change; red, it stays on the tier's
+  record and is filed as a finding (`findings.md`, section 4), since
+  the goal may have ended.
 - **Cancelling a verifying change** ends it landed and uncleared at
   once; its verdict counts as after the bound.
 
@@ -262,13 +269,15 @@ red by earlier failures it does not run (5.3).
 - **The landing log,** a family of its own, `LandingLog`, per adopted
   repository: its last `landings_kept` landings, each with its commit,
   the engine's wall time when it saw the move, its changes (none for a
-  push from outside temper), its trailers within `trailers` and
+  push from outside temper), each with its pull request's number, so
+  that a late verdict's comment reaches it, its trailers within `trailers` and
   `trailer_bytes`, and each tier's verdict (verifying, cleared, or red
   with its count); a ring, written at each move of the landing branch
   and at each verdict, so that a landing's record outlives its changes'
   close and a range's judging.
 - **Limits,** the forge's: `landings_kept` per repository (16 in
-  `small`); `tiers` per repository (2 in `small`),
+  `small`); `trailers` per landing (8) and `trailer_bytes` per line
+  (200); `tiers` per repository (2 in `small`),
   `failing_tests` per run (16), `test_id_bytes` (256), and a tier's
   name at most 32 bytes.
 
