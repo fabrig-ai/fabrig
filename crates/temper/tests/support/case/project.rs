@@ -21,7 +21,6 @@ struct MakeProject {
     sent: bool,
     made: Option<u32>,
     closing: bool,
-    memory: u64,
     tokens: Map<Token, Token>,
     serial: u32,
 }
@@ -44,7 +43,6 @@ impl MakeProject {
             io: limits.io,
         });
         shell.adopt(root, user, seed);
-        let memory = Self::memory();
         Self {
             client: client::Client::new(&bounds, seed).expect("native project client"),
             shell,
@@ -56,22 +54,9 @@ impl MakeProject {
             sent: false,
             made: None,
             closing: false,
-            memory,
             tokens: Map::with_capacity(1024),
             serial: 0,
         }
-    }
-    /// Reserve this before the world starts; heap ceilings are fixed at spawn.
-    #[must_use]
-    fn memory() -> u64 {
-        let limits = temper_client_shell_terminal::limits::native();
-        client::worst_case(&limits.client.client).expect("project client memory")
-            + temper_client_shell_terminal::limits::shell(&limits).expect("native shell memory")
-            + Queue::<client::Request>::worst_case(client::max_out(&limits.client.client)).expect("project outputs")
-            + Queue::<Complete>::worst_case(1024).expect("project completions")
-            + Queue::<Submit>::worst_case(1024).expect("project submissions")
-            + Map::<Token, Token>::worst_case(1024).expect("native token bindings")
-            + 128
     }
     /// Only a committed `ProjectMade` answer supplies this number.
     #[must_use]
@@ -174,9 +159,6 @@ impl Host for MakeProject {
     }
     fn is_empty(&self) -> bool {
         self.closing && self.shell.is_empty() && self.submit.is_empty()
-    }
-    fn worst_case(&self) -> u64 {
-        self.memory
     }
     fn operations(&self) -> u32 {
         self.shell.operations()
