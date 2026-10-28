@@ -8,15 +8,16 @@ this document says what lib holds and what each part promises.
 ## 1. In one page
 
 - **Everything step code needs and the subset does not give it.** Typed
-  handles and the slabs that issue them, bounded containers, cursors over
+  handles and the slabs that issue them, containers, cursors over
   owned bytes, secrets' bytes, base64 and SHA-256, the stream vocabulary
   and its intake, deadlines, time, randomness, the environment a step
   reads, and the digest of a state that replay compares.
-- **Bounded, and priced.** Every container has a capacity fixed when it
-  is made, refuses past it, and reports its own `worst_case(capacity)`,
-  bookkeeping included, so a layer adds up what its containers report.
-  The uncapped queue and journal have no cap of their own, for the hops
-  inside a service (draft/dynamic-memory.md, the stab; sections 5 and 11).
+- **Limits at the edges, growth inside.** Containers grow as they fill;
+  an edge's container keeps its cap and refuses past it. A capped
+  container's `worst_case(capacity)` prices its bookkeeping too; sums
+  of those prices are estimates, not process-wide bounds
+  (programming-model.md, 6.3). The queues and journal inside a service
+  have no cap of their own (sections 5 and 11).
 - **Written once, tested hardest.** Every layer of every service stands on
   lib. Application code does not hand-roll a data structure: what is
   missing goes into lib.
@@ -52,8 +53,10 @@ them (testing.md, section 6).
   generation would wrap is never used again. `id.token()` and
   `Id::<T>::from_token(t)` convert to and from the name that crosses a
   boundary.
-- **`Slab<T>`** holds one entity kind, at a capacity fixed at startup that
-  is the admission limit for that kind.
+- **`Slab<T>`** holds one entity kind and grows as it fills, costing
+  what it holds. A kind created from outside has a cap from the limits;
+  a kind that admitted work makes has no cap of its own
+  (programming-model.md, 6.1).
   - `insert` returns the new `Id`, or hands the value back when the slab
     is full: the refusal.
   - `get` and `get_mut` check the generation and return `None` for a
@@ -73,22 +76,22 @@ them (testing.md, section 6).
   `#[must_use]`: replying consumes it, so a second reply does not
   compile. A missing one is the simulator's to catch.
 
-## 5. Bounded containers
+## 5. Containers
 
 | Container | What | Over |
 |---|---|---|
-| `Queue<T>` | the records between stages, first in first out | a ring buffer allocated at capacity |
-| `List<T>` | a sequence a step appends to | a buffer allocated at capacity |
+| `Queue<T>` | the records between stages, first in first out | a ring buffer grown as it fills |
+| `List<T>` | a sequence a step appends to | a buffer costing what it holds |
 | `Map<K, V>` | a table keyed by value, ordered by key | a B-tree, priced in tree nodes |
 | `Set<K>` | a `Map` without values | a B-tree, priced in tree nodes |
-| `Stack<T>` | what a parser keeps instead of recursing | a buffer allocated at capacity |
+| `Stack<T>` | what a parser keeps instead of recursing | a buffer costing what it holds |
 
-Each refuses past its capacity, handing the value back rather than
-panicking, with one exception: `Queue::push` is how a step emits into
-the room the loop reserved for it (`MAX_OUT`), so a full queue there is a
-bug, asserted; `Queue::try_push` is the refusing form. A B-tree allocates
-as it fills, so its worst case counts its nodes at capacity, not its
-entries.
+Each capped container refuses past its capacity, handing the value back
+rather than panicking, with one exception: `Queue::push` on a full capped
+queue is a bug, asserted; `Queue::try_push` is the refusing form.
+`Queue::with_capacity` keeps its cap but allocates as it fills, growing
+exactly and never past the cap. A B-tree allocates as it fills, so its
+`worst_case(capacity)` counts its nodes at capacity, not its entries.
 
 **`Queue::uncapped()`** has no cap of its own (its capacity is
 `u32::MAX`), starts empty and grows, so `push` cannot fail: it is for the
@@ -137,9 +140,8 @@ where it holds it.
 - **Never hashed:** a container's capacity, which its owner fixed, and
   its layout in memory: a B-tree's nodes, a ring's head, a buffer's spare
   room, an address. Two states that would answer every later step alike
-  digest alike, however each was reached. A `Slab` holds a slot for each
-  of its capacity, so its slots in index order, free ones included, are
-  all of it that is hashed.
+  digest alike, however each was reached. A `Slab` hashes all the slots
+  it holds in index order, free ones included.
 - **Not state, so no `Hash`:** `Env<L>`, which a step is handed and does
   not keep (programming-model.md, section 3), and `stream::Held`, a buffer
   served as a stream's side below, which the step that makes it reads. A
@@ -226,10 +228,10 @@ and keep no copy of their own.
   its 32 bytes in the standard's order, as `sha256sum` prints them in
   hex.
 - **No heap, no copy.** The state is eight words, one 64-byte block and
-  the count of bytes hashed, so a step keeps one in its state and its
-  worst case counts nothing more. `update` compresses each whole block
-  straight from the caller's slice, and copies only the part of a block a
-  piece leaves: hashing costs the compression, not a copy.
+  the count of bytes hashed, so a step keeps one in its state and it
+  allocates no heap. `update` compresses each whole block straight from
+  the caller's slice, and copies only the part of a block a piece
+  leaves: hashing costs the compression, not a copy.
 - **`Clone`,** so a prefix common to several digests is hashed once and
   each goes on from its own copy. Its `Debug` shows the count of bytes
   hashed, not the state.
@@ -366,7 +368,8 @@ machine's:
 
 **`Intake`** is the carry-over of a stream: the bytes the side below has
 received and the side above has not yet demanded, up to a cap fixed when
-it is made. It is allocated once, at the cap, and never grows.
+it is made. It allocates as it fills, growing exactly and never past the
+cap.
 
 - It appends what arrives while it has room, and reports the room left,
   so receiving stops at the cap.
@@ -481,12 +484,12 @@ and its layer's `limits: L`. A step gets it behind a shared borrow.
 
 ## 10. Testing
 
-Step tests drive each container through its operations, at and past its
-capacity: a full queue, a stale handle, a slot whose generation would
-wrap, a refusal at the entrance, a deadline that fires as it is
-cancelled, a scan cut at every byte. The step tests are `src/tests.rs`, a
-module for each area of this document under `src/tests/`: handles,
-containers, bytes, streams, and time.
+Step tests drive each container through its operations, at and past a
+cap where it has one: a full edge queue, a stale handle, a slot whose
+generation would wrap, a refusal at the entrance, a deadline that fires
+as it is cancelled, a scan cut at every byte. The step tests are
+`src/tests.rs`, a module for each area of this document under
+`src/tests/`: handles, containers, bytes, streams, and time.
 
 The byte search is also compared with a naive one, and the intake with a
 plain reference, over random cases drawn from a seed: a few hundred in
@@ -513,20 +516,23 @@ The request table's step tests are `src/tests/requests.rs`; its independent
 obligation model, replay and seeded sweep are in `tests/lib/src/request_table.rs`
 and `tests/lib/tests/{request_table,fuzzy_request_table}.rs`.
 
-Each `worst_case` is checked against the counting allocator (testing.md,
-5), in `tests/lib/tests/memory.rs`, in the focused suite. Every container
-is built at capacities from 0 to 300, filled to them, emptied and filled
-again, every operation a step of the meter, and what it held of its own is
-never more than `worst_case(capacity)`. What an item owns is its owner's
-to count, so the items own no heap; they come in several sizes and
-alignments, up to 64 bytes, as a container's price depends on both. An
-input moved into a step was counted by whoever made it; the step's bound
-covers what it keeps and what it allocates (testing.md, 5). What an
-operation hands out (an item taken, a delivery, a list moved into a box)
-is no longer the container's, and the meter takes it off.
+Each capped container's `worst_case` is checked against the counting
+allocator (testing.md, 5), in `tests/lib/tests/memory.rs`, in the
+focused suite. Every capped container is built at capacities from 0 to
+300, filled to them, emptied and filled again, every operation a step of
+the meter, and what it held of its own is never more than
+`worst_case(capacity)`. What an item owns is its owner's to count, so
+the items own no heap; they come in several sizes and alignments, up to
+64 bytes, as a container's price depends on both. An input moved into a
+step is accounted for as testing.md, 5 states. What an operation hands
+out (an item taken, a delivery, a list moved into a box) is no longer
+the container's, and the meter takes it off.
 
-- **A slab, a queue, a list, a stack and an intake** are allocated once,
-  at their capacity, and hold exactly their worst case from the start.
+- **A slab, a queue, a list, a stack and an intake** grow as they fill;
+  capped queues and intakes grow exactly, never past their cap. The
+  counting allocator checks each byte price against what is allocated,
+  and scenarios hold measured peaks under named ceilings with headroom
+  (testing-strategy.md, 6).
 - **A map, a set and a deadline table** are filled in order, each leaf
   left behind holding six entries, then thinned to five a leaf, the fewest
   a leaf holds: a tree within a few nodes of the most its capacity allows,
@@ -539,20 +545,28 @@ is no longer the container's, and the meter takes it off.
 
 ## 11. The journal
 
-`Journal<W, O>` is a bounded commit barrier for writes and outputs. It is
+`Journal<W, O>` is a commit barrier for writes and outputs. It is
 generic over both and inspects neither. It belongs in lib because it is a
 data structure, like a queue; a service does not hand-roll one
 (programming-model.md, 10.2).
 
-- **Admission by counts:** the owner states a decision's worst-case room
+- **Uncapped admission:** `Journal::uncapped(release, durable)` keeps
+  commits, held outputs and the door in uncapped queues. `decide()`
+  opens a decision with no room to reserve, which cannot be refused;
+  `Decision::push_write` and `push_held` add without a `Result`. New
+  external work waits at the root's watermark
+  (programming-model.md, 7.1).
+- **Capped admission:** `JournalRoom`, `takes`, capped decisions and
+  `max_out` helpers coexist with the uncapped forms until no repository
+  uses them. The owner states a decision's worst-case room
   for writes and held outputs before changing its state. `takes(room)`
   leaves the journal unchanged, and refuses unless the room fits the
   commits in flight, writes per commit, and outputs held. A decision
   reserves that room; accepting it returns unused room.
 - **One decision:** a `#[must_use]` value, not `Clone`, collects its
-  writes and held outputs. Each addition past its reserved room is
-  refused and returns ownership to the caller. Such an overrun is the
-  owner's bug: accepting the decision stops the journal.
+  writes and held outputs. In a capped decision, each addition past its
+  reserved room is refused and returns ownership to the caller. Such an
+  overrun is the owner's bug: accepting the decision stops the journal.
 - **Commit and tags:** accepting a decision makes at most one numbered
   commit, holding all its writes. Numbers begin at one and increase in
   order. A decision without a write makes no commit. Each held output
@@ -563,26 +577,25 @@ data structure, like a queue; a service does not hand-roll one
   journal.
 - **The door and release:** `now(output)` admits an untagged output that
   decides nothing and is ready to leave at once. These outputs leave in
-  their own order, within the door's capacity. Held outputs leave in
-  the order they were collected, after their tags are durable. Each
-  release call moves at most its configured count. The journal does not
-  arm a deadline or advance commits by itself.
-- **Failure:** when a commit fails, no output tagged with it or a later
-  commit leaves, and the journal reports that it has stopped. It admits
-  no more decisions or outputs.
-- **Memory:** capacities are fixed at construction. `worst_case` prices
-  the journal's containers and bookkeeping from its limits with checked
-  arithmetic, as other lib containers do. Values it holds own their
-  own payload bytes; their owner prices those separately.
-- **The uncapped journal** (draft/dynamic-memory.md 3 and 4, beside the
-  capped one until every repository has moved): `Journal::uncapped(release,
-  durable)` keeps its commits, held outputs and door in uncapped queues.
-  `decide()` opens a decision with no room to reserve, which cannot be
-  refused, and `push_write` and `push_held` add to it without a
-  `Result`. The capped journal's `takes` and `decision` refuse on it.
-  Either kind reports its `backlog()`: the commits made and not yet
-  answered, the outputs held and those at the door, in entries, which a
-  root compares with its watermark before it admits new work.
+  their own order, within the door's capacity when capped. Held outputs
+  leave in the order they were collected, after their tags are durable.
+  Each release call moves at most its configured count. The journal does
+  not arm a deadline or advance commits by itself.
+- **Stopping:** a root that stops of its own calls `Journal::stop()`,
+  with no argument and no result. Nothing held or at the door leaves
+  again, and `release` answers `Stopped`.
+- **Failure:** `failed(number)` reports a failed sent commit. No output
+  tagged with it or a later commit leaves, and the journal reports that
+  it has stopped. It admits no more decisions or outputs.
+- **Memory:** the capped journal's capacities are fixed at construction.
+  Its `worst_case` prices its containers and bookkeeping from its limits
+  with checked arithmetic, as other capped lib containers do. Values it
+  holds own their own payload bytes; their owner prices those separately.
+- **The backlog:** the capped journal's `takes` and `decision` refuse on
+  an uncapped journal. Either kind reports its `backlog()`: the commits
+  made and not yet answered, the outputs held and those at the door, in
+  entries, which a root compares with its watermark before it admits new
+  work.
 
 The journal uses generic types and lib's containers. It defines no
 traits, takes no closures, and uses no `dyn` (programming-model.md,
