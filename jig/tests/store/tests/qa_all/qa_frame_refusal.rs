@@ -1,6 +1,4 @@
 //! Independent contract checks for protocol/store.md 6, 8.1, 8.2, 8.6 and 13.
-#[global_allocator]
-static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Limits, Request, TranscriptRead, Write, sizes};

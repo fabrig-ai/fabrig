@@ -1,6 +1,5 @@
 //! Each kept frame family opens and decodes independently of the maps.
-#[path = "support/frame_reads.rs"]
-mod frame_reads;
+use crate::frame_reads;
 use frame_reads::{SETS, closed, decode, open, turn};
 use jig_protocol_store::{KeptFamily, PatchSet, PatchSets};
 use jig_test_patches_jig::frames;
