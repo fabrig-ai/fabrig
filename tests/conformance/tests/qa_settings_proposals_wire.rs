@@ -1,4 +1,9 @@
 //! Settings proposal admission on the client's wire (`contract.md`, 3.2).
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_core::{self as core, settings as s};
 use jig_engine_clients_world::{Peer, fixtures};

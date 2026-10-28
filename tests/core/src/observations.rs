@@ -1250,13 +1250,14 @@ pub fn root_bound(limits: &root::Limits) -> Option<u64> {
     root::worst_case(limits)
 }
 
-// The most held of this world's stories whose binary counts the heap,
-// the core world, focused and fuzzy suites: 4,456,374 bytes at jig c5bd3bba7,
-// reached by memory::memory_scenario_family.
+// The most held of this world's stories, all binaries counting:
+// 9,195,220 bytes at jig 4cd5d46966, in conformance's
+// client_settings::an_owner_moves_running_work_through_the_client_and_hears_both_counts.
+// The core crate's own most is 880,068 bytes.
 // A ceiling, a quarter above, rounded up to two significant digits
 // (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
-const CORE_WORLD_HEAP_CEILING: u64 = 5_600_000;
+const CORE_WORLD_HEAP_CEILING: u64 = 12_000_000;
 
 /// A conservative heap observation at each testing-root iteration. Test peers'
 /// allocations after construction are counted too; passing this check therefore

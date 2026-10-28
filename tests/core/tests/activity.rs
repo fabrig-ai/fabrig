@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 const PARTY: u64 = 1;
 const FIRST_TURN: u32 = 1;
 const SECOND_TURN: u32 = 2;

@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 const FIRST_GOAL: u8 = 151;
 const CHAT: u8 = 152;
 const TURN: u32 = 1;

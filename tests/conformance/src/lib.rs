@@ -134,13 +134,13 @@ impl Config {
     }
 }
 
-// The most held of this world's stories whose binary counts the heap,
-// the conformance world, focused and fuzzy suites: 9,566,516 bytes at jig c5bd3bba7,
-// reached by fuzzy_snapshot::standing_task_every_snapshot_matches_complete_fresh_state.
+// The most held of this world's stories, all binaries counting:
+// 926,508 bytes at jig 4cd5d46966, in
+// fuzzy_snapshot::standing_task_every_snapshot_matches_complete_fresh_state.
 // A ceiling, a quarter above, rounded up to two significant digits
 // (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
-const CONFORMANCE_HEAP_CEILING: u64 = 12_000_000;
+const CONFORMANCE_HEAP_CEILING: u64 = 1_200_000;
 
 /// The testing engine; the trait is implemented only in ordinary world code.
 #[derive(Debug)]

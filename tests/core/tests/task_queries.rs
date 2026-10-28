@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::{
     reads::{ask, latest},
     stories::reads::{request, world},

@@ -1,5 +1,10 @@
 //! Seeded actor, store and crash interleavings, with outside observations checked
 //! after every root iteration. Each failing seed is printed for direct replay.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::Fault as StoreFault;
 use jig_core_world::{
     effects::{Cut, World, fixture},

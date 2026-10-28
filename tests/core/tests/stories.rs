@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::effects::{World, fixture};
 pub(crate) use jig_core_world::fixtures::{configure_resources, resource_member};
 use jig_core_world::fixtures::{delegate, live_row, member};

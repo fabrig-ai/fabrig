@@ -1,4 +1,9 @@
 //! Shared client fixtures for the settings contract; tasks B/C supply the engine maps.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire::v19 as w;

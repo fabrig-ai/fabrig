@@ -1,4 +1,9 @@
 //! A task's retention class decides what its reading erases (people.md, 6).
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 const CONVERSATION_MARK: u8 = 63;
 use jig_core_world::{
     effects::{Cut, World},

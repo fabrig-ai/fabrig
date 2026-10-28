@@ -1,4 +1,9 @@
 //! Trace settings change diagnostic retention only, never outside behavior.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_conformance_world::{Config, Testing};
 #[test]
 fn tracing_off_keeps_no_copies_and_on_replays_the_whole_application_boundary() {

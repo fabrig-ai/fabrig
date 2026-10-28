@@ -1,4 +1,9 @@
 //! The start's switch and mark follow durable restores (engine.md, 6).
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::{effects::World, world};
 use jig_domain_core as core;
 use jig_protocol_store::{Wire, codec, component_v3};

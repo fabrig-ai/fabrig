@@ -1,4 +1,9 @@
 //! Exact offer fences survive decisions and cold restart (tasks.md, section 9).
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::effects::World;
 use jig_core_world::fixtures::{ask_as, delegate, live_row, member};
 use jig_domain_core as core;

@@ -2,6 +2,11 @@
 //! `dynamic-memory.md`, 4.6): store terminals in arrival order, and a kept
 //! turn before its terminal acknowledgement, while admission is under load.
 
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::direct::Driver;
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;

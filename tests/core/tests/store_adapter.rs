@@ -1,4 +1,9 @@
 //! The real component's durability behind the world's store face.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_domain_core as core;
 use jig_domain_fleet::HostKind;
 use jig_domain_people as people;

@@ -1,4 +1,9 @@
 //! The ended indexes commit with the task they name (protocol/store.md, 7.4).
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::stories::reads::world;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;

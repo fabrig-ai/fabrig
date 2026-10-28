@@ -1,5 +1,10 @@
 //! Configuration seeds project policies and first owners once (configuration.md, 3).
 
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::{client_peer::ClientPeer, effects::World, store_peer::with_start_mark, world};
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, documents, reads};

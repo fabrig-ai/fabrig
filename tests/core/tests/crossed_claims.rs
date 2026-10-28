@@ -1,4 +1,9 @@
 //! engine.md, 15: a fresh mark stops a live resumed claim before retrying.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 #[path = "support/fresh_windows.rs"]
 mod fresh_windows;
 

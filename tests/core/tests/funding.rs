@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::fixtures::two_projects;
 use jig_core_world::{effects::World, world};
 use jig_domain_authority as authority;

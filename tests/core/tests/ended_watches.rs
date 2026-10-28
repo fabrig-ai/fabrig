@@ -1,4 +1,9 @@
 //! Final task facts cross the routing world's durable delivery path.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::{effects::World, fixtures, watches};
 use jig_domain_core::documents::{Document, PhaseLine, Watched};
 use jig_domain_tasks as tasks;

@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 const OWNER_ROLE: u32 = 0;
 use jig_core_world::{
     effects::World,

@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::effects::World;
 use jig_core_world::fixtures::ask_as;
 use jig_core_world::stories::offers::no_holder_fixture;

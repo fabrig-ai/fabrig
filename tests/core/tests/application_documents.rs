@@ -1,4 +1,9 @@
 //! Connector values through the real root and independently observed store.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::{
     effects::{Cut, World},
     reads, watches,

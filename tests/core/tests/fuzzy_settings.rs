@@ -1,4 +1,9 @@
 //! Random settings decisions agree with their durable rows through cold restarts.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 #[path = "settings/support.rs"]
 mod support;
 use jig_core_world::fixtures;

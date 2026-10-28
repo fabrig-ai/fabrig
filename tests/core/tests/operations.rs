@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::fixtures::{live_row, person_unchanged};
 use jig_core_world::stories::delegates::delegate_pair;
 use jig_core_world::stories::reads::{request, world};

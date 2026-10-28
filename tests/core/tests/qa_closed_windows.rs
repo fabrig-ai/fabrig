@@ -1,4 +1,9 @@
 //! Independent QA from engine.md 7.2, through real store closing.
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 #[path = "support/fresh_windows.rs"]
 mod windows;
 

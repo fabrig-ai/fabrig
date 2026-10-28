@@ -1,6 +1,13 @@
 //! Ops's connector worlds: the shared production below and a scripted root above.
 #![forbid(unsafe_code)]
 
+#[cfg(test)]
+use skein_world::domain::heap;
+
+#[cfg(test)]
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 mod infrastructure_world;
 mod world;
 

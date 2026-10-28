@@ -1,3 +1,8 @@
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::world::World;
 
 fn a_chats_run_answers_once_and_its_turn_is_acknowledged_after_its_commit() {

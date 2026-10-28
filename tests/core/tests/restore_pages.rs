@@ -1,4 +1,9 @@
 //! Public cold-restore page scheduling (`domain/testing.md`, sections 4 and 7).
+use skein_world::domain::heap;
+
+#[global_allocator]
+static HEAP: heap::Counting = heap::Counting;
+
 use jig_core_world::{
     client_peer::ClientPeer,
     effects::World,

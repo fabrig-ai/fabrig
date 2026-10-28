@@ -42,9 +42,9 @@ pub struct Peers {
     delayed_infrastructure: Vec<(u64, root::Output)>,
 }
 
-// The most held of this world's stories whose binary counts the heap,
-// the joint ops adapter, focused and fuzzy suites: 72,017,730 bytes at jig c5bd3bba7,
-// reached by fuzzy_joint::p_story_survives_seeded_commit_crashes_and_random_presses.
+// The most held of this world's stories, all binaries counting:
+// 72,017,730 bytes at jig 4cd5d46966, in
+// fuzzy_joint::p_story_survives_seeded_commit_crashes_and_random_presses.
 // A ceiling, a quarter above, rounded up to two significant digits
 // (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
