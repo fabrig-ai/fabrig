@@ -164,6 +164,8 @@ fn a_line_waits_while_the_local_child_holds_the_backlog() {
         });
     }
     service.capture_activation = Some(1); // The held facts belong to the already started activation.
+    // Settle the trace handoff at the kernel edge before checking the child alone.
+    let append = crate::tests::trace_append(&mut service, trace);
     feed_line(&mut service, b"later\n");
     for _ in 0..HELD_ITERATIONS {
         iterate(&mut service, Time::ZERO, Wall::EPOCH);
@@ -174,7 +176,6 @@ fn a_line_waits_while_the_local_child_holds_the_backlog() {
         assert_eq!(service.terminal_events.len(), 1, "the child alone holds admission");
     }
     // Giving up this destination releases its credit; facts and the waiting line advance.
-    let append = crate::tests::trace_append(&mut service, trace);
     service.completions().push(skein_io::kernel::Complete {
         op: append.op,
         kind: append.kind,
