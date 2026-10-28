@@ -1,6 +1,6 @@
 # Hosts
 
-Provisional, 2026-10-05, revised 2026-10-20. The other side of a run:
+Provisional, 2026-10-05, revised 2026-10-28. The other side of a run:
 what a host owes an agent and is owed, the channel between them, and the
 domains smith ships for hosts: `smith-host-domain`, which a host embeds
 to start and supervise agent processes; `smith-inline-agent`, its twin,
@@ -476,9 +476,11 @@ A child a host embeds, beside or instead of `smith-host-domain`:
 - **No watchdog on progress.** A composed domain does not hang as a
   process can: its waits are bounded by its own deadlines and by those
   of the requests it hands up. A bound on wall time stays.
-- **Bounded:** each run's worst case is `smith-domain`'s, with its
-  routing; the inline agent's is the sum over its slots, which its host
-  gives it.
+- **Bounded by its slots and its parent:** the inline agent holds a run
+  per slot, which its host gives it; its queues are uncapped, and it
+  reports what it holds for its parent to drain (`backlog()`), which the
+  parent root counts against its watermark (skein's programming-model.md,
+  7.1). It has no watermark of its own.
 
 ### 9.2 Stopping: cancel, grace, drop
 
@@ -527,7 +529,8 @@ A child a host embeds, beside or instead of `smith-host-domain`:
 - **Two crates, one face.** The inline agent is a crate beside
   `smith-host-domain`, not a mode of it: supervising processes and
   composing domains share only their vocabulary, and each has its own
-  worst case and world. `smith-host-domain` keeps its parent face apart
+  world. Neither is a root: each uncaps its own queues, keeps its facts
+  lossless, and exposes `backlog()` for the root above it. `smith-host-domain` keeps its parent face apart
   from the face its process io speaks, and the inline agent speaks the
   parent face's own types, so a root's translations are the same by
   construction.
