@@ -4,7 +4,8 @@
   `scripts/check.sh`, and pushes. Do not run the gate yourself before
   `land`. Markdown-only changes land with `land --docs`, except paths in
   `scripts/gated-docs`: `docs/help/` (including `reference/`) is compiled
-  into temper-docs and checked by its tests, so those changes use `land`.
+  into temper-docs and read by its rules and CLI help tests, so those
+  changes use `land`.
   Changes to the declaration itself use `land` too. Push only your own branch.
 - The default test suite (unit tests and the worlds' focused tests under
   `tests/`) takes at most 30 seconds (15 seconds before the user's doubling
