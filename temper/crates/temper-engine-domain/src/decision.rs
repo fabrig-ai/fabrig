@@ -559,23 +559,21 @@ pub fn accept_routed(
     }
     let mut batch = decision.batch;
     if writing {
-        batch
-            .write(Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
-                counters.next_commit(),
-            )))))
-            .expect("header slot reserved");
+        batch.push_write(Write::Save(Record::Core(jig_domain_core::Record::Core(
+            jig_domain_core::CoreRecord::Deployment(counters.next_commit()),
+        ))));
         for at in 0..decision.writes.len() {
             let source = decision.writes.get_mut(at).expect("admitted write index");
             let key = source.key();
             // The source list is consumed in this step. An erase is a
             // payload-free terminal placeholder, never submitted again.
             let write = core::mem::replace(source, Write::Erase(key));
-            batch.write(write).expect("admitted decision writes");
+            batch.push_write(write);
         }
     }
     for _ in 0..decision.deliveries.len() {
         let delivery = decision.deliveries.pop().expect("admitted delivery count");
-        batch.hold(crate::boundary::delivery_output(delivery)).expect("admitted held output");
+        batch.push_held(crate::boundary::delivery_output(delivery));
     }
     journal.accept(batch);
     Ok(())
