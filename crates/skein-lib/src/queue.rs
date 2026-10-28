@@ -30,10 +30,11 @@ impl<T> Queue<T> {
     }
 
     /// The most heap a queue of `capacity` takes for its items, or `None` past a
-    /// `u64`. What the items own is theirs to count.
+    /// `u64`, including old and new buffers during growth. What the items own
+    /// is theirs to count.
     #[must_use]
     pub fn worst_case(capacity: u32) -> Option<u64> {
-        u64::try_from(size_of::<T>()).ok()?.checked_mul(u64::from(capacity))
+        growth_peak(capacity, u64::try_from(size_of::<T>()).ok()?)
     }
 
     #[must_use]
@@ -77,13 +78,14 @@ impl<T> Queue<T> {
         Ok(())
     }
 
-    /// Reserves the next doubling, clamped to the cap, before a push.
+    /// Reserves a small ring whole, or the next doubling clamped to the cap.
     fn grow(&mut self) {
         if self.items.len() < self.items.capacity() {
             return;
         }
         let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-        let next = self.items.capacity().saturating_mul(2).max(1).min(cap);
+        let small = cap <= 4096_usize.checked_div(size_of::<T>()).expect("zero-sized items need no buffer");
+        let next = if small { cap } else { self.items.capacity().saturating_mul(2).max(1).min(cap) };
         let additional = next.checked_sub(self.items.len()).expect("room was checked before growing");
         self.items.reserve_exact(additional);
     }
@@ -114,4 +116,21 @@ impl<T: Hash> Hash for Queue<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.items.hash(state);
     }
+}
+
+/// The growth peak counts the cap's buffer and the largest buffer reallocated
+/// on the way, live together while copying. Rings of at most 4 KiB allocate
+/// their cap on first use and hold only that buffer.
+fn growth_peak(capacity: u32, item: u64) -> Option<u64> {
+    let cap = u64::from(capacity);
+    let full = cap.checked_mul(item)?;
+    if full <= 4096 {
+        return Some(full);
+    }
+    let mut previous = 1_u64;
+    // At most 32 doublings reach the u32 cap.
+    while previous.checked_mul(2)? < cap {
+        previous = previous.checked_mul(2)?;
+    }
+    full.checked_add(previous.checked_mul(item)?)
 }

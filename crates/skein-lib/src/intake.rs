@@ -63,12 +63,11 @@ impl Intake {
         Intake { bytes: VecDeque::new(), capacity, searched: Searched { until: Until::LineEnd, clear: 0 } }
     }
 
-    /// The most heap an intake of `capacity` takes: its buffer, so always
-    /// `Some(capacity)`, an `Option` to match the other containers. The boxes
-    /// it delivers are their new owners' to count.
+    /// The most heap an intake of `capacity` takes, including its growth peak.
+    /// The boxes it delivers are their new owners' to count.
     #[must_use]
     pub fn worst_case(capacity: u32) -> Option<u64> {
-        Some(u64::from(capacity))
+        growth_peak(capacity)
     }
 
     #[must_use]
@@ -110,7 +109,7 @@ impl Intake {
         let needed = self.bytes.len().checked_add(bytes.len()).expect("the bytes fit the cap");
         if needed > self.bytes.capacity() {
             let cap = index(self.capacity);
-            let mut next = self.bytes.capacity().max(1);
+            let mut next = if cap <= 4096 { cap } else { self.bytes.capacity().max(1) };
             // At most 32 doublings reach the u32 cap.
             while next < needed {
                 next = next.saturating_mul(2).min(cap);
@@ -252,4 +251,20 @@ impl Hash for Intake {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.bytes.hash(state);
     }
+}
+
+/// The growth peak counts the cap's buffer and the largest buffer reallocated
+/// on the way, live together while copying. Intakes of at most 4 KiB allocate
+/// their cap on first use and hold only that buffer.
+fn growth_peak(capacity: u32) -> Option<u64> {
+    let cap = u64::from(capacity);
+    if cap <= 4096 {
+        return Some(cap);
+    }
+    let mut previous = 1_u64;
+    // At most 32 doublings reach the u32 cap.
+    while previous.checked_mul(2)? < cap {
+        previous = previous.checked_mul(2)?;
+    }
+    cap.checked_add(previous)
 }

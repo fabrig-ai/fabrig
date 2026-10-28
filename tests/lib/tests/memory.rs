@@ -770,7 +770,7 @@ fn request_table_finish<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
 #[test]
 fn a_ring_used_lightly_holds_what_it_holds() {
     let capacity = 15_000_000;
-    assert_eq!(Queue::<u64>::worst_case(capacity), Some(120_000_000));
+    assert_eq!(Queue::<u64>::worst_case(capacity), Some(187_108_864));
     let mut metered = Metered::new("Queue", "u64", capacity, Some(1024));
     metered.start();
     let mut queue = Queue::with_capacity(capacity);
@@ -813,4 +813,38 @@ fn an_unused_ring_holds_nothing() {
     assert_eq!(metered.most, 0);
     assert!(queue.is_empty());
     assert!(intake.is_empty());
+}
+
+#[test]
+fn a_queue_filled_to_its_cap_reaches_its_growth_peak() {
+    for (capacity, bound) in [(1000, 12_096), (17, 136), (512, 4096), (513, 8200), (1024, 12_288)] {
+        let mut metered = Metered::new("Queue", "u64", capacity, Queue::<u64>::worst_case(capacity));
+        assert_eq!(metered.bound, bound);
+        metered.start();
+        let mut queue = Queue::with_capacity(capacity);
+        metered.end(());
+        for n in 0..capacity {
+            metered.start();
+            queue.push(u64::from(n));
+            metered.end(());
+        }
+        assert_eq!(metered.most, bound, "filling a queue reaches its priced peak");
+    }
+}
+
+#[test]
+fn an_intake_filled_to_its_cap_reaches_its_growth_peak() {
+    for (capacity, bound) in [(10_000, 18_192), (17, 17), (4096, 4096), (4097, 8193), (8192, 12_288)] {
+        let mut metered = Metered::new("Intake", "u8", capacity, Intake::worst_case(capacity));
+        assert_eq!(metered.bound, bound);
+        metered.start();
+        let mut intake = Intake::with_capacity(capacity);
+        metered.end(());
+        for _ in 0..capacity {
+            metered.start();
+            intake.append(b"a").expect("room under the cap");
+            metered.end(());
+        }
+        assert_eq!(metered.most, bound, "filling an intake reaches its priced peak");
+    }
 }
