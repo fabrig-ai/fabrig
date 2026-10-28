@@ -29,9 +29,10 @@ failure is fixed, and a test's shape.
   clock, the seeds and the kernel, so a seed replays to the same run.
   The real loop trades replay for the real kernel. TLS is not
   deterministic, so the replaying tiers run in plaintext.
-- **End to end, the service runs as it ships.** Above the real loop, its
-  binaries run as processes: against fakes in the focused suite, and
-  against the real backends in a live suite run by choice.
+- **End to end, few tests.** Above the real loop, the binaries run as
+  they ship, as processes, against fakes in the focused suite or the real
+  backends in a live suite run by choice: one test per path through
+  `main` or integration point, never a behaviour a lower tier shows.
 - **Faults everywhere, limits tiny.** Worlds run with capacities small
   enough to reach every admission point, and inject faults in every state,
   drawn from the seed.
@@ -46,10 +47,8 @@ failure is fixed, and a test's shape.
   memory against the worst case, replay, and transition coverage. A
   scenario's own expectations go in a referee.
 - **Focused tests for quick feedback, both suites at the gate.** Focused
-  tests are fast, and serve as quick feedback during development as the
-  agent sees fit. The fuzzy suite is slow, so it is usually left alone
-  during development, or run in part when that helps. The merge gate runs
-  both suites in full.
+  tests are fast feedback during development; the fuzzy suite is slow,
+  left alone or run in part. The merge gate runs both suites in full.
 - **A failure is fixed in the lowest tier that shows it.** skein tests the
   kit and a service tests itself: a failure in a service's world that
   comes from skein is reproduced and fixed in skein's own tier.
