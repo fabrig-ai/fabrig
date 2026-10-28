@@ -1752,48 +1752,31 @@ runs it (section 7).
   jig's store and its KV bounds and the worker wire's ceilings stay as
   they are: a turn's body is a transcript file's, never a KV value, and
   each figure is within its wire field's ceiling.
-- **Its `memory_bytes`** are at least its ceilings, one for the engine and
-  one for the worker: an upper bound with headroom on each worst case,
-  a quarter above it when set and rounded up to two significant digits,
-  moved by hand when a real change passes it and never by a type's size
-  (skein's testing-strategy.md, 6). There are no term figures and no
-  writer. They hold wherever a person lays it and whatever its forge's records
-  hold: each start passes with each string its service's worst case
-  counts, and a person's copy changes,
-  at its bound (configuration.md, section 7, one worst case per
-  service).
-  - The engine's counts the forge's API token, its `ApiToken` record,
-    and its `git` base, a byte for each of theirs: the token at
-    `small`'s `forge_component.token_bytes`, 512, past which the start
-    is refused, and the base at an owned forge's longest, `http://`
-    with a loopback address and a port, `http://127.255.255.254:65535`,
+- **Its `memory_bytes`** are deployment budgets, never declarations of
+  a service's worst case. `engine.memory_bytes` meters the engine's
+  held bytes (`../domain/root.md`, 4.1); no start compares memory with
+  a sum or names a deficit (programming-model.md, 6.3).
+  - The forge's API token is within `small`'s
+    `forge_component.token_bytes`, 512, past which the start is
+    refused; an owned forge's longest `git` base is `http://` with a
+    loopback address and a port, `http://127.255.255.254:65535`,
     28 bytes.
-  - The worker's counts its agent's `program` and the configuration's
-    path among its `arguments`, two bytes for each of theirs with the
-    example's one slot: each at Linux's `PATH_MAX`, 4,096 bytes; and
-    Claude Code's path and programs directory, which the host's half
-    holds to check a program's login (smith's `protocol/programs.md`,
-    section 4), each at the same bound.
-  - Nothing else a copy changes moves either: its directory but for that
-    path, its other addresses and secrets, its logins, emails, binaries
-    and charters, its LLM providers, whose sizes jig's limits bound.
+  - The worker's agent's `program` and the configuration's path among
+    its `arguments` fit Linux's `PATH_MAX`, 4,096 bytes; Claude Code's
+    path and programs directory, which the host's half holds to check
+    a program's login (smith's `protocol/programs.md`, section 4),
+    fit the same bound.
+  - Its other addresses and secrets, logins, emails, binaries and
+    charters, and LLM providers keep jig's limits.
 
   Channel frames and queues use max(the checked credential value bound,
   the 32-byte source name, the generated Identity bound), independently
   on each side; configured keys include jig's 4,096-byte ceiling, and
   workers reserve it without provider declarations. The program paths
   are retained once, separately from the per-slot spawn command paths.
-  `temper-service::startup::memory_requirements` derives both envelopes
-  from startup's checked calculations without starting a service. The
-  owned startup test checks, with these strings at their bounds in
-  service settings, that each worst case is at most its ceiling and each
-  ceiling at most the declaration
-  (`owned_memory_stays_under_its_ceilings`). Separately, it checks that
-  the exact worst case starts and each one-byte deficit is refused at
-  startup, while the startup fit check remains (skein's
-  programming-model.md, 6.3, has none; it goes in one set across the
-  repositories). Artificial paths are never opened. A separate shell
-  test prepares the example with ordinary paths.
+  Startup checks the example's limits with its strings at their bounds,
+  without starting a service. Artificial paths are never opened. A
+  separate shell test prepares the example with ordinary paths.
   Program declarations survive startup; runnable program grants still
   wait for smith's program backend and jig's program sources.
 - **Three loopback addresses,** Forgejo's (`listen`, `127.0.0.1:3000`),
@@ -2025,12 +2008,11 @@ defaults for a person's real work are open (section 16).
   `127.0.0.1:<port>` (8.2).
 - **Its limits:** the owned example's (8.1), but room for its three
   forges: `forge.repositories` and `forge.client.repositories` 3, and
-  `forge.output` 82. Its `memory_bytes` are at least its own ceilings,
-  each at least its worst case, as the owned example's are (8.1;
-  `init_memory_stays_under_its_ceilings`). Its own strings are at their
-  bounds, the fake entry's `git`, which the engine names to the worker,
-  among them; the two literals of `temper-init`'s forgejo-elsewhere/demo
-  document are checked the same way.
+  `forge.output` 82. Its `memory_bytes` are deployment budgets, as the
+  owned example's are (8.1). Startup checks its limits with its strings
+  at their bounds, the fake entry's `git`, which the engine names to
+  the worker, among them; the two literals of `temper-init`'s
+  forgejo-elsewhere/demo document are checked the same way.
 - **`application.demo`,** the demo's (8.4).
 - **Its box's steps:** `temper serve`; the demo's group, the fake LLM,
   forge 1's preparation and its fake, dormant until the person chooses
@@ -3340,12 +3322,6 @@ Each is intended; what it needs is named with it.
   a managed connect; Replace is a connected forge's alone.
 - **The owned example's agent, sized for a person's work.** Default: the
   process tier's profile (8.1), sized for the live tier's stories.
-- **The owned example's `memory_bytes`** are at least its ceilings, each
-  at least `small`'s worst case with its strings at their bounds (8.1).
-  They remain more than any machine has, so the start's check bounds
-  nothing a person's machine holds.
-  Default: as the example states them; which terms of the worst cases
-  make them so large is open (configuration.md, section 11).
 - **The check's decisions** (8.4) are read from rows kept for other
   ends, and two decisions leave none: a change whose pull is replaced
   while `Landing` joins its `Landed` row to the later pull, and an
