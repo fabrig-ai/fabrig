@@ -245,7 +245,7 @@ def check_commands(repo, selected, paths, *, metadata=None):
         scope = ["--workspace"] if selected == "full" else [arg for name in sorted(selected) for arg in ("-p", name)]
         steps.extend([
             ("clippy", ["heavy", "--gate", "cargo", "clippy", *scope, "--all-targets", "--", "-D", "warnings"], repo),
-            ("build", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast", "--no-run"], repo),
+            ("build", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-run"], repo),
             ("default", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast"], repo),
             ("fuzzy", ["heavy", "--gate", "cargo", "nextest", "run", *scope, "--no-fail-fast", "--profile", "fuzzy"], repo),
         ])
