@@ -163,12 +163,9 @@ Expect: on `worker`, the worker's stderr says `linked w1` and the
 engine's address; Forgejo's site administration lists the runner
 online.
 
-If not: a start refused for its memory names by how many bytes its
-whole worst case passes `memory_bytes`, the engine's or a worker's,
-from any value however small: raise it by that once (under the box,
-the figure includes the box's two pipes). A limit below what the
-stock's settings need is refused before any listener opens, naming the
-limit, the setting and the size it needs: `engine.limits.overrides.core.policy_bytes:
+If not: a limit below what the stock's settings need is refused
+before any listener opens, naming the limit, the setting and the size
+it needs: `engine.limits.overrides.core.policy_bytes:
 core.policy_bytes is 100; the stock's policy 1 needs 2390 bytes; raise
 it in engine.limits.overrides`; raise that override and start again.
 
