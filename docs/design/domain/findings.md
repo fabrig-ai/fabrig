@@ -47,8 +47,12 @@ is open is section 10.
   `kind:review`; `severity:low`, `severity:medium` or `severity:high`;
   `area:<name>`, from the project's areas; `state:new`, `state:routed`,
   `state:backlog` or `state:dropped`. A project that turns findings on
-  has temper create the labels in its home, an effect its owners ask
-  for once (`forge.md`, 4: provisioning).
+  has its labels made in its home by temper's own setup, not an effect:
+  once its findings are on and its home adopted, temper writes each
+  label it lacks through the forge client directly, as an adoption's
+  access on a managed Forgejo is the setup's (`forge.md`, 4.2), with no
+  grant; a label that exists counts as made, each retried until made,
+  the progress kept on the project's findings record.
 - **Its body:** the key's marker; the reproduction, from a fresh start;
   the commit it was seen at; its signature, a fenced block of the test
   ids and the failure's first line; and, for a routed one, the goal's
@@ -184,14 +188,12 @@ is open is section 10.
 ## 9. Effects, views and the store
 
 - **Effects:** an issue created with labels (kind 8), an issue's labels
-  set (kind 13, an edit), a comment (kind 7), and, once per project,
-  its labels created (a new kind 18, provisioning: a creation on the
-  repository's lane, recovered as conditional, since the forge refuses
-  a second label of a name, `Exists` counting as made; purpose tag 11,
-  the project and the label's name). skein's
+  set (kind 13, an edit), a comment (kind 7); no kind of its own, since
+  the labels are made by setup (section 2), so no grant grows the
+  stock's authority rows. skein's
   `CreateIssue` takes labels, and `Write::Labels { number, labels }`
   sets an issue's whole set of labels by name, `Write::CreateLabel {
-  name, color }` makes one.
+  name, color }` makes one, `Exists` when the name is taken.
 - **Views and acts** (`../client/tools.md`, a group `finding` and a
   group `qa`): `finding list --project PROJECT [--state STATE]`,
   `finding show FINDING`, `finding route FINDING --goal TASK`, `finding
@@ -200,7 +202,10 @@ is open is section 10.
 - **In the store:** `Finding` (by the home's issue), `Mark` (by
   landing), `QaPass` (by its task), through the baseline's rules.
 - **Settings,** with kind 4: findings on or off; the triager; the
-  chooser; the tester charter; the project's areas.
+  chooser; the tester charter; the project's areas. Until kind 4 is
+  built, in the document's `landing` member, as `by` is (`landing.md`,
+  13.1): `findings`, true or false (false by default), and each
+  repository's `area` beside its gates.
 
 ## 10. Open questions
 

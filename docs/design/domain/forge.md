@@ -274,7 +274,8 @@ temper-engine-domain-forge              the connector's top: resources and holds
   is an optional set of effects a person may ask for, never a step of
   adoption (jig's `domain/connectors.md`, 12). The access a managed or
   owned Forgejo's adoption asks for is the setup host's run, not an
-  effect of the connector's (4.2).
+  effect of the connector's (4.2), and so are the labels a project's
+  findings use (`findings.md`, section 2).
 
 ### 4.1 Connected or not
 
