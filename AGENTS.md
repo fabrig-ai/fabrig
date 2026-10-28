@@ -35,7 +35,7 @@ Provisional, 2026-10-28. What every agent working here must know, whatever its r
 
 - fabrig's clones, slots and scratch live under `~/src/fabrig/` on every machine (slots at `~/src/fabrig/slots/<n>`), nothing above them but this repository's own files.
 - You work in your slot or worktree, on a branch; no git command in anyone else's checkout, and none in a primary checkout, not even `git fetch`.
-- Branches are `<lead>/<task>`; a branch is ready for the queue when pushed as `ready/<lead>/<task>`. A rebased branch is pushed under a new name.
+- One task, one branch, one slot: branches are `<lead>/<task>`, and a lead has as many in flight as it has implementers running; a branch is ready for the queue when pushed as `ready/<lead>/<task>`. A rebased branch is pushed under a new name.
 - Commits are small and say why; the merge queue keeps them as they are.
 - Throwaway code lives untracked in your worktree and is gone before you push; a tool the work lacks is a question, never a script beside it.
 

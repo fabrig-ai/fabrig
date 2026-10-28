@@ -5,6 +5,7 @@ Provisional, 2026-10-28. A lead is a long-lived Claude session for one area (ske
 ## 1. In one page
 
 - **Claude is spent on the code's shape:** layout, names, types, APIs, boundaries, test worlds. Everything else, rebases and conflicts included, is a Codex task.
+- **A lead fans out:** several implementers at once, one task and one slot each, one per crate of the wave (three or four to start, as slots allow); the coordinator assigns its slots.
 - **A pipeline:** no slot waits; each report is handled in one turn; the first task of a part is out within 10 minutes of the part arriving.
 - **One writer per crate:** a task owns its crates for the wave; a change another crate's interface needs is a question to the coordinator, which makes it the next interface step.
 - **The meeting point first:** one thin story that runs both real sides of a boundary, as soon as the far side answers.
