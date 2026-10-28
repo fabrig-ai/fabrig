@@ -735,6 +735,17 @@ follow_state(conn, id, env, timers, down);  // demand and progress deadline, in 
   bound, a frame, a record on disk: each is a function of the limits with
   checked arithmetic (`None` on overflow), and limits that make one
   overflow are refused at startup as invalid.
+- **Each formula is named for what it bounds,** never `worst_case`:
+  - an encoding's most bytes, `encoded_bound` (and `encoded_bound_within`);
+  - what a decoded value may hold, `decoded_bound` (and
+    `decoded_bound_within`);
+  - any other edge (a document, a fragment, a frame, a decoder's
+    workspace), its name and `_bound`: `document_bound`, `decoder_bound`;
+  - a check that limits are representable, `valid(limits) -> bool`,
+    computed from the edge bounds alone;
+  - a price charged at admission against a budget (a result's credit, a
+    stored row, a container's allocation), its name and `_price`:
+    `result_price`, `List::price(capacity)`.
 - **The heap is measured, under ceilings.** In the simulator a counting
   allocator checks at every iteration that each fixed scenario's peak
   stays under its ceiling: an upper bound with headroom, named beside its
