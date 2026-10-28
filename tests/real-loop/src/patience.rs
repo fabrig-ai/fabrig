@@ -2,25 +2,33 @@
 use crate::{calls::Caller, world::Proc};
 use skein_lib::{Duration, Time};
 use skein_shell::Host;
-use skein_world::Referee;
+use skein_world::{Controls, Referee};
 use std::fmt::Write;
 
 #[derive(Debug)]
 pub(crate) struct Patience {
+    limit: Duration,
     after: Duration,
     deadline: Time,
     report: Option<String>,
+    deferred: bool,
 }
 impl Patience {
     pub(crate) fn new(patience: Duration) -> Self {
         let margin = Duration::from_secs(1);
         let after = patience.as_nanos().checked_sub(margin.as_nanos()).expect("patience exceeds diagnostic margin");
         assert!(after > 0, "a positive diagnostic window");
-        Self { after: Duration::from_nanos(after), deadline: Time::ZERO, report: None }
+        Self {
+            limit: patience,
+            after: Duration::from_nanos(after),
+            deadline: Time::ZERO,
+            report: None,
+            deferred: false,
+        }
     }
     /// The first act uses the same pass clock as the world, after all fixture admission.
     pub(crate) fn due(&mut self, now: Time) -> bool {
-        if now < self.deadline {
+        if self.deferred || now < self.deadline {
             return false;
         }
         if self.deadline == Time::ZERO {
@@ -29,8 +37,20 @@ impl Patience {
         }
         true
     }
+    /// Read scheduler accounting only when the early diagnostic falls due.
+    pub(crate) fn due_in_world(&mut self, now: Time, controls: &Controls) -> bool {
+        self.due(now) && !self.defer_if_starved(controls.runnable_wait(), std::env::var_os("NEXTEST").is_some())
+    }
+    /// Leave starvation classification and forced cleanup to the world's own
+    /// patience. The threshold uses the full patience, not our diagnostic margin.
+    fn defer_if_starved(&mut self, waited: Option<Duration>, nextest: bool) -> bool {
+        if nextest && waited.is_some_and(|waited| waited.as_nanos() >= self.limit.as_nanos().div_ceil(2)) {
+            self.deferred = true;
+        }
+        self.deferred
+    }
     pub(crate) fn deadline(&self) -> Option<Time> {
-        (self.deadline != Time::ZERO).then_some(self.deadline)
+        (!self.deferred && self.deadline != Time::ZERO).then_some(self.deadline)
     }
     pub(crate) fn capture(&mut self, report: String) {
         self.report = Some(report);
@@ -253,6 +273,56 @@ mod tests {
         assert!(first.contains("step=0 call=Some(0)"), "{first}");
         assert!(first.contains("argv=[\"wait\", \"task\", \"3\", \"--until\", \"ended\"]"), "{first}");
         assert!(first.contains("waits_for=ctl response and exit: wait task 3 --until ended"), "{first}");
+    }
+
+    // A 20-second world, with the one-second diagnostic margin and a nonzero origin.
+    const START: Time = Time::from_nanos(7);
+    const EARLY: Time = Time::from_nanos(19_000_000_007);
+    const LIMIT: Time = Time::from_nanos(20_000_000_007);
+
+    fn armed_guard() -> Patience {
+        let mut guard = Patience::new(Duration::from_secs(20));
+        let _armed = guard.due(START);
+        guard
+    }
+
+    #[test]
+    fn a_starved_loop_leaves_both_deadline_moments_to_the_world() {
+        let mut guard = armed_guard();
+        assert!(guard.due(EARLY));
+        assert!(guard.defer_if_starved(Some(Duration::from_secs(10)), true));
+        for now in [EARLY, LIMIT] {
+            assert!(!guard.due(now), "the world's patience owns the starved verdict");
+            assert_eq!(guard.deadline(), None, "the early deadline cannot keep waking the loop");
+            assert_eq!(guard.overdue(), None);
+        }
+    }
+
+    #[test]
+    fn idle_and_spinning_loops_keep_the_early_diagnostic() {
+        for waited in [None, Some(Duration::ZERO), Some(Duration::from_nanos(9_999_999_999))] {
+            let mut guard = armed_guard();
+            assert!(guard.due(EARLY));
+            assert!(!guard.defer_if_starved(waited, true));
+            guard.capture("held service component".into());
+            assert_eq!(guard.deadline(), Some(EARLY));
+            assert!(guard.due(LIMIT));
+            let judge = Judge { patience: guard };
+            let error = std::panic::catch_unwind(|| fail_overdue::<Frozen, _>(&judge, EARLY))
+                .expect_err("a non-starved loop still fails before patience");
+            let message = error.downcast_ref::<String>().expect("formatted early diagnostic");
+            assert!(message.contains("the referee failed the real loop before patience"), "{message}");
+            assert!(message.contains("held service component"), "{message}");
+        }
+    }
+
+    #[test]
+    fn starvation_outside_nextest_keeps_the_early_deadline() {
+        let mut guard = armed_guard();
+        assert!(guard.due(EARLY));
+        assert!(!guard.defer_if_starved(Some(Duration::from_secs(10)), false));
+        assert_eq!(guard.deadline(), Some(EARLY));
+        assert!(guard.due(LIMIT));
     }
 
     #[test]

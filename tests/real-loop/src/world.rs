@@ -649,7 +649,7 @@ impl Judge {
 }
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        if self.patience.due(now) {
+        if self.patience.due_in_world(now, &self.controls) {
             let report = self.describe_pending(now, procs);
             self.patience.capture(report);
             crate::patience::fail_overdue::<Proc, _>(self, now);
