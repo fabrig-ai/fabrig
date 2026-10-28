@@ -369,6 +369,181 @@ fn a_procedures_new_delegates_are_held_in_their_creation_commit() {
     placed(&w, 2, 100);
 }
 
+// One root, two procedure delegates, one placed stop over the tree.
+const PROCEDURE_ROOT: u64 = 1;
+const PROCEDURES: [u64; 2] = [2, 3];
+const PROCEDURE_OWNER: Party = Party::Person(1);
+const PROCEDURE_HOLD: u64 = 100;
+const PROCEDURE_SEED: u64 = 926;
+// Each fixture procedure has already committed its first, waiting step.
+const WAITING_STEP: u64 = 1;
+const RELEASE_STEP_REQUESTS: u32 = 1;
+
+fn idle_procedures() -> World {
+    let mut w = World::new(PROCEDURE_SEED, LIMITS);
+    w.make(PROCEDURE_OWNER, vec![task(PROCEDURE_ROOT, &[])]);
+    let procedures = PROCEDURES
+        .map(|number| {
+            let mut procedure = task(number, &[]);
+            procedure.executor = tasks::Executor::Procedure { connector: 1, code: 1 };
+            procedure
+        })
+        .to_vec();
+    w.make(Party::Task(PROCEDURE_ROOT), procedures);
+    for number in PROCEDURES {
+        let reply_to = w.to();
+        w.send(Event::Procedure {
+            reply_to,
+            task: number,
+            step: WAITING_STEP,
+            read: None,
+            decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
+        });
+    }
+    w
+}
+
+fn stopped_procedures() -> World {
+    let mut w = idle_procedures();
+    stop(&mut w, PROCEDURE_ROOT, 1, PROCEDURE_HOLD);
+    w
+}
+
+fn release_event(w: &mut World, task: u64) -> Event {
+    Event::Control {
+        reply_to: w.to(),
+        by: PROCEDURE_OWNER,
+        task,
+        control: Control::Release { again: None, message: None },
+    }
+}
+
+fn steps_in_commit(w: &mut World, event: Event, procedures: &[u64]) {
+    let before: Vec<_> = procedures.iter().map(|number| w.activations(*number)).collect();
+    w.stage(event);
+    for (number, count) in procedures.iter().zip(&before) {
+        assert_eq!(w.activations(*number), *count, "no step before the release commits");
+    }
+    w.durable();
+    for (number, count) in procedures.iter().zip(&before) {
+        due(w, *number);
+        assert_eq!(w.activations(*number), *count, "the commit precedes executor delivery");
+    }
+    w.deliver();
+    for (number, count) in procedures.iter().zip(&before) {
+        assert_eq!(w.activations(*number), count + RELEASE_STEP_REQUESTS, "one step from this release");
+        let context = &w.contexts[number];
+        assert_eq!(w.record(*number).due_reason, tasks::Why::Released);
+        assert_eq!(context.previous_attempt, WAITING_STEP);
+    }
+}
+
+#[test]
+fn a_procedure_released_from_a_placed_hold_steps_in_the_release_commit() {
+    let mut w = stopped_procedures();
+    let procedure = PROCEDURES[0];
+    w.send(Event::WakeProcedure { task: procedure });
+    let event = release_event(&mut w, procedure);
+    steps_in_commit(&mut w, event, &[procedure]);
+    placed(&w, PROCEDURES[1], PROCEDURE_HOLD);
+}
+
+#[test]
+fn a_procedure_released_with_no_wake_while_held_steps_too() {
+    let mut w = stopped_procedures();
+    let procedure = PROCEDURES[0];
+    let event = release_event(&mut w, procedure);
+    steps_in_commit(&mut w, event, &[procedure]);
+}
+
+#[test]
+fn lifting_a_placed_hold_with_its_tasks_steps_each_released_procedure() {
+    let mut w = stopped_procedures();
+    let event =
+        Event::Lift { reply_to: w.to(), by: PROCEDURE_OWNER, hold: PROCEDURE_HOLD, revision: 1, with_tasks: true };
+    steps_in_commit(&mut w, event, &PROCEDURES);
+    assert!(w.placed_hold(PROCEDURE_HOLD).is_none());
+}
+
+#[test]
+fn releasing_a_stopped_root_steps_its_procedure_delegates() {
+    let mut w = stopped_procedures();
+    let event = release_event(&mut w, PROCEDURE_ROOT);
+    steps_in_commit(&mut w, event, &PROCEDURES);
+    assert!(w.placed_hold(PROCEDURE_HOLD).is_none());
+}
+
+#[test]
+fn a_procedure_released_from_a_cause_steps_as_a_placed_release_does() {
+    let procedure = PROCEDURES[0];
+    let mut cause = idle_procedures();
+    cause.send(Event::Hold { task: procedure, why: Hold::Procedure });
+    let event = release_event(&mut cause, procedure);
+    steps_in_commit(&mut cause, event, &[procedure]);
+    let mut placed = stopped_procedures();
+    let event = release_event(&mut placed, procedure);
+    steps_in_commit(&mut placed, event, &[procedure]);
+    assert_eq!(cause.contexts[&procedure], placed.contexts[&procedure], "both releases emit the same step");
+}
+
+#[test]
+fn placed_releases_match_cause_releases_for_agents_and_people() {
+    const RELEASED_TASK: u64 = 1;
+    const AGENT: tasks::Executor = tasks::Executor::Agent { charter: 1 };
+    const PERSON: tasks::Executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
+    // An agent is activated once; a person needs no executor request.
+    const CASES: [(tasks::Executor, u32); 2] = [(AGENT, 1), (PERSON, 0)];
+    for (executor, requests) in CASES {
+        let mut cause = World::new(PROCEDURE_SEED, LIMITS);
+        let mut placed = World::new(PROCEDURE_SEED, LIMITS);
+        for w in [&mut cause, &mut placed] {
+            let mut new = task(RELEASED_TASK, &[]);
+            new.executor = executor;
+            w.make(PROCEDURE_OWNER, vec![new]);
+        }
+        cause.send(Event::Hold { task: RELEASED_TASK, why: Hold::Stopped });
+        stop(&mut placed, RELEASED_TASK, 1, PROCEDURE_HOLD);
+        for w in [&mut cause, &mut placed] {
+            let before = w.activations(RELEASED_TASK);
+            release_from(w, PROCEDURE_OWNER, RELEASED_TASK);
+            due(w, RELEASED_TASK);
+            assert_eq!(w.activations(RELEASED_TASK), before + requests, "{executor:?}");
+        }
+        assert_eq!(cause.contexts, placed.contexts, "{executor:?}");
+    }
+}
+
+#[test]
+fn accepting_a_placed_release_proposal_steps_the_procedures_in_its_commit() {
+    const PROPOSAL: u64 = 102;
+    const ACCEPTANCE_MESSAGE: u64 = 104;
+    let mut w = stopped_procedures();
+    let proposer = PROCEDURES[0];
+    let reply_to = w.to();
+    w.send(Event::Propose {
+        reply_to,
+        proposal: Proposal {
+            number: PROPOSAL,
+            proposer,
+            project: 1,
+            action: ProposalAction::ReleasePlaced { task: PROCEDURE_ROOT, hold: PROCEDURE_HOLD, revision: 1 },
+            reason: Box::new([]),
+            as_holder: false,
+            state: ProposalState::Pending { holder: ProposalHolder::Person(1), since: w.env.wall },
+        },
+    });
+    let event = Event::DecideProposal {
+        reply_to: w.to(),
+        proposer,
+        proposal: PROPOSAL,
+        message: Some(ACCEPTANCE_MESSAGE),
+        by: PROCEDURE_OWNER,
+        decision: tasks::ProposalDecision::Accept,
+    };
+    steps_in_commit(&mut w, event, &PROCEDURES);
+    assert!(w.placed_hold(PROCEDURE_HOLD).is_none());
+}
+
 #[test]
 fn releasing_a_stopped_root_keeps_a_delegates_failure_and_escalation() {
     let mut w = World::new(916, LIMITS);
