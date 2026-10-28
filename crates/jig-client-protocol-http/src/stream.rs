@@ -84,6 +84,7 @@ impl Stream {
             self.comment = false;
         }
         sse::up(&mut self.reader, &self.env, Up::Bytes(bytes::copy_of(piece)), &mut self.above, &mut self.below);
+        // A demand may emit the next event from this line's buffered bytes, so the drain ends with the line.
         while let Some(event) = self.above.pop() {
             match event {
                 sse::Event::Opened => self.data(),

@@ -454,6 +454,8 @@ impl Client {
     }
     fn drain(&mut self, env: &Env<DomainLimits>, out: &mut Queue<Request>) {
         self.prune_reads();
+        // Link and domain outputs answer each other within this step; the routed event's bounded
+        // fan-out ends this settle (client_settled below).
         loop {
             // link_requests_dispatched: route the link's consequences before the next domain request.
             if let Some(request) = self.link_out.pop() {
