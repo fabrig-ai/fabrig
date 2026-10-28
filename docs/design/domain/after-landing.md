@@ -95,10 +95,14 @@ keeps them in its own record. What is still open is section 13.
 - **Faults** (`landing.md`, 7.4's): rerun, then dispatched again, up to
   the project's `tier_retries`; one past its bound holds the tier's run
   task, whose escalation reaches the project's escalation role (jig's
-  `domain/tasks.md`, section 9), its hold naming the tier, the run, its
-  faults and the last one; the tier waits for a person's release, which
-  dispatches the run again with its faults counted from 0, its
-  landings still verifying.
+  `domain/tasks.md`, section 9). A jig hold carries no words of its
+  own, so the run says why where it can: the held task's words name
+  the tier and the run (`Tier NAME run N`), and before it is held the
+  run posts the tier's verdict status on its tip as pending, `held
+  after N runner faults, last: KIND`, linked to the last run (section
+  9). The tier waits for a person's release, which dispatches the run
+  again with its faults counted from 0, its landings still verifying;
+  its verdict replaces that status.
 
 ## 4. What a run reports
 
@@ -221,7 +225,8 @@ red by earlier failures it does not run (5.3).
 
 - **A verdict's status** on the run's tip, `temper/verdict/<tier>`:
   success for green, failure for red with the blamed tests counted in
-  its description, its link the run.
+  its description, its link the run; pending while the tier is held on
+  its faults (section 3), saying so.
 - **A comment on each member's pull request,** once per tier verdict:
   "cleared by run N", or "red: tests X, Y" and, once one lands, "repaired
   by #M". Keyed, as every comment of temper's (`forge.md`, section 6).
@@ -321,3 +326,6 @@ with failing tests by id and uploading their artifacts:
   uncleared on its own judgement before the bound.
 - **Tiers on the forge's runners or on workers:** both are allowed by
   the draft; the forge's runners here, workers once a worker runs jobs.
+- **A hold's own words:** a bounded explanation on jig's hold, so that
+  a held task says why in temper's views and its escalation, not only
+  on the forge's status; a jig interface of its own.
