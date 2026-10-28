@@ -89,4 +89,6 @@ default that changed.
   limits.
 - The providers, models, forges, listeners, workers and limits are not
   settings: they are the configuration document's, read at a start, and
-  a change to them needs a restart.
+  a change to them needs a restart. Its limits must hold the stock's
+  settings: a start refuses one that does not, and another model or a
+  release with new stock can move what they need.

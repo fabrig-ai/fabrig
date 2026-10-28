@@ -166,7 +166,11 @@ online.
 If not: a start refused for its memory names by how many bytes its
 whole worst case passes `memory_bytes`, the engine's or a worker's,
 from any value however small: raise it by that once (under the box,
-the figure includes the box's two pipes).
+the figure includes the box's two pipes). A limit below what the
+stock's settings need is refused before any listener opens, naming the
+limit, the setting and the size it needs: `engine.limits.overrides.core.policy_bytes:
+core.policy_bytes is 100; the stock's policy 1 needs 2390 bytes; raise
+it in engine.limits.overrides`; raise that override and start again.
 
 ## 6. Sign in, through a tunnel
 

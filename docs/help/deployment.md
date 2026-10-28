@@ -84,8 +84,10 @@ temper ctl settings apply`.
 - **A refused start says why:** its line names the member or file at
   fault, such as a secret file readable by others, or what reading the
   stored state back refused: `temper serve: restore KIND: REASON` or
-  `temper serve: restart refused during STEP`. A configuration refused
-  changes nothing; a stored state refused is a finding: keep `DATA` as
+  `temper serve: restart refused during STEP`. A limit below the
+  stock's needs is refused naming the override to raise and the size
+  the stock's setting needs, before the store is read. A configuration
+  refused changes nothing; a stored state refused is a finding: keep `DATA` as
   it is and report the line.
 
 ## Acting on it
