@@ -302,8 +302,12 @@ the engine's messages to the client as they come.
   two tabs or a page and the page that follows it, hold two. The engine
   never refuses or ends a stream for another stream of its sign-in:
   streams are bounded in all, by the component and by the transport
-  (section 13), and an opening past either bound is refused, which the
-  client takes as a dropped stream.
+  (section 13), and an opening past either bound is refused as full,
+  naming the bound reached and its size: the client keeps trying by its
+  backoffs, as for a dropped stream, since a stream may free, and tells
+  its caller the streams are full as it does, so a caller whose own
+  deadline passes meanwhile is answered full, naming the bound, never
+  a silent timeout.
 - **The predecessor's stream is sent gone.** A page that was left, or a
   process that died, may hold its stream, and its watches their places
   in the party's room, until the engine sees the stream's connection
@@ -1125,8 +1129,9 @@ prefix; jig's test application mounts it at `/jig`.
   skein's server-sent events reader cuts it into events, each decoded
   from base64 into a `Streamed` message. A `401` to its `GET` is the
   stream refused signed out, the engine end's `StreamEnded` signed out
-  before the stream opened (4.2); any other status but `200`, the
-  body's end, or a failure, is `StreamGone`.
+  before the stream opened (4.2); a `409` whose body names a bound is
+  the stream refused full (section 4), told to its caller; any other
+  status but `200`, the body's end, or a failure, is `StreamGone`.
 
 ### 17.3 The credential
 
