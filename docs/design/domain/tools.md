@@ -454,6 +454,16 @@ families, and this domain checks each call before it runs.
 
   A call that breaks a rule is denied, with the rule in words, as an
   invalid call is answered here.
+- **What it learns there:** the versions read, which this domain's own
+  tools that still serve a program (`remove`, served by the agent's own
+  server) need. Allowing a `Read` of a whole file, with no offset or
+  limit, records the file's version at that moment as read, as this
+  domain's `read` does; a partial read records nothing, so `remove`
+  refuses the file as unread and says to read it whole; a `Write` or an
+  `Edit` allowed on a file records the version it leaves once its
+  result is told, as a version the session wrote counts as read. The
+  workspace is the session's alone, so nothing moves a file between the
+  allowance and the read.
 - **What does not:**
   - one path namespace: the program sees its working directory and the
     paths of the directories beside it as its view mounts them
