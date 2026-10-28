@@ -1,5 +1,6 @@
 """Queue policy and effects against disposable local repositories; no real posts."""
 
+import argparse
 from contextlib import redirect_stderr, redirect_stdout
 import importlib.machinery
 import importlib.util
@@ -11,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 DIRECTORY = Path(__file__).resolve().parent
@@ -20,6 +21,125 @@ LOADER = importlib.machinery.SourceFileLoader("mq", str(DIRECTORY / "mq"))
 SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
 mq = importlib.util.module_from_spec(SPEC)
 LOADER.exec_module(mq)
+RESTART_LOADER = importlib.machinery.SourceFileLoader("restart", str(DIRECTORY / "restart"))
+RESTART_SPEC = importlib.util.spec_from_loader(RESTART_LOADER.name, RESTART_LOADER)
+restart = importlib.util.module_from_spec(RESTART_SPEC)
+RESTART_LOADER.exec_module(restart)
+
+
+class StartupTests(unittest.TestCase):
+    def test_missing_path_tools_refuse_before_any_effect(self):
+        for module, argv in ((mq, ["mq", "run"]), (restart, ["restart"])):
+            for missing in ("cargo", "heavy", "post", "git"):
+                with self.subTest(module=module.__name__, missing=missing):
+                    errors = io.StringIO()
+                    with patch.object(sys, "argv", argv), redirect_stderr(errors), \
+                            patch.object(module.shutil, "which", side_effect=lambda name: (
+                                None if name == missing else "/fake/" + name)), \
+                            patch.object(subprocess, "run") as run:
+                        self.assertEqual(module.main(), 2)
+                    self.assertIn(f"missing {missing}", errors.getvalue())
+                    self.assertIn("bash -lc", errors.getvalue())
+                    run.assert_not_called()
+
+
+class RestartTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(dir=ROOT, prefix=".restart-test-")
+        self.addCleanup(self.temporary.cleanup)
+        self.home = Path(self.temporary.name)
+        self.repo = self.home / "src/fabrig/queue"
+        self.repo.mkdir(parents=True)
+        self.stop = self.home / "src/fabrig/queue.stop"
+
+    def run_restart(self, *, ready=True, returncode=None):
+        calls = []
+
+        def command(argv, repo):
+            calls.append(argv)
+            if argv[1] in ("fetch", "switch"):
+                self.assertTrue(self.stop.exists())
+            return str(repo) if "--show-toplevel" in argv else "main-commit"
+
+        def launch(argv, **kwargs):
+            self.assertFalse(self.stop.exists())
+            self.assertEqual(argv, ["python3", "-u", "tools/queue/mq", "run", "--repo", str(self.repo)])
+            self.assertEqual(kwargs["cwd"], self.repo)
+            self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
+            self.assertTrue(kwargs["start_new_session"])
+            self.assertIs(kwargs["stdout"], kwargs["stderr"])
+            kwargs["stdout"].write("new output\n")
+            return Mock(pid=42, returncode=returncode, poll=lambda: returncode)
+
+        close_fd = os.close
+        with patch.object(restart, "command", side_effect=command), \
+                patch.object(restart, "queue_pid", return_value=41), \
+                patch.object(os, "pidfd_open", return_value=123), \
+                patch.object(os, "close", side_effect=lambda fd: None if fd == 123 else close_fd(fd)) as close, \
+                patch.object(restart.select, "select", return_value=([123] if ready else [], [], [])), \
+                patch.object(subprocess, "Popen", side_effect=launch) as popen, \
+                patch.object(restart.time, "sleep") as sleep, redirect_stdout(io.StringIO()) as output:
+            restart.restart(self.repo, 10, self.home)
+        close.assert_any_call(123)
+        sleep.assert_called_once_with(3)
+        popen.assert_called_once()
+        return calls, output.getvalue()
+
+    def test_restart_waits_updates_detaches_and_appends(self):
+        output = self.home / "src/fabrig/notes/queue.out"
+        output.parent.mkdir()
+        output.write_text("old output\n")
+        calls, printed = self.run_restart()
+        self.assertEqual(calls, [["git", "rev-parse", "--show-toplevel"], ["git", "fetch", "origin"],
+                                 ["git", "switch", "--detach", "origin/main"],
+                                 ["git", "rev-parse", "HEAD"]])
+        self.assertEqual(output.read_text(), "old output\nnew output\n")
+        self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+        self.assertIn("pid 41", printed)
+        self.assertIn("pid 42, main main-commit", printed)
+
+    def test_timeout_retains_stop_and_does_not_update(self):
+        with self.assertRaisesRegex(RuntimeError, "timed out"):
+            self.run_restart(ready=False)
+        self.assertTrue(self.stop.exists())
+
+    def test_child_early_exit_reports_log(self):
+        with self.assertRaisesRegex(RuntimeError, "exited 2.*queue.out"):
+            self.run_restart(returncode=2)
+
+    def test_failed_update_retains_stop_and_does_not_spawn(self):
+        with patch.object(restart, "command", side_effect=[str(self.repo), RuntimeError("fetch failed")]), \
+                patch.object(restart, "queue_pid", return_value=41), \
+                patch.object(os, "pidfd_open", side_effect=ProcessLookupError), \
+                patch.object(subprocess, "Popen") as popen, redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(RuntimeError, "fetch failed"):
+                restart.restart(self.repo, 10, self.home)
+        self.assertTrue(self.stop.exists())
+        popen.assert_not_called()
+
+    def test_lock_holder_is_preferred_to_pgrep(self):
+        lock = self.repo.with_name("queue.queue.lock")
+        lock.touch()
+        info = lock.stat()
+        record = f"1: FLOCK ADVISORY WRITE 41 {os.major(info.st_dev):x}:{os.minor(info.st_dev):x}:{info.st_ino} 0 EOF\n"
+        with patch.object(Path, "read_text", return_value=record), patch.object(subprocess, "run") as run:
+            self.assertEqual(restart.queue_pid(self.repo), 41)
+        run.assert_not_called()
+
+    def test_fallback_requires_exactly_one_process(self):
+        for output, expected in (("", None), ("41\n42\n", None), ("41\n", 41)):
+            with self.subTest(output=output), patch.object(subprocess, "run", return_value=(
+                    subprocess.CompletedProcess([], 0 if output else 1, output, ""))):
+                if expected is None:
+                    with self.assertRaisesRegex(RuntimeError, "exactly one"):
+                        restart.queue_pid(self.repo)
+                else:
+                    self.assertEqual(restart.queue_pid(self.repo), expected)
+
+    def test_wait_rejects_negative_and_nonfinite_values(self):
+        for value in ("-1", "inf", "nan"):
+            with self.subTest(value=value), self.assertRaises(argparse.ArgumentTypeError):
+                restart.seconds(value)
 
 
 def metadata(root=Path("/workspace")):

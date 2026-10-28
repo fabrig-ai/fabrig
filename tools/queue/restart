@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Stop, update, and detach one queue (tools/queue/design.md, 3.7)."""
+
+import argparse
+import os
+from pathlib import Path
+import select
+import shutil
+import subprocess
+import sys
+import time
+
+
+def command(argv, repo):
+    return subprocess.run(argv, cwd=repo, stdin=subprocess.DEVNULL, text=True,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout.strip()
+
+
+def queue_pid(repo):
+    """Prefer the queue flock's holder; fall back to exactly one mq run."""
+    lock = repo.with_name(repo.name + ".queue.lock")
+    if lock.exists():
+        info = lock.stat()
+        holders = set()
+        for line in Path("/proc/locks").read_text().splitlines():
+            fields = line.split()
+            if len(fields) < 6 or fields[1] != "FLOCK":
+                continue
+            major, minor, inode = fields[5].split(":")
+            if (int(major, 16), int(minor, 16), int(inode)) == (
+                    os.major(info.st_dev), os.minor(info.st_dev), info.st_ino):
+                holders.add(int(fields[4]))
+        if len(holders) == 1 and next(iter(holders)) > 0:
+            return holders.pop()
+        if holders:
+            raise RuntimeError(f"expected one queue lock holder, found {sorted(holders)}")
+    pattern = r"(^|[[:space:]])([^[:space:]]*/)?tools/queue/mq[[:space:]]+run([[:space:]]|$)"
+    result = subprocess.run(["pgrep", "-f", pattern], stdin=subprocess.DEVNULL,
+                            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode not in (0, 1):
+        raise RuntimeError(f"pgrep failed: {result.stderr.strip()}")
+    pids = [int(pid) for pid in result.stdout.split()]
+    if len(pids) != 1:
+        raise RuntimeError(f"expected exactly one mq run, found {pids}")
+    return pids[0]
+
+
+def restart(repo, wait, home):
+    if command(["git", "rev-parse", "--show-toplevel"], repo) != str(repo):
+        raise RuntimeError("--repo must name the checkout root")
+    pid = queue_pid(repo)
+    # A pidfd follows this process even if the kernel later reuses its pid.
+    try:
+        process_fd = os.pidfd_open(pid)
+    except ProcessLookupError:
+        process_fd = None
+    stop = home / "src/fabrig/queue.stop"
+    stop.touch(mode=0o600)
+    print(f"waiting up to {wait:g}s for mq run pid {pid}; stop file {stop}", flush=True)
+    if process_fd is not None:
+        try:
+            if not select.select([process_fd], [], [], wait)[0]:
+                raise RuntimeError(f"timed out waiting for mq run pid {pid}; stop file retained")
+        finally:
+            os.close(process_fd)
+    command(["git", "fetch", "origin"], repo)
+    command(["git", "switch", "--detach", "origin/main"], repo)
+    commit = command(["git", "rev-parse", "HEAD"], repo)
+    stop.unlink()
+    output = home / "src/fabrig/notes/queue.out"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("a") as log:
+        os.chmod(output, 0o600)
+        child = subprocess.Popen(["python3", "-u", "tools/queue/mq", "run", "--repo", str(repo)],
+                                 cwd=repo, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                 start_new_session=True)
+    time.sleep(3)
+    if child.poll() is not None:
+        raise RuntimeError(f"mq run exited {child.returncode}; see {output}")
+    print(f"mq run pid {child.pid}, main {commit}; output {output}")
+
+
+def seconds(value):
+    number = float(value)
+    if not 0 <= number < float("inf"):
+        raise argparse.ArgumentTypeError("must be a finite nonnegative number")
+    return number
+
+
+def main():
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, default=Path.cwd())
+    parser.add_argument("--wait", type=seconds, default=1800)
+    args = parser.parse_args()
+    for name in ("cargo", "heavy", "post", "git"):
+        if shutil.which(name) is None:
+            print(f"restart: missing {name} on PATH; invoke from bash -lc", file=sys.stderr)
+            return 2
+    try:
+        restart(args.repo.expanduser().resolve(), args.wait, Path.home())
+        return 0
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        print(f"restart: {error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
