@@ -463,8 +463,7 @@ process, compose the chain, run the startup checks, and sum the worst
 cases (section 5). Each holds its profiles as step code (README.md,
 section 5).
 
-**Admission by a watermark** (skein's draft/dynamic-memory.md 4, the
-stab of 10-28). The queues between the service's own children (the
+**Admission by a watermark** (skein's programming-model.md, 7.1). The queues between the service's own children (the
 domain's events and requests, the LLM's, the machine's, IO's and the
 file driver's) are uncapped: no child reserves room in another, and
 startup no longer asks `queue` to hold any child's largest output. Two
@@ -479,7 +478,13 @@ table, the kernel's queue). `queue` also bounds each drain's work per
 iteration. One order the room checks used to impose is stated instead:
 a domain entrance (a resume, an event, a timer) waits until the
 previous entrance's requests have been dispatched, so its facts never
-overtake the turn they follow.
+overtake the turn they follow; and a domain entrance waits until the
+previous one's facts have reached the event sinks (`has_facts`). The
+domain's facts queue is uncapped, so that wait is the facts' only bound,
+and the domain events it holds meanwhile fill the backlog. The children
+below (the domain, the inline agent, the host domain) reserve no room
+for their own children; each exposes `backlog()` for the root above it,
+and only the service has a watermark.
 
 ### 3.9 A window's room
 
