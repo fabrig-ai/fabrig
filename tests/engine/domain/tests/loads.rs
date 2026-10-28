@@ -206,16 +206,16 @@ fn byte_cut_keeps_the_whole_prefix_and_reports_exact_omissions_and_resume_cursor
 
 #[test]
 fn store_terminals_are_taken_while_the_commit_barrier_has_no_admission_room() {
-    let limits = skein_lib::JournalLimits { commits: 3, writes: 1, held: 3, now: 1, release: 1 };
-    let room = skein_lib::JournalRoom { writes: 1, held: 1 };
-    let mut journal = skein_lib::Journal::<u32, u32>::new(&limits);
-    for turn in 1..=3 {
-        let mut decision = journal.decision(&room).expect("one admitted decision");
+    // The root's three-commit fixture watermark; held outputs also count.
+    const WATERMARK: u64 = 3;
+    let mut journal = skein_lib::Journal::<u32, u32>::uncapped(1, 0);
+    for turn in 1..=u32::try_from(WATERMARK).expect("small watermark") {
+        let mut decision = journal.decide();
         decision.write(turn).expect("one bounded write");
         decision.hold(turn).expect("one bounded output");
         journal.accept(decision);
     }
-    assert!(!journal.takes(&room));
+    assert!(journal.backlog() >= WATERMARK);
     let mut loads = Loads::new(&LIMITS);
     let mut out = Queue::with_capacity(1);
     let owner = begin(&mut loads, None, 1, &mut out);

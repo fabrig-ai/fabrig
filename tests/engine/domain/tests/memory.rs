@@ -123,9 +123,9 @@ fn partial_delivery_transfer_never_allocates_a_second_shrinking_container() {
     };
     let mut out = Queue::<Output>::with_capacity(1);
     let meter = Meter::new();
-    let mut journal = Journal::from_durable(&root::journal_limits(&limits), HEADER.commits);
+    let mut journal = Journal::uncapped(1, HEADER.commits);
     let mut counters = Counters::new(HEADER);
-    let mut decision = Decision::new(&limits);
+    let mut decision = Decision::decide(&mut journal, &limits);
     for task in 1_u64..1000 {
         decision
             .deliver(
@@ -138,7 +138,7 @@ fn partial_delivery_transfer_never_allocates_a_second_shrinking_container() {
             .expect("partial delivery bound");
     }
     meter.start();
-    root::accept(&mut journal, &mut counters, &limits, decision, &mut out).expect("reserved whole decision");
+    root::accept(&mut journal, &mut counters, &limits, decision, &mut out).expect("opened whole decision");
     let measured = meter.end();
     assert!(out.is_empty(), "clean header and no writes");
     meter.check(measured, root::journal_worst_case(&limits).expect("valid bounds"), &limits);
@@ -158,9 +158,9 @@ fn partial_write_transfer_moves_values_without_shrinking_the_source() {
     };
     let mut out = Queue::<Output>::with_capacity(1);
     let meter = Meter::new();
-    let mut journal = Journal::from_durable(&root::journal_limits(&limits), HEADER.commits);
+    let mut journal = Journal::uncapped(1, HEADER.commits);
     let mut counters = Counters::new(HEADER);
-    let mut decision = Decision::new(&limits);
+    let mut decision = Decision::decide(&mut journal, &limits);
     for turn in 1_u32..127 {
         decision
             .write(
@@ -181,7 +181,7 @@ fn partial_write_transfer_moves_values_without_shrinking_the_source() {
             .expect("partial write bound");
     }
     meter.start();
-    root::accept(&mut journal, &mut counters, &limits, decision, &mut out).expect("reserved whole decision");
+    root::accept(&mut journal, &mut counters, &limits, decision, &mut out).expect("opened whole decision");
     let measured = meter.end();
     let Output::Commit { writes, .. } = out.pop().expect("one commit") else {
         panic!("commit");
@@ -195,12 +195,12 @@ fn partial_write_transfer_moves_values_without_shrinking_the_source() {
 fn full_decisions_and_maximum_held_results_fit_the_declared_root_journal_bound() {
     let mut out = Queue::<Output>::with_capacity(1);
     let meter = Meter::new();
-    let mut journal = Journal::from_durable(&root::journal_limits(&LIMITS), HEADER.commits);
+    let mut journal = Journal::uncapped(1, HEADER.commits);
     let mut counters = Counters::new(HEADER);
     let bound = root::journal_worst_case(&LIMITS).expect("valid journal limits");
     for commit in 1_u64..=u64::from(LIMITS.commits) {
         meter.start();
-        let mut decision = Decision::new(&LIMITS);
+        let mut decision = Decision::decide(&mut journal, &LIMITS);
         for turn in 1..LIMITS.writes {
             decision
                 .write(
@@ -254,12 +254,12 @@ fn full_decisions_and_maximum_held_results_fit_the_declared_root_journal_bound()
                 )
                 .expect("maximum admitted result");
         }
-        root::accept(&mut journal, &mut counters, &LIMITS, decision, &mut out).expect("whole decision reserved");
+        root::accept(&mut journal, &mut counters, &LIMITS, decision, &mut out).expect("whole decision opened");
         let measured = meter.end();
         drop(out.pop().expect("one commit"));
         meter.check(measured, bound, &LIMITS);
     }
-    assert!(!root::takes(&journal, &LIMITS));
+    assert!(journal.backlog() >= u64::from(LIMITS.commits), "retained work reaches the root's watermark");
     root::committed(&mut journal, u64::from(LIMITS.commits));
     for _ in 0..LIMITS.held {
         meter.start();
@@ -269,7 +269,7 @@ fn full_decisions_and_maximum_held_results_fit_the_declared_root_journal_bound()
         meter.check(measured, bound, &LIMITS);
     }
     assert!(journal.idle());
-    assert!(root::takes(&journal, &LIMITS));
+    assert_eq!(journal.backlog(), 0, "durable deliveries drain the backlog below the watermark");
 }
 
 #[test]

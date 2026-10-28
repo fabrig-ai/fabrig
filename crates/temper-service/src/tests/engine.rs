@@ -91,7 +91,7 @@ fn store_answered(service: &crate::Service) -> bool {
     false
 }
 #[test]
-fn a_store_answer_is_taken_with_the_journal_full() {
+fn a_store_answer_is_taken_at_the_backlog_watermark() {
     let mut service = fixtures::ready();
     let engine = service.engine.as_mut().expect("engine");
     let mut number = 2;
@@ -101,7 +101,12 @@ fn a_store_answer_is_taken_with_the_journal_full() {
         }
         number = number.checked_add(1).unwrap();
     }
-    assert!(root::try_step(&mut engine.domain, &engine.env, fixtures::period(number)).is_err(), "journal is full");
+    let refused = root::try_step(&mut engine.domain, &engine.env, fixtures::period(number))
+        .expect_err("backlog is at the watermark");
+    let root::Event::Party(root::PartyInput::Period { period, .. }) = &refused else {
+        panic!("the original period is handed back")
+    };
+    assert_eq!(*period, number, "the original period is handed back");
     root::release(&mut engine.domain, &engine.env, &mut engine.requests);
     let Some(root::Request::Store(root::StoreRequest::Commit { number, writes })) = engine.requests.pop() else {
         panic!("commit")
@@ -113,7 +118,7 @@ fn a_store_answer_is_taken_with_the_journal_full() {
             assert_ne!(*found, number, "original terminal taken while admission was blocked");
         }
     }
-    assert!(root::try_step(&mut engine.domain, &engine.env, fixtures::period(20)).is_ok(), "answer freed journal room");
+    assert!(root::try_step(&mut engine.domain, &engine.env, refused).is_ok(), "answer lowered the backlog");
 }
 #[test]
 fn a_failed_commit_releases_nothing_after_it() {

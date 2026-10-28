@@ -974,8 +974,8 @@ fn an_ungranted_account_retains_the_chat_until_its_grant() {
     assert_eq!(driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::Assigned { .. })).count(), 1);
 }
 
-// A full journal hands each loss back to the world, which offers it again
-// once there is room (D6; jig's `domain/root.md`, 3).
+// The backlog watermark hands each loss back to the world, which offers it
+// again after progress (D6; jig's `domain/root.md`, 3).
 #[test]
 fn repeated_unknown_losses_under_commit_pressure_consume_no_callback_room() {
     let mut driver = Driver::new(Store::new());
@@ -983,15 +983,19 @@ fn repeated_unknown_losses_under_commit_pressure_consume_no_callback_room() {
     // The world sends the deployment's first period once the root is ready.
     driver.settle();
     assert!(driver.period_sent);
-    driver.sign_in();
-    driver.sign_in();
-    driver.sign_in();
-    assert_eq!(driver.store.pending.len(), 3);
+    driver.fill_to_watermark();
+    let (returned, pending) = (driver.returned, driver.store.pending.len());
     for channel in 1000..5000 {
         driver.send(protocol::lost(Token::new(channel)));
+        assert!(
+            matches!(driver.events.back(), Some(engine::Event::Worker(engine::WorkerInput::Link {
+            channel: found, link: engine::Link::Lost,
+        })) if *found == Token::new(channel)),
+            "the original loss is handed back"
+        );
     }
-    assert_eq!(driver.returned, 4000);
-    assert_eq!(driver.store.pending.len(), 3);
+    assert_eq!(driver.returned, returned + 4000);
+    assert_eq!(driver.store.pending.len(), pending);
     let transactions = driver.transactions.len();
     for _ in 0..4100 {
         driver.advance(true);
@@ -2701,19 +2705,24 @@ fn a_lost_attempt_is_told_of_the_calls_committed_after_its_last_turn() {
     assert_eq!((second.answered[0].key, &second.answered[0].answer), (key, &engine::CallAnswer::Unavailable));
 }
 
-// A full journal hands the call back to the world instead of answering it
-// busy; the world offers it again once there is room (D6; jig's
+// The backlog watermark hands the call back to the world instead of answering
+// it busy; the world offers it again after progress (D6; jig's
 // `domain/root.md`, 3).
 #[test]
 fn calls_under_backpressure_are_handed_back_and_decided_once_on_retry() {
     let (mut driver, assignment) = running_fixture();
-    driver.sign_in();
-    driver.sign_in();
-    driver.sign_in();
-    assert_eq!(driver.store.pending.len(), 3, "three issued commits fill the journal");
+    driver.fill_to_watermark();
     let returned = driver.returned;
+    let event_at = driver.events.len();
     unavailable_call(&mut driver, &assignment, 82);
     assert_eq!(driver.returned, returned + 1);
+    assert!(
+        matches!(driver.events.get(event_at), Some(engine::Event::Worker(engine::WorkerInput::Link {
+        channel, link: engine::Link::Up { up: host::LinkUp::Call { run, attempt, call, .. }, parts },
+    })) if *channel == Token::new(7) && run.raw() == assignment.task && attempt.raw() == assignment.attempt
+        && call.as_ref() == 82_u64.to_be_bytes() && *parts == engine::Parts::none()),
+        "the original call is handed back with its owner and parts"
+    );
     assert_eq!(driver.store.header().calls, 0);
     assert!(
         !driver
@@ -2727,6 +2736,7 @@ fn calls_under_backpressure_are_handed_back_and_decided_once_on_retry() {
     // The decision and its settled answer each take a call number (D15).
     assert_eq!(driver.store.header().calls, 2);
     assert_eq!(driver.answered(82), Some(&engine::CallAnswer::Unavailable));
+    assert_eq!(driver.protocol.answers.iter().filter(|(call, _)| call.as_ref() == 82_u64.to_be_bytes()).count(), 1);
 }
 
 #[test]
@@ -3209,10 +3219,7 @@ fn coalesced_history_waiters_survive_simultaneous_io_completion_under_full_journ
         driver.root.reclaim();
     }
     assert_eq!(driver.events.len(), 2, "one real named IO for each coalesced flight");
-    driver.sign_in();
-    driver.sign_in();
-    driver.sign_in();
-    assert_eq!(driver.store.pending.len(), 3, "all store commit slots full before IO completes");
+    driver.fill_to_watermark();
     driver.advance(false);
     driver.advance(false);
     // Store answers are always taken (D6; jig's `domain/root.md`, 3).
@@ -3624,29 +3631,34 @@ fn held_cohort() -> (Driver, [u64; 2], [u64; 2], Vec<tasks::TaskRecord>) {
     (driver, sessions, persons, original)
 }
 
-// A full journal hands the ask back to the world, saving no keyed answer
-// (D6; jig's `domain/root.md`, 3); the world offers it again once there is
-// room. Rerouting keeps each hold's revision (jig 00de0b8c), so a roster
+// The backlog watermark hands the ask back to the world, saving no keyed answer
+// (D6; jig's `domain/root.md`, 3); the world offers it again after progress.
+// Rerouting keeps each hold's revision (jig 00de0b8c), so a roster
 // change cannot exhaust one: that overflow case goes with the mechanism.
 #[test]
 fn multiple_waiting_recipients_preflight_together_and_a_full_journal_hands_the_ask_back() {
     let (mut driver, sessions, persons, original) = held_cohort();
     let owner = [people::Holding { person: persons[1], role: people::Role::Owner }];
     let ask = people::Ask::SetRoles { project: 1, holdings: Box::new(owner) };
-    driver.sign_in();
-    driver.sign_in();
-    driver.sign_in();
-    assert_eq!(driver.store.pending.len(), 3, "real issued journal pressure");
+    driver.fill_to_watermark();
     let (returned, transactions) = (driver.returned, driver.transactions.len());
+    let event_at = driver.events.len();
     let to = ReplyTo::new(Token::new(1201));
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: to,
         sign_in: sessions[1],
         key: [121; 16],
-        ask,
+        ask: ask.clone(),
     }));
     assert_eq!(driver.returned, returned + 1);
+    assert!(
+        matches!(driver.events.get(event_at), Some(engine::Event::Party(engine::PartyInput::Ask {
+        models, reply_to, sign_in, key, ask: found,
+    })) if models.is_empty() && *reply_to == ReplyTo::new(Token::new(1201)) && *sign_in == sessions[1]
+        && *key == [121; 16] && *found == ask),
+        "the original roster ask is handed back"
+    );
     let answer_key = people::Key::Answer(people::RequestKey { person: persons[1], key: [121; 16] });
     assert!(!driver.store.rows.contains_key(&Key::Core(jig_domain_core::Key::People(answer_key))), "nothing saved");
     driver.settle();
