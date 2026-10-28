@@ -1,0 +1,39 @@
+# Operations
+
+Provisional, 2026-10-28. The machines' and the pipeline's facts every role works with: where things run, how a task is launched, slots, surveys, the queue. Rules are in `AGENTS.md` and each role's file; this file says how.
+
+## 1. In one page
+
+- **hel8 runs sessions and surveys, never builds:** the coordinator's and the leads' Claude sessions, their clones, and read-only Codex surveys. Builders (hetzner2, 3, 6, 7) build in slots; hetzner8 is the merge queue's alone.
+- **A lead** is a Claude session on hel8 named `lead/<area>`, started from a directory Claude trusts (under `~/src/rust/`), with its scratch and clones in `~/src/fabrig/leads/<area>/`: `repo/` (read main, mark branches ready) and `survey/` (surveys).
+- **Implementers are Codex runs** on a builder, one task in one slot, launched by `codex-run`; their end is posted to whoever launched them.
+- **Slots are for builds:** a fixed share per lead, the rest a free pool claimed with `tools/slots/claim`; every task trims its slot first (`tools/slots/trim`).
+- **Surveys take no slot:** a read-only run builds nothing and runs on hel8 in a survey clone moved to the commit it reads.
+- **The queue restarts only through `tools/queue/restart`,** in a login shell on hetzner8.
+
+## 2. Launching a task
+
+- The task file and anything it must read go to the builder (`~/src/fabrig/tasks/<area>/`), written with `ssh HOST 'umask 077; cat > PATH' < FILE`; the report and log land in `~/src/fabrig/notes/<area>/` there.
+- `ssh HOST 'bash -lc "codex-run task --effort high --to lead/<area>@hel8 TASK SLOT REPORT </dev/null"'`; `--effort medium` for mechanical work; never xhigh. A question or a repair resumes the same run: `--resume <run id>`, a new task file and a NEW report path.
+- Remote commands run in a login shell (`bash -lc`), or `cargo`, `heavy`, `codex-run` and `post` are not on PATH.
+- Hosts and their slots: `tools/slots/hosts`; post routes: `~/src/rust/tmp/post/machines`.
+
+## 3. Slots
+
+- `tools/slots/claim list` shows every slot and its holder; `claim HOST N OWNER WHAT` before a task goes to a pool slot, `release HOST N OWNER` when its report is in.
+- A slot's target stays warm across tasks: a task switches the slot's checkout in place, never a fresh clone. Stale test executables fill a builder's disk (one reached zero bytes on 10-28, and heavy then fails its own bookkeeping), so the task's first step is `python3 -I tools/slots/trim <slot>` (or `ssh HOST 'bash -lc "python3 -I - SLOT"' < tools/slots/trim` from hel8).
+
+## 4. Surveys
+
+- `cd ~/src/fabrig/leads/<area>/survey && git fetch -q origin && git switch -q --detach <commit>`, then `codex-run task --read-only --effort medium --to lead/<area>@hel8 TASK <survey clone> REPORT` with the task and report in the lead's scratch. A read-only run cannot fetch: the clone is moved first and the task names the commit.
+
+## 5. The merge queue
+
+- `tools/queue/design.md`. Branches `<lead>/<task>`, ready as `ready/<lead>/<task>`, marked by the lead from `repo/` after a skim of the diff; a rebased branch gets a new name. The queue posts a rejection (step, log path on hetzner8) to the branch's lead; a rejection is a repair task, a conflict a rebase task.
+- A conflict confined to a tree's `scripts/old-forms.txt` merges by itself (the queue re-runs `--write`, which refuses a raise).
+- When the queue's own code is wrong in a way that stops it landing its fix (every batch fails a step), the coordinator runs the fixed `tools/queue/` from a copy outside the clone (`mq run --repo <clone>`) until the fix lands, then restarts it normally.
+
+## 6. Later
+
+- `codex-run` trimming the slot itself, so no task can forget.
+- A periodic run of each package's tests alone, to catch tests that pass only after a workspace build.
