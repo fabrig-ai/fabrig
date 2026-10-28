@@ -14,7 +14,7 @@ use core::fmt::{self, Debug, Write};
 use core::marker::PhantomData;
 
 use alloc::rc::Rc;
-use core::cell::RefCell;
+use core::cell::{Cell, RefCell};
 use skein_io::kernel::ServiceSignal;
 use skein_lib::{Queue, Time};
 
@@ -157,15 +157,16 @@ fn broke(seed: u64, now: Time, expectation: &dyn Debug, why: &str) -> String {
     format!("seed {seed}: at {} ns, {expectation:?} broke: {why}", now.as_nanos())
 }
 
-/// Signal requests the referee injects between iterations, addressed by stable host id.
+/// Referee access to world signals and real-loop scheduler accounting.
 #[derive(Clone, Debug)]
 pub struct Controls {
     pub(crate) signals: Rc<RefCell<Queue<(usize, ServiceSignal)>>>,
+    pub(crate) sched_start: Rc<Cell<Option<crate::real::Sched>>>,
 }
 
 impl Controls {
     pub(crate) fn new() -> Self {
-        Self { signals: Rc::new(RefCell::new(Queue::with_capacity(256))) }
+        Self { signals: Rc::new(RefCell::new(Queue::with_capacity(256))), sched_start: Rc::new(Cell::new(None)) }
     }
 
     /// Delivers a signal to the named root or hosted child in the next turn.

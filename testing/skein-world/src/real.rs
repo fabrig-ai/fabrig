@@ -407,7 +407,7 @@ struct Running<P, R> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Sched {
+pub(crate) struct Sched {
     cpu: u64,
     waited: u64,
 }
@@ -433,6 +433,21 @@ fn thread_sched() -> Option<Sched> {
 fn sched_elapsed(start: Option<Sched>, end: Option<Sched>) -> Option<Sched> {
     let (start, end) = start.zip(end)?;
     Some(Sched { cpu: end.cpu.checked_sub(start.cpu)?, waited: end.waited.checked_sub(start.waited)? })
+}
+
+impl Controls {
+    /// This loop thread's runnable wait since the real-world run began, using
+    /// the same scheduler origin and measurement as its patience verdict.
+    /// Returns `None` before a real run or without usable scheduler accounting.
+    #[must_use]
+    pub fn runnable_wait(&self) -> Option<Duration> {
+        self.runnable_wait_at(thread_sched())
+    }
+
+    fn runnable_wait_at(&self, end: Option<Sched>) -> Option<Duration> {
+        let elapsed = sched_elapsed(self.sched_start.get(), end)?;
+        Some(Duration::from_nanos(elapsed.waited))
+    }
 }
 
 fn starved(patience: Duration, waited: u64) -> bool {
@@ -543,6 +558,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         let start = clock.now().now;
         let deadline = start.saturating_add(patience);
         let sched_start = thread_sched();
+        self.world.controls.sched_start.set(sched_start);
         let mut iterations: u32 = 0;
         let mut last_word = None;
         let mut policy_wake: Vec<(usize, Time)> = Vec::new();
@@ -1181,6 +1197,29 @@ mod tests {
         assert_eq!(sched_elapsed(Some(start), Some(end)), Some(Sched { cpu: 1, waited: 100 }));
         assert_eq!(sched_elapsed(Some(end), Some(start)), None);
         assert_eq!(sched_elapsed(Some(start), Some(Sched { cpu: 2, waited: 0 })), None);
+    }
+
+    #[test]
+    fn referee_runnable_wait_uses_the_worlds_scheduler_origin() {
+        let controls = crate::Controls::new();
+        let start = Sched { cpu: 100, waited: 200 };
+        controls.sched_start.set(Some(start));
+        let copy = controls.clone();
+        for (end, waited) in [(Sched { cpu: 110, waited: 250 }, 50), (Sched { cpu: 120, waited: 300 }, 100)] {
+            assert_eq!(copy.runnable_wait_at(Some(end)), Some(Duration::from_nanos(waited)));
+        }
+        assert_eq!(controls.sched_start.get(), Some(start), "reading never advances the world's origin");
+    }
+
+    #[test]
+    fn referee_runnable_wait_without_usable_accounting_is_unknown() {
+        let first = Sched { cpu: 1, waited: 1 };
+        let second = Sched { cpu: 2, waited: 2 };
+        for (start, end) in [(None, Some(second)), (Some(first), None), (None, None), (Some(second), Some(first))] {
+            let controls = crate::Controls::new();
+            controls.sched_start.set(start);
+            assert_eq!(controls.runnable_wait_at(end), None);
+        }
     }
 
     #[test]
