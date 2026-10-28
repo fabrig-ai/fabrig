@@ -827,12 +827,13 @@ fn a_settle_answers_its_waiting_judge_and_a_drift_reports_the_change() {
         [Request::DriftResource { tasks: Box::new([DRIFT_TASK]), resource: service() }],
         "the new part reports drift once"
     );
-    let mut separate = List::with_capacity(MAX_OUT);
+    let count = settled.len().checked_add(reported.len()).expect("split output count");
+    let mut separate = List::with_capacity(u32::try_from(count).expect("split outputs fit a list"));
     for request in settled {
-        separate.push(request).expect("the split's bounded settlement");
+        separate.push(request).expect("room for the settlement outputs");
     }
     for request in reported {
-        separate.push(request).expect("the split's bounded drift");
+        separate.push(request).expect("room for the drift outputs");
     }
     let mut whole = waiting_drift();
     assert_eq!(
