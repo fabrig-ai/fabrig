@@ -218,9 +218,48 @@ release(root):   (the service's iterate)
   forge's from its restart step on; the core's others once decisions
   open.
 - **Stopping of its own:** a root that cannot go on (a counter at its
-  end) stops its journal (`Journal::stop`, skein's `lib.md`, 11), and
-  nothing held or at the door leaves again; a failed commit fails it as
-  jig's journal says (jig's `domain/root.md`, section 4).
+  end, a decision past the store's commit edge) stops its journal
+  (`Journal::stop`, skein's `lib.md`, 11), and nothing held or at the
+  door leaves again; a failed commit fails it as jig's journal says
+  (jig's `domain/root.md`, section 4).
+
+### 4.1 The byte budget
+
+The engine meters the transcripts and turns it holds in memory against
+one budget, `engine.memory_bytes` (skein's programming-model.md, 6.1),
+counted at the root, which sees them all.
+
+- **What counts,** in bytes, while it is in memory: a worker's turn body
+  from its link's record until its commit releases it (the root's
+  payloads); a run's preparation, the transcript the core loads to resume
+  a run, until the run is assigned or its preparation ends (the core's
+  transcripts: `Core::transcript_bytes`, a running total jig's core
+  keeps); an assignment's turns until the worker takes them; a brief's
+  sections until its assignment goes out. The root keeps its own as a
+  running total, raised where it takes bytes and lowered where it lets
+  them go, never recomputed by a scan.
+- **What waits:** a run's preparation, the one entrance that brings the
+  most. The root activates a due task (`Resume`'s second choice) only
+  while the held bytes are under the budget, and any other path that
+  starts a preparation waits the same way; the task stays due, and the
+  next `Resume` after bytes drain activates it. A worker's turn of a run
+  already admitted is never refused for bytes: the fleet's limits and
+  the wire's turn size bound it.
+- **What does not wait:** a person's reads and calls that start no run,
+  the store's answers, completions. The budget limits pacing in bytes as
+  the watermark does in entries (section 10): the held bytes may pass it
+  by one preparation, and they drain as runs are assigned and turns
+  committed. With no worker to take assignments, preparations stop, and
+  nothing else does.
+- **Its value** is the document's `engine.memory_bytes`. Until the
+  startup fit check goes (skein's programming-model.md, 6.3), that
+  declaration also covers the worst case and is far larger than any
+  budget, so the budget binds in the worlds alone, which set it small;
+  its shipped value becomes a budget when the fit check goes.
+- **Its test,** in the root's world: with a budget of about two
+  preparations, three due tasks activate two at a time as earlier runs
+  are assigned and their turns committed; a person's read meanwhile is
+  answered at once; and nothing deadlocks with no worker connected.
 
 ## 5. Routing
 
@@ -836,10 +875,11 @@ Startup also checks the seed policy after enforced landing requirements are join
   least the largest task row and the forge's largest answer; a result's
   bytes at least a brief, a task's result and a party's words; the
   forge's brief sections and bytes at least what the briefs may plan. No
-  limit has to cover another's room: no decision is capped in writes or
-  outputs, none fails past a reserve, and no event reserves a route, so
-  the held outputs need not cover the door's, nor the forge's named calls
-  the call records.
+  limit has to cover another's room: no decision is capped in outputs,
+  nor in writes but at the store's commit edge (jig's store refuses a
+  commit of more than `journal.writes`), and no event reserves a route,
+  so the held outputs need not cover the door's, nor the forge's named
+  calls the call records.
 - **The watermark,** a field of the root's `Limits`, in entries: the
   journal's commits plus the door's outputs (`commits` and `deliveries`),
   derived where the root's limits are, with no key of its own in
