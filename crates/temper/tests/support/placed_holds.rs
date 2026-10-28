@@ -146,6 +146,8 @@ fn initial_steps(scratch: &Path) -> Vec<Step> {
         ])), // 1
         Step::Run(Call::new(&["settings", "show", "rules", "--json"])), // 2
         Step::Run(Call::new(&["settings", "show", "policy", "1", "--json"])), // 3
+        Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])), // 4
+        Step::Run(Call::new(&["settings", "show", "charter", "2", "--json"])), // 5
         Step::Then(Box::new(move |calls| {
             let rules_document = ctl::json(&calls[2]);
             let mut rules = rules_document["value"].clone();
@@ -159,9 +161,17 @@ fn initial_steps(scratch: &Path) -> Vec<Step> {
             let mut maintainer = policy["roles"][0].clone();
             maintainer["number"] = json!(1);
             policy["roles"].as_array_mut().expect("policy roles").push(maintainer);
+            // These stories check who may release a stop and the restored
+            // transcript, not the stock ten-second parking threshold.
+            let mut chat = ctl::json(&calls[4])["value"].clone();
+            let mut coding = ctl::json(&calls[5])["value"].clone();
+            chat["waiting"] = 1_000_000.into();
+            coding["waiting"] = 1_000_000.into();
             let change = json!({"items":[
                 {"setting":{"kind":"rules"},"set":rules},
-                {"setting":{"kind":"policy","number":1},"set":policy}
+                {"setting":{"kind":"policy","number":1},"set":policy},
+                {"setting":{"kind":"charter","number":1},"set":chat},
+                {"setting":{"kind":"charter","number":2},"set":coding}
             ]});
             super::write_private(&settings_file, &serde_json::to_vec(&change).expect("settings change JSON"));
             Call::new(&[
@@ -173,11 +183,11 @@ fn initial_steps(scratch: &Path) -> Vec<Step> {
                 "--key",
                 "hold-tools",
             ])
-        })), // 4
+        })), // 6
         Step::Project { scratch: scratch.into(), client: scratch.join("client"), name: "held-work", number: 2 },
-        Step::Run(Call::new(&["me", "--json"])), // 5
+        Step::Run(Call::new(&["me", "--json"])), // 7
         Step::Maintainer { scratch: scratch.into(), directory: "maintainer", project: 2 },
-        Step::Run(Call::new(&["me", "--json"]).in_directory("maintainer")), // 6
+        Step::Run(Call::new(&["me", "--json"]).in_directory("maintainer")), // 8
         Step::Run(Call::new(&[
             "chat",
             "start",
@@ -186,16 +196,16 @@ fn initial_steps(scratch: &Path) -> Vec<Step> {
             "--key",
             "hold-chat",
             "@hold-chat Delegate and wait",
-        ])), // 7
-        Step::Until(Call::new(&["task", "show", "3", "--json"]), PARKED_CHILD), // 8
-        Step::Until(Call::new(&["task", "show", "2", "--json"]), PARKED_GOAL), // 9
-        Step::Until(Call::new(&["task", "show", "1", "--json"]), b"\"phase\":\"idle\""), // 10
-        Step::Run(Call::new(&["task", "stop", "2", "--key", "stop-goal"])), // 11
-        Step::Run(Call::new(&["task", "show", "2", "--json"])),             // 12
-        Step::Run(Call::new(&["task", "show", "3", "--json"])),             // 13
-        Step::Run(Call::new(&["task", "run", "2"])),                        // 14
-        Step::Run(Call::new(&["task", "run", "3"])),                        // 15
-        Step::Run(Call::new(&["task", "show", "2"])),                       // 16
+        ])), // 9
+        Step::Until(Call::new(&["task", "show", "3", "--json"]), PARKED_CHILD), // 10
+        Step::Until(Call::new(&["task", "show", "2", "--json"]), PARKED_GOAL), // 11
+        Step::Until(Call::new(&["task", "show", "1", "--json"]), b"\"phase\":\"idle\""), // 12
+        Step::Run(Call::new(&["task", "stop", "2", "--key", "stop-goal"])), // 13
+        Step::Run(Call::new(&["task", "show", "2", "--json"])),             // 14
+        Step::Run(Call::new(&["task", "show", "3", "--json"])),             // 15
+        Step::Run(Call::new(&["task", "run", "2"])),                        // 16
+        Step::Run(Call::new(&["task", "run", "3"])),                        // 17
+        Step::Run(Call::new(&["task", "show", "2"])),                       // 18
     ]
 }
 fn check_box(seen: &boxed::CtlOutcome<()>, expected_exits: &[(usize, u8)]) {
@@ -207,17 +217,17 @@ fn check_box(seen: &boxed::CtlOutcome<()>, expected_exits: &[(usize, u8)]) {
     }
 }
 fn placed(calls: &[Ended]) -> Value {
-    assert_eq!(calls[11].stdout, b"done: task 2, stop\n");
-    let task = ctl::json(&calls[12]);
-    let child = ctl::json(&calls[13]);
+    assert_eq!(calls[13].stdout, b"done: task 2, stop\n");
+    let task = ctl::json(&calls[14]);
+    let child = ctl::json(&calls[15]);
     assert_eq!(task["chip"]["phase"], "held");
     assert_eq!(child["chip"]["phase"], "held");
     assert_eq!(task["hold"]["placed"], child["hold"]["placed"]);
-    assert_eq!(task["hold"]["placed"]["owner"]["person"], ctl::json(&calls[5])["party"]["number"]);
+    assert_eq!(task["hold"]["placed"]["owner"]["person"], ctl::json(&calls[7])["party"]["number"]);
     assert_eq!(task["hold"]["placed"]["may_lift"], true);
-    assert!(String::from_utf8_lossy(&calls[14].stdout).starts_with("run: none"));
-    assert!(String::from_utf8_lossy(&calls[15].stdout).starts_with("run: none"));
-    assert!(String::from_utf8_lossy(&calls[16].stdout).contains("you may lift it"));
+    assert!(String::from_utf8_lossy(&calls[16].stdout).starts_with("run: none"));
+    assert!(String::from_utf8_lossy(&calls[17].stdout).starts_with("run: none"));
+    assert!(String::from_utf8_lossy(&calls[18].stdout).contains("you may lift it"));
     assert_eq!(task["hold"]["placed"]["hold"], STOP_HOLD, "derived message counter");
     assert_eq!(task["hold"]["placed"]["revision"], HOLD_REVISION);
     assert_eq!(task["hold"]["owner"]["revision"], TASK_HOLD_REVISION);
@@ -252,7 +262,7 @@ pub fn proposal(scratch: &Path, config: &Path, flags: Vec<String>) {
     let mut steps = initial_steps(scratch);
     steps.extend([
         Step::Then(Box::new(|calls| {
-            let task = ctl::json(&calls[12]);
+            let task = ctl::json(&calls[14]);
             Call::new(&[
                 "task",
                 "release",
@@ -263,14 +273,14 @@ pub fn proposal(scratch: &Path, config: &Path, flags: Vec<String>) {
                 "maintainer-release",
             ])
             .in_directory("maintainer")
-        })), // 17
-        Step::Run(Call::new(&["task", "show", "2"]).in_directory("maintainer")), // 18
-        Step::Run(Call::new(&["task", "message", "1", "Ask to resume the stopped goal", "--key", "request-release"])), // 19
-        Step::Until(Call::new(&["inbox"]), PROPOSAL.as_bytes()), // 20
-        Step::Run(Call::new(&["proposal", "show", PROPOSAL])),   // 21
-        Step::Run(Call::new(&["proposal", "decide", PROPOSAL, "accept", "--key", "owner-accept"])), // 22
-        Step::Until(Call::new(&["task", "show", "2", "--json"]), PARKED_GOAL), // 23
-        Step::Until(Call::new(&["task", "show", "3", "--json"]), PARKED_CHILD), // 24
+        })), // 19
+        Step::Run(Call::new(&["task", "show", "2"]).in_directory("maintainer")), // 20
+        Step::Run(Call::new(&["task", "message", "1", "Ask to resume the stopped goal", "--key", "request-release"])), // 21
+        Step::Until(Call::new(&["inbox"]), PROPOSAL.as_bytes()), // 22
+        Step::Run(Call::new(&["proposal", "show", PROPOSAL])),   // 23
+        Step::Run(Call::new(&["proposal", "decide", PROPOSAL, "accept", "--key", "owner-accept"])), // 24
+        Step::Until(Call::new(&["task", "show", "2", "--json"]), PARKED_GOAL), // 25
+        Step::Until(Call::new(&["task", "show", "3", "--json"]), PARKED_CHILD), // 26
     ]);
     let seen = boxed::run_ctl_with_llm(
         scratch,
@@ -279,25 +289,25 @@ pub fn proposal(scratch: &Path, config: &Path, flags: Vec<String>) {
         steps,
         boxed::BOX_DEADLINE,
         |_| (),
-        llm(config, vec![(17, 2)]),
+        llm(config, vec![(19, 2)]),
     );
-    check_box(&seen, &[(17, 2)]);
-    assert_eq!(seen.calls.len(), 25);
+    check_box(&seen, &[(19, 2)]);
+    assert_eq!(seen.calls.len(), 27);
     let hold = placed(&seen.calls);
     let owner = hold["owner"]["person"].as_u64().expect("placed hold owner");
     let number = hold["hold"].as_u64().expect("placed hold number");
     let revision = hold["revision"].as_u64().expect("placed hold revision");
-    assert_eq!(seen.calls[17].stderr, format!("task release: Held by hold {number}, placed by person {owner}: only they, or a role above theirs, may release it\n").as_bytes());
+    assert_eq!(seen.calls[19].stderr, format!("task release: Held by hold {number}, placed by person {owner}: only they, or a role above theirs, may release it\n").as_bytes());
     assert!(
-        String::from_utf8_lossy(&seen.calls[18].stdout)
+        String::from_utf8_lossy(&seen.calls[20].stdout)
             .contains(&format!("only person {owner}, or a role above theirs, may release it"))
     );
     assert!(
-        String::from_utf8_lossy(&seen.calls[21].stdout)
+        String::from_utf8_lossy(&seen.calls[23].stdout)
             .contains(&format!("release task 2 from hold {number} (revision {revision})"))
     );
-    assert!(ctl::json(&seen.calls[23])["hold"].is_null());
-    assert!(ctl::json(&seen.calls[24])["hold"].is_null());
+    assert!(ctl::json(&seen.calls[25])["hold"].is_null());
+    assert!(ctl::json(&seen.calls[26])["hold"].is_null());
     let model = seen.model.as_ref().expect("scripted model observations");
     transcript(model, GOAL.as_bytes());
     transcript(model, CHILD.as_bytes());
@@ -326,13 +336,13 @@ pub fn lift(scratch: &Path, config: &Path, flags: Vec<String>) {
             "--with-tasks",
             "--key",
             "lift-goal",
-        ])), // 17
-        Step::Until(Call::new(&["task", "show", "2", "--json"]), PARKED_GOAL), // 18
-        Step::Until(Call::new(&["task", "show", "3", "--json"]), PARKED_CHILD), // 19
-        Step::Run(Call::new(&["task", "stop", "2", "--key", "retained-stop"])), // 20
-        Step::Run(Call::new(&["task", "show", "2", "--json"])),                // 21
+        ])), // 19
+        Step::Until(Call::new(&["task", "show", "2", "--json"]), PARKED_GOAL), // 20
+        Step::Until(Call::new(&["task", "show", "3", "--json"]), PARKED_CHILD), // 21
+        Step::Run(Call::new(&["task", "stop", "2", "--key", "retained-stop"])), // 22
+        Step::Run(Call::new(&["task", "show", "2", "--json"])),                // 23
         Step::Then(Box::new(|calls| {
-            let task = ctl::json(&calls[21]);
+            let task = ctl::json(&calls[23]);
             Call::new(&[
                 "hold",
                 "lift",
@@ -342,9 +352,9 @@ pub fn lift(scratch: &Path, config: &Path, flags: Vec<String>) {
                 "--key",
                 "retained-lift",
             ])
-        })), // 22
+        })), // 24
         Step::Then(Box::new(|calls| {
-            let task = ctl::json(&calls[21]);
+            let task = ctl::json(&calls[23]);
             Call::new(&[
                 "hold",
                 "lift",
@@ -354,9 +364,9 @@ pub fn lift(scratch: &Path, config: &Path, flags: Vec<String>) {
                 "--key",
                 "stale-lift",
             ])
-        })), // 23
-        Step::Run(Call::new(&["task", "show", "2", "--json"])),                // 24
-        Step::Run(Call::new(&["task", "show", "3", "--json"])),                // 25
+        })), // 25
+        Step::Run(Call::new(&["task", "show", "2", "--json"])),                // 26
+        Step::Run(Call::new(&["task", "show", "3", "--json"])),                // 27
     ]);
     let seen = boxed::run_ctl_with_llm(
         scratch,
@@ -365,22 +375,22 @@ pub fn lift(scratch: &Path, config: &Path, flags: Vec<String>) {
         steps,
         boxed::BOX_DEADLINE,
         |_| (),
-        llm(config, vec![(23, 2)]),
+        llm(config, vec![(25, 2)]),
     );
-    check_box(&seen, &[(23, 2)]);
-    assert_eq!(seen.calls.len(), 26);
+    check_box(&seen, &[(25, 2)]);
+    assert_eq!(seen.calls.len(), 28);
     placed(&seen.calls);
-    assert_eq!(seen.calls[17].stdout, format!("done: hold {STOP_HOLD} lifted, 2 released\n").as_bytes());
-    assert!(ctl::json(&seen.calls[18])["hold"].is_null());
-    assert!(ctl::json(&seen.calls[19])["hold"].is_null());
-    let retained = ctl::json(&seen.calls[21])["hold"]["placed"]["hold"].as_u64().expect("retained hold number");
-    assert_eq!(seen.calls[22].stdout, format!("done: hold {retained} lifted, 0 released\n").as_bytes());
+    assert_eq!(seen.calls[19].stdout, format!("done: hold {STOP_HOLD} lifted, 2 released\n").as_bytes());
+    assert!(ctl::json(&seen.calls[20])["hold"].is_null());
+    assert!(ctl::json(&seen.calls[21])["hold"].is_null());
+    let retained = ctl::json(&seen.calls[23])["hold"]["placed"]["hold"].as_u64().expect("retained hold number");
+    assert_eq!(seen.calls[24].stdout, format!("done: hold {retained} lifted, 0 released\n").as_bytes());
     assert!(
-        String::from_utf8_lossy(&seen.calls[23].stderr).contains("revision now: 2"),
+        String::from_utf8_lossy(&seen.calls[25].stderr).contains("revision now: 2"),
         "{}",
-        String::from_utf8_lossy(&seen.calls[23].stderr)
+        String::from_utf8_lossy(&seen.calls[25].stderr)
     );
-    for call in &seen.calls[24..=25] {
+    for call in &seen.calls[26..=27] {
         let task = ctl::json(call);
         assert_eq!(task["chip"]["phase"], "held");
         assert_eq!(task["hold"]["placed"]["hold"], retained);
