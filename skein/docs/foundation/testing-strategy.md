@@ -1,0 +1,645 @@
+# Testing strategy
+
+Provisional, 2026-10-03, revised 2026-10-28. How code in skein and in
+every service built on it is tested. Read it with programming-model.md,
+whose terms it uses, before writing or reviewing tests.
+
+**How to read this.** Section 1 is the whole strategy in one page. The
+sections after it take each part in turn: the tiers, faults, the fakes
+that stand in for neighbours, keeping the simulator honest, what every
+world checks, scenarios and the referee, the two suites, where a
+failure is fixed, and a test's shape.
+
+## 1. In one page
+
+- **Each tier makes one more layer real.** The bottom tier tests one step
+  function; each tier above runs more of the code for real and fakes the
+  rest, up to everything on the real kernel. A tier is added when the
+  layer it makes real is built.
+- **Behaviour above, mechanics below.** Domain worlds run the domain with
+  no protocol and no io, and test what the service does; most of a
+  service's tests live there. The tiers from machine worlds up test how
+  bytes, buffers, cancellations and the loop behave under faults.
+- **One thread, one loop, in every world.** A world follows the mechanics
+  of programming-model.md: its one loop drives every step machine in it
+  (the code under test, its fakes, the referee), so between two
+  iterations the whole world is a frozen snapshot that checks can inspect
+  and reason about. The tiers differ in what sits under the loop.
+- **Deterministic up to the real loop.** Every tier below it owns the
+  clock, the seeds and the kernel, so a seed replays to the same run.
+  The real loop trades replay for the real kernel. TLS is not
+  deterministic, so the replaying tiers run in plaintext.
+- **End to end, few tests.** Above the real loop, the binaries run as
+  they ship, as processes, against fakes in the focused suite or the real
+  backends in a live suite run by choice: one test per path through
+  `main` or integration point, never a behaviour a lower tier shows.
+- **Faults everywhere, limits tiny.** Worlds run with the entrances'
+  limits small enough to reach every admission point, and the watermark
+  low enough to make new work wait, and inject faults in every state,
+  drawn from the seed.
+- **Fakes are step machines too.** A fake shares no types with what it
+  stands in for, checks its client as it goes, and is the same at every
+  tier; only the face it shows changes.
+- **Two kinds of neighbour.** Peers sit across a wire and meet the code as
+  bytes. The kernel sits under io; its fake is skein's simulator, which a
+  conformance suite holds to the real kernel.
+- **Every world checks the same things:** contracts as it goes,
+  invariants once it settles, a teardown that waits on nothing but io,
+  memory under each scenario's ceiling, replay, and transition coverage. A
+  scenario's own expectations go in a referee.
+- **Focused tests for quick feedback, both suites at the gate.** Focused
+  tests are fast feedback during development; the fuzzy suite is slow,
+  left alone or run in part. The merge gate runs both suites in full.
+- **A failure is fixed in the lowest tier that shows it.** skein tests the
+  kit and a service tests itself: a failure in a service's world that
+  comes from skein is reproduced and fixed in skein's own tier.
+- **A test reads as what it shows.** One behaviour, the setup its
+  assertion reads, written once; its fixtures and sizes named, a bound
+  tested from both sides, a table's rows carrying data, and a recorded
+  stream edited as records (section 10).
+
+## 2. The tiers
+
+Every tier between step tests and end to end is a world: one thread,
+whose one loop drives the code under test, its fakes and the referee,
+iteration by iteration, and runs its checks between iterations. What sits
+under the loop is what changes from tier to tier: nothing, byte streams
+between two ends, the simulator, or the real ring.
+
+| Tier | Real | Faked | Whose | Replays |
+|---|---|---|---|---|
+| step tests | one step function, or one lib container | its events, by hand | both | yes |
+| domain worlds | one domain with its child domains, or one child domain | its parent and neighbours: scripted, or fakes | a service's | yes |
+| system worlds | several domains together | the peers and the machine, at their domain faces | a service's | yes |
+| machine worlds | one protocol machine | the stream below, the user above, the peer's bytes | both | yes |
+| protocol worlds | both ends of a connection: machine stacks, and the protocol layers and domains above them where they exist | the bytes between the two ends | both | yes, in plaintext |
+| io worlds | io | the step above it, scripted; the kernel, by the simulator | skein's | yes |
+| simulated worlds | every layer: each process's `iterate` | the kernel, the network and the machine, by the simulator | both | yes, in plaintext |
+| real loop | the service as it ships, the services it spawns, and its fakes, in one loop over one real ring | the peers, as fakes on loopback sockets; nothing below | both | no |
+| end to end | the service's binaries as they ship, as processes with their own loops | the peers, as fakes on loopback, or nothing when live | both | no |
+
+### 2.1 Step tests
+
+A crate's own tests feed a step function events and inspect the requests
+it emits, or drive one container through its operations: one transition,
+a full queue, a stale handle, a refusal at the entrance, a deadline that
+fires as it is cancelled. lib's containers are tested hardest, since
+every layer of every service stands on them.
+
+### 2.2 Domain worlds
+
+A domain world runs one domain in a loop, from a seed: a child domain
+with the world as its parent, or a root domain with its children beneath
+it. Each child domain has a world of its own, and so does the root. The
+world plays everything else. It scripts the neighbours that are the
+service's own, taking liberties the real ones do not, and uses fakes for
+the peers and the machine, translating between their vocabularies and
+the domain's as a protocol layer would.
+
+Behaviour is tested here. Domain worlds come first: they can run as soon
+as the domain exists, long before its protocol layer and io.
+
+### 2.3 System worlds
+
+A system world is a domain world where several domains meet, each real:
+the components of one service, or several services' domains. It aims at
+what crosses them, which no single domain's world can see. It is still
+the domain layer only: where a protocol layer will sit, the world
+translates.
+
+### 2.4 Machine worlds
+
+A machine world runs one protocol machine from a seed, and plays both of
+its neighbours:
+
+- **The side below:** a stream that delivers what was demanded (exactly,
+  or what has arrived of it), from peer bytes cut at random; that grants
+  room late; that ends early, or fails.
+- **The side above:** a user that demands slowly, stops demanding,
+  requests at awkward moments, and closes in every state.
+
+The peer's bytes are transcripts written by real implementations (4.1),
+messages generated valid from the seed, and those messages mutated. Most
+of a machine's tests live here, and so does its fuzz target.
+
+### 2.5 Protocol worlds
+
+A protocol world builds both ends of a connection, as two services would:
+their machine stacks and, where they exist, the protocol layers and
+domains above them. It joins the two bottoms with an in-memory stream in
+each direction, cut and joined at random. It tests what stacking and
+translation add:
+
+- framing and codecs, such as the JSON a peer writes inside a message;
+- flow control through every machine, so a slow reader at the top of one
+  end stops the writer at the top of the other;
+- a response that arrives mid-upload, and one end closing while the
+  other is still sending.
+
+What the top of one end sent is what the top of the other received.
+
+### 2.6 io worlds
+
+An io world runs io over the simulator, with a scripted owner as the step
+above it: listens, connects, streams, files and spawns, in an order the
+test chooses, with closes and aborts in every state. It tests what io
+adds: buffers in flight, cancellation, settling, graceful close, the
+receive and send queues, and the accept budget. These worlds are skein's.
+A service does not retest io.
+
+### 2.7 Simulated worlds
+
+A simulated world runs each process's `iterate`, the function its shell
+runs, and the simulator plays the kernel under them: the ring, the
+network between the processes' sockets, the clock, the seeds, and files
+and programs through a fake machine (4.3). Processes come and go: a spawn
+may start another service in the same world.
+
+It is the first tier where the loop runs, so it tests what the loop adds:
+the two passes, room checked at the kernel's queues and new work held at
+the root's watermark, deadlines across layers, and requests made in the
+down pass reaped in a later iteration.
+skein's simulated worlds run small example services; a service's run the
+service itself, with skein's as their template.
+
+### 2.8 The real loop
+
+A real-loop test is still one thread and one loop, but its loop makes real
+io_uring calls, through one ring of the shell's kernel, which the whole
+world shares as it shares the simulator below. It drives everything
+through them: the service as it ships, any service it would spawn, and
+its fakes, which follow the same programming model and meet it on
+loopback sockets.
+
+- **No service runs a loop of its own.** When one spawns another, the
+  harness answers the spawn: it joins the two with real pipes and hosts
+  the child in the same loop. A test that starts a service's binary as a
+  process is end to end (2.9).
+- **Only programs that are not step machines** (git, a shell) run outside
+  the loop, as real child processes in a scratch directory.
+- **Between iterations the test sees a frozen snapshot,** as in every
+  other world, so its checks and its referee work as they do lower down,
+  with deadlines on the real clock. The kernel does not stop meanwhile:
+  bytes still arrive and children still run, and the loop sees them as it
+  reaps.
+- **A run starved of CPU is not a failure** (the user, 10-26). The
+  loop's patience bounds the run's own work, which needs the CPU; on a
+  loaded machine the kernel may not give it. When a run reaches its
+  patience, the harness reads its loop thread's scheduler accounting
+  since the run began: the CPU time it used, and the time it waited
+  runnable for a CPU. The run is **starved** when it waited runnable for
+  at least half its patience: with that much of it denied, the bound
+  can't judge the run (a loop deliberately starved on one CPU still got
+  a tenth of it, so CPU alone tells nothing, 10-27). A starved
+  run ends as a pass that says so, one line naming both figures, and the
+  verdicts count such passes. Every other run that reaches its patience
+  fails as before, a loop that sat idle waiting for what never came among
+  them: idle is not starved, and its few milliseconds of CPU are the
+  bug's signature, not the machine's.
+
+It shows what only the real kernel can: the ring adapter's `unsafe`,
+under a sanitizer; the probe at startup; signals; TLS; a process tree
+that ends; real programs' output. It does not replay. A failure found
+there is rerun lower down as a scenario, where it does.
+
+### 2.9 End to end
+
+An end-to-end test runs the service's binaries as they ship: processes,
+each started by its own `main` and running its own loop, joined by real
+pipes and sockets, and by a pseudo-terminal where a person would sit. The
+test's side is still one thread and one loop over the real ring. It
+drives the fakes on loopback and the scripted person, and starts the
+service as a child.
+
+It sees the service only from outside:
+- what its peers and the person received;
+- its exit and its standard error;
+- the files it left;
+- the trace it was configured to write.
+
+There is no snapshot of the service between iterations, and no memory
+check inside it. It does not replay.
+
+It shows what only processes show:
+- `main`'s wiring, from its arguments and settings to its startup checks;
+- a service starting another by its program;
+- the signal mask, and a terminal's signals;
+- exit codes.
+
+A failure found there is rerun lower down.
+
+- **Against fakes,** it is hermetic and runs in the focused suite, within
+  its budget. These tests are few: one per path through `main`, not one
+  per behaviour.
+- **Live,** the real backends replace the fakes: providers, issuers,
+  remotes. Live tests need credentials, spend a subscription's usage and
+  depend on the network, so they form a suite of their own, run by
+  choice, never at the gate (section 8).
+
+## 3. Faults
+
+Every world below the real loop draws its faults from its seed:
+
+- **Tiny limits.** Every entrance's limit is small enough that a run
+  reaches every admission point (a slab of capacity 2), and a root's
+  watermark low enough that new work waits behind admitted work. The
+  queues between a service's own components have no capacity to exhaust.
+- **Cancellation and timeout in every state,** and completions that
+  arrive after their cancel.
+- **Refusal at every admission point.**
+- **Short reads and writes,** bytes cut and joined at random, latency.
+- **Resets, refused connections, failures** of what a neighbour does.
+
+A fault that is configured but never falls tests nothing. A sweep over
+seeds asserts that each fault it injects fell at least once, and that
+each outcome a race allows (a cancel that wins, one that loses) appeared.
+
+## 4. Neighbours and their fakes
+
+What every fake shares:
+
+- **A step machine,** following programming-model.md, when more than one
+  tier needs it, so that the simulator and the real loop can host it as
+  they host the service. What only one world needs stays in that world,
+  as a script specialised to what the world aims at.
+- **No shared types.** A fake's vocabulary is its own. A world, or a
+  protocol layer, translates.
+- **It checks its client.** It refuses what the real neighbour refuses,
+  and asserts what the real neighbour's contract guarantees.
+- **Faults are configured,** and drawn from the seed (section 3).
+- **One fake, every tier.** A fake's state machines are the same at every
+  tier, and only the face it shows changes. A scenario written for the
+  fakes then runs unchanged wherever they appear (section 7).
+- **Some fakes are temporary.** A fake of the service's own component
+  stands in until the real one exists, then retires.
+
+Tests are ordinary Rust: test code may `unwrap`, `expect`, `panic!` and
+index, which the lints allow in tests. A fake that runs as a step machine
+may not.
+
+### 4.1 Peers
+
+A peer meets the code as bytes on a stream. Its fake grows the layers
+the code facing it grows, and each tier joins the two at the lowest layer
+both have: in domain worlds, the world translates between the two
+domains; in protocol worlds, bytes pass between the two stacks; in
+simulated worlds, the simulated network joins them; in the real loop,
+sockets do.
+
+A machine's peer is not only the other side of the same machine. Two
+sides written together can share one misreading of the protocol and
+agree on it, so each machine is also fed **transcripts**: requests and
+responses captured from real clients and servers, kept as files beside
+the machine's tests, each with what it must decode to. A peer that
+misbehaves the way real peers do (an oversized head, a chunk size that
+overflows, an event that never ends, a document nested too deep) is a
+transcript too.
+
+### 4.2 The kernel
+
+The kernel is not a peer. It answers io's records, and its fake is one:
+skein's simulator, behind the same submit and reap as the shell's
+kernel. It decides when and how each operation completes, races every
+cancel, plays the network between the world's sockets, and owns the
+clock, jumping it to the next completion or deadline when every process
+is idle. Every choice is drawn from the seed.
+
+It checks its client. It fails the world on each broken invariant of the
+kernel boundary (an operation on a closed descriptor, a token already in
+flight), and asserts its promises: one completion per operation, every
+record handed back, nothing in flight at quiescence.
+
+### 4.3 The machine
+
+The machine is the files and programs under io. There is no wire to meet
+it at, so its fake grows no protocol or io layers: it stays one set of
+state machines, with a face for whichever layer sits just above it:
+
+| Real down to | The machine's face | It answers |
+|---|---|---|
+| the domain | domain face | typed operations: files, commands, searches |
+| the protocol layer | io face | io's records: open, read, write, spawn, bytes on a pipe, an exit |
+| io | behind the simulator | the file and process operations the simulator passes on |
+| everything | none | the real kernel, in a sandbox |
+
+skein's own tests use a minimal fake machine: a few files beneath a root,
+a program that echoes its input, one that exits with a given status, and
+one that never exits. It also supplies shared generic file/git mechanics
+in `skein-fake-checkout` (fake-checkout.md). These kits know no service's
+policy or delivery lifecycle. A service's fake machine, its adapters and
+scenarios remain the service's.
+
+### 4.4 TLS
+
+TLS is not deterministic: its cryptography draws entropy from the kernel.
+It is tested on its own, with in-memory handshakes against itself under
+every split of the ciphertext, against transcripts where they can be
+replayed, and in the real loop. The replaying tiers run in plaintext, so
+a component that connects with TLS also connects in plaintext to an
+address on loopback, for them and for servers on the same machine.
+
+## 5. Keeping the simulator honest
+
+Every tier between io worlds and the real loop trusts the simulator. A
+simulator that drifts from the kernel tests the wrong thing, so:
+
+- **One conformance suite runs against every backend:** the ring on the
+  real kernel (loopback sockets, a scratch directory), the simulator, and
+  any backend added later. Each run checks that the backend answers as
+  the kernel boundary allows, and its checks name the rule behind each
+  assertion.
+- **Where the simulator draws among outcomes the kernel allows** (a short
+  send, a cancel that loses its race), the suite checks that the kernel's
+  answer is one of them, and that the simulator shows every one of them
+  over its seeds. **Where the kernel answers one way,** the simulator
+  must too.
+- **A behaviour found in the kernel that the simulator lacks** goes into
+  the suite first, then into the simulator.
+
+## 6. What every world checks
+
+The harness checks, in every world and in the simulator:
+
+- **Contracts as it goes:** one terminal event per request, one reply per
+  `ReplyTo`, no buffer or edge queue past its cap, admitted work always
+  taken (programming-model.md, 7.1), and each component's own contracts.
+- **Invariants once it settles:** no live entities (every slab empty),
+  nothing in flight, every record handed back, every child gone and its
+  pipes read to the end, every answer taken once; and ownership is a
+  tree, with no orphans. A child its owner ended, which ended by a
+  signal, may leave output unread: closing a child kills its group, and
+  an abort closes a pipe at once, leaving what it had not read (io.md,
+  3 and 6). A child that exited with its own status has its output read
+  to the end.
+- **The teardown invariant:** a world that ends by itself ends with no
+  deadline firing after the last word other than io's own: its close and
+  retry deadlines, and the stall deadlines owners state for files (io.md,
+  5 and 5.1; programming-model.md, 5.2).
+  - **The last word** is the point the scenario names: by default, its
+    referee's last expectation met. A scenario about a keep or idle time
+    names its last word after the time it is about.
+  - **A world that ends by itself** is one whose processes settle with
+    nothing injected after the last word. One that ends on a shutdown the
+    referee injects has its last word after the shutdown has arrived.
+  - **How it is checked.** Each process tells the harness its earliest
+    deadline outside io's own (shell.md, 12). After
+    the last word, the harness fails the world, naming the process and
+    its deadline, when time has to reach that deadline before the world
+    settles: when the replaying tiers move the clock to it, or when the
+    real loop wakes for it.
+  - A fault that stalls an operation meets io's close deadline while it
+    closes, or its stall deadline while it is open, which the invariant
+    allows: both fire only on a stall, and bound it.
+
+  The harness checks it once, for every world of every service: no
+  service writes its own.
+- **Times as they ship.** A time that ends something by passing (a keep,
+  an idle time, a linger) runs at its shipped value, or beyond the
+  world's horizon, the referee's last deadline, unless the scenario is
+  about it. It is never shortened so that a world settles sooner: a short
+  one hides the very wait the teardown invariant looks for. Simulated
+  time is free, so a shipped value costs nothing below the real loop, and
+  nothing in it once owners close what they keep. The tiny limits of
+  section 3 are capacities, not these times.
+- **Fakes do not end their clients.** A fake peer never hangs up, resets
+  or goes quiet to help its client settle, unless the scenario is about
+  that hang-up: a client must end what it owns by itself, as it must
+  against a real peer that keeps its connections open.
+- **Memory:** a counting allocator measures the most each part held, and
+  the simulator checks at every iteration that it stays under the
+  scenario's ceiling (programming-model.md, 6.3). A ceiling is an upper
+  bound with headroom, a named constant beside the one test that checks
+  it, with no write mode: it moves by hand when a real change passes it,
+  never on a type's size, and a figure split into terms is one ceiling on
+  its total. Exact checks are for contracts only: nothing held after a
+  release, the ledger's account of what a process freed, a byte price
+  equal to what the allocator saw, an edge's formula equal to the size it
+  bounds. A scenario that must reach its limits shows it by what it holds
+  (entities, entries, bytes queued), never by nearly filling a formula.
+  Whatever a world's harness does to a process's own containers
+  (delivering its completions, draining its submissions) runs inside that
+  process's account, so a container that grows on the harness's push is
+  charged to its process.
+- **Replay:** a seed replays to the same trace, and to the same digest of
+  the state, which state types derive `Hash` for.
+- **Transition coverage:** each cell of a state machine is a handler
+  function (programming-model.md, 5.4), so function coverage of the
+  handlers over a run (`cargo llvm-cov`) lists the transitions exercised
+  and those never reached.
+
+On top of these, the fakes check their clients (section 4) and the
+referee checks the scenario's expectations (section 7). Each machine, and
+each of a service's decoders, is fuzzed alone with `cargo fuzz`, fed
+`Bytes` under every demand; step functions are fuzzed with recorded event
+sequences.
+
+## 7. Scenarios and the referee
+
+A **scenario** is what a test sets up, in the fakes' own terms, with a
+seed: what each peer will say, the data it holds, and the faults to
+inject. Since a fake is the same at every tier, a scenario runs at every
+tier its fakes reach, and a failure found high up reruns lower down,
+where it replays.
+
+A scenario's expectations are a step machine of their own, the
+**referee**, which runs in the loop beside everything else, at every
+tier:
+
+- **It has the shape of every step:** its own state, events in, requests
+  out, and a deadline table of its own. In the replaying tiers its
+  deadlines are simulated time, so "within an hour" takes milliseconds.
+- **It watches from outside:** what the fakes saw and the facts the
+  service emits, never a service's state. What it sees is then the same at
+  every tier, and its expectations are written once.
+- **Two kinds of expectation.** Safety, what must always or never happen,
+  is checked on every observation and fails at once. Liveness, what must
+  happen by a deadline, is a deadline armed; one that fires fails the
+  test, listing what is still pending.
+- **It ends the test:** passed, once every expectation is met and nothing
+  is in flight; or failed, with when, why, what was pending, and the
+  seed.
+- **It injects what belongs to no fake:** the network dropping, a
+  component restarting, a shutdown.
+
+Boundary contracts and the invariants once things settle are not the
+referee's: each tier sees them differently, so each tier's harness keeps
+them (section 6). What a scenario expects of the system as a whole goes
+in the referee, and travels with the scenario.
+
+A world harness (schedule, trace, ledger of requests, heap, referee)
+belongs to the service that built it until a second service needs the
+same. Then it moves into skein.
+
+## 8. Two suites
+
+- **Focused tests** check what the code is expected to do: the step tests,
+  each world's scenarios, referee tests, replay, and memory under the
+  scenarios' ceilings, and the end-to-end tests against fakes. A scenario that needs
+  randomness runs the few seeds that show its behaviour, and a cheap random
+  world may stand as a smoke test. They run by default (`cargo nextest run
+  --workspace`), and the suite takes at most **30 seconds** (15 seconds
+  before the user's doubling of 10-22, provisional), so it can serve as
+  quick feedback during development, as often as is useful.
+- **Fuzzy tests** look for what no scenario names: sweeps of many random
+  worlds, each settled under every invariant; domains driven at random
+  under their ceilings; conformance over many seeds of faults; a
+  function against a naive one. They run with `--profile fuzzy`, and the
+  suite takes at most **2 minutes** (1 minute before the user's doubling of
+  10-22, provisional): too slow to run in full at every turn of development.
+  It is usually left alone until the merge gate, or run in part (one world's
+  sweep, a few seeds) when that is worth it.
+
+**The merge gate runs both suites in full,** whatever ran before it.
+**Live tests** (2.9) are a third suite, run only with `--profile live`,
+one at a time and outside any budget. The gate never runs them.
+
+**The user's doubling of 10-22 is provisional.** Every test-time budget,
+ceiling, guide and harness deadline is twice its earlier value. This also
+applies to test-cost guides quoted by earlier implementation plans; their
+recorded measurements and decisions remain historical records. Product
+timeouts, including a test's settings that prove timeout behaviour, keep
+their values. Common per-test guides quoted by those plans are:
+
+| Guide before the doubling | Provisional guide |
+|---|---|
+| 20 ms for a unit test | 40 ms (20 ms before the user's doubling of 10-22, provisional) |
+| 0.1 s for an in-memory world test | 0.2 s (0.1 s before the user's doubling of 10-22, provisional) |
+| 0.3 s for a joint world test | 0.6 s (0.3 s before the user's doubling of 10-22, provisional) |
+| 0.5 s for a focused world test | 1 s (0.5 s before the user's doubling of 10-22, provisional) |
+| 5 s for a fuzzy test | 10 s (5 s before the user's doubling of 10-22, provisional) |
+
+The budgets are wall time on the development machine, run idle, and they
+are enforced: each nextest profile has a global timeout, so a suite that
+runs past its budget fails. A change that breaks a budget is fixed by
+making tests cheaper, or by moving randomized ones to the fuzzy suite.
+Raising a budget is an explicit decision, not a fix.
+
+**A test is a process.** nextest runs each test in a process of its own,
+which costs some milliseconds before the test checks anything, more for
+a large binary. The gate
+starts nextest without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`, set by
+each repository's `scripts/check.sh`): nextest otherwise
+starts each test through a process of its own first, which doubles that
+cost and guards only a terminal's job control, which a gate never uses. So cases of one behaviour that each cost less than that
+(a golden value per type, a refusal per limit, a check per source file)
+are rows of one table test, which checks every row and names each that
+fails; a group of rows takes a test of its own only to share the work
+across threads. A test is cheaper by its algorithm first: a fixture
+built once per test, not per case; a lookup by key, not a scan; the
+library's own searches, which run optimized in unoptimized builds,
+rather than a loop over bytes.
+
+**What a test costs the suite.** A test's process costs about 3 ms on the
+development machine before it checks anything, and the gate runs eight
+at once, each two to three times slower than alone. So each test adds
+about 8 ms to the suite's total, and about 1 ms to its wall time, before
+its own work; a fixture built once per process is built once per test. A fixture many tests share is cheap to build, or a constant, and
+cases of one behaviour stay rows of one test.
+
+**A tool is not the code under test.** What a test runs to check a
+repository rather than the code it ships (a check of the sources' names,
+a generator that a drift test runs) may be built optimized: that hides
+nothing the tests check, and it costs what it does, not ten times that.
+
+**A test reads its paths when it runs.** It finds its package, its
+workspace, its package's binaries and the target's scratch space through
+`skein_scratch::paths`, which reads what cargo and nextest set when a test
+runs, never with `env!`: a path compiled in names the worktree and
+prevents sharing a test executable between worktrees or machines. A library that other packages' tests call
+finds its files from the workspace's root, since the running package is
+theirs. A library that another repository's tests use keeps its
+compile-time path: at run time it could not find its own checkout, and
+cargo's checkout of the pinned revision has the same path in every
+worktree.
+
+**A slow test is understood, never hidden.** Most tests do no I/O and
+are bound by the CPU, so a slow one has a cause in the code under test
+or in the test: a scan where a lookup would do (O(N) where O(1) or
+O(log N) would), hidden I/O, a sleep, setup repeated, data copied or
+encoded again. The cause is found with a profile and fixed where it
+is. Build settings never stand in for that fix: test builds stay
+unoptimized, dependencies included, the tools above aside. An optimized
+copy of skein or smith beside the gate's would also be built again at
+each dependency update. A per-crate override
+(`[profile.dev.package.<crate>]`) is allowed for one hot leaf crate
+alone: a profile must show a cost no test can avoid, and the user
+signs it off; a comment beside the override
+cites both. Dependencies carry no debug information in dev and test
+builds (`[profile.dev.package."*"]`, the user, 10-25): that halves the
+test executables and changes no test's speed or result, and only a
+backtrace through a dependency loses its line numbers.
+
+A fuzzy test lives beside its world and uses that world's settings,
+random ones included. When a fuzzy seed fails, the bug is fixed and the
+seed kept: as a scenario if it shows behaviour worth naming, or among the
+sweep's pinned seeds. A finding that cannot be fixed yet is replayed by
+an ignored test until it is: its `#[ignore]` reason names the work that
+fixes it, and its owner runs it until then.
+
+## 9. Where a failure is fixed
+
+- **In the lowest tier that shows it.** A failure found end to end, in
+  the real loop or in a simulated world is reproduced lower down, where
+  it replays and where the cause is closest, and fixed there. The lower
+  scenario stays, as its regression test.
+- **In skein, when it comes from skein.** A service's tiers stand on
+  skein's and do not retest the kit. A failure in a service's world that
+  comes from io, a machine or the simulator is reproduced in skein's own
+  tier and fixed in skein.
+- **A disagreement between the simulator and the kernel** is a
+  conformance bug: the suite first, then the simulator (section 5).
+- **What a service finds missing in skein** is added to skein, with the
+  service as its first user and first test.
+
+## 10. A test's shape
+
+How a test is written, at every tier. Each rule has a name, by which a
+design, a task or a review cites it, and none of them restates it.
+
+- **One behaviour per test.** A test is named for what it shows, in
+  about eight words, and its expected value is a literal or a named
+  size, never computed by the code under test. Cases that expect
+  different outcomes are tests of their own; cases of one behaviour that
+  each cost less than a test's process are rows of one table test
+  (section 8).
+- **Rows carry data.** A table test's rows hold its inputs and expected
+  values, and one body checks every row alike. The body never branches
+  on a row's label, nor compares it: rows that need different code are
+  different behaviours, and different tests.
+- **The setup the assertion reads.** A test builds what its assertion
+  reads, and nothing more, and asserts nothing on the way: a
+  precondition worth checking is another test's behaviour. A test that a
+  compaction carries no guard does not first check that an ordinary
+  prompt carries one.
+- **A setup written once.** When two tests of a file open with the same
+  three lines or more, or a test types a fixture, a setup, an
+  expectation or a literal of three lines or more that its file or the
+  crate's shared fixtures already hold, those lines are written once, as
+  a named function that takes what differs, and called. Copies already
+  landed, in files a change does not otherwise touch, stay as they are.
+- **Named fixtures and sizes.** A story's parties, tasks and connectors
+  are named fixtures, never bare numbers. A size, a count or a limit in
+  a test is a named constant, with the derivation of its value beside
+  it: the code's own constant, the fixture's content, or the design's
+  section. A bare number, or a sum of them (`host_tools + 4`), is a size
+  nobody can check.
+- **No number depends on the checkout's path.** A test whose expected
+  number counts a path (a size in bytes, a worst case, a length) lays
+  each path it uses at its bound, or measures it at its bound, so that
+  the number is the same in every checkout, at any depth. In temper's
+  forge-setup, the owned example's minima moved with the scratch
+  directory: 32 bytes in one worktree, 8 in another.
+- **A bound's two sides.** A limit is tested at the bound, which holds,
+  and one past it, which does not, each in a test or a row of its own.
+- **A recorded stream edited as records.** A test that alters a
+  recorded stream (a transcript, an event log, a summary) parses it,
+  changes the records it means to, and asserts how many it changed. It
+  never edits the text (`str::replace`), which, once the text moves,
+  changes nothing and says nothing.
+
+A rule of this section that a script can test becomes a check in the
+repository's gate when an owner's check of a diff finds it broken a
+second time, and the check's message names the rule. In hearth's
+render, constant-index reads, one-row tables,
+`let [x] = … else { panic!(…) }`, `.first().expect` and the names
+`actual` and `observed` were each a grep.

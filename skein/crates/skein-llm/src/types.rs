@@ -1,0 +1,450 @@
+//! Owned LLM vocabulary and typed refusals (llm.md, sections 2 and 2.5).
+//! Prompts and completions keep caller-owned bytes; replay remains opaque.
+//! These values know no transport, timer or retry policy; Client admission
+//! and terminals carry the cap and bound unchanged.
+use crate::Json;
+use alloc::boxed::Box;
+use skein_http::Header;
+use skein_lib::{Duration, Token, bytes};
+
+/// A concrete wire dialect, independent of how the caller pays for access.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Provider {
+    /// `OpenAI`'s public Responses route, with either scheme as a bearer.
+    OpenAi,
+    /// The withdrawn Codex Responses route; removed by the second part of LLM accounts.
+    OpenAiCodex,
+    /// Anthropic's Messages dialect, with a key or the withdrawn bearer route.
+    Anthropic,
+}
+/// The conversation participant; instructions live separately in [`Prompt`].
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Role {
+    User,
+    Assistant,
+}
+/// Provider-owned metadata needed to resend a completed block faithfully.
+///
+/// Retain this value with its block. Its schema belongs to the producing
+/// provider, and admission rejects using it with a different provider.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Replay {
+    /// The dialect that produced and understands this metadata.
+    pub provider: Provider,
+    /// Opaque replay metadata, not application text or tool arguments.
+    pub value: Json,
+}
+/// One owned conversation block, retained in provider output order.
+///
+/// Text is UTF-8. Assistant blocks may carry replay metadata; tool results
+/// belong to user messages and reference the corresponding tool call's id.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Block {
+    /// User input or completed assistant text.
+    Text { text: Box<[u8]>, replay: Option<Replay> },
+    /// A completed assistant refusal, distinct from ordinary text.
+    Refusal { text: Box<[u8]>, replay: Option<Replay> },
+    /// A completed assistant tool call. `id` correlates the result; `arguments`
+    /// are raw JSON bytes and can be malformed in received output. Inspect
+    /// them before executing a tool. Codex history preserves the exact bounded
+    /// UTF-8 argument string, including malformed JSON; Anthropic history
+    /// requires a representable JSON object for its native `tool_use.input`.
+    ToolCall { id: Box<[u8]>, name: Box<[u8]>, arguments: Box<[u8]>, replay: Option<Replay> },
+    /// A result for the tool call named by `id`. Codex lacks a native error
+    /// flag, so `is_error` prefixes the wire text with `Error: ` when true;
+    /// successful text is sent unchanged.
+    ToolResult { id: Box<[u8]>, text: Box<[u8]>, is_error: bool },
+    /// A received call past the argument cap; the caller replaces it before replay.
+    Oversize { id: Box<[u8]>, name: Box<[u8]>, bytes: u64 },
+    /// A call cut at the provider's output cap; the caller replaces it before replay.
+    Cut { id: Box<[u8]>, name: Box<[u8]>, arguments: Box<[u8]> },
+    /// Codex reasoning discarded by owner opt-in; history emits no native item for it.
+    Dropped { bytes: u64 },
+    /// Provider-owned assistant replay, including encrypted/signed reasoning
+    /// and unknown bounded native content-block envelopes.
+    /// The payload is opaque; visible reasoning summaries arrive as deltas.
+    Reasoning { replay: Replay },
+}
+/// One conversation turn, with blocks in the order they occurred.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Message {
+    pub role: Role,
+    pub content: Box<[Block]>,
+}
+/// A callable tool definition. Execution and result creation belong to the caller.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Tool {
+    pub name: Box<[u8]>,
+    pub description: Box<[u8]>,
+    /// A JSON Schema object describing the tool's argument object.
+    pub schema: Json,
+}
+/// The caller's tool policy for one call (llm.md, section 2.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ToolChoice {
+    /// The provider may select any offered tool.
+    Auto,
+    /// The caller asks the provider for an answer without tools.
+    None,
+    /// The caller permits these distinct offered names; native wires use Auto.
+    Only(Box<[Box<[u8]>]>),
+}
+
+/// Caller-owned cache routing identity, repeated unchanged through a conversation (llm.md, section 2.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Affinity {
+    pub key: [u8; 16],
+    pub thread: u32,
+}
+
+/// Owned input to one call. Admission validates counts, bytes and replay data.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Prompt {
+    /// Provider model identifier, nonempty UTF-8.
+    pub model: Box<[u8]>,
+    /// System-level instructions, separate from user/assistant history.
+    pub instructions: Box<[u8]>,
+    pub tools: Box<[Tool]>,
+    pub choice: ToolChoice,
+    /// Chronological conversation history, including prior replay metadata.
+    pub messages: Box<[Message]>,
+    /// An optional provider-supported reasoning effort value.
+    pub reasoning_effort: Option<Box<[u8]>>,
+    /// Conversation routing identity; Anthropic accepts it without a wire field.
+    pub affinity: Option<Affinity>,
+    /// Anthropic's `max_tokens`; `None` uses the endpoint's declared output.
+    /// A cap above the declaration is refused. Codex subscription calls
+    /// require `None` because that route does not support token caps.
+    pub max_output_tokens: Option<u32>,
+}
+impl Prompt {
+    /// Applies an application's nonzero output ceiling using the configured
+    /// dialect. Anthropic sends the ceiling; Codex omits the unsupported wire
+    /// option. The caller must still bound received output locally on Codex.
+    pub fn output_ceiling(&mut self, provider: Provider, ceiling: u32) -> Result<(), Error> {
+        if ceiling == 0 {
+            return Err(Error::Invalid);
+        }
+        self.max_output_tokens = match provider {
+            Provider::OpenAiCodex | Provider::OpenAi => None,
+            Provider::Anthropic => Some(ceiling),
+        };
+        Ok(())
+    }
+}
+
+/// Why a successfully decoded response finished.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Stop {
+    EndTurn,
+    ToolUse,
+    MaxTokens,
+    Refusal,
+}
+/// Provider-reported token accounting; None is unreported and Some(0) is a report of zero.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Usage {
+    pub input: Option<u64>,
+    pub cache_read: Option<u64>,
+    pub cache_write: Option<u64>,
+    /// Completion tokens, including reasoning.
+    pub output: Option<u64>,
+    /// The part of output spent on reasoning, never added to output.
+    pub reasoning: Option<u64>,
+}
+impl Usage {
+    /// All counts are unreported until the provider supplies them.
+    pub const NONE: Usage = Usage { input: None, cache_read: None, cache_write: None, output: None, reasoning: None };
+}
+
+/// A terminal successful response. Its blocks can be appended to history.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Completion {
+    pub content: Box<[Block]>,
+    pub stop: Stop,
+    pub usage: Usage,
+}
+/// Incremental UTF-8 fragments for display, not replacements for completed blocks.
+///
+/// `index` is the provider output item index. Content and summary indices name
+/// fragments within an item. Tool arguments may be incomplete JSON until done.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Delta {
+    Text {
+        index: u32,
+        content_index: u32,
+        text: Box<[u8]>,
+    },
+    /// A tool call opened: its identity, before any of its arguments' deltas.
+    ToolStart {
+        index: u32,
+        id: Box<[u8]>,
+        name: Box<[u8]>,
+    },
+    ToolArguments {
+        index: u32,
+        delta: Box<[u8]>,
+    },
+    Reasoning {
+        index: u32,
+        summary_index: u32,
+        text: Box<[u8]>,
+    },
+}
+/// A local admission or receiving cap named in a failure (llm.md, section 2.5).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Cap {
+    /// The configured bound on encoded request body.
+    Request,
+    /// The configured bound on encoded request head.
+    RequestHead,
+    /// The configured bound on response head.
+    ResponseHead,
+    /// The configured bound on HTTP header field count.
+    ResponseFields,
+    /// Scanned wire bytes of one event.
+    Skip,
+    /// The configured bound on an SSE event type or identifier.
+    Field,
+    /// The configured bound on retained decoded text.
+    Retained,
+    /// The configured bound on retained JSON tokens.
+    Tokens,
+    /// The configured bound on JSON nesting depth.
+    Depth,
+    /// The configured bound on retained string.
+    Strings,
+    /// The fixed tokenizer bound on a numeral.
+    Number,
+    /// The configured bound on provider reasoning replay.
+    Reasoning,
+    /// The configured bound on completion items.
+    OutputItems,
+    /// The configured bound on other replay metadata.
+    Metadata,
+    /// The configured bound on offered tools.
+    Tools,
+    /// The configured bound on history messages and blocks.
+    HistoryItems,
+    /// The endpoint model's declared completion ceiling in tokens.
+    Output,
+    /// The configured bound on completion answer.
+    Answer,
+    /// The configured bound on provider error body.
+    ErrorBody,
+    /// The configured bound on credential value.
+    Value,
+    /// The configured bound on account identifier.
+    AccountId,
+}
+
+impl Cap {
+    pub(crate) const fn name(self) -> &'static [u8] {
+        match self {
+            Cap::Request => b"encoded request body",
+            Cap::RequestHead => b"encoded request head",
+            Cap::ResponseHead => b"response head",
+            Cap::ResponseFields => b"HTTP header field count",
+            Cap::Skip => b"scanned event bytes",
+            Cap::Field => b"SSE field",
+            Cap::Retained => b"retained text",
+            Cap::Tokens => b"retained JSON tokens",
+            Cap::Depth => b"JSON nesting depth",
+            Cap::Strings => b"retained strings",
+            Cap::Number => b"JSON numeral",
+            Cap::Reasoning => b"reasoning item",
+            Cap::OutputItems => b"completion items",
+            Cap::Tools => b"offered tools",
+            Cap::HistoryItems => b"history items",
+            Cap::Metadata => b"replay metadata",
+            Cap::Output => b"declared output tokens",
+            Cap::Answer => b"completion answer",
+            Cap::ErrorBody => b"provider error body",
+            Cap::Value => b"credential value",
+            Cap::AccountId => b"account identifier",
+        }
+    }
+}
+
+impl Error {
+    pub(crate) fn limit(which: Cap, bound: u32) -> Error {
+        Error::Limit { which, bound: u64::from(bound) }
+    }
+}
+
+/// A rejected call has produced no traffic and no terminal event.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Error {
+    Invalid,
+    /// A configured local cap refused admission.
+    Limit {
+        which: Cap,
+        bound: u64,
+    },
+    Unsupported,
+}
+
+/// The owner's deadline that passed (llm.md, section 2.5; llm-connection.md, section 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Phase {
+    /// The socket did not connect in time.
+    Connect,
+    /// The TLS handshake did not finish in time.
+    Handshake,
+    /// No response head arrived before the peer's head deadline.
+    Head,
+    /// No event carrying the model's output arrived before the idle deadline.
+    Idle,
+    /// The whole call, including its wait, exceeded the owner's deadline.
+    Whole,
+}
+
+/// The terminal outcome of an accepted call. Retry policy belongs to its owner.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Failure {
+    Unauthorized,
+    /// The provider refused the call.
+    Refused,
+    /// The provider does not support the requested capability.
+    Unsupported,
+    Exhausted {
+        retry_after: Option<Duration>,
+    },
+    RateLimited {
+        retry_after: Duration,
+    },
+    Overloaded,
+    Unavailable,
+    ContextTooLong,
+    Invalid,
+    /// A configured local cap ended the accepted call.
+    Limit {
+        which: Cap,
+        bound: u64,
+    },
+    Protocol,
+    Cancelled,
+    /// The owner's named deadline passed and ended the accepted call.
+    TimedOut {
+        phase: Phase,
+    },
+}
+/// The provider's evidence of a failure; a value is empty if not given.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Report {
+    pub code: Box<[u8]>,
+    pub request: Box<[u8]>,
+    pub field: Box<[u8]>,
+}
+impl Report {
+    /// A failure for which the provider supplied no report values.
+    #[must_use]
+    pub fn none() -> Report {
+        Report { code: Box::new([]), request: Box::new([]), field: Box::new([]) }
+    }
+}
+/// The wire dialect and HTTP destination; transport/TLS are caller-owned.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Endpoint {
+    pub provider: Provider,
+    /// HTTP authority, optionally including a port, with no URL scheme.
+    pub authority: Box<[u8]>,
+    /// Origin-form request target, such as `/backend-api/codex/responses`.
+    pub target: Box<[u8]>,
+    /// Additional caller identity/route headers. Reserved framing and credential
+    /// headers are rejected rather than allowing duplicate or conflicting fields.
+    pub headers: Box<[Header]>,
+    /// The content coding the client applies to the request body it sends.
+    pub encoding: Encoding,
+}
+/// The content coding of a request body on the wire.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Encoding {
+    /// The rendered body, sent as it is.
+    Identity,
+    /// The rendered body, compressed and sent with `Content-Encoding: gzip`.
+    Gzip,
+}
+impl Endpoint {
+    /// `OpenAI` public Responses at `api.openai.com/v1/responses`.
+    #[must_use]
+    pub fn openai() -> Endpoint {
+        Endpoint {
+            provider: Provider::OpenAi,
+            authority: bytes::copy_of(b"api.openai.com"),
+            target: bytes::copy_of(b"/v1/responses"),
+            headers: Box::new([]),
+            encoding: Encoding::Identity,
+        }
+    }
+    /// Anthropic Messages, authenticated with a key or a bearer.
+    #[must_use]
+    pub fn anthropic() -> Endpoint {
+        Endpoint {
+            provider: Provider::Anthropic,
+            authority: bytes::copy_of(b"api.anthropic.com"),
+            target: bytes::copy_of(b"/v1/messages"),
+            headers: Box::new([]),
+            encoding: Encoding::Identity,
+        }
+    }
+    /// The withdrawn Codex route; removed by the second part of LLM accounts.
+    #[must_use]
+    pub fn codex() -> Endpoint {
+        Endpoint {
+            provider: Provider::OpenAiCodex,
+            authority: bytes::copy_of(b"chatgpt.com"),
+            target: bytes::copy_of(b"/backend-api/codex/responses"),
+            headers: Box::new([]),
+            encoding: Encoding::Gzip,
+        }
+    }
+}
+/// The scheme a route uses to present a credential (llm.md, section 2.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Scheme {
+    /// A bearer token, sent in the authorization field.
+    Bearer,
+    /// A key, sent where the provider takes keys.
+    Key,
+}
+/// A caller-owned value and its scheme; no Debug implementation exposes it.
+#[expect(missing_debug_implementations, reason = "OAuth credential bytes must not enter debug traces")]
+pub struct Credential {
+    /// The secret; acquisition and renewal belong to the caller.
+    pub value: Box<[u8]>,
+    /// How the route presents the value.
+    pub scheme: Scheme,
+    /// The withdrawn Codex account id; removed by the second part of LLM accounts.
+    pub account_id: Box<[u8]>,
+}
+impl Credential {
+    /// Uses a caller-obtained bearer token without an account id.
+    #[must_use]
+    pub fn bearer(value: Box<[u8]>) -> Credential {
+        Credential { value, scheme: Scheme::Bearer, account_id: Box::new([]) }
+    }
+    /// Uses a caller-obtained key without an account id.
+    #[must_use]
+    pub fn key(value: Box<[u8]>) -> Credential {
+        Credential { value, scheme: Scheme::Key, account_id: Box::new([]) }
+    }
+    /// Uses the withdrawn Codex bearer; removed by the second part of LLM accounts.
+    #[must_use]
+    pub fn codex(value: Box<[u8]>, account_id: Box<[u8]>) -> Credential {
+        Credential { value, scheme: Scheme::Bearer, account_id }
+    }
+    /// Uses the withdrawn Anthropic bearer; removed by the second part of LLM accounts.
+    #[must_use]
+    pub fn anthropic(value: Box<[u8]>) -> Credential {
+        Self::bearer(value)
+    }
+}
+/// One owner-correlated request. Admission consumes it whether accepted or rejected.
+#[expect(missing_debug_implementations, reason = "a call owns credentials that must not enter debug traces")]
+pub struct Call {
+    pub owner: Token,
+    pub prompt: Prompt,
+    pub endpoint: Endpoint,
+    pub credential: Option<Credential>,
+}

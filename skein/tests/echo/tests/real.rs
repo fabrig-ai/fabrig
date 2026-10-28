@@ -1,0 +1,132 @@
+//! The echo on the real loop (testing-strategy.md, 2.8; examples.md, 7): the
+//! echo as it ships and its fake clients, on one shared kernel, in one
+//! thread and one loop over the shell's kernel, on loopback, with the
+//! referee's deadlines on the real clock. It shows what only the real
+//! kernel can: each backend under the whole service, and real sockets
+//! between real processes' worth of io. It does not replay; what fails here
+//! is rerun in the simulated worlds, where it does.
+//!
+//! The forced ring story fails on a machine where `io_uring` cannot be used,
+//! saying so, as the ring's own tests do.
+
+use skein_echo_client::{Plan, Then};
+use skein_echo_world::proc::Proc;
+use skein_echo_world::referee::{EchoReferee, Expect, Shutdown};
+use skein_echo_world::scenarios::{LINE, client_limits, plan, server};
+use skein_io::Addr;
+use skein_lib::{Duration, Rng};
+use skein_shell::{Backend, Clock};
+use skein_world::real;
+
+/// The echo's idle deadline here: short, so that the test is quick.
+const IDLE: Duration = Duration::from_millis(200);
+
+// The echo's real loop on the ring (shell.md, 9).
+#[cfg(target_os = "linux")]
+#[test]
+fn the_echo_serves_refuses_and_idles_out_its_clients_on_the_real_ring() {
+    serves_refuses_and_idles(Backend::Ring);
+}
+
+#[test]
+fn the_echo_serves_refuses_and_idles_out_its_clients_on_the_readiness_backend() {
+    serves_refuses_and_idles(Backend::Readiness);
+}
+
+fn serves_refuses_and_idles(backend: Backend) {
+    let clock = Clock::new();
+    let start = clock.now().now;
+    let at = |ms: u64| start.saturating_add(Duration::from_millis(ms));
+    let mut rng = Rng::new(7);
+    let mut limits = server();
+    limits.protocol.idle = IDLE;
+    limits.protocol.spread = Duration::from_millis(20);
+    let listen = Addr::Ip("127.0.0.1:0".parse().expect("an address"));
+
+    // Three connections at once against two sessions, each of eight lines
+    // ahead of their answers in pieces cut short, retried when refused.
+    let many = |rng: &mut Rng| Plan {
+        lines: 8,
+        ahead: 3,
+        piece: 5,
+        retries: 40,
+        backoff: Duration::from_millis(20),
+        ..plan(start, rng.next_u64())
+    };
+    let first = [many(&mut rng), many(&mut rng), many(&mut rng)];
+    // One whose third line is past the limit; and, once the others are long
+    // done, one that lingers until the echo idles it out.
+    let second = [
+        Plan {
+            lines: 4,
+            long: Some(2),
+            shortest: LINE,
+            then: Then::Linger,
+            retries: 40,
+            ..plan(at(60), rng.next_u64())
+        },
+        Plan { lines: 1, then: Then::Linger, ..plan(at(300), rng.next_u64()) },
+    ];
+    let by = at(5_000);
+    let mut expect = Vec::new();
+    for conn in 0..3 {
+        expect.push(Expect::Served { at: 1, conn, by });
+        expect.push(Expect::Finished { at: 1, conn, by });
+    }
+    expect.push(Expect::TooLong { at: 2, conn: 0, by });
+    // Less a margin: on the ring, the client hears its last answer a moment
+    // after the echo arms its deadline.
+    expect.push(Expect::Idled { at: 2, conn: 1, idle: Duration::from_millis(150), by });
+    expect.push(Expect::Finished { at: 2, conn: 0, by });
+    expect.push(Expect::Finished { at: 2, conn: 1, by });
+
+    let mut world =
+        real::World::new_controlled(|controls| EchoReferee::new(7, expect, Shutdown::WhenDone, controls)).on(backend);
+    world.spawn_signals(|signal| {
+        let mut proc = Proc::echo(limits, listen, rng.next_u64());
+        match &mut proc {
+            Proc::Echo { svc, .. } => svc.svc.adopt_signals(signal).expect("signal slot"),
+            Proc::Client { .. } => unreachable!("echo"),
+        }
+        proc
+    });
+    world.spawn(|| Proc::client(client_limits(3), &first));
+    world.spawn(|| Proc::client(client_limits(2), &second));
+    let outcome = world.run(&clock, Duration::from_secs(20));
+    let took = outcome.end.saturating_since(outcome.start);
+    assert!(took < Duration::from_secs(10), "over within ten seconds: {} ms", took.as_nanos() / 1_000_000);
+    let seen = outcome.procs[2].as_client().expect("a fake client").seen(0);
+    assert_eq!(seen.answered, 2, "the lines before the long one were answered");
+}
+
+#[test]
+fn the_shipped_idle_time_does_not_delay_the_real_echo_shutdown() {
+    let clock = Clock::new();
+    let start = clock.now().now;
+    let at = |ms| start.saturating_add(Duration::from_millis(ms));
+    let expect = vec![
+        Expect::Served { at: 1, conn: 0, by: at(100) },
+        Expect::Ends { at: 1, conn: 0, by: at(500) },
+        Expect::Finished { at: 1, conn: 0, by: at(500) },
+    ];
+    let limits = server();
+    assert_eq!(limits.protocol.idle, skein_echo_shell::limits().protocol.idle);
+    assert_eq!(limits.protocol.spread, skein_echo_shell::limits().protocol.spread);
+    let mut world =
+        real::World::new_controlled(|controls| EchoReferee::new(19, expect, Shutdown::At(at(100)), controls));
+    world.spawn_signals(|signal| {
+        let mut proc = Proc::echo(limits, Addr::Ip("127.0.0.1:0".parse().expect("loopback")), 19);
+        match &mut proc {
+            Proc::Echo { svc, .. } => svc.svc.adopt_signals(signal).expect("signal slot"),
+            Proc::Client { .. } => unreachable!("echo"),
+        }
+        proc
+    });
+    let plans = [Plan { lines: 1, then: Then::Linger, ..plan(start, 19) }];
+    world.spawn(|| Proc::client(client_limits(1), &plans));
+    let outcome = world.run(&clock, Duration::from_secs(2));
+    assert!(
+        outcome.end.saturating_since(outcome.start) < Duration::from_millis(1000),
+        "the owner drain, rather than the shipped idle time, ends the echo"
+    );
+}

@@ -1,0 +1,16 @@
+[package]
+name = "skein-ui-text"
+description = "Bounded semantic text rendering and terminal commands"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-ui.workspace = true
+skein-lib.workspace = true
+skein-io.workspace = true
+
+[lints]
+workspace = true

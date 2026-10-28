@@ -1,0 +1,18 @@
+[package]
+name = "skein-tls"
+description = "A TLS client stream for a connection's stack of protocol machines, over rustls's unbuffered connection"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+rustls.workspace = true
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+ring = { workspace = true, features = ["wasm32_unknown_unknown_js"] }
+
+[lints]
+workspace = true

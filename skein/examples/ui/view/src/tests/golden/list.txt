@@ -1,0 +1,30 @@
+== Notes == 
+Notes
+* Offline
+- [1] Groceries
+  2026-10-15
+  task
+- [2] Dentist
+  2026-10-15
+  task
+Add:
+  [3] Title: (empty) (required) (enter sends)
+  [4] Body: (empty)
+  [5] Due date: (empty) (date, YYYY-MM-DD)
+  [6] Minutes: (empty) (number)
+  Label:
+    [7] (*) idea
+    [8] ( ) task
+    [9] ( ) reference
+  [10] Clear
+  [11] Add
+Notes by label:
+  Notes by label:
+    - idea: 0
+    - task: 2
+    - reference: 0
+  Label:
+    [12] (*) All notes
+    [13] ( ) Ideas
+    [14] ( ) Tasks
+    [15] ( ) References

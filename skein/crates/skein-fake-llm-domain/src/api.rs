@@ -1,0 +1,482 @@
+//! The provider's API, as its domain layer sees it once the protocol layer has
+//! parsed a request.
+//!
+//! Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
+
+use alloc::boxed::Box;
+
+use skein_lib::Duration;
+
+/// Sender of one provider conversation message.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Role {
+    /// User or tool-result side of the conversation.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    User,
+    /// Provider-produced assistant side of the conversation.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Assistant,
+}
+
+/// Caller-supplied deliberately invalid call input; the fake interprets neither name nor body.
+/// Fixed wrappers and payloads share the configured script byte allowance.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct InvalidInput {
+    /// Optional literal replacement tool name; `None` keeps the offered tool's name.
+    pub name: Option<Box<[u8]>>,
+    /// Whole caller-supplied malformed or semantically invalid body.
+    pub arguments: Box<[u8]>,
+}
+
+/// Application-owned inputs for random tool stories. Empty menus generate no random tool calls.
+/// Menu storage and scripts jointly fit `Config::script_bytes` before admission.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Menu {
+    /// Whole argument bodies copied for randomly selected offered tools.
+    pub arguments: Box<[Box<[u8]>]>,
+    /// Whole deliberate invalid inputs selected when the malformed roll wins.
+    pub invalid: Box<[InvalidInput]>,
+}
+
+/// One bounded block accepted from the provider stream or neutral fake API.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Part {
+    /// Provider-owned replay data, preserved verbatim and never interpreted by the domain.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Opaque {
+        /// Owned payload bytes charged against the enclosing provider limit.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        bytes: Box<[u8]>,
+    },
+    /// Owned bounded text in its original provider position.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Text {
+        /// Owned UTF-8 text, bounded by the enclosing message or output cap.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        text: Box<[u8]>,
+    },
+    /// The model calls a tool with `arguments`, a JSON object.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    ToolCall {
+        /// Provider-issued tool-call identifier, preserved verbatim in its result.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        id: Box<[u8]>,
+        /// Boundary name, compared byte for byte; it carries no authority by itself.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        name: Box<[u8]>,
+        /// Provider-written JSON tool arguments, retained within the enclosing byte cap.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        arguments: Box<[u8]>,
+    },
+    /// The client's answer to the tool call `id`.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    ToolOutput {
+        /// Provider-issued tool-call identifier, preserved verbatim in its result.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        id: Box<[u8]>,
+        /// Owned output bytes retained within the enclosing output cap.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        output: Box<[u8]>,
+        /// Whether the supplied tool result represents a failure.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        is_error: bool,
+    },
+}
+
+/// One ordered conversation message, with sender and owned bounded content.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Message {
+    /// Sender of this message in the provider-neutral conversation.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub role: Role,
+    /// Maximum message parts, tool definitions or retained output parts.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub parts: Box<[Part]>,
+}
+
+/// A tool the client offers. `parameters` is a JSON schema.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ToolSpec {
+    /// Boundary name, compared byte for byte; it carries no authority by itself.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub name: Box<[u8]>,
+    /// Owned display text for the offered tool; the model alone interprets it.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub description: Box<[u8]>,
+    /// Owned bounded JSON schema for the tool's arguments.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub parameters: Box<[u8]>,
+}
+
+/// Caller tool policy, supplied in a query independently of client vocabulary.
+/// Contract: docs/design/fake-llm.md, section 2.1.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ToolChoice {
+    /// Random answers may call any offered tool.
+    Auto,
+    /// Random answers use no tools, unless the configured breach chance fires.
+    None,
+    /// Random answers may call only these offered names.
+    Only(Box<[Box<[u8]>]>),
+}
+
+/// Cache routing read by the byte peer and supplied with a domain query.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Caching {
+    /// Automatic prefix caching within the caller's shared conversation scope.
+    Scope([u8; 16]),
+    /// Automatic writes; reads require the configured seeded routing chance.
+    Unscoped,
+    /// Only prefixes bounded by these native request positions, at most four.
+    Marks(Box<[Mark]>),
+}
+
+/// A cache boundary supplied by the peer in prompt order.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Mark {
+    /// After the tools and system text.
+    System,
+    /// After one part of a conversation message.
+    Part { message: u32, part: u32 },
+}
+
+/// A request for the next assistant message.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Query {
+    /// The accepted credential index supplied by the peer, if any.
+    pub credential: Option<u32>,
+    /// Cache instructions in the fake's own terms, independent of wire headers.
+    pub caching: Caching,
+    /// Provider model name, treated as bytes by the domain.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub model: Box<[u8]>,
+    /// System instructions supplied by the opener, retained within the enclosing byte cap.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub system: Box<[u8]>,
+    /// Tools offered or granted by this record; their names confer no additional authority.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub tools: Box<[ToolSpec]>,
+    pub choice: ToolChoice,
+    /// Oldest-first conversation messages, with provider call/result pairing preserved.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub messages: Box<[Message]>,
+    /// Maximum output tokens requested for one completion.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub max_tokens: u32,
+}
+
+/// One fake-provider terminal, carrying ordered response parts, stop classification and independent token usage.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Answer {
+    /// Maximum message parts, tool definitions or retained output parts.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub parts: Box<[Part]>,
+    /// Provider stop classification or permission to offer finish, as named by the enclosing record.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub finish: Finish,
+    /// Provider-reported token usage, charged exactly once when its completion ends.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub usage: Usage,
+}
+
+/// Why the fake provider stopped; the agent translator supplies its own corresponding vocabulary.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Finish {
+    /// The fake finished its assistant turn.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Stop,
+    /// The fake asks for tools, including deliberately malformed empty batches.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    ToolCalls,
+    /// The fake cut its answer at the requested output-token limit.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Length,
+    /// The fake refused by its scripted content filter.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    ContentFilter,
+}
+
+/// Tokens a call took: the prompt's, read afresh or from the cache, the
+/// cache's new entries, and the answer's.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Usage {
+    pub input: Option<u64>,
+    pub cache_read: Option<u64>,
+    pub cache_write: Option<u64>,
+    /// Completion tokens, including reasoning.
+    pub output: Option<u64>,
+    /// The part of output spent on reasoning, never added to output.
+    pub reasoning: Option<u64>,
+}
+impl Usage {
+    /// All counts are unreported until the provider supplies them.
+    pub const NONE: Usage = Usage { input: None, cache_read: None, cache_write: None, output: None, reasoning: None };
+}
+
+/// Typed refusal or terminal failure of the fake peer, independent of the agent's policy.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Error {
+    /// The provider is temporarily overloaded.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Overloaded,
+    /// The provider asks the client to wait before retrying.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    RateLimited {
+        /// Optional provider cooldown, retained in the representation of this boundary.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        retry_after: Duration,
+    },
+    /// The service failed, or could not be reached.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Unavailable,
+    /// The query does not fit the model's context window.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    ContextTooLong,
+    /// The client's credentials were refused.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Unauthorized,
+    /// The provider reports its account allowance spent.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Exhausted {
+        /// The reset supplied by the provider, if any.
+        retry_after: Option<Duration>,
+    },
+    /// The provider refuses this account what was asked.
+    Refused,
+    /// The provider will not take a field of the request.
+    Unsupported,
+    /// The neutral fake rejected the client's conversation structure.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    InvalidRequest,
+}
+
+/// Scripts cued by the system text, by the person's latest request, and
+/// the turns that answer when neither cues one, in that order.
+///
+/// All scripts and the menu share `Config::script_bytes`.
+/// Contract: docs/design/fake-llm.md, section 2.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Scripts {
+    /// System-cued scripts; turns count every assistant message unless ruled by input.
+    pub cued: Box<[Script]>,
+    /// Request-cued scripts; turns count assistant messages after the last
+    /// user message holding text, so each new request starts again, unless ruled by input.
+    pub asked: Box<[Script]>,
+    /// Turns played when neither cue matches, counted as an asked script's.
+    /// Empty turns leave the answer to chance.
+    pub otherwise: Box<[Turn]>,
+}
+
+/// Fresh-input turn rules, index-parallel to the corresponding `Scripts` groups.
+/// Missing or empty entries retain assistant-message counting.
+///
+/// Contract: docs/design/fake-llm.md, section 2.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Rules {
+    /// Rules for system-cued scripts, in script order.
+    pub cued: Box<[Box<[Rule]>]>,
+    /// Rules for request-cued scripts, in script order.
+    pub asked: Box<[Box<[Rule]>]>,
+}
+
+/// A cue selecting a fixed turn from fresh text or tool output.
+/// Nonempty lists end with their only empty cue, the default.
+///
+/// Contract: docs/design/fake-llm.md, section 2.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Rule {
+    /// Bytes contained within one fresh input part; empty always matches.
+    pub cue: Box<[u8]>,
+    /// Zero-based turn within the corresponding script.
+    pub turn: u32,
+}
+
+/// A conversation the fake plays from a cue in the system text or the
+/// person's latest request, as its place in `Scripts` says.
+///
+/// Contract: docs/design/fake-llm.md, section 2.4; programming-model.md, section 4.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Script {
+    /// Selection bytes: the earliest position wins, then the first listed.
+    /// A request's cue does not span two text parts.
+    pub cue: Box<[u8]>,
+    /// Answers in order, counting assistant messages from the system's or
+    /// request's start; past the last turn the answer is "done". Input rules
+    /// select a turn directly instead of counting.
+    pub turns: Box<[Turn]>,
+}
+
+/// One scripted answer: what it says, why it stops, and the tokens it takes
+/// to say.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Turn {
+    /// Scripted answer parts, emitted in their declared order.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub lines: Box<[Line]>,
+    /// Provider stop classification or permission to offer finish, as named by the enclosing record.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub finish: Finish,
+    /// Maximum JSON tokens or scripted output tokens, as named by the enclosing record.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    pub tokens: u64,
+}
+
+/// A piece of a scripted answer. The fake names its calls.
+///
+/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Line {
+    /// Ends the turn for the named credential indices, or every call when empty.
+    Fail {
+        /// The provider failure class.
+        error: Error,
+        /// The evidence sent as given by the script.
+        report: Report,
+        /// Accepted credential indices whose calls fail.
+        credentials: Box<[u32]>,
+    },
+    /// The reply's text in pieces, each its own delta; the turn's first line.
+    ///
+    /// Contract: docs/design/fake-llm.md, section 2.2.
+    Pieces {
+        /// Ordered nonempty pieces, retained within the script byte cap.
+        pieces: Box<[Piece]>,
+    },
+    /// Whole provider-owned replay block supplied by the caller's script.
+    /// Retained without interpretation within the aggregate script byte cap.
+    Opaque {
+        /// Complete native replay value; the peer protocol checks its wire syntax.
+        bytes: Box<[u8]>,
+    },
+    /// Owned bounded text in its original provider position.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Text {
+        /// Owned UTF-8 text, bounded by the enclosing message or output cap.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        text: Box<[u8]>,
+    },
+    /// A call to the tool `name` with `arguments`, which may be anything: a
+    /// script may call a tool that was not offered, or write what is not an
+    /// object.
+    ///
+    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    Call {
+        /// Boundary name, compared byte for byte; it carries no authority by itself.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        name: Box<[u8]>,
+        /// Provider-written JSON tool arguments, retained within the enclosing byte cap.
+        ///
+        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        arguments: Box<[u8]>,
+    },
+}
+
+/// One piece of reply text, waiting before it when its hold is named.
+///
+/// Contract: docs/design/fake-llm.md, section 2.2.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Piece {
+    /// Nonempty text, sent as one delta before the terminal reply.
+    pub text: Box<[u8]>,
+    /// A name of 1 to 64 bytes that the owner releases before this piece.
+    pub hold: Option<Box<[u8]>>,
+}
+
+/// The evidence a failing line gives: code, request id and field, as bytes.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Report {
+    /// Provider error code, or empty for the route's default.
+    pub code: Box<[u8]>,
+    /// Provider request id, or empty for the peer's own.
+    pub request: Box<[u8]>,
+    /// Request field the provider names.
+    pub field: Box<[u8]>,
+}
+impl Report {
+    /// Empty evidence for a seeded failure or the domain's own refusal.
+    #[must_use]
+    pub fn none() -> Report {
+        Report { code: Box::new([]), request: Box::new([]), field: Box::new([]) }
+    }
+}
+
+/// A failed reply: its class, evidence and parts before the failing line.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Failure {
+    /// The provider's failure class.
+    pub error: Error,
+    /// Evidence supplied by the script.
+    pub report: Report,
+    /// Reply parts before the failing line.
+    pub parts: Box<[Part]>,
+}
+impl From<Error> for Failure {
+    fn from(error: Error) -> Failure {
+        Failure { error, report: Report::none(), parts: Box::new([]) }
+    }
+}

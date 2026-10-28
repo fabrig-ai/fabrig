@@ -1,0 +1,516 @@
+//! Raw scripts for hosting stories, observing only pipes, signals and exits.
+
+use std::collections::VecDeque;
+
+use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};
+use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_world::{Host, Inherited, Machine};
+
+/// One sequential kernel operation in a parent or child script.
+#[derive(Clone, Copy, Debug)]
+pub enum Act {
+    /// The parent asks to start the hosted program.
+    Spawn,
+    /// Sets a terminal window size through its master.
+    Resize(usize, skein_io::kernel::Size),
+    /// Reads the terminal modes through its master.
+    Modes(usize),
+    /// Waits until the binary reports these bytes on stderr.
+    AwaitStderr(&'static [u8]),
+    /// The parent starts a hosted program with a separate stderr pipe too.
+    SpawnStderr,
+    /// The script writes these bytes to one inherited pipe.
+    Write(usize, &'static [u8]),
+    /// The script reads from one inherited pipe, possibly its end.
+    Read(usize),
+    /// Reads a byte at a time until the accumulated pipe bytes contain this marker.
+    ReadUntil(usize, &'static [u8]),
+    /// The script closes an inherited pipe before continuing its exchange.
+    Close(usize),
+    /// The parent waits for its child to exit.
+    Wait,
+    /// The script opens a file beneath its independently owned startup root.
+    OpenRoot(usize, &'static [u8], OpenHow),
+    /// The script writes a regular file at offset zero.
+    WriteFile(usize, &'static [u8]),
+    /// Appends these bytes to an inherited startup file.
+    AppendFile(usize, &'static [u8]),
+    /// The script reads a regular file at offset zero.
+    ReadFile(usize),
+    /// The parent closes its launch root while the child retains its own roots.
+    CloseLaunch,
+    /// The parent sends an interrupt, termination or kill signal to its child.
+    Signal(Signal),
+    /// The child waits for a catchable signal from its parent.
+    ReadSignal,
+    /// The script stops until this simulated instant.
+    Pause(Time),
+    /// The script pauses from the iteration that starts this act.
+    PauseFor(Duration),
+}
+
+/// A script runs kernel operations and closes all its descriptors at the end.
+#[derive(Debug)]
+pub struct Script {
+    acts: VecDeque<Act>,
+    pub awaiting: Option<&'static [u8]>,
+    fds: Vec<Fd>,
+    signal: Option<Fd>,
+    pidfd: Option<Fd>,
+    root: Option<Fd>,
+    roots: Vec<Fd>,
+    pub args: Box<[Box<[u8]>]>,
+    waiting: bool,
+    next: u64,
+    done: bool,
+    pause: Option<Time>,
+    completions: Queue<Complete>,
+    submissions: Queue<Submit>,
+    pub received: Vec<u8>,
+    pub modes: Vec<skein_shell::Modes>,
+    pub results: Vec<Result<Done, skein_io::kernel::Error>>,
+    pub signals: Vec<skein_io::kernel::ServiceSignal>,
+    pub child_exit: Option<Exit>,
+    pub hog: usize,
+    pub held: Box<[u8]>,
+    pub leak: bool,
+    pub terminal: Option<Exit>,
+    pub iterations: u32,
+    pub drains: u32,
+}
+
+impl Script {
+    #[must_use]
+    pub fn new(acts: &[Act]) -> Self {
+        Self {
+            acts: acts.iter().copied().collect(),
+            awaiting: None,
+            fds: Vec::new(),
+            signal: None,
+            pidfd: None,
+            root: None,
+            roots: Vec::new(),
+            args: Box::new([Box::from(&b"argument"[..])]),
+            waiting: false,
+            next: 1,
+            done: false,
+            pause: None,
+            completions: Queue::with_capacity(8),
+            submissions: Queue::with_capacity(8),
+            received: Vec::new(),
+            modes: Vec::new(),
+            results: Vec::new(),
+            signals: Vec::new(),
+            child_exit: None,
+            hog: 0,
+            held: Box::new([]),
+            leak: false,
+            terminal: Some(Exit::Code(0)),
+            iterations: 0,
+            drains: 0,
+        }
+    }
+
+    #[must_use]
+    pub fn parent(root: Fd, acts: &[Act]) -> Self {
+        let mut script = Self::new(acts);
+        script.root = Some(root);
+        script
+    }
+
+    #[must_use]
+    pub fn child(inherited: &Inherited, acts: &[Act]) -> Self {
+        let mut script = Self::new(acts);
+        script.fds =
+            inherited.pipes.iter().map(|(_, fd)| *fd).chain(inherited.appends.iter().map(|(_, fd)| *fd)).collect();
+        script.signal = Some(inherited.signal);
+        script.roots = inherited.roots.iter().map(|(_, fd)| *fd).collect();
+        script
+    }
+
+    /// Adopts scripted pipe or terminal descriptors opened by the binary kit.
+    #[must_use]
+    pub fn pipes(fds: Vec<Fd>, acts: &[Act]) -> Self {
+        let mut script = Self::new(acts);
+        script.fds = fds;
+        script
+    }
+
+    fn submit(&mut self, kind: Op) {
+        self.submissions.push(Submit { op: Token::new(self.next), kind });
+        self.next += 1;
+        self.waiting = true;
+    }
+
+    fn start(&mut self, act: Act, now: Time) {
+        let kind = match act {
+            Act::Spawn | Act::SpawnStderr => Op::Spawn {
+                spawn: Box::new(Spawn {
+                    program: Box::from(&b"hosted"[..]),
+                    args: self.args.clone(),
+                    env: Box::new([Box::from(&b"KEY=value"[..])]),
+                    root: self.root.expect("parent root"),
+                    dir: Box::new([]),
+                    pipes: {
+                        let mut pipes = vec![
+                            Pipe { child: 0, way: Way::In, parent: None },
+                            Pipe { child: 1, way: Way::Out, parent: None },
+                        ];
+                        if matches!(act, Act::SpawnStderr) {
+                            pipes.push(Pipe { child: 2, way: Way::Out, parent: None });
+                        }
+                        pipes.into_boxed_slice()
+                    },
+                }),
+            },
+            Act::Write(at, bytes) => Op::PipeWrite { fd: self.fds[at], bytes: Box::from(bytes), from: 0 },
+            Act::Read(at) | Act::ReadUntil(at, _) => {
+                if let Act::ReadUntil(_, bytes) = act {
+                    assert!(!bytes.is_empty(), "a read marker has bytes");
+                    if self.received.windows(bytes.len()).any(|window| window == bytes) {
+                        return;
+                    }
+                    self.acts.push_front(act);
+                }
+                Op::PipeRead {
+                    fd: self.fds[at],
+                    buf: vec![0; if matches!(act, Act::ReadUntil(..)) { 1 } else { 32 }].into_boxed_slice(),
+                }
+            }
+            Act::Close(at) => Op::Close { fd: self.fds.remove(at) },
+            Act::OpenRoot(index, path, how) => Op::Open { root: self.roots[index], path: Box::from(path), how },
+            Act::WriteFile(index, bytes) => Op::Write { fd: self.fds[index], bytes: Box::from(bytes), at: 0, from: 0 },
+            Act::AppendFile(index, bytes) => Op::Append { fd: self.fds[index], bytes: Box::from(bytes), from: 0 },
+            Act::ReadFile(index) => Op::Read { fd: self.fds[index], buf: Box::new([0; 32]), at: 0 },
+            Act::CloseLaunch => Op::Close { fd: self.root.take().expect("launch root") },
+            Act::Wait => Op::Wait { pidfd: self.pidfd.expect("spawned child"), reap: false },
+            Act::Signal(signal) => {
+                Op::Signal { pidfd: self.pidfd.expect("spawned child"), signal, to: skein_io::kernel::Target::Child }
+            }
+            Act::AwaitStderr(bytes) => {
+                self.awaiting = Some(bytes);
+                return;
+            }
+            Act::Resize(at, size) => {
+                skein_shell::resize_terminal(self.fds[at], size).expect("terminal resize");
+                return;
+            }
+            Act::Modes(at) => {
+                self.modes.push(skein_shell::terminal_modes(self.fds[at]).expect("terminal modes"));
+                return;
+            }
+            Act::ReadSignal => Op::ReadSignal { fd: self.signal.expect("child signal source") },
+            Act::Pause(until) => {
+                self.pause = Some(until);
+                return;
+            }
+            Act::PauseFor(duration) => {
+                self.pause = Some(now.saturating_add(duration));
+                return;
+            }
+        };
+        self.submit(kind);
+    }
+}
+
+impl Host for Script {
+    fn drain(&mut self) {
+        self.drains += 1;
+        assert_eq!(self.iterations, self.drains, "one drain follows each iteration");
+    }
+
+    fn iterate(&mut self, now: Time, _wall: Wall) {
+        assert_eq!(self.iterations, self.drains, "last iteration drained before the next");
+        self.iterations += 1;
+        if self.hog > 0 {
+            self.held = vec![0; self.hog].into_boxed_slice();
+            self.hog = 0;
+        }
+        while let Some(complete) = self.completions.pop() {
+            self.waiting = false;
+            match complete.result {
+                Ok(Done::Spawned { pidfd, .. }) => {
+                    self.pidfd = Some(pidfd);
+                    let Op::Spawn { spawn } = &complete.kind else { panic!("spawn record") };
+                    self.fds = spawn.pipes.iter().map(|pipe| pipe.parent.expect("parent pipe end")).collect();
+                }
+                Ok(Done::Count(count)) => {
+                    if let Op::PipeRead { buf, .. } | Op::Read { buf, .. } = &complete.kind {
+                        if matches!(self.acts.front(), Some(Act::ReadUntil(..))) {
+                            assert_ne!(count, 0, "the pipe ended before its read marker");
+                        }
+                        self.received.extend_from_slice(&buf[..usize::try_from(count).expect("small count")]);
+                    }
+                }
+                Ok(Done::Signalled(skein_io::kernel::Signalled::Termination { signal, .. })) => {
+                    self.signals.push(signal);
+                }
+                Ok(Done::Exit(exit)) => self.child_exit = Some(exit),
+                Ok(Done::Fd(fd)) => self.fds.push(fd),
+                Ok(
+                    Done::Signalled(skein_io::kernel::Signalled::WindowChanged)
+                    | Done::Window(_)
+                    | Done::Usage(_)
+                    | Done::Nothing
+                    | Done::Bound(_)
+                    | Done::Accepted { .. }
+                    | Done::Stat(_),
+                ) => {}
+                Err(error) => {
+                    assert!(
+                        !matches!(self.acts.front(), Some(Act::ReadUntil(..))),
+                        "the pipe failed before its read marker: {error:?}"
+                    );
+                }
+            }
+            self.results.push(complete.result);
+        }
+        if self.waiting || self.done || self.awaiting.is_some() || self.pause.is_some_and(|at| now < at) {
+            return;
+        }
+        self.pause = None;
+        if let Some(act) = self.acts.pop_front() {
+            self.start(act, now);
+            return;
+        }
+        if let Some(fd) = self
+            .fds
+            .pop()
+            .or_else(|| self.roots.pop())
+            .or_else(|| self.signal.take())
+            .or_else(|| self.pidfd.take())
+            .or_else(|| self.root.take())
+        {
+            self.submit(Op::Close { fd });
+        } else {
+            self.done = true;
+            if self.leak {
+                self.leak = false;
+                let _leaked = Box::leak(std::mem::take(&mut self.held));
+            }
+        }
+    }
+
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.completions
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.submissions
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        !self.completions.is_empty()
+            || (!self.waiting && !self.done && self.awaiting.is_none() && self.pause.is_none_or(|at| now >= at))
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.pause
+    }
+
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.pause
+    }
+
+    fn is_empty(&self) -> bool {
+        self.done && self.completions.is_empty() && self.submissions.is_empty()
+    }
+    fn exit(&self) -> Option<Exit> {
+        if self.is_empty() { self.terminal } else { None }
+    }
+
+    fn worst_case(&self) -> u64 {
+        64 * 1024
+    }
+    fn operations(&self) -> u32 {
+        8
+    }
+}
+
+/// A minimal root machine leaves hosted selection to the harness.
+#[derive(Debug)]
+pub struct RootMachine;
+
+impl Machine for RootMachine {
+    fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        assert!(matches!(call.ask, skein_sim::Ask::Close { .. }), "only the parent's root close reaches this machine");
+        answers.push(skein_sim::Answer { ticket: call.ticket, result: Ok(skein_sim::Reply::Done) });
+    }
+}
+
+/// The referee has no scenario expectations; the test examines boundary facts.
+#[derive(Debug)]
+pub struct Judge;
+
+impl skein_world::Referee<Script> for Judge {
+    fn act(&mut self, _now: Time, _procs: &mut [Script]) {}
+    fn observe(&mut self, _now: Time, _procs: &[Script]) {}
+    fn next_deadline(&self) -> Option<Time> {
+        None
+    }
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
+    }
+    fn passed(&self) -> bool {
+        true
+    }
+}
+
+/// A hosted process story observed entirely through pipes and child exits.
+#[derive(Clone, Copy, Debug)]
+pub enum Story {
+    /// A parent and child exchange bytes and drain the child's output to EOF.
+    Exchange,
+    /// The parent kills the child while its second input read waits.
+    Kill,
+    /// The child closes its input before the parent writes.
+    EarlyExit,
+    /// The child handles an interrupt and continues exchanging bytes.
+    Interrupt,
+    /// The child reads and answers its parent's termination signal.
+    Terminate,
+    /// The child exchanges while holding its largest scripted payload.
+    Memory,
+}
+
+fn exchange_child(_spawn: &Spawn, inherited: &Inherited) -> Script {
+    Script::child(inherited, &[Act::Read(0), Act::Write(1, b"reply")])
+}
+
+fn killed_child(_spawn: &Spawn, inherited: &Inherited) -> Script {
+    Script::child(inherited, &[Act::Read(0), Act::Write(1, b"reply"), Act::Read(0)])
+}
+
+fn early_child(_spawn: &Spawn, inherited: &Inherited) -> Script {
+    Script::child(inherited, &[])
+}
+
+fn terminating_child(_spawn: &Spawn, inherited: &Inherited) -> Script {
+    Script::child(inherited, &[Act::ReadSignal, Act::Write(1, b"terminated")])
+}
+
+/// Handles an interrupt before accepting another request from its parent.
+#[must_use]
+pub fn interrupted_child(_spawn: &Spawn, inherited: &Inherited) -> Script {
+    Script::child(inherited, &[Act::ReadSignal, Act::Write(1, b"interrupted"), Act::Read(0), Act::Write(1, b"reply")])
+}
+
+const FULL_PAYLOAD_BYTES: usize = 60 * 1024;
+
+fn full_child(spawn: &Spawn, inherited: &Inherited) -> Script {
+    let mut script = exchange_child(spawn, inherited);
+    script.hog = FULL_PAYLOAD_BYTES;
+    script
+}
+
+type Factory = fn(&Spawn, &Inherited) -> Script;
+
+/// Runs one story with seeded completion latency and separately metered heaps.
+#[must_use]
+pub fn story(seed: u64, story: Story) -> skein_world::Outcome<Script, RootMachine> {
+    let faults = skein_sim::Faults {
+        latency: 1000,
+        latency_max: skein_lib::Duration::from_millis(1),
+        ..skein_sim::Faults::NONE
+    };
+    // EarlyExit deliberately pauses before writing to an already-ended child.
+    let last_word = match story {
+        Story::EarlyExit => skein_world::LastWord::After(Time::from_nanos(10_000_000)),
+        Story::Exchange | Story::Kill | Story::Interrupt | Story::Terminate | Story::Memory => {
+            skein_world::LastWord::LastExpectation
+        }
+    };
+    let mut world = skein_world::World::new(
+        seed,
+        skein_sim::Config { faults, ..skein_sim::Config::calm() },
+        crate::Later(last_word),
+        skein_world::Memory::Checked,
+    )
+    .with_machine(RootMachine);
+    let (make, acts): (Factory, Vec<Act>) = match story {
+        Story::Exchange => {
+            (exchange_child, vec![Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait])
+        }
+        Story::Kill => (
+            killed_child,
+            vec![Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Signal(Signal::Kill), Act::Read(1), Act::Wait],
+        ),
+        Story::EarlyExit => (
+            early_child,
+            vec![
+                Act::Spawn,
+                Act::Pause(Time::from_nanos(10_000_000)),
+                Act::Write(0, b"hello"),
+                Act::Read(1),
+                Act::Wait,
+            ],
+        ),
+        Story::Interrupt => (
+            interrupted_child,
+            vec![
+                Act::Spawn,
+                Act::Signal(Signal::Interrupt),
+                Act::Read(1),
+                Act::Write(0, b"hello"),
+                Act::Read(1),
+                Act::Read(1),
+                Act::Wait,
+            ],
+        ),
+        Story::Terminate => {
+            (terminating_child, vec![Act::Spawn, Act::Signal(Signal::Terminate), Act::Read(1), Act::Read(1), Act::Wait])
+        }
+        Story::Memory => (full_child, vec![Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait]),
+    };
+    world.host(skein_world::HostedProgram { program: Box::from(&b"hosted"[..]), make, instances: 1, operations: 8 });
+    world.spawn_root(skein_sim::Handle::new(1), |root| Script::parent(root, &acts));
+    world.run()
+}
+
+/// Checks the story's external evidence after the harness checks ownership.
+pub fn check_story(story: Story, outcome: &skein_world::Outcome<Script, RootMachine>) {
+    let parent = &outcome.procs[0];
+    match story {
+        Story::Exchange | Story::Memory => {
+            assert_eq!(parent.received, b"reply", "the parent reads the child's reply then EOF");
+            assert_eq!(outcome.procs[1].received, b"hello", "the child reads its parent's bytes");
+            assert_eq!(parent.child_exit, Some(Exit::Code(0)), "the parent wait settles normally");
+        }
+        Story::Kill => {
+            assert_eq!(parent.received, b"reply", "the exchange began before the kill and then reached EOF");
+            assert_eq!(parent.child_exit, Some(Exit::Signal(9)), "the parent's wait preserves the kill terminal");
+            assert_eq!(outcome.procs.len(), 1, "the child is dropped after its kill");
+            assert_eq!(outcome.killed.len(), 1, "the harness records the terminated child");
+            let (peak, bound) = outcome.killed[0].heap.expect("the killed child was metered and its drop checked");
+            assert!(peak > 0 && peak <= bound, "the killed child's own heap fits its bound");
+        }
+        Story::EarlyExit => {
+            assert!(
+                parent.results.contains(&Err(skein_io::kernel::Error::BrokenPipe)),
+                "writing after the child's input closes returns BrokenPipe"
+            );
+            assert_eq!(parent.child_exit, Some(Exit::Code(0)), "the early child exits normally");
+            assert!(parent.received.is_empty(), "the parent reads EOF from the child without output");
+        }
+        Story::Interrupt => check_interrupt(&outcome.procs),
+        Story::Terminate => {
+            assert_eq!(parent.received, b"terminated", "the child handles its parent's termination signal");
+            assert_eq!(
+                outcome.procs[1].signals,
+                [skein_io::kernel::ServiceSignal::Terminate],
+                "the child reads exactly that signal"
+            );
+            assert_eq!(parent.child_exit, Some(Exit::Code(0)), "handling the termination signal exits normally");
+        }
+    }
+    if matches!(story, Story::Memory) {
+        let (peak, bound) = outcome.heap.as_ref().expect("checked heaps")[1];
+        assert!(peak <= bound, "the child's full payload stays within its declared bound: {peak}/{bound}");
+        assert_eq!(outcome.procs[1].held.len(), FULL_PAYLOAD_BYTES, "the child retains its full payload at settlement");
+    }
+}
+
+/// Checks signal delivery and a subsequent exchange before the child's normal exit.
+pub fn check_interrupt(procs: &[Script]) {
+    assert_eq!(procs[1].signals, [skein_io::kernel::ServiceSignal::Interrupt]);
+    assert_eq!(procs[0].received, b"interruptedreply");
+    assert_eq!(procs[1].received, b"hello");
+    assert_eq!(procs[0].child_exit, Some(Exit::Code(0)));
+}

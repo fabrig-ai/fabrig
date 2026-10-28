@@ -1,0 +1,35 @@
+//! Generated sample family for codec.md, sections 4 and 6.
+//! The types hold bounded fields. They know no peer or transport. Tests drive
+//! their constructors and, later, wire entry points.
+
+#![cfg_attr(not(test), no_std)]
+#![forbid(unsafe_code)]
+
+extern crate alloc;
+
+#[rustfmt::skip]
+#[path = "generated/v1.rs"]
+pub mod v1;
+
+#[rustfmt::skip]
+#[path = "scalars/v1.rs"]
+pub mod scalars;
+
+#[rustfmt::skip]
+#[path = "lints/v1.rs"]
+pub mod lints;
+
+#[rustfmt::skip]
+#[path = "secrets/v1.rs"]
+pub mod secrets;
+
+#[rustfmt::skip]
+#[path = "every/v1.rs"]
+pub mod every;
+
+#[rustfmt::skip]
+#[path = "every/v2.rs"]
+pub mod every_v2;
+
+#[path = "../patches/mod.rs"]
+pub mod patches;

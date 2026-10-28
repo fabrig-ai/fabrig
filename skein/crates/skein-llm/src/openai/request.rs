@@ -1,0 +1,358 @@
+use crate::openai::{DecodeError, Json, Limits, identity, json};
+use alloc::boxed::Box;
+use skein_json::{Document, Kind, writer::Encoder};
+use skein_lib::{List, bytes};
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Role {
+    User,
+    Assistant,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Input {
+    Message { role: Role, text: Box<[u8]>, id: Option<Box<[u8]>>, phase: Option<Box<[u8]>>, refusal: bool },
+    FunctionCall { call_id: Box<[u8]>, item_id: Option<Box<[u8]>>, name: Box<[u8]>, arguments: Box<[u8]> },
+    FunctionOutput { call_id: Box<[u8]>, output: Box<[u8]> },
+    Opaque { value: Json },
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Tool {
+    pub name: Box<[u8]>,
+    pub description: Box<[u8]>,
+    pub schema: Json,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Request {
+    pub model: Box<[u8]>,
+    pub instructions: Box<[u8]>,
+    pub tools: Box<[Tool]>,
+    pub input: Box<[Input]>,
+    pub effort: Option<Box<[u8]>>,
+    pub prompt_cache_key: Option<Box<[u8]>>,
+    pub choice: crate::ToolChoice,
+}
+pub fn encode_request(request: &Request, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
+    let len = measure_request(request, limits)?;
+    let bounded = skein_json::writer::Limits { depth: limits.depth, length: limits.request };
+    let mut write = Encoder::write(len, &bounded);
+    write_request(&mut write, request, limits);
+    Ok(write.finish())
+}
+/// Validates and measures without allocating the request's body.
+pub fn measure_request(request: &Request, limits: &Limits) -> Result<u32, DecodeError> {
+    validate(request, limits)?;
+    let bounded = skein_json::writer::Limits { depth: limits.depth, length: limits.request };
+    let mut measure = Encoder::measure(&bounded);
+    write_request(&mut measure, request, limits);
+    crate::openai::common::measured(measure, bounded, crate::Cap::Request)
+}
+fn validate(request: &Request, limits: &Limits) -> Result<(), DecodeError> {
+    if request.tools.len() > usize::try_from(limits.tools).expect("bounded tools") {
+        return Err(DecodeError::limit(crate::Cap::Tools, limits.tools));
+    }
+    if request.input.len() > usize::try_from(limits.history_items).expect("bounded history") {
+        return Err(DecodeError::limit(crate::Cap::HistoryItems, limits.history_items));
+    }
+    for tool in &request.tools {
+        if json::kind(tool.schema.view(), 0) != Some(Kind::ObjectStart) {
+            return Err(DecodeError::WrongType);
+        }
+    }
+    for input in &request.input {
+        match input {
+            Input::Opaque { value } => {
+                let mut next = 0;
+                for _token in 0..json::len(value.view()) {
+                    if super::response::reasoning::replay_item(value, &mut next)?.is_none() {
+                        break;
+                    }
+                }
+            }
+            Input::Message { role, refusal, .. } => match role {
+                Role::User if *refusal => return Err(DecodeError::WrongType),
+                Role::User | Role::Assistant => {}
+            },
+            Input::FunctionCall { .. } | Input::FunctionOutput { .. } => {}
+        }
+    }
+    Ok(())
+}
+pub(crate) fn write_tools(out: &mut Encoder, tools: &[Tool]) {
+    out.array_start();
+    for tool in tools {
+        out.object_start();
+        out.key(b"type");
+        out.string(b"function");
+        out.key(b"name");
+        out.string(&tool.name);
+        out.key(b"description");
+        out.string(&tool.description);
+        out.key(b"parameters");
+        tool.schema.write(out);
+        out.key(b"strict");
+        out.boolean(false);
+        out.object_end();
+    }
+    out.array_end();
+}
+fn write_request(out: &mut Encoder, request: &Request, limits: &Limits) {
+    out.object_start();
+    out.key(b"model");
+    out.string(&request.model);
+    out.key(b"instructions");
+    out.string(&request.instructions);
+    out.key(b"stream");
+    out.boolean(true);
+    out.key(b"store");
+    out.boolean(false);
+    out.key(b"include");
+    out.array_start();
+    out.string(b"reasoning.encrypted_content");
+    out.array_end();
+    out.key(b"tools");
+    write_tools(out, &request.tools);
+    out.key(b"tool_choice");
+    out.string(match &request.choice {
+        crate::ToolChoice::Auto | crate::ToolChoice::Only(_) => b"auto",
+        crate::ToolChoice::None => b"none",
+    });
+    out.key(b"parallel_tool_calls");
+    out.boolean(limits.calls_per_response > 1);
+    out.key(b"input");
+    out.array_start();
+    for input in &request.input {
+        write_input(out, input);
+    }
+    out.array_end();
+    if let Some(effort) = &request.effort {
+        out.key(b"reasoning");
+        out.object_start();
+        out.key(b"effort");
+        out.string(effort);
+        out.object_end();
+    }
+    if let Some(key) = &request.prompt_cache_key {
+        out.key(b"prompt_cache_key");
+        out.string(key);
+    }
+    out.key(b"text");
+    out.object_start();
+    out.key(b"verbosity");
+    out.string(identity::VERBOSITY);
+    out.object_end();
+    out.object_end();
+}
+fn write_input(out: &mut Encoder, input: &Input) {
+    match input {
+        Input::Opaque { value } => super::response::reasoning::write_replay(out, value),
+        Input::Message { role, text, id, phase, refusal } => {
+            out.object_start();
+            out.key(b"type");
+            out.string(b"message");
+            out.key(b"role");
+            out.string(match role {
+                Role::User => b"user",
+                Role::Assistant => b"assistant",
+            });
+            if let Some(id) = id {
+                out.key(b"id");
+                out.string(id);
+            }
+            if let Some(phase) = phase {
+                out.key(b"phase");
+                out.string(phase);
+            }
+            out.key(b"content");
+            out.array_start();
+            out.object_start();
+            out.key(b"type");
+            out.string(match role {
+                Role::User => b"input_text",
+                Role::Assistant => {
+                    if *refusal {
+                        b"refusal"
+                    } else {
+                        b"output_text"
+                    }
+                }
+            });
+            out.key(if *refusal { b"refusal" } else { b"text" });
+            out.string(text);
+            out.object_end();
+            out.array_end();
+            out.object_end();
+        }
+        Input::FunctionCall { call_id, item_id, name, arguments } => {
+            out.object_start();
+            out.key(b"type");
+            out.string(b"function_call");
+            out.key(b"call_id");
+            out.string(call_id);
+            if let Some(id) = item_id {
+                out.key(b"id");
+                out.string(id);
+            }
+            out.key(b"name");
+            out.string(name);
+            out.key(b"arguments");
+            out.string(arguments);
+            out.object_end();
+        }
+        Input::FunctionOutput { call_id, output } => {
+            out.object_start();
+            out.key(b"type");
+            out.string(b"function_call_output");
+            out.key(b"call_id");
+            out.string(call_id);
+            out.key(b"output");
+            out.string(output);
+            out.object_end();
+        }
+    }
+}
+pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeError> {
+    let mut admission = Encoder::measure(&skein_json::writer::Limits { depth: limits.depth, length: limits.request });
+    value.write(&mut admission);
+    let _length = crate::openai::common::measured(
+        admission,
+        skein_json::writer::Limits { depth: limits.depth, length: limits.request },
+        crate::Cap::Request,
+    )?;
+    let tokens = value.view();
+    if !json::boolean(json::value_at(tokens, json::required(tokens, b"stream")?)?)?
+        || json::boolean(json::value_at(tokens, json::required(tokens, b"store")?)?)?
+    {
+        return Err(DecodeError::Malformed);
+    }
+    let instructions = json::text(json::value_at(tokens, json::required(tokens, b"instructions")?)?)?;
+    let model = json::text(json::value_at(tokens, json::required(tokens, b"model")?)?)?;
+    let mut tools = List::with_capacity(limits.tools);
+    if let Some(values) = json::optional_at(tokens, json::field(tokens, b"tools")?)? {
+        for &offset in &json::array_limit(values, limits.tools, crate::Cap::Tools)? {
+            let tool = json::value_at(values, offset)?;
+            if json::text_ref(json::value_at(tool, json::required(tool, b"type")?)?)? != b"function" {
+                return Err(DecodeError::WrongType);
+            }
+            let description = match json::optional_at(tool, json::field(tool, b"description")?)? {
+                Some(value) => json::text(value)?,
+                None => bytes::copy_of(b""),
+            };
+            let tool = Tool {
+                name: json::text(json::value_at(tool, json::required(tool, b"name")?)?)?,
+                description,
+                schema: Json::from_view(
+                    json::value_at(tool, json::required(tool, b"parameters")?)?,
+                    &limits.request_document(),
+                )?,
+            };
+            if tools.push(tool).is_err() {
+                return Err(DecodeError::limit(crate::Cap::Tools, limits.tools));
+            }
+        }
+    }
+    let values = json::value_at(tokens, json::required(tokens, b"input")?)?;
+    let mut input = List::with_capacity(limits.history_items);
+    for &offset in &json::array_limit(values, limits.history_items, crate::Cap::HistoryItems)? {
+        let item = read_input(json::value_at(values, offset)?, limits)?;
+        if input.push(item).is_err() {
+            return Err(DecodeError::limit(crate::Cap::HistoryItems, limits.history_items));
+        }
+    }
+    let effort = match json::optional_at(tokens, json::field(tokens, b"reasoning")?)? {
+        Some(value) => optional_text(value, b"effort")?,
+        None => None,
+    };
+    let choice = match json::optional_at(tokens, json::field(tokens, b"tool_choice")?)? {
+        Some(value) => match json::text_ref(value)? {
+            b"auto" => crate::ToolChoice::Auto,
+            b"none" => crate::ToolChoice::None,
+            _ => return Err(DecodeError::WrongType),
+        },
+        None => crate::ToolChoice::Auto,
+    };
+    let prompt_cache_key = optional_text(tokens, b"prompt_cache_key")?;
+    let request = Request {
+        model,
+        instructions,
+        tools: tools.into_boxed(),
+        input: input.into_boxed(),
+        effort,
+        prompt_cache_key,
+        choice,
+    };
+    validate(&request, limits)?;
+    Ok(request)
+}
+pub(crate) fn optional_text(tokens: (&Document, json::Span), name: &[u8]) -> Result<Option<Box<[u8]>>, DecodeError> {
+    match json::optional_at(tokens, json::field(tokens, name)?)? {
+        Some(value) => {
+            if json::kind(value, 0) == Some(Kind::Null) && json::len(value) == 1 {
+                Ok(None)
+            } else {
+                Ok(Some(json::text(value)?))
+            }
+        }
+        None => Ok(None),
+    }
+}
+fn read_input(tokens: (&Document, json::Span), limits: &Limits) -> Result<Input, DecodeError> {
+    let kind = match json::optional_at(tokens, json::field(tokens, b"type")?)? {
+        Some(value) => json::text_ref(value)?,
+        None => b"message",
+    };
+    match kind {
+        b"message" => {
+            let role = match json::text_ref(json::value_at(tokens, json::required(tokens, b"role")?)?)? {
+                b"user" => Role::User,
+                b"assistant" => Role::Assistant,
+                _ => return Err(DecodeError::WrongType),
+            };
+            let values = json::value_at(tokens, json::required(tokens, b"content")?)?;
+            let mut text = List::with_capacity(limits.request);
+            let mut refusal = false;
+            let mut content_kind: Option<bool> = None;
+            for &offset in &json::array_limit(values, limits.history_items, crate::Cap::HistoryItems)? {
+                let part = json::value_at(values, offset)?;
+                let kind = json::text_ref(json::value_at(part, json::required(part, b"type")?)?)?;
+                let key = match kind {
+                    b"input_text" | b"output_text" => b"text".as_slice(),
+                    b"refusal" => {
+                        refusal = true;
+                        b"refusal"
+                    }
+                    _ => return Err(DecodeError::WrongType),
+                };
+                let is_refusal = kind == b"refusal";
+                if let Some(previous) = content_kind
+                    && previous != is_refusal
+                {
+                    return Err(DecodeError::WrongType);
+                }
+                content_kind = Some(is_refusal);
+                crate::openai::common::append(
+                    &mut text,
+                    json::text_ref(json::value_at(part, json::required(part, key)?)?)?,
+                    crate::Cap::Request,
+                )?;
+            }
+            Ok(Input::Message {
+                role,
+                text: text.into_boxed(),
+                id: optional_text(tokens, b"id")?,
+                phase: optional_text(tokens, b"phase")?,
+                refusal,
+            })
+        }
+        b"function_call" => Ok(Input::FunctionCall {
+            call_id: json::text(json::value_at(tokens, json::required(tokens, b"call_id")?)?)?,
+            item_id: optional_text(tokens, b"id")?,
+            name: json::text(json::value_at(tokens, json::required(tokens, b"name")?)?)?,
+            arguments: json::text(json::value_at(tokens, json::required(tokens, b"arguments")?)?)?,
+        }),
+        b"function_call_output" => Ok(Input::FunctionOutput {
+            call_id: json::text(json::value_at(tokens, json::required(tokens, b"call_id")?)?)?,
+            output: json::text(json::value_at(tokens, json::required(tokens, b"output")?)?)?,
+        }),
+        _ => Ok(Input::Opaque { value: Json::from_view(tokens, &limits.request_document())? }),
+    }
+}

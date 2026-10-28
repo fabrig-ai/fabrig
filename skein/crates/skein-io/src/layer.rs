@@ -1,0 +1,778 @@
+//! io's state and its entry points (io.md, 2): the slab of sockets, the
+//! operations in flight, the close deadlines, the ready list and the
+//! refusals and one independent process usage flight (io.md, section 6.1).
+//! `resume`, `up`, `fire` and `down` run in that order within an iteration,
+//! and `Io::reclaim` runs at its end. The layer never interprets CPU use.
+
+mod results;
+pub(crate) use results::unsubmitted;
+
+use skein_lib::stream::{Down, OutputDown};
+use skein_lib::{Deadlines, Duration, Env, Id, Map, Queue, Set, Slab, Time, Token};
+
+use crate::joined;
+use crate::kernel::{self, Complete, Done, Family, Fd, Op, Submit, Way};
+use crate::limits::{self, Limits};
+use crate::listener::{self, Listener};
+use crate::pipe::{self, Pipe};
+use crate::process::{self, Child};
+use crate::records::{Error, Event, Measured, Request};
+use crate::signals::{self, Signals};
+use crate::stream::{self, Stream};
+use crate::{Addr, Name};
+
+/// io's state: every socket and every operation in flight.
+#[derive(Debug)]
+pub struct Io {
+    pub(crate) entities: Slab<Entity>,
+    pub(crate) tables: Tables,
+}
+
+/// A socket of either kind (io.md, 3.1): one slab, one namespace of tokens.
+#[derive(Debug)]
+pub(crate) enum Entity {
+    Listener(Listener),
+    Named(joined::Listener),
+    Joined(joined::End),
+    Stream(Stream),
+    Pipe(Pipe),
+    Child(Child),
+    Signals(Signals),
+}
+
+/// What io keeps beside its entities, which the handlers of an entity touch
+/// while it is borrowed from its slab.
+#[derive(Debug)]
+pub(crate) struct Tables {
+    /// The operations in flight, each for its entity.
+    pub(crate) flights: Slab<Flight>,
+    /// Each entity's deadlines: a close or output write, and a retry.
+    pub(crate) deadlines: Deadlines<(Id<Entity>, Timer)>,
+    pub(crate) ready: Ready,
+    /// The owners of the `Listen`s and `Connect`s refused for want of a
+    /// socket slot, oldest first, until `resume` tells them.
+    pub(crate) refused: Queue<Token>,
+    /// Accepts armed in this iteration, against `Limits::accepts`.
+    pub(crate) armed: u32,
+    /// The process resource read, independently of entity admission.
+    usage: Option<Id<Flight>>,
+    window: Option<Id<Flight>>,
+    /// Unclaimed listening sockets, keyed by their exact bound address.
+    pub(crate) held: Map<kernel::Addr, Id<Entity>>,
+    pub(crate) names: Map<Name, Id<Entity>>,
+    pub(crate) waiting: Map<(Id<Entity>, u64), Id<Entity>>,
+    pub(crate) sequence: u64,
+    /// Spawned children that have not yet reported their exit.
+    pub(crate) senders: Map<Token, kernel::Sender>,
+}
+
+/// An operation in flight: its purpose and its entity, absent for process usage.
+#[derive(Debug)]
+pub(crate) struct Flight {
+    pub(crate) entity: Option<Id<Entity>>,
+    pub(crate) purpose: Purpose,
+}
+
+/// What an operation is for. A `Discard` closes a socket a listener accepted
+/// and no one will own; a `Cancel` names the operation it stops.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Purpose {
+    Socket,
+    Bind,
+    Listen,
+    Accept,
+    Connect,
+    Recv,
+    Send,
+    Shutdown,
+    Close,
+    Discard,
+    Spawn,
+    Wait,
+    Signal,
+    Usage { owner: Token },
+    Window { owner: Token },
+    ReadSignal,
+    PipeRead,
+    PipeWrite,
+    Cancel(Id<Flight>),
+}
+
+/// What an entity's deadline is for: a close or output write (io.md, 3 and 5.1), or
+/// a retry of what found the kernel out of buffers or descriptors (io.md,
+/// 3.2 and 3.3). An entity has at most one of each.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub(crate) enum Timer {
+    Close,
+    Retry,
+}
+
+/// A completion, as an entity's handlers take it: the operation's record
+/// handed back, and what came of it.
+#[derive(Debug)]
+pub(crate) struct Landed {
+    pub(crate) entity: Id<Entity>,
+    pub(crate) flight: Id<Flight>,
+    pub(crate) purpose: Purpose,
+    pub(crate) kind: Op,
+    pub(crate) result: Result<Done, kernel::Error>,
+}
+
+/// The entities with something to do at the start of the next up pass
+/// (programming-model.md, section 2), and the listeners waiting for a socket
+/// slot or a descriptor.
+///
+/// An entity readied in an iteration goes on `next`, which the reclaim point
+/// promotes to `now`, so that `resume` never takes the same entity twice in
+/// one stage.
+#[derive(Debug)]
+pub(crate) struct Ready {
+    now: Set<Id<Entity>>,
+    next: Set<Id<Entity>>,
+    starved: Set<Id<Entity>>,
+}
+
+impl Io {
+    /// io with room for `limits`, which must be usable.
+    #[must_use]
+    pub fn new(limits: &Limits) -> Io {
+        assert!(limits.is_usable(), "io runs only under usable limits (Limits::is_usable)");
+        let flights = limits::flights(limits).expect("the operation table's size fits a u32");
+        Io {
+            entities: Slab::with_capacity(limits.sockets),
+            tables: Tables {
+                flights: Slab::with_capacity(flights),
+                deadlines: Deadlines::with_capacity(limits::timers(limits).expect("two timers a socket fit a u32")),
+                ready: Ready::with_capacity(limits.sockets),
+                refused: Queue::with_capacity(limits.refusals),
+                armed: 0,
+                usage: None,
+                window: None,
+                held: Map::with_capacity(limits.sockets),
+                names: Map::with_capacity(limits.names),
+                waiting: Map::with_capacity(limits.sockets),
+                sequence: 0,
+                senders: Map::with_capacity(limits.sockets),
+            },
+        }
+    }
+
+    /// Takes a listening socket opened before the loop, holding it without
+    /// accepting until a Listen claims its exact address (io.md, 3.2).
+    /// Its token owns its Closed until claimed. A full slab or an address
+    /// already held returns the descriptor to the caller.
+    pub fn adopt_listener(&mut self, fd: Fd, addr: kernel::Addr) -> Result<Token, Fd> {
+        if self.tables.held.contains_key(&addr) {
+            return Err(fd);
+        }
+        let Ok(id) = self.entities.insert(Entity::Listener(listener::held(fd, addr))) else {
+            return Err(fd);
+        };
+        let previous = self.tables.held.insert(addr, id).expect("one held address per entity slot");
+        assert!(previous.is_none(), "a held address is unique");
+        Ok(id.token())
+    }
+
+    /// Takes an inherited readable pipe descriptor at startup, returning its
+    /// stream token. From then on the descriptor belongs to io and its
+    /// `Stream`/`Close`/`Abort` vocabulary (io.md, sections 3 and 6). If the
+    /// entity slab is full, the caller retains the descriptor.
+    pub fn adopt_read_pipe(&mut self, fd: Fd) -> Result<Token, Fd> {
+        self.adopt_pipe(fd, Way::Out, None)
+    }
+
+    /// Takes an inherited writable pipe descriptor at startup, with the same
+    /// stream and ownership contract as [`Io::adopt_read_pipe`].
+    /// Each write has the owner's optional `write_timeout` (io.md, 5.1);
+    /// without one it waits on its reader. With one, Close replaces it with
+    /// io's close timeout.
+    pub fn adopt_write_pipe(&mut self, fd: Fd, write_timeout: Option<Duration>) -> Result<Token, Fd> {
+        self.adopt_pipe(fd, Way::In, write_timeout)
+    }
+
+    /// Takes an output-only append file at startup. Each Append has the owner's
+    /// `write_timeout`; Close instead flushes under io's close timeout (io.md, 5.1).
+    /// A full slab returns the descriptor to its caller without closing it.
+    pub fn adopt_append(&mut self, fd: Fd, write_timeout: Duration) -> Result<Token, Fd> {
+        match self.entities.insert(Entity::Pipe(Pipe::append(fd, write_timeout))) {
+            Ok(id) => {
+                self.tables.ready.mark(id);
+                Ok(id.token())
+            }
+            Err(_) => Err(fd),
+        }
+    }
+
+    fn adopt_pipe(&mut self, fd: Fd, way: Way, write_timeout: Option<Duration>) -> Result<Token, Fd> {
+        match self.entities.insert(Entity::Pipe(Pipe::inherited(fd, way, write_timeout))) {
+            Ok(id) => {
+                self.tables.ready.mark(id);
+                Ok(id.token())
+            }
+            Err(_) => Err(fd),
+        }
+    }
+
+    /// Takes the signalfd opened after blocking termination signals at
+    /// startup (shell.md, section 6). Each read becomes `Event::Shutdown` or `Event::Resized`;
+    /// `Close` or `Abort` on the returned token settles the read and closes
+    /// the descriptor. On a full slab the caller retains the descriptor.
+    pub fn adopt_signals(&mut self, fd: Fd) -> Result<Token, Fd> {
+        match self.entities.insert(Entity::Signals(Signals::new(fd, None))) {
+            Ok(id) => {
+                self.tables.ready.mark(id);
+                Ok(id.token())
+            }
+            Err(_) => Err(fd),
+        }
+    }
+
+    /// Adopts a signalfd with the service's own binding token echoed on
+    /// `Failed` and `Closed` (programming-model.md, section 4.2). Shutdown
+    /// remains an event for the service; the returned token addresses close.
+    pub fn adopt_signals_for(&mut self, descriptor: Fd, owner: Token) -> Result<Token, Fd> {
+        match self.entities.insert(Entity::Signals(Signals::new(descriptor, Some(owner)))) {
+            Ok(id) => {
+                self.tables.ready.mark(id);
+                Ok(id.token())
+            }
+            Err(_) => Err(descriptor),
+        }
+    }
+
+    /// Whether io can take another request: it holds a refusal for each
+    /// `Listen` or `Connect` it refuses, until the next up pass. The loop
+    /// hands io a request only while it can, as it reserves room in the
+    /// submissions (io.md, 2).
+    #[must_use]
+    pub fn takes(&self) -> bool {
+        self.tables.refused.room() > 0
+    }
+
+    /// Whether `resume` has something to do. While it has, the loop calls it
+    /// at the start of io's stage, before any completion.
+    #[must_use]
+    pub fn is_ready(&self) -> bool {
+        !self.tables.refused.is_empty() || self.tables.ready.is_ready()
+    }
+
+    /// When the earliest deadline falls due: a graceful close's, or a
+    /// retry's.
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.tables.deadlines.next()
+    }
+
+    /// Whether a deadline is due at `now`. While one is, the loop calls
+    /// `fire`, after the completions.
+    #[must_use]
+    pub fn is_due(&self, now: Time) -> bool {
+        match self.tables.deadlines.next() {
+            Some(at) => at <= now,
+            None => false,
+        }
+    }
+
+    /// Sockets present, retired ones included until they are reclaimed.
+    #[must_use]
+    pub fn sockets(&self) -> u32 {
+        self.entities.len()
+    }
+
+    /// Operations in flight, completed ones included until they are
+    /// reclaimed.
+    #[must_use]
+    pub fn in_flight(&self) -> u32 {
+        self.tables.flights.len()
+    }
+
+    /// Whether io holds nothing: no socket, no operation, no refusal untold,
+    /// nothing ready. True once every entity is closed and reclaimed.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.entities.is_empty()
+            && self.tables.flights.is_empty()
+            && self.tables.deadlines.is_empty()
+            && self.tables.refused.is_empty()
+            && self.tables.ready.is_empty()
+            && self.tables.held.is_empty()
+            && self.tables.names.is_empty()
+            && self.tables.waiting.is_empty()
+            && self.tables.senders.is_empty()
+    }
+
+    /// The reclaim point: frees what closed in this iteration, and renews the
+    /// accept batch.
+    pub fn reclaim(&mut self) {
+        self.entities.reclaim();
+        self.tables.flights.reclaim();
+        self.tables.ready.promote();
+        self.tables.armed = 0;
+    }
+}
+
+impl Tables {
+    /// Submits `op` for `entity`, naming it by a new flight's token.
+    pub(crate) fn submit(
+        &mut self,
+        subs: &mut Queue<Submit>,
+        entity: Id<Entity>,
+        purpose: Purpose,
+        op: Op,
+    ) -> Id<Flight> {
+        let flight = self
+            .flights
+            .insert(Flight { entity: Some(entity), purpose })
+            .expect("the operation table holds twice the most an iteration has in flight");
+        subs.push(Submit { op: flight.token(), kind: op });
+        flight
+    }
+
+    /// Asks the kernel to stop `target`, an operation of `entity` that waits.
+    pub(crate) fn cancel(&mut self, subs: &mut Queue<Submit>, entity: Id<Entity>, target: Id<Flight>) {
+        let _cancel: Id<Flight> =
+            self.submit(subs, entity, Purpose::Cancel(target), Op::Cancel { target: target.token() });
+    }
+}
+
+impl Ready {
+    fn with_capacity(sockets: u32) -> Ready {
+        Ready {
+            now: Set::with_capacity(sockets),
+            next: Set::with_capacity(sockets),
+            starved: Set::with_capacity(sockets),
+        }
+    }
+
+    fn is_ready(&self) -> bool {
+        !self.now.is_empty()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.now.is_empty() && self.next.is_empty() && self.starved.is_empty()
+    }
+
+    /// `id` has something to do in the next up pass.
+    pub(crate) fn mark(&mut self, id: Id<Entity>) {
+        let _new: bool = self.next.insert(id).expect("room on the ready list for every socket");
+    }
+
+    /// The listener `id` waits for a socket slot or a descriptor.
+    pub(crate) fn starve(&mut self, id: Id<Entity>) {
+        let _new: bool = self.starved.insert(id).expect("room among the starved for every socket");
+    }
+
+    /// io freed a socket slot or a descriptor: the starved try again in the
+    /// next up pass.
+    pub(crate) fn wake(&mut self) {
+        for _ in 0..self.starved.capacity() {
+            let Some(id) = self.starved.pop_first() else {
+                break;
+            };
+            self.mark(id);
+        }
+    }
+
+    /// `id` is off every list.
+    pub(crate) fn forget(&mut self, id: Id<Entity>) {
+        let _now: bool = self.now.remove(&id);
+        let _next: bool = self.next.remove(&id);
+        let _starved: bool = self.starved.remove(&id);
+    }
+
+    fn pop(&mut self) -> Option<Id<Entity>> {
+        self.now.pop_first()
+    }
+
+    fn promote(&mut self) {
+        for _ in 0..self.next.capacity() {
+            let Some(id) = self.next.pop_first() else {
+                break;
+            };
+            let _new: bool = self.now.insert(id).expect("room on the ready list for every socket");
+        }
+    }
+}
+
+/// Takes one entry of the ready list, emitting at most
+/// [`MAX_OUT_RESUME`](crate::MAX_OUT_RESUME): a refusal is told; a connect is
+/// told `Connecting`; an open stream is delivered what its demand asked for;
+/// an idle listener arms its accept.
+pub fn resume(io: &mut Io, env: &Env<Limits>, up: &mut Queue<Event>, subs: &mut Queue<Submit>) {
+    if let Some(owner) = io.tables.refused.pop() {
+        up.push(Event::Failed { owner, error: Error::Busy });
+        up.push(Event::Closed { owner });
+        return;
+    }
+    let Some(id) = io.tables.ready.pop() else {
+        return;
+    };
+    if let Some(Entity::Named(_) | Entity::Joined(_)) = io.entities.get(id) {
+        joined::resume(io, id, env, up);
+        conclude(io, id, subs);
+        return;
+    }
+    let room = !io.entities.is_full();
+    match io.entities.get_mut(id).expect("retiring an entity takes it off the ready list") {
+        Entity::Listener(listener) => listener::resume(listener, id, room, env, &mut io.tables, up, subs),
+        Entity::Stream(stream) => stream::resume(stream, id, env, &mut io.tables, up, subs),
+        Entity::Pipe(pipe) => pipe::resume(pipe, id, env, &mut io.tables, up, subs),
+        Entity::Child(_) => {}
+        Entity::Signals(signals) => signals::resume(signals, id, &mut io.tables, subs),
+        Entity::Named(_) | Entity::Joined(_) => unreachable!("handled above"),
+    }
+}
+
+/// Takes one completion, emitting at most [`MAX_OUT_UP`](crate::MAX_OUT_UP).
+/// The loop hands io completions only once its ready list is empty.
+///
+/// A completion names an operation in flight, and its entity outlives it: a
+/// token travelling up is never stale (programming-model.md, 5.2).
+pub fn up(io: &mut Io, env: &Env<Limits>, complete: Complete, up: &mut Queue<Event>, subs: &mut Queue<Submit>) {
+    let Complete { op, kind, result } = complete;
+    let flight = Id::<Flight>::from_token(op);
+    let Flight { entity, purpose } = *io.tables.flights.get(flight).expect("a completion names an operation in flight");
+    io.tables.flights.retire(flight);
+    match purpose {
+        Purpose::Window { owner } => {
+            assert_eq!(io.tables.window.take(), Some(flight), "one terminal size operation");
+            let window = results::window(result);
+            up.push(Event::Window { owner, window });
+            return;
+        }
+        Purpose::Usage { owner } => {
+            assert_eq!(io.tables.usage.take(), Some(flight), "one process usage operation");
+            let usage = match result {
+                Ok(Done::Usage(usage)) => Measured::Read(usage),
+                Err(kernel::Error::Other(_)) => Measured::Unread,
+                Ok(
+                    Done::Nothing
+                    | Done::Count(_)
+                    | Done::Fd(_)
+                    | Done::Accepted { .. }
+                    | Done::Bound(_)
+                    | Done::Stat(_)
+                    | Done::Spawned { .. }
+                    | Done::Exit(_)
+                    | Done::Signalled(_)
+                    | Done::Window(_),
+                ) => unreachable!("Usage answers its record (kernel.md, section 6.3)"),
+                Err(
+                    kernel::Error::Refused
+                    | kernel::Error::Reset
+                    | kernel::Error::BrokenPipe
+                    | kernel::Error::NotConnected
+                    | kernel::Error::AddressInUse
+                    | kernel::Error::AddressNotAvailable
+                    | kernel::Error::Unreachable
+                    | kernel::Error::TimedOut
+                    | kernel::Error::TooManyOpenFiles
+                    | kernel::Error::NoBufferSpace
+                    | kernel::Error::InvalidArgument
+                    | kernel::Error::Cancelled
+                    | kernel::Error::TooLate
+                    | kernel::Error::NotFound
+                    | kernel::Error::Exists
+                    | kernel::Error::NotADirectory
+                    | kernel::Error::IsADirectory
+                    | kernel::Error::NotEmpty
+                    | kernel::Error::Permission
+                    | kernel::Error::NoSpace
+                    | kernel::Error::ReadOnly
+                    | kernel::Error::TooManyLinks
+                    | kernel::Error::NameTooLong
+                    | kernel::Error::Escape
+                    | kernel::Error::Busy
+                    | kernel::Error::NotAFile,
+                ) => unreachable!("Usage fails only Other (kernel.md, section 6.3)"),
+            };
+            up.push(Event::Usage { owner, usage });
+            return;
+        }
+        Purpose::Socket
+        | Purpose::Bind
+        | Purpose::Listen
+        | Purpose::Accept
+        | Purpose::Connect
+        | Purpose::Recv
+        | Purpose::Send
+        | Purpose::Shutdown
+        | Purpose::Close
+        | Purpose::Discard
+        | Purpose::Spawn
+        | Purpose::Wait
+        | Purpose::Signal
+        | Purpose::ReadSignal
+        | Purpose::PipeRead
+        | Purpose::PipeWrite
+        | Purpose::Cancel(_) => {}
+    }
+    let entity = entity.expect("every entity operation has its entity");
+    let landed = Landed { entity, flight, purpose, kind, result };
+    match io.entities.get(entity).expect("an entity outlives its operations") {
+        Entity::Stream(_) => {
+            let Entity::Stream(stream) = io.entities.get_mut(entity).expect("live") else { unreachable!() };
+            stream::landed(stream, landed, env, &mut io.tables, up, subs);
+        }
+        Entity::Listener(_) => listener::landed(io, env, landed, up, subs),
+        Entity::Named(_) | Entity::Joined(_) => unreachable!("joined entities submit nothing"),
+        Entity::Pipe(_) => {
+            let Entity::Pipe(pipe) = io.entities.get_mut(entity).expect("live") else { unreachable!() };
+            pipe::landed(pipe, landed, env, &mut io.tables, up, subs);
+        }
+        Entity::Child(_) => process::landed(io, landed, up, subs),
+        Entity::Signals(_) => {
+            let Entity::Signals(signals) = io.entities.get_mut(entity).expect("live") else { unreachable!() };
+            signals::landed(signals, entity, landed, &mut io.tables, up, subs);
+        }
+    }
+    conclude(io, entity, subs);
+}
+
+/// Fires the earliest deadline due at `env.now`, if one is, emitting at most
+/// [`MAX_OUT_FIRE`](crate::MAX_OUT_FIRE): a graceful close it bounded becomes
+/// an abort; what waited for a retry is submitted again.
+pub fn fire(io: &mut Io, env: &Env<Limits>, up: &mut Queue<Event>, subs: &mut Queue<Submit>) {
+    let Some((id, timer)) = io.tables.deadlines.expire(env.now) else {
+        return;
+    };
+    if let Some(Entity::Joined(_)) = io.entities.get(id) {
+        assert_eq!(timer, Timer::Close, "joined ends have only a close deadline");
+        joined::expired(io, id, up);
+        conclude(io, id, subs);
+        return;
+    }
+    let room = !io.entities.is_full();
+    match io.entities.get_mut(id).expect("an entity's deadlines are cancelled when it is retired") {
+        Entity::Stream(stream) => match timer {
+            Timer::Close => stream::expired(stream, id, env, &mut io.tables, up, subs),
+            Timer::Retry => stream::retried(stream, id, env, &mut io.tables, up, subs),
+        },
+        Entity::Listener(listener) => match timer {
+            Timer::Retry => listener::retried(listener, id, room, env, &mut io.tables, subs),
+            Timer::Close => unreachable!("only a stream closes gracefully"),
+        },
+        Entity::Pipe(pipe) => match timer {
+            Timer::Close => pipe::expired(pipe, id, env, &mut io.tables, up, subs),
+            Timer::Retry => unreachable!("append writes have no retry timer"),
+        },
+        Entity::Child(_) | Entity::Signals(_) | Entity::Named(_) | Entity::Joined(_) => {
+            unreachable!("processes and signals have no io deadline")
+        }
+    }
+    conclude(io, id, subs);
+}
+
+/// Takes one request, emitting at most [`MAX_OUT_DOWN`](crate::MAX_OUT_DOWN).
+/// The loop hands io a request only while it [`takes`](Io::takes) one.
+///
+/// A request naming an entity that is gone is dropped: a token travelling
+/// down may be stale (programming-model.md, 5.2). Events it causes wait for
+/// the next up pass, held as the state of the entity that will tell them.
+pub fn down(io: &mut Io, env: &Env<Limits>, request: Request, subs: &mut Queue<Submit>) {
+    match request {
+        Request::Listen { owner, addr } => listen(io, owner, addr, subs),
+        Request::Connect { owner, addr } => connect(io, owner, addr, subs),
+        Request::Bind { socket, owner } => answer(io, env, socket, Some(owner), subs),
+        Request::Reject { socket } => answer(io, env, socket, None, subs),
+        Request::Stream { stream, down } => stream_request(io, env, stream, down, subs),
+        Request::Output { stream, down } => output_request(io, env, stream, down, subs),
+        Request::Spawn { owner, spawn } => process::spawn(io, owner, spawn, subs),
+        Request::Signal { child, signal, to } => process::signal(io, child, signal, to, subs),
+        Request::Window { owner, stream } => {
+            assert!(io.tables.window.is_none(), "one Window request in flight");
+            let fd = match io.entities.get(Id::from_token(stream)) {
+                Some(Entity::Pipe(pipe)) => pipe.window_fd().unwrap_or(Fd::new(-1)),
+                None => Fd::new(-1),
+                Some(
+                    Entity::Listener(_)
+                    | Entity::Stream(_)
+                    | Entity::Child(_)
+                    | Entity::Signals(_)
+                    | Entity::Named(_)
+                    | Entity::Joined(_),
+                ) => {
+                    unreachable!("Window names the input terminal stream")
+                }
+            };
+            let flight = io
+                .tables
+                .flights
+                .insert(Flight { entity: None, purpose: Purpose::Window { owner } })
+                .expect("one operation slot reserved for terminal size");
+            io.tables.window = Some(flight);
+            subs.push(Submit { op: flight.token(), kind: Op::Window { fd } });
+        }
+        Request::Usage { owner } => {
+            assert!(io.tables.usage.is_none(), "one Usage request in flight (io.md, section 6.1)");
+            let flight = io
+                .tables
+                .flights
+                .insert(Flight { entity: None, purpose: Purpose::Usage { owner } })
+                .expect("one operation slot reserved for process usage");
+            io.tables.usage = Some(flight);
+            subs.push(Submit { op: flight.token(), kind: Op::Usage });
+        }
+        Request::Close { entity } => close(io, env, entity, false, subs),
+        Request::Abort { entity } => close(io, env, entity, true, subs),
+    }
+}
+
+fn listen(io: &mut Io, owner: Token, addr: Addr, subs: &mut Queue<Submit>) {
+    let addr = match addr {
+        Addr::Ip(addr) => addr,
+        Addr::InProcess(name) => {
+            joined::listen(io, owner, name);
+            return;
+        }
+    };
+    if let Some(id) = io.tables.held.remove(&addr) {
+        let Some(Entity::Listener(listener)) = io.entities.get_mut(id) else {
+            unreachable!("a held address names its listener");
+        };
+        listener.claim(owner);
+        io.tables.ready.mark(id);
+        return;
+    }
+    let Ok(id) = io.entities.insert(Entity::Listener(listener::opened(owner, addr))) else {
+        io.tables.refused.push(owner);
+        return;
+    };
+    let _socket: Id<Flight> = io.tables.submit(subs, id, Purpose::Socket, Op::Socket { family: Family::of(&addr) });
+}
+
+fn connect(io: &mut Io, owner: Token, addr: Addr, subs: &mut Queue<Submit>) {
+    let addr = match addr {
+        Addr::Ip(addr) => addr,
+        Addr::InProcess(name) => {
+            joined::connect(io, owner, name);
+            return;
+        }
+    };
+    let Ok(id) = io.entities.insert(Entity::Stream(stream::opened(owner, addr))) else {
+        io.tables.refused.push(owner);
+        return;
+    };
+    // Connecting is told from the ready list, before the socket's completion.
+    io.tables.ready.mark(id);
+    let _socket: Id<Flight> = io.tables.submit(subs, id, Purpose::Socket, Op::Socket { family: Family::of(&addr) });
+}
+
+/// `Bind` (an owner) or `Reject` (none) of an announced socket; then its
+/// listener may accept again.
+fn answer(io: &mut Io, env: &Env<Limits>, socket: Token, owner: Option<Token>, subs: &mut Queue<Submit>) {
+    let id = Id::<Entity>::from_token(socket);
+    if let Some(Entity::Joined(_)) = io.entities.get(id) {
+        joined::answer(io, id, owner, &env.limits);
+        return;
+    }
+    let Some(entity) = io.entities.get_mut(id) else {
+        return;
+    };
+    let stream = match entity {
+        Entity::Stream(stream) => stream,
+        Entity::Listener(_)
+        | Entity::Pipe(_)
+        | Entity::Child(_)
+        | Entity::Signals(_)
+        | Entity::Named(_)
+        | Entity::Joined(_) => {
+            unreachable!("an answer names a socket announced to its owner")
+        }
+    };
+    let listener = stream::answer(stream, id, owner, env, &mut io.tables, subs);
+    let room = !io.entities.is_full();
+    match io.entities.get_mut(listener) {
+        Some(Entity::Listener(listening)) => {
+            listener::answered(listening, listener, id, room, env, &mut io.tables, subs);
+        }
+        Some(
+            Entity::Stream(_)
+            | Entity::Pipe(_)
+            | Entity::Child(_)
+            | Entity::Signals(_)
+            | Entity::Named(_)
+            | Entity::Joined(_),
+        ) => {
+            unreachable!("a handle names the kind of entity it was made for")
+        }
+        // Closed and reclaimed since it announced the socket.
+        None => {}
+    }
+}
+
+fn stream_request(io: &mut Io, env: &Env<Limits>, token: Token, down: Down, subs: &mut Queue<Submit>) {
+    let id = Id::<Entity>::from_token(token);
+    let Some(entity) = io.entities.get_mut(id) else {
+        return;
+    };
+    match entity {
+        Entity::Stream(stream) => stream::request(stream, id, down, env, &mut io.tables, subs),
+        Entity::Pipe(pipe) => pipe::request(pipe, id, down, env, &mut io.tables, subs),
+        Entity::Joined(end) => joined::request(end, id, down, &env.limits, &mut io.tables),
+        Entity::Listener(_) | Entity::Child(_) | Entity::Signals(_) | Entity::Named(_) => {
+            unreachable!("a stream request names a stream")
+        }
+    }
+}
+
+fn output_request(io: &mut Io, env: &Env<Limits>, token: Token, down: OutputDown, subs: &mut Queue<Submit>) {
+    let id = Id::<Entity>::from_token(token);
+    let Some(entity) = io.entities.get_mut(id) else { return };
+    match entity {
+        Entity::Stream(stream) => stream::output_request(stream, id, down, env, &mut io.tables, subs),
+        Entity::Pipe(pipe) => pipe::output_request(pipe, id, down, env, &mut io.tables, subs),
+        Entity::Joined(end) => joined::output_request(end, id, down, &env.limits, &mut io.tables),
+        Entity::Listener(_) | Entity::Child(_) | Entity::Signals(_) | Entity::Named(_) => {}
+    }
+}
+
+fn close(io: &mut Io, env: &Env<Limits>, token: Token, abort: bool, subs: &mut Queue<Submit>) {
+    let id = Id::<Entity>::from_token(token);
+    if let Some(Entity::Child(_)) = io.entities.get(id) {
+        process::close(io, id, subs);
+        return;
+    }
+    let Some(entity) = io.entities.get_mut(id) else {
+        return;
+    };
+    match entity {
+        Entity::Listener(listener) => listener::close(listener, id, &mut io.tables, subs),
+        Entity::Stream(stream) => stream::close(stream, id, abort, env, &mut io.tables, subs),
+        Entity::Pipe(pipe) => pipe::close(pipe, id, abort, env, &mut io.tables, subs),
+        Entity::Child(_) => unreachable!("handled above"),
+        Entity::Signals(signals) => signals::close(signals, id, &mut io.tables, subs),
+        Entity::Named(listener) => joined::close_listener(listener, id, &mut io.tables),
+        Entity::Joined(end) => joined::close_end(end, id, abort, env, &mut io.tables),
+    }
+}
+
+/// Retires `id` if its last transition closed it: it leaves every list, and
+/// the listeners starved for a slot try again.
+pub(crate) fn conclude(io: &mut Io, id: Id<Entity>, subs: &mut Queue<Submit>) {
+    let closed = match io.entities.get(id) {
+        Some(Entity::Listener(listener)) => listener.is_closed(),
+        Some(Entity::Stream(stream)) => stream.is_closed(),
+        Some(Entity::Pipe(pipe)) => pipe.is_closed(),
+        Some(Entity::Child(child)) => child.is_closed(),
+        Some(Entity::Signals(signals)) => signals.is_closed(),
+        Some(Entity::Named(listener)) => listener.is_closed(),
+        Some(Entity::Joined(end)) => end.is_closed(),
+        None => false,
+    };
+    if !closed {
+        return;
+    }
+    let child = match io.entities.get(id) {
+        Some(Entity::Pipe(pipe)) => pipe.child(),
+        _ => None,
+    };
+    io.entities.retire(id);
+    io.tables.ready.forget(id);
+    io.tables.deadlines.cancel((id, Timer::Close));
+    io.tables.deadlines.cancel((id, Timer::Retry));
+    io.tables.ready.wake();
+    if let Some(child) = child {
+        process::release(io, child, subs);
+    }
+}

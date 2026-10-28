@@ -1,0 +1,874 @@
+use skein_ui::{Builder, DrawingKind, Key, NodeId, Patch, Role, Run, State, View};
+
+use super::fixtures::{self, LIMITS, OWNER};
+use crate::{
+    mapping::Primary,
+    page::{Op, Page},
+};
+
+fn page() -> Page<'static> {
+    Page::new(fixtures::look(), &LIMITS, b"/bundle/digest/", Primary::Control)
+}
+const MAIN: NodeId = NodeId(2); // page, main
+fn main(builder: &mut Builder) {
+    builder.open(Role::Page);
+    builder.open(Role::Main);
+}
+fn end(builder: &mut Builder) {
+    builder.close();
+    builder.close();
+}
+fn field(builder: &mut Builder, value: &[u8], written: u64) {
+    builder.open(Role::TextField);
+    builder.name(b"Title");
+    builder.value(value, written);
+    builder.close();
+}
+const BUTTON: NodeId = NodeId(3); // page, main, button
+fn button(builder: &mut Builder, name: &[u8]) {
+    builder.open(Role::Button);
+    builder.name(name);
+    builder.bind(fixtures::binding(1));
+    builder.close();
+}
+fn list(builder: &mut Builder, keys: &[u64]) {
+    main(builder);
+    builder.open(Role::List);
+    for key in keys {
+        builder.open(Role::Item);
+        builder.key(Key { owner: OWNER, kind: 0, a: *key, b: 0 });
+        builder.text(Run::Plain, if *key == 1 { b"One" } else { b"Two" });
+        builder.close();
+    }
+    builder.close();
+    end(builder);
+}
+const DRAWING: NodeId = NodeId(3); // page, main, drawing
+fn drawing(builder: &mut Builder, data: &[u8]) {
+    main(builder);
+    builder.drawing(DrawingKind { owner: OWNER, kind: 0 }, b"Chart", data, 128);
+    builder.text(Run::Plain, b"Fallback");
+    builder.close();
+    end(builder);
+}
+
+#[test]
+fn an_insert_builds_the_golden_page() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            button(b, b"Go");
+            field(b, b"Old", 0);
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.html(), include_str!("golden/insert.html").trim_end());
+}
+
+#[test]
+fn a_markdown_table_builds_the_golden_page() {
+    const INPUT: &[u8] = include_bytes!("../../../skein-ui/src/tests/markdown/13.md");
+    const PARENTS: u32 = 2; // page and main above the reader.
+    const DEPTH: u32 = 5 + PARENTS; // ui.md, 10: five reader levels.
+    let bytes = u32::try_from(INPUT.len()).unwrap();
+    let nodes = skein_ui::markdown::max_nodes(bytes).unwrap() + PARENTS;
+    let limits = skein_ui::Limits {
+        nodes,
+        depth: DEPTH,
+        text_per_node: skein_ui::markdown::max_text_bytes(bytes).unwrap(),
+        text_bytes: skein_ui::markdown::max_text_bytes(bytes).unwrap(),
+        patches: nodes * 4, // ui.md, 7: at most four patches per node.
+        markdown_depth: 1,
+        ..LIMITS
+    };
+    let mut page = Page::new(fixtures::look(), &limits, b"/bundle/digest/", Primary::Control);
+    let mut view = View::new(&limits);
+    let mut builder = view.builder();
+    main(&mut builder);
+    skein_ui::markdown::read(INPUT, 0, &mut builder);
+    end(&mut builder);
+    let mut out = skein_lib::Queue::with_capacity(limits.patches);
+    view.finish(builder, 0, &mut out);
+    let mut patches = Vec::new();
+    for _patch in 0..out.len() {
+        patches.push(out.pop().unwrap());
+    }
+    page.apply(&patches, &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/markdown-table.html").trim_end());
+}
+
+#[test]
+fn a_remove_takes_its_subtree() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.open(Role::Region);
+            button(b, b"Go");
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            main(b);
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.html(), include_str!("golden/remove.html").trim_end());
+}
+
+#[test]
+fn a_move_keeps_the_element() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| list(b, &[1, 2])), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| list(b, &[2, 1])), &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/move.html").trim_end());
+}
+
+#[test]
+fn a_value_patch_writes_the_field() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            field(b, b"Old", 0);
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            main(b);
+            field(b, b"New", 1);
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.html(), include_str!("golden/value.html").trim_end());
+}
+
+#[test]
+fn a_text_patch_replaces_the_runs() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.text(Run::Plain, b"Old");
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            main(b);
+            b.text(Run::Strong, b"New");
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.html(), include_str!("golden/text.html").trim_end());
+}
+
+#[test]
+fn an_attribute_patch_updates_the_element() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            button(b, b"Old");
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            main(b);
+            b.open(Role::Button);
+            b.name(b"New");
+            b.state(State::Disabled);
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.html(), include_str!("golden/attribute.html").trim_end());
+}
+
+#[test]
+fn an_attribute_patch_keeps_a_tag_it_can_update() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            button(b, b"Old");
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            main(b);
+            button(b, b"New");
+            end(b);
+        }),
+        &mut ops,
+    );
+    let kinds: Vec<_> = ops
+        .iter()
+        .map(|op| match op {
+            Op::Attributes { .. } => "attributes",
+            _ => "other",
+        })
+        .collect();
+    assert_eq!(kinds, ["attributes"]);
+}
+
+#[test]
+fn a_changed_tag_replaces_the_element() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            b.open(Role::Region);
+            b.open(Role::Main);
+            b.close();
+            b.close();
+        }),
+        &mut ops,
+    );
+    let kinds: Vec<_> = ops
+        .iter()
+        .map(|op| match op {
+            Op::Replace { .. } => "replace",
+            _ => "other",
+        })
+        .collect();
+    assert_eq!(kinds, ["replace"]);
+}
+
+// Preorder: page, main, dialog, region, button.
+const FOCUS_DIALOG: NodeId = NodeId(3);
+const FOCUS_SUBTREE: NodeId = NodeId(4);
+const FOCUS_BUTTON: NodeId = NodeId(5);
+
+#[test]
+fn a_removal_taking_the_focus_moves_it_to_an_ancestor() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.open(Role::Dialog);
+            b.open(Role::Region);
+            button(b, b"Go");
+            b.close();
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.focused(FOCUS_BUTTON);
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            main(b);
+            b.open(Role::Dialog);
+            b.close();
+            end(b);
+        }),
+        &mut ops,
+    );
+    assert_eq!(ops, vec![Op::Remove { node: FOCUS_SUBTREE }, Op::Focus { node: FOCUS_DIALOG }]);
+}
+
+#[test]
+fn a_removal_taking_the_focus_falls_back_to_the_main() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            button(b, b"Go");
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.focused(BUTTON);
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            main(b);
+            end(b);
+        }),
+        &mut ops,
+    );
+    assert_eq!(ops, vec![Op::Remove { node: BUTTON }, Op::Focus { node: MAIN }]);
+}
+
+const MISSING_NODE: NodeId = NodeId(99); // never allocated in the fixture
+
+#[test]
+#[should_panic(expected = "patch names a held node")]
+fn a_patch_naming_no_held_node_panics() {
+    page().apply(&[Patch::Remove { node: MISSING_NODE }], &mut Vec::new());
+}
+
+#[test]
+fn a_drawing_shows_its_fallback_before_its_first_resize() {
+    let (mut page, mut view) =
+        (Page::new(fixtures::drawing_look(), &LIMITS, b"/", Primary::Control), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| drawing(b, b"one")), &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/fallback.html").trim_end());
+}
+
+#[test]
+fn a_resize_draws_the_scene_and_keeps_the_fallback() {
+    let (mut page, mut view) =
+        (Page::new(fixtures::drawing_look(), &LIMITS, b"/", Primary::Control), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| drawing(b, b"one")), &mut Vec::new());
+    page.resized(DRAWING, 100, 50, &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/drawing.html").trim_end());
+}
+
+#[test]
+fn changed_drawing_data_draws_again_at_its_last_size() {
+    let (mut page, mut view) =
+        (Page::new(fixtures::drawing_look(), &LIMITS, b"/", Primary::Control), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| drawing(b, b"one")), &mut Vec::new());
+    page.resized(DRAWING, 100, 50, &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| drawing(b, b"two")), &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/drawing-changed.html").trim_end());
+}
+
+#[test]
+fn a_refused_drawing_keeps_its_fallback_visible() {
+    let (mut page, mut view) =
+        (Page::new(fixtures::drawing_look(), &LIMITS, b"/", Primary::Control), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| drawing(b, b"refuse")), &mut Vec::new());
+    page.resized(DRAWING, 100, 50, &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/fallback.html").trim_end());
+}
+
+// Preorder: page, main, first link, second link.
+const FIRST_LINK: NodeId = NodeId(3);
+const SECOND_LINK: NodeId = NodeId(4);
+
+#[test]
+fn links_are_reported_in_preorder() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            for n in 1..=2 {
+                b.open(Role::Link);
+                b.link(fixtures::binding(n));
+                b.close();
+            }
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.links(), &[FIRST_LINK, SECOND_LINK]);
+}
+
+#[test]
+fn a_links_href_is_the_owners_path() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.open(Role::Link);
+            b.link(fixtures::binding(1));
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.set_href(FIRST_LINK, b"/notes/1", &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/href.html").trim_end());
+}
+
+mod events;
+
+const FOCUS_HEADING: NodeId = NodeId(3); // page, main, heading
+fn focus_heading(b: &mut Builder, count: u64) {
+    main(b);
+    b.open(Role::Heading { level: 1 });
+    b.focus(count);
+    b.close();
+    end(b);
+}
+
+#[test]
+fn a_focus_request_focuses_its_node() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, |b| focus_heading(b, 1)), &mut ops);
+    assert_eq!(ops.last(), Some(&Op::Focus { node: FOCUS_HEADING }));
+}
+
+#[test]
+fn a_moved_focus_count_focuses_again() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, |b| focus_heading(b, 1)), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| focus_heading(b, 2)), &mut ops);
+    assert_eq!(ops.last(), Some(&Op::Focus { node: FOCUS_HEADING }));
+}
+
+#[test]
+fn an_unchanged_focus_count_does_not_focus_again() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, |b| focus_heading(b, 1)), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| focus_heading(b, 1)), &mut ops);
+    assert_eq!(ops, []);
+}
+
+#[test]
+fn a_described_cell_keeps_its_description_after_its_children() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.open(Role::Cell);
+            b.description(b"Help");
+            b.text(Run::Plain, b"Value");
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(
+        page.html(),
+        r#"<div><main data-node="2"><td data-node="3" aria-describedby="skein-ui-description-3"><span data-node="4">Value</span><span id="skein-ui-description-3">Help</span></td></main></div>"#
+    );
+}
+
+#[test]
+fn a_changed_description_updates_its_companion() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    for (count, words) in [(0, b"Old".as_slice()), (1, b"Help & <b>")] {
+        page.apply(
+            &fixtures::patches(&mut view, count, |b| {
+                main(b);
+                b.open(Role::TextField);
+                b.description(words);
+                b.close();
+                end(b);
+            }),
+            &mut Vec::new(),
+        );
+    }
+    assert_eq!(
+        page.html(),
+        r#"<div><main data-node="2"><input data-node="3" type="text" aria-describedby="skein-ui-description-3"><span id="skein-ui-description-3">Help &amp; &lt;b&gt;</span></main></div>"#
+    );
+}
+
+const COUNTED_FIRST: NodeId = NodeId(4); // page, main, list, first item
+const COUNTED_SECOND: NodeId = NodeId(5); // page, main, list, first item, second item
+fn counted_items(b: &mut Builder, count: Option<u32>) {
+    main(b);
+    b.open(Role::List);
+    if let Some(count) = count {
+        b.count(count);
+    }
+    for position in [1, 2] {
+        b.open(Role::Item);
+        b.position(position);
+        b.close();
+    }
+    b.close();
+    end(b);
+}
+
+#[test]
+fn a_changed_count_sets_each_items_setsize_again() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, |b| counted_items(b, Some(10))), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| counted_items(b, Some(20))), &mut ops);
+    let sizes: Vec<_> = ops
+        .iter()
+        .filter_map(|op| match op {
+            Op::Attributes { node, element } => element.attribute("aria-setsize").map(|size| (*node, size)),
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. } => None,
+        })
+        .collect();
+    assert_eq!(sizes, [(COUNTED_FIRST, "20"), (COUNTED_SECOND, "20")]);
+}
+
+#[test]
+fn a_removed_count_removes_each_items_setsize() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| counted_items(b, Some(10))), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| counted_items(b, None)), &mut Vec::new());
+    assert_eq!(
+        page.html(),
+        r#"<div><main data-node="2"><ul data-node="3"><li data-node="4" aria-posinset="1"></li><li data-node="5" aria-posinset="2"></li></ul></main></div>"#
+    );
+}
+
+#[test]
+fn an_options_description_follows_its_select() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.open(Role::Select);
+            b.open(Role::Option);
+            b.name(b"One");
+            b.description(b"Help");
+            b.close();
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(
+        page.html(),
+        r#"<div><main data-node="2"><select data-node="3"><option data-node="4" aria-describedby="skein-ui-description-4">One</option></select><span id="skein-ui-description-4">Help</span></main></div>"#
+    );
+}
+
+const COMPONENT_BODY: NodeId = NodeId(3); // page, main, body
+fn component_body(builder: &mut Builder, value: &[u8], written: u64) {
+    main(builder);
+    builder.open(Role::TextArea);
+    builder.name(b"Body");
+    builder.style(skein_ui::Style { owner: OWNER, token: 0 });
+    builder.value(value, written);
+    builder.close();
+    end(builder);
+}
+fn component_page() -> Page<'static> {
+    Page::new(
+        crate::Look {
+            components: &[(OWNER, Role::TextArea, skein_ui::Style { owner: OWNER, token: 0 })],
+            ..fixtures::look()
+        },
+        &LIMITS,
+        b"/",
+        Primary::Control,
+    )
+}
+#[test]
+fn a_component_node_keeps_its_host_and_data_node() {
+    let (mut page, mut view) = (component_page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| component_body(b, b"Old", 0)), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| component_body(b, b"New", 1)), &mut Vec::new());
+    assert_eq!(
+        page.html(),
+        r#"<div><main data-node="2"><textarea data-node="3" aria-label="Body" class="test-mark" data-component="0">New</textarea></main></div>"#
+    );
+}
+#[test]
+fn a_component_patch_receives_the_new_value() {
+    let (mut page, mut view, mut ops) = (component_page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, |b| component_body(b, b"Old", 0)), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| component_body(b, b"New", 1)), &mut ops);
+    let values: Vec<_> = ops
+        .iter()
+        .filter_map(|op| match op {
+            Op::Component { node, made, .. } => Some((*node, made.value.as_ref().map(|value| value.text.as_ref()))),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(values, vec![(COMPONENT_BODY, Some(b"New".as_slice()))]);
+}
+
+fn nested_tree(b: &mut Builder, children: &[(u64, &[u8])]) {
+    main(b);
+    b.open(Role::Tree);
+    b.open(Role::TreeItem);
+    b.name(b"Parent");
+    for (key, name) in children {
+        if *key == 0 {
+            b.open(Role::Paragraph);
+        } else {
+            b.open(Role::TreeItem);
+        }
+        if *key != 0 {
+            b.key(Key { owner: OWNER, kind: 0, a: *key, b: 0 });
+        }
+        b.name(name);
+        b.close();
+    }
+    b.close();
+    b.close();
+    end(b);
+}
+
+#[test]
+fn nested_tree_runs_keep_other_children_direct_and_leaves_ungrouped() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            nested_tree(b, &[(1, b"One"), (2, b"Two"), (0, b"Between"), (3, b"Three")]);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.html(), include_str!("golden/tree-runs.html").trim_end());
+}
+
+#[test]
+fn keyed_tree_children_insert_move_update_and_remove_through_groups() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    let stages: &[&[(u64, &[u8])]] = &[
+        &[],
+        &[(1, b"One")],
+        &[(1, b"One"), (2, b"Two")],
+        &[(2, b"Two"), (1, b"One")],
+        &[(2, b"Changed"), (1, b"One")],
+        &[(1, b"One")],
+        &[],
+    ];
+    let mut snapshots = String::new();
+    for (revision, children) in stages.iter().enumerate() {
+        let patches = fixtures::patches(&mut view, u64::try_from(revision).unwrap(), |b| nested_tree(b, children));
+        let mut ops = Vec::new();
+        page.apply(&patches, &mut ops);
+        let html = page.html();
+        snapshots.push_str(&html);
+        snapshots.push('\n');
+        assert_eq!(html.matches("role=\"group\"").count(), usize::from(!children.is_empty()), "{html}");
+        for (_, name) in *children {
+            assert!(html.contains(&format!("aria-label=\"{}\"", String::from_utf8_lossy(name))), "{html}");
+        }
+        match revision {
+            1 | 2 => assert!(ops.iter().any(|op| matches!(op, Op::Insert { parent: NodeId(4), .. }))),
+            3 => {
+                assert!(ops.iter().any(|op| matches!(op, Op::Move { parent: NodeId(4), .. })));
+                assert!(html.find("Two").unwrap() < html.find("One").unwrap());
+            }
+            4 => assert!(ops.iter().any(|op| matches!(op, Op::Attributes { node: NodeId(6), .. }))),
+            5 | 6 => assert!(ops.iter().any(|op| matches!(op, Op::Remove { .. }))),
+            _ => {}
+        }
+    }
+    assert_eq!(snapshots, include_str!("golden/tree-patches.html"));
+}
+
+#[test]
+fn a_nested_tree_set_size_is_derived_from_its_group() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.open(Role::Tree);
+            b.count(10);
+            b.open(Role::TreeItem);
+            b.open(Role::TreeItem);
+            b.close();
+            b.close();
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.html().matches("aria-setsize=\"10\"").count(), 1);
+    assert!(page.html().contains("<div role=\"group\"><div data-node=\"5\" role=\"treeitem\"></div></div>"));
+}
+
+#[test]
+fn a_field_name_patch_adds_changes_and_removes_its_visible_label() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    for (revision, name) in
+        [None, Some(b"Title".as_slice()), Some(b"Changed & <name>".as_slice()), None].iter().enumerate()
+    {
+        let patches = fixtures::patches(&mut view, u64::try_from(revision).unwrap(), |b| {
+            main(b);
+            b.open(Role::TextField);
+            if let Some(name) = name {
+                b.name(name);
+            }
+            b.value(b"kept", 0);
+            b.close();
+            end(b);
+        });
+        let mut ops = Vec::new();
+        page.apply(&patches, &mut ops);
+        let html = page.html();
+        assert!(!html.contains("aria-label"));
+        assert_eq!(html.matches("<label ").count(), usize::from(name.is_some()));
+        if revision > 0 {
+            assert!(ops.iter().any(|op| matches!(op, Op::Attributes { node: NodeId(3), element } if crate::dom::print(element).contains("<label ") == name.is_some())));
+        }
+        if revision == 2 {
+            assert!(html.contains("<label for=\"skein-ui-label-3\">Changed &amp; &lt;name&gt;</label><input"));
+        }
+    }
+}
+
+#[test]
+fn slots_paragraphs_statuses_and_lists_split_tree_item_runs() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            b.open(Role::Tree);
+            b.open(Role::TreeItem);
+            for role in [Role::Slot, Role::Paragraph, Role::Status, Role::List] {
+                b.open(Role::TreeItem);
+                b.close();
+                b.open(role);
+                b.close();
+            }
+            b.close();
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    assert_eq!(page.html(), include_str!("golden/tree-mixed.html").trim_end());
+}
+
+fn completed_item(builder: &mut Builder, completed: bool) {
+    builder.open(Role::Item);
+    if completed {
+        builder.state(State::Completed);
+    }
+    builder.description(b"Item help");
+    builder.text(Run::Plain, b"Branch pushed");
+    builder.close();
+}
+
+#[test]
+fn the_pages_words_reach_a_completed_items_span() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.words(crate::mapping::Words { completed: b"done & <met>" });
+    page.apply(&fixtures::patches(&mut view, 0, |b| completed_item(b, true)), &mut Vec::new());
+    assert_eq!(
+        page.html(),
+        r#"<li data-node="1" aria-describedby="skein-ui-description-1"><span data-node="2">Branch pushed</span><span id="skein-ui-state-1"> done &amp; &lt;met&gt;</span><span id="skein-ui-description-1">Item help</span></li>"#
+    );
+}
+
+#[test]
+#[should_panic(expected = "the page's words come before its first patch")]
+fn setting_words_after_a_node_is_held_asserts() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| completed_item(b, true)), &mut Vec::new());
+    page.words(crate::mapping::Words::ENGLISH);
+}
+
+#[test]
+fn completion_attributes_keep_the_items_children_before_its_description() {
+    const ITEM: NodeId = NodeId(1); // The item is the root.
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| completed_item(b, false)), &mut Vec::new());
+    for (revision, completed, expected_own, expected_page) in [
+        (
+            1,
+            true,
+            r#"<li data-node="1" aria-describedby="skein-ui-description-1"><span id="skein-ui-state-1"> completed</span><span id="skein-ui-description-1">Item help</span></li>"#,
+            r#"<li data-node="1" aria-describedby="skein-ui-description-1"><span data-node="2">Branch pushed</span><span id="skein-ui-state-1"> completed</span><span id="skein-ui-description-1">Item help</span></li>"#,
+        ),
+        (
+            2,
+            false,
+            r#"<li data-node="1" aria-describedby="skein-ui-description-1"><span id="skein-ui-description-1">Item help</span></li>"#,
+            r#"<li data-node="1" aria-describedby="skein-ui-description-1"><span data-node="2">Branch pushed</span><span id="skein-ui-description-1">Item help</span></li>"#,
+        ),
+    ] {
+        let mut ops = Vec::new();
+        page.apply(&fixtures::patches(&mut view, revision, |b| completed_item(b, completed)), &mut ops);
+        assert_eq!(ops.len(), 1);
+        match &ops[0] {
+            Op::Attributes { node, element } => {
+                assert_eq!(*node, ITEM);
+                assert_eq!(crate::dom::print(element), expected_own);
+            }
+            _ => unreachable!("only completion changed"),
+        }
+        assert_eq!(page.html(), expected_page);
+    }
+}
+
+fn placeholder_field(builder: &mut Builder, placeholder: Option<&[u8]>) {
+    builder.open(Role::TextArea);
+    builder.name(b"Message");
+    if let Some(placeholder) = placeholder {
+        builder.placeholder(placeholder);
+    }
+    builder.close();
+}
+
+#[test]
+fn setting_then_clearing_a_placeholder_updates_its_attributes() {
+    const FIELD: NodeId = NodeId(1); // The text area is the root.
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| placeholder_field(b, None)), &mut Vec::new());
+    for (revision, placeholder, expected) in [
+        (1, Some(b"Hint".as_slice()), r#"<textarea data-node="1" aria-label="Message" placeholder="Hint"></textarea>"#),
+        (2, None, r#"<textarea data-node="1" aria-label="Message"></textarea>"#),
+    ] {
+        let mut ops = Vec::new();
+        page.apply(&fixtures::patches(&mut view, revision, |b| placeholder_field(b, placeholder)), &mut ops);
+        assert_eq!(ops.len(), 1);
+        match &ops[0] {
+            Op::Attributes { node, element } => {
+                assert_eq!(*node, FIELD);
+                assert_eq!(crate::dom::print(element), expected);
+            }
+            _ => unreachable!("only the placeholder changed"),
+        }
+    }
+}
+
+fn described_disclosure(builder: &mut Builder, name: &[u8], description: &[u8]) {
+    main(builder);
+    builder.open(Role::Disclosure);
+    builder.name(name);
+    builder.description(description);
+    builder.open(Role::Paragraph);
+    builder.text(Run::Plain, b"Child");
+    builder.close();
+    builder.close();
+    end(builder);
+}
+
+#[test]
+fn disclosure_attribute_patches_keep_the_summary_before_its_children() {
+    for (name, description, expected, expected_summary) in [
+        (
+            b"Old".as_slice(),
+            b"New help".as_slice(),
+            r#"<div><main data-node="2"><details data-node="3"><summary>Old<span id="skein-ui-description-3"> New help</span></summary><p data-node="4"><span data-node="5">Child</span></p></details></main></div>"#,
+            r#"<details data-node="3"><summary>Old<span id="skein-ui-description-3"> New help</span></summary></details>"#,
+        ),
+        (
+            b"New".as_slice(),
+            b"Old help".as_slice(),
+            r#"<div><main data-node="2"><details data-node="3"><summary>New<span id="skein-ui-description-3"> Old help</span></summary><p data-node="4"><span data-node="5">Child</span></p></details></main></div>"#,
+            r#"<details data-node="3"><summary>New<span id="skein-ui-description-3"> Old help</span></summary></details>"#,
+        ),
+    ] {
+        let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+        page.apply(&fixtures::patches(&mut view, 0, |b| described_disclosure(b, b"Old", b"Old help")), &mut Vec::new());
+        page.apply(&fixtures::patches(&mut view, 1, |b| described_disclosure(b, name, description)), &mut ops);
+        assert_eq!(page.html(), expected);
+        assert_eq!(ops.len(), 1);
+        match &ops[0] {
+            Op::Attributes { node, element } => {
+                assert_eq!(*node, NodeId(3));
+                assert_eq!(crate::dom::print(element), expected_summary);
+            }
+            op => panic!("expected disclosure attributes, got {op:?}"),
+        }
+    }
+}

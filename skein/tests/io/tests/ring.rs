@@ -1,0 +1,325 @@
+// io's real-kernel files on the ring (shell.md, 9).
+#![cfg(target_os = "linux")]
+
+//! One exchange through io over the real ring (testing-strategy.md, 2.8, the
+//! real loop's first step): io and its scripted owner in one process, whose
+//! loop reaps from the shell's kernel, runs io's stages, and submits back,
+//! waiting until io's or the owner's next deadline. The owner listens on
+//! loopback, connects to itself, and exchanges a message with an echo, both
+//! ends in the one io; everything closes, and io and the ring hold nothing.
+//!
+//! A machine without `io_uring` fails here, saying so, as the ring's own
+//! tests do.
+
+use skein_io::operations;
+use skein_io_world::owner::{Dial, Directory, Owner, Reads, Serve, ServeClose, Target};
+use skein_io_world::scenarios::{echo, expecting, framed, limits, local, message, plan};
+use skein_io_world::world::Proc;
+use skein_lib::{Duration, Rng};
+use skein_shell::{Backend, Clock, Config, Kernel, Wait};
+
+#[test]
+fn an_exchange_through_io_over_the_ring() {
+    let limits = limits(3);
+    let operations = operations(&limits).expect("a small ring");
+    let mut kernel = match Kernel::open_on(Config { operations }, Backend::Ring) {
+        Ok(kernel) => kernel,
+        Err(error) => panic!("io_uring is not usable here, so io cannot run on the ring: {error}"),
+    };
+    let clock = Clock::new();
+    let start = clock.now().now;
+    let at = |offset: u64| start.saturating_add(Duration::from_millis(offset));
+
+    let sent = framed(&message(&mut Rng::new(7), 3_000));
+    let serve = Serve {
+        name: "server",
+        addr: local(0),
+        answers: vec![Some(echo("echo", limits.largest_room(), Reads::Mixed(16)))],
+        close: ServeClose::Answered(at(10_000)),
+    };
+    let client = expecting(plan("client", sent.clone(), 32, Reads::Mixed(16)), &sent);
+    let dial = Dial { to: Target::Named("server"), at: start, plan: client };
+    let mut proc = Proc::new(limits, Owner::new(7, vec![serve], vec![dial]));
+    let mut directory = Directory::new();
+
+    run_exchange(&mut proc, &mut kernel, &clock, &mut directory, at(10_000));
+    let client = proc.owner.conn("client").expect("the client connected");
+    assert!(
+        client.received == *sent,
+        "the echo returned every byte, in order: {} of {}",
+        client.received.len(),
+        sent.len()
+    );
+    assert!(!client.broken(), "nothing broke on loopback");
+    proc.ledger.settled();
+}
+
+#[test]
+fn a_loopback_and_a_named_listener_exchange_in_one_drive() {
+    let limits = limits(6);
+    let mut kernel = Kernel::open_on(Config { operations: operations(&limits).expect("a small ring") }, Backend::Ring)
+        .expect("io_uring usable for the mixed-address exchange");
+    let clock = Clock::new();
+    let start = clock.now().now;
+    let deadline = start.saturating_add(Duration::from_secs(1));
+    let sent = framed(&message(&mut Rng::new(7), 300));
+    let serves = [("loopback", local(0), "ip-echo"), ("joined", skein_io_world::joined::name(b"ring"), "named-echo")]
+        .map(|(name, addr, label)| Serve {
+            name,
+            addr,
+            answers: vec![Some(echo(label, limits.largest_room(), Reads::Mixed(16)))],
+            close: ServeClose::Answered(deadline),
+        });
+    let dials = [("loopback", "ip-client"), ("joined", "named-client")].map(|(label, conn)| Dial {
+        to: Target::Named(label),
+        at: start,
+        plan: expecting(plan(conn, sent.clone(), 32, Reads::Mixed(16)), &sent),
+    });
+    let mut proc = Proc::new(limits, Owner::new(7, serves.into(), dials.into()));
+    run_exchange(&mut proc, &mut kernel, &clock, &mut Directory::new(), deadline);
+    for label in ["ip-client", "named-client"] {
+        let client = proc.owner.conn(label).expect("each client connected");
+        assert_eq!(client.received, *sent, "{label} received every byte");
+        assert!(client.ended, "{label} heard the peer's End");
+        assert!(!client.broken(), "{label} completed without failure");
+    }
+    proc.ledger.settled();
+}
+
+fn run_exchange(
+    proc: &mut Proc,
+    kernel: &mut Kernel,
+    clock: &Clock,
+    directory: &mut Directory,
+    deadline: skein_lib::Time,
+) {
+    loop {
+        let now = clock.now();
+        assert!(now.now < deadline, "the exchange ends within its deadline");
+        kernel.reap(&mut proc.completions);
+        proc.iterate(now.now, now.wall, directory);
+        if proc.owner.done() && proc.io.is_empty() && proc.subs.is_empty() && kernel.in_flight() == 0 {
+            break;
+        }
+        let wait = if proc.busy(now.now) {
+            Wait::No
+        } else {
+            let mut until = deadline;
+            for next in [proc.io.next_deadline(), proc.owner.next_deadline(now.now)].into_iter().flatten() {
+                until = until.min(next);
+            }
+            Wait::Until(until)
+        };
+        kernel.submit(&mut proc.subs, wait);
+    }
+    assert!(proc.io.is_empty() && kernel.in_flight() == 0, "io and the ring hold nothing");
+}
+
+fn group_story(story: skein_io_world::processes::Story) {
+    use skein_io_world::processes::{Judge, Process};
+    use std::os::unix::ffi::OsStrExt;
+    let root = skein_shell::open_root(std::path::Path::new("/tmp")).expect("the fixture's directory opens");
+    let program = skein_scratch::paths::binary("io_process_fixture");
+    let process = Process::new(root, program.as_os_str().as_bytes(), story, true);
+    let mut world = skein_world::real::World::new(Judge::default());
+    world.spawn_with_fds(vec![root], || process);
+    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+    outcome.procs[0].check();
+}
+
+#[test]
+fn a_megabyte_on_a_real_pipe_arrives_in_few_deliveries() {
+    group_story(skein_io_world::processes::Story::Megabyte);
+}
+
+#[test]
+fn a_descendant_holding_the_pipe_ends_with_a_signal_to_the_group() {
+    group_story(skein_io_world::processes::Story::SignalRunning);
+}
+#[test]
+fn closing_a_child_whose_group_still_runs_ends_the_group() {
+    group_story(skein_io_world::processes::Story::CloseExited);
+}
+#[test]
+fn a_signal_to_the_group_after_its_leader_exited_reaches_the_group() {
+    group_story(skein_io_world::processes::Story::SignalExited);
+}
+
+#[test]
+fn an_append_stream_on_redirected_regular_output_preserves_every_byte_and_closes() {
+    use skein_io::kernel::Fd;
+    use skein_io_world::append::{CONTENTS, Evidence, Judge, Story, Writer};
+    use std::os::fd::{AsRawFd, IntoRawFd};
+    let scratch = skein_scratch::Scratch::new("append-stream-ring");
+    let path = scratch.path().join("trace");
+    std::fs::write(&path, b"prefix:").expect("existing output file");
+    let file = std::fs::OpenOptions::new().write(true).open(&path).expect("redirected output");
+    assert_eq!(
+        skein_shell::prepare_output(Fd::new(file.as_raw_fd())).expect("output kind"),
+        skein_shell::OutputKind::Append
+    );
+    let fd = Fd::new(file.into_raw_fd());
+    let mut world = skein_world::real::World::new(Judge);
+    world.spawn_with_fds(vec![fd], || Writer::new(fd, Story::Close, Duration::from_secs(1)));
+    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+    assert_eq!(std::fs::read(path).expect("the stream output"), CONTENTS);
+    assert_eq!(outcome.procs[0].failures(), 0);
+    assert_eq!(outcome.procs[0].events.last(), Some(&Evidence::Closed));
+}
+
+#[test]
+fn a_pipe_output_keeps_the_pipe_face_at_startup() {
+    use std::os::fd::AsRawFd;
+    let mut child =
+        std::process::Command::new("cat").stdin(std::process::Stdio::piped()).spawn().expect("a pipe output");
+    let input = child.stdin.take().expect("child input pipe");
+    assert_eq!(
+        skein_shell::prepare_output(skein_io::kernel::Fd::new(input.as_raw_fd())).expect("output kind"),
+        skein_shell::OutputKind::Pipe
+    );
+    drop(input);
+    assert!(child.wait().expect("cat ends at pipe EOF").success());
+}
+
+#[test]
+fn a_childs_cpu_and_peak_join_the_reaped_childrens_usage_at_close() {
+    use skein_io_world::usage::{Judge, Process};
+    use std::os::unix::ffi::OsStrExt;
+    let root = skein_shell::open_root(std::path::Path::new("/tmp")).expect("startup root");
+    let program = skein_scratch::paths::binary("io_process_fixture");
+    let mut world = skein_world::real::World::new(Judge { simulated: false });
+    world.spawn_with_fds(vec![root], || Process::new(root, program.as_os_str().as_bytes()));
+    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+    outcome.procs[0].check(false);
+}
+
+#[test]
+fn private_files_created_and_replaced_over_the_ring_have_private_modes() {
+    use skein_io_world::private::{Judge, Owner as PrivateOwner, Story};
+    use std::os::unix::fs::PermissionsExt;
+    let status = std::fs::read_to_string("/proc/self/status").unwrap();
+    let capabilities = status.lines().find_map(|line| line.strip_prefix("CapEff:")).unwrap().trim();
+    let bypasses_modes = u64::from_str_radix(capabilities, 16).unwrap() & (1_u64 << 1_u32) != 0;
+    for story in [
+        Story::Create,
+        Story::Replace,
+        Story::RootMode,
+        Story::FileMode,
+        Story::FileLink,
+        Story::FileKind,
+        Story::FileLinks,
+        Story::RootDeniedSafe,
+        Story::FileDeniedSafe,
+    ] {
+        if bypasses_modes && matches!(story, Story::RootDeniedSafe | Story::FileDeniedSafe) {
+            eprintln!(
+                "CAP_DAC_OVERRIDE bypasses the own-mode-000 denial; path-only fallback is tested in simulator and steps"
+            );
+            continue;
+        }
+        let scratch = skein_scratch::Scratch::new("io-private");
+        let path = scratch.path();
+        if !matches!(story, Story::Create) {
+            std::fs::create_dir(path.join("secret")).unwrap();
+            std::fs::set_permissions(
+                path.join("secret"),
+                std::fs::Permissions::from_mode(if matches!(story, Story::RootMode) {
+                    0o755
+                } else if matches!(story, Story::RootDeniedSafe) {
+                    0o000
+                } else {
+                    0o700
+                }),
+            )
+            .unwrap();
+            match story {
+                Story::FileDeniedSafe => {
+                    std::fs::write(path.join("secret/record"), b"old").unwrap();
+                    std::fs::set_permissions(path.join("secret/record"), std::fs::Permissions::from_mode(0o000))
+                        .unwrap();
+                }
+                Story::Replace | Story::FileMode => {
+                    std::fs::write(path.join("secret/record"), b"old").unwrap();
+                    std::fs::set_permissions(path.join("secret/record"), std::fs::Permissions::from_mode(0o644))
+                        .unwrap();
+                }
+                Story::FileLink => std::os::unix::fs::symlink("missing", path.join("secret/record")).unwrap(),
+                Story::FileKind => {
+                    std::fs::create_dir(path.join("secret/record")).unwrap();
+                    std::fs::set_permissions(path.join("secret/record"), std::fs::Permissions::from_mode(0o700))
+                        .unwrap();
+                }
+                Story::FileLinks => {
+                    std::fs::write(path.join("secret/record"), b"old").unwrap();
+                    std::fs::set_permissions(path.join("secret/record"), std::fs::Permissions::from_mode(0o600))
+                        .unwrap();
+                    std::fs::hard_link(path.join("secret/record"), path.join("secret/other")).unwrap();
+                }
+                Story::Create
+                | Story::RootMode
+                | Story::RootOwner
+                | Story::RootLink
+                | Story::RootKind
+                | Story::FileOwner
+                | Story::RootDeniedSafe => {}
+            }
+        }
+        let root = skein_shell::open_root(path).unwrap();
+        let user = skein_shell::effective_user();
+        let mut world = skein_world::real::World::new(Judge);
+        world.spawn_with_fds(vec![root], || PrivateOwner::new(root, story, user));
+        let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+        outcome.procs[0].check(user);
+        if matches!(story, Story::Create | Story::Replace) {
+            assert_eq!(std::fs::metadata(path.join("secret")).unwrap().permissions().mode() & 0o777, 0o700);
+            assert_eq!(std::fs::metadata(path.join("secret/record")).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+        drop(scratch);
+    }
+}
+
+#[test]
+fn a_rename_across_over_the_ring_lands_the_file_in_its_destination() {
+    let scratch = skein_scratch::Scratch::new("io-rename");
+    std::fs::create_dir(scratch.path().join("staging")).unwrap();
+    std::fs::create_dir(scratch.path().join("cache")).unwrap();
+    std::fs::write(scratch.path().join("staging/index"), b"whole index").unwrap();
+    let root = skein_shell::open_root(scratch.path()).unwrap();
+    let mut owner = skein_io_world::renames::Owner::new(root, None, true);
+    let mut kernel = Kernel::open_on(Config { operations: 2 }, Backend::Ring).expect("ring usable");
+    let result = skein_shell::drive(&mut kernel, &Clock::new(), &mut owner);
+    assert_eq!(result, skein_io::kernel::Exit::Code(0));
+    assert_eq!(owner.found, Some(skein_io_world::renames::Found::Destination));
+    assert_eq!(std::fs::read(scratch.path().join("cache/index")).unwrap(), b"whole index");
+    assert_eq!(std::fs::read_dir(scratch.path().join("staging")).unwrap().count(), 0);
+}
+
+#[test]
+fn a_directory_listed_by_pages_over_the_ring_gives_each_entry_once() {
+    let scratch = skein_scratch::Scratch::new("io-pages");
+    std::fs::create_dir(scratch.path().join("cache")).unwrap();
+    let names = skein_io_world::pages::names(10);
+    for name in &names {
+        std::fs::write(scratch.path().join("cache").join(std::str::from_utf8(name).unwrap()), b"entry").unwrap();
+    }
+    let root = skein_shell::open_root(scratch.path()).unwrap();
+    let mut owner = skein_io_world::pages::Owner::new(root, 4, 10);
+    let mut kernel = Kernel::open_on(Config { operations: 2 }, Backend::Ring).expect("ring usable");
+    assert_eq!(skein_shell::drive(&mut kernel, &Clock::new(), &mut owner), skein_io::kernel::Exit::Code(0));
+    assert_eq!(owner.pages.iter().map(|page| page.len()).collect::<Vec<_>>(), [4, 4, 2]);
+    let mut listed: Vec<_> = owner.pages.iter().flatten().map(|entry| entry.name.to_vec()).collect();
+    listed.sort();
+    assert_eq!(listed, names);
+}
+
+#[test]
+fn a_second_root_of_a_locked_directory_hears_busy_over_the_ring() {
+    use skein_io_world::locks::{Heard, Judge, Owner};
+    let scratch = skein_scratch::Scratch::new("io-lock");
+    let first = skein_shell::open_root(scratch.path()).expect("first root");
+    let second = skein_shell::open_root(scratch.path()).expect("second independent root");
+    let mut world = skein_world::real::World::new(Judge::single());
+    world.spawn_with_fds(vec![first, second], || Owner::pair(first, second));
+    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
+    assert_eq!(outcome.procs[0].heard, [Heard::Locked, Heard::Busy, Heard::Locked]);
+}

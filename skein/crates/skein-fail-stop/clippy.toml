@@ -1,0 +1,10 @@
+# The fail-stop hook is ordinary Rust (programming-model.md, 10.2): it runs
+# in a binary's main, before its loop, and its test reads a fixture's report.
+# What stays out is what would make a run unrepeatable.
+
+disallowed-types = [
+    { path = "std::time::Instant", reason = "on the ring, skein_shell::Clock" },
+    { path = "std::time::SystemTime", reason = "on the ring, skein_shell::Clock" },
+    { path = "std::collections::HashMap", reason = "iteration order depends on a random seed: BTreeMap" },
+    { path = "std::collections::HashSet", reason = "iteration order depends on a random seed: BTreeSet" },
+]

@@ -1,0 +1,25 @@
+[package]
+name = "skein-codegen"
+description = "Schema parser and generator for bounded protocol codecs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "skein-codegen"
+path = "src/main.rs"
+
+[dependencies]
+skein-fail-stop.workspace = true
+skein-codec = { path = "../../crates/skein-codec" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true

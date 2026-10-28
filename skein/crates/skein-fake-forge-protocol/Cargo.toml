@@ -1,0 +1,22 @@
+[package]
+name = "skein-fake-forge-protocol"
+description = "Forgejo HTTP over the fake forge's domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-forge.workspace = true
+skein-lib.workspace = true
+skein-http.workspace = true
+skein-json.workspace = true
+skein-fake-forge-domain.workspace = true
+
+[dev-dependencies]
+skein-heap.workspace = true
+
+[lints]
+workspace = true
+

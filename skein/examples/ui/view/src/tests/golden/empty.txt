@@ -1,0 +1,25 @@
+== Notes == 
+Notes
+* Offline
+No notes yet.
+Add:
+  [1] Title: (empty) (required) (enter sends)
+  [2] Body: (empty)
+  [3] Due date: (empty) (date, YYYY-MM-DD)
+  [4] Minutes: (empty) (number)
+  Label:
+    [5] (*) idea
+    [6] ( ) task
+    [7] ( ) reference
+  [8] Clear
+  [9] Add
+Notes by label:
+  Notes by label:
+    - idea: 0
+    - task: 0
+    - reference: 0
+  Label:
+    [10] (*) All notes
+    [11] ( ) Ideas
+    [12] ( ) Tasks
+    [13] ( ) References

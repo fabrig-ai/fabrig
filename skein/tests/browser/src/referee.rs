@@ -1,0 +1,184 @@
+//! Independent checks on the browser's observable contract.
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use skein_browser::boundary::{Event, Expect};
+use skein_lib::Token;
+
+/// Checks terminals, closure, press refusal, and `Await` truth at the time
+/// the result is emitted. The fake supplies its visible match count.
+#[derive(Debug, Default)]
+pub struct Referee {
+    terminal: BTreeSet<u64>,
+    warned: BTreeSet<u64>,
+    expectations: BTreeMap<u64, Expect>,
+    presses: BTreeMap<u64, usize>,
+    mouse_events: usize,
+    closed: bool,
+    looks: BTreeMap<u64, skein_browser::Limits>,
+    downloads: BTreeMap<Vec<u8>, (Token, Token)>,
+    closed_persons: BTreeSet<Token>,
+}
+
+impl Referee {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn await_op(&mut self, op: Token, expect: Expect) {
+        assert!(self.expectations.insert(op.raw(), expect).is_none(), "operation registered once");
+    }
+
+    pub fn look_op(&mut self, op: Token, limits: skein_browser::Limits) {
+        assert!(self.looks.insert(op.raw(), limits).is_none());
+    }
+
+    pub fn press(&mut self, op: Token) {
+        assert!(self.presses.insert(op.raw(), self.mouse_events).is_none(), "press registered once");
+    }
+
+    pub fn download_begun(&mut self, person: Token, page: Token, name: &[u8]) {
+        assert!(!self.closed_persons.contains(&person), "no download begins after its person's Closed");
+        assert!(self.downloads.insert(name.to_vec(), (person, page)).is_none());
+    }
+
+    pub fn assert_downloads_settled(&self) {
+        assert!(self.downloads.is_empty(), "each download begun ends once");
+    }
+
+    pub fn command(&mut self, bytes: &[u8]) {
+        if bytes.windows(b"Input.dispatchMouseEvent".len()).any(|part| part == b"Input.dispatchMouseEvent") {
+            self.mouse_events += 1;
+        }
+    }
+
+    pub fn event(&mut self, event: &Event, visible_matches: u32) {
+        assert!(!self.closed, "nothing is emitted after Closed");
+        if let Event::Downloaded { person, name, .. } = event {
+            assert!(!self.closed_persons.contains(person), "no download after its person's Closed");
+            let (owner, _) = self.downloads.remove(name.as_ref()).expect("each download ends once");
+            assert_eq!(*person, owner);
+        }
+        if let Event::Trouble { page, trouble: skein_browser::boundary::Trouble::Download, text } = event {
+            let (_, owner_page) = self.downloads.remove(text.as_ref()).expect("each download ends once");
+            assert_eq!(*page, owner_page);
+        }
+        if let Event::Closed { owner } = event {
+            self.closed_persons.insert(*owner);
+            self.downloads.retain(|_, (person, _)| person != owner);
+        }
+        if let Event::Warned { op } = event {
+            assert!(!self.terminal.contains(&op.raw()), "Warned precedes its go's terminal");
+            assert!(self.warned.insert(op.raw()), "a go warns at most once");
+        }
+        let op = match event {
+            Event::Found { op, .. }
+            | Event::Met { op, .. }
+            | Event::Missed { op, .. }
+            | Event::Done { op }
+            | Event::Refused { op, .. }
+            | Event::Attribute { op, .. }
+            | Event::Address { op, .. }
+            | Event::Snapshot { op, .. }
+            | Event::Screenshot { op, .. }
+            | Event::Looked { op, .. } => Some(*op),
+            Event::Downloaded { .. }
+            | Event::Warned { .. }
+            | Event::Ready { .. }
+            | Event::Opened { .. }
+            | Event::Trouble { .. }
+            | Event::Closed { .. } => None,
+        };
+        if let Some(op) = op {
+            assert!(self.terminal.insert(op.raw()), "one terminal per operation: {op:?}");
+        }
+        if let Event::Looked { op, looked } = event {
+            let limits = self.looks.get(&op.raw()).expect("look registered with its limits");
+            use skein_browser::boundary::Looked;
+            match looked {
+                Looked::Viewport | Looked::Selected(_) => {}
+                Looked::Tree(entries) => {
+                    assert!(entries.len() <= limits.entries);
+                    let mut previous = 0;
+                    for (index, entry) in entries.iter().enumerate() {
+                        if index == 0 {
+                            assert_eq!(entry.depth, 0);
+                        }
+                        assert!(entry.depth <= previous + 1);
+                        assert!(entry.role.len() <= usize::try_from(limits.text).unwrap());
+                        assert!(entry.name.len() <= usize::try_from(limits.text).unwrap());
+                        previous = entry.depth;
+                    }
+                }
+                Looked::Style { values, faces, .. } => {
+                    assert!(values.len() <= limits.properties && faces.len() <= limits.entries);
+                    for property in values.iter() {
+                        assert!(property.name.len() <= usize::try_from(limits.text).unwrap());
+                        assert!(property.value.len() <= usize::try_from(limits.text).unwrap());
+                    }
+                    for face in faces.iter() {
+                        assert!(face.family.len() <= usize::try_from(limits.text).unwrap());
+                    }
+                }
+                Looked::Shot(png) => assert!(png.len() <= usize::try_from(limits.screenshot).unwrap()),
+            }
+        }
+        if let Event::Met { op, .. } = event {
+            let expected = self.expectations.get(&op.raw()).expect("Met belongs to a registered Await");
+            let true_now = match expected {
+                Expect::Present => visible_matches > 0,
+                Expect::Count(count) => visible_matches == *count,
+                Expect::Absent => visible_matches == 0,
+            };
+            assert!(true_now, "Met requires the fake page to satisfy its expectation");
+        }
+        if let Event::Refused { op, .. } = event
+            && let Some(at) = self.presses.get(&op.raw())
+        {
+            assert_eq!(self.mouse_events, *at, "refused press dispatched a mouse event");
+        }
+        if matches!(event, Event::Closed { owner } if *owner == Token::new(1)) {
+            self.closed = true;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Referee;
+    use skein_browser::boundary::{Event, Expect, Refusal};
+    use skein_lib::{List, Token};
+
+    #[test]
+    #[should_panic(expected = "one terminal per operation")]
+    fn rejects_two_terminals() {
+        let mut referee = Referee::new();
+        referee.event(&Event::Done { op: Token::new(4) }, 0);
+        referee.event(&Event::Done { op: Token::new(4) }, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "nothing is emitted after Closed")]
+    fn rejects_event_after_browser_closed() {
+        let mut referee = Referee::new();
+        referee.event(&Event::Closed { owner: Token::new(1) }, 0);
+        referee.event(&Event::Ready { version: b"late".to_vec().into_boxed_slice() }, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "refused press dispatched a mouse event")]
+    fn rejects_mouse_before_refused_press() {
+        let mut referee = Referee::new();
+        referee.press(Token::new(4));
+        referee.command(br#"{"method":"Input.dispatchMouseEvent"}"#);
+        referee.event(&Event::Refused { op: Token::new(4), why: Refusal::Covered }, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Met requires the fake page")]
+    fn rejects_false_met() {
+        let mut referee = Referee::new();
+        referee.await_op(Token::new(4), Expect::Present);
+        referee.event(&Event::Met { op: Token::new(4), seen: List::with_capacity(0) }, 0);
+    }
+}

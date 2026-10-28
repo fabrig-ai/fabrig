@@ -1,0 +1,166 @@
+# skein-llm
+
+A provider-neutral LLM client following Skein's step model: no async, runtime,
+sockets or hidden retries. Its routes are OpenAI's public Responses (`Endpoint::openai()`), ChatGPT's
+withdrawn Codex Responses, and Anthropic's Messages. It composes
+`skein-http` (HTTP/SSE) and `skein-json` over a caller-owned plaintext stream,
+normally supplied by TLS.
+
+`Prompt` contains instructions, model, conversation messages and function
+tools and `ToolChoice` (`Auto`, `None`, or distinct offered names in `Only`).
+Both dialects render `Only` as automatic selection; callers enforce tool policy.
+Ordered `Block` values describe text, refusals, tool calls/results and
+opaque reasoning. Responses expose text, reasoning and tool-argument deltas,
+completed blocks, and one final `Completion` with stop reason and usage.
+Arguments past the input cap arrive as `Oversize`; provider output cuts arrive
+as `Cut`. Both complete normally and are refused in history until the caller
+replaces them; only `ToolCall` represents an executable call.
+Completed blocks preserve provider replay metadata for the next turn.
+
+For Codex, the caller obtains and refreshes an OAuth access token, supplies the
+`chatgpt-account-id`, and connects to `Endpoint::codex()`'s authority. The
+crate never reads an auth file or initiates sign-in. Additional endpoint
+headers can identify the actual client or provide session/request IDs.
+Archived Pi identity constants in `openai::identity` are explicitly opt-in.
+Codex requests use `store:false`, `stream:true` and full history; they omit
+unsupported token caps and sampling settings.
+
+To drive one call:
+
+1. Configure `client::Limits`; check `worst_case` against available memory
+   and `largest_read`/`largest_room` against the lower stream's caps.
+2. Build a `Call` with its owner token, endpoint, credential and prompt.
+   `Client::prepare(call, &limits)` validates it before touching the stream.
+3. Reserve `client::MAX_OUT` room in the upper and lower queues before each
+   entry point. Call `client::down(..., Request::Start, ...)`, and forward its
+   `stream::Down` records to the lower stream.
+4. Feed lower `stream::Up` records into `client::up`. Drain `resume` while
+   `has_work()` is true before delivering another input.
+5. Request one data event with `Request::Next`. A delta, completed block or
+   completion consumes that demand; progress/extension events do not. Stop
+   asking to stop further response reads. Failures need no demand.
+6. Execute application tools using the completed `ToolCall` block. Argument
+   deltas are incomplete JSON. Keep the final completion's replay metadata
+   when appending its assistant message to history.
+7. After `Completed`, wait for `Reusable` before `next_call` on the same
+   authority/provider. It preserves the HTTP machine and buffered carry-over.
+8. On `Event::Close`, close the actual lower stream and call `client::closed`
+   only after it settles. Cancellation ends with `Cancelled`, then `Closed`.
+
+The caller schedules deadlines using `waiting()`, and reports them through
+`abort(..., Failure::TimedOut { phase }, ...)`. The phase names connect, handshake,
+head, idle or whole. There are no automatic retries; failures
+include structured classification and evidence of whether the request may
+have reached the provider. Limits remain fixed across all entry points and
+connection reuse. Admission `Error::Limit` and active `Failure::Limit` carry
+the exact `Cap` and its configured `bound`. Failure detail is derived from
+that evidence; `Evidence::Response { status }` preserves the HTTP status
+on every failure after a response head, including non-JSON error bodies.
+
+For Anthropic, use `Endpoint::anthropic()` and
+`Credential::anthropic(value)`. Sign-in, refresh and secure token storage
+remain with the caller. The default route is `api.anthropic.com/v1/messages`;
+requests send `Authorization: Bearer`, `anthropic-version: 2023-06-01` and
+`anthropic-beta: oauth-2025-04-20`. Version/beta headers can be overridden
+through `Endpoint::headers`. Credential and framing headers cannot be overridden.
+
+Anthropic uses native ordered message blocks, tool schemas and tool-result
+error flags. `Prompt::max_output_tokens` sets its required `max_tokens`, defaulting
+to `Limits::declared_output_tokens`; zero is invalid. Codex requires this setting to be `None`.
+`reasoning_effort` accepts `off` or adaptive-thinking effort `low`, `medium`,
+`high`, `max`; model compatibility is the caller's choice. Anthropic accepts
+`Prompt::affinity` with no effect on its wire bytes. Completed thinking and
+redacted-thinking blocks retain signatures/data as Anthropic-tagged replay.
+Received tool arguments remain raw; resending requires valid JSON objects and
+native Anthropic identifiers. Provider replay cannot cross dialects.
+
+Codex renders `Affinity::key` as a lowercase UUID in `prompt_cache_key` and
+`session-id`. Its `thread-id` XORs the big-endian thread number into the key's
+last four bytes; thread zero equals the key. Without affinity all three are
+absent. Both header names are reserved, and request head limits price their
+fixed width alongside credentials and endpoint headers.
+
+The optional `anthropic::identity` module archives Tongs' Claude Code identity
+constants and static headers. A caller choosing that compatibility profile
+explicitly uses `claude_code_headers()` and `identity::instructions()` to
+place the identity in a separate first system block, and supplies its own
+session/request IDs. Skein sends the
+caller's tool names unchanged. The archived values may be out of date.
+
+The low-level `openai` and `anthropic` modules expose bounded document codecs
+for fakes and specialized protocol stacks. Both share `Json` and dialect limits.
+The Anthropic event vocabulary follows the
+[Messages streaming protocol](https://platform.claude.com/docs/en/build-with-claude/streaming).
+
+The [design](../../docs/design/llm.md) defines lifecycle and memory contracts.
+`cargo nextest run -p skein-llm -p skein-llm-world` checks codecs and the full
+stack; the world crate's fuzzy profile varies fragmentation, flow control and
+close races. The archived response fixtures say where they came from.
+
+The opt-in live suite exercises `client::Client` against the real Codex and
+Anthropic OAuth endpoints over certificate-verified TLS. It checks streamed
+text and token usage, multi-turn replay, tool-argument streaming and tool-result
+replay, HTTP connection reuse, and invalid-token failures for each provider.
+There are no retries or credential refreshes. Positive tests use subscription
+quota and require valid, unexpired OAuth access tokens, rather than API keys.
+
+Set these environment variables, then run:
+
+```sh
+export SKEIN_TEST_LIVE_OPENAI_ACCESS_TOKEN="$(jq -er '.tokens.access_token' ~/.codex/auth.json)"
+export SKEIN_TEST_LIVE_OPENAI_ACCOUNT_ID="$(jq -er '.tokens.account_id' ~/.codex/auth.json)"
+export SKEIN_TEST_LIVE_ANTHROPIC_ACCESS_TOKEN="$(jq -er '.claudeAiOauth.accessToken' ~/.claude/.credentials.json)"
+cargo nextest run --workspace --profile live
+```
+
+The tests consume only environment variables; they never read those auth
+files themselves. Missing credentials fail the live run. The default, fuzzy
+and measure profiles exclude the `live` binary, and its tests perform no
+network I/O outside `NEXTEST_PROFILE=live`, including under `cargo test`.
+The live profile selects only these tests, runs them serially, and allows
+twenty minutes (ten minutes before the user's doubling of 10-22,
+provisional) overall with a six-minute (three-minute before the user's
+doubling of 10-22, provisional) per-test limit and 60-second (30-second
+before the user's doubling of 10-22, provisional) socket timeouts.
+
+Optional `SKEIN_TEST_LIVE_OPENAI_MODEL` and `SKEIN_TEST_LIVE_ANTHROPIC_MODEL`
+override `gpt-5.5` and `claude-haiku-4-5`. `SKEIN_TEST_LIVE_CA_FILE` overrides
+the default Linux CA bundle at `/etc/ssl/certs/ca-certificates.crt`.
+The Anthropic tests explicitly opt in to the archived Claude Code identity
+with only the `claude-code-20250219,oauth-2025-04-20` betas; the full archived
+set includes long-context access that some subscriptions reject.
+Codex's successful subscription responses can omit `Content-Type`; the client
+accepts that omission for Codex while validating any explicitly supplied type.
+
+Applications can retain `Replay::to_bytes` envelopes without owning provider
+codecs. Configure the receiving cap with `replay_bytes`: its seven-byte header
+is additional to `DocumentLimits::opaque_bytes`. `replay_worst_case` covers
+temporary JSON and raw/envelope copies. `Prompt::output_ceiling` handles the
+configured dialect's supported wire option, while local output limits remain
+caller-owned. Shared independent scripts and HTTP/SSE peers are described in
+[fake-llm.md](../../docs/design/fake-llm.md).
+
+Owners may enable `client::Limits.drop_reasoning` to receive `Block::Dropped`
+for Codex reasoning beyond the opaque cap. Dropped blocks emit no history item;
+Anthropic thinking and other opaque Codex items retain typed limit failures.
+`Client::prepare_with_reasoning_drop` selects the policy explicitly for one
+call, overriding that default in either direction. Connection owners supply
+`Request::Start.drop_reasoning` from the selected model's policy. Calls with
+different policies can reuse the same endpoint and connection; the receiving
+bounds stay unchanged. `Component::admit_with_reasoning_drop` supports the same
+explicit policy when checking admission before submitting Start.
+
+Anthropic output uses `client::Limits.declared_output_tokens` when the prompt
+has no cap. A prompt cap above that declaration is refused as `Cap::Output`.
+Native Anthropic request encoding and measurement take the declaration explicitly.
+
+`Usage` exposes optional `input`, `cache_read`, `cache_write`, `output` and
+`reasoning` counts. `None` is unreported; `Some(0)` is a reported zero.
+Inconsistent accounting preserves the completion and leaves derived input absent.
+The fake protocol's `Config.usage_fields` selects the fields it writes.
+
+Anthropic requests encode system instructions as ordered text blocks, marking
+its last block and the final message's last text, tool call or result with
+`cache_control: {"type":"ephemeral"}`. Reasoning replay remains unchanged.
+`anthropic::decode_request` returns `Request { prompt, marks }`; the independent
+peer rejects excessive or invalid markers before dispatching a query.

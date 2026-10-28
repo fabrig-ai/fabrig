@@ -1,0 +1,40 @@
+[package]
+name = "skein-llm-world"
+description = "Independent protocol worlds and memory checks for the stacked LLM client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-http.workspace = true
+skein-json.workspace = true
+skein-llm.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-fake-llm-protocol.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true
+skein-heap.workspace = true
+# Decode observed fixture framing with the existing independent reference reader.
+skein-http-world = { path = "../http" }
+# Caller-owned, certificate-verified transport for the opt-in live suite.
+rustls = { workspace = true, features = ["std"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"
