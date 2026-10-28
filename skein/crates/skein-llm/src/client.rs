@@ -457,7 +457,7 @@ fn check_preparation(limits: &Limits) -> Result<(), Error> {
             return Err(Error::limit(which, bound));
         }
     }
-    if worst_case(limits).is_none() {
+    if !valid(limits) {
         return Err(Error::Invalid);
     }
     Ok(())
@@ -1559,19 +1559,33 @@ pub fn largest_room(limits: &Limits) -> u32 {
     http::largest_room(&limits.http)
 }
 
+/// Whether these limits are representable: every edge bound they size
+/// is finite and every capacity they derive fits (programming-model.md, 6.3).
+/// HTTP, SSE and JSON demands fit their lower streams; tagged projections,
+/// error documents and tokenizer lengths have representable capacities.
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    limits.error_bytes > 0
+        && limits.error_bytes < u32::MAX
+        && limits.http.headers >= 6
+        && limits.output_items > 0
+        && limits.depth > 0
+        && limits.tokens > 0
+        && http::valid(&limits.http)
+        && limits.sse.chunk > 0
+        && sse::largest_demand(&limits.sse) <= limits.http.read
+        && tokenizer::largest_demand(&filter::collector(limits).tokenizer) <= limits.sse.chunk
+        && limits.skip < u32::MAX
+        && openai::filter::valid(limits)
+        && anthropic::filter::valid(limits)
+}
+
 /// Fixed machine, table and buffer capacities, excluding the pool's request
 /// and receiving reservation and the caller-owned prompt/output payloads.
 /// Standalone owners add `largest_reservation` and their entry-point scratch.
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
-    if limits.error_bytes == 0
-        || limits.http.headers < 6
-        || limits.output_items == 0
-        || limits.depth == 0
-        || limits.tokens == 0
-        || sse::largest_demand(&limits.sse) > limits.http.read
-        || tokenizer::largest_demand(&filter::collector(limits).tokenizer) > limits.sse.chunk
-    {
+    if !valid(limits) {
         return None;
     }
     let mut http_fixed = limits.http;
@@ -1604,16 +1618,6 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .checked_add(Queue::<Down>::worst_case(1)?)?
         .checked_add(u64::from(REPORT_BYTES).checked_mul(3)?)
 }
-/// A standalone call's fixed state, largest reservation and one entrance's
-/// preparation/reuse overlap and codec scratch; a pool prices the scratch once.
-#[must_use]
-pub fn call_worst_case(limits: &Limits) -> Option<u64> {
-    worst_case(limits)?
-        .checked_mul(2)?
-        .checked_add(largest_reservation(limits)?)?
-        .checked_add(encoding_worst_case(limits)?)
-}
-
 /// One borrowed request's fixed encoder/grammar scratch, excluding its reserved bytes.
 /// Neither document density nor request counts grow it (llm.md, section 4.2).
 #[must_use]

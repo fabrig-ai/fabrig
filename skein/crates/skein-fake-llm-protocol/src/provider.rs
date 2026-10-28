@@ -162,7 +162,7 @@ impl Service {
     ///
     /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn new(config: Config, limits: &Limits) -> Result<Service, Error> {
-        if worst_case(limits).is_none()
+        if !valid(limits)
             || config.path.first() != Some(&b'/')
             || config.echo.attribution_bytes > limits.documents.openai.retained
         {
@@ -318,7 +318,7 @@ impl Server {
     ///
     /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn new(owner: Token, limits: &Limits) -> Result<Server, Error> {
-        if worst_case(limits).is_none() {
+        if !valid(limits) {
             return Err(Error::Limits);
         }
         let request = room(limits).ok_or(Error::Limits)?;
@@ -1026,46 +1026,25 @@ fn room(limits: &Limits) -> Option<u32> {
     u32::try_from(skein_http::gzip::bound(usize::try_from(request).ok()?)?).ok()
 }
 
-/// Checked maximum owned bytes under limits, or `None` when counters or containers cannot be bounded.
-///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Whether these limits are representable: every edge bound they size is finite
+/// and every capacity they derive fits (programming-model.md, 6.3).
+/// HTTP and SSE fit their adjacent streams, native documents and gzip fit,
+/// and each text piece can have a preceding hold in the pending queue.
 #[must_use]
-pub fn worst_case(limits: &Limits) -> Option<u64> {
+pub fn valid(limits: &Limits) -> bool {
     let request = limits.documents.openai.request.max(limits.documents.anthropic.request);
-    if limits.http.body < u64::from(request)
-        || limits.sse.chunk > limits.http.send
-        || limits.documents.model_ceiling == 0
-    {
-        return None;
-    }
-    u64::try_from(size_of::<Server>())
-        .ok()?
-        .checked_add(u64::try_from(size_of::<Service>()).ok()?)?
-        .checked_add(u64::from(limits.http.headers).checked_mul(u64::try_from(size_of::<Header>()).ok()?)?)?
-        .checked_add(Slab::<Call>::worst_case(limits.calls)?)?
-        .checked_add(http::worst_case(&limits.http)?)?
-        .checked_add(sse::worst_case(&limits.sse)?)?
-        .checked_add(pieces::worst_case(&limits.documents)?)?
-        .checked_add(openai::worst_case(&limits.documents.openai)?)?
-        .checked_add(anthropic::worst_case(&limits.documents.anthropic)?)?
-        // Configured echoes retain this raw request in the existing body List;
-        // native codec worst_case above prices transient decoded metadata and entry scratch.
-        .checked_add(List::<u8>::worst_case(room(limits)?)?)?
-        // A gzip body inflates beside its member, into a second List; the two
-        // trade places, so each holds the larger room.
-        .checked_add(List::<u8>::worst_case(room(limits)?)?)?
-        .checked_add(u64::from(limits.documents.openai.answer.max(limits.documents.anthropic.answer)).checked_mul(8)?)?
-        .checked_add(Queue::<http::Event>::worst_case(EVENTS)?)?
-        .checked_add(Queue::<http::Request>::worst_case(REQUESTS)?)?
-        .checked_add(Queue::<sse::Event>::worst_case(1)?)?
-        .checked_add(Queue::<Down>::worst_case(2)?)?
-        .checked_add(u64::from(limits.http.head).checked_mul(3)?)?
-        .checked_add(4_u64.checked_mul(u64::try_from(size_of::<Header>()).ok()?)?)?
-        .checked_add(192)?
-        .checked_add(u64::from(limits.documents.openai.answer.max(limits.documents.anthropic.answer)))?
-        // Queued body events and the current entrance delivery own their
-        // batches separately from HTTP's intake and the accumulated document.
-        .checked_add(u64::from(request.max(limits.http.read)).checked_mul(u64::from(EVENTS.checked_add(1)?))?)
+    http::valid(&limits.http)
+        && limits.http.body >= u64::from(request)
+        && limits.sse.chunk > 0
+        && limits.sse.chunk <= limits.http.send
+        && limits.documents.model_ceiling > 0
+        && limits.documents.openai.answer.max(limits.documents.anthropic.answer).checked_mul(2).is_some()
+        && room(limits).is_some()
+        && document_bounds(limits).is_some()
+}
+
+fn document_bounds(limits: &Limits) -> Option<(u64, u64)> {
+    Some((openai::worst_case(&limits.documents.openai)?, anthropic::worst_case(&limits.documents.anthropic)?))
 }
 
 #[cfg(test)]

@@ -161,7 +161,7 @@ pub(super) fn check(l: &Limits, settings: &Settings) -> Result<(), Unusable> {
             return Err(Unusable::Zero);
         }
     }
-    if !l.io.is_usable() || skein_tls::client::worst_case(&l.tls).is_none() {
+    if !l.io.is_usable() || !skein_tls::client::valid(&l.tls) {
         return Err(Unusable::Zero);
     }
     if l.token_bytes < 64 {
@@ -238,9 +238,27 @@ pub(super) fn check(l: &Limits, settings: &Settings) -> Result<(), Unusable> {
         if reachable > l.inner {
             return Err(Unusable::Reachable { forge: number, reachable, inner: l.inner });
         }
+        capacity_bound(l, &forge.kind, tls).ok_or(Unusable::Zero)?;
     }
     Ok(())
 }
+fn capacity_bound(l: &Limits, kind: &Kind, tls: bool) -> Option<()> {
+    if !skein_http::client::valid(&http_transport(l, tls)) || l.body_bytes_in == u32::MAX {
+        return None;
+    }
+    super::memory::largest_page(l, kind)?;
+    match kind {
+        Kind::Forgejo(_) => {}
+        Kind::GitHub(given) => {
+            // Discovery reserves one pinned page per configured page.
+            given.limits.pages.checked_mul(dialect::pin::PAGE_CAP)?;
+            // PEM's base64 spelling is an edge with a u32 length.
+            skein_lib::base64::encoded_len(skein_lib::base64::Alphabet::Standard, given.limits.key_bytes)?;
+        }
+    }
+    Some(())
+}
+
 fn stacks(l: &Limits) -> Result<(), Unusable> {
     for tls in [true, false] {
         let h = http_transport(l, tls);
