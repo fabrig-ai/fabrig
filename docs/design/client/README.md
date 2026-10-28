@@ -226,8 +226,17 @@ routes nothing of jig's (jig's `client/domain/client.md`, section 4).
 - **The pages' acts in flight,** each by its key: which page's card or
   composer sent it, so its answer reaches what shows it (3.3).
 
-Everything is bounded by the domain's limits: the handles a page opens,
-the rows of each window, the composer's bytes, the acts in flight.
+Retained state is bounded by the domain's limits: the handles a page
+opens, the rows of each window, the composer's bytes, the acts in flight.
+
+- **Internal hand-offs are uncapped.** The pages, the forge's side and
+  `jig-client` hand off through queues that grow as they fill. Each
+  step settles them; each event's fan-out is bounded by admitted state.
+  No client has a watermark: new work enters through capped edges,
+  the engine link's exchanges, the kernel's queues and terminal or
+  browser input (programming-model.md, 7.1). The terminal, browser and
+  CLI shells use uncapped internal hand-offs too; `max_out` functions
+  size no internal queue and reserve no room.
 
 ### 3.2 Its modules
 
@@ -3198,7 +3207,9 @@ lines, each starting `temper: `.
   lines only within the room skein's terminal gives (`Terminal::room`).
   A line with none waits in the host, in the order they came; a line
   equal to one already waiting adds none (a sign-in tried again, the
-  small store refused again).
+  small store refused again). The waiting queue is uncapped; terminal
+  credit and the command hold below bound what waits, without an
+  output-count reservation.
 - **While a line waits, the person's commands wait.** The host takes no
   command from the terminal while one of temper's lines waits in it, so
   no act of the person's makes a new line; SIGINT and SIGTERM still
@@ -3352,15 +3363,13 @@ command.
 ### 6.8 Pure where it decides
 
 The renderer and the command reader are skein's text shell's, step code
-under the subset, bounded by its `worst_case` (skein's `ui-text.md`,
-section 3). The host adds the terminal's worst case
-(`Terminal::worst_case`) to its memory, and the terminal's operations
-(`Terminal::operations`) to its ring's, beside its client's and its
-own; it copies none of the terminal's count. temper's view limits put
-that worst case past a u32 of bytes, and the terminal starts from them,
-as `temper open` makes it, in a unit test (section 10). What temper
-decides is in its domain and its view, both step code; golden text
-fixes how temper's pages print (section 10).
+under the subset (skein's `ui-text.md`, section 3). The host adds the
+terminal's operations (`Terminal::operations`) to its ring's, beside
+its client's and its own; it copies none of the terminal's count. The
+terminal starts from temper's view limits, as `temper open` makes it,
+in a unit test (section 10). What temper decides is in its domain and
+its view, both step code; golden text fixes how temper's pages print
+(section 10).
 
 ### 6.9 While a run's text streams
 
