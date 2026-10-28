@@ -21,7 +21,7 @@ pub mod stream;
 pub mod profile;
 
 #[cfg(test)]
-use service::entry_tests as tests;
+mod tests;
 
 pub use credentials::{ACCOUNTS_MAX_OUT, Accounts, CredentialRequest, Settled, Source, accounts_worst_case};
 pub use live::{LIVE_BYTES, LIVE_SLOTS, LivePiece, RemoteTurn};

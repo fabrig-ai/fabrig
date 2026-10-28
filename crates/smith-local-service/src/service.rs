@@ -1505,8 +1505,7 @@ fn to_root_request(request: inline::Lower) -> agent::Request {
 mod tests;
 
 #[cfg(test)]
-#[path = "tests.rs"]
-pub(crate) mod entry_tests;
+mod live_tests;
 
 #[cfg(test)]
-mod live_tests;
+mod watermark_tests;
