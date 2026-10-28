@@ -292,7 +292,6 @@ impl Application for OpsApplication {
             | root::Output::Agent(_)
             | root::Output::ToChild(_)
             | root::Output::ProjectMade { .. }
-            | root::Output::Busy
             | root::Output::Stop => {}
         }
         // The genuine external system has a finite response latency. Keep its
@@ -401,7 +400,6 @@ impl Application for OpsApplication {
             | root::Output::Agent(_)
             | root::Output::ToChild(_)
             | root::Output::ProjectMade { .. }
-            | root::Output::Busy
             | root::Output::Stop => false,
         };
         if client_owned {
