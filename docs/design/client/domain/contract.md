@@ -476,12 +476,14 @@ Every request has one answer, of one of these kinds:
     is made, not the refusal's;
   - *no one to escalate to:* a party's root task whose escalations would
     have no holder (3.2);
-  - *limit:* which one (the deployment's projects, the project's live
-    tasks, its goals, the
+  - *limit:* which one and the bound it met, the configured number (the
+    deployment's projects, the project's live tasks, its goals, the
     operations per request, a grace past its bound, the inbox full, the
-    words too long, a key or a pasted address past the bytes `me` states (5.1), the LLM
-    accounts' bounds: accounts in the deployment, accounts per holder,
-    sources per account, sign-ins at once, program sources per worker);
+    words too long, an amendment too long, a key or a pasted address past
+    the bytes `me` states (5.1), the LLM accounts' bounds: accounts in the
+    deployment, accounts per holder, sources per account, sign-ins at
+    once, program sources per worker), so that a client names it and what
+    to change; a client's own limits are the client's to say;
   - *provider's rule:* an LLM provider's terms forbid it, naming the
     rule (a plan's uses naming another person, or a project with
     another party; another account for a task its account limits:
@@ -603,7 +605,9 @@ served is held, kept and unsent, for its owner's version (client.md,
     and its optional description as configured, so that a task's LLM
     choice (3.2) is drafted from it; the most bytes a key may have,
     which bounds a request carrying one (3.1), and the most a pasted
-    sign-in address may have, the driver's redirect bound; and the retention of the
+    sign-in address may have, the driver's redirect bound; the most bytes
+    a party's words may have (a task's spec, a message, an answer) and an
+    amendment's, so that a client says the bound before it sends; and the retention of the
     engine's answers (3.1). It carries no version: the stream's hello does
     (section 8);
   - *a task:* its header, overview, budget and authority; its fields
