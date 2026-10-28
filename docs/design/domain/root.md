@@ -771,6 +771,16 @@ over-bound stored settings policy by setting number and source, and an
 over-bound project policy by project number.
 Startup also checks the seed policy after enforced landing requirements are joined, before constructing the core.
 
+- **The restart's workspace is priced once,** where the restart holds
+  it: a cold restore page, which holds any row a writer commits (jig's
+  `protocol/store.md`, 7.1), lives only before the engine serves, and
+  no message carries it, since a startup answer goes straight to the
+  restart, one at a time. So it is never part of the root's payload
+  worst case nor of a retained read answer's slot, which every queue
+  and envelope multiplies. It is priced as jig prices patching beside
+  serving: the common part, then the larger of the restart's and the
+  serving workspaces it precedes (jig's `protocol/store.md`, 10.2 and
+  section 13).
 - **The core's children's limits** are `engine.limits`, jig's part:
   tasks, authority, people, the fleet, accounts, notes, documents,
   templates and call records (jig's `protocol/configuration.md`, section
