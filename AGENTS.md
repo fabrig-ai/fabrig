@@ -11,7 +11,9 @@
   `tests/`) takes at most 30 seconds (15 seconds before the user's doubling
   of 10-22, provisional); the fuzzy suite (the worlds' `tests/fuzzy_*.rs`,
   randomized tests) at most 2 minutes (1 minute before the user's doubling
-  of 10-22, provisional). Keep new tests within these budgets.
+  of 10-22, provisional); the process tier, outside the gate, at most 6
+  minutes, and only what processes show. Keep new tests within these
+  budgets.
 - temper is built on skein, the io and generic-protocol kit, and follows
   the foundation documents in the `docs/foundation` directory of skein's
   repository. temper's code and documents cite them by file name:

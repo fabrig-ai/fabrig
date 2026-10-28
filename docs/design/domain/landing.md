@@ -646,8 +646,10 @@ Under `../client/tools.md`, 5.1's names (a group `landing`):
 
 Stories in the forge's world (`forge.md`, section 18; `testing.md`,
 4.2), the fake forge running dispatched workflows (skein's
-`fake-forge.md`), then at the process tier on a real Forgejo with its
-runner (`testing.md`, 2.7):
+`fake-forge.md`). The process tier adds one story on a real Forgejo
+with its runner, for what only they show (`testing.md`, 2.6): a
+landing whose dispatched job the runner cancels, rerun and landed
+across a restart of the binary. The forge's world holds:
 
 - **a landing of one** is prepared by the forge's rebase, proved by one
   dispatched run, and fast-forwarded; main carries its gate's status;

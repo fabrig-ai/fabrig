@@ -52,7 +52,8 @@ and what is still open (section 10).
   suites keep their 30 s (15 s before the user's doubling of 10-22,
   provisional) and 120 s (60 s before the user's doubling of 10-22,
   provisional), which nextest enforces; the process and live tiers run by
-  their scripts, never at the gate.
+  their scripts, never at the gate. The process tier holds only what
+  processes show, within its 6 minutes (2.6).
 
 ## 2. temper's tiers
 
@@ -815,6 +816,18 @@ terminal client, the captures and the faults.
 `crates/temper/tests/process.rs`, after jig's reference binary's (jig's
 `protocol/service.md`, section 8): temper as it ships, as processes.
 
+- **Only what processes show** (testing-strategy.md, 2.9; the user's
+  rule of 10-23, 5.3, for every story): a path through `main` (its
+  arguments, configuration, startup checks, printed lines, exit
+  statuses and signals), or an integration point only processes have:
+  real git, the owned Forgejo and its runner, the binary killed and
+  started again (what a restart keeps is 2.5's), the cluster's
+  processes. A behaviour a lower tier shows
+  is tested there and not again here: a finding met here is reproduced
+  in the lowest tier that shows it (testing-strategy.md, 9), and a story
+  is added here only where its Musts depend on processes. A variant
+  grows an existing story, never a copy of its setup.
+
 - **The upgrade's commands,** through the real binary, whose patch sets
   are empty until the first release: `temper versions`' lines;
   `temper upgrade --check` over a stopped deployment's copy, saying the
@@ -1388,9 +1401,9 @@ terminal client, the captures and the faults.
 - **Outside the suites:** nextest profile `process`, run by
   `scripts/proof-one-process.sh`, which builds the binary and the fake
   `claude` first and sets `TEMPER_TEST_CLAUDE`. It aims at 6 minutes (3
-  minutes before the user's doubling of 10-22, provisional); if CI takes it
-  past, the story with CI becomes a test of its own (../protocol/setup.md,
-  13.4).
+  minutes before the user's doubling of 10-22, provisional); the aim and
+  the profile's timeout are the user's. A story that would take the tier
+  past its aim moves down a tier, or goes to the user with its figures.
 
 ### 2.7 The live tier
 
@@ -1620,10 +1633,10 @@ section 8; testing-strategy.md, 2.9).
   passes on real backends (`../draft/v0.1.0.md`, 3): the brief's
   scenario as a test in `crates/temper/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
-  same code, also walks the whole story offline in the process profile
-  on the rung's twin (2.4), so a driver's own fault is met there, never
-  by spending a held login: a live story is run live only once its
-  offline walk passes.
+  same code, first walks the whole story offline on the rung's twin
+  (2.4), run by `scripts/proof-live.sh` before the live story and never
+  in the process profile, so a driver's own fault is met there, never
+  by spending a held login.
   - **Their stories are the second edition's** of the reference case
     (`../draft/reference-case.md`; the user, 10-27), with
     the retired first edition's citations mapped below:
@@ -2501,7 +2514,8 @@ and one smoke above:
 | the client and the engine, joined (6.3) | "Tell temper how you work" starting the configuring chat, whose run proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
 | the one-process world (2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
 | the real loop (2.4) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling (13 s before the user's increase of 10-24), from 9.5 s at its last measure (case 2’s M4) |
-| the process tier | temper ctl settings show, settings show KIND, revision show, revision list and settings apply, one named story each; reads in text and JSON, owner's change read back through its full new revision. Running work keeping its revision, and `revision advance` moving it, one story (`../client/tools.md`, 11.4). A restore, one story: two changes after revision R, `revision restore R` proposing both settings back, accepted, `settings show` reading as R left them. The configuring agent, one story: `chat start --template 3` on the scripted fake LLM, whose run reads the settings and proposes; `proposal show` shows its items; the owner's `proposal decide … accept`; the chat's next turn says the revision it made. | existing process profile, measured separately |
+| the system world (2.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/tools.md`, 11.4) | at most 2 s, a world story's aim (6.1) |
+| the process tier | temper ctl settings show, settings show KIND, revision show, revision list and settings apply, one named story each; reads in text and JSON, owner's change read back through its full new revision. A restore, one story: two changes after revision R, `revision restore R` proposing both settings back, accepted, `settings show` reading as R left them. The configuring agent, one story: `chat start --template 3` on the scripted fake LLM, whose run reads the settings and proposes; `proposal show` shows its items; the owner's `proposal decide … accept`; the chat's next turn says the revision it made. | existing process profile, measured separately |
 
 - **The tests that move:** every test document and typed builder that
   writes the six members (25 files of documents, 20 of builders, a

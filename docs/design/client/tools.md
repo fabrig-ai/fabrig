@@ -1713,7 +1713,9 @@ Settings inventory, a setting, a revision and revision history each have
 one named ctl process story in text and JSON. An owner's change has one
 story: read the current revision, change a charter, read its full value
 and revision back, and refuse a stale request naming the newest revision.
-Running work keeps its revision, one story: a ctl chat whose run, on
+Running work keeps its revision, one story, the system world's
+(`../domain/testing.md`, 2.1), since none of it needs a process, its
+printed lines 11.1's: a chat whose run, on
 the fake LLM, delegates one task and waits, the delegate parked between
 two runs under revision R, the chat and its delegate the deployment's
 only live agent tasks; an owner's `settings apply` of the delegate's
