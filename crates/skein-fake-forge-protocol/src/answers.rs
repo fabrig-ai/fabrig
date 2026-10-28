@@ -277,7 +277,10 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
         | Request::DeleteBranch { .. } => Err(a::Error::Refused),
     }
 }
-#[expect(clippy::too_many_lines, reason = "check translation exhaustively selects the dialect request and answer shape")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "check translation exhaustively selects the dialect request and answer shape"
+)]
 fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckSummary]) -> Result<Answer, a::Error> {
     let (sha, page) = match request {
         Request::CombinedStatus { commit, page, .. } => (Some(*commit), *page),
