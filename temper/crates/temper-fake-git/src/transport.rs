@@ -88,7 +88,6 @@ impl Typed {
         let user = self.user.ok_or(Fault::Refused)?;
         let remote = repository(remote);
         let mut forge = self.forge.borrow_mut();
-        assert!(forge.pending.room() >= domain::MAX_OUT, "reserve external domain output");
         let token = forge.next_reply();
         let env = Env { now: forge.now, wall: Wall::EPOCH, limits: forge.config };
         let Forge { domain, pending, .. } = &mut *forge;
@@ -131,7 +130,6 @@ impl Typed {
                     forge.pending.len(),
                 ),
             }
-            assert!(forge.pending.room() >= domain::MAX_OUT, "reserve external domain output");
             // The shared domain fires only its earliest due alarm. Older calls,
             // CI and hooks can therefore precede this call even at zero latency.
             let Forge { domain, pending, .. } = &mut *forge;

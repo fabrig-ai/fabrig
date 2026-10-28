@@ -100,7 +100,7 @@ impl Layer {
         crypto: CryptoRng,
         life: Duration,
         value_bytes: u32,
-        batch: u32,
+        _batch: u32,
         installations: u32,
     ) -> Self {
         let mut listener: Box<[u8]> = Box::new([]);
@@ -117,8 +117,8 @@ impl Layer {
             pending: Some((settings, crypto)),
             waiting_for_webhooks: false,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            above: Queue::with_capacity(host::MAX_OUT.above.checked_mul(batch).expect("host output room")),
-            io: Queue::with_capacity(host::MAX_OUT.below.checked_mul(batch).expect("host IO room")),
+            above: Queue::uncapped(),
+            io: Queue::uncapped(),
             closed: false,
             closing: false,
             served,
@@ -142,13 +142,6 @@ impl Layer {
             answers: Queue::with_capacity(64),
         }
     }
-    pub(crate) fn room(&self) -> bool {
-        self.batch_room(1)
-    }
-    pub(crate) fn batch_room(&self, batch: u32) -> bool {
-        self.above.room() >= host::MAX_OUT.above.checked_mul(batch).expect("host batch above")
-            && self.io.room() >= host::MAX_OUT.below.checked_mul(batch).expect("host batch IO")
-    }
     pub(crate) fn down(&mut self, request: host::Request) {
         #[cfg(test)]
         if let host::Request::Answer { run, answer } = &request {
@@ -170,7 +163,7 @@ impl Layer {
         );
     }
     pub(crate) fn close(&mut self) {
-        if self.closing || self.closed || !self.room() {
+        if self.closing || self.closed {
             return;
         }
         self.closing = true;
@@ -383,7 +376,7 @@ pub(crate) fn request(engine: &mut crate::engine::Engine, run: Token) {
 /// Run each held Install whose forge is free, or end it busy past the state's life.
 fn release(engine: &mut crate::engine::Engine) {
     for _ in 0..engine.setup.held.len() {
-        if engine.events.room() < 4 || !engine.setup.room() {
+        if engine.events.room() < 4 {
             break;
         }
         let held = engine.setup.held.pop().expect("held count");
@@ -473,16 +466,13 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
         }
         let _expired = engine.setup.pages.pop();
     }
-    if engine.setup.room()
-        && let Some(host) = &mut engine.setup.component
+    if let Some(host) = &mut engine.setup.component
         && due(host.next_deadline(), engine.env.now)
     {
         host.fire(&engine.setup.env, &mut engine.setup.above, &mut engine.setup.io);
     }
     for _ in 0..engine.setup.above.len() {
-        if !engine.setup.room()
-            || !engine.store.room()
-            || !engine.forge.room(2)
+        if !engine.store.room()
             || engine.events.room()
                 < engine.forge_records.bounds.installations.checked_add(4).expect("setup event room")
             || engine.notes.room() == 0

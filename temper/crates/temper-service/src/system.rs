@@ -873,8 +873,6 @@ fn route_events(service: &mut Service) {
             && (!engine.workers.room()
                 || !engine.clients.room(1)
                 || engine.events.room() < engine::route_out()
-                || !engine.setup.room()
-                || !engine.forge.room(1)
                 || match &engine.accounts {
                     Some(accounts) => !accounts.up_room(),
                     None => false,
