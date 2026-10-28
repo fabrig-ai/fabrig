@@ -77,7 +77,7 @@ fn turn_kept_precedes_terminal_acknowledgement_under_load() {
     assert_eq!(driver.pending.len(), STORY_COMMITS, "turn and terminal commits are withheld");
     driver.fill_to_watermark();
     assert!(worker_notices(&driver).is_empty(), "acknowledgements wait for durability");
-    // Unlike temper, this root routes released callbacks inside release().
+    // This root routes released callbacks inside release().
     // Refill before that release, so their decisions face real pressure too.
     for _ in 0..STORY_COMMITS {
         driver.commit_one();
