@@ -1177,6 +1177,15 @@ fn maximum_cold_hello_batch_and_duplicate_losses_fit_one_startup_decision() {
 }
 
 #[test]
+fn a_zero_byte_budget_is_refused_and_one_byte_is_valid() {
+    let mut configured = limits();
+    configured.memory_bytes = 0;
+    assert!(!engine::valid(&configured));
+    configured.memory_bytes = 1;
+    assert!(engine::valid(&configured));
+}
+
+#[test]
 fn overflowing_child_limits_refuse_root_startup_without_panicking() {
     let mut configured = limits();
     configured.tasks.tasks = u32::MAX;

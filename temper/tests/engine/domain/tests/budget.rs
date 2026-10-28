@@ -219,14 +219,19 @@ fn read_history(driver: &mut Driver, run: &engine::Assignment) {
 #[test]
 fn a_persons_read_is_answered_while_the_budget_binds() {
     let (store, runs) = parked();
-    let mut driver = Driver::with_budget(store, config(91), &bounds(), 0);
+    let mut driver = Driver::with_budget(store, config(91), &bounds(), ALLOWANCE);
     driver.settle();
     driver.send(protocol::hello_slots(WORKER, 3, Box::new([])));
     driver.settle();
     wake(&mut driver, &runs);
+    let mut held = Vec::new();
+    hold_transcripts(&mut driver, &mut held);
+    assert_eq!(held.len(), 1, "one preparation fills the positive byte budget");
+    assert_eq!(driver.root.held_bytes(), ALLOWANCE);
     read_history(&mut driver, &runs[0]);
     assert_eq!(assigned(&driver), 0);
-    assert_eq!(driver.root.pending_assignments().len(), 0, "no preparation starts at the byte boundary");
+    assert_eq!(driver.root.held_bytes(), ALLOWANCE, "the read leaves activation at the byte boundary");
+    assert_eq!(driver.root.pending_assignments().len(), 0, "no assignment is ready while its transcript is held");
 }
 
 #[test]
