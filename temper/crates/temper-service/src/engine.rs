@@ -593,7 +593,7 @@ fn watcher(event: &root::Event) -> Option<skein_lib::Token> {
 pub(crate) fn forge_pass(engine: &mut Engine) {
     for _ in 0..engine.forge.above.len() {
         if engine.end.is_none()
-                && (!engine.room() || engine.passing.is_some() || completes_pending(engine) == Some(true))
+            && (!engine.room() || engine.passing.is_some() || completes_pending(engine) == Some(true))
         {
             break;
         }
