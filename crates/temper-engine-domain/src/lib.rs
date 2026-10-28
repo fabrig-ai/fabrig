@@ -24,8 +24,8 @@ mod store;
 mod tests;
 mod translate;
 pub use decision::{
-    Counters, Decision, Delivery, Journal, JournalOutput, Limits as JournalLimits, accept, accept_pending, commit,
-    committed, fresh, journal_limits, resume, room, takes, uncommitted, worst_case as journal_worst_case,
+    Counters, Decision, Delivery, Journal, JournalOutput, Limits as JournalLimits, accept_routed, commit, committed,
+    fresh, journal_limits, resume, uncommitted, worst_case as journal_worst_case,
 };
 pub use store::{
     CallAnswer, CallKey, CallRecord, Changed, CoreRange, Deployment, EscalationDecisionRecord, Family, Key,

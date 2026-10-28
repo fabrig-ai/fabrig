@@ -138,7 +138,10 @@ fn partial_delivery_transfer_never_allocates_a_second_shrinking_container() {
             .expect("partial delivery bound");
     }
     meter.start();
-    root::accept(&mut journal, &mut counters, &limits, decision, &mut out).expect("opened whole decision");
+    root::accept_routed(&mut journal, &mut counters, &limits, decision, true).expect("opened whole decision");
+    if let Some(output) = root::commit(&mut journal, &limits) {
+        out.push(output);
+    }
     let measured = meter.end();
     assert!(out.is_empty(), "clean header and no writes");
     meter.check(measured, root::journal_worst_case(&limits).expect("valid bounds"), &limits);
@@ -181,7 +184,10 @@ fn partial_write_transfer_moves_values_without_shrinking_the_source() {
             .expect("partial write bound");
     }
     meter.start();
-    root::accept(&mut journal, &mut counters, &limits, decision, &mut out).expect("opened whole decision");
+    root::accept_routed(&mut journal, &mut counters, &limits, decision, true).expect("opened whole decision");
+    if let Some(output) = root::commit(&mut journal, &limits) {
+        out.push(output);
+    }
     let measured = meter.end();
     let Output::Commit { writes, .. } = out.pop().expect("one commit") else {
         panic!("commit");
@@ -254,7 +260,10 @@ fn full_decisions_and_maximum_held_results_fit_the_declared_root_journal_bound()
                 )
                 .expect("maximum admitted result");
         }
-        root::accept(&mut journal, &mut counters, &LIMITS, decision, &mut out).expect("whole decision opened");
+        root::accept_routed(&mut journal, &mut counters, &LIMITS, decision, true).expect("whole decision opened");
+        if let Some(output) = root::commit(&mut journal, &LIMITS) {
+            out.push(output);
+        }
         let measured = meter.end();
         drop(out.pop().expect("one commit"));
         meter.check(measured, bound, &LIMITS);

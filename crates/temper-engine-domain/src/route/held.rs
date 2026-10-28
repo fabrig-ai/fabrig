@@ -238,8 +238,14 @@ mod tests {
         };
         assert_eq!(owner, Token::new(1));
         assert!(domain.work.is_empty(), "one pressure event, with no root-owned retry");
-        crate::decision::accept_pending(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision)
-            .unwrap();
+        crate::decision::accept_routed(
+            &mut domain.journal,
+            &mut domain.core.counters,
+            &env.limits.journal,
+            decision,
+            true,
+        )
+        .unwrap();
         let range = jig_domain_notes::Range::Lines { scope: jig_domain_notes::Scope::Deployment, after: None };
         for id in reads.into_boxed() {
             domain.archive_reads.get_mut(id).unwrap().take();
@@ -266,7 +272,7 @@ mod tests {
         assert!(domain.work.is_empty());
     }
     fn delivery(domain: &mut Domain, limits: &Limits, decision: Decision) -> Delivery {
-        crate::decision::accept_pending(&mut domain.journal, &mut domain.core.counters, &limits.journal, decision)
+        crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &limits.journal, decision, true)
             .unwrap();
         while let Some(output) = crate::decision::commit(&mut domain.journal, &limits.journal) {
             let crate::decision::JournalOutput::Commit { number, .. } = output else { panic!("store commit") };

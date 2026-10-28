@@ -1,5 +1,5 @@
 use crate::decision::{
-    Counters, Decision, Delivery, Journal as SkeinJournal, JournalOutput as Output, Limits, accept as accept_decision,
+    Counters, Decision, Delivery, Journal as SkeinJournal, JournalOutput as Output, Limits, accept_routed,
     committed as mark_committed, fresh as fresh_number, resume as release_ready,
 };
 use crate::{Deployment, Family, Key, Record, TurnRecord, Write};
@@ -66,7 +66,12 @@ fn fresh(journal: &mut Journal, family: Family) -> Option<u64> {
 }
 #[expect(clippy::result_large_err, reason = "test wrapper preserves the decision's owned refusal")]
 fn accept(journal: &mut Journal, limits: &Limits, decision: Decision, out: &mut Queue<Output>) -> Result<(), Decision> {
-    accept_decision(&mut journal.inner, &mut journal.counters, limits, decision, out)
+    assert!(out.room() >= 1, "one root journal output reserved");
+    accept_routed(&mut journal.inner, &mut journal.counters, limits, decision, true)?;
+    if let Some(output) = crate::decision::commit(&mut journal.inner, limits) {
+        out.push(output);
+    }
+    Ok(())
 }
 fn committed(journal: &mut Journal, number: u64) {
     mark_committed(&mut journal.inner, number);
@@ -302,8 +307,7 @@ fn decisions_keep_the_header_and_release_exactly_the_admitted_deliveries() {
             DEPLOYMENT,
         ))));
         assert_eq!(decision.write(&LIMITS, header.clone()), Err(header), "caller cannot own the header slot");
-        crate::decision::accept_routed(&mut journal.inner, &mut journal.counters, &LIMITS, decision, persist_header)
-            .unwrap();
+        accept_routed(&mut journal.inner, &mut journal.counters, &LIMITS, decision, persist_header).unwrap();
         let mut out = Queue::with_capacity(1);
         if write_count <= 1 && !persist_header {
             assert!(crate::decision::commit(&mut journal.inner, &LIMITS).is_none());
@@ -453,7 +457,8 @@ fn deep_child_rows_and_arbitrary_internal_payloads_are_refused_before_retention(
         result_bytes: 4,
         run_bytes: 1,
     };
-    let mut decision = Decision::new(&limits);
+    let mut journal = SkeinJournal::uncapped(1, 0);
+    let mut decision = Decision::decide(&mut journal, &limits);
     let row = Record::Core(jig_domain_core::Record::People(people::Stored::Person {
         number: 1,
         identity: people::Identity {
@@ -521,7 +526,8 @@ fn held_assignment_checks_owned_bytes_and_section_backing_before_acceptance() {
         result_bytes: 4,
         run_bytes: 512,
     };
-    let mut decision = Decision::new(&limits);
+    let mut journal = SkeinJournal::uncapped(1, 0);
+    let mut decision = Decision::decide(&mut journal, &limits);
     let mut assignment = held_assignment();
     assert!(
         decision
@@ -531,7 +537,8 @@ fn held_assignment_checks_owned_bytes_and_section_backing_before_acceptance() {
     assignment.sections = Box::new([]);
     let bytes = crate::limits::run_charter_bytes(&assignment.run).expect("fixture charter bytes");
     let exact = crate::JournalLimits { run_bytes: u32::try_from(bytes).expect("tiny charter"), ..limits };
-    let mut decision = Decision::new(&exact);
+    let mut journal = SkeinJournal::uncapped(1, 0);
+    let mut decision = Decision::decide(&mut journal, &exact);
     decision
         .deliver(&exact, Delivery::Assigned { channel: Token::new(1), assignment: assignment.clone() })
         .expect("the exact run byte envelope accepts its binding arrays");
@@ -540,7 +547,8 @@ fn held_assignment_checks_owned_bytes_and_section_backing_before_acceptance() {
         jig_domain_authority::AccountBinding { provider: 1, account: 1, source: 1 },
         jig_domain_authority::AccountBinding { provider: 2, account: 2, source: 2 },
     ]);
-    let mut decision = Decision::new(&exact);
+    let mut journal = SkeinJournal::uncapped(1, 0);
+    let mut decision = Decision::decide(&mut journal, &exact);
     assert!(decision.deliver(&exact, Delivery::Assigned { channel: Token::new(1), assignment }).is_err());
 }
 
@@ -727,7 +735,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
         answered: Box::new([]),
         grants: Box::new([]),
     })));
-    let mut decision = Decision::new(&env.limits.journal);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     crate::route::route_core_requests(&mut domain, &env, &mut decision, core::Requests::Out(requests));
     let assignment = domain.assignments.get(&fixture.task).expect("prepared assignment");
     assert!(assignment.live.text);

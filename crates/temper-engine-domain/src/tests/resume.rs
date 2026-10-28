@@ -15,8 +15,14 @@ fn released_continuations_are_taken_in_arrival_order_at_the_watermark() {
     for turn in 1..=env.limits.journal.commits {
         let mut decision = crate::decision::Decision::decide(&mut domain.journal, &env.limits.journal);
         decision.write(&env.limits.journal, super::turn(turn, 1)).unwrap();
-        crate::decision::accept_pending(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision)
-            .unwrap();
+        crate::decision::accept_routed(
+            &mut domain.journal,
+            &mut domain.core.counters,
+            &env.limits.journal,
+            decision,
+            true,
+        )
+        .unwrap();
     }
     let mut last = 0;
     while let Some(crate::decision::JournalOutput::Commit { number, .. }) =

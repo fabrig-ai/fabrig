@@ -388,7 +388,7 @@ fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
     while let Some(request) = out.pop() {
         drop(request);
     }
-    let mut decision = Decision::new(&env.limits.journal);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     for pull in [None, Some(23)] {
         out.push(forge::Request::Save {
             record: forge::Stored::Change(change_row(pull)),
@@ -434,7 +434,7 @@ fn a_restored_changes_wake_names_its_known_pull_again() {
         drop(request);
     }
     out.push(forge::Request::WakeProcedure { task: 7 });
-    let mut decision = Decision::new(&env.limits.journal);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
     let Some(Work::Forge(event @ forge::Event::Rename { .. })) = domain.work.pop() else {
         panic!("restore pull watch")
@@ -489,7 +489,7 @@ fn an_ended_changes_pull_wake_names_nothing() {
     // Its release unnamed it: the change row stays, its names row does not.
     let (mut domain, env, mut out) = restored_change([forge::Stored::Change(change_row(Some(23)))]);
     out.push(forge::Request::WakeProcedure { task: 7 });
-    let mut decision = Decision::new(&env.limits.journal);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
     let Some(Work::Tasks(super::tasks::Event::WakeProcedure { task: 7 })) = domain.work.pop() else {
         panic!("wake the change's procedure")
@@ -507,7 +507,7 @@ fn a_change_unnamed_after_its_pull_swap_was_queued_stays_unnamed() {
     ]);
     let forge_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge };
     out.push(forge::Request::WakeProcedure { task: 7 });
-    let mut decision = Decision::new(&env.limits.journal);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
     let Some(Work::Forge(event @ forge::Event::Rename { .. })) = domain.work.pop() else { panic!("queue pull watch") };
     // The release completes before the queued swap applies.

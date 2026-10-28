@@ -5,7 +5,7 @@
 //! numbers. Neither knows child policy, worker placement, store encoding or IO;
 //! the walking root routes internal deliveries.
 //!
-//! Open a decision before child mutation, then call [`accept_pending`] once
+//! Open a decision before child mutation, then call [`accept_routed`] once
 //! synchronous routes finish. The store answers issued commits through [`committed`] or
 //! [`uncommitted`]; [`resume`] releases at most one ready delivery. Refused
 //! admission returns ownership, successful admission may emit one commit, and
@@ -16,9 +16,7 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 pub use jig_domain_core::{Counters, fresh};
 use jig_domain_people as people;
-use skein_lib::{
-    Decision as SkeinDecision, Journal as SkeinJournal, JournalLimits, JournalRoom, List, Queue, ReplyTo, Token,
-};
+use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, JournalLimits, List, Queue, ReplyTo, Token};
 
 /// Store edges and memory estimates supplied by the root, immutable across
 /// journal calls (domain/root.md, 4 and 10). The root reuses `commits` as its
@@ -253,7 +251,7 @@ pub struct Decision {
     writes: List<Write>,
     deliveries: Queue<Delivery>,
     overrun: bool,
-    batch: Option<SkeinDecision<Write, crate::Output>>,
+    batch: SkeinDecision<Write, crate::Output>,
 }
 
 /// skein-lib's commit barrier, over the root's wrapped writes and outputs.
@@ -272,32 +270,24 @@ impl Decision {
         !self.overrun && self.writes.is_empty() && self.deliveries.is_empty()
     }
 
-    /// Allocate one transient decision from validated startup limits; no effect is issued until
-    /// `accept`.
+    /// Open the root's uncapped journal before routing an atomic child cohort.
+    /// The private buffers retain the store's per-commit operation edge.
     #[must_use]
-    pub fn new(limits: &Limits) -> Decision {
+    pub fn decide(journal: &mut Journal, limits: &Limits) -> Decision {
         assert!(worst_case(limits).is_some(), "valid root journal limits");
         Decision {
             limits: *limits,
             writes: List::with_capacity(limits.writes.checked_sub(1).expect("header slot reserved")),
             deliveries: Queue::with_capacity(limits.deliveries),
             overrun: false,
-            batch: None,
+            batch: journal.decide(),
         }
-    }
-
-    /// Open the root's uncapped journal before routing an atomic child cohort.
-    /// The private buffers retain the store's per-commit operation edge.
-    pub fn decide(journal: &mut Journal, limits: &Limits) -> Decision {
-        let mut decision = Self::new(limits);
-        decision.batch = Some(journal.decide());
-        decision
     }
 
     /// A replacement at the same key keeps its original position. All child callbacks finish before
     /// submission, so only the final value is saved. The root supplies the write; successful
     /// admission emits no event. Bounds or capacity refusal returns it unchanged. Deployment writes
-    /// are reserved for `accept`, not callers.
+    /// are reserved for `accept_routed`, not callers.
     #[expect(clippy::result_large_err, reason = "journal refusal returns the caller's owned bounded row")]
     pub fn write(&mut self, limits: &Limits, write: Write) -> Result<(), Write> {
         assert!(*limits == self.limits, "decision uses its configured limits");
@@ -536,37 +526,13 @@ pub const fn journal_limits(limits: &Limits) -> JournalLimits {
     }
 }
 
-/// Legacy capped-journal seam: the whole write and held room of one decision.
-#[must_use]
-pub const fn room(limits: &Limits) -> JournalRoom {
-    JournalRoom { writes: limits.writes, held: limits.deliveries }
-}
-
-/// Legacy capped-journal seam used by the domain world's memory tests. The
-/// walking root admits by backlog and opens decisions with `Decision::decide`.
-#[must_use]
-pub fn takes(journal: &Journal, limits: &Limits) -> bool {
-    journal.takes(&room(limits))
-}
-
-/// Accept an opened decision, or return ownership when a detached `Decision::new`
-/// fails the legacy capped-journal preflight. That check cannot undo routed children.
-/// A dirty header or
-/// nonempty write set produces one atomic commit, ended by the store; a read-only decision issues
-/// none. Every retained delivery follows the latest allocated commit.
+/// Accept an opened decision after synchronous routing. A dirty header or nonempty
+/// write set produces one atomic commit, ended by the store; a read-only decision
+/// issues none. Every retained delivery follows the latest allocated commit.
+/// The cold load reads the durable header before numbering another commit, so
+/// its caller leaves `persist_header` false until that header has loaded.
 #[expect(clippy::result_large_err, reason = "refused root decisions return all owned writes and outputs")]
-pub fn accept_pending(
-    journal: &mut Journal,
-    counters: &mut Counters,
-    limits: &Limits,
-    decision: Decision,
-) -> Result<(), Decision> {
-    accept_routed(journal, counters, limits, decision, true)
-}
-
-/// The cold load reads the durable header before numbering another commit.
-#[expect(clippy::result_large_err, reason = "refused root decisions return all owned writes and outputs")]
-pub(crate) fn accept_routed(
+pub fn accept_routed(
     journal: &mut Journal,
     counters: &mut Counters,
     limits: &Limits,
@@ -580,22 +546,16 @@ pub(crate) fn accept_routed(
     let writing = (persist_header && counters.dirty()) || !decision.writes.is_empty();
     if decision.overrun || (writing && counters.deployment().commits == u64::MAX) {
         journal.failed(0);
-        if let Some(batch) = decision.batch.take() {
-            journal.accept(batch);
-        }
+        journal.accept(decision.batch);
         return Ok(());
     }
-    if (decision.batch.is_none() && !takes(journal, limits))
-        || decision.limits != *limits
+    if decision.limits != *limits
         || decision.writes.len() >= limits.writes
         || decision.deliveries.len() > limits.deliveries
     {
         return Err(decision);
     }
-    let mut batch = match decision.batch.take() {
-        Some(batch) => batch,
-        None => journal.decision(&room(limits)).expect("preflight reserved the whole decision"),
-    };
+    let mut batch = decision.batch;
     if writing {
         batch
             .write(Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
@@ -628,23 +588,6 @@ pub fn commit(journal: &mut Journal, limits: &Limits) -> Option<Output> {
         writes.push(write).expect("commit writes bounded by journal limits");
     }
     Some(Output::Commit { number: commit.number, writes: writes.into_boxed() })
-}
-
-/// Accept the root's validated decision and take its numbered store commit.
-#[expect(clippy::result_large_err, reason = "refused root decisions return all owned writes and outputs")]
-pub fn accept(
-    journal: &mut Journal,
-    counters: &mut Counters,
-    limits: &Limits,
-    decision: Decision,
-    out: &mut Queue<Output>,
-) -> Result<(), Decision> {
-    assert!(out.room() >= 1, "one root journal output reserved");
-    accept_pending(journal, counters, limits, decision)?;
-    if let Some(output) = commit(journal, limits) {
-        out.push(output);
-    }
-    Ok(())
 }
 
 /// A cumulative store answer only makes outputs ready. The ready pass releases one per call; it
