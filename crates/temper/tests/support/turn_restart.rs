@@ -11,6 +11,8 @@ use skein_shell::{Clock, Host};
 use skein_world::{Referee, end_to_end::Streams, real};
 use std::{cell::Cell, fs, path::Path};
 
+const SETUP_CALLS: usize = super::NATIVE_SETUP_CALLS + 2;
+
 #[derive(Debug)]
 pub struct Reads {
     pub landing: Value,
@@ -35,39 +37,30 @@ pub fn reads(root: &Path, landing: u64, change: u64) -> Reads {
     }
 }
 
-/// This tier seeds project 1 from its document. Leave its landing task a share
-/// of that period, as `landing_by_turn::fund_landings` does for a new project.
+/// Select turn landing for the seeded project, whose policy names stock policy 1.
 pub fn configure(root: &Path, repository: u64) {
     let path = root.join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    // The stock's fourteen-grant rules need more than the process fixture's
-    // twelve-grant allowance; each grant also requires a note scope.
-    config["engine"]["limits"]["overrides"]["authority.grants"] = 16.into();
-    config["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
-    config["engine"]["limits"]["overrides"]["notes.scopes"] = 32.into();
-    for project in config["engine"]["projects"].as_array_mut().expect("seed projects") {
-        let policy = &mut project["policy"];
-        let period = policy["period_spend"].as_u64().expect("project period");
-        policy["roles"][0]["period_spend"] = json!(period * landing_by_turn::ROLE_PERIOD_IN_K / 48);
-        // Landing tasks need status, dispatch and rerun grants in the project's
-        // ceiling, independently of its owner's pool (domain/landing.md, 4.2).
-        for kind in [6, 16, 17] {
-            let grants = policy["ceiling"]["grants"].as_array_mut().expect("project grants");
-            let mut grant = grants[0].clone();
-            grant["kind"] = json!(kind);
-            grants.push(grant);
-        }
-        policy["ceiling"]["delegation"]["kinds"]
-            .as_array_mut()
-            .expect("executors")
-            .push(json!({"kind":"procedure","number":3}));
-    }
     config["application"]["landing"]["projects"] = json!([{
         "project":1,"by":"turn","rules":[],
         "gates":[{"forge":1,"repository":repository,
             "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true}]}]
     }]);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
+}
+
+/// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
+fn setup(root: &Path) -> Vec<ctl::Step> {
+    let mut steps = native_settings_setup(root);
+    steps.push(ctl::Step::Run(ctl::Call::new(&["project", "show", "1", "--json"]).in_directory("private")));
+    steps.push(ctl::Step::Then(Box::new(|calls| {
+        let project = ctl::json(calls.last().expect("project read"));
+        let period = project["policy"]["period_spend"].as_u64().expect("project period");
+        let amount = (period / 48 * landing_by_turn::ROLE_PERIOD_IN_K).to_string();
+        ctl::Call::new(&["project", "fund", "1", &amount, "--role", "0", "--key", "turn-role-funds"])
+            .in_directory("private")
+    })));
+    steps
 }
 
 pub struct Proof {
@@ -172,6 +165,10 @@ impl Referee<Process> for Judge<'_> {
         // ChatJudge hands the settings session to the native person. Its usual
         // stop waits for a merge; this story stops at its own durable read.
         if matches!(self.chat.phase, ChatPhase::SettingUp) {
+            let Process::Calls(calls) = &procs[2] else { panic!("turn settings setup") };
+            if calls.ends().len() < SETUP_CALLS {
+                return;
+            }
             self.chat.act(now, procs);
         }
         let Process::Person(person) = &procs[1] else { panic!("native person") };
@@ -294,7 +291,7 @@ fn run_to(root: &Path, forge: &Throwaway, previous: Option<&Proof>, retry: bool)
         let ctl_root = skein_shell::open_root(root).expect("ctl root");
         fds.push(ctl_root);
         world.spawn_with_fds(fds, || {
-            Process::Calls(Box::new(ctl::Calls::new(ctl_root, native_settings_setup(root), Some(&streams), None)))
+            Process::Calls(Box::new(ctl::Calls::new(ctl_root, setup(root), Some(&streams), None)))
         });
     } else {
         fds.push(person_root);
