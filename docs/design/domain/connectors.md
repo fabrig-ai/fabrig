@@ -437,6 +437,15 @@ pending (tasks.md, 5.7), and the facts it reads. A projection
   cancel's grace, asking it to finish, comes as an amendment does
   (tasks.md, section 7);
 - when its last step was refused, with why (6.3);
+- when room it was refused for frees: a step whose batch was refused
+  for a count that frees on its own (the live tasks in the deployment,
+  in its project, or in its tree, tasks.md, section 4) is told so, and
+  its task waits for that room as a condition (6.4): a task ending that
+  frees a place wakes the procedures waiting on it, one per place freed,
+  in the order they were refused, each stepping again on the facts as
+  they are then; the waiters are its live procedure tasks, so their
+  number is bounded by theirs, and a restart rebuilds them from the
+  refusals their states keep;
 - when an effect it asked for settles, made or failed (4.2);
 - when a fact it reads changes, which its connector knows from its
   working set;
