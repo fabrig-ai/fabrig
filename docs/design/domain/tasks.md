@@ -582,8 +582,14 @@ failed or cancelled, so its run that finishes done parks, its activity
 naming the question it waits for, and the answer, which wakes it (8.1),
 lets its next run go on from what the last one left. Its delegates,
 its holds and its other messages go on as for any kept task. A question
-it asked through a person task, in words, is that task's, and detaches
-as section 7 says; it keeps nothing.
+that ends unanswered lifts the keep: its asked task ending with it open,
+or its cancel, wakes the asker with a notice naming it. A move of the
+asker to a new requester (section 7) carries its open questions to that
+requester in the move's decision, each keeping its number, as a
+successor's transfer does, so a goal moved to its party asks that party
+directly and stays kept. A question it asked through a person task, in
+words, is that task's, and detaches as section 7 says; it keeps
+nothing.
 
 ### 5.8 Ended by its requester
 
