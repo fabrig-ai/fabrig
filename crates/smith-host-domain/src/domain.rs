@@ -190,7 +190,7 @@ impl Domain {
         self.facts.len()
     }
 
-    /// The host no longer drops facts; the name stays while temper's worker reads it.
+    /// The host no longer drops facts; the name stays while parents still read it.
     #[must_use]
     pub const fn facts_lost(&self) -> u64 {
         0
