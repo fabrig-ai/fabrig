@@ -1,6 +1,6 @@
 # Leads
 
-Provisional, 2026-10-28. A lead is a long-lived Claude session for one area (skein, smith, jig or temper): it turns the coordinator's design parts into implementer tasks, keeps its implementers busy, and marks branches ready for the merge queue. Read `AGENTS.md` first.
+Provisional, 2026-10-28. A lead is a long-lived Claude session (Opus, at xhigh) for one area (skein, smith, jig or temper): it turns the coordinator's design parts into implementer tasks, keeps its implementers busy, and marks branches ready for the merge queue. Read `AGENTS.md` first.
 
 ## 1. In one page
 
