@@ -149,10 +149,11 @@ Section 9 lists what the engine's domain owes the client, and where
   conflict and pending joins or conflicts precede new admission. No
   unexpired ordinary answer is evicted to admit another key.
 - **`Seen` keeps no new answer:** a new top-level `Seen` bypasses
-  completed-answer capacity, using the existing bounded pending, flight,
-  waiter, load, journal and output room without reserving an answer
-  place. It saves no `Answer` on success or routed refusal. While pending,
-  an identical request joins and a different ask conflicts as usual.
+  completed-answer capacity, using the bounded pending, flight,
+  waiter and load places, with uncapped journal and output queues,
+  without reserving an answer place. It saves no `Answer` on success or
+  routed refusal. While pending, an identical request joins and a
+  different ask conflicts as usual.
   After completion its key is free: a retry is processed against current
   subject and authority, and a different ask under that key is a new
   request. Legacy retained `Seen` answers replay or conflict until their
