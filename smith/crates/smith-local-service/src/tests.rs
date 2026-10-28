@@ -46,6 +46,9 @@ fn a_resize_during_a_window_read_is_read_after_its_terminal() {
     assert_eq!(size.columns, 80);
 }
 
+// Fixed fixture allowance for the external IO and terminal edges.
+const EXTERNAL_QUEUE_SLOTS: u32 = 64;
+
 pub(crate) fn config() -> Config {
     let mut local_limits = local::Limits {
         smith: smith_agent_world::LIMITS,
@@ -69,7 +72,7 @@ pub(crate) fn config() -> Config {
     host_limits.agents = 1;
     host_limits.accounts = 1;
     local_limits.agent = local::AgentLimits::Spawned(host_limits);
-    let queue = local::max_out(&local_limits).max(smith_host_domain::max_out(&host_limits)).max(64);
+    let queue = EXTERNAL_QUEUE_SLOTS;
     let agent_limits = smith_agent_process_world::limits();
     let mut process = ProcessLimits {
         io: skein_io::Limits {
@@ -136,7 +139,7 @@ pub(crate) fn config() -> Config {
             workspace: None,
             push: None,
         },
-        limits: Limits { local: local_limits, inline: None, envelope_bytes, process, queue, watermark: queue },
+        limits: Limits { local: local_limits, envelope_bytes, process, queue, watermark: queue },
         endpoints: smith_protocol_channel::Endpoints::new(List::with_capacity(0)),
         paths: Box::new([]),
         launch: Launch {
@@ -307,13 +310,12 @@ fn a_local_service_refuses_lower_configuration_for_the_other_agent_kind() {
 }
 
 #[test]
-fn an_inline_service_refuses_an_unpriced_part_of_its_lower_inventory() {
+fn an_inline_service_starts_without_an_envelope() {
     let mut config = colocated_config();
-    let priced = config.limits.inline.as_mut().expect("inline ownership priced");
-    priced.memory = priced.memory.checked_sub(1).expect("nonzero lower ownership");
-    let Err(crate::Error::Memory) = Service::new(config, 96) else {
-        panic!("the actual inventory exceeds its advertised ownership")
-    };
+    let crate::AgentConfig::Inline { configuration, .. } = &mut config.agent else { panic!("inline fixture") };
+    configuration.limits.memory = 0;
+    let service = Service::new(config, 96).expect("inline service needs no memory advertisement");
+    assert!(service.inline());
 }
 
 #[test]
@@ -578,11 +580,6 @@ mod plain {
 
         fn is_empty(&self) -> bool {
             self.process.closed()
-        }
-
-        fn worst_case(&self) -> u64 {
-            // This unchecked real world does not meter heap; retain the service's bound.
-            crate::worst_case(&config().limits).unwrap()
         }
 
         fn operations(&self) -> u32 {
@@ -968,7 +965,6 @@ pub(crate) fn recording_colocated_config() -> (Config, smith_agent_service::Even
     )
     .expect("bounded event stream");
     lower.limits.events = Some(events);
-    config.limits.inline = Some(crate::InlineLimits::new(lower).expect("priced event stream"));
     (config, events)
 }
 
@@ -1090,8 +1086,6 @@ fn colocated_config() -> Config {
         Duration::from_secs(5),
     )
     .expect("bounded inline child");
-    config.limits.inline = Some(crate::InlineLimits::new(&lower).expect("bounded lower configuration"));
-    config.limits.queue = config.limits.queue.max(local::max_out(&config.limits.local));
     config.limits.watermark = config.limits.queue;
     config.agent = crate::AgentConfig::Inline { configuration: lower, roots: Box::new([]) };
     config
@@ -1115,24 +1109,6 @@ fn the_local_start_window_admits_the_standard_agents_largest_turn() {
     assert!(host.unacknowledged_bytes >= largest, "agent accepts only a window holding its largest turn");
     assert!(host.turn_bytes >= largest, "host can receive the turn it grants");
     assert_eq!(host.message_bytes, u64::from(agent.domain.run.message_bytes));
-}
-
-#[test]
-fn local_memory_refusal_names_the_actual_placement_footprint() {
-    use smith_agent_service::profile::{Check, Layer, LimitName, Refusal, Value};
-    let limits = config().limits;
-    let required = crate::worst_case(&limits).expect("bounded placement");
-    let available = required.checked_sub(1).expect("nonempty placement");
-    let refusal = crate::profile::memory(&limits, available).expect_err("local memory target");
-    assert_eq!(
-        refusal,
-        Refusal::Broken {
-            check: Check::Memory,
-            left: LimitName::deployment(Layer::Service, "local_worst_case").value(Value::Bytes(required)),
-            right: LimitName::deployment(Layer::Declared, "memory").value(Value::Bytes(available)),
-        }
-    );
-    crate::profile::memory(&limits, required).expect("exact local fit");
 }
 
 #[test]
@@ -1226,4 +1202,37 @@ fn a_spawned_trace_is_held_to_the_configured_write_deadline() {
     iterate(&mut service, Time::ZERO.checked_add(deadline).unwrap(), Wall::EPOCH);
     assert_eq!(service.pop_given_up(), Some(GivenUp { destination: Destination::Trace, why: Why::Behind }));
     assert_eq!(service.pop_given_up(), None, "the destination is named once");
+}
+
+#[test]
+fn invalid_limits_are_refused() {
+    let base = config().limits;
+    assert!(crate::valid(&base));
+    let changes: &[fn(&mut Limits)] = &[
+        |limits| limits.local.models = 0,
+        |limits| limits.local.line_bytes = 0,
+        |limits| limits.local.show_bytes = 0,
+        |limits| limits.process.io.refusals = 0,
+        |limits| limits.process.io.intake = 0,
+        |limits| limits.process.io.receive = 0,
+        |limits| limits.process.io.output = 0,
+        |limits| limits.process.io.sends = 0,
+        |limits| limits.process.io.accepts = 0,
+        |limits| limits.process.io.retry = Duration::ZERO,
+        |limits| limits.process.io.sockets = u32::MAX,
+        |limits| limits.process.io.sockets = u32::MAX / 8 + 1,
+        |limits| limits.process.channel.channel.chunk = 0,
+        |limits| limits.process.channel.bodies.start_charter = u32::MAX,
+        |limits| limits.local.smith.session.history_bytes = u64::MAX,
+    ];
+    for change in changes {
+        let mut config = config();
+        change(&mut config.limits);
+        assert!(!crate::valid(&config.limits), "invalid: {:?}", config.limits);
+        let Err(crate::Error::Memory) = Service::new(config, 1) else { panic!("invalid limits refusal") };
+    }
+    let mut inline = colocated_config();
+    inline.limits.process.channel.channel.chunk = 0;
+    assert!(crate::valid(&inline.limits), "inline mode has no framed process channel");
+    Service::new(inline, 1).expect("inline mode needs no process framing");
 }

@@ -12,7 +12,9 @@ mod builtin;
 mod jobs;
 
 use alloc::boxed::Box;
-use skein_lib::{List, Map, Time, Token};
+#[cfg(test)]
+use skein_lib::List;
+use skein_lib::{Map, Time, Token};
 use smith_domain::{session, tools};
 use smith_events::{Event, Record, ToolCompleted, ToolStarted};
 
@@ -487,14 +489,10 @@ fn verdict_kind(verdict: tools::Verdict) -> smith_events::Verdict {
     }
 }
 
-pub(crate) fn worst_case(limits: &session::Limits, string: u32) -> Option<u64> {
-    let bounds = Bounds::derive(limits)?;
-    Map::<Token, Call>::worst_case(bounds.slots)?
-        .checked_add(crate::children::worst_case(bounds.slots)?)?
-        .checked_add(builtin::Book::worst_case(limits)?)?
-        .checked_add(bounds.bytes)?
-        .checked_add(List::<Record>::worst_case(2)?)?
-        .checked_add(u64::from(string).checked_mul(4)?)
+/// Whether call joins and their metadata counter fit (programming-model.md, 6.3).
+#[must_use]
+pub(crate) fn valid(limits: &session::Limits) -> bool {
+    Bounds::derive(limits).is_some() && builtin::valid(limits)
 }
 
 #[cfg(test)]
@@ -510,6 +508,21 @@ mod tests {
     use crate::sinks::tests::{drain, drain_ready, grant};
     use crate::sinks::{Capture, Delivery, Destination, Ended};
     use skein_lib::Duration;
+
+    #[test]
+    fn invalid_limits_are_refused() {
+        let mut limits = source();
+        limits.sessions = 2;
+        assert!(valid(&limits));
+        for invalid in [
+            session::Limits { sessions: u32::MAX, ..limits },
+            session::Limits { parallel_tools: u32::MAX, ..limits },
+            session::Limits { answer_bytes: u64::MAX, ..limits },
+            session::Limits { completion_blocks: u32::MAX, ..limits },
+        ] {
+            assert!(!valid(&invalid));
+        }
+    }
 
     fn no_tool_result(record: &Record, capture: Capture) {
         let limits = crate::sinks::tests::limits(1).records;

@@ -185,7 +185,7 @@ impl Agent {
     pub(crate) fn new(limits: &AgentLimits, configuration: root::Config, seed: u64) -> Result<Self, Invalid> {
         match limits {
             AgentLimits::Inline(limits) => {
-                if inline::worst_case(limits).is_none() {
+                if !inline::valid(limits) {
                     return Err(Invalid::Limits);
                 }
                 Ok(Self::Inline {
@@ -195,7 +195,7 @@ impl Agent {
                 })
             }
             AgentLimits::Spawned(limits) => {
-                if host::worst_case(limits).is_none() {
+                if !host::valid(limits) {
                     return Err(Invalid::Limits);
                 }
                 Ok(Self::Spawned { domain: host::Domain::new(limits), limits: *limits, out: Queue::uncapped() })
@@ -226,8 +226,8 @@ impl Agent {
 
     pub(crate) fn ready(&self) -> bool {
         match self {
-            Self::Inline { domain, .. } => domain.is_ready(),
-            Self::Spawned { .. } => false,
+            Self::Inline { domain, out, .. } => !out.is_empty() || domain.is_ready(),
+            Self::Spawned { out, .. } => !out.is_empty(),
         }
     }
 

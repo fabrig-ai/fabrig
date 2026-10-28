@@ -10,7 +10,6 @@ use alloc::boxed::Box;
 
 mod down;
 mod effects;
-mod memory;
 mod request;
 mod routing;
 mod up;
@@ -29,12 +28,9 @@ use up::{component_up, domain_up, io_up, lower_events};
 mod program;
 
 pub(crate) use program::bound;
-pub use program::{AdoptError, ProgramBackend, program_operations, program_worst_case};
+pub use program::{AdoptError, ProgramBackend, program_operations, program_valid};
 #[path = "teardown.rs"]
 pub mod teardown;
-
-pub use memory::effects_parts;
-use memory::parts_worst_case;
 
 use teardown::Teardown;
 
@@ -102,7 +98,7 @@ pub enum ConfigError {
     /// A stage cannot reserve its maximum output.
     Queue,
     /// A part cannot be built under the requested limits.
-    Memory,
+    Limits,
     /// The host channel cannot open under these limits or endpoints.
     Channel(channel::Error),
     /// The LLM pool cannot retain these endpoints or limits.
@@ -202,58 +198,60 @@ pub struct Service {
 
 const USAGE_OWNER: Token = Token::new(u64::MAX - 1);
 
-/// Construction peak and retained bound for the host-owned effects adapter
-/// with its configured endpoint request heads.
+/// Whether the owned lower parts can be built (programming-model.md, 6.3).
 #[must_use]
-pub fn effects_worst_case(limits: &Limits, endpoints: &llm::Endpoints) -> Option<u64> {
-    let mut total = 0_u64;
-    for (_, part) in effects_parts(limits, endpoints)? {
-        total = total.checked_add(part)?;
-    }
-    Some(total)
+pub fn effects_valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
+    // FileIo's sum checked the four positive capacities; its constructor
+    // additionally requires a positive timeout. Do not probe its heap sum.
+    limits.file_slots > 0
+        && limits.file_read > 0
+        && limits.file_entries > 0
+        && limits.file_bytes > 0
+        && limits.file_timeout.as_nanos() > 0
+        && limits.machine.processes.checked_mul(2).is_some()
+        && llm::component_valid(&limits.llm, endpoints)
+        && machine::valid(&limits.machine)
+        && crate::events::valid(limits)
 }
 
-/// Checked maximum of every owned layer and inter-layer queue. The file
-/// driver's transient buffers are counted by its own bound; configured
-/// endpoints supply the request-head and credential bounds.
+/// Whether all service parts and their IO composition fit (programming-model.md, 6.3).
 #[must_use]
-pub fn worst_case(limits: &Limits, endpoints: &llm::Endpoints) -> Option<u64> {
-    parts_worst_case(limits, endpoints, true)?
-        .checked_add(domain::worst_case_drained_content(&limits.domain, limits.llm.receiving.max_completion_bytes)?)?
-        .checked_add(channel::worst_case(&limits.channel)?)?
-        .checked_add(crate::live::worst_case()?)?
-        .checked_add(io_worst_case(limits)?)
+pub fn valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
+    effects_valid(limits, endpoints)
+        && domain::valid(&limits.domain)
+        && channel::valid(&limits.channel)
+        && io_valid(limits)
 }
 
-// One physical LLM socket is already included by its connection owner. The
-// service owns IO's tables once. Its other producers are read-only process
-// pipes/input/signals and the single host-channel writer; only that writer
-// can retain output payload outside the LLM sockets (limits.md, section 3).
-/// The single native IO ownership, excluding the connection owners' socket buffers.
+/// Whether native IO tables and the shared socket composition fit (programming-model.md, 6.3).
 #[must_use]
-pub fn io_worst_case(limits: &Limits) -> Option<u64> {
-    let physical = limits.llm.connection.connections;
-    let other = limits.io.sockets.checked_sub(physical)?;
-    let child = limits.llm.connection.io;
+pub fn io_valid(limits: &Limits) -> bool {
+    // Skein's IO constructor needs flights = 2 * operations and timers =
+    // 2 * sockets; these checks previously lived under its heap sum.
+    let operations = match io::operations(&limits.io) {
+        Some(operations) => operations,
+        None => return false,
+    };
+    let other = match limits.io.sockets.checked_sub(limits.llm.connection.connections) {
+        Some(other) => other,
+        None => return false,
+    };
     let writers = match limits.events {
-        Some(events) => events.sinks.destinations.checked_add(1)?,
+        Some(events) => match events.sinks.destinations.checked_add(1) {
+            Some(writers) => writers,
+            None => return false,
+        },
         None => 1,
     };
-    if other < writers
-        || child.intake != limits.io.intake
-        || child.receive != limits.io.receive
-        || child.output != limits.io.output
-        || child.sends != limits.io.sends
-    {
-        return None;
-    }
-    let socket = skein_lib::Intake::worst_case(limits.io.intake)?
-        .checked_add(u64::from(limits.io.receive))?
-        .checked_add(u64::from(limits.io.output))?
-        .checked_add(Queue::<Box<[u8]>>::worst_case(limits.io.sends)?)?;
-    io::worst_case(&limits.io)?
-        .checked_sub(u64::from(physical).checked_mul(socket)?)?
-        .checked_sub(u64::from(other.checked_sub(writers)?).checked_mul(u64::from(limits.io.output))?)
+    let child = limits.llm.connection.io;
+    limits.io.is_usable()
+        && operations.checked_mul(2).is_some()
+        && limits.io.sockets.checked_mul(2).is_some()
+        && other >= writers
+        && child.intake == limits.io.intake
+        && child.receive == limits.io.receive
+        && child.output == limits.io.output
+        && child.sends == limits.io.sends
 }
 
 impl Service {
@@ -270,10 +268,8 @@ impl Service {
         if limits.routes < lower_routes {
             return Err(ConfigError::Queue);
         }
-        // The parts refuse limits they cannot be built under; each part's
-        // `valid` replaces these sums (dynamic memory 7.6).
-        if worst_case(&limits, &config.llm_endpoints).is_none() || program_worst_case(&config).is_none() {
-            return Err(ConfigError::Memory);
+        if !valid(&limits, &config.llm_endpoints) || !program_valid(&config) {
+            return Err(ConfigError::Limits);
         }
         Self::parts(config, Some(seed))
     }
@@ -353,7 +349,7 @@ impl Service {
             pending_start: None,
             directories: List::with_capacity(limits.machine.roots),
             root_index: 0,
-            pipe_routes: Map::with_capacity(limits.machine.processes.checked_mul(2).ok_or(ConfigError::Memory)?),
+            pipe_routes: Map::with_capacity(limits.machine.processes.checked_mul(2).ok_or(ConfigError::Limits)?),
             roots: List::with_capacity(limits.machine.roots),
             root_close_next: 0,
             root_close_pending: false,

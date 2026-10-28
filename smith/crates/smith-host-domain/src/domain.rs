@@ -143,11 +143,11 @@ impl Domain {
     /// panics before any process effect.
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {
-        assert!(crate::worst_case(limits).is_some(), "host limits are representable and every sealed delivery fits");
+        assert!(crate::valid(limits), "host limits are representable and every sealed delivery fits");
         assert!(crate::check(limits).is_ok(), "host supervision exceeds the agent's checked bounds");
         Domain {
             agents: Slab::<Agent>::with_capacity(limits.agents),
-            alarms: Deadlines::with_capacity(limits.agents.checked_mul(3).expect("validated alarms")),
+            alarms: Deadlines::with_capacity(limits.agents.checked_mul(3).expect("valid limits")),
             facts: Queue::uncapped(),
         }
     }
@@ -197,16 +197,8 @@ impl Domain {
     }
 }
 
-/// Reserve these free output slots for one step/fire: full call withdrawal fanout,
-/// lower/process notifications and the next Send/Read; payload bytes priced
-/// separately.
-#[must_use]
-pub fn max_out(limits: &Limits) -> u32 {
-    limits.calls.saturating_add(9)
-}
-
 /// Consume one parent notice or lower terminal with injected clocks.
-/// Caller reserves `max_out` free slots and returns every operation terminal,
+/// Caller drains the ordered outputs and returns every operation terminal,
 /// even after cancellation/EOF.
 #[expect(clippy::too_many_lines, reason = "one exhaustive typed boundary keeps terminal ownership visible")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Input, out: &mut Queue<Output>) {
@@ -394,7 +386,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Input, out: &mut Queu
     observations(domain, out, before);
 }
 
-/// Expire one due timer; repeat while due with `max_out` free slots. Wall never
+/// Expire one due timer; repeat while due and drain the outputs. Wall never
 /// pauses with progress credit.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
     let before = out.len();

@@ -220,7 +220,7 @@ impl Sinks {
     /// and the write deadline IO keeps on each destination.
     #[must_use]
     pub fn new(limits: &SinkLimits, capture: Capture, io_output: u32, write_deadline: Duration) -> Sinks {
-        assert!(sinks_worst_case(limits, capture).is_some(), "startup checked the sink's ownership bound");
+        valid(limits, capture).then_some(()).expect("startup checked sink validity");
         let line = limits.line_ceiling(capture).expect("startup checked the produced record bound");
         assert!(io_output > 0, "a destination can send at least one byte");
         Sinks {
@@ -1138,9 +1138,13 @@ pub(crate) fn largest_line(
     }
 }
 
-/// Peak heap of the destination queues and their bounded output, including codec construction.
+/// Whether receiving vocabulary and output credit fit (programming-model.md, 6.3).
 #[must_use]
-pub fn sinks_worst_case(limits: &SinkLimits, capture: Capture) -> Option<u64> {
+pub fn valid(limits: &SinkLimits, capture: Capture) -> bool {
+    receiving_valid(limits, capture).is_some()
+}
+
+fn receiving_valid(limits: &SinkLimits, capture: Capture) -> Option<()> {
     if limits.metadata_string > limits.records.string || limits.records.items < u32::try_from(TYPES).ok()? {
         return None;
     }
@@ -1149,28 +1153,11 @@ pub fn sinks_worst_case(limits: &SinkLimits, capture: Capture) -> Option<u64> {
             return None;
         }
     }
-    let line = limits.line_ceiling(capture)?;
+    limits.line_ceiling(capture)?;
     if limits.output < output_bound(limits, capture)? {
         return None;
     }
-    let writer = Queue::<Line>::worst_case(LINE_SLOTS)?.checked_add(u64::from(limits.output))?;
-    // The measured writer can retain its encoded body and final newline-owning line together.
-    List::<Writer>::worst_case(limits.destinations)?
-        .checked_add(u64::from(limits.destinations).checked_mul(writer)?)?
-        .checked_add(u64::from(line).checked_mul(2)?)?
-        .checked_add(List::<smith_events::Count>::worst_case(u32::try_from(TYPES).ok()?)?)?
-        .checked_add(emitted_names_bytes()?)?
-        .checked_add(Map::<Token, Record>::worst_case(limits.conversations)?)?
-        .checked_add(u64::from(limits.conversations).checked_mul(u64::from(limits.metadata_string).checked_mul(3)?)?)?
-        .checked_add(crate::responses::worst_case(limits.conversations, limits.metadata_string, limits.scalar_content)?)
-}
-
-fn emitted_names_bytes() -> Option<u64> {
-    let mut bytes = 0_u64;
-    for index in 0..TYPES {
-        bytes = bytes.checked_add(u64::try_from(names(index).len()).ok()?)?;
-    }
-    Some(bytes)
+    Some(())
 }
 
 fn authoritative_credit(limits: &SinkLimits, capture: Capture) -> Option<u32> {
@@ -1280,7 +1267,7 @@ pub(crate) mod tests {
         .unwrap();
         limits.output = authoritative.checked_mul(4).unwrap().checked_add(line.checked_mul(2).unwrap()).unwrap();
         assert!(limits.output < line.checked_mul(6).unwrap(), "ordinary identities do not enter authoritative records");
-        assert!(sinks_worst_case(&limits, Capture::Everything).is_some());
+        assert!(valid(&limits, Capture::Everything));
         let mut sinks = Sinks::new(&limits, Capture::Everything, 1, DEADLINE);
         sinks.add(Destination::Trace, Token::new(1), Delivery::Complete).unwrap();
         assert!(sinks.takes(), "two ordinary records and every authoritative record have separate reserved credit");
@@ -1360,16 +1347,35 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn invalid_limits_are_refused() {
+        let mut base = limits(1);
+        base.output = output_bound(&base, Capture::Calls).unwrap();
+        assert!(valid(&base, Capture::Calls));
+        for bounds in [
+            SinkLimits { metadata_string: base.records.string + 1, ..base },
+            SinkLimits { records: smith_events::Limits { items: 18, ..base.records }, ..base },
+            SinkLimits { records: smith_events::Limits { string: 18, ..base.records }, metadata_string: 18, ..base },
+            SinkLimits { scalar_content: u32::MAX, ..base },
+            SinkLimits { answer_bytes: u32::MAX, ..base },
+            SinkLimits { observation_line: u32::MAX, ..base },
+            SinkLimits { fact_extra: u32::MAX, ..base },
+            SinkLimits { output: base.output - 1, ..base },
+        ] {
+            assert!(!valid(&bounds, Capture::Calls), "{bounds:?}");
+        }
+    }
+
+    #[test]
     fn the_complete_emitted_vocabulary_must_fit_the_receiving_bounds() {
         let mut bounds = limits(1);
         bounds.records.string = 18;
         bounds.metadata_string = 18;
-        assert!(sinks_worst_case(&bounds, Capture::None).is_none());
+        assert!(!valid(&bounds, Capture::None));
         bounds.records.string = 19;
         bounds.metadata_string = 19;
-        assert!(sinks_worst_case(&bounds, Capture::None).is_some());
+        assert!(valid(&bounds, Capture::None));
         bounds.records.items = 17;
-        assert!(sinks_worst_case(&bounds, Capture::None).is_none());
+        assert!(!valid(&bounds, Capture::None));
     }
 
     #[test]

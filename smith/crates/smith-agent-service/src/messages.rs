@@ -68,19 +68,12 @@ fn slots(limits: &crate::Limits) -> Option<u32> {
     limits.channel.bodies.start_messages.checked_add(1)
 }
 
-pub(crate) fn worst_case(limits: &crate::Limits, capture: Capture) -> Option<u64> {
+/// Whether captured message slots fit (programming-model.md, 6.3).
+#[must_use]
+pub(crate) fn valid(limits: &crate::Limits, capture: Capture) -> bool {
     match capture {
-        Capture::None | Capture::Calls => Queue::<Message>::worst_case(0),
-        Capture::Everything => {
-            // One root entrance's facts drain before the next entrance. Start
-            // copies only its messages, never the charter or restore history.
-            let message = u64::from(limits.channel.bodies.message_label)
-                .checked_add(u64::from(limits.channel.bodies.message_text))?;
-            let initial = message
-                .checked_mul(u64::from(limits.channel.bodies.start_messages))?
-                .min(u64::from(limits.channel.start_bytes));
-            Queue::<Message>::worst_case(slots(limits)?)?.checked_add(initial.max(message))
-        }
+        Capture::None | Capture::Calls => true,
+        Capture::Everything => slots(limits).is_some(),
     }
 }
 
@@ -93,6 +86,16 @@ mod tests {
     )]
 
     use super::*;
+
+    #[test]
+    fn invalid_limits_are_refused() {
+        let mut limits = crate::service::tests::configuration().limits;
+        assert!(valid(&limits, Capture::Everything));
+        limits.channel.bodies.start_messages = u32::MAX;
+        assert!(!valid(&limits, Capture::Everything));
+        assert!(valid(&limits, Capture::None));
+        assert!(valid(&limits, Capture::Calls));
+    }
 
     #[test]
     fn repeated_names_keep_each_original_label_and_text_until_its_receipt() {

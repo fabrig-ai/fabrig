@@ -12,6 +12,12 @@ pub(super) struct Book {
     started: Map<Token, Time>,
 }
 
+/// Whether every owed program call can be named (programming-model.md, 6.3).
+#[must_use]
+pub(super) fn valid(limits: &session::Limits) -> bool {
+    limits.sessions.checked_mul(limits.completion_blocks).is_some()
+}
+
 impl Book {
     pub(super) fn new(limits: &session::Limits) -> Book {
         Book {
@@ -19,10 +25,6 @@ impl Book {
                 limits.sessions.checked_mul(limits.completion_blocks).expect("bounded owed program calls"),
             ),
         }
-    }
-
-    pub(super) fn worst_case(limits: &session::Limits) -> Option<u64> {
-        Map::<Token, Time>::worst_case(limits.sessions.checked_mul(limits.completion_blocks)?)
     }
 
     pub(super) fn fact(
@@ -98,5 +100,16 @@ impl Book {
         };
         sinks.record(&Record { t_ms: super::millis(fact.at, origin), event });
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn invalid_limits_are_refused() {
+        let mut limits = smith_agent_world::LIMITS.session;
+        assert!(super::valid(&limits));
+        limits.completion_blocks = u32::MAX;
+        assert!(!super::valid(&limits));
     }
 }

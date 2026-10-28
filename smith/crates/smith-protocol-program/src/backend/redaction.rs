@@ -12,8 +12,12 @@ pub(super) struct Carry {
 }
 
 pub(super) fn capacity(settings: &super::Settings) -> Option<u32> {
+    directory_capacity(settings.program.directory.len())
+}
+
+fn directory_capacity(length: usize) -> Option<u32> {
     // directory + optional slash + .runs/<32 hex bytes>/instructions.md.
-    u32::try_from(settings.program.directory.len()).ok()?.checked_add(55)?.max(64).checked_sub(1)
+    u32::try_from(length).ok()?.checked_add(55)?.max(64).checked_sub(1)
 }
 
 pub(super) fn carries(settings: &super::Settings) -> List<Carry> {
@@ -25,15 +29,6 @@ pub(super) fn carries(settings: &super::Settings) -> List<Carry> {
         );
     }
     carries
-}
-
-pub(super) fn worst_case(settings: &super::Settings) -> Option<u64> {
-    let carry = u64::from(capacity(settings)?);
-    List::<Carry>::worst_case(settings.receiving.max_completion_blocks)?
-        .checked_add(carry.checked_mul(u64::from(settings.receiving.max_completion_blocks))?)?
-        // Joining and emitting one delta can own two copies beside the carry.
-        .checked_add(u64::from(settings.adapter.client.answer).checked_mul(2)?)?
-        .checked_add(carry.checked_mul(3)?)
 }
 
 impl Backend {
@@ -96,5 +91,15 @@ impl Backend {
         for block in 0..self.delta_carry.len() {
             self.flush_delta(at, block);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn invalid_limits_are_refused() {
+        assert_eq!(super::directory_capacity(0), Some(63));
+        assert!(super::directory_capacity(usize::try_from(u32::MAX - 54).unwrap()).is_none());
+        assert!(super::directory_capacity(usize::MAX).is_none());
     }
 }

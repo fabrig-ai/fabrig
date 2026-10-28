@@ -133,34 +133,24 @@ pub(crate) fn bound(config: Option<&ProgramBackend>) -> Option<&ProgramBackend> 
     }
 }
 
-/// Additional complete ownership charged only for a program an endpoint names.
-/// Includes the protocol, queues, routes, file slots and native I/O growth (5.1).
+/// Whether a named program's settings and reserved service fit (programming-model.md, 6.3).
 #[must_use]
-pub fn program_worst_case(config: &Config) -> Option<u64> {
+pub fn program_valid(config: &Config) -> bool {
     let program = match bound(config.program.as_ref()) {
         Some(program) => program,
-        None => return Some(0),
+        None => return true,
     };
-    let settings = settings(program, &config.limits, &config.environment)?;
-    let reserved = reserved(&config.limits, &settings)?;
-    let io_growth = super::worst_case(&reserved, &config.llm_endpoints)?
-        .checked_sub(super::worst_case(&config.limits, &config.llm_endpoints)?)?;
-    backend::backend_worst_case(&settings)?
-        // Start directories are copied once; the policy borrows their host names.
-        .checked_add(u64::from(config.limits.machine.roots).checked_mul(
-            u64::try_from(size_of::<backend::Mount>()).ok()?.checked_add(u64::from(settings.path_bytes))?,
-        )?)?
-        .checked_add(io_growth)?
-        // The MCP connection and program input are two additional writers.
-        .checked_add(u64::from(reserved.io.output).checked_mul(2)?)?
-        .checked_add(Map::<Token, Token>::worst_case(5)?)?
-        .checked_add(u64::try_from(size_of::<Program>().checked_sub(size_of::<backend::Backend>())?).ok()?)?
-        .checked_add(
-            u64::try_from(size_of::<u32>())
-                .ok()?
-                .checked_mul(u64::try_from(program.endpoints.len()).ok()?)?
-                .checked_mul(2)?,
-        )
+    let settings = match settings(program, &config.limits, &config.environment) {
+        Some(settings) => settings,
+        None => return false,
+    };
+    let reserved = match reserved(&config.limits, &settings) {
+        Some(reserved) => reserved,
+        None => return false,
+    };
+    backend::backend_valid(&settings)
+        && super::valid(&config.limits, &config.llm_endpoints)
+        && super::valid(&reserved, &config.llm_endpoints)
 }
 
 /// Native operation route capacity after reserving the configured program's I/O.
@@ -183,7 +173,7 @@ fn new(
     limits: &mut Limits,
     environment: &smith_protocol_machine::Environment,
 ) -> Result<Box<Program>, ConfigError> {
-    let settings = settings(&config, limits, environment).ok_or(ConfigError::Memory)?;
+    let settings = settings(&config, limits, environment).ok_or(ConfigError::Limits)?;
     if config.entropy.len() != 32
         || !config.relay.starts_with(b"/")
         || config.relay.len() > 4096
@@ -193,20 +183,20 @@ fn new(
     {
         return Err(ConfigError::Io);
     }
-    *limits = reserved(limits, &settings).ok_or(ConfigError::Memory)?;
-    let process_slots = limits.machine.processes.checked_mul(3).ok_or(ConfigError::Memory)?;
+    *limits = reserved(limits, &settings).ok_or(ConfigError::Limits)?;
+    let process_slots = limits.machine.processes.checked_mul(3).ok_or(ConfigError::Limits)?;
     let minimum = limits
         .llm
         .connection
         .connections
         .checked_add(3)
-        .ok_or(ConfigError::Memory)?
+        .ok_or(ConfigError::Limits)?
         .checked_add(process_slots)
-        .ok_or(ConfigError::Memory)?
+        .ok_or(ConfigError::Limits)?
         .checked_add(IO_SLOTS)
-        .ok_or(ConfigError::Memory)?;
+        .ok_or(ConfigError::Limits)?;
     if limits.io.sockets < minimum
-        || limits.file_slots < limits.machine.roots.checked_add(FILE_SLOTS).ok_or(ConfigError::Memory)?
+        || limits.file_slots < limits.machine.roots.checked_add(FILE_SLOTS).ok_or(ConfigError::Limits)?
     {
         return Err(ConfigError::Io);
     }
@@ -700,5 +690,45 @@ mod tests {
         assert_eq!(received, entity);
         assert!(service.program.as_ref().expect("configured program").below.is_empty());
         assert_eq!(service.file_events.len(), 1, "file terminals still await their consumer");
+    }
+}
+
+#[cfg(test)]
+mod validity_tests {
+    use super::*;
+
+    fn configuration() -> Config {
+        let mut config = crate::service::tests::configuration();
+        config.program = Some(ProgramBackend {
+            program: Programs {
+                claude: Box::from(b"/claude".as_slice()),
+                directory: Box::from(b"/programs".as_slice()),
+            },
+            endpoints: Box::new([0]),
+            relay: Box::from(b"/agent".as_slice()),
+            entropy: Secret::new(Box::new([7; 32])),
+            effective_user: 1000,
+        });
+        config
+    }
+
+    #[test]
+    fn invalid_limits_are_refused() {
+        assert!(program_valid(&crate::service::tests::configuration()));
+        assert!(program_valid(&configuration()));
+        for case in 0_u8..7 {
+            let mut config = configuration();
+            match case {
+                0 => config.limits.llm.contract_bytes = u64::MAX,
+                1 => config.limits.io.sockets = u32::MAX,
+                2 => config.limits.file_slots = u32::MAX,
+                3 => config.limits.domain.session.tools.host_path_bytes = u32::MAX,
+                4 => config.limits.domain.run.conversations = u32::MAX,
+                5 => config.limits.io.receive += 1,
+                6 => config.limits.io.sockets = u32::MAX / 8 - 10,
+                _ => unreachable!(),
+            }
+            assert!(!program_valid(&config), "invalid program case {case}");
+        }
     }
 }
