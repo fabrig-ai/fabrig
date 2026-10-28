@@ -255,15 +255,15 @@ step its last answer arrives.
   which makes every earlier one durable too.
 - **The state runs ahead.** A child's state changes as the decision is
   made, not when it commits, so the next decision sees it.
-- **Commits in flight are bounded,** and the store's answers are always
-  taken, so the bound never stops the answer that frees it. Past the
-  bound, a decision that would need a commit is not taken, and what asked
-  for it is told so: a party's request is answered busy; a run's tool
-  call is answered busy, and the run asks it again after a backoff
-  (smith's `domain/run.md`, 5.2); a turn or an answer is answered busy,
-  and its host sends it again after a backoff; a connector keeps its
-  events and its outbox's outcomes until there is room. The journal says
-  whether there is room before any child changes (root.md, section 4).
+- **New work is paced by the root's watermark.** The backlog counts the
+  journal's commits and outputs, the root's work and its queued store
+  answers (root.md, sections 3, 4 and 10). What finishes admitted work,
+  including the store's answers, is always taken. New external work
+  past the watermark is handed back before any child changes; its
+  sender keeps it and offers it again. No route reserves journal room.
+  The core's `route_bound(&Limits)` is one number for pricing and
+  capacities only, never admission. A commit's write limit remains the
+  store's edge (programming-model.md, 7.1).
 - **A failed commit stops the engine** (core.md, section 4). Nothing
   waiting for that commit, or any later one, goes out. A restart starts
   from the last durable commit.
@@ -2178,7 +2178,7 @@ Its code comes after the rest (`../STATUS.md`).
   history's extent, the oldest revision it holds, among the live
   settings. Each commit that makes a revision, and a start whose history
   limit was lowered, erases from the oldest up to the limit's cutoff,
-  within the room the journal gives one commit, and records the new
+  within the settings commit's write budget, and records the new
   oldest. A revision below the cutoff is answered as forgotten even while
   a row that commit had no room for remains; later revisions' commits
   erase the rest.
@@ -2233,8 +2233,10 @@ Its code comes after the rest (`../STATUS.md`).
   the tasks child's and the fleet's tables are sized for the charters
   and the versions together: the tasks child's for twice the charters
   and every version. A release's decision adds two journal writes per
-  held revision, one per charter version and one more, which the
-  journal's room per commit prices.
+  held revision, one per charter version and one more. The settings
+  restore's `SettingsCommit { room }` carries its write budget, not a
+  per-event journal reservation; the commit stays within the store's
+  write limit.
 - **The current settings** cost the defaults and the changes, each
   within its kind's bounds (17.1): at most two whole sets, priced so;
   of an application's kinds, the core prices only what it keeps of
