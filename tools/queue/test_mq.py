@@ -25,13 +25,31 @@ LOADER.exec_module(mq)
 def metadata(root=Path("/workspace")):
     names = ("core", "normal", "build", "dev", "transitive", "unrelated", "always", "nested")
     names += tuple(mq.lines(DIRECTORY / "always.txt"))
-    packages = [{"id": name, "name": name, "manifest_path": str(root / name / "Cargo.toml")}
+    packages = [{"id": name, "name": name, "version": "1.0.0", "source": None,
+                 "manifest_path": str(root / name / "Cargo.toml")}
                 for name in names]
     packages[7]["manifest_path"] = str(root / "core/examples/nested/Cargo.toml")
     edges = {"normal": ["core"], "build": ["core"], "dev": ["core"], "transitive": ["dev"]}
     return {"workspace_root": str(root), "workspace_members": list(names), "packages": packages,
             "resolve": {"nodes": [{"id": name, "dependencies": edges.get(name, [])}
                                    for name in names]}}
+
+
+def lockfile(packages):
+    return "version = 4\n" + "".join(
+        "\n[[package]]\n" + "\n".join(f"{key} = {json.dumps(value)}" for key, value in package.items()) + "\n"
+        for package in packages)
+
+
+def resolved_metadata(root=Path("/workspace")):
+    data = metadata(root)
+    data["packages"] += [
+        {"id": "external", "name": "external", "version": "2.0.0", "source": "registry+fixture"},
+        {"id": "middle", "name": "middle", "version": "1.0.0", "source": "registry+fixture"}]
+    data["resolve"]["nodes"][0]["dependencies"] = ["middle"]
+    data["resolve"]["nodes"] += [{"id": "middle", "dependencies": ["external"]},
+                                   {"id": "external", "dependencies": []}]
+    return data
 
 
 class SelectionTests(unittest.TestCase):
@@ -50,11 +68,61 @@ class SelectionTests(unittest.TestCase):
     def test_longest_manifest_directory_owns_the_change(self):
         self.assertEqual(self.select(["core/examples/nested/src/lib.rs"]), {"nested", "always"})
 
-    def test_manifest_lock_config_script_fixture_and_unknown_select_full(self):
-        for path in ("Cargo.toml", "Cargo.lock", ".config/nextest.toml", "core/Cargo.toml",
+    def test_global_config_script_fixture_and_unknown_select_full(self):
+        for path in ("Cargo.toml", ".config/nextest.toml", "rust-toolchain.toml", "rust-toolchain",
+                     "rustfmt.toml", "core/clippy.toml", "core/src/rustfmt.toml",
                      "core/scripts/check.py", "core/fixtures/input", "outside/source.rs"):
             with self.subTest(path=path):
                 self.assertEqual(self.select([path]), "full")
+
+    def test_member_manifest_selects_owner_and_reverse_closure(self):
+        self.assertEqual(self.select(["core/Cargo.toml"]),
+                         {"core", "normal", "build", "dev", "transitive", "always"})
+
+    def test_lock_change_reaches_workspace_through_external_dependencies(self):
+        before = lockfile([{"name": "external", "version": "1.0.0", "source": "registry+fixture"}])
+        after = lockfile([{"name": "external", "version": "2.0.0", "source": "registry+fixture"}])
+        data = resolved_metadata()
+        changed = mq.lock_changes(before, after, data)
+        self.assertEqual(mq.selection(["Cargo.lock"], data, always=["always"], locked=changed),
+                         {"core", "normal", "build", "dev", "transitive", "always"})
+
+    def test_lock_entry_fields_select_and_checksum_and_order_do_not(self):
+        base = {"name": "external", "version": "2.0.0", "source": "registry+fixture",
+                "dependencies": ["one", "two"], "checksum": "before"}
+        rows = [({"version": "1.0.0"}, {"external"}),
+                ({"source": "git+fixture"}, {"external"}),
+                ({"name": "other"}, {"external"}),
+                ({"dependencies": ["one"]}, {"external"}),
+                ({"checksum": "after", "dependencies": ["two", "one"]}, set())]
+        for updates, expected in rows:
+            with self.subTest(updates=updates):
+                self.assertEqual(mq.lock_changes(lockfile([{**base, **updates}]), lockfile([base]),
+                                                 resolved_metadata()), expected)
+
+    def test_removed_dependency_selects_parent_and_added_package_selects_itself(self):
+        rows = [([{"name": "core", "version": "1.0.0", "dependencies": ["removed"]},
+                  {"name": "removed", "version": "1.0.0"}],
+                 [{"name": "core", "version": "1.0.0"}], {"core"}),
+                ([], [{"name": "unrelated", "version": "1.0.0"}], {"unrelated"})]
+        for before, after, expected in rows:
+            with self.subTest(after=after):
+                self.assertEqual(mq.lock_changes(lockfile(before), lockfile(after), metadata()), expected)
+
+    def test_duplicate_versions_and_sources_select_only_matching_node(self):
+        data = resolved_metadata()
+        data["packages"] += [{"id": "other-version", "name": "external", "version": "1.0.0",
+                               "source": "registry+fixture"},
+                              {"id": "other-source", "name": "external", "version": "2.0.0",
+                               "source": "git+fixture"}]
+        entry = {"name": "external", "version": "2.0.0", "source": "registry+fixture"}
+        self.assertEqual(mq.lock_changes(lockfile([]), lockfile([entry]), data), {"external"})
+
+    def test_lock_requires_comparison_and_unchanged_lock_keeps_always(self):
+        with self.assertRaisesRegex(ValueError, "base and HEAD"):
+            self.select(["Cargo.lock"])
+        self.assertEqual(mq.selection(["Cargo.lock"], metadata(), always=["always"], locked=set()),
+                         {"always"})
 
     def test_markdown_outside_test_inputs_is_docs(self):
         self.assertEqual(self.select(["README.md", "docs/guide.md"]), "docs")
@@ -542,6 +610,44 @@ baseline.write_text(str(count) + '\n')
         queue.metadata_loader = no_metadata
         self.run_cycle(queue)
         self.assertEqual(self.checks[0][0], "full")
+
+    def test_lock_batch_uses_base_blob_and_merged_head_without_checkout(self):
+        self.write("Cargo.lock", lockfile([{"name": "external", "version": "1.0.0",
+                                            "source": "registry+fixture"}]))
+        self.commit("base lock")
+        self.base = self.tip()
+        mq.git(self.repo, "push", "origin", "HEAD:main")
+        mq.git(self.repo, "fetch", "origin")
+        self.branch("lock", "Cargo.lock", lockfile([{"name": "external", "version": "2.0.0",
+                                                      "source": "registry+fixture"}]), publish=True)
+        queue = self.queue(now=lambda: 10000)
+        queue.state["last_full"] = 9999
+        loaded = []
+
+        def loader(repo):
+            loaded.append(self.tip())
+            return resolved_metadata(repo)
+
+        queue.metadata_loader = loader
+        self.run_cycle(queue)
+        self.assertEqual(loaded, [self.checks[0][2]])
+        self.assertEqual(self.records()[0]["selection"], sorted(
+            {"core", "normal", "build", "dev", "transitive"} | set(mq.lines(DIRECTORY / "always.txt"))))
+        self.assertEqual(self.records()[0]["changed_paths"], ["Cargo.lock"])
+
+    def test_recent_batch_shape_fixtures_select_instead_of_forcing_full(self):
+        # The task describes eight lock/manifest/source batches; exact logs are not supplied.
+        fixture_count = 8
+        records = [{"selection": "full", "changed_paths": ["Cargo.lock", "core/Cargo.toml", "core/src/lib.rs"]}
+                   for _ in range(fixture_count)]
+        fixture = self.directory / "recent-batches.jsonl"
+        fixture.write_text("".join(json.dumps(record) + "\n" for record in records))
+        selections = [mq.selection(json.loads(line)["changed_paths"], resolved_metadata(),
+                                   locked={"external"}, always=["always"])
+                      for line in fixture.read_text().splitlines()]
+        self.assertEqual(sum(isinstance(selected, set) for selected in selections), fixture_count)
+        self.assertTrue(all(selected == {"core", "normal", "build", "dev", "transitive", "always"}
+                            for selected in selections))
 
     def test_full_failure_is_bisected_with_full_checks(self):
         self.branch("a", "core/src/good.rs", publish=True)

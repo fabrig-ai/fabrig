@@ -6,7 +6,7 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 
 - **Input:** remote branches `ready/<lead>/<task>` on `origin`, each pushed by its lead.
 - **A batch:** from `origin/main`, the ready branches not yet tried at their current tip, oldest tip first, at most `batch` (8) of them, each merged with `git merge --no-ff -m "Merge <branch name>"`; ratchet-only conflicts are resolved by recounting against HEAD (section 3.3); any other conflict is aborted, reported, and left out.
-- **The checks run on a selection** (section 2), not always the whole workspace: `cargo fmt --check`, clippy with `-D warnings`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet), all through `heavy --gate` on the gate machine, which nothing else builds on.
+- **The checks run on a selection** (section 2), not always the whole workspace: `cargo fmt --check`, clippy with `-D warnings`, the focused (`default`) and `fuzzy` nextest profiles, and each tree's `scripts/old_forms.py` (the ratchet). Build and test commands run through `heavy --gate` on the gate machine, which nothing else builds on. Lockfile and member manifest changes select affected packages (section 2.1).
 - **Green:** `git push origin HEAD:main` (fast-forward only); the batch's `ready/` branches are deleted; each lead is told which commit holds its task.
 - **Red:** a batch of one is rejected (its lead gets the failing step and the log's path, and the branch isn't retried until its tip changes); a larger batch is halved and each half tried from `main`, recursively, so the green branches still land.
 - **Capacity refusal:** a heavy exit 2 containing `below the disk floor` is an error, with no rejection or bisection. Before every batch, free space below `--disk-floor` (45 GB by default) defers work to the next cycle.
@@ -17,10 +17,25 @@ Provisional, 2026-10-28. How a branch reaches `main`: a script on the gate machi
 ## 2. The selection
 
 1. **Changed paths:** `git diff --name-only origin/main...HEAD` for the batch.
-2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/` and `build.rs` (manifests, `Cargo.lock`, `.config/`, scripts, docs read by tests, fixtures), or every `full_every` (5) batches, or when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
+2. **Everything** when a changed path is outside every package's `src/`, `tests/`, `benches/`, `examples/`, `build.rs` and member `Cargo.toml`, except the root `Cargo.lock` (section 2.1). The root `Cargo.toml`, `.config/`, `rust-toolchain*`, `rustfmt.toml`, `clippy.toml`, scripts, docs read by tests, and fixtures force everything. Also run everything every `full_every` (5) batches, when the last full run is older than an hour, or when the gate machine has been idle for 10 minutes and main has changed since the last full run.
 3. **Otherwise,** the packages that own a changed path (the longest manifest directory that prefixes it, from `cargo metadata --no-deps`), their reverse dependencies' closure (normal, build and dev dependencies, from `cargo metadata`'s resolve graph), and the packages listed in `tools/queue/always.txt` (tests that read files by path).
 4. **Docs read by tests** are globs in `tools/queue/read-by-tests.txt`; a Markdown-only batch that matches none of them is docs-only (section 1).
 5. A full run that fails where the selections before it passed points at a gap in `always.txt` or `read-by-tests.txt`: the queue reports it to the coordinator.
+
+### 2.1 Lockfiles and member manifests
+
+A member's `Cargo.toml` selects its owner and reverse dependencies just as a
+source change does. For `Cargo.lock`, read `origin/main:Cargo.lock` and
+`HEAD:Cargo.lock` with `git show`, without checking out the base. Compare
+entries by name, version, source, and sorted dependencies; checksums and entry
+order do not select packages. Added and removed entries count as changes.
+Match changed entries to the batch HEAD's resolved package IDs by name,
+version, and source. Follow reverse edges through all resolved dependencies,
+including external packages, and retain workspace members plus `always.txt`.
+A removed dependency selects the parent whose lock entry drops that edge;
+an unreachable removed entry selects no HEAD package. Normal, build, and dev
+edges all participate. Periodic, hourly, and idle full checks remain unchanged.
+Python 3.11 or later supplies the standard library TOML parser.
 
 ## 3. Running it
 

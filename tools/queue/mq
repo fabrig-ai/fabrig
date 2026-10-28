@@ -16,6 +16,7 @@ import stat
 import subprocess
 import sys
 import time
+import tomllib
 import uuid
 
 
@@ -118,11 +119,34 @@ def build_batch(repo, branches, base="origin/main"):
 
 
 def full_inputs(paths):
-    return any(PurePosixPath(path).name in ("Cargo.toml", "Cargo.lock") or
+    return any(path == "Cargo.toml" or
+               PurePosixPath(path).name in ("rustfmt.toml", "clippy.toml") or
+               PurePosixPath(path).name.startswith("rust-toolchain") or
                ".config" in PurePosixPath(path).parts for path in paths)
 
 
-def selection(changed_paths, metadata, *, always=None, read_by_tests=None):
+def package_owners(metadata):
+    root = Path(metadata["workspace_root"])
+    members = set(metadata["workspace_members"])
+    owners = [(PurePosixPath(Path(package["manifest_path"]).parent.relative_to(root).as_posix()),
+               package["id"]) for package in metadata["packages"] if package["id"] in members]
+    return sorted(owners, key=lambda owner: len(owner[0].parts), reverse=True)
+
+
+def lock_changes(base, head, metadata):
+    """Map changed lock entries to HEAD resolve IDs (design.md, 2.1)."""
+    def entries(document):
+        return {(package["name"], package["version"], package.get("source")):
+                tuple(sorted(package.get("dependencies", [])))
+                for package in tomllib.loads(document).get("package", [])}
+
+    before, after = entries(base), entries(head)
+    changed = {key for key in before.keys() | after.keys() if before.get(key) != after.get(key)}
+    return {package["id"] for package in metadata["packages"]
+            if (package["name"], package["version"], package.get("source")) in changed}
+
+
+def selection(changed_paths, metadata, *, always=None, read_by_tests=None, locked=None):
     """Choose docs, full, or owners plus reverse dependencies (design.md, 2)."""
     paths = list(changed_paths)
     if full_inputs(paths):
@@ -134,22 +158,22 @@ def selection(changed_paths, metadata, *, always=None, read_by_tests=None):
         return "docs"
     if not paths:
         return "docs"
-    root = Path(metadata["workspace_root"])
     members = set(metadata["workspace_members"])
     packages = {p["id"]: p for p in metadata["packages"] if p["id"] in members}
-    owners = []
-    for package in packages.values():
-        directory = Path(package["manifest_path"]).parent.relative_to(root).as_posix()
-        owners.append((PurePosixPath(directory), package["id"]))
-    owners.sort(key=lambda owner: len(owner[0].parts), reverse=True)
+    owners = package_owners(metadata)
     selected = set()
     for path in paths:
+        if path == "Cargo.lock":
+            if locked is None:
+                raise ValueError("lockfile selection requires base and HEAD lock entries")
+            selected.update(locked)
+            continue
         for directory, package_id in owners:
             try:
                 local = PurePosixPath(path).relative_to(directory)
             except ValueError:
                 continue
-            if local.as_posix() == "build.rs" or (len(local.parts) > 1 and local.parts[0] in
+            if local.as_posix() in ("Cargo.toml", "build.rs") or (len(local.parts) > 1 and local.parts[0] in
                                                    ("src", "tests", "benches", "examples")):
                 selected.add(package_id)
                 break
@@ -159,18 +183,16 @@ def selection(changed_paths, metadata, *, always=None, read_by_tests=None):
     resolve = metadata.get("resolve")
     if resolve is None:
         raise ValueError("package selection requires cargo metadata's resolve graph")
-    reverse = {package_id: set() for package_id in packages}
+    reverse = {node["id"]: set() for node in resolve["nodes"]}
     for node in resolve["nodes"]:
-        if node["id"] in packages:
-            for dependency in node["dependencies"]:
-                if dependency in reverse:
-                    reverse[dependency].add(node["id"])
+        for dependency in node["dependencies"]:
+            reverse[dependency].add(node["id"])
     pending = list(selected)
     while pending:
         for dependent in reverse[pending.pop()] - selected:
             selected.add(dependent)
             pending.append(dependent)
-    names = {packages[package_id]["name"] for package_id in selected}
+    names = {packages[package_id]["name"] for package_id in selected if package_id in packages}
     always = lines(CONFIG / "always.txt") if always is None else always
     available = {package["name"] for package in packages.values()}
     missing = set(always) - available
@@ -186,6 +208,7 @@ def load_metadata(repo):
     resolved = json.loads(command(["cargo", "metadata", "--format-version", "1", "--locked"],
                                  repo, separate_stderr=True).stdout)
     metadata["resolve"] = resolved["resolve"]
+    metadata["packages"] = resolved["packages"]
     return metadata
 
 
@@ -386,7 +409,13 @@ class Queue:
             return "full"
         if not paths or all(path.endswith(".md") for path in paths):
             return selection(paths, {})
-        return selection(paths, self.metadata_loader(self.repo))
+        metadata = self.metadata_loader(self.repo)
+        locked = None
+        if "Cargo.lock" in paths:
+            base = git(self.repo, "show", "origin/main:Cargo.lock").stdout
+            head = git(self.repo, "show", "HEAD:Cargo.lock").stdout
+            locked = lock_changes(base, head, metadata)
+        return selection(paths, metadata, locked=locked)
 
     def notify(self, record, lead, subject, body):
         if self.dry:
