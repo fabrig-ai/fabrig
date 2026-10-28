@@ -730,8 +730,9 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   schema family for all its records, so any patch of temper's refuses
   while one is there, whichever record it changes: a crash or a stop
   past its bound is rare, and the remedy is one more settled stop. The
-  forge's restore refuses a `Flight` row whose entry it does not hold,
-  as any record naming what the restart lacks (`root.md`, 9.1).
+  forge's restore links a `Flight` row to its entry, and one whose entry
+  it does not hold is a writer's bug, a link that cannot be made, which
+  panics (`root.md`, 9.1; jig's `domain/engine.md`, section 6).
 - **Classes follow what the forges offer** (skein's `forge-client.md`,
   section 7.3; the facts, skein's `forge.md`, section 9, and
   `forge-github.md`, section 13). Neither Forgejo nor GitHub keeps a
