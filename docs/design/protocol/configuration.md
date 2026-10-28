@@ -1651,7 +1651,13 @@ into the binary.
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, raise `authority.executors` and
   `tasks.executor_kinds` to 8 (small's 4), since the stock delegates to
-  five executors, charters 1 to 4 and the change procedure; and
+  five executors, charters 1 to 4 and the change procedure;
+  `clients.streams` and `clients_http.streams` to 8 (small's 2), since
+  every `temper ctl` call holds a stream and a wait holds it for the
+  wait, so a person and a walk hold three to five at once (QA
+  20261028-0835-temper finding 2), their memory measured against the
+  declarations, the largest that fits taken if 8 does not and a rise
+  the user's; and
   `tasks.inbox_bytes` to 12,288, so that a goal that asked a question
   holds its news slot and an answer slot (two messages), four live
   delegates' 512 bytes each and one unread result (10,752 in all),
