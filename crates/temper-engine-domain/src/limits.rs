@@ -26,11 +26,11 @@ pub const FACTS: u32 = 32;
 pub const TRANSCRIPT_TAIL_BYTES: u32 = 2048;
 
 /// Root startup bounds, supplied by configuration and immutable at every step
-/// (domain/root.md, 10). `worst_case` checks the cross-child route, page,
-/// and payload capacities before `Domain::new` allocates participating state.
+/// (domain/root.md, 10). `worst_case` checks child slabs, edges and payload
+/// capacities and prices the root's internal queues as estimates.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
-    /// Ordered commit/write/delivery room, including all synchronous child routes.
+    /// Admission watermark, per-commit store edges and journal memory estimates.
     pub journal: JournalLimits,
     /// Paged store reads; every startup page must fit whole.
     pub loads: loads::Limits,
@@ -215,7 +215,13 @@ pub(crate) fn watermark(limits: &Limits) -> u64 {
 /// What the root holds of admitted work, in entries (the draft's 4.1):
 /// the journal's backlog, the work queue and the queued store answers.
 pub(crate) fn backlog(domain: &Domain) -> u64 {
-    domain.journal.backlog() + u64::from(domain.work.len()) + u64::from(domain.store_answers.len())
+    domain
+        .journal
+        .backlog()
+        .checked_add(u64::from(domain.work.len()))
+        .expect("four u32 queue counts fit in u64")
+        .checked_add(u64::from(domain.store_answers.len()))
+        .expect("five u32 queue counts fit in u64")
 }
 
 /// Count participating child state, fixed handoffs, decoded input and all simultaneously retained
@@ -374,7 +380,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
                     .checked_add(u64::from(limits.loads.rows).checked_mul(u64::from(TRANSCRIPT_TAIL_BYTES))?)?,
             )?,
         )?
-        // Read answers that waited for journal room.
+        // Read answers that waited behind earlier admitted work.
         .checked_add(Queue::<Event>::worst_case(limits.loads.loads)?)?
         .checked_add(
             u64::from(limits.loads.loads)

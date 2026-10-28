@@ -15,9 +15,9 @@ use skein_lib::{Env, Queue, Token};
 use temper_engine_domain_forge as forge;
 
 /// Store terminals always open a decision, including the cold restore route.
-pub(crate) fn load_decision(domain: &mut Domain, limits: &Limits) -> Option<Decision> {
+pub(crate) fn load_decision(domain: &mut Domain, limits: &Limits) -> Decision {
     domain.settled = None;
-    Some(Decision::decide(&mut domain.journal, &limits.journal))
+    Decision::decide(&mut domain.journal, &limits.journal)
 }
 
 pub(crate) fn accept_load(domain: &mut Domain, env: &Env<Limits>, decision: Option<Decision>) {

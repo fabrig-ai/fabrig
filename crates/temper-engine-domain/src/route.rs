@@ -189,7 +189,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             return;
         }
         Event::Store(crate::StoreInput::Loaded { owner, rows, next, texts }) => {
-            let mut decision = Some(load_decision(domain, &env.limits).expect("load terminal route room"));
+            let mut decision = Some(load_decision(domain, &env.limits));
             let mut load_out = Queue::with_capacity(1);
             loads::loaded(&mut domain.loads, owner, rows, next, &mut load_out);
             load_outputs(domain, env, &mut load_out, texts, &mut decision, out);
@@ -197,7 +197,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             return;
         }
         Event::Store(crate::StoreInput::Unloaded { owner }) => {
-            let mut decision = Some(load_decision(domain, &env.limits).expect("load terminal route room"));
+            let mut decision = Some(load_decision(domain, &env.limits));
             let mut load_out = Queue::with_capacity(1);
             loads::unloaded(&mut domain.loads, owner, &mut load_out);
             load_outputs(domain, env, &mut load_out, None, &mut decision, out);

@@ -616,7 +616,7 @@ fn finish_close(
         && domain.work.is_empty()
         && domain.store_answers.is_empty()
         && out.is_empty();
-    if finishing_only {
+    if finishing_only && !decision.overrun() {
         assert!(decision.write_free() && !domain.core.counters.dirty(), "stopping finishing makes no commit");
     }
     crate::decision::accept_routed(

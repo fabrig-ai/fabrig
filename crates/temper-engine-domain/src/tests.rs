@@ -384,12 +384,6 @@ fn a_root_store_edge_overrun_releases_only_stop_and_discards_immediate_outputs()
 fn new_work_waits_at_the_watermark_and_admitted_work_is_always_taken() {
     use crate::{Event, PartyInput, StoreInput};
     use skein_lib::{ReplyTo, Token};
-    let (mut domain, env) = resume_fixture::root();
-    // Header-only commits give an exact backlog without held-output entries.
-    for _ in 0..crate::limits::watermark(&env.limits) - 1 {
-        crate::fresh(&mut domain.core.counters, Family::Message).unwrap();
-        crate::try_step(&mut domain, &env, Event::Resume).unwrap();
-    }
     fn call() -> Event {
         Event::Party(PartyInput::Ask {
             models: Box::new([]),
@@ -398,6 +392,12 @@ fn new_work_waits_at_the_watermark_and_admitted_work_is_always_taken() {
             key: [7; 16],
             ask: jig_domain_people::Ask::SetRoles { project: 1, holdings: Box::new([]) },
         })
+    }
+    let (mut domain, env) = resume_fixture::root();
+    // Header-only commits give an exact backlog without held-output entries.
+    for _ in 0..crate::limits::watermark(&env.limits) - 1 {
+        crate::fresh(&mut domain.core.counters, Family::Message).unwrap();
+        crate::try_step(&mut domain, &env, Event::Resume).unwrap();
     }
     assert_eq!(crate::limits::backlog(&domain), crate::limits::watermark(&env.limits) - 1);
     crate::try_step(&mut domain, &env, call()).expect("below the watermark the call is taken");

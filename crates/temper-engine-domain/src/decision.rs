@@ -5,7 +5,7 @@
 //! numbers. Neither knows child policy, worker placement, store encoding or IO;
 //! the walking root routes internal deliveries.
 //!
-//! Reserve a decision before child mutation, then call [`accept_pending`] once
+//! Open a decision before child mutation, then call [`accept_pending`] once
 //! synchronous routes finish. The store answers issued commits through [`committed`] or
 //! [`uncommitted`]; [`resume`] releases at most one ready delivery. Refused
 //! admission returns ownership, successful admission may emit one commit, and
@@ -20,22 +20,20 @@ use skein_lib::{
     Decision as SkeinDecision, Journal as SkeinJournal, JournalLimits, JournalRoom, List, Queue, ReplyTo, Token,
 };
 
-/// Startup capacities supplied by the root, immutable across journal calls
-/// (domain/root.md, 4 and 10). Positive commit/write/delivery room and a held
-/// queue at least as large as one delivery batch are required.
+/// Store edges and memory estimates supplied by the root, immutable across
+/// journal calls (domain/root.md, 4 and 10). The root reuses `commits` as its
+/// admission watermark; its journal is uncapped.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
-    /// Maximum issued commits not yet cumulatively answered; saturation refuses a new decision
-    /// before children change.
+    /// Root admission watermark in backlog entries; also the journal's commit
+    /// count estimate for memory pricing.
     pub commits: u32,
-    /// Delivery slots retained across decisions until durability permits release; the walking root
-    /// reserves additional callback batches.
+    /// Estimate of deliveries held across decisions until durability permits release.
     pub held: u32,
     /// Maximum unique writes per commit, including its automatically saved deployment header; a
     /// decision has one fewer slot.
     pub writes: u32,
-    /// Maximum owned deliveries in one decision; admission requires this much held room before
-    /// routing.
+    /// Maximum owned deliveries in one decision's store-edge buffers.
     pub deliveries: u32,
     /// Maximum transcript bytes or deep owned bytes in a wrapped child row; excess writes return
     /// ownership.
@@ -258,10 +256,14 @@ pub struct Decision {
     batch: Option<SkeinDecision<Write, crate::Output>>,
 }
 
-/// skein-lib's bounded commit barrier, over the root's wrapped writes and outputs.
+/// skein-lib's commit barrier, over the root's wrapped writes and outputs.
 pub type Journal = SkeinJournal<Write, crate::Output>;
 
 impl Decision {
+    pub(crate) fn overrun(&self) -> bool {
+        self.overrun
+    }
+
     pub(crate) fn write_free(&self) -> bool {
         !self.overrun && self.writes.is_empty()
     }
@@ -534,22 +536,22 @@ pub const fn journal_limits(limits: &Limits) -> JournalLimits {
     }
 }
 
-/// Reserve the worst-case write and held room for one root route.
+/// Legacy capped-journal seam: the whole write and held room of one decision.
 #[must_use]
 pub const fn room(limits: &Limits) -> JournalRoom {
     JournalRoom { writes: limits.writes, held: limits.deliveries }
 }
 
-/// Called before routing anything that may mutate a child. Reserving the whole decision avoids
-/// partially applying a child and discovering pressure. Pure query for one journal batch, with no
-/// mutation or emitted terminal; the walking root additionally reserves callback room.
+/// Legacy capped-journal seam used by the domain world's memory tests. The
+/// walking root admits by backlog and opens decisions with `Decision::decide`.
 #[must_use]
 pub fn takes(journal: &Journal, limits: &Limits) -> bool {
     journal.takes(&room(limits))
 }
 
-/// Return ownership on refusal. The root must call `takes` before making the decision; this
-/// defensive check does not undo already-routed children. A dirty header or
+/// Accept an opened decision, or return ownership when a detached `Decision::new`
+/// fails the legacy capped-journal preflight. That check cannot undo routed children.
+/// A dirty header or
 /// nonempty write set produces one atomic commit, ended by the store; a read-only decision issues
 /// none. Every retained delivery follows the latest allocated commit.
 #[expect(clippy::result_large_err, reason = "refused root decisions return all owned writes and outputs")]
