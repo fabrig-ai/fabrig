@@ -14,6 +14,10 @@
 #   jig:    package(/^jig(-|$)/)
 #   temper: package(/^temper(-|$)/), and git-transcripts
 #
+# and the repository's own checks, under tests/ at the root:
+#
+#   fabrig: package(=fabrig-boundary)
+#
 # Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
 # at the user's request on 10-22; the workspace's is their sum, until the
 # suites are timed together. Slow periods only flag a test SLOW as it runs
@@ -39,7 +43,7 @@ default-filter = """
   & not test(/^tests::sign_in::fuzzy_/) & not binary(/^fuzzy_/)
   & not binary(/^(process|live|live_github)$/)
   & not binary(/^qa_/) & not test(/::qa_/) & not binary(/^browser_/)
-)
+) | package(=fabrig-boundary)
 """
 global-timeout = "120s"
 slow-timeout = { period = "6s" }

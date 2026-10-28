@@ -280,6 +280,7 @@ members = [
     "temper/tests/engine/forge",
     "temper/tests/worker/checkout",
     "temper/tests/worker/domain",
+    "tests/boundary",
 ]
 
 [workspace.package]
