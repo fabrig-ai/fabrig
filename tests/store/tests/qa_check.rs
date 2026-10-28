@@ -77,7 +77,6 @@ fn tokens_at_bounds_keep_numbers_across_many_pages() {
     let last = world.open_switched().expect("tokens patch with their map's bounds");
     patches::whole(&mut world);
     patches::kept(&before, &patches::source(&mut world), &"tokens");
-    records.check(&mut world, 2, &"both token bounds and number bounds");
     assert_eq!(
         patches::counts(&mut world),
         vec![
@@ -94,7 +93,9 @@ fn tokens_at_bounds_keep_numbers_across_many_pages() {
         panic!("deployment header");
     };
     assert_eq!(header.commits, last);
-    assert_eq!(world.commit(Box::new([jig_protocol_store::Write::Save(root::header(last + 1))])), Some(last + 1));
+    // The start's wires follow the sealing commit (store.md 10.2, step 8).
+    assert_eq!(world.mark(), Some(last + 1));
+    records.check(&mut world, 2, &"both token bounds and number bounds");
     world.crash(SEED);
     world.reopen();
     records.check(&mut world, 2, &"restart at patched levels");
