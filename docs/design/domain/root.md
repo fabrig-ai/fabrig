@@ -873,10 +873,13 @@ Startup also checks the seed policy after enforced landing requirements are join
   6).
 - **The root's own,** `root.` in temper's limits
   (`../protocol/configuration.md`, section 7):
-  - the journal (`JournalLimits`): commits in flight and the door's
-    outputs, which give the watermark; a row's bytes, a result's bytes
-    and a charter's bytes, which size the store's records (edges); the
-    journal itself, its decisions and its held outputs are uncapped;
+  - the journal (`JournalLimits`): commits in flight, which is the
+    store's edge (jig's store queues that many commits, so the root sends
+    a commit only while fewer are in flight, the store's credit, and the
+    rest wait in the journal); with the door's outputs, it gives the
+    watermark; a row's bytes, a result's bytes and a charter's bytes,
+    which size the store's records (edges); the journal itself, its
+    decisions and its held outputs are uncapped;
   - loads: in flight, rows per page, the bytes kept and a page's bytes;
   - briefs: gathers, sections per gather, parts per section, a section's
     read bytes, a budget per kind of section (the task, dependencies, CI,
