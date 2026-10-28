@@ -211,11 +211,28 @@ both speak smith's parent face, smith's payloads among them by hand-out
 capability, and at most once more back and forth, so each entry point
 completes them before it returns.
 
-A worker's root has the one shape of root.md, section 3, with no store: a
-worker keeps nothing durable. In the engine, the hub and
-`smith-inline-agent` are children of the engine's root, beside the core:
-what the hub sends up goes to the core's fleet, and what the fleet sends
-down for the engine's slots goes to the hub (root.md, section 5).
+A worker's root admits new work by a watermark, with no store: a worker
+keeps nothing durable (programming-model.md, 7.1).
+
+- **The reference worker's backlog** counts the root's `hub_out`,
+  `agent_out` and `pending`, and the service's `out`, `process_events`
+  and `io`. These queues are uncapped. Its watermark defaults to 2,048
+  entries and paces admission, not memory; one admitted event's work
+  may take the backlog past it. The root has no `max_out` reservation.
+- **The waiting room** is the service's uncapped `events` FIFO, outside
+  the admitted backlog. Records wait there in order, with no bypass;
+  counting them would hold admission shut. Completions and hand-out
+  returns for admitted work continue to drain the backlog. Only a real
+  sink's credit stops their output.
+- **Orders are explicit:** a link's records follow the assignment they
+  name, and a run's end follows its last hand-out. The root drains hub
+  outputs before agent outputs, and hand-out returns follow their
+  pending FIFO (6.8; programming-model.md, 7.2).
+
+In the engine, the hub and `smith-inline-agent` are children of the
+engine's root, beside the core: what the hub sends up goes to the core's
+fleet, and what the fleet sends down for the engine's slots goes to the
+hub (root.md, section 5).
 
 ## 5. The agent
 
@@ -987,6 +1004,11 @@ agent for ever.
   than the first whose fence passes it, nothing touches a workspace
   while a run's agent may, no piece goes up after its turn or for a kind
   its assignment did not ask for, and nothing is live once it settles.
+- **The reference worker's orders** are checked under admission
+  pressure: a link's records follow their assignment, and a run's end
+  follows its last hand-out. A low-watermark service test checks that
+  waiting records do not hold admission shut and resume in FIFO order
+  as admitted work drains (section 4).
 - **The application's worlds** run its hosts, with its own workspace or
   none, against jig's core on the conformance world (testing.md,
   section 5).
