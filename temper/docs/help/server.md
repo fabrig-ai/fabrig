@@ -52,11 +52,16 @@ Every owner of provider 3 is a member. Adding a member is a change of
 this file and a restart.
 
 `engine.memory_bytes`, 1 GiB (`1073741824`) in `owned.json`, is the
-engine's budget for the transcripts and turns it holds. The budget is
-not built yet, and until it is, nothing reads the figure. It never caps
-the process's memory, and no start is refused for its size. A document
-from an older release keeps its figure; its workers' `memory_bytes` are
-read and unused.
+engine's budget for the transcripts and turns it holds. While what it
+holds is at or past the figure, a task that comes due waits to start
+its run, and starts as earlier runs reach a worker and their turns are
+saved; after a restart, the tasks that were due start the same way. A
+person's reads, calls that start no run, and the turns of a run already
+started never wait for it. It never caps the process's memory, and no
+start is refused for its size: a figure far above what the engine holds
+rarely binds, a small one starts runs one at a time, and `0` starts
+none. A document from an older release keeps its figure; its workers'
+`memory_bytes` are read and unused.
 
 Expect: the file, valid JSON; nothing runs yet.
 
