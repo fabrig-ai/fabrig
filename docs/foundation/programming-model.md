@@ -831,7 +831,9 @@ one place arms and re-arms it (5.4), not every handler.
   results, released deliveries. The backlog then always drains, and
   admission cannot deadlock: what drains the backlog (the store's
   answers, the root's own releases) comes from sources that are never
-  handed back, so no waiting event stands in front of it. What is taken
+  handed back, and the owner of a handed-back event lets the events
+  behind it that are always taken pass it, in order, up to the next new
+  one, so no waiting event stands in front of a completion. What is taken
   still waits on a real sink (a socket's or a destination's credit, the
   channel to the host, a file table), never on room between two of the
   root's own children.
