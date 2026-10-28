@@ -550,26 +550,21 @@ generic over both and inspects neither. It belongs in lib because it is a
 data structure, like a queue; a service does not hand-roll one
 (programming-model.md, 10.2).
 
-- **Uncapped admission:** `Journal::uncapped(release, durable)` keeps
-  commits, held outputs and the door in uncapped queues. `decide()`
-  opens a decision with no room to reserve, which cannot be refused;
-  `Decision::push_write` and `push_held` add without a `Result`. New
-  external work waits at the root's watermark
-  (programming-model.md, 7.1).
-- **Capped admission:** `JournalRoom`, `takes`, capped decisions and
-  `max_out` helpers coexist with the uncapped forms until no repository
-  uses them. The owner states a decision's worst-case room
-  for writes and held outputs before changing its state. `takes(room)`
-  leaves the journal unchanged, and refuses unless the room fits the
-  commits in flight, writes per commit, and outputs held. A decision
-  reserves that room; accepting it returns unused room.
+- **Admission:** `Journal::uncapped(release, durable)` keeps commits,
+  held outputs and the door in queues that grow as they fill (section
+  5); `release` is the most one release call moves, `durable` the last
+  commit number the store holds, from which numbering goes on.
+  `decide()` opens a decision with no room to reserve, which cannot be
+  refused; `Decision::push_write` and `push_held` add without a
+  `Result`. New external work waits at the root's watermark
+  (programming-model.md, 7.1), never on room in the journal.
 - **One decision:** a `#[must_use]` value, not `Clone`, collects its
-  writes and held outputs. In a capped decision, each addition past its
-  reserved room is refused and returns ownership to the caller. Such an
-  overrun is the owner's bug: accepting the decision stops the journal.
+  writes and held outputs.
 - **Commit and tags:** accepting a decision makes at most one numbered
-  commit, holding all its writes. Numbers begin at one and increase in
-  order. A decision without a write makes no commit. Each held output
+  commit, holding all its writes. Numbers begin after `durable` (at one
+  for a new journal) and increase in order; a write past number
+  `u64::MAX` is a bug and panics. A decision without a write makes no
+  commit. Each held output
   follows that decision's commit, or the last commit made if there was
   no write; it leaves only once that commit is durable. A commit answer
   makes that commit and every earlier one durable. Answers outside the
@@ -577,7 +572,7 @@ data structure, like a queue; a service does not hand-roll one
   journal.
 - **The door and release:** `now(output)` admits an untagged output that
   decides nothing and is ready to leave at once. These outputs leave in
-  their own order, within the door's capacity when capped. Held outputs
+  their own order. Held outputs
   leave in the order they were collected, after their tags are durable.
   Each release call moves at most its configured count. The journal does
   not arm a deadline or advance commits by itself.
@@ -587,15 +582,12 @@ data structure, like a queue; a service does not hand-roll one
 - **Failure:** `failed(number)` reports a failed sent commit. No output
   tagged with it or a later commit leaves, and the journal reports that
   it has stopped. It admits no more decisions or outputs.
-- **Memory:** the capped journal's capacities are fixed at construction.
-  Its `worst_case` prices its containers and bookkeeping from its limits
-  with checked arithmetic, as other capped lib containers do. Values it
-  holds own their own payload bytes; their owner prices those separately.
-- **The backlog:** the capped journal's `takes` and `decision` refuse on
-  an uncapped journal. Either kind reports its `backlog()`: the commits
-  made and not yet answered, the outputs held and those at the door, in
-  entries, which a root compares with its watermark before it admits new
-  work.
+- **Memory:** the journal costs what it holds: its queues grow as they
+  fill and reserve nothing. Values it holds own their payload bytes;
+  their owner meters those where they enter (programming-model.md, 6.1).
+- **The backlog:** `backlog()` counts the commits made and not yet
+  answered, the outputs held and those at the door, in entries, which a
+  root compares with its watermark before it admits new work.
 
 The journal uses generic types and lib's containers. It defines no
 traits, takes no closures, and uses no `dyn` (programming-model.md,
