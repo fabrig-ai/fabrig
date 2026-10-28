@@ -268,7 +268,7 @@ impl Worker {
     }
     /// Retry held work first, then take the engine's answers past it (W5).
     fn take_engine(&mut self) {
-        for _ in 0..self.held.len() {
+        for _ in 0..self.held.len().min(self.env.limits.watermark) {
             let Some(event) = self.held.iter().next() else { break };
             if root::is_new_work(event) && !root::admits(&self.env.limits, self.backlog()) {
                 break;
@@ -276,7 +276,7 @@ impl Worker {
             let event = self.held.pop().expect("held head inspected");
             self.step(event);
         }
-        for _ in 0..self.env.limits.watermark {
+        for _ in 0..self.engine.len().min(self.env.limits.watermark) {
             if self.held.room() == 0 {
                 break;
             }
@@ -491,6 +491,12 @@ impl Worker {
         root::step(&mut self.root, &self.env, event, &mut self.out);
         self.drain_root();
     }
+    /// Follows its own pushes so an entrance's requests, its hand-outs answered,
+    /// are dispatched before the next entrance (W3; `domain/worker.md`, 3.1).
+    /// Within one step, hand-offs drain to their end (skein's
+    /// `programming-model.md`, 2): an entry point's chain is finite, from a
+    /// capability to the hub, the hub to a capability, at most once more back
+    /// and forth.
     fn drain_root(&mut self) {
         while let Some(request) = self.out.pop() {
             self.route(request);
@@ -716,7 +722,7 @@ impl Worker {
                 let _event = self.events.pop();
             }
         }
-        for _ in 0..self.env.limits.watermark {
+        for _ in 0..self.events.len().min(self.env.limits.watermark) {
             let Some(event) = self.events.pop() else { break };
             self.step(event);
         }

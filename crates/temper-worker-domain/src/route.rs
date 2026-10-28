@@ -185,8 +185,12 @@ fn workstreams(checkout: &checkout::Domain) -> Box<[u64]> {
 /// Routes what the child domains emitted, and what that leads to, until all
 /// three have emitted all they will in this entry point: what smith emitted
 /// first, then the checkout's, then the hub's, so that each capability's
-/// requests are routed before the hub asks it anything more. The finite
-/// hand-off chain described in `domain.rs` ensures this drain ends.
+/// requests are routed before the hub asks it anything more (W1;
+/// `domain/worker.md`, 3.1). It follows its own pushes, looking at the
+/// capability queues again after each hub request. Within one step,
+/// hand-offs drain to their end (skein's `programming-model.md`, 2): an entry
+/// point's chain is finite, from a capability to the hub, the hub to a
+/// capability, at most once more back and forth.
 pub(crate) fn hand_off(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     loop {
         if let Some(request) = domain.agent_out.pop() {
