@@ -1,6 +1,6 @@
 # Testing strategy
 
-Provisional, 2026-10-03, revised 2026-10-21. How code in skein and in
+Provisional, 2026-10-03, revised 2026-10-28. How code in skein and in
 every service built on it is tested. Read it with programming-model.md,
 whose terms it uses, before writing or reviewing tests.
 
@@ -33,8 +33,9 @@ failure is fixed, and a test's shape.
   they ship, as processes, against fakes in the focused suite or the real
   backends in a live suite run by choice: one test per path through
   `main` or integration point, never a behaviour a lower tier shows.
-- **Faults everywhere, limits tiny.** Worlds run with capacities small
-  enough to reach every admission point, and inject faults in every state,
+- **Faults everywhere, limits tiny.** Worlds run with the entrances'
+  limits small enough to reach every admission point, and the watermark
+  low enough to make new work wait, and inject faults in every state,
   drawn from the seed.
 - **Fakes are step machines too.** A fake shares no types with what it
   stands in for, checks its client as it goes, and is the same at every
@@ -44,7 +45,7 @@ failure is fixed, and a test's shape.
   conformance suite holds to the real kernel.
 - **Every world checks the same things:** contracts as it goes,
   invariants once it settles, a teardown that waits on nothing but io,
-  memory against the worst case, replay, and transition coverage. A
+  memory under each scenario's ceiling, replay, and transition coverage. A
   scenario's own expectations go in a referee.
 - **Focused tests for quick feedback, both suites at the gate.** Focused
   tests are fast feedback during development; the fuzzy suite is slow,
@@ -238,8 +239,10 @@ A failure found there is rerun lower down.
 
 Every world below the real loop draws its faults from its seed:
 
-- **Tiny limits.** Every capacity is small enough that a run reaches every
-  admission point: a slab of capacity 2.
+- **Tiny limits.** Every entrance's limit is small enough that a run
+  reaches every admission point (a slab of capacity 2), and a root's
+  watermark low enough that new work waits behind admitted work. The
+  queues between a service's own components have no capacity to exhaust.
 - **Cancellation and timeout in every state,** and completions that
   arrive after their cancel.
 - **Refusal at every admission point.**
@@ -401,9 +404,21 @@ The harness checks, in every world and in the simulator:
   or goes quiet to help its client settle, unless the scenario is about
   that hang-up: a client must end what it owns by itself, as it must
   against a real peer that keeps its connections open.
-- **Memory:** a counting allocator measures the most each part held,
-  against its worst case (programming-model.md, 6.3). The simulator
-  checks it at every iteration.
+- **Memory:** a counting allocator measures the most each part held, and
+  the simulator checks at every iteration that it stays under the
+  scenario's ceiling (programming-model.md, 6.3). A ceiling is an upper
+  bound with headroom, a named constant beside the one test that checks
+  it, with no write mode: it moves by hand when a real change passes it,
+  never on a type's size, and a figure split into terms is one ceiling on
+  its total. Exact checks are for contracts only: nothing held after a
+  release, the ledger's account of what a process freed, a byte price
+  equal to what the allocator saw, an edge's formula equal to the size it
+  bounds. A scenario that must reach its limits shows it by what it holds
+  (entities, entries, bytes queued), never by nearly filling a formula.
+  Whatever a world's harness does to a process's own containers
+  (delivering its completions, draining its submissions) runs inside that
+  process's account, so a container that grows on the harness's push is
+  charged to its process.
 - **Replay:** a seed replays to the same trace, and to the same digest of
   the state, which state types derive `Hash` for.
 - **Transition coverage:** each cell of a state machine is a handler
@@ -457,8 +472,8 @@ same. Then it moves into skein.
 ## 8. Two suites
 
 - **Focused tests** check what the code is expected to do: the step tests,
-  each world's scenarios, referee tests, replay, and memory at the worst
-  case, and the end-to-end tests against fakes. A scenario that needs
+  each world's scenarios, referee tests, replay, and memory under the
+  scenarios' ceilings, and the end-to-end tests against fakes. A scenario that needs
   randomness runs the few seeds that show its behaviour, and a cheap random
   world may stand as a smoke test. They run by default (`cargo nextest run
   --workspace`), and the suite takes at most **30 seconds** (15 seconds
@@ -466,7 +481,7 @@ same. Then it moves into skein.
   quick feedback during development, as often as is useful.
 - **Fuzzy tests** look for what no scenario names: sweeps of many random
   worlds, each settled under every invariant; domains driven at random
-  against their worst case; conformance over many seeds of faults; a
+  under their ceilings; conformance over many seeds of faults; a
   function against a naive one. They run with `--profile fuzzy`, and the
   suite takes at most **2 minutes** (1 minute before the user's doubling of
   10-22, provisional): too slow to run in full at every turn of development.

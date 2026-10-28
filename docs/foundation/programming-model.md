@@ -1,6 +1,6 @@
 # Programming model (Rust)
 
-Provisional, 2026-10-03, revised 2026-10-16. How code is written in skein
+Provisional, 2026-10-03, revised 2026-10-28. How code is written in skein
 and in every service built on it. Read this first, before writing or
 reviewing any of it.
 
@@ -45,11 +45,19 @@ is testing-strategy.md.
   request in flight, and a peer that does not read stops being read from.
   Whatever the service limits, it refuses at the entrance, where saying no
   is cheap.
-- **Counted entities, owned bytes.** Slabs and queues are sized at startup,
-  and a full slab is a refusal. Bytes are a `Box<[u8]>` allocated at its
-  final length after validation, owned by one place at a time and moved,
-  never shared. The worst-case footprint is computed at startup and must
-  fit.
+- **Limits at the edges, dynamic memory inside.** What a peer or a person
+  can push in is limited where it enters: message sizes, unparsed input,
+  queued output, connections, quotas, the store's disk. Inside, containers
+  grow as they fill, the queues between a service's own components have
+  no cap, and a root admits new work while its backlog is under a
+  watermark (7.1). Room is reserved only at the real sinks: sockets, pipes
+  and disk.
+- **Owned bytes, metered where they enter.** Bytes are a `Box<[u8]>`
+  allocated at its final length after validation, owned by one place at a
+  time and moved, never shared. Large variable bytes held in memory draw
+  on a byte budget at admission. There is no process-wide worst case:
+  formulas size the edges, and the simulator holds fixed scenarios' peaks
+  under ceilings (6.3).
 - **One lifecycle everywhere.** Every entity is active, then closing, then
   closed. Close goes down, closed comes up, reclaiming is bottom-up, and
   every request gets exactly one terminal event. Nothing happens in a
@@ -92,11 +100,13 @@ io.reclaim(); proto.reclaim(); domain.reclaim();
 
 The sketch shows the main flow only. What it leaves out:
 
-- **Room first.** `take` hands a stage its inputs one at a time while the
-  step's output queues have room for the most one input can produce, a
-  bound each entry point declares as `MAX_OUT`, and while the layer can
-  take one more (io's `takes`, while it can hold a refusal: io.md, 2);
-  whatever does not fit waits for the next iteration.
+- **Room first, at the edges only.** The queues between the layers have
+  no cap: a step's push into them cannot fail, and nothing waits for room
+  there. Room is checked where a queue meets the outside: io takes a
+  request while the kernel's submission queue can hold what it makes and
+  while io can hold a refusal (io's `takes`: io.md, 2), and whatever does
+  not fit waits for the next iteration. New work from outside waits at
+  the root's watermark instead (7.1).
 - **The order within a stage.** A stage first drains its layer's ready
   list, then takes its input events, then fires its expired timers
   (section 9).
@@ -117,9 +127,10 @@ submissions <- io::down <- protocol::down <- domain::step    (down pass)
 
 Properties the rest of this document relies on:
 
-- **Work per iteration is bounded.** Every queue is a `lib::Queue` whose
-  capacity is fixed at startup; whatever does not fit waits for the next
-  iteration.
+- **Work per iteration is bounded by what was admitted.** The kernel's
+  queues are capped, the root admits new work by its watermark, and each
+  event's fan-out is bounded (section 3's "Bounded"), so an iteration's
+  queues hold what admitted work makes, however they grow.
 - **Requests made in the down pass are submitted at the end of the
   iteration;** the events they cause arrive in a later one. A step never
   waits for its own effect.
@@ -198,12 +209,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, ev: Event, out: &mut Queue<R
 domain  this layer's state, updated in place: the only state the step changes
 env     now, wall and this layer's limits, behind a shared borrow, so read-only
 ev      one self-contained input, moved in
-out     a bounded queue of owned requests, with MAX_OUT slots reserved by the loop
+out     a queue of owned requests with no cap: a push cannot fail
 ```
 
 A step returns nothing. Every outcome of an event is a change to the
-layer's state or a request in `out`; the loop reserved the room, so
-emitting cannot fail, and running out of heap aborts (section 6). Inside a
+layer's state or a request in `out`; `out` has no cap, so emitting
+cannot fail, and running out of heap aborts (section 6). Inside a
 step, every fallible operation returns a `Result` or an `Option`, and the
 caller handles it: the compiler rejects an ignored `Result`, and review
 catches an ignored `Option` (section 10).
@@ -243,17 +254,19 @@ What "pure" means, and what holds it:
 - **Bounded.** No `loop` or `while` in step code: `for` over a range, a
   slice or a lib container, whose bound is a configured limit or the size
   of an input already validated. No scan over an unbounded structure, no
-  recursion.
+  recursion. An event's fan-out, what one event may make, is bounded the
+  same way and checked in review: with no room reserved, an event that
+  makes unbounded internal work is an out-of-memory abort, not a refusal
+  (6.3).
 - **Diagnostics are data too.** Facts and trace records are enum values
-  in one of the step's output queues, with room reserved like any
-  request's (`MAX_OUT`, section 2). Emitting one cannot fail, and a full
-  queue holds the step, as any full output does: inside the process, a
-  fact is never lost. Facts leave through sinks downstream of the queue
-  (a trace written through an io stream, a projection to a peer), each
-  with a declared policy of its own:
-  - **backpressure** through its stream, which holds the queue, and
-    through it the step, until the stream takes more;
-  - or **drop and count,** which never holds the queue.
+  in one of the step's output queues, like any request. Emitting one
+  cannot fail: inside the process, a fact is never lost. Facts leave
+  through sinks downstream of the queue (a trace written through an io
+  stream, a projection to a peer), each with a declared policy of its
+  own:
+  - **backpressure** through its stream: the facts wait in their queue
+    until the stream takes more;
+  - or **drop and count,** which never lets them wait.
 
   Each sink counts its own loss, and the process reports every count at
   its end. A sink that drops keeps room for the records its contract
@@ -327,7 +340,8 @@ against fakes, or its `iterate` on the simulator.
 - **Three stages, not three functions.** The protocol stage may be a stack
   of machines per connection (TLS, HTTP, event framing, JSON).
   - Each machine is a step machine, with entry points of the same shape on
-    each side and its own limits and worst case, and it is fuzzable alone.
+    each side, its own limits and the formulas that size its edge (6.3),
+    and it is fuzzable alone.
   - **Machines depend on lib only,** not on io and not on each other: the
     stream below a machine may be a socket, a pipe or TLS, and it cannot
     tell which.
@@ -439,18 +453,19 @@ A domain too large for one crate is a tree of child domains under one
 root domain.
 
 - **Each child domain is a step machine of its own:** its own vocabulary,
-  limits, worst case, state machines, entry points and `MAX_OUT`, and its
-  own tests. It depends on lib and on its children, never on a sibling or
+  limits, state machines and entry points, and its own tests. It depends
+  on lib and on its children, never on a sibling or
   a parent.
 - **A parent owns its children's states and routes between them** within
   its step. Hand-offs inside the domain are short and acyclic, so a step
-  completes them before it returns; its `MAX_OUT` follows from its
-  children's along the longest chain.
+  completes them before it returns; the queues between parent and
+  children have no cap, so no parent reserves room for its children's
+  output.
 - **Siblings share no domain types.** The parent translates between their
   vocabularies with small total functions; an exhaustive match makes a
   change on either side break the build in one place.
-- **Only the root domain faces the protocol layer,** and its worst case is
-  the sum of its children's.
+- **Only the root domain faces the protocol layer,** and only the root
+  admits new external work, by its watermark (7.1).
 
 ## 5. Entities, handles and lifecycle
 
@@ -645,17 +660,22 @@ follow_state(conn, id, env, timers, down);  // demand and progress deadline, in 
 
 ## 6. Memory and data
 
-### 6.1 The strategy: counted entities, owned bytes
+### 6.1 The strategy: limits at the edges, owned bytes
 
-- **Entities live in slabs sized at startup.** Every entity kind has a
-  `lib::Slab<T>` whose capacity comes from the limits and never changes. A
-  full slab is a refusal at that layer's entrance, which is where refusals
-  belong anyway (section 7). Handles are slot index plus generation.
-- **Queues and tables are bounded at startup:** every `Queue`, ready list and
-  deadline table has a capacity from the limits and refuses past it. Slabs
-  and queues allocate that capacity up front; a table may allocate as it
-  fills (`lib::Deadlines` is a pair of B-trees), and its worst case counts
-  its container overhead, not just its entries.
+- **Entities live in slabs that grow as they fill.** Every entity kind
+  has a `lib::Slab<T>`, named by handles (5.1), which costs what it holds.
+  A slab of entities that something outside creates (connections,
+  requests, a party's calls) has its cap from the limits, and a full one
+  is a refusal at that layer's entrance, which is where refusals belong
+  anyway (section 7). A slab of entities that admitted work makes has no
+  cap of its own.
+- **A queue has a cap only at an edge.** A queue that something outside
+  the process fills or drains (the kernel's submissions and completions,
+  a host's channel, a connection's queued output) has its cap from the
+  limits and refuses or waits past it. The queues between a service's
+  own components are uncapped (`Queue::uncapped`), so a push into them
+  cannot fail and a decision always completes. Every queue allocates as
+  it fills, and so does a table (`lib::Deadlines` is a pair of B-trees).
 - **Bytes live on the heap as `Box<[u8]>`,** allocated at their final
   length after the length has been checked against the limits. A
   `Box<[u8]>` cannot grow, has one owner, and keeps its address when it is
@@ -663,9 +683,17 @@ follow_state(conn, id, env, timers, down);  // demand and progress deadline, in 
 - **Domain storage is ordinary owned data under domain limits:** a
   `lib::Map<Box<[u8]>, Box<[u8]>>`, say, bounded in entries, with the
   domain counting bytes and answering "full" as a domain result.
+- **Large variable bytes are metered where they enter.** Transcripts,
+  turns and documents a domain holds in memory draw on a byte budget,
+  the configured `memory_bytes`: the domain counts what it holds and
+  answers "full" at the entrance past it, as it does on its stored-data
+  limit.
 - **Running out of heap aborts.** Allocation failure is never a status.
-  Short of a bug it cannot happen, because the worst case is computed and
-  checked at startup (6.3).
+  What keeps the heap in bounds is the limits at the edges, the
+  watermark (7.1) and the byte budget, not a proof: one event that makes
+  unbounded internal work (an amplification bug) aborts where it would
+  have been refused. Review bounds each event's fan-out (section 3), and
+  the simulator holds the peaks of fixed scenarios under ceilings (6.3).
 
 ### 6.2 What holds
 
@@ -695,34 +723,37 @@ follow_state(conn, id, env, timers, down);  // demand and progress deadline, in 
   validated (4.3), by `Writer::new(len)` for a length the code computed
   itself, or as a copy of one that exists (`copy_of`, or `clone`).
 
-### 6.3 The worst case
+### 6.3 Ceilings, not a worst case
 
-```
-worst case =   Σ over entity kinds:  slab + capacity × the bytes each entity may hold
-             + queues and tables:    their containers
-             + operations in flight: their table and the buffers they carry
-             + the domain's stored-data limit
-```
+- **No process-wide worst case.** No per-process heap formula, no
+  startup fit check, no exact memory figure or margin: the sum of every
+  container at its cap bound nothing a deployment could provision, and
+  it moved with every change of a type's size.
+- **Formulas size the edges.** A message's envelope, a decoder's retained
+  bound, a frame, a record on disk: each is a function of the limits with
+  checked arithmetic (`None` on overflow), and limits that make one
+  overflow are refused at startup as invalid.
+- **The heap is measured, under ceilings.** In the simulator a counting
+  allocator checks at every iteration that each fixed scenario's peak
+  stays under its ceiling: an upper bound with headroom, named beside its
+  test, moved by hand when a real change passes it and never by a type's
+  size (testing-strategy.md, 6). A deployment reports its resident size,
+  and its data size beside it, since a reservation is never resident.
+- **What it gives up:** a provable ceiling, which bound nothing; and the
+  exhaustion tests of internal containers, since only the entrances
+  refuse.
 
-Each layer and each machine exports `fn worst_case(limits: &Limits) ->
-Option<u64>` (checked arithmetic, `None` on overflow), and the shell
-refuses to start when the sum exceeds the configured memory. An allocation
-failure is then a bug or fragmentation, never load. A layer adds up what
-its containers report, not `size_of` times a capacity: every lib container
-has its own `worst_case(capacity)`, which counts its bookkeeping too: a
-slab's slot tags and free lists, the tree nodes of a map, a set or a
-deadline table. The formula counts containers and payload bytes, not
-allocator overhead: leave headroom, and measure the resident size under
-load before trusting it. In the simulator, a counting allocator checks at
-every iteration that the live heap stays within the formula.
+Code written before this model still sums a worst case and checks it at
+startup; each repository's gate counts those forms (`max_out`,
+`JournalRoom`, `.takes(&`, `worst_case`), which may only fall.
 
 ## 7. Flow control, admission and backpressure
 
 **Limits are configured.** Each layer and each machine defines a `Limits`
 struct; the shell's configuration record holds them and hands each to its
 step as `&Env<Limits>`, so a simulation with tiny limits means something.
-The limits are also the inputs of the worst case (6.3), and slab
-capacities are the admission limits. The flow-control limits are: maximum
+The limits are the edges' (section 1), slab caps are the admission
+limits, and a root's watermark (7.1) is a limit on pacing. The flow-control limits are: maximum
 message size, cap on queued output, cap on unparsed input, concurrent
 streams, accept batch, progress chunk and timeout.
 
@@ -753,8 +784,8 @@ protocols the unit is the stream, with a cap on concurrent streams.
 4. The socket buffer fills, the TCP window closes, the peer blocks.
 
 Release runs the other way. Without the cap in step 1, one pipelining peer
-that never reads turns the service's memory into unbounded queued output,
-and the worst case of 6.3 is no longer a bound.
+that never reads turns the service's memory into unbounded queued output:
+this cap is one of the edges that bound a service's memory.
 
 **Full duplex.** The room check of step 2 ties a connection's input to its
 own output, which is right when its input causes its output. In a relay
@@ -775,6 +806,45 @@ provokes; single bytes do not count, or a trickling peer lives forever.
 The chunk size is therefore the minimum rate below which a peer is cut
 off. Whether the deadline runs is an exhaustive function of the state, and
 one place arms and re-arms it (5.4), not every handler.
+
+### 7.1 Admission by watermark
+
+- **A root admits new external work only while its backlog is under its
+  watermark,** and whatever finishes work already admitted is always
+  taken.
+- **The backlog** is counted in entries. A root with a journal counts
+  its journal's writes not yet committed and the outputs held for their
+  commit (`Journal::backlog`), plus its own work queue's and its store
+  answers' lengths. A root without one counts the entries in the
+  uncapped queues between its own children. A queue it shares with an
+  edge stays capped and outside the backlog.
+- **What waits:** new external work, a party's call, a worker's record
+  that starts work, a forge event, a timer that starts work, a setup or
+  a restart. Past the watermark admission hands the event back, the loop
+  offers it again, and peers wait as they do at any busy answer. An event
+  that mixes new and admitted work is split, so that only its new work
+  waits.
+- **What is always taken:** completions, the store's answers, io's
+  results, released deliveries. The backlog then always drains, and
+  admission cannot deadlock. What is taken still waits on a real sink (a
+  socket's or a destination's credit, the channel to the host, a file
+  table), never on room between two of the root's own children.
+- **The watermark** is one number per root, a field of its `Limits`,
+  defaulting to what keeps pacing close to a design with room checks. It
+  limits pacing, not memory: a backlog may pass it by one admitted
+  event's work, and nothing counts by how much. Where a person's reads
+  wait behind it, it rises.
+
+### 7.2 Orders are stated
+
+A room check can keep an order no one wrote down: a queue whose capacity
+equalled the most one entrance could produce kept that entrance's
+requests from being overtaken by the next. So no order is implied by
+room. Each is a named predicate where it is kept (`work.is_empty()`
+before the next entrance, store answers in the order asked), with a world
+test of that order under load. A component that drops a room check first
+lists what the check kept, each a capacity or an order, and writes each
+order's test before the check goes.
 
 ## 8. Protocols
 
