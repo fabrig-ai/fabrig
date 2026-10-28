@@ -104,11 +104,14 @@ listed in section 8.
 | `search` | read | `rg` over the workspace |
 | `write` | write | a file's whole content, created or replaced |
 | `edit` | write | one or more replacements in one file, applied together or not at all |
+| `remove` | write | a file deleted, or an empty directory |
 | `shell` | write | a command, in its own process group, with a deadline; past a yield the call asks for, a job |
 | `job` | read; write with `stop` | a job's output since its last answer, and its end once it has ended; with `stop`, the job stopped first |
 
 The charter's families grant them: inspect (`read`, `list`, `search`),
-modify (`write`, `edit`), shell (`shell`, `job`).
+modify (`write`, `edit`, `remove`), shell (`shell`, `job`). A change
+may delete a file as well as make one, and a review may ask it: a
+workspace that can write can remove, with no shell needed.
 
 - **`read { path, offset?, window? }`** answers the whole lines from line
   `offset` that fit its window of bytes: the profile's default, or the
@@ -189,6 +192,10 @@ modify (`write`, `edit`), shell (`shell`, `job`).
   replaces it (revised 2026-10-20: 16 files were too few for a change
   across a crate, and a whole file's contents were refused after their
   generation).
+- **Read before remove.** A `remove` deletes a file only if its
+  session's LLM has read its current version, as a `write` replacing it
+  would need, or an empty directory; never a directory with anything in
+  it, so one call removes one thing. Confined as a write is (below).
 - **Match before edit.** An `edit` needs no earlier read. It loads the
   file as it is, needs each `old` to match there (section 3), and stores
   the result only if the file still has the version it loaded, so a
