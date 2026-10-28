@@ -3,18 +3,14 @@
 #   codex-run task [--model M] [--effort E] [--read-only] [--to ADDR] [--resume RUN] TASK DIR REPORT
 #   codex-run owner [--model M] [--effort E] NAME BRIEF
 #   codex-run stale [--post]
-# See docs/design/post.md, section 5.
+# See tools/codex-run/design.md, sections 2–5.
 set -euo pipefail
 umask 077
 
 script=$(readlink -f "${BASH_SOURCE[0]}")
 kit=$(dirname "$script")
-workspace() {
-    local agents
-    agents=$(cd "$kit/../.." && pwd)
-    if [[ $(basename "$agents") == agents ]]; then dirname "$agents"; else echo "$HOME/src/rust"; fi
-}
-root=$(realpath -m "${DEV_ROOT:-$(workspace)}")
+fabrig=$(cd "$kit/../.." && pwd)
+root=$(realpath -m "${DEV_ROOT:-$HOME/src/fabrig}")
 runs=$root/tmp/codex-run
 search_rule='Before any command, read the rules in the text below. Search only your worktree and the paths it names: never run rg, find, ls -R or grep -r from ~/src/rust/tmp or any directory above it, and never in ~/.local, ~/.config or /run/user. '
 ON_STOP_SECONDS=60
@@ -172,7 +168,7 @@ finish_task() {
     subject=$(post_subject "$status") || finish_error 'report summary failed'
     minutes=$(( ($(date -d "$ended" +%s) - $(date -d "$started" +%s)) / 60 ))
     post_body >"$state/post-body" || finish_error 'post body failed'
-    "$kit/post" send --as codex-run "$to" "$subject" "$state/post-body" >"$state/post-output" 2>&1 || post_exit=$?
+    post send --as codex-run "$to" "$subject" "$state/post-body" >"$state/post-output" 2>&1 || post_exit=$?
     if ((post_exit != 0)); then
         finish_error "post failed: $post_exit"
         if ((post_exit != 3)); then
@@ -278,6 +274,19 @@ task_launch() {
     printf '%s %s\n' "$id" "$state"
 }
 
+# tools/codex-run/design.md, 4: trim only this task's writable slot.
+trim_slot() {
+    [[ $read_only == 0 ]] || return 0
+    local slot slots=$HOME/src/fabrig/slots number status=0
+    slot=$(realpath -e -- "$dir") || return 0
+    [[ ${slot%/*} == "$slots" ]] || return 0
+    number=${slot##*/}
+    [[ $number =~ ^[0-9]+$ ]] || return 0
+    python3 -I "$fabrig/tools/slots/trim" "$slot" </dev/null >"$state/trim.log" 2>&1 || status=$?
+    if ((status != 0)); then printf 'trim failed: exit %s\n' "$status" >>"$state/trim.log" || true; fi
+    return 0
+}
+
 task_run() {
     (($# == 1)) || refuse 'usage: codex-run _run ID'
     if [[ ${CODEX_RUN_SUBREAPER:-} != "$$" ]]; then
@@ -293,6 +302,7 @@ task_run() {
     trap 'finish_task "$?"' EXIT
     trap 'terminate 143' TERM
     trap 'terminate 130' INT
+    trim_slot
     local report_instruction="Write your report to $report."
     if [[ $read_only == 1 ]]; then
         report_instruction="Return your entire report as your final message, even if the task asks you to write a report file. Do not write the report file; codex-run will write it to $report."
@@ -362,9 +372,9 @@ owner_run() {
     export POST_NAME=$name
     owner_identity
     status=0
-    "$kit/post" wait "$name" --timeout 0 --holder "$$" --kind codex || status=$?
+    post wait "$name" --timeout 0 --holder "$$" --kind codex || status=$?
     case $status in 0|1) ;; 4) return 0 ;; *) return "$status" ;; esac
-    prompt="You are $name: read $brief and do what it says. Your messages arrive as your turns' prompts; send yours with post send (agents' docs/design/post.md)."
+    prompt="You are $name: read $brief and do what it says. Your messages arrive as your turns' prompts; send yours with post send."
     if [[ -s $state/pending.md ]]; then prompt+=$'\n'"$(cat "$state/pending.md")"; fi
     while :; do
         # Keep the whole prompt containing a mail batch until its turn succeeds.
@@ -376,13 +386,13 @@ owner_run() {
         wait_timeout=3600
         if ((run_exit == 0)); then rm -f "$state/pending.md"; else wait_timeout=300; fi
         status=0
-        "$kit/post" wait "$name" --timeout "$wait_timeout" --holder "$$" --kind codex || status=$?
+        post wait "$name" --timeout "$wait_timeout" --holder "$$" --kind codex || status=$?
         case $status in
             0|1)
                 prompt=''
                 [[ ! -s $state/pending.md ]] || prompt=$(cat "$state/pending.md")
                 if ((status == 0)); then
-                    prompt+="${prompt:+$'\n'}Post for $name:"$'\n'"$("$kit/post" read "$name")"
+                    prompt+="${prompt:+$'\n'}Post for $name:"$'\n'"$(post read "$name")"
                     printf '%s\n' "$prompt" >"$state/pending.md"
                 elif [[ -z $prompt ]]; then
                     prompt='An hour without post: check your running tasks, act on what has ended, and keep your notes current.'
@@ -457,7 +467,7 @@ stale() {
             continue
         fi
         status=0
-        output=$("$kit/post" send --as codex-run "$to" "$subject" "$state/post-body" 2>&1) || status=$?
+        output=$(post send --as codex-run "$to" "$subject" "$state/post-body" 2>&1) || status=$?
         if ((status == 0 || status == 3)); then
             printf '%s\n' "$output" >"$state/told" || result=1
             printf '%s told: %s\n' "$id" "${output##*$'\n'}"
