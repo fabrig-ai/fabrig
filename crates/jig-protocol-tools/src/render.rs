@@ -272,7 +272,7 @@ fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
         jig_domain_tasks::Refusal::ResourceUnavailable => b"resource unavailable",
         jig_domain_tasks::Refusal::NotReady => b"not ready",
         jig_domain_tasks::Refusal::Unknown => b"unknown",
-        jig_domain_tasks::Refusal::Busy => b"busy",
+        jig_domain_tasks::Refusal::Busy => return task_busy(problem),
         jig_domain_tasks::Refusal::Duplicate => b"duplicate",
         jig_domain_tasks::Refusal::Empty => b"empty",
         jig_domain_tasks::Refusal::Batch => b"batch",
@@ -357,6 +357,51 @@ fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
         return text(&[b"Refused account ", account.as_bytes(), b": ", why], true);
     }
     text(&[b"Refused: ", why], true)
+}
+
+fn task_busy(problem: &jig_domain_tasks::Problem) -> Rendered {
+    use jig_domain_tasks::CapacityCause;
+    let Some(capacity) = problem.capacity else {
+        return text(&[b"Refused: busy"], true);
+    };
+    match capacity.cause {
+        CapacityCause::Inbox { task, messages, bytes } => text(
+            &[
+                b"Refused: busy: task ",
+                Decimal::of(task).as_bytes(),
+                b"'s inbox is full (at most ",
+                Decimal::of(u64::from(messages)).as_bytes(),
+                b" messages and ",
+                Decimal::of(u64::from(bytes)).as_bytes(),
+                b" bytes, counting the room it keeps for the answers to its open questions, its delegates' results and a proposal's decision); room returns as those arrive and are read: retry then, or ask fewer at once",
+            ],
+            true,
+        ),
+        CapacityCause::Proposals { limit } => text(
+            &[
+                b"Refused: busy: a proposal is pending (at most ",
+                Decimal::of(u64::from(limit)).as_bytes(),
+                b" at once): wait for its decision, or withdraw it",
+            ],
+            true,
+        ),
+        CapacityCause::PlacedHolds { .. }
+        | CapacityCause::ProjectPlacedHolds { .. }
+        | CapacityCause::PartyPlacedHolds { .. }
+        | CapacityCause::Exemptions { .. }
+        | CapacityCause::Tasks { .. }
+        | CapacityCause::CreationFlights { .. }
+        | CapacityCause::ResourceReports { .. }
+        | CapacityCause::ProjectTasks { .. }
+        | CapacityCause::Tree { .. }
+        | CapacityCause::Delegates { .. }
+        | CapacityCause::Holdings { .. }
+        | CapacityCause::HoldWaiters { .. }
+        | CapacityCause::References { .. }
+        | CapacityCause::Subscriptions { .. }
+        | CapacityCause::Funders { .. }
+        | CapacityCause::Writers { .. } => text(&[b"Refused: busy"], true),
+    }
 }
 
 // The client's dependency phrases in one line (domain/tasks.md, sections 5.7 and 6.7).
@@ -625,7 +670,7 @@ fn hold_owner(task: u64, hold: u64, revision: u64, owner: &jig_domain_people::Ho
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jig_domain_tasks::{Problem, Refusal, Status};
+    use jig_domain_tasks::{Capacity, CapacityAction, CapacityCause, Party, Problem, Refusal, Status};
 
     const CIRCLE: &[u64] = &[3, 5, 7];
     const ENDED: &[u64] = &[4];
@@ -634,6 +679,75 @@ mod tests {
     fn refusal(why: Refusal, tasks: &[u64], expected: &[u8]) {
         let problem = Problem::naming(None, why, tasks);
         assert_eq!(render(&CallPart::ControlRefused(problem)), Rendered { error: true, text: expected.into() },);
+    }
+
+    fn busy_problem(cause: CapacityCause) -> Problem {
+        Problem::capacity(
+            Some(2),
+            Refusal::Busy,
+            Capacity { project: Some(1), by: Party::Task(2), action: CapacityAction::Proposal { number: 23 }, cause },
+        )
+    }
+
+    #[test]
+    fn a_full_inbox_is_named_with_its_bounds_and_the_way_on() {
+        for (task, expected) in [
+            (2, b"Refused: busy: task 2's inbox is full (at most 8 messages and 12288 bytes, counting the room it keeps for the answers to its open questions, its delegates' results and a proposal's decision); room returns as those arrive and are read: retry then, or ask fewer at once".as_slice()),
+            (5, b"Refused: busy: task 5's inbox is full (at most 8 messages and 12288 bytes, counting the room it keeps for the answers to its open questions, its delegates' results and a proposal's decision); room returns as those arrive and are read: retry then, or ask fewer at once".as_slice()),
+        ] {
+            let problem = busy_problem(CapacityCause::Inbox { task, messages: 8, bytes: 12288 });
+            assert_eq!(
+                render(&CallPart::ProposalRefused(problem)),
+                Rendered { error: true, text: expected.into() }
+            );
+        }
+    }
+
+    #[test]
+    fn a_pending_proposal_is_named_with_its_limit() {
+        let problem = busy_problem(CapacityCause::Proposals { limit: 1 });
+        assert_eq!(
+            render(&CallPart::ProposalRefused(problem)),
+            Rendered {
+                error: true,
+                text:
+                    b"Refused: busy: a proposal is pending (at most 1 at once): wait for its decision, or withdraw it"
+                        .as_slice()
+                        .into()
+            },
+        );
+    }
+
+    #[test]
+    fn a_busy_without_a_capacity_keeps_its_words() {
+        refusal(Refusal::Busy, &[], b"Refused: busy");
+    }
+
+    #[test]
+    fn other_capacity_causes_keep_their_busy_words() {
+        for cause in [
+            CapacityCause::PlacedHolds { limit: 1 },
+            CapacityCause::ProjectPlacedHolds { limit: 1 },
+            CapacityCause::PartyPlacedHolds { limit: 1 },
+            CapacityCause::Exemptions { limit: 1 },
+            CapacityCause::Tasks { limit: 1 },
+            CapacityCause::CreationFlights { limit: 1 },
+            CapacityCause::ResourceReports { limit: 1 },
+            CapacityCause::ProjectTasks { limit: 1 },
+            CapacityCause::Tree { limit: 1 },
+            CapacityCause::Delegates { limit: 1 },
+            CapacityCause::Holdings { limit: 1 },
+            CapacityCause::HoldWaiters { limit: 1 },
+            CapacityCause::References { limit: 1 },
+            CapacityCause::Subscriptions { limit: 1 },
+            CapacityCause::Funders { limit: 1 },
+            CapacityCause::Writers { limit: 1 },
+        ] {
+            assert_eq!(
+                render(&CallPart::ProposalRefused(busy_problem(cause))),
+                Rendered { error: true, text: b"Refused: busy".as_slice().into() }
+            );
+        }
     }
 
     #[test]
