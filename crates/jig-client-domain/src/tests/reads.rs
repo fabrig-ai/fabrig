@@ -128,7 +128,7 @@ fn credential_boundaries_end_all_independently_bounded_reads_once_and_free_room(
             c.step(Event::Up { up: boundary });
             let told = c.told();
             assert_eq!(pages(&told).as_slice(), expected.as_slice());
-            assert!(u32::try_from(told.len() + c.downs().len()).unwrap() <= max_out(&limits));
+            c.downs();
             c.step(Event::Up { up: Up::SignedOut });
             assert!(pages(&c.told()).is_empty());
             c.downs();

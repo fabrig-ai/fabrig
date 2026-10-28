@@ -45,7 +45,7 @@ fn send(domain: &mut crate::tests::fixtures::Fixture, act: ActKind) -> Token {
     } else {
         Ask::HandBack { project: u32::MAX, task: 8 }
     };
-    let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let token =
         send_card(&mut domain.ui, ObjectKey::PersonTask(8), act, Box::new(ask), &mut out, &domain.client).unwrap();
     assert_eq!(out.len(), 1);

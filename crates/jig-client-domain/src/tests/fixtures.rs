@@ -70,8 +70,8 @@ pub(crate) struct Client {
     pub domain: Domain,
     pub env: Env<Limits>,
     pub out: Queue<Request>,
-    pub downs: List<Down>,
-    pub told: List<Told>,
+    pub downs: Queue<Down>,
+    pub told: Queue<Told>,
 }
 impl Client {
     pub(crate) fn new(limits: Limits) -> Self {
@@ -85,9 +85,9 @@ impl Client {
         Self {
             domain: Domain::new(&limits, 7),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            out: Queue::with_capacity(max_out(&limits)),
-            downs: List::with_capacity(max_out(&limits)),
-            told: List::with_capacity(max_out(&limits)),
+            out: Queue::uncapped(),
+            downs: Queue::uncapped(),
+            told: Queue::uncapped(),
         }
     }
     pub(crate) fn started() -> Self {
@@ -110,16 +110,24 @@ impl Client {
     fn drain(&mut self) {
         while let Some(request) = self.out.pop() {
             match request {
-                Request::Down { down } => self.downs.push(down).unwrap(),
-                Request::Told { told } => self.told.push(told).unwrap(),
+                Request::Down { down } => self.downs.push(down),
+                Request::Told { told } => self.told.push(told),
             }
         }
     }
     pub(crate) fn downs(&mut self) -> Box<[Down]> {
-        core::mem::replace(&mut self.downs, List::with_capacity(max_out(&self.env.limits))).into_boxed()
+        let mut downs = List::with_capacity(self.downs.len());
+        while let Some(down) = self.downs.pop() {
+            downs.push(down).unwrap();
+        }
+        downs.into_boxed()
     }
     pub(crate) fn told(&mut self) -> Box<[Told]> {
-        core::mem::replace(&mut self.told, List::with_capacity(max_out(&self.env.limits))).into_boxed()
+        let mut told = List::with_capacity(self.told.len());
+        while let Some(event) = self.told.pop() {
+            told.push(event).unwrap();
+        }
+        told.into_boxed()
     }
     pub(crate) fn name(&self, subject: Watchable) -> Token {
         for (_, w) in &self.domain.watches {

@@ -1,5 +1,5 @@
 use crate::tests::fixtures::{Fixture, Served, Watched};
-use crate::{Event, Limits, Request, max_out};
+use crate::{Event, Limits, Request};
 use crate::{
     address::{Address, Place},
     page::Page,
@@ -41,9 +41,9 @@ pub(crate) fn env(now: Time) -> Env<Limits> {
     Env { now, wall: Wall::EPOCH, limits: LIMITS }
 }
 pub(super) fn drain(mut out: Queue<Request>) -> Box<[Request]> {
-    let mut rows = List::with_capacity(max_out(&LIMITS));
+    let mut rows = List::with_capacity(out.len());
     while let Some(request) = out.pop() {
-        rows.push(request).expect("output fits declared bound");
+        rows.push(request).expect("output fits captured count");
     }
     rows.into_boxed()
 }

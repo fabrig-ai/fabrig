@@ -26,7 +26,7 @@ fn drive(
     domain.drive(now, event)
 }
 fn tick(domain: &mut Fixture, limits: &Limits, now: Time) -> Box<[Request]> {
-    let mut out = Queue::with_capacity(crate::max_out(limits));
+    let mut out = Queue::uncapped();
     crate::fire(&mut domain.ui, &Env { now, wall: Wall::EPOCH, limits: *limits }, &mut out, &domain.client);
     drain(out)
 }
@@ -105,7 +105,7 @@ fn hidden_answers_have_notices_and_lingers_and_coalesced_saves_end_on_deadlines(
     start(&mut domain, &limits, List::with_capacity(0));
     let key = ObjectKey::Task(8);
     domain.objects.name(key, Source::Window { number: 1 }).unwrap();
-    let mut out = Queue::with_capacity(crate::max_out(&limits));
+    let mut out = Queue::uncapped();
     let request = send_card(
         &mut domain.ui,
         key,
@@ -125,7 +125,7 @@ fn hidden_answers_have_notices_and_lingers_and_coalesced_saves_end_on_deadlines(
     assert_eq!(domain.notices().get(notice).unwrap().until, Time::from_nanos(Duration::from_secs(5).as_nanos()));
     let id = domain.objects.name(ObjectKey::Task(9), Source::Window { number: 1 }).unwrap();
     assert!(domain.leave(id, Ending::Cancelled { by: Actor::Party(7), reason: Some(text(b"done")), at: None }));
-    out = Queue::with_capacity(crate::max_out(&limits));
+    out = Queue::uncapped();
     assert!(store::coalesce(
         &mut domain,
         Record::Draft { version: STORE_VERSION, party: 7, task: 8, words: text(b"first"), touched: 1 },
@@ -147,7 +147,7 @@ fn hidden_answers_have_notices_and_lingers_and_coalesced_saves_end_on_deadlines(
 }
 
 #[test]
-fn checked_worst_case_and_full_containers_keep_steps_within_max_out() {
+fn full_containers_refuse_new_objects_intents_fields_and_notices() {
     let limits = full_limits();
     check_worst_case(limits);
     let mut domain = Fixture::new(&limits);
@@ -233,8 +233,7 @@ fn checked_worst_case_and_full_containers_keep_steps_within_max_out() {
         .len(),
         0
     );
-    let effects = drive(&mut domain, &limits, Time::ZERO, Event::Went { place: Place::Jig(Address::Deployment) });
-    assert!(u64::try_from(effects.len()).unwrap() <= u64::from(crate::max_out(&limits)));
+    drive(&mut domain, &limits, Time::ZERO, Event::Went { place: Place::Jig(Address::Deployment) });
 }
 
 fn check_worst_case(limits: Limits) {

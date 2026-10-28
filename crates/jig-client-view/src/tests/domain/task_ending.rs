@@ -1,6 +1,6 @@
 use super::{
     objects,
-    spine::{LIMITS, drive, env},
+    spine::{drive, env},
 };
 use crate::objects::{Body, Card, Left};
 use crate::tests::fixtures::ReadPage;
@@ -72,7 +72,7 @@ fn terminal_task_reads_keep_whole_owner_endings_through_linger_without_result_do
                     until: Time::from_nanos(5_000_000_030),
                 }
             );
-            let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+            let mut out = Queue::uncapped();
             for _ in 0_u8..4 {
                 crate::fire(&mut domain.ui, &env(Time::from_nanos(5_000_000_030)), &mut out, &domain.client);
             }

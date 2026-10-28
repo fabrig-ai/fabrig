@@ -22,7 +22,7 @@ fn install(domain: &mut Fixture, body: Body) -> Id<Object> {
     id
 }
 fn send(domain: &mut Fixture, key: ObjectKey) -> Token {
-    let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let token = send_card(
         &mut domain.ui,
         key,
@@ -65,7 +65,7 @@ fn durable_outcomes_remain_on_open_cards_and_decided_first_leaves_with_all_facts
     }
     let (mut domain, _) = live();
     let id = install(&mut domain, Body::PersonTask(Box::new(person())));
-    let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let request = send_card(
         &mut domain.ui,
         ObjectKey::PersonTask(8),
@@ -220,7 +220,7 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
     let (mut domain, _) = live();
     let id = install(&mut domain, Body::Task(Box::new(task())));
     for number in 1..=LIMITS.intents {
-        let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+        let mut out = Queue::uncapped();
         domain
             .intents
             .ask(
@@ -231,7 +231,7 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
             )
             .unwrap();
     }
-    let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     assert!(
         send_card(
             &mut domain.ui,
@@ -334,7 +334,7 @@ fn owner_historical_proposal_choices_keep_the_named_winner_and_clock_without_exp
             value.key = ProposalKey { proposer: maker, number: 41 };
             let key = value.key;
             let id = install(&mut domain, Body::Proposal(Box::new(value)));
-            let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+            let mut out = Queue::uncapped();
             let request = send_card(
                 &mut domain.ui,
                 ObjectKey::Proposal(key),

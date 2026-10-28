@@ -430,7 +430,7 @@ fn starting_a_chat_joins_refuses_and_opens_only_after_its_durable_answer() {
     rows.push(entry(8, InboxGroup::Escalations, 10)).unwrap();
     inbox_delivery(&mut about, page, rows);
     assert!(about.objects.put(ObjectKey::Task(8), crate::objects::Body::Chip(list_entry(8, Phase::Held, 10).chip)));
-    let mut out = skein_lib::Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = skein_lib::Queue::uncapped();
     crate::page::conversations::about(
         &mut about.ui,
         &super::spine::env(Time::ZERO),
@@ -1013,7 +1013,7 @@ fn goal_bounds_control_choices_without_me_authority_inference() {
             panic!("bounded goal")
         }
     }
-    let mut out = skein_lib::Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = skein_lib::Queue::uncapped();
     crate::tests::fixtures::set_creating(&mut domain, moved.number, &moved.acts.get(0).unwrap().admission);
     crate::page::project::document(&mut domain.ui, &super::spine::env(Time::ZERO), moved, &mut out, &domain.client);
     assert!(domain.project_page().form.confirmation.is_none());
@@ -1754,7 +1754,7 @@ fn procedure_goal_pairs_and_current_bounds_control_confirmation_and_exact_depart
     };
     procedures.clear();
     procedures.push(CreateProcedure { connector: 7, code: u32::MAX }).unwrap();
-    let mut out = skein_lib::Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = skein_lib::Queue::uncapped();
     crate::tests::fixtures::set_creating(&mut domain, moved.number, &moved.acts.get(0).unwrap().admission);
     crate::page::project::document(&mut domain.ui, &super::spine::env(Time::ZERO), moved, &mut out, &domain.client);
     assert!(domain.project_page().form.confirmation.is_none());

@@ -315,7 +315,7 @@ fn routed_scroll_and_end(
 
 #[test]
 fn routed_words_join_the_original_request_and_clear_the_composer_only_once() {
-    use super::spine::{LIMITS, drain, drive};
+    use super::spine::{drain, drive};
     use crate::{
         Event,
         address::{Address, Place, TaskSection},
@@ -344,7 +344,7 @@ fn routed_words_join_the_original_request_and_clear_the_composer_only_once() {
         None,
         text(b"other pending")
     ));
-    let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     assert_eq!(
         crate::intents::send_card(
             &mut domain.ui,

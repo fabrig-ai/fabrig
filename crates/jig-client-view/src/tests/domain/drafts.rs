@@ -222,7 +222,7 @@ fn check_drafts_survive_pages_and_restart_evict_oldest_untouched_and_coalesce_on
     assert!(domain.drafts().get(9).is_none());
     assert!(domain.fields().get(Purpose::Composer { task: 9 }).is_none());
     assert_eq!(domain.drafts().get(8).unwrap().words, text(b"newest"));
-    let mut saves = Queue::with_capacity(crate::max_out(&limits));
+    let mut saves = Queue::uncapped();
     for _ in 0_u32..3 {
         crate::fire(
             &mut domain.ui,

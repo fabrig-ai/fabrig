@@ -362,7 +362,7 @@ fn a_deciding_card_survives_a_drop_until_its_durable_answer_then_lingers() {
         Time::ZERO,
         ReadPage { read: read_token(&reads), result: ReadResult::Value(ReadValue::Proposal(Box::new(proposal()))) },
     );
-    let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     let request = send_card(
         &mut domain.ui,
         key,
@@ -391,7 +391,7 @@ fn a_deciding_card_survives_a_drop_until_its_durable_answer_then_lingers() {
     );
     assert!(domain.notices().ids().is_empty(), "a card still on this page owns its outcome");
     // Fire the unrelated heartbeat before the linger.
-    let mut out = Queue::with_capacity(crate::max_out(&LIMITS));
+    let mut out = Queue::uncapped();
     for _ in 0_u8..4 {
         crate::fire(&mut domain.ui, &env(Time::from_nanos(5_000_000_020)), &mut out, &domain.client);
     }
