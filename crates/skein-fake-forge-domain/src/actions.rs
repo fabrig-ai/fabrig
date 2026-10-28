@@ -342,7 +342,7 @@ pub(crate) fn steps(context: &[u8], failing: Failing, cue: Option<&Cue>, pull: O
         Step {
             number: WORKFLOW_STEP,
             name: match cue {
-                Some(Cue::PullFile { step, .. }) => skein_lib::bytes::copy_of(step),
+                Some(Cue::PullFile { step, .. }) => copy_of(step),
                 Some(Cue::File { .. } | Cue::Message { .. }) | None => joined(context, &[b"Run ", context]),
             },
             status,
