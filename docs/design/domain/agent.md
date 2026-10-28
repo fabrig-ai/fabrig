@@ -563,11 +563,16 @@ today's, until those land.
   section 6). The chat cannot ask its own person: it says in its reply
   that a question waits for them.
 - **The person answers in the inbox,** `temper ctl task answer TASK
-  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page. The
-  chat, woken by the answer, relays it to the goal as the answer to the
-  question's number, the one it heard with the question and the
-  answer (section 5), and says so. The goal then calls `change` with what
-  was agreed, waits for its result and reports; the chat says what
+  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page, and
+  nobody else does: the answer reaches the goal itself, as its
+  requester's, never through the chat's model, which may not answer a
+  question that waits in its person's inbox (jig's `domain/people.md`,
+  section 6): its `message` answer is refused, naming that its person
+  answers it there. The chat hears a notice that the question was
+  answered, and says so. The goal is kept while its question waits
+  (jig's `domain/tasks.md`, 5.7): a run of it that finishes before the
+  answer parks, and the answer wakes it. It then calls `change` with
+  what was agreed, waits for its result and reports; the chat says what
   landed.
 - **Nothing is changed before the answer:** no change task, branch or
   pull request exists until the goal calls `change`.
