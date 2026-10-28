@@ -213,9 +213,6 @@ impl Host for Sender {
             && self.submissions.is_empty()
             && self.completions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        0
-    }
     fn operations(&self) -> u32 {
         io::operations(&IO).expect("bounded io")
     }
@@ -260,9 +257,6 @@ impl Host for Process {
     }
     fn is_empty(&self) -> bool {
         self.host().is_empty()
-    }
-    fn worst_case(&self) -> u64 {
-        self.host().worst_case()
     }
     fn operations(&self) -> u32 {
         self.host().operations()

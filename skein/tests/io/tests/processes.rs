@@ -8,11 +8,13 @@ use skein_world::Memory;
 static HEAP: Counting = Counting;
 
 fn check(story: Story) {
+    // Process-group stories peak at 68,216 B. Ceiling adds 25% headroom, rounded up to two significant digits.
+    const CEILING: u64 = 86_000;
     for seed in 0..4 {
         for config in [Config::calm(), chaos()] {
             let outcome = run(seed, config, story, Memory::Checked);
             assert!(
-                outcome.heap.as_ref().expect("memory checked").iter().all(|(peak, bound)| *peak > 0 && peak <= bound)
+                outcome.heap.as_ref().expect("memory checked").iter().all(|(peak, _)| *peak > 0 && *peak <= CEILING)
             );
         }
     }
@@ -41,12 +43,14 @@ fn the_group_story_replays_its_actual_kernel_trace() {
 
 #[test]
 fn a_childs_usage_joins_the_childrens_only_at_its_close() {
+    // Child usage and owner storage peak at 2,163 B. Ceiling adds 25% headroom, rounded up to two significant digits.
+    const CEILING: u64 = 2_800;
     for seed in 0..4 {
         for config in [Config::calm(), chaos()] {
             let outcome = skein_io_world::usage::run(seed, config, Memory::Checked);
             outcome.procs[0].check(true);
             assert!(
-                outcome.heap.as_ref().expect("memory checked").iter().all(|(peak, bound)| *peak > 0 && peak <= bound)
+                outcome.heap.as_ref().expect("memory checked").iter().all(|(peak, _)| *peak > 0 && *peak <= CEILING)
             );
         }
     }

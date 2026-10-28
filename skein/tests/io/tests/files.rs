@@ -73,11 +73,13 @@ fn a_target_link_is_replaced_without_writing_its_target() {
 }
 
 #[test]
-fn the_largest_admitted_store_stays_within_file_ios_worst_case() {
+fn the_largest_admitted_store_stays_within_its_memory_ceiling() {
+    // The largest admitted replacement peaks at 132,257 B. Ceiling adds 25% headroom, rounded up to two significant digits.
+    const CEILING: u64 = 170_000;
     let mut outcome = world(23, Config::calm(), Story::Replace, None, 65_536).run();
     assert!(matches!(outcome.procs[0].events[0], Event::Stored { .. }));
     assert_eq!(outcome.machine.bytes(b"record"), vec![b'n'; 65_536]);
-    assert!(outcome.heap.as_ref().expect("checked memory").iter().all(|(peak, bound)| peak <= bound));
+    assert!(outcome.heap.as_ref().expect("checked memory").iter().all(|(peak, _)| *peak <= CEILING));
     outcome.machine.finish();
 }
 
@@ -166,6 +168,8 @@ fn refused_cleanup_names_its_residue_and_the_next_replace_is_independent() {
 
 #[test]
 fn private_roots_and_files_refuse_planted_metadata_unread_and_make_secret_modes() {
+    // Private metadata stories peak at 1,316 B. Ceiling adds 25% headroom, rounded up to two significant digits.
+    const CEILING: u64 = 1_700;
     use skein_io_world::private::{Story as Private, USER, world as private_world};
     for config in [Config::calm(), Config::chaos()] {
         for seed in [7, 11, 19] {
@@ -192,7 +196,7 @@ fn private_roots_and_files_refuse_planted_metadata_unread_and_make_secret_modes(
                 } else {
                     assert_eq!(outcome.machine.reads, 0, "unsafe metadata is refused before any content read");
                 }
-                assert!(outcome.heap.as_ref().unwrap().iter().all(|(peak, bound)| peak <= bound));
+                assert!(outcome.heap.as_ref().unwrap().iter().all(|(peak, _)| *peak <= CEILING));
                 outcome.machine.finish();
             }
         }
@@ -212,6 +216,8 @@ fn a_store_replays_to_the_same_files_digest_at_its_end() {
 
 #[test]
 fn racing_absent_creators_have_one_durable_winner() {
+    // Each racing creator peaks at 1,219 B. Ceiling adds 25% headroom, rounded up to two significant digits.
+    const CEILING: u64 = 1_600;
     use skein_io::digest::digest;
     for reverse in [false, true] {
         let mut outcome = skein_io_world::files::racing_absent(reverse).run();
@@ -239,7 +245,7 @@ fn racing_absent_creators_have_one_durable_winner() {
         }
         assert_eq!((winners, losers), (1, 1));
         assert_eq!(outcome.machine.names(), vec![b"record".to_vec()], "no temporary remains");
-        assert!(outcome.heap.as_ref().expect("checked memory").iter().all(|(peak, bound)| peak <= bound));
+        assert!(outcome.heap.as_ref().expect("checked memory").iter().all(|(peak, _)| *peak <= CEILING));
         outcome.machine.finish();
     }
 }

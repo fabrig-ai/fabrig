@@ -192,15 +192,6 @@ impl Host for Owner {
             && self.completions.is_empty()
             && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        FileIo::worst_case(FILES, READ, ENTRIES, self.max).expect("bounded driver")
-            + Queue::<Complete>::worst_case(4).expect("completion cells")
-            + Queue::<Submit>::worst_case(4).expect("submission cells")
-            + Queue::<Event>::worst_case(2).expect("terminal cells")
-            + u64::try_from(3 * size_of::<Event>()).expect("observations")
-            + u64::from(self.max)
-            + 255
-    }
     fn operations(&self) -> u32 {
         4
     }

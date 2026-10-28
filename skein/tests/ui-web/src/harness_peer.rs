@@ -179,9 +179,6 @@ impl Host for Peer {
             && self.requests.is_empty()
             && self.connections.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        io::worst_case(&self.env.limits).expect("fixture bound")
-    }
     fn operations(&self) -> u32 {
         io::operations(&self.env.limits).expect("fixture operations")
     }

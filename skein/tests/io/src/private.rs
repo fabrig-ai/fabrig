@@ -230,14 +230,6 @@ impl Host for Owner {
             && self.completions.is_empty()
             && self.submissions.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        FileIo::worst_case(3, 2, 4, MAX).expect("the bounded private-file scenario supplies this value")
-            + Queue::<Complete>::worst_case(4).expect("the bounded private-file scenario supplies this value")
-            + Queue::<Submit>::worst_case(4).expect("the bounded private-file scenario supplies this value")
-            + Queue::<Event>::worst_case(1).expect("the bounded private-file scenario supplies this value")
-            + u64::try_from(5 * size_of::<Event>()).expect("the bounded private-file scenario supplies this value")
-            + u64::from(MAX)
-    }
     fn operations(&self) -> u32 {
         4
     }

@@ -40,7 +40,6 @@ pub(super) struct Hosted {
     stopped: Option<Stopped>,
     closed: bool,
     serial: u64,
-    heap: u64,
     pub(super) sent: u64,
     pub(super) costs: u64,
 }
@@ -157,18 +156,6 @@ impl Hosted {
             word: Box::from(b"kit".as_slice()),
             user_agent: Box::from(b"kit/0.0.0".as_slice()),
         };
-        let owned_bytes = skein_forge_connection::settings::owned_bytes(&settings).ok_or("component owner bytes")?;
-        let kinds = skein_forge_connection::limits::Forges::of(&settings).ok_or("component forge counts")?;
-        let heap = skein_forge_connection::limits::worst_case(&limits, &shared, kinds, owned_bytes)
-            .ok_or("component heap")?
-            + skein_io::worst_case(&io_limits).ok_or("io heap")?
-            + 256
-                * (std::mem::size_of::<Event>()
-                    + std::mem::size_of::<skein_io::Request>()
-                    + std::mem::size_of::<skein_io::Event>()
-                    + std::mem::size_of::<Complete>()
-                    + std::mem::size_of::<Submit>()) as u64
-            + 256 * (u64::from(client.answer_bytes) + 2 * u64::from(io_limits.output));
         let component = Component::new(settings, &limits, &shared).map_err(|e| format!("component limits: {e:?}"))?;
         let clock = Clock::new();
         let now = clock.now();
@@ -190,7 +177,6 @@ impl Hosted {
             stopped: None,
             closed: false,
             serial: 0,
-            heap,
             sent: 0,
             costs: 0,
         };
@@ -326,9 +312,6 @@ impl Host for Hosted {
     }
     fn is_empty(&self) -> bool {
         self.closed && self.io.is_empty() && self.complete.is_empty() && self.submit.is_empty() && self.below.is_empty()
-    }
-    fn worst_case(&self) -> u64 {
-        self.heap
     }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.io_env.limits).expect("io operations")
