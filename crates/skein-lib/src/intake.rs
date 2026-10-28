@@ -1,10 +1,10 @@
 //! The carry-over of a stream (programming-model.md, 4.3; lib.md,
 //! 7): bytes received but not yet demanded, held by the side below
-//! under its cap.
+//! under its cap, grown as it fills.
 
 #![expect(
     clippy::disallowed_types,
-    reason = "an intake is a VecDeque allocated once, at its cap, and a delivery is built in a Vec of its exact length"
+    reason = "an intake is a VecDeque grown under its cap, and a delivery is built in a Vec of its exact length"
 )]
 
 use core::hash::{Hash, Hasher};
@@ -21,7 +21,7 @@ use crate::stream::{Delimiter, Read};
 ///
 /// The side below appends what arrives while there is [`room`](Intake::room),
 /// and meets the side above's [`Read`] with [`meet`](Intake::meet) as soon as
-/// it can. The buffer is allocated once, at the cap, and never grows; each
+/// it can. The buffer grows as it fills, never past the cap; each
 /// delivery is a box of exactly the demanded length.
 #[derive(Debug)]
 pub struct Intake {
@@ -60,14 +60,10 @@ impl Until {
 impl Intake {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Intake {
-        Intake {
-            bytes: VecDeque::with_capacity(index(capacity)),
-            capacity,
-            searched: Searched { until: Until::LineEnd, clear: 0 },
-        }
+        Intake { bytes: VecDeque::new(), capacity, searched: Searched { until: Until::LineEnd, clear: 0 } }
     }
 
-    /// The heap an intake of `capacity` takes: its buffer, so always
+    /// The most heap an intake of `capacity` takes: its buffer, so always
     /// `Some(capacity)`, an `Option` to match the other containers. The boxes
     /// it delivers are their new owners' to count.
     #[must_use]
@@ -99,7 +95,7 @@ impl Intake {
         self.capacity.checked_sub(self.len()).expect("no longer than its capacity")
     }
 
-    /// Drops buffered bytes while keeping the fixed capacity; resets scan progress.
+    /// Drops buffered bytes while keeping its buffer; resets scan progress.
     pub fn clear(&mut self) {
         self.bytes.clear();
         self.searched.clear = 0;
@@ -110,6 +106,17 @@ impl Intake {
     pub fn append(&mut self, bytes: &[u8]) -> Result<(), Overflow> {
         if bytes.len() > index(self.room()) {
             return Err(Overflow);
+        }
+        let needed = self.bytes.len().checked_add(bytes.len()).expect("the bytes fit the cap");
+        if needed > self.bytes.capacity() {
+            let cap = index(self.capacity);
+            let mut next = self.bytes.capacity().max(1);
+            // At most 32 doublings reach the u32 cap.
+            while next < needed {
+                next = next.saturating_mul(2).min(cap);
+            }
+            let additional = next.checked_sub(self.bytes.len()).expect("growing to fit the bytes");
+            self.bytes.reserve_exact(additional);
         }
         self.bytes.extend(bytes);
         Ok(())

@@ -1,4 +1,5 @@
-//! A bounded commit barrier for writes and outputs (lib.md, section 11).
+//! A commit barrier for writes and outputs (lib.md, section 11).
+//! Capped journals reserve room; uncapped journals always open a decision.
 //!
 //! The journal keeps accepted commits, their numbers, outputs held for
 //! durability, and untagged outputs at its door. It never inspects writes or
@@ -73,7 +74,7 @@ struct Held<O> {
     output: O,
 }
 
-/// One decision's reserved writes and held outputs.
+/// One decision's writes and held outputs, reserved or uncapped.
 #[must_use]
 #[derive(Debug)]
 pub struct Decision<W, O> {
@@ -84,6 +85,18 @@ pub struct Decision<W, O> {
 }
 
 impl<W, O> Decision<W, O> {
+    /// Adds a write; exceeding a capped decision's room is the caller's bug.
+    pub fn push_write(&mut self, write: W) {
+        assert!(self.writes.room() > 0, "a pushed write fits the decision's room");
+        self.writes.push(write);
+    }
+
+    /// Holds an output; exceeding a capped decision's room is the caller's bug.
+    pub fn push_held(&mut self, output: O) {
+        assert!(self.held.room() > 0, "a pushed output fits the decision's room");
+        self.held.push(output);
+    }
+
     /// Adds a write, returning it and marking an overrun past the room.
     pub fn write(&mut self, write: W) -> Result<(), W> {
         let result = self.writes.try_push(write);
@@ -103,7 +116,7 @@ impl<W, O> Decision<W, O> {
     }
 }
 
-/// A counted, bounded commit barrier (lib.md, section 11).
+/// A capped or uncapped commit barrier (lib.md, section 11).
 #[derive(Debug)]
 pub struct Journal<W, O> {
     limits: JournalLimits,
@@ -116,16 +129,17 @@ pub struct Journal<W, O> {
     sent: u64,
     durable: u64,
     stopped: bool,
+    uncapped: bool,
 }
 
 impl<W, O> Journal<W, O> {
-    /// Allocates the journal's fixed-capacity containers.
+    /// Makes an empty journal with fixed caps.
     #[must_use]
     pub fn new(limits: &JournalLimits) -> Journal<W, O> {
         Self::from_durable(limits, 0)
     }
 
-    /// Allocates an empty journal after the supplied durable commit number.
+    /// Makes an empty capped journal after the supplied durable commit number.
     #[must_use]
     pub fn from_durable(limits: &JournalLimits, durable: u64) -> Journal<W, O> {
         Journal {
@@ -139,13 +153,52 @@ impl<W, O> Journal<W, O> {
             sent: durable,
             durable,
             stopped: false,
+            uncapped: false,
         }
+    }
+
+    /// Makes an uncapped journal after `durable`, releasing at most `release`
+    /// outputs per call. The reserved-room forms refuse on this journal.
+    #[must_use]
+    pub fn uncapped(release: u32, durable: u64) -> Journal<W, O> {
+        Journal {
+            limits: JournalLimits { commits: 0, writes: 0, held: 0, now: 0, release },
+            pending: Queue::uncapped(),
+            outstanding: Queue::uncapped(),
+            held: Queue::uncapped(),
+            now: Queue::uncapped(),
+            reserved: None,
+            last_number: durable,
+            sent: durable,
+            durable,
+            stopped: false,
+            uncapped: true,
+        }
+    }
+
+    /// Opens an uncapped decision, including after the journal has stopped.
+    /// Calling this on a capped journal or with a decision open is a bug.
+    pub fn decide(&mut self) -> Decision<W, O> {
+        assert!(self.uncapped, "decide requires an uncapped journal");
+        assert!(self.reserved.is_none(), "only one decision may be open");
+        let room = JournalRoom { writes: u32::MAX, held: u32::MAX };
+        self.reserved = Some(room);
+        Decision { room, writes: Queue::uncapped(), held: Queue::uncapped(), overrun: false }
+    }
+
+    /// Commits not yet answered, held outputs, and outputs at the door, in entries.
+    #[must_use]
+    pub fn backlog(&self) -> u64 {
+        let commits_and_held = u64::from(self.outstanding.len())
+            .checked_add(u64::from(self.held.len()))
+            .expect("two u32 counts fit in a u64");
+        commits_and_held.checked_add(u64::from(self.now.len())).expect("three u32 counts fit in a u64")
     }
 
     /// Checks a decision's room without changing the journal.
     #[must_use]
     pub fn takes(&self, room: &JournalRoom) -> bool {
-        if self.stopped || self.reserved.is_some() || room.writes > self.limits.writes {
+        if self.uncapped || self.stopped || self.reserved.is_some() || room.writes > self.limits.writes {
             return false;
         }
         if room.held > self.held.room() {

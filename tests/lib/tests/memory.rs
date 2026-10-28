@@ -9,8 +9,9 @@
 //! hands out (an item taken, a delivery, a box of a list's items) is its
 //! receiver's, dropped before the check.
 //!
-//! A slab, a queue, a list, a stack and an intake are allocated once, at their
-//! capacity, and hold exactly their worst case from the start. A map, a set
+//! A slab, a list and a stack are allocated once, at their capacity, and hold
+//! exactly their worst case from the start. A queue and an intake grow as
+//! they fill, under their cap, keeping their buffer when emptied. A map, a set
 //! and a deadline table allocate tree nodes as they fill, priced at the most
 //! nodes the tree can have, each as the larger kind: they are filled in
 //! order, each leaf left behind holding six entries, then thinned to five a
@@ -60,6 +61,12 @@ impl Metered {
         drop(handed);
         let own = self.meter.check(measured, self.bound, &self.what);
         self.most = self.most.max(own);
+    }
+
+    /// For a growing ring, filled to its cap during the test.
+    fn held_at_most_its_worst_case(&self, items: u64) {
+        assert!(self.most <= self.bound, "{:?}: rings grow under their cap", self.what);
+        assert!(self.most >= items, "{:?}: a full ring holds its items", self.what);
     }
 
     /// For a container allocated once, at its capacity.
@@ -195,7 +202,7 @@ fn queue<T: Item>(capacity: u32) {
         let taken = queue.pop();
         metered.end(taken);
     }
-    metered.held_exactly_its_worst_case();
+    metered.held_at_most_its_worst_case(u64::from(capacity) * u64::try_from(size_of::<T>()).expect("item size"));
 }
 
 /// Fills a list to its capacity, refuses one more and copies it out; then
@@ -318,7 +325,7 @@ fn intake(capacity: u32) {
             meet(&mut metered, &mut intake, read);
         }
     }
-    metered.held_exactly_its_worst_case();
+    metered.held_at_most_its_worst_case(u64::from(capacity));
 }
 
 /// Fills a map to its capacity in order, refuses a new key and replaces a
@@ -485,7 +492,7 @@ fn a_slab_holds_exactly_its_worst_case() {
 }
 
 #[test]
-fn a_queue_holds_exactly_its_worst_case() {
+fn a_queue_holds_at_most_its_worst_case() {
     for capacity in CAPACITIES {
         queue::<u8>(capacity);
         queue::<u64>(capacity);
@@ -515,7 +522,7 @@ fn a_stack_holds_exactly_its_worst_case() {
 }
 
 #[test]
-fn an_intake_holds_exactly_its_worst_case() {
+fn an_intake_holds_at_most_its_worst_case() {
     for capacity in CAPACITIES {
         intake(capacity);
     }
@@ -758,4 +765,52 @@ fn request_table_finish<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
     metered.start();
     table.reclaim();
     metered.end(());
+}
+
+#[test]
+fn a_ring_used_lightly_holds_what_it_holds() {
+    let capacity = 15_000_000;
+    assert_eq!(Queue::<u64>::worst_case(capacity), Some(120_000_000));
+    let mut metered = Metered::new("Queue", "u64", capacity, Some(1024));
+    metered.start();
+    let mut queue = Queue::with_capacity(capacity);
+    metered.end(());
+    for n in 0_u64..1_000_000 {
+        metered.start();
+        queue.push(n);
+        queue.push(n + 1);
+        assert_eq!(queue.pop(), Some(n));
+        assert_eq!(queue.pop(), Some(n + 1));
+        metered.end(());
+    }
+    assert!(metered.most <= 1024);
+}
+
+#[test]
+fn an_intake_used_lightly_holds_what_it_holds() {
+    let capacity = 64 * 1024 * 1024;
+    let mut metered = Metered::new("Intake", "u8", capacity, Some(4096));
+    metered.start();
+    let mut intake = Intake::with_capacity(capacity);
+    metered.end(());
+    for _ in 0..100_000 {
+        metered.start();
+        intake.append(&[b'a'; 100]).expect("room under the cap");
+        let delivered = intake.meet(Read::Fill(100)).expect("the bytes are buffered");
+        assert_eq!(&*delivered, &[b'a'; 100]);
+        metered.end(delivered);
+    }
+    assert!(metered.most <= 4096);
+}
+
+#[test]
+fn an_unused_ring_holds_nothing() {
+    let mut metered = Metered::new("unused rings", "u8", 0, Some(0));
+    metered.start();
+    let queue = Queue::<u64>::with_capacity(1_000_000);
+    let intake = Intake::with_capacity(64 * 1024 * 1024);
+    metered.end(());
+    assert_eq!(metered.most, 0);
+    assert!(queue.is_empty());
+    assert!(intake.is_empty());
 }
