@@ -1,10 +1,10 @@
 //! The carry-over of a stream (programming-model.md, 4.3; lib.md,
 //! 7): bytes received but not yet demanded, held by the side below
-//! under its cap, grown as it fills.
+//! under its cap: allocated whole up to 4 KiB, otherwise grown as it fills.
 
 #![expect(
     clippy::disallowed_types,
-    reason = "an intake is a VecDeque grown under its cap, and a delivery is built in a Vec of its exact length"
+    reason = "an intake is a VecDeque allocated under its cap, grown above 4 KiB, and deliveries are exact-length Vecs"
 )]
 
 use core::hash::{Hash, Hasher};
@@ -21,7 +21,8 @@ use crate::stream::{Delimiter, Read};
 ///
 /// The side below appends what arrives while there is [`room`](Intake::room),
 /// and meets the side above's [`Read`] with [`meet`](Intake::meet) as soon as
-/// it can. The buffer grows as it fills, never past the cap; each
+/// it can. Up to 4 KiB the buffer is allocated at construction; larger
+/// buffers grow as they fill, never past the cap. Each
 /// delivery is a box of exactly the demanded length.
 #[derive(Debug)]
 pub struct Intake {
@@ -60,7 +61,8 @@ impl Until {
 impl Intake {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> Intake {
-        Intake { bytes: VecDeque::new(), capacity, searched: Searched { until: Until::LineEnd, clear: 0 } }
+        let bytes = if capacity <= 4096 { VecDeque::with_capacity(index(capacity)) } else { VecDeque::new() };
+        Intake { bytes, capacity, searched: Searched { until: Until::LineEnd, clear: 0 } }
     }
 
     /// The most heap an intake of `capacity` takes, including its growth peak.
@@ -109,7 +111,7 @@ impl Intake {
         let needed = self.bytes.len().checked_add(bytes.len()).expect("the bytes fit the cap");
         if needed > self.bytes.capacity() {
             let cap = index(self.capacity);
-            let mut next = if cap <= 4096 { cap } else { self.bytes.capacity().max(1) };
+            let mut next = self.bytes.capacity().max(1);
             // At most 32 doublings reach the u32 cap.
             while next < needed {
                 next = next.saturating_mul(2).min(cap);
@@ -255,7 +257,7 @@ impl Hash for Intake {
 
 /// The growth peak counts the cap's buffer and the largest buffer reallocated
 /// on the way, live together while copying. Intakes of at most 4 KiB allocate
-/// their cap on first use and hold only that buffer.
+/// their cap at construction and hold only that buffer.
 fn growth_peak(capacity: u32) -> Option<u64> {
     let cap = u64::from(capacity);
     if cap <= 4096 {
