@@ -193,10 +193,3 @@ fn limits() -> json::Limits {
         skip: u64::from(STATUS_BYTES),
     }
 }
-
-pub(crate) fn worst_case() -> Option<u64> {
-    json::worst_case(&limits(), &[32], &FILTER)?
-        .checked_add(Intake::worst_case(STATUS_BYTES)?)?
-        .checked_add(Queue::<json::Event>::worst_case(1)?)?
-        .checked_add(Queue::<stream::Down>::worst_case(1)?)
-}

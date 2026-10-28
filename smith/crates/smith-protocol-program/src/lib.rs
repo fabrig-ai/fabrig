@@ -17,7 +17,7 @@ mod status;
 #[cfg(test)]
 mod tests;
 
-pub use command::{Command, Ended, Launch, command_worst_case};
+pub use command::{Command, Ended, Launch};
 pub use source::{
     ENVIRONMENT_BYTES, ENVIRONMENT_ENTRIES, Error, Programs, configuration_directory, environment, keeps,
 };

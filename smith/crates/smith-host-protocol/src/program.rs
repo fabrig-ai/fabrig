@@ -4,7 +4,6 @@
 //! translates its settled record into the host domain's vocabulary.
 
 use alloc::boxed::Box;
-use core::mem::size_of;
 use skein_io::{Event as IoEvent, Request as IoRequest, kernel};
 use skein_lib::{Queue, Time, Token};
 use smith_host_domain::{FailureReason, ProgramCheck, ProgramFailure, ProgramMethod, ProgramSignOut, SourceName};
@@ -34,14 +33,6 @@ pub struct ProgramSource {
     command: Command,
     ask: SourceAsk,
     answered: bool,
-}
-
-/// One source command, its host adapter and the returned stderr detail.
-#[must_use]
-pub fn program_source_worst_case(detail_bytes: u32) -> Option<u64> {
-    program::command_worst_case(detail_bytes)?
-        .checked_add(u64::from(detail_bytes))?
-        .checked_add(u64::try_from(size_of::<ProgramSource>()).ok()?)
 }
 
 impl ProgramSource {
