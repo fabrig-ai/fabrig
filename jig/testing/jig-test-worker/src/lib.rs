@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+mod admission;
 pub mod boundary;
 mod domain;
 mod hand_out;
@@ -11,6 +12,7 @@ mod limits;
 pub mod translate;
 mod workspace;
 
+pub use admission::{Class, class};
 pub use boundary::{Encodable, Encoded, Event, Invalid, Request};
 pub use domain::{Domain, fire, step};
 pub use limits::{Limits, WATERMARK, worst_case};

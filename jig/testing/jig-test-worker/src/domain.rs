@@ -107,6 +107,22 @@ impl Domain {
         self.hub.is_ready() || !self.hub_out.is_empty() || !self.agent_out.is_empty() || self.stopping_ready()
     }
 
+    /// Whether source checks are due; they wait independently of admitted timer work.
+    #[must_use]
+    pub fn sources_due(&self, now: Time) -> bool {
+        host::sources_due(&self.hub, now)
+    }
+
+    /// Whether the event must stay behind this held entrance (hosts.md, 4).
+    #[must_use]
+    pub fn must_follow(&self, held: &Event, event: &Event) -> bool {
+        crate::admission::must_follow(self, held, event)
+    }
+
+    pub(crate) fn process_agent(&self, owner: Token) -> Option<Token> {
+        self.agents.get(&owner).copied()
+    }
+
     fn stopping_ready(&self) -> bool {
         self.stopping
             && self.hub.sources_settled()
@@ -181,8 +197,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 hub(domain, env, host::Event::Activity { owner, activity });
             }
         }
+        Event::Checks => host::fire_sources(&mut domain.hub, &hub_env(env), &mut domain.hub_out),
         Event::Timer => {
-            host::resume(&mut domain.hub, &hub_env(env), &mut domain.hub_out);
+            host::resume_runs(&mut domain.hub, &hub_env(env), &mut domain.hub_out);
             smith::fire(&mut domain.agent, &agent_env(env), &mut domain.agent_out);
         }
     }

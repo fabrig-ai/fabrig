@@ -40,7 +40,7 @@ pub use boundary::{
     Refusal, Refused, Reply, Request, RunAssignment, RunFailure, Scheme, SettledAnswer, Start, StartCause,
     StartMessage, ToAgent, Turn, Work, Workspace,
 };
-pub use domain::{Domain, max_out, resume, step};
+pub use domain::{Domain, fire_sources, max_out, resume, resume_runs, sources_due, step};
 pub use facts::Fact;
 pub use limits::{Limits, valid, worst_case};
 
