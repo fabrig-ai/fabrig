@@ -184,14 +184,13 @@ fn accounts_delivery_preserves_every_field_and_terminal_outcome() {
 }
 #[test]
 fn an_accounts_document_filling_its_decoded_room_is_admitted() {
-    // A document's decoded room is twice its byte limit, the client domain's price for each it holds.
-    assert_eq!(held() % 2, 0, "the fixture's decoded bytes halve evenly");
-    let limits = fixtures::limits_for_document(held() / 2);
+    // The smallest document limit whose decoded room holds the fixture.
+    let limits = fixtures::limits_for_document(held().div_ceil(2));
     assert_eq!(watches::delivery(&bytes(None), &limits), Ok(c::Delivery::OwnerAccounts(Box::new(document(None)))));
 }
 #[test]
 fn an_accounts_document_past_its_decoded_room_is_refused() {
-    let limits = fixtures::limits_for_document((held() / 2).checked_sub(1).unwrap());
+    let limits = fixtures::limits_for_document(held().div_ceil(2).checked_sub(1).unwrap());
     assert_eq!(watches::delivery(&bytes(None), &limits), Err(Undecodable::TooLarge));
 }
 #[test]
@@ -488,8 +487,8 @@ fn deployment_held() -> u64 {
 }
 #[test]
 fn a_deployment_filling_its_decoded_room_is_admitted() {
-    assert_eq!(deployment_held() % 2, 0, "the fixture's decoded bytes halve evenly");
-    let limits = fixtures::limits_for_document(deployment_held() / 2);
+    // The smallest document limit whose decoded room holds the fixture.
+    let limits = fixtures::limits_for_document(deployment_held().div_ceil(2));
     assert_eq!(
         crate::translate::documents::owner_deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
         Ok(expected_deployment(DEPLOYMENT_ACCOUNTS))
@@ -497,7 +496,7 @@ fn a_deployment_filling_its_decoded_room_is_admitted() {
 }
 #[test]
 fn a_deployment_past_its_decoded_room_is_refused() {
-    let limits = fixtures::limits_for_document((deployment_held() / 2).checked_sub(1).unwrap());
+    let limits = fixtures::limits_for_document(deployment_held().div_ceil(2).checked_sub(1).unwrap());
     assert_eq!(
         crate::translate::documents::owner_deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
         Err(Undecodable::TooLarge)

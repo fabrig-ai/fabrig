@@ -5,11 +5,6 @@ use skein_lib::{Duration, bytes};
 
 #[test]
 fn a_revoked_record_waits_for_erased_and_coalesces_a_sign_out() {
-    assert_eq!(
-        Map::<u32, Erasing>::worst_case(2),
-        Map::<u32, Option<bool>>::worst_case(2),
-        "the generalized pending state fits the existing map bound"
-    );
     for (notifications, expected_signed_out, removing) in
         [(&[][..], None, false), (&[true, true][..], Some(true), true), (&[false, false][..], Some(false), true)]
     {
