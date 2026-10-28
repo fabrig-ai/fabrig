@@ -285,6 +285,9 @@ counted at the root, which sees them all.
   memory (the help pages say so). No start checks it against a sum
   (skein's programming-model.md, 6.3); a deployment that declared a
   far larger figure before keeps it, and the budget then rarely binds.
+  It is positive: a budget of zero would hold every preparation for
+  ever, so the engine's limits refuse it at start, as they refuse a
+  zero watermark.
 - **Its test,** in the root's world: with a budget of about two
   preparations, three due tasks activate two at a time as earlier runs
   are assigned and their turns committed, while the fleet's placements
