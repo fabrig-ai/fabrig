@@ -1192,7 +1192,11 @@ new `me` watch, including after restart.
   folded counts or continuation, whether it was a root or a delegate.
   The watch ends with the existing subject-gone reason after that delivery
   is taken or dropped. Missing or hidden retained facts end it without a
-  delivery; an ending alone is never terminal success. Other ended
+  delivery; retained facts too linked to load within the read's join
+  bound end it without a delivery as too linked, naming the bound, as
+  the task's read is refused (section 6; `../../protocol/store.md`,
+  7.3), never as the subject gone; an ending alone is never terminal
+  success. Other ended
   subjects are refused `Unknown`. No retired task is restored to serve it.
 - **Ended,** each saying why: the client left; its subject ended and left
   the engine; the party may no longer see it; the sign-in ended; the
