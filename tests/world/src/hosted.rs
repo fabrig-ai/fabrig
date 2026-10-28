@@ -392,9 +392,11 @@ pub fn interrupted_child(_spawn: &Spawn, inherited: &Inherited) -> Script {
     Script::child(inherited, &[Act::ReadSignal, Act::Write(1, b"interrupted"), Act::Read(0), Act::Write(1, b"reply")])
 }
 
+const FULL_PAYLOAD_BYTES: usize = 60 * 1024;
+
 fn full_child(spawn: &Spawn, inherited: &Inherited) -> Script {
     let mut script = exchange_child(spawn, inherited);
-    script.hog = 60 * 1024;
+    script.hog = FULL_PAYLOAD_BYTES;
     script
 }
 
@@ -500,10 +502,8 @@ pub fn check_story(story: Story, outcome: &skein_world::Outcome<Script, RootMach
     }
     if matches!(story, Story::Memory) {
         let (peak, bound) = outcome.heap.as_ref().expect("checked heaps")[1];
-        assert!(
-            peak <= bound && peak + 4096 >= bound,
-            "the child's largest payload reaches its declared bound within container headroom: {peak}/{bound}"
-        );
+        assert!(peak <= bound, "the child's full payload stays within its declared bound: {peak}/{bound}");
+        assert_eq!(outcome.procs[1].held.len(), FULL_PAYLOAD_BYTES, "the child retains its full payload at settlement");
     }
 }
 

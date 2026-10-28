@@ -537,11 +537,30 @@ fn a_forge_filled_to_its_limits_stays_within_its_worst_case() {
     }
     assert_eq!(forge.domain.calls(), LIMITS.calls);
     let held = forge.meter.held();
-    assert!(
-        held.checked_mul(3).expect("measured heap fits") >= forge.bound.checked_mul(2).expect("bound fits"),
-        "the fill reaches two thirds of the worst case: {held} of {}",
-        forge.bound
-    );
+    assert!(held <= forge.bound, "the filled forge holds {held} bytes within {}", forge.bound);
+    assert_eq!(forge.domain.deliveries(), LIMITS.hooks, "all webhook slots are held");
+    for index in 0..u64::from(LIMITS.repositories) {
+        let repository = name(b'r', index);
+        let branches = forge.domain.branches(&repository);
+        assert_eq!(branches.len(), LIMITS.branches);
+        for (branch, commit) in branches {
+            assert_eq!(branch.len(), usize::try_from(LIMITS.name_bytes).expect("name limit"));
+            let object = forge.domain.object(*commit).expect("a branch's stored commit");
+            assert_eq!(object.tree.len(), LIMITS.files);
+            for (path, content) in &object.tree {
+                assert_eq!(path.len(), usize::try_from(LIMITS.name_bytes).expect("path limit"));
+                assert_eq!(content.len(), usize::try_from(LIMITS.content_bytes).expect("content limit"));
+            }
+        }
+        for page in 0..u64::from(LIMITS.pages) {
+            let read = Read::Page { name: name(b'n', page) };
+            let Answer::Page(page) = forge.domain.inspect(&config, &repository, &read).expect("stored page") else {
+                panic!("page answer");
+            };
+            assert_eq!(page.name.len(), usize::try_from(LIMITS.name_bytes).expect("page name limit"));
+            assert_eq!(page.content.len(), usize::try_from(LIMITS.content_bytes).expect("page content limit"));
+        }
+    }
 }
 
 #[test]

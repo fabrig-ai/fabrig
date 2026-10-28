@@ -50,6 +50,13 @@ struct Driver {
     most: u64,
     output_events: Vec<(Token, Token, OutputOutcome)>,
     failures: Vec<skein_io::Error>,
+    /// Receive completions by descriptor; no stream bytes are delivered in the fill.
+    received: Vec<(Fd, u32)>,
+    /// Output bytes and send slots handed to each socket before any send completes.
+    queued: Vec<(Token, u32, u32)>,
+    stream_rooms: Vec<Token>,
+    connected: u32,
+    delivered: u32,
 }
 
 /// Room for every operation in flight, and every socket.
@@ -76,6 +83,11 @@ impl Driver {
             most: 0,
             output_events: Vec::with_capacity(ROOM),
             failures: Vec::with_capacity(ROOM),
+            received: Vec::with_capacity(ROOM),
+            queued: Vec::with_capacity(ROOM),
+            stream_rooms: Vec::with_capacity(ROOM),
+            connected: 0,
+            delivered: 0,
         };
         driver.meter = Meter::new();
         driver.meter.start();
@@ -103,8 +115,13 @@ impl Driver {
                     self.output_events.push((owner, right, outcome));
                 }
                 Event::Failed { error, .. } => self.failures.push(error),
-                other @ (Event::Connected { .. }
-                | Event::Stream { .. }
+                Event::Connected { .. } => self.connected += 1,
+                Event::Stream { owner, up: skein_lib::stream::Up::Room } => self.stream_rooms.push(owner),
+                Event::Stream { up: skein_lib::stream::Up::Bytes(bytes), .. } => {
+                    self.delivered += u32::try_from(bytes.len()).expect("test delivery fits");
+                    drop(bytes);
+                }
+                other @ (Event::Stream { .. }
                 | Event::Spawned { .. }
                 | Event::Exited { .. }
                 | Event::Usage { .. }
@@ -127,6 +144,18 @@ impl Driver {
     }
 
     fn down(&mut self, request: Request) {
+        if let Request::Stream { stream, down: Down::Send(bytes) }
+        | Request::Output { stream, down: OutputDown::Send { bytes, .. } } = &request
+        {
+            let length = u32::try_from(bytes.len()).expect("test output fits");
+            if let Some((_, total, sends)) = self.queued.iter_mut().find(|(socket, _, _)| socket == stream) {
+                *total += length;
+                *sends += 1;
+            } else {
+                assert!(self.queued.len() < ROOM, "preallocated output observations");
+                self.queued.push((*stream, length, 1));
+            }
+        }
         self.meter.start();
         let io = self.io.as_mut().expect("made in the first step");
         skein_io::down(io, &self.env, request, &mut self.subs);
@@ -151,10 +180,49 @@ impl Driver {
     fn complete(&mut self, at: usize, answer: fn(&mut Op, &mut i32) -> Result<Done, Error>) {
         let Submit { op, mut kind } = self.flights.remove(at);
         let result = answer(&mut kind, &mut self.next_fd);
+        if let (Op::Recv { fd, .. }, Ok(Done::Count(bytes))) = (&kind, &result) {
+            if let Some((_, total)) = self.received.iter_mut().find(|(socket, _)| socket == fd) {
+                *total += *bytes;
+            } else {
+                assert!(self.received.len() < ROOM, "preallocated receive observations");
+                self.received.push((*fd, *bytes));
+            }
+        }
         self.meter.start();
         let io = self.io.as_mut().expect("made in the first step");
         skein_io::up(io, &self.env, Complete { op, kind, result }, &mut self.up, &mut self.subs);
         self.end("up");
+    }
+
+    /// Before any close or send completion, every socket retains the input
+    /// received and the output handed to it. The receives in flight reserve
+    /// the last piece of each intake; one send is in flight per socket.
+    fn assert_full_buffers(&mut self, boxes: u32, each: u32) {
+        let limits = self.limits;
+        let sockets = usize::try_from(limits.sockets).expect("test socket count fits");
+        assert_eq!(self.io().sockets(), limits.sockets);
+        assert_eq!(self.connected, limits.sockets);
+        assert_eq!(self.sockets.len(), sockets);
+        assert_eq!(self.received.len(), sockets);
+        assert_eq!(self.queued.len(), sockets);
+        assert_eq!(self.delivered, 0, "received bytes are still in the intakes");
+        for (fd, received) in &self.received {
+            assert_eq!(*received, limits.intake - limits.receive);
+            let receives = self.flights.iter().filter(|submit| {
+                matches!(&submit.kind, Op::Recv { fd: stream, buf } if stream == fd && buf.len() == usize::try_from(limits.receive).expect("receive fits"))
+            }).count();
+            assert_eq!(receives, 1, "the rest of the intake is reserved by a full receive buffer");
+            let sends = self.flights.iter().filter(|submit| {
+                matches!(&submit.kind, Op::Send { fd: stream, bytes, from: 0 } if stream == fd && bytes.len() == usize::try_from(each).expect("send fits"))
+            }).count();
+            assert_eq!(sends, 1, "one send in flight; the other send slots are queued");
+        }
+        for socket in &self.sockets {
+            let (_, bytes, sends) =
+                self.queued.iter().find(|(stream, _, _)| stream == socket).expect("output on every socket");
+            assert_eq!(*bytes, boxes * each);
+            assert_eq!(*sends, boxes);
+        }
     }
 
     /// Completes, oldest first, every operation in flight that `wanted`
@@ -314,6 +382,7 @@ fn fill_and_drain(limits: Limits) -> (u64, u64) {
         let room = boxes * u32::try_from(each).expect("a few bytes");
         driver.down(Request::Stream { stream: socket, down: Down::Demand { read: Read::Nothing, room } });
         driver.next();
+        assert_eq!(driver.stream_rooms.last(), Some(&Token::new(u64::try_from(n).expect("owner fits"))));
         for _ in 0..boxes {
             let bytes = vec![1_u8; each].into_boxed_slice();
             driver.down(Request::Stream { stream: socket, down: Down::Send(bytes) });
@@ -323,6 +392,8 @@ fn fill_and_drain(limits: Limits) -> (u64, u64) {
         let unmet = Down::Demand { read: Read::Fill(limits.intake), room: limits.output };
         driver.down(Request::Stream { stream: socket, down: unmet });
     }
+    driver.assert_full_buffers(boxes, u32::try_from(each).expect("send fits"));
+    assert_eq!(driver.stream_rooms.len(), sockets, "only the initial output demand was granted per socket");
     // Half of them closing gracefully, their deadlines armed.
     for n in (0..sockets).step_by(2) {
         let socket = driver.sockets[n];
@@ -403,24 +474,11 @@ fn listen_accept_and_discard(limits: Limits) -> (u64, u64) {
     (driver.most, driver.bound)
 }
 
-// Socket workloads leave the child-only sender table empty. Utilization
-// excludes that reserve; Driver::end checks every step against the full
-// bound, including the child's pipe-list reserve.
-fn socket_bound(limits: Limits, bound: u64) -> u64 {
-    let senders = skein_lib::Map::<Token, skein_io::kernel::Sender>::worst_case(limits.sockets)
-        .expect("the sender table is priced");
-    bound.checked_sub(senders).expect("sender reserve is part of the bound")
-}
-
 #[test]
 fn io_never_holds_more_than_its_worst_case_filled_to_its_limits() {
     for limits in workloads() {
         let (most, bound) = fill_and_drain(limits);
-        let socket_bound = socket_bound(limits, bound);
-        assert!(
-            most * 10 >= socket_bound * 6,
-            "{limits:?}: filled, io held {most} of its socket bound of {socket_bound}"
-        );
+        assert!(most <= bound, "{limits:?}: filled, io held {most} within {bound}");
         let (most, bound) = listen_accept_and_discard(limits);
         assert!(most <= bound, "{limits:?}: a listener's life held {most} of {bound}");
     }
@@ -538,6 +596,7 @@ fn native_output_fills_the_same_actual_payload_and_slot_maxima_with_pending_and_
                 "actual flight plus N queued Sends fills the slots even with byte room"
             );
         }
+        driver.assert_full_buffers(boxes, each);
         for index in 0..driver.sockets.len() {
             let socket = driver.sockets[index];
             let owner = Token::new(u64::try_from(index).expect("bounded socket index"));
@@ -559,14 +618,7 @@ fn native_output_fills_the_same_actual_payload_and_slot_maxima_with_pending_and_
             driver.down(Request::Abort { entity: socket });
         }
         drain(&mut driver);
-        let socket_bound = socket_bound(limits, driver.bound);
-        assert!(
-            driver.most.checked_mul(10).expect("small measured heap")
-                >= socket_bound.checked_mul(6).expect("small heap bound"),
-            "native maximal scene held {} of its socket bound of {}",
-            driver.most,
-            socket_bound
-        );
+        assert!(driver.most <= driver.bound, "native maximal scene stays within its bound");
     }
 }
 

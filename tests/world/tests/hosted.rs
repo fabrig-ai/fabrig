@@ -138,7 +138,7 @@ fn a_parents_termination_signal_reaches_its_hosted_child() {
 }
 
 #[test]
-fn a_hosted_child_reaches_its_worst_case_and_still_frees_exactly_what_it_held() {
+fn a_hosted_child_holds_its_full_payload_within_its_bound_and_frees_exactly_what_it_held() {
     use skein_world_tests::hosted::{Story, check_story, story};
     let outcome = story(7, Story::Memory);
     check_story(Story::Memory, &outcome);
