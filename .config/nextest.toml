@@ -41,10 +41,9 @@ slow-timeout = { period = "120s" }
 [profile.process]
 # The process tier (docs/design/domain/testing.md, 2.6): crates/temper's
 # process binary alone, one test at a time, which scripts/proof-one-process.sh
-# runs. Cold turn proofs and cancellation retries run real gate jobs; leave
-# room for the complete serial tier, including its final ctl stories.
+# runs.
 default-filter = "binary(=process)"
-global-timeout = "25m"
+global-timeout = "20m"
 test-threads = 1
 
 [profile.live]
