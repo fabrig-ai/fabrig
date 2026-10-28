@@ -56,7 +56,7 @@ fn arbitrary(seed: u64, check: fn(&[u8])) {
     }
 }
 fn mutated(family: &str, seed: u64, check: fn(&[u8])) {
-    let root = skein_scratch::paths::workspace().join("crates/jig-protocol-store/golden").join(family);
+    let root = skein_scratch::paths::tree().join("crates/jig-protocol-store/golden").join(family);
     mutate_goldens(&root, seed, check);
 }
 fn mutate_goldens(root: &Path, seed: u64, check: fn(&[u8])) {
@@ -227,7 +227,7 @@ fn arbitrary_test_connector_rows_never_panic_and_round_trip_when_they_decode() {
 
 #[test]
 fn mutated_test_connector_goldens_never_panic() {
-    let root = skein_scratch::paths::workspace().join("testing/jig-test-store/golden");
+    let root = skein_scratch::paths::tree().join("testing/jig-test-store/golden");
     mutate_goldens(&root, 0x5702_e018, test_connector);
 }
 

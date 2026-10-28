@@ -291,8 +291,7 @@ fn choosing_another_preset_replaces_only_the_endpoints_default_values() {
 }
 
 fn composed(extra: &str) -> Result<super::resolve::Resolved, super::Refusal> {
-    let certificate =
-        skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
     let text = format!(
         "model='codex/gpt-6-luna'\n{extra}\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n[endpoints.anthropic]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
     );
@@ -514,8 +513,7 @@ fn effort_settings_shared(extra: &str, shared: &Shared) -> Result<super::resolve
 }
 
 fn effort_settings_input(extra: &str, shared: &Shared) -> Result<super::Settings, super::Refusal> {
-    let certificate =
-        skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
     let base = format!(
         "model='test/model'\n[accounts.test]\nsource='env'\nvariable='SYNTHETIC'\n[endpoints.test]\ndialect='codex'\nconnect=10\nhandshake=10\naccount='test'\naddress='127.0.0.1:443'\nserver_name='example.test'\ntrust.system=false\ntrust.der=['{certificate}']\n[models.\"test/model\"]\nwindow=262144\noutput=32768\ninput_price=1.0\ncached_price=1.0\noutput_price=1.0\n"
     );
@@ -712,8 +710,7 @@ fn with_dirs(
     extra: &str,
     dirs: Vec<crate::command::Dir>,
 ) -> Result<super::resolve::Resolved, super::Refusal> {
-    let certificate =
-        skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
     let text = format!(
         "model='codex/gpt-6-luna'\n{extra}\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
     );

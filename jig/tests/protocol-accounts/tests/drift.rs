@@ -3,7 +3,7 @@ use std::fs;
 
 #[test]
 fn moved_schema_matches_generated_code_and_goldens() {
-    let root = skein_scratch::paths::workspace().join("crates/jig-protocol-accounts");
+    let root = skein_scratch::paths::tree().join("crates/jig-protocol-accounts");
     let source = fs::read_to_string(root.join("schema/moved-v1.schema")).expect("schema");
     let schema = parse(&source).expect("schema valid");
     let output = generate(&schema);

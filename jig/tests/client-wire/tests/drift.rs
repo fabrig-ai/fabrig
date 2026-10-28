@@ -4,7 +4,7 @@ use std::{fs, path::Path};
 
 #[test]
 fn client_wire_schema_matches_generated_code_and_goldens() {
-    let root = skein_scratch::paths::workspace().join("crates/jig-client-protocol-wire");
+    let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire");
     let mut source = fs::read_to_string(root.join("schema/client-v19.schema")).expect("client schema");
     source.push_str(
         &fs::read_to_string(root.join("schema/client-v19-part1.schema")).expect("client schema continuation"),
@@ -13,13 +13,13 @@ fn client_wire_schema_matches_generated_code_and_goldens() {
 }
 #[test]
 fn view_records_schema_matches_generated_code_and_goldens() {
-    let root = skein_scratch::paths::workspace().join("crates/jig-client-view");
+    let root = skein_scratch::paths::tree().join("crates/jig-client-view");
     let source = fs::read_to_string(root.join("schema/records-v1.schema")).expect("view records schema");
     check(&root, &source, "records-v1");
 }
 #[test]
 fn ops_client_wire_schema_matches_generated_code_and_goldens() {
-    let root = skein_scratch::paths::workspace().join("examples/ops/client-protocol-wire");
+    let root = skein_scratch::paths::tree().join("examples/ops/client-protocol-wire");
     let source = fs::read_to_string(root.join("schema/ops-client-v1.schema")).expect("ops client schema");
     check(&root, &source, "v1");
 }

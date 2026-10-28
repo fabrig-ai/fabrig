@@ -5,7 +5,7 @@ use std::fs;
 
 #[test]
 fn task_holds_with_a_placed_line_match_their_smallest_and_full_goldens() {
-    let root = skein_scratch::paths::workspace().join("crates/jig-client-protocol-wire/golden");
+    let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     for full in [false, true] {
         let number = if full { u64::MAX } else { 0 };

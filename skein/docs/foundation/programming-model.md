@@ -961,7 +961,7 @@ order's test before the check goes.
 | A stale handle is detected | the generation | runtime |
 | A state and what it holds are one value | enums with data | compiler |
 | Statuses are not ignored | `#[must_use]`, `unused_must_use`, `let_underscore_must_use` | compiler, clippy; review for an ignored `Option` |
-| Fail-stop | `panic = "abort"` in release; in dev, `skein_fail_stop::install()` first in every `main` | build profile; the gate's `scripts/fail_stop.py` |
+| Fail-stop | `panic = "abort"` in release; in dev, `skein_fail_stop::install()` first in every `main` | build profile; review |
 | No leaks; ownership is a tree | | simulator |
 
 What step code may not use, and what checks that, is 10.3. Each

@@ -149,9 +149,10 @@ pub fn dep_info(source: &str) -> Result<Vec<PathBuf>, String> {
     Ok(files)
 }
 
-/// Source files, their nearest package manifests, and the bundle's other inputs.
-pub fn rerun_paths(root: &Path, files: &[PathBuf]) -> BTreeSet<PathBuf> {
-    let mut paths = BTreeSet::from([root.join("Cargo.toml"), root.join("Cargo.lock")]);
+/// Source files, their nearest package manifests, the workspace's manifest and lock (at `workspace`), and
+/// the bundle's other inputs (under temper's tree, `root`).
+pub fn rerun_paths(workspace: &Path, root: &Path, files: &[PathBuf]) -> BTreeSet<PathBuf> {
+    let mut paths = BTreeSet::from([workspace.join("Cargo.toml"), workspace.join("Cargo.lock")]);
     for file in files {
         let file = root.join(file);
         if let Some(manifest) = file.ancestors().skip(1).map(|at| at.join("Cargo.toml")).find(|at| at.is_file()) {

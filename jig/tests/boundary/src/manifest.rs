@@ -1,6 +1,7 @@
 //! The kit manifests and their normal and target dependencies.
 
 use std::{
+    collections::BTreeSet,
     fs,
     path::{Path, PathBuf},
 };
@@ -45,13 +46,16 @@ pub(crate) fn quoted_value(value: &str) -> Option<&str> {
     value[1..].split_once(quote).map(|(name, _)| name)
 }
 
-fn dependency_name(line: &str) -> Option<String> {
-    let (key, value) = line.split_once('=')?;
+fn dependency_key(line: &str) -> Option<&str> {
+    let (key, _) = line.split_once('=')?;
     let key = key.trim().split_once('.').map_or(key.trim(), |(name, _)| name);
     let key = key.trim_matches('"').trim_matches('\'');
-    if key.is_empty() {
-        return None;
-    }
+    (!key.is_empty()).then_some(key)
+}
+
+fn dependency_name(line: &str) -> Option<String> {
+    let key = dependency_key(line)?;
+    let (_, value) = line.split_once('=')?;
     let package =
         value.split_once("package").and_then(|(_, rest)| rest.split_once('=')).and_then(|(_, rest)| quoted_value(rest));
     Some(package.unwrap_or(key).to_owned())
@@ -113,4 +117,54 @@ pub fn manifests(root: &Path) -> Vec<CrateManifest> {
             parse_manifest(path, &source)
         })
         .collect()
+}
+
+/// The keys of every dependency table of a package manifest: normal, target, dev and build.
+fn dependency_keys(source: &str) -> BTreeSet<&str> {
+    let mut section = "";
+    let mut keys = BTreeSet::new();
+    for line in source.lines().map(str::trim) {
+        if line.starts_with('[') {
+            section = line.trim_matches(['[', ']']);
+        } else if section.ends_with("dependencies")
+            && !line.starts_with('#')
+            && let Some(key) = dependency_key(line)
+        {
+            keys.insert(key);
+        }
+    }
+    keys
+}
+
+/// The workspace manifest's share for the kit: its `[workspace.dependencies]` entries that the kit's
+/// package manifests (`kit`) inherit, as a workspace manifest of their own.
+#[must_use]
+pub fn share(workspace: &str, kit: &[String]) -> String {
+    let inherited: BTreeSet<&str> = kit.iter().flat_map(|source| dependency_keys(source)).collect();
+    let mut section = "";
+    let mut share = String::from("[workspace]\n[workspace.dependencies]\n");
+    for line in workspace.lines().map(str::trim) {
+        if line.starts_with('[') {
+            section = line.trim_matches(['[', ']']);
+        } else if section == "workspace.dependencies"
+            && !line.starts_with('#')
+            && dependency_key(line).is_some_and(|key| inherited.contains(key))
+        {
+            share.push_str(line);
+            share.push('\n');
+        }
+    }
+    share
+}
+
+/// The workspace manifest, `Cargo.toml` above the kit's tree, and its share for the kit's packages
+/// under `root` ([`share`]).
+#[must_use]
+pub fn workspace_share(root: &Path) -> (PathBuf, String) {
+    let path = root.parent().expect("the kit is a tree of the workspace").join("Cargo.toml");
+    let workspace = fs::read_to_string(&path).expect("workspace manifest is readable");
+    let mut files = Vec::new();
+    source_files(root, true, &["Cargo.toml"], &mut files);
+    let kit: Vec<String> = files.iter().map(|file| fs::read_to_string(file).expect("manifest is readable")).collect();
+    (path, share(&workspace, &kit))
 }

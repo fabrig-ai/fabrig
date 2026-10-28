@@ -71,7 +71,7 @@ fn trust_arrays_accept_der_and_pem_with_system_roots_disabled() {
     document["endpoints"][0]["transport"] = serde_json::json!("tls");
     document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
     document["endpoints"][0]["trust"] = serde_json::json!({"system":false,
-        "der":[skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der")],
+        "der":[skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der")],
         "pem":[path]});
     let built = from_value(document);
     std::fs::remove_file(path).expect("remove PEM fixture");
@@ -97,7 +97,7 @@ fn trust_arrays_keep_one_combined_certificate_bound() {
     document["endpoints"][0]["transport"] = serde_json::json!("tls");
     document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
     document["endpoints"][0]["trust"] = serde_json::json!({"system":false,
-        "der":[skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der")],
+        "der":[skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der")],
         "pem":[path,path]});
     let built = from_value(document);
     std::fs::remove_file(path).expect("remove PEM fixture");

@@ -5,7 +5,7 @@ use std::fs;
 /// Read every golden in a stable order, relative to the workspace root.
 #[must_use]
 pub fn goldens(dir: &str) -> Vec<Vec<u8>> {
-    let root = skein_scratch::paths::workspace().join(dir);
+    let root = skein_scratch::paths::tree().join(dir);
     let mut paths: Vec<_> =
         fs::read_dir(root).expect("golden directory").map(|entry| entry.expect("golden entry").path()).collect();
     paths.sort();

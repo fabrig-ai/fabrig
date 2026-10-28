@@ -517,8 +517,7 @@ Raising a budget is an explicit decision, not a fix.
 **A test is a process.** nextest runs each test in a process of its own,
 which costs some milliseconds before the test checks anything, more for
 a large binary. The gate
-starts nextest without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`, set by
-each repository's `scripts/check.sh`): nextest otherwise
+starts nextest without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`): nextest otherwise
 starts each test through a process of its own first, which doubles that
 cost and guards only a terminal's job control, which a gate never uses. So cases of one behaviour that each cost less than that
 (a golden value per type, a refusal per limit, a check per source file)
@@ -541,12 +540,12 @@ repository rather than the code it ships (a check of the sources' names,
 a generator that a drift test runs) may be built optimized: that hides
 nothing the tests check, and it costs what it does, not ten times that.
 
-**A test reads its paths when it runs.** It finds its package, its
-workspace, its package's binaries and the target's scratch space through
+**A test reads its paths when it runs.** It finds its package, its tree,
+its workspace, its package's binaries and the target's scratch space through
 `skein_scratch::paths`, which reads what cargo and nextest set when a test
 runs, never with `env!`: a path compiled in names the worktree and
 prevents sharing a test executable between worktrees or machines. A library that other packages' tests call
-finds its files from the workspace's root, since the running package is
+finds its files from its tree's root, since the running package is
 theirs. A library that another repository's tests use keeps its
 compile-time path: at run time it could not find its own checkout, and
 cargo's checkout of the pinned revision has the same path in every

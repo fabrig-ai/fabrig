@@ -193,10 +193,10 @@ New of the same kind:
 - **The fleet world formats every event,** request and stimulus as it
   happens, though the trace is read only on failure (`format!` at
   `tests/fleet/src/world.rs:649,657,759` and `turns.rs:200,207`).
-- **The focused suite's budget is doubled.** `.config/nextest.toml`
-  gives it a `global-timeout` of 30 s (:10), against the 15 s that its
-  header (:1-3) states; a comment (:9) ties
-  the doubling to one run, until a test-cost pass. Of the last 50 gated
+- **The focused suite's budget is doubled.** The workspace's
+  `.config/nextest.toml` counts jig's focused suite at 30 s, against the
+  15 s jig stated; its header ties the doubling to the user's provisional
+  decision of 10-22, until a test-cost pass. Of the last 50 gated
   landings, 8 ran the focused suite past 15 s, the longest in 18.7 s; the
   fuzzy suite took 15.4 to 34.4 s of its 60 (`git log
   --format='%(trailers:key=Gate-Result,valueonly)' 77c77ec..86971be |
@@ -403,9 +403,8 @@ numbers, file by file:
   [0-9]' --glob '!docs/**' --glob '!.git/**' .`):
   `jig-domain-tasks/src/index.rs:167`,
   `jig-protocol-config/src/llm.rs:354`,
-  `tests/client-protocol/src/native/world.rs:95`, four comments of
-  `jig-client-protocol-wire/schema/client-v11-part1.schema` and
-  `.config/nextest.toml:9`. A reader finds the rule in the design
+  `tests/client-protocol/src/native/world.rs:95` and four comments of
+  `jig-client-protocol-wire/schema/client-v11-part1.schema`. A reader finds the rule in the design
   section a ruling applies, not in the ruling.
 
 ## 8. Process cost
@@ -506,9 +505,9 @@ real side.
   against smith's `crates/smith-transcript/golden/v5/` and
   `crates/smith-charter/golden/v2/` in cargo's checkout of that
   revision), but nothing checks it, and the copies' README names
-  `a277e922`. Every repin of smith refreshes them by hand. A drift test
-  against the pinned crate's goldens, or reading them from it, would pay
-  it back.
+  `a277e922`. Every change to smith's goldens is copied by hand. A drift
+  test against smith's goldens in `smith/`, or reading them from there,
+  would pay it back.
 - **The one-process world's power-loss cut is placed by a count:**
   `crash(skein_world::Cut::PowerLoss, 128)`, the 128th submission
   (`tests/one-process/tests/one_process.rs:38`); its fuzzy variant draws

@@ -124,8 +124,7 @@ fn inventory(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
 /// Existing data is untouched; skein-kv open starts a new empty segment before
 /// the first version refusal. A second start leaves that whole inventory unchanged.
 fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
-    let directory =
-        skein_scratch::paths::workspace().join("target").join(format!("pre-settings-{}", std::process::id()));
+    let directory = skein_scratch::paths::tree().join("target").join(format!("pre-settings-{}", std::process::id()));
     fs::create_dir(&directory).expect("new deployment directory");
     for name in ["store", "secrets", "transcripts"] {
         let path = directory.join(name);

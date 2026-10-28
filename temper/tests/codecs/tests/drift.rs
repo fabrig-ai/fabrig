@@ -3,7 +3,7 @@ use skein_codegen::{generate, parse};
 use std::fs;
 
 fn schema_matches(crate_name: &str, family: &str, version: &str) {
-    let root = skein_scratch::paths::workspace().join("crates").join(crate_name);
+    let root = skein_scratch::paths::tree().join("crates").join(crate_name);
     let source =
         fs::read_to_string(root.join("schema").join(format!("{family}-{version}.schema"))).expect("family schema");
     let output = generate(&parse(&source).expect("schema valid"));

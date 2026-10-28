@@ -3,7 +3,7 @@ use crate::credentials::tests::Files;
 use std::os::unix::fs::PermissionsExt;
 
 pub(super) fn configured(files: &Files, source_name: &str, program: bool) -> super::super::Settings {
-    let certificate = skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der");
+    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
     let program = if program { "program='claude_code'" } else { "" };
     settings(&[source(Layer::User, &format!(
         "model='codex/gpt-6-luna'\ncredentials='{}'\n[programs]\nclaude_code='/bin/true'\n[accounts.codex]\nsource='{source_name}'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n{program}\n",

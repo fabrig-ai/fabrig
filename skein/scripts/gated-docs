@@ -1,5 +1,0 @@
-# Markdown fixtures compiled into the UI, text and web tests.
-crates/skein-ui/src/tests/markdown/
-
-# Read at runtime by the GitHub conformance fact-coverage test.
-docs/design/forge-github.md

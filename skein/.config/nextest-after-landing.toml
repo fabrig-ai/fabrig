@@ -1,7 +1,0 @@
-# Only scripts/after-landing.sh loads this tool config. Profiles retain
-# their filters, concurrency, timeouts and retry settings.
-[profile.browser.junit]
-path = "after-landing.xml"
-
-[profile.exhaustive.junit]
-path = "after-landing.xml"

@@ -6,15 +6,20 @@ fixture and removes its instance and scratch directory when it ends.
 `VERSION` and `RUNNER_VERSION` in
 `skein_throwaway_forgejo` pin both binaries.
 
+Both modes, ordinary and component, record into one output:
+
 ```sh
-heavy --gate scripts/proof-forgejo-conformance.sh \
+heavy cargo run -p forgejo-conformance -- \
   --forgejo <absolute path to the pinned Forgejo> \
   --runner <absolute path to the pinned runner> \
-  --scratch target/forgejo-conformance --out target/conformance-recording
+  --scratch target/forgejo-conformance/ordinary --out target/conformance-recording
+heavy cargo run -p forgejo-conformance -- \
+  --forgejo <absolute path to the pinned Forgejo> \
+  --runner <absolute path to the pinned runner> \
+  --scratch target/forgejo-conformance/component --out target/conformance-recording --component
 ```
 
-`heavy --gate` requires the candidate to stay clean. Record into ignored
-`target/` storage, then copy `facts.txt`, `transcripts/` and `deliveries/`
+Record from a clean checkout, into ignored `target/` storage, then copy `facts.txt`, `transcripts/` and `deliveries/`
 from that output into this directory after the receipt succeeds.
 
 Scratch must be empty or absent, outside `/tmp`. The binary's first version

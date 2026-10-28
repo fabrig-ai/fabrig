@@ -16,7 +16,7 @@ fn program_invocations_select_spawned_placement_and_the_consumed_producer() {
                 .expect("programs path prefix")
         )
     );
-    let trust = skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der");
+    let trust = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
     let settings = settings::merge(
         &command::Shared::default(),
         "/workspace".into(),

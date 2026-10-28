@@ -89,13 +89,15 @@ sign-in. See [testing.md, section 2.3](docs/design/testing.md#23-end-to-end).
 
 ## The family
 
-These are the repositories of [Fabrig](https://github.com/fabrica-works), an
+smith is a tree of [fabrig](https://github.com/fabrig-ai/fabrig), an
 agent-driven software factory: write, prove, run.
 
-| Repository | | Builds on |
+| Tree | | Builds on |
 |---|---|---|
-| [skein](https://github.com/fabrica-works/skein) | One thread, one loop, no async | |
-| [smith](https://github.com/fabrica-works/smith) | Protocol-driven agent loop for AI applications | skein |
-| [jig](https://github.com/fabrica-works/jig) | Engine for agentic applications | skein, smith |
-| [temper](https://github.com/fabrica-works/temper) | Agent-driven software development on a forge | skein, smith, jig |
-| [hearth](https://github.com/fabrica-works/hearth) | Immutable machines, built from a revision | skein |
+| [skein](../skein) | One thread, one loop, no async | |
+| [smith](../smith) | Protocol-driven agent loop for AI applications | skein |
+| [jig](../jig) | Engine for agentic applications | skein, smith |
+| [temper](../temper) | Agent-driven software development on a forge | skein, smith, jig |
+
+[hearth](https://github.com/fabrig-ai/hearth), immutable machines built
+from a revision, builds on skein in a repository of its own.

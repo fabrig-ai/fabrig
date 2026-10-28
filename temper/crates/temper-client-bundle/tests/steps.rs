@@ -167,25 +167,26 @@ fn malformed_dep_info_is_refused() {
 }
 
 #[test]
-fn reruns_track_nearest_manifests_and_bundle_inputs() {
-    let root = scratch();
+fn reruns_track_the_workspace_nearest_manifests_and_bundle_inputs() {
+    let workspace = scratch();
+    let root = workspace.join("temper");
     fs::create_dir_all(root.join("package/src")).expect("sample operation succeeds");
-    fs::write(root.join("Cargo.toml"), "").expect("sample operation succeeds");
+    fs::write(workspace.join("Cargo.toml"), "").expect("sample operation succeeds");
     fs::write(root.join("package/Cargo.toml"), "").expect("sample operation succeeds");
     let expected = [
         "Cargo.toml",
         "Cargo.lock",
-        "package/Cargo.toml",
-        "package/src/lib.rs",
-        "crates/temper-client-shell-web/temper.css",
-        "crates/temper-client-shell-web/task-pages.css",
-        "crates/temper-client-shell-web/files",
+        "temper/package/Cargo.toml",
+        "temper/package/src/lib.rs",
+        "temper/crates/temper-client-shell-web/temper.css",
+        "temper/crates/temper-client-shell-web/task-pages.css",
+        "temper/crates/temper-client-shell-web/files",
     ]
-    .map(|path| root.join(path))
+    .map(|path| workspace.join(path))
     .into_iter()
     .collect();
-    assert_eq!(steps::rerun_paths(&root, &["package/src/lib.rs".into()]), expected);
-    fs::remove_dir_all(root).expect("sample operation succeeds");
+    assert_eq!(steps::rerun_paths(&workspace, &root, &["package/src/lib.rs".into()]), expected);
+    fs::remove_dir_all(workspace).expect("sample operation succeeds");
 }
 
 #[test]

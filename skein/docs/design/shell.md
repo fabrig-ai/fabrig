@@ -948,14 +948,13 @@ and changes no code above io:
 - **Terminal modes,** end to end under a pseudo-terminal
   (testing-strategy.md, 2.9): input read a key at a time, the modes found
   again once the binary exits, and a size change heard.
-- **The Darwin check.** On our Linux machines, `cargo darwin`, an alias
-  in `.cargo/config.toml`, runs clippy over every target of the
-  workspace for `aarch64-apple-darwin` with warnings denied, as the
-  gate's clippy does; clippy's pass is `cargo check`'s too. Nothing
-  links, and no file of Apple's SDK is on our machines. The members that
-  reach rustls (whose `ring` crate compiles C against Apple's headers)
-  are excluded there by name, the alias's own list, the one place they
-  are named; they are checked on the macOS runner. Darwin's code is built
+- **The Darwin check.** On our Linux machines, clippy runs over every
+  target of the workspace for `aarch64-apple-darwin` with warnings
+  denied, as the gate's clippy does; clippy's pass is `cargo check`'s
+  too. Nothing links, and no file of Apple's SDK is on our machines. The
+  members that reach rustls (whose `ring` crate compiles C against
+  Apple's headers) are excluded there by name; they are checked on the
+  macOS runner. Darwin's code is built
   here and run there.
 - **Linux's own tests, by name.** A test that only Linux can run is
   built for Linux alone, `cfg(target_os = "linux")` on its whole binary

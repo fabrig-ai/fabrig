@@ -244,7 +244,7 @@ fn missing_chat_facts_report_the_shape_error() {
 fn launcher(directory: &std::path::Path, argument: &str, login: Option<&std::path::Path>) -> std::process::Command {
     let mut command = std::process::Command::new("/bin/sh");
     command
-        .arg(skein_scratch::paths::workspace().join("scripts/proof-live.sh"))
+        .arg(skein_scratch::paths::tree().join("scripts/proof-live.sh"))
         .arg(argument)
         .env_clear()
         .env("PATH", "/usr/bin:/bin")

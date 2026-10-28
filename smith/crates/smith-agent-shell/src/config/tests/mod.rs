@@ -126,7 +126,7 @@ fn named_endpoint_resolves_and_its_tls_trust_builds_before_start() {
         authority: None,
         target: None,
         trust_der: Some(
-            skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string(),
+            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string(),
         ),
         trust: None,
         headers: vec![],
@@ -405,7 +405,7 @@ fn all_product_models(mut document: serde_json::Value) -> serde_json::Value {
     }
     anthropic["models"] = models.into();
     document["endpoints"].as_array_mut().unwrap().push(anthropic);
-    let trust = skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der");
+    let trust = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
     for endpoint in document["endpoints"].as_array_mut().unwrap() {
         endpoint["trust_der"] = trust.to_str().expect("fixture trust path").into();
     }

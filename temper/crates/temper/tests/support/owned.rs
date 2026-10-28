@@ -818,7 +818,7 @@ pub fn bounded_template(directory: &Path) -> Bounded {
 /// Numeric allowances and policies are left exactly as shipped.
 #[must_use]
 pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
-    let root = skein_scratch::paths::workspace();
+    let root = skein_scratch::paths::tree();
     let source = root.join(relative);
     let render = |path: &Path| {
         let text = fs::read_to_string(path).expect("profile source");

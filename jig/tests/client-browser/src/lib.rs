@@ -39,7 +39,7 @@ pub fn bundle() -> PathBuf {
         std::env::var_os("JIG_TEST_BUNDLE")
             .expect("run scripts/browser.sh to build the bundle and set JIG_TEST_BUNDLE"),
     );
-    let path = if path.is_absolute() { path } else { skein_scratch::paths::workspace().join(path) };
+    let path = if path.is_absolute() { path } else { skein_scratch::paths::tree().join(path) };
     assert!(path.join("index.html").is_file(), "run scripts/browser.sh to build the bundle at {}", path.display());
     path.canonicalize().expect("absolute bundle")
 }

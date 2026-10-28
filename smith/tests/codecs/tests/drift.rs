@@ -6,7 +6,7 @@ use skein_codegen::{generate, parse};
 
 #[test]
 fn charter_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::workspace().join("crates/smith-charter");
+    let root = skein_scratch::paths::tree().join("crates/smith-charter");
     let source = fs::read_to_string(root.join("schema/charter-v4.schema")).expect("charter schema");
     let schema = parse(&source).expect("schema valid");
     let output = generate(&schema);
@@ -20,7 +20,7 @@ fn charter_schema_matches_generated_code_and_all_goldens() {
 
 #[test]
 fn transcript_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::workspace().join("crates/smith-transcript");
+    let root = skein_scratch::paths::tree().join("crates/smith-transcript");
     let source = fs::read_to_string(root.join("schema/transcript-v6.schema")).expect("transcript schema");
     let schema = parse(&source).expect("schema valid");
     let output = generate(&schema);
@@ -34,7 +34,7 @@ fn transcript_schema_matches_generated_code_and_all_goldens() {
 
 #[test]
 fn channel_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::workspace().join("crates/smith-channel");
+    let root = skein_scratch::paths::tree().join("crates/smith-channel");
     let source = fs::read_to_string(root.join("schema/channel-v5.schema")).expect("channel schema");
     let schema = parse(&source).expect("schema valid");
     let output = generate(&schema);
@@ -51,7 +51,7 @@ mod events;
 
 #[test]
 fn event_records_and_every_listed_value_match_frozen_version_four_goldens() {
-    let root = skein_scratch::paths::workspace().join("crates/smith-events/golden/v4");
+    let root = skein_scratch::paths::tree().join("crates/smith-events/golden/v4");
     let limits = smith_events::Limits { string: 64, content: 1024, items: 8 };
     let samples = events::samples();
     assert_eq!(fs::read_dir(&root).expect("event goldens").count(), samples.len(), "every golden is covered");
@@ -81,7 +81,7 @@ fn check_event_goldens(
 
 #[test]
 fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens() {
-    let crates = skein_scratch::paths::workspace().join("crates");
+    let crates = skein_scratch::paths::tree().join("crates");
     let root = crates.join("smith-local-protocol");
     let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
     let schema = parse(&source).expect("local store schema valid");

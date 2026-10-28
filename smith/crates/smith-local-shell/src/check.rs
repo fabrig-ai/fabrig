@@ -472,7 +472,7 @@ mod tests {
     fn a_declared_memory_below_the_old_worst_case_checks() {
         let files = crate::credentials::tests::Files::new();
         crate::credentials::tests::private_key(&files);
-        let certificate = skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der");
+        let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
         let text = format!(
             "credentials='{}'\nmodel='codex/gpt-6-luna'\n\
              [deployment]\nmemory=1\n[environment]\ninherit=['PATH']\n\
@@ -524,7 +524,7 @@ mod tests {
 
     fn resolved(trace: bool) -> settings::resolve::Resolved {
         let certificate =
-            skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
         let trace = if trace { "[trace]\npath='/unopened-events'\n" } else { "" };
         let text = format!(
             "model='codex/gpt-6-luna'\n[deployment]\nmemory=8589934592\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n{trace}"
@@ -636,7 +636,7 @@ mod tests {
         // selected at low effort, an env token and an everything trace.
         // Invocation derivation checks the selected sources without reading the variable.
         let certificate =
-            skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
         let text = format!(
             "model='codex/gpt-6-luna'\neffort='low'\n\
              [accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n\

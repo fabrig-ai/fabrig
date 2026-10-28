@@ -88,7 +88,7 @@ mod tests {
     fn program_children_validate_with_their_hosts_derived_grace() {
         // Grace and complete memory use the same declared TLS bounds with one
         // test root; this story does not need the machine's certificate bundle.
-        let trust = skein_scratch::paths::workspace().join("tests/protocol-llm/fixtures/root.der");
+        let trust = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
         let source = crate::settings::Source {
             layer: crate::settings::Layer::User,
             path: "program.toml".into(),

@@ -1398,9 +1398,8 @@ terminal client, the captures and the faults.
   saw one merge and one pull request opened across both lives, and no
   task was made after the restart; the forge reconnects as
   in the App's story. Its aim is the App's story's.
-- **Outside the suites:** nextest profile `process`, run by
-  `scripts/proof-one-process.sh`, which builds the binary and the fake
-  `claude` first and sets `TEMPER_TEST_CLAUDE`. It aims at 6 minutes (3
+- **Outside the suites:** nextest profile `process`, run once the
+  binary and the fake `claude` are built, with `TEMPER_TEST_CLAUDE` set. It aims at 6 minutes (3
   minutes before the user's doubling of 10-22, provisional); the aim and
   the profile's timeout are the user's. A story that would take the tier
   past its aim moves down a tier, or goes to the user with its figures.
@@ -2421,21 +2420,9 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   stands.
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
-  under the nextest profiles `process` and `live` by
-  `scripts/proof-one-process.sh` and `scripts/proof-live.sh`. The gate
-  never runs them; `scripts/after-landing.sh` runs the process tier
-  after each landing, with the QA tests and the browser tier, by phase.
-  The lab was retired for `../qa.md`'s process.
-  `--part K/N` runs part K of N: whole test phases with the builds they
-  need, dealt longest first onto the lightest part by the measured times
-  the script records. QA and browser share the bundle build and are dealt
-  together, with their measured seconds added: QA 410, browser 25;
-  process stays 390. In two, the usual split, part 1 is QA and browser
-  and part 2 is process only; each is about 8 minutes on a quiet machine,
-  since the tiers run one test at a time. The gate (`scripts/check.sh`) and
-  the tier's script each name every test that passed starved (skein's
-  `testing-strategy.md` 2.8), from their profiles' JUnit with passing
-  tests' output kept.
+  under the nextest profiles `process` and `live`, the live one by
+  `scripts/proof-live.sh`. The gate never runs them. The lab was retired
+  for `../qa.md`'s process.
 
 A fuzzy test lives in its world's crate, beside the focused ones, and
 uses that world: a world's settings, random ones included, are the
@@ -2573,9 +2560,7 @@ tests/fake-checkout                 temper-fake-checkout: working trees' git, ov
 tools/git-transcripts               git's transcripts, from real git against skein's throwaway Forgejo (../protocol/git.md, section 9)
 tools/gallery                       temper-client-gallery: the browser's pages in named states, printed for screenshots (../client/browser.md, section 7), its tests in the view's world
 tools/journeys                      temper-client-journeys: recorded walks replayed through the shipped host and printed (../client/journeys.md), its test reprinting each committed journey
-scripts/proof-one-process.sh        the process tier
 scripts/proof-live.sh               the live tier
-scripts/after-landing.sh            the process, QA and browser tiers after each landing, whole or in parts (6.1)
 ```
 
 - **The worlds and the harness** are skein's world harness
