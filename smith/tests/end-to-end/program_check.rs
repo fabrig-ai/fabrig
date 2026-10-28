@@ -5,13 +5,7 @@ use std::os::unix::fs::DirBuilderExt;
 
 pub(super) fn setup(method: Option<&str>, status: &str) -> (Scratch, std::path::PathBuf) {
     let scratch = Scratch::new();
-    let executable = std::env::current_exe()
-        .expect("test executable")
-        .parent()
-        .expect("deps")
-        .parent()
-        .expect("target")
-        .join("fake-claude");
+    let executable = skein_scratch::paths::binary("fake-claude");
     let settings = format!(
         "model='anthropic/claude-haiku-5-5'\nsub_agents=false\n[programs]\nclaude_code='{}'\n[accounts.work]\nprovider='anthropic'\nsource='program'\n[endpoints.anthropic]\npreset='anthropic'\naccount='work'\nprogram='claude_code'\n",
         executable.display()
