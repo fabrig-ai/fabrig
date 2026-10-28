@@ -1636,9 +1636,16 @@ cold, at drawn moments or at one a scenario chooses.
 **Every story ends with a cold restart,** the restart oracle (section
 6): the engine restarts over the story's store, restores with every
 link made, and reads back what the story wrote (the parties' documents,
-the tasks' and the children's views) equal to their last answers before
-it. A link that cannot be made panics, failing the story with the
-record and the link.
+the tasks' and the children's views), equal in their durable part to
+their last answers before it. Each document type declares once, in the
+one projection the oracle applies, the fields a restart rebuilds rather
+than keeps, each with the step that makes it so: run-time observations
+such as an account's last end, or a task's runtime on a host that died
+with the engine. A field in doubt is durable; no story opts out but a
+deliberately broken fixture; and a difference left after the projection
+is a finding, a writer not keeping what its document shows. A link
+that cannot be made panics, failing the story with the record and the
+link.
 This is where the cross-record rules a restore once checked live, one
 writer at a time: each child's rules are the oracle's to prove over
 every writer of its records, never the restore's to judge.
