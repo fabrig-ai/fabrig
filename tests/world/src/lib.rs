@@ -13,7 +13,6 @@
 //! `tests/no_allocator.rs`, without it.
 
 pub mod fixtures;
-pub mod growing_ring;
 
 use std::collections::VecDeque;
 use std::net::{Ipv4Addr, SocketAddr};
@@ -73,6 +72,21 @@ pub struct Script {
     /// Calls to this script's iterate, including idle turns.
     pub turns: u64,
     printer: Option<skein_sim_world::Printer>,
+    /// A simultaneous batch of buffer-free usage operations, when configured.
+    pub batch: Option<UsageBatch>,
+}
+
+/// Observations of a batch delivered into an initially empty completion ring.
+#[derive(Debug)]
+pub struct UsageBatch {
+    /// How many operations the first turn submits together.
+    pub operations: u32,
+    /// How many operations have completed.
+    pub completed: u32,
+    /// The largest delivery before one iteration.
+    pub largest_delivery: u32,
+    /// Heap retained at construction, before completion storage grows.
+    pub before_growth: u64,
 }
 
 /// The worst case a script declares: room for its queues, what it receives
@@ -100,7 +114,25 @@ impl Script {
             worst: WORST,
             turns: 0,
             printer: None,
+            batch: None,
         }
+    }
+
+    /// Submits a simultaneous usage batch with initially unallocated completions.
+    #[must_use]
+    pub fn usage_batch(operations: u32) -> Script {
+        assert!(operations > 0, "a batch has operations");
+        let span = skein_heap::Span::start();
+        let mut script = Self::new(Time::ZERO, &[]);
+        script.completions = Queue::uncapped();
+        script.submissions = Queue::with_capacity(operations);
+        script.batch = Some(UsageBatch {
+            operations,
+            completed: 0,
+            largest_delivery: 0,
+            before_growth: u64::try_from(span.end().net).expect("construction retains heap"),
+        });
+        script
     }
 
     /// Queues an input between steps, ready for the next turn.
@@ -233,6 +265,22 @@ impl Host for Script {
     }
     fn iterate(&mut self, now: Time, _wall: Wall) {
         self.turns += 1;
+        if let Some(batch) = &mut self.batch {
+            batch.largest_delivery = batch.largest_delivery.max(self.completions.len());
+            while let Some(complete) = self.completions.pop() {
+                assert!(matches!(complete.kind, Op::Usage));
+                assert!(matches!(complete.result, Ok(Done::Usage(_))));
+                batch.completed += 1;
+            }
+            if self.turns == 1 {
+                for number in 0..batch.operations {
+                    self.submissions.push(Submit { op: Token::new(u64::from(number)), kind: Op::Usage });
+                }
+                self.pause = None;
+            }
+            self.done = batch.completed == batch.operations;
+            return;
+        }
         if self.hog > 0 {
             self.held.push(bytes::zeroed(self.hog));
             self.hog = 0;
@@ -287,7 +335,7 @@ impl Host for Script {
     }
 
     fn operations(&self) -> u32 {
-        8
+        self.batch.as_ref().map_or(8, |batch| batch.operations)
     }
 }
 

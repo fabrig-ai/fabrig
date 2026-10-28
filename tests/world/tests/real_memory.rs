@@ -13,15 +13,14 @@ static HEAP: Counting = Counting;
 #[test]
 fn a_ring_the_loop_grows_is_charged_to_its_process() {
     use skein_world::LastWord;
-    use skein_world_tests::{
-        Later,
-        growing_ring::{GrowingRing, OPERATIONS},
-    };
+    use skein_world_tests::{Later, Script};
+
+    const OPERATIONS: u32 = 64;
 
     let mut world = real::World::new_checked(Later(LastWord::LastExpectation));
-    world.spawn(GrowingRing::new);
+    world.spawn(|| Script::usage_batch(OPERATIONS));
     let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    let process = &outcome.procs[0];
+    let process = outcome.procs[0].batch.as_ref().expect("usage batch");
     assert_eq!(process.completed, OPERATIONS);
     assert_eq!(process.largest_delivery, OPERATIONS, "one delivery grows through several ring capacities");
     let before_growth = process.before_growth;

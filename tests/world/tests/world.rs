@@ -57,24 +57,23 @@ fn a_world_of_two_scripts_settles_and_each_frees_what_it_held() {
 #[test]
 fn a_ring_the_loop_grows_is_charged_to_its_process() {
     use skein_world::{HostedProgram, LastWord};
-    use skein_world_tests::{
-        Later,
-        growing_ring::{GrowingRing, OPERATIONS},
-    };
+    use skein_world_tests::{Later, Script};
+
+    const OPERATIONS: u32 = 64;
 
     for hosted in [false, true] {
         let mut world = World::new(SEED, Config::calm(), Later(LastWord::LastExpectation), Memory::Checked);
         if hosted {
             world.host(HostedProgram {
                 program: Box::from(&b"unused"[..]),
-                make: |_, _| GrowingRing::new(),
+                make: |_, _| Script::usage_batch(OPERATIONS),
                 instances: 1,
                 operations: OPERATIONS,
             });
         }
-        world.spawn(GrowingRing::new);
+        world.spawn(|| Script::usage_batch(OPERATIONS));
         let outcome = world.run();
-        let process = &outcome.procs[0];
+        let process = outcome.procs[0].batch.as_ref().expect("usage batch");
         assert_eq!(process.completed, OPERATIONS);
         assert_eq!(process.largest_delivery, OPERATIONS, "one delivery grows through several ring capacities");
         let before_growth = process.before_growth;
