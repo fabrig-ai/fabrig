@@ -241,6 +241,15 @@ second, which is why it is skein's (testing-strategy.md, 7).
   Where the kernel keeps no such accounting (`schedstat` absent or
   zeros), no run is starved. The verdicts find starved passes by that
   line in each passing test's kept output, and count them by test.
+- **Every real-clock deadline is a patience of its own kind**
+  (testing-strategy.md, 2.10): skein-world gives the harnesses of every
+  tree one deadline on the real clock that classifies itself when it
+  passes, by the scheduler accounting of the thread and the owned
+  process tree it waits on, and ends as starved or failed by the rule
+  above; the real loop's patience, the conformance run's waits, the
+  end-to-end binary's start and the process tree's settling are each one.
+  A starved deadline writes its line as the real loop's does, with the
+  harness that kept it.
 - **It carries state digests** (lib.md, 5.1). `Host` (shell.md, 12) and
   `Machine`, the seam a world's fake machine plugs into, each give
   `state_digest() -> Option<[u8; 32]>`, `None` unless the process or the
