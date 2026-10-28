@@ -22,6 +22,10 @@ this, then the design sections your task names.
 - `scripts/check.sh`: formatting, clippy with warnings as errors,
   `cargo check -p skein-tls` alone, then the focused, fuzzy and browser
   suites. `land` runs it; do not run it yourself before `land`.
+  Markdown-only changes land with `land --docs`, except paths in
+  `scripts/gated-docs`: the UI Markdown fixtures and GitHub conformance
+  design are read by tests, so those changes use `land`.
+  Changes to the declaration itself use `land` too.
 - The suites' budgets are in `.config/nextest.toml`: the focused suite
   within 30 seconds (15 seconds before the user's doubling of 10-22,
   provisional), the fuzzy one (binaries named `fuzzy_*`) within 120 seconds
