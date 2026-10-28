@@ -36,6 +36,8 @@ fi
 
 # skein's programming-model.md, 2: every binary installs the fail-stop hook first.
 step fail-stop python3 -I -B scripts/fail_stop.py
+# skein's docs/design/draft/dynamic-memory.md, 7: old forms may only fall.
+step old-forms python3 -I -B scripts/old_forms.py
 step scripts python3 -I -B -m unittest discover -s scripts -p 'test_*.py'
 step fmt cargo fmt --check
 step clippy cargo clippy --workspace --all-targets -- -D warnings
