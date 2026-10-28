@@ -266,7 +266,7 @@ pub fn store_limits(
             return Err(problems);
         }
     }
-    let root = engine_limits(&mut parsed.engine.limits, &parsed.application.limits)?;
+    let root = engine_limits(&mut parsed.engine.limits, &parsed.application.limits, parsed.engine.memory)?;
     let store = checked_store(&root, &parsed.engine.limits.store, None)?;
     Ok(StoreLimits { store, forge: root.forge })
 }
@@ -285,9 +285,12 @@ fn checked_store(
 fn engine_limits(
     jig: &mut config::Limits,
     own: &crate::limits::Limits,
+    memory_bytes: u64,
 ) -> Result<temper_engine_domain::Limits, Problems> {
+    check_memory_bytes(memory_bytes)?;
     jig.clients.wire.keyed_value_some = crate::limits::client_value_bytes(jig, own);
-    let root = crate::limits::engine_candidate(jig, own);
+    let mut root = crate::limits::engine_candidate(jig, own);
+    root.memory_bytes = memory_bytes;
     let mut problems = Problems::empty();
     checks::call_answer(Path::root().member(b"engine"), jig.core.call_answer_bytes, &mut problems);
     checks::engine_envelope(&root, &mut problems);
@@ -298,6 +301,12 @@ fn engine_limits(
         return Err(problem(Path::root().member(b"engine").member(b"limits"), What::Jig(config::What::Bound)));
     }
     Ok(root)
+}
+fn check_memory_bytes(memory_bytes: u64) -> Result<(), Problems> {
+    if memory_bytes == 0 {
+        return Err(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Jig(config::What::Bound)));
+    }
+    Ok(())
 }
 #[derive(Debug)]
 struct Parsed {
@@ -677,6 +686,7 @@ pub fn named_with(
     given: &crate::stock::Given,
 ) -> Result<Named, Problems> {
     let parsed = parse_with(document, directories, given)?;
+    check_memory_bytes(parsed.engine.memory)?;
     let files = all_files(&parsed);
     Ok(Named {
         files,
@@ -908,7 +918,7 @@ fn checked_start_with(
         charter: parsed.application.charter,
         limits: parsed.application.limits,
     };
-    let root = engine_limits(&mut engine.jig.limits, &engine.limits)?;
+    let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
     checks::root(core, &engine, seeds, &parsed.application.landing_projects, &root, &mut problems);
     if !problems.is_empty() {
         return Err(problems);

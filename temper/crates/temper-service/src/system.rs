@@ -180,6 +180,9 @@ impl Service {
         let mut limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
         limits.memory_bytes = settings.jig.memory;
+        if !temper_engine_domain::valid(&limits) {
+            return Err(start_problem(b"memory_bytes", What::Bound));
+        }
         let mut forge_settings = forges;
         let shared = crate::forge::shared(&settings.limits, &settings.jig.limits.io);
         settings.jig.limits.clients.wire.keyed_value_some =

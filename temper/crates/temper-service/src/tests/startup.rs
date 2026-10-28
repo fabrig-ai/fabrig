@@ -886,6 +886,19 @@ fn jigs_problems_keep_their_paths_under_engine() {
     assert_eq!(&*lines(&problems), b"engine.memory_bytes: wrong value kind\n".as_slice());
 }
 #[test]
+fn a_zero_byte_budget_refuses_the_start_naming_its_member() {
+    let input = fixtures::document();
+    let input = core::str::from_utf8(&input).unwrap();
+    let needle = "\"memory_bytes\": 1152921504606846976,";
+    assert_eq!(input.matches(needle).count(), 1);
+    let zero = input.replace(needle, "\"memory_bytes\": 0,");
+    let problems = crate::named(zero.as_bytes(), &config::Directories::working()).unwrap_err();
+    assert_eq!(lines(&problems).as_ref(), b"engine.memory_bytes: past its bound\n");
+    let one = input.replace(needle, "\"memory_bytes\": 1,");
+    crate::named(one.as_bytes(), &config::Directories::working()).expect("a positive byte budget is valid");
+}
+
+#[test]
 fn startup_makes_the_one_process_from_the_example() {
     let mut service = match crate::startup(
         &fixtures::document(),
