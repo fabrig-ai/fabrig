@@ -602,10 +602,12 @@ fn cuts_across_check_and_switch_recover_whole_maps() {
         world.crash(SEED);
         // A build at the source levels either opens the untouched source or refuses the switched copy as ahead.
         world.patch_sets(patches::BASE);
-        if world.active() == b"1\n" {
+        let source_active = world.active() == b"1\n";
+        if source_active {
             source_opened = true;
             assert_eq!(world.open_switched(), Some(1), "cut {cut}");
-            records.check(&mut world, 1, &cut);
+            world.accept_recovery(1);
+            records.check_public(&mut world, 1, &cut);
             assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
         } else {
             switched = true;
@@ -613,6 +615,10 @@ fn cuts_across_check_and_switch_recover_whole_maps() {
             assert!(matches!(world.refusal(), Some(OpenRefusal::Ahead { .. })), "cut {cut}: {:?}", world.refusal());
         }
         patches::kept(&before, &patches::source(&mut world), &cut);
+        // Observe recovery before check commits the start's wires to serve secrets (store.md 5.3).
+        if source_active {
+            records.check(&mut world, 1, &cut);
+        }
         world.crash(SEED);
         world.patch_sets(patches::SETS);
         world.open_switched().expect("retry after cut");
