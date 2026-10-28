@@ -243,13 +243,12 @@ counted at the root, which sees them all.
 
 - **What counts,** each byte once, while it is in memory:
   - a worker's turn body, from the moment the root takes its link's
-    record until its commit releases it or it is dropped, wherever the
-    root holds it on the way (its payloads, the work queue, a decision,
-    the journal's held write): a running total of the root's, raised
-    where it takes the body and lowered where it lets it go, so a move
-    between its owners changes nothing;
-  - a loaded transcript page waiting in the root's store answers, until
-    the core takes it;
+    record until its commit is issued to the store (the write leaves the
+    root) or it is dropped, wherever the root holds it on the way (its
+    payloads, the work queue, a decision, the journal's held write): a
+    running total of the root's, raised where it takes the body and
+    lowered where it lets it go, so a move between its owners changes
+    nothing;
   - a run's preparation, from its start: the core's
     `Core::transcript_bytes`, which counts each preparation at its resume
     allowance (its turns' and its text's) until its load is in, then at
@@ -257,13 +256,19 @@ counted at the root, which sees them all.
     its evicted history; a sum over its preparations, which its task
     limit bounds;
   - an assignment's turns until the worker takes them, and a brief's
-    sections until its assignment goes out, in the root's running total.
+    sections from their completion at the root until its assignment goes
+    out, in the root's running total.
+  A preparation's loaded pages are taken into the core at once, counted
+  by its allowance; what waits in the store answers is a person's read,
+  which no budget counts.
 - **What waits:** a run's preparation, the one entrance that brings the
-  most. While the held bytes are at or past the budget, `Resume` skips
-  its second choice, a due task's activation, and goes on to the fleet's
-  progress, leaving the task due and in its place; a restart's restored
-  activations (a task due or preparing when the engine stopped) wait the
-  same way, and are activated by later `Resume`s as bytes drain. Since a
+  most. While the held bytes are at or past the budget, every activation
+  waits, the task staying due in jig: `Resume`'s second choice (it goes
+  on to the fleet's progress), an activation that comes ready of itself,
+  and one queued as the root's work. A restart's restored activations (a
+  task due or preparing when the engine stopped) are no longer drained
+  all at once when decisions open: `Resume` takes them within the
+  budget, as bytes drain. Since a
   preparation counts its whole allowance from its start, the held bytes
   pass the budget by at most one preparation. A worker's turn of a run
   already admitted is never refused for bytes: the fleet's limits and
