@@ -141,6 +141,9 @@ iterate, after the step:
 - **Released outputs addressed to a child** (the core's resumption after
   a claim commits, a connector's entry to make) are fed back to it as
   events by `iterate`, each as one more step of this shape.
+  A released callback is always taken: no decision refuses it, so none is
+  lost under load, and a callback's terminal acknowledgement follows the
+  turn it kept.
 
 ## 4. The journal
 
@@ -308,6 +311,10 @@ The core runs restart as a script (engine.md, section 6). The root:
 
 The root does only the step it is asked for, and the core asks for the
 next only once this one is done, so the order is the core's.
+
+A restart that fails leaves its decision unaccepted, and the root takes
+no decision after it: it once relied on the open reservation to refuse
+them, and with decisions that cannot be refused it says so itself.
 
 ## 9. Effects and verdicts, from the root
 
