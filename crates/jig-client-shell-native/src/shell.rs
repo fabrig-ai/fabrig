@@ -138,6 +138,55 @@ impl Shell {
             client::Request::Down { .. } | client::Request::SignOut => panic!("linked hosts emit wire work"),
         }
     }
+    /// Inspect admission without progressing files, sockets or the request queue.
+    #[must_use]
+    pub fn pending(&self) -> crate::diagnostics::Pending {
+        use crate::diagnostics::{Kind, Pending};
+        let held = u32::try_from(self.held.len()).expect("bounded held requests");
+        let mut held_kinds = skein_lib::List::with_capacity(held);
+        for request in &self.held {
+            let kind = match request {
+                client::Request::Exchange { message, .. } => Kind::message(message),
+                client::Request::OpenStream { .. } => Kind::Stream,
+                client::Request::CloseStream
+                | client::Request::Save { .. }
+                | client::Request::Erase { .. }
+                | client::Request::Told { .. }
+                | client::Request::Down { .. }
+                | client::Request::SignOut
+                | client::Request::Authorized(_)
+                | client::Request::ServiceCredential { .. } => unreachable!("only exchanges and streams held"),
+            };
+            held_kinds.push(kind).expect("one kind per held request");
+        }
+        let (active_kinds, queued_kinds) = self.transport.connections.kinds();
+        Pending {
+            held,
+            held_kinds,
+            active: active_kinds.len(),
+            active_kinds,
+            queued: queued_kinds.len(),
+            queued_kinds,
+            files_ready: self.files.ready(),
+        }
+    }
+    fn held_ready(&self) -> bool {
+        match self.held.front() {
+            Some(client::Request::Exchange { .. }) => self.transport.connections.has_exchange_room(),
+            Some(client::Request::OpenStream { .. }) => true,
+            Some(_) => unreachable!("only exchanges and streams held"),
+            None => false,
+        }
+    }
+    fn release_held(&mut self, now: Time) {
+        // A forgotten watch's HTTP call may still own a transport slot after
+        // the link released its logical slot. Its completion wakes admission;
+        // local pressure must keep the original demand, not report Lost.
+        while self.held_ready() {
+            let request = self.held.pop_front().expect("ready held request");
+            self.transport.down(now, request);
+        }
+    }
     pub fn close(&mut self) {
         self.transport.close(self.env.now);
         self.closing = true;
@@ -324,9 +373,7 @@ impl Shell {
             }
         }
         if self.files.ready() && !self.closing {
-            while let Some(request) = self.held.pop_front() {
-                self.transport.down(now, request);
-            }
+            self.release_held(now);
         }
         self.transport.iterate(now, &mut self.events, &mut self.requests);
         if self.closing {
@@ -356,7 +403,7 @@ impl Shell {
             || !self.complete.is_empty()
             || !self.raw.is_empty()
             || self.files.pending()
-            || (!self.closing && self.files.ready() && !self.held.is_empty())
+            || (!self.closing && self.files.ready() && self.held_ready())
             || !self.requests.is_empty()
             || self.transport.work_pending(now)
     }
@@ -419,3 +466,6 @@ impl Transport {
             + u64::from(self.max) * u64::from(io.intake)
     }
 }
+
+#[cfg(test)]
+mod tests;

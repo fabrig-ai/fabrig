@@ -1,4 +1,5 @@
 //! io-free HTTP machines, with transport-owned exchange deadlines (protocol/client.md, 4).
+use crate::diagnostics::Kind;
 use jig_client as client;
 use jig_client_protocol_http::{self as mapping, Call, Mapping, Unlinked};
 use skein_http::{Header, client as http};
@@ -21,9 +22,10 @@ enum Owner {
     Link(Token),
     Stream,
 }
-type Pending = (Owner, Call, Time);
+type Pending = (Owner, Call, Time, Kind);
 struct Exchange {
     owner: Owner,
+    kind: Kind,
     until: Time,
     stream: Option<mapping::Stream>,
     machine: http::Client,
@@ -89,14 +91,28 @@ impl Connections {
         self.next = self.next.checked_add(1).expect("finite connection namespace");
         conn
     }
-    fn enqueue(&mut self, now: Time, owner: Owner, call: Call) {
-        if self.pending.iter().filter(|(owner, _, _)| matches!(owner, Owner::Link(_))).count()
+    pub(crate) fn has_exchange_room(&self) -> bool {
+        self.pending.iter().filter(|(owner, _, _, _)| matches!(owner, Owner::Link(_))).count()
             + self.exchanges.values().filter(|value| !matches!(value.owner, Owner::Stream)).count()
-            >= usize::try_from(self.limits.exchanges).expect("u32 fits")
-        {
-            self.failed(owner);
+            < usize::try_from(self.limits.exchanges).expect("u32 fits")
+    }
+    pub(crate) fn kinds(&self) -> (skein_lib::List<Kind>, skein_lib::List<Kind>) {
+        let mut active =
+            skein_lib::List::with_capacity(u32::try_from(self.exchanges.len()).expect("bounded HTTP calls"));
+        for value in self.exchanges.values() {
+            active.push(value.kind).expect("one kind per active HTTP call");
+        }
+        let mut queued = skein_lib::List::with_capacity(u32::try_from(self.pending.len()).expect("bounded HTTP queue"));
+        for (_, _, _, kind) in &self.pending {
+            queued.push(*kind).expect("one kind per queued HTTP call");
+        }
+        (active, queued)
+    }
+    fn enqueue(&mut self, now: Time, owner: Owner, call: Call, kind: Kind) {
+        if self.has_exchange_room() {
+            self.pending.push_back((owner, call, now.saturating_add(self.limits.deadline), kind));
         } else {
-            self.pending.push_back((owner, call, now.saturating_add(self.limits.deadline)));
+            self.failed(owner);
         }
     }
     pub fn down(&mut self, now: Time, request: client::Request, below: &mut Queue<(Conn, stream::Down)>) {
@@ -107,17 +123,24 @@ impl Connections {
     pub(crate) fn queue(&mut self, now: Time, request: client::Request, below: &mut Queue<(Conn, Down)>) {
         match request {
             client::Request::Exchange { exchange, message, credential } => {
+                let kind = Kind::message(&message);
                 self.enqueue(
                     now,
                     Owner::Link(exchange),
                     mapping::exchange(&self.mapping, credential.as_ref(), message),
+                    kind,
                 );
             }
             client::Request::OpenStream { credential } => {
                 if !self.exchanges.values().any(|value| matches!(value.owner, Owner::Stream))
-                    && !self.pending.iter().any(|(owner, _, _)| matches!(owner, Owner::Stream))
+                    && !self.pending.iter().any(|(owner, _, _, _)| matches!(owner, Owner::Stream))
                 {
-                    self.pending.push_back((Owner::Stream, mapping::stream(&self.mapping, credential.as_ref()), now));
+                    self.pending.push_back((
+                        Owner::Stream,
+                        mapping::stream(&self.mapping, credential.as_ref()),
+                        now,
+                        Kind::Stream,
+                    ));
                 }
             }
             client::Request::CloseStream => self.close(now, None, below),
@@ -153,8 +176,8 @@ impl Connections {
     }
     fn flush(&mut self, now: Time, free: u32, below: &mut Queue<(Conn, Down)>) {
         for _ in 0..free {
-            let Some((owner, call, until)) = self.pending.pop_front() else { break };
-            self.start(now, owner, call, until, below);
+            let Some((owner, call, until, kind)) = self.pending.pop_front() else { break };
+            self.start(now, owner, call, until, kind, below);
         }
     }
     fn stream_limits(&self) -> mapping::Limits {
@@ -172,7 +195,7 @@ impl Connections {
     fn env(&self, now: Time) -> Env<http::Limits> {
         Env { now, wall: Wall::EPOCH, limits: self.limits.http }
     }
-    fn start(&mut self, now: Time, owner: Owner, call: Call, until: Time, below: &mut Queue<(Conn, Down)>) {
+    fn start(&mut self, now: Time, owner: Owner, call: Call, until: Time, kind: Kind, below: &mut Queue<(Conn, Down)>) {
         if call.body.len() > usize::try_from(self.limits.body_bytes).expect("u32 fits") {
             self.failed(owner);
             return;
@@ -183,6 +206,7 @@ impl Connections {
         headers.extend(call.headers.into_boxed());
         let mut value = Exchange {
             owner,
+            kind,
             until,
             stream: if matches!(owner, Owner::Stream) {
                 Some(mapping::Stream::new(&self.stream_limits()))
@@ -416,7 +440,7 @@ impl Connections {
             .filter(|value| matches!(value.owner, Owner::Link(_)))
             .map(|value| value.until)
             .chain(self.pending.iter().filter_map(
-                |(owner, _, until)| {
+                |(owner, _, until, _)| {
                     if matches!(owner, Owner::Link(_)) { Some(*until) } else { None }
                 },
             ))
@@ -424,11 +448,11 @@ impl Connections {
     }
     fn expire(&mut self, now: Time, below: &mut Queue<(Conn, Down)>) {
         for _ in 0..self.pending.len() {
-            let (owner, call, until) = self.pending.pop_front().expect("pending call");
+            let (owner, call, until, kind) = self.pending.pop_front().expect("pending call");
             if matches!(owner, Owner::Link(_)) && now >= until {
                 self.failed(owner);
             } else {
-                self.pending.push_back((owner, call, until));
+                self.pending.push_back((owner, call, until, kind));
             }
         }
         let expired: Vec<_> = self
@@ -457,7 +481,7 @@ impl Connections {
         self.events.clear();
     }
     fn close(&mut self, now: Time, exchange: Option<Token>, below: &mut Queue<(Conn, Down)>) {
-        self.pending.retain(|(owner, _, _)| match owner {
+        self.pending.retain(|(owner, _, _, _)| match owner {
             Owner::Link(token) => Some(*token) != exchange,
             Owner::Stream => exchange.is_some(),
         });

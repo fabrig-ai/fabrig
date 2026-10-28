@@ -30,6 +30,9 @@ fn a_conversations_original_read_leaves_once_when_an_exchange_slot_is_released()
     client.step(Event::Read { handle: TASK, read: Readable::Jig(read) });
     assert!(client.requests().is_empty(), "local pressure keeps the original demand, without a terminal");
     assert!(thread.reading.is_some(), "the conversation still owns its read");
+    let admission = client.machine.admission();
+    assert_eq!(admission.attempts, 1);
+    assert_eq!(admission.deferred_reads, 1);
     client.fire(Time::ZERO);
     assert!(client.requests().is_empty(), "no timer admits the read while the slot is occupied");
 

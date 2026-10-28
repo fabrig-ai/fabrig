@@ -81,6 +81,11 @@ impl Link {
     pub fn has_exchange_room(&self) -> bool {
         self.attempts.len() < self.attempts.capacity()
     }
+    /// Number of logical exchanges, without their tokens or payloads.
+    #[must_use]
+    pub fn in_flight(&self) -> u32 {
+        self.attempts.len()
+    }
     pub fn reclaim(&mut self) {}
     #[must_use]
     pub fn worst_case(limits: &Limits) -> Option<u64> {

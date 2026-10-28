@@ -101,7 +101,22 @@ pub struct Client {
     erases: List<Box<[u8]>>,
     reads: Queue<DeferredRead>,
 }
+/// Payload-free admission counters, copied only for an explicit diagnostic.
+#[derive(Debug)]
+pub struct Admission {
+    pub attempts: u32,
+    pub deferred_reads: u32,
+}
 impl Client {
+    #[must_use]
+    pub fn admission(&self) -> Admission {
+        let attempts = match &self.link {
+            Some(link) => link.in_flight(),
+            None => 0,
+        };
+        Admission { attempts, deferred_reads: self.reads.len() }
+    }
+
     /// # Errors
     /// Refuses limits whose queues or receiving bounds cannot be represented.
     pub fn new(limits: &Limits, seed: u64) -> Result<Self, Unusable> {

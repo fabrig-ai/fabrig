@@ -12,7 +12,7 @@ use skein_world::stream::Wire;
 const TOKEN: [u8; 40] = [7; 40];
 const MIXED_BATCHES: u32 = 2; // One Save and one Erase.
 const TOTAL_BATCHES: u32 = 3; // One active Save, then the two mixed batches.
-fn limits() -> Limits {
+pub(crate) fn limits() -> Limits {
     Limits {
         exchanges: 2,
         body_bytes: 128,
@@ -342,7 +342,7 @@ impl skein_world::Referee<Disk> for DiskJudge {
         true
     }
 }
-fn file_io_limits() -> skein_io::Limits {
+pub(crate) fn file_io_limits() -> skein_io::Limits {
     skein_io::Limits {
         sockets: 4,
         names: 1,
