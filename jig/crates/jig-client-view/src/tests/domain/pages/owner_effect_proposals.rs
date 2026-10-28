@@ -1,0 +1,131 @@
+//! Native proposal page reads and watches register only supplied connector parts.
+use super::*;
+use crate::objects::{Body, Card};
+use crate::tests::fixtures::{Fixture, ReadPage, Watched};
+use skein_lib::Wall;
+
+fn proposal(proposer: Proposer, effect: u64) -> OwnerProposal {
+    let mut acts = List::with_capacity(1);
+    acts.push(Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }).unwrap();
+    OwnerProposal {
+        key: ProposalKey { proposer, number: 7 },
+        project: 41,
+        reason: DocumentText { bytes: text(UTF8_TEXT), cut: true },
+        action: OwnerProposalAction::Effect {
+            part: OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Effect, key: OwnerPartKey::Number(effect) },
+            authority: super::super::objects::owner_authority(),
+            attempt: u64::MAX,
+            completion: u32::MAX,
+            position: 0,
+            purpose: 19,
+        },
+        as_holder: false,
+        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(7), since: Wall::EPOCH },
+        funding: List::with_capacity(2),
+        acts,
+    }
+}
+fn named(domain: &mut Fixture, watch: jig_client::Handle, key: ProposalKey) -> jig_client::Handle {
+    let mut entries = List::with_capacity(1);
+    let mut row = entry(8, InboxGroup::Proposals, 0);
+    row.object = ObjectKey::Proposal(key);
+    entries.push(row).unwrap();
+    let output = inbox_delivery(domain, watch, entries);
+    let mut found = None;
+    for request in &output {
+        if let Request::Client {
+            asked:
+                jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(Read::Proposal { proposal }) },
+        } = request
+            && *proposal == key
+        {
+            assert!(found.replace(*read).is_none());
+        }
+    }
+    found.unwrap()
+}
+
+fn exact(domain: &Fixture, value: &OwnerProposal) {
+    let id = domain.objects().find(ObjectKey::Proposal(value.key)).unwrap();
+    let object = domain.objects().get(id).unwrap();
+    assert_eq!(object.body, Some(Body::OwnerProposal(Box::new(value.clone()))));
+    assert_eq!(object.project, Some(value.project));
+    assert_eq!(object.card, Card::Open);
+}
+fn supplied(_generation: u32, effect: u64) -> Request {
+    Request::ShowPart {
+        part: Part::OwnerEffect { connector: u16::MAX, proposal: effect },
+        scope: PartScope::Project(41),
+    }
+}
+
+#[test]
+fn native_proposal_page_reads_and_watches_keep_whole_facts_scope_and_identity_without_late_resurrection() {
+    for proposer in [Proposer::Task(8), Proposer::Party(8)] {
+        let (mut domain, watch) = live_inbox();
+        let original = proposal(proposer, u64::MAX);
+        let read = named(&mut domain, watch, original.key);
+        let event = ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(original.clone()))) };
+        let output = drive(&mut domain, Time::ZERO, event.clone());
+        assert_eq!(crate::tests::fixtures::parts(&output, LIMITS.parts).as_ref(), &[supplied(0, u64::MAX)]);
+        exact(&domain, &original);
+        let id = domain.objects().find(ObjectKey::Proposal(original.key)).unwrap();
+        let mut changed = proposal(proposer, 0);
+        changed.reason = DocumentText::complete(text(b"new supplied facts"));
+        changed.as_holder = true;
+        let delivery =
+            Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(changed.clone()))) };
+        let output = drive(&mut domain, Time::ZERO, delivery.clone());
+        assert_eq!(crate::tests::fixtures::parts(&output, LIMITS.parts).as_ref(), &[supplied(0, 0)]);
+        assert_eq!(domain.objects().find(ObjectKey::Proposal(changed.key)), Some(id));
+        exact(&domain, &changed);
+        assert!(drive(&mut domain, Time::ZERO, event.clone()).is_empty());
+        exact(&domain, &changed);
+        let left = drive(&mut domain, Time::ZERO, Event::Went { place: Place::Jig(Address::Deployment) });
+        assert!(left.contains(&Request::PartsLeft));
+        assert!(left.contains(&Request::Client { asked: jig_client::Event::Unwatch { handle: watch } }));
+        assert!(domain.objects().find(ObjectKey::Proposal(original.key)).is_none());
+        assert!(drive(&mut domain, Time::ZERO, delivery).is_empty());
+        assert!(drive(&mut domain, Time::ZERO, event).is_empty());
+        assert!(domain.objects().find(ObjectKey::Proposal(original.key)).is_none());
+    }
+}
+
+#[test]
+fn native_proposal_page_reads_and_watches_refuse_part_capacity_while_preserving_whole_offered_documents() {
+    for watch_delivery in [false, true] {
+        let (mut domain, watch) = live_inbox();
+        let value = proposal(Proposer::Party(8), 17);
+        let read = named(&mut domain, watch, value.key);
+        let Page::Work { refused: None, .. } = domain.page() else {
+            panic!("the named Inbox starts without a capacity refusal");
+        };
+        domain.ui.limits.parts = 0;
+        let output = if watch_delivery {
+            drive(
+                &mut domain,
+                Time::ZERO,
+                Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerProposal(Box::new(value.clone()))) },
+            )
+        } else {
+            drive(
+                &mut domain,
+                Time::ZERO,
+                ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(value.clone()))) },
+            )
+        };
+        assert!(
+            crate::tests::fixtures::parts(&output, LIMITS.parts).is_empty(),
+            "full part capacity cannot emit a connector part"
+        );
+        exact(&domain, &value);
+        let Page::Work { address, refused, .. } = domain.page() else {
+            panic!("a refused connector part keeps the Inbox page");
+        };
+        assert_eq!(*address, Address::Inbox { project: None });
+        assert_eq!(*refused, Some(Limit::Objects));
+        assert!(domain.notices().ids().iter().next().is_none(), "work-page refusals remain on their page");
+    }
+}
+
+const UTF8_TEXT: &[u8] = b"~\0\x11";

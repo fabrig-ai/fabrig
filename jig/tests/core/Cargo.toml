@@ -1,0 +1,60 @@
+[package]
+name = "jig-core-world"
+description = "The core with its children, two connectors, parties, workers and store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-client-test-records = { path = "../../testing/jig-client-test-records" }
+jig-conformance.workspace = true
+jig-test-domain.workspace = true
+jig-test-store-files.workspace = true
+jig-test-store.workspace = true
+jig-protocol-store.workspace = true
+jig-fake-workers.workspace = true
+jig-fake-parties.workspace = true
+jig-test-connector.workspace = true
+jig-test-connector-world = { path = "../test-connector" }
+jig-test-system.workspace = true
+jig-domain-core.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-people.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-brief.workspace = true
+jig-domain-notes.workspace = true
+jig-domain-views.workspace = true
+jig-protocol-tools.workspace = true
+jig-protocol-charter.workspace = true
+smith-channel.workspace = true
+skein-lib.workspace = true
+skein-world.workspace = true
+
+[dev-dependencies]
+jig-test-patches-smith.workspace = true
+skein-codec.workspace = true
+jig-protocol-engine-clients.workspace = true
+jig-client-protocol-wire.workspace = true
+jig-protocol-config.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+# The scripted world is ordinary Rust, outside the strict step-code subset.
+disallowed_types = "allow"
+disallowed_methods = "allow"
+disallowed_macros = "allow"

@@ -1,0 +1,664 @@
+use alloc::boxed::Box;
+use skein_lib::Token;
+
+/// A service in one environment.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Service {
+    /// Environment name.
+    pub environment: Box<[u8]>,
+    /// Service within it.
+    pub name: Box<[u8]>,
+}
+
+impl Service {
+    /// Names one service with validated bytes.
+    #[must_use]
+    pub fn new(environment: Box<[u8]>, name: Box<[u8]>) -> Self {
+        Self { environment, name }
+    }
+}
+
+/// An environment created in one pool.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Environment {
+    /// Pool whose slot it occupies.
+    pub pool: Box<[u8]>,
+    /// Environment name within the pool.
+    pub name: Box<[u8]>,
+}
+
+impl Environment {
+    /// Names one environment with validated bytes.
+    #[must_use]
+    pub fn new(pool: Box<[u8]>, name: Box<[u8]>) -> Self {
+        Self { pool, name }
+    }
+}
+
+/// A named pool of environment slots.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Pool(pub Box<[u8]>);
+
+/// Resource kinds this connector offers to tasks and policy.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Resource {
+    /// An exclusive service being remediated.
+    Service(Service),
+    /// One environment made under a pool.
+    Environment(Environment),
+    /// A pool's counted slots.
+    Pool(Pool),
+    /// A pool's quota fact.
+    Quota(Pool),
+}
+
+impl Resource {
+    /// Segments of this connector's name; the root adds its connector number.
+    #[must_use]
+    pub fn segments(&self) -> Box<[Box<[u8]>]> {
+        match self {
+            Resource::Service(service) => Box::from([
+                Box::<[u8]>::from(&b"env"[..]),
+                service.environment.clone(),
+                Box::<[u8]>::from(&b"service"[..]),
+                service.name.clone(),
+            ]),
+            Resource::Environment(environment) => Box::from([
+                Box::<[u8]>::from(&b"pool"[..]),
+                environment.pool.clone(),
+                Box::<[u8]>::from(&b"environment"[..]),
+                environment.name.clone(),
+            ]),
+            Resource::Pool(pool) => Box::from([Box::<[u8]>::from(&b"pool"[..]), pool.0.clone()]),
+            Resource::Quota(pool) => Box::from([Box::<[u8]>::from(&b"quota"[..]), pool.0.clone()]),
+        }
+    }
+}
+
+/// What the core takes for a resource.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Hold {
+    /// One task at a time; a taken service waits.
+    ExclusiveWait,
+    /// One of the pool's counted slots; a full pool waits.
+    PooledWait,
+    /// Reads need no hold.
+    None,
+}
+
+/// The deployment's role on a resource adopted by a project.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ResourceRole {
+    /// The deployment owns it.
+    Owned,
+    /// It writes as a participant.
+    Participant,
+    /// It may read it.
+    Context,
+    /// It is known but unavailable.
+    Unavailable,
+}
+
+/// A named resource with its adoption role and hold.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Named {
+    /// Resource named by the task.
+    pub resource: Resource,
+    /// Project-scoped role reported by this connector.
+    pub role: ResourceRole,
+    /// Hold the core takes.
+    pub hold: Hold,
+}
+
+/// The origin that fixes an effect's purpose across retries.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Purpose {
+    /// One activation-qualified agent call.
+    Call { attempt: u64, completion: u32, position: u32 },
+    /// One stable procedure purpose.
+    Procedure { purpose: u64 },
+    /// One stable goal projection purpose.
+    Projection { purpose: u64 },
+}
+
+/// Full deployment identity and the owner's stable effect purpose.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Key {
+    /// Deployment that owns the operation.
+    pub deployment: [u8; 16],
+    /// Asking task.
+    pub task: u64,
+    /// The call, procedure or projection that asked.
+    pub origin: Purpose,
+    /// Stable purpose within that owner.
+    pub purpose: u64,
+}
+
+impl Key {
+    /// A procedure's stable purpose in one deployment.
+    #[must_use]
+    pub const fn procedure(deployment: [u8; 16], task: u64, purpose: u64) -> Self {
+        Self { deployment, task, origin: Purpose::Procedure { purpose }, purpose }
+    }
+}
+
+/// Whether the infrastructure backend accepts restart operation IDs.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Backend {
+    /// IDs make uncertain restarts recoverable by key.
+    OperationIds,
+    /// Without IDs, an uncertain restart is held for a person.
+    NoOperationIds,
+}
+
+/// A infrastructure effect.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Effect {
+    /// Restart once by operation ID where supported.
+    Restart { service: Service, operation: u64 },
+    /// Change replicas only from the count decided from.
+    Scale { service: Service, from: u32, to: u32 },
+    /// Change version only from the version decided from.
+    Rollback { service: Service, from: Box<[u8]>, to: Box<[u8]> },
+    /// Create once by key, priced at its maximum.
+    CreateEnvironment { environment: Environment, until: u64, price: u64 },
+    /// Delete only the environment created under this key.
+    TearDown { environment: Environment, created_by: Key },
+}
+
+/// What kind of state transition an effect makes.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Form {
+    /// Make a named object.
+    Creation,
+    /// Change from one state to another.
+    Transition,
+    /// Set one final value.
+    Set,
+}
+
+/// How uncertainty is settled.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Recovery {
+    /// Find the operation's stable key.
+    Keyed,
+    /// Retry only under the original condition.
+    Conditional,
+    /// No safe automatic retry.
+    Unrecoverable,
+}
+
+/// What the root translates into jig's effect vocabulary.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Description {
+    /// Connector-local effect kind number.
+    pub kind: u16,
+    /// Resources checked against authority and holds.
+    pub resources: Box<[Resource]>,
+    /// Whether the system checks the starting state when applying.
+    pub condition: bool,
+    /// Creation, transition or set.
+    pub form: Form,
+    /// Recovery offered by this backend.
+    pub recovery: Recovery,
+    /// Maximum cost, if this is priced.
+    pub price: Option<u64>,
+    /// State the requirement judges are asked about.
+    pub state: u64,
+}
+
+/// Outcome of an infrastructure effect.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Outcome {
+    /// Made, or found after an uncertain keyed attempt.
+    Made,
+    /// The system rejected the effect.
+    Failed,
+    /// A person must settle an uncertain outcome.
+    Uncertain,
+    /// A person settled it as not made.
+    Skipped,
+}
+
+/// Result of a system apply call.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ApplyResult {
+    /// The effect took place.
+    Made,
+    /// A checked starting state changed.
+    Conflict,
+    /// Its target is absent.
+    Missing,
+    /// No quota slot was available.
+    Full,
+    /// A known failure before the effect was sent.
+    Error,
+    /// The effect may have been made but its answer was lost.
+    Uncertain,
+}
+
+/// What a recovery lookup can tell after uncertainty.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Looked {
+    /// The keyed operation was found.
+    Made,
+    /// The original conditional state still holds, so retry may be safe.
+    CanRetry,
+    /// Another hand may have reached the target; automatic recovery cannot prove ownership.
+    Ambiguous,
+}
+
+/// Durable outbox phase.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Phase {
+    /// Saved, not yet sent.
+    Kept,
+    /// An attempt was committed for release.
+    Sent,
+    /// The answer was lost; lookup or deadline remains.
+    Uncertain,
+    /// A person must settle the effect.
+    Held,
+}
+
+/// One durable entry in the connector's outbox.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Entry {
+    /// Admitted owner scope, retained when known.
+    pub project: Option<u32>,
+    /// Core-owned outbox number, separate from the stable effect key.
+    pub number: u64,
+    /// Deployment-scoped key.
+    pub key: Key,
+    /// Connector-owned effect.
+    pub effect: Effect,
+    /// Attempt number.
+    pub attempt: u32,
+    /// Absolute system time when an uncertain attempt may be retried.
+    pub deadline: u64,
+    /// Current phase.
+    pub phase: Phase,
+}
+
+/// Fresh service facts from infrastructure.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ServiceFact {
+    /// Current version.
+    pub version: Box<[u8]>,
+    /// Current replicas.
+    pub replicas: u32,
+    /// Whether the service is healthy, as observed by infrastructure.
+    pub healthy: bool,
+    /// Revision changed by either hand.
+    pub revision: u64,
+    /// System time of the read.
+    pub observed: u64,
+}
+
+/// Fresh environment facts from infrastructure.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct EnvironmentFact {
+    /// Creation key, if it exists.
+    pub created_by: Key,
+    /// System time when provisioning completes.
+    pub ready_at: u64,
+    /// Lease end.
+    pub until: u64,
+    /// Maximum price charged.
+    pub price: u64,
+}
+
+/// Connector-local code for provisioning an environment.
+/// `PROVISION_CODE` uses byte parameters 1 (pool), 2 (name), and number
+/// parameters 3 (lease end), 4 (maximum price), 5 (readiness deadline).
+pub const PROVISION_CODE: u32 = 3;
+
+/// Tear down a provision's environment: byte parameters 1 (pool), 2 (name),
+/// number parameters 3 (creation task), 4 (creation purpose), 5 (deadline).
+/// The root supplies its deployment identity when translating the creation key.
+pub const TEAR_DOWN_CODE: u32 = 4;
+
+/// Procedure parameters kept under a task's number.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Procedure {
+    /// Remediate a service and wait for health.
+    Remediate { service: Service, operation: u64, deadline: u64 },
+    /// Set replicas after reading their current count afresh.
+    Scale { service: Service, replicas: u32, deadline: u64 },
+    /// Create an environment and wait until it is ready.
+    Provision { environment: Environment, until: u64, price: u64, deadline: u64 },
+    /// Tear down an environment on release.
+    TearDown { environment: Environment, created_by: Key, deadline: u64 },
+}
+
+/// Durable phase of one procedure.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ProcedurePhase {
+    /// Evaluate current facts and decide once.
+    Active,
+    /// A scale procedure has requested fresh replica facts.
+    ReadingFacts,
+    /// Fresh replica facts are ready for the scale decision.
+    FactsReady,
+    /// An effect was asked for and is not settled.
+    EffectOutstanding,
+    /// Wait for a fact to reach the requested condition.
+    WaitingCondition,
+    /// Provisioned environment remains owned until task release.
+    Holding,
+    /// The task ended.
+    Done,
+    /// A bound or drift needs a person.
+    Held,
+}
+
+/// One procedure task's durable parameters and progress.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProcedureState {
+    /// The person-requested conversation served by this procedure, if any.
+    pub chat: Option<u64>,
+    /// Task executing it.
+    pub task: u64,
+    /// Its parameters.
+    pub procedure: Procedure,
+    /// Its progress.
+    pub phase: ProcedurePhase,
+}
+
+/// Why a procedure was stepped.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ProcedureSignal {
+    /// Activated or asked again on current facts.
+    Step,
+    /// The effect it asked for was made.
+    EffectMade,
+    /// Authority is waiting on an observed requirement; read afresh on the next step.
+    EffectWaiting,
+    /// Its effect failed or was held.
+    EffectFailed,
+    /// The task is closing and releases what it held.
+    Release,
+}
+
+/// One level-triggered procedure decision for the core.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum StepDecision {
+    /// Ask for one effect.
+    Effect(Effect),
+    /// Wait on facts or an outstanding effect until this time.
+    Wait { until: u64 },
+    /// End successfully.
+    Finish,
+    /// End successfully with the procedure owner's explanation.
+    FinishReport { words: Box<[u8]> },
+    /// Hold for a person with a connector-local reason.
+    Hold { reason: u16 },
+}
+
+/// Stable key for a connector record.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum RecordKey {
+    /// An unanswered deployment close, independent of task release.
+    Closing([u8; 16]),
+    /// Retained observed drift for one resource.
+    Drift(Resource),
+    /// Connector-owned end and revision.
+    EnvironmentEnd(Environment),
+    /// Retained keyed outcome.
+    ApplicationAnswer(Token),
+    /// Resources named by a task.
+    Rely(u64),
+    /// A procedure task's state.
+    Procedure(u64),
+    /// An effect retained under its proposal number.
+    Proposal(u64),
+    /// An unsettled effect.
+    Outbox(Key),
+    /// An environment this deployment made.
+    Made(Environment),
+}
+
+/// State committed by the root with a decision.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Record {
+    /// A deployment close retained until a terminal answer.
+    Closing { key: [u8; 16], project: u32, chat: u64 },
+    /// The owner's observed drift, including known or unknown actor.
+    Drift(crate::DriftAccount),
+    /// Current desired end and revision.
+    EnvironmentEnd { environment: Environment, created_by: Key, now: crate::EnvironmentEnd },
+    /// Own outcome retained for the people child's token.
+    ApplicationAnswer { token: Token, until: skein_lib::Wall, outcome: crate::ApplicationOutcome },
+    /// Resources a task relies on.
+    Rely { task: u64, project: u32, resources: Box<[Named]> },
+    /// One procedure's state.
+    Procedure(ProcedureState),
+    /// Proposed payload, retained without permission to make it.
+    Proposal { number: u64, task: u64, effect: Effect },
+    /// One unsettled effect.
+    Outbox(Entry),
+    /// An environment made under a key.
+    Made { environment: Environment, key: Key, project: Option<u32> },
+}
+
+impl Record {
+    /// Its stable store key.
+    #[must_use]
+    pub fn key(&self) -> RecordKey {
+        match self {
+            Record::Closing { key, .. } => RecordKey::Closing(*key),
+            Record::EnvironmentEnd { environment, .. } => RecordKey::EnvironmentEnd(environment.clone()),
+            Record::ApplicationAnswer { token, .. } => RecordKey::ApplicationAnswer(*token),
+            Record::Rely { task, .. } => RecordKey::Rely(*task),
+            Record::Procedure(state) => RecordKey::Procedure(state.task),
+            Record::Proposal { number, .. } => RecordKey::Proposal(*number),
+            Record::Outbox(entry) => RecordKey::Outbox(entry.key),
+            Record::Drift(account) => RecordKey::Drift(account.resource.clone()),
+            Record::Made { environment, .. } => RecordKey::Made(environment.clone()),
+        }
+    }
+}
+
+/// Root-to-connector events.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Event {
+    /// The root translated the deployment act's answer.
+    Closed { key: [u8; 16], outcome: CloseOutcome },
+    /// The core is ready; resend every retained close once.
+    SendCloses,
+    /// The core names the delegate made by this owner procedure step.
+    ProcedureDelegateOutcome { task: u64, step: u64, child: Option<u64> },
+    /// Retain this root-minted name in the application's own vocabulary.
+    DocumentPrepare { token: Token, subject: crate::ClientSubject },
+    /// The paced watch ended; forget its owner binding.
+    DocumentForget { subject: Token },
+    /// Make the current whole document for one due delivery.
+    Document { watcher: Token, scope: crate::ClientScope, subject: Token, party: u64 },
+    /// Answer one admitted client read in the same decision.
+    ReadDocument { scope: crate::ClientScope, read: Token, party: u64 },
+    /// Decoded request retained by its owner before keyed admission.
+    ApplicationPrepare { owner: Token, value: crate::ApplicationRequest },
+    /// Admission consumed or rejected the prepared value.
+    ApplicationDrop { owner: Token },
+    /// Decide the admitted party request within this decision.
+    Application {
+        request: Token,
+        token: Token,
+        owner: Token,
+        person: u64,
+        project: u32,
+        role: u32,
+        retention: skein_lib::Duration,
+    },
+    /// Settle this task before acknowledging its closing barrier.
+    Close { task: u64 },
+    /// Release this task's connector-owned live state.
+    Release { task: u64 },
+    /// A live task names resources and needs their holds.
+    Names { task: u64, project: u32, resources: Box<[Resource]> },
+    /// A task no longer relies on its named resources.
+    Unnamed { task: u64 },
+    /// Start a procedure with parameters.
+    StartProcedure {
+        task: u64,
+        project: u32,
+        chat: Option<u64>,
+        procedure: Procedure,
+        pending: Box<[u64]>,
+        added: Box<[Added]>,
+    },
+    /// Step a procedure on current facts.
+    Procedure { task: u64, signal: ProcedureSignal },
+    /// Stage an effect for the core's authority check.
+    Describe { token: Token, effect: Effect },
+    /// Describe a retained proposal for a fresh authority check.
+    DescribeProposal { token: Token, number: u64 },
+    /// Keep a proposed payload without making an outbox entry.
+    KeepProposal { token: Token, number: u64, task: u64 },
+    /// Drop a terminal proposal payload.
+    DropProposal { number: u64 },
+    /// Keep an approved effect under its key.
+    Keep { token: Token, entry: u64, key: Key, project: Option<u32> },
+    /// Drop a staged effect after refusal.
+    Drop { token: Token },
+    /// The journal released this kept entry.
+    Make { key: Key },
+    /// Make the entry named by the core after its commit.
+    MakeEntry { entry: u64 },
+    /// Resolve a held entry as another attempt or as not made.
+    ResolveEntry { entry: u64, repeat: bool },
+    /// Restore one committed record.
+    Restore { record: Record },
+    /// Refresh the resources restored by the preceding live load.
+    ReadAfresh,
+    /// Settle restored entries after all live reads have answered.
+    Restart,
+    /// A system fact or answer.
+    System(SystemEvent),
+}
+
+/// Calls to the fake production after the journal releases them.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum SystemRequest {
+    /// Read a service afresh.
+    Service { service: Service },
+    /// Read one environment afresh.
+    Environment { environment: Environment },
+    /// Set a saved end for this creation; late copies cannot replace a newer revision.
+    MoveEnd { environment: Environment, created_by: Key, revision: u64, until: u64 },
+    /// Read a pool's current capacity.
+    Pool { pool: Pool },
+    /// Apply an outbox attempt.
+    Apply { key: Key, attempt: u32, effect: Effect },
+    /// Look for an uncertain outcome.
+    Look { key: Key, effect: Effect },
+}
+
+/// Answers and hints from infrastructure's system.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum SystemEvent {
+    /// An attributed observation supplements the account without re-deciding a core hold.
+    Drift { account: crate::DriftAccount },
+    /// Fresh service fact and whether another hand made this change.
+    Service { service: Service, fact: ServiceFact, other_hand: bool },
+    /// Fresh environment fact, or absence, and whether another hand removed it.
+    Environment { environment: Environment, fact: Option<EnvironmentFact>, other_hand: bool },
+    /// Current pool quota and slots used.
+    Pool { pool: Pool, quota: u32, used: u32 },
+    /// An apply answer.
+    Applied { key: Key, attempt: u32, result: ApplyResult },
+    /// Recovery lookup result.
+    Looked { key: Key, result: Looked },
+}
+
+/// Requests to the root and its journal.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Request {
+    /// Ask for the deployment's close under this retained key.
+    Close { key: [u8; 16], project: u32, chat: u64 },
+    /// Complete a due delivery from this owner's current state.
+    Document { watcher: Token, subject: Token, document: Result<crate::ClientDocument, crate::DocumentMissing> },
+    /// One client read answer; the root holds it until durable.
+    ReadAnswered { read: Token, answer: Result<crate::ClientDocument, crate::DocumentMissing> },
+    /// These prepared subjects changed in this decision.
+    Marked { subjects: skein_lib::List<Token> },
+    /// The outcome was saved in this decision.
+    ApplicationDone { request: Token, token: Token },
+    /// No application decision was made; retry the key.
+    ApplicationBusy { request: Token },
+    /// This task has no unsettled entries.
+    Closed { task: u64 },
+    /// This task's live state was released.
+    Released { task: u64 },
+    /// The connector finished its selected restart stage.
+    Restarted { stage: RestartStage },
+    /// Resources and holds a task must take atomically.
+    Named { task: u64, project: u32, resources: Box<[Named]> },
+    /// Updated pool capacity; existing holders are retained.
+    Slots { pool: Pool, quota: u32, used: u32 },
+    /// Another hand changed an owned resource a task relies on.
+    Drift { task: u64, resource: Resource },
+    /// This procedure's owner-declared time condition is due.
+    Wake { task: u64 },
+    /// A fact changed and procedures should step again.
+    Changed { resource: Resource },
+    /// Description for the core's authority check.
+    Described { token: Token, description: Description, waits_for_dependencies: bool },
+    /// An invalid effect was refused before authority.
+    Refused { token: Token },
+    /// A committed outbox entry ready to make after release.
+    Make { key: Key },
+    /// An outbox result.
+    Outcome { entry: u64, key: Key, outcome: Outcome },
+    /// One procedure decision.
+    Step { task: u64, decision: StepDecision },
+    /// Save a connector-owned record.
+    Save { record: Record },
+    /// Erase a connector-owned record.
+    Erase { key: RecordKey },
+    /// System call held behind the decision's commit.
+    System(SystemRequest),
+}
+
+/// The connector-owned completion of a core-selected restart hand-off.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum RestartStage {
+    /// Every live resource has been read afresh.
+    ReadAfresh,
+    /// Every outbox entry is settled or explicitly held.
+    Outbox,
+}
+
+/// The maker of a dependency amendment (domain/tasks.md, section 7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Party {
+    Person(u64),
+    Task(u64),
+    Deployment { project: u32 },
+}
+
+/// A dependency added to a live procedure's task (domain/connectors.md, 6.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Added {
+    pub task: u64,
+    pub at: skein_lib::Wall,
+    pub by: Party,
+}
+
+/// Infrastructure's translation of people.md 5.3's close answers.
+/// The root preserves the full saved refusal as a report fact.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum CloseOutcome {
+    /// The deployment's compound was made.
+    Closed,
+    /// The conversation already ended.
+    Ended,
+    /// This start's configuration grants no close.
+    NotOffered,
+    /// This start's configuration names no first owner.
+    NoOwner,
+    /// Admission asked the sender to try again.
+    Again,
+    /// A saved refusal; report it and finish this request.
+    Refused,
+}

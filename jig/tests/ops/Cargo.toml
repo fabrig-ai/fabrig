@@ -1,0 +1,75 @@
+[package]
+name = "jig-ops-world"
+description = "Worlds for ops's two connectors and reference root"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-test-service.workspace = true
+jig-client-protocol-world = { path = "../client-protocol" }
+jig-client-protocol-wire.workspace = true
+jig-client-protocol-link.workspace = true
+jig-client-shell-native = { path = "../../crates/jig-client-shell-native" }
+jig-protocol-engine-clients.workspace = true
+jig-protocol-engine-clients-http.workspace = true
+skein-io.workspace = true
+skein-http.workspace = true
+jig-client.workspace = true
+jig-ops-client-protocol-wire.workspace = true
+jig-client-domain.workspace = true
+skein-ui.workspace = true
+jig-ops-domain.workspace = true
+jig-conformance.workspace = true
+jig-core-world = { path = "../core" }
+jig-domain-core.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-people.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-notes.workspace = true
+jig-domain-host.workspace = true
+jig-protocol-charter.workspace = true
+jig-protocol-tools.workspace = true
+smith-channel.workspace = true
+skein-json.workspace = true
+jig-fake-store.workspace = true
+jig-test-system.workspace = true
+smith-charter.workspace = true
+smith-transcript.workspace = true
+skein-world.workspace = true
+sha2.workspace = true
+jig-ops-domain-observability.workspace = true
+jig-ops-domain-infrastructure.workspace = true
+jig-ops-fake-production.workspace = true
+skein-lib.workspace = true
+jig-ops-domain-connectors.workspace = true
+jig-ops-client-domain.workspace = true
+jig-ops-client-view.workspace = true
+jig-client-view.workspace = true
+jig-client-world.workspace = true
+jig-test-domain.workspace = true
+jig-client-test-domain.workspace = true
+jig-protocol-transcript.workspace = true
+jig-domain-views.workspace = true
+skein-fake-person.workspace = true
+jig-client-scripted-engine.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"

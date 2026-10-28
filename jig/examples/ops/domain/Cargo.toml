@@ -1,0 +1,35 @@
+[package]
+name = "jig-ops-domain"
+description = "Ops's reference application root"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+jig-ops-domain-connectors.workspace = true
+jig-protocol-tools.workspace = true
+jig-domain-core.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-people.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-brief.workspace = true
+jig-domain-notes.workspace = true
+jig-domain-views.workspace = true
+jig-domain-host.workspace = true
+jig-protocol-charter.workspace = true
+jig-ops-domain-observability.workspace = true
+jig-ops-domain-infrastructure.workspace = true
+smith-charter.workspace = true
+
+[dev-dependencies]
+jig-test-domain.workspace = true
+jig-core-world = { path = "../../../tests/core" }
+jig-ops-world = { path = "../../../tests/ops" }
+
+[lints]
+workspace = true

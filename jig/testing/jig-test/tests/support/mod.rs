@@ -1,0 +1,440 @@
+//! Binary, native person and independent provider on Skein's real ring.
+pub mod trace;
+use crate::account_sign_in_visitor::Visitor;
+use jig_client_protocol_world::native::{NativeClient, Script};
+use jig_protocol_accounts_world::{fixtures as accounts, world::Story};
+use skein_fake_peers::{Transport, oauth};
+use skein_io::kernel::{Complete, Done, Fd, Op, Signal, Submit};
+use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_shell::{Clock, Host};
+use skein_world::{
+    Referee,
+    end_to_end::{Binary, Command, Mode, Streams},
+    real,
+};
+use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+
+pub const ANSWER: &[u8] = b"Process answer";
+// The deterministic first native client; a fresh client after restart uses another seed.
+pub(super) const CLIENT_SEED: u64 = 7;
+const PIPE: Token = Token::new(u64::MAX);
+const CLOSE: Token = Token::new(u64::MAX - 1);
+
+pub fn scratch() -> tempfile::TempDir {
+    tempfile::tempdir().expect("scratch directory")
+}
+pub(super) fn private(path: &Path, bytes: &[u8]) {
+    fs::write(path, bytes).expect("fixture file");
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
+}
+pub(super) fn agent_value(directory: &Path) -> serde_json::Value {
+    serde_json::json!({
+        "profile":{"name":"standard","declared":{"tool_payload":512,"read_window":256},
+            "policy":{"max_turns":5,"group_stop":10}},
+        "endpoints":[{"name":"fake","number":0,"dialect":3,"account":1,"provider":"openai",
+            "address":"127.0.0.1:34443","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"identity":"plain","connect":1000,"handshake":1000,
+            "models":[{"name":"fake","window":1_048_576,"output":1024,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1000},"head":60000,"idle":30000}]}],
+        "environment":[]})
+}
+pub fn agent_configuration(directory: &Path) {
+    let value = agent_value(directory);
+    private(&directory.join("agent.json"), &serde_json::to_vec(&value).expect("agent JSON"));
+}
+pub fn configuration(directory: &Path) {
+    let value = configuration_value(directory);
+    private(&directory.join("config.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+}
+pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
+    for name in ["secrets", "charters", "state", "agent-root"] {
+        fs::create_dir(directory.join(name)).expect("deployment directory");
+    }
+    for (name, bytes) in jig_channel_world::fixtures::files(false).entries.into_boxed() {
+        private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
+    }
+    private(&directory.join("worker.secret"), b"worker-secret");
+    private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
+    agent_configuration(directory);
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");
+    let worker: serde_json::Value =
+        serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
+    value["workers"] = worker["workers"].clone();
+    value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
+    value["workers"][0]["agent"]["program"] =
+        skein_scratch::paths::binary("jig-test").to_str().expect("a UTF-8 path").into();
+    value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
+    value["workers"][0]["agent"]["arguments"] = serde_json::json!(["agent", directory.join("agent.json")]);
+    value["application"]["workers"] = worker["application"]["workers"].clone();
+    value["service"]["components"] = serde_json::json!(["accounts", "workers", "clients"]);
+    value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
+    value["application"]["server"]["listener"] = serde_json::json!({"socket":"127.0.0.1:0"});
+    value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:34443"});
+    value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
+    value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
+    value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
+    value
+}
+pub fn start(directory: &Path) -> Binary {
+    Binary::start(
+        Command {
+            program: skein_scratch::paths::binary("jig-test"),
+            arguments: vec!["serve".into(), "config.json".into()],
+            directory: directory.into(),
+            environment: std::env::vars_os().filter(|(name, _)| name == "PATH").collect(),
+        },
+        Mode::Pipes,
+        65536,
+    )
+    .expect("jig-test starts")
+}
+pub fn printed_link(bytes: &[u8]) -> Option<&[u8]> {
+    let end = bytes.iter().position(|byte| *byte == b'\n')?;
+    Some(&bytes[..end])
+}
+pub(super) fn client_settings(address: std::net::SocketAddr) -> jig_client_shell_native::Settings {
+    jig_client_shell_native::Settings {
+        engine: skein_io::Addr::Ip(address),
+        directory: b"private".as_slice().into(),
+        limits: jig_client_protocol_world::fixtures::connections_limits(),
+        io: skein_io::Limits {
+            sockets: 32,
+            names: 1,
+            refusals: 8,
+            intake: 4096,
+            receive: 1024,
+            output: 4096,
+            sends: 8,
+            accepts: 4,
+            backlog: 8,
+            close_timeout: Duration::from_secs(5),
+            retry: Duration::from_millis(1),
+        },
+    }
+}
+pub(super) struct Person {
+    pub(super) seed: u64,
+    pub(super) client: Option<NativeClient>,
+    pub(super) root: Option<Fd>,
+    pub(super) script: Option<Script>,
+    pub(super) account_sign_in: bool,
+    pub(super) llm_key: Option<bool>,
+    pub(super) input: Option<Fd>,
+    pub(super) output: Option<Fd>,
+    pub(super) reading: bool,
+    pub(super) closing: u32,
+    pub(super) bytes: Vec<u8>,
+    pub(super) completions: Queue<Complete>,
+    pub(super) submissions: Queue<Submit>,
+}
+impl Person {
+    fn submit(&mut self, token: Token, kind: Op) {
+        self.submissions.push(Submit { op: token, kind });
+    }
+    fn close(&mut self, fd: Fd) {
+        self.closing += 1;
+        self.submit(CLOSE, Op::Close { fd });
+    }
+    fn completed(&mut self, complete: Complete) {
+        if complete.op == CLOSE {
+            self.closing -= 1;
+            complete.result.expect("pipe closed");
+        } else if complete.op == PIPE {
+            self.reading = false;
+            let Op::PipeRead { buf, .. } = complete.kind else { panic!("stdout read") };
+            let Done::Count(count) = complete.result.expect("stdout read completes") else { panic!("read count") };
+            self.bytes.extend_from_slice(&buf[..count as usize]);
+            assert!(self.bytes.len() <= 4096, "bounded printed links");
+            if count == 0 {
+                let fd = self.output.take().expect("stdout");
+                self.close(fd);
+            }
+        } else {
+            self.client.as_mut().expect("native client").completions().push(complete);
+        }
+    }
+}
+impl Host for Person {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        while let Some(complete) = self.completions.pop() {
+            self.completed(complete);
+        }
+        if let Some(fd) = self.input.take() {
+            self.close(fd);
+        }
+        if self.client.is_none()
+            && let Some(link) = printed_link(&self.bytes)
+        {
+            let text = std::str::from_utf8(link).expect("printed URL");
+            let address = text
+                .strip_prefix("http://")
+                .expect("loopback URL")
+                .split('/')
+                .next()
+                .expect("URL address")
+                .parse()
+                .expect("socket address");
+            let mut client = NativeClient::new(
+                client_settings(address),
+                self.root.take().expect("client root"),
+                skein_shell::effective_user(),
+                self.seed,
+                self.script.take().expect("person script"),
+            );
+            if self.account_sign_in || self.llm_key.is_some() {
+                client.hold_for_account_sign_in();
+            }
+            client.sign_in(link).expect("printed sign-in link");
+            self.client = Some(client);
+        }
+        if let Some(sent) = &mut self.llm_key
+            && let Some(client) = &mut self.client
+        {
+            if !*sent && client.account_sign_in_ready() {
+                client.account_request(jig_client::accounts::add_key(
+                    jig_client::Key { asker: jig_client::Asker(77), number: 1 },
+                    [61; 16],
+                    jig_client::contract::AccountHolder::Deployment,
+                    1,
+                    None,
+                    skein_lib::Secret::new(b"token".as_slice().into()),
+                ));
+                *sent = true;
+            }
+            if client.received.iter().any(|r| {
+                matches!(
+                    r,
+                    jig_client_protocol_world::native::Received::Answer {
+                        answer: jig_client::contract::Answer::Done(jig_client::contract::Outcome::Owner(
+                            jig_client::contract::OwnerOutcome::AccountKeyKept { .. }
+                        )),
+                        ..
+                    }
+                )
+            }) {
+                client.resume_after_account_setup();
+                self.llm_key = None;
+            }
+        }
+        if !self.reading
+            && let Some(fd) = self.output
+        {
+            self.reading = true;
+            self.submit(PIPE, Op::PipeRead { fd, buf: vec![0; 1024].into_boxed_slice() });
+        }
+        if let Some(client) = &mut self.client {
+            client.iterate(now, wall);
+            while let Some(submit) = client.submissions().pop() {
+                self.submissions.push(submit);
+            }
+        }
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.completions
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.submissions
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        !self.completions.is_empty()
+            || self.input.is_some()
+            || (!self.reading && self.output.is_some())
+            || self.client.as_ref().is_some_and(|client| client.work_pending(now))
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.client.as_ref().and_then(Host::next_deadline)
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.client.as_ref().and_then(Host::next_policy_deadline)
+    }
+    fn is_empty(&self) -> bool {
+        self.output.is_none() && self.closing == 0 && self.client.as_ref().is_some_and(Host::is_empty)
+    }
+    fn worst_case(&self) -> u64 {
+        64 * 1024 * 1024
+    }
+    fn operations(&self) -> u32 {
+        512
+    }
+}
+pub(super) enum Process {
+    Binary(Box<Binary>),
+    Person(Box<Person>),
+    Peer(Box<skein_fake_peers::llm::Peer>),
+    Issuer(Box<oauth::Peer>),
+    Visitor(Box<Visitor>),
+}
+impl Process {
+    fn host(&self) -> &dyn Host {
+        match self {
+            Self::Binary(x) => x.as_ref(),
+            Self::Person(x) => x.as_ref(),
+            Self::Peer(x) => x.as_ref(),
+            Self::Issuer(x) => x.as_ref(),
+            Self::Visitor(x) => x.as_ref(),
+        }
+    }
+    fn host_mut(&mut self) -> &mut dyn Host {
+        match self {
+            Self::Binary(x) => x.as_mut(),
+            Self::Person(x) => x.as_mut(),
+            Self::Peer(x) => x.as_mut(),
+            Self::Issuer(x) => x.as_mut(),
+            Self::Visitor(x) => x.as_mut(),
+        }
+    }
+}
+impl Host for Process {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.host_mut().iterate(now, wall);
+    }
+    fn drain(&mut self) {
+        self.host_mut().drain();
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        self.host_mut().completions()
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        self.host_mut().submissions()
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        self.host().work_pending(now)
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.host().next_deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.host().next_policy_deadline()
+    }
+    fn is_empty(&self) -> bool {
+        self.host().is_empty()
+    }
+    fn worst_case(&self) -> u64 {
+        self.host().worst_case()
+    }
+    fn operations(&self) -> u32 {
+        self.host().operations()
+    }
+}
+struct Judge {
+    ended: bool,
+    deadline: Time,
+}
+impl Referee<Process> for Judge {
+    fn act(&mut self, _now: Time, procs: &mut [Process]) {
+        let Process::Person(person) = &procs[1] else { panic!("native person") };
+        if !self.ended && person.client.as_ref().is_some_and(Host::is_empty) {
+            let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
+            binary.signal(Signal::Kill);
+            for proc in procs {
+                if let Process::Peer(peer) = proc {
+                    peer.shutdown();
+                }
+            }
+            self.ended = true;
+        }
+    }
+    fn observe(&mut self, _now: Time, procs: &[Process]) {
+        let Process::Binary(binary) = &procs[0] else { panic!("binary") };
+        assert!(
+            binary.exit_status().is_none() || self.ended,
+            "jig-test failed {:?}: {}",
+            binary.exit_status(),
+            String::from_utf8_lossy(binary.stderr())
+        );
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        (!self.ended).then_some(self.deadline)
+    }
+    fn overdue(&self, now: Time) -> Option<String> {
+        (!self.ended && now >= self.deadline).then(|| "native person's script did not finish".into())
+    }
+    fn passed(&self) -> bool {
+        self.ended
+    }
+}
+pub fn run(directory: &Path, script: Script, peer: Option<skein_fake_peers::llm::Peer>) -> (u32, u32) {
+    let seconds = if std::env::var("NEXTEST_PROFILE").as_deref() == Ok("live") { 560 } else { 120 };
+    let clock = Clock::new();
+    let mut binary = start(directory);
+    let streams = binary.take_streams().expect("binary pipes");
+    let fds = streams.descriptors();
+    let Streams::Pipes { input, output } = streams else { panic!("pipes mode") };
+    let client_directory = tempfile::tempdir_in(directory).expect("fresh native client directory");
+    let root = skein_shell::open_root(client_directory.path()).expect("client root");
+    let mut world = real::World::new(Judge {
+        ended: false,
+        deadline: clock.now().now.saturating_add(Duration::from_secs(seconds - 10)),
+    });
+    world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
+    world.spawn_with_fds(fds.into_iter().chain([root]).collect(), || {
+        Process::Person(Box::new(Person {
+            seed: CLIENT_SEED,
+            client: None,
+            root: Some(root),
+            script: Some(script),
+            account_sign_in: false,
+            llm_key: Some(false),
+            input: Some(input),
+            output: Some(output),
+            reading: false,
+            closing: 0,
+            bytes: Vec::new(),
+            completions: Queue::with_capacity(512),
+            submissions: Queue::with_capacity(512),
+        }))
+    });
+    if let Some(peer) = peer {
+        world.spawn(|| Process::Peer(Box::new(peer)));
+    }
+    let outcome = world.run(&clock, Duration::from_secs(seconds));
+    assert!(outcome.procs.iter().all(Host::is_empty), "all real io settles");
+    let Process::Person(person) = &outcome.procs[1] else { panic!("native person") };
+    let client = person.client.as_ref().expect("signed-in client");
+    (client.signed_in, client.chats_made)
+}
+
+pub(super) fn issuer() -> oauth::Peer {
+    issuer_with_plans(accounts::issuer_plans(Story::AccountSignInVaryingPort))
+}
+pub(super) fn issuer_with_plans(plans: Vec<skein_fake_oauth::Plan>) -> oauth::Peer {
+    let profile = accounts::limits();
+    let limits = skein_fake_oauth::Limits {
+        document: profile.client.document,
+        uri_bytes: 256,
+        request_bytes: 1024,
+        codes: 1,
+        rotations: 2,
+        carried: 5,
+        plans: u32::try_from(plans.len()).expect("fixture plans fit"),
+    };
+    let response = oauth::least_response(&limits).expect("issuer response");
+    let mut peer = oauth::Peer::new(
+        "127.0.0.1:31000".parse().expect("issuer socket"),
+        Transport::Plaintext,
+        skein_fake_peers::Limits {
+            io: profile.io,
+            connections: 2,
+            queue: accounts::ROOM,
+            plaintext: 32768,
+            ciphertext: 32768,
+            observations: 64,
+            observation_bytes: 4096,
+        },
+        skein_fake_oauth::Config {
+            terms: accounts::issuer_terms(Story::AccountSignInVaryingPort),
+            authorization_url: accounts::AUTHORIZE.into(),
+            token_endpoint: accounts::TOKEN.into(),
+            client_id: b"client".as_slice().into(),
+            client_secret: None,
+            redirect_uri: accounts::PARTY_REDIRECT.into(),
+            refresh_token: b"seed".as_slice().into(),
+        },
+        limits,
+        skein_http::server::Limits { response, ..profile.server },
+    )
+    .expect("issuer");
+    for plan in plans {
+        peer.queue(plan).expect("issuer plan");
+    }
+    peer
+}

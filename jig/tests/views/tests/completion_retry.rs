@@ -1,0 +1,95 @@
+use jig_client_views_world::World;
+use jig_domain_views::{End, Event, Follow, Request, TurnName};
+use skein_lib::Token;
+
+fn name(retry: u32) -> TurnName {
+    TurnName { attempt: 1, turn: 1, retry }
+}
+fn open(world: &mut World, watcher: u64) -> Vec<Request> {
+    world.watch_from(watcher, 7, Some(Follow { run: Token::new(7), turn: None, offset: 0 }))
+}
+
+#[test]
+fn an_empty_retry_replaces_unwatched_text_at_the_world_stream_boundary() {
+    let mut world = World::default();
+    assert!(world.text(7, name(0), b"old prefix", None).is_empty());
+    assert!(world.text(7, name(1), b"", None).is_empty());
+    let opened = open(&mut world, 1);
+    assert!(opened.iter().any(|request| matches!(request, Request::Stream {
+                writing: None,
+        turn, from: 0, to: 0, text, cut: false, ..
+    } if *turn == name(1) && text.is_empty())));
+    world.settle();
+    assert!(world.text(7, name(1), b"new prefix", None).iter().any(|request| matches!(request, Request::Stream {
+                writing: None,
+        turn, from: 0, to: 10, text, cut: false, ..
+    } if *turn == name(1) && text.as_ref() == b"new prefix")));
+    world.settle();
+}
+
+#[test]
+fn a_worlds_sole_watcher_reopens_from_an_unwatched_retry_without_a_replay_source() {
+    let mut world = World::default();
+    open(&mut world, 1);
+    world.text(7, name(0), b"previous", None);
+    world.settle();
+    assert_eq!(
+        world.step(Event::Unwatch { watcher: Token::new(1) }),
+        vec![Request::Ended { watcher: Token::new(1), end: End::Unwatched }]
+    );
+    assert!(world.text(7, name(1), b"retained", None).is_empty());
+    let reopened = open(&mut world, 2);
+    assert!(reopened.iter().any(|request| matches!(request, Request::Stream {
+                writing: None,
+        turn, from: 0, to: 8, text, cut: false, ..
+    } if *turn == name(1) && text.as_ref() == b"retained")));
+    world.settle();
+}
+
+#[test]
+fn world_run_admission_survives_detach_and_late_text_starts_when_an_ended_run_frees_room() {
+    let mut limits = jig_client_views_world::LIMITS;
+    limits.runs = 1;
+    let mut world = World::new(limits);
+    world.text(7, name(0), b"first", None);
+    world.text(8, name(0), b"old", None);
+    open(&mut world, 1);
+    let second = world.watch_from(2, 8, Some(Follow { run: Token::new(8), turn: None, offset: 0 }));
+    assert!(!second.iter().any(|request| matches!(request, Request::Refused { .. } | Request::Stream { .. })));
+    world.settle();
+    assert_eq!(
+        world.step(Event::Unwatch { watcher: Token::new(1) }),
+        vec![Request::Ended { watcher: Token::new(1), end: End::Unwatched }]
+    );
+    assert!(world.text(8, name(0), b"later", None).is_empty(), "detaching does not free retained admission");
+    world.step(Event::RunEnded { run: Token::new(7) });
+    let late = world.text(8, name(0), b"kept", None);
+    assert!(late.iter().any(|request| matches!(request, Request::Stream {
+                writing: None,
+        watcher, turn, from: 8, to: 12, text, cut: true, ..
+    } if *watcher == Token::new(2) && *turn == name(0) && text.as_ref() == b"kept")));
+    world.settle();
+}
+
+#[test]
+fn a_dropped_fact_marks_the_watched_turn_cut() {
+    let mut world = World::default();
+    open(&mut world, 1);
+    world.text(7, name(0), b"prefix", None);
+    world.settle();
+    world.drop_text(7, name(0), 3);
+    assert_eq!(
+        world.text(7, name(0), b"suffix", None),
+        vec![Request::Stream {
+            writing: None,
+            watcher: Token::new(1),
+            turn: name(0),
+            from: 9,
+            to: 15,
+            text: Box::from(&b"suffix"[..]),
+            cut: true,
+            call: None,
+        }]
+    );
+    world.settle();
+}

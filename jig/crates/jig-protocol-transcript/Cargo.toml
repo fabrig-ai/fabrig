@@ -1,0 +1,19 @@
+[package]
+name = "jig-protocol-transcript"
+description = "Bounded translation of Smith turns into the client vocabulary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-client-domain.workspace = true
+skein-lib.workspace = true
+smith-transcript.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+jig-client-test-domain.workspace = true

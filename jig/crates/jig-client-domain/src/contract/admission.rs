@@ -1,0 +1,199 @@
+//! Compare concrete drafts with the engine's numbers and lists.
+//! The engine owns authorization; no role or policy is interpreted here.
+//! See client/domain/pages.md, 6.2, and objects.md, 11.
+use super::{
+    Admission, Amendment, Beyond, Bounds, OwnerAuthority, OwnerAuthorityDocument, OwnerExecutor, OwnerGrant,
+    OwnerPattern, OwnerPatternEnd, Refusal,
+};
+use skein_lib::Wall;
+
+fn beyond(value: &Beyond) -> Admission {
+    match value {
+        Beyond::Proposed { to } => Admission::Proposed { to: to.clone() },
+        Beyond::Refused(why) => Admission::Refused(why.clone()),
+    }
+}
+
+fn deadline(draft: Option<Wall>, latest: Option<Wall>) -> bool {
+    match latest {
+        None => true,
+        Some(latest) => match draft {
+            Some(draft) => draft <= latest,
+            None => false,
+        },
+    }
+}
+
+/// Judge a creation from the supplied factual executor, budget and deadline bounds.
+#[must_use]
+pub fn creation(offer: &Admission, executor: OwnerExecutor, budget: u64, at: Option<Wall>) -> Admission {
+    match offer {
+        Admission::Bounded { within, beyond: outside } => match within {
+            Bounds::Create(super::CreateBounds {
+                authority: _,
+                pool_left: _,
+                charters,
+                procedures,
+                latest,
+                budget: allowed,
+                maximum_budget,
+                maximum_deadline,
+            }) => {
+                let mut listed = false;
+                match executor {
+                    OwnerExecutor::Person(_) => return Admission::Refused(Refusal::NotOffered),
+                    OwnerExecutor::Agent { charter } => {
+                        for number in charters {
+                            if *number == charter {
+                                listed = true;
+                            }
+                        }
+                    }
+                    OwnerExecutor::Procedure { connector, code } => {
+                        for procedure in procedures {
+                            if procedure.connector == connector && procedure.code == code {
+                                listed = true;
+                            }
+                        }
+                    }
+                }
+                if !listed || budget > *maximum_budget || !deadline(at, *maximum_deadline) {
+                    return Admission::Refused(Refusal::NotOffered);
+                }
+                if budget <= *allowed && deadline(at, *latest) { Admission::Allowed } else { beyond(outside) }
+            }
+            Bounds::Amend { .. } => Admission::Refused(Refusal::NotOffered),
+        },
+        Admission::Allowed | Admission::Proposed { .. } | Admission::Refused(_) => offer.clone(),
+    }
+}
+
+/// Explain an amendment against the current task facts and its supplied additions.
+#[must_use]
+pub fn amendment(offer: &Admission, change: &Amendment, before: &OwnerAuthorityDocument) -> Admission {
+    match offer {
+        Admission::Bounded { within, beyond: outside } => match within {
+            Bounds::Amend { budget_left, grants, implications, authority, ceiling } => {
+                let Some(after) = &change.authority else {
+                    return Admission::Allowed;
+                };
+                if before.cut {
+                    return Admission::Refused(Refusal::NotOffered);
+                }
+                let before = &before.authority;
+                let order = implications.as_slice();
+                let narrowing = covers(before, after, order);
+                if !narrowing && (authority.cut || ceiling.cut || !covers(&ceiling.authority, after, order)) {
+                    return Admission::Refused(Refusal::NotOffered);
+                }
+                let added = after.spend.saturating_sub(before.spend);
+                let mut listed = true;
+                for grant in &after.grants {
+                    if !grant_covered(before.grants.as_slice(), grant, order) {
+                        listed &= grant_covered(grants.as_slice(), grant, order);
+                    }
+                }
+                if narrowing || added <= *budget_left && listed && covers(&authority.authority, after, order) {
+                    Admission::Allowed
+                } else {
+                    beyond(outside)
+                }
+            }
+            Bounds::Create(super::CreateBounds { .. }) => Admission::Refused(Refusal::NotOffered),
+        },
+        Admission::Allowed | Admission::Proposed { .. } | Admission::Refused(_) => offer.clone(),
+    }
+}
+
+// Compare the supplied whole scalar/delegation facts and literal pattern order.
+// Connector kinds follow only equality or the supplied complete configured relation.
+// The supported form changes spend/deadline while preserving each literal permission.
+fn covers(facts: &OwnerAuthority, draft: &OwnerAuthority, order: &[super::OwnerKindImplication]) -> bool {
+    let mut fits = draft.spend <= facts.spend
+        && draft.delegation.depth <= facts.delegation.depth
+        && draft.delegation.tasks <= facts.delegation.tasks
+        && models_cover(facts.models.as_ref(), draft.models.as_ref())
+        && draft.tools & !facts.tools == 0
+        && draft.notes & !facts.notes == 0
+        && deadline(draft.deadline, facts.deadline);
+    for grant in &draft.grants {
+        fits &= grant_covered(facts.grants.as_slice(), grant, order);
+    }
+    for kind in &draft.delegation.kinds {
+        fits &= facts.delegation.kinds.as_slice().contains(kind);
+    }
+    for scope in &draft.note_resources {
+        let mut listed = false;
+        for given in &facts.note_resources {
+            listed |= given.connector == scope.connector && pattern_at_most(&scope.pattern, &given.pattern);
+        }
+        fits &= listed;
+    }
+    fits
+}
+
+fn grant_covered(facts: &[OwnerGrant], draft: &OwnerGrant, order: &[super::OwnerKindImplication]) -> bool {
+    for given in facts {
+        if given.connector == draft.connector
+            && kind_at_most(given.connector, draft.kind, given.kind, order)
+            && pattern_at_most(&draft.pattern, &given.pattern)
+        {
+            return true;
+        }
+    }
+    false
+}
+fn kind_at_most(connector: u16, needed: u16, given: u16, order: &[super::OwnerKindImplication]) -> bool {
+    if needed == given {
+        return true;
+    }
+    for row in order {
+        if row.connector == connector && row.kind == given && row.implies == needed {
+            return true;
+        }
+    }
+    false
+}
+// domain/authority.md, sections4–5: literal segment inclusion, with no path joining.
+fn pattern_at_most(draft: &OwnerPattern, given: &OwnerPattern) -> bool {
+    match &given.last {
+        OwnerPatternEnd::Exact(last) => match &draft.last {
+            OwnerPatternEnd::Exact(candidate) => draft.segments == given.segments && candidate == last,
+            OwnerPatternEnd::Open(_) => false,
+        },
+        OwnerPatternEnd::Open(last) => {
+            let prefix = given.segments.as_slice();
+            let segments = draft.segments.as_slice();
+            if segments.get(..prefix.len()) != Some(prefix) {
+                return false;
+            }
+            if let Some(segment) = segments.get(prefix.len()) {
+                return segment.starts_with(last);
+            }
+            match &draft.last {
+                OwnerPatternEnd::Exact(segment) | OwnerPatternEnd::Open(segment) => segment.starts_with(last),
+            }
+        }
+    }
+}
+
+fn models_cover(facts: Option<&super::AuthorityModels>, draft: Option<&super::AuthorityModels>) -> bool {
+    match draft {
+        None => true,
+        Some(super::AuthorityModels::All) => match facts {
+            Some(super::AuthorityModels::All) => true,
+            Some(super::AuthorityModels::Named(_)) | None => false,
+        },
+        Some(super::AuthorityModels::Named(names)) => match facts {
+            Some(super::AuthorityModels::All) => true,
+            Some(super::AuthorityModels::Named(given)) => {
+                let mut fits = true;
+                for name in names {
+                    fits &= given.as_slice().contains(name);
+                }
+                fits
+            }
+            None => names.is_empty(),
+        },
+    }
+}

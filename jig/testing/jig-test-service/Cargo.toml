@@ -1,0 +1,61 @@
+[package]
+name = "jig-test-service"
+description = "The reference service's engine and worker layers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-http.workspace = true
+jig-client-protocol-wire.workspace = true
+jig-client-test-protocol-wire.workspace = true
+jig-protocol-engine-clients.workspace = true
+jig-protocol-engine-clients-http.workspace = true
+jig-protocol-store.workspace = true
+jig-test-store.workspace = true
+skein-kv.workspace = true
+skein-lib.workspace = true
+skein-io.workspace = true
+skein-json.workspace = true
+smith-channel.workspace = true
+jig-domain-core.workspace = true
+jig-domain-people.workspace = true
+jig-domain-host.workspace = true
+jig-test-domain.workspace = true
+jig-test-connector.workspace = true
+jig-protocol-config.workspace = true
+smith-protocol-channel.workspace = true
+smith-host-protocol.workspace = true
+smith-protocol-program.workspace = true
+smith-host-domain.workspace = true
+smith-domain-run.workspace = true
+jig-test-worker.workspace = true
+jig-protocol-worker-link.workspace = true
+
+skein-channel.workspace = true
+skein-oauth.workspace = true
+skein-oauth-accounts.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-brief.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-tasks.workspace = true
+jig-protocol-accounts.workspace = true
+jig-protocol-charter.workspace = true
+jig-protocol-tools.workspace = true
+jig-protocol-worker-wire.workspace = true
+jig-protocol-engine-workers.workspace = true
+
+[dev-dependencies]
+skein-heap.workspace = true
+jig-protocol-accounts-world = { path = "../../tests/protocol-accounts" }
+jig-client.workspace = true
+skein-world.workspace = true
+skein-fake-channel.workspace = true
+smith-charter.workspace = true
+smith-transcript.workspace = true
+smith-domain-session.workspace = true
+
+[lints]
+workspace = true

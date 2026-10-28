@@ -1,0 +1,59 @@
+[package]
+name = "jig-conformance-world"
+description = "The testing application on jig conformance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-conformance.workspace = true
+jig-core-world = { path = "../core" }
+jig-test-domain.workspace = true
+jig-test-connector.workspace = true
+jig-test-connector-world = { path = "../test-connector" }
+jig-test-system.workspace = true
+jig-fake-workers.workspace = true
+jig-fake-parties.workspace = true
+jig-test-store.workspace = true
+jig-domain-core.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-people.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-notes.workspace = true
+skein-lib.workspace = true
+skein-world.workspace = true
+sha2.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+# The scripted world is ordinary Rust, outside the strict step-code subset.
+disallowed_types = "allow"
+disallowed_methods = "allow"
+disallowed_macros = "allow"
+
+[dev-dependencies]
+jig-client.workspace = true
+jig-client-test-domain.workspace = true
+jig-protocol-transcript.workspace = true
+jig-engine-clients-world = { path = "../engine-clients" }
+jig-protocol-engine-clients.workspace = true
+jig-client-domain.workspace = true
+jig-client-protocol-wire.workspace = true
+jig-client-protocol-link.workspace = true
+jig-client-test-records = { path = "../../testing/jig-client-test-records" }
+jig-client-world = { path = "../client" }

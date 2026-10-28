@@ -1,0 +1,729 @@
+//! Deployment rules and seeded project policies (configuration.md, 3; authority.md, 6).
+use crate::{Path, Problems, What, check, domain, read};
+use alloc::boxed::Box;
+use jig_domain_authority as authority;
+use jig_domain_core::Model;
+use jig_domain_people::PermissionRole;
+use skein_json::Document;
+use skein_lib::{Decimal, List, Wall, Writer};
+
+#[derive(Debug)]
+pub struct Project {
+    pub number: u32,
+    pub name: Box<str>,
+    pub roles: Box<[PermissionRole]>,
+    pub templates: Box<[jig_domain_people::TemplateOverride]>,
+    pub policy: authority::Policy,
+}
+
+/// A numbered policy copied into projects made after the first start (configuration.md, 3).
+#[derive(Debug)]
+pub struct Policy {
+    pub number: u32,
+    pub roles: Box<[PermissionRole]>,
+    pub templates: Box<[jig_domain_people::TemplateOverride]>,
+    pub policy: authority::Policy,
+}
+
+pub(crate) fn configured_policies(
+    object: &mut read::Object,
+    document: &Document,
+    limits: &crate::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<Box<[Policy]>> {
+    let Some(at) = object.member(document, b"policies") else { return Some(Box::new([])) };
+    policies(document, at, &Path::root().member(b"policies"), limits, configured, problems)
+}
+
+fn policies(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    limits: &crate::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<Box<[Policy]>> {
+    let items = domain::items(document, at, limits.core.authority.projects, path, problems)?;
+    let mut policies = List::<Policy>::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(path, index);
+        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let number = check::count(&mut object, document, b"number", &path, problems);
+        let at = object.required(document, b"policy", &path, problems);
+        let policy = policy(document, at, &path.member(b"policy"), limits, configured, problems);
+        let roles = permissions(&mut object, document, &path, limits, problems);
+        object.finish(document, &path, problems);
+        if let Some(number) = number
+            && let Some((policy, templates)) = policy
+            && let Some(roles) = roles
+        {
+            if number == 0 {
+                problems.push(path.member(b"number"), What::Bound);
+                continue;
+            }
+            for previous in &policies {
+                if previous.number == number {
+                    problems.push(path.member(b"number"), What::Unique);
+                    break;
+                }
+            }
+            policies.push(Policy { number, roles, templates, policy }).expect("bounded policy input");
+        }
+    }
+    Some(policies.into_boxed())
+}
+
+pub(crate) fn rules(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    limits: &authority::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<authority::Rules> {
+    let mut object = check::object(document, at, path, problems)?;
+    let at = object.required(document, b"ceiling", path, problems);
+    let ceiling = value(document, at, &path.member(b"ceiling"), limits, configured, problems);
+    let period_spend = check::integer(&mut object, document, b"period_spend", path, problems);
+    let minimum_run_spend = check::integer(&mut object, document, b"minimum_run_spend", path, problems);
+    let maximum_run_spend = check::integer(&mut object, document, b"maximum_run_spend", path, problems);
+    let implies = implications(&mut object, document, path, limits, problems);
+    let requirements = requirements(&mut object, document, path, limits, problems);
+    object.finish(document, path, problems);
+    let rules = authority::Rules {
+        ceiling: ceiling?,
+        period_spend: period_spend?,
+        minimum_run_spend: minimum_run_spend?,
+        maximum_run_spend: maximum_run_spend?,
+        implies: implies?,
+        requirements: requirements?,
+    };
+    if authority::Domain::new(rules.clone(), *limits).is_none() {
+        problems.push(path.clone(), What::Bound);
+    }
+    Some(rules)
+}
+pub(crate) struct Projects {
+    pub values: Box<[Project]>,
+    pub policies: Box<[Option<u32>]>,
+}
+
+pub(crate) fn resolve(engine: &mut crate::Engine, problems: &mut Problems) {
+    for (index, number) in engine.seed_policies.iter().enumerate() {
+        let Some(number) = number else { continue };
+        let mut found = false;
+        for policy in &engine.policies {
+            if policy.number == *number {
+                let project = engine.projects.get_mut(index).expect("one reference per parsed seed");
+                project.policy = policy.policy.clone();
+                project.roles.clone_from(&policy.roles);
+                project.templates.clone_from(&policy.templates);
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            problems.push(check::index(&Path::root().member(b"projects"), index).member(b"policy"), What::Refers);
+        }
+    }
+    if problems.is_empty() {
+        engine.seed_policies = Box::default();
+    }
+}
+
+pub(crate) fn projects(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    limits: &crate::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<Projects> {
+    let items = domain::items(document, at, limits.core.authority.projects, path, problems)?;
+    let mut projects = List::<Project>::with_capacity(items.len());
+    let mut seed_policies = List::with_capacity(items.len());
+    let mut name_paths = List::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(path, index);
+        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let number = check::count(&mut object, document, b"number", &path, problems);
+        let name_at = object.member(document, b"name");
+        let name = project_name(document, name_at, number, &path.member(b"name"), problems);
+        let policy = project_policy(&mut object, document, &path, limits, configured, problems);
+        object.finish(document, &path, problems);
+        if let Some(number) = number
+            && let Some(policy) = policy
+            && let Some(name) = name
+        {
+            if number == jig_domain_people::DEPLOYMENT {
+                problems.push(path.member(b"number"), What::Bound);
+                continue;
+            }
+            for previous in &projects {
+                if previous.number == number {
+                    problems.push(path.member(b"number"), What::Unique);
+                    break;
+                }
+            }
+            let name_path = if name_at.is_some() { path.member(b"name") } else { path };
+            name_paths.push(name_path).expect("one path per project");
+            seed_policies.push(policy.number).expect("one policy source per seed");
+            projects
+                .push(Project { number, name, roles: policy.roles, templates: policy.templates, policy: policy.value })
+                .expect("bounded project input");
+        }
+    }
+    for (index, project) in projects.iter().enumerate() {
+        for previous in projects.iter().take(index) {
+            if jig_domain_people::same_name(&previous.name, &project.name) {
+                let index = u32::try_from(index).expect("bounded project index");
+                problems.push(name_paths.get(index).expect("one path per project").clone(), What::Unique);
+                break;
+            }
+        }
+    }
+    Some(Projects { values: projects.into_boxed(), policies: seed_policies.into_boxed() })
+}
+struct ProjectPolicy {
+    value: authority::Policy,
+    roles: Box<[PermissionRole]>,
+    templates: Box<[jig_domain_people::TemplateOverride]>,
+    number: Option<u32>,
+}
+fn project_policy(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    limits: &crate::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<ProjectPolicy> {
+    let at = object.required(document, b"policy", path, problems);
+    if let Some(at) = at
+        && document.token(at).expect("policy token").kind == skein_json::document::Kind::Number
+    {
+        let number = match read::integer(document, at, u64::from(u32::MAX)) {
+            Ok(number) => u32::try_from(number).expect("checked policy number"),
+            Err(what) => {
+                problems.push(path.member(b"policy"), what);
+                return None;
+            }
+        };
+        // Until resolve copies the defaults, retain only the reference. The copy supplies
+        // permissions too: leave roles unread so object.finish refuses it as unknown.
+        return Some(ProjectPolicy {
+            number: Some(number),
+            roles: Box::default(),
+            templates: Box::default(),
+            value: authority::Policy {
+                ceiling: crate::defaults::empty_rules().ceiling,
+                escalation_role: None,
+                period_spend: 0,
+                projections: Box::default(),
+                requirements: Box::default(),
+                roles: Box::default(),
+            },
+        });
+    }
+    let policy = policy(document, at, &path.member(b"policy"), limits, configured, problems);
+    let roles = permissions(object, document, path, limits, problems);
+    let (value, templates) = policy?;
+    Some(ProjectPolicy { value, templates, roles: roles?, number: None })
+}
+#[expect(clippy::disallowed_methods, reason = "configuration protocol decodes UTF-8 project names")]
+fn project_name(
+    document: &Document,
+    at: Option<u32>,
+    number: Option<u32>,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<Box<str>> {
+    if let Some(at) = at {
+        let token = document.token(at).expect("project member token");
+        if token.kind != skein_json::document::Kind::String {
+            problems.push(path.clone(), What::Kind);
+            return None;
+        }
+        let bytes = document.text(token).expect("JSON string bytes");
+        let name = core::str::from_utf8(bytes).expect("JSON strings are UTF-8");
+        if jig_domain_people::name_rule(name).is_some() {
+            problems.push(path.clone(), What::Form);
+            return None;
+        }
+        return Some(Box::from(name));
+    }
+    let digits = Decimal::of(u64::from(number?));
+    let mut writer = Writer::new(8_usize.checked_add(digits.as_bytes().len()).expect("project number length"));
+    writer.put(b"Project ").expect("measured prefix");
+    writer.put(digits.as_bytes()).expect("measured number");
+    let bytes = writer.finish();
+    Some(Box::from(core::str::from_utf8(&bytes).expect("ASCII project name")))
+}
+fn permissions(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    limits: &crate::Limits,
+    problems: &mut Problems,
+) -> Option<Box<[PermissionRole]>> {
+    let items = check::list(object, document, b"roles", document.len(), path, problems)?;
+    let mut roles = List::<PermissionRole>::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path.member(b"roles"), index);
+        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let connector = check::short(&mut object, document, b"connector", &path, problems);
+        let permission = check::short(&mut object, document, b"permission", &path, problems);
+        let role = check::count(&mut object, document, b"role", &path, problems);
+        object.finish(document, &path, problems);
+        if let Some(connector) = connector
+            && let Some(permission) = permission
+            && let Some(role) = role
+        {
+            for previous in &roles {
+                if previous.connector == connector && previous.permission == permission {
+                    problems.push(path.clone(), What::Unique);
+                    break;
+                }
+            }
+            roles.push(PermissionRole { connector, permission, role }).expect("bounded permissions");
+        }
+    }
+    if u64::from(items.len()).checked_mul(u64::try_from(size_of::<PermissionRole>()).expect("role size"))
+        > Some(limits.core.policy_bytes)
+    {
+        problems.push(path.member(b"roles"), What::Bound);
+    }
+    Some(roles.into_boxed())
+}
+fn policy(
+    document: &Document,
+    at: Option<u32>,
+    path: &Path,
+    limits: &crate::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<(authority::Policy, Box<[jig_domain_people::TemplateOverride]>)> {
+    let mut object = check::object(document, at?, path, problems)?;
+    let at = object.required(document, b"templates", path, problems);
+    let templates =
+        crate::templates::overrides(document, at?, &path.member(b"templates"), limits.core.templates, problems);
+    let limits = &limits.core.authority;
+    let escalation = check::optional(&mut object, document, b"escalation_role", path, problems);
+    let escalation_role = optional_count(escalation, &path.member(b"escalation_role"), problems);
+    let at = object.required(document, b"ceiling", path, problems);
+    let ceiling = value(document, at, &path.member(b"ceiling"), limits, configured, problems);
+    let projections = grants(&mut object, document, b"projections", path, limits, problems);
+    let period_spend = check::integer(&mut object, document, b"period_spend", path, problems);
+    let roles = roles(&mut object, document, path, limits, configured, problems);
+    let requirements = requirements(&mut object, document, path, limits, problems);
+    object.finish(document, path, problems);
+    Some((
+        authority::Policy {
+            escalation_role: escalation_role.ok()?,
+            ceiling: ceiling?,
+            projections: projections?,
+            period_spend: period_spend?,
+            roles: roles?,
+            requirements: requirements?,
+        },
+        templates?,
+    ))
+}
+fn roles(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    limits: &authority::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<Box<[authority::Role]>> {
+    let items = check::list(object, document, b"roles", limits.roles, path, problems)?;
+    let mut roles = List::<authority::Role>::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path.member(b"roles"), index);
+        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let number = check::count(&mut object, document, b"number", &path, problems);
+        let at = object.required(document, b"authority", &path, problems);
+        let authority = value(document, at, &path.member(b"authority"), limits, configured, problems);
+        let period_spend = check::integer(&mut object, document, b"period_spend", &path, problems);
+        let requests = check::short(&mut object, document, b"requests", &path, problems);
+        let decides = check::short(&mut object, document, b"decides", &path, problems);
+        object.finish(document, &path, problems);
+        if let Some(number) = number
+            && let Some(authority) = authority
+            && let Some(period_spend) = period_spend
+            && let Some(requests) = requests
+            && let Some(decides) = decides
+        {
+            match u8::try_from(decides) {
+                Ok(decides) => {
+                    for previous in &roles {
+                        if previous.number == number {
+                            problems.push(path.member(b"number"), What::Unique);
+                            break;
+                        }
+                    }
+                    roles
+                        .push(authority::Role {
+                            number,
+                            authority,
+                            period_spend,
+                            requests: authority::Requests(requests),
+                            decides: authority::Proposals(decides),
+                        })
+                        .expect("bounded roles");
+                }
+                Err(_) => problems.push(path.member(b"decides"), What::Bound),
+            }
+        }
+    }
+    Some(roles.into_boxed())
+}
+/// An authority's form, a ceiling's or a role's: either may name fewer of the configured models.
+fn value(
+    document: &Document,
+    at: Option<u32>,
+    path: &Path,
+    limits: &authority::Limits,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<authority::Authority> {
+    let mut object = check::object(document, at?, path, problems)?;
+    let tools = check::integer(&mut object, document, b"tools", path, problems);
+    let models = models(&mut object, document, path, configured, problems);
+    let grants = grants(&mut object, document, b"grants", path, limits, problems);
+    let at = object.required(document, b"delegation", path, problems);
+    let delegation = delegation(document, at, &path.member(b"delegation"), limits, problems);
+    let at = object.required(document, b"budget", path, problems);
+    let budget = budget(document, at, &path.member(b"budget"), problems);
+    let notes = check::short(&mut object, document, b"notes", path, problems);
+    let note_resources = scopes(&mut object, document, path, limits, problems);
+    object.finish(document, path, problems);
+    let notes = notes?;
+    if notes > 7 {
+        problems.push(path.member(b"notes"), What::Bound);
+    }
+    Some(authority::Authority {
+        tools: authority::Tools(tools?),
+        models: models?,
+        grants: grants?,
+        delegation: delegation?,
+        budget: budget?,
+        notes: authority::Scopes(u8::try_from(notes).ok()?),
+        note_resources: note_resources?,
+    })
+}
+/// The configured models an authority's `models` names, one bit each in configuration's order;
+/// absent, every configured model.
+fn models(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    configured: &[Model],
+    problems: &mut Problems,
+) -> Option<authority::Models> {
+    let Some(at) = object.member(document, b"models") else {
+        return Some(authority::Models::ALL);
+    };
+    let path = path.member(b"models");
+    let items = match read::list(document, at, crate::llm::MODELS) {
+        Ok(items) => items,
+        Err(what) => {
+            problems.push(path, what);
+            return None;
+        }
+    };
+    let mut models = 0_u64;
+    let mut named = true;
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path, index);
+        let name = match read::text(document, *at, 4_096) {
+            Ok(name) => name,
+            Err(what) => {
+                problems.push(path, what);
+                named = false;
+                continue;
+            }
+        };
+        let mut bit = None;
+        for (number, model) in configured.iter().enumerate() {
+            if model.name == name {
+                bit = 1_u64.checked_shl(u32::try_from(number).unwrap_or(u32::MAX));
+                break;
+            }
+        }
+        match bit {
+            Some(bit) if models & bit == 0 => models |= bit,
+            Some(_) => {
+                problems.push(path, What::Unique);
+                named = false;
+            }
+            None => {
+                problems.push(path, What::Refers);
+                named = false;
+            }
+        }
+    }
+    if named { Some(authority::Models::Named(models)) } else { None }
+}
+fn budget(document: &Document, at: Option<u32>, path: &Path, problems: &mut Problems) -> Option<authority::Budget> {
+    let mut object = check::object(document, at?, path, problems)?;
+    let spend = check::integer(&mut object, document, b"spend", path, problems);
+    let deadline = check::optional(&mut object, document, b"deadline_unix_seconds", path, problems);
+    object.finish(document, path, problems);
+    let deadline = match deadline.ok()? {
+        None => None,
+        Some(seconds) => match seconds.checked_mul(1_000_000_000) {
+            Some(nanos) => Some(Wall::from_nanos(nanos)),
+            None => {
+                problems.push(path.member(b"deadline_unix_seconds"), What::Bound);
+                return None;
+            }
+        },
+    };
+    Some(authority::Budget { spend: spend?, deadline })
+}
+fn delegation(
+    document: &Document,
+    at: Option<u32>,
+    path: &Path,
+    limits: &authority::Limits,
+    problems: &mut Problems,
+) -> Option<authority::Delegation> {
+    let mut object = check::object(document, at?, path, problems)?;
+    let tasks = check::count(&mut object, document, b"tasks", path, problems);
+    let depth = check::count(&mut object, document, b"depth", path, problems);
+    let items = check::list(&mut object, document, b"kinds", limits.executors, path, problems);
+    let mut kinds = List::with_capacity(limits.executors);
+    if let Some(items) = items {
+        for (index, at) in items.iter().enumerate() {
+            let path = check::index(&path.member(b"kinds"), index);
+            let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+            let kind = check::text(&mut object, document, b"kind", &path, problems);
+            let number = check::count(&mut object, document, b"number", &path, problems);
+            object.finish(document, &path, problems);
+            if let Some(kind) = kind
+                && let Some(number) = number
+            {
+                let kind = match kind.as_ref() {
+                    b"charter" => authority::Executor::Charter(number),
+                    b"procedure" => authority::Executor::Procedure(number),
+                    b"role" => authority::Executor::Role(number),
+                    _ => {
+                        problems.push(path.member(b"kind"), What::Form);
+                        continue;
+                    }
+                };
+                kinds.push(kind).expect("bounded executor count");
+            }
+        }
+    }
+    object.finish(document, path, problems);
+    Some(authority::Delegation { tasks: tasks?, depth: depth?, kinds: kinds.into_boxed() })
+}
+fn optional_count(value: Result<Option<u64>, What>, path: &Path, problems: &mut Problems) -> Result<Option<u32>, What> {
+    match value? {
+        None => Ok(None),
+        Some(value) => match u32::try_from(value) {
+            Ok(value) => Ok(Some(value)),
+            Err(_) => {
+                problems.push(path.clone(), What::Bound);
+                Err(What::Bound)
+            }
+        },
+    }
+}
+fn grants(
+    object: &mut read::Object,
+    document: &Document,
+    name: &[u8],
+    path: &Path,
+    limits: &authority::Limits,
+    problems: &mut Problems,
+) -> Option<Box<[authority::Grant]>> {
+    let items = check::list(object, document, name, limits.grants, path, problems)?;
+    let mut grants = List::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path.member(name), index);
+        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let connector = check::short(&mut object, document, b"connector", &path, problems);
+        let kind = check::short(&mut object, document, b"kind", &path, problems);
+        let at = object.required(document, b"pattern", &path, problems);
+        let pattern = pattern(document, at, &path.member(b"pattern"), limits, problems);
+        object.finish(document, &path, problems);
+        if let Some(connector) = connector
+            && let Some(kind) = kind
+            && let Some(pattern) = pattern
+        {
+            grants.push(authority::Grant { connector, kind, pattern }).expect("bounded grants");
+        }
+    }
+    Some(grants.into_boxed())
+}
+fn scopes(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    limits: &authority::Limits,
+    problems: &mut Problems,
+) -> Option<Box<[authority::ResourceScope]>> {
+    let items = check::list(object, document, b"note_resources", limits.grants, path, problems)?;
+    let mut scopes = List::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path.member(b"note_resources"), index);
+        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let connector = check::short(&mut object, document, b"connector", &path, problems);
+        let at = object.required(document, b"pattern", &path, problems);
+        let pattern = pattern(document, at, &path.member(b"pattern"), limits, problems);
+        object.finish(document, &path, problems);
+        if let Some(connector) = connector
+            && let Some(pattern) = pattern
+        {
+            scopes.push(authority::ResourceScope { connector, pattern }).expect("bounded resource scopes");
+        }
+    }
+    Some(scopes.into_boxed())
+}
+fn pattern(
+    document: &Document,
+    at: Option<u32>,
+    path: &Path,
+    limits: &authority::Limits,
+    problems: &mut Problems,
+) -> Option<authority::Pattern> {
+    let mut object = check::object(document, at?, path, problems)?;
+    let items = check::list(&mut object, document, b"segments", limits.segments, path, problems);
+    let mut segments = List::with_capacity(limits.segments);
+    if let Some(items) = items {
+        for (index, at) in items.iter().enumerate() {
+            let path = check::index(&path.member(b"segments"), index);
+            match read::text(document, *at, limits.segment_bytes) {
+                Ok(segment) => segments.push(segment).expect("bounded segments"),
+                Err(what) => problems.push(path, what),
+            }
+        }
+    }
+    let kind = check::text(&mut object, document, b"last", path, problems);
+    let bytes = check::text(&mut object, document, b"value", path, problems);
+    object.finish(document, path, problems);
+    let bytes = bytes?;
+    if bytes.len() > usize::try_from(limits.segment_bytes).expect("segment bound") {
+        problems.push(path.member(b"value"), What::Bound);
+    }
+    let last = match kind?.as_ref() {
+        b"exact" => authority::Last::Exact(bytes),
+        b"open" => authority::Last::Open(bytes),
+        _ => {
+            problems.push(path.member(b"last"), What::Form);
+            return None;
+        }
+    };
+    Some(authority::Pattern { segments: segments.into_boxed(), last })
+}
+fn implications(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    limits: &authority::Limits,
+    problems: &mut Problems,
+) -> Option<authority::Implies> {
+    let items = check::list(object, document, b"implies", limits.implications, path, problems)?;
+    let mut pairs = List::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path.member(b"implies"), index);
+        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let connector = check::short(&mut object, document, b"connector", &path, problems);
+        let kind = check::short(&mut object, document, b"kind", &path, problems);
+        let implies = check::short(&mut object, document, b"implies", &path, problems);
+        object.finish(document, &path, problems);
+        if let Some(connector) = connector
+            && let Some(kind) = kind
+            && let Some(implies) = implies
+        {
+            pairs.push(authority::Implication { connector, kind, implies }).expect("bounded implications");
+        }
+    }
+    let implies = authority::Implies::new(pairs.into_boxed(), limits.implications);
+    if implies.is_none() {
+        problems.push(path.member(b"implies"), What::Bound);
+    }
+    implies
+}
+fn requirements(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    limits: &authority::Limits,
+    problems: &mut Problems,
+) -> Option<Box<[authority::Requirement]>> {
+    let items = check::list(object, document, b"requirements", limits.requirements, path, problems)?;
+    let mut requirements = List::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path.member(b"requirements"), index);
+        if let Some(requirement) = requirement(document, *at, &path, limits, problems) {
+            requirements.push(requirement).expect("bounded requirements");
+        }
+    }
+    Some(requirements.into_boxed())
+}
+fn requirement(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    limits: &authority::Limits,
+    problems: &mut Problems,
+) -> Option<authority::Requirement> {
+    let mut object = check::object(document, at, path, problems)?;
+    let connector = check::short(&mut object, document, b"connector", path, problems);
+    let kind = check::short(&mut object, document, b"kind", path, problems);
+    let at = object.required(document, b"pattern", path, problems);
+    let pattern = pattern(document, at, &path.member(b"pattern"), limits, problems);
+    let at = object.required(document, b"judge", path, problems);
+    let judge = judge(document, at, &path.member(b"judge"), problems);
+    let guard = check::text(&mut object, document, b"guard", path, problems);
+    let mut freshness = None;
+    if let Some(at) = object.member(document, b"freshness_ms") {
+        match read::duration(document, at) {
+            Ok(value) => freshness = Some(value),
+            Err(what) => problems.push(path.member(b"freshness_ms"), what),
+        }
+    }
+    let must_be_guarded = check::boolean(&mut object, document, b"must_be_guarded", path, problems);
+    object.finish(document, path, problems);
+    let guard = match guard?.as_ref() {
+        b"guarded" => {
+            if freshness.is_some() {
+                problems.push(path.member(b"freshness_ms"), What::Unknown);
+            }
+            authority::Guard::Guarded
+        }
+        b"observed" => match freshness {
+            Some(freshness) => authority::Guard::Observed { freshness },
+            None => {
+                problems.push(path.member(b"freshness_ms"), What::Missing);
+                return None;
+            }
+        },
+        _ => {
+            problems.push(path.member(b"guard"), What::Form);
+            return None;
+        }
+    };
+    Some(authority::Requirement {
+        connector: connector?,
+        kind: kind?,
+        pattern: pattern?,
+        judge: judge?,
+        guard,
+        must_be_guarded: must_be_guarded?,
+    })
+}
+fn judge(document: &Document, at: Option<u32>, path: &Path, problems: &mut Problems) -> Option<authority::Judge> {
+    let mut object = check::object(document, at?, path, problems)?;
+    let connector = check::short(&mut object, document, b"connector", path, problems);
+    let requirement = check::short(&mut object, document, b"requirement", path, problems);
+    let parameters = check::count(&mut object, document, b"parameters", path, problems);
+    object.finish(document, path, problems);
+    Some(authority::Judge { connector: connector?, requirement: requirement?, parameters: parameters? })
+}

@@ -1,0 +1,214 @@
+use super::{CONFIG_BYTES, configure, prepare, read_configuration};
+use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
+
+fn scratch(case: &str) -> PathBuf {
+    let path = std::env::temp_dir().join(format!("jig-test-{}-{case}", std::process::id()));
+    fs::create_dir(&path).expect("scratch directory");
+    path
+}
+
+#[test]
+fn serve_without_a_configuration_path_is_a_usage_error() {
+    assert_eq!(configure(["serve".into()].into_iter()), Err(super::USAGE.into()));
+}
+
+#[test]
+fn a_configuration_file_past_its_bound_is_refused() {
+    let directory = scratch("configuration-bound");
+    let path = directory.join("config.json");
+    let file = fs::File::create(&path).expect("configuration file");
+    file.set_len(u64::from(CONFIG_BYTES) + 1).expect("one byte past bound");
+    assert!(read_configuration(&path).expect_err("oversized configuration").contains("TooLarge"));
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+}
+
+#[test]
+fn a_secret_file_readable_by_others_refuses_the_start() {
+    let directory = scratch("private-secret");
+    let secret = directory.join("worker.secret");
+    fs::write(&secret, b"private-worker-value").expect("secret file");
+    fs::set_permissions(&secret, fs::Permissions::from_mode(0o644)).expect("public permissions");
+    let agent = agent_document(&directory, false);
+    let bytes = format!(
+        r#"{{"workers":[{{
+        "engine":{{"socket":"127.0.0.1:7200"}},"name":"worker-a","secret":"{}","slots":1,
+        "programs":{{"check_interval_ms":60000}},
+        "graces":{{"grace_ms":10000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000}},
+        "agent":{{"program":"jig-test","configuration":"{}","arguments":["agent"]}},
+        "limits":{{"profile":"small"}},"memory_bytes":1152921504606846976
+    }}],"application":{{"workers":[{{"root":"agent-root"}}]}}}}"#,
+        secret.display(),
+        agent.display()
+    );
+    let mut owned = Vec::new();
+    let error = prepare(bytes.as_bytes(), &mut owned).err().expect("start refused");
+    assert!(error.contains("Unsafe"), "private read refusal: {error}");
+    assert!(!error.contains("private-worker-value"), "diagnostic contains no secret");
+    assert!(owned.is_empty(), "refusal happens before opening runtime descriptors");
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+}
+
+fn fixture_bundle(directory: &std::path::Path) {
+    fs::write(directory.join("index.html"), b"<!doctype html><title>t</title>").expect("page");
+    let digest = directory.join("0123456789abcdef");
+    fs::create_dir_all(digest.join("files")).expect("digest files");
+    fs::write(digest.join("boot.js"), b"boot();").expect("script");
+    fs::write(digest.join("files/robots.txt"), b"User-agent: *\nDisallow:\n").expect("root file");
+}
+#[test]
+fn a_bundle_directory_is_read_with_its_one_digest_directory() {
+    let directory = scratch("bundle-read");
+    fixture_bundle(&directory);
+    let bundle = super::bundle::read(&directory).expect("bundle read");
+    assert_eq!(bundle.page.as_ref(), b"<!doctype html><title>t</title>");
+    assert_eq!(bundle.etag.as_ref(), b"\"edaa28e315690734\"");
+    assert_eq!(bundle.digest.as_ref(), b"0123456789abcdef");
+    assert_eq!(bundle.files.len(), 2);
+    let script = bundle.files.get(b"boot.js".as_slice()).expect("script");
+    assert_eq!((script.kind, script.bytes.as_ref()), (b"text/javascript".as_slice(), b"boot();".as_slice()));
+    let robots = bundle.files.get(b"files/robots.txt".as_slice()).expect("root file");
+    assert_eq!(robots.bytes.as_ref(), b"User-agent: *\nDisallow:\n");
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+}
+#[test]
+fn a_file_off_the_closed_list_refuses_the_bundle_naming_it() {
+    let directory = scratch("bundle-type");
+    fixture_bundle(&directory);
+    let file = directory.join("0123456789abcdef/private.exe");
+    fs::write(&file, b"not served").expect("unknown file");
+    let error = super::bundle::read(&directory).expect_err("closed list");
+    assert!(error.contains(file.to_str().expect("path")), "{error}");
+    assert!(error.contains("closed list"), "{error}");
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+}
+#[test]
+fn a_second_digest_directory_refuses_the_bundle() {
+    let directory = scratch("bundle-digests");
+    fixture_bundle(&directory);
+    fs::create_dir(directory.join("fedcba9876543210")).expect("second digest");
+    let error = super::bundle::read(&directory).expect_err("one digest");
+    assert!(error.contains("digest directory"), "{error}");
+    assert!(error.contains(directory.to_str().expect("path")), "{error}");
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+}
+
+const DEV_MODULE_BYTES: usize = 9 << 20;
+const MODULE_FILL: u8 = 0;
+#[test]
+fn a_module_above_four_mebibytes_is_read() {
+    let directory = scratch("dev-module");
+    fixture_bundle(&directory);
+    fs::write(directory.join("0123456789abcdef/test_bg.wasm"), vec![MODULE_FILL; DEV_MODULE_BYTES])
+        .expect("dev-sized module");
+    let result = super::bundle::read(&directory)
+        .map(|bundle| bundle.files.get(b"test_bg.wasm".as_slice()).expect("module").bytes.len());
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+    assert_eq!(result, Ok(DEV_MODULE_BYTES));
+}
+
+const OVERSIZED_FILE_BYTES: u64 = 4_194_305;
+#[test]
+fn another_oversized_file_is_refused_naming_it() {
+    let directory = scratch("oversized-script");
+    fixture_bundle(&directory);
+    let path = directory.join("0123456789abcdef/boot.js");
+    fs::File::create(&path).expect("script").set_len(OVERSIZED_FILE_BYTES).expect("oversized script");
+    let error = super::bundle::read(&directory).expect_err("oversized script refused");
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+    assert!(error.contains(path.to_str().expect("path")), "{error}");
+    assert!(error.contains("TooLarge"), "{error}");
+}
+
+const FULL_BUNDLE_MODULE_BYTES: u64 = 16_777_216;
+#[test]
+fn a_bundle_above_sixteen_mebibytes_is_refused() {
+    let directory = scratch("oversized-bundle");
+    fixture_bundle(&directory);
+    let path = directory.join("0123456789abcdef/test_bg.wasm");
+    fs::File::create(&path).expect("module").set_len(FULL_BUNDLE_MODULE_BYTES).expect("full bundle module");
+    let error = super::bundle::read(&directory).expect_err("oversized bundle refused");
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+    assert!(error.contains("bundle exceeds its limits"), "{error}");
+}
+
+fn agent_document(directory: &std::path::Path, program: bool) -> PathBuf {
+    agent_endpoint_document(directory, program, false)
+}
+fn agent_endpoint_document(directory: &std::path::Path, program: bool, program_endpoint: bool) -> PathBuf {
+    fs::write(directory.join("root.der"), skein_tls_world::pki::ROOT).expect("public test root");
+    let mut value = serde_json::json!({
+        "profile":{"name":"standard","declared":{"tool_payload":512,"read_window":256},
+            "policy":{"max_turns":5,"group_stop":10}},
+        "endpoints":[{"name":"fake","number":0,"dialect":3,"account":1,"provider":"openai",
+            "address":"127.0.0.1:34443","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),"identity":"plain","connect":1000,"handshake":1000,
+            "models":[{"name":"fake","window":1_048_576,"output":1024,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1000},"head":60000,"idle":30000}]}],
+        "environment":[{"name":"JIG_SOURCE_CHECK","value":"configured"}]
+    });
+    if program {
+        value["programs"] = serde_json::json!({"claude_code":{
+            "path":directory.join("private-claude"),"directory":directory.join("private-programs")
+        }});
+    }
+    if program_endpoint {
+        value["endpoints"][0]["program"] = serde_json::json!("claude_code");
+    }
+    let path = directory.join("agent.json");
+    fs::write(&path, serde_json::to_vec(&value).expect("agent fixture JSON")).expect("agent configuration");
+    path
+}
+#[test]
+fn a_worker_reads_program_resources_from_the_agent_configuration() {
+    use std::os::unix::ffi::OsStrExt;
+    let directory = scratch("program-agent");
+    let parsed = super::agent(&agent_document(&directory, true)).expect("configured agent");
+    let sources = parsed.sources.expect("configured Claude Code");
+    assert_eq!(sources.executable.as_ref(), directory.join("private-claude").as_os_str().as_bytes());
+    assert_eq!(sources.directory.as_ref(), directory.join("private-programs").as_os_str().as_bytes());
+    assert_eq!(sources.environment.as_ref(), &[Box::<[u8]>::from(b"JIG_SOURCE_CHECK=configured".as_slice())]);
+    assert!(
+        jig_test_service::program_sources::Resources::from_paths(
+            sources.directory,
+            sources.executable,
+            sources.environment
+        )
+        .is_some()
+    );
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+}
+#[test]
+fn an_agent_without_a_program_supplies_no_program_resources() {
+    let directory = scratch("no-program-agent");
+    let parsed = super::agent(&agent_document(&directory, false)).expect("configured agent");
+    assert!(parsed.sources.is_none());
+    fs::remove_dir_all(directory).expect("scratch cleanup");
+}
+
+#[test]
+fn advertised_program_endpoints_follow_actual_endpoint_selections() {
+    for (program_endpoint, expected) in [(false, &[][..]), (true, &[0][..])] {
+        let directory = scratch("endpoint-evidence");
+        let parsed =
+            super::agent(&agent_endpoint_document(&directory, true, program_endpoint)).expect("parsed endpoint");
+        assert_eq!(parsed.agent.bounds.program_endpoints.as_ref(), expected);
+        fs::remove_dir_all(directory).expect("scratch cleanup");
+    }
+}
+
+#[test]
+fn provider_key_files_refuse_group_permissions_and_symbolic_links() {
+    use std::os::unix::{ffi::OsStrExt, fs::symlink};
+    let directory = tempfile::tempdir().expect("private key scratch");
+    let key = directory.path().join("provider.pem");
+    fs::write(&key, b"key contents are never included in a diagnostic").expect("key file");
+    let user = skein_shell::effective_user();
+    fs::set_permissions(&key, fs::Permissions::from_mode(0o640)).expect("group bits");
+    let error = super::read_startup_file(key.as_os_str().as_bytes(), 8192, user).expect_err("group bits refused");
+    assert!(error.contains("Unsafe(Mode("));
+    assert!(!error.contains("key contents"));
+    fs::set_permissions(&key, fs::Permissions::from_mode(0o600)).expect("private key");
+    let link = directory.path().join("linked.pem");
+    symlink(&key, &link).expect("key link");
+    let error = super::read_startup_file(link.as_os_str().as_bytes(), 8192, user).expect_err("link refused");
+    assert!(error.contains("Unsafe(Link)"));
+    assert!(!error.contains("key contents"));
+}
