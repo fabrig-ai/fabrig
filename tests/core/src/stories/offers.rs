@@ -96,13 +96,13 @@ pub fn world_with_policy(
         .expect("checked rules"))
     .rules()
     .clone();
-    let room = core::room_max(&limits.core).expect("core room bound");
+    let room = core::route_bound(&limits.core).expect("core room bound");
     let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connectors");
-    limits.journal.writes = limits.journal.writes.max(room.writes.checked_add(connectors).expect("writes"));
+    limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("writes"));
     limits.journal.held = limits
         .journal
         .held
-        .max(room.held.checked_add(connectors).expect("held").checked_mul(limits.journal.commits).expect("flights"));
+        .max(room.checked_add(connectors).expect("held").checked_mul(limits.journal.commits).expect("flights"));
     let mut world = World::configured(seed, false, configuration, limits);
     let person = world
         .people_answers

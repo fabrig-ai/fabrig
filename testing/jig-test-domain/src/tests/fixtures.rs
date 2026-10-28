@@ -73,10 +73,10 @@ pub fn authority() -> authority::Authority {
 }
 pub fn env() -> Env<Limits> {
     let core = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).core;
-    let room = core::room_max(&core).expect("small profile has room");
+    let room = core::route_bound(&core).expect("small profile has room");
     let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connector outputs");
-    let writes = room.writes.checked_add(connectors).expect("write room");
-    let held = room.held.checked_add(connectors).expect("delivery room");
+    let writes = room.checked_add(connectors).expect("write room");
+    let held = room.checked_add(connectors).expect("delivery room");
     Env {
         now: Time::from_nanos(1),
         wall: Wall::from_nanos(1),

@@ -52,10 +52,10 @@ pub fn two_charters(seed: u64) -> (root::Config, root::Limits) {
             offers: accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
         },
     ]);
-    let room = core::room_max(&limits.core).expect("charter room");
+    let room = core::route_bound(&limits.core).expect("charter room");
     let connectors = jig_test_connector::MAX_OUT * 2;
-    limits.journal.writes = limits.journal.writes.max(room.writes + connectors);
-    limits.journal.held = limits.journal.held.max(room.held + connectors);
+    limits.journal.writes = limits.journal.writes.max(room + connectors);
+    limits.journal.held = limits.journal.held.max(room + connectors);
     (config, limits)
 }
 

@@ -89,8 +89,8 @@ mod sibling_routes;
 pub use numbers::{Counters, Deployment, Family, fresh};
 pub use routing::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet, room,
-    room_max, step, want_accounts,
+    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet,
+    route_bound, step, want_accounts,
 };
 pub use sibling_routes::{MadeRoute, PersonMessage, SentRoute};
 mod conversation;
@@ -285,7 +285,7 @@ pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<people::Given>);
     reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
-    room_max: skein_lib::JournalRoom,
+    route_bound: u32,
     run_inbox: u32,
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
@@ -637,9 +637,9 @@ impl Core {
             );
         }
         let authority = authority::Domain::new(current.rules().clone(), limits.authority).expect("configured rules");
-        let room_max = room_max(limits).expect("validated immutable core limits");
+        let route_bound = route_bound(limits).expect("validated immutable core limits");
         Ok(Core {
-            room_max,
+            route_bound,
             run_inbox: limits.tasks.run_inbox,
             fill: 0,
             workers_in_process: config.workers_in_process,

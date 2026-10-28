@@ -41,7 +41,7 @@ use run_preparation::{
 };
 pub(crate) use runs::named_propose;
 use runs::{named_action, route_named_answer, route_refused_payload};
-use skein_lib::{Env, JournalRoom, List, Queue, ReplyTo, Token};
+use skein_lib::{Env, List, Queue, ReplyTo, Token};
 use task_routes::{
     route_connector_repair, route_person_escalation, route_person_proposal, route_task_escalation, route_tasks,
     tag_tasks,
@@ -313,7 +313,12 @@ impl Core {
     }
 }
 
-fn route_room_checked(limits: &Limits) -> Option<u32> {
+/// The most one route of the core writes, or holds, including a sibling
+/// callback reached after a connector's own event. Pricing and the
+/// capacities sized from it read it; admission never does (a root
+/// admits by its watermark, `domain/root.md` 3).
+#[must_use]
+pub fn route_bound(limits: &Limits) -> Option<u32> {
     accounts::worst_case(&limits.accounts)?;
     tasks::worst_case(&crate::settings::task_limits(limits))?;
     let tasks = crate::settings::task_route_room(limits).checked_mul(16)?;
@@ -335,102 +340,11 @@ fn route_room_checked(limits: &Limits) -> Option<u32> {
         .checked_add(limits.views.watchers.checked_mul(4)?)?
         .checked_add(crate::settings::release_writes(limits)?)?
         .checked_add(8)?;
-    Some(bound.max(settings::room(limits)?.writes))
+    Some(bound.max(settings::route_writes(limits)?))
 }
 
 fn route_room(limits: &Limits) -> u32 {
-    route_room_checked(limits).expect("validated core route room")
-}
-
-/// Largest core decision room, including a sibling callback reached after a
-/// connector's own event. Roots use this when their input begins outside the
-/// core but may synchronously hand work into it.
-#[must_use]
-pub fn room_max(limits: &Limits) -> Option<JournalRoom> {
-    let bound = route_room_checked(limits)?;
-    Some(JournalRoom { writes: bound, held: bound })
-}
-
-/// Pre-admission journal room for one core event, including all synchronous
-/// sibling continuations and connector handoffs it can cause. The application
-/// adds its connectors' writes and held outputs before taking the journal
-/// decision (`domain/root.md`, section 10). The shared ceiling is deliberate:
-/// a child callback may visit every other child before the decision ends.
-#[must_use]
-pub fn room(limits: &Limits, event: &Event) -> Option<JournalRoom> {
-    let room = room_max(limits)?;
-    match event {
-        Event::ChangeSettings { .. } | Event::ProposeSettings { .. } => settings::room(limits),
-        Event::SettingsCommit { room } => Some(JournalRoom { writes: *room, held: 0 }),
-        Event::Fill { .. } => Some(JournalRoom { writes: 0, held: 0 }),
-        Event::Read { .. } | Event::ReadLoaded { .. } => Some(JournalRoom { writes: 0, held: room.held }),
-        Event::Stopping
-        | Event::Marked { .. }
-        | Event::Act { .. }
-        | Event::Key { .. }
-        | Event::Application { .. }
-        | Event::ApplicationPart { .. }
-        | Event::ApplicationFinished { .. }
-        | Event::EffectStart { .. }
-        | Event::SubscribeTopic { .. }
-        | Event::EffectConnector(_)
-        | Event::EffectDeadline
-        | Event::SignIn { .. }
-        | Event::Watch { .. }
-        | Event::WatchRun { .. }
-        | Event::Unwatch { .. }
-        | Event::Delivered { .. }
-        | Event::StreamDelivered { .. }
-        | Event::RunInput { .. }
-        | Event::RunText { .. }
-        | Event::RunCall { .. }
-        | Event::Tasks(_)
-        | Event::StartRecurring { .. }
-        | Event::StartBrief { .. }
-        | Event::BriefNotes { .. }
-        | Event::BriefAssembled { .. }
-        | Event::WorkspacePrepared { .. }
-        | Event::ClaimPrepared { .. }
-        | Event::ClaimRefused { .. }
-        | Event::ConnectorRepair { .. }
-        | Event::Period { .. }
-        | Event::PreparationFailed { .. }
-        | Event::TranscriptUnread { .. }
-        | Event::PersonProposal(_)
-        | Event::PersonEscalation(_)
-        | Event::TaskEscalation(_)
-        | Event::People(_)
-        | Event::Fleet(_)
-        | Event::TurnPayload { .. }
-        | Event::AnswerPayload { .. }
-        | Event::AcceptedTurn { .. }
-        | Event::RefusedPayload { .. }
-        | Event::Activate { .. }
-        | Event::PreparedAgent { .. }
-        | Event::Forget { .. }
-        | Event::EndedReadLoaded { .. }
-        | Event::SeenConversationLoaded { .. }
-        | Event::HistoricalProposal { .. }
-        | Event::DecidedProposal { .. }
-        | Event::HistoricalPersonTask { .. }
-        | Event::PartyInputsLoaded { .. }
-        | Event::EndedTaskLoaded { .. }
-        | Event::HistoricalEscalation { .. }
-        | Event::NamedAnswer { .. }
-        | Event::NamedAction { .. }
-        | Event::DelegateValidated { .. }
-        | Event::DelegateInputFailed { .. }
-        | Event::DelegateHoldings { .. }
-        | Event::ProcedureHoldings { .. }
-        | Event::ProcedureStep { .. }
-        | Event::Brief(_)
-        | Event::Holdings { .. }
-        | Event::Account(_)
-        | Event::View(_)
-        | Event::Notes(_)
-        | Event::SettledCall { .. }
-        | Event::ProjectionSettled { .. } => Some(room),
-    }
+    route_bound(limits).expect("validated core route bound")
 }
 
 /// Route one child event and each sibling continuation within one core decision.

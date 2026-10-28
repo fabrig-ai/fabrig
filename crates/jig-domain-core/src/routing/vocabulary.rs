@@ -418,7 +418,7 @@ pub enum Event {
         digest: [u8; 32],
         change: Box<crate::settings::Proposed>,
     },
-    /// Commit a restored release before opening, within the journal's available writes.
+    /// Commit a restored release before opening; `room` is the settings restore's write budget.
     SettingsCommit { room: u32 },
     /// A connector's deployment act, without a party or sign-in (people.md, 5.3).
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<people::Act>, carried: Option<Carried> },

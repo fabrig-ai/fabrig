@@ -478,12 +478,12 @@ fn census_world(seed: u64) -> World {
     limits.core.tasks.inbox_messages = 8;
     limits.core.tasks.run_inbox = 8;
     limits.core.documents.rows = 2;
-    let room = core::room_max(&limits.core).expect("census world room");
+    let room = core::route_bound(&limits.core).expect("census world room");
     let connectors = connector::MAX_OUT * 2;
     limits.journal.commits = 2;
     limits.watermark = 2;
-    limits.journal.writes = room.writes + connectors;
-    limits.journal.held = (room.held + connectors) * 2;
+    limits.journal.writes = room + connectors;
+    limits.journal.held = (room + connectors) * 2;
     let mut world = World::configured(seed, false, configuration, limits);
     world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
     world

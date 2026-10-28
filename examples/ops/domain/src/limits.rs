@@ -36,13 +36,10 @@ pub struct Limits {
 /// The whole child route, including every synchronous hand-off.
 #[must_use]
 pub fn room(limits: &Limits) -> Option<JournalRoom> {
-    let core = core::room_max(&limits.core)?;
+    let core = core::route_bound(&limits.core)?;
     let children =
         infrastructure::MAX_OUT.checked_add(observability::MAX_OUT)?.checked_add(host::max_out(&limits.host))?;
-    Some(JournalRoom {
-        writes: core.writes.checked_add(children)?.checked_add(1)?,
-        held: core.held.checked_add(children)?,
-    })
+    Some(JournalRoom { writes: core.checked_add(children)?.checked_add(1)?, held: core.checked_add(children)? })
 }
 
 /// Child states, journal, and bounded child-requested continuations.

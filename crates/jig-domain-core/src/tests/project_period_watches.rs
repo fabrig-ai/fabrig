@@ -189,23 +189,17 @@ fn a_cross_project_period_holds_the_frame_signal_and_project_reread_until_durabi
     assert!(funding_writes > 0);
     let frame = frame_delivery(&out, watcher).expect("cross-project frame signal is held");
     assert_frame_project_pool(&frame, before.pools.get(0));
-    let room = room_max(&limits).unwrap();
-    let mut journal = skein_lib::Journal::<Write, Box<Held>>::new(&skein_lib::JournalLimits {
-        commits: 1,
-        writes: room.writes,
-        held: room.held,
-        now: 1,
-        release: room.held,
-    });
-    let mut decision = journal.decision(&skein_lib::JournalRoom { writes: room.writes, held: room.held }).unwrap();
+    let room = route_bound(&limits).unwrap();
+    let mut journal = skein_lib::Journal::<Write, Box<Held>>::uncapped(room, 0);
+    let mut decision = journal.decide();
     let mut writes = 0_u32;
     for request in out {
         match request {
             Request::Write(write) => {
-                decision.write(write).unwrap();
+                decision.push_write(write);
                 writes = writes.checked_add(1).expect("bounded period outputs");
             }
-            Request::Held(held) => decision.hold(held).unwrap(),
+            Request::Held(held) => decision.push_held(held),
             Request::Now(_) | Request::ProjectMade { .. } | Request::Decided => {}
             Request::Ask { .. } => panic!("no connector or recurring work in this fixture"),
         }
@@ -217,11 +211,11 @@ fn a_cross_project_period_holds_the_frame_signal_and_project_reread_until_durabi
     assert_eq!(after.configured_period, 1);
     assert_eq!(after.configured_pools, before.pools);
     assert_observed_pool(&after, &before);
-    let mut read = journal.decision(&skein_lib::JournalRoom { writes: 0, held: 1 }).unwrap();
-    read.hold(held_read).unwrap();
+    let mut read = journal.decide();
+    read.push_held(held_read);
     journal.accept(read);
     assert!(journal.commit().is_none(), "the separate read makes no commit");
-    let mut released = Queue::with_capacity(room.held);
+    let mut released = Queue::with_capacity(room);
     assert_eq!(journal.release(&mut released), skein_lib::Released::None);
     assert!(released.is_empty(), "both the signal and reread wait for the period commit");
     journal.committed(commit);

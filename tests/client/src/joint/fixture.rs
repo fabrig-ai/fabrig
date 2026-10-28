@@ -97,12 +97,11 @@ pub(super) fn seeded_world_with_receiving(
     owner.core.documents.lines = 2;
     owner.core.documents.chips = 2;
     owner.core.documents.text_bytes = 32;
-    let room = jig_domain_core::room_max(&owner.core).expect("declared whole core bounds");
+    let room = jig_domain_core::route_bound(&owner.core).expect("declared whole core bounds");
     let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connector routes");
-    owner.journal.writes = owner.journal.writes.max(room.writes.checked_add(connectors).expect("whole writes"));
+    owner.journal.writes = owner.journal.writes.max(room.checked_add(connectors).expect("whole writes"));
     owner.journal.held = owner.journal.held.max(
-        room.held
-            .checked_add(connectors)
+        room.checked_add(connectors)
             .expect("whole held deliveries")
             .checked_mul(owner.journal.commits)
             .expect("bounded journal flights"),

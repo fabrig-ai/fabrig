@@ -8,7 +8,7 @@
     reason = "entry-point fixtures are ordinary Rust under programming-model.md section 10.2"
 )]
 use super::*;
-use skein_lib::{Journal, JournalLimits, JournalRoom, Released};
+use skein_lib::{Journal, Released};
 
 pub(super) fn timer_core(answers: bool) -> (Core, Env<Limits>) {
     let mut limits = limits();
@@ -53,15 +53,15 @@ pub(super) fn timer_core(answers: bool) -> (Core, Env<Limits>) {
 
 fn accept(journal: &mut Journal<Write, Box<Held>>, requests: Requests) -> u32 {
     let Requests::Out(mut out) = requests;
-    let mut decision = journal.decision(&JournalRoom { writes: 1, held: 1 }).unwrap();
+    let mut decision = journal.decide();
     let mut writes = 0_u32;
     while let Some(request) = out.pop() {
         match request {
             Request::Write(write) => {
-                decision.write(write).unwrap();
+                decision.push_write(write);
                 writes = writes.checked_add(1).unwrap();
             }
-            Request::Held(held) => decision.hold(held).unwrap(),
+            Request::Held(held) => decision.push_held(held),
             Request::ProjectMade { .. } | Request::Decided => {}
             Request::Ask { .. } | Request::Now(_) => panic!("timer/reply must not escape the journal"),
         }
@@ -71,7 +71,7 @@ fn accept(journal: &mut Journal<Write, Box<Held>>, requests: Requests) -> u32 {
 }
 
 fn journal() -> Journal<Write, Box<Held>> {
-    Journal::new(&JournalLimits { commits: 4, writes: 4, held: 4, now: 1, release: 4 })
+    Journal::uncapped(4, 0)
 }
 
 #[test]

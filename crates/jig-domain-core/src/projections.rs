@@ -243,7 +243,7 @@ pub(crate) fn history(
     }
     let Some(state) = core.projections.get_mut(&root) else { return };
     let saved = milestone.clone();
-    let mut milestones = List::with_capacity(core.room_max.writes);
+    let mut milestones = List::with_capacity(core.route_bound);
     for old in &state.milestones {
         if old.identity == milestone.identity {
             return;
@@ -285,7 +285,7 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Requests {
     if !owed(core) {
         return crate::routing::finish_watches(core, env);
     }
-    let room = core.room_max.writes;
+    let room = core.route_bound;
     let mut out = Queue::with_capacity(room.checked_add(1).expect("feed mark"));
     let commit = core.counters.deployment().commits;
     let mut goals = List::with_capacity(core.projections.len());
@@ -426,7 +426,7 @@ pub fn projection_bytes(limits: &Limits) -> Option<u64> {
         .checked_add(goal)?
         .checked_add(u64::from(limits.tasks.tree_tasks).checked_mul(task)?)?
         .checked_add(u64::from(limits.connectors).checked_mul(2)?)?
-        .checked_add(u64::from(crate::routing::room_max(limits)?.writes).checked_mul(milestone)?)
+        .checked_add(u64::from(crate::routing::route_bound(limits)?).checked_mul(milestone)?)
 }
 
 /// Deep bytes of one durable feed row, excluding its inline record slot.
@@ -567,7 +567,7 @@ fn restore_milestone(core: &mut Core, limits: &Limits, goal: u64, milestone: Pro
         return false;
     }
     let Some(state) = core.projections.get_mut(&goal) else { return false };
-    let mut milestones = List::with_capacity(core.room_max.writes);
+    let mut milestones = List::with_capacity(core.route_bound);
     for old in &state.milestones {
         if old.identity == milestone.identity || milestones.push(old.clone()).is_err() {
             return false;

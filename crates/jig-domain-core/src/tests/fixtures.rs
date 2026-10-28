@@ -35,7 +35,7 @@ pub(crate) fn make_batch_at(
     batch: Box<[tasks::New]>,
     wall: Wall,
 ) {
-    use super::{Env, Queue, ReplyTo, Time, Token, projections, room_max, tasks};
+    use super::{Env, Queue, ReplyTo, Time, Token, projections, route_bound, tasks};
     let mut out = Queue::with_capacity(settings::task_room(limits));
     tasks::step(
         &mut core.tasks,
@@ -45,7 +45,7 @@ pub(crate) fn make_batch_at(
     );
     while let Some(request) = out.pop() {
         if let tasks::Request::Save { record: tasks::Stored::Live(row) } = request {
-            let mut projections = Queue::with_capacity(room_max(limits).expect("projection room").writes);
+            let mut projections = Queue::with_capacity(route_bound(limits).expect("projection room"));
             projections::save(core, limits, &row, &mut projections);
         }
     }

@@ -219,12 +219,11 @@ fn profile() -> root::Limits {
             },
         },
     };
-    let room = core::room_max(&limits.core).expect("fixture core bounds");
+    let room = core::route_bound(&limits.core).expect("fixture core bounds");
     let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two connectors");
-    limits.journal.writes = limits.journal.writes.max(room.writes.checked_add(connectors).expect("fixture writes"));
+    limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
     limits.journal.held = limits.journal.held.max(
-        room.held
-            .checked_add(connectors)
+        room.checked_add(connectors)
             .expect("fixture deliveries")
             .checked_mul(limits.journal.commits)
             .expect("fixture flights"),

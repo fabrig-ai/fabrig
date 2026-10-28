@@ -332,7 +332,7 @@ pub(crate) fn connector(
     work: &mut Queue<Event>,
     event: connector::Event,
 ) -> Requests {
-    let mut out = Queue::with_capacity(crate::room_max(&env.limits).expect("validated core room").held);
+    let mut out = Queue::with_capacity(crate::route_bound(&env.limits).expect("validated core room"));
     match event {
         connector::Event::DescribeBusy { owner } => describe_busy(core, env, work, &mut out, owner),
         connector::Event::DescribeRefused { owner } => describe_refused(core, env, work, &mut out, owner),

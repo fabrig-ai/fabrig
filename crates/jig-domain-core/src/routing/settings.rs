@@ -17,9 +17,8 @@ pub(super) fn start(
 ) -> Requests {
     assert!(core.settings_input.is_none(), "one settings admission at a time");
     let against = change.against;
-    let room = room(&env.limits)
+    let room = route_writes(&env.limits)
         .expect("validated settings room")
-        .writes
         .saturating_sub(1)
         .saturating_sub(people::max_out(&env.limits.people));
     core.settings_input = Some((
@@ -187,12 +186,8 @@ pub(super) fn decide(
     Ok(number)
 }
 
-pub(super) fn room(limits: &Limits) -> Option<skein_lib::JournalRoom> {
-    let people = people::max_out(&limits.people);
-    Some(skein_lib::JournalRoom {
-        writes: s::writes_worst_case(limits)?.checked_add(people)?,
-        held: people.checked_add(limits.views.watchers.checked_mul(4)?)?.checked_add(limits.settings.proposals)?,
-    })
+pub(super) fn route_writes(limits: &Limits) -> Option<u32> {
+    s::writes_worst_case(limits)?.checked_add(people::max_out(&limits.people))
 }
 
 #[expect(clippy::too_many_arguments, reason = "one keyed proposal envelope and its held value")]
@@ -569,9 +564,8 @@ pub(super) fn accept(
     running: people::Running,
 ) -> Result<u32, people::Refusal> {
     let set = core.settings_proposals.get(&key).expect("pending settings set").clone();
-    let room = room(&env.limits)
+    let room = route_writes(&env.limits)
         .expect("settings decision room")
-        .writes
         .saturating_sub(1)
         .saturating_sub(people::max_out(&env.limits.people));
     decide(

@@ -799,7 +799,7 @@ fn send_task(core: &mut Core, limits: &Limits, event: tasks::Event) {
         }
         if let tasks::Request::Save { record: tasks::Stored::Live(row) } = request {
             core.prune_questions(row.number);
-            let mut projections = Queue::with_capacity(room_max(limits).unwrap().writes);
+            let mut projections = Queue::with_capacity(route_bound(limits).unwrap());
             projections::save(core, limits, &row, &mut projections);
         }
     }
@@ -2433,15 +2433,9 @@ fn ten_changed_decisions_coalesce_behind_one_inflight_delivery() {
 #[test]
 fn a_no_write_watch_delivery_waits_for_the_last_commit_already_made() {
     let (mut core, limits) = watch_core();
-    let mut journal = skein_lib::Journal::<u8, Box<Held>>::new(&skein_lib::JournalLimits {
-        commits: 2,
-        writes: 1,
-        held: 4,
-        now: 1,
-        release: 4,
-    });
-    let mut earlier = journal.decision(&skein_lib::JournalRoom { writes: 1, held: 0 }).unwrap();
-    earlier.write(7).unwrap();
+    let mut journal = skein_lib::Journal::<u8, Box<Held>>::uncapped(4, 0);
+    let mut earlier = journal.decide();
+    earlier.push_write(7);
     journal.accept(earlier);
     let commit = journal.commit().unwrap();
     let out = watch_outputs(
@@ -2449,10 +2443,10 @@ fn a_no_write_watch_delivery_waits_for_the_last_commit_already_made() {
         &limits,
         Event::Watch { watcher: Token::new(30), sign_in: 10, subject: Watched::Task { task: 1 }, window: window() },
     );
-    let mut decision = journal.decision(&skein_lib::JournalRoom { writes: 0, held: 1 }).unwrap();
+    let mut decision = journal.decide();
     for request in out {
         if let Request::Held(held) = request {
-            decision.hold(held).unwrap();
+            decision.push_held(held);
         }
     }
     journal.accept(decision);
@@ -3074,17 +3068,15 @@ fn invisible_and_absent_reads_have_the_same_unknown_answer() {
 
 #[test]
 fn a_core_read_answer_waits_for_the_last_commit_already_made() {
-    use skein_lib::{Journal, JournalLimits, JournalRoom, Released};
+    use skein_lib::{Journal, Released};
     let (mut core, limits) = watch_core();
-    let journal_limits = JournalLimits { commits: 2, writes: 1, held: 4, now: 1, release: 4 };
-    let mut journal = Journal::<u64, Held>::new(&journal_limits);
-    let room = JournalRoom { writes: 1, held: 1 };
-    let mut prior = journal.decision(&room).unwrap();
-    prior.write(123).unwrap();
+    let mut journal = Journal::<u64, Held>::uncapped(4, 0);
+    let mut prior = journal.decide();
+    prior.push_write(123);
     journal.accept(prior);
     let commit = journal.commit().unwrap().number;
-    let mut read = journal.decision(&room).unwrap();
-    read.hold(read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 })).unwrap();
+    let mut read = journal.decide();
+    read.push_held(read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 }));
     journal.accept(read);
     assert!(journal.commit().is_none(), "read makes no commit");
     let mut released = Queue::with_capacity(4);

@@ -116,7 +116,7 @@ pub(crate) fn store(
                     return;
                 }
                 work.push(Work::Core(core::Event::SettingsCommit {
-                    room: core::room_max(&env.limits.core).expect("validated core room").writes,
+                    room: core::route_bound(&env.limits.core).expect("validated core room"),
                 }));
                 // The completed core range is also the people's restoration
                 // terminal. Retain it when copying this cold-load adapter.

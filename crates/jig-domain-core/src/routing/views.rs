@@ -484,7 +484,7 @@ pub(super) fn run_text(
     text: Box<[u8]>,
     call: Option<views::Call>,
 ) -> Requests {
-    let mut out = Queue::with_capacity(crate::room_max(&env.limits).expect("bounded stream route").held);
+    let mut out = Queue::with_capacity(crate::route_bound(&env.limits).expect("bounded stream route"));
     append_stream(super::watch_marks::end_invalid(core, env), &mut out);
     let live = match core.proofs.get(&run.raw()) {
         Some(proof) => {
@@ -535,7 +535,7 @@ pub(super) fn run_input(
     tool: Box<[u8]>,
     input: Box<[u8]>,
 ) -> Requests {
-    let mut out = Queue::with_capacity(crate::room_max(&env.limits).expect("bounded input route").held);
+    let mut out = Queue::with_capacity(crate::route_bound(&env.limits).expect("bounded input route"));
     append_stream(super::watch_marks::end_invalid(core, env), &mut out);
     let live = match core.proofs.get(&run.raw()) {
         Some(proof) => {
@@ -579,7 +579,7 @@ pub(super) fn run_call(core: &mut Core, env: &Env<Limits>, run: Token, attempt: 
         Some(proof) => proof.attempt == attempt.raw() && proof.terminal.is_none(),
         None => false,
     };
-    let mut out = Queue::with_capacity(crate::room_max(&env.limits).expect("bounded current-call route").held);
+    let mut out = Queue::with_capacity(crate::route_bound(&env.limits).expect("bounded current-call route"));
     if live {
         append_stream(super::watch_marks::end_invalid(core, env), &mut out);
         let before = (views::retained_attempt(&core.views, run), views::revision(&core.views, run));
@@ -629,7 +629,7 @@ fn changed_run(core: &mut Core, env: &Env<Limits>, run: Token, out: &mut Queue<R
 }
 
 pub(super) fn stream_delivered(core: &mut Core, env: &Env<Limits>, watcher: Token) -> Requests {
-    let mut out = Queue::with_capacity(crate::room_max(&env.limits).expect("bounded stream terminal").held);
+    let mut out = Queue::with_capacity(crate::route_bound(&env.limits).expect("bounded stream terminal"));
     append_stream(super::watch_marks::end_invalid(core, env), &mut out);
     append_stream(route_view(core, env, views::Event::StreamDelivered { watcher }), &mut out);
     out.push(Request::Decided);

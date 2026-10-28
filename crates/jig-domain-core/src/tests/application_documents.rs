@@ -149,7 +149,7 @@ fn a_connector_refusal_ends_its_watch_and_drops_the_owner_binding() {
 
 #[test]
 fn a_connector_delivery_waits_for_the_last_commit_the_root_made() {
-    use skein_lib::{Journal, JournalLimits, JournalRoom, Released};
+    use skein_lib::{Journal, Released};
     let (mut core, limits) = watch_core();
     let watcher = Token::new(30);
     watch_outputs(
@@ -179,14 +179,13 @@ fn a_connector_delivery_waits_for_the_last_commit_the_root_made() {
         }
     }
     let delivery = delivery.unwrap();
-    let mut journal = Journal::<u64, Held>::new(&JournalLimits { commits: 2, writes: 1, held: 4, now: 1, release: 4 });
-    let room = JournalRoom { writes: 1, held: 1 };
-    let mut prior = journal.decision(&room).unwrap();
-    prior.write(123).unwrap();
+    let mut journal = Journal::<u64, Held>::uncapped(4, 0);
+    let mut prior = journal.decide();
+    prior.push_write(123);
     journal.accept(prior);
     let commit = journal.commit().unwrap().number;
-    let mut decision = journal.decision(&room).unwrap();
-    decision.hold(delivery).unwrap();
+    let mut decision = journal.decide();
+    decision.push_held(delivery);
     journal.accept(decision);
     assert!(journal.commit().is_none(), "construction makes no commit");
     let mut released = Queue::with_capacity(4);

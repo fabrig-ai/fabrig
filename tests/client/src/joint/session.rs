@@ -956,12 +956,12 @@ mod tests {
             owner_limits.core.run_bytes =
                 owner_limits.core.run_bytes.max(u32::try_from(bytes).expect("fixture run bound"));
         }
-        let room = core::room_max(&owner_limits.core).expect("fixture core output bound");
+        let room = core::route_bound(&owner_limits.core).expect("fixture core output bound");
         let connectors = jig_test_connector::MAX_OUT.checked_mul(2).expect("two fixture connectors");
         owner_limits.journal.writes =
-            owner_limits.journal.writes.max(room.writes.checked_add(connectors).expect("fixture writes"));
+            owner_limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
         owner_limits.journal.held =
-            owner_limits.journal.held.max(room.held.checked_add(connectors).expect("fixture deliveries"));
+            owner_limits.journal.held.max(room.checked_add(connectors).expect("fixture deliveries"));
         let driver = Driver::new(configuration, owner_limits, peers, now, wall);
         let mut limits = crate::test::limits();
         limits.client.domain.rows = 32;

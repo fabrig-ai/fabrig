@@ -36,9 +36,6 @@ fn core_children_routes_and_an_in_flight_decision_fit_the_checked_bound() {
             valid: Duration::from_secs(60),
         })),
     ] {
-        let room = core::room(&limits.core, &event).expect("event route has representable room");
-        assert!(room.writes <= limits.journal.writes);
-        assert!(room.held <= limits.journal.held);
         meter.start();
         let requests = core::step(&mut domain, &env, event);
         let measured = meter.end();

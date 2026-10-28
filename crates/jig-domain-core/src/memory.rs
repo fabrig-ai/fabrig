@@ -197,7 +197,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         limits.tasks.tasks.checked_mul(limits.tasks.batch)?,
         task_carrier(limits)?.checked_mul(2)?.checked_add(u64::from(limits.tasks.message_bytes).checked_mul(2)?)?,
     )?;
-    let route = crate::routing::room_max(limits)?;
+    let route = crate::routing::route_bound(limits)?;
     let children = [
         tasks::worst_case(&crate::settings::task_limits(limits))?,
         authority::worst_case(&limits.authority)?,
@@ -532,9 +532,9 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
         .max(bytes(limits.accounts.program_names, sizeof(size_of::<accounts::Program>())?)?);
     let payload = payload.max(source_payload).max(program_payload).max(people::outcome_bytes(&limits.people)?);
     total = total.checked_add(Queue::<fleet::Request>::worst_case(fleet::max_out(&limits.fleet).checked_mul(4)?)?)?;
-    total = total.checked_add(Queue::<Event>::worst_case(route.writes)?)?;
-    total = total.checked_add(Queue::<Request>::worst_case(route.writes.checked_add(1)?)?)?;
-    total = total.checked_add(bytes(route.writes, payload)?)?;
+    total = total.checked_add(Queue::<Event>::worst_case(route)?)?;
+    total = total.checked_add(Queue::<Request>::worst_case(route.checked_add(1)?)?)?;
+    total = total.checked_add(bytes(route, payload)?)?;
     total = total.checked_add(bytes(limits.load_slots, payload)?)?;
     // One named client decision holds its routed Event and its emitted people::Request::Route.
     // People already prices the retained Pending clone in people::worst_case; core keeps none.

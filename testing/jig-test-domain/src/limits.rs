@@ -24,11 +24,11 @@ pub fn max_out(limits: &Limits) -> u32 {
 #[must_use]
 pub fn worst_case(limits: &Limits) -> Option<u64> {
     use skein_lib::{Journal, Map, Queue, Token};
-    let room = core::room_max(&limits.core)?;
+    let room = core::route_bound(&limits.core)?;
     let connectors = connector::MAX_OUT.checked_mul(2)?;
     if limits.routes == 0
-        || room.writes.checked_add(connectors)? > limits.journal.writes
-        || room.held.checked_add(connectors)? > limits.journal.held
+        || room.checked_add(connectors)? > limits.journal.writes
+        || room.checked_add(connectors)? > limits.journal.held
     {
         return None;
     }
