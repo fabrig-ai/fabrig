@@ -476,14 +476,18 @@ Every request has one answer, of one of these kinds:
     is made, not the refusal's;
   - *no one to escalate to:* a party's root task whose escalations would
     have no holder (3.2);
-  - *limit:* which one and the bound it met, the configured number (the
-    deployment's projects, the project's live tasks, its goals, the
-    operations per request, a grace past its bound, the inbox full, the
-    words too long, an amendment too long, a key or a pasted address past
-    the bytes `me` states (5.1), the LLM accounts' bounds: accounts in the
-    deployment, accounts per holder, sources per account, sign-ins at
-    once, program sources per worker), so that a client names it and what
-    to change; a client's own limits are the client's to say;
+  - *limit:* which one (the deployment's projects, the project's live
+    tasks, its goals, the operations per request, a grace past its bound,
+    the inbox full, a party's words too long, an amendment too long, a
+    key, a name or a pasted address past its bytes, the LLM accounts'
+    bounds: accounts in the deployment, accounts per holder, sources per
+    account, sign-ins at once, program sources per worker; and those that
+    are no number: a duplicate, an empty batch, a reserved or duplicate
+    role, a resource held, a hold's kind, a record after ready, a counter
+    exhausted) and, where a number was met, its bound: a configured one
+    with its configuration key, or a fixed one, so that a client names
+    it, prints the bound, and says to raise the key only where one can;
+    a client's own limits are the client's to say;
   - *provider's rule:* an LLM provider's terms forbid it, naming the
     rule (a plan's uses naming another person, or a project with
     another party; another account for a task its account limits:
