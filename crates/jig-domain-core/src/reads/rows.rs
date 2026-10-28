@@ -547,7 +547,7 @@ fn object(
                             limits,
                             range.party,
                             &row,
-                            documents::task_from_row(core, limits, range.party, owner, wall)?,
+                            documents::task_tree::task_for_load(core, limits, range.party, owner, wall)?,
                         )?),
                         result: Box::new(result),
                     },

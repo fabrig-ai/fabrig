@@ -721,13 +721,36 @@ pub(super) fn task(core: &Core, limits: &Limits, party: u64, number: u64, decisi
 }
 
 /// Construct a visible task from its retained owner row, without restoring it.
-#[expect(clippy::too_many_lines, reason = "the task page gathers one bounded overview without changing child state")]
 pub fn task_from_row(
     core: &Core,
     limits: &Limits,
     party: u64,
     row: &tasks::TaskRecord,
     decision: Wall,
+) -> Result<Task, Missing> {
+    task_with_lineage(core, limits, party, row, decision, true)
+}
+
+/// A load supplies its joined ancestry afterwards, including ended parents.
+/// Missing live ancestry must not mark that complete document cut in advance.
+pub(crate) fn task_for_load(
+    core: &Core,
+    limits: &Limits,
+    party: u64,
+    row: &tasks::TaskRecord,
+    decision: Wall,
+) -> Result<Task, Missing> {
+    task_with_lineage(core, limits, party, row, decision, false)
+}
+
+#[expect(clippy::too_many_lines, reason = "the task page gathers one bounded overview without changing child state")]
+fn task_with_lineage(
+    core: &Core,
+    limits: &Limits,
+    party: u64,
+    row: &tasks::TaskRecord,
+    decision: Wall,
+    live_lineage: bool,
 ) -> Result<Task, Missing> {
     if core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
@@ -737,7 +760,8 @@ pub fn task_from_row(
     let mut ancestor = row.requester;
     let mut cut = false;
     let goal = core.goal_of(row);
-    for _ in 0..limits.tasks.depth {
+    let lineage_depth = if live_lineage { limits.tasks.depth } else { 0 };
+    for _ in 0..lineage_depth {
         match ancestor {
             tasks::Party::Task(parent) => {
                 let parent_row = match super::small::visible(core, party, parent) {
