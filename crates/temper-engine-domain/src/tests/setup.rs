@@ -464,7 +464,7 @@ fn runtime_project_root() -> (Domain, Env<Limits>) {
     let mut limits = super::resume_fixture::limits();
     limits.authority.projects = 2;
     limits.people.projects = 3;
-    limits.journal.writes = crate::limits::route_bound(&limits).unwrap().checked_add(limits.call_records).unwrap();
+    limits.journal.writes = crate::limits::work_estimate(&limits).unwrap().checked_add(limits.call_records).unwrap();
     let (mut domain, env) = signed_in_root(
         super::resume_fixture::root_with_config_and_limits(configured, &limits),
         Some(people::Role::Owner),

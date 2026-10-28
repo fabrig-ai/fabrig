@@ -222,7 +222,7 @@ mod tests {
         for _ in 0..env.limits.loads.loads {
             reads.push(domain.archive_reads.insert(Some(Read::Transcript { task: 1 })).unwrap()).unwrap();
         }
-        let mut decision = Decision::new(&env.limits.journal);
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         held(
             &mut domain,
             &env,
@@ -238,13 +238,15 @@ mod tests {
         };
         assert_eq!(owner, Token::new(1));
         assert!(domain.work.is_empty(), "one pressure event, with no root-owned retry");
+        crate::decision::accept_pending(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision)
+            .unwrap();
         let range = jig_domain_notes::Range::Lines { scope: jig_domain_notes::Scope::Deployment, after: None };
         for id in reads.into_boxed() {
             domain.archive_reads.get_mut(id).unwrap().take();
             domain.archive_reads.retire(id);
         }
         domain.reclaim();
-        let mut decision = Decision::new(&env.limits.journal);
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         notes_load(&mut domain, &env, &mut decision, owner, range);
         let Delivery::Load { waiter, range, after } = delivery(&mut domain, &env.limits, decision) else {
             panic!("the deferred load is issued when room returns")

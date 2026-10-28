@@ -1,22 +1,21 @@
-//! Admission at the service boundary: an input the journal cannot take returns
-//! to its owner, and store answers are always taken (jig's `domain/root.md`, 3;
-//! `testing/jig-test-domain/src/admission.rs`).
+//! Admission at the service boundary: new work waits at the watermark,
+//! while completions of admitted work are always taken (skein's draft
+//! `dynamic-memory.md`, 4).
 use crate::boundary::{Event, Link, StoreInput, WorkerInput};
 use crate::domain::{Domain, admits, step};
 use crate::limits::Limits;
 use skein_lib::Env;
 
-/// Step one input if the journal can take its whole route; otherwise hand it
-/// back unchanged. Store answers are always taken: a read load's answer waits
-/// in the root's queue until the journal has room for its decision.
-/// A refused released continuation stays with its owner ahead of later callbacks.
+/// Hand new work back unchanged at the watermark. Store answers and released
+/// continuations are always taken; queued store answers keep arrival order and
+/// wait only for earlier work to finish.
 #[expect(clippy::result_large_err, reason = "the service admission boundary returns the original event by value")]
 pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<(), Event> {
     domain.changed();
     crate::domain::invalidate_input(domain, &event);
     match event {
         event @ Event::Store(StoreInput::ReadLoaded { .. } | StoreInput::Switched) => {
-            if domain.store_answers.is_empty() && admits(domain, &env.limits) {
+            if domain.store_answers.is_empty() && domain.work.is_empty() {
                 step(domain, env, event);
             } else {
                 domain.store_answers.push(event);
@@ -34,14 +33,6 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             Ok(())
         }
         Event::Released(released) => {
-            let retiring = if let crate::Delivery::ForgeCommitted { .. } = &released.0 {
-                domain.core.stopping() || domain.settling.active()
-            } else {
-                false
-            };
-            if !retiring && !crate::limits::route_takes(domain) {
-                return Err(Event::Released(released));
-            }
             step(domain, env, Event::Released(released));
             Ok(())
         }

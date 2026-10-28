@@ -1,11 +1,10 @@
 use crate::decision::{
     Counters, Decision, Delivery, Journal as SkeinJournal, JournalOutput as Output, Limits, accept as accept_decision,
-    committed as mark_committed, fresh as fresh_number, journal_limits, resume as release_ready,
-    takes as takes_decision,
+    committed as mark_committed, fresh as fresh_number, resume as release_ready,
 };
 use crate::{Deployment, Family, Key, Record, TurnRecord, Write};
 use alloc::boxed::Box;
-use skein_lib::{JournalRoom, List, Queue, Token, Wall};
+use skein_lib::{List, Queue, Token, Wall};
 
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
@@ -39,13 +38,13 @@ struct Journal {
 }
 
 impl Journal {
-    fn bootstrap(id: [u8; 16], limits: &Limits) -> Journal {
-        Journal { inner: SkeinJournal::new(&journal_limits(limits)), counters: Counters::bootstrap(id), durable: 0 }
+    fn bootstrap(id: [u8; 16], _limits: &Limits) -> Journal {
+        Journal { inner: SkeinJournal::uncapped(1, 0), counters: Counters::bootstrap(id), durable: 0 }
     }
 
-    fn new(deployment: Deployment, limits: &Limits) -> Journal {
+    fn new(deployment: Deployment, _limits: &Limits) -> Journal {
         Journal {
-            inner: SkeinJournal::from_durable(&journal_limits(limits), deployment.commits),
+            inner: SkeinJournal::uncapped(1, deployment.commits),
             counters: Counters::new(deployment),
             durable: deployment.commits,
         }
@@ -62,9 +61,6 @@ impl Journal {
     }
 }
 
-fn takes(journal: &Journal, limits: &Limits) -> bool {
-    takes_decision(&journal.inner, limits)
-}
 fn fresh(journal: &mut Journal, family: Family) -> Option<u64> {
     if journal.inner.stopped() { None } else { fresh_number(&mut journal.counters, family) }
 }
@@ -107,8 +103,8 @@ fn ack(number: u32) -> Delivery {
     Delivery::Link { channel: Token::new(7), down }
 }
 
-fn decision(number: u32) -> Decision {
-    let mut d = Decision::new(&LIMITS);
+fn decision(journal: &mut Journal, number: u32) -> Decision {
+    let mut d = Decision::decide(&mut journal.inner, &LIMITS);
     d.write(&LIMITS, turn(number, 2)).unwrap();
     d.deliver(&LIMITS, ack(number)).unwrap();
     d
@@ -134,7 +130,7 @@ fn acknowledged(out: &mut Queue<Output>) -> u32 {
 fn a_first_start_commits_its_deployment_before_releasing_a_delivery() {
     let mut j = Journal::bootstrap([37; 16], &LIMITS);
     let mut out = Queue::with_capacity(1);
-    let mut d = Decision::new(&LIMITS);
+    let mut d = Decision::decide(&mut j.inner, &LIMITS);
     d.deliver(&LIMITS, ack(1)).unwrap();
     accept(&mut j, &LIMITS, d, &mut out).unwrap();
     let (number, writes) = commit(&mut out);
@@ -156,7 +152,8 @@ fn a_first_start_commits_its_deployment_before_releasing_a_delivery() {
 fn a_store_answer_makes_outputs_ready_without_draining_them() {
     let mut j = Journal::new(DEPLOYMENT, &LIMITS);
     let mut out = Queue::with_capacity(1);
-    accept(&mut j, &LIMITS, decision(1), &mut out).unwrap();
+    let d = decision(&mut j, 1);
+    accept(&mut j, &LIMITS, d, &mut out).unwrap();
     let (number, writes) = commit(&mut out);
     assert_eq!(number, 1);
     assert_eq!(writes.len(), 2);
@@ -185,7 +182,8 @@ fn fresh_numbers_and_unused_gaps_are_durable_in_the_decisions_header() {
         assert_eq!(fresh(&mut j, family), Some(1));
     }
     assert_eq!(fresh(&mut j, Family::Task), Some(2));
-    accept(&mut j, &LIMITS, Decision::new(&LIMITS), &mut out).unwrap();
+    let d = Decision::decide(&mut j.inner, &LIMITS);
+    accept(&mut j, &LIMITS, d, &mut out).unwrap();
     let (number, writes) = commit(&mut out);
     assert_eq!(number, 1);
     let Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))) =
@@ -203,10 +201,9 @@ fn fresh_numbers_and_unused_gaps_are_durable_in_the_decisions_header() {
 fn same_key_saves_and_erases_collapse_to_the_last_write_before_commit() {
     let mut j = Journal::new(DEPLOYMENT, &LIMITS);
     let mut out = Queue::with_capacity(1);
-    let mut d = Decision::reserve_room(&mut j.inner, &LIMITS, JournalRoom { writes: 3, held: 0 }).unwrap();
+    let mut d = Decision::decide(&mut j.inner, &LIMITS);
     d.write(&LIMITS, turn(1, 2)).unwrap();
     d.write(&LIMITS, turn(2, 3)).unwrap();
-    assert!(!d.room_for(1, 0), "replacement still fits when all child slots are full");
     d.write(
         &LIMITS,
         Write::Erase(Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
@@ -227,7 +224,7 @@ fn same_key_saves_and_erases_collapse_to_the_last_write_before_commit() {
 #[test]
 fn rejected_payloads_are_returned_without_replacing_admitted_ownership() {
     let mut j = Journal::new(DEPLOYMENT, &LIMITS);
-    let mut d = Decision::reserve_room(&mut j.inner, &LIMITS, JournalRoom { writes: 2, held: 1 }).unwrap();
+    let mut d = Decision::decide(&mut j.inner, &LIMITS);
     d.write(&LIMITS, turn(1, 3)).unwrap();
     let refused = d.write(&LIMITS, turn(1, 65)).unwrap_err();
     assert_eq!(refused, turn(1, 65));
@@ -251,17 +248,15 @@ fn rejected_payloads_are_returned_without_replacing_admitted_ownership() {
 }
 
 #[test]
-fn a_decision_past_its_reserved_write_room_stops_the_root_journal() {
-    for writes in 1..=3 {
+fn a_decision_past_the_store_write_edge_stops_the_root_journal() {
+    for writes in [LIMITS.writes] {
         let mut journal = Journal::new(DEPLOYMENT, &LIMITS);
         let mut out = Queue::with_capacity(1);
-        let mut decision = Decision::reserve_room(&mut journal.inner, &LIMITS, JournalRoom { writes, held: 1 })
-            .expect("smaller route room admitted");
+        let mut decision = Decision::decide(&mut journal.inner, &LIMITS);
         for number in 1..writes {
             decision.write(&LIMITS, turn(number, 1)).expect("reserved write room");
         }
         decision.deliver(&LIMITS, ack(1)).unwrap();
-        assert!(!decision.room_for(1, 0), "the deployment header owns the other slot");
         let refused = turn(writes, 1);
         let Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(row)))) = &refused
         else {
@@ -279,67 +274,30 @@ fn a_decision_past_its_reserved_write_room_stops_the_root_journal() {
         assert!(journal.stopped());
         resume(&mut journal, &mut out);
         assert!(out.is_empty(), "no partial commit or held delivery escapes an overrun");
-        assert!(!takes(&journal, &LIMITS));
+        assert!(journal.inner.stopped());
     }
 }
 
 #[test]
-fn reserved_buffers_allocate_only_the_admitted_room_even_when_global_maxima_grow() {
-    use skein_world::domain::heap::Meter;
-
-    let write_slot = u64::try_from(size_of::<Write>()).unwrap();
-    let delivery_slot = u64::try_from(size_of::<Delivery>()).unwrap();
-    let output_slot = u64::try_from(size_of::<crate::Output>()).unwrap();
-    let rooms =
-        [JournalRoom { writes: 0, held: 0 }, JournalRoom { writes: 1, held: 0 }, JournalRoom { writes: 3, held: 2 }];
-    let mut observed = [[(0, 0); 3]; 2];
-    let mut expected = [(0, 0); 3];
-    for (maximum, (writes, deliveries)) in [(64, 32), (4096, 2048)].into_iter().enumerate() {
-        let limits = Limits { writes, deliveries, held: deliveries, ..LIMITS };
-        for (at, reserved) in rooms.into_iter().enumerate() {
-            // Journal storage is startup state. Measure the whole admitted
-            // decision, including its two Skein batch containers.
-            let mut journal = SkeinJournal::new(&journal_limits(&limits));
-            let meter = Meter::new();
-            meter.start();
-            let decision = Decision::reserve_room(&mut journal, &limits, reserved).unwrap();
-            let measured = meter.end();
-            let batch = u64::from(reserved.writes) * write_slot + u64::from(reserved.held) * output_slot;
-            let private =
-                u64::from(reserved.writes.saturating_sub(1)) * write_slot + u64::from(reserved.held) * delivery_slot;
-            expected[at] = (batch + private, batch + private);
-            observed[maximum][at] = (measured.held(), measured.peak());
-            drop(decision);
-            assert_eq!(meter.held(), 0, "dropping the decision frees every metered slot");
-        }
-    }
-    assert_eq!(observed[0], expected, "only reserved slots, with no transient maximum-sized buffers");
-    assert_eq!(observed[1], expected, "larger global maxima cost the same for the same reservation");
-    assert_eq!(observed[0], observed[1]);
-}
-
-#[test]
-fn reserved_bounds_keep_the_header_and_release_exactly_the_admitted_deliveries() {
-    for (reserved, persist_header) in [
-        (JournalRoom { writes: 0, held: 0 }, false),
-        (JournalRoom { writes: 0, held: 2 }, false),
-        (JournalRoom { writes: 1, held: 0 }, true),
-        (JournalRoom { writes: 1, held: 2 }, true),
-        (JournalRoom { writes: 1, held: 2 }, false),
-        (JournalRoom { writes: 3, held: 0 }, true),
-        (JournalRoom { writes: 3, held: 2 }, true),
-        (JournalRoom { writes: 3, held: 2 }, false),
+fn decisions_keep_the_header_and_release_exactly_the_admitted_deliveries() {
+    for (write_count, deliveries, persist_header) in [
+        (0, 0, false),
+        (0, 2, false),
+        (1, 0, true),
+        (1, 2, true),
+        (1, 2, false),
+        (3, 0, true),
+        (3, 2, true),
+        (3, 2, false),
     ] {
         let mut journal = Journal::bootstrap(DEPLOYMENT.id, &LIMITS);
-        let mut decision = Decision::reserve_room(&mut journal.inner, &LIMITS, reserved).unwrap();
-        for number in 1..reserved.writes {
+        let mut decision = Decision::decide(&mut journal.inner, &LIMITS);
+        for number in 1..write_count {
             decision.carry_write(&LIMITS, turn(number, 1)).unwrap();
         }
-        for number in 1..=reserved.held {
+        for number in 1..=deliveries {
             decision.carry_delivery(&LIMITS, ack(number)).unwrap();
         }
-        assert!(!decision.room_for(1, 0), "header owns the first write slot");
-        assert!(!decision.room_for(0, 1), "held room is exactly full");
         let header = Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
             DEPLOYMENT,
         ))));
@@ -347,27 +305,27 @@ fn reserved_bounds_keep_the_header_and_release_exactly_the_admitted_deliveries()
         crate::decision::accept_routed(&mut journal.inner, &mut journal.counters, &LIMITS, decision, persist_header)
             .unwrap();
         let mut out = Queue::with_capacity(1);
-        if reserved.writes <= 1 && !persist_header {
+        if write_count <= 1 && !persist_header {
             assert!(crate::decision::commit(&mut journal.inner, &LIMITS).is_none());
             assert!(journal.counters.dirty(), "read-only store terminals never persist the dirty header");
         } else {
             out.push(crate::decision::commit(&mut journal.inner, &LIMITS).unwrap());
             let (number, writes) = commit(&mut out);
-            assert_eq!((number, writes.len()), (1, usize::try_from(reserved.writes).unwrap()));
+            assert_eq!((number, writes.len()), (1, usize::try_from(write_count).unwrap()));
             assert_eq!(
                 writes[0],
                 Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
                     Deployment { commits: 1, ..DEPLOYMENT }
                 ))))
             );
-            for number in 1..reserved.writes {
+            for number in 1..write_count {
                 assert_eq!(writes[usize::try_from(number).unwrap()], turn(number, 1));
             }
             resume(&mut journal, &mut out);
             assert!(out.is_empty(), "held effects wait for the header's commit");
             committed(&mut journal, number);
         }
-        for number in 1..=reserved.held {
+        for number in 1..=deliveries {
             resume(&mut journal, &mut out);
             assert_eq!(acknowledged(&mut out), number, "each admitted delivery releases once, in order");
         }
@@ -378,87 +336,107 @@ fn reserved_bounds_keep_the_header_and_release_exactly_the_admitted_deliveries()
 }
 
 #[test]
-fn a_delivery_past_its_reserved_room_returns_ownership_and_stops_without_partial_outputs() {
-    for reserved in [
-        JournalRoom { writes: 0, held: 0 },
-        JournalRoom { writes: 1, held: 0 },
-        JournalRoom { writes: 1, held: 1 },
-        JournalRoom { writes: 3, held: 2 },
-    ] {
-        let mut journal = Journal::new(DEPLOYMENT, &LIMITS);
-        let mut decision = Decision::reserve_room(&mut journal.inner, &LIMITS, reserved).unwrap();
-        for number in 1..reserved.writes {
-            decision.write(&LIMITS, turn(number, 1)).unwrap();
-        }
-        for number in 1..=reserved.held {
-            decision.deliver(&LIMITS, ack(number)).unwrap();
-        }
-        let words = bytes(3);
-        let address = words.as_ptr();
-        let refused = decision.carry_delivery(&LIMITS, Delivery::Result { person: 7, task: 9, words }).unwrap_err();
-        let Delivery::Result { person, task, words } = refused else { panic!("original refused result") };
-        assert_eq!((person, task, words.as_ptr(), words.len()), (7, 9, address, 3));
-        let mut out = Queue::with_capacity(1);
-        accept(&mut journal, &LIMITS, decision, &mut out).unwrap();
-        assert!(journal.stopped());
-        resume(&mut journal, &mut out);
-        assert!(out.is_empty(), "no admitted prefix escapes an overrun");
-        assert_eq!(journal.deployment().commits, 0);
-    }
-}
-
-#[test]
-fn full_size_decisions_keep_all_ownership_when_a_full_journal_refuses_them() {
+fn a_delivery_past_the_store_edge_returns_ownership_and_stops_without_partial_outputs() {
     let mut journal = Journal::new(DEPLOYMENT, &LIMITS);
-    for reserved in
-        [JournalRoom { writes: LIMITS.writes + 1, held: 0 }, JournalRoom { writes: 1, held: LIMITS.deliveries + 1 }]
-    {
-        assert!(Decision::reserve_room(&mut journal.inner, &LIMITS, reserved).is_none());
-        assert!(takes(&journal, &LIMITS), "an oversized request reserves nothing");
-    }
-    let mut out = Queue::with_capacity(1);
-    for number in 1..=LIMITS.commits {
-        let mut decision = Decision::reserve(&mut journal.inner, &LIMITS).unwrap();
-        decision.write(&LIMITS, turn(number, 1)).unwrap();
-        accept(&mut journal, &LIMITS, decision, &mut out).unwrap();
-        assert_eq!(commit(&mut out).0, u64::from(number));
-    }
-    assert!(!takes(&journal, &LIMITS));
-    assert!(Decision::reserve(&mut journal.inner, &LIMITS).is_none());
-    let mut decision = Decision::new(&LIMITS);
-    for number in 1..LIMITS.writes {
-        decision.write(&LIMITS, turn(number, 1)).unwrap();
-    }
+    let mut decision = Decision::decide(&mut journal.inner, &LIMITS);
+    decision.write(&LIMITS, turn(1, 1)).unwrap();
     for number in 1..=LIMITS.deliveries {
         decision.deliver(&LIMITS, ack(number)).unwrap();
     }
-    assert!(!decision.room_for(1, 0));
-    assert!(!decision.room_for(0, 1));
-    let decision = accept(&mut journal, &LIMITS, decision, &mut out).unwrap_err();
-    assert!(out.is_empty());
-    committed(&mut journal, u64::from(LIMITS.commits));
+    let words = bytes(3);
+    let address = words.as_ptr();
+    let refused = decision.carry_delivery(&LIMITS, Delivery::Result { person: 7, task: 9, words }).unwrap_err();
+    let Delivery::Result { person, task, words } = refused else { panic!("original refused result") };
+    assert_eq!((person, task, words.as_ptr(), words.len()), (7, 9, address, 3));
+    let mut out = Queue::with_capacity(1);
     accept(&mut journal, &LIMITS, decision, &mut out).unwrap();
-    let (number, writes) = commit(&mut out);
-    assert_eq!((number, writes.len()), (3, usize::try_from(LIMITS.writes).unwrap()));
-    for number in 1..LIMITS.writes {
-        assert_eq!(writes[usize::try_from(number).unwrap()], turn(number, 1));
-    }
+    assert!(journal.stopped());
     resume(&mut journal, &mut out);
-    assert!(out.is_empty(), "refused and retried effects still wait for their own commit");
-    committed(&mut journal, number);
-    for number in 1..=LIMITS.deliveries {
-        resume(&mut journal, &mut out);
-        assert_eq!(acknowledged(&mut out), number);
-    }
-    resume(&mut journal, &mut out);
+    assert!(out.is_empty(), "no admitted prefix escapes an overrun");
+    assert_eq!(journal.deployment().commits, 0);
+    // Decisions after failure cannot emit either.
+    let decision = Decision::decide(&mut journal.inner, &LIMITS);
+    accept(&mut journal, &LIMITS, decision, &mut out).unwrap();
     assert!(out.is_empty());
+}
+
+#[test]
+fn a_root_store_edge_overrun_releases_only_stop_and_discards_immediate_outputs() {
+    let (mut domain, env) = resume_fixture::root();
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    for number in 1..=env.limits.journal.writes {
+        crate::domain::save(&mut decision, &env.limits, turn(number, 1));
+    }
+    let mut out = Queue::with_capacity(crate::max_out(&env.limits));
+    out.push(crate::Request::Drained);
+    crate::domain::close(&mut domain, &env, decision, &mut out);
+    crate::domain::stage_now(&mut domain, &mut out);
+    crate::release(&mut domain, &env, &mut out);
+    assert_eq!(out.pop(), Some(crate::Request::Stop));
+    assert!(out.is_empty());
+    crate::try_step(&mut domain, &env, crate::Event::Resume).unwrap();
+    crate::release(&mut domain, &env, &mut out);
+    assert!(out.is_empty(), "nothing from the failed decision or after it leaves");
+    assert!(domain.journal.stopped());
+}
+
+#[test]
+fn new_work_waits_at_the_watermark_and_admitted_work_is_always_taken() {
+    use crate::{Event, PartyInput, StoreInput};
+    use skein_lib::{ReplyTo, Token};
+    let (mut domain, env) = resume_fixture::root();
+    // Header-only commits give an exact backlog without held-output entries.
+    for _ in 0..crate::limits::watermark(&env.limits) - 1 {
+        crate::fresh(&mut domain.core.counters, Family::Message).unwrap();
+        crate::try_step(&mut domain, &env, Event::Resume).unwrap();
+    }
+    fn call() -> Event {
+        Event::Party(PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(72)),
+            sign_in: 99,
+            key: [7; 16],
+            ask: jig_domain_people::Ask::SetRoles { project: 1, holdings: Box::new([]) },
+        })
+    }
+    assert_eq!(crate::limits::backlog(&domain), crate::limits::watermark(&env.limits) - 1);
+    crate::try_step(&mut domain, &env, call()).expect("below the watermark the call is taken");
+    // This unauthenticated call owns one held refusal, bringing backlog to the mark.
+    assert_eq!(crate::limits::backlog(&domain), crate::limits::watermark(&env.limits));
+    let returned = crate::try_step(&mut domain, &env, call()).expect_err("at the mark new work waits");
+    let Event::Party(PartyInput::Ask { reply_to, sign_in, key, ask, models }) = &returned else {
+        panic!("the original call is returned");
+    };
+    assert_eq!(reply_to, &ReplyTo::new(Token::new(72)));
+    assert_eq!((*sign_in, *key), (99, [7; 16]));
+    assert!(models.is_empty());
+    assert_eq!(ask, &jig_domain_people::Ask::SetRoles { project: 1, holdings: Box::new([]) });
+    let released = Event::Released(crate::Released(Delivery::Fleet(jig_domain_fleet::Event::TurnKept {
+        run: Token::new(1),
+        attempt: Token::new(1),
+        turn: 1,
+    })));
+    crate::try_step(&mut domain, &env, released).expect("released work advances at the mark");
+    let mut last = 0;
+    while let Some(Output::Commit { number, .. }) = crate::commit(&mut domain.journal, &env.limits.journal) {
+        last = number;
+    }
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number: last, fill: 0 }))
+        .expect("store completion is always taken");
+    assert!(crate::limits::backlog(&domain) < crate::limits::watermark(&env.limits));
+    crate::try_step(&mut domain, &env, returned).expect("after completion the returned call is taken");
+    assert!(!domain.journal.stopped());
 }
 
 #[test]
 fn counter_and_commit_overflow_cannot_reuse_names() {
     let mut j = Journal::new(Deployment { tasks: u64::MAX, commits: u64::MAX, ..DEPLOYMENT }, &LIMITS);
     assert_eq!(fresh(&mut j, Family::Task), None);
-    assert!(!takes(&j, &LIMITS));
+    let mut out = Queue::with_capacity(1);
+    let d = decision(&mut j, 1);
+    accept(&mut j, &LIMITS, d, &mut out).unwrap();
+    assert!(j.stopped());
+    assert!(out.is_empty());
     assert_eq!(j.deployment().tasks, u64::MAX);
 }
 

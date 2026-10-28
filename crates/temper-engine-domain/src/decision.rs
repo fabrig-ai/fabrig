@@ -252,7 +252,6 @@ pub enum JournalOutput {
 #[derive(Debug)]
 pub struct Decision {
     limits: Limits,
-    reserved: JournalRoom,
     writes: List<Write>,
     deliveries: Queue<Delivery>,
     overrun: bool,
@@ -271,13 +270,6 @@ impl Decision {
         !self.overrun && self.writes.is_empty() && self.deliveries.is_empty()
     }
 
-    /// Test the unused slots while exercising journal admission bounds.
-    #[cfg(test)]
-    pub(crate) fn room_for(&self, writes: u32, deliveries: u32) -> bool {
-        self.reserved.writes.saturating_sub(self.writes.len().saturating_add(1)) >= writes
-            && self.reserved.held.saturating_sub(self.deliveries.len()) >= deliveries
-    }
-
     /// Allocate one transient decision from validated startup limits; no effect is issued until
     /// `accept`.
     #[must_use]
@@ -285,7 +277,6 @@ impl Decision {
         assert!(worst_case(limits).is_some(), "valid root journal limits");
         Decision {
             limits: *limits,
-            reserved: room(limits),
             writes: List::with_capacity(limits.writes.checked_sub(1).expect("header slot reserved")),
             deliveries: Queue::with_capacity(limits.deliveries),
             overrun: false,
@@ -293,28 +284,12 @@ impl Decision {
         }
     }
 
-    /// Reserve the generic journal's worst-case room before routing a child.
-    pub fn reserve(journal: &mut Journal, limits: &Limits) -> Option<Decision> {
-        Self::reserve_room(journal, limits, room(limits))
-    }
-
-    /// Reserve a route's checked write and held-output counts before any child changes.
-    pub(crate) fn reserve_room(journal: &mut Journal, limits: &Limits, reserved: JournalRoom) -> Option<Decision> {
-        if reserved.writes > limits.writes || reserved.held > limits.deliveries {
-            return None;
-        }
-        let batch = journal.decision(&reserved)?;
-        assert!(worst_case(limits).is_some(), "valid root journal limits");
-        Some(Decision {
-            limits: *limits,
-            reserved,
-            // The header goes straight into the Skein batch. A read-only
-            // store terminal reserves no writes, not even a header slot.
-            writes: List::with_capacity(reserved.writes.saturating_sub(1)),
-            deliveries: Queue::with_capacity(reserved.held),
-            overrun: false,
-            batch: Some(batch),
-        })
+    /// Open the root's uncapped journal before routing an atomic child cohort.
+    /// The private buffers retain the store's per-commit operation edge.
+    pub fn decide(journal: &mut Journal, limits: &Limits) -> Decision {
+        let mut decision = Self::new(limits);
+        decision.batch = Some(journal.decide());
+        decision
     }
 
     /// A replacement at the same key keeps its original position. All child callbacks finish before
@@ -419,7 +394,7 @@ impl Decision {
                 return Ok(());
             }
         }
-        if self.writes.len() >= self.reserved.writes.checked_sub(1).expect("header slot reserved") {
+        if self.writes.len() >= self.limits.writes.checked_sub(1).expect("header slot reserved") {
             self.overrun = true;
             return Err(write);
         }
@@ -535,7 +510,7 @@ impl Decision {
     #[expect(clippy::result_large_err, reason = "a refused assembled output returns ownership")]
     pub(crate) fn carry_delivery(&mut self, limits: &Limits, delivery: Delivery) -> Result<(), Delivery> {
         assert!(*limits == self.limits, "decision uses configured limits");
-        if self.deliveries.len() >= self.reserved.held {
+        if self.deliveries.len() >= self.limits.deliveries {
             self.overrun = true;
             return Err(delivery);
         }
@@ -596,22 +571,16 @@ pub(crate) fn accept_routed(
     mut decision: Decision,
     persist_header: bool,
 ) -> Result<(), Decision> {
-    if decision.overrun {
-        let mut batch = match decision.batch.take() {
-            Some(batch) => batch,
-            None => journal
-                .decision(&JournalRoom { writes: 0, held: 0 })
-                .expect("overrun follows an admitted root decision"),
-        };
-        for _ in 0..=limits.writes {
-            if batch
-                .write(Write::Erase(Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment))))
-                .is_err()
-            {
-                break;
-            }
+    // A decision must fit the store's commit edge even on an uncapped
+    // journal. Fail before accepting any prefix; failed(0) stops even a
+    // journal with no issued commit. Accepting the empty batch then closes
+    // its open decision without emitting anything, including older outputs.
+    let writing = (persist_header && counters.dirty()) || !decision.writes.is_empty();
+    if decision.overrun || (writing && counters.deployment().commits == u64::MAX) {
+        journal.failed(0);
+        if let Some(batch) = decision.batch.take() {
+            journal.accept(batch);
         }
-        journal.accept(batch);
         return Ok(());
     }
     if (decision.batch.is_none() && !takes(journal, limits))
@@ -621,7 +590,6 @@ pub(crate) fn accept_routed(
     {
         return Err(decision);
     }
-    let writing = (persist_header && counters.dirty()) || !decision.writes.is_empty();
     let mut batch = match decision.batch.take() {
         Some(batch) => batch,
         None => journal.decision(&room(limits)).expect("preflight reserved the whole decision"),

@@ -24,7 +24,7 @@ use crate::boundary::{
 use crate::domain::{
     Domain, close, emit, forge_release_ending, internal, journal_outputs, max_out, now, route, save, step_released,
 };
-use crate::limits::{Limits, core_limits, environment_core, route_bound, route_takes};
+use crate::limits::{Limits, core_limits, environment_core};
 use crate::restart::{accept_load, connector_restart_done, load_decision, load_outputs, restart_request};
 use crate::translate::{
     call_needs_input, checked_call, connector_answer, core_call, environment_forge, keep_connector_answer, named_call,
@@ -205,7 +205,8 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             return;
         }
         Event::Store(crate::StoreInput::Switched) => {
-            let mut decision = crate::limits::route_decision(domain, &env.limits).expect("mark route room");
+            domain.settled = None;
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
             save(&mut decision, &env.limits, Write::Wires);
             emit(&mut decision, &env.limits, Delivery::Restart(core::RestartStep::AdoptRuns));
             close(domain, env, decision, out);
@@ -215,7 +216,8 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             domain.work.push(Work::Core(core::Event::ReadLoaded { load, result }));
         }
         Event::Restart { pending } => {
-            let Some(mut decision) = crate::limits::route_decision(domain, &env.limits) else { return };
+            domain.settled = None;
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
             let request = domain.core.restart_begin(pending);
             restart_request(domain, env, &mut decision, request);
             route_into(domain, env, &mut decision);
@@ -238,11 +240,6 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
                 domain.work.push(Work::Core(event));
             }
         }
-    }
-    // Connector terminals already belong to the root's bounded work queue.
-    // Keep them there until the journal can admit the entire child route.
-    if !route_takes(domain) {
-        return;
     }
     let decision = route(domain, env);
     close(domain, env, decision, out);
@@ -289,10 +286,7 @@ pub(crate) fn route_core_requests(
 }
 
 pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
-    for _ in 0..route_bound(&env.limits).expect("valid route bound") {
-        let Some(work) = domain.work.pop() else {
-            break;
-        };
+    while let Some(work) = domain.work.pop() {
         match work {
             Work::SwitchChecked => {
                 if domain.core.restart_checked() && domain.forge.reconciliation().is_ok() {
@@ -367,11 +361,6 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::EndedFailed { waiter } => crate::archive::ended_failed(domain, waiter),
         }
     }
-    assert!(
-        domain.work.is_empty(),
-        "finite synchronous root handoffs finish within the configured route bound: {:?}",
-        domain.work
-    );
 }
 
 pub(crate) fn call_answer(domain: &Domain, key: CallKey) -> Option<CallAnswer> {

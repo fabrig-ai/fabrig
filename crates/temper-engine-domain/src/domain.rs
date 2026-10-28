@@ -3,8 +3,7 @@ use crate::boundary::{
     Assignment, BriefConnector, BriefSection, Event, Fact, Payload, PreparedWorkspace, Read, Released, Request, Work,
 };
 use crate::limits::{
-    Limits, core_limits, environment_core, payload_slots, root_journal_limits, route_bound, route_decision, route_room,
-    route_takes, run_policy_bound, worst_case,
+    Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, watermark, worst_case,
 };
 use crate::restart::{connector_restarting, request_load};
 use crate::route::{
@@ -38,8 +37,6 @@ pub struct Domain {
     #[cfg(test)]
     pub(crate) empty_resumes: u32,
     pub(crate) limits: Limits,
-    /// Derived once from the configured limits, shared by every admission.
-    pub(crate) route_room: skein_lib::JournalRoom,
     /// Step/fire scratch, priced by `worst_case` and empty between calls.
     scratch: Queue<Request>,
     pub(crate) config: RootConfig,
@@ -349,13 +346,12 @@ impl Domain {
                 &calendar::Limits { projects: limits.authority.projects },
                 config.period_span,
             ),
-            route_room: route_room(limits),
             scratch: Queue::with_capacity(max_out(limits)),
             settled: None,
             settling: crate::settling::Phase::Running,
             #[cfg(test)]
             empty_resumes: 0,
-            journal: Journal::new(&root_journal_limits(limits)),
+            journal: Journal::uncapped(1, 0),
             stop_pending: false,
             door_pass: false,
             door_count: 0,
@@ -403,7 +399,7 @@ impl Domain {
             archive_reads: Slab::with_capacity(limits.loads.loads),
             store_answers: Queue::with_capacity(limits.loads.loads),
             host_calls: Map::with_capacity(limits.fleet.calls),
-            work: Queue::with_capacity(route_bound(limits).expect("valid routes")),
+            work: Queue::uncapped(),
             facts: Queue::with_capacity(crate::limits::FACTS),
             facts_lost: 0,
             pieces_dropped: 0,
@@ -563,11 +559,12 @@ pub(crate) fn internal(number: u64) -> ReplyTo {
 }
 
 pub(crate) fn emit(decision: &mut Decision, limits: &Limits, delivery: Delivery) {
-    decision.carry_delivery(&limits.journal, delivery).expect("whole root decision delivery reserved");
+    // Overrun marks the decision failed; close suppresses the whole cohort.
+    let _refused = decision.carry_delivery(&limits.journal, delivery);
 }
 
 pub(crate) fn save(decision: &mut Decision, limits: &Limits, write: Write) {
-    decision.carry_write(&limits.journal, write).expect("validated bounded root decision record");
+    let _refused = decision.carry_write(&limits.journal, write);
 }
 
 /// Route one admitted input and all synchronous child callbacks in one decision; store terminals
@@ -585,14 +582,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 }
 
 pub(crate) fn admits(domain: &Domain, limits: &Limits) -> bool {
-    route_takes(domain)
+    backlog(domain) < watermark(limits)
         && domain.core.counters.deployment().messages
             <= u64::MAX.checked_sub(u64::from(limits.tasks.tasks)).expect("task count fits u64")
         && domain.work.is_empty()
-        && domain.journal.takes(&skein_lib::JournalRoom {
-            writes: 0,
-            held: limits.journal.deliveries.checked_mul(3).expect("root held reserve bounded"),
-        })
 }
 
 // Whether this close was empty, including the automatic deployment header.
@@ -633,12 +626,17 @@ fn finish_close(
         decision,
         persist_header,
     )
-    .expect("root pressure reserved before child mutation");
+    .expect("root decision uses its configured store edge");
     if let Some(commits) = domain.restored_commits.take() {
         assert!(domain.journal.idle(), "deployment is the first cold-start row");
-        domain.journal = Journal::from_durable(&root_journal_limits(&env.limits), commits);
+        domain.journal = Journal::uncapped(1, commits);
     }
     if domain.journal.stopped() {
+        // Immediate outputs assembled alongside this failed cohort must not
+        // reach the journal's door either.
+        for _ in 0..out.len() {
+            let _discarded = out.pop();
+        }
         out.push(Request::Stop);
         return false;
     }
@@ -780,19 +778,17 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     if domain.journal.stopped() || domain.core.restart_failure().is_some() {
         return;
     }
-    if !domain.store_answers.is_empty() && admits(domain, &env.limits) {
+    if !domain.store_answers.is_empty() && domain.work.is_empty() {
         let event = domain.store_answers.pop().expect("queued store answer");
         step_routed(domain, env, event, out);
         return;
     }
     if !domain.work.is_empty() {
-        if route_takes(domain) {
-            let decision = route(domain, env);
-            close(domain, env, decision, out);
-        }
+        let decision = route(domain, env);
+        close(domain, env, decision, out);
         return;
     }
-    if !route_takes(domain) {
+    if backlog(domain) >= watermark(&env.limits) {
         return;
     }
     // From the stop on, nothing that would make a commit is taken: connector
@@ -800,15 +796,16 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     // `domain/engine.md`, 6.1).
     if domain.core.stopping() {
         if domain.core.finish_owed() {
-            let decision = route_decision(domain, &env.limits).expect("stopping finishing room checked");
+            domain.settled = None;
+            let decision = Decision::decide(&mut domain.journal, &env.limits.journal);
             finish_close(domain, env, decision, out, true);
         }
         return;
     }
     if domain.ready() || connector_restarting(domain) {
         if domain.forge.is_ready() {
-            let mut decision =
-                route_decision(domain, &env.limits).expect("journal room checked before connector continuation");
+            domain.settled = None;
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
             let mut child = Queue::with_capacity(forge::max_out(&env.limits.forge));
             forge::resume(&mut domain.forge, &environment_forge(env), &mut child);
             forge_route::outputs(domain, env, &mut decision, &mut child);
@@ -836,7 +833,8 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
                 return;
             }
         }
-        let mut decision = route_decision(domain, &env.limits).expect("journal room checked before fleet continuation");
+        domain.settled = None;
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         let routed = jig_domain_core::resume_fleet(&mut domain.core, &environment_core(env));
         let fleet_empty = only_decided(&routed);
         route_core_requests(domain, env, &mut decision, routed);
@@ -872,7 +870,8 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     if !admits(domain, &env.limits) {
         return;
     }
-    let mut decision = route_decision(domain, &env.limits).expect("timer route admitted before child mutation");
+    domain.settled = None;
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     for timer in [jig_domain_core::Timer::Account, jig_domain_core::Timer::View] {
         let routed = jig_domain_core::fire(&mut domain.core, &environment_core(env), timer);
         route_core_requests(domain, env, &mut decision, routed);
@@ -911,7 +910,8 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
 }
 
 pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>) -> Decision {
-    let mut decision = route_decision(domain, &env.limits).expect("journal room checked before routing children");
+    domain.settled = None;
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     route_into(domain, env, &mut decision);
     decision
 }
@@ -923,10 +923,8 @@ pub(crate) fn forge_release_ending(ending: tasks::Ending) -> forge::ReleaseEndin
         tasks::Ending::Cancelled { .. } => forge::ReleaseEnding::Cancelled,
     }
 }
-/// A released continuation is one newly admitted step, just like an input.
-/// When the route is full the journal returns it to iterate without changing a child.
+/// A released continuation advances admitted work and is always taken.
 pub(crate) fn step_released(domain: &mut Domain, env: &Env<Limits>, released: Released, out: &mut Queue<Request>) {
-    domain.settled = None;
     // Retire the notification while stopping. The entry stays durable for
     // the next start's outbox settlement; returning it would retry forever.
     if let Delivery::ForgeCommitted { .. } = released.0
@@ -934,10 +932,8 @@ pub(crate) fn step_released(domain: &mut Domain, env: &Env<Limits>, released: Re
     {
         return;
     }
-    let Some(mut decision) = route_decision(domain, &env.limits) else {
-        out.push(Request::ToChild(released));
-        return;
-    };
+    domain.settled = None;
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     released_into(domain, env, &mut decision, released, out);
     route_into(domain, env, &mut decision);
     close(domain, env, decision, out);

@@ -10,10 +10,10 @@ const WATCHER: skein_lib::Token = skein_lib::Token::new(30);
 const SIGN_IN: u64 = 10;
 
 #[test]
-fn a_released_continuation_keeps_its_owner_when_the_journal_is_full() {
+fn released_continuations_are_taken_in_arrival_order_at_the_watermark() {
     let (mut domain, env) = root();
     for turn in 1..=env.limits.journal.commits {
-        let mut decision = crate::decision::Decision::new(&env.limits.journal);
+        let mut decision = crate::decision::Decision::decide(&mut domain.journal, &env.limits.journal);
         decision.write(&env.limits.journal, super::turn(turn, 1)).unwrap();
         crate::decision::accept_pending(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision)
             .unwrap();
@@ -24,33 +24,20 @@ fn a_released_continuation_keeps_its_owner_when_the_journal_is_full() {
     {
         last = number;
     }
-    assert!(!crate::limits::route_takes(&domain));
+    assert!(crate::limits::backlog(&domain) >= crate::limits::watermark(&env.limits));
 
     let older = Event::Released(crate::Released(crate::Delivery::Fleet(jig_domain_fleet::Event::TurnKept {
         run: skein_lib::Token::new(1),
         attempt: skein_lib::Token::new(1),
         turn: 1,
     })));
-    let returned = crate::try_step(&mut domain, &env, older)
-        .expect_err("the owner keeps its older turn callback ahead of a later terminal acknowledgement");
-    let Event::Released(crate::Released(crate::Delivery::Fleet(jig_domain_fleet::Event::TurnKept {
-        run,
-        attempt,
-        turn,
-    }))) = &returned
-    else {
-        panic!("the same continuation returns: {returned:?}");
-    };
-    assert_eq!((*run, *attempt, *turn), (skein_lib::Token::new(1), skein_lib::Token::new(1), 1));
-    assert!(domain.work.is_empty(), "a refusal changes no child");
-
-    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number: last, fill: 0 })).unwrap();
-    crate::try_step(&mut domain, &env, returned).unwrap();
+    crate::try_step(&mut domain, &env, older).expect("admitted continuation is always taken");
     let younger = Event::Released(crate::Released(crate::Delivery::Fleet(jig_domain_fleet::Event::Acknowledge {
         run: skein_lib::Token::new(1),
         attempt: skein_lib::Token::new(1),
     })));
     crate::try_step(&mut domain, &env, younger).unwrap();
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Committed { number: last, fill: 0 })).unwrap();
     assert!(!domain.journal.stopped());
 }
 
@@ -410,7 +397,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
     use jig_domain_tasks as tasks;
     let (mut domain, env) = watched_root();
     let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
-    let mut decision = crate::limits::route_decision(&mut domain, &env.limits).unwrap();
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     let core_env = crate::limits::environment_core(&env);
     let mut authority = core::task_authority(&domain.core.authority.policy(1).unwrap().ceiling);
     authority.budget.spend = 100;
@@ -548,7 +535,7 @@ fn ordinary_root_fire_expires_sign_ins_once_by_either_clock() {
 #[test]
 fn refused_people_timer_stays_due_without_child_mutation_until_room_returns() {
     let (mut domain, mut env) = watched_root();
-    // Three actual header decisions fill this fixture's three-commit journal.
+    // Header decisions bring the backlog exactly to the watermark.
     for _ in 0..env.limits.journal.commits {
         crate::fresh(&mut domain.core.counters, crate::Family::Message).unwrap();
         crate::try_step(&mut domain, &env, Event::Resume).unwrap();

@@ -4,7 +4,7 @@ use crate::boundary::{
 };
 use crate::domain::{Domain, max_out};
 use crate::route::{LandingRule, forge_route, host_route};
-use crate::{CallKey, Decision, JournalLimits, Output, loads};
+use crate::{CallKey, JournalLimits, Output, loads};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
@@ -27,7 +27,7 @@ pub const TRANSCRIPT_TAIL_BYTES: u32 = 2048;
 
 /// Root startup bounds, supplied by configuration and immutable at every step
 /// (domain/root.md, 10). `worst_case` checks the cross-child route, page,
-/// journal and payload capacities before `Domain::new` allocates fixed room.
+/// and payload capacities before `Domain::new` allocates participating state.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     /// Ordered commit/write/delivery room, including all synchronous child routes.
@@ -88,12 +88,6 @@ pub struct BriefBudgets {
     pub attempts: u32,
     pub plan: u32,
     pub notes: u32,
-}
-
-pub(crate) fn root_journal_limits(limits: &Limits) -> skein_lib::JournalLimits {
-    let mut journal = crate::journal_limits(&limits.journal);
-    journal.now = max_out(limits);
-    journal
 }
 
 pub(crate) fn environment_core(env: &Env<Limits>) -> Env<jig_domain_core::Limits> {
@@ -192,7 +186,9 @@ pub(crate) fn payload_slots(limits: &Limits) -> Option<u32> {
         .checked_add(limits.fleet.calls.checked_mul(2)?)
 }
 
-pub(crate) fn route_bound(limits: &Limits) -> Option<u32> {
+// Each child's largest output cohort: an estimate of the work queue's peak,
+// until exact figures go. Used for pricing only.
+pub(crate) fn work_estimate(limits: &Limits) -> Option<u32> {
     let routes = tasks::max_out(&limits.tasks)
         .checked_mul(8)?
         .checked_add(people::max_out(&limits.people).checked_mul(4)?)?
@@ -208,28 +204,18 @@ pub(crate) fn route_bound(limits: &Limits) -> Option<u32> {
     Some(routes.max(jig_domain_core::settings::writes_worst_case(&core_limits(limits))?))
 }
 
-// The walking root drains its pending callbacks in the same decision as a newly
-// admitted event. Thus any event may reach the full child route. The bound sums
-// each child's maximum output cohort, the retained callbacks, call records and
-// the deployment header; the configured journal may have more per-commit room.
-
-pub(crate) fn route_room(limits: &Limits) -> skein_lib::JournalRoom {
-    skein_lib::JournalRoom {
-        writes: route_bound(limits)
-            .expect("validated route bound")
-            .checked_add(limits.call_records)
-            .expect("validated call record bound"),
-        held: limits.journal.deliveries,
-    }
+/// The root's watermark: new external work waits while the backlog is at
+/// or past it (skein's draft dynamic-memory.md, 4.4). The journal's commit
+/// count is reused so no Limits literal changes and pacing stays close to
+/// the reserved journal's unanswered commits.
+pub(crate) fn watermark(limits: &Limits) -> u64 {
+    u64::from(limits.journal.commits)
 }
 
-pub(crate) fn route_takes(domain: &Domain) -> bool {
-    domain.journal.takes(&domain.route_room)
-}
-
-pub(crate) fn route_decision(domain: &mut Domain, limits: &Limits) -> Option<Decision> {
-    domain.settled = None;
-    Decision::reserve_room(&mut domain.journal, &limits.journal, domain.route_room)
+/// What the root holds of admitted work, in entries (the draft's 4.1):
+/// the journal's backlog, the work queue and the queued store answers.
+pub(crate) fn backlog(domain: &Domain) -> u64 {
+    domain.journal.backlog() + u64::from(domain.work.len()) + u64::from(domain.store_answers.len())
 }
 
 /// Count participating child state, fixed handoffs, decoded input and all simultaneously retained
@@ -258,7 +244,7 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let settings_row = jig_domain_core::settings::revision_worst_case(&core_limits(limits))?;
     let settings_writes = u64::from(limits.journal.writes)
         .checked_mul(2)?
-        .checked_add(u64::from(route_bound(limits)?))?
+        .checked_add(u64::from(work_estimate(limits)?))?
         .checked_mul(settings_row)?;
     // Change words belong to tasks, independently of the forge operation bound.
     let forge_bytes = forge::worst_case(&limits.forge)?.checked_add(
@@ -286,28 +272,13 @@ pub fn worst_case(limits: &Limits) -> Option<u64> {
     let permission_bytes = Map::<u32, Box<[people::PermissionRole]>>::worst_case(limits.authority.projects)?
         .checked_add(u64::from(limits.authority.projects).checked_mul(u64::from(limits.journal.transcript_bytes))?)?;
     let load_bytes = loads::worst_case(&limits.loads)?;
-    let routes = route_bound(limits)?;
+    let routes = work_estimate(limits)?;
     let tool_bytes = u64::from(limits.tasks.batch).checked_mul(row_bound(limits)?)?;
     if limits.forge.named_calls < limits.call_records
-        || limits.journal.writes < routes
         || limits.call_records == 0
-        || limits.call_records > limits.journal.writes.checked_sub(routes)?
-        || limits.journal.deliveries
-            < limits
-                .tasks
-                .tasks
-                .checked_mul(4)?
-                .checked_add(8)?
-                .checked_add(limits.people.pending.checked_mul(limits.people.waiters)?)?
         || limits.loads.loads < 2
         || limits.loads.rows < 2
-        || limits.journal.held < limits.journal.deliveries.checked_mul(3)?
-        || limits.journal.deliveries
-            < limits.fleet.workers.checked_mul(fleet::max_out(&limits.fleet))?.checked_add(1)?
-        || limits.loads.rows.checked_add(limits.fleet.workers)? > routes
         || limits.journal.result_bytes < limits.brief.brief_bytes
-        || limits.journal.deliveries < limits.brief.sections
-        || limits.journal.deliveries < limits.tasks.saved_resources
         || limits.forge.client.op_bytes < limits.tasks.result_bytes
         || limits.journal.result_bytes < limits.tasks.result_bytes
         || limits.journal.result_bytes < limits.people.words

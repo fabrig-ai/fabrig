@@ -5,7 +5,7 @@ use crate::archive::{
 };
 use crate::boundary::{Request, Work};
 use crate::domain::{Domain, close, emit};
-use crate::limits::{Limits, core_limits, environment_core, route_decision};
+use crate::limits::{Limits, core_limits, environment_core};
 use crate::route::{escalation, route_core_requests, route_into};
 use crate::{Decision, Delivery, Key, Range, Record, loads};
 use alloc::boxed::Box;
@@ -14,13 +14,10 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Token};
 use temper_engine_domain_forge as forge;
 
-/// Store transport terminals are read-only; cold rows reserve their full restore route.
+/// Store terminals always open a decision, including the cold restore route.
 pub(crate) fn load_decision(domain: &mut Domain, limits: &Limits) -> Option<Decision> {
-    if domain.startup_range.is_some() {
-        route_decision(domain, limits)
-    } else {
-        Decision::reserve_room(&mut domain.journal, &limits.journal, skein_lib::JournalRoom { writes: 0, held: 0 })
-    }
+    domain.settled = None;
+    Some(Decision::decide(&mut domain.journal, &limits.journal))
 }
 
 pub(crate) fn accept_load(domain: &mut Domain, env: &Env<Limits>, decision: Option<Decision>) {

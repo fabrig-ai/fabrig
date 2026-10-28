@@ -210,7 +210,7 @@ pub fn limits() -> engine::Limits {
         },
         forge: FORGE_LIMITS,
     };
-    limits.journal.writes = crate::limits::route_bound(&limits).unwrap().checked_add(limits.call_records).unwrap();
+    limits.journal.writes = crate::limits::work_estimate(&limits).unwrap().checked_add(limits.call_records).unwrap();
     limits
 }
 
@@ -546,7 +546,7 @@ pub fn root_with_config_and_limits(
     // In production the page's own write-free decision takes the header's
     // commit count while the journal is still idle.
     if let Some(commits) = root.restored_commits.take() {
-        root.journal = engine::Journal::from_durable(&crate::limits::root_journal_limits(&env.limits), commits);
+        root.journal = engine::Journal::uncapped(1, commits);
     }
     for _ in 0..RESTORE_PASSES {
         match request {
