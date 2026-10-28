@@ -3,7 +3,10 @@
 - **main moves only through agents' `land`,** which runs the gate,
   `scripts/check.sh`, and pushes. Do not run the gate yourself before
   `land`. A change to Markdown
-  files only lands with `land --docs`. Build and test through `heavy`, as
+  files only lands with `land --docs`, except paths in `scripts/gated-docs`:
+  `docs/design/protocol/store.md` is compiled into its words tests, so those
+  changes use `land`. Changes to the declaration itself use `land` too.
+  Build and test through `heavy`, as
   agents' `roles/implementer.md` says.
 - The default test suite (unit tests and the worlds' focused tests under
   `tests/`) takes at most 30 seconds (15 seconds before the user's doubling
