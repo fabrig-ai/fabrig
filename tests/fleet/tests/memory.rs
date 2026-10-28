@@ -572,21 +572,22 @@ fn two_standing_refusals_with_no_history_retain_no_additional_heap() {
         message_bytes: 10,
         ..jig_fleet_world::fixtures::model_needs()
     });
+    let hello = |channel, bounds| Event::Hello {
+        channel,
+        worker: 0,
+        hello: Hello { bounds, stop_bound: Duration::ZERO, slots: 1, workstreams: Box::new([]), hosting: Box::new([]) },
+    };
+    // Duplicate endpoints warm the facts and output queues without a standing refusal.
+    world.step(hello(
+        Token::new(3),
+        jig_domain_fleet::Bounds { program_endpoints: Box::new([0, 0]), ..jig_fleet_world::fixtures::bounds() },
+    ));
     let before = world.meter.held();
     for channel in [Token::new(0), Token::new(1), Token::new(2)] {
-        world.step(Event::Hello {
-            channel,
-            worker: 0,
-            hello: Hello {
-                bounds: jig_domain_fleet::Bounds { message_bytes: 9, ..jig_fleet_world::fixtures::bounds() },
-                stop_bound: Duration::ZERO,
-                slots: 1,
-                workstreams: Box::new([]),
-                hosting: Box::new([]),
-            },
-        });
+        world
+            .step(hello(channel, jig_domain_fleet::Bounds { message_bytes: 9, ..jig_fleet_world::fixtures::bounds() }));
     }
-    assert_eq!(world.meter.held(), before, "standing facts occupy the Domain's two inline options");
+    assert_eq!(world.meter.held(), before, "standing refusals retain no heap beyond the warmed queues");
     assert!(world.domain.standing_refusal(jig_domain_fleet::Kinds::Engine).is_some());
     assert!(world.domain.standing_refusal(jig_domain_fleet::Kinds::Workers).is_some());
     assert!(world.domain.hello_refusals().is_empty());
