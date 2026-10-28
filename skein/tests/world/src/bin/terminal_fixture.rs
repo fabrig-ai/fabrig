@@ -123,9 +123,6 @@ impl Host for Terminal {
     fn is_empty(&self) -> bool {
         self.io.is_empty() && self.lines.is_empty() && self.requests.is_empty() && self.events.is_empty()
     }
-    fn worst_case(&self) -> u64 {
-        64 * 1024
-    }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.limits).expect("small limits")
     }

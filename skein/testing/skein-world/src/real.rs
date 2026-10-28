@@ -49,7 +49,8 @@ pub struct Outcome<P> {
     /// The processes as the run left them, settled.
     pub procs: Vec<P>,
     pub killed: Vec<Killed>,
-    /// Per-process peak and worst case, in surviving admission order.
+    /// Per-process peak and scenario ceiling, in surviving admission order;
+    /// `u64::MAX` when checked without a ceiling.
     pub heap: Option<Vec<(u64, u64)>>,
     /// Bytes each surviving process must release when dropped.
     pub held: Option<Vec<i64>>,
@@ -134,7 +135,8 @@ pub fn run<P: Host, R: Referee<P>>(procs: Vec<P>, referee: R, clock: &Clock, pat
 pub struct Killed {
     pub host: usize,
     pub exit: Exit,
-    /// Peak and bound after exact metered release, when checked.
+    /// Peak and scenario ceiling after exact metered release, when checked;
+    /// `u64::MAX` when checked without a ceiling.
     pub heap: Option<(u64, u64)>,
 }
 
@@ -199,11 +201,20 @@ impl<P: Host, R: Referee<P>> World<P, R> {
         Self::new_controlled_checked(|_| referee)
     }
 
+    /// Starts a checked world with a scenario ceiling on each process's peak.
+    /// Build every root inside its spawn closure (testing-strategy.md, 6).
+    #[must_use]
+    pub fn new_within(referee: R, ceiling: u64) -> CheckedWorld<P, R> {
+        let mut world = Self::new(referee);
+        world.heap = Some(Heap::new(Some(ceiling)));
+        CheckedWorld(world)
+    }
+
     /// Constructs a checked world with referee-controlled signal injection.
     #[must_use]
     pub fn new_controlled_checked<F: FnOnce(Controls) -> R>(make_referee: F) -> CheckedWorld<P, R> {
         let mut world = Self::new_controlled(make_referee);
-        world.heap = Some(Heap::new());
+        world.heap = Some(Heap::new(None));
         CheckedWorld(world)
     }
 
@@ -254,7 +265,7 @@ impl<P: Host, R: Referee<P>> World<P, R> {
     pub fn spawn_with_fds<F: FnOnce() -> P>(&mut self, fds: Vec<Fd>, make: F) -> usize {
         let host = self.procs.len();
         let proc = match &mut self.heap {
-            Some(heap) => heap.admit(make, P::worst_case),
+            Some(heap) => heap.admit(make),
             None => make(),
         };
         self.procs.push(proc);
@@ -934,7 +945,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             Ok(pipes) => {
                 let inherited = Inherited { pipes: pipes.pipes, roots, appends, signal: pipes.signal };
                 let proc = match &mut self.world.heap {
-                    Some(heap) => heap.admit(|| make(spawn, &inherited), P::worst_case),
+                    Some(heap) => heap.admit(|| make(spawn, &inherited)),
                     None => make(spawn, &inherited),
                 };
                 assert!(proc.operations() <= operations, "hosted operations fit their provision");
@@ -1261,9 +1272,6 @@ mod tests {
         }
         fn is_empty(&self) -> bool {
             true
-        }
-        fn worst_case(&self) -> u64 {
-            0
         }
         fn operations(&self) -> u32 {
             2

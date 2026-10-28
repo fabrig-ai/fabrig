@@ -5,7 +5,7 @@
 //! - [`Script`]: a host that submits its acts one at a time, each once the
 //!   last completed, records what it receives and when, and closes every
 //!   descriptor it made once its acts are done or one fails. It may also
-//!   hold heap past its worst case, or leak, for the checks that must catch
+//!   hold heap past a scenario's ceiling, or leak, for the checks that must catch
 //!   it.
 //! - [`Judge`]: a referee of [`Expect`]s over the scripts.
 //!
@@ -62,13 +62,12 @@ pub struct Script {
     submissions: Queue<Submit>,
     /// What it received, and when.
     pub received: Vec<(Time, Box<[u8]>)>,
-    /// Bytes it allocates and keeps in its first turn, past its worst case
+    /// Bytes it allocates and keeps in its first turn, for ceiling checks
     /// if the test says so.
     hog: usize,
     held: Vec<Box<[u8]>>,
     /// Bytes it leaks in its first turn.
     leak: usize,
-    worst: u64,
     /// Calls to this script's iterate, including idle turns.
     pub turns: u64,
     printer: Option<skein_sim_world::Printer>,
@@ -89,10 +88,6 @@ pub struct UsageBatch {
     pub before_growth: u64,
 }
 
-/// The worst case a script declares: room for its queues, what it receives
-/// and its bookkeeping, with no care for precision.
-pub const WORST: u64 = 64 * 1024;
-
 impl Script {
     #[must_use]
     pub fn new(start: Time, acts: &[Act]) -> Script {
@@ -111,7 +106,6 @@ impl Script {
             hog: 0,
             held: Vec::new(),
             leak: 0,
-            worst: WORST,
             turns: 0,
             printer: None,
             batch: None,
@@ -147,13 +141,6 @@ impl Script {
     #[must_use]
     pub fn printing(mut self, printer: skein_sim_world::Printer) -> Script {
         self.printer = Some(printer);
-        self
-    }
-
-    /// Declares the heap bound returned by this host.
-    #[must_use]
-    pub fn with_heap_bound(mut self, bound: u64) -> Script {
-        self.worst = bound;
         self
     }
 
@@ -335,10 +322,6 @@ impl Host for Script {
 
     fn is_empty(&self) -> bool {
         self.done && self.waiting.is_none() && self.completions.is_empty() && self.submissions.is_empty()
-    }
-
-    fn worst_case(&self) -> u64 {
-        self.worst
     }
 
     fn operations(&self) -> u32 {

@@ -93,7 +93,8 @@ impl<P, M, H> Debug for World<P, M, H> {
 pub struct Killed {
     pub pid: Pid,
     pub exit: Exit,
-    /// Its separate peak and worst case, after exact ownership was checked on drop.
+    /// Its separate peak and scenario ceiling, after exact ownership was checked
+    /// on drop; `u64::MAX` when checked without a ceiling.
     pub heap: Option<(u64, u64)>,
 }
 
@@ -260,7 +261,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
     }
 
     fn admit<F: FnOnce() -> P>(&mut self, pid: Pid, hosted: Option<usize>, make: F) -> usize {
-        let proc = self.meter.admit(make, P::worst_case);
+        let proc = self.meter.admit(make);
         self.next_host = self.next_host.checked_add(1).expect("bounded admission count");
         self.pids.push(pid);
         self.procs.push(proc);
@@ -584,7 +585,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
             let inherited = self.restart_inherited(pid, &declaration.roots, &declaration.appends);
             let old = self.procs.remove(at);
             let make = declaration.make;
-            let proc = self.meter.restart(at, old, || make(&inherited), P::worst_case);
+            let proc = self.meter.restart(at, old, || make(&inherited));
             self.procs.insert(at, proc);
             *self.pids.get_mut(at).expect("same process index") = pid;
             *self.finished.get_mut(at).expect("same process index") = false;

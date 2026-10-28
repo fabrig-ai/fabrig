@@ -51,10 +51,10 @@ pub fn spawn_only(fd: skein_io::kernel::Fd) -> Script {
 
 /// An independently rooted simulated world, before admission.
 #[must_use]
-pub fn rooted(seed: u64, config: Config) -> (World<Script, Judge, RootFiles>, Handle) {
+pub fn rooted(seed: u64, config: Config, memory: Memory) -> (World<Script, Judge, RootFiles>, Handle) {
     let mut machine = RootFiles::new();
     let root = machine.parent_root();
-    (World::new(seed, config, Judge, Memory::Checked).with_machine(machine), root)
+    (World::new(seed, config, Judge, memory).with_machine(machine), root)
 }
 
 /// Runs a hosted startup with a parent that exchanges, kills, or only spawns.
@@ -66,8 +66,9 @@ pub fn launched(
     roots: StartupRoots,
     appends: StartupAppends,
     story: Story,
+    memory: Memory,
 ) -> Outcome<Script, RootFiles> {
-    let (mut world, root) = rooted(seed, config);
+    let (mut world, root) = rooted(seed, config, memory);
     world.host_startup(hosted(make), roots, appends);
     world.spawn_root(root, |fd| match story {
         Story::Exchange => parent(fd, b".", false),

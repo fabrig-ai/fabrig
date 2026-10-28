@@ -39,8 +39,11 @@ fn waiting(_spawn: &Spawn, inherited: &Inherited) -> Script {
     script
 }
 
-fn run(make: fn(&Spawn, &Inherited) -> Script, acts: &[Act]) -> real::CheckedOutcome<Script> {
-    let mut world = real::World::new_checked(Judge);
+fn run(make: fn(&Spawn, &Inherited) -> Script, acts: &[Act], ceiling: Option<u64>) -> real::CheckedOutcome<Script> {
+    let mut world = match ceiling {
+        Some(ceiling) => real::World::new_within(Judge, ceiling),
+        None => real::World::new_checked(Judge),
+    };
     world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make, instances: 1, operations: 8 });
     let root = open_root(std::path::Path::new(".")).expect("startup root");
     world.spawn_with_fds(vec![root], || Script::parent(root, acts));
@@ -49,14 +52,18 @@ fn run(make: fn(&Spawn, &Inherited) -> Script, acts: &[Act]) -> real::CheckedOut
 
 #[test]
 fn normal_hosted_exit_preserves_separate_peaks_and_exact_final_release() {
-    let outcome = run(exchange, &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait]);
+    // Each real exchange process: measured peak 2,256 B plus 25%, rounded up.
+    const CEILING: u64 = 2_900;
+    let outcome =
+        run(exchange, &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait], Some(CEILING));
     assert_eq!(outcome.procs[0].received, b"reply");
     assert_eq!(outcome.procs[1].received, b"hello");
     assert_eq!(outcome.procs[0].child_exit, Some(Exit::Code(0)));
     let peaks = outcome.heap.as_ref().expect("checked processes");
     assert_eq!(peaks.len(), 2);
     for (peak, bound) in peaks {
-        assert!(*peak > 0 && peak <= bound);
+        assert_eq!(*bound, CEILING);
+        assert!(*peak > 0 && *peak <= CEILING);
     }
     assert_eq!(outcome.held.as_ref().expect("final ownership ledger").len(), 2);
     drop(outcome);
@@ -64,16 +71,20 @@ fn normal_hosted_exit_preserves_separate_peaks_and_exact_final_release() {
 
 #[test]
 fn kill_returns_pending_buffers_before_exact_child_release() {
+    // Each process through the kill: measured peak 62,528 B plus 25%, rounded up.
+    const CEILING: u64 = 79_000;
     for _ in 0..16 {
         let outcome = run(
             waiting,
             &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Signal(Signal::Kill), Act::Read(1), Act::Wait],
+            Some(CEILING),
         );
         assert_eq!(outcome.procs.len(), 1);
         assert_eq!(outcome.procs[0].child_exit, Some(Exit::Signal(9)));
         assert_eq!(outcome.killed.len(), 1);
         let (peak, bound) = outcome.killed[0].heap.expect("killed child checked on release");
-        assert!(peak >= 60 * 1024 && peak <= bound);
+        assert_eq!(bound, CEILING);
+        assert!(peak >= 60 * 1024 && peak <= CEILING);
         assert_eq!(outcome.heap.as_ref().expect("surviving root metered").len(), 1);
         drop(outcome);
     }
@@ -86,9 +97,11 @@ fn hogging(_spawn: &Spawn, inherited: &Inherited) -> Script {
 }
 
 #[test]
-#[should_panic(expected = "past its worst case")]
-fn hosted_iteration_cannot_exceed_its_own_bound() {
-    drop(run(hogging, &[Act::Spawn, Act::Read(1), Act::Wait]));
+#[should_panic(expected = "past its scenario's ceiling")]
+fn hosted_iteration_cannot_exceed_its_scenarios_ceiling() {
+    // Below the child's 64 KiB hog, above its construction peak.
+    const CEILING: u64 = 32 * 1024;
+    drop(run(hogging, &[Act::Spawn, Act::Read(1), Act::Wait], Some(CEILING)));
 }
 
 fn leaky(_spawn: &Spawn, inherited: &Inherited) -> Script {
@@ -101,7 +114,7 @@ fn leaky(_spawn: &Spawn, inherited: &Inherited) -> Script {
 #[test]
 #[should_panic(expected = "must release exactly its own metered heap")]
 fn settled_child_leak_is_detected_at_final_drop() {
-    drop(run(leaky, &[Act::Spawn, Act::Read(1), Act::Wait]));
+    drop(run(leaky, &[Act::Spawn, Act::Read(1), Act::Wait], None));
 }
 
 fn leaky_killed(_spawn: &Spawn, inherited: &Inherited) -> Script {
@@ -112,13 +125,15 @@ fn leaky_killed(_spawn: &Spawn, inherited: &Inherited) -> Script {
 #[test]
 #[should_panic(expected = "a leak")]
 fn killed_child_leak_is_detected_after_kernel_settlement() {
-    drop(run(leaky_killed, &[Act::Spawn, Act::Signal(Signal::Kill), Act::Read(1), Act::Wait]));
+    drop(run(leaky_killed, &[Act::Spawn, Act::Signal(Signal::Kill), Act::Read(1), Act::Wait], None));
 }
 
 #[test]
-#[should_panic(expected = "past its worst case")]
-fn root_construction_is_inside_its_meter() {
-    let mut world = real::World::new_checked(Judge);
+#[should_panic(expected = "past its scenario's ceiling")]
+fn root_construction_cannot_exceed_its_scenarios_ceiling() {
+    // Construction holds 64 KiB; the scenario permits half of it.
+    const CEILING: u64 = 32 * 1024;
+    let mut world = real::World::new_within(Judge, CEILING);
     world.spawn(|| {
         let mut script = Script::new(&[]);
         script.held = vec![0; 64 * 1024].into_boxed_slice();

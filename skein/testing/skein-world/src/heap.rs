@@ -1,9 +1,10 @@
 //! Memory at every iteration (simulator.md, 5; testing-strategy.md, 6).
 //!
-//! The harness checks each hosted process's heap against its own worst
-//! case. One thread, one heap: a process's part is what grew within the
-//! calls that run its code, metered with a [`Span`], at its peak within each
-//! call: making it, delivering into its own containers, iterating and
+//! The harness meters each hosted process's heap and checks it against the
+//! scenario's ceiling when one is named. One thread, one heap: a process's
+//! part is what grew within the calls that run its code, metered with a
+//! [`Span`], at its peak within each call: making it, delivering into its
+//! own containers, iterating and
 //! draining it, and destroying it. What the harness pushes into a process's
 //! containers is metered inside that process's span, including queue growth.
 //! Pops of its submissions stay outside: a queue never shrinks, so popping
@@ -27,9 +28,12 @@ use skein_heap::{Grown, Span};
 /// counting allocator its global allocator can (testing.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Memory {
-    /// The heap checked at every iteration; the world fails to start unless
-    /// the counting allocator counts.
+    /// Checked at every iteration: what each process holds, its release on
+    /// drop, and its peak, reported; no ceiling. The allocator must count.
     Checked,
+    /// Checked as above, and each process stays within this scenario ceiling
+    /// at every iteration (testing-strategy.md, 6).
+    Within(u64),
     /// No check: the system allocator.
     Unchecked,
 }
@@ -38,6 +42,7 @@ pub enum Memory {
 #[derive(Debug)]
 pub(crate) struct Heap {
     procs: Vec<Held>,
+    ceiling: Option<u64>,
 }
 
 /// One process's heap.
@@ -47,16 +52,12 @@ struct Held {
     now: i64,
     /// The most it held at once.
     most: i64,
-    /// Its worst case.
-    bound: i64,
-    /// The largest provision across this process's incarnations, for reports.
-    largest_bound: i64,
 }
 
 impl Heap {
     /// The processes' heap, from nothing, once the counting allocator is seen
     /// to count.
-    pub(crate) fn new() -> Heap {
+    pub(crate) fn new(ceiling: Option<u64>) -> Heap {
         let span = Span::start();
         let probe = hint::black_box(Box::new([0_u8; 64]));
         assert!(
@@ -64,18 +65,16 @@ impl Heap {
             "a world that checks memory runs under the counting allocator: #[global_allocator] static HEAP: skein_heap::Counting"
         );
         drop(probe);
-        Heap { procs: Vec::new() }
+        Heap { procs: Vec::new(), ceiling }
     }
 
-    /// Makes the next process, metered, and admits it with its worst case:
-    /// what it holds once made must be within it.
-    pub(crate) fn admit<T, F: FnOnce() -> T>(&mut self, make: F, worst_case: fn(&T) -> u64) -> T {
+    /// Makes the next process, metered, and checks its construction peak
+    /// against the scenario ceiling, when named.
+    pub(crate) fn admit<T, F: FnOnce() -> T>(&mut self, make: F) -> T {
         let span = Span::start();
         let proc = make();
         let grown = span.end();
-        // A bound past i64::MAX is no bound, including a forward of NO_BOUND.
-        let bound = i64::try_from(worst_case(&proc)).unwrap_or(i64::MAX);
-        self.procs.push(Held { now: 0, most: 0, bound, largest_bound: bound });
+        self.procs.push(Held { now: 0, most: 0 });
         let at = self.procs.len().checked_sub(1).expect("just pushed");
         self.check(at, grown);
         proc
@@ -83,7 +82,7 @@ impl Heap {
 
     /// Runs one of process `at`'s calls, metered: what the heap grew by is
     /// the process's, and the most it held at once within the call must be
-    /// within its worst case.
+    /// within the scenario ceiling, when named.
     pub(crate) fn around<T, F: FnOnce() -> T>(&mut self, at: usize, call: F) -> T {
         let span = Span::start();
         let result = call();
@@ -103,14 +102,11 @@ impl Heap {
                 held.now
             ));
         }
-        (
-            u64::try_from(held.most).expect("a nonnegative peak"),
-            u64::try_from(held.largest_bound).expect("a nonnegative bound"),
-        )
+        (u64::try_from(held.most).expect("a nonnegative peak"), self.ceiling.unwrap_or(u64::MAX))
     }
 
     /// Drops a cut process and meters its replacement in the same slot.
-    pub(crate) fn restart<T, F: FnOnce() -> T>(&mut self, at: usize, proc: T, make: F, worst_case: fn(&T) -> u64) -> T {
+    pub(crate) fn restart<T, F: FnOnce() -> T>(&mut self, at: usize, proc: T, make: F) -> T {
         let old = *self.procs.get(at).expect("a process admitted");
         let span = Span::start();
         drop(proc);
@@ -122,23 +118,21 @@ impl Heap {
         let span = Span::start();
         let proc = make();
         let grown = span.end();
-        // A bound past i64::MAX is no bound, including a forward of NO_BOUND.
-        let bound = i64::try_from(worst_case(&proc)).unwrap_or(i64::MAX);
-        *self.procs.get_mut(at).expect("the same process slot") = Held { now: 0, most: 0, bound, largest_bound: bound };
+        *self.procs.get_mut(at).expect("the same process slot") = Held { now: 0, most: 0 };
         self.check(at, grown);
         let held = self.procs.get_mut(at).expect("the replacement's meter");
         held.most = held.most.max(old.most);
-        held.largest_bound = held.largest_bound.max(old.largest_bound);
         proc
     }
 
     fn check(&mut self, at: usize, grown: Grown) {
         let held = self.procs.get_mut(at).expect("a process admitted");
         let most = held.now.checked_add(grown.peak).expect("a heap within an i64");
-        if most > held.bound {
-            let bound = held.bound;
+        if let Some(ceiling) = self.ceiling
+            && u64::try_from(most).expect("a nonnegative peak") > ceiling
+        {
             crate::fail(&format!(
-                "process {at} held {most} bytes at once, past its worst case, {bound} (programming-model.md, 6.3)"
+                "process {at} held {most} bytes at once, past its scenario's ceiling, {ceiling} (testing-strategy.md, 6)"
             ));
         }
         held.most = held.most.max(most);
@@ -154,11 +148,11 @@ impl Heap {
         held
     }
 
-    /// The most each process held at once, and its worst case, by index.
+    /// Each process's peak and the scenario ceiling, or `u64::MAX`, by index.
     pub(crate) fn report(&self) -> Vec<(u64, u64)> {
         let mut report = Vec::with_capacity(self.procs.len());
         for held in &self.procs {
-            report.push((u64::try_from(held.most).unwrap_or(0), u64::try_from(held.largest_bound).unwrap_or(0)));
+            report.push((u64::try_from(held.most).unwrap_or(0), self.ceiling.unwrap_or(u64::MAX)));
         }
         report
     }
@@ -169,9 +163,9 @@ impl Heap {
 pub(crate) struct Metered(pub(crate) Option<Heap>);
 
 impl skein_sim_world::Meter for Metered {
-    fn admit<T>(&mut self, make: impl FnOnce() -> T, worst_case: fn(&T) -> u64) -> T {
+    fn admit<T>(&mut self, make: impl FnOnce() -> T) -> T {
         match &mut self.0 {
-            Some(heap) => heap.admit(make, worst_case),
+            Some(heap) => heap.admit(make),
             None => make(),
         }
     }
@@ -190,9 +184,9 @@ impl skein_sim_world::Meter for Metered {
             }
         }
     }
-    fn restart<T>(&mut self, at: usize, proc: T, make: impl FnOnce() -> T, worst_case: fn(&T) -> u64) -> T {
+    fn restart<T>(&mut self, at: usize, proc: T, make: impl FnOnce() -> T) -> T {
         match &mut self.0 {
-            Some(heap) => heap.restart(at, proc, make, worst_case),
+            Some(heap) => heap.restart(at, proc, make),
             None => {
                 drop(proc);
                 make()

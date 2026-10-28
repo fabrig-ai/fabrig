@@ -28,8 +28,8 @@ pub struct Outcome<P, M = NoMachine> {
     pub iterations: u32,
     /// When the world settled.
     pub end: Time,
-    /// The most heap each process held at once, and its worst case, by
-    /// index, when memory was checked.
+    /// Each process's peak and scenario ceiling, by index, when checked;
+    /// `u64::MAX` when checked without a ceiling.
     pub heap: Option<Vec<(u64, u64)>>,
     /// What each process held of its own once settled, by index, when memory
     /// was checked: what dropping it must free.
