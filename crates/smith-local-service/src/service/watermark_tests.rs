@@ -88,7 +88,6 @@ fn the_backlog_counts_internal_queues_and_never_edges() {
     service.output.push(b"edge".as_slice().into());
     service.shell.push(local::Request::Credential { account: 99 });
     service.interrupt();
-    service.writer_requests().push(skein_io::Request::Close { entity: owner });
     service.writer_events().push(skein_io::Event::Closed { owner });
     assert_eq!(service.backlog(), 0, "all service and process edges are excluded");
     service.local_events.push(local::Event::StateSaved);
@@ -101,4 +100,6 @@ fn the_backlog_counts_internal_queues_and_never_edges() {
     assert_eq!(service.backlog(), 4);
     service.below.process_mut().store_request(smith_local_protocol::StoreRequest::Load);
     assert_eq!(service.backlog(), 5, "process internal handoffs contribute too");
+    service.writer_request(skein_io::Request::Close { entity: owner });
+    assert_eq!(service.backlog(), 6, "writer requests join the internal IO handoff");
 }
