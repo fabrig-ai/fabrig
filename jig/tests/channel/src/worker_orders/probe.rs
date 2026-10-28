@@ -3,15 +3,17 @@
 use crate::processes::Wire;
 use jig_protocol_worker_wire as wire;
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
-use skein_lib::{Queue, Writer};
-use std::collections::VecDeque;
+use skein_lib::{Queue, Reader, Time, Token, Writer};
+use std::collections::{BTreeSet, VecDeque};
 
 // The marker names no run in the one-chat fixture.
-const OTHER_RUN: u64 = 991;
+pub(crate) const OTHER_RUN: u64 = 991;
 const OTHER_ATTEMPT: u64 = 992;
 // Smith's Call record, smith-channel's version-five kind table.
 const PROCESS_CALL: u16 = 0x0107;
 const HEADER: usize = 8;
+// Refusing the extra assignment, taking Cancel and taking the unrelated marker.
+const CALL_PASS_STEPS: u64 = 3;
 
 #[derive(Default)]
 struct Frames {
@@ -42,8 +44,10 @@ impl Frames {
 }
 
 pub(crate) struct Probe {
+    seen: BTreeSet<Token>,
     calls: bool,
     inserted: bool,
+    dummy_inserted: bool,
     native: Frames,
     pipe: Frames,
     pipe_fd: Option<Fd>,
@@ -52,6 +56,7 @@ pub(crate) struct Probe {
     pipe_pending: VecDeque<u8>,
     held_call: Option<Complete>,
     call_stage: bool,
+    call_time: Option<Time>,
     marker_stage: bool,
     marker_queued: bool,
     marker_seen: bool,
@@ -61,8 +66,10 @@ pub(crate) struct Probe {
 impl Probe {
     pub(crate) fn new(calls: bool) -> Self {
         Self {
+            seen: BTreeSet::new(),
             calls,
             inserted: false,
+            dummy_inserted: false,
             native: Frames::default(),
             pipe: Frames::default(),
             pipe_fd: None,
@@ -71,6 +78,7 @@ impl Probe {
             pipe_pending: VecDeque::new(),
             held_call: None,
             call_stage: false,
+            call_time: None,
             marker_stage: false,
             marker_queued: false,
             marker_seen: false,
@@ -82,11 +90,16 @@ impl Probe {
         self.held_call.is_some()
     }
 
-    pub(crate) fn receive(&mut self, input: &mut Queue<Complete>, wire: &Wire) {
+    pub(crate) fn receive(&mut self, now: Time, input: &mut Queue<Complete>, wire: &Wire) {
         self.channel = wire.channel;
         let mut ready = Queue::uncapped();
         for _ in 0..input.len() {
             let mut complete = input.pop().expect("completion count");
+            // IO may leave a completion queued while resuming an earlier stream.
+            if !self.seen.insert(complete.op) {
+                ready.push(complete);
+                continue;
+            }
             if let Op::Spawn { spawn } = &complete.kind
                 && matches!(complete.result, Ok(Done::Spawned { .. }))
             {
@@ -111,11 +124,19 @@ impl Probe {
                 && let Ok(Done::Count(count)) = complete.result
             {
                 let count = usize::try_from(count).expect("receive bytes");
+                if self.calls && self.held_call.is_some() && !self.dummy_inserted && self.native.bytes.is_empty() {
+                    self.dummy_inserted = true;
+                    prepend(&mut self.pending, extra_assignment(wire), &buf[..count]);
+                    let take = buf.len().min(self.pending.len()).min(self.native.room());
+                    for byte in &mut buf[..take] {
+                        *byte = self.pending.pop_front().expect("pending bytes");
+                    }
+                    complete.result = Ok(Done::Count(u32::try_from(take).expect("receive count")));
+                }
                 if !self.calls && !self.inserted && wire.hello_sent() && self.native.bytes.is_empty() {
                     self.inserted = true;
-                    self.pending.extend(prefix());
+                    prepend(&mut self.pending, prefix(), &buf[..count]);
                     self.marker_queued = true;
-                    self.pending.extend(&buf[..count]);
                     let take = buf.len().min(self.pending.len()).min(self.native.room());
                     for byte in &mut buf[..take] {
                         *byte = self.pending.pop_front().expect("pending bytes");
@@ -134,7 +155,8 @@ impl Probe {
                         // The final Call bytes precede the final Cancel bytes in this service iteration.
                         ready.push(call);
                         self.call_stage = true;
-                        self.pending.extend(marker());
+                        self.call_time = Some(now);
+                        prepend(&mut self.pending, marker(), &[]);
                         self.marker_queued = true;
                     }
                     if kind == wire::Kind::TurnKept.number() && self.marker_queued && !self.marker_seen {
@@ -178,15 +200,16 @@ impl Probe {
         }
         Ok(submit)
     }
-    pub(crate) fn stepped(&mut self, steps: u64, waits: u64) {
+    pub(crate) fn stepped(&mut self, now: Time, steps: u64, waits: u64) {
         // Raw kernel bytes may need another IO iteration before the root receives their record.
-        if self.call_stage {
-            assert_eq!(steps, 1, "only the admitted Cancel enters while the process Call waits");
+        if self.call_stage && steps > 0 {
+            assert_eq!(now, self.call_time.expect("Call release clock"), "Cancel progresses before a timer is needed");
+            assert_eq!(steps, CALL_PASS_STEPS, "the extra assignment, Cancel and marker enter while the Call waits");
             self.call_held = true;
             self.call_stage = false;
         }
         if self.marker_stage && steps > 0 {
-            self.marker_passed = if self.calls { self.call_held && steps == 1 } else { waits > 0 };
+            self.marker_passed = if self.calls { self.call_held && steps == CALL_PASS_STEPS } else { waits > 0 };
             self.marker_stage = false;
         }
     }
@@ -239,4 +262,33 @@ fn prefix() -> Vec<u8> {
     let mut bytes = frame.finish().expect("message frame size").bytes().to_vec();
     bytes.extend(marker());
     bytes
+}
+
+// A held assignment precedes the Call while the remaining native records arrive.
+// Once refused for the occupied slot, its output supplies admission pressure for
+// the pass behind the Call. It starts no second agent.
+fn extra_assignment(wire: &Wire) -> Vec<u8> {
+    let (_, _, bytes) = wire
+        .frames
+        .iter()
+        .find(|(_, kind, _)| *kind == wire::Kind::Assignment.number())
+        .expect("the assigned run is already calling");
+    let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("assigned run");
+    let mut parts = assignment.into_parts();
+    parts.task = OTHER_RUN;
+    parts.attempt = OTHER_ATTEMPT;
+    let assignment = wire::Assignment::new(&wire::CEILINGS, parts).expect("extra assignment");
+    let mut body = Writer::new(usize::try_from(assignment.measure()).expect("assignment size"));
+    assignment.encode(&mut body).expect("assignment body");
+    let mut frame =
+        skein_channel::frame_writer(wire::Kind::Assignment.number(), assignment.measure()).expect("assignment frame");
+    frame.put(&body.finish()).expect("assignment frame body");
+    frame.finish().expect("assignment frame size").bytes().to_vec()
+}
+
+fn prepend(pending: &mut VecDeque<u8>, prefix: Vec<u8>, current: &[u8]) {
+    let mut bytes = VecDeque::from(prefix);
+    bytes.extend(current);
+    bytes.append(pending);
+    *pending = bytes;
 }

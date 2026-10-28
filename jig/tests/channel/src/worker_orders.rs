@@ -140,8 +140,9 @@ impl skein_world::Referee<Proc> for Judge {
             .iter()
             .filter(|(_, kind, _)| *kind == wire::Kind::Answer.number())
             .map(|(_, _, bytes)| wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("answer"))
+            .filter(|answer| answer.task() != probe::OTHER_RUN)
             .collect();
-        outcome.acknowledgements = worker.acknowledgements.len();
+        outcome.acknowledgements = worker.acknowledgements.iter().filter(|(run, _)| *run != probe::OTHER_RUN).count();
         outcome.starts = procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count();
         if worker.frames.iter().any(|(_, kind, _)| *kind == wire::Kind::Cancel.number()) {
             let before = *self.starts_at_cancel.get_or_insert(outcome.starts);

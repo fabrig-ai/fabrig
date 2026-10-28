@@ -71,7 +71,7 @@ impl Host for ServiceHost {
         }
         self.relay.receive(now, self.service.completions());
         if let Some(probe) = &mut self.order_probe {
-            probe.receive(self.service.completions(), &self.wire);
+            probe.receive(now, self.service.completions(), &self.wire);
         }
         for complete in self.service.completions().iter() {
             self.wire.complete(complete, self.worker, now);
@@ -82,7 +82,7 @@ impl Host for ServiceHost {
         jig_test_service::iterate(&mut self.service, now, wall);
         let after_waits = self.service.worker(0).map_or(0, |worker| worker.admission_waits());
         if let Some(probe) = &mut self.order_probe {
-            probe.stepped(self.service.root_steps().saturating_sub(steps), after_waits.saturating_sub(waits));
+            probe.stepped(now, self.service.root_steps().saturating_sub(steps), after_waits.saturating_sub(waits));
         }
         self.revision.1 += 1;
         for _ in 0..self.service.submissions().len() {
