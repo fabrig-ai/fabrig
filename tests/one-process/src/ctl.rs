@@ -284,9 +284,6 @@ impl Host for Recorded {
     fn operations(&self) -> u32 {
         self.host.operations()
     }
-    fn worst_case(&self) -> u64 {
-        self.host.worst_case() + 1_048_576
-    }
     fn exit(&self) -> Option<Exit> {
         self.host.exit()
     }

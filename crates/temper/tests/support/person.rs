@@ -751,9 +751,6 @@ impl Host for Person {
     fn is_empty(&self) -> bool {
         self.output.is_none() && self.closing == 0 && self.client.as_ref().is_some_and(Host::is_empty)
     }
-    fn worst_case(&self) -> u64 {
-        self.client.as_ref().map_or(131_072, |client| client.worst_case() + 131_072)
-    }
     fn operations(&self) -> u32 {
         512
     }
