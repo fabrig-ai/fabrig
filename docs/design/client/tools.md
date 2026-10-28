@@ -353,12 +353,12 @@ agent must name.
   takes the default its row names: a template's model choice is
   `{"main": {"model": M, "effort": E}}` alone, its `account` none and
   its `subagents` empty (o/ladder-claude's rung A walk); a required
-  member left out is refused naming its path, `llm.account`. Every refusal a person reads numbers items from 1, the
+  member left out is refused naming its path, `llm.main`. Every refusal a person reads numbers items from 1, the
   decoder's and the engine's alike (jig's index plus one), and names a
   member by its path in the file, `charter.alternatives`, never by the
   wire's limit's name. `null` is refused where a member takes a value:
-  a charter's or an authority's models are `"all"` or a list of model
-  names. jig's kinds are the deployment's; a landing rule names
+  a charter's `model` is a model and its `alternatives` a list, and an
+  authority's models are `"all"` or a list of model names. jig's kinds are the deployment's; a landing rule names
   its scope, the deployment's or a project's, and a set that touches a
   project's needs an owner of it (jig's `domain/people.md`, 5.1).
   `proposal show` prints the values of temper's items from the forge's
