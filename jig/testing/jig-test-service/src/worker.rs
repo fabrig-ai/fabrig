@@ -513,49 +513,7 @@ impl Worker {
     // Smith's process adapter keeps exit waits and reaping active.
     fn process_wait() {}
     fn process_reap() {}
-    pub(super) fn iterate(&mut self, now: Time, wall: Wall) {
-        self.env.now = now;
-        self.env.wall = wall;
-        if !self.started {
-            self.started = true;
-        }
-        self.sources.fire(now, &mut self.source_events, &mut self.io);
-        for _ in 0..self.source_events.len() {
-            let event = self.source_events.pop().expect("source terminal");
-            if self.aborted.is_none() {
-                self.events.push(root::Event::Source(Box::new(event)));
-            }
-        }
-        self.link.fire(now, &mut self.link_out);
-        self.drain_link(now);
-        let mut agents = List::with_capacity(self.processes.len());
-        for (agent, _) in &self.processes {
-            agents.push(*agent).expect("process count");
-        }
-        for agent in &agents {
-            self.processes.get_mut(agent).expect("owned process").fire(now, &mut self.process_events, &mut self.io);
-        }
-        for _ in 0..self.process_events.len() {
-            let event = self.process_events.pop().expect("process events");
-            match &event {
-                host::ProcessEvent::Unspawned { agent, .. } | host::ProcessEvent::Reaped { agent, .. } => {
-                    self.retired.push(*agent).expect("retired processes");
-                }
-                host::ProcessEvent::Spawned { .. }
-                | host::ProcessEvent::Exited { .. }
-                | host::ProcessEvent::Channel { .. } => {}
-            }
-            if self.aborted.is_none()
-                && let Some(event) = worker_route::process(event)
-            {
-                self.events.push(event);
-            }
-        }
-        if self.aborted.is_some() {
-            for _ in 0..self.events.len() {
-                let _event = self.events.pop();
-            }
-        }
+    fn admit_events(&mut self) {
         let mut waiting = Queue::uncapped();
         let mut stopped = false;
         for _ in 0..self.events.len() {
@@ -601,6 +559,51 @@ impl Worker {
                 break;
             }
         }
+    }
+    pub(super) fn iterate(&mut self, now: Time, wall: Wall) {
+        self.env.now = now;
+        self.env.wall = wall;
+        if !self.started {
+            self.started = true;
+        }
+        self.sources.fire(now, &mut self.source_events, &mut self.io);
+        for _ in 0..self.source_events.len() {
+            let event = self.source_events.pop().expect("source terminal");
+            if self.aborted.is_none() {
+                self.events.push(root::Event::Source(Box::new(event)));
+            }
+        }
+        self.link.fire(now, &mut self.link_out);
+        self.drain_link(now);
+        let mut agents = List::with_capacity(self.processes.len());
+        for (agent, _) in &self.processes {
+            agents.push(*agent).expect("process count");
+        }
+        for agent in &agents {
+            self.processes.get_mut(agent).expect("owned process").fire(now, &mut self.process_events, &mut self.io);
+        }
+        for _ in 0..self.process_events.len() {
+            let event = self.process_events.pop().expect("process events");
+            match &event {
+                host::ProcessEvent::Unspawned { agent, .. } | host::ProcessEvent::Reaped { agent, .. } => {
+                    self.retired.push(*agent).expect("retired processes");
+                }
+                host::ProcessEvent::Spawned { .. }
+                | host::ProcessEvent::Exited { .. }
+                | host::ProcessEvent::Channel { .. } => {}
+            }
+            if self.aborted.is_none()
+                && let Some(event) = worker_route::process(event)
+            {
+                self.events.push(event);
+            }
+        }
+        if self.aborted.is_some() {
+            for _ in 0..self.events.len() {
+                let _event = self.events.pop();
+            }
+        }
+        self.admit_events();
         if self.aborted.is_none()
             && (self.root.work_pending()
                 || match self.root.next_deadline() {
@@ -838,13 +841,14 @@ mod admission_tests {
     const WIRE_ROUNDS: u32 = 128;
 
     struct Peer {
-        peer: ScriptedPeer,
+        channel: ScriptedPeer,
         intake: Intake,
         read: stream::Read,
     }
     impl Peer {
         fn new(layer: &mut Worker, input: &[u8]) -> Self {
-            let start = skein_lib::bytes::find(input, b"[{\n").expect("worker member") + 1;
+            let start =
+                skein_lib::bytes::find(input, b"[{\n").expect("worker member").checked_add(1).expect("member start");
             let end = skein_lib::bytes::find(input, b"],\"application\"").expect("worker end");
             let document = config::document(
                 &input[start..end],
@@ -859,7 +863,7 @@ mod admission_tests {
             channel_limits.output_bytes = cap.bytes;
             channel_limits.output_frames = cap.frames;
             let mut peer = Self {
-                peer: ScriptedPeer::new(
+                channel: ScriptedPeer::new(
                     wire::schema(&codec).expect("schema"),
                     skein_channel::Role::Responder,
                     channel_limits,
@@ -896,7 +900,9 @@ mod admission_tests {
                                         }),
                                     },
                                 ),
-                                stream::OutputDown::Send { bytes, .. } => self.peer.feed(&bytes).expect("wire frame"),
+                                stream::OutputDown::Send { bytes, .. } => {
+                                    self.channel.feed(&bytes).expect("wire frame");
+                                }
                                 stream::OutputDown::Cancel { .. } | stream::OutputDown::Release { .. } => {}
                             }
                         }
@@ -904,14 +910,25 @@ mod admission_tests {
                             self.read = read;
                             progressed = true;
                         }
-                        request => waiting.push(request),
+                        request @ (io::Request::Listen { .. }
+                        | io::Request::Connect { .. }
+                        | io::Request::Bind { .. }
+                        | io::Request::Reject { .. }
+                        | io::Request::Stream { .. }
+                        | io::Request::Output { .. }
+                        | io::Request::Spawn { .. }
+                        | io::Request::Signal { .. }
+                        | io::Request::Usage { .. }
+                        | io::Request::Window { .. }
+                        | io::Request::Close { .. }
+                        | io::Request::Abort { .. }) => waiting.push(request),
                     }
                 }
                 while let Some(request) = layer.io.pop() {
                     waiting.push(request);
                 }
                 layer.io = waiting;
-                while let Some(bytes) = self.peer.pop_output() {
+                while let Some(bytes) = self.channel.pop_output() {
                     self.intake.append(&bytes).expect("fixture frame room");
                     progressed = true;
                 }
@@ -932,13 +949,15 @@ mod admission_tests {
             }
             panic!("wire fixture settles");
         }
-        fn turns(&self) -> Vec<u32> {
-            let mut turns = Vec::new();
-            for frame in self.peer.observed() {
+        fn turns(&self) -> List<u32> {
+            let mut turns = List::with_capacity(u32::try_from(self.channel.observed().len()).expect("frame count"));
+            for frame in self.channel.observed() {
                 if frame.kind == wire::Kind::Turn.number() {
-                    turns.push(
-                        wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("turn").number(),
-                    );
+                    turns
+                        .push(
+                            wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("turn").number(),
+                        )
+                        .expect("frame count");
                 }
             }
             turns
@@ -962,10 +981,15 @@ mod admission_tests {
                         root::step(&mut layer.root, &layer.env, root::Event::Encoded { owner, encoded }, &mut out);
                     }
                     root::Request::Link(up) => {
-                        layer.link_down(layer.env.now, link::Event::Up { up, parts: Box::default() })
+                        layer.link_down(layer.env.now, link::Event::Up { up, parts: Box::default() });
                     }
                     root::Request::Process(_) => {}
-                    other => panic!("unexpected scripted hand-out: {other:?}"),
+                    other @ (root::Request::Source { .. }
+                    | root::Request::SourceFault
+                    | root::Request::Hello(_)
+                    | root::Request::CancelRelay { .. }
+                    | root::Request::Stop
+                    | root::Request::Fact { .. }) => panic!("unexpected scripted hand-out: {other:?}"),
                 }
             }
         }
@@ -1032,8 +1056,12 @@ mod admission_tests {
     fn inventory(name: &[u8]) -> root::Event {
         root::Event::Link(LinkDown::Sources { sources: Box::new([SourceName::new(name).expect("source name")]) })
     }
-    fn waiting(layer: &Worker) -> Vec<&root::Event> {
-        layer.events.iter().collect()
+    fn waiting(layer: &Worker) -> List<&root::Event> {
+        let mut events = List::with_capacity(layer.events.len());
+        for event in &layer.events {
+            events.push(event).expect("queued events");
+        }
+        events
     }
 
     #[test]
@@ -1046,8 +1074,8 @@ mod admission_tests {
         layer.events.push(resend(2));
         layer.iterate(Time::ZERO, Wall::EPOCH);
         peer.pump(layer);
-        assert_eq!(peer.turns(), [1, 2, 3, 1, 2], "both resends pass in wire order");
-        assert_eq!(waiting(layer), [&inventory(b"first")]);
+        assert_eq!(peer.turns().as_slice(), [1, 2, 3, 1, 2], "both resends pass in wire order");
+        assert_eq!(waiting(layer).as_slice(), [&inventory(b"first")]);
     }
 
     #[test]
@@ -1062,8 +1090,8 @@ mod admission_tests {
         layer.events.push(resend(3));
         layer.iterate(Time::ZERO, Wall::EPOCH);
         peer.pump(layer);
-        assert_eq!(peer.turns(), [1, 2, 3, 1, 2], "the third resend cannot pass the second inventory");
-        assert_eq!(waiting(layer), [&inventory(b"first"), &inventory(b"second"), &resend(3)]);
+        assert_eq!(peer.turns().as_slice(), [1, 2, 3, 1, 2], "the third resend cannot pass the second inventory");
+        assert_eq!(waiting(layer).as_slice(), [&inventory(b"first"), &inventory(b"second"), &resend(3)]);
         while layer.io.pop().is_some() {}
         layer.iterate(Time::ZERO, Wall::EPOCH);
         peer.pump(layer);
@@ -1072,7 +1100,7 @@ mod admission_tests {
         layer.iterate(Time::ZERO, Wall::EPOCH);
         peer.pump(layer);
         assert!(layer.events.is_empty());
-        assert_eq!(peer.turns(), [1, 2, 3, 1, 2, 3]);
+        assert_eq!(peer.turns().as_slice(), [1, 2, 3, 1, 2, 3]);
     }
 
     #[test]
@@ -1089,15 +1117,16 @@ mod admission_tests {
         layer.events.push(resend(2));
         layer.iterate(Time::ZERO, Wall::EPOCH);
         peer.pump(layer);
-        assert_eq!(peer.turns(), [1, 2, 3, 1], "the walk stops at the dependent cancel");
-        assert!(matches!(
-            waiting(layer).as_slice(),
-            [
-                root::Event::Link(LinkDown::Assign { .. }),
-                root::Event::Link(LinkDown::Cancel { run: OTHER_RUN, attempt: ATTEMPT }),
-                root::Event::Resend { turn: 2, .. }
-            ]
-        ));
+        assert_eq!(peer.turns().as_slice(), [1, 2, 3, 1], "the walk stops at the dependent cancel");
+        let pending = waiting(layer);
+        let [
+            root::Event::Link(LinkDown::Assign { .. }),
+            root::Event::Link(LinkDown::Cancel { run: OTHER_RUN, attempt: ATTEMPT }),
+            root::Event::Resend { turn: 2, .. },
+        ] = pending.as_slice()
+        else {
+            panic!("assignment, cancel and suffix stay in order")
+        };
         while layer.io.pop().is_some() {}
         // Drain wire rights before removing the scripted spawn's unsubmitted IO.
         layer.iterate(Time::ZERO, Wall::EPOCH);
@@ -1105,29 +1134,34 @@ mod admission_tests {
         while layer.io.pop().is_some() {}
         layer.iterate(Time::ZERO, Wall::EPOCH);
         peer.pump(layer);
-        assert_eq!(peer.turns(), [1, 2, 3, 1, 2]);
+        assert_eq!(peer.turns().as_slice(), [1, 2, 3, 1, 2]);
         let process = *layer.processes.iter().last().expect("second process").0;
         layer.step(root::Event::Process(Box::new(smith::process::Event::Unspawned {
             owner: process,
             detail: Box::default(),
         })));
         peer.pump(layer);
-        let mut answers = Vec::new();
-        for frame in peer.peer.observed() {
+        let mut answers = List::with_capacity(u32::try_from(peer.channel.observed().len()).expect("frame count"));
+        for frame in peer.channel.observed() {
             if frame.kind == wire::Kind::Answer.number() {
-                answers.push(wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("answer"));
+                answers
+                    .push(wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(&frame.body)).expect("answer"))
+                    .expect("frame count");
             }
         }
         assert_eq!(answers.len(), 1);
-        assert!(matches!(answers[0].ending(), wire::Ending::Failed(failure)
-            if matches!(failure.failure(), wire::Failure::Cancelled(_))));
+        let wire::Ending::Failed(failure) = answers.get(0).expect("one answer").ending() else {
+            panic!("cancelled answer");
+        };
+        let wire::Failure::Cancelled(_) = failure.failure() else { panic!("cancelled failure") };
         layer.step(root::Event::Link(LinkDown::Acknowledge { run: OTHER_RUN, attempt: ATTEMPT }));
         layer.root.reclaim();
         assert_eq!(layer.root.hosted(), 1, "acknowledgement releases only the cancelled run");
-        assert!(
-            !layer.io.iter().any(|request| matches!(request, io::Request::Spawn { .. })),
-            "no start after cancellation"
-        );
+        for request in &layer.io {
+            if let io::Request::Spawn { .. } = request {
+                panic!("no start after cancellation");
+            }
+        }
     }
 
     // A separate process token makes the retained run's resends unrelated.
@@ -1164,12 +1198,12 @@ mod admission_tests {
         layer.events.push(resend(2));
         layer.iterate(Time::ZERO, Wall::EPOCH);
         peer.pump(layer);
-        assert_eq!(peer.turns(), [1, 2, 3, 1]);
-        assert_eq!(waiting(layer), [&held_call(), &exited(), &resend(2)]);
+        assert_eq!(peer.turns().as_slice(), [1, 2, 3, 1]);
+        assert_eq!(waiting(layer).as_slice(), [&held_call(), &exited(), &resend(2)]);
         while layer.io.pop().is_some() {}
         layer.iterate(Time::ZERO, Wall::EPOCH);
         peer.pump(layer);
-        assert_eq!(peer.turns(), [1, 2, 3, 1, 2]);
+        assert_eq!(peer.turns().as_slice(), [1, 2, 3, 1, 2]);
         assert!(layer.events.is_empty());
     }
 

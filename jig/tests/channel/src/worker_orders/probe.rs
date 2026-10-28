@@ -43,6 +43,10 @@ impl Frames {
     }
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent one-shot stream insertions and admission observations in the fixture"
+)]
 pub(crate) struct Probe {
     seen: BTreeSet<Token>,
     calls: bool,
