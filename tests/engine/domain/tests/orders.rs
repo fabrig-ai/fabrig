@@ -23,17 +23,7 @@ const STEPS: usize = 200;
 // Fill until admission itself witnesses the watermark. The unadmitted probe
 // belongs to this pressure setup, so it does not join the story's input order.
 fn fill_commits(driver: &mut Driver) {
-    let returned = driver.returned;
-    for _ in 0..=driver.env.limits.journal.commits {
-        let probe_at = driver.events.len();
-        driver.sign_in();
-        if driver.returned > returned {
-            // send appends the refusal before release appends any callbacks.
-            driver.events.remove(probe_at).expect("unadmitted pressure probe");
-            return;
-        }
-    }
-    panic!("the backlog reaches the watermark within its commit count");
+    driver.fill_to_watermark();
 }
 
 /// O1: a load's callbacks, left in the root's work queue at the

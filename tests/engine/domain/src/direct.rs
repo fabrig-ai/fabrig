@@ -31,7 +31,7 @@ pub struct Driver {
     pub switches: Vec<usize>,
     /// Every store load the root asked for, by its owner, in order.
     pub loads: Vec<(Token, temper_engine_domain::Range)>,
-    /// How many inputs `try_step` handed back while the journal was full; the
+    /// How many inputs `try_step` handed back at the backlog watermark; the
     /// world offers each again later.
     pub returned: u32,
     /// Other outputs without a durability dependency.
@@ -428,21 +428,30 @@ impl Driver {
             .expect("durable sign-in reply")
     }
 
-    // Leave the newly durable callback behind three later unanswered commits.
+    /// Reach the watermark, removing only this setup's unadmitted probe.
+    /// Release may append callbacks after the probe; those stay in arrival order.
+    pub fn fill_to_watermark(&mut self) {
+        let returned = self.returned;
+        for _ in 0..=self.env.limits.journal.commits {
+            let probe_at = self.events.len();
+            self.sign_in();
+            if self.returned > returned {
+                self.events.remove(probe_at).expect("unadmitted pressure probe");
+                return;
+            }
+        }
+        panic!("the backlog reaches the watermark within its commit count");
+    }
+
+    // Withhold the story's commit while external admission reaches the watermark.
+    // Admitted callbacks need no reservation; durability still gates their release.
     pub fn pressure(&mut self) {
         assert_eq!(self.store.pending.len(), 1);
-        self.sign_in();
-        self.sign_in();
-        assert_eq!(self.store.pending.len(), 3);
-        let number = self.store.apply();
-        self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
-        self.sign_in();
-        assert_eq!(self.store.pending.len(), 3);
+        self.fill_to_watermark();
         for _ in 0..20 {
             self.advance(false);
         }
         assert!(!self.root.quiescent(), "owed callback and store terminals prevent completion");
-        assert_eq!(self.store.pending.len(), 3, "no callback write entered the full journal");
     }
 }
 
