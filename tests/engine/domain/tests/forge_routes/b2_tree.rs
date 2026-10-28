@@ -630,3 +630,5 @@ fn every_row_of_b2s_tree_reads_whole_on_small() {
         );
     }
 }
+#[path = "directory.rs"]
+mod directory;
