@@ -216,10 +216,14 @@ red by earlier failures it does not run (5.3).
   reads the rest at its next run.
 - **A read of landings since a time,** per project, with their
   verdicts and trailers, for a coordinator catching up: `landing list
-  --project PROJECT --newer-than TIME`, from the landing log (section 10):
-  every landing on each adopted repository's landing branch, temper's
-  and those by queue or by anyone else, with the time the engine saw
-  it.
+  --project PROJECT --newer-than TIME`, from the landing log (section 10),
+  with the time the engine saw each: temper's own merges, and each move
+  of a landing branch the engine already watches, a tier's or one a
+  goal's or a change's subscription follows (`forge.md`, 7.2), by queue
+  or by anyone else. The log adds no watch of its own, since each costs
+  a poll and a fresh read at every restart: a push to a main nothing
+  follows is not logged. A coordinator catching up follows its
+  repositories' landings anyway.
 
 ## 9. What the forge shows
 
@@ -277,14 +281,15 @@ red by earlier failures it does not run (5.3).
   push from outside temper), each with its pull request's number, so
   that a late verdict's comment reaches it, its trailers within `trailers` and
   `trailer_bytes`, and each tier's verdict (verifying, cleared, or red
-  with its count); a ring, written at each move of the landing branch
-  and at each verdict, so that a landing's record outlives its changes'
+  with its count); a ring, written at each move of a watched landing
+  branch (section 8), at each merge of temper's and at each verdict, so that a landing's record outlives its changes'
   close and a range's judging.
 - **Limits,** the forge's: `landings_kept` per repository (16 in
   `small`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
   `failing_tests` per run (16), `test_id_bytes` (256), and a tier's
-  name at most 32 bytes.
+  name at most 32 bytes. A main no tier or subscription follows has no
+  log (section 8).
 
 ## 11. Settings
 
