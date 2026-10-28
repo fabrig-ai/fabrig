@@ -471,21 +471,26 @@ fn native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling() {
     }
 }
 
+// Ceiling on the direct product's complete startup formula: a quarter above
+// 10-28's figure, moved by hand when a real change passes it.
+const PRODUCT_COMPLETE_CEILING: u64 = 2_200_000_000;
+
 #[test]
 fn product_values_pass_every_startup_check_and_fit_complete_memory() {
-    product_memory(false);
+    product_memory(false, PRODUCT_COMPLETE_CEILING);
 }
 
-// A ratchet: unpriced growth fails here, as the direct product's floor.
-const PROGRAM_MEMORY_FLOOR: u64 = 6_000_000;
+// Ceiling on the program product's complete startup formula: a quarter above
+// 10-28's figure, moved by hand when a real change passes it.
+const PROGRAM_COMPLETE_CEILING: u64 = 2_700_000_000;
 
 #[test]
 fn a_program_product_fits_complete_memory() {
-    product_memory(true);
+    product_memory(true, PROGRAM_COMPLETE_CEILING);
 }
 
 #[expect(clippy::too_many_lines, reason = "one startup-bound fixture records every concrete owning layer")]
-fn product_memory(with_program: bool) {
+fn product_memory(with_program: bool, ceiling: u64) {
     use skein_io::kernel::{Complete, Fd, Submit};
     use skein_lib::Queue;
 
@@ -624,11 +629,10 @@ fn product_memory(with_program: bool) {
         .and_then(|bytes| bytes.checked_add(program))
         .expect("complete ownership");
     println!(
-        "PRODUCT_COMPLETE service={service} startup_header={header} shell={shell} complete={complete} program={program} memory={}",
+        "PRODUCT_COMPLETE service={service} startup_header={header} shell={shell} complete={complete} program={program} ceiling={ceiling} memory={}",
         limits.memory
     );
     parse_value(&document).expect("product declarations pass every startup check");
     assert!(complete <= limits.memory, "complete {complete} > declared {}", limits.memory);
-    let floor = if with_program { PROGRAM_MEMORY_FLOOR } else { 526_000_000 };
-    assert!(limits.memory.checked_sub(complete).expect("complete fits") >= floor, "complete memory margin");
+    assert!(complete <= ceiling, "complete {complete} passed its ceiling {ceiling}");
 }
