@@ -1354,11 +1354,9 @@ nothing is written.
   erases each neither configured nor named, including orphaned keys.
   Configured sources are spared even without an accounts-family row.
   Every application row is spared: a carried value an application used
-  may still live at its drawn number. **No sweep after a gap:** a
-  start whose people child left a record out erases no digest, and one
-  whose accounts child left one out erases no source record
-  (`../domain/engine.md`, section 6), since what it left out may name
-  them. A value orphaned by a crash
+  may still live at its drawn number. Every link is made before a
+  sweep runs (`../domain/engine.md`, section 6), so a link's panic
+  erases nothing. A value orphaned by a crash
   before the core says used or unused remains there, including an LLM
   key not yet adopted; collecting those values is later work.
 - **A failure stops the engine,** as the store's does (section 6): what a
@@ -2138,7 +2136,7 @@ Each within jig's suites' budgets.
   (testing-strategy.md, section 4).
 - **The restart oracle** (`../domain/engine.md`, section 15): every
   world story ends with a cold restart over its store that restores
-  with nothing left out and reads back what it wrote. The cross-record
+  with every link made and reads back what it wrote. The cross-record
   rules a restore once checked are proved there, writer by writer,
   never re-judged at a start.
 - **Faults come from the world.** The world holds commits between the

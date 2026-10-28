@@ -526,18 +526,14 @@ root's, by the same rule). Nothing is checked again: no family's rules,
 no record's shape beyond its codec, and never who may have written it,
 which authority judged at its commit (authority.md). Writers are
 trusted, so every link is made.
-- **A link that cannot be made,** which only a writer's bug leaves,
-  leaves that record out of the live state, with every record that
-  links through it, to a fixpoint. It stays in the store as written,
-  and the start goes on. Nothing with an unmade link enters memory, so
-  no code meets a dangling reference.
-- **Named:** each child names what it left out in the start's notes,
-  `LeftOut { child, record, why }` (its key in words, the link it could
-  not make), which `me` gives a party with a role in the deployment
-  (11.1) and the application prints at its start.
-- **No sweep after a gap:** a child that left anything out runs no
-  sweep at that start (`../protocol/store.md`, section 9), so no value
-  is erased for a bug.
+- **A link that cannot be made** is a writer's bug, and an assertion
+  where the link is made: the engine panics, its message naming the
+  record's key and the link, and stops as any fail-stop does, until a
+  release that repairs the writer starts it (the user, 10-28). Nothing
+  else is built for it: leaving such a record out so that the start
+  goes on is open (section 16). Every link is made before any sweep
+  runs (`../protocol/store.md`, section 9), so the panic erases no
+  value.
 - **The checks are tests** (section 15): every world story ends with a
   cold restart that restores and reads back what it wrote, and a record
   left out fails a test build; each patch is proved over sample stores
@@ -1302,11 +1298,7 @@ Nothing the core decides depends on a view arriving.
   - authority: their pool in each project, and what they may create,
     the bounds a draft is compared with, their allotment left among
     them;
-  - the templates: each of their projects' merged templates;
-  - with a role in the deployment, the start's notes: each record the
-    last start left out (section 6), its child, its key in words and the
-    link it could not make, at most 64 and then how many more, held in
-    memory until the next start.
+  - the templates: each of their projects' merged templates.
 
   What it carries, field by field, is the client's contract's
   (`../client/domain/contract.md`, 5.1).
@@ -1621,10 +1613,11 @@ in-memory mode, slow or failing a commit; and the engine restarting
 cold, at drawn moments or at one a scenario chooses.
 
 **Every story ends with a cold restart,** the restart oracle (section
-6): the engine restarts over the story's store, restores with nothing
-left out, and reads back what the story wrote (the parties' documents,
+6): the engine restarts over the story's store, restores with every
+link made, and reads back what the story wrote (the parties' documents,
 the tasks' and the children's views) equal to their last answers before
-it. A record left out fails the story, naming the child and the link.
+it. A link that cannot be made panics, failing the story with the
+record and the link.
 This is where the cross-record rules a restore once checked live, one
 writer at a time: each child's rules are the oracle's to prove over
 every writer of its records, never the restore's to judge.
@@ -1732,6 +1725,13 @@ applications' worlds reuse it on jig's conformance world (testing.md,
 section 5).
 
 ## 16. Open questions
+
+- **A record whose link cannot be made,** at a start (section 6): left
+  out of the live state with what links through it, kept in the store,
+  named in the start's notes to a party with a role in the deployment,
+  and its child's sweep skipped, so that a writer's bug costs a record
+  and not the start. For now it panics (the user, 10-28); after the
+  first release.
 
 - **A fresh attempt's tail, lost before its first turn.** An attempt
   that starts fresh from a closed window, or past the resume limit,

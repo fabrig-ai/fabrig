@@ -589,10 +589,7 @@ served is held, kept and unsent, for its owner's version (client.md,
     invalidate it (7.2). The document also gives what they may create
     in each project, as the bounds a draft is compared with (5.3);
     their role in the deployment, if
-    any, and with one, the start's notes: each record the last start
-    left out (`../../domain/engine.md`, section 6), its child, its key
-    in words and the link it could not make, at most 64 and then how
-    many more; the models they may choose in each project, as the brief's
+    any; the models they may choose in each project, as the brief's
     catalogue gives them (`../../domain/engine.md`, section 9): each
     with its LLM provider, window and output, the efforts it takes, its
     prices (amounts per `unit` tokens in the deployment's spend unit;
