@@ -25,4 +25,9 @@ Provisional, 2026-10-28. One Claude session, the user's: it designs, and it runs
 - Places leads and implementers by heavy's waits, memory, disk and load, not by a fixed cap.
 - Orders overlapping work: who goes first; the second rebases and keeps the first's values.
 - Watches the throughput: tasks in flight, merges per hour, a batch's build and test time; a stalled slot or a red batch is looked at at once.
-- Sessions: `claude --bg`, `claude stop <short id>`; resume only a stopped session, with its full id and no other flag, or a copy forks.
+- Sessions: `claude --bg`, `claude stop <short id>`; resume only a stopped session, with its full id and no other flag, or a copy forks. A session starts from a directory Claude trusts (`~/src/rust/...`), its scratch elsewhere.
+- **No branch crosses trees.** An API another tree uses changes in three steps, each its own branch: skein (or the upstream tree) adds the new form beside the old, each downstream crate moves, the old form goes. A sum read downstream goes reader first. So every crate stays one writer's, and no part waits on a branch that spans four trees.
+- **Slots:** each lead holds a fixed share; the rest is a free pool that a lead claims and releases itself with `tools/slots/claim` (run on hel8). The coordinator moves shares when a tree runs dry, not slot by slot.
+- **The queue restarts only through `tools/queue/restart`,** run in a login shell on the gate machine (`bash -lc`): it checks PATH, waits for the batch, and starts `mq` unbuffered.
+- **A task binds what it can check:** for tool configuration (a filter, a profile, a script's flags) the acceptance check binds (the selection unchanged, a count, an exit), not the syntax, which the tool's version decides.
+- **The remedies ledger:** every stall, spurious red or extra round trip that a tool, a rule or a test approach could have prevented is written down with its cost, and its remedy goes where the next agent reads it (a role file, a tool, a test rule) within the hour, so it does not happen twice.

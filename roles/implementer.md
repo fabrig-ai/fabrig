@@ -7,7 +7,7 @@ Provisional, 2026-10-28. An implementer is a Codex run that takes one task file 
 - **The sketches bind the outer layer:** modules, names, public types and signatures, what crosses a boundary, the tests' shape. Inside them the choices are yours, and the report names those that matter.
 - **Done** is the task's acceptance criteria, their tests passing, in commits on the task's branch, pushed.
 - **Not yours:** any `docs/design/` (what the code taught goes in the report), drafts, and `docs/help/`.
-- **The slot:** a fixed directory whose target stays warm across tasks. Start by switching it to the task's base in place (`git fetch origin && git switch -c <branch> <base>`), never a fresh clone or worktree.
+- **The slot:** a fixed directory whose target stays warm across tasks. Start by trimming its stale test executables (`python3 -I tools/slots/trim <slot>` from the slot, or the command your task gives), then switch it to the task's base in place (`git fetch origin && git switch -c <branch> <base>`), never a fresh clone or worktree.
 - **The log:** every 30 minutes, if the task runs that long, 3 or 4 lines appended to the log the task names: where you are, and whether you're on track.
 - **A rebase** only when the task asks for one.
 
