@@ -31,13 +31,8 @@ pub(crate) struct State {
     orphans: Queue<Orphan>,
 }
 impl State {
-    pub fn new(limits: &Limits) -> State {
-        State {
-            task: 0,
-            directory: None,
-            step: Step::Idle,
-            orphans: Queue::with_capacity(capacity(limits).expect("bounded orphan tasks")),
-        }
+    pub fn new(_limits: &Limits) -> State {
+        State { task: 0, directory: None, step: Step::Idle, orphans: Queue::uncapped() }
     }
 }
 fn capacity(limits: &Limits) -> Option<u32> {
@@ -45,6 +40,8 @@ fn capacity(limits: &Limits) -> Option<u32> {
     u32::try_from(limits.store.budget.checked_div(18)?).ok()?.checked_add(super::reservation_count(limits)?)
 }
 pub(crate) fn worst_case(limits: &Limits) -> Option<u64> {
+    // An estimate now: the queue holds what it holds; this count is the most
+    // orphan tasks the budget allows.
     Queue::<Orphan>::worst_case(capacity(limits)?)
 }
 fn attempt_key(store: &mut Store, task: u64, after: Option<u64>) -> Result<Option<keys::Own>, ()> {
@@ -84,7 +81,7 @@ pub(crate) fn queue(store: &mut Store, task: u64, through: u64) -> Option<()> {
     if !pending && attempt_key(store, task, None).ok()?.is_none() {
         return Some(());
     }
-    store.transcripts.drop.orphans.try_push(Orphan { task, after: None, through }).ok()?;
+    store.transcripts.drop.orphans.push(Orphan { task, after: None, through });
     Some(())
 }
 pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Option<()> {
