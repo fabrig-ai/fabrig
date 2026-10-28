@@ -18,7 +18,7 @@ use std::{
 
 pub const TASKS: [u64; 5] = [1, 2, 4, 5, 6];
 pub const CUES: [&str; 5] = [
-    "[Requested by person 1]",
+    "## Replying",
     "[Requested by task 1]",
     "Implement the approved CSV export for widget.",
     "Review this change at the named head",

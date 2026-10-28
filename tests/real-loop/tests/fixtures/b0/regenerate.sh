@@ -7,7 +7,7 @@ heavy env TEMPER_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo run -p temper-twin -- 
   --data "${1:-/home/free/src/rust/tmp/qa-focused/rung-b0-1/data/deployment}" \
   --base tests/real-loop/tests/fixtures/b0/llm-base.json \
   --out tests/real-loop/tests/fixtures/b0/llm.json \
-  --cue '1=[Requested by person 1]' \
+  --cue '1=## Replying' \
   --cue '2=[Requested by task 1]' \
   --cue '4=Implement the approved CSV export for widget.' \
   --cue '5=Review this change at the named head' \
