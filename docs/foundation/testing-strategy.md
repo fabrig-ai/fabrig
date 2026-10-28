@@ -156,8 +156,9 @@ and programs through a fake machine (4.3). Processes come and go: a spawn
 may start another service in the same world.
 
 It is the first tier where the loop runs, so it tests what the loop adds:
-the two passes, `MAX_OUT` reserved at every stage, deadlines across
-layers, and requests made in the down pass reaped in a later iteration.
+the two passes, room checked at the kernel's queues and new work held at
+the root's watermark, deadlines across layers, and requests made in the
+down pass reaped in a later iteration.
 skein's simulated worlds run small example services; a service's run the
 service itself, with skein's as their template.
 
@@ -360,8 +361,8 @@ simulator that drifts from the kernel tests the wrong thing, so:
 The harness checks, in every world and in the simulator:
 
 - **Contracts as it goes:** one terminal event per request, one reply per
-  `ReplyTo`, `MAX_OUT` honoured, no buffer past its cap, and each
-  component's own contracts.
+  `ReplyTo`, no buffer or edge queue past its cap, admitted work always
+  taken (programming-model.md, 7.1), and each component's own contracts.
 - **Invariants once it settles:** no live entities (every slab empty),
   nothing in flight, every record handed back, every child gone and its
   pipes read to the end, every answer taken once; and ownership is a

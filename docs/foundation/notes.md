@@ -35,9 +35,10 @@ are never lost inside a process.
 - **The watermark's unit** (programming-model.md, 7.1) stays entries until
   a root shows that bytes matter.
 - **A slow fact sink.** With no room reserved, facts wait in their queue
-  while a backpressuring sink is slow, and nothing counts them against
-  their root's watermark. Whether that queue joins the backlog, should a
-  trace ever fall behind.
+  while a backpressuring sink is slow. That queue runs from a step to a
+  sink, not between two of a root's children, so no backlog counts it
+  (programming-model.md, 7.1). Whether it should, should a trace ever
+  fall behind.
 - **Narrow services may keep their caps.** A daemon with few entity kinds
   and one message size (hearth) can keep the static model; the rule lets
   a service keep a cap where it has one.

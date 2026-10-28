@@ -353,8 +353,9 @@ against fakes, or its `iterate` on the simulator.
     machines it composes (`skein-llm` composes HTTP, SSE and provider JSON).
     It knows neither io nor a service's domain; the individual machines
     retain their lib-only dependencies.
-  - Each machine pulls from the one below only when it has room to push
-    up.
+  - Each machine pulls from the one below only when the one above
+    demands (4.3), so a connection's input waits at its edge, the
+    unparsed input below, and never in a queue between two machines.
   - **Machines keep no timers.** Each says what it is waiting for, and the
     connection arms the deadlines, in one place (5.4, section 9).
 
@@ -668,7 +669,8 @@ follow_state(conn, id, env, timers, down);  // demand and progress deadline, in 
   requests, a party's calls) has its cap from the limits, and a full one
   is a refusal at that layer's entrance, which is where refusals belong
   anyway (section 7). A slab of entities that admitted work makes has no
-  cap of its own.
+  cap of its own. A narrow service (few entity kinds, one message size)
+  may keep caps inside, and then refuses at them as at an entrance.
 - **A queue has a cap only at an edge.** A queue that something outside
   the process fills or drains (the kernel's submissions and completions,
   a host's channel, a connection's queued output) has its cap from the
@@ -822,13 +824,17 @@ one place arms and re-arms it (5.4), not every handler.
   that starts work, a forge event, a timer that starts work, a setup or
   a restart. Past the watermark admission hands the event back, the loop
   offers it again, and peers wait as they do at any busy answer. An event
-  that mixes new and admitted work is split, so that only its new work
-  waits.
+  that mixes new and admitted work is split: the root takes the admitted
+  part and hands back the rest, an event of its own that holds only the
+  new work, so that nothing taken is offered twice.
 - **What is always taken:** completions, the store's answers, io's
   results, released deliveries. The backlog then always drains, and
-  admission cannot deadlock. What is taken still waits on a real sink (a
-  socket's or a destination's credit, the channel to the host, a file
-  table), never on room between two of the root's own children.
+  admission cannot deadlock: what drains the backlog (the store's
+  answers, the root's own releases) comes from sources that are never
+  handed back, so no waiting event stands in front of it. What is taken
+  still waits on a real sink (a socket's or a destination's credit, the
+  channel to the host, a file table), never on room between two of the
+  root's own children.
 - **The watermark** is one number per root, a field of its `Limits`,
   defaulting to what keeps pacing close to a design with room checks. It
   limits pacing, not memory: a backlog may pass it by one admitted
